@@ -7,7 +7,7 @@
 
 ## dpkg 是什麼
 
-Debian/Ubuntu 的**底層套件管理工具**,負責安裝、移除、查詢 `.deb` 檔案。
+dpkg（Debian Package）是 Debian/Ubuntu 的**底層套件管理工具**,負責安裝、移除、查詢 `.deb` 檔案。
 
 `apt` 其實是包在 `dpkg` 外面的高階工具,多幫你處理了「下載」和「相依性解析」:
 
@@ -19,7 +19,7 @@ apt  →  下載 + 解相依  →  最後還是呼叫  →  dpkg  →  真正把
 
 ## dkms 是什麼
 
-**DKMS = Dynamic Kernel Module Support**,一個專門處理**核心模組(kernel module / driver)**的框架。
+**DKMS（Dynamic Kernel Module Support，動態核心模組支援）**,一個專門處理**核心模組(kernel module / driver)**的框架。
 
 它要解決的痛點:
 

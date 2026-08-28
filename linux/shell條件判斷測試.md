@@ -195,7 +195,7 @@ $ [[ "nvidia_drm" == nvidia* ]] && echo "萬用字元比對成功"
 | | `[ ]` / `test` | `[[ ]]` |
 |---|---|---|
 | 本質 | **命令**（builtin + `/usr/bin/[`） | **語法關鍵字** |
-| 可攜性 | POSIX，所有 shell 都有 | bash / zsh / ksh，**dash 沒有** |
+| 可攜性 | POSIX（Portable Operating System Interface，可攜式作業系統介面標準），所有 shell 都有 | bash / zsh / ksh，**dash 沒有** |
 | 變數要加引號 | **必須** | 不必 |
 | 邏輯運算 | `-a` / `-o`（易出錯，已不建議） | `&&` / `\|\|` |
 | 萬用字元比對 | 不支援 | `[[ $x == nvidia* ]]` |

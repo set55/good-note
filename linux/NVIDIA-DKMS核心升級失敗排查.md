@@ -1,7 +1,7 @@
 # apt upgrade 時 NVIDIA DKMS 模組編譯失敗（新核心不相容）— 完整實戰紀錄
 
 > 日期：2026-07-17
-> 環境：Ubuntu 24.04 (HWE)、Optimus 雙顯卡筆電（Intel UHD 630 + NVIDIA RTX 2060 Mobile）
+> 環境：Ubuntu 24.04 (HWE，Hardware Enablement，硬體支援堆疊：讓較新硬體用上較新核心與驅動的更新機制)、Optimus 雙顯卡筆電（Intel UHD 630 + NVIDIA RTX 2060 Mobile）
 > 結果：由 `nvidia-driver-570-open` 升級到 `nvidia-driver-595-open`，兩個核心（6.17.0-40 / 7.0.0-28）皆成功
 
 ---
@@ -21,7 +21,8 @@
 ## 一、問題現象
 
 執行 `sudo apt upgrade` 時，系統要安裝新的 HWE 核心 `7.0.0-28-generic`，
-但 NVIDIA 驅動的 DKMS 模組在為新核心編譯時失敗，導致核心 postinst 失敗，
+但 NVIDIA 驅動的 DKMS（Dynamic Kernel Module Support，動態核心模組支援；詳見
+[dpkg與dkms的關係.md](./dpkg與dkms的關係.md)）模組在為新核心編譯時失敗，導致核心 postinst 失敗，
 apt 卡在半設定狀態（套件狀態出現 `iF` / `iU`）。
 
 **重點：當下正在跑的舊核心 `6.17.0-40-generic` 上 nvidia 仍正常，沒有立即風險，只是升級沒收尾。**
@@ -155,7 +156,7 @@ grep -E '2026-07-17' /var/log/dpkg.log | grep -Ei 'nvidia|linux-(image|headers)-
 ## 四、確認顯卡與新驅動相容
 
 ```bash
-lspci -nn | grep -Ei 'vga|3d|display'                                  # 顯卡型號 + PCI ID
+lspci -nn | grep -Ei 'vga|3d|display'                                  # 顯卡型號 + PCI ID（VGA 這裡是 lspci 對「顯示裝置」這個類別的稱呼，跟實體 VGA 接頭無關）
 nvidia-smi --query-gpu=name,driver_version,memory.total --format=csv   # 目前驅動讀不讀得到卡
 ubuntu-drivers devices                                                 # ★ 針對本機 GPU 的相容/推薦
 ```
@@ -165,7 +166,7 @@ ubuntu-drivers devices                                                 # ★ 針
 driver : nvidia-driver-595-open - distro non-free recommended   ← 推薦
 ```
 **判斷相容性的三個確認點：**
-1. **`ubuntu-drivers devices` 標 `recommended`** —— 它拿 GPU 的 PCI ID（`10DE:1F11`）比對驅動內建支援清單得出，最權威。
+1. **`ubuntu-drivers devices` 標 `recommended`** —— 它拿 GPU（Graphics Processing Unit，顯示晶片）的 PCI（Peripheral Component Interconnect，週邊裝置互連匯流排）ID（`10DE:1F11`）比對驅動內建支援清單得出，最權威。
 2. **RTX 2060 = TU106 = Turing 架構** —— NVIDIA open module（`-open`）要求 Turing 或更新，剛好達標。
 3. **本來就在跑 `-open` 版** —— 570-open → 595-open 是同線升級，不換 flavor，風險最小。
 
@@ -238,7 +239,7 @@ libnvidia-egl-xcb1  libnvidia-egl-xlib1  nvidia-firmware-570  nvidia-modprobe
 ```
 **怎麼看：** 全是 570 時代 / 已被取代的套件，沒有任何 595 → 放心 y。
 > `autoremove` / 大量移除前**一定先看清單**：出現 `nvidia-driver-595-*`、`libnvidia-gl-595` 或桌面 meta 套件就要喊停。
-> `nvidia-modprobe` 只有「無 X 的純 CUDA/headless」情境才需要，桌面用不到；日後要再 `sudo apt install nvidia-modprobe` 補回。
+> `nvidia-modprobe` 只有「無 X（X Window System，Linux 圖形視窗系統）的純 CUDA（Compute Unified Device Architecture，NVIDIA 的 GPU 通用運算架構）/headless」情境才需要，桌面用不到；日後要再 `sudo apt install nvidia-modprobe` 補回。
 
 ---
 
@@ -259,7 +260,7 @@ dpkg -l | grep -E '^i[FU]'
 ```
 回應：**（空）** → 代表沒有 `iF`/`iU`，apt 狀態恢復正常。
 
-### 6-3. initramfs 是否需要手動重建？——不用，已自動處理
+### 6-3. initramfs（initial RAM filesystem，開機早期用的暫存根檔案系統）是否需要手動重建？——不用，已自動處理
 過程中常看到 `update-initramfs: deferring update (trigger activated)`，
 那是 dpkg 把 initramfs 更新**延後累積**，等整批結束的觸發器階段
 （`Processing triggers for initramfs-tools` / `linux-image-7.0.0-28`）一次重建。
@@ -283,7 +284,7 @@ sudo reboot
 uname -r      # 期望 7.0.0-28-generic
 nvidia-smi    # 期望 RTX 2060 + Driver Version: 595.71.05
 ```
-> 萬一新核心黑畫面：grub → Advanced → 選 `6.17.0-40-generic`（該核心的 595 模組也編好了）仍可正常開機。
+> 萬一新核心黑畫面：grub（GRUB，GRand Unified Bootloader，開機管理程式）→ Advanced → 選 `6.17.0-40-generic`（該核心的 595 模組也編好了）仍可正常開機。
 
 ---
 

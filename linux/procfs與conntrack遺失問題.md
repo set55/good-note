@@ -1,4 +1,4 @@
-# procfs（`/proc`）是什麼，以及為什麼 `/proc/net/nf_conntrack` 不存在
+# procfs（process filesystem，行程檔案系統，即 `/proc`）是什麼，以及為什麼 `/proc/net/nf_conntrack` 不存在
 
 > 日期：2026-07-25
 > 起因：`lsmod` 明明看得到 `nf_conntrack` 已載入，但 `/proc/net/nf_conntrack` 卻不存在
@@ -89,7 +89,7 @@ Unix 哲學是 "everything is a file"。與其為「查行程列表」「查記�
 
 ### 3-1 數字目錄 = 每個行程一個
 
-`ls /proc` 看到的 `1`、`10`、`1023`… 那些數字就是 PID：
+`ls /proc` 看到的 `1`、`10`、`1023`… 那些數字就是 PID（Process ID，行程識別碼）：
 
 ```bash
 cat /proc/self/cmdline    # 命令列（用 \0 分隔，可搭配 tr '\0' ' '）
@@ -110,7 +110,7 @@ cat /proc/self/environ    # 環境變數
 | `/proc/meminfo` | 記憶體各項統計 | `free` |
 | `/proc/mounts` | 掛載表 | `mount`（無參數時） |
 | `/proc/modules` | 已載入模組 | `lsmod` |
-| `/proc/net/tcp` | TCP 連線表 | `netstat` / `ss`（`ss` 主要走 netlink） |
+| `/proc/net/tcp` | TCP（Transmission Control Protocol，傳輸控制協定）連線表 | `netstat` / `ss`（`ss` 主要走 netlink） |
 | `/proc/net/stat/nf_conntrack` | conntrack 的 per-CPU 統計 | `conntrack -S` |
 
 > 注意最後一列：`/proc/net/stat/nf_conntrack`（統計）**存在**，`/proc/net/nf_conntrack`（連線列表）**不存在**。兩個不同的東西，別看到名字像就以為是同一個。
@@ -214,7 +214,7 @@ cat /proc/net/stat/nf_conntrack                   # per-CPU 統計原始數字
 | 介面 | 設計原則 | 現在該放什麼 |
 |------|----------|--------------|
 | **procfs** `/proc` | 早期，格式自由、一檔多值 | 行程資訊（它的本分）、`/proc/sys` 參數 |
-| **sysfs** `/sys` | 一個檔案一個值，嚴格對應裝置模型 | 裝置 / 驅動 / bus 屬性 |
+| **sysfs（system filesystem，系統檔案系統）** `/sys` | 一個檔案一個值，嚴格對應裝置模型 | 裝置 / 驅動 / bus 屬性 |
 | **netlink** | socket 式 API，二進位、可訂閱事件 | 網路狀態與統計（`ss`、`ip`、`conntrack` 都走這條） |
 
 `CONFIG_NF_CONNTRACK_PROCFS` 被 deprecated，就是這股「把東西推離 procfs」潮流的一部分。
