@@ -15,6 +15,8 @@
 | [查詢轉發表與路由表.md](./查詢轉發表與路由表.md) | Linux 的 forwarding table 其實就是核心路由表；`ip route show` 各欄位意義、最長前綴匹配 + metric 的判斷邏輯、用 `ip route get` 直接驗證 | `ip route` `route -n` `netstat -rn` `ip neigh` `ip_forward` `longest prefix match` |
 | [tmux重命名session.md](./tmux重命名session.md) | tmux session 改名的三種方式：指令、指定 session、快捷鍵 | `tmux` `rename-session` |
 | [SSH走代理設定.md](./SSH走代理設定.md) | 讓 ssh 連線走 HTTP/SOCKS 代理的幾種方式：`ProxyCommand` + `nc`/`connect`，以及走跳板機的 `ProxyJump` | `ssh` `ProxyCommand` `ProxyJump` `socks5` `nc` `connect` |
+| [查詢目前使用的DNS伺服器.md](./查詢目前使用的DNS伺服器.md) | 用 `resolvectl status` 查真正的上游 DNS；`cat /etc/resolv.conf` 在 systemd-resolved 系統上常只會看到本機 stub resolver `127.0.0.53`，不是真正的伺服器；並逐欄解讀 `resolvectl status` 輸出（`Scopes`、`+DefaultRoute`、Docker bridge 介面為何顯示 `none`），以及 stub resolver 與 full/recursive resolver 的差異 | `resolvectl` `systemd-resolved` `/etc/resolv.conf` `stub resolver` `recursive resolver` `nmcli` `dig` `DefaultRoute` `Current Scopes` `LLMNR` `mDNS` `DNSSEC` |
+| [確認網路介面是否使用DHCP.md](./確認網路介面是否使用DHCP.md) | 三個訊號判斷網路是不是 DHCP 自動配發：`ip route show` 的 `proto dhcp`、`ip addr show` 的 `dynamic` 旗標與有限 `valid_lft`（固定 IP 是 `forever`），以及 NetworkManager 連線設定檔的 `ipv4.method`（`auto`/`manual`） | `dhcp` `ip route` `proto dhcp` `valid_lft` `dynamic` `nmcli` `ipv4.method` `dhclient` |
 
 ## 常用診斷命令速查（跨筆記通用）
 
