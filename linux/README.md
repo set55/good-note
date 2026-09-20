@@ -6,10 +6,10 @@
 
 - [通用方法論](#通用方法論)（1 篇）
 - [套件管理（dpkg / dkms）](#套件管理dpkg--dkms)（3 篇）
-- [核心與驅動](#核心與驅動)（3 篇）
-- [網路基礎與設定](#網路基礎與設定)（5 篇）
+- [核心與驅動](#核心與驅動)（4 篇）
+- [網路基礎與設定](#網路基礎與設定)（11 篇）
 - [網路查詢與追蹤](#網路查詢與追蹤)（4 篇）
-- [Shell 與重新導向](#shell-與重新導向)（3 篇）
+- [Shell 與重新導向](#shell-與重新導向)（6 篇）
 - [終端機與 tmux](#終端機與-tmux)（3 篇）
 - [桌面環境（GNOME）](#桌面環境gnome)（1 篇）
 
@@ -40,6 +40,7 @@
 | [NVIDIA-DKMS核心升級失敗排查.md](./NVIDIA-DKMS核心升級失敗排查.md) | `apt upgrade` 時 NVIDIA DKMS 模組對新核心編譯失敗，由 570-open 升級到 595-open 的完整排查與收尾 | `dkms` `nvidia` `apt` `kernel` `iF/iU` `force-overwrite` `initramfs` |
 | [核心模組檢查.md](./核心模組檢查.md) | 核心模組的三層「安裝」概念（載入中／檔案就位／套件提供）、各層查法，以及「驅動裝了卻沒作用」的排查順序 | `lsmod` `modinfo` `modprobe` `vermagic` `lspci -k` `dkms` `secure boot` `initramfs` |
 | [procfs與conntrack遺失問題.md](./procfs與conntrack遺失問題.md) | `/proc` 虛擬檔案系統的本質與兩大類內容；為何模組載入了 `/proc/net/nf_conntrack` 仍不存在（編譯期 vs 執行期） | `procfs` `/proc/sys` `sysctl` `nf_conntrack` `netlink` `sysfs` `kernel config` |
+| [sysctl是什麼-核心參數的讀寫與持久化.md](./sysctl是什麼-核心參數的讀寫與持久化.md) | sysctl 只是 `/proc/sys` 的命令列包裝，「調參數」就是「寫檔案」；可寫與否看檔案權限（唯讀的是儀表不是旋鈕）、持久化三目錄的兩層載入規則（檔名排序 vs 同名時目錄優先權）、`-` 前綴代表參數不存在就略過，以及「改了沒生效」的五個原因——含實測 `net.*` 是每個 network namespace 各一份，主機調了不影響容器 | `sysctl -a` `sysctl -w` `sysctl -p` `sysctl --system` `/proc/sys` `/etc/sysctl.d` `/usr/lib/sysctl.d` `systemd-sysctl` `somaxconn` `inotify.max_user_watches` `vm.max_map_count` `netns` `docker --sysctl` `all vs default` |
 
 ### 網路基礎與設定
 
@@ -52,6 +53,12 @@
 | [查詢目前使用的DNS伺服器.md](./查詢目前使用的DNS伺服器.md) | 用 `resolvectl status` 查真正的上游 DNS；`cat /etc/resolv.conf` 在 systemd-resolved 系統上常只會看到本機 stub resolver `127.0.0.53`，不是真正的伺服器；並逐欄解讀 `resolvectl status` 輸出（`Scopes`、`+DefaultRoute`、Docker bridge 介面為何顯示 `none`），以及 stub resolver 與 full/recursive resolver 的差異 | `resolvectl` `systemd-resolved` `/etc/resolv.conf` `stub resolver` `recursive resolver` `nmcli` `dig` `DefaultRoute` `Current Scopes` `LLMNR` `mDNS` `DNSSEC` |
 | [查詢轉發表與路由表.md](./查詢轉發表與路由表.md) | Linux 的 forwarding table 其實就是核心路由表；`ip route show` 各欄位意義、最長前綴匹配 + metric 的判斷邏輯、用 `ip route get` 直接驗證 | `ip route` `route -n` `netstat -rn` `ip neigh` `ip_forward` `longest prefix match` |
 | [SSH走代理設定.md](./SSH走代理設定.md) | 讓 ssh 連線走 HTTP/SOCKS 代理的幾種方式：`ProxyCommand` + `nc`/`connect`，以及走跳板機的 `ProxyJump` | `ssh` `ProxyCommand` `ProxyJump` `socks5` `nc` `connect` |
+| [讓整個系統走SOCKS5代理.md](./讓整個系統走SOCKS5代理.md) | Linux 沒有「全系統代理」——`all_proxy` 只是環境變數慣例，只有願意讀它的程式才理；四層方案（環境變數／各程式設定檔／`LD_PRELOAD` 攔截／TUN 虛擬網卡）與各自涵蓋範圍；實測 `.zshrc` 只對互動 shell 有效、`socks5://` 與 `socks5h://` 的 DNS 差別、wget 完全不支援 SOCKS、`sudo` 會清掉變數 | `all_proxy` `socks5h` `http_proxy` `no_proxy` `/etc/environment` `environment.d` `.zshenv` `pam_env` `sudo env_keep` `httpoxy` `apt.conf.d` `gsettings proxy` `proxychains4` `LD_PRELOAD` `TUN mode` `clash-verge` `redsocks` |
+| [clash-verge怎麼用-流量要先進得去核心.md](./clash-verge怎麼用-流量要先進得去核心.md) | clash-verge 是 GUI 外殼，幹活的是 `verge-mihomo` 核心，TUN 靠 root helper；重點不是按哪個鈕，而是流量用哪條路進核心（系統代理／TUN／手動指埠）——實測本機核心在跑但連線數為 0 完全空轉；含 fake-ip 為何是 TUN 的關鍵、proxy-group 與規則分流、把自架 SOCKS5 接進來的正確位置（Merge 而非產生物）、六個誤判坑與救援順序 | `clash-verge` `verge-mihomo` `mihomo` `TUN mode` `service mode` `CAP_NET_ADMIN` `mixed-port` `external-controller` `fake-ip` `dns-hijack` `auto-route` `strict-route` `gvisor` `proxy-group` `Selector` `URLTest` `MATCH` `/connections` |
+| [iptables與nftables怎麼用.md](./iptables與nftables怎麼用.md) | 兩者不是兩套防火牆而是 netfilter 的兩代前端——實測 Ubuntu 上的 `iptables` 其實是 `iptables-nft` 相容層（`iptables -V` 顯示 `(nf_tables)`），OpenWrt 24.10 則連裝都沒裝 iptables；含五個 hook 的封包路徑（三條路線＋完整流程圖）、hook 與 jump 為何是兩回事、`accept`／`drop` 的作用範圍、`nat` 鏈只處理每條連線首包、`iifname`／`oifname` 靠「這個 hook 知不知道答案」來記、iptables 四表五鏈與 nft 自宣告 table/chain 的用法、官方 `iptables-translate` 實測產生的語法對照表、`-A` vs `-I` 順序陷阱、`nft -f` 的原子更新、為什麼 Ubuntu 上除了 Docker 什麼規則都沒有，以及規則沒作用時的五步排查 | `iptables` `nftables` `nft` `netfilter` `iptables-nft` `iptables-legacy` `update-alternatives` `hook` `prerouting` `postrouting` `conntrack` `ct state` `MASQUERADE` `DNAT` `SNAT` `handle` `vmap` `set` `iptables-translate` `nft -f` `iptables-save` `DROP vs REJECT` |
+| [nft規則語法逐字拆解.md](./nft規則語法逐字拆解.md) | 把 `type filter hook forward priority filter; policy drop;` 這類句子拆到每個 token：`type` 的三種值（filter／nat／route）、`priority` 的名字即數字常數、同一行兩個 `filter` 為何意思不同、`;` 是子句結束符；以及規則＝「比對（AND）＋依序執行的動作」、`{}` 的四種用途、`.` 串接、`&`/`==` 位元遮罩為何比 `tcp flags syn` 精確，含 MSS clamping、`limit` 令牌桶、`counter` 不用自己填數字等實例（範例取自 OpenWrt fw4 規則集） | `table` `chain` `rule` `family inet` `type filter/nat/route` `hook` `priority` `policy` `expression` `statement` `vmap` `匿名集合` `concatenation` `tcp flags 遮罩` `ct state` `meta nfproto` `meta l4proto` `counter` `limit burst` `masquerade` `reject with tcp reset` `jump/goto/return` `maxseg MSS clamping` |
+| [netstat怎麼用-以及該改用ss的理由.md](./netstat怎麼用-以及該改用ss的理由.md) | 讀懂三欄就有方向：`Local Address` 決定誰連得到（實測 clash 綁 `127.0.0.1:7897` 正是 `allow-lan: false` 的效果）、`State` 看連線走到哪、`Recv-Q/Send-Q` 在 ESTABLISHED 與 LISTEN 下意義完全不同（後者是 accept 佇列與 backlog 上限）；另含 `TIME_WAIT` 是協定正常而 `CLOSE_WAIT` 是程式沒關 socket 的責任歸屬、netstat→ss 對照與 ss 為何更快 | `netstat -tulnp` `ss` `net-tools` `iproute2` `sock_diag` `Recv-Q` `Send-Q` `backlog` `somaxconn` `LISTEN` `TIME_WAIT` `CLOSE_WAIT` `SYN_SENT` `0.0.0.0 vs 127.0.0.1` `allow-lan` `lsof -i` `ss -tni` `netns` |
+| [什麼是backlog-TCP交握背後的兩個佇列.md](./什麼是backlog-TCP交握背後的兩個佇列.md) | 連線是核心建的、程式 `accept()` 只是領走，所以中間需要佇列——這就是 backlog；三向交握對應 SYN queue 與 Accept queue 兩個佇列，上限分別來自 `tcp_max_syn_backlog` 與 `min(listen backlog, somaxconn)`；Accept queue 滿時預設「默默丟棄 ACK」，所以體感是偶爾很慢而非連線被拒；含本機 511/200/64/4096 各自的來源與 `ListenOverflows` 判斷法 | `backlog` `listen()` `accept()` `SYN queue` `accept queue` `somaxconn` `tcp_max_syn_backlog` `tcp_syncookies` `tcp_abort_on_overflow` `ListenOverflows` `ListenDrops` `nstat` `ss -ltn` `SYN_RECV` `SYN flood` |
 
 ### 網路查詢與追蹤
 
@@ -72,7 +79,10 @@ shell 的語法真相與 fd 0／1／2 這三條線怎麼接。
 |------|------|--------|
 | [shell條件判斷測試.md](./shell條件判斷測試.md) | `[` 其實是命令不是語法，由此推出空格與引號的所有規則；`[ ]` / `[[ ]]` / `(( ))` 的取捨與 dash 可攜性陷阱 | `test` `[[ ]]` `(( ))` `exit status` `quoting` `dash` `sh` |
 | [輸出重新導向與dev-null.md](./輸出重新導向與dev-null.md) | fd 0／1／2 是三條獨立的線；`/dev/null` 是寫入即丟、讀取即 EOF 的字元裝置；`2>&1` 是複製 fd 1「當下」的連接，所以 `>/dev/null 2>&1` 與 `2>&1 >/dev/null` 結果不同；`2>1` 會建立名為 `1` 的檔案；`$2` 是位置參數與重新導向無關 | `/dev/null` `2>&1` `&>` `stdin` `stdout` `stderr` `file descriptor` `redirection` `pipe` `positional parameter` |
+| [fd是什麼-行程的檔案描述符表.md](./fd是什麼-行程的檔案描述符表.md) | fd 只是行程 fd 表的整數索引，編號離開行程就沒意義；關鍵是「fd → open file description → inode」三層結構，`dup`／`fork` 共享中間那層（共用 offset）而兩次 `open` 不共享；實測 chrome 479 個 fd 的型別分布（socket／pipe／eventfd／epoll／`(deleted)`）說明「一切皆檔案」，含 `(deleted)` 造成 df/du 對不上、`EMFILE` vs `ENFILE` 三層上限、以及 fd 洩漏與 `CLOSE_WAIT` 的交叉驗證 | `file descriptor` `/proc/PID/fd` `open file description` `offset` `dup` `dup2` `fork` `SCM_RIGHTS` `socket:[]` `anon_inode` `eventfd` `epoll` `(deleted)` `lsof +L1` `ulimit -n` `fs.nr_open` `fs.file-max` `EMFILE` `ENFILE` `LimitNOFILE` `fd leak` |
 | [從終端機啟動GUI程式並脫離終端機.md](./從終端機啟動GUI程式並脫離終端機.md) | 關終端機程式跟著死是因為 shell 把 SIGHUP 轉發給 job、一直印輸出是因為 stdout/stderr 繼承自 pty；兩者要分開處理——`setsid -f prog >/dev/null 2>&1` 最徹底；另說明 `code` 本身就會 detach 的特例 | `setsid` `nohup` `disown` `&!` `SIGHUP` `session` `controlling terminal` `/dev/null` `xdg-open` `gtk-launch` `pgrep` `pstree` |
+| [bin與sbin的差別-以及怎麼正確找到執行檔.md](./bin與sbin的差別-以及怎麼正確找到執行檔.md) | `bin` vs `sbin` 看「一般使用者執行有沒有意義」（iptables 套件裡只有純文字處理的 `iptables-xml` 被放進 `/usr/bin` 是最好的例證），`/` vs `/usr` 看開機早期需不需要——但 usrmerge 後 `/bin`→`usr/bin` 已是符號連結，第二個維度消失；並說明為何該用 `command -v`／`type -a` 問系統而不是憑慣例猜路徑 | `FHS` `/bin` `/sbin` `/usr/bin` `/usr/sbin` `usrmerge` `command -v` `type -a` `which` `whereis` `readlink -f` `dpkg -S` `dpkg -L` `PATH` `/usr/local` `DEP17` |
+| [錢字號展開的四種形式-bad-substitution的根因.md](./錢字號展開的四種形式-bad-substitution的根因.md) | `${}` 是參數展開（裡面只能放變數名＋運算子）、`$()` 才是命令替換，把指令寫進 `${}` 會在解析階段就報 `bad substitution`；另含雙引號擋不住 `${}` 展開（只有單引號能）、反引號的三個缺點，以及實測「zsh 不對 `$var` 分詞但仍會對 `$(...)` 分詞」的常見誤解 | `${}` `$()` `$(())` `<()` `bad substitution` `parameter expansion` `command substitution` `arithmetic expansion` `process substitution` `word splitting` `IFS` `backtick` `quoting` `zsh vs bash` |
 
 ### 終端機與 tmux
 

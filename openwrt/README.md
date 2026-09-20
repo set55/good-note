@@ -1,0 +1,16 @@
+# OpenWrt 筆記索引
+
+這個目錄收錄 OpenWrt 路由器的設定、透明代理與排查紀錄。
+
+## 筆記列表
+
+| 筆記 | 主題 | 關鍵字 |
+|------|------|--------|
+| [路由器上的透明代理-為什麼不是TUN模式.md](./路由器上的透明代理-為什麼不是TUN模式.md) | TUN 攔的是「本機自己產生」的流量，路由器上的是「幫別人轉發」的流量，兩者在核心走不同路徑——轉發流量要用 TPROXY／REDIRECT；含三方案對照、REDIRECT 為何不支援 UDP、TPROXY 三個零件（`IP_TRANSPARENT`／fwmark 策略路由／nftables tproxy）的分工，以及本機實測缺少 `kmod-nft-tproxy` | `tproxy` `redirect` `nftables` `fw4` `ip rule fwmark` `local 0.0.0.0/0 dev lo` `IP_TRANSPARENT` `SO_MARK` `dokodemo-door` `kmod-nft-tproxy` `nft_redir` `app/tun` `conntrack` `dnsmasq` |
+| [用dokodemo-door做TPROXY透明代理.md](./用dokodemo-door做TPROXY透明代理.md) | 實作篇：TPROXY 要三個零件同時成立——dokodemo-door 的 `sockopt.tproxy`（收得到非本機目的的封包）、`ip rule fwmark` + `route local`（讓封包留在本機，漏掉就是「規則寫了沒作用」的頭號原因）、nft 在 prerouting/mangle 的 `tproxy to`；含 `followRedirect`／`sniffing` 為何關鍵、排除清單的理由、為何 prerouting-only 不會迴圈（不必 `SO_MARK`）、逐段用 counter 定位斷點的驗證法、init script 持久化與回退救援 | `tproxy` `dokodemo-door` `followRedirect` `sniffing destOverride` `IP_TRANSPARENT` `sockopt.tproxy` `ip rule fwmark` `route local table 100` `priority mangle` `kmod-nft-tproxy` `bypass set` `flags interval` `SO_MARK` `procd init script` `failsafe` |
+| [LuCI能設定TPROXY嗎-fw4的uci抽象邊界.md](./LuCI能設定TPROXY嗎-fw4的uci抽象邊界.md) | 不行——LuCI 是 uci 設定檔的 GUI 而非 nftables 的 GUI，mangle hook／fwmark／`ip rule` 都不在 fw4 的 schema 裡；「自訂規則」分頁寫的是 iptables 時代的 `/etc/firewall.user`，無 include 就是死的；fw4 時代的正確持久化入口是 `/etc/nftables.d/*.nft`（在 inet fw4 table 內、可引用具名 set）；要完整 GUI 只能裝 homeproxy／passwall 等套件並放棄手寫那套 | `LuCI` `luci-app-firewall` `fw4` `firewall4` `uci schema` `/etc/firewall.user` `fw4_compatible` `/etc/nftables.d` `inet fw4` `named set` `luci-app-homeproxy` `luci-app-passwall` `luci-app-nikki` `opkg update` |
+| [nftables與uci是什麼-兩層設定的分工.md](./nftables與uci是什麼-兩層設定的分工.md) | 兩者不同層也不同來源：nftables 是 Linux 核心的封包過濾框架（table→chain→rule，chain 靠 hook 與 priority 決定何時執行），uci 是 OpenWrt 特有的設定抽象層（`config`/`option`/`list` + commit 交易機制）；在 OpenWrt 上是上下游——實測 30 行 uci 經 fw4 編譯成 180 行 nft，zone 展開成整組 chain 並帶 `!fw4:` 註解，由此推出「不要手改產生物」的通用心法 | `nftables` `nft` `nf_tables` `netfilter hook` `prerouting` `priority mangle` `vmap` `inet fw4` `uci` `/etc/config` `uci commit` `uci changes` `@zone[0]` `LuCI` `fw4` `/etc/nftables.d` `產生物` |
+| [讀懂fw4的nft規則.md](./讀懂fw4的nft規則.md) | 180 行規則不要從頭讀——先把 chain 分成有 `hook` 的 base chain（13 條，核心的入口）與被 `jump` 的 regular chain（22 條子函式），再挑一條封包路徑追下去；含 fw4 的鏈命名規律（`input_<zone>`／`accept_to_<zone>`／`srcnat_<zone>`）、逐行走完「LAN 開網頁」與「外網連路由器」兩條真實路徑（含 prerouting 四站的完整經過）、為何 13 條 base chain 有大半是空的（`dstnat` 空＝沒設埠轉發）、mangle 在本機只做 MSS clamping 且源自一個 `mtu_fix=1` 的 uci 開關、`vmap` 為何放第一行、`counter` 作為排查線索、`drop` vs `reject` | `nft list ruleset` `base chain` `regular chain` `hook` `priority` `policy drop` `vmap` `ct state` `iifname` `oifname` `meta nfproto` `counter` `masquerade` `handle_reject` `syn_flood` `zone` `!fw4:` `nft monitor trace` |
+
+---
+> 新增筆記時，記得把它加進上面的「筆記列表」表格。
