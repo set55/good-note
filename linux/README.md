@@ -1,28 +1,95 @@
 # Linux 筆記索引
 
-這個目錄收錄 Linux 系統管理、排查與實戰紀錄。
+這個目錄收錄 Linux 系統管理、排查與實戰紀錄。筆記檔案都平放在本目錄，下面的索引依主題分成八類；一篇筆記只會出現在一類裡。
 
 ## 筆記列表
+
+- [通用方法論](#通用方法論)（1 篇）
+- [套件管理（dpkg / dkms）](#套件管理dpkg--dkms)（3 篇）
+- [核心與驅動](#核心與驅動)（3 篇）
+- [網路基礎與設定](#網路基礎與設定)（5 篇）
+- [網路查詢與追蹤](#網路查詢與追蹤)（4 篇）
+- [Shell 與重新導向](#shell-與重新導向)（3 篇）
+- [終端機與 tmux](#終端機與-tmux)（3 篇）
+- [桌面環境（GNOME）](#桌面環境gnome)（1 篇）
+
+### 通用方法論
+
+不綁定特定工具的思考框架，遇到任何「東西不見了／行為不對」先讀這篇。
+
+| 筆記 | 主題 | 關鍵字 |
+|------|------|--------|
+| [排查方法論.md](./排查方法論.md) | 通用方法論：東西不在「該在的地方」時怎麼找——先推翻前提、再掃命名空間、挖二進位檔、觀察執行時行為 | `find` `strings` `strace` `lsof` `dpkg -S` `對照組` `ENOENT` |
+
+### 套件管理（dpkg / dkms）
+
+`.deb` 的安裝、查詢與修復，以及 dpkg 管不到的核心模組由誰接手。
+
+| 筆記 | 主題 | 關鍵字 |
+|------|------|--------|
+| [dpkg完整使用指南.md](./dpkg完整使用指南.md) | dpkg 只負責「解開 .deb、寫資料庫」，不下載也不解相依；`.deb` 的三段結構、unpack／configure 兩階段狀態機、`ii`／`rc`／`iU`／`iF` 各代表什麼、conffile 三方比對為何有時問有時不問，以及 `--configure -a` → `--fix-broken` → `--force-overwrite` 的修復順序 | `dpkg -i` `dpkg -L` `dpkg -S` `dpkg -V` `dpkg --audit` `dpkg --configure -a` `dpkg-deb` `dpkg-query -W -f` `conffiles` `--force-overwrite` `maintainer script` `trigger` `/var/lib/dpkg` `dpkg-divert` `apt-mark hold` |
+| [從dpkg反推套件的啟動命令.md](./從dpkg反推套件的啟動命令.md) | `.deb` 沒有 entry point 欄位，dpkg 查不到「啟動命令」；入口只會在三處——PATH 執行檔、`.desktop` 的 `Exec=`、systemd unit 的 `ExecStart=`，一律用 `dpkg -L` 列檔案再反推；實測 apifox 整包在 `/opt` 且 `/usr/bin` 無檔案，唯一線索就是 `.desktop` | `dpkg -L` `dpkg-deb -c` `.desktop` `Exec=` `TryExec` `field code %U` `gtk-launch` `ExecStart` `systemd unit` `update-alternatives` `dpkg -S` `readlink -f` `/opt` |
+| [dpkg與dkms的關係.md](./dpkg與dkms的關係.md) | dpkg 與 dkms 的分工：前者管一般軟體，後者管會隨核心變動的第三方驅動 | `dpkg` `dkms` `apt` `kernel module` |
+
+### 核心與驅動
+
+核心模組、DKMS 重編譯、以及核心編譯期選項造成的「功能根本不存在」。
 
 | 筆記 | 主題 | 關鍵字 |
 |------|------|--------|
 | [NVIDIA-DKMS核心升級失敗排查.md](./NVIDIA-DKMS核心升級失敗排查.md) | `apt upgrade` 時 NVIDIA DKMS 模組對新核心編譯失敗，由 570-open 升級到 595-open 的完整排查與收尾 | `dkms` `nvidia` `apt` `kernel` `iF/iU` `force-overwrite` `initramfs` |
 | [核心模組檢查.md](./核心模組檢查.md) | 核心模組的三層「安裝」概念（載入中／檔案就位／套件提供）、各層查法，以及「驅動裝了卻沒作用」的排查順序 | `lsmod` `modinfo` `modprobe` `vermagic` `lspci -k` `dkms` `secure boot` `initramfs` |
-| [dpkg與dkms的關係.md](./dpkg與dkms的關係.md) | dpkg 與 dkms 的分工：前者管一般軟體，後者管會隨核心變動的第三方驅動 | `dpkg` `dkms` `apt` `kernel module` |
-| [排查方法論.md](./排查方法論.md) | 通用方法論：東西不在「該在的地方」時怎麼找——先推翻前提、再掃命名空間、挖二進位檔、觀察執行時行為 | `find` `strings` `strace` `lsof` `dpkg -S` `對照組` `ENOENT` |
-| [shell條件判斷測試.md](./shell條件判斷測試.md) | `[` 其實是命令不是語法，由此推出空格與引號的所有規則；`[ ]` / `[[ ]]` / `(( ))` 的取捨與 dash 可攜性陷阱 | `test` `[[ ]]` `(( ))` `exit status` `quoting` `dash` `sh` |
 | [procfs與conntrack遺失問題.md](./procfs與conntrack遺失問題.md) | `/proc` 虛擬檔案系統的本質與兩大類內容；為何模組載入了 `/proc/net/nf_conntrack` 仍不存在（編譯期 vs 執行期） | `procfs` `/proc/sys` `sysctl` `nf_conntrack` `netlink` `sysfs` `kernel config` |
-| [查詢轉發表與路由表.md](./查詢轉發表與路由表.md) | Linux 的 forwarding table 其實就是核心路由表；`ip route show` 各欄位意義、最長前綴匹配 + metric 的判斷邏輯、用 `ip route get` 直接驗證 | `ip route` `route -n` `netstat -rn` `ip neigh` `ip_forward` `longest prefix match` |
-| [tmux重命名session.md](./tmux重命名session.md) | tmux session 改名的三種方式：指令、指定 session、快捷鍵 | `tmux` `rename-session` |
-| [SSH走代理設定.md](./SSH走代理設定.md) | 讓 ssh 連線走 HTTP/SOCKS 代理的幾種方式：`ProxyCommand` + `nc`/`connect`，以及走跳板機的 `ProxyJump` | `ssh` `ProxyCommand` `ProxyJump` `socks5` `nc` `connect` |
-| [查詢目前使用的DNS伺服器.md](./查詢目前使用的DNS伺服器.md) | 用 `resolvectl status` 查真正的上游 DNS；`cat /etc/resolv.conf` 在 systemd-resolved 系統上常只會看到本機 stub resolver `127.0.0.53`，不是真正的伺服器；並逐欄解讀 `resolvectl status` 輸出（`Scopes`、`+DefaultRoute`、Docker bridge 介面為何顯示 `none`），以及 stub resolver 與 full/recursive resolver 的差異 | `resolvectl` `systemd-resolved` `/etc/resolv.conf` `stub resolver` `recursive resolver` `nmcli` `dig` `DefaultRoute` `Current Scopes` `LLMNR` `mDNS` `DNSSEC` |
+
+### 網路基礎與設定
+
+本機這台機器的位址、DNS、路由與連外通道是怎麼來的、怎麼設定與確認。
+
+| 筆記 | 主題 | 關鍵字 |
+|------|------|--------|
+| [DHCP完整流程與封包逐位元組解剖.md](./DHCP完整流程與封包逐位元組解剖.md) | DHCP 取得租約的 DORA 四步逐封包解剖：四個封包的完整 hex dump 與每個欄位為何那樣填；關鍵結論是租約只在 ACK 成立、REQUEST 必須廣播好讓落選伺服器收回位址、`siaddr` 不是伺服器位址（身分在 option 54）、四種 REQUEST 靠 `ciaddr`／option 50／option 54 分辨狀態；另含 T1/T2 續約、NAK/DECLINE/RELEASE/INFORM、relay 的 `giaddr`、抓包排查對照表 | `dhcp` `DORA` `bootp` `port 67/68` `xid` `chaddr` `yiaddr` `giaddr` `magic cookie` `option 53` `option 54` `option 50` `option 55` `T1/T2` `DHCPNAK` `DHCPDECLINE` `dhcp relay` `option 82` `tcpdump` `ARP probe` |
 | [確認網路介面是否使用DHCP.md](./確認網路介面是否使用DHCP.md) | 三個訊號判斷網路是不是 DHCP 自動配發：`ip route show` 的 `proto dhcp`、`ip addr show` 的 `dynamic` 旗標與有限 `valid_lft`（固定 IP 是 `forever`），以及 NetworkManager 連線設定檔的 `ipv4.method`（`auto`/`manual`） | `dhcp` `ip route` `proto dhcp` `valid_lft` `dynamic` `nmcli` `ipv4.method` `dhclient` |
-| [用當前目錄名命名tmux-session.md](./用當前目錄名命名tmux-session.md) | 用 `tmux new -d -s "${PWD##*/}"` 讓 session 名稱自動等於當前目錄名；參數展開 `#`/`##`/`%`/`%%` 的切除規則、為何勝過 `basename`，以及 tmux 把 `.`/`:` 換成 `_`、`-A` 與 `-d` 衝突、同名目錄碰撞等陷阱 | `tmux` `new-session` `${PWD##*/}` `parameter expansion` `basename` `has-session -t=` `duplicate session` |
+| [查詢目前使用的DNS伺服器.md](./查詢目前使用的DNS伺服器.md) | 用 `resolvectl status` 查真正的上游 DNS；`cat /etc/resolv.conf` 在 systemd-resolved 系統上常只會看到本機 stub resolver `127.0.0.53`，不是真正的伺服器；並逐欄解讀 `resolvectl status` 輸出（`Scopes`、`+DefaultRoute`、Docker bridge 介面為何顯示 `none`），以及 stub resolver 與 full/recursive resolver 的差異 | `resolvectl` `systemd-resolved` `/etc/resolv.conf` `stub resolver` `recursive resolver` `nmcli` `dig` `DefaultRoute` `Current Scopes` `LLMNR` `mDNS` `DNSSEC` |
+| [查詢轉發表與路由表.md](./查詢轉發表與路由表.md) | Linux 的 forwarding table 其實就是核心路由表；`ip route show` 各欄位意義、最長前綴匹配 + metric 的判斷邏輯、用 `ip route get` 直接驗證 | `ip route` `route -n` `netstat -rn` `ip neigh` `ip_forward` `longest prefix match` |
+| [SSH走代理設定.md](./SSH走代理設定.md) | 讓 ssh 連線走 HTTP/SOCKS 代理的幾種方式：`ProxyCommand` + `nc`/`connect`，以及走跳板機的 `ProxyJump` | `ssh` `ProxyCommand` `ProxyJump` `socks5` `nc` `connect` |
+
+### 網路查詢與追蹤
+
+封包出了本機之後——走哪條路、經過哪些 AS／ISP、那些號碼背後是誰。
+
+| 筆記 | 主題 | 關鍵字 |
+|------|------|--------|
 | [查詢請求經過哪些AS與ISP.md](./查詢請求經過哪些AS與ISP.md) | 查連線經過哪些 AS／ISP 必然是兩步：traceroute 問出每跳 IP，再靠 BGP 資料把 IP 對照成 ASN（`traceroute -A`／`mtr -z`／Team Cymru）；並說明 `*` 不等於丟包、去程不等於回程、traceroute 量不到真正的 AS_PATH | `traceroute -A` `mtr -z` `tracepath` `whois.cymru.com` `origin.asn.cymru.com` `peer.asn.cymru.com` `ASN` `BGP` `AS_PATH` `IXP` `anycast` `MPLS` |
-| [mtr改用TCP或UDP探測.md](./mtr改用TCP或UDP探測.md) | mtr 預設送 ICMP ECHO，`-T`／`-u` 可改送 TCP SYN／UDP，但中途跳點的回覆一律是 ICMP `time exceeded`——換協定只影響「封包出不出得去」；附三種模式的實測對照、中間跳點 Loss%／RTT 為何不可信、`cap_net_raw` 免 sudo 的原理 | `mtr -T` `-P` `-u` `-S` `ICMP time exceeded` `TTL` `ECMP` `rate limit` `cap_net_raw` `mtr-packet` `CGNAT` |
 | [查ASN屬於哪家公司.md](./查ASN屬於哪家公司.md) | 查 ASN 背後的公司有三個來源：Cymru／bgp.tools 快查、RDAP 的 registrant 才是法人名、RIR 的 `aut-num` 給完整聯絡資料；並解釋 `as-name`／`descr` 為何不是公司名、註冊資料為何常過時，以及公司名反查 ASN | `whois -h whois.cymru.com` `bgp.tools` `RDAP` `rdap.org/autnum` `aut-num` `as-name` `descr` `registrant` `RIPEstat` `searchcomplete` |
 | [RIR是什麼-IANA與ARIN-APNIC的分工.md](./RIR是什麼-IANA與ARIN-APNIC的分工.md) | ARIN／APNIC 等五個 RIR 是 IP 與 ASN 的區域發放機構；IANA → RIR → NIR／LIR → 使用者的階層、該問哪台 whois、以及兩個實測矛盾（號碼區塊管理者不等於登記的 RIR、1990 年的 legacy 配發）、IPv4 耗盡與 4-byte ASN | `RIR` `IANA` `ARIN` `APNIC` `RIPE NCC` `LACNIC` `AFRINIC` `NIR` `LIR` `whois.iana.org` `RDAP bootstrap` `LEGACY` `AS_TRANS` `CGNAT` |
-| [DHCP完整流程與封包逐位元組解剖.md](./DHCP完整流程與封包逐位元組解剖.md) | DHCP 取得租約的 DORA 四步逐封包解剖：四個封包的完整 hex dump 與每個欄位為何那樣填；關鍵結論是租約只在 ACK 成立、REQUEST 必須廣播好讓落選伺服器收回位址、`siaddr` 不是伺服器位址（身分在 option 54）、四種 REQUEST 靠 `ciaddr`／option 50／option 54 分辨狀態；另含 T1/T2 續約、NAK/DECLINE/RELEASE/INFORM、relay 的 `giaddr`、抓包排查對照表 | `dhcp` `DORA` `bootp` `port 67/68` `xid` `chaddr` `yiaddr` `giaddr` `magic cookie` `option 53` `option 54` `option 50` `option 55` `T1/T2` `DHCPNAK` `DHCPDECLINE` `dhcp relay` `option 82` `tcpdump` `ARP probe` |
+| [mtr改用TCP或UDP探測.md](./mtr改用TCP或UDP探測.md) | mtr 預設送 ICMP ECHO，`-T`／`-u` 可改送 TCP SYN／UDP，但中途跳點的回覆一律是 ICMP `time exceeded`——換協定只影響「封包出不出得去」；附三種模式的實測對照、中間跳點 Loss%／RTT 為何不可信、`cap_net_raw` 免 sudo 的原理 | `mtr -T` `-P` `-u` `-S` `ICMP time exceeded` `TTL` `ECMP` `rate limit` `cap_net_raw` `mtr-packet` `CGNAT` |
+
+### Shell 與重新導向
+
+shell 的語法真相與 fd 0／1／2 這三條線怎麼接。
+
+| 筆記 | 主題 | 關鍵字 |
+|------|------|--------|
+| [shell條件判斷測試.md](./shell條件判斷測試.md) | `[` 其實是命令不是語法，由此推出空格與引號的所有規則；`[ ]` / `[[ ]]` / `(( ))` 的取捨與 dash 可攜性陷阱 | `test` `[[ ]]` `(( ))` `exit status` `quoting` `dash` `sh` |
+| [輸出重新導向與dev-null.md](./輸出重新導向與dev-null.md) | fd 0／1／2 是三條獨立的線；`/dev/null` 是寫入即丟、讀取即 EOF 的字元裝置；`2>&1` 是複製 fd 1「當下」的連接，所以 `>/dev/null 2>&1` 與 `2>&1 >/dev/null` 結果不同；`2>1` 會建立名為 `1` 的檔案；`$2` 是位置參數與重新導向無關 | `/dev/null` `2>&1` `&>` `stdin` `stdout` `stderr` `file descriptor` `redirection` `pipe` `positional parameter` |
+| [從終端機啟動GUI程式並脫離終端機.md](./從終端機啟動GUI程式並脫離終端機.md) | 關終端機程式跟著死是因為 shell 把 SIGHUP 轉發給 job、一直印輸出是因為 stdout/stderr 繼承自 pty；兩者要分開處理——`setsid -f prog >/dev/null 2>&1` 最徹底；另說明 `code` 本身就會 detach 的特例 | `setsid` `nohup` `disown` `&!` `SIGHUP` `session` `controlling terminal` `/dev/null` `xdg-open` `gtk-launch` `pgrep` `pstree` |
+
+### 終端機與 tmux
+
+終端機本身是什麼（PTY），以及 tmux session 的日常操作。
+
+| 筆記 | 主題 | 關鍵字 |
+|------|------|--------|
+| [PTY是什麼-終端機模擬器與虛擬終端.md](./PTY是什麼-終端機模擬器與虛擬終端.md) | PTY 是核心提供的 master／slave 裝置對：終端機模擬器（alacritty、tmux server、sshd）握 master，shell 用 slave `/dev/pts/N` 當 fd 0／1／2；中間的 line discipline 把 Ctrl+C 變 SIGINT、處理回顯；master 關閉 → SIGHUP；以本機實測解釋關掉 alacritty 為何 tmux 裡的工作不會死 | `pty` `tty` `/dev/ptmx` `/dev/pts` `master/slave` `line discipline` `stty` `isatty` `controlling terminal` `SIGHUP` `tmux` `sshd` |
+| [tmux重命名session.md](./tmux重命名session.md) | tmux session 改名的三種方式：指令、指定 session、快捷鍵 | `tmux` `rename-session` |
+| [用當前目錄名命名tmux-session.md](./用當前目錄名命名tmux-session.md) | 用 `tmux new -d -s "${PWD##*/}"` 讓 session 名稱自動等於當前目錄名；參數展開 `#`/`##`/`%`/`%%` 的切除規則、為何勝過 `basename`，以及 tmux 把 `.`/`:` 換成 `_`、`-A` 與 `-d` 衝突、同名目錄碰撞等陷阱 | `tmux` `new-session` `${PWD##*/}` `parameter expansion` `basename` `has-session -t=` `duplicate session` |
+
+### 桌面環境（GNOME）
+
+桌面快捷鍵與視窗行為，以及它們到底由哪一層決定。
+
+| 筆記 | 主題 | 關鍵字 |
+|------|------|--------|
 | [視窗最大化快捷鍵-GNOME鍵位的三層來源.md](./視窗最大化快捷鍵-GNOME鍵位的三層來源.md) | 視窗最大化的快捷鍵是 `Super`+`↑`，但 GNOME 原生的 `maximize` 其實是空的——鍵被 Ubuntu 的 tiling-assistant 擴充套件接走；由此帶出鍵位的三層來源（擴充套件／mutter／應用程式）、用鍵位字串反查綁定者的方法，以及 maximize／fullscreen／tiling 在 EWMH 上的差別 | `gsettings` `org.gnome.desktop.wm.keybindings` `tiling-assistant` `mutter` `toggle-maximized` `Alt+F10` `Super+Up` `_NET_WM_STATE_MAXIMIZED_VERT` `_NET_WM_STATE_FULLSCREEN` `wmctrl` `xprop -root _NET_SUPPORTED` `XDG_SESSION_TYPE` |
 
 ## 常用診斷命令速查（跨筆記通用）
@@ -56,4 +123,5 @@ sudo dpkg -i --force-overwrite <deb>           # 解檔案衝突（overwrite ...
 ```
 
 ---
-> 新增筆記時，記得把它加進上面的「筆記列表」表格。
+> 新增筆記時，記得把它加進上面**對應分類**的表格（只追加一列，不要重排既有列）；
+> 若新筆記不屬於任何一類，就新增一個分類小節，並同步更新開頭的分類導覽。
