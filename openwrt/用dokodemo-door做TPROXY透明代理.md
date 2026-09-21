@@ -20,15 +20,17 @@
 
 - [零、動手前的三個確認](#零動手前的三個確認)
 - [一、整體資料流](#一整體資料流)
-- [二、步驟 1：安裝核心模組](#二步驟-1安裝核心模組)
-- [三、步驟 2：v2ray 的 dokodemo-door inbound](#三步驟-2v2ray-的-dokodemo-door-inbound)
-- [四、步驟 3：策略路由](#四步驟-3策略路由)
-- [五、步驟 4：nftables 規則](#五步驟-4nftables-規則)
-- [六、步驟 5：驗證](#六步驟-5驗證)
-- [七、DNS 怎麼辦](#七dns-怎麼辦)
-- [八、持久化](#八持久化)
-- [九、回退與救援](#九回退與救援)
-- [十、常見陷阱](#十常見陷阱)
+- [二、實際檢查一份設定檔的結果（本機案例）](#二實際檢查一份設定檔的結果本機案例)
+- [三、步驟 1：安裝核心模組](#三步驟-1安裝核心模組)
+- [四、步驟 2：v2ray 的 dokodemo-door inbound](#四步驟-2v2ray-的-dokodemo-door-inbound)
+- [五、步驟 3：策略路由](#五步驟-3策略路由)
+- [六、步驟 4：nftables 規則](#六步驟-4nftables-規則)
+- [七、步驟 5：驗證](#七步驟-5驗證)
+- [八、DNS 怎麼辦](#八dns-怎麼辦)
+- [九、持久化](#九持久化)
+- [十、回退與救援](#十回退與救援)
+- [十一、常見陷阱](#十一常見陷阱)
+- [十二、opkg 完整命令與選項（安裝核心模組會用到）](#十二opkg-完整命令與選項安裝核心模組會用到)
 - [自我測驗](#自我測驗)
 
 ---
@@ -103,7 +105,57 @@ eth1 → 網際網路
 
 ---
 
-## 二、步驟 1：安裝核心模組
+## 二、實際檢查一份設定檔的結果（本機案例）
+
+把第零節的檢查實際跑過一次，結果值得記錄——**它剛好示範了「看起來有做、其實沒做」**。
+
+該設定的 12345 inbound 長這樣（省略無關欄位）：
+
+```json
+{
+  "port": 12345,
+  "protocol": "dokodemo-door",
+  "tag": "tproxy-in",
+  "settings": { "network": "tcp,udp", "followRedirect": true },
+  "sniffing": { "enabled": false }
+}
+```
+
+### 發現一：**沒有 `streamSettings.sockopt.tproxy`**
+
+整個 `streamSettings` 區塊根本不存在 → socket **沒有 `IP_TRANSPARENT`** →
+收不到「目的地不是自己」的封包 → **TPROXY 規則寫了也是白寫**。
+
+### 但這個設定並非沒用——它是為 REDIRECT 準備的
+
+關鍵在於**兩種透明代理對 inbound 的要求不同**：
+
+| 機制 | inbound 需要什麼 | 怎麼取回原始目的地 |
+|---|---|---|
+| **REDIRECT** | **只要 `followRedirect: true`** | `SO_ORIGINAL_DST`（conntrack 記著） |
+| **TPROXY** | `followRedirect: true` **＋ `sockopt.tproxy: "tproxy"`** | `IP_RECVORIGDSTADDR`（封包沒被改寫） |
+
+**所以「有 `followRedirect` 但沒有 `sockopt.tproxy`」＝ 這份設定是 REDIRECT-ready，不是 TPROXY-ready。**
+這和該機器「有 `nft_redir.ko`、沒有 `nft_tproxy.ko`」的狀態完全吻合——
+看得出當初是照 REDIRECT 的路線準備的，只是防火牆那一半從沒接上。
+
+**由此得到一個可以帶走的判斷法：看到別人的 dokodemo-door 設定，
+先看有沒有 `sockopt.tproxy` 就知道對方打算用哪一種機制。**
+
+### 發現二：`sniffing.enabled: false`
+
+分流靠 `inboundTag` 時不影響「走不走代理」，但會影響**域名**：
+TPROXY 攔到的封包只有 IP，關掉 sniffing 就**永遠拿不回域名**。
+後果是 DNS 一旦被污染，v2ray 只會忠實地把你送到那個錯的 IP。
+
+### 發現三：沒有 `freedom` outbound
+
+整份設定只有兩個 vmess outbound、沒有直連出口。代表**v2ray 沒有能力把任何流量送直連**——
+私有網段的排除只能靠防火牆那一層。防火牆規則若有疏漏，內網流量會被送進隧道繞一圈。
+
+---
+
+## 三、步驟 1：安裝核心模組
 
 你的路由器目前**沒有** `nft_tproxy`：
 
@@ -134,7 +186,7 @@ ls /lib/modules/$(uname -r)/ | grep -E 'tproxy|socket'
 
 ---
 
-## 三、步驟 2：v2ray 的 dokodemo-door inbound
+## 四、步驟 2：v2ray 的 dokodemo-door inbound
 
 ### 設定長什麼樣
 
@@ -230,7 +282,7 @@ netstat -lntup | grep 12345          # 確認還在聽
 
 ---
 
-## 四、步驟 3：策略路由
+## 五、步驟 3：策略路由
 
 ```bash
 ip rule add fwmark 1 lookup 100
@@ -263,7 +315,7 @@ ip route add local 0.0.0.0/0 dev lo table 100
 
 ---
 
-## 五、步驟 4：nftables 規則
+## 六、步驟 4：nftables 規則
 
 ### 測試版（非持久化，重開機消失）
 
@@ -286,6 +338,62 @@ nft add rule ip v2ray_tproxy prerouting ip daddr @bypass counter return
 nft add rule ip v2ray_tproxy prerouting iifname "br-lan" ip saddr 192.168.1.50 \
     meta l4proto { tcp, udp } counter tproxy to :12345 meta mark set 1 accept
 ```
+
+### 加完之後怎麼查、怎麼刪
+
+**查（由粗到細）**
+
+```sh
+nft list tables                              # 有哪些表 → 確認 v2ray_tproxy 建起來了
+nft list table ip v2ray_tproxy               # ★ 只看這張表：set、chain、rule 一次全出來
+nft list chain ip v2ray_tproxy prerouting    # 只看這條鏈
+nft list set   ip v2ray_tproxy bypass        # 只看這個集合的成員
+nft -a list table ip v2ray_tproxy            # 帶 handle ← 要刪單條規則時必須先跑這個
+nft -s list table ip v2ray_tproxy            # 不印 counter，適合存檔備份
+```
+
+**只看自己的表是關鍵**——`nft list ruleset` 會連 fw4 那 180 行一起倒出來，
+你的規則會淹沒在裡面。**這也是當初刻意建獨立表、不寫進 `inet fw4` 的好處之一。**
+
+**刪（由細到粗）**
+
+```sh
+# ① 刪單條規則：必須用 handle
+nft -a list chain ip v2ray_tproxy prerouting      # 先查
+#   ... counter packets 0 bytes 0 tproxy to :12345 # handle 4
+nft delete rule ip v2ray_tproxy prerouting handle 4
+
+# ② 清空鏈裡所有規則（鏈留著）
+nft flush chain ip v2ray_tproxy prerouting
+
+# ③ 刪集合的單一成員 / 整個集合
+nft delete element ip v2ray_tproxy bypass '{ 10.0.0.0/8 }'
+nft delete set     ip v2ray_tproxy bypass
+
+# ④ ★ 一次清光整張表（最實用）
+nft delete table ip v2ray_tproxy
+```
+
+**建議用 ④。** 刪表會連同裡面的 chain、set、rule 一起消失，
+**不必煩惱「set 還被規則引用著能不能刪」「chain 裡還有規則能不能刪」這類相依順序問題**。
+測試階段規則本來就是反覆重建的，整表砍掉重來最乾淨：
+
+```sh
+nft delete table ip v2ray_tproxy 2>/dev/null    # 先清（不存在也不報錯）
+nft -f /etc/v2ray-tproxy.nft                    # 再整份套用
+```
+
+**刪之前先備份**：
+
+```sh
+nft -s list table ip v2ray_tproxy > /tmp/tproxy-backup.nft
+```
+
+> **`ip rule` 與 `ip route` 要另外清**，刪 nft 表不會動到它們：
+> ```sh
+> ip rule del pref 100
+> ip route flush table 100
+> ```
 
 ### 逐行解釋
 
@@ -323,7 +431,7 @@ nft add rule ip v2ray_tproxy prerouting iifname "br-lan" ip saddr 192.168.1.50 \
 
 ---
 
-## 六、步驟 5：驗證
+## 七、步驟 5：驗證
 
 **照順序查，每一步都確認再往下**：
 
@@ -360,7 +468,7 @@ curl -s https://ifconfig.me            # 出口 IP 變了沒
 
 ---
 
-## 七、DNS 怎麼辦
+## 八、DNS 怎麼辦
 
 **開了 sniffing 之後，DNS 其實可以先不動**——域名從 TLS SNI／HTTP Host 就還原得到了。
 
@@ -380,85 +488,157 @@ curl -s https://ifconfig.me            # 出口 IP 變了沒
 
 ---
 
-## 八、持久化
+## 九、持久化：三樣東西、三種做法
 
-確認測試版可行、也拿掉了 `ip saddr` 限制之後，才做持久化。
+**重開機之後，`nft` 規則、`ip rule`、`ip route` 全部都會消失**——它們都只是核心的執行期狀態，
+不是設定檔。會「自己回來」的東西，都是因為有某個開機服務重新套用了一次。
 
-### nftables 規則
+本機實測開機順序：
 
-**注意**：`/etc/nftables.d/*.nft` 的內容是被塞進 `table inet fw4 { ... }` **裡面**的，
-所以**不能**把 `table ip v2ray_tproxy { ... }` 放進去（會變成巢狀 table，語法錯誤）。
-兩個選擇：
+```
+S19firewall   → fw4 從 /etc/config/firewall 重新產生整套 nft 規則
+S20network    → netifd 從 /etc/config/network 重新套用位址、路由、規則
+```
 
-| 做法 | 優點 | 代價 |
+**所以 fw4 的規則會回來、你手動 `nft add` 的不會；
+介面自帶的路由會回來、你手動 `ip route add` 的不會。**
+
+| 要持久化的東西 | 做法 | 為什麼 |
 |---|---|---|
-| **A. 獨立 table + 自己的 init script** | 與 fw4 完全解耦，`fw4 restart` 不影響；一行可整表刪除 | 要自己寫載入腳本 |
-| **B. 寫成 chain 放進 `/etc/nftables.d/`** | fw4 自動載入、開機就有 | 要用 `inet` family 語法（`tproxy ip to :12345`），且每次 fw4 reload 會重建 |
+| **`ip rule`** | **`/etc/config/network` 的 `config rule`** | **OpenWrt 原生支援**，見下 |
+| **`ip route`**（自訂表） | **`config route` 的 `option table`** | 同上 |
+| **nft 規則** | `/etc/nftables.d/*.nft` 或自己的 init script | fw4 每次產生 ruleset 時會 include |
 
-**建議 A**，因為策略路由（`ip rule`）本來就得自己寫腳本管——乾脆放一起。
+### `ip rule` 可以用 uci 持久化（不必寫腳本）
 
-### 一份 init script 管兩件事
-
-`/etc/init.d/tproxy-rules`（記得 `chmod +x` 並 `/etc/init.d/tproxy-rules enable`）：
-
-```sh
-#!/bin/sh /etc/rc.common
-START=95          # 要晚於 firewall(19) 與 v2ray(99)？見下方說明
-STOP=10
-
-RULES=/etc/v2ray-tproxy.nft
-
-start() {
-    nft -f "$RULES"
-    ip rule add fwmark 1 lookup 100 2>/dev/null
-    ip route add local 0.0.0.0/0 dev lo table 100 2>/dev/null
-}
-
-stop() {
-    nft delete table ip v2ray_tproxy 2>/dev/null
-    ip rule del fwmark 1 lookup 100 2>/dev/null
-    ip route flush table 100 2>/dev/null
-}
-```
-
-把規則寫成 `/etc/v2ray-tproxy.nft`（用 `nft -f` 原子套用，語法見
-[nft完整用法-從命令到規則語法.md](../linux/nft完整用法-從命令到規則語法.md)）：
+這是 OpenWrt 的原生功能，很多教學沒提。netifd 的二進位裡就有這些欄位的解析錯誤訊息，
+證明它支援：
 
 ```
-table ip v2ray_tproxy {
-    set bypass {
-        type ipv4_addr
-        flags interval
-        elements = { 0.0.0.0/8, 10.0.0.0/8, 127.0.0.0/8, 169.254.0.0/16,
-                     172.16.0.0/12, 192.168.0.0/16, 224.0.0.0/4, 240.0.0.0/4 }
-    }
-    chain prerouting {
-        type filter hook prerouting priority mangle; policy accept;
-        ip daddr @bypass counter return
-        iifname "br-lan" meta l4proto { tcp, udp } counter tproxy to :12345 meta mark set 1 accept
-    }
-}
+[INTERFACE] Failed to parse rule fwmark: %s
+[INTERFACE] Failed to parse rule lookup table: %s
+[INTERFACE] Failed to parse rule source / destination: %s
 ```
 
-> **START 的取捨**：v2ray 的 `START=99`，所以 tproxy 規則若在它之前套用，會有一小段時間
-> 「封包被交付給一個還沒開的 socket」——那些連線會失敗但不會壞掉。設成 `START=99` 之後
-> （字母序在 v2ray 之後）比較保險。這也是為什麼**先手動測、確定順序沒問題再持久化**。
+寫法：
 
-**持久化之後一定要重開機驗一次**——「開機自動生效」是它唯一的目的，沒驗過就不算完成。
+```
+# /etc/config/network
+config rule
+    option mark     '1'
+    option lookup   '100'
+    option priority '100'
+```
 
----
+`config rule` 支援的屬性（從 netifd 二進位裡抽出來的完整清單）：
 
-## 九、回退與救援
+| 屬性 | 對應 `ip rule` 的 |
+|---|---|
+| `src` / `dest` | `from` / `to` |
+| `mark` | `fwmark` |
+| `lookup` | `table` |
+| `priority` | `pref` |
+| `goto` | `goto` |
+| `action` | `blackhole`／`unreachable`／`prohibit` |
+| `invert` | `not` |
+| `ipproto` / `sport` / `dport` | 同名 |
+| `uidrange` | `uidrange` |
+| `suppress_prefixlength` | 同名 |
+| `disabled` | 暫時停用這條（不用刪掉） |
 
-**測試階段（非持久化）**：
+IPv6 用 `config rule6`。
+
+### `ip route` 也可以
+
+```
+# /etc/config/network
+config route
+    option interface 'lan'
+    option target    '0.0.0.0/0'
+    option type      'local'
+    option table     '100'
+```
+
+支援 `target`／`netmask`／`gateway`／`source`／`metric`／`table`／`type`／`mtu`／`onlink`。
+
+> **注意**：`config route` 綁在某個 `interface` 上——**該介面 down 的時候這條路由也會被移除**。
+> 對 TPROXY 那條 `local 0.0.0.0/0 dev lo table 100` 來說，綁 `loopback` 介面最合適。
+
+### nft 規則：兩個位置
+
+| 做法 | 適用 |
+|---|---|
+| `/etc/nftables.d/*.nft` | 內容會被放進 `inet fw4` **表裡面**，所以只能寫 chain，不能寫 `table`；要用 inet family 語法 |
+| 自己的 init script + `nft -f` | 獨立的 `table ip xxx`，與 fw4 解耦，`fw4 restart` 不影響 |
+
+（兩者的取捨見本篇稍早的說明。）
+
+### 測試階段請故意不要持久化
+
+**「重開機就消失」在測試時是優點，不是缺點**——它是你最可靠的救援手段。
+確認整條鏈都通、也拿掉了測試用的 `ip saddr` 限制之後，才做持久化。
+持久化之後**一定要重開機驗一次**，因為「開機自動生效」正是它唯一的目的。
+
+## 十、回退與救援
+
+### 清理一定要三樣一起
+
+TPROXY 是三個零件，**清理也要三個一起**——只刪其中一個會留下「半套狀態」：
 
 ```bash
-nft delete table ip v2ray_tproxy
-ip rule del fwmark 1 lookup 100
-ip route flush table 100
+nft delete table ip v2ray_tproxy 2>/dev/null
+ip rule del pref 100 2>/dev/null          # 用 pref 刪比重打條件安全
+ip route flush table 100 2>/dev/null
 ```
 
-或直接 `reboot`——非持久化的東西全部消失。**這就是為什麼第一階段不要持久化。**
+建議寫成一個 `tproxy-down.sh`，測試時反覆用。
+
+**只刪 nft 表、留下 `ip rule` 與 `ip route` 會怎樣？** 實測過一次：
+
+```
+ip rule:   32765: from all fwmark 0x1 lookup 100      ← 還在
+table 100: local default dev lo scope host            ← 還在
+nft:       整份 ruleset 裡沒有任何 meta mark set       ← 沒人設 mark 了
+```
+
+**當下無害**——規則的條件是 `fwmark 0x1`，沒有封包帶這個標記，所以永遠不命中。
+
+**但它是一顆未爆彈。** 那條規則配上 `local default` 的語意是
+「**任何帶 mark 1 的封包一律視為目的地是本機，不轉發、不送出**」——非常粗暴的攔截。
+只要哪天有東西開始設 mark 1，那些流量就會被整個吞掉，**而且封包只是消失、沒有任何錯誤訊息**。
+
+`1` 這個數字太小太常見：VPN 分流、mwan3、SQM 都是 fwmark 的重度使用者
+（本機就裝了 OpenVPN）。**撞號的機率不低，清乾淨比較省事。**
+
+清完確認：
+
+```bash
+ip rule show                 # 應該只剩 0 / 32766 / 32767 三條
+ip route show table 100      # 應該是空的
+```
+
+**或直接 `reboot`**——非持久化的東西全部消失。**這就是為什麼第一階段不要持久化。**
+
+### ⚠️ 驗證陷阱：BusyBox 的 `ip` 不支援 `route get ... mark`
+
+想用 `ip route get <IP> mark 1` 直接驗證「帶 mark 的封包會被導去 lo」時，
+**在 OpenWrt 上這招行不通，而且它不報錯**：
+
+```
+桌機（完整 iproute2）：
+  ip route get 8.8.8.8 mark 1  → 8.8.8.8 via 192.168.1.1 ... mark 1     ✅
+
+路由器（BusyBox ip）：
+  ip route get 8.8.8.8 mark 1  → 1.0.0.0 via 192.168.0.1 ...            ❌
+                                  ↑ 它把 "1" 當成目的位址了
+```
+
+**這是最危險的失敗模式：不是錯誤訊息，而是一個看起來合理、實際上完全錯誤的答案。**
+在 OpenWrt 上驗證策略路由，**不能依賴 `ip route get` 的 mark 模擬**，
+只能靠實際流量的 nft counter 與 v2ray 的 log（見第七節的驗證流程）。
+
+這也是 [排查方法論.md](../linux/排查方法論.md) 那條「先確認你的工具真的在回答你問的問題」
+的具體案例。
 
 **已持久化之後**：
 
@@ -472,7 +652,7 @@ ip route flush table 100
 
 ---
 
-## 十、常見陷阱
+## 十一、常見陷阱
 
 | 陷阱 | 症狀 | 原因 |
 |---|---|---|
@@ -487,7 +667,86 @@ ip route flush table 100
 
 ---
 
-## opkg 完整命令與選項（安裝核心模組會用到）
+### 陷阱之外：與「顯式代理」並存會怎樣
+
+透明代理設好之後，如果客戶端**同時**還開著 `http_proxy`／`all_proxy`
+指向 v2ray 的顯式 inbound（8880／1080），**不會壞，但會產生四個問題**。
+
+**實測**（桌機環境變數指向 8880，送一個請求後看路由器的 log）：
+
+```
+proxy/http: request to Method [CONNECT] Host [example.com:443]
+app/dispatcher: taking detour [vmess-out-s02] for [tcp:example.com:443]
+192.168.1.171:37522 accepted //example.com:443 [vmess-out-s02]
+```
+
+#### 1. 同一台機器分裂成兩條出口路徑
+
+本機的 routing 規則是：
+
+```
+inboundTag: [socks-in-1080, http-in-8880] → vmess-out-s02
+inboundTag: [socks-in-3080, tproxy-in]    → vmess-out-s03
+```
+
+**顯式代理走 s02、透明代理走 s03——同一台機器的流量從兩台不同伺服器出去。**
+出口 IP 不同、延遲不同、被封鎖的狀況也可能不同。
+
+#### 2. 哪個程式走哪條，取決於它讀不讀環境變數
+
+| 程式 | 走哪條 |
+|---|---|
+| `curl`／`git`／`pip`（讀環境變數） | 顯式代理 |
+| `ssh`／遊戲／不讀環境變數的 | 透明代理 |
+| 從選單啟動的 GUI（拿不到環境變數） | 透明代理 |
+
+**排查時會很痛苦**——同一個域名在兩個程式裡行為不同，得先確認它走了哪條路。
+
+#### 3. 前提：bypass 清單必須涵蓋路由器自己的 IP
+
+這是**會真的壞掉**的那個。顯式代理時封包的目的地是**路由器自己**：
+
+```
+dst=192.168.1.1:8880 → br-lan → prerouting
+  → ip daddr @bypass return
+     192.168.1.1 ∈ 192.168.0.0/16 → ✅ return，不代理
+  → 正常路由 → input → v2ray 的 8880
+```
+
+**若 bypass 沒涵蓋它**：這個封包會被 `tproxy to :12345`，dokodemo 取到的原始目的地是
+`192.168.1.1:8880`，塞進 vmess 送給遠端——**遠端伺服器去連 `192.168.1.1:8880`，
+那是它自己的內網**，直接失敗。顯式代理會整個不能用，而且錯誤訊息非常難懂。
+
+#### 4. DNS 與域名的處理方式相反（顯式代理反而較好）
+
+| | 顯式代理 | 透明代理 |
+|---|---|---|
+| 誰解析 DNS | **遠端伺服器**（客戶端只送域名） | **客戶端本地** |
+| v2ray 怎麼得到域名 | `CONNECT example.com:443` **直接帶著** | 要靠 **sniffing** 從 TLS SNI 挖 |
+| 需要 sniffing | ❌ | ✅ |
+| DNS 污染的影響 | **免疫** | 會連到錯的 IP |
+
+上面 log 裡的 `Host [example.com:443]` 就是客戶端直接告訴它的，**沒有經過任何嗅探**。
+**「顯式代理比較原始」這個直覺是錯的**——在域名處理上它反而更乾淨。
+（原理見 [代理與VPN的根本差別](../linux/代理與VPN的根本差別-為什麼需要sniffing.md)。）
+
+#### 建議
+
+**二選一，不要並存：**
+
+- 走透明代理 → 把客戶端的 proxy 環境變數拿掉，並開 `sniffing`
+- 走顯式代理 → 就不用弄 TPROXY，但不讀環境變數的程式沒得代理
+
+**真要並存**，至少讓兩條路走**同一個 outbound**，消除出口不一致：
+
+```jsonc
+{ "inboundTag": ["socks-in-1080","http-in-8880","tproxy-in"], "outboundTag": "vmess-out-s02" }
+```
+
+
+---
+
+## 十二、opkg 完整命令與選項（安裝核心模組會用到）
 
 ### 命令
 
@@ -551,6 +810,8 @@ ip route flush table 100
 2. `followRedirect: true` 沒開會發生什麼事？從「dokodemo-door 怎麼知道封包原本要去哪」回答。
 3. 為什麼本文的設定不會造成「v2ray 連往上游伺服器的封包被自己攔回來」的迴圈？
    什麼情況下你才**必須**開始用 `SO_MARK` 排除自己的流量？
-4. 開了 `sniffing` 之後為什麼可以先不動 DNS？哪兩種情況 sniffing 救不了、非得處理 DNS 不可？
+4. 透明代理設好之後，客戶端若同時還開著指向 8880 的 `http_proxy`，會發生什麼？
+   請說出「出口會不一致」以外的另一個問題，以及為什麼 bypass 清單沒涵蓋路由器 IP 時
+   顯式代理會整個失效。
 5. 情境題：你照著做完，`nft list table ip v2ray_tproxy` 的 counter 一直在增加，但測試機完全連不上
    網路、v2ray 的 log 也沒有任何新連線。請說出最可能的斷點在哪一個零件，以及你會用哪兩個指令確認。

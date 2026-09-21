@@ -200,29 +200,9 @@ OpenWrt 上常見的兩種處理：把 dnsmasq 的上游改指向 v2ray 的 DNS 
 
 ---
 
-## OpenWrt 的服務管理：`/etc/init.d/<服務>` 的完整動詞
-
-OpenWrt 用 procd 而不是 systemd，服務操作是**直接執行 init script 加上動詞**：
-
-```
-/etc/init.d/<服務> <動詞>
-```
-
-| 動詞 | 作用 |
-|---|---|
-| `start` / `stop` / `restart` | 啟動／停止／重啟 |
-| `reload` | **重新載入設定**（服務沒實作 reload 就退回 restart） |
-| `enable` / `disable` | **開機自動啟動的開關**（建立／移除 `/etc/rc.d/` 的符號連結） |
-| `enabled` | **檢查是否設為開機啟動**（用離開碼判斷，適合腳本） |
-| `running` | 檢查是否正在執行 |
-| `status` | 顯示服務狀態 |
-| `trace` | **用 syscall trace 啟動**（除錯服務起不來時很有用） |
-| `info` | 倒出 procd 的服務資訊（JSON） |
-
-> **`enable`／`enabled` 只差一個字母但意思完全不同**：前者是「設定成開機啟動」，
-> 後者是「查詢是不是開機啟動」。寫腳本時很容易打錯。
-
-也可以用 `service <服務> <動詞>`，效果相同。
+> **OpenWrt 的服務管理（`service`／`/etc/init.d` 的完整動作、`/etc/rc.d` 符號連結、
+> procd 與 systemd 的對照）** 獨立成一篇：
+> [OpenWrt的服務管理-service與procd.md](./OpenWrt的服務管理-service與procd.md)。
 
 ## `fw4` 的完整子命令
 
