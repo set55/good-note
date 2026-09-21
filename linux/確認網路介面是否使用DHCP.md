@@ -123,3 +123,53 @@ nmcli -t -f ipv4.method connection show <名稱>  # auto=DHCP，manual=固定 IP
 ps aux | grep -E 'NetworkManager|dhclient|dhcpcd'   # 誰在處理 DHCP
 journalctl -u NetworkManager | grep -i dhcp   # DHCP 租約歷史紀錄
 ```
+
+## nmcli 完整文法與選項
+
+### 文法骨架
+
+```
+nmcli [選項] <物件> { <命令> | help }
+```
+
+跟 `ip`／`nft` 一樣是「物件 + 命令」的形狀——**不確定某個物件有哪些命令，就打 `nmcli <物件> help`**。
+
+### 物件（全部 7 個，可縮寫成第一個字母）
+
+| 物件 | 縮寫 | 管什麼 |
+|---|---|---|
+| `general` | `g` | NetworkManager 的整體狀態 |
+| `networking` | `n` | 網路總開關（`nmcli n off` 全關） |
+| `radio` | `r` | Wi-Fi／WWAN 無線開關 |
+| `connection` | `c` | **連線設定檔**（本篇查 `ipv4.method` 用的） |
+| `device` | `d` | **實體／虛擬裝置**（介面現況） |
+| `agent` | `a` | 密鑰代理／polkit 代理 |
+| `monitor` | `m` | **即時監看 NetworkManager 的變化** |
+
+**`connection` 與 `device` 的差別是最容易混淆的一點**：前者是「設定檔」（可以有很多份、
+只有一份在生效），後者是「實體介面」。查 DHCP 設定要看 `connection`，查目前拿到什麼位址要看 `device`。
+
+### 全域選項（全部 14 個）
+
+| 選項 | 作用 |
+|---|---|
+| `-a` `--ask` | 缺參數時互動詢問 |
+| `-c` `--colors auto\|yes\|no` | 是否上色 |
+| `-e` `--escape yes\|no` | 跳脫欄位分隔符 |
+| `-f` `--fields <欄位,...>\|all\|common` | **只輸出指定欄位** |
+| `-g` `--get-values <欄位,...>` | **`-m tabular -t -f` 的捷徑** ← 腳本取值首選 |
+| `-m` `--mode tabular\|multiline` | 輸出模式 |
+| `-o` `--overview` | 概觀模式（省略預設值） |
+| `-p` `--pretty` | 美化輸出（有標題與對齊） |
+| `-t` `--terse` | **精簡輸出**（冒號分隔，給腳本剖析） |
+| `-s` `--show-secrets` | **顯示密碼**（預設隱藏） |
+| `-w` `--wait <秒>` | 等待操作完成的逾時 |
+| `-h` `--help` / `-v` `--version` | 說明／版本 |
+
+腳本裡最實用的組合：
+
+```bash
+nmcli -g ipv4.method connection show "<連線名>"      # 直接取單一值，不用 grep
+nmcli -t -f DEVICE,STATE device status               # 冒號分隔，好切
+```
+

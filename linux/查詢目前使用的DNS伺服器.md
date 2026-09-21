@@ -224,3 +224,56 @@ cat /etc/resolv.conf           # 沒有 systemd-resolved 時可直接信；有�
 nmcli dev show | grep -i dns   # NetworkManager 環境的替代查法
 dig google.com | grep SERVER   # 驗證查詢實際打去哪個位址
 ```
+
+## resolvectl 完整命令與選項
+
+### 命令（全部）
+
+**查詢類**
+
+| 命令 | 作用 |
+|---|---|
+| `query <主機\|位址>` | 解析域名或反查（走 systemd-resolved，**不是直接送 DNS**） |
+| `service [[名稱] 類型] <網域>` | 解析 SRV 服務記錄 |
+| `openpgp <email>` | 查 OpenPGP 公鑰 |
+| `tlsa <網域>[:埠]` | 查 TLSA（DANE）記錄 |
+| `status [LINK...]` | **顯示各介面的 DNS 設定與狀態** ← 本篇主角 |
+| `statistics` / `reset-statistics` | 顯示／歸零解析器統計 |
+| `show-cache` | **顯示快取內容** |
+| `show-server-state` | 顯示各上游伺服器的狀態 |
+| `monitor` | **即時監看 DNS 查詢**（排查「誰在查什麼」很好用） |
+
+**設定類（每個介面各自設定）**
+
+| 命令 | 作用 |
+|---|---|
+| `dns [LINK [伺服器...]]` | 取得／設定該介面的 DNS 伺服器 |
+| `domain [LINK [網域...]]` | 取得／設定搜尋網域 |
+| `default-route [LINK [BOOL]]` | 取得／設定 `+DefaultRoute` 旗標 |
+| `llmnr [LINK [模式]]` | LLMNR 模式 |
+| `mdns [LINK [模式]]` | MulticastDNS 模式 |
+| `dnsovertls [LINK [模式]]` | **DNS-over-TLS 模式** |
+| `dnssec [LINK [模式]]` | DNSSEC 模式 |
+| `nta [LINK [網域...]]` | DNSSEC 的 negative trust anchor |
+| `revert <LINK>` | **還原該介面的所有設定** |
+
+**維護類**
+
+| 命令 | 作用 |
+|---|---|
+| `flush-caches` | **清空所有本地 DNS 快取** |
+| `reset-server-features` | 忘掉學到的伺服器功能等級（伺服器換設定後用） |
+| `log-level [等級]` | 取得／設定 systemd-resolved 的日誌等級 |
+
+### 常用選項
+
+`-4` / `-6`（只查 v4／v6）、`-i <介面>` `--interface`（指定介面）、
+`-p <協定>` `--protocol`（`dns`／`llmnr`／`mdns`）、`-t <type>` `--type`、`-c <class>` `--class`、
+`--service-address=<bool>`、`--service-txt=<bool>`、`--cname=<bool>`、`--validate=<bool>`、
+`--synthesize=<bool>`、`--cache=<bool>`、`--zone=<bool>`、`--trust-anchor=<bool>`、
+`--network=<bool>`、`--search=<bool>`、`--raw[=payload|packet]`、`--legend=<bool>`、
+`--json=<模式>`（**給腳本用**）、`--no-pager`、`-h`、`--version`。
+
+**`--json` 與 `monitor` 是這個工具比 `dig` 強的地方**——它看得到 systemd-resolved 的內部狀態
+（快取、每介面設定、驗證結果），而 `dig` 只是直接送封包。
+

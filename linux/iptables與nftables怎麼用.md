@@ -275,6 +275,75 @@ iptables [-t 表] <指令> <鏈> [比對條件...] -j <目標>
 常用目標：`ACCEPT`、`DROP`（默默丟棄）、`REJECT`（回一個錯誤）、`LOG`、`MASQUERADE`、
 `DNAT`、`SNAT`、`RETURN`。
 
+### 完整指令與選項（依本機 `iptables --help`，1.8.10）
+
+前面只挑了常用的，以下是**完整清單**。
+
+**指令（Commands）——每次只能用一個**
+
+| 短 | 長 | 作用 |
+|---|---|---|
+| `-A <鏈>` | `--append` | 加到鏈的**最後** |
+| `-I <鏈> [n]` | `--insert` | 插到第 n 條（**預設 1＝最前面**） |
+| `-D <鏈> <規則\|n>` | `--delete` | 刪除（可用規則內容或行號） |
+| `-R <鏈> <n>` | `--replace` | 取代第 n 條 |
+| `-C <鏈> <規則>` | `--check` | **檢查規則存不存在**（腳本判斷用，不會改動） |
+| `-L [鏈 [n]]` | `--list` | 列出規則（人看的） |
+| `-S [鏈 [n]]` | `--list-rules` | **印成可複製的指令形式** |
+| `-F [鏈]` | `--flush` | 清空鏈（或全部鏈）的規則 |
+| `-Z [鏈 [n]]` | `--zero` | **把 counter 歸零** |
+| `-N <鏈>` | `--new` | 建立自訂鏈 |
+| `-X [鏈]` | `--delete-chain` | 刪除自訂鏈 |
+| `-P <鏈> <目標>` | `--policy` | 設定鏈的**預設政策** |
+| `-E <舊> <新>` | `--rename-chain` | 改鏈名（會連帶更新引用） |
+
+`-C` 值得記住：**寫腳本時先 `-C` 檢查再 `-A`，就不會重複加規則**——
+這是 iptables 版的「冪等」寫法（它沒有 nft 的 `add` 那種安靜成功）。
+
+**選項（Options）**
+
+| 短 | 長 | 作用 |
+|---|---|---|
+| `-t <表>` | `--table` | 操作哪張表（預設 `filter`） |
+| `-p <協定>` | `--protocol` | 協定（名稱或數字） |
+| `-s <位址>` | `--source` | 來源位址／網段 |
+| `-d <位址>` | `--destination` | 目的位址／網段 |
+| `-i <介面>` | `--in-interface` | 進入介面（`+` 是萬用字元，如 `eth+`） |
+| `-o <介面>` | `--out-interface` | 送出介面 |
+| `-j <目標>` | `--jump` | **目標**（可載入 target 擴充） |
+| `-g <鏈>` | `--goto` | 跳到該鏈且**不返回** |
+| `-m <模組>` | `--match` | **載入比對擴充模組**（見下） |
+| `-f` | `--fragment` | 只比對第二個以後的分片 |
+| `-c <封包> <位元組>` | `--set-counters` | 插入時直接設定 counter 值 |
+| `-n` | `--numeric` | **數字輸出**（不做 DNS／服務名解析） |
+| `-v` | `--verbose` | 囉嗦模式（列出時會顯示 counter） |
+| `-x` | `--exact` | 顯示精確數字（不用 K/M/G 縮寫） |
+| — | `--line-numbers` | **列出時顯示行號**（刪規則要用） |
+| `-w [秒]` | `--wait` | 等待 xtables 鎖最多幾秒（**避免並行執行時失敗**） |
+| `-4` / `-6` | `--ipv4` / `--ipv6` | 在 `iptables-restore` 檔案中標示只適用某版本 |
+| — | `--modprobe=<指令>` | 指定載入模組的指令 |
+| `-V` | `--version` | 版本 |
+
+`[!]` 可以加在多數比對選項前面表示**否定**：`! -s 10.0.0.0/8`、`! -p tcp`、`! -i lo`。
+
+**目標（`-j` 的值）**
+
+內建：`ACCEPT`、`DROP`、`RETURN`、`QUEUE`。
+常用擴充：`REJECT`（可配 `--reject-with`）、`LOG`（`--log-prefix`）、`DNAT`（`--to-destination`）、
+`SNAT`（`--to-source`）、`MASQUERADE`、`REDIRECT`（`--to-ports`）、`TPROXY`、`MARK`（`--set-mark`）、
+`TTL`、`TCPMSS`（`--clamp-mss-to-pmtu`）、`NFQUEUE`、`NOTRACK`、`CT`、`AUDIT`、`CONNMARK`。
+
+**比對擴充（`-m` 的值）**
+
+常用：`conntrack`（`--ctstate`）、`state`（舊版）、`multiport`（`--dports`）、`limit`（`--limit`）、
+`mac`（`--mac-source`）、`iprange`、`owner`（`--uid-owner`）、`comment`（`--comment`）、
+`tcp`／`udp`（`--dport`／`--sport`／`--tcp-flags`）、`addrtype`、`set`（ipset）、`recent`、
+`string`、`time`、`hashlimit`、`connlimit`、`physdev`、`policy`、`mark`。
+
+> **每個 target 與 match 擴充各自還有自己的選項**，數量太多不適合全列。
+> 查法：`iptables -j <目標> --help` 或 `iptables -m <模組> --help` **會把該擴充的選項印出來**，
+> 完整說明見 `man iptables-extensions`。
+
 ### 常用配方
 
 ```bash

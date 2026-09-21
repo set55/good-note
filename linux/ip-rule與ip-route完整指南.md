@@ -119,6 +119,61 @@ ip route add [型別] <前綴> [via <下一跳>] [dev <介面>] [src <來源位�
 | `scope` | `global`（要經過閘道）／`link`（同網段可直達）／`host`（本機） |
 | `proto` | 誰加的（`static`／`kernel`／`dhcp`／`boot`），只是標記，不影響行為 |
 
+### `ip route` 的完整參數（依本機 `ip route help`，iproute2）
+
+上面那張表是日常會用到的；**以下是 `ROUTE` 的完整文法**，免得你以為只有那幾個。
+
+```
+ROUTE      := NODE_SPEC [ INFO_SPEC ]
+NODE_SPEC  := [TYPE] 前綴 [tos TOS] [table 表] [proto RTPROTO] [scope SCOPE] [metric 數字]
+              [ttl-propagate {enabled|disabled}]
+INFO_SPEC  := {下一跳 | nhid ID} OPTIONS FLAGS [nexthop 下一跳]...
+下一跳      := [encap 封裝] [via [FAMILY] 位址] [dev 介面] [weight 數字] NHFLAGS
+```
+
+**列舉型參數的**全部**可用值：**
+
+| 參數 | 全部可能的值 |
+|---|---|
+| `TYPE` | `unicast`（預設）／`local`／`broadcast`／`multicast`／`throw`／`unreachable`／`prohibit`／`blackhole`／`nat` |
+| `TABLE_ID` | `local`／`main`／`default`／`all`／任意數字 |
+| `SCOPE` | `host`／`link`／`global`／數字 |
+| `RTPROTO` | `kernel`／`boot`／`static`／數字（還可用 `/etc/iproute2/rt_protos` 的別名，如 `dhcp`） |
+| `NHFLAGS` | `onlink`（**即使下一跳不在同網段也照設**）／`pervasive` |
+| `PREF` | `low`／`medium`／`high`（IPv6 RA 用） |
+| `FEATURES` | `ecn` |
+| `TIME` | 數字加 `s` 或 `ms` |
+| `ENCAPTYPE` | `mpls`／`ip`／`ip6`／`seg6`／`seg6local`／`rpl`／`ioam6`／`xfrm` |
+
+**`OPTIONS`：每條路由可以附帶的核心參數（全部）**
+
+| 參數 | 作用 |
+|---|---|
+| `mtu <數字>` | **這條路由的 MTU**（`mtu lock 1400` 可鎖住不讓 PMTU 探測改它） |
+| `advmss <數字>` | 對外宣告的 MSS |
+| `src <位址>` | 本機發起時用哪個來源位址 |
+| `window <數字>` | TCP 接收視窗上限 |
+| `cwnd <數字>` / `initcwnd <數字>` | 壅塞視窗／**初始壅塞視窗**（調 TCP 起步速度） |
+| `initrwnd <數字>` | 初始接收視窗 |
+| `ssthresh <數字>` | 慢啟動門檻 |
+| `rtt <時間>` / `rttvar <時間>` | 初始 RTT 估計值／變異量 |
+| `rto_min <時間>` | 最小重傳逾時 |
+| `reordering <數字>` | 容許的亂序程度 |
+| `hoplimit <數字>` | IPv6 的 hop limit（等同 IPv4 TTL） |
+| `congctl <名稱>` | **這條路由用哪個壅塞控制演算法** |
+| `quickack <0\|1>` | 是否啟用 quick ACK |
+| `fastopen_no_cookie <0\|1>` | TCP Fast Open 不用 cookie |
+| `features ecn` | 啟用 ECN |
+| `expires <時間>` | 路由的存活時間 |
+| `pref <low\|medium\|high>` | 優先度 |
+| `realms <REALM>` / `as [to] <位址>` | realm 分類／位址轉換（少用） |
+
+**`FLAGS`**：`onlink`（無視下一跳是否可達）、`nexthop`（多路徑，可重複）、
+`dead`／`linkdown`（唯讀，核心標記）。
+
+> 其中 `mtu`、`initcwnd`、`congctl` 是**調效能時真的會用到**的三個；其餘多數情況用不到，
+> 但知道它們存在，遇到別人的設定就不會卡住。
+
 ### `ip rule` 的動詞與組成
 
 ```

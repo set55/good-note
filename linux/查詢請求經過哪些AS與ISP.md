@@ -191,3 +191,53 @@ curl -s https://ipinfo.io/208.67.222.222/org    # AS36692 Cisco OpenDNS, LLC
    看你的連線延遲只有 90ms。你會先懷疑什麼，並用什麼方法驗證？
 5. 情境題：你 trace 到某個 CDN 的 IP，查出來的 ASN 屬於一家你沒聽過的公司，而且地理位置顯示在美國，
    但延遲只有 8ms。請解釋這個組合為什麼完全合理，指出是哪兩個機制造成的。
+
+## traceroute / tracepath 完整選項
+
+> **注意：本機（Ubuntu 24.04）預設沒有裝 `traceroute`**——`command -v traceroute` 找不到，
+> 只有 `tracepath`。要用 GNU/LFT 版的 traceroute 得 `apt install traceroute`。
+> 下面的 traceroute 選項取自**你路由器上的 BusyBox 版**（1.36.1）；
+> Debian 的 `traceroute` 選項更多，以 `man traceroute` 為準。
+
+### `traceroute`（BusyBox 版，OpenWrt 上就是這個）
+
+```
+traceroute [-46Flnrv] [-f 1ST_TTL] [-m MAXTTL] [-q PROBES] [-p PORT]
+           [-t TOS] [-w WAIT_SEC] [-s SRC_IP] [-i IFACE] [-z PAUSE_MSEC] HOST [BYTES]
+```
+
+| 選項 | 作用 |
+|---|---|
+| `-4` / `-6` | 強制 IPv4／IPv6 |
+| `-F` | 設定「不可分片」位元 |
+| `-l` | 顯示回應封包的 TTL 值 |
+| `-n` | **印數字位址，不做反查** |
+| `-r` | 繞過路由表，直接送到目標 |
+| `-v` | 囉嗦模式 |
+| `-f <n>` | 從第幾跳開始（預設 1） |
+| `-m <n>` | 最多幾跳 |
+| `-q <n>` | 每跳送幾個探測（預設 3） |
+| `-p <n>` | 探測用的起始 UDP 埠 |
+| `-t <n>` | TOS |
+| `-w <秒>` | 每個探測等待幾秒 |
+| `-s <IP>` | 指定來源位址 |
+| `-i <介面>` | 指定網卡 |
+| `-z <毫秒>` | 每次探測之間暫停 |
+
+> **BusyBox 版沒有 `-A`（查 ASN）**，所以在 OpenWrt 上要查 AS 得自己接 whois，
+> 或改用 `mtr -z`。
+
+### `tracepath`（本機有的那個）
+
+| 選項 | 作用 |
+|---|---|
+| `-4` / `-6` | 指定 IP 版本 |
+| `-b` | **同時印主機名與 IP** |
+| `-l <長度>` | 封包長度 |
+| `-m <跳數>` | 最大跳數 |
+| `-n` | 不做反向 DNS |
+| `-p <埠>` | 目標埠 |
+
+**`tracepath` 的定位**：它不需要 root、而且會**順便偵測路徑 MTU**，但功能比 traceroute 少
+（不能選協定、不能查 ASN）。排查 MTU 問題時它比 traceroute 好用。
+
