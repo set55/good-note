@@ -487,6 +487,63 @@ ip route flush table 100
 
 ---
 
+## opkg 完整命令與選項（安裝核心模組會用到）
+
+### 命令
+
+**套件操作**
+
+| 命令 | 作用 |
+|---|---|
+| `update` | **更新可用套件清單**（本機 `/var/opkg-lists/` 是空的，一定要先跑） |
+| `install <pkgs>` | 安裝 |
+| `upgrade <pkgs>` | 升級 |
+| `configure <pkgs>` | 設定已解開的套件 |
+| `remove <pkgs\|regexp>` | 移除 |
+| `flag <flag> <pkgs>` | 標記套件；flag 可為 `hold`／`noprune`／`user`／`ok`／`installed`／`unpacked` |
+
+**查詢**
+
+| 命令 | 作用 |
+|---|---|
+| `list` / `list-installed` / `list-upgradable` | 列出可用／已安裝／可升級 |
+| `list-changed-conffiles` | **列出被使用者改過的設定檔** |
+| `files <pkg>` | 該套件裝了哪些檔案（等同 `dpkg -L`） |
+| `search <file\|regexp>` | **哪個套件提供這個檔案**（等同 `dpkg -S`） |
+| `find <regexp>` | 名稱或描述符合的套件 |
+| `info` / `status [pkg]` | 完整資訊／狀態 |
+| `download <pkg>` | 只下載不安裝 |
+| `compare-versions <v1> <op> <v2>` | 比較版本（`<=` `<` `>` `>=` `=` `<<` `>>`） |
+| `print-architecture` | 可安裝的架構 |
+| `depends` / `whatdepends` / `whatdependsrec` | 相依／被誰相依／遞迴 |
+| `whatrecommends` / `whatsuggests` / `whatprovides` / `whatconflicts` / `whatreplaces` | 各種關係查詢（都可加 `-A`） |
+
+### 選項
+
+| 選項 | 作用 |
+|---|---|
+| `-A` | 查詢**所有**套件，不只已安裝的 |
+| `-V<等級>` / `--verbosity[=<等級>]` | 0 只有錯誤／1 一般（預設）／2 資訊／3 除錯／4 除錯 2 |
+| `-f <檔>` / `--conf <檔>` | 指定設定檔 |
+| `--cache <目錄>` | 使用套件快取 |
+| `-d <名稱>` / `--dest <名稱>` | **安裝到指定的 dest**（外接儲存裝置常用） |
+| `-o <目錄>` / `--offline-root <目錄>` | 離線安裝的根目錄 |
+| `--verify-program <路徑>` | 指定驗簽程式 |
+| `--add-arch <arch>:<優先度>` / `--add-dest <名稱>:<路徑>` | 註冊架構／目的地 |
+| **`--noaction`** | **只測試不執行** ← 裝東西前先跑這個 |
+| `--download-only` | 只下載 |
+| `--no-check-certificate` | 不驗證 SSL 憑證 |
+
+**Force 選項**
+
+`--force-depends`（無視相依）、`--force-maintainer`（覆寫既有設定檔）、
+`--force-reinstall`、`--force-overwrite`（覆寫其他套件的檔案）、`--force-downgrade`、
+`--force-space`（跳過空間檢查）、`--force-postinstall`（離線模式也跑 postinstall）、
+`--force-remove`（prerm 失敗也移除）、`--force-checksum`（checksum 不符也繼續）。
+
+> **路由器的 flash 空間通常很小**，`--force-space` 尤其危險——空間不足硬裝可能讓系統無法開機。
+> 本機 overlay 還有 6.8G，這點倒是不用擔心。
+
 ## 自我測驗
 
 1. TPROXY 的三個零件各自解決什麼問題？如果只做了 nftables 規則、漏掉 `ip rule` 與

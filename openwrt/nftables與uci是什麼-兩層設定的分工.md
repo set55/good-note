@@ -234,6 +234,64 @@ uci revert firewall              # 丟棄未 commit 的改動
 
 ---
 
+## uci 完整命令與選項
+
+```
+uci [<選項>] <命令> [<參數>]
+```
+
+### 命令（全部 15 個）
+
+**讀**
+
+| 命令 | 作用 |
+|---|---|
+| `show [<config>[.<section>[.<option>]]]` | **顯示設定**（可逐層縮小範圍） |
+| `get <config>.<section>[.<option>]` | 取單一值 |
+| `export [<config>]` | 匯出成 uci 檔案格式 |
+| `changes [<config>]` | **顯示尚未 commit 的改動** ← 最該記住的一個 |
+
+**寫（都只寫進暫存，要 commit 才生效）**
+
+| 命令 | 作用 |
+|---|---|
+| `set <config>.<section>[.<option>]=<值>` | 設定值 |
+| `add <config> <section-type>` | **新增一個匿名 section**（回傳它的名字） |
+| `add_list <config>.<section>.<option>=<字串>` | 往 list 加一項 |
+| `del_list <config>.<section>.<option>=<字串>` | 從 list 移除一項 |
+| `delete <config>[.<section>[[.<option>][=<id>]]]` | 刪除 |
+| `rename <config>.<section>[.<option>]=<名稱>` | **把匿名 section 命名**（之後就能用名字取代索引） |
+| `reorder <config>.<section>=<位置>` | 改變 section 的順序 |
+
+**交易**
+
+| 命令 | 作用 |
+|---|---|
+| `commit [<config>]` | **寫回 `/etc/config/`** |
+| `revert <config>[.<section>[.<option>]]` | **丟棄未 commit 的改動** |
+| `batch` | 從 stdin 讀多個命令一次執行 |
+| `import [<config>]` | 從 uci 格式匯入 |
+
+`rename` 特別值得知道：**把匿名 section 命名之後就能寫 `firewall.myzone.input='ACCEPT'`，
+不必再用會位移的 `@zone[1]`**——腳本可靠度差很多。
+
+### 選項（全部 13 個）
+
+| 選項 | 作用 |
+|---|---|
+| `-c <路徑>` | 設定檔搜尋路徑（預設 `/etc/config`） |
+| `-C <路徑>` | 覆寫檔搜尋路徑（預設 `/var/run/uci`） |
+| `-d <字串>` | `uci show` 時 list 值的分隔符 |
+| `-f <檔案>` | 用檔案取代 stdin |
+| `-m` | import 時**合併**進既有套件 |
+| `-n` | export 時替匿名 section 命名（預設） |
+| `-N` | export 時不替匿名 section 命名 |
+| `-p <路徑>` / `-P <路徑>` | 追加改動檔搜尋路徑（`-P` 並設為預設） |
+| `-t <路徑>` | 改動檔的儲存路徑 |
+| `-q` | 安靜模式（不印錯誤） |
+| `-s` / `-S` | 強制／關閉嚴格模式（遇到解析錯誤是否停止；預設 `-s`） |
+| `-X` | `show` 時不使用延伸語法 |
+
 ## 自我測驗
 
 1. nftables 和 uci 為什麼不能拿來比較「哪個比較好」？各自屬於哪一層、管的是什麼？
