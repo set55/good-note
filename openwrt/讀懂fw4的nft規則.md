@@ -6,7 +6,7 @@
 > 適用範圍：OpenWrt 24.10.2、nftables 1.1.1、firewall4
 > 相關：[nftables與uci是什麼-兩層設定的分工.md](./nftables與uci是什麼-兩層設定的分工.md)、
 > [iptables與nftables怎麼用.md](../linux/iptables與nftables怎麼用.md)、
-> [nft規則語法逐字拆解.md](../linux/nft規則語法逐字拆解.md)（每個 token 的意思在那篇）
+> [nft完整用法-從命令到規則語法.md](../linux/nft完整用法-從命令到規則語法.md)（每個 token 的意思在那篇）
 
 **一句話結論：不要從第一行開始讀。先把 chain 分成兩種——有 `hook` 的是**核心的入口**（只有 13 條），
 沒有 `hook` 的只是**被 jump 呼叫的子函式**（22 條）。然後挑一條你在乎的封包路徑，從入口鏈一路
@@ -275,7 +275,7 @@ firewall.@zone[1].mtu_fix='1'        # ← wan zone 的「MSS clamping」勾選
 中間又有人擋掉 ICMP「需要分片」訊息，就會出現**「網頁開得開、但大檔案或某些網站卡死」**
 的經典症狀。改寫 SYN 封包裡的 MSS 值是最直接的解法。
 （`tcp option maxseg size set rt mtu` 的逐字拆解見
-[nft規則語法逐字拆解.md](../linux/nft規則語法逐字拆解.md#六動作statement逐個拆)。）
+[nft完整用法-從命令到規則語法.md](../linux/nft完整用法-從命令到規則語法.md#十二動作statement逐個拆)。）
 
 **為什麼要做兩次（forward 進來 + postrouting 出去）**：連線的兩個方向都會各自發一個 SYN
 （你發 SYN、對方回 SYN+ACK），兩邊宣告的 MSS 都要修正，所以進出兩個方向都要攔。

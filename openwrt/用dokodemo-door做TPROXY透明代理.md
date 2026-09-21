@@ -7,7 +7,7 @@
 > 以及本文要新增的 `/etc/init.d/tproxy-rules`（正式設定）
 > 適用範圍：OpenWrt 24.10.2、kernel 6.6.93、nftables 1.1.1／fw4、v2ray 5.40.0
 > 原理篇：[路由器上的透明代理-為什麼不是TUN模式.md](./路由器上的透明代理-為什麼不是TUN模式.md)
-> 語法篇：[nft規則語法逐字拆解.md](../linux/nft規則語法逐字拆解.md)
+> 語法篇：[nft完整用法-從命令到規則語法.md](../linux/nft完整用法-從命令到規則語法.md)
 
 **一句話結論：TPROXY 要三個零件同時成立才會動——① v2ray 的 dokodemo-door 開 `tproxy` sockopt
 （才收得到「目的地不是自己」的封包）② `ip rule` + `ip route local` 把打了 mark 的封包留在本機
@@ -156,6 +156,41 @@ ls /lib/modules/$(uname -r)/ | grep -E 'tproxy|socket'
   }
 }
 ```
+
+### 先澄清：「dokodemo-door」不是協定
+
+它**根本不是網路協定**，而是 v2ray 內部的 inbound handler 名稱。名字取自哆啦A夢的道具
+**「どこでもドア」（Dokodemo Door，中文譯「任意門」）**——任意門通到你想去的任何地方，
+正好描述它的行為：**把進來的連線原封不動送到「它原本要去的地方」**。
+
+**v2ray 設定裡的 `protocol` 欄位混了兩類東西**，這是最容易誤會的地方：
+
+| 類別 | 值 | 有線路格式／交握嗎 |
+|---|---|---|
+| **真的協定** | `socks`、`http`、`vmess`、`vless`、`trojan`、`shadowsocks`、`hysteria2`、`wireguard` | ✅ |
+| **內部 handler** | **`dokodemo-door`**、`freedom`、`blackhole`、`loopback`、`dns` | ❌ 沒有線路協定 |
+
+dokodemo-door 不做任何協定解析——它收到一條**裸的 TCP／UDP 連線**，只需要決定「這要送去哪」：
+
+| `followRedirect` | 目的地哪裡來 | 用途 |
+|---|---|---|
+| `false` | 設定檔裡寫死的 `address`／`port` | 單純的埠轉發 |
+| **`true`** | **去問核心**原本的目的地 | **透明代理**（本文要的） |
+
+「去問核心」的實作方式，也正好對應兩種透明代理機制：REDIRECT 用 `SO_ORIGINAL_DST`，
+TPROXY 用 `IP_RECVORIGDSTADDR`——所以 `followRedirect` 這個名字其實有點誤導，它兩種都管。
+
+**同樣的功能在別的軟體叫什麼**：
+
+| 軟體 | 名稱 |
+|---|---|
+| Xray | 一樣叫 `dokodemo-door`（它是 v2ray 的 fork） |
+| sing-box | `tproxy` / `redirect` inbound |
+| mihomo（clash） | `tproxy-port` / `redir-port` |
+
+**功能是業界標準的，名字是 v2ray 的玩笑。** 同一批命名還有 `freedom`（直連出站）、
+`blackhole`（丟棄）——查文件時要有心理準備：**在 `protocol` 欄位看到不認識的字，先確認它是
+真協定還是這類內部名稱**，否則會白花時間去找「dokodemo-door 協定的 RFC」。
 
 ### 每個欄位為什麼要這樣寫
 
@@ -387,7 +422,7 @@ stop() {
 ```
 
 把規則寫成 `/etc/v2ray-tproxy.nft`（用 `nft -f` 原子套用，語法見
-[nft規則語法逐字拆解.md](../linux/nft規則語法逐字拆解.md)）：
+[nft完整用法-從命令到規則語法.md](../linux/nft完整用法-從命令到規則語法.md)）：
 
 ```
 table ip v2ray_tproxy {

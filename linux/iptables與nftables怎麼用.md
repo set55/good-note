@@ -324,80 +324,10 @@ apt install iptables-persistent             # Debian/Ubuntu：開機自動還原
 
 ## 四、nftables 怎麼用
 
-### 三步：建表 → 建鏈 → 加規則
+nft 的完整用法——**命令文法（add／delete／list…）與規則語法（每個 token 的意思）**——
+獨立成一篇：**[nft完整用法-從命令到規則語法.md](./nft完整用法-從命令到規則語法.md)**。
 
-```bash
-# 1. 建表（要指定 family）
-nft add table inet myfilter
-#          ^^^^ ip=IPv4 / ip6=IPv6 / inet=兩者共用 / arp / bridge / netdev
-
-# 2. 建鏈（宣告 hook、type、priority、預設政策）
-nft add chain inet myfilter input '{ type filter hook input priority 0; policy drop; }'
-
-# 3. 加規則
-nft add rule inet myfilter input iif lo accept
-nft add rule inet myfilter input ct state established,related accept
-nft add rule inet myfilter input tcp dport 22 accept
-nft add rule inet myfilter input tcp dport { 80, 443 } accept      # 集合，一行搞定
-```
-
-**和 iptables 最大的不同：表與鏈不是固定的四表五鏈，而是你自己宣告。** 想要什麼 hook、
-什麼優先權，自己決定——這就是 TPROXY 能寫 `priority mangle` 的原因。
-
-`inet` family 特別實用：一套規則同時管 IPv4 與 IPv6，不必像 iptables 那樣 `iptables` 與
-`ip6tables` 各寫一遍。
-
-### 查看與刪除
-
-```bash
-nft list ruleset                       # 全部
-nft list table inet myfilter           # 單一表
-nft -a list ruleset                    # ← 加 -a 才會顯示 handle 編號
-nft delete rule inet myfilter input handle 7      # 刪除要用 handle，不是行號
-nft flush chain inet myfilter input    # 清空鏈
-nft delete table inet myfilter         # 整張表砍掉
-```
-
-**刪規則一定要先 `-a` 查 handle**，這是 nft 和 iptables 用法差最多的地方之一。
-
-### 集合、對應與判決表
-
-```bash
-# 具名集合（可動態增刪，不用改規則）
-nft add set inet myfilter blacklist '{ type ipv4_addr; flags timeout; }'
-nft add element inet myfilter blacklist '{ 1.2.3.4 timeout 1h }'
-nft add rule inet myfilter input ip saddr @blacklist drop
-
-# vmap（verdict map，判決對應表）——iptables 做不到
-nft add rule inet myfilter input ct state vmap { established : accept, invalid : drop }
-```
-
-### 一次載入整份規則（強烈建議）
-
-```bash
-# /etc/nftables.conf
-#!/usr/sbin/nft -f
-flush ruleset                          # ← 先清空，確保結果可重現
-
-table inet myfilter {
-    chain input {
-        type filter hook input priority 0; policy drop;
-        iif lo accept
-        ct state established,related accept
-        tcp dport { 22, 80, 443 } accept
-    }
-}
-```
-
-```bash
-nft -f /etc/nftables.conf              # 套用
-systemctl enable --now nftables        # 開機自動載入
-```
-
-**`nft -f` 是原子操作**：整份檔案要嘛全部生效、要嘛全部不變，不會出現「改到一半」的半套狀態。
-這是它比 iptables 逐條下指令安全的主要原因，也是遠端改防火牆時的保命符。
-
----
+本篇只保留「兩代工具的對照」與 iptables 自己的用法；要動手寫 nft 規則請看那篇。
 
 ## 五、語法對照（官方工具實測產生）
 

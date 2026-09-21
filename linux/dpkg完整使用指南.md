@@ -346,6 +346,171 @@ dpkg -l 'libnvidia-compute*'         # 輸出會看到 libnvidia-compute-550:amd
 
 ---
 
+## 完整指令與選項清單
+
+前面各節只挑了日常會用到的。**以下是本機 `dpkg --help` / `dpkg-deb --help` /
+`dpkg-query --help` / `dpkg --force-help` 的完整內容**（dpkg 1.22.6），免得你以為那就是全部。
+
+### `dpkg` 的動作（Commands）
+
+**安裝與移除**
+
+| 動作 | 作用 |
+|---|---|
+| `-i` `--install <deb>` | 解檔 + 設定 |
+| `--unpack <deb>` | **只解檔不設定** |
+| `-A` `--record-avail <deb>` | 只記錄可用版本資訊，不安裝 |
+| `-R` `--recursive <目錄>` | 遞迴處理目錄下所有 `.deb`（配合上面三個） |
+| `--configure <pkg>` \| `-a`\|`--pending` | 設定已解檔的套件；`-a` 是**全部待處理的** |
+| `--triggers-only <pkg>` \| `-a` | 只處理觸發器 |
+| `-r` `--remove <pkg>` \| `-a` | 移除，保留設定檔 |
+| `-P` `--purge <pkg>` \| `-a` | 徹底清除，含設定檔 |
+
+**查詢**
+
+| 動作 | 作用 |
+|---|---|
+| `-l` `--list [pattern]` | 列出套件與狀態 |
+| `-s` `--status [pkg]` | 詳細狀態 |
+| `-p` `--print-avail [pkg]` | 可用版本的詳細資訊 |
+| `-L` `--listfiles <pkg>` | 該套件裝了哪些檔案 |
+| `-S` `--search <pattern>` | 哪個套件擁有這個檔案 |
+| `-V` `--verify [pkg]` | **驗證檔案完整性**（與安裝時的 md5 比對） |
+| `-C` `--audit [pkg]` | 列出狀態異常的套件 |
+| `--yet-to-unpack` | 已選擇安裝但尚未解檔的 |
+| `--predep-package` | 印出需要先解檔的前置相依 |
+
+**選擇狀態（selections）**
+
+| 動作 | 作用 |
+|---|---|
+| `--get-selections [pattern]` | 匯出套件選擇狀態 |
+| `--set-selections` | 從 stdin 匯入 |
+| `--clear-selections` | 把所有非 essential 套件標成不選 |
+
+**可用套件資料庫（available）**
+
+| 動作 | 作用 |
+|---|---|
+| `--update-avail [Packages]` | 取代 available 資訊 |
+| `--merge-avail [Packages]` | 合併 |
+| `--clear-avail` | 清空 |
+| `--forget-old-unavail` | 忘掉已移除且不再可用的套件 |
+
+**架構與其他**
+
+| 動作 | 作用 |
+|---|---|
+| `--add-architecture <arch>` / `--remove-architecture <arch>` | 增減外來架構 |
+| `--print-architecture` / `--print-foreign-architectures` | 印出主架構／外來架構 |
+| `--compare-versions <a> <op> <b>` | **比較版本號**（運算子：`lt le eq ne ge gt`）；腳本判斷版本很好用 |
+| `--assert-<feature>` / `--assert-help` | 斷言 dpkg 是否支援某功能 |
+| `--validate-<thing> <字串>` | 驗證字串格式（套件名、版本號等） |
+| `--force-help` / `-Dh`、`--debug=help` | 顯示 force／除錯的說明 |
+
+### `dpkg` 的選項（Options）
+
+| 選項 | 作用 |
+|---|---|
+| `--admindir=<目錄>` | 換掉資料庫位置（預設 `/var/lib/dpkg`） |
+| `--root=<目錄>` | **安裝到另一個根目錄**（連維護腳本都在該 root 下跑） |
+| `--instdir=<目錄>` | 只改檔案安裝位置，腳本仍在本機跑 |
+| `--pre-invoke=<指令>` / `--post-invoke=<指令>` | 前／後置掛鉤 |
+| `--path-exclude=<pattern>` / `--path-include=<pattern>` | **排除／重新納入**符合樣式的路徑（做精簡容器映像常用） |
+| `-O` `--selected-only` | 跳過未被選擇安裝的套件 |
+| `-E` `--skip-same-version` | 跳過版本相同的 |
+| `-G` `--refuse-downgrade` | 跳過版本較舊的 |
+| `-B` `--auto-deconfigure` | 即使會弄壞別的套件也照裝 |
+| `--[no-]triggers` | 略過或強制處理觸發器 |
+| `--verify-format=<格式>` | `-V` 的輸出格式（目前支援 `rpm`） |
+| `--no-pager` | 不使用分頁器 |
+| `--no-debsig` | 不驗證套件簽章 |
+| **`--no-act`／`--dry-run`／`--simulate`** | **只說會做什麼，不實際執行** ← 動手前先跑這個 |
+| `-D` `--debug=<八進位>` | 除錯輸出 |
+| `--status-fd <n>` / `--status-logger=<指令>` | 把狀態變更送到 fd／指令（前端工具用） |
+| `--log=<檔案>` | 指定 log 位置（預設 `/var/log/dpkg.log`） |
+| `--ignore-depends=<pkg>[,...]` | 忽略牽涉到指定套件的相依 |
+| `--force-<thing>[,...]` | 強制（見下） |
+| `--no-force-<thing>` / `--refuse-<thing>` | 反向：遇到問題就停 |
+| `--abort-after <n>` | 遇到 n 個錯誤就中止（預設 50） |
+| `--robot` | 部分指令改用機器可讀輸出 |
+
+### `--force-<thing>` 完整清單
+
+`[!]` = **官方警告「可能嚴重損壞系統」**；`[*]` = 預設已啟用。
+本機目前啟用的是 `security-mac,downgrade`。
+
+| 名稱 | 作用 |
+|---|---|
+| `[!] all` | 開啟**所有** force 選項 |
+| `[*] security-mac` | 盡可能使用 MAC 安全機制 |
+| `[*] downgrade` | 允許降版 |
+| `configure-any` | 為了滿足需求，設定任何可能有幫助的套件 |
+| `hold` | 即使被 hold 也照樣處理 |
+| `not-root` | 非 root 也嘗試安裝／移除 |
+| `bad-path` | PATH 缺少重要程式仍繼續 |
+| `bad-verify` | 驗證失敗仍安裝 |
+| `bad-version` | 版本號有問題仍處理 |
+| `statoverride-add` / `statoverride-remove` | 覆寫既有／忽略不存在的 statoverride |
+| **`overwrite`** | **覆寫屬於其他套件的檔案** ← 解 `trying to overwrite` 用這個 |
+| `overwrite-diverted` | 用未轉移版本覆寫已 divert 的檔案 |
+| `[!] overwrite-dir` | 用檔案覆寫其他套件的目錄 |
+| `[!] unsafe-io` | 解檔時不做安全 I/O（快但斷電會壞） |
+| `[!] script-chrootless` | 維護腳本不 chroot |
+| `[!] confnew` / `confold` / `confdef` | 設定檔衝突時一律用新版／舊版／預設答案 |
+| `[!] confmiss` | 永遠補上缺少的設定檔 |
+| `[!] confask` | 即使沒有新版也詢問是否取代設定檔 |
+| `[!] architecture` | 架構錯誤或缺架構仍處理 |
+| `[!] breaks` | 即使會 break 其他套件仍安裝 |
+| `[!] conflicts` | 允許安裝互相衝突的套件 |
+| `[!] depends` | 所有相依問題降級為警告 |
+| `[!] depends-version` | 只把相依的**版本**問題降級為警告 |
+| `[!] remove-reinstreq` | 移除標記為必須重裝的套件 |
+| `[!] remove-protected` | 移除受保護的套件 |
+| `[!] remove-essential` | **移除 essential 套件**（幾乎等於毀掉系統） |
+
+### `dpkg-deb` 完整動作與選項
+
+| 動作 | 作用 |
+|---|---|
+| `-b` `--build <目錄> [deb]` | 把目錄打包成 `.deb` |
+| `-c` `--contents <deb>` | 列出內含檔案 |
+| `-I` `--info <deb> [檔]` | 顯示 control 資訊 |
+| `-W` `--show <deb>` | 顯示套件資訊（可配 `--showformat`） |
+| `-f` `--field <deb> [欄位]` | 只印出指定欄位 |
+| `-e` `--control <deb> [目錄]` | 解出 control 目錄（**維護腳本在這裡**） |
+| `-x` `--extract <deb> <目錄>` | 解出檔案 |
+| `-X` `--vextract <deb> <目錄>` | 解出並列出 |
+| `-R` `--raw-extract <deb> <目錄>` | control 與檔案都解出 |
+| `--ctrl-tarfile <deb>` / `--fsys-tarfile <deb>` | 直接輸出兩個 tar |
+
+| 選項 | 作用 |
+|---|---|
+| `-v` `--verbose` / `-D` `--debug` | 囉嗦／除錯 |
+| `--showformat=<格式>` | `--show` 的輸出格式 |
+| `--deb-format=<格式>` | 封存格式（`2.0` 預設 / `0.939000`） |
+| `--nocheck` | 建置時跳過 control 檢查 |
+| `--root-owner-group` | 強制檔案擁有者為 root（**無 root 建置可重現套件時必用**） |
+
+### `dpkg-query` 完整動作與選項
+
+| 動作 | 作用 |
+|---|---|
+| `-s` `-p` `-L` `-l` `-S` | 同 dpkg 的對應動作 |
+| `-W` `--show [pattern]` | **可自訂輸出格式**，腳本用 |
+| `--control-list <pkg>` | 列出該套件的 control 檔案清單 |
+| `--control-show <pkg> <檔>` | 印出某個 control 檔內容（**不用去翻 `/var/lib/dpkg/info`**） |
+| `-c` `--control-path <pkg> [檔]` | 印出 control 檔的路徑 |
+
+| 選項 | 作用 |
+|---|---|
+| `--admindir` / `--root` | 同 dpkg |
+| `--load-avail` | `--show`／`--list` 時一併讀 available 檔 |
+| `--no-pager` | 不分頁 |
+| `-f` `--showformat=<格式>` | 輸出格式（支援 `\n`、`\t` 等跳脫與 `${欄位}`） |
+
+---
+
 ## 十一、速查表
 
 ```bash

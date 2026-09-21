@@ -143,6 +143,9 @@ dpkg-deb -e foo.deb /tmp/ctrl && cat /tmp/ctrl/postinst              # 順便看
 
 ---
 
+> **完整的 `dpkg` / `dpkg-deb` / `dpkg-query` 動作與選項清單**（含 `--force-*` 全部項目）
+> 見 [dpkg完整使用指南.md](./dpkg完整使用指南.md#完整指令與選項清單)，本篇只列這個任務用得到的。
+
 ## 六、速查表
 
 ```bash

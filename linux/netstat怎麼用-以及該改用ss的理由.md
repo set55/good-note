@@ -68,19 +68,59 @@ netstat -s            # 4. 協定層的累計統計
 
 旗標逐一拆解：
 
-| 旗標 | 意思 | 備註 |
+**netstat 的完整選項**（依本機 `netstat --help`，net-tools 2.10）：
+
+**選什麼來看（模式，互斥）**
+
+| 選項 | 長選項 | 作用 |
 |---|---|---|
-| `-t` | TCP | |
-| `-u` | UDP | |
-| `-x` | Unix domain socket | 本機行程間通訊，不走網路 |
-| `-l` | 只看 **LISTEN** 狀態 | 不加就只顯示非監聽的連線 |
-| `-a` | **全部**（監聽 + 已連線） | |
-| `-n` | **數字形式**，不做名稱解析 | **一定要加**，見下 |
-| `-p` | 顯示 PID 與程式名 | **要 root 才看得到別人的** |
-| `-c` | 持續每秒更新 | |
-| `-r` | 路由表 | |
-| `-i` | 網卡統計 | |
-| `-s` | 協定統計 | |
+| （不給） | — | 顯示**連線**（預設只顯示已連線的） |
+| `-r` | `--route` | 路由表 |
+| `-i` | `--interfaces` | 網卡統計表 |
+| `-g` | `--groups` | 多播群組成員 |
+| `-s` | `--statistics` | 協定層累計統計（類似 SNMP） |
+| `-M` | `--masquerade` | 偽裝（NAT）連線 |
+
+**選哪種 socket**
+
+| 選項 | 長選項 | 作用 |
+|---|---|---|
+| `-t` | `--tcp` | TCP |
+| `-u` | `--udp` | UDP |
+| `-U` | `--udplite` | UDP-Lite |
+| `-S` | `--sctp` | SCTP |
+| `-w` | `--raw` | RAW socket |
+| `-x` | `--unix` | Unix domain socket（本機行程間通訊，不走網路） |
+| — | `--ax25` / `--ipx` / `--netrom` | 舊式網路協定 |
+| `-4` / `-6` | — | 只看 IPv4／IPv6 |
+| `-A <af>` | — | 指定位址家族 |
+
+**過濾與顯示**
+
+| 選項 | 長選項 | 作用 |
+|---|---|---|
+| `-a` | `--all` | **全部**（監聽 + 已連線） |
+| `-l` | `--listening` | **只看 LISTEN** |
+| `-n` | `--numeric` | **數字形式，不做名稱解析** ← 見下 |
+| — | `--numeric-hosts` | 只有主機名不解析 |
+| — | `--numeric-ports` | 只有埠號不解析 |
+| — | `--numeric-users` | 只有使用者名不解析 |
+| `-N` | `--symbolic` | 解析硬體（介面）名稱 |
+| `-e` | `--extend` | 顯示更多欄位（加兩次 `-ee` 更多） |
+| `-p` | `--programs` | **顯示 PID／程式名**（要 root 才看得到別人的） |
+| `-o` | `--timers` | 顯示計時器資訊 |
+| `-c` | `--continuous` | **持續每秒更新** |
+| `-v` | `--verbose` | 囉嗦模式 |
+| `-W` | `--wide` | **不截斷 IP 位址**（IPv6 必備） |
+| `-Z` | `--context` | 顯示 SELinux 安全脈絡 |
+| `-F` | `--fib` | 顯示轉發表（預設） |
+| `-C` | `--cache` | 顯示路由快取而非 FIB |
+| `-V` / `-h` | `--version` / `--help` | 版本／說明 |
+
+> **BusyBox 版（你的 OpenWrt）只有 `[-ral] [-tuwx] [-enWp]`**，沒有長選項、也沒有
+> `-s`／`-g`／`-M`／`-Z` 等。跨平台腳本只用最基本的旗標。
+
+記法：**`tulnp` = TCP、UDP、Listening、Numeric、Process**。
 
 **`-n` 為什麼一定要加**：不加 `-n` 時 netstat 會做**兩種完全不同的名稱查詢**，而代價天差地遠：
 
@@ -245,6 +285,46 @@ $ netstat -tn | awk 'NR>2 {print $6}' | sort | uniq -c | sort -rn
 | `netstat -i` | `ip -s link` | |
 | `netstat -s` | `ss -s`（摘要）／`nstat` | |
 | `netstat -tn \| grep :443` | `ss -tn 'dport = :443'` | **ss 能在核心端過濾，快很多** |
+
+**`ss` 的完整選項**（依本機 `ss --help`，iproute2）：
+
+**選哪種 socket**
+
+| 選項 | 長選項 | 作用 |
+|---|---|---|
+| `-t` `-u` `-w` `-x` | `--tcp` `--udp` `--raw` `--unix` | 同 netstat |
+| `-S` `-d` | `--sctp` `--dccp` | SCTP／DCCP |
+| `-M` | `--mptcp` | MPTCP |
+| `-0` | `--packet` | PACKET socket |
+| — | `--tipc` / `--vsock` / `--xdp` | TIPC／vsock／XDP |
+| `-4` `-6` | `--ipv4` `--ipv6` | 只看 v4／v6 |
+| `-f <family>` | `--family` | 指定家族（`inet`/`inet6`/`link`/`unix`/`netlink`/`vsock`/`tipc`/`xdp`） |
+| `-A <query>` | `--query` | 一次指定多類，逗號分隔（`-A tcp,udp`） |
+
+**過濾與顯示**
+
+| 選項 | 長選項 | 作用 |
+|---|---|---|
+| `-a` `-l` | `--all` `--listening` | 全部／只看監聽 |
+| `-n` `-r` | `--numeric` `--resolve` | 不解析名稱／解析主機名 |
+| `-p` | `--processes` | 顯示持有 socket 的行程 |
+| `-T` | `--threads` | 顯示執行緒 |
+| `-e` | `--extended` | 詳細 socket 資訊（含 inode、uid） |
+| `-m` | `--memory` | **socket 記憶體用量** |
+| `-i` | `--info` | **TCP 內部狀態：RTT、cwnd、重傳次數** ← 判斷慢在哪 |
+| `-o` | `--options` | 計時器資訊 |
+| `-s` | `--summary` | **各協定的 socket 數量摘要** |
+| `-b` | `--bpf` | BPF 過濾器資訊 |
+| `-E` | `--events` | 持續顯示**被關閉**的 socket |
+| `-Z` `-z` | `--context` `--contexts` | SELinux 脈絡 |
+| — | `--tos` / `--cgroup` / `--inet-sockopt` | TOS／cgroup／inet socket 選項 |
+| `-H` | `--no-header` | 不印標題列（腳本用） |
+| `-O` | `--oneline` | 每個 socket 印成一行 |
+| `-N <netns>` | `--net` | **切換到指定的 network namespace** |
+| `-K` | `--kill` | **強制關閉**符合條件的 socket（需 root） |
+| `-D <檔>` | `--diag` | 把原始資訊倒進檔案 |
+| `-F <檔>` | `--filter` | 從檔案讀取過濾條件 |
+| `-V` `-h` | `--version` `--help` | 版本／說明 |
 
 ss 獨有、netstat 做不到的：
 
