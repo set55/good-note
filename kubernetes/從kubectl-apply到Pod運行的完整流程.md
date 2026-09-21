@@ -342,6 +342,29 @@ kubectl get events -n <ns> --sort-by=.lastTimestamp | tail -30   # ③ 全域時
 
 ---
 
+## 指令選項的涵蓋範圍說明
+
+> **本篇只列這個主題用得到的指令與旗標，不是完整清單。**
+>
+> `kubectl` 有數十個子命令、每個子命令各自又有十幾到數十個旗標，
+> `kubeadm`／`multipass`／`kind`／`crictl` 也各自龐大。這類工具不適合在筆記裡全列。
+>
+> **查法（這才是該記住的）：**
+> ```bash
+> kubectl --help                  # 所有子命令，依用途分組
+> kubectl <子命令> --help          # 該子命令的完整旗標
+> kubectl options                 # 所有子命令共用的全域旗標
+> kubectl explain <資源>[.欄位]    # ★ 查資源的欄位定義，等同線上 API 文件
+> kubeadm --help / kubeadm <子命令> --help
+> multipass help [<命令>] / kind --help / crictl --help
+> ```
+>
+> **`kubectl explain` 特別值得記住**——寫 YAML 時不確定某個欄位叫什麼、能填什麼，
+> 問它比翻文件快，而且回答的是**你這個叢集版本**的定義。
+>
+> 附帶一提：撰寫本篇的這台機器上**沒有安裝這些工具**，
+> 所以上面的查法是給你在有叢集的環境上用的，不是從本機 `--help` 抄來的清單。
+
 ## 自我測驗
 
 1. `kubectl apply` 回傳 `deployment.apps/web created` 的那一刻，叢集裡實際已經發生了什麼、還沒發生什麼？

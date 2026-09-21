@@ -203,6 +203,31 @@ systemd 不會讀你的 `~/.zshrc`。`claude` 裝在 `~/.local/bin/`，而 syste
 
 ---
 
+## systemd 相關指令的涵蓋範圍
+
+> `systemctl` 有 60 個以上的子命令、`journalctl` 有 50 個以上的選項。
+> **這裡只列本篇用到的**，完整清單見 `systemctl --help`、`man systemctl`、`man journalctl`。
+
+**本篇用到的 `systemctl` 動詞**
+
+| 動詞 | 作用 |
+|---|---|
+| `start` / `stop` / `restart` / `reload` | 啟動／停止／重啟／重載設定 |
+| `enable` / `disable` | 設定／取消開機自動啟動（`--now` 可同時 start／stop） |
+| `status` | 顯示狀態與最近日誌 |
+| `is-active` / `is-enabled` / `is-failed` | **用離開碼回答的查詢**（腳本用） |
+| `cat` | **顯示 unit 與所有 drop-in 的合併結果** |
+| `show [-p <屬性>]` | 顯示實際生效的屬性值 |
+| `edit [--full]` | 編輯 drop-in／完整 unit |
+| `daemon-reload` | **重新載入 unit 設定**（改完檔案必做） |
+| `list-units` / `list-unit-files` | 列出已載入的 unit／磁碟上的 unit 檔 |
+
+**`--user` 與 `--system`**：前者操作使用者層的 systemd 實例（本篇的重點），
+後者是系統層（預設）。**兩者的 unit 目錄、權限與生命週期完全不同。**
+
+**`loginctl`**：`show-user`／`enable-linger`／`disable-linger`／`list-sessions`——
+其中 `enable-linger` 是讓使用者層服務**在沒有登入時也能持續執行**的關鍵。
+
 ## 自我測驗
 
 1. `claude --bg` 和 systemd user timer 都能讓任務在你關掉終端機之後繼續存在。它們最關鍵的差別是什麼？什麼情況下 `--bg` 明確不夠用？

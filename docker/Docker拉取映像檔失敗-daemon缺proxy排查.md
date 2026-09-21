@@ -213,3 +213,22 @@ docker compose -f .set/docker/docker-compose.yml build member-rpc
 - **compose 的 build-args proxy ≠ daemon proxy**：前者給 build 容器內程式用，後者才管 daemon 拉 image（含 frontend）。兩者要分開設、互補。
 - 拉 image 失敗時，**先看 `daemon.json` 有沒有配 mirror**——死掉的加速器是常見卻隱蔽的元兇。
 - **有 proxy 就別再堆第三方 mirror**，少一層第三方相依，少一個會半夜掛掉的點。
+
+## 本篇用到的指令，涵蓋範圍說明
+
+> `docker` 有 53 個頂層命令、`systemctl` 的動詞與選項也很多。
+> **這裡只列本文排查流程用到的那些**，完整清單見 `docker --help`、`man systemctl`。
+
+| 指令 | 用途 |
+|---|---|
+| `docker pull <映像>` | 拉取映像（本文的症狀來源） |
+| `docker info` | **顯示 daemon 的設定**，包含生效中的 proxy |
+| `systemctl show docker -p Environment` | **查 daemon 實際拿到的環境變數** ← 驗證 drop-in 有沒有生效 |
+| `systemctl daemon-reload` | 重新載入 unit 設定（改完 drop-in 必做） |
+| `systemctl restart docker` | 重啟 daemon |
+| `systemctl cat docker` | 顯示 unit 與所有 drop-in 的合併結果 |
+| `journalctl -u docker` | 看 daemon 日誌 |
+
+**`systemctl cat` 與 `systemctl show` 是這類問題的兩把鑰匙**：前者看「設定檔寫了什麼」，
+後者看「服務實際生效的是什麼」——兩者不一致就是沒 `daemon-reload`。
+
