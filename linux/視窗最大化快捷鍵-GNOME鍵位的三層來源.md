@@ -152,6 +152,56 @@ gsettings reset org.gnome.desktop.wm.keybindings toggle-fullscreen
 
 ---
 
+## gsettings 完整命令與選項
+
+```
+gsettings [--schemadir <目錄>] <命令> [參數...]
+```
+
+### 命令（全部 15 個）
+
+**列出**
+
+| 命令 | 作用 |
+|---|---|
+| `list-schemas` | 列出所有已安裝的 schema |
+| `list-relocatable-schemas` | 列出可重定位的 schema（需要路徑的那種） |
+| `list-keys <schema>` | 列出該 schema 的所有鍵 |
+| `list-children <schema>` | 列出子 schema |
+| `list-recursively [schema]` | **遞迴列出鍵與值** ← 找設定時最實用 |
+
+**查詢單一鍵**
+
+| 命令 | 作用 |
+|---|---|
+| `get <schema> <key>` | 取值 |
+| `range <schema> <key>` | **這個鍵可以填什麼**（型別與允許範圍） |
+| `describe <schema> <key>` | **這個鍵是做什麼的**（說明文字） |
+| `writable <schema> <key>` | 這個鍵能不能寫（可能被 lockdown 鎖住） |
+
+**修改**
+
+| 命令 | 作用 |
+|---|---|
+| `set <schema> <key> <值>` | 設定 |
+| `reset <schema> <key>` | **還原成預設值** |
+| `reset-recursively <schema>` | 還原整個 schema |
+
+**其他**
+
+| 命令 | 作用 |
+|---|---|
+| `monitor <schema> [key]` | **即時監看變化** ← 想知道「我在 GUI 上按的那個鈕改了哪個鍵」就用它 |
+| `help [命令]` | 說明 |
+| `--version` | 版本 |
+
+### 選項
+
+只有一個：`--schemadir <目錄>`，指定額外的 schema 搜尋路徑（用於未安裝到系統的 schema）。
+
+**`monitor` 與 `describe` 是查設定的兩把鑰匙**：前者讓你反查「GUI 動作對應哪個鍵」，
+後者讓你看懂「這個鍵是幹嘛的」——不用去翻 GNOME 原始碼。
+
 ## 自我測驗
 
 1. `gsettings get org.gnome.desktop.wm.keybindings maximize` 回傳 `@as []`，但 `Super+Up` 實際按下去視窗確實最大化了。這個矛盾說明了什麼？你會怎麼找出真正綁鍵的地方？

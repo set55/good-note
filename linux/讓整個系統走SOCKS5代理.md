@@ -276,6 +276,37 @@ nc -zv 192.168.1.1 1080                  # proxy 本身通不通
 
 ---
 
+## proxychains4 的完整選項
+
+```
+proxychains4 [-q] [-f 設定檔] <程式> [參數...]
+```
+
+**它只有兩個選項：**
+
+| 選項 | 作用 |
+|---|---|
+| `-q` | **安靜模式**（蓋過設定檔裡的 `quiet_mode`）——不印那些 `[proxychains] Strict chain ...` |
+| `-f <設定檔>` | **指定設定檔**，不用預設的搜尋順序 |
+
+**真正的設定全在設定檔裡，不在命令列。** 設定檔的搜尋順序是：
+`-f` 指定的 → `./proxychains.conf` → `$HOME/.proxychains/proxychains.conf` →
+`/etc/proxychains4.conf`。
+
+設定檔的關鍵項目（本機 `/etc/proxychains4.conf`）：
+
+| 項目 | 作用 |
+|---|---|
+| `strict_chain` | 依序經過清單裡**每一個** proxy，任一掛掉就失敗 |
+| `dynamic_chain` | 同上但**自動跳過掛掉的** |
+| `random_chain` | 隨機挑一個 |
+| `round_robin_chain` | 輪流 |
+| `proxy_dns` | **把 DNS 查詢也導向 proxy**（效果等同 `socks5h`） |
+| `remote_dns_subnet` | 假 IP 的網段（預設 224） |
+| `tcp_read_time_out` / `tcp_connect_time_out` | 逾時（毫秒） |
+| `localnet <網段>` | **排除不走 proxy 的網段** |
+| `[ProxyList]` | 每行一個：`<類型> <主機> <埠> [帳號] [密碼]`，類型為 `http`／`socks4`／`socks5` |
+
 ## 自我測驗
 
 1. 為什麼 Linux 沒有像 Windows 那樣的「系統代理」開關？從 `connect()` 發生在哪一層說明，並解釋為什麼 `ping` 不管怎麼設都不會走 SOCKS5。
