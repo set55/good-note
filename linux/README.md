@@ -9,7 +9,7 @@
 - [核心與驅動](#核心與驅動)（5 篇）
 - [網路基礎與設定](#網路基礎與設定)（17 篇）
 - [網路查詢與追蹤](#網路查詢與追蹤)（4 篇）
-- [Shell 與重新導向](#shell-與重新導向)（7 篇）
+- [Shell 與重新導向](#shell-與重新導向)（9 篇）
 - [終端機與 tmux](#終端機與-tmux)（4 篇）
 - [桌面環境（GNOME）](#桌面環境gnome)（1 篇）
 
@@ -91,6 +91,8 @@ shell 的語法真相與 fd 0／1／2 這三條線怎麼接。
 | [從終端機啟動GUI程式並脫離終端機.md](./從終端機啟動GUI程式並脫離終端機.md) | 關終端機程式跟著死是因為 shell 把 SIGHUP 轉發給 job、一直印輸出是因為 stdout/stderr 繼承自 pty；兩者要分開處理——`setsid -f prog >/dev/null 2>&1` 最徹底；另說明 `code` 本身就會 detach 的特例 | `setsid` `nohup` `disown` `&!` `SIGHUP` `session` `controlling terminal` `/dev/null` `xdg-open` `gtk-launch` `pgrep` `pstree` |
 | [bin與sbin的差別-以及怎麼正確找到執行檔.md](./bin與sbin的差別-以及怎麼正確找到執行檔.md) | `bin` vs `sbin` 看「一般使用者執行有沒有意義」（iptables 套件裡只有純文字處理的 `iptables-xml` 被放進 `/usr/bin` 是最好的例證），`/` vs `/usr` 看開機早期需不需要——但 usrmerge 後 `/bin`→`usr/bin` 已是符號連結，第二個維度消失；並說明為何該用 `command -v`／`type -a` 問系統而不是憑慣例猜路徑 | `FHS` `/bin` `/sbin` `/usr/bin` `/usr/sbin` `usrmerge` `command -v` `type -a` `which` `whereis` `readlink -f` `dpkg -S` `dpkg -L` `PATH` `/usr/local` `DEP17` |
 | [錢字號展開的四種形式-bad-substitution的根因.md](./錢字號展開的四種形式-bad-substitution的根因.md) | `${}` 是參數展開（裡面只能放變數名＋運算子）、`$()` 才是命令替換，把指令寫進 `${}` 會在解析階段就報 `bad substitution`；另含雙引號擋不住 `${}` 展開（只有單引號能）、反引號的三個缺點，以及實測「zsh 不對 `$var` 分詞但仍會對 `$(...)` 分詞」的常見誤解 | `${}` `$()` `$(())` `<()` `bad substitution` `parameter expansion` `command substitution` `arithmetic expansion` `process substitution` `word splitting` `IFS` `backtick` `quoting` `zsh vs bash` |
+| [shell的case語法-樣式比對與分支.md](./shell的case語法-樣式比對與分支.md) | `case <字> in [(]樣式[\|樣式]) 命令 ;; esac` 逐位置拆解：由上往下第一個配對成功就離開、全沒中也不報錯、`<字>` 不分詞所以不必加引號；樣式是 glob 不是正規表示式（`*` `?` `[...]` `[!...]`、`]`／`-` 放置規則、字元類別、沒有「重複」），補集要寫 `!`——dash 不認 `[^...]`；樣式加引號變字面、未加引號的變數會變回萬用字元；以 TPROXY 腳本的 `''\|*[!0-9./]*` 為例說明為何空字串要另外擋、只擋字元就能防注入；另含 `>&2; exit 1`、`${v:+X}` 與 `${v+X}` 的差別、`;&`／`;;&` 是 bash 限定，以及各種寫錯的 dash／bash 錯誤訊息對照 | `case` `esac` `;;` `;&` `;;&` `pattern` `glob` `[!...]` `[^...]` `[[:digit:]]` `"$@"` `>&2` `exit` `${var:+alt}` `${var+alt}` `dash -n` `POSIX sh` |
+| [root執行腳本也Permission-denied-缺執行位元.md](./root執行腳本也Permission-denied-缺執行位元.md) | 新檔案（scp、編輯器建立）預設 `rw-r--r--` 沒有 x，`./檔名` 要核心 `execve` 所以被擋；root 的 `CAP_DAC_OVERRIDE` 對執行有例外——至少要有一個 x 位元；`sh 檔名` 只需 r 所以繞得過但會忽略 `#!`；含 `chmod` 三種形式、符號模式 `[ugoa][+-=][rwxXst]` 逐段與省略時受 umask 影響、八進位、完整選項，以及 `noexec` 掛載、`#!` 直譯器不存在／CRLF（回 `not found`）等相似錯誤的對照 | `Permission denied` `chmod +x` `chmod 755` `x bit` `CAP_DAC_OVERRIDE` `execve` `shebang` `sh script.sh` `umask` `scp -p` `noexec` `CRLF` `not found` `BusyBox ash` |
 
 ### 終端機與 tmux
 
