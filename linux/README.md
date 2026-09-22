@@ -12,6 +12,7 @@
 - [Shell 與重新導向](#shell-與重新導向)（9 篇）
 - [終端機與 tmux](#終端機與-tmux)（4 篇）
 - [桌面環境（GNOME）](#桌面環境gnome)（1 篇）
+- [系統組成（核心與使用者空間）](#系統組成核心與使用者空間)（1 篇）
 
 ### 通用方法論
 
@@ -113,6 +114,14 @@ shell 的語法真相與 fd 0／1／2 這三條線怎麼接。
 | 筆記 | 主題 | 關鍵字 |
 |------|------|--------|
 | [視窗最大化快捷鍵-GNOME鍵位的三層來源.md](./視窗最大化快捷鍵-GNOME鍵位的三層來源.md) | 視窗最大化的快捷鍵是 `Super`+`↑`，但 GNOME 原生的 `maximize` 其實是空的——鍵被 Ubuntu 的 tiling-assistant 擴充套件接走；由此帶出鍵位的三層來源（擴充套件／mutter／應用程式）、用鍵位字串反查綁定者的方法，以及 maximize／fullscreen／tiling 在 EWMH 上的差別 | `gsettings` `org.gnome.desktop.wm.keybindings` `tiling-assistant` `mutter` `toggle-maximized` `Alt+F10` `Super+Up` `_NET_WM_STATE_MAXIMIZED_VERT` `_NET_WM_STATE_FULLSCREEN` `wmctrl` `xprop -root _NET_SUPPORTED` `XDG_SESSION_TYPE` |
+
+### 系統組成（核心與使用者空間）
+
+一套「Linux 系統」由哪些部分組成、各自出自誰：核心、C 函式庫、使用者空間工具。
+
+| 筆記 | 主題 | 關鍵字 |
+|------|------|--------|
+| [GNU是什麼-Linux核心與GNU工具的分工.md](./GNU是什麼-Linux核心與GNU工具的分工.md) | GNU（*GNU's Not Unix*，1983 起）做出 gcc、binutils、glibc、bash、coreutils、gdb 等幾乎所有使用者空間工具，卻缺可用核心，1991 年由 Linux 核心補上，所以日常的「Linux」其實是 Linux 核心＋GNU 工具（`uname -o` 印 `GNU/Linux`）；目標三元組 `x86_64-linux-gnu` 把核心與 C 函式庫分成兩欄；OpenWrt／Alpine 是 Linux＋musl＋BusyBox、不是 GNU，這是路由器上 `ash`、`chmod` 行為不同的根源；GPL 的 copyleft、glibc 用 LGPL 所以任何程式都能連結、kernel 為 GPL-2.0 與 `Signed-off-by` | `GNU` `FSF` `GPL` `LGPL` `copyleft` `GNU/Linux` `glibc` `musl` `BusyBox` `coreutils` `binutils` `target triple` `x86_64-linux-gnu` `uname -o` `Signed-off-by` `DCO` |
 
 ## 常用診斷命令速查（跨筆記通用）
 
