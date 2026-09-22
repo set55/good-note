@@ -7,7 +7,7 @@
 - [通用方法論](#通用方法論)（1 篇）
 - [套件管理（dpkg / dkms）](#套件管理dpkg--dkms)（3 篇）
 - [核心與驅動](#核心與驅動)（5 篇）
-- [網路基礎與設定](#網路基礎與設定)（17 篇）
+- [網路基礎與設定](#網路基礎與設定)（18 篇）
 - [網路查詢與追蹤](#網路查詢與追蹤)（4 篇）
 - [Shell 與重新導向](#shell-與重新導向)（9 篇）
 - [終端機與 tmux](#終端機與-tmux)（4 篇）
@@ -66,6 +66,7 @@
 | [netstat怎麼用-以及該改用ss的理由.md](./netstat怎麼用-以及該改用ss的理由.md) | 讀懂三欄就有方向：`Local Address` 決定誰連得到（實測 clash 綁 `127.0.0.1:7897` 正是 `allow-lan: false` 的效果）、`State` 看連線走到哪、`Recv-Q/Send-Q` 在 ESTABLISHED 與 LISTEN 下意義完全不同（後者是 accept 佇列與 backlog 上限）；另含 `TIME_WAIT` 是協定正常而 `CLOSE_WAIT` 是程式沒關 socket 的責任歸屬、netstat→ss 對照與 ss 為何更快 | `netstat -tulnp` `ss` `net-tools` `iproute2` `sock_diag` `Recv-Q` `Send-Q` `backlog` `somaxconn` `LISTEN` `TIME_WAIT` `CLOSE_WAIT` `SYN_SENT` `0.0.0.0 vs 127.0.0.1` `allow-lan` `lsof -i` `ss -tni` `netns` |
 | [什麼是backlog-TCP交握背後的兩個佇列.md](./什麼是backlog-TCP交握背後的兩個佇列.md) | 連線是核心建的、程式 `accept()` 只是領走，所以中間需要佇列——這就是 backlog；三向交握對應 SYN queue 與 Accept queue 兩個佇列，上限分別來自 `tcp_max_syn_backlog` 與 `min(listen backlog, somaxconn)`；Accept queue 滿時預設「默默丟棄 ACK」，所以體感是偶爾很慢而非連線被拒；含本機 511/200/64/4096 各自的來源與 `ListenOverflows` 判斷法 | `backlog` `listen()` `accept()` `SYN queue` `accept queue` `somaxconn` `tcp_max_syn_backlog` `tcp_syncookies` `tcp_abort_on_overflow` `ListenOverflows` `ListenDrops` `nstat` `ss -ltn` `SYN_RECV` `SYN flood` |
 | [多張nft表的執行順序與ip-rule的位置.md](./多張nft表的執行順序與ip-rule的位置.md) | 核心不選表：表只是命名空間，所有表掛在同一 hook 的 base chain 依 `priority` 由小到大全部執行（鏈名無意義、family 要對得上）；`accept` 只結束自己那條、`drop`／`policy drop` 才終結，所以放行要每張表都同意；多條 nat 鏈由第一個做出轉換的決定；`ip rule`／`ip route` 是夾在 hook 之間的路由判定站——進來的封包先 prerouting 後路由（故 mark／DNAT 要在 prerouting 做），本機發出的先路由後 output（故要 `type route` 觸發重新路由）；用 `nft list hooks`、`nftrace`、`ip route get` 驗證 | `nft list hooks` `base chain` `priority` `hook` `table 命名空間` `accept vs drop` `policy drop` `family inet/ip/netdev` `conntrack -200` `routing decision` `ip rule fwmark` `type route` `reroute` `dstnat` `srcnat` `nftrace` `nft monitor trace` `ip route get` |
+| [socket是什麼-從核心看連線的端點.md](./socket是什麼-從核心看連線的端點.md) | socket 是核心裡代表**一個端點**的物件（fd → `struct file` → `struct socket` → `struct sock`），不是連線；一條 TCP 連線是兩端各一個 socket 加四元組，監聽 socket 不屬於任何連線、每次交握核心另生新 socket（實測 2 條連線 = 5 個 socket）；UDP 一個 socket 收所有人；封包進來時核心先用四元組找已建立的 socket、再用目的位址:埠找監聽 socket、都沒有就 RST——TPROXY 就是跳過這步事先指定 socket，並由此解釋 `IP_TRANSPARENT`、TCP 用 `getsockname()` 取原始目的地、UDP 要 `IP_RECVORIGDSTADDR` | `socket` `struct sock` `fd` `四元組` `LISTEN` `ESTAB` `UNCONN` `bind` `listen` `accept` `connect` `recvfrom` `getsockname` `demultiplexing` `Connection refused` `IP_TRANSPARENT` `ss -tanpe` `/proc/<pid>/fd` |
 
 ### 網路查詢與追蹤
 

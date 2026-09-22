@@ -96,6 +96,96 @@ setsockopt(fd, SOL_IP, IP_RECVORIGDSTADDR, &on, sizeof(on));
 recvmsg(fd, &msg, 0);          // 從 msg 的 cmsg 取出原始目的地
 ```
 
+### `tproxy to :12345` 在 prerouting 到底做了什麼（2026-09-22 補充）
+
+常見的疑問：「prerouting 之後核心反正會重新查路由表，那在 prerouting 寫 `tproxy to :12345`
+有什麼用？」答案是：**`tproxy` 和路由判定做的是兩件不同的事，兩件都要有**。
+
+| 誰 | 回答的問題 | 決定的東西 |
+|---|---|---|
+| **路由判定**（`ip rule` → `ip route`） | 這個封包要**收下**（給本機），還是**轉發**？ | 走 input 還是 forward |
+| **`tproxy`** | 收下之後，要交給**哪一個 socket**？ | 封包身上綁定的 socket |
+
+`tproxy` 不改封包的目的位址，也不決定路線。它做的是**預先指定 socket**：在封包身上
+（核心裡代表封包的 `sk_buff` 結構的 `sk` 欄位）先綁好「等一下交給 12345 那個 socket」。
+（socket 在核心裡是什麼、平常核心怎麼替封包找 socket，見 [socket是什麼-從核心看連線的端點.md](./socket是什麼-從核心看連線的端點.md)。）
+
+#### 文法
+
+```
+tproxy to [位址][:埠]            ← ip／ip6 表；位址和埠至少給一個
+tproxy {ip | ip6} to 位址[:埠]    ← inet 表要指定 family 時
+tproxy to :埠                    ← inet 表只給埠時，IPv4／IPv6 都適用
+```
+
+| 位置 | 意思 | 省略時 |
+|---|---|---|
+| `位址` | 要找的 socket 綁在哪個本機位址上 | 用**封包進來那張網卡的主位址**（例如 `br-lan` 的 `192.168.1.1`）——依 `man iptables-extensions` TPROXY 的 `--on-ip`：*By default the address is the IP address of the incoming interface* |
+| `:埠` | 要找的 socket 聽在哪個埠 | 沿用封包原本的目的埠 |
+
+所以 `tproxy to :12345` 的意思是「找綁在 `br-lan 主位址:12345` 的透明 socket」。
+dokodemo-door 聽在 `0.0.0.0:12345`，`0.0.0.0` 涵蓋所有本機位址，所以找得到。
+
+`man nft` 另外寫明 *Tproxy matching requires another rule that ensures the presence of transport
+protocol header*——這就是規則裡一定要有 `meta l4proto { tcp, udp }` 的原因，
+`tproxy` 得先確定有 TCP／UDP 標頭，才能讀出埠號。
+
+#### 一個封包的完整時間軸
+
+```
+LAN 送出  src=192.168.1.50:54321  dst=1.1.1.1:443
+   │
+   ├─ [prerouting, priority mangle]
+   │     ① tproxy to :12345
+   │        先找：有沒有已建立、四元組完全相同的連線 socket？（同一條連線的後續封包走這裡）
+   │        沒有：找 192.168.1.1:12345 上、設了 IP_TRANSPARENT 的監聽 socket
+   │        找到 → 把它綁在封包身上（封包內容一個位元都沒改）
+   │     ② meta mark set 1
+   │     ③ accept
+   │
+   ├─ 路由判定：fwmark 1 → table 100 → local 0.0.0.0/0 → 「給本機的」
+   │
+   ├─ [input]
+   │
+   └─ 傳輸層（TCP／UDP）要找 socket 時：
+         封包身上已經綁好 socket → 直接用它
+         （若沒綁，會照封包標頭找「1.1.1.1:443」的 socket——本機根本沒有）
+```
+
+#### 拿掉其中一半會怎樣
+
+| 情況 | 結果 | 原因 |
+|---|---|---|
+| 只有 `tproxy`，沒有 mark＋`ip rule`＋`local` 路由 | 封包被**轉發**到 `1.1.1.1`，代理完全沒收到 | 路由判定說「不是給我的」，綁好的 socket 沒機會用上。`man iptables-extensions` 對 `--tproxy-mark` 的說明正是這句：*otherwise these packets will get forwarded* |
+| 只有 mark＋`ip rule`＋`local` 路由，沒有 `tproxy` | 封包被收下，但 TCP 回 RST、UDP 被丟棄 | 路由說「給本機」，傳輸層就照標頭找 `1.1.1.1:443` 的 socket，找不到 |
+| 兩者都有 | 交給 12345 | 路由負責「收下」，`tproxy` 負責「交給誰」 |
+
+**為什麼一定要在 prerouting**：socket 必須在傳輸層查找之前就綁好，而且要趁封包還沒被判定成
+轉發之前。所以 `tproxy` 只能用在 prerouting（iptables 版更明確：只能在 mangle 表的 PREROUTING）。
+
+#### 代理沒在聽時的副作用（已對照核心原始碼）
+
+核心 `net/netfilter/nft_tproxy.c` 的 `nft_tproxy_eval_v4()` 最後兩行（torvalds/linux master，2026-09-22 查閱）：
+
+```c
+	if (sk && nf_tproxy_sk_is_transparent(sk))
+		nf_tproxy_assign_sock(skb, sk);          // 找到透明 socket：綁到封包上
+	else
+		regs->verdict.code = NFT_BREAK;          // 找不到：這條規則到此中斷
+```
+
+`NFT_BREAK` 的意思是「這條規則不成立，換下一條」。所以**找不到**透明 socket 時（v2ray 沒啟動，
+或 inbound 沒開 `sockopt.tproxy`），同一條規則後面的 `meta mark set 1` 和 `accept` 都不會執行。
+同一個函式裡還看得到本節其他說法的出處：非 TCP／UDP 或分片封包一開始就 `NFT_BREAK`
+（所以需要 `meta l4proto`）；先用 `NF_TPROXY_LOOKUP_ESTABLISHED` 找已建立的 socket、找不到才用
+`NF_TPROXY_LOOKUP_LISTENER` 找監聽 socket；`nft_tproxy_validate()` 限制只能掛在
+`NF_INET_PRE_ROUTING`。省略位址時用的 `nf_tproxy_laddr4()`（`net/ipv4/netfilter/nf_tproxy_ipv4.c`）
+取的是入口網卡第一個非 secondary 的位址，沒有才退回封包的目的位址。
+
+結果是：**封包沒打 mark → 走正常路由 → 直接轉發出去，不經過代理。** 不會斷網，
+但會「悄悄直連」。排查時如果發現 counter 在跳、流量卻沒經過代理，先確認 12345 真的有在聽，
+而且是以 tproxy 模式聽的。
+
 但「不改寫」也帶來兩個必須解決的問題：
 
 ### 問題一：核心憑什麼把「不是給我的」封包交給本機 socket？
@@ -181,14 +271,24 @@ type filter hook prerouting priority mangle;
 | 鏈型別 | 必須 `type nat` | `type filter` |
 | 可用 hook | **`prerouting` 與 `output`** | **只有 `prerouting`** |
 | 代理**轉發**流量（LAN 裝置） | ✅ | ✅ |
-| 代理**本機自己**發起的流量 | ✅ 用 `output` 鏈 | ❌ **做不到** |
+| 代理**本機自己**發起的流量 | ✅ 直接在 `output` 鏈寫 | ⚠️ **不能直接在 output 寫**，要繞一圈（見下） |
 
 **這是一個實務上很關鍵的差異**：要讓路由器**自己**的流量（`opkg update`、ntp、容器）走代理，
-TPROXY 幫不上忙——只能用 `output` 鏈的 REDIRECT（TCP 限定），或改用
-[TUN 模式](../openwrt/路由器上的透明代理-為什麼不是TUN模式.md)。
+`tproxy` 不能直接寫在 output 鏈。可行的做法有三種：
 
-所以常見的成熟方案是**兩者並用**：
-`prerouting` 用 TPROXY 處理 LAN 的 TCP+UDP，`output` 用 REDIRECT 處理本機的 TCP。
+1. **繞回 prerouting**：在 `type route hook output` 的鏈裡替本機流量打 mark → mark 改變觸發重新路由 →
+   `ip rule fwmark` 命中 table 100 的 `local` 路由 → 封包經 `lo` 重新進入 **prerouting** →
+   在那裡照常做 `tproxy`（TCP＋UDP 都可以）。這時代理程式自己連往上游的流量一定要用 `SO_MARK`
+   排除，否則會被自己攔回來形成迴圈（推導見
+   [多張nft表的執行順序與ip-rule的位置.md](./多張nft表的執行順序與ip-rule的位置.md) 第六節第 4 點）。
+2. 用 `output` 鏈的 REDIRECT（TCP 限定）。
+3. 改用 [TUN 模式](../openwrt/路由器上的透明代理-為什麼不是TUN模式.md)。
+
+> 更正（2026-09-22）：本節原本寫「TPROXY 代理本機流量：做不到」，這不精確——做不到的是
+> 「直接在 output 用 tproxy」，繞回 prerouting 的做法是可行的，也是 v2ray 透明代理教學常見的寫法。
+
+常見的組合是：`prerouting` 用 TPROXY 處理 LAN 的 TCP+UDP；本機流量則看需求，選「繞回
+prerouting」（要 UDP 時）或 `output` 的 REDIRECT（只要 TCP、想簡單時）。
 
 ---
 
@@ -301,8 +401,10 @@ ip route add local 0.0.0.0/0 dev lo table 100
    「代理程式怎麼取回原始目的地」？
 2. 為什麼 REDIRECT 不能代理 UDP？請從「TCP 與 UDP 的 socket 模型差異」回答，
    而不是「因為軟體不支援」。
-3. 你要讓路由器**自己**發起的連線走代理。TPROXY 為什麼幫不上忙？還有哪兩個選擇？
+3. 你要讓路由器**自己**發起的連線走代理。為什麼不能直接在 output 鏈寫 `tproxy`？
+   「繞回 prerouting」的做法靠什麼讓封包回到 prerouting？為什麼這時一定要把代理程式自己的流量排除？
 4. TPROXY 需要 `ip rule` + `ip route add local`，REDIRECT 完全不需要。為什麼？
-   從「封包的目的地有沒有被改寫」解釋。
+   從「封包的目的地有沒有被改寫」解釋。反過來，既然路由判定在 prerouting 之後才發生，
+   `tproxy to :12345` 寫在 prerouting 又負責什麼？只留它、拿掉路由設定，會怎樣？
 5. 情境題：你把 nft 規則從 `redirect to :12345` 改成 `tproxy to :12345`，
    其餘都沒動（鏈型別、優先權、代理程式設定、路由）。會有哪三件事出錯？
