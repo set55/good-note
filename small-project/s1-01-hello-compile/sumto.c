@@ -1,3 +1,5 @@
+#include <stdio.h>
+
 int sum_to(int n)
 {
     int total = 0;
@@ -9,4 +11,10 @@ int sum_to(int n)
 int answer(void)
 {
     return sum_to(100);
+}
+
+int main(void)
+{
+	printf("answer:%d\n", answer());
+	return 0;
 }
