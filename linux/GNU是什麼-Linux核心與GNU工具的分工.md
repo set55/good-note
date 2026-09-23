@@ -9,7 +9,7 @@
 **一句話結論：GNU 是一個 1983 年開始的「自由軟體作業系統」計畫，名字是遞迴縮寫 *GNU's Not Unix*。
 它做出了幾乎所有使用者空間的基本工具——gcc、binutils、glibc、bash、coreutils、gdb、make——卻一直缺一個
 可用的核心；1991 年的 Linux 核心補上了這一塊。所以你平常用的「Linux 系統」其實是 **Linux 核心 ＋ GNU 工具**，
-這也是 `uname -o` 會印出 `GNU/Linux` 的原因。反過來，OpenWrt、Android 用的是 Linux 核心，但**不是** GNU
+（注意：`uname -o` 印出 `GNU/Linux` **不能**當成證據——它是編譯進 `uname` 程式裡的固定字串，連 OpenWrt 的 BusyBox 版也印 `GNU/Linux`，見第四節。）反過來，OpenWrt、Android 用的是 Linux 核心，但**不是** GNU
 的工具——這正是你在路由器上遇到 BusyBox、`ash` 行為不同的根源。**
 
 ---
@@ -83,7 +83,7 @@ x86_64 - linux - gnu
 ```
 
 因此 FSF 主張應該叫「**GNU/Linux**」，認為只叫「Linux」抹去了 GNU 的貢獻；多數人日常還是簡稱 Linux。
-`uname -o` 在本機印出的就是 `GNU/Linux`。**嚴格說，「Linux」這個詞只指核心。** 對你的 kernel 目標來說，
+（`uname -o` 在本機印出 `GNU/Linux`，但那只是 `uname` 這支程式自己寫死的字串，不是核心回報的，見第四節。）**嚴格說，「Linux」這個詞只指核心。** 對你的 kernel 目標來說，
 這個區分很重要：你之後要貢獻的是橫線以下那一塊，`strace` 看到的系統呼叫就是它和上面那一層的邊界。
 
 ---
@@ -106,6 +106,109 @@ x86_64 - linux - gnu
 - 很多 GNU 工具有 POSIX 沒規定的擴充選項（例如長選項 `--version`）。**寫要在路由器上跑的腳本時，只能假設 POSIX 有的功能。**
 
 （本機也裝了 BusyBox：`busybox` 印出 `BusyBox v1.36.1 (Ubuntu ...) multi-call binary`，可以用它在本機模擬路由器上的指令行為。）
+
+### `uname -o` 印出 `GNU/Linux`，不代表它是 GNU
+
+> 補充日期：2026-09-23。使用者在 OpenWrt 上打 `uname --all`，最後一欄是 `GNU/Linux`，跟本節「OpenWrt 不是 GNU」看起來矛盾。
+> 原本的一句話結論與第三節把 `uname -o` 當成 GNU 的證據，是**筆記寫錯**，已更正。
+
+**結論：`uname` 的輸出分兩種來源。前五欄是向核心問來的；`-o`（operating system）那一欄核心根本沒有，
+是 `uname` 這支程式自己寫死的字串。BusyBox 的 `uname` 預設也寫死 `GNU/Linux`，所以 OpenWrt 上一樣印 `GNU/Linux`。**
+
+**證據一：`-o` 根本沒有問核心。** 用 `strace` 只追 `uname` 這個系統呼叫：
+
+```
+$ strace -e trace=uname uname -s
+uname({sysname="Linux", nodename="set-Vector-17-HX-A14VFG", ...}) = 0     ← 有問核心
+Linux
+
+$ strace -e trace=uname uname -o
+GNU/Linux                                                                 ← 沒有任何系統呼叫，直接印出
+```
+
+核心回傳的結構 `struct utsname`（`man 2 uname`）只有這幾個欄位，**沒有「作業系統名稱」**：
+
+```
+struct utsname {
+    char sysname[];    /* 核心名稱，例如 "Linux"  → uname -s */
+    char nodename[];   /* 主機名稱               → uname -n */
+    char release[];    /* 核心版本號              → uname -r */
+    char version[];    /* 核心的建置資訊          → uname -v */
+    char machine[];    /* 硬體架構               → uname -m */
+    char domainname[]; /* NIS 網域名稱（GNU 擴充，uname 指令不印） */
+};
+```
+
+所以 `-o` 的答案只能來自 `uname` 程式本身：GNU coreutils 在編譯時決定這個字串，glibc 系統上就是 `GNU/Linux`。
+
+**證據二：BusyBox 的 `uname` 也印 `GNU/Linux`。** 本機剛好有 BusyBox（Ubuntu 套件，v1.36.1），它就是 OpenWrt 用的同一套工具：
+
+```
+$ busybox uname -o
+GNU/Linux
+
+$ strings /usr/bin/busybox | grep -x GNU/Linux
+GNU/Linux                   ← 字串就放在 busybox 執行檔裡
+```
+
+BusyBox 的原始碼把這個字串做成編譯設定（`CONFIG_UNAME_OSNAME`），預設值就是 `"GNU/Linux"`，OpenWrt 沒有改它。
+
+**證據三：在路由器上實測**（OpenWrt 24.10.2，`mediatek/filogic`，aarch64，2026-09-23 經 `ssh root@192.168.1.1` 執行）：
+
+```
+root@OpenWrt:~# uname -a
+Linux OpenWrt 6.6.93 #0 SMP Mon Jun 23 20:40:36 2025 aarch64 GNU/Linux     ← 最後一欄一樣是 GNU/Linux
+
+root@OpenWrt:~# ls -l $(which uname)
+lrwxrwxrwx  1 root root  7 Jun 23  2025 /bin/uname -> busybox              ← uname 就是 BusyBox
+
+root@OpenWrt:~# strings /bin/busybox | grep -x GNU/Linux
+GNU/Linux                                                                  ← 字串寫在 busybox 裡
+
+root@OpenWrt:~# ls -l /lib/ld-musl-*.so.1 /lib/libc.so
+lrwxrwxrwx  1 root root       7 Jun 23  2025 /lib/ld-musl-aarch64.so.1 -> libc.so
+-rwxr-xr-x  1 root root  590852 Jun 23  2025 /lib/libc.so
+
+root@OpenWrt:~# /lib/ld-musl-aarch64.so.1
+musl libc (aarch64)
+Version 1.2.5
+Dynamic Program Loader
+```
+
+`uname -o` 說自己是 `GNU/Linux`，但檔案顯示工具是 BusyBox、C 函式庫是 musl 1.2.5。**看檔案，不要看程式自我介紹的字串。**
+
+判斷方法整理：
+
+| 想確認的 | 執行 | OpenWrt 實測 |
+|---|---|---|
+| `uname` 是不是 BusyBox | `ls -l $(which uname)` | `/bin/uname -> busybox` |
+| C 函式庫是不是 musl | `ls -l /lib/ld-musl-*.so.1` | 存在（musl 的動態載入器，名字裡直接寫 musl；glibc 系統是 `ld-linux-*.so.2`） |
+| 同上，另一個角度 | 直接執行 `/lib/ld-musl-*.so.1`（不加參數） | 印出 `musl libc (aarch64)`、`Version 1.2.5` |
+
+還有一個跟 glibc 很不一樣的地方：**musl 的載入器 `ld-musl-aarch64.so.1` 只是指向 `libc.so` 的符號連結——載入器和 C 函式庫是同一個檔案。**
+glibc 則把兩者分成 `ld-linux-x86-64.so.2` 和 `libc.so.6` 兩個檔案（見[第 1 課筆記第十節](../c/hello.c怎麼變成能跑的程式-編譯的四個階段.md#十三個名字很像的檔案ldld-linux-x86-64so2libcso6)）。
+
+這跟 [ELF 的 interpreter](../c/ELF的interpreter是什麼-動態載入器與井字號驚嘆號.md) 是同一個思路：
+**載入器的檔名就能說明這支程式是跟哪個 C 函式庫一起連結的。**
+
+`uname` 的全部選項（本機 `uname --help`，GNU coreutils 版，共 11 個，全列）：
+
+| 選項 | 印出什麼 | 來源 |
+|---|---|---|
+| `-a`, `--all` | 以下全部，依序；`-p`、`-i` 不知道時省略 | — |
+| `-s`, `--kernel-name` | 核心名稱（`Linux`）；**不加任何選項時的預設** | 核心 `sysname` |
+| `-n`, `--nodename` | 主機名稱 | 核心 `nodename` |
+| `-r`, `--kernel-release` | 核心版本號（`7.0.0-31-generic`） | 核心 `release` |
+| `-v`, `--kernel-version` | 核心建置資訊（`#31~24.04.1-Ubuntu SMP ...`） | 核心 `version` |
+| `-m`, `--machine` | 硬體架構（`x86_64`） | 核心 `machine` |
+| `-p`, `--processor` | 處理器類型（標明 non-portable，不同系統不一致；本機 `x86_64`） | 程式自己判斷 |
+| `-i`, `--hardware-platform` | 硬體平台（non-portable；本機 `x86_64`） | 程式自己判斷 |
+| `-o`, `--operating-system` | 作業系統名稱（`GNU/Linux`） | **程式寫死的字串** |
+| `--help` | 印出說明後結束 | — |
+| `--version` | 印出版本後結束 | — |
+
+BusyBox 版（`busybox uname --help`）只有 `-a -m -n -r -s -p -v -i -o` 九個短選項，意思相同，沒有長選項。
+查法：`uname --help`、`man uname`、`man 2 uname`（系統呼叫與 `struct utsname`）。
 
 ---
 
@@ -135,3 +238,4 @@ GNU 寫了 **GPL**（GNU General Public License，GNU 通用公共授權）來�
 3. 情境題：一支 shell 腳本在你的 Ubuntu 上用 `bash` 測試完全正常，放到 OpenWrt 上卻出錯。從本篇的角度，最可能的原因是什麼？寫腳本時該怎麼預防？
 4. GPL 的 copyleft 要求什麼？glibc 用 LGPL 而不是 GPL，對「商業軟體能不能連結 libc」有什麼差別？
 5. 你將來送 kernel patch 時要加的 `Signed-off-by:` 跟 GPL 有什麼關係？
+6. 情境題：同事說「我在這台機器上打 `uname -o` 看到 `GNU/Linux`，所以它一定用 glibc」。這個推論錯在哪？`uname` 的哪些欄位可以信、哪一欄不行，為什麼？你會改看什麼來判斷？

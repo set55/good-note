@@ -121,7 +121,7 @@ shell 的語法真相與 fd 0／1／2 這三條線怎麼接。
 
 | 筆記 | 主題 | 關鍵字 |
 |------|------|--------|
-| [GNU是什麼-Linux核心與GNU工具的分工.md](./GNU是什麼-Linux核心與GNU工具的分工.md) | GNU（*GNU's Not Unix*，1983 起）做出 gcc、binutils、glibc、bash、coreutils、gdb 等幾乎所有使用者空間工具，卻缺可用核心，1991 年由 Linux 核心補上，所以日常的「Linux」其實是 Linux 核心＋GNU 工具（`uname -o` 印 `GNU/Linux`）；目標三元組 `x86_64-linux-gnu` 把核心與 C 函式庫分成兩欄；OpenWrt／Alpine 是 Linux＋musl＋BusyBox、不是 GNU，這是路由器上 `ash`、`chmod` 行為不同的根源；GPL 的 copyleft、glibc 用 LGPL 所以任何程式都能連結、kernel 為 GPL-2.0 與 `Signed-off-by` | `GNU` `FSF` `GPL` `LGPL` `copyleft` `GNU/Linux` `glibc` `musl` `BusyBox` `coreutils` `binutils` `target triple` `x86_64-linux-gnu` `uname -o` `Signed-off-by` `DCO` |
+| [GNU是什麼-Linux核心與GNU工具的分工.md](./GNU是什麼-Linux核心與GNU工具的分工.md) | GNU（*GNU's Not Unix*，1983 起）做出 gcc、binutils、glibc、bash、coreutils、gdb 等幾乎所有使用者空間工具，卻缺可用核心，1991 年由 Linux 核心補上，所以日常的「Linux」其實是 Linux 核心＋GNU 工具（但 `uname -o` 的 `GNU/Linux` 是程式寫死的字串、不向核心查詢，OpenWrt 的 BusyBox 也這樣印，不能當證據）；目標三元組 `x86_64-linux-gnu` 把核心與 C 函式庫分成兩欄；OpenWrt／Alpine 是 Linux＋musl＋BusyBox、不是 GNU，這是路由器上 `ash`、`chmod` 行為不同的根源；GPL 的 copyleft、glibc 用 LGPL 所以任何程式都能連結、kernel 為 GPL-2.0 與 `Signed-off-by` | `GNU` `FSF` `GPL` `LGPL` `copyleft` `GNU/Linux` `glibc` `musl` `BusyBox` `coreutils` `binutils` `target triple` `x86_64-linux-gnu` `uname -o` `Signed-off-by` `DCO` `uname -o` `struct utsname` `ld-musl` |
 
 ## 常用診斷命令速查（跨筆記通用）
 
