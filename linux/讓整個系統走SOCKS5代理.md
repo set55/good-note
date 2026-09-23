@@ -170,8 +170,8 @@ Defaults env_keep += "http_proxy https_proxy all_proxy no_proxy HTTP_PROXY HTTPS
 
 | 程式 | 設定位置 | 備註 |
 |---|---|---|
-| **apt** | `/etc/apt/apt.conf.d/99proxy` | `Acquire::http::Proxy "http://...";`（本機已設 8880）。apt **不讀**環境變數 |
-| **apt 走 socks5** | `Acquire::http::Proxy "socks5h://192.168.1.1:1080";` | apt 支援 `socks5h`，但**不支援 `socks5`**（只有 h 版） |
+| **apt** | `/etc/apt/apt.conf.d/80proxy`（本機實際檔名；`apt.conf.d/` 下檔名自訂，依字母序讀入） | `Acquire::http::Proxy "http://...";` 與 `Acquire::https::Proxy`（本機兩者都設 8880）。apt **會讀** `http_proxy` 環境變數（`man apt-transport-http`），但實務上一律 `sudo apt`，而 `sudo` 預設 `env_reset` 會清掉變數，所以要寫進設定檔才穩。用 `apt-config dump \| grep -i proxy` 確認實際生效值 |
+| **apt 走 socks5** | `Acquire::http::Proxy "socks5h://192.168.1.1:1080";` | apt 支援的 scheme 只有 `socks5h`、`http`、`https`，**不支援 `socks5`**（只有 h 版） |
 | **docker daemon**（pull 映像） | `/etc/systemd/system/docker.service.d/http-proxy.conf` | 改完要 `systemctl daemon-reload && systemctl restart docker`。本機已設 |
 | **docker 容器內**（build／run） | `~/.docker/config.json` 的 `proxies` 欄位 | daemon 的設定**不會**傳進容器，這是兩回事 |
 | **git** | `git config --global http.proxy socks5h://192.168.1.1:1080` | 只對 `http(s)://` 的 remote 有效；`git@github.com` 走 SSH，要改 `~/.ssh/config` 的 `ProxyCommand` |
@@ -314,3 +314,9 @@ proxychains4 [-q] [-f 設定檔] <程式> [參數...]
 3. 你把 `export all_proxy=...` 寫在 `~/.zshrc`，終端機裡 `curl` 正常，但 cron 裡的備份腳本與從選單點開的 GUI 程式都不走 proxy。用「哪個檔案被哪種 shell 讀」解釋，並說出兩個正確的存放位置。
 4. `sudo apt update` 走了 proxy，但 `sudo curl https://example.com` 卻直連。這兩個為什麼行為不同？各自的設定來源是什麼？
 5. 情境題：你用 `proxychains4` 跑一個 Go 寫的 CLI 工具，發現它完全沒走 proxy，但同樣指令跑 `wget` 就正常。請說明原因，並指出要讓這支 Go 工具走 proxy 有哪兩條路可走。
+
+（以下 6～8 題是 2026-09-23 追問「apt 走代理的設定在哪」時新增的，答案在第五節的 apt 那兩列）
+
+6. 你在 `~/.zshrc` 設了 `export http_proxy=...`，然後 `sudo apt update` 沒走代理——可是 apt 明明會讀 `http_proxy`。問題出在哪？
+7. 同事只設了 `Acquire::http::Proxy "http://proxy:8880/";`，`apt update` 時某個 `https://download.docker.com` 的來源仍然直連。為什麼？
+8. 有人寫 `Acquire::http::Proxy "socks5://192.168.1.1:1080";` 想讓 apt 走 SOCKS。會成功嗎？該怎麼改？那個 `h` 代表什麼差別？
