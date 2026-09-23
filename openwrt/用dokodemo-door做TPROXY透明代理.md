@@ -285,9 +285,18 @@ netstat -lntup | grep 12345          # 確認還在聽
 ## 五、步驟 3：策略路由
 
 ```bash
-ip rule add fwmark 1 lookup 100
+ip rule add fwmark 1 lookup 100 pref 100
 ip route add local 0.0.0.0/0 dev lo table 100
 ```
+
+> **`pref 100` 不要省略。** 不給 pref 的話核心會自動配一個——規則是
+> 「比現有最小的（不含 32767）再減 1」，所以通常會拿到 `32765`。
+> 之後你想用 `ip rule del pref 100` 清理就會失敗（`RTNETLINK answers: No such file or directory`），
+> 因為真正的 pref 根本不是 100。**明確指定，建立與刪除才對得上。**
+>
+> 注意 `pref 100` 的 `100` 是**規則的優先權**，`lookup 100` 的 `100` 是**路由表編號**——
+> 兩個 100 是不同的東西，只是剛好都用這個數字。要避免混淆可以錯開，例如
+> `ip rule add fwmark 1 lookup 100 pref 9000`。
 
 ### 這兩行到底在做什麼
 
@@ -587,8 +596,31 @@ TPROXY 是三個零件，**清理也要三個一起**——只刪其中一個會
 
 ```bash
 nft delete table ip v2ray_tproxy 2>/dev/null
-ip rule del pref 100 2>/dev/null          # 用 pref 刪比重打條件安全
+ip rule del pref 100 2>/dev/null          # ← 前提是建立時有指定 pref 100
 ip route flush table 100 2>/dev/null
+```
+
+**如果當初沒指定 `pref`**，就得先查出核心配給它的號碼——
+`ip rule show` **最左邊的數字就是 pref**：
+
+```
+# ip rule show
+0:      from all lookup local
+32765:  from all fwmark 0x1 lookup 100      ← 這條，pref 是 32765 不是 100
+32766:  from all lookup main
+32767:  from all lookup default
+
+# ip rule del pref 32765
+```
+
+> **`ip rule del pref 100` 回 `RTNETLINK answers: No such file or directory`
+> 不是語法錯誤**——它代表指令有正確送到核心，只是「沒有 pref 為 100 的規則」。
+> 真正的語法錯誤會是 usage 提示或 `Error:`。**看懂這個差別可以少猜很久。**
+
+也可以用原本的條件刪（但要跟當初寫得完全一樣，比較容易出錯）：
+
+```bash
+ip rule del fwmark 1 lookup 100
 ```
 
 建議寫成一個 `tproxy-down.sh`，測試時反覆用。
