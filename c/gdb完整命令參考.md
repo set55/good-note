@@ -627,6 +627,71 @@ gdb [選項] --args 執行檔 [傳給程式的參數 ...]
 | `advance 位置` | 跑到指定位置 | — | 等於「設暫時中斷點再 `continue`」 |
 | `continue` | 跑到下一個中斷點 | — | 中間沒有要看的東西 |
 
+#### 實驗：用 `avg.c` 看 `next` 與 `step` 的差別（2026-09-23 補充）
+
+> 起因：使用者在 `average()` 裡面交替使用 `next` 和 `step`，結果完全一樣，看不出差別。
+> `avg.c` 的原始碼在 [gcc最佳化等級](./gcc最佳化等級-O0到O3差在哪.md) 第三節；以下都用 `gcc -g -O0` 編譯。
+
+**差別只會出現在「這一行有呼叫函式」的時候。** `average()` 的每一行（`int sum = 0;`、`for (...)`、`sum += a[i];`）
+都沒有呼叫任何函式，所以 `next` 和 `step` 走出來的結果一模一樣：
+
+```
+Breakpoint 1, average (a=0x7fffffffd2fc, n=3) at avg.c:5
+5	    int sum = 0;
+(gdb) next
+6	    for (int i = 0; i < n; i++)
+(gdb) step                               ← 換成 step，結果還是一樣
+7	        sum += a[i];
+```
+
+要看出差別，**中斷點要設在有函式呼叫的那一行**，也就是 `main` 的第 15 行 `printf("%d\n", average(a, 3));`：
+
+```
+(gdb) break 15                           ← 同一個起點，分兩次試
+(gdb) run
+15	    printf("%d\n", average(a, 3));
+
+(gdb) next                               ← 第一次：next
+6                                        ← average 和 printf 都執行完了（印出 6）
+16	    return 0;                        ← 直接到下一行，整行當成一步
+
+(gdb) step                               ← 第二次：從第 15 行重來，改用 step
+average (a=0x7fffffffd2fc, n=3) at avg.c:5
+5	    int sum = 0;                     ← 進到 average 裡面了
+```
+
+這一行其實有**兩個**函式呼叫。C 要先算出 `average(a, 3)` 的結果，才能把它交給 `printf`，
+所以 `step` 先進的是 `average`。接下來：
+
+```
+(gdb) finish                             ← 跑完目前這個函式（average），回到呼叫它的地方
+Run till exit from #0  average (a=0x7fffffffd2fc, n=3) at avg.c:5
+0x00005555555551fd in main () at avg.c:15
+15	    printf("%d\n", average(a, 3));    ← 回到第 15 行，但這一行還沒做完（printf 還沒呼叫）
+Value returned is $1 = 6                 ← finish 會印出回傳值
+
+(gdb) step                               ← 再 step 一次：這次進的是 printf
+__printf (format=0x555555556004 "%d\n") at ./stdio-common/printf.c:32
+32	./stdio-common/printf.c: No such file or directory
+```
+
+最後一步出乎意料：`step` 連 glibc 的 `printf` 都進去了。原因是本機裝了 **`libc6-dbg`**
+（glibc 的除錯資訊套件，`dpkg -l libc6-dbg` 顯示 `ii`），所以 gdb 知道 `printf` 對應 `printf.c` 的第幾行。
+但原始碼檔案本身不在本機，所以出現 `No such file or directory`。這是正常現象，不是錯誤。
+這正是自我測驗第 1 題說的「不小心 `step` 進了不想看的函式」，這時用 `finish` 回到上一層。
+
+**`step` 什麼時候會進去、什麼時候會跳過**，由 gdb 的設定 `step-mode` 決定（`help set step-mode` 實測）：
+
+> When set, doing a step over a function without debug line information will stop at the first instruction of that function.
+> Otherwise, the function is skipped and the step command stops at a different source line.
+
+- 預設是 `off`（`show step-mode` → `Mode of the step operation is off.`）：函式**沒有行號資訊**時，`step` 會直接跳過，效果等於 `next`。
+- 所以在沒有裝 `libc6-dbg` 的機器上，`step` 不會進 `printf`（本機有裝，這個情況**未實測**）。
+- 函式有行號資訊的條件：它是用 `-g` 編譯的（例如自己寫的 `average`），或者系統裝了它的除錯資訊套件（例如 `libc6-dbg`）。
+
+一句話：**`next` 與 `step` 只在「目前這一行有呼叫函式，而且那個函式有除錯資訊」時才會不一樣。**
+
+
 **開始執行**
 
 | 命令 | 停在哪 |
@@ -646,6 +711,73 @@ gdb [選項] --args 執行檔 [傳給程式的參數 ...]
 | `dprintf` | 不停下、只印訊息——不改程式碼的 `printf` 除錯 |
 | `watch`／`rwatch`／`awatch` | 看**資料**不看位置：值被改／被讀／被讀或寫時停下 |
 | `catch` | 看**事件**：系統呼叫、`fork`、`exec`、C++ 例外 |
+
+#### 實驗：`watch` 在 `-O0` 與 `-O2` 下抓全域變數（2026-09-23 補充）
+
+> 起因：自我測驗第 5 題問「變數在 `-O2` 下只放在暫存器時，`watch` 還可靠嗎」，但本篇原本沒有講 `watch` 怎麼運作，這是出題缺陷。
+> 這裡用實驗補上。檔案 `g.c` 只在實驗用的暫存目錄，沒有放進 repo，原始碼全文如下。
+
+```c
+#include <stdio.h>
+
+int counter;                               /* 全域變數 */
+
+__attribute__((noinline)) void bump(int n) /* 把 counter 加 1，加 n 次 */
+{
+    for (int i = 0; i < n; i++)
+        counter += 1;
+}
+
+__attribute__((noinline)) void oops(void)  /* 「兇手」：偷偷把 counter 改掉 */
+{
+    counter = 42;
+}
+
+int main(void)
+{
+    bump(5);
+    oops();
+    printf("%d\n", counter);
+    return 0;
+}
+```
+
+操作：`break main` → `run` → `watch counter` → 一直 `continue`。兩種編法的結果：
+
+```
+===== gcc -g -O0                              ===== gcc -g -O2
+Hardware watchpoint 2: counter                Hardware watchpoint 2: counter
+Old value = 0 / New value = 1                 Old value = 0 / New value = 5    ← 只停一次
+7	    for (int i = 0; ...                    bump (n=n@entry=5) at g.c:9
+Old value = 1 / New value = 2                 9	}
+（……共 5 次，每加一次停一次）                  Old value = 5 / New value = 42
+Old value = 5 / New value = 42                oops () at g.c:14
+14	}                                          14	}
+```
+
+讀法：
+
+1. **`Hardware watchpoint`：`watch` 盯的是「記憶體位址」。** gdb 請 CPU 的除錯暫存器監看 `counter` 所在的那幾個 byte，
+   有指令**寫入**那個位址時，CPU 就讓程式停下來。所以它不管是哪一行 C 寫的，只要記憶體真的被寫入就抓得到。
+2. **全域變數一定有記憶體位址，`-O2` 也一樣。** 別的函式、別的檔案隨時可能讀它，所以編譯器最後一定要把值寫回記憶體。
+   `-O2` 下兇手 `oops` 照樣被抓到（`Old value = 5 / New value = 42 ... oops ()`）。**用 `watch` 找「誰改了全域變數」，在 `-O2` 下仍然可靠。**
+3. **但中間的變化可能被合併。** `-O0` 停了 5 次（每加一次停一次）；`-O2` 只停 1 次（0 直接變成 5）。
+   `-O2` 版的 `bump` 被改寫成下面這樣（`objdump -d` 實測，每行右邊是中文說明；組合語言排在第 4、5 課，這裡只需要看說明）：
+
+   ```
+   test   %edi,%edi                       ← 檢查 n 是不是 ≤ 0
+   jle    119e <bump+0xe>                 ← 是的話直接跳到 ret，什麼都不做
+   add    %edi,0x2e76(%rip)  # <counter>  ← 把 n 一次加到 counter 的記憶體上（整個迴圈變成這一條）
+   ret                                    ← 返回
+   ```
+
+   迴圈被最佳化成「一次加 n」，記憶體只被寫入一次，所以 `watch` 也只停一次。
+4. **停下時顯示的行號是「寫完之後」的位置。** CPU 是在寫入的指令**執行完**才讓程式停下，
+   所以 gdb 顯示的是**下一個**位置：`-O0` 停在 `for` 那一行（`counter += 1` 的下一步）、`oops` 停在 `}`。
+   找兇手時，要看**顯示那一行的前一行**，或用 `bt` 確認在哪個函式。`-O2` 下行號更不精確，但**函式名稱仍然正確**。
+5. **什麼時候 `watch` 真的不可靠：只活在暫存器裡的區域變數。** 硬體監看點只能監看記憶體位址；
+   一個在 `-O2` 下只放在暫存器的區域變數，沒有位址可以監看。這個情況**未實測**，排在第 3 課用 `gdb` 找 bug 時再做。
+
 
 **刪除與停用**
 

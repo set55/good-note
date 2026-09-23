@@ -189,7 +189,72 @@ total = 1                         ← 走了兩行，但迴圈已經跑到別的
 | `bt`（backtrace） | 印出「誰呼叫了誰」的呼叫鏈 |
 | `continue` | 繼續跑，直到下一個中斷點或程式結束 |
 
-本機實測一個算平均的小程式 `average(int *a, int n)`，三種編法的差別：
+本機實測一個算平均的小程式 `average(int *a, int n)`，三種編法的差別。
+
+> 補充（2026-09-23）：原始的 `avg.c`、`avg2.c` 當初只放在實驗用的暫存目錄，沒有保存，筆記也沒附原始碼。
+> 下面是依輸出重建、並重新實測過的版本：`avg.c` 的行號、呼叫位置、結果都與下方輸出一致；
+> `avg2.c` 重建版的中斷點停在第 5 行（原輸出是第 6 行，原檔大概多了一行），其餘一致。
+> 輸出裡的堆疊位址（例如 `a=0x7fffffffd1cc`）每次執行、每種環境都可能不同，不用在意。
+
+`avg.c`（`average` 會被內嵌、資料是常數）：
+
+```c
+#include <stdio.h>
+
+int average(int *a, int n)
+{
+    int sum = 0;                          /* 第 5 行 */
+    for (int i = 0; i < n; i++)
+        sum += a[i];
+    int avg = sum / n;
+    return avg;
+}
+
+int main(void)
+{
+    int a[] = {3, 6, 9};
+    printf("%d\n", average(a, 3));        /* 第 15 行 */
+    return 0;
+}
+```
+
+`avg2.c`（跟 `avg.c` 只差兩處：`average` 加上 `__attribute__((noinline))` 禁止內嵌；
+陣列內容改用 `argc` 計算，讓編譯器在編譯時不知道資料，沒辦法事先算好）：
+
+```c
+#include <stdio.h>
+
+__attribute__((noinline))
+int average(int *a, int n)
+{
+    int sum = 0;
+    for (int i = 0; i < n; i++)
+        sum += a[i];
+    int avg = sum / n;
+    return avg;
+}
+
+int main(int argc, char **argv)
+{
+    int a[] = {argc * 3, argc * 6, argc * 9};
+    printf("%d\n", average(a, 3));
+    return 0;
+}
+```
+
+- `__attribute__((noinline))`：gcc 的擴充語法，意思是「這個函式不准內嵌」，放在函式定義前面。
+- `argc`：執行時命令列參數的個數（不加參數執行時是 1），編譯時無法得知，所以 `a[]` 的內容要到執行時才確定。
+
+自己重現的指令（`gdb -q -batch -ex '<命令>' ...` 是「不進互動模式，依序執行 `-ex` 給的命令」，見 [gdb完整命令參考](./gdb完整命令參考.md)）：
+
+```
+$ gcc -g -O0 avg.c  -o avg_O0          # 情況一
+$ gcc -g -O2 avg.c  -o avg_O2          # 情況二
+$ gcc -g -O2 avg2.c -o avg2_O2         # 情況三
+$ gcc    -O0 avg.c  -o avg_nog         # 情況四：沒有 -g
+$ gdb ./avg_O0                          # 進入 gdb 後依序打 break average、run、bt、next……
+```
+
 
 **`-g -O0`：一切都看得到**
 
@@ -222,6 +287,7 @@ Breakpoint 1, average (a=a@entry=0x7fffffffd1b8, n=n@entry=3) at avg2.c:6
 sum = <optimized out>
 avg = <optimized out>
 $3 = 3                          ← n 還看得到
+（重建版 avg2.c 重新實測：停在 avg2.c:5，print sum／avg 同樣是 <optimized out>，print n 是 3）
 ```
 
 `sum`、`avg` 在 `-O2` 下只活在暫存器裡、而且那個暫存器馬上被拿去做別的事，

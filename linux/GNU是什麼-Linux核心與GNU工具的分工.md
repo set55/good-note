@@ -105,6 +105,47 @@ x86_64 - linux - gnu
 - [root執行腳本也Permission-denied](./root執行腳本也Permission-denied-缺執行位元.md)：OpenWrt 的 `chmod` 是 BusyBox 版，選項比 GNU coreutils 少。
 - 很多 GNU 工具有 POSIX 沒規定的擴充選項（例如長選項 `--version`）。**寫要在路由器上跑的腳本時，只能假設 POSIX 有的功能。**
 
+常見的誤解是「把開頭改成 `#!/bin/busybox` 就好」（2026-09-23 自我測驗中出現）。這樣行不通：
+
+```
+$ cat t1.sh
+#!/usr/bin/busybox
+echo hi
+$ ./t1.sh
+t1.sh: applet not found
+```
+
+核心照 `#!` 的規則執行 `busybox ./t1.sh`（見 [ELF的interpreter是什麼](../c/ELF的interpreter是什麼-動態載入器與井字號驚嘆號.md) 第四節），
+busybox 把第一個參數 `t1.sh` 當成要執行的工具名稱，找不到就報 `applet not found`。
+另外，OpenWrt 沒有 bash，是因為**沒有安裝 bash 套件**，跟 C 函式庫用 musl 無關：bash 和 musl 是兩個不同的東西。
+路由器實測：`/bin/bash` 不存在，`/bin/sh -> busybox`。
+
+**本機要特別小心：`/bin/sh` 指向 bash。** Ubuntu 預設的 `/bin/sh` 是 dash，但這台機器被改成了 bash：
+
+```
+$ ls -l /bin/sh
+lrwxrwxrwx 1 root root 4 May 24  2025 /bin/sh -> bash
+```
+
+所以就算腳本第一行寫 `#!/bin/sh`，在本機跑的還是 bash，bash 的擴充語法照樣能跑，**在本機完全測不出問題**。
+要在本機模擬路由器，就要明確用精簡的 shell 來跑：
+
+```
+$ cat t4.sh
+#!/bin/sh
+arr=(a b); echo ${arr[1]}          ← bash 陣列
+$ busybox sh t4.sh
+t4.sh: line 2: syntax error: unexpected "("
+
+$ cat t5.sh
+#!/bin/sh
+set -- a b; echo "$2"              ← POSIX 的寫法：用位置參數代替陣列
+$ busybox sh t5.sh
+b
+$ dash t5.sh
+b
+```
+
 （本機也裝了 BusyBox：`busybox` 印出 `BusyBox v1.36.1 (Ubuntu ...) multi-call binary`，可以用它在本機模擬路由器上的指令行為。）
 
 ### `uname -o` 印出 `GNU/Linux`，不代表它是 GNU
