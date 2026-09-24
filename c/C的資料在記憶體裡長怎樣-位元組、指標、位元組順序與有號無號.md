@@ -123,6 +123,24 @@ $ ./addr | grep '&x'
 （`gdb` 的 `set disable-randomization`，見 [gdb完整命令參考](./gdb完整命令參考.md)）。
 行程的位址空間是第 ③ 站的主題，這裡只要知道：位址就是一個數字，而那個數字每次執行可能不同。
 
+**`0x7fffffffd254` 在哪裡？**（2026-09-24 課後提問）它是在 `gdb` 裡 `print &x` 得到的 `x` 的位址，跑幾次都一樣。
+用 `gdb` 的 `info proc mappings` 看這個行程的記憶體分成哪幾塊（[gdb完整命令參考](./gdb完整命令參考.md) 的 `info proc`）：
+
+```
+(gdb) info proc mappings
+          Start Addr           End Addr       Size     Offset  Perms  objfile
+      0x7ffffffdd000     0x7ffffffff000    0x22000        0x0  rw-p   [stack]
+      （其他列省略：程式本身、libc、載入器各佔幾塊）
+```
+
+六個欄位：這一塊的起點、終點（不含）、大小、對應到檔案的哪個位置（`[stack]` 不是檔案，所以是 0）、
+權限（`r` 可讀、`w` 可寫、第三格 `-` 代表不可執行、`p` 代表 private，自己的私有副本）、這一塊是什麼（檔案路徑，或 `[stack]` 這種特殊名稱）。
+
+`0x7fffffffd254` 落在 `[stack]`（**堆疊**，函式的區域變數放在這裡）那一塊。關掉 ASLR 時，堆疊的頂端就在 `0x7ffffffff000`，
+幾乎是使用者位址空間的最頂端（`0x00007fffffffffff`，下一小節〈位址看起來只有 6 byte？〉會解釋這個上限）。`x` 在頂端往下 `0x1dac`（7596）byte 的地方：
+堆疊從高位址往低位址長，`x` 上面還放著環境變數、命令列參數等資料（第 ② 站）。
+開著 ASLR 時，核心會把堆疊頂端往下移一段隨機的距離，所以直接執行時看到的是 `0x7fffbc2b1274`、`0x7ffe50b23624` 這種每次不同的數字。
+
 ### 位址看起來只有 6 byte？——`%p` 不補零，而且最上面 2 byte 一定是 0
 
 > 2026-09-24 課後提問：「`0x7fffbc2b1274` 只有 12 位十六進位，也就是 6 byte，為什麼說指標是 8 byte？」
@@ -191,6 +209,19 @@ $1 = (int *) 0x7fffffffd254
 0x7fffffffd254:	0x12345678
 ```
 
+**怎麼讀 `x` 的輸出**（2026-09-24 課後提問：「都是印 `&x`，為什麼位址不同？」）：冒號**左邊**是位址，而且只印這一行**第一個**單位的位址；
+冒號**右邊**是記憶體裡存的**內容**，`0x78` 這些是值，不是位址。每個 byte 其實都有自己的位址，`x` 只是沒逐個印出來：
+
+| 位址 | 內容 |
+|---|---|
+| `0x7fffffffd254` | `0x78` |
+| `0x7fffffffd255` | `0x56` |
+| `0x7fffffffd256` | `0x34` |
+| `0x7fffffffd257` | `0x12` |
+
+所以 `print &x` 和 `x/4xb &x` 冒號左邊是同一個位址。另外要分清楚 `print p` 和 `x/8xb &p`（上一節）：
+`p` 是指標**存的值**（`x` 的位址），`&p` 是指標變數**自己**的位址，那兩個數字本來就不同。
+
 `x/4xb` 的 `4`、`x`、`b` 分別是「數量、格式、單位大小」，完整的格式字母與大小字母見
 [gdb完整命令參考〈輸出格式 `/FMT`〉](./gdb完整命令參考.md#輸出格式-fmtprint-與-x-共用)。
 
@@ -238,6 +269,70 @@ UINT_MAX + 1 = 0
 ```
 
 （下面 `overflow.c` 的實測輸出。）這是**有定義的行為**，任何最佳化等級、任何平台結果都一樣。
+
+### 常數也有型別：`0u` 的 `u` 是什麼
+
+> 2026-09-24 課後提問：「`0u` 是什麼？」
+
+`0u` 是**型別為 `unsigned int` 的 0**。程式裡直接寫的數字叫**整數常數（integer constant）**，它跟變數一樣有型別，
+尾巴的字母叫**後綴（suffix）**，用來指定型別。用 C11 的 `_Generic`（依運算式的型別選一個結果）讓 gcc 回報型別（`suffix.c`）：
+
+```
+0              -> int
+0u             -> unsigned int
+0U             -> unsigned int
+0l             -> long
+0ul            -> unsigned long
+0lu            -> unsigned long
+0ll            -> long long
+0ull           -> unsigned long long
+```
+
+**整數常數的後綴，全部列出**（C 標準）：
+
+| 後綴 | 意思 | 寫法規則 |
+|---|---|---|
+| （沒有） | 依下面的規則，自動選第一個裝得下的型別 | — |
+| `u`、`U` | 無號（unsigned） | 大小寫都可以 |
+| `l`、`L` | 至少是 `long` | 小寫 `l` 很像數字 `1`，建議寫大寫 `L` |
+| `ll`、`LL` | 至少是 `long long` | 兩個字母要同樣大小寫：`lL` 會報錯 `invalid suffix "lL" on integer constant` |
+| `u` 與 `l`／`ll` 組合 | 無號的 `long`／`long long` | 順序隨意：`ul`、`lu`、`ULL`、`LLU`、`0Lu` 都合法 |
+| `wb`、`WB`、`uwb`、`UWB` | C23 新增，`_BitInt(N)` 型別（指定位元數的整數） | **本機 gcc 13.3 不支援**，連 `-std=c2x` 都報 `invalid suffix "wb"`（gcc 14 起才有） |
+
+浮點數常數的後綴（`1.0f`、`1.0L`）是另一套，本課不用。
+
+**沒有後綴時，十進位和十六進位的規則不一樣**，這是容易踩的地方：
+
+| 寫法 | 依序嘗試的型別（選第一個裝得下的） |
+|---|---|
+| 十進位（`2147483648`） | `int` → `long` → `long long`（**永遠不會變成無號**） |
+| 十六進位、八進位（`0x80000000`） | `int` → `unsigned int` → `long` → `unsigned long` → `long long` → `unsigned long long` |
+
+實測：
+
+```
+2147483647     -> int             ← INT_MAX，int 裝得下
+2147483648     -> long            ← 超過 INT_MAX，十進位跳過無號，直接變 long
+3000000000     -> long
+3000000000u    -> unsigned int    ← 有 u，而且 unsigned int 裝得下
+0x7fffffff     -> int
+0x80000000     -> unsigned int    ← 同樣是 2³¹，十六進位會先試 unsigned int
+0xffffffff     -> unsigned int
+0x100000000    -> long            ← 超過 32 bit
+-1             -> int
+```
+
+最後一列要注意：C **沒有負數常數**。`-1` 是「對常數 `1` 做負號運算」，`1` 是 `int`，結果也是 `int`。
+
+這會影響第七節的陷阱。同樣是 2³¹，只因為寫法不同，比較結果就相反：
+
+```
+-1 < 0x80000000   → 0（假）   ← 0x80000000 是 unsigned int，-1 被轉成 4294967295
+-1 < 2147483648   → 1（真）   ← 2147483648 是 long，-1 轉成 long 還是 -1
+```
+
+（`-Wall -Wextra` 對前者有 `-Wsign-compare` 警告；但第七節的 `-1 < 0u` 卻沒有警告，常數之間的比較不一定抓得到。）
+第七節的 `-1 < 0u`、第六節的 `int big = 3000000000u` 用 `u`，就是為了**刻意製造一個無號常數**來示範轉換。
 
 ---
 
@@ -293,12 +388,48 @@ unsigned char c = 300;         → c = 44
 signs.c:18:23: warning: unsigned conversion from ‘int’ to ‘unsigned char’ changes value from ‘300’ to ‘44’ [-Woverflow]
 ```
 
-**變寬（擴展，extension）**：要補上新的高位，補什麼取決於**原本的型別**：
+**變寬（擴展，extension）**：要補上新的高位，補什麼取決於**原本的型別**，也就是**轉換之前、比較窄的那個型別**，
+不是轉換之後的型別：原本是有號就補符號位，原本是無號就補 0。
+
+> 2026-09-24 課後提問：「擴展裡說的原本的型別是指哪個型別？」——下面用實驗把轉換前後的每個 byte 印出來。
+
+```c
+signed char sc = -1;        /* 1 byte：0xff */
+unsigned char uc = 0xff;    /* 1 byte：0xff，跟 sc 一模一樣 */
+
+int a1 = sc;                /* 原本的型別：signed char   → 轉成 int */
+int a2 = uc;                /* 原本的型別：unsigned char → 轉成 int */
+unsigned int a3 = sc;       /* 原本的型別：signed char   → 轉成 unsigned int */
+```
 
 ```
-(int)(signed char)-1   = -1  = 0xffffffff     ← 符號擴展（sign extension）：用符號位補，負數補 1
-(int)(unsigned char)0xff = 255 = 0x000000ff   ← 零擴展（zero extension）：一律補 0
+a1 = -1, a2 = 255, a3 = 4294967295
+
+(gdb) x/1xb &sc
+0x7fffffffd262:	0xff
+(gdb) x/1xb &uc
+0x7fffffffd263:	0xff
+(gdb) x/4xb &a1
+0x7fffffffd264:	0xff	0xff	0xff	0xff     ← 原本 0xff，新補的 3 個 byte 是 ff
+(gdb) x/4xb &a2
+0x7fffffffd268:	0xff	0x00	0x00	0x00     ← 原本 0xff，新補的 3 個 byte 是 00
+(gdb) x/4xb &a3
+0x7fffffffd26c:	0xff	0xff	0xff	0xff     ← 轉成無號型別，補的還是 ff
 ```
+
+（小端序：第一個 byte 是原本那個 `0xff`，後面三個是新補的高位。）
+
+| | 原本的型別 | 轉成 | 補的高位 | 名稱 | 結果 |
+|---|---|---|---|---|---|
+| `a1` | `signed char`（有號） | `int` | 符號位是 1 → 補 `ff ff ff` | **符號擴展（sign extension）** | −1 |
+| `a2` | `unsigned char`（無號） | `int` | 一律補 `00 00 00` | **零擴展（zero extension）** | 255 |
+| `a3` | `signed char`（有號） | `unsigned int` | 還是補 `ff ff ff` | 符號擴展 | 4294967295 |
+
+- **`a1` 與 `a2`**：轉成的型別都是 `int`，只有原本的型別不同，補的東西就不同。所以決定補什麼的是原本的型別。
+- **`a3`**：轉成的是**無號**型別，補的卻還是 1。這證明轉換後的型別不影響補什麼。
+  實際上是分兩步：先照原本的 `signed char` 做符號擴展，把 −1 保持成 −1；再依第六節開頭的規則，位元不變、換成無號的讀法，變成 4294967295。
+- **為什麼要這樣設計**：擴展的目的是**保持數值不變**。`signed char` 的 `0xff` 代表 −1，補 1 之後 `0xffffffff` 在 `int` 裡還是 −1；
+  `unsigned char` 的 `0xff` 代表 255，補 0 之後 `0x000000ff` 還是 255。要保持原本的值，就只能看原本的型別。
 
 兩者原本都是同一個 byte `0xff`，擴展成 `int` 後一個是 −1、一個是 255。這就是第一節說「處理原始位元組用 `unsigned char`」的理由：
 用 `char` 讀到 `0xff`，擴展後變成 −1，拿去當陣列索引或跟 255 比較都會出錯。
@@ -545,3 +676,7 @@ $ gcc -Q --help=warnings -Wall -Wextra | grep -c '\[enabled\]' → 172
    如果直接用 `int *` 把這 4 個 byte 讀進本機（x86-64），會得到多少？為什麼？
 6. `printf("%p")` 印出 `0x7ffe50b23624`，只有 12 位十六進位。指標到底佔幾個 byte？印出來為什麼比較短？
    如果在 kernel 的錯誤訊息裡看到 `0xffff888102a4c000`，從位址的長相你能判斷什麼？
+7. `2147483648` 和 `0x80000000` 是同一個數，為什麼一個的型別是 `long`、一個是 `unsigned int`？
+   `-1 < 0x80000000` 和 `-1 < 2147483648` 的結果各是什麼？為什麼？
+8. `signed char c = -1; unsigned int u = c;` 之後 `u` 是多少？擴展時新補的高位是 0 還是 1，由哪個型別決定？
+   如果把 `c` 改宣告成 `unsigned char c = 0xff;`，`u` 又是多少？
