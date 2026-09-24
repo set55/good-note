@@ -138,26 +138,68 @@ int answer(void) { return 5050; }
 
 ## 三、為什麼除錯要用 `-O0`
 
-同一個程式用 `-g`（加入除錯資訊）編兩次，在 `gdb` 裡停在 `sum_to`、往下走兩行、看區域變數：
+同一個程式用 `-g`（加入除錯資訊）編兩次，在 `gdb` 裡停在 `sum_to`、往下走兩行、看區域變數。
+
+> 2026-09-24 補充：原始的 `sum.c` 當初只放在暫存目錄，沒有保存，筆記也沒附原始碼。下面是重建版，
+> 輸出全部換成重建版的實測結果（`-O0` 與原本的輸出一致；`-O2` 的細節跟原本不同，但呈現的現象相同，而且更明顯）。
+
+`sum.c` 完整原始碼（`sum_to` 跟第二節一樣；`main` 用 `argc` 算出 10，讓編譯器在編譯時不知道 `n` 是多少，
+`-O2` 才不會直接把整個計算做完、根本不呼叫 `sum_to`）：
+
+```c
+int sum_to(int n)
+{
+    int total = 0;
+    for (int i = 1; i <= n; i++)
+        total += i;
+    return total;
+}
+
+int main(int argc, char *argv[])
+{
+    (void)argv;
+    return sum_to(argc + 9) == 55 ? 0 : 1;      /* 不帶參數執行時 argc 是 1，所以 n = 10 */
+}
+```
+
+```
+$ gcc -g -O0 sum.c -o sum_O0
+$ gcc -g -O2 sum.c -o sum_O2
+$ gdb -q ./sum_O0          （sum_O2 同樣的命令）
+(gdb) break sum_to
+(gdb) run
+(gdb) next
+(gdb) next
+(gdb) info locals
+```
 
 ```
 === -O0
 Breakpoint 1, sum_to (n=10) at sum.c:3
 3	    int total = 0;           ← 停在函式第一行，逐行往下
-...
+4	    for (int i = 1; i <= n; i++)
+5	        total += i;
 i = 1
-total = 0                         ← 跟原始碼的進度一致
+total = 0                         ← 跟原始碼的進度一致：total += i 還沒執行
 
 === -O2
-Breakpoint 1, sum_to (n=n@entry=10) at sum.c:2
-2	{                            ← 停的位置就不一樣了
-...
+Breakpoint 1 at 0x1044: sum_to. (2 locations)
+Breakpoint 1.1, sum_to (n=10) at sum.c:4
+4	    for (int i = 1; i <= n; i++)      ← 停的位置就不一樣了：跳過了第 3 行
+5	        total += i;
+4	    for (int i = 1; i <= n; i++)
 i = 2
-total = 1                         ← 走了兩行，但迴圈已經跑到別的地方：指令被重排過
+total = 3                         ← 只走了兩行，total 卻已經是 1 + 2：指令被重排過
+total = <optimized out>
+i = <optimized out>
 ```
 
+`-O2` 多出來的幾個現象：
+- **`(2 locations)`**：`sum_to` 在執行檔裡有兩份。一份是獨立的函式，另一份被內嵌進 `main`，所以中斷點要下在兩個地方。
+- **`info locals` 印了兩組**：後面那組 `<optimized out>` 是內嵌進 `main` 的那一份，它的變數已經被最佳化掉了。
+
 `-O2` 下，原始碼的「一行」已經不對應一段連續的指令，變數可能只活在暫存器裡、甚至被整個刪掉
-（更複雜的程式裡，`gdb` 常印出 `<optimized out>`）。所以：
+（上面的 `<optimized out>` 就是一例）。所以：
 
 | 情境 | 用什麼 |
 |---|---|

@@ -5,7 +5,7 @@
 > 第 1 課 [ELF 是什麼](./ELF是什麼-可執行與可連結格式的兩種視角.md#五檔頭裡的其他欄位) 裡 `readelf -h` 的
 > `Data: 2's complement, little endian` 這一行，兩個詞都在這一課講
 > 適用範圍：實測本機 Ubuntu 24.04、x86-64、gcc 13.3.0、glibc 2.39、gdb 15.1；所有輸出都是本機實際執行結果
-> 對應檔案：實驗程式放在 scratchpad，不入 git；作業在 [`small-project/s1-02-data-repr/`](../small-project/s1-02-data-repr/)（會進 git）
+> 對應檔案：每個實驗程式的完整原始碼都寫在它出現的那一節，可以直接複製編譯；作業在 [`small-project/s1-02-data-repr/`](../small-project/s1-02-data-repr/)（會進 git）
 > 相關：[gcc最佳化等級](./gcc最佳化等級-O0到O3差在哪.md)（第九節的 `-O0`／`-O2` 差異）、
 > [gdb完整命令參考](./gdb完整命令參考.md)（本課用 `x` 看記憶體）
 
@@ -40,7 +40,31 @@
 一個 byte 可以寫成兩位**十六進位（hexadecimal）**：一位十六進位剛好是 4 個 bit（`0`～`f` 對應 `0000`～`1111`），
 所以 `0x12345678` 一眼就看得出是 4 個 byte：`12`、`34`、`56`、`78`。這是整課一直用十六進位的原因。
 
-各型別佔幾個 byte，用 `sizeof` 問編譯器（`sizes.c`，`%zu` 是印 `size_t` 的格式，見第九節）：
+各型別佔幾個 byte，用 `sizeof` 問編譯器（`%zu` 是印 `size_t` 的格式，見第九節）。`sizes.c` 完整原始碼：
+
+```c
+#include <stdio.h>
+#include <limits.h>
+
+int main(void)
+{
+    printf("char        %zu\n", sizeof(char));
+    printf("short       %zu\n", sizeof(short));
+    printf("int         %zu\n", sizeof(int));
+    printf("long        %zu\n", sizeof(long));
+    printf("long long   %zu\n", sizeof(long long));
+    printf("float       %zu\n", sizeof(float));
+    printf("double      %zu\n", sizeof(double));
+    printf("int *       %zu\n", sizeof(int *));
+    printf("char *      %zu\n", sizeof(char *));
+    printf("size_t      %zu\n", sizeof(size_t));
+    printf("CHAR_MIN %d  CHAR_MAX %d\n", CHAR_MIN, CHAR_MAX);
+    printf("INT_MIN %d  INT_MAX %d\n", INT_MIN, INT_MAX);
+    printf("UINT_MAX %u\n", UINT_MAX);
+    printf("LONG_MAX %ld\n", LONG_MAX);
+    return 0;
+}
+```
 
 ```
 $ gcc -Wall -Wextra sizes.c -o sizes && ./sizes
@@ -76,17 +100,27 @@ LONG_MAX 9223372036854775807
 ## 二、指標就是位址
 
 變數放在記憶體的某個位址上。`&x` 取得 `x` 的**位址**；存位址的變數叫**指標（pointer）**；`*p` 是「到 `p` 存的那個位址去讀寫」，
-叫**解參考（dereference）**。實驗程式 `addr.c`：
+叫**解參考（dereference）**。實驗程式 `addr.c` 完整原始碼：
 
 ```c
-int x = 0x12345678;
-int *p = &x;                              /* p 存著 x 的位址 */
-unsigned char *b = (unsigned char *)&x;   /* 同一個位址，但宣告成「指向 1 個 byte」 */
+#include <stdio.h>
 
-printf("&x = %p\n", (void *)&x);
-printf("*p = 0x%x\n", *p);                /* 從那個位址讀 4 個 byte，當成 int */
-printf("*b = 0x%02x\n", *b);              /* 從同一個位址只讀 1 個 byte */
-*p = 0x11223344;                          /* 透過指標寫回去 */
+int main(void)
+{
+    int x = 0x12345678;
+    int *p = &x;                              /* p 存著 x 的位址 */
+    unsigned char *b = (unsigned char *)&x;   /* 同一個位址，但宣告成指向 1 個 byte */
+
+    printf("x        = 0x%x (%d)\n", x, x);
+    printf("&x       = %p\n", (void *)&x);
+    printf("p        = %p\n", (void *)p);
+    printf("*p       = 0x%x\n", *p);              /* 從那個位址讀 4 個 byte，當成 int */
+    printf("b        = %p\n", (void *)b);
+    printf("*b       = 0x%02x\n", *b);            /* 從同一個位址只讀 1 個 byte */
+    *p = 0x11223344;                              /* 第 15 行：透過指標寫回去 */
+    printf("after *p = 0x11223344, x = 0x%x\n", x);
+    return 0;
+}
 ```
 
 ```
@@ -107,7 +141,25 @@ after *p = 0x11223344, x = 0x11223344
   差別只在宣告的型別：`int *` 代表「從這裡讀 4 個 byte、當成 `int`」，`unsigned char *` 代表「從這裡讀 1 個 byte」。
   **記憶體本身不知道那裡放的是 `int`，是程式碼的型別決定怎麼讀。** 這是整課最重要的一句話。
 - `(unsigned char *)&x` 的括號叫**強制轉型（cast）**：告訴編譯器「我知道型別不一樣，把這個位址當成 `unsigned char *` 用」。
-  不寫 cast 的話，gcc 不加任何選項就會警告：`initialization of ‘unsigned char *’ from incompatible pointer type ‘int *’ [-Wincompatible-pointer-types]`。
+  不寫 cast 的話，gcc 不加任何選項就會警告。對照實驗 `nocast.c` 完整原始碼：
+  
+  ```c
+  #include <stdio.h>
+  
+  int main(void)
+  {
+      int x = 1;
+      unsigned char *b = &x;      /* 故意不寫 (unsigned char *) */
+  
+      printf("%d\n", *b);
+      return 0;
+  }
+  ```
+  
+  ```
+  $ gcc nocast.c -o nocast
+  nocast.c:6:24: warning: initialization of ‘unsigned char *’ from incompatible pointer type ‘int *’ [-Wincompatible-pointer-types]
+  ```
 - `%p` 規定要配 `void *`，所以印之前轉成 `(void *)`。`void *` 是「只有位址、不說指向什麼型別」的指標。
 - 寫入 `*p` 就改到了 `x`：`p` 和 `x` 是同一塊記憶體的兩個名字。
 
@@ -145,9 +197,25 @@ $ ./addr | grep '&x'
 
 > 2026-09-24 課後提問：「`0x7fffbc2b1274` 只有 12 位十六進位，也就是 6 byte，為什麼說指標是 8 byte？」
 
-指標**確實佔 8 byte**，只是 `%p` 跟 `%x` 一樣不印開頭的 0。強制補滿 16 位就看得出來（`ptr8.c`）：
+指標**確實佔 8 byte**，只是 `%p` 跟 `%x` 一樣不印開頭的 0。強制補滿 16 位就看得出來。`ptr8.c` 完整原始碼：
+
+```c
+#include <stdio.h>
+
+int main(void)
+{
+    int x = 42;
+    int *p = &x;
+
+    printf("%%p      : %p\n", (void *)p);
+    printf("%%#018lx : %#018lx\n", (unsigned long)p);
+    printf("sizeof(p) = %zu\n", sizeof(p));       /* 第 10 行 */
+    return 0;
+}
+```
 
 ```
+$ gcc -Wall -Wextra -g -O0 ptr8.c -o ptr8 && ./ptr8
 %p      : 0x7fff6a6d956c
 %#018lx : 0x00007fff6a6d956c      ← 補滿 16 位十六進位＝8 byte，最上面是 00 00
 sizeof(p) = 8
@@ -155,9 +223,12 @@ sizeof(p) = 8
 
 （`%#018lx`：旗標 `#` 加 `0x`、旗標 `0` 補零、寬度 18＝`0x` 兩個字元加 16 位數、`l` 表示參數是 `long`；完整文法見第九節。）
 
-用 `gdb` 直接看**指標變數 `p` 自己**佔的那 8 個 byte：
+用 `gdb` 直接看**指標變數 `p` 自己**佔的那 8 個 byte（停在 `ptr8.c` 標註的第 10 行）：
 
 ```
+$ gdb -q ./ptr8
+(gdb) break 10
+(gdb) run
 (gdb) print p
 $1 = (int *) 0x7fffffffd25c
 (gdb) x/8xb &p
@@ -222,6 +293,8 @@ $1 = (int *) 0x7fffffffd254
 所以 `print &x` 和 `x/4xb &x` 冒號左邊是同一個位址。另外要分清楚 `print p` 和 `x/8xb &p`（上一節）：
 `p` 是指標**存的值**（`x` 的位址），`&p` 是指標變數**自己**的位址，那兩個數字本來就不同。
 
+`break 15` 的第 15 行是 `addr.c` 裡標註的 `*p = 0x11223344;`：`gdb` 停在這一行**執行之前**，所以 `x` 還是 `0x12345678`。
+
 `x/4xb` 的 `4`、`x`、`b` 分別是「數量、格式、單位大小」，完整的格式字母與大小字母見
 [gdb完整命令參考〈輸出格式 `/FMT`〉](./gdb完整命令參考.md#輸出格式-fmtprint-與-x-共用)。
 
@@ -261,23 +334,91 @@ ELF 檔頭寫明這個檔案裡的多位元組數字用哪種順序，讀檔的�
 0xffffffff = 32 個 1       = 2³² − 1 = 4294967295 = UINT_MAX
 ```
 
-範圍是 0 到 2³²−1。**超出範圍時，C 標準規定結果是對 2³² 取餘數**，也就是**回繞（wrap around）**，像里程表跑過 99999 回到 00000：
+範圍是 0 到 2³²−1。**超出範圍時，C 標準規定結果是對 2³² 取餘數**，也就是**回繞（wrap around）**，像里程表跑過 99999 回到 00000。
+`overflow.c` 完整原始碼：
+
+```c
+#include <stdio.h>
+#include <limits.h>
+
+int bigger(int x)
+{
+    return x + 1 > x;
+}
+
+int main(void)
+{
+    unsigned int u = UINT_MAX;
+    u = u + 1;
+    printf("UINT_MAX + 1 = %u\n", u);
+
+    unsigned int z = 0;
+    z = z - 1;
+    printf("0u - 1 = %u\n", z);
+
+    int s = INT_MAX;
+    s = s + 1;
+    printf("INT_MAX + 1 = %d\n", s);
+
+    printf("bigger(INT_MAX) = %d\n", bigger(INT_MAX));
+    return 0;
+}
+```
 
 ```
-UINT_MAX + 1 = 0
-0u - 1 = 4294967295
+$ gcc overflow.c -o overflow && ./overflow
+UINT_MAX + 1 = 0                  ← 無號回繞
+0u - 1 = 4294967295               ← 無號回繞
+INT_MAX + 1 = -2147483648         ← 有號溢位：第八節
+bigger(INT_MAX) = 1               ← 有號溢位：第八節
 ```
 
-（下面 `overflow.c` 的實測輸出。）這是**有定義的行為**，任何最佳化等級、任何平台結果都一樣。
+前兩行是無號回繞，這是**有定義的行為**，任何最佳化等級、任何平台結果都一樣。後兩行是有號的溢位，情況完全不同，留到第八節。
 
 ### 常數也有型別：`0u` 的 `u` 是什麼
 
 > 2026-09-24 課後提問：「`0u` 是什麼？」
 
 `0u` 是**型別為 `unsigned int` 的 0**。程式裡直接寫的數字叫**整數常數（integer constant）**，它跟變數一樣有型別，
-尾巴的字母叫**後綴（suffix）**，用來指定型別。用 C11 的 `_Generic`（依運算式的型別選一個結果）讓 gcc 回報型別（`suffix.c`）：
+尾巴的字母叫**後綴（suffix）**，用來指定型別。用 C11 的 `_Generic`（依運算式的型別選一個結果）讓 gcc 回報型別。
+`TYPE` 和 `SHOW` 是前處理器的巨集（第 1 課第二節：前處理就是文字替換），`#e` 把參數原封不動變成字串，所以能印出原始寫法。`suffix.c` 完整原始碼：
+
+```c
+#include <stdio.h>
+
+#define TYPE(e) _Generic((e), \
+    int: "int", unsigned int: "unsigned int", \
+    long: "long", unsigned long: "unsigned long", \
+    long long: "long long", unsigned long long: "unsigned long long", \
+    default: "other")
+
+#define SHOW(e) printf("%-14s -> %s\n", #e, TYPE(e))
+
+int main(void)
+{
+    SHOW(0);
+    SHOW(0u);
+    SHOW(0U);
+    SHOW(0l);
+    SHOW(0ul);
+    SHOW(0lu);
+    SHOW(0ll);
+    SHOW(0ull);
+    SHOW(2147483647);
+    SHOW(2147483648);
+    SHOW(3000000000);
+    SHOW(3000000000u);
+    SHOW(0x7fffffff);
+    SHOW(0x80000000);
+    SHOW(0xffffffff);
+    SHOW(0x100000000);
+    SHOW(-1);
+    return 0;
+}
+```
 
 ```
+$ gcc -Wall -Wextra suffix.c -o suffix && ./suffix     （先看前 8 行）
 0              -> int
 0u             -> unsigned int
 0U             -> unsigned int
@@ -308,7 +449,7 @@ UINT_MAX + 1 = 0
 | 十進位（`2147483648`） | `int` → `long` → `long long`（**永遠不會變成無號**） |
 | 十六進位、八進位（`0x80000000`） | `int` → `unsigned int` → `long` → `unsigned long` → `long long` → `unsigned long long` |
 
-實測：
+同一支 `suffix.c` 的後 9 行輸出：
 
 ```
 2147483647     -> int             ← INT_MAX，int 裝得下
@@ -324,11 +465,24 @@ UINT_MAX + 1 = 0
 
 最後一列要注意：C **沒有負數常數**。`-1` 是「對常數 `1` 做負號運算」，`1` 是 `int`，結果也是 `int`。
 
-這會影響第七節的陷阱。同樣是 2³¹，只因為寫法不同，比較結果就相反：
+這會影響第七節的陷阱。同樣是 2³¹，只因為寫法不同，比較結果就相反。`cmp.c` 完整原始碼：
+
+```c
+#include <stdio.h>
+
+int main(void)
+{
+    printf("-1 < 0x80000000 -> %d\n", -1 < 0x80000000);
+    printf("-1 < 2147483648 -> %d\n", -1 < 2147483648);
+    return 0;
+}
+```
 
 ```
--1 < 0x80000000   → 0（假）   ← 0x80000000 是 unsigned int，-1 被轉成 4294967295
--1 < 2147483648   → 1（真）   ← 2147483648 是 long，-1 轉成 long 還是 -1
+$ gcc -Wall -Wextra cmp.c -o cmp && ./cmp
+cmp.c:5:42: warning: comparison of integer expressions of different signedness: ‘int’ and ‘unsigned int’ [-Wsign-compare]
+-1 < 0x80000000 -> 0      ← 0x80000000 是 unsigned int，-1 被轉成 4294967295
+-1 < 2147483648 -> 1      ← 2147483648 是 long，-1 轉成 long 還是 -1
 ```
 
 （`-Wall -Wextra` 對前者有 `-Wsign-compare` 警告；但第七節的 `-1 < 0u` 卻沒有警告，常數之間的比較不一定抓得到。）
@@ -347,13 +501,63 @@ UINT_MAX + 1 = 0
 0xffffffff = 1111 1111 ... 1111 = −2³¹ + (2³¹ − 1) = −1
 ```
 
-實測（`signs.c`）：
+實測。這支 `signs.c` 第五、六、七節共用，每一段輸出對應哪幾行，在各節裡說明。`signs.c` 完整原始碼：
+
+```c
+#include <stdio.h>
+#include <limits.h>
+
+int main(void)
+{
+    int m = -1;
+    unsigned int u = m;
+    unsigned char *b = (unsigned char *)&m;
+
+    printf("m = %d, as %%u = %u, as %%x = 0x%x, first byte = 0x%02x\n", m, (unsigned)m, (unsigned)m, *b);
+    printf("u = %u\n", u);
+    printf("INT_MIN = %d = 0x%x\n", INT_MIN, (unsigned)INT_MIN);
+    printf("INT_MAX = %d = 0x%x\n", INT_MAX, (unsigned)INT_MAX);
+
+    int big = 3000000000u;
+    printf("int big = 3000000000u -> %d\n", big);
+
+    unsigned char c = 300;
+    printf("unsigned char c = 300 -> %d\n", c);
+
+    signed char sc = -1;
+    unsigned char uc = 0xff;
+    int a1 = sc, a2 = uc;
+    printf("(int)(signed char)-1 = %d = 0x%x ; (int)(unsigned char)0xff = %d = 0x%x\n", a1, (unsigned)a1, a2, (unsigned)a2);
+
+    if (-1 < 0u)
+        printf("-1 < 0u is true\n");
+    else
+        printf("-1 < 0u is FALSE\n");
+
+    int n = -1;
+    unsigned int len = 5;
+    if (n < len)
+        printf("n < len\n");
+    else
+        printf("n < len is FALSE (n=%d, len=%u)\n", n, len);
+    return 0;
+}
+```
 
 ```
-m = -1, as %u = 4294967295, as %x = 0xffffffff, first byte = 0xff
-INT_MIN = -2147483648 = 0x80000000
-INT_MAX = 2147483647 = 0x7fffffff
+$ gcc signs.c -o signs && ./signs
+m = -1, as %u = 4294967295, as %x = 0xffffffff, first byte = 0xff      ← 第 10 行（本節）
+u = 4294967295                                                         ← 第 11 行（第六節）
+INT_MIN = -2147483648 = 0x80000000                                     ← 第 12 行（本節）
+INT_MAX = 2147483647 = 0x7fffffff                                      ← 第 13 行（本節）
+int big = 3000000000u -> -1294967296                                   ← 第 16 行（第六節）
+unsigned char c = 300 -> 44                                            ← 第 19 行（第六節）
+(int)(signed char)-1 = -1 = 0xffffffff ; (int)(unsigned char)0xff = 255 = 0xff   ← 第 24 行（第六節）
+-1 < 0u is FALSE                                                       ← 第 26～29 行（第七節）
+n < len is FALSE (n=-1, len=5)                                         ← 第 33～36 行（第七節）
 ```
+
+（行號是從 `#include <stdio.h>` 那一行算第 1 行。）
 
 由規則推出的幾個性質：
 
@@ -369,7 +573,7 @@ INT_MAX = 2147483647 = 0x7fffffff
 
 ## 六、有號與無號之間的轉換：位元不變，換個讀法
 
-同樣寬度的有號、無號互相轉換時，**位元一個都沒變，只是換了解讀方式**：
+同樣寬度的有號、無號互相轉換時，**位元一個都沒變，只是換了解讀方式**（第五節 `signs.c` 的第 7、15 行）：
 
 ```
 unsigned int u = -1;           → u = 4294967295         （0xffffffff 當無號讀）
@@ -382,7 +586,7 @@ int big = 3000000000u;         → big = -1294967296      （3000000000 = 0xb2d0
 unsigned char c = 300;         → c = 44
 ```
 
-300 是 `0x12c`，`unsigned char` 只有 8 bit，留下 `0x2c` = 44。gcc 連 `-Wall` 都不用就會警告：
+300 是 `0x12c`，`unsigned char` 只有 8 bit，留下 `0x2c` = 44（`signs.c` 第 18 行）。gcc 連 `-Wall` 都不用就會警告：
 
 ```
 signs.c:18:23: warning: unsigned conversion from ‘int’ to ‘unsigned char’ changes value from ‘300’ to ‘44’ [-Woverflow]
@@ -393,18 +597,32 @@ signs.c:18:23: warning: unsigned conversion from ‘int’ to ‘unsigned char�
 
 > 2026-09-24 課後提問：「擴展裡說的原本的型別是指哪個型別？」——下面用實驗把轉換前後的每個 byte 印出來。
 
+`extend.c` 完整原始碼：
+
 ```c
-signed char sc = -1;        /* 1 byte：0xff */
-unsigned char uc = 0xff;    /* 1 byte：0xff，跟 sc 一模一樣 */
+#include <stdio.h>
 
-int a1 = sc;                /* 原本的型別：signed char   → 轉成 int */
-int a2 = uc;                /* 原本的型別：unsigned char → 轉成 int */
-unsigned int a3 = sc;       /* 原本的型別：signed char   → 轉成 unsigned int */
+int main(void)
+{
+    signed char sc = -1;        /* 1 byte：0xff */
+    unsigned char uc = 0xff;    /* 1 byte：0xff，跟 sc 一模一樣 */
+
+    int a1 = sc;                /* 原本的型別：signed char   → 轉成 int */
+    int a2 = uc;                /* 原本的型別：unsigned char → 轉成 int */
+    unsigned int a3 = sc;       /* 原本的型別：signed char   → 轉成 unsigned int */
+
+    printf("a1 = %d, a2 = %d, a3 = %u\n", a1, a2, a3);    /* 第 12 行 */
+    return 0;
+}
 ```
 
 ```
+$ gcc -Wall -Wextra -g -O0 extend.c -o extend && ./extend
 a1 = -1, a2 = 255, a3 = 4294967295
 
+$ gdb -q ./extend
+(gdb) break 12          ← 標註的第 12 行，這時三個轉換都做完了
+(gdb) run
 (gdb) x/1xb &sc
 0x7fffffffd262:	0xff
 (gdb) x/1xb &uc
@@ -438,12 +656,20 @@ a1 = -1, a2 = 255, a3 = 4294967295
 
 ## 七、陷阱：有號和無號混在一起比較
 
-```c
-if (-1 < 0u)  ...     /* 結果：假 */
+第五節 `signs.c` 的最後兩段（第 26～36 行）：
 
-int n = -1;
-unsigned int len = 5;
-if (n < len)  ...     /* 結果：假 */
+```c
+    if (-1 < 0u)
+        printf("-1 < 0u is true\n");
+    else
+        printf("-1 < 0u is FALSE\n");
+
+    int n = -1;
+    unsigned int len = 5;
+    if (n < len)
+        printf("n < len\n");
+    else
+        printf("n < len is FALSE (n=%d, len=%u)\n", n, len);
 ```
 
 ```
@@ -472,7 +698,33 @@ loop.c:6:32: warning: comparison of unsigned expression in ‘>= 0’ is always 
 ```
 
 **`-Wall` 不是「全部警告」**，只是一組常用的。C 程式請固定加 `-Wall -Wextra`（名稱的由來與數量見第九節）。
-最後一欄那個迴圈是無號回繞的經典 bug：`i` 從 0 再減 1 變成 4294967295，`i >= 0` 永遠成立，迴圈停不下來（作業第 4 題）。
+最後一欄那個迴圈是無號回繞的經典 bug：`i` 從 0 再減 1 變成 4294967295，`i >= 0` 永遠成立，迴圈停不下來。
+為了讓示範能結束，加了一個印 6 次就 `break` 的計數器。`loop.c` 完整原始碼：
+
+```c
+#include <stdio.h>
+
+int main(void)
+{
+    int count = 0;
+    for (unsigned int i = 3; i >= 0; i--) {
+        printf("%u\n", i);
+        if (++count == 6)
+            break;
+    }
+    return 0;
+}
+```
+
+```
+$ gcc loop.c -o loop && ./loop
+3
+2
+1
+0
+4294967295          ← 0 減 1 回繞成最大值，i >= 0 還是成立
+4294967294
+```
 
 ---
 
@@ -483,15 +735,23 @@ loop.c:6:32: warning: comparison of unsigned expression in ‘>= 0’ is always 
 無號溢位有規定（回繞）；**有號溢位，C 標準沒有規定結果**，叫**未定義行為（undefined behavior，UB）**。
 意思不是「結果不確定」，而是**標準對這支程式完全沒有要求**：編譯器可以**假設它永遠不會發生**，並依這個假設改寫程式。
 
-實驗（`ub.c`）：
+實驗（`bigger` 故意分成兩行寫，原因見本節後面）。`ub.c` 完整原始碼：
 
 ```c
+#include <stdio.h>
+#include <limits.h>
+
 int bigger(int x)
 {
     int y = x + 1;
-    return y > x;      /* x + 1 當然比 x 大……除非溢位 */
+    return y > x;
 }
-/* main 裡：printf("bigger(INT_MAX) = %d\n", bigger(INT_MAX)); */
+
+int main(void)
+{
+    printf("bigger(INT_MAX) = %d\n", bigger(INT_MAX));
+    return 0;
+}
 ```
 
 ```
@@ -509,7 +769,7 @@ bigger(INT_MAX) = 1
 這**不是 gcc 的 bug**。按照標準，程式一發生有號溢位就沒有「正確答案」，兩種結果都合法。
 （`-O2` 把函式內嵌並在編譯時算出結果，就是 [gcc最佳化等級](./gcc最佳化等級-O0到O3差在哪.md) 講的內嵌加常數計算。）
 
-**連 `-O0` 也不保證照字面算。** 把同一件事寫成一行 `return x + 1 > x;`，`-O0` 也回傳 1。
+**連 `-O0` 也不保證照字面算。** 第四節的 `overflow.c` 把同一件事寫成一行 `return x + 1 > x;`（它的第 6 行），`-O0` 也回傳 1（第四節輸出的最後一行）。
 用 `-fdump-tree-original` 把 gcc 內部剛讀完原始碼時的樣子印出來（gcc 內部的中間表示，長得像 C，不是組合語言）：
 
 ```
@@ -531,7 +791,7 @@ gcc 在**任何最佳化開始之前**，就已經把 `x + 1 > x` 化簡成 `1`�
 | `-fsanitize=undefined`（UBSan，Undefined Behavior Sanitizer，未定義行為檢查器） | 回傳 0，**並在執行時報錯** | 在每個可能溢位的運算旁插入檢查，發生時印出位置 |
 | 改寫程式碼 | — | 在運算前先檢查會不會溢位，例如 `if (x == INT_MAX)`；或改用無號型別 |
 
-UBSan 的實測輸出：
+UBSan 的實測輸出（`ub.c:6:9` 是「第 6 行第 9 欄」，第 6 行就是 `int y = x + 1;`）：
 
 ```
 $ gcc -O0 -fsanitize=undefined ub.c -o ub && ./ub
@@ -659,8 +919,8 @@ $ gcc -Q --help=warnings -Wall -Wextra | grep -c '\[enabled\]' → 172
 
 ## 十、動手作業
 
-作業在 [`small-project/s1-02-data-repr/`](../small-project/s1-02-data-repr/README.md)：自己寫程式看位元組、判斷位元組順序、
-重現有號無號比較的陷阱與有號溢位的 `-O0`／`-O2` 差異。
+作業在 [`small-project/s1-02-data-repr/`](../small-project/s1-02-data-repr/README.md)：比 `int` 小的型別的範圍、`long` 的 8 byte 位元組順序、
+一組轉換的先預測後驗證、另外兩種有號無號比較陷阱、一個錯誤的溢位檢查。題目刻意跟本篇範例不同，要用本篇的觀念推理，照抄範例答不出來。
 
 ---
 

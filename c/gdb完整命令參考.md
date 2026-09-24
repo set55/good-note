@@ -80,7 +80,26 @@ gdb 的術語：被除錯的程式叫 **inferior**（下級程式），這個詞
    (gdb) next / print / info locals …
 ```
 
-本機用一個另外提供 `main`（呼叫 `answer()` 並印出結果）的檔案實測，`gdb` 裡看到的：
+本機用一個另外提供 `main`（呼叫 `answer()` 並印出結果）的檔案實測。`sumto.c` 的原始碼就是
+[gcc最佳化等級](./gcc最佳化等級-O0到O3差在哪.md) 第二節那一段（`sum_to` 在第 1～7 行、`answer` 在第 9～12 行）；
+`demo_main.c` 完整原始碼如下（當初沒有保存，這是重建版，重新實測的輸出與下面逐字相同）：
+
+```c
+#include <stdio.h>
+int answer(void);
+int main(void) { printf("%d\n", answer()); return 0; }
+```
+
+第 2 行是**宣告**：告訴編譯器 `answer` 在別的檔案裡，回傳 `int`（第 1 課第九節：沒有宣告，編譯器就只能用猜的）。
+
+```
+$ gcc -g -O0 sumto.c demo_main.c -o sumto      ← 兩個 .c 一起編，連結成一個執行檔
+$ gdb -q ./sumto
+(gdb) break sum_to
+(gdb) run
+```
+
+`gdb` 裡看到的：
 
 ```
 Breakpoint 1, sum_to (n=100) at sumto.c:3

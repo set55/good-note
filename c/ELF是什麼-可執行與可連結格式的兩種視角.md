@@ -157,7 +157,38 @@ ELF Header:
 
 - **`Machine`**：ELF 是跨 CPU 的格式，但檔案**內容**是給某一種 CPU 的。你的路由器是 MIPS 或 ARM，
   x86-64 的 ELF 放上去，格式看得懂、機器碼卻跑不了。本機模擬：把 `hello` 複製一份，只改檔頭裡
-  `Machine` 那 2 個 byte（檔案位移 18，改成 AArch64 的代碼 `0xb7`）：
+  `Machine` 那 2 個 byte（檔案位移 18，改成 AArch64 的代碼 `0xb7`）。`hello` 就是第 1 課的 `hello.c` 編出來的。
+  改檔的指令（2026-09-24 補上，重新實測）：
+  ```
+  $ cp hello hello_arm
+  $ printf '\xb7' | dd of=hello_arm bs=1 seek=18 conv=notrunc
+  1+0 records in
+  1+0 records out
+  1 byte copied, 3.7753e-05 s, 26.5 kB/s
+  ```
+  - `printf '\xb7'`：輸出一個值是 `0xb7` 的 byte（shell 的 `printf` 也認 `\x` 跳脫）。
+    `Machine` 欄位是 2 byte、小端序，x86-64 的代碼是 `0x3e`，存成 `3e 00`；AArch64 是 `0xb7`，存成 `b7 00`，所以只要改第一個 byte。
+  - `dd`：從標準輸入讀、寫到 `of=` 指定的檔案。本機 coreutils 9.4 的 `dd --help` 共 13 個運算元，**全部列出**：
+
+    | 運算元 | 作用 |
+    |---|---|
+    | `if=FILE` | 從 FILE 讀（預設標準輸入；這裡沒給，所以讀 `printf` 的輸出） |
+    | `of=FILE` | 寫到 FILE（預設標準輸出）。**這裡用** |
+    | `bs=BYTES` | 讀和寫都以 BYTES 為一塊（預設 512）。**這裡用 `bs=1`，讓 `seek` 以 byte 為單位** |
+    | `ibs=BYTES` | 只設定讀的塊大小 |
+    | `obs=BYTES` | 只設定寫的塊大小 |
+    | `cbs=BYTES` | 做轉換（`conv=block` 等）時一次處理的大小 |
+    | `count=N` | 只複製 N 塊 |
+    | `skip=N`（或 `iseek=N`） | 讀之前跳過輸入的前 N 塊 |
+    | `seek=N`（或 `oseek=N`） | 寫之前跳過輸出的前 N 塊。**這裡用 `seek=18`，跳到位移 18 再寫** |
+    | `conv=CONVS` | 轉換選項，逗號分隔。**這裡用 `notrunc`**：不要把輸出檔截斷。沒加的話，`dd` 會把 `hello_arm` 在寫完的地方截斷，後面全部消失 |
+    | `iflag=FLAGS` | 讀取時的旗標 |
+    | `oflag=FLAGS` | 寫入時的旗標 |
+    | `status=LEVEL` | 印到標準錯誤的資訊多寡（`none`、`noxfer`、`progress`） |
+
+    `conv=` 可用的符號共 16 個（`ascii ebcdic ibm block unblock lcase ucase sparse swab sync excl nocreat notrunc noerror fdatasync fsync`），
+    `iflag`／`oflag` 的旗標也有十幾個，這裡只用到 `notrunc`，完整說明見 `dd --help` 或 `man dd`。
+  - 輸出的 `1+0 records in/out`：讀了 1 個完整的塊、0 個不完整的塊；寫也一樣。
   ```
   $ readelf -h hello_arm | grep Machine
     Machine:                           AArch64

@@ -162,7 +162,35 @@ OpenWrt 為了省空間，連區段標頭（section header）都剝掉了（`fil
 
 ## 四、找不到函式庫時，兩者各看到什麼
 
-自己做一個函式庫，連結完再讓它找不到：
+自己做一個函式庫，連結完再讓它找不到（兩個檔案當初沒有保存，這是重建版，2026-09-24 重新實測，輸出與下面一致）。
+
+`foo.c`：函式庫的內容，只有一個函式。
+
+```c
+int foo(void)
+{
+    return 42;
+}
+```
+
+`main.c`：呼叫 `foo()` 的程式。第 3 行是宣告，告訴編譯器 `foo` 在別處、回傳 `int`。
+
+```c
+#include <stdio.h>
+
+int foo(void);
+
+int main(void)
+{
+    printf("%d\n", foo());
+    return 0;
+}
+```
+
+`-shared` 是「做成共享函式庫（`.so`）」，`-fPIC` 是「產生不管被載入到哪個位址都能執行的程式碼」（共享函式庫每次載入的位址不同，所以需要）；
+`-lfoo` 是「連結名叫 `libfoo.so` 的函式庫」（`-l` 後面的名字會自動補上 `lib` 前綴與 `.so` 副檔名）。
+這幾個 gcc 選項的完整說明見 `man gcc`（Link Options、Code Gen Options）。
+
 
 ```
 $ gcc -shared -fPIC foo.c -o libfoo.so      # 做一個共享函式庫

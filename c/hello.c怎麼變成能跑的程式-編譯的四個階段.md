@@ -275,7 +275,38 @@ exit_group(0) = ?                                               ⑦ main 回傳 
 | `strace` | `strace ./hello`；`-f` 連子行程一起追；`-c` 只印統計 | 系統呼叫 | `man strace` |
 
 `nm` 的符號類型字母，**這裡只列本課與下一課會遇到的**（完整清單見 `man nm`）。大寫是全域、小寫是只在本檔可見（`static`），
-本機用一個小檔案實測：
+本機用一個小檔案實測（當初的檔案沒有保存，這是重建版，2026-09-24 重新實測）。`symbols.c` 完整原始碼：
+
+```c
+int counter = 5;              /* 有初始值的全域變數 */
+static int hidden = 1;        /* 有初始值，但加了 static：只在本檔可見 */
+int zeroed;                   /* 沒有初始值的全域變數 */
+const int answer = 42;        /* 唯讀的全域常數 */
+extern int elsewhere;         /* 宣告：定義在別的檔案 */
+
+static void helper(void)      /* 只在本檔可見的函式 */
+{
+}
+
+int use_all(void)             /* 一般的函式 */
+{
+    helper();
+    return counter + hidden + zeroed + answer + elsewhere;
+}
+```
+
+```
+$ gcc -c symbols.c -o symbols.o && nm symbols.o
+0000000000000000 R answer
+0000000000000000 D counter
+                 U elsewhere
+0000000000000000 t helper
+0000000000000004 d hidden
+000000000000000b T use_all
+0000000000000000 B zeroed
+```
+
+`nm` 每行三欄：位址（在所屬區段裡的位置，`.o` 還沒連結，所以多半是 0）、類型字母、符號名稱。`U` 那一行沒有位址，因為它不在這個檔案裡。
 
 | 字母 | 意思 | 對應的 C |
 |---|---|---|
@@ -337,13 +368,50 @@ exit_group(0) = ?                                               ⑦ main 回傳 
   編譯器要靠它決定參數放哪個暫存器、回傳值從哪裡拿。缺了宣告，編譯器沿用 C89 的舊規則（C99 起已從標準移除，但 gcc 13 仍以警告的方式容許）
   「猜」這是一個回傳 `int` 的函式；連結時再照名字 `printf` 找到 libc 裡的真函式。
   `printf` 剛好猜得夠接近，所以能跑。
-- **猜錯時會怎樣**（本機實測）：`half.c` 定義 `double half(double x) { return x / 2; }`，
-  `main.c` 不宣告就呼叫 `half(10)`：
+- **猜錯時會怎樣**（本機實測；原始檔當初沒有保存，這是重建版，2026-09-24 重新實測）：`half.c` 定義一個回傳 `double` 的函式，
+  `main.c` 不宣告就呼叫它。
+
+  `half.c`：
+  ```c
+  double half(double x)
+  {
+      return x / 2;
+  }
   ```
-  main.c: warning: implicit declaration of function 'half'
+  `main.c`：
+  ```c
+  #include <stdio.h>
+  
+  int main(void)
+  {
+      printf("half(10) = %f\n", half(10));   /* 故意沒有宣告 half */
+      return 0;
+  }
+  ```
+  ```
+  $ gcc main.c half.c -o bad && ./bad
+  main.c:5:31: warning: implicit declaration of function ‘half’ [-Wimplicit-function-declaration]
+  main.c:5:25: warning: format ‘%f’ expects argument of type ‘double’, but argument 2 has type ‘int’ [-Wformat=]
   half(10) = 0.000000        ← 錯的！編譯器把 10 當 int 放進整數暫存器、把回傳值當 int 讀
   ```
-  補上 `double half(double x);` 宣告後就是 `half(10) = 5.000000`。連結器兩次都「成功」，
+  第二則警告也是同一個原因：編譯器以為 `half` 回傳 `int`，所以抱怨 `%f` 配上了 `int`。
+  補上宣告的 `main_fixed.c`：
+  ```c
+  #include <stdio.h>
+  
+  double half(double x);        /* 補上宣告 */
+  
+  int main(void)
+  {
+      printf("half(10) = %f\n", half(10));
+      return 0;
+  }
+  ```
+  ```
+  $ gcc main_fixed.c half.c -o good && ./good
+  half(10) = 5.000000
+  ```
+  連結器兩次都「成功」，
   因為它只比對名字 `half`。**這就是為什麼一定要 `#include` 正確的標頭檔**：型別錯了，
   沒有任何一個階段會擋下來，只會在執行時得到錯誤的結果。
 - 本機 gcc 13 預設 C17（`__STDC_VERSION__` 為 `201710L`），這種情況只是警告；

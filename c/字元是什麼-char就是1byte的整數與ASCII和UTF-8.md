@@ -4,7 +4,7 @@
 > 情境：第 ① 站第 2 課的延伸提問。[第 2 課筆記](./C的資料在記憶體裡長怎樣-位元組、指標、位元組順序與有號無號.md) 裡出現了 `char`、`%c`、
 > 「印幾個字元」，使用者問「字元是什麼？」
 > 適用範圍：實測本機 Ubuntu 24.04、x86-64、gcc 13.3.0、gdb 15.1，locale 是 `en_US.UTF-8`；所有輸出都是本機實際執行結果
-> 對應檔案：實驗程式 `chars.c`、`utf.c`、`count.c` 放在 scratchpad，不入 git
+> 對應檔案：實驗程式 `chars.c`、`utf.c`、`count.c` 的完整原始碼都寫在正文裡，可以直接複製編譯
 > 相關：[C的資料在記憶體裡長怎樣](./C的資料在記憶體裡長怎樣-位元組、指標、位元組順序與有號無號.md)（第一節 `char` 有號、第六節符號擴展）
 
 **一句話結論：字元（character）是一個符號：字母、數字、標點、換行。電腦記不住符號，只記得住數字，所以用一張
@@ -16,23 +16,46 @@
 
 ## 一、字元就是一個數字
 
+`chars.c` 完整原始碼：
+
 ```c
-char c = 'A';
-char d = 65;
-printf("%c %d 0x%x\n", c, c, c);
+#include <stdio.h>
+
+int main(void)
+{
+    char c = 'A';
+    char d = 65;
+    char nl = '\n';
+    char zero = '0';
+
+    printf("c    : %%c=%c  %%d=%d  hex=0x%x\n", c, c, c);    /* 第 10 行 */
+    printf("d    : %%c=%c  %%d=%d\n", d, d);
+    printf("c + 1: %%c=%c  %%d=%d\n", c + 1, c + 1);
+    printf("'0'  : %%c=%c  %%d=%d\n", zero, zero);
+    printf("'\\n' : %%d=%d\n", nl);
+    printf("sizeof(c) = %zu, sizeof('A') = %zu\n", sizeof(c), sizeof('A'));
+    printf("sizeof(\"A\") = %zu, sizeof(\"字\") = %zu\n", sizeof("A"), sizeof("字"));
+    return 0;
+}
 ```
 
 ```
+$ gcc -Wall -Wextra -g -O0 chars.c -o chars && ./chars
 c    : %c=A  %d=65  hex=0x41
 d    : %c=A  %d=65          ← 寫 'A' 和寫 65，存進去的是同一個東西
 c + 1: %c=B  %d=66          ← 字元可以做加法：'A' + 1 就是 'B'
 '0'  : %c=0  %d=48          ← 字元 '0' 不是數字 0，它的編號是 48
 '\n' : %d=10                ← 換行也是一個字元，編號 10
+sizeof(c) = 1, sizeof('A') = 4               ← 第三節
+sizeof("A") = 2, sizeof("字") = 4            ← 第三、四節
 ```
 
 用 `gdb` 看記憶體，`c` 那一格存的就是一個 byte `0x41`：
 
 ```
+$ gdb -q ./chars
+(gdb) break 10          ← chars.c 標註的第 10 行
+(gdb) run
 (gdb) x/1xb &c
 0x7fffffffd26c:	0x41
 (gdb) print c
@@ -89,7 +112,7 @@ $ man ascii
 - **在 C 裡，`'A'` 的型別是 `int`，不是 `char`**：
 
 ```
-sizeof(c) = 1, sizeof('A') = 4
+sizeof(c) = 1, sizeof('A') = 4          ← chars.c 輸出的第 6 行
 ```
 
   存進 `char` 變數時才會變窄成 1 byte。（C++ 的 `'A'` 是 `char`，這是兩個語言的差異之一。）
@@ -97,7 +120,7 @@ sizeof(c) = 1, sizeof('A') = 4
 ### 跳脫序列（escape sequence）：全部列出
 
 控制字元打不出來、單引號本身又被語法佔用，所以 C 用反斜線開頭的寫法表示它們。
-以下是 C 標準規定的**全部**（本機實測印出的數值）：
+以下是 C 標準規定的**全部**。「值」那一欄是第四節 `utf.c` 最後一行實測印出來的：
 
 | 寫法 | 值 | 意思 |
 |---|---|---|
@@ -127,12 +150,13 @@ ASCII 只有 128 個位置，放不下中文。現在通用的做法是 **Unicod
 英文字母在 UTF-8 裡跟 ASCII 完全一樣，還是 1 個 byte；中文字通常是 3 個。
 
 ```
-sizeof("A") = 2, sizeof("字") = 4        ← 「字」3 個 byte，加上結尾的 '\0'
+sizeof("A") = 2, sizeof("字") = 4        ← chars.c 輸出的最後一行：「字」3 個 byte，加上結尾的 '\0'
 
+（同一個 gdb 工作階段，停在第 10 行）
 (gdb) x/2xb "A"
-0x5555555592c0:	0x41	0x00
+0x5555555592a0:	0x41	0x00
 (gdb) x/4xb "字"
-0x5555555592a0:	0xe5	0xad	0x97	0x00
+0x5555555592c0:	0xe5	0xad	0x97	0x00
 ```
 
 （這裡的位址是 `gdb` 為了印這個字串，臨時放進程式記憶體的位置，不用在意。）
@@ -147,14 +171,31 @@ UTF-8 怎麼把編號拆成 byte 的規則見 `man utf-8`（本機有安裝）�
 
 第 2 課第一節說本機的 `char` 是有號的。UTF-8 的中文 byte 都大於 127（最高位是 1），用 `char` 讀就變成負數：
 
+`"字"[0]` 是取字串的第一個 byte `0xe5`（`[0]` 的語法第 3 課教）。`utf.c` 完整原始碼：
+
 ```c
-char s = "字"[0];            /* 取字串的第一個 byte（[0] 的語法第 3 課教）：0xe5 */
-unsigned char u = "字"[0];
-int from_s = s, from_u = u;  /* 擴展成 int */
+#include <stdio.h>
+
+int main(void)
+{
+    char s = "字"[0];
+    unsigned char u = "字"[0];
+    int from_s = s, from_u = u;
+    char digit = '7';
+
+    printf("char: %d, unsigned char: %d\n", from_s, from_u);
+    printf("'7' - '0' = %d\n", digit - '0');
+    printf("escapes: \\a=%d \\b=%d \\f=%d \\n=%d \\r=%d \\t=%d \\v=%d \\\\=%d \\'=%d \\\"=%d \\?=%d \\0=%d \\101=%d \\x41=%d\n",
+           '\a', '\b', '\f', '\n', '\r', '\t', '\v', '\\', '\'', '\"', '\?', '\0', '\101', '\x41');
+    return 0;
+}
 ```
 
 ```
+$ gcc -Wall -Wextra utf.c -o utf && ./utf
 char: -27, unsigned char: 229
+'7' - '0' = 7                                    ← 第一節的 '0' 轉換
+escapes: \a=7 \b=8 \f=12 \n=10 \r=13 \t=9 \v=11 \\=92 \'=39 \"=34 \?=63 \0=0 \101=65 \x41=65   ← 第三節的跳脫序列表
 ```
 
 同一個 byte `0xe5`：當 `signed char` 讀，最高位是符號位，二補數是 −27，擴展成 `int` 時做符號擴展，還是 −27；
@@ -178,17 +219,32 @@ C 的 `char` 取名的年代，英文一個字元剛好一個 byte，兩種意�
 所以**「字」是 3 個 `char`（3 個 byte），但只是 1 個字元**。說「字元」時，要看上下文指的是哪一種；
 嚴謹的文件會直接說 byte 或 code point。
 
-實測兩種數法（`count.c`）：
+實測兩種數法。`setlocale(LC_ALL, "")` 照環境變數設定 locale，程式才知道文字是 UTF-8；
+`mbstowcs(NULL, s, 0)` 第一個參數給 `NULL` 代表只數不存；`L"字A"` 是寬字元字串，每個字元一個 `wchar_t`。`count.c` 完整原始碼：
 
 ```c
-const char *s = "字A";
-setlocale(LC_ALL, "");                    /* 照環境變數設定 locale，才知道文字是 UTF-8 */
-strlen(s);                                /* 數 byte */
-mbstowcs(NULL, s, 0);                     /* 把多位元組文字轉成寬字元，NULL 代表只數不存 */
-wcslen(L"字A");                           /* L 開頭：寬字元字串，每個字元一個 wchar_t */
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+#include <locale.h>
+#include <wchar.h>
+
+int main(void)
+{
+    const char *s = "字A";
+
+    setlocale(LC_ALL, "");
+    printf("strlen(\"字A\")   = %zu   (bytes)\n", strlen(s));
+    printf("mbstowcs count  = %zu   (characters)\n", mbstowcs(NULL, s, 0));
+    printf("wcslen(L\"字A\") = %zu\n", wcslen(L"字A"));
+    printf("sizeof(wchar_t) = %zu\n", sizeof(wchar_t));
+    printf("L'字' = 0x%x\n", (unsigned)L'字');
+    return 0;
+}
 ```
 
 ```
+$ gcc -Wall -Wextra count.c -o count && ./count
 strlen("字A")   = 4   (bytes)            ← 3 + 1
 mbstowcs count  = 2   (characters)       ← 字、A
 wcslen(L"字A") = 2
