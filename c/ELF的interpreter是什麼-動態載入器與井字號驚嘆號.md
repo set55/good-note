@@ -71,6 +71,50 @@ $ readelf -lW hello_static | grep -i interp
 這就是第 1 課 `strace ./hello` 看到的那一串：`execve` 之後的 `openat("/etc/ld.so.cache")`、
 `openat("libc.so.6")`、`mmap`，都是**動態載入器在做事**，還沒輪到你的程式。
 
+### 「跳進程式」是什麼意思：進入點（entry point）
+
+> 2026-09-24 補教：複習時使用者問「跳進程式本身代表什麼？」——第 ⑤ 步之前只說了「交給」，沒說交到哪裡。
+
+CPU（Central Processing Unit，中央處理器）隨時都記著「下一條要執行的指令在哪個位址」。
+「跳進程式」就是載入器把這個位址改成**你的程式的第一條指令**，從那一刻起 CPU 執行的就是 `hello` 的程式碼，
+載入器的工作結束。這個「第一條指令的位址」寫在 ELF 檔頭裡，叫**進入點（entry point）**：
+
+```
+$ readelf -h hello | grep Entry
+  Entry point address:               0x1060
+
+$ readelf -sW hello | grep -E ' _start| main$|__libc_start_main'
+     1: 0000000000000000     0 FUNC    GLOBAL DEFAULT  UND __libc_start_main@GLIBC_2.34 (2)
+    29: 0000000000001060    38 FUNC    GLOBAL DEFAULT   16 _start
+    31: 0000000000001149    30 FUNC    GLOBAL DEFAULT   16 main
+```
+
+注意進入點 `0x1060` 是 **`_start`**，**不是 `main`**（`main` 在 `0x1149`）。`_start` 是 `gcc` 連結時自動加進來的啟動碼，
+它做的事是呼叫 libc 的 `__libc_start_main`（表裡 `UND` 代表這個符號不在 `hello` 裡，要執行時由載入器接到 `libc.so.6`；
+就是第 1 課第九節那個 `GLIBC_2.34`），再由 `__libc_start_main` 呼叫你的 `main`。所以完整的順序是：
+
+```
+核心 → 載入器（載入 libc、填位址）→ 跳到進入點 _start → __libc_start_main（在 libc 裡）→ main → puts
+```
+
+（這裡的 `0x1060` 是檔案裡的相對位址。本機的執行檔是 PIE，執行時整支程式會被放到一個隨機的基底位址，
+真正跳去的是「基底＋`0x1060`」，見 [ELF 是什麼](./ELF是什麼-可執行與可連結格式的兩種視角.md) 的 `Type: DYN`。）
+
+載入器自己也會告訴你它在什麼時候交出控制權。`LD_DEBUG=files` 的最後幾行（`LD_DEBUG` 的全部選項見
+[第 1 課筆記第十節](./hello.c怎麼變成能跑的程式-編譯的四個階段.md#十三個名字很像的檔案ldld-linux-x86-64so2libcso6)）：
+
+```
+$ LD_DEBUG=files ./hello
+     55130:	calling init: /lib64/ld-linux-x86-64.so.2
+     55130:	calling init: /lib/x86_64-linux-gnu/libc.so.6
+     55130:	transferring control: ./hello        ← 就是這一步：跳到 hello 的進入點
+hello
+```
+
+釐清一個常見誤會：跳進去之後，程式的指令是 **CPU 執行的**，不是核心在執行。核心只在程式發出系統呼叫
+（例如 `puts` 最後呼叫的 `write`）時才介入。「跳」在指令層級長什麼樣子，第 4、5 課讀組合語言時會實際看到。
+`readelf` 的 `-h`、`-s` 等全部選項見 [readelf完整選項參考](./readelf完整選項參考.md)。
+
 ### 名字很多，都是同一個東西
 
 | 稱呼 | 出處 |
