@@ -488,6 +488,83 @@ cmp.c:5:42: warning: comparison of integer expressions of different signedness: 
 （`-Wall -Wextra` 對前者有 `-Wsign-compare` 警告；但第七節的 `-1 < 0u` 卻沒有警告，常數之間的比較不一定抓得到。）
 第七節的 `-1 < 0u`、第六節的 `int big = 3000000000u` 用 `u`，就是為了**刻意製造一個無號常數**來示範轉換。
 
+### 怎麼確定一個常數的型別？比較時以誰為準？
+
+> 2026-09-27 自我測驗第 7 題追問：「這種常數比較到底要怎麼比？我要怎麼確定常數的型別，是要以誰的為準？」
+
+分成兩步：**先決定每一邊各自是什麼型別，再決定兩邊要轉成哪個共同型別**。
+
+**第一步：常數自己的型別**，照上一小節的規則，順序是：
+
+1. 有後綴就照後綴（`u`、`l`、`ul`……）。後綴只規定「至少」，裝不下時一樣往更大的型別走。
+2. 沒有後綴時，照上面那張「依序嘗試」的表，選**第一個裝得下**的型別：十進位只試有號型別（`int` → `long` → `long long`），
+   十六進位／八進位會穿插試無號型別（`int` → `unsigned int` → `long` → …）。
+3. 負號不屬於常數：`-1` 是 `int` 的 `1` 取負號，型別還是 `int`。
+4. 不確定時**讓 gcc 告訴你**：用上一小節的 `_Generic`（`suffix.c`）印出型別，或看 `-Wsign-compare` 警告裡寫的型別名稱。
+
+所以第 7 題的兩個常數：`2147483648` 十進位，`int` 裝不下（`INT_MAX` 是 2147483647），下一個試 `long`，本機 `long` 是 8 byte、最大 9223372036854775807，裝得下 → `long`。
+`0x80000000` 十六進位，`int` 裝不下，下一個試 `unsigned int`（最大 4294967295），裝得下 → `unsigned int`。兩者差在**嘗試清單不同**，不是差在誰比較大。
+
+**第二步：兩邊型別不同時，轉成哪一個**——這是 C 標準的一般算術轉換（usual arithmetic conversions），整數的部分依序套用，套到第一條成立的就停：
+
+| 順序 | 條件 | 結果 | 例子（本機） |
+|---|---|---|---|
+| 0 | 先做**整數提升**（integer promotion）：比 `int` 小的 `char`、`short` 先變成 `int` | — | `char` 與 `char` 相比，其實是兩個 `int` 在比 |
+| 1 | 兩邊型別相同 | 不用轉 | `int` 與 `int` |
+| 2 | 兩邊都有號，或都無號 | 轉成**等級（rank）較高**的那個（`long long` > `long` > `int`） | `int` 與 `long` → `long` |
+| 3 | 無號那邊的等級 **≥** 有號那邊 | 轉成那個**無號**型別 | `int` 與 `unsigned int` → `unsigned int`；`int` 與 `unsigned long` → `unsigned long`；`long` 與 `unsigned long` → `unsigned long` |
+| 4 | 有號那邊**裝得下無號那邊的所有值** | 轉成那個**有號**型別 | `long`（8 byte）與 `unsigned int`（4 byte）→ `long` |
+| 5 | 以上都不成立 | 轉成**有號那邊對應的無號型別** | 本機沒有這種組合（`long` 與 `long long` 都是 8 byte 時才會遇到，例如 `long long` 與 `unsigned long`） |
+
+口訣：**同號取大；無號不比較小就聽無號的；有號裝得下無號就聽有號的**。一旦結果是無號，負數就會被換成很大的正數（第六節），比較就可能反過來。
+
+實測。`TYPE((a) + (b))` 用加法問 gcc「兩邊轉完的共同型別」（比較和加法用的是同一套轉換）。`common.c` 完整原始碼：
+
+```c
+#include <stdio.h>
+
+#define TYPE(e) _Generic((e), \
+    int: "int", unsigned int: "unsigned int", \
+    long: "long", unsigned long: "unsigned long", \
+    default: "other")
+
+#define SHOW(a, b) printf("%-24s -> %-14s  %s < %s = %d\n", \
+    #a " 與 " #b, TYPE((a) + (b)), #a, #b, (a) < (b))
+
+int main(void)
+{
+    SHOW(-1, 1);             /* int           與 int           */
+    SHOW(-1, 1u);            /* int           與 unsigned int  */
+    SHOW(-1, 1L);            /* int           與 long          */
+    SHOW(-1L, 1u);           /* long          與 unsigned int  */
+    SHOW(-1, 1UL);           /* int           與 unsigned long */
+    SHOW(-1L, 1UL);          /* long          與 unsigned long */
+    SHOW(-1, 0x80000000);    /* int           與 unsigned int（十六進位常數）*/
+    SHOW(-1, 2147483648);    /* int           與 long（十進位常數）*/
+    return 0;
+}
+```
+
+```
+$ gcc -Wall -Wextra common.c -o common && ./common
+common.c:9:48: warning: comparison of integer expressions of different signedness: ‘int’ and ‘unsigned int’ [-Wsign-compare]
+common.c:9:48: warning: comparison of integer expressions of different signedness: ‘int’ and ‘long unsigned int’ [-Wsign-compare]
+common.c:9:48: warning: comparison of integer expressions of different signedness: ‘long int’ and ‘long unsigned int’ [-Wsign-compare]
+common.c:9:48: warning: comparison of integer expressions of different signedness: ‘int’ and ‘unsigned int’ [-Wsign-compare]
+-1 與 1                 -> int             -1 < 1 = 1       ← 規則 1
+-1 與 1u                -> unsigned int    -1 < 1u = 0      ← 規則 3：-1 變 4294967295
+-1 與 1L                -> long            -1 < 1L = 1      ← 規則 2
+-1L 與 1u               -> long            -1L < 1u = 1     ← 規則 4：long 裝得下所有 unsigned int，不會出事，也沒有警告
+-1 與 1UL               -> unsigned long   -1 < 1UL = 0     ← 規則 3：-1 變 18446744073709551615
+-1L 與 1UL              -> unsigned long   -1L < 1UL = 0    ← 規則 3
+-1 與 0x80000000        -> unsigned int    -1 < 0x80000000 = 0   ← 第一步決定是 unsigned int，第二步套規則 3
+-1 與 2147483648        -> long            -1 < 2147483648 = 1   ← 第一步決定是 long，第二步套規則 2
+```
+
+（警告的行號都是 9，因為每個 `SHOW` 展開後的比較都寫在巨集定義那一行。）
+4 則警告剛好對應結果變成無號的 4 列；`-1L` 與 `1u` 轉成 `long`，值不會變，gcc 也就不警告。
+實務上的結論：**不要讓有號和無號混在一起比較**；非比不可時，自己先轉型（例如 `(long)i < (long)len`），並固定用 `-Wall -Wextra` 讓 `-Wsign-compare` 提醒你。
+
 ---
 
 ## 五、有號整數：二補數
@@ -677,7 +754,7 @@ $ gdb -q ./extend
 n < len is FALSE (n=-1, len=5)
 ```
 
-C 的規則（usual arithmetic conversions，一般算術轉換）：**`int` 和 `unsigned int` 放在同一個運算裡，`int` 會先被轉成 `unsigned int`**。
+C 的規則（usual arithmetic conversions，一般算術轉換）：**`int` 和 `unsigned int` 放在同一個運算裡，`int` 會先被轉成 `unsigned int`**。（完整的規則表見第四節〈怎麼確定一個常數的型別？比較時以誰為準？〉。）
 轉換照第六節是「位元不變、換讀法」，於是 `-1` 變成 4294967295，比 5 大。
 
 這在真實程式裡很常見，因為 `sizeof` 與 `strlen` 回傳的都是無號的 `size_t`：`if (i < strlen(s))` 裡的 `i` 如果是負的 `int`，就會踩到。
@@ -1053,3 +1130,4 @@ $ gcc -Q --help=warnings -Wall -Wextra | grep -c '\[enabled\]' → 172
 9. 情境題：有人寫了 `if (len - used > 0)` 判斷「緩衝區還有沒有剩餘空間」，`len`、`used` 都是 `size_t`，用 `-Wall -Wextra` 編譯沒有任何警告。
    這個判斷在什麼情況下會出錯？為什麼 gcc 對 `len - used < 0` 會警告、對 `> 0` 卻不會？
    另外，為什麼 `int sum = x + y; if (sum < x)` 這種溢位檢查在 `-O2` 下可能完全失效？
+10. `long a = -1; unsigned int b = 1;` 與 `int c = -1; unsigned long d = 1;`，`a < b` 和 `c < d` 各是真還是假？兩邊各被轉成什麼型別，依據的是哪一條規則？為什麼 gcc 只對其中一個發出 `-Wsign-compare` 警告？

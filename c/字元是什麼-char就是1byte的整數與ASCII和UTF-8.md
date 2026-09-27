@@ -202,6 +202,55 @@ escapes: \a=7 \b=8 \f=12 \n=10 \r=13 \t=9 \v=11 \\=92 \'=39 \"=34 \?=63 \0=0 \10
 當 `unsigned char` 讀是 229，零擴展後還是 229。這正是第 2 課第六節說「處理原始位元組一律用 `unsigned char`」的實際例子：
 用 `char` 處理 UTF-8 文字，一拿去做比較或當索引就會出錯。
 
+### 判斷「是不是非 ASCII 的 byte」：用哪個型別、為什麼是 127
+
+> 2026-09-27 自我測驗第 4 題追問：「改成 `unsigned int` 好嗎？具體 `> 127` 就好嗎？為什麼是 127？」
+
+**為什麼是 127**：ASCII 只用 7 個 bit，值是 0～127（`0x00`～`0x7f`）。UTF-8 刻意這樣設計：ASCII 字元照舊是 1 個 byte、值不變；
+非 ASCII 字元（例如中文）的**每一個** byte 最高位都是 1，也就是 ≥ 128（`0x80`～`0xff`）。所以「byte 的值 > 127」就等於「這個 byte 不是 ASCII」。
+前提是**用 0～255 的讀法**去讀這個 byte——這正是 `char` 做不到的地方。
+
+**用哪個型別**：同一個 byte `0xe5`（「字」的第一個 byte）用三種型別讀。`bytes.c` 完整原始碼：
+
+```c
+#include <stdio.h>
+
+int main(void)
+{
+    const char *s = "字";
+    char c = s[0];
+    unsigned char uc = s[0];
+    unsigned int ui = s[0];
+
+    printf("char          : %d  (c > 127 -> %d, c < 0 -> %d)\n", c, c > 127, c < 0);    /* 第 10 行 */
+    printf("unsigned char : %d  (uc > 127 -> %d)\n", uc, uc > 127);
+    printf("unsigned int  : %u  (ui > 127 -> %d)\n", ui, ui > 127);
+    printf("'A' as unsigned char > 127 -> %d\n", (unsigned char)'A' > 127);
+    return 0;
+}
+```
+
+（`s[0]` 是取字串第一個 byte，語法第 3 課教。）
+
+```
+$ gcc -Wall -Wextra bytes.c -o bytes && ./bytes
+bytes.c:10:71: warning: comparison is always false due to limited range of data type [-Wtype-limits]
+char          : -27  (c > 127 -> 0, c < 0 -> 1)
+unsigned char : 229  (uc > 127 -> 1)
+unsigned int  : 4294967269  (ui > 127 -> 1)
+'A' as unsigned char > 127 -> 0
+```
+
+| 型別 | `0xe5` 讀成 | `> 127` | 評語 |
+|---|---|---|---|
+| `char`（本機有號，−128～127） | −27 | **永遠假** | 就是題目的 bug。`-Wextra` 的 `-Wtype-limits` 直接警告「因為型別範圍有限，永遠為假」（第 2 課第七節的同一個警告） |
+| `unsigned char`（0～255） | **229** | 真 | **正解**：byte 本來就是 0～255 的數，值正確，`> 127` 的意思也正確 |
+| `unsigned int` | 4294967269 | 真 | 判斷**碰巧**對了，但值是錯的：`s[0]` 是有號的 `char`，轉成 `unsigned int` 時先照原本的型別做**符號擴展**（第 2 課第六節），變成 `0xffffffe5`。拿去當陣列索引、查表、印出來都會出錯 |
+
+所以正確的改法是**把變數改成 `unsigned char`**（或比較時寫 `(unsigned char)c > 127`），而不是換成更大的無號型別：
+問題出在 `char` 把 byte 讀成負數，要修的是「讀法」，換成 `unsigned int` 只是把 −27 變成另一個錯的數。
+（用 `char` 硬要判斷也可以寫 `c < 0`，但這依賴 `char` 在這台機器上有號——ARM 上的 `char` 通常是無號的，同一行程式會變成永遠假。）
+
 ---
 
 ## 五、那「字」是 3 個字元嗎？——看你說的是哪一種「字元」
