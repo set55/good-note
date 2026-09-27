@@ -1,6 +1,6 @@
 # Linux 筆記索引
 
-這個目錄收錄 Linux 系統管理、排查與實戰紀錄。筆記檔案都平放在本目錄，下面的索引依主題分成八類；一篇筆記只會出現在一類裡。
+這個目錄收錄 Linux 系統管理、排查與實戰紀錄。筆記檔案都平放在本目錄，下面的索引依主題分成十類；一篇筆記只會出現在一類裡。
 
 ## 筆記列表
 
@@ -9,10 +9,11 @@
 - [核心與驅動](#核心與驅動)（5 篇）
 - [網路基礎與設定](#網路基礎與設定)（18 篇）
 - [網路查詢與追蹤](#網路查詢與追蹤)（4 篇）
-- [Shell 與重新導向](#shell-與重新導向)（9 篇）
+- [Shell 與重新導向](#shell-與重新導向)（10 篇）
 - [終端機與 tmux](#終端機與-tmux)（4 篇）
 - [桌面環境（GNOME）](#桌面環境gnome)（1 篇）
 - [系統組成（核心與使用者空間）](#系統組成核心與使用者空間)（1 篇）
+- [開機（GRUB）](#開機grub)（1 篇）
 
 ### 通用方法論
 
@@ -95,6 +96,7 @@ shell 的語法真相與 fd 0／1／2 這三條線怎麼接。
 | [錢字號展開的四種形式-bad-substitution的根因.md](./錢字號展開的四種形式-bad-substitution的根因.md) | `${}` 是參數展開（裡面只能放變數名＋運算子）、`$()` 才是命令替換，把指令寫進 `${}` 會在解析階段就報 `bad substitution`；另含雙引號擋不住 `${}` 展開（只有單引號能）、反引號的三個缺點，以及實測「zsh 不對 `$var` 分詞但仍會對 `$(...)` 分詞」的常見誤解 | `${}` `$()` `$(())` `<()` `bad substitution` `parameter expansion` `command substitution` `arithmetic expansion` `process substitution` `word splitting` `IFS` `backtick` `quoting` `zsh vs bash` |
 | [shell的case語法-樣式比對與分支.md](./shell的case語法-樣式比對與分支.md) | `case <字> in [(]樣式[\|樣式]) 命令 ;; esac` 逐位置拆解：由上往下第一個配對成功就離開、全沒中也不報錯、`<字>` 不分詞所以不必加引號；樣式是 glob 不是正規表示式（`*` `?` `[...]` `[!...]`、`]`／`-` 放置規則、字元類別、沒有「重複」），補集要寫 `!`——dash 不認 `[^...]`；樣式加引號變字面、未加引號的變數會變回萬用字元；以 TPROXY 腳本的 `''\|*[!0-9./]*` 為例說明為何空字串要另外擋、只擋字元就能防注入；另含 `>&2; exit 1`、`${v:+X}` 與 `${v+X}` 的差別、`;&`／`;;&` 是 bash 限定，以及各種寫錯的 dash／bash 錯誤訊息對照 | `case` `esac` `;;` `;&` `;;&` `pattern` `glob` `[!...]` `[^...]` `[[:digit:]]` `"$@"` `>&2` `exit` `${var:+alt}` `${var+alt}` `dash -n` `POSIX sh` |
 | [root執行腳本也Permission-denied-缺執行位元.md](./root執行腳本也Permission-denied-缺執行位元.md) | 新檔案（scp、編輯器建立）預設 `rw-r--r--` 沒有 x，`./檔名` 要核心 `execve` 所以被擋；root 的 `CAP_DAC_OVERRIDE` 對執行有例外——至少要有一個 x 位元；`sh 檔名` 只需 r 所以繞得過但會忽略 `#!`；含 `chmod` 三種形式、符號模式 `[ugoa][+-=][rwxXst]` 逐段與省略時受 umask 影響、八進位、完整選項，以及 `noexec` 掛載、`#!` 直譯器不存在／CRLF（回 `not found`）等相似錯誤的對照 | `Permission denied` `chmod +x` `chmod 755` `x bit` `CAP_DAC_OVERRIDE` `execve` `shebang` `sh script.sh` `umask` `scp -p` `noexec` `CRLF` `not found` `BusyBox ash` |
+| [在終端機怎麼計算-shell算術bc與printf.md](./在終端機怎麼計算-shell算術bc與printf.md) | 整數與進位換算用 shell 內建的 `$(( ))`（到處都有，含路由器 ash），小數與大數用 `bc`（`-l` 才有小數），印成十六／八進位用 `printf`；四個陷阱：bash 只有整數（zsh 例外）、`^` 是 XOR 不是次方（`bc` 的 `^` 才是）、`010` 在 bash 是八進位（`08` 報 value too great for base）、超過 64 位元默默溢位成負數；`bc` 要先設 `obase` 再設 `ibase`；`expr 3 * 4` 的 `*` 會被展開；含 `$(( ))` 全部運算子、`bc` 全部選項與函式 | `$(( ))` `(( ))` `arithmetic expansion` `**` `^ XOR` `0x` `base#n` `octalzeroes` `[#16]` `bc -l` `scale` `ibase` `obase` `printf %x` `awk BEGIN` `expr` `overflow` |
 
 ### 終端機與 tmux
 
@@ -122,6 +124,14 @@ shell 的語法真相與 fd 0／1／2 這三條線怎麼接。
 | 筆記 | 主題 | 關鍵字 |
 |------|------|--------|
 | [GNU是什麼-Linux核心與GNU工具的分工.md](./GNU是什麼-Linux核心與GNU工具的分工.md) | GNU（*GNU's Not Unix*，1983 起）做出 gcc、binutils、glibc、bash、coreutils、gdb 等幾乎所有使用者空間工具，卻缺可用核心，1991 年由 Linux 核心補上，所以日常的「Linux」其實是 Linux 核心＋GNU 工具（但 `uname -o` 的 `GNU/Linux` 是程式寫死的字串、不向核心查詢，OpenWrt 的 BusyBox 也這樣印，不能當證據）；目標三元組 `x86_64-linux-gnu` 把核心與 C 函式庫分成兩欄；OpenWrt／Alpine 是 Linux＋musl＋BusyBox、不是 GNU，這是路由器上 `ash`、`chmod` 行為不同的根源；GPL 的 copyleft、glibc 用 LGPL 所以任何程式都能連結、kernel 為 GPL-2.0 與 `Signed-off-by` | `GNU` `FSF` `GPL` `LGPL` `copyleft` `GNU/Linux` `glibc` `musl` `BusyBox` `coreutils` `binutils` `target triple` `x86_64-linux-gnu` `uname -o` `Signed-off-by` `DCO` `uname -o` `struct utsname` `ld-musl` |
+
+### 開機（GRUB）
+
+開機載入程式（boot loader）的設定：設定檔分層、選單外觀。
+
+| 筆記 | 主題 | 關鍵字 |
+|------|------|--------|
+| [GRUB開機選單字太小-設定檔在哪與換大字體.md](./GRUB開機選單字太小-設定檔在哪與換大字體.md) | 要改的是 `/etc/default/grub`，`/boot/grub/grub.cfg` 是 `update-grub`（＝`grub-mkconfig -o`）依 `/etc/grub.d/*` 腳本產生的、手改會被核心升級蓋掉；字小是因為預設 `unicode.pf2` 是 16px Unifont 點陣字、面板 2560x1600——用 `grub-mkfont -s 32` 轉出大號 PF2 放 `/boot/grub/fonts/`、設 `GRUB_FONT`；`GRUB_TERMINAL=console` 會讓字型失效；含降 `GRUB_GFXMODE` 的替代做法、`00_header` 字型邏輯、`grub-mkfont` 全部 15 個選項 | `/etc/default/grub` `update-grub` `grub-mkconfig` `/etc/grub.d/00_header` `grub.cfg` `GRUB_FONT` `grub-mkfont` `pf2` `unicode.pf2` `GRUB_GFXMODE` `GRUB_TERMINAL` `gfxterm` `loadfont` `videoinfo` `ESP` |
 
 ## 常用診斷命令速查（跨筆記通用）
 

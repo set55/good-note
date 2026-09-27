@@ -229,6 +229,105 @@ gdb [選項] --args 執行檔 [傳給程式的參數 ...]
 
 `break` 不給位置時，用「目前選取的堆疊框正在執行的位址」。
 
+#### 怎麼知道要用哪個行號（2026-09-25 補充）
+
+> 起因：使用者問「要怎麼知道一個 `.c` 檔在 gdb 裡正確的行數」。以下用 `small-project/s1-01-hello-compile/avg.c`
+> 複製一份到實驗目錄，以 `gcc -g -O0 avg.c -o avg_O0` 編譯後實測。
+
+**gdb 的行號就是 `.c` 原始檔的行號**，從 1 開始數，空行、註解、`#include` 都算一行。它來自 `-g` 寫進執行檔的除錯資訊，
+不是 gdb 自己去數的。`avg.c` 的完整原始碼與行號（`cat -n avg.c`）：
+
+```
+     1	#include <stdio.h>
+     2
+     3	int average(int *a, int n)
+     4	{
+     5	    int sum = 0;                          /* 第 5 行 */
+     6	    for (int i = 0; i < n; i++)
+     7	        sum += a[i];
+     8	    int avg = sum / n;
+     9	    return avg;
+    10	}
+    11
+    12	int main(void)
+    13	{
+    14	    int a[] = {3, 6, 9};
+    15	    printf("%d\n", average(a, 3));        /* 第 15 行 */
+    16	    return 0;
+    17	}
+```
+
+**查行號的方法**
+
+| 在哪裡 | 方法 | 說明 |
+|---|---|---|
+| gdb 外 | `cat -n avg.c` | 每行前面加行號（`nl -ba avg.c` 也可以；`nl` 不加 `-ba` 會跳過空行不編號，跟 gdb 對不上） |
+| gdb 外 | `grep -n 'average(a' avg.c` | 直接找某段文字在第幾行：`15:    printf(...)` |
+| gdb 外 | 編輯器的行號 | vim 用 `:set number` |
+| gdb 內 | `list 函式名` | 印出那個函式附近的原始碼，**左邊就是 gdb 用的行號**，最可靠 |
+| gdb 內 | `list 12,17` | 印出第 12～17 行 |
+| gdb 內 | `info line 15` | 第 15 行對應哪一段機器碼：`Line 15 of "avg.c" starts at address 0x11ec <main+48> and ends at 0x1213 <main+87>.` |
+| gdb 內 | `info source` | 程式停下來後，看 gdb 讀的是**哪個路徑的**原始檔、共幾行、用什麼選項編譯（`-g -O0`） |
+
+`list` 的全部寫法（`help list` 實測）：
+
+| 寫法 | 印出什麼 |
+|---|---|
+| `list`（不給參數） | 接著上一次，再印 10 行 |
+| `list +` | 上一次那 10 行的**後面** 10 行 |
+| `list -` | 上一次那 10 行的**前面** 10 行 |
+| `list .` | 目前執行到的那一行附近 10 行 |
+| `list 位置` | 那個位置附近 10 行；位置可以是 `行號`、`檔名:行號`、`函式名`、`檔名:函式名`、`*位址` |
+| `list 起,迄` | 第「起」到第「迄」行；省略一邊（`list ,20`、`list 10,`）表示離另一邊 10 行 |
+
+一次印幾行由 `set listsize N` 調整（預設 10，`show listsize` 查看）。
+
+**行號對不上的三種情況**（本機實測）：
+
+1. **中斷點設在沒有程式碼的行**（空行、只有 `{` 的行）：gdb 自動移到**下一個有程式碼的行**，並在訊息裡告訴你實際位置：
+   ```
+   (gdb) break 2
+   Breakpoint 1 at 0x1178: file avg.c, line 5.      ← 要求第 2 行（空行），實際設在第 5 行
+   (gdb) break 11
+   Breakpoint 2 at 0x11c8: file avg.c, line 13.     ← 第 11 行（空行）→ 第 13 行
+   ```
+   **設完中斷點一定要看它回報的 `line N`**，那才是真正的位置。
+
+2. **改了 `.c` 卻沒有重新編譯**：這是最危險的情況。執行檔裡的除錯資訊還是舊的行號，gdb 卻去讀**新的**原始檔顯示文字，
+   兩者就錯開了。實測在 `avg.c` 最上面插入一行註解、不重編：
+   ```
+   (gdb) break 15
+   (gdb) run
+   Breakpoint 1, main () at avg.c:15
+   warning: Source file is more recent than executable.   ← 唯一的警告
+   15	    int a[] = {3, 6, 9};                             ← 顯示的文字是新檔的第 15 行
+   ```
+   程式其實停在 `printf(...)`（舊檔的第 15 行），畫面上卻顯示 `int a[] = ...`。**看到這個 warning 就先重新編譯。**
+   重編之後，`printf` 那一行變成第 16 行，`break 16` 才對。
+
+3. **最佳化過的程式（`-O2`）**：程式碼被重排、合併，行號只是大概。實測：
+   ```
+   (gdb) break 15
+   Breakpoint 2 at 0x1080: file avg.c, line 16.     ← 要第 15 行，被放到第 16 行
+   (gdb) info line 8
+   Line 8 of "avg.c" is at address 0x11b2 <average+50> but contains no code.   ← 第 8 行的計算被併進別的地方
+   ```
+   要照行號單步除錯，就用 `-g -O0` 編（見 [gcc最佳化等級](./gcc最佳化等級-O0到O3差在哪.md) 第三節）。
+
+**為什麼 `#include` 沒有把行號弄亂？** 前處理後的 `.i` 有 830 行（`stdio.h` 整份貼進來了），`printf` 那行早就不在第 15 行。
+但前處理器會在 `.i` 裡留下**行號標記**（`gcc -E avg.c | grep '"avg.c"'`）：
+
+```
+# 0 "avg.c"
+# 1 "avg.c"
+# 2 "avg.c" 2      ← 從 stdio.h 回到 avg.c 的第 2 行
+# 3 "avg.c"        ← 接下來這行是 avg.c 的第 3 行
+```
+
+編譯器照這些標記記錄「這行原本是哪個檔案的第幾行」，所以除錯資訊裡的行號永遠是**原始 `.c` 檔**的行號
+（前處理見 [hello.c怎麼變成能跑的程式](./hello.c怎麼變成能跑的程式-編譯的四個階段.md) 第二節）。
+
+
 ### 表達式、值歷史、便利變數
 
 - `print`、`display`、`watch`、`if` 條件裡寫的是**被除錯程式所用語言的表達式**——C 程式就用 C 語法：
@@ -879,3 +978,4 @@ gdb -q -batch -ex 'break average' -ex run -ex bt -ex next -ex 'info locals' ./av
 3. `break`、`watch`、`catch` 三者分別讓程式在「什麼條件」停下？各舉一個它比另外兩個更適合的情境。
 4. 為什麼 gdb 裡的 `print` 可以寫 `a[1] + n`、`*ptr` 這種 C 語法？如果程式沒有用 `-g` 編譯，`print sum` 會發生什麼事？
 5. 情境題：你懷疑某個全域變數在程式某處被意外改掉了，但不知道是哪一行改的。你會用本篇的哪個命令找出兇手？如果那個變數在 `-O2` 下被最佳化成只放在暫存器，這個方法還可靠嗎？
+6. 情境題：你在 gdb 裡 `break 20`，程式停下來後顯示的那一行跟你預期的完全不同，還出現 `warning: Source file is more recent than executable.`。發生了什麼事？程式實際停在哪裡？該怎麼處理？另外，為什麼 `.i` 檔有幾百行，gdb 的行號卻還是對應原始的 `.c`？

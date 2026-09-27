@@ -726,6 +726,51 @@ $ gcc loop.c -o loop && ./loop
 4294967294
 ```
 
+### `-Wtype-limits` 只抓「永遠成立／永遠不成立」的比較
+
+> 2026-09-27 作業第 4 題補教：`unsigned int a = 3, b = 5;` 用 `if (a - b > 0)` 判斷 a 是否比 b 大，`-Wall -Wextra` 完全沒警告，
+> 但改成 `a - b < 0` 就有警告。
+
+同一個無號運算式跟 0 做五種比較，`tl.c` 完整原始碼：
+
+```c
+#include <stdio.h>
+
+int main(void)
+{
+    unsigned int a = 3, b = 5;
+    if (a - b > 0)  printf("> 0\n");     /* 第 6 行 */
+    if (a - b < 0)  printf("< 0\n");     /* 第 7 行 */
+    if (a - b >= 0) printf(">= 0\n");    /* 第 8 行 */
+    if (a - b <= 0) printf("<= 0\n");    /* 第 9 行 */
+    if (a - b != 0) printf("!= 0\n");    /* 第 10 行 */
+    return 0;
+}
+```
+
+```
+$ gcc -Wall -Wextra tl.c -o tl && ./tl
+tl.c:7:15: warning: comparison of unsigned expression in ‘< 0’ is always false [-Wtype-limits]
+tl.c:8:15: warning: comparison of unsigned expression in ‘>= 0’ is always true [-Wtype-limits]
+> 0
+>= 0
+!= 0
+```
+
+只有第 7、8 行被警告。`man gcc` 對 `-Wtype-limits` 的說明是：比較的結果**因為型別的範圍有限而永遠成立或永遠不成立**時才警告
+（例子正是「無號變數用 `<` 或 `>=` 跟 0 比」），這個警告包含在 `-Wextra` 裡。
+
+| 比較 | 對無號數來說等於 | 結果固定嗎 | 警告 |
+|---|---|---|---|
+| `u < 0` | 永遠假 | 固定 | 有 |
+| `u >= 0` | 永遠真 | 固定 | 有 |
+| `u > 0` | `u != 0` | **不固定**（`u` 是 0 時為假） | 沒有 |
+| `u <= 0` | `u == 0` | **不固定** | 沒有 |
+
+`a - b > 0` 在語法上是完全正常的程式碼（「`u` 不是 0 嗎？」），gcc 無從知道你**心裡想的**是「a 比 b 大」。
+所以編譯器抓得到「寫出來就一定錯」的比較，抓不到「寫出來合法、但意思跟你想的不一樣」的比較。
+無號數比大小的正確寫法是直接比 `a > b`，不要相減再跟 0 比。
+
 ---
 
 ## 八、溢位：無號回繞，有號是未定義行為
@@ -801,6 +846,71 @@ bigger(INT_MAX) = 0
 
 **UBSan 請搭配 `-O0` 或 `-Og` 用。** 實測 `-Og` 有報錯，但 `-O1`、`-O2` **沒有報錯**：`-fdump-tree-optimized` 顯示
 `bigger` 裡確實有檢查（`.UBSAN_CHECK_ADD`），但 `main` 裡的呼叫已經被內嵌、在編譯時算成 `printf(..., 0)`，檢查根本沒機會執行。
+
+### 另一種寫法：`x + y < x` 被改寫成 `y < 0`
+
+> 2026-09-27 作業第 5 題補教：「加了正數反而變小就是溢位」這種檢查，`-O2` 下會失效。
+
+`overflow_check.c` 完整原始碼：
+
+```c
+#include <stdio.h>
+#include <limits.h>
+
+int will_overflow(int x, int y)
+{
+    int sum = x + y;          /* 第 6 行 */
+    return sum < x;           /* 加了正數反而變小，就代表溢位了？ */
+}
+
+int main(void)
+{
+    printf("will_overflow(INT_MAX, 1): %d\n", will_overflow(INT_MAX, 1));
+    return 0;
+}
+```
+
+```
+$ gcc -O0 overflow_check.c -o oc && ./oc
+will_overflow(INT_MAX, 1): 1
+$ gcc -O2 overflow_check.c -o oc && ./oc
+will_overflow(INT_MAX, 1): 0
+$ gcc -O2 -fwrapv overflow_check.c -o oc && ./oc
+will_overflow(INT_MAX, 1): 1
+```
+
+`-O2` 下 gcc 把函式改成什麼樣子（`-fdump-tree-optimized` 印出最佳化後的中間表示，只節錄 `will_overflow` 與 `main`）：
+
+```
+$ gcc -O2 -fdump-tree-optimized -c overflow_check.c -o /dev/null
+$ cat overflow_check.c.*.optimized
+int will_overflow (int x, int y)
+{
+  _1 = y_3(D) < 0;            ← 加法不見了，整個函式變成「y 是不是負的」
+  _4 = (int) _1;
+  return _4;
+}
+
+int main ()
+{
+  __printf_chk (2, "will_overflow(INT_MAX, 1): %d\n", 0);   ← 內嵌後直接算成 0
+  return 0;
+}
+```
+
+（`y_3(D)` 就是參數 `y`，後面的 `_3`、`(D)` 是 gcc 內部的編號，不用管。）
+
+推理過程：**假設有號溢位不會發生**，`x + y` 就是數學上的加法，那麼 `x + y < x` 兩邊同減 `x` 就等於 `y < 0`。
+在數學上這完全正確，可是這個檢查**本來就是要抓溢位**——編譯器用「溢位不會發生」當前提，檢查就被改寫成一個永遠抓不到溢位的式子。
+結論：**溢位檢查要在做運算之前、用不會溢位的式子判斷**，例如 `y > 0 && x > INT_MAX - y`。
+寫這種檢查時，還要注意**檢查式本身**會不會溢位：`INT_MAX - y` 在 `y` 是正數時安全，但 `INT_MAX - x` 在 `x` 是負數時就溢位了。
+
+**UBSan 在 `-O1`、`-O2` 下報不報錯，不能預測。** 上一段的 `ub.c` 在 `-O2 -fsanitize=undefined` 下沒有報錯，
+這支 `overflow_check.c` 卻在 `-O0`、`-O1`、`-O2` 都有報錯（輸出都是 `overflow_check.c:6:9: runtime error: signed integer overflow: 2147483647 + 1 cannot be represented in type 'int'`，
+而且 `-O2` 印出的結果是 1，不是沒加 UBSan 時的 0）。`-fdump-tree-optimized` 顯示差別在 `main`：`ub.c` 的 `main` 已經被算成 `printf(..., 0)`，
+這支的 `main` 還保留著 `.UBSAN_CHECK_ADD (2147483647, 1)`，檢查會真的執行。
+兩支程式都是 `INT_MAX + 1`，最佳化器有沒有把檢查一起算掉，要看程式的寫法，使用者無法預先判斷。
+所以結論不變：**用 UBSan 找錯時固定用 `-O0` 或 `-Og`**，高最佳化等級沒報錯不代表沒有 UB。
 
 ### kernel 怎麼處理：`-fno-strict-overflow`
 
@@ -940,3 +1050,6 @@ $ gcc -Q --help=warnings -Wall -Wextra | grep -c '\[enabled\]' → 172
    `-1 < 0x80000000` 和 `-1 < 2147483648` 的結果各是什麼？為什麼？
 8. `signed char c = -1; unsigned int u = c;` 之後 `u` 是多少？擴展時新補的高位是 0 還是 1，由哪個型別決定？
    如果把 `c` 改宣告成 `unsigned char c = 0xff;`，`u` 又是多少？
+9. 情境題：有人寫了 `if (len - used > 0)` 判斷「緩衝區還有沒有剩餘空間」，`len`、`used` 都是 `size_t`，用 `-Wall -Wextra` 編譯沒有任何警告。
+   這個判斷在什麼情況下會出錯？為什麼 gcc 對 `len - used < 0` 會警告、對 `> 0` 卻不會？
+   另外，為什麼 `int sum = x + y; if (sum < x)` 這種溢位檢查在 `-O2` 下可能完全失效？
