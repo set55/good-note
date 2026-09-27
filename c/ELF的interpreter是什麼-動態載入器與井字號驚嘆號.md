@@ -203,8 +203,14 @@ $ chmod +x catscript && ./catscript
 這一行會被 cat 印出來
 ```
 
-核心看到 `#!/bin/cat`，實際執行的是 `/bin/cat ./catscript`——**把腳本的路徑當成參數交給直譯器**，
-所以 `cat` 把整個檔案（連第一行）印出來。`#!/bin/sh` 也是一樣：真正跑起來的是 `/bin/sh ./腳本`。
+核心看到 `#!/bin/cat`，實際執行的是 `/bin/cat ./catscript`——**把腳本的路徑當成參數交給直譯器**（`#!` 後面寫的那支程式，這裡就是 `cat`），
+所以 `cat` 自己打開這個路徑，把整個檔案（連第一行）印出來。
+
+> 2026-09-27 使用者問：「這個參數不是交給 `cat` 了嗎？」——是的，**直譯器就是 `cat`**。「直譯器」是一個**角色**，不是某一類程式：
+> `#!` 後面寫哪支程式，那支程式就是這個腳本的直譯器，核心不管它懂不懂語法，只負責執行它並把腳本路徑當參數交過去。
+> ELF 那邊的「interpreter」同理，指的是 `INTERP` 寫的那支 `ld-linux-x86-64.so.2`。
+
+`#!/bin/sh` 也是一樣：真正跑起來的是 `/bin/sh ./腳本`。
 
 | | 腳本 | 動態連結的 ELF |
 |---|---|---|
@@ -213,6 +219,73 @@ $ chmod +x catscript && ./catscript
 | 實際先跑的程式 | `/bin/sh`、`/bin/bash`… | `/lib64/ld-linux-x86-64.so.2` |
 | 直譯器拿到檔案之後 | 逐行讀文字、執行命令 | 載入函式庫、填好位址，再跳進程式本身 |
 | 沒有直譯器時 | 沒寫 `#!` 的文字檔無法用 `./` 直接執行 | 靜態連結：核心直接跑程式 |
+
+
+### 交給直譯器的是「路徑」，不是內容：三個實驗
+
+> 2026-09-27 補教：「核心把腳本交給直譯器」這句話，交的**形式**是什麼，連續幾次複習都沒答出來。下面用實驗直接看。
+
+**實驗一：讓直譯器把自己拿到的參數印出來。** `echo` 不讀任何檔案，只把自己拿到的參數印出來；拿它當直譯器，印出來的就是核心交給直譯器的東西。建檔與執行：
+
+```
+$ printf '#!/usr/bin/echo\n這一行 echo 不會讀\n' > echoscript.sh
+$ chmod +x echoscript.sh
+$ ./echoscript.sh
+./echoscript.sh
+$ ./echoscript.sh aaa bbb
+./echoscript.sh aaa bbb
+```
+
+印出來的是 `./echoscript.sh`——**你在命令列打的那個路徑**；你在命令列多給的參數 `aaa bbb` 接在後面。第二行的內容完全沒出現。
+所以核心實際執行的命令列是：
+
+```
+/usr/bin/echo  ./echoscript.sh  aaa bbb
+└ #! 後面的路徑  └ 腳本路徑        └ 你原本給的參數
+```
+
+**實驗二：看是誰打開了腳本檔。**
+
+```
+$ printf '#!/usr/bin/cat\necho "12345"\n' > catscript.sh
+$ chmod +x catscript.sh
+$ strace -e trace=execve,openat ./catscript.sh
+execve("./catscript.sh", ["./catscript.sh"], 0x7ffc023285f0 /* 94 vars */) = 0
+openat(AT_FDCWD, "/etc/ld.so.cache", O_RDONLY|O_CLOEXEC) = 3              ← cat 自己的動態載入
+openat(AT_FDCWD, "/lib/x86_64-linux-gnu/libc.so.6", O_RDONLY|O_CLOEXEC) = 3
+openat(AT_FDCWD, "/usr/lib/locale/locale-archive", O_RDONLY|O_CLOEXEC) = 3
+openat(AT_FDCWD, "./catscript.sh", O_RDONLY) = 3                            ← cat 自己打開腳本
+#!/usr/bin/cat
+echo "12345"
++++ exited with 0 +++
+```
+
+- 只有**一個** `execve`：`#!` 是核心在同一次 `execve` 裡處理掉的，不會多一次系統呼叫，所以用 `trace=execve` 看不到「第二次執行」。
+- `execve` 之後的 `openat` 全是 `cat` 這個行程做的，其中 `openat(..., "./catscript.sh", ...)` 就是 `cat` 用拿到的路徑**自己打開**腳本。內容是 `cat` 讀出來的，不是核心交給它的。
+
+**實驗三：只給執行權限，不給讀取權限。** 接著實驗二的 `catscript.sh`：
+
+```
+$ chmod 111 catscript.sh
+$ ls -l catscript.sh
+---x--x--x 1 set set 28 Sep 27 15:39 catscript.sh
+$ ./catscript.sh
+/usr/bin/cat: ./catscript.sh: Permission denied
+```
+
+錯誤訊息是 **`cat` 印的**（開頭是 `/usr/bin/cat:`）。核心讀得到 `#!` 那一行（核心自己讀檔，不受這個權限位元限制），也成功啟動了 `cat`；
+但 `cat` 是普通行程，用你的身分去打開 `./catscript.sh`，沒有讀取權限就被擋下。**如果核心交的是內容，`cat` 根本不必打開檔案，這個錯誤就不會發生。**
+
+對照：只有執行權限的 ELF 執行檔可以正常跑——程式本身是**核心**直接映射進記憶體的，不需要哪個使用者行程去打開它：
+
+```
+$ cp /usr/bin/true mytrue
+$ chmod 111 mytrue
+$ ./mytrue; echo "exit=$?"
+exit=0
+```
+
+所以**腳本要同時有 `r` 和 `x` 才跑得起來**：`x` 給核心看（允許執行），`r` 給直譯器用（它要自己打開、讀取腳本）。
 
 ---
 
@@ -257,3 +330,5 @@ dash: 1: ./hello_badinterp: not found                           ← dash 的訊�
 3. 腳本的 `#!/bin/sh` 和 ELF 的 interpreter，哪裡相同、哪裡不同？用 `#!/bin/cat` 的實驗說明「核心把什麼交給直譯器」。
 4. 為什麼靜態連結的程式沒有 interpreter 也能跑？`ld-linux-x86-64.so.2` 自己又為什麼不需要 interpreter？
 5. 情境題：你把 Ubuntu 上編好的程式複製到一台 Alpine Linux，`ls -l` 看得到檔案、也有 x 權限，執行卻說 `not found`。最可能的原因是什麼？你會用哪兩個步驟確認？用第 1 課學過的哪一種編譯方式可以避開這個問題？
+6. 情境題：一支腳本權限是 `---x--x--x`（只有執行權限），第一行是 `#!/bin/sh`，執行時出現 `/bin/sh: ./x.sh: Permission denied`。
+   這個錯誤是誰印的？為什麼核心讀得到 `#!` 那一行，直譯器卻讀不到腳本？同樣只有執行權限的 ELF 執行檔為什麼就能跑？
