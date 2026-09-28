@@ -266,7 +266,7 @@ GNU 寫了 **GPL**（GNU General Public License，GNU 通用公共授權）來�
   （這叫 DCO，Developer Certificate of Origin，開發者原創聲明；規則在 kernel 原始碼的
   `Documentation/process/submitting-patches.rst`，K1 會實際讀到）。
 - **glibc 用的是 LGPL**（GNU Lesser General Public License，較寬鬆的版本）：允許非自由的程式**連結**它，
-  不必開放自己的原始碼。這就是為什麼任何程式——包括商業軟體——都能動態連結 `libc.so.6`（第 1 課第五節）。
+  不必開放自己的原始碼。這就是為什麼任何程式——包括商業軟體——都能動態連結 `libc.so.6`（[第 1 課第五節](../c/hello.c怎麼變成能跑的程式-編譯的四個階段.md#五連結把洞接上但-puts-還是沒接完)）。
 
 本機的授權全文放在 `/usr/share/common-licenses/`（`GPL-2`、`GPL-3`、`LGPL-2.1` 等都在）。
 
