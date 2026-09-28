@@ -138,8 +138,8 @@ readelf <選項...> <ELF 檔案...>
 | 有沒有 interpreter、是哪一個？ | `readelf -lW 檔案`（找 `INTERP`） | [ELF的interpreter](./ELF的interpreter是什麼-動態載入器與井字號驚嘆號.md) |
 | `.interp`、`.rodata`、`.comment` 裡的字串 | `readelf -p .interp 檔案` | 同上 |
 | 各區段多大？ | `readelf -SW 檔案`（或 `size -A`） | [第 1 課](./hello.c怎麼變成能跑的程式-編譯的四個階段.md) 第九節 |
-| 需要 libc 的哪些版本？ | `readelf -V 檔案` | 第 1 課第九節 |
-| 還有哪些洞要填？ | `readelf -r 檔案.o` | 第 1 課第四節（當時用 `objdump -dr`） |
+| 需要 libc 的哪些版本？ | `readelf -V 檔案` | [第 1 課第九節](./hello.c怎麼變成能跑的程式-編譯的四個階段.md#自我測驗第-5-題延伸找不到版本符號是怎麼回事)〈自我測驗第 5 題延伸〉 |
+| 還有哪些洞要填？ | `readelf -r 檔案.o` | [第 1 課第四節](./hello.c怎麼變成能跑的程式-編譯的四個階段.md#四組譯機器碼裡的洞)（當時用 `objdump -dr`） |
 | 執行時需要哪些共享函式庫？ | `readelf -d 檔案`（找 `NEEDED`） | — |
 
 **錯誤訊息對照**：

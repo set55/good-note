@@ -91,7 +91,7 @@ $ readelf -sW hello | grep -E ' _start| main$|__libc_start_main'
 
 注意進入點 `0x1060` 是 **`_start`**，**不是 `main`**（`main` 在 `0x1149`）。`_start` 是 `gcc` 連結時自動加進來的啟動碼，
 它做的事是呼叫 libc 的 `__libc_start_main`（表裡 `UND` 代表這個符號不在 `hello` 裡，要執行時由載入器接到 `libc.so.6`；
-就是第 1 課第九節那個 `GLIBC_2.34`），再由 `__libc_start_main` 呼叫你的 `main`。所以完整的順序是：
+就是[第 1 課第九節](./hello.c怎麼變成能跑的程式-編譯的四個階段.md#自我測驗第-5-題延伸找不到版本符號是怎麼回事)〈自我測驗第 5 題延伸〉那個 `GLIBC_2.34`），再由 `__libc_start_main` 呼叫你的 `main`。所以完整的順序是：
 
 ```
 核心 → 載入器（載入 libc、填位址）→ 跳到進入點 _start → __libc_start_main（在 libc 裡）→ main → puts

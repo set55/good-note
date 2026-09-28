@@ -295,7 +295,7 @@ objdump <選項> <檔案>...
 | `--ctf[=SECTION]` | CTF（Compact Type Format，精簡型別格式）型別資訊 |
 | `--sframe[=SECTION]` | SFrame（簡單堆疊框格式）資訊 |
 | `-t`, `--syms` | 符號表（類似 `nm`） |
-| `-T`, `--dynamic-syms` | 動態符號表（類似 `nm -D`；第 1 課第九節用來看 `GLIBC_2.34`） |
+| `-T`, `--dynamic-syms` | 動態符號表（類似 `nm -D`；[第 1 課第九節](./hello.c怎麼變成能跑的程式-編譯的四個階段.md#自我測驗第-5-題延伸找不到版本符號是怎麼回事)〈自我測驗第 5 題延伸〉用來看 `GLIBC_2.34`） |
 | `-r`, `--reloc` | 重定位項目（第 1 課看 `R_X86_64_PLT32 puts-0x4` 用的） |
 | `-R`, `--dynamic-reloc` | 動態重定位項目（留給執行時載入器處理的那些） |
 | `@<file>` | 從檔案讀選項 |
