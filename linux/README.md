@@ -9,7 +9,7 @@
 - [核心與驅動](#核心與驅動)（5 篇）
 - [網路基礎與設定](#網路基礎與設定)（18 篇）
 - [網路查詢與追蹤](#網路查詢與追蹤)（4 篇）
-- [Shell 與重新導向](#shell-與重新導向)（10 篇）
+- [Shell 與重新導向](#shell-與重新導向)（11 篇）
 - [終端機與 tmux](#終端機與-tmux)（4 篇）
 - [桌面環境（GNOME）](#桌面環境gnome)（1 篇）
 - [系統組成（核心與使用者空間）](#系統組成核心與使用者空間)（1 篇）
@@ -97,6 +97,7 @@ shell 的語法真相與 fd 0／1／2 這三條線怎麼接。
 | [shell的case語法-樣式比對與分支.md](./shell的case語法-樣式比對與分支.md) | `case <字> in [(]樣式[\|樣式]) 命令 ;; esac` 逐位置拆解：由上往下第一個配對成功就離開、全沒中也不報錯、`<字>` 不分詞所以不必加引號；樣式是 glob 不是正規表示式（`*` `?` `[...]` `[!...]`、`]`／`-` 放置規則、字元類別、沒有「重複」），補集要寫 `!`——dash 不認 `[^...]`；樣式加引號變字面、未加引號的變數會變回萬用字元；以 TPROXY 腳本的 `''\|*[!0-9./]*` 為例說明為何空字串要另外擋、只擋字元就能防注入；另含 `>&2; exit 1`、`${v:+X}` 與 `${v+X}` 的差別、`;&`／`;;&` 是 bash 限定，以及各種寫錯的 dash／bash 錯誤訊息對照 | `case` `esac` `;;` `;&` `;;&` `pattern` `glob` `[!...]` `[^...]` `[[:digit:]]` `"$@"` `>&2` `exit` `${var:+alt}` `${var+alt}` `dash -n` `POSIX sh` |
 | [root執行腳本也Permission-denied-缺執行位元.md](./root執行腳本也Permission-denied-缺執行位元.md) | 新檔案（scp、編輯器建立）預設 `rw-r--r--` 沒有 x，`./檔名` 要核心 `execve` 所以被擋；root 的 `CAP_DAC_OVERRIDE` 對執行有例外——至少要有一個 x 位元；`sh 檔名` 只需 r 所以繞得過但會忽略 `#!`；含 `chmod` 三種形式、符號模式 `[ugoa][+-=][rwxXst]` 逐段與省略時受 umask 影響、八進位、完整選項，以及 `noexec` 掛載、`#!` 直譯器不存在／CRLF（回 `not found`）等相似錯誤的對照 | `Permission denied` `chmod +x` `chmod 755` `x bit` `CAP_DAC_OVERRIDE` `execve` `shebang` `sh script.sh` `umask` `scp -p` `noexec` `CRLF` `not found` `BusyBox ash` |
 | [在終端機怎麼計算-shell算術bc與printf.md](./在終端機怎麼計算-shell算術bc與printf.md) | 整數與進位換算用 shell 內建的 `$(( ))`（到處都有，含路由器 ash），小數與大數用 `bc`（`-l` 才有小數），印成十六／八進位用 `printf`；四個陷阱：bash 只有整數（zsh 例外）、`^` 是 XOR 不是次方（`bc` 的 `^` 才是）、`010` 在 bash 是八進位（`08` 報 value too great for base）、超過 64 位元默默溢位成負數；`bc` 要先設 `obase` 再設 `ibase`；`expr 3 * 4` 的 `*` 會被展開；含 `$(( ))` 全部運算子、`bc` 全部選項與函式 | `$(( ))` `(( ))` `arithmetic expansion` `**` `^ XOR` `0x` `base#n` `octalzeroes` `[#16]` `bc -l` `scale` `ibase` `obase` `printf %x` `awk BEGIN` `expr` `overflow` |
+| [分號與結束狀態-命令串接與錢字號問號.md](./分號與結束狀態-命令串接與錢字號問號.md) | `./oob; echo "exit=$?"` 是兩個命令：`;` 不論成敗都接著跑（用 `&&` 的話程式當掉時 `echo` 根本不跑），`$?` 只記得**上一個**命令、每跑一個就被覆蓋，所以要緊接著印或先存 `rc=$?`；結束狀態只有 8 bit（`return 300` → 44、`-1` → 255，同 C 的截斷）、被訊號殺掉是 128+N、126 不能執行、127 找不到；背景 `&` 的 `$?` 是 0 要 `wait`、管線只看最後一個（`PIPESTATUS`／zsh `pipestatus`／`pipefail`）；含串列運算子與 bash 8 個特殊參數的完整清單、單雙引號差別、`echo` 全部選項與 bash／zsh 預設解不解讀 `\t` 的差異（實測 zsh 非互動時連 segfault 訊息都不印，只能靠 `$?`） | `;` `&&` `\|\|` `&` `$?` `exit status` `128+N` `126` `127` `PATH` `./` `PIPESTATUS` `pipestatus` `pipefail` `wait $!` `$status` `special parameters` `$#` `$@` `$$` `$!` `echo -n -e -E` `printf` `zsh vs bash` |
 
 ### 終端機與 tmux
 
