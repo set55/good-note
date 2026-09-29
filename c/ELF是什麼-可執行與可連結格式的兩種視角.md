@@ -80,6 +80,51 @@ core.hello                     CORE (Core file)                              ←
 Address Space Layout Randomization，位址空間配置隨機化，第 ③ 站會講）。能放在任意位址這點跟共享函式庫一樣，
 所以同屬 DYN。靜態版是舊式的固定位址，所以是 EXEC。
 
+### DYN／EXEC 跟「有沒有動態連結」無關：兩個反例
+
+> 2026-09-29 複習時補：「因為是動態連結，所以是 DYN」是反覆出現的誤會。上面的例子剛好「動態連結＝PIE」「靜態連結＝非 PIE」，
+> 兩個性質綁在一起，看不出是哪一個決定 `Type`。下面用 gcc 把它們拆開。
+
+`hello.c`（跟第 1 課同一支）：
+
+```c
+#include <stdio.h>
+int main(void){ puts("hi"); return 0; }
+```
+
+編譯與檢查（本機 gcc 13.3 實測）：
+
+```
+$ gcc hello.c -o hello                    # 預設：動態連結 + PIE
+$ gcc -no-pie hello.c -o hello_nopie      # 動態連結，但不是 PIE
+$ gcc -static-pie hello.c -o hello_spie   # 靜態連結，但是 PIE
+
+$ readelf -h hello | grep Type
+  Type:                              DYN (Position-Independent Executable file)
+$ readelf -h hello_nopie | grep Type
+  Type:                              EXEC (Executable file)                        ← 有 interpreter，卻是 EXEC
+$ readelf -h hello_spie | grep Type
+  Type:                              DYN (Position-Independent Executable file)    ← 沒有 interpreter，卻是 DYN
+
+$ file hello_nopie hello_spie              （節錄）
+hello_nopie: ELF 64-bit LSB executable, x86-64, ..., interpreter /lib64/ld-linux-x86-64.so.2
+hello_spie:  ELF 64-bit LSB pie executable, x86-64, ...                            ← 沒有 interpreter 這一項
+```
+
+這裡用到的兩個 gcc 選項（gcc 的選項有上千個，這裡只用到其中 2 個，完整清單見 `man gcc` 的 Options for Linking 一節）：
+
+- `-no-pie`：不要產生 PIE，連結成固定位址的執行檔。仍然是動態連結，照樣需要 `ld-linux-x86-64.so.2`。
+- `-static-pie`：靜態連結（libc 的程式碼複製進執行檔、沒有 interpreter），但整支程式仍是位置無關的，可以被放在任意位址。
+  動態載入器 `ld-linux-x86-64.so.2` 自己就是這種檔案（見 [interpreter 那篇第三節](./ELF的interpreter是什麼-動態載入器與井字號驚嘆號.md#三它自己也是一支程式可以直接執行)）。
+
+| | 動態連結（有 interpreter） | 靜態連結（沒有 interpreter） |
+|---|---|---|
+| **PIE**（可放在任意位址） | 一般 `gcc` → **DYN** | `-static-pie`、`ld-linux-x86-64.so.2` → **DYN** |
+| **非 PIE**（位址固定） | `-no-pie` → **EXEC** | `-static` → **EXEC** |
+
+`Type` 只跟**直的那一欄**（是不是 PIE）走，跟橫的那一欄（動態或靜態連結）無關。`libc.so.6` 也是「可放在任意位址」，
+所以跟 PIE 執行檔同屬 DYN。
+
 ---
 
 ## 四、名字的關鍵：兩種視角
