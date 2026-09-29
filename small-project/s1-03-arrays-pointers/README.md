@@ -32,24 +32,60 @@ long  l[3] = {10, 20, 30};
 
 ### 1-1. 執行前先預測：以 `s` 和 `l` 的位址為基準，`s + 3`、`l + 2`、`&s + 1` 各往後多幾個 byte？兩個相減的結果各是多少？寫出每一個的算法。【筆記[第二節](../../c/陣列、字串與指標運算-C不檢查邊界與用gdb找segfault.md#二指標運算p--1-走一個元素不是一個-byte)、[第三節](../../c/陣列、字串與指標運算-C不檢查邊界與用gdb找segfault.md#三陣列名稱什麼時候變成指標什麼時候不會)】
 
-**第 1 次（YYYY-MM-DD）**
+**第 1 次（2026-09-29）**
 ```
+s+3: 6 byte  2byte*3 = 6
+l+2: 16 byte 8byte*2 = 16
+&s+1: 12 byte 1*12byte = 12
+
+&s[5] - &s[1] = 差4各元素
+
+(char *)(l + 2) - (char *)l = 2*8byte = 16byte
 
 ```
+
+> **批改**：**對**，五個預測全對，算法也都寫出來了：`s + 3` 是 3 × 2 = 6 byte、`l + 2` 是 2 × 8 = 16 byte；
+> `&s + 1` 是 12 byte——`&s` 的型別是「指向整個 `short[6]` 的指標」，一步走整個陣列 6 × 2 = 12（筆記[第三節](../../c/陣列、字串與指標運算-C不檢查邊界與用gdb找segfault.md#三陣列名稱什麼時候變成指標什麼時候不會)〈`a` 和 `&a`〉）。
+> `&s[5] - &s[1]` 差 4 個元素（「各」應是「個」）；`(char *)` 相減是 16 byte。
 
 ### 1-2. 編譯執行，貼上輸出，跟預測對照。兩個相減的結果要用哪個 `printf` 格式印？為什麼不是 `%d` 也不是 `%zu`？【筆記[第二節](../../c/陣列、字串與指標運算-C不檢查邊界與用gdb找segfault.md#二指標運算p--1-走一個元素不是一個-byte)】
 
-**第 1 次（YYYY-MM-DD）**
+**第 1 次（2026-09-29）**
+```
+s address = 0x7fffe3fe7c44
+s+3 address = 0x7fffe3fe7c4a 差 s 6byte
+l address = 0x7fffe3fe7c50
+l+2 address = 0x7fffe3fe7c60 差 l 16byte
+&s + 1 address = 0x7fffe3fe7c50 差 s 12 byte剛好一個數組的長度
+&s[5] - &s[1] = 4
+(char *)(l + 2) - (char *)l = 16
+
+用td
+因爲兩個指標相減的性別是ptrdiff_t
+```
+
+> **批改**：**不完整**。輸出正確、跟預測完全一致（本機重跑也一樣），`%td`、型別 `ptrdiff_t` 都對（「性別」應是「型別」）。
+> 但題目的後半「為什麼**不是** `%d`、也**不是** `%zu`」沒有回答——只說出它叫 `ptrdiff_t`，沒說出 `ptrdiff_t` 的哪兩個性質讓另外兩個格式不適用。
+>
+> **提示**【筆記[第二節](../../c/陣列、字串與指標運算-C不檢查邊界與用gdb找segfault.md#二指標運算p--1-走一個元素不是一個-byte)〈兩個指標相減：得到「差幾個元素」，型別是 `ptrdiff_t`〉】：
+> 本機 `ptrdiff_t` 是幾 byte？`%d` 對應的 `int` 是幾 byte？`%zu` 對應的 `size_t` 是有號還是無號？`&s[1] - &s[5]` 會得到什麼？
+
+**第 2 次（重答，2026-09-29）**
+> 題目：編譯執行，貼上輸出，跟預測對照。兩個相減的結果要用哪個 `printf` 格式印？為什麼不是 `%d` 也不是 `%zu`？
 ```
 
 ```
 
 ### 1-3. `&s[5] - &s[1]` 和 `(char *)&s[5] - (char *)&s[1]` 差在哪裡？為什麼同樣兩個位址相減，會得到兩個不同的數？【筆記[第二節](../../c/陣列、字串與指標運算-C不檢查邊界與用gdb找segfault.md#二指標運算p--1-走一個元素不是一個-byte)】
 
-**第 1 次（YYYY-MM-DD）**
+**第 1 次（2026-09-29）**
+```
+數組內指標相減 得到的類型是ptrdiff_t,一個long類型,相差的是元素個數
+第二個因爲轉成char 單位是1byte,所以應該是4 * 2 * 1 = 8byte,第二個有轉換類型
 ```
 
-```
+> **批改**：**對**。指標相減的結果是「差幾個元素」：兩個位址差 8 byte，除以元素大小——`short *` 除以 2 得 4，`char *` 除以 1 得 8。
+> 同樣兩個位址，相減時用哪個型別的指標，就決定「一步」多大。（作答原本寫在作答框外面，已搬進框裡。）
 
 ---
 
@@ -67,24 +103,109 @@ void reverse(int *first, int n);
 
 ### 2-1. 貼上你的 `reverse` 函式和執行結果。奇數個和偶數個元素，你的迴圈分別在什麼條件下停止？【筆記[第二節](../../c/陣列、字串與指標運算-C不檢查邊界與用gdb找segfault.md#二指標運算p--1-走一個元素不是一個-byte)】
 
-**第 1 次（YYYY-MM-DD）**
+**第 1 次（2026-09-29）**
+```
+#include <stdio.h>
+
+void reverse(int *first, int n) {
+    int start = 0;
+    int end = n - 1;
+    while (start < end) {
+        int* getfirst = first + start;
+        int* getend = first + end;
+
+        int temp = *getfirst;
+        *getfirst = *getend;
+        *getend = temp;
+
+        start++;
+        end--;
+    }
+}
+
+int main() {
+    int arr[] = {1, 2, 3, 4, 5};
+    int arr2[] = {1, 2, 3, 4, 5, 6};
+    reverse(arr, 5);
+    reverse(arr2, 6);
+    printf("arr reversed: ");
+    for (int i = 0; i < 5; i++) {
+        printf("%d ", arr[i]);
+    }
+    printf("\n");
+    printf("arr2 reversed: ");
+    for (int i = 0; i < 6; i++) {
+        printf("%d ", arr2[i]);
+    }
+    printf("\n");
+    return 0;
+}
+
+arr reversed: 5 4 3 2 1 
+arr2 reversed: 6 5 4 3 2 1
+
+當start > end 的時候迴圈結束,都交換完了
+```
+
+> **批改**：程式**對**，兩組都正確倒轉，也沒有用到 `[]`。停止條件**不完整**：題目要你**分開**說奇數和偶數，你只寫了一個「`start > end`」，而這對奇數個是錯的。
+> 另外一個寫法上的建議（不扣分）：你用兩個整數 `start`、`end` 當索引，每圈再算 `first + start`——這其實是把 `a[i]` 換個寫法。
+> 題目想練的是**直接移動兩根指標**：一根從頭往後 `++`、一根從尾往前 `--`，比較兩根指標決定何時停（筆記第二節：同一個陣列裡的指標可以比大小）。有興趣可以改寫看看。
+>
+> **提示**：用 5 個元素手動走一次你的迴圈：每一圈結束時 `start`、`end` 各是多少？最後一次檢查 `start < end` 時，兩者的值是什麼、是「大於」還是「等於」？再用 6 個元素走一次。中間那個元素（奇數時）需要交換嗎？
+
+**第 2 次（重答，2026-09-29）**
+> 題目：貼上你的 `reverse` 函式和執行結果。奇數個和偶數個元素，你的迴圈分別在什麼條件下停止？
 ```
 
 ```
 
 ### 2-2. 在 `reverse` 裡加一行印出 `sizeof first`，再把參數改寫成 `int first[]`，重新編譯。各印出多少？編譯器說了什麼？為什麼 `reverse` 一定要有 `n` 這個參數？【筆記[第三節](../../c/陣列、字串與指標運算-C不檢查邊界與用gdb找segfault.md#三陣列名稱什麼時候變成指標什麼時候不會)】
 
-**第 1 次（YYYY-MM-DD）**
+**第 1 次（2026-09-29）**
+```
+size of first: 8
+參數改了, size of first: 8
+warning: ‘sizeof’ on array function parameter ‘first’ will return size of ‘int *’ [-Wsizeof-array-argument]
+    6 |     printf("size of first: %zu\n", sizeof first);
+把他當成了 int指標了, 所以還是8byte
+
+因爲指標進去 我們還是不知道陣列長度,不帶就不知道陣列邊界在哪裏
 ```
 
-```
+> **批改**：**對**。兩次都是 8；`int first[]` 寫在參數裡其實就是 `int *first`，gcc 用 `-Wsizeof-array-argument` 提醒你 `sizeof` 拿到的是指標大小；
+> 陣列傳進函式只剩起點位址，長度資訊不見了，所以一定要另外傳 `n`（筆記[第三節](../../c/陣列、字串與指標運算-C不檢查邊界與用gdb找segfault.md#三陣列名稱什麼時候變成指標什麼時候不會)〈函式參數寫成 `int a[]`，其實就是 `int *a`〉）。
 
 ### 2-3. 在 `main` 裡故意把 5 個元素的陣列用 `reverse(a, 6)` 呼叫。**先預測**：用一般方式編譯執行，會當掉嗎？再加 `-fsanitize=address` 編譯執行，貼上報告的前 5 行，說明它是 `READ` 還是 `WRITE`、幾個 byte、發生在哪一行，以及為什麼一般編譯的版本可能看不出錯。【筆記[第五節](../../c/陣列、字串與指標運算-C不檢查邊界與用gdb找segfault.md#五c-不檢查邊界越界的三種下場)、[第七節](../../c/陣列、字串與指標運算-C不檢查邊界與用gdb找segfault.md#七addresssanitizer在第一次越界的當下抓到它)】
 
-**第 1 次（YYYY-MM-DD）**
+**第 1 次（2026-09-29）**
+```
+1. 不會
+2. 
+ gcc -Wall -Wextra -fsanitize=address -O0 -o rev rev.c    ok | base py | at 14:47:54 
+rev.c: In function ‘main’:
+rev.c:31:23: warning: comparison of integer expressions of different signedness: ‘int’ and ‘long unsigned int’ [-Wsign-compare]
+   31 |     for (int i = 0; i < sizeof arr2 / sizeof arr2[0]; i++) {
+      |      
+報告只有出這個
+
+可能沒有到金絲雀記憶體位址,也沒有到main入口點村的rip位址
+```
+
+> **批改**：預測「不會當掉」**對**（本機一般編譯跑完 exit 0）。「只越界一格，碰不到金絲雀和返回位址」方向也對。
+> 但 ASan 那部分**還沒做**：你貼的是**編譯**時的警告（第 31 行 `int` 和 `sizeof` 比較，跟這題無關），不是 ASan 報告。**ASan 的報告要等程式執行時才出現**——編譯完要再跑 `./rev`。
+> 我跑了你資料夾裡那支 `rev`，報告確實有出來，只是你沒執行。還有兩點：
+> - 題目說明要求用 `-g` 編譯，你這次沒加。沒有 `-g`，報告裡只有 `reverse+0x1350` 這種偏移，**看不到行號**（筆記[第七節](../../c/陣列、字串與指標運算-C不檢查邊界與用gdb找segfault.md#七addresssanitizer在第一次越界的當下抓到它)）。
+> - 一般編譯的結果其實**不是**完全正確：看看印出來的 `arr` 第一個數字是多少，它是從哪裡來的？
+>
+> **提示**：用 `gcc -Wall -Wextra -g -O0 -fsanitize=address -o rev rev.c` 重新編譯，**再執行 `./rev`**，貼上前 5 行，回答題目的四件事（`READ`／`WRITE`、幾個 byte、哪一行、為什麼一般版本看不出錯）。
+> 再用一般方式編譯執行一次，貼上 `arr reversed:` 那一行，說明第一個數字和第六個數字各是怎麼來的。
+
+**第 2 次（重答，2026-09-29）**
+> 題目：在 `main` 裡故意把 5 個元素的陣列用 `reverse(a, 6)` 呼叫。**先預測**：用一般方式編譯執行，會當掉嗎？再加 `-fsanitize=address` 編譯執行，貼上報告的前 5 行，說明它是 `READ` 還是 `WRITE`、幾個 byte、發生在哪一行，以及為什麼一般編譯的版本可能看不出錯。
 ```
 
 ```
+           
 
 ---
 
@@ -100,21 +221,178 @@ size_t my_strlen(char *s);
 
 ### 3-1. 貼上你的 `my_strlen`，並用 `"Linux"`、`""`（空字串）、`"字"` 三個字串測試，貼上結果。`"字"` 的結果為什麼不是 1？【筆記[第二節](../../c/陣列、字串與指標運算-C不檢查邊界與用gdb找segfault.md#二指標運算p--1-走一個元素不是一個-byte)、[第四節](../../c/陣列、字串與指標運算-C不檢查邊界與用gdb找segfault.md#四字串以-0-結尾的-char-陣列)；〈字元是什麼〉[第四節](../../c/字元是什麼-char就是1byte的整數與ASCII和UTF-8.md#四中文字一個-byte-裝不下utf-8-用-3-個-byte)】
 
-**第 1 次（YYYY-MM-DD）**
+**第 1 次（2026-09-29）**
+```
+#include <stdio.h>
+
+size_t my_strlen(char *s){
+    char *start = s;
+    while (*s != '\0') {
+        s++;
+    }
+    return s - start;
+}
+
+int main() {
+    char li[] = "Linux";
+    char empty[] = ""; 
+    char word[] = "字";
+    printf("Length of '%s' is %zu\n", li, my_strlen(li));
+    printf("Length of '%s' is %zu\n", empty, my_strlen(empty));
+    printf("Length of '%s' is %zu\n", word, my_strlen(word));
+    return 0;
+}
+
+Length of 'Linux' is 5
+Length of '' is 0
+Length of '字' is 3
+
+因爲根據unicode編碼字是三個字元
+```
+
+> **批改**：程式**對**：一根指標走到 `'\0'`、兩根指標相減，符合題目限制，三個結果 5、0、3 都正確（本機重跑一樣）。
+> 「為什麼不是 1」**錯**：「字是三個**字元**」正是〈字元是什麼〉第 5 題卡住的那個混淆——「字」是**一個**字元（一個 Unicode code point），3 是別的東西。
+> 另外，把中文變成 3 的那套編碼規則叫什麼？不是「Unicode 編碼」這個籠統的說法。
+>
+> **提示**【〈字元是什麼〉[第四節](../../c/字元是什麼-char就是1byte的整數與ASCII和UTF-8.md#四中文字一個-byte-裝不下utf-8-用-3-個-byte)、第五節】：`my_strlen` 每走一步，`s` 前進的是一個什麼（看 `s` 的型別）？
+> 它數的是字元數，還是別的單位？「字」在檔案裡是用哪一種編碼存的、佔幾個那種單位？
+
+**第 2 次（重答，2026-09-29）**
+> 題目：貼上你的 `my_strlen`，並用 `"Linux"`、`""`（空字串）、`"字"` 三個字串測試，貼上結果。`"字"` 的結果為什麼不是 1？
 ```
 
 ```
 
 ### 3-2. 宣告 `char name[16] = "Linux";`。**先預測** `sizeof name` 和 `my_strlen(name)` 各是多少，再執行驗證。為什麼兩個數字不一樣？`name[5]` 到 `name[15]` 裡是什麼？【筆記[第四節](../../c/陣列、字串與指標運算-C不檢查邊界與用gdb找segfault.md#四字串以-0-結尾的-char-陣列)；後半【新觀念，先猜】】
 
-**第 1 次（YYYY-MM-DD）**
+**第 1 次（2026-09-29）**
+```
+sizeof name 預測是 16(byte)
+my_strlen(name) 預測是5
+sizeof name是name指標指向整個陣列,所以是整個陣列的大小
+mystren到\0就會停下來了,只有5
+
+name[5]是\0
+所以剩餘的我猜都是\0
+```
+
+> **批改**：預測 16 和 5 **對**，`my_strlen` 走到 `\0` 就停也對。但有兩個問題：
+> - **沒有執行驗證**：題目要求預測完再執行，`strlen.c` 裡沒有 `name`，作答框也沒有輸出。
+> - **「`name` 指標指向整個陣列」不對**：`name` 是**陣列**，不是指標。`sizeof name` 得到 16，正是因為 `sizeof` 作用在陣列名稱上時**不會**退化成指標（筆記[第三節](../../c/陣列、字串與指標運算-C不檢查邊界與用gdb找segfault.md#三陣列名稱什麼時候變成指標什麼時候不會)）；
+>   如果它是指標，`sizeof` 會是 8——跟你在第 2-2 題看到的一樣。
+>
+> 後半（【新觀念，先猜】）：猜「`name[5]` 是 `\0`，剩下都是 `\0`」**猜對了**。規則是：陣列的初始值比陣列短時，沒給到的格子一律補 0。
+> 已補教進筆記第四節〈[陣列大小跟字串長度不一樣時：比較長、剛好、比較短](../../c/陣列、字串與指標運算-C不檢查邊界與用gdb找segfault.md#陣列大小跟字串長度不一樣時比較長剛好比較短)〉（附實測）。
+>
+> **提示**：在程式裡加上 `name`，實際印出 `sizeof name` 與 `my_strlen(name)` 貼上來；再用一句話重寫「為什麼兩個數字不一樣」——`sizeof` 量的是什麼、`my_strlen` 量的是什麼，並把「指標」這個錯字眼拿掉。
+
+**第 2 次（重答，2026-09-29）**
+> 題目：宣告 `char name[16] = "Linux";`。**先預測** `sizeof name` 和 `my_strlen(name)` 各是多少，再執行驗證。為什麼兩個數字不一樣？`name[5]` 到 `name[15]` 裡是什麼？
 ```
 
 ```
 
 ### 3-3. 再宣告 `char t[5] = "Linux";` 和 `char u[4] = "Linux";`。**先預測**：`-Wall -Wextra` 會對哪一行警告？（【新觀念，先猜】）然後對 `t` 呼叫 `my_strlen`，分別用一般方式和 `-fsanitize=address` 編譯執行，貼上結果。`t` 少了什麼？為什麼一般編譯可能印出看起來正確的 5？【筆記[第四節](../../c/陣列、字串與指標運算-C不檢查邊界與用gdb找segfault.md#四字串以-0-結尾的-char-陣列)、[第五節](../../c/陣列、字串與指標運算-C不檢查邊界與用gdb找segfault.md#五c-不檢查邊界越界的三種下場)、[第七節](../../c/陣列、字串與指標運算-C不檢查邊界與用gdb找segfault.md#七addresssanitizer在第一次越界的當下抓到它)】
 
-**第 1 次（YYYY-MM-DD）**
+**第 1 次（2026-09-29）**
+```
+兩行都會,長度都不夠
+
+-Wall -Wextra
+~/w/Proj/g/good-note/s/s1-03-arrays-pointers | on main !1 ?3  gcc -Wall -Wextra -O0 -o strlen strlen.c                 ok | base py | at 15:00:06 
+strlen.c: In function ‘main’:
+strlen.c:16:17: warning: initializer-string for array of ‘char’ is too long
+   16 |     char u[4] = "Linux";
+      |                 ^~~~~~
+
+輸出結果:
+Length of 'Linux' is 5
+Length of '' is 0
+Length of '字' is 3
+Length of 'LinuxLinux' is 10
+Length of 'LinuLinuxLinux' is 14
+
+gcc -Wall -Wextra -O0 -fsanitize=address -o strlen strlen.c
+strlen.c: In function ‘main’:
+strlen.c:16:17: warning: initializer-string for array of ‘char’ is too long
+   16 |     char u[4] = "Linux";
+      |                 ^~~~~~~
+輸出
+~/w/Proj/g/good-note/s/s1-03-arrays-pointers | on main !1 ?3  ./strlen                                                 ok | base py | at 15:19:35 
+Length of 'Linux' is 5
+Length of '' is 0
+Length of '字' is 3
+=================================================================
+==48796==ERROR: AddressSanitizer: stack-buffer-overflow on address 0x7548bf500065 at pc 0x59e273b042dc bp 0x7ffe44f8d8f0 sp 0x7ffe44f8d8e0
+READ of size 1 at 0x7548bf500065 thread T0
+    #0 0x59e273b042db in my_strlen (/home/set/work/Projects/github/good-note/small-project/s1-03-arrays-pointers/strlen+0x12db) (BuildId: 31e3859f785c2e80912216ed533a9b8ba6afb932)
+    #1 0x59e273b045b8 in main (/home/set/work/Projects/github/good-note/small-project/s1-03-arrays-pointers/strlen+0x15b8) (BuildId: 31e3859f785c2e80912216ed533a9b8ba6afb932)
+    #2 0x7548c142a1c9 in __libc_start_call_main ../sysdeps/nptl/libc_start_call_main.h:58
+    #3 0x7548c142a28a in __libc_start_main_impl ../csu/libc-start.c:360
+    #4 0x59e273b041c4 in _start (/home/set/work/Projects/github/good-note/small-project/s1-03-arrays-pointers/strlen+0x11c4) (BuildId: 31e3859f785c2e80912216ed533a9b8ba6afb932)
+
+Address 0x7548bf500065 is located in stack of thread T0 at offset 101 in frame
+    #0 0x59e273b04300 in main (/home/set/work/Projects/github/good-note/small-project/s1-03-arrays-pointers/strlen+0x1300) (BuildId: 31e3859f785c2e80912216ed533a9b8ba6afb932)
+
+  This frame has 5 object(s):
+    [48, 49) 'empty' (line 13)
+    [64, 68) 'word' (line 14)
+    [80, 84) 'u' (line 16)
+    [96, 101) 't' (line 15) <== Memory access at offset 101 overflows this variable
+    [128, 134) 'li' (line 12)
+HINT: this may be a false positive if your program uses some custom stack unwind mechanism, swapcontext or vfork
+      (longjmp and C++ exceptions *are* supported)
+SUMMARY: AddressSanitizer: stack-buffer-overflow (/home/set/work/Projects/github/good-note/small-project/s1-03-arrays-pointers/strlen+0x12db) (BuildId: 31e3859f785c2e80912216ed533a9b8ba6afb932) in my_strlen
+Shadow bytes around the buggy address:
+  0x7548bf4ffd80: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+  0x7548bf4ffe00: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+  0x7548bf4ffe80: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+  0x7548bf4fff00: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+  0x7548bf4fff80: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+=>0x7548bf500000: f1 f1 f1 f1 f1 f1 01 f2 04 f2 04 f2[05]f2 f2 f2
+  0x7548bf500080: 06 f3 f3 f3 00 00 00 00 00 00 00 00 00 00 00 00
+  0x7548bf500100: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+  0x7548bf500180: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+  0x7548bf500200: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+  0x7548bf500280: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+Shadow byte legend (one shadow byte represents 8 application bytes):
+  Addressable:           00
+  Partially addressable: 01 02 03 04 05 06 07 
+  Heap left redzone:       fa
+  Freed heap region:       fd
+  Stack left redzone:      f1
+  Stack mid redzone:       f2
+  Stack right redzone:     f3
+  Stack after return:      f5
+  Stack use after scope:   f8
+  Global redzone:          f9
+  Global init order:       f6
+  Poisoned by user:        f7
+  Container overflow:      fc
+  Array cookie:            ac
+  Intra object redzone:    bb
+  ASan internal:           fe
+  Left alloca redzone:     ca
+  Right alloca redzone:    cb
+==48796==ABORTING
+
+ ~/w/Proj/g/good-note/s/s1-03-arrays-pointers | on main !1 ?3                                                        1 err | base py | at 15:20:23 
+```
+
+> **批改**：**實驗做完、輸出也對，但題目問的兩個「為什麼」都沒有回答。**
+> - 預測「兩行都會警告」**猜錯，不算錯**（新觀念）：實際只有 `u[4]` 那行。`t[5]` 剛好放得下 5 個字元、放不下 `\0`，C 允許這樣寫，本機 gcc 13.3 開 `-Wall -Wextra` 也**不警告**——這正是它危險的地方。
+>   已補教進筆記第四節〈[陣列大小跟字串長度不一樣時：比較長、剛好、比較短](../../c/陣列、字串與指標運算-C不檢查邊界與用gdb找segfault.md#陣列大小跟字串長度不一樣時比較長剛好比較短)〉。
+> - 你的一般編譯輸出很有價值：`t` 得到 **10**（`LinuxLinux`）、`u` 得到 **14**（`LinuLinuxLinux`）。我印了三個陣列的位址，它們在堆疊上**緊緊相連**：`u` 後面就是 `t`、`t` 後面就是 `li`，
+>   所以 `my_strlen(t)` 讀過 `t` 的結尾、一路讀完 `li` 的 `Linux\0` 才停（實測與原始碼見筆記那一小節）。
+> - ASan 報告你貼了，但沒有解讀；而且又沒加 `-g`，第一行只有 `my_strlen+0x12db`，沒有行號。加了 `-g` 本機會顯示 `my_strlen strlen.c:5`、`main strlen.c:20`。
+>
+> **提示**：重答時回答三件事：
+> 1. `t` 的 5 格裡放了什麼、**少了什麼**？這跟 `my_strlen` 的停止條件有什麼關係？【筆記[第四節](../../c/陣列、字串與指標運算-C不檢查邊界與用gdb找segfault.md#四字串以-0-結尾的-char-陣列)】
+> 2. 看你貼的 ASan 報告：是 `READ` 還是 `WRITE`、幾個 byte？`[96, 101) 't'` 和 `offset 101` 說明讀到了哪裡？【筆記[第七節](../../c/陣列、字串與指標運算-C不檢查邊界與用gdb找segfault.md#七addresssanitizer在第一次越界的當下抓到它)】
+> 3. 你的 `t` 印出 10 而不是 5。什麼情況下會印出「看起來正確」的 5？印出 5 代表程式是對的嗎？【筆記[第五節](../../c/陣列、字串與指標運算-C不檢查邊界與用gdb找segfault.md#五c-不檢查邊界越界的三種下場)〈下場一：安靜地出錯〉】
+
+**第 2 次（重答，2026-09-29）**
+> 題目：再宣告 `char t[5] = "Linux";` 和 `char u[4] = "Linux";`。**先預測**：`-Wall -Wextra` 會對哪一行警告？（【新觀念，先猜】）然後對 `t` 呼叫 `my_strlen`，分別用一般方式和 `-fsanitize=address` 編譯執行，貼上結果。`t` 少了什麼？為什麼一般編譯可能印出看起來正確的 5？
 ```
 
 ```
