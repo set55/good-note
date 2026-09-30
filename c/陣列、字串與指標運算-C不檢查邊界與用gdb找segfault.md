@@ -754,6 +754,113 @@ $6 = 40
 segfault 發生在**第一次碰到不能碰的分頁**的時候，那往往離真正的錯誤很遠。所以 gdb 的用法是：
 `bt` 找出當掉的位置**和一路呼叫過來的路徑**，在每一層用 `print` 看參數與變數，**往回推「這個錯的值是從哪裡來的」**。
 
+### 作業第 4、5 題的補教：當掉的位置由「哪裡沒有對映」決定
+
+> 2026-09-30 批改作業第 4、5 題時補教。三件事：全域陣列為什麼讀進 `[heap]` 才當、倒著讀為什麼剛好約 8 MB 才當、十六進位的位址怎麼驗算。
+
+**第一件：全域陣列 `data` 讀出界，當在哪裡？** 作業第 4 題的 `find.c`（完整原始碼）：
+
+```c
+#include <stdio.h>
+
+int data[8] = {3, 1, 4, 1, 5, 9, 2, 6};
+
+int *find(int *p, int target)
+{
+    int *start = p;             /* 只是為了在 gdb 裡算「走了多遠」 */
+    while (*p != target)        /* 第 8 行 */
+        p++;
+    (void)start;                /* 告訴編譯器「我知道 start 沒被用到」，避免 -Wextra 的警告 */
+    return p;
+}
+
+int main(void)
+{
+    printf("找 5：第 %td 個\n", find(data, 5) - data);
+    printf("找 7：第 %td 個\n", find(data, 7) - data);   /* 第 17 行 */
+    return 0;
+}
+```
+
+在 gdb 裡跑（`gcc -Wall -Wextra -g -O0 find.c -o find`，`gdb -q ./find`，`run`）：
+
+```
+Program received signal SIGSEGV, Segmentation fault.
+0x000055555555516b in find (p=0x55555557a000, target=7) at find.c:8
+(gdb) print &data
+$2 = (int (*)[8]) 0x555555558020 <data>
+(gdb) print p - start
+$1 = 34808
+(gdb) info proc mappings                                    （節錄）
+      0x555555558000     0x555555559000     0x1000     0x3000  rw-p   /…/find      ← data 在這裡（.data）
+      0x555555559000     0x55555557a000    0x21000        0x0  rw-p   [heap]       ← 緊接在後
+```
+
+- `data` 在執行檔自己的 `rw-p` 那一段（可讀寫、有檔名 `find`，也就是 `.data` 區段所在的載入段，見 [ELF是什麼](./ELF是什麼-可執行與可連結格式的兩種視角.md)）。
+- 那一段結束在 `0x555555559000`，但 **`[heap]` 剛好從同一個位址開始**，中間沒有空隙。`p` 走出 `.data` 時踏進的是**有對映**的 `[heap]`，所以不會當；
+  一路讀到 `[heap]` 的結尾 `0x55555557a000`（End Addr，不含），下一格沒有對映，才 segfault。
+- 這跟堆疊保護的金絲雀無關：金絲雀只保護堆疊上的返回位址，而且只在函式返回時檢查；這裡是全域變數、只有讀取。
+
+**但這個 34808 只在 gdb 裡成立。** gdb 預設會**關掉位址隨機化**（ASLR，見 [ELF是什麼](./ELF是什麼-可執行與可連結格式的兩種視角.md) 第三節），`[heap]` 才會緊貼在 `.data` 後面。
+gdb 的 `set disable-randomization off` 可以打開它（這是 gdb 上百個 `set` 子命令之一，說明見 `help set disable-randomization`；分類見 [gdb完整命令參考](./gdb完整命令參考.md)）。本機實測三次：
+
+```
+$ gdb -q -batch -ex 'set disable-randomization off' -ex run -ex 'print p - start' -ex 'print p' -ex 'info proc mappings' ./find
+$1 = 1016
+$2 = (int *) 0x5c2bfcd70000
+      0x5c2bfcd6f000     0x5c2bfcd70000     0x1000     0x3000  rw-p   /…/find
+      0x5c2c38d59000     0x5c2c38d7a000    0x21000        0x0  rw-p   [heap]     ← 離得很遠
+（另外兩次也都是 1016，只有位址不同）
+```
+
+開著 ASLR 時，`[heap]` 被放到一段隨機距離之外，`.data` 後面就是沒有對映的空洞，所以一走出 `.data` 那一頁就當：
+`data` 在頁內偏移 `0x20`，那一頁還剩 `0x1000 − 0x20` = 4064 byte ＝ **1016 個 `int`**。直接 `./find` 跑也是這種情況。
+**同一個越界，在 gdb 裡和 gdb 外當在不同的地方**——再次說明「當在哪裡」只看旁邊的記憶體有沒有對映，跟錯誤本身無關。
+
+**第二件：`back.c` 倒著讀，為什麼剛好約 209 萬行才當？** 作業第 5 題的 `back.c`：
+
+```c
+#include <stdio.h>
+
+int main()
+{
+    int a[5] = {1, 2, 3, 4, 5};
+    for (size_t i = sizeof a / sizeof a[0] - 1; i >= 0; i--)
+        printf("%d\n", a[i]);
+    return 0;
+}
+```
+
+```
+$ gcc -Wall -Wextra -g -O0 -o back back.c        （-Wtype-limits 警告 i >= 0 永遠成立）
+$ ./back | wc -l
+2093475
+$ ulimit -s
+8192
+```
+
+- `i` 從 0 再減 1，變成 `SIZE_MAX`（18446744073709551615）。`a[i]` 是 `*(a + i)`，位址是 `a + i × 4`。位址只有 64 bit，超過 2⁶⁴ 就回繞（跟第 2 課無號整數回繞同一件事）：
+  `SIZE_MAX × 4` = 2⁶⁶ − 4，對 2⁶⁴ 取餘數是 2⁶⁴ − 4，加到 `a` 上等於 **`a − 4`**，也就是 `a[-1]`。再減一次是 `a[-2]`……
+  所以迴圈實際上是**從 `a` 往低位址、一格一格倒著讀**，這就是 ASan 報 `stack-buffer-underflow`（在陣列**前面**）的原因。
+- `a` 在堆疊上。堆疊往**低位址**長，`info proc mappings` 看到的 `[stack]` 起初只有 `0x22000`（136 KB），但往下讀到還沒對映的地方時，
+  **核心會自動把堆疊往下延長**，直到上限 `ulimit -s`（本機 8192 KB ＝ 8 MB）。
+- 209 萬行 × 4 byte ≈ 8.37 MB，差不多就是 8 MB 的堆疊上限（`a` 上面還有環境變數、命令列參數等，所以不是剛好 8 MB）。讀到上限以下，核心不再延長，才 segfault。
+
+**第三件：十六進位的位址怎麼驗算？** 不必手算，交給工具：
+
+```
+$ printf '%#x\n' $((0x555555558020 + 4*34808))      # shell：$(( )) 做整數運算，printf %#x 印成 0x 開頭的十六進位
+0x55555557a000
+(gdb) print/x 0x555555558020 + 4*34808              # gdb：print/x 用十六進位印（見 gdb完整命令參考 的 x／print 格式字母）
+$3 = 0x55555557a000
+```
+
+- `$(( ))` 是 shell 的**算術展開**（arithmetic expansion），認得 `0x` 開頭的十六進位；這裡只用到 `+`、`*` 兩個運算子，
+  完整運算子清單（`-`、`/`、`%`、`<<`、`&`、比較、三元運算……）見 `man bash` 的 ARITHMETIC EVALUATION 一節。
+- `printf` 的 `%#x`：`x` 是十六進位、`#` 是「加上 `0x` 前綴」，跟 C 的 `printf` 同一套格式（[第 2 課第九節](./C的資料在記憶體裡長怎樣-位元組、指標、位元組順序與有號無號.md#printf-的格式完整文法)）。
+- gdb 的 `print/x`：`/x` 是輸出格式，完整的格式字母見 [gdb完整命令參考第三節](./gdb完整命令參考.md#三gdb-內部命令的共通文法)〈輸出格式 `/FMT`：`print` 與 `x` 共用〉。
+- 驗算的意思：34808 × 4 = 139232 = `0x21fe0`，`0x555555558020 + 0x21fe0 = 0x55555557a000`，正好是 `[heap]` 的結尾。
+
 ---
 
 ## 七、AddressSanitizer：在第一次越界的當下抓到它

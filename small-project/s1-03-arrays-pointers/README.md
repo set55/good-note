@@ -636,38 +636,256 @@ int main(void)
 
 ### 4-1. 編譯執行，貼上輸出與結束狀態（`echo $?`）。第一行為什麼是對的？結束狀態代表什麼？【筆記[第五節](../../c/陣列、字串與指標運算-C不檢查邊界與用gdb找segfault.md#五c-不檢查邊界越界的三種下場)】
 
-**第 1 次（YYYY-MM-DD）**
+**第 1 次（2026-09-30）**
 ```
+~/w/Proj/g/good-note/s/s1-03-arrays-pointers | on main >8 ?1  ./find; echo $?                                                                         ok | base py | at 14:17:29
+找 5：第 4 個
+[1]    29761 segmentation fault (core dumped)  ./find
+139
+
+因爲第一行在陣列第4個元素就可以找到了,沒有越界
+Starting program: /home/set/work/Projects/github/good-note/small-project/s1-03-arrays-pointers/find
+
+This GDB supports auto-downloading debuginfo from the following URLs:
+  <https://debuginfod.ubuntu.com>
+Enable debuginfod for this session? (y or [n]) y
+Debuginfod has been enabled.
+To make this setting permanent, add 'set debuginfod enabled on' to .gdbinit.
+[Thread debugging using libthread_db enabled]
+Using host libthread_db library "/lib/x86_64-linux-gnu/libthread_db.so.1".
+找 5：第 4 個
+
+Program received signal SIGSEGV, Segmentation fault.
+0x000055555555516b in find (p=0x55555557a000, target=7) at find.c:8
+8           while (*p != target)        /* 第 8 行 */
+(gdb) info proc mapping
+process 30310
+Mapped address spaces:
+
+          Start Addr           End Addr       Size     Offset  Perms  objfile
+      0x555555554000     0x555555555000     0x1000        0x0  r--p   /home/set/work/Projects/github/good-note/small-project/s1-03-arrays-pointers/find
+      0x555555555000     0x555555556000     0x1000     0x1000  r-xp   /home/set/work/Projects/github/good-note/small-project/s1-03-arrays-pointers/find
+      0x555555556000     0x555555557000     0x1000     0x2000  r--p   /home/set/work/Projects/github/good-note/small-project/s1-03-arrays-pointers/find
+      0x555555557000     0x555555558000     0x1000     0x2000  r--p   /home/set/work/Projects/github/good-note/small-project/s1-03-arrays-pointers/find
+      0x555555558000     0x555555559000     0x1000     0x3000  rw-p   /home/set/work/Projects/github/good-note/small-project/s1-03-arrays-pointers/find
+      0x555555559000     0x55555557a000    0x21000        0x0  rw-p   [heap]
+      0x7ffff7c00000     0x7ffff7c28000    0x28000        0x0  r--p   /usr/lib/x86_64-linux-gnu/libc.so.6
+      0x7ffff7c28000     0x7ffff7db1000   0x189000    0x28000  r-xp   /usr/lib/x86_64-linux-gnu/libc.so.6
+      0x7ffff7db1000     0x7ffff7e00000    0x4f000   0x1b1000  r--p   /usr/lib/x86_64-linux-gnu/libc.so.6
+      0x7ffff7e00000     0x7ffff7e04000     0x4000   0x1ff000  r--p   /usr/lib/x86_64-linux-gnu/libc.so.6
+      0x7ffff7e04000     0x7ffff7e06000     0x2000   0x203000  rw-p   /usr/lib/x86_64-linux-gnu/libc.so.6
+      0x7ffff7e06000     0x7ffff7e13000     0xd000        0x0  rw-p
+      0x7ffff7f9e000     0x7ffff7fa1000     0x3000        0x0  rw-p
+      0x7ffff7fbb000     0x7ffff7fbd000     0x2000        0x0  rw-p
+      0x7ffff7fbd000     0x7ffff7fc1000     0x4000        0x0  r--p   [vvar]
+      0x7ffff7fc1000     0x7ffff7fc3000     0x2000        0x0  r--p   [vvar_vclock]
+      0x7ffff7fc3000     0x7ffff7fc5000     0x2000        0x0  r-xp   [vdso]
+      0x7ffff7fc5000     0x7ffff7fc6000     0x1000        0x0  r--p   /usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2
+      0x7ffff7fc6000     0x7ffff7ff1000    0x2b000     0x1000  r-xp   /usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2
+      0x7ffff7ff1000     0x7ffff7ffb000     0xa000    0x2c000  r--p   /usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2
+      0x7ffff7ffb000     0x7ffff7ffd000     0x2000    0x36000  r--p   /usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2
+      0x7ffff7ffd000     0x7ffff7fff000     0x2000    0x38000  rw-p   /usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2
+      0x7ffffffdd000     0x7ffffffff000    0x22000        0x0  rw-p   [stack]
+  0xffffffffff600000 0xffffffffff601000     0x1000        0x0  --xp   [vsyscall]
+(gdb) info frame
+Stack level 0, frame at 0x7fffffffd620:
+ rip = 0x55555555516b in find (find.c:8); saved rip = 0x5555555551cd
+ called by frame at 0x7fffffffd630
+ source language c.
+ Arglist at 0x7fffffffd610, args: p=0x55555557a000, target=7
+ Locals at 0x7fffffffd610, Previous frame's sp is 0x7fffffffd620
+ Saved registers:
+  rbp at 0x7fffffffd610, rip at 0x7fffffffd618
+(gdb) x/8xw data
+0x555555558020 <data>:  0x00000003      0x00000001      0x00000004      0x00000001
+0x555555558030 <data+16>:       0x00000005      0x00000009      0x00000002      0x00000006
+
+data[0] 的指標是0x555555558020, 當target 設定爲7的時候,data裏面沒有,那在遇到符合7的值之前 p指標會一直以4byte移動,最後移到0x7fffffffd618 kernel踩到程式停止的位址
+最後就會變成139,139具體的名字我有點忘了
+
 
 ```
+
+> **批改**：輸出與結束狀態 139 **對**；「第一行在第 4 個元素就找到、沒越界」**對**。兩處要修：
+> - **139 代表什麼沒答**（筆記[第五節](../../c/陣列、字串與指標運算-C不檢查邊界與用gdb找segfault.md#五c-不檢查邊界越界的三種下場)〈結束狀態 139 和 134 是什麼〉）。
+> - 「`p` 最後移到 `0x7fffffffd618`」**不對**：那是 `info frame` 裡**返回位址存放的位置**（`rip at 0x7fffffffd618`），在堆疊上，跟 `p` 無關。`p` 當掉時的值就在同一段輸出的第一行：`find (p=0x55555557a000, ...)`。
+>
+> **提示**：139 = 128 + 幾？那個數字是哪一個訊號？
+
+**第 2 次（重答，2026-09-30）**
+> 題目：編譯執行，貼上輸出與結束狀態（`echo $?`）。第一行為什麼是對的？結束狀態代表什麼？
+```
+139是區段違規 因爲0x55555557a000是rw_p分頁的邊界
+```
+
+> **批改（第 2 次）**：**大致對**。「區段違規」就是 segmentation violation（SIGSEGV）；邊界更精確地說是 `[heap]` 的結尾。沒寫出 139 是怎麼算的。
+>
+> **參考答案**：輸出第一行「找 5：第 4 個」正確，因為 5 在 `data[4]`，迴圈在陣列內就停了，沒有越界。第二行找 7，`data` 裡沒有 7，`p` 一路讀出界，碰到沒對映的記憶體就當掉。
+> 結束狀態 **139 = 128 + 11**：shell 用「128 + 訊號編號」表示程式被訊號殺死，11 是 **SIGSEGV**（segmentation fault，區段違規），見筆記[第五節](../../c/陣列、字串與指標運算-C不檢查邊界與用gdb找segfault.md#五c-不檢查邊界越界的三種下場)〈結束狀態 139 和 134 是什麼〉。
 
 ### 4-2. 用 gdb 執行到當掉，貼上 `bt` 的輸出。當在哪個函式、哪一行？是從 `main` 的哪一行呼叫進來的？參數 `target` 是多少？【筆記[第六節](../../c/陣列、字串與指標運算-C不檢查邊界與用gdb找segfault.md#六用-gdb-找-segfault實際走一次)】
 
-**第 1 次（YYYY-MM-DD）**
+**第 1 次（2026-09-30）**
+```
+find 第8行, target=7
 ```
 
+> **批改**：`find`、第 8 行、`target=7` **對**。但**沒有貼 `bt` 的輸出**，也沒答「從 `main` 的哪一行呼叫進來」——這一半正是 `bt` 才看得到的（第 4-1 題貼的是當掉時的那一行，不是 `bt`）。
+>
+> **提示**：在 gdb 當掉後打 `bt`，看 `#1` 那一行（筆記[第六節](../../c/陣列、字串與指標運算-C不檢查邊界與用gdb找segfault.md#六用-gdb-找-segfault實際走一次)第 2 步）。
+
+**第 2 次（重答，2026-09-30）**
+> 題目：用 gdb 執行到當掉，貼上 `bt` 的輸出。當在哪個函式、哪一行？是從 `main` 的哪一行呼叫進來的？參數 `target` 是多少？
 ```
+find 第8行, target=7
+(gdb) run
+Starting program: /home/set/work/Projects/github/good-note/small-project/s1-03-arrays-pointers/find
+
+This GDB supports auto-downloading debuginfo from the following URLs:
+  <https://debuginfod.ubuntu.com>
+Enable debuginfod for this session? (y or [n]) y
+Debuginfod has been enabled.
+To make this setting permanent, add 'set debuginfod enabled on' to .gdbinit.
+[Thread debugging using libthread_db enabled]
+Using host libthread_db library "/lib/x86_64-linux-gnu/libthread_db.so.1".
+找 5：第 4 個
+
+Program received signal SIGSEGV, Segmentation fault.
+0x000055555555516b in find (p=0x55555557a000, target=7) at find.c:8
+8           while (*p != target)        /* 第 8 行 */
+(gdb) bt
+#0  0x000055555555516b in find (p=0x55555557a000, target=7) at find.c:8
+#1  0x00005555555551cd in main () at find.c:17
+```
+
+> **批改（第 2 次）**：**對**。`bt` 貼了：當在 `find` 第 8 行（`#0`），由 `main` 第 17 行呼叫進來（`#1`），`target=7`。
 
 ### 4-3. 在當掉的地方用 `print p - start` 算出 `p` 已經走過幾個元素，再用 `info proc mappings` 找出 `p` 的位址落在哪一段的邊界上。貼上相關的輸出，並用筆記[第六節](../../c/陣列、字串與指標運算-C不檢查邊界與用gdb找segfault.md#六用-gdb-找-segfault實際走一次)的方式驗算一次（起點位址 + 元素個數 × 每個元素的大小 = 當掉的位址）。【筆記[第六節](../../c/陣列、字串與指標運算-C不檢查邊界與用gdb找segfault.md#六用-gdb-找-segfault實際走一次)】
 
-**第 1 次（YYYY-MM-DD）**
+**第 1 次（2026-09-30）**
 ```
+(gdb) print p -start
+$2 = 34808
+
+(gdb) x p
+0x55555557a000: Cannot access memory at address 0x55555557a00
+
+(gdb) info proc mapping
+process 30310
+Mapped address spaces:
+
+          Start Addr           End Addr       Size     Offset  Perms  objfile
+      0x555555554000     0x555555555000     0x1000        0x0  r--p   /home/set/work/Projects/github/good-note/small-project/s1-03-arrays-pointers/find
+      0x555555555000     0x555555556000     0x1000     0x1000  r-xp   /home/set/work/Projects/github/good-note/small-project/s1-03-arrays-pointers/find
+      0x555555556000     0x555555557000     0x1000     0x2000  r--p   /home/set/work/Projects/github/good-note/small-project/s1-03-arrays-pointers/find
+      0x555555557000     0x555555558000     0x1000     0x2000  r--p   /home/set/work/Projects/github/good-note/small-project/s1-03-arrays-pointers/find
+      0x555555558000     0x555555559000     0x1000     0x3000  rw-p   /home/set/work/Projects/github/good-note/small-project/s1-03-arrays-pointers/find
+      0x555555559000     0x55555557a000    0x21000        0x0  rw-p   [heap]
+      0x7ffff7c00000     0x7ffff7c28000    0x28000        0x0  r--p   /usr/lib/x86_64-linux-gnu/libc.so.6
+      0x7ffff7c28000     0x7ffff7db1000   0x189000    0x28000  r-xp   /usr/lib/x86_64-linux-gnu/libc.so.6
+      0x7ffff7db1000     0x7ffff7e00000    0x4f000   0x1b1000  r--p   /usr/lib/x86_64-linux-gnu/libc.so.6
+      0x7ffff7e00000     0x7ffff7e04000     0x4000   0x1ff000  r--p   /usr/lib/x86_64-linux-gnu/libc.so.6
+      0x7ffff7e04000     0x7ffff7e06000     0x2000   0x203000  rw-p   /usr/lib/x86_64-linux-gnu/libc.so.6
+      0x7ffff7e06000     0x7ffff7e13000     0xd000        0x0  rw-p
+      0x7ffff7f9e000     0x7ffff7fa1000     0x3000        0x0  rw-p
+      0x7ffff7fbb000     0x7ffff7fbd000     0x2000        0x0  rw-p
+      0x7ffff7fbd000     0x7ffff7fc1000     0x4000        0x0  r--p   [vvar]
+      0x7ffff7fc1000     0x7ffff7fc3000     0x2000        0x0  r--p   [vvar_vclock]
+      0x7ffff7fc3000     0x7ffff7fc5000     0x2000        0x0  r-xp   [vdso]
+      0x7ffff7fc5000     0x7ffff7fc6000     0x1000        0x0  r--p   /usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2
+      0x7ffff7fc6000     0x7ffff7ff1000    0x2b000     0x1000  r-xp   /usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2
+      0x7ffff7ff1000     0x7ffff7ffb000     0xa000    0x2c000  r--p   /usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2
+      0x7ffff7ffb000     0x7ffff7ffd000     0x2000    0x36000  r--p   /usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2
+      0x7ffff7ffd000     0x7ffff7fff000     0x2000    0x38000  rw-p   /usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2
+      0x7ffffffdd000     0x7ffffffff000    0x22000        0x0  rw-p   [stack]
+  0xffffffffff600000 0xffffffffff601000     0x1000        0x0  --xp   [vsyscall]
+
+  落在這裏0x55555557a000剛好是 rw-p分頁的邊界
+
+  (gdb) x/8xw data
+0x555555558020 <data>:  0x00000003      0x00000001      0x00000004      0x00000001
+0x555555558030 <data+16>:       0x00000005      0x00000009      0x00000002      0x00000006
+
+起點在0x555555558020 + 4 * 34808 = 0x55555557a000(我沒實際算,16進制我不知道該怎麼計算)
 
 ```
+
+> **批改**：**大致對**。`p - start` = 34808、`p` 停在 `0x55555557a000`、式子都對。邊界要講名字：`0x55555557a000` 是 **`[heap]` 的結尾**（End Addr，不含）。
+> 十六進位不必手算，交給工具（已補教進筆記〈[作業第 4、5 題的補教](../../c/陣列、字串與指標運算-C不檢查邊界與用gdb找segfault.md#作業第-45-題的補教當掉的位置由哪裡沒有對映決定)〉第三件）：
+> ```
+> $ printf '%#x\n' $((0x555555558020 + 4*34808))
+> 0x55555557a000
+> (gdb) print/x 0x555555558020 + 4*34808
+> $3 = 0x55555557a000
+> ```
+> 驗算成立：34808 × 4 = 139232 = `0x21fe0`，`0x555555558020 + 0x21fe0 = 0x55555557a000`。
 
 ### 4-4. 用 `print &data` 找出 `data` 在哪一段（看 `info proc mappings` 的那一段是什麼、權限是什麼）。`p` 當掉的位置**不是** `data` 所在那一段的結尾，而是再往後另一段的結尾。那一段叫什麼名字？為什麼 `p` 走出 `data` 那一段的時候沒有當掉？【前半筆記[第六節](../../c/陣列、字串與指標運算-C不檢查邊界與用gdb找segfault.md#六用-gdb-找-segfault實際走一次)；後半【新觀念，先猜】】
 
-**第 1 次（YYYY-MM-DD）**
+**第 1 次（2026-09-30）**
+```
+上面題目的回答都有貼,我用上面的輸出回答先
+rw_p
+
+我不確定那一段叫什麼名字?你是說heap嗎?
+
+應該是因爲沒有踩到金絲雀, 與結束點的記憶體
 ```
 
-```
+> **批改**：
+> - 前半**不完整**：`rw-p` 對，但要說是**哪一段**——`data` 在 `0x555555558000`～`0x555555559000`、檔名是 `find` 的那一段，也就是執行檔自己的 `.data` 所在的載入段。
+> - 那一段的名字：**`[heap]`**，你猜對了。
+> - 後半【新觀念，先猜】：猜「沒踩到金絲雀」不對，但猜錯不算錯。補教（已寫進筆記〈[作業第 4、5 題的補教](../../c/陣列、字串與指標運算-C不檢查邊界與用gdb找segfault.md#作業第-45-題的補教當掉的位置由哪裡沒有對映決定)〉第一件）：
+>
+> **參考答案**：`.data` 那一段結束在 `0x555555559000`，**`[heap]` 剛好從同一個位址開始**，中間沒有空隙；`p` 走出 `.data` 時踏進的是有對映的 `[heap]`，所以沒當，
+> 一直讀到 `[heap]` 結尾才碰到沒對映的地方。金絲雀只保護堆疊上的返回位址，跟全域變數無關。
+> **而且這只在 gdb 裡成立**：gdb 預設關掉 ASLR，`[heap]` 才緊貼在後面。本機用 `set disable-randomization off` 實測三次，`[heap]` 都離很遠，`p - start` 都是 **1016**——一走出 `.data` 那一頁（`0x1000 − 0x20` = 4064 byte）就當。
 
 ### 4-5. 真正的 bug 在哪一行？為什麼當掉的那一行（第 8 行）不是犯錯的那一行？把 `find` 改成不會越界的版本（提示：想想第三節說的「長度要另外傳」；找不到時要回傳什麼，你自己決定並說明），貼上改好的程式與執行結果。【筆記[第三節](../../c/陣列、字串與指標運算-C不檢查邊界與用gdb找segfault.md#三陣列名稱什麼時候變成指標什麼時候不會)、[第六節](../../c/陣列、字串與指標運算-C不檢查邊界與用gdb找segfault.md#六用-gdb-找-segfault實際走一次)】
 
-**第 1 次（YYYY-MM-DD）**
+**第 1 次（2026-09-30）**
+```
+第9行
+因爲0x55555557a000+1 第9行越界,第8行的時候還是0x55555557a000 只是剛好在邊界
+./find_fix                                                                           ok | base py | at 15:29:51
+找 5：第 4 個
+找 7：未找到
+程式在find_fix.c
 ```
 
+> **批改**：改好的程式**對**：`len-- > 0` 讓迴圈最多走 `len` 格，找不到時回傳 `data + 8`（剛好超出結尾的位置，C 允許指到這裡、但不能讀它），`main` 用索引 `< 8` 判斷找到沒有；本機用 `-fsanitize=address` 跑也沒有報錯。
+> 小地方：題目要你**說明找不到時回傳什麼**，你沒寫；編譯時有兩個 `-Wsign-compare` 警告（`ptrdiff_t` 跟 `sizeof` 的 `size_t` 比較——正是筆記第三節〈算元素個數再跑迴圈〉的陷阱）；`find` 每個數字呼叫了兩次，可以先存進變數。
+> 「真正的 bug 在哪一行」**錯**：第 9 行 `p++` 只是照指示往前走；而且當掉是在第 8 行**讀** `*p` 的時候，不是第 9 行。
+>
+> **提示**【筆記[第六節](../../c/陣列、字串與指標運算-C不檢查邊界與用gdb找segfault.md#六用-gdb-找-segfault實際走一次)〈當掉的那一行 ≠ 犯錯的那一行〉】：`find` 從哪裡得知 `data` 有幾個元素？是誰在「不知道長度」的情況下叫它去找一個**不存在**的值？（看 `bt` 的 `#1`。）當掉的第 8 行只是「第一次碰到沒對映記憶體」的地方。
+
+**第 2 次（重答，2026-09-30）**
+> 題目：真正的 bug 在哪一行？為什麼當掉的那一行（第 8 行）不是犯錯的那一行？（程式與執行結果已經對了，這次只回答這兩問，並補一句「找不到時回傳什麼、為什麼這樣設計」。）
 ```
+第17行
+因爲第17行沒有給他範圍
+
+找不到時回傳null,如果是因爲他不可能是null,我已經在find_fix.c改寫了
+```
+
+> **批改（第 2 次）**：「bug 在第 17 行、因為沒給範圍」**大致對**；「為什麼第 8 行不是犯錯的那一行」沒有正面回答。回傳 `NULL` 表示找不到，這個設計**好**（`NULL` 不可能是陣列裡的有效位置，呼叫者一看就知道）。
+> 但**新版 `find_fix.c` 多了一個越界讀取**：找不到時迴圈結束，`p` 已經是 `data + 8`（剛好超出結尾），第 11 行 `if (*p != target)` 又去**讀**它。本機 ASan 實測：
+> ```
+> $ gcc -Wall -Wextra -g -O0 -fsanitize=address find_fix.c -o find_fix && ./find_fix
+> 找 5：第 4 個
+> ==48768==ERROR: AddressSanitizer: global-buffer-overflow on address 0x59f1158b8040 ...
+> READ of size 4 at 0x59f1158b8040 thread T0
+>     #0 0x59f1158b52b3 in find find_fix.c:11
+>     #1 0x59f1158b5352 in main find_fix.c:25
+> 0x59f1158b8040 is located 0 bytes after global variable 'data' defined in 'find_fix.c:3:5' (0x59f1158b8020) of size 32
+> ```
+> 一般編譯看不出來（只多讀 4 byte，碰到的是有對映的記憶體），印出的結果也對——又是「結果對、程式錯」。這就是為什麼改完要用 ASan 再**執行**一次。
+> （另外第 11 行後面那段註解是原本給 `(void)start;` 的，搬錯位置了。）
+>
+> **參考答案**：
+> - 真正的 bug 是 **`find` 的設計**：它只拿到起點，**不知道陣列有多長**，只能一直往前讀到碰巧遇到 `target`；而 `main` 第 17 行叫它找一個陣列裡**不存在**的 7，它就停不下來。錯在「沒有長度資訊」與第 17 行的呼叫，不在 `find` 的某一行運算。
+> - 第 8 行只是「**第一次讀到沒對映記憶體**」的地方：`p` 從走出 `data` 那一刻就已經錯了，前面三萬多次越界讀取都沒當，當在哪裡只取決於旁邊的記憶體有沒有對映（筆記[第六節](../../c/陣列、字串與指標運算-C不檢查邊界與用gdb找segfault.md#六用-gdb-找-segfault實際走一次)〈當掉的那一行 ≠ 犯錯的那一行〉）。
+> - 修法：傳入長度，迴圈最多走 `len` 格；找不到時回傳 `NULL`。判斷「找到沒有」要看**迴圈是不是走完了全部 `len` 格**（例如記下結尾位置 `data + len`，比較 `p` 有沒有到達那裡），**不能再去讀 `*p`**——走完時 `p` 已經指在陣列外面。
 
 ---
 
@@ -682,28 +900,99 @@ for (size_t i = sizeof a / sizeof a[0] - 1; i >= 0; i--)
 
 ### 5-1. **先預測**：只用 `-Wall` 編譯會不會警告？加上 `-Wextra` 呢？如果有警告，它在說什麼、為什麼？預測完再編譯驗證。【第 2 課筆記[第七節](../../c/C的資料在記憶體裡長怎樣-位元組、指標、位元組順序與有號無號.md#七陷阱有號和無號混在一起比較)〈[`-Wtype-limits`](../../c/C的資料在記憶體裡長怎樣-位元組、指標、位元組順序與有號無號.md#-wtype-limits-只抓永遠成立永遠不成立的比較)〉】
 
-**第 1 次（YYYY-MM-DD）**
+**第 1 次（2026-09-30）**
+```
+不會
+有
+sizeof 的類型是unsigned long , -1 就是+ -1 因爲C語言沒有負數, 但-1 原始型別是int, int跟 unsigned long比,最大值是unsigend long最大,所以會以他的爲主,那-1就是最大的unsigned long,二補數回補,那就會永遠大於0了
+
+back.c: In function ‘main’:
+back.c:6:51: warning: comparison of unsigned expression in ‘>= 0’ is always true [-Wtype-limits]
+    6 |     for (size_t i = sizeof a / sizeof a[0] - 1; i >= 0; i--)
+      |
 ```
 
-```
+> **批改**：兩個預測（`-Wall` 不警告、`-Wextra` 會）**對**，警告內容也貼了。原因**大致對**但混進了一個錯誤：
+> - 對的部分：`size_t` 是無號，**無號數永遠 ≥ 0**，所以 `i >= 0` 永遠成立，`-Wextra` 裡的 `-Wtype-limits` 抓的就是這種「永遠成立」的比較。
+> - 不對的部分：初始值 `sizeof a / sizeof a[0] - 1` 是 **4**（5 − 1），不是「最大的 unsigned long」。這裡的 `1` 會轉成 `unsigned long` 的 1，5 − 1 = 4，沒有回繞。回繞是之後 `i` 從 0 再 `i--` 時才發生（第 5-3 題）。
 
 ### 5-2. **先預測**印完 `5 4 3 2 1` 之後會發生什麼，再執行 `./back | head -10`、`./back > /dev/null; echo $?`、`./back | wc -l`，貼上結果。印了大約幾行才停？結束狀態代表什麼？（「為什麼剛好是這麼多行才當掉」：【新觀念，先猜】，提示：`ulimit -s` 會印出一個數字，單位是 KB）
 
-**第 1 次（YYYY-MM-DD）**
+**第 1 次（2026-09-30）**
 ```
+會瘋狂迴圈,指針不斷不斷移動4byte,直到移動到邊界才停
+
+
+ ~/w/Proj/g/good-note/s/s1-03-arrays-pointers | on main >8 !1 ?3  ./back | head -10                                                                   INT | base py | at 15:41:59
+5
+4
+3
+2
+1
+-1
+-2
+0
+0
+25028
+
+~/w/Proj/g/good-note/s/s1-03-arrays-pointers | on main >8 !1 ?3  ./back > /dev/null; echo $?                                                   PIPE|0 ok | base py | at 15:42:11
+[1]    40865 segmentation fault (core dumped)  ./back > /dev/null
+139
+
+~/w/Proj/g/good-note/s/s1-03-arrays-pointers | on main >8 !1 ?3  ./back | wc -l                                                         ok | took 5m 20s | base py | at 15:49:50
+2093475
+
+我猜是指標跑到了記憶體分頁邊界,只是這是往回跑
 
 ```
+
+> **批改**：預測「一直跑到邊界才停」**對**；三個指令的結果都貼了：約 **209 萬行**（2093475），結束狀態 139。139 的意思同第 4-1 題。
+> 「為什麼剛好這麼多行」【新觀念，先猜】：猜「往回跑到記憶體邊界」**方向對**，缺的是那個邊界為什麼在這裡。補教（筆記〈[作業第 4、5 題的補教](../../c/陣列、字串與指標運算-C不檢查邊界與用gdb找segfault.md#作業第-45-題的補教當掉的位置由哪裡沒有對映決定)〉第二件）：
+>
+> **參考答案**：`a` 在堆疊上，迴圈是往**低位址**倒著讀。堆疊往低位址長，起初只對映 136 KB，但往下讀時**核心會自動把堆疊延長**，直到上限 `ulimit -s`（本機 8192 KB ＝ 8 MB）。
+> 209 萬 × 4 byte ≈ 8.37 MB，約等於 8 MB 的上限（`a` 上面還有環境變數等），超過上限核心不再延長，才 segfault。
 
 ### 5-3. 用 `-fsanitize=address` 編譯執行，貼上報告的前 5 行。報告說的是 `underflow`（在陣列**前面**），不是 `overflow`。解釋：(1) `i` 是 0 的時候再做 `i--`，`i` 變成多少？【第 2 課筆記[第四節](../../c/C的資料在記憶體裡長怎樣-位元組、指標、位元組順序與有號無號.md#四無號整數二進位與回繞)】 (2) 為什麼 `a[i]` 碰到的是 `a` 前面緊鄰的那一格，而不是很遠很遠的地方？【新觀念，先猜；提示：`a[i]` 是 `*(a + i)`，位址是 `a` 加上 `i × 4`，而位址只有 64 bit】
 
-**第 1 次（YYYY-MM-DD）**
+**第 1 次（2026-09-30）**
 ```
+==41806==ERROR: AddressSanitizer: stack-buffer-underflow on address 0x7f318340001c at pc 0x566d642d543a bp 0x7fff61e70e40 sp 0x7fff61e70e30
+READ of size 4 at 0x7f318340001c thread T0
+    #0 0x566d642d5439 in main /home/set/work/Projects/github/good-note/small-project/s1-03-arrays-pointers/back.c:7
+    #1 0x7f318542a1c9 in __libc_start_call_main ../sysdeps/nptl/libc_start_call_main.h:58
+    #2 0x7f318542a28a in __libc_start_main_impl ../csu/libc-start.c:360
+    #3 0x566d642d5164 in _start (/home/set/work/Projects/github/good-note/small-project/s1-03-arrays-pointers/back+0x1164) (BuildId: 684fe8e707909772cfd48dafb2a2e6bbfba5e24b)
+
+(1) 18446744073709551615
+(2) 不確定
 
 ```
+
+> **批改**：ASan 報告**對**（`stack-buffer-underflow`、`READ of size 4`、`back.c:7`）。(1) **對**：`SIZE_MAX` = 2⁶⁴ − 1。
+> (2)【新觀念，先猜】沒猜，直接補教（筆記〈[作業第 4、5 題的補教](../../c/陣列、字串與指標運算-C不檢查邊界與用gdb找segfault.md#作業第-45-題的補教當掉的位置由哪裡沒有對映決定)〉第二件）：
+>
+> **參考答案**：`a[i]` 的位址是 `a + i × 4`。`i = 2⁶⁴ − 1` 時，`i × 4 = 2⁶⁶ − 4`，位址只有 64 bit，超出的部分被丟掉（回繞），剩下 2⁶⁴ − 4，也就是「−4」。
+> 所以 `a + i × 4` 等於 **`a − 4`**，正是 `a[-1]`：`a` 前面緊鄰的那一格。這跟第 2 課「無號整數回繞」是同一件事，只是發生在位址運算上。
 
 ### 5-4. 把迴圈改成正確的版本，**`i` 仍然用 `size_t`**，並說明你的改法為什麼不會再出錯。用 `-Wall -Wextra` 和 `-fsanitize=address` 驗證，貼上程式與結果。（沒有唯一的答案；想不出來可以先寫一個用 `int` 的版本，並說明 `int` 版本在什麼情況下會不夠用。）
 
-**第 1 次（YYYY-MM-DD）**
+**第 1 次（2026-09-30）**
+```
+我改在back_fix.c
+因爲當i小於0在減,會回退,變更大,i是unsigned long,所以>=0永遠成立,但我只需要在加一個條件 不然i的範圍超過4就好
+ ~/w/Proj/g/good-note/s/s1-03-arrays-pointers | on main >8 !1 ?3  gcc -Wall -Wextra -g -O0 -o back_fix back_fix.c                                   1 err | base py | at 15:52:42
+back_fix.c: In function ‘main’:
+back_fix.c:6:51: warning: comparison of unsigned expression in ‘>= 0’ is always true [-Wtype-limits]
+    6 |     for (size_t i = sizeof a / sizeof a[0] - 1; i >= 0 && i < sizeof a / sizeof a[0]; i--)
+      |                                                   ^~
+
+ ~/w/Proj/g/good-note/s/s1-03-arrays-pointers | on main >8 !1 ?4  gcc -Wall -Wextra -g -O0 -fsanitize=address -o back_fix back_fix.c                   ok | base py | at 16:16:36
+back_fix.c: In function ‘main’:
+back_fix.c:6:51: warning: comparison of unsigned expression in ‘>= 0’ is always true [-Wtype-limits]
+    6 |     for (size_t i = sizeof a / sizeof a[0] - 1; i >= 0 && i < sizeof a / sizeof a[0]; i--)
 ```
 
-```
+> **批改**：**對**。加上 `i < 5`：`i` 從 0 再減 1 回繞成 `SIZE_MAX`，`i < 5` 不成立，迴圈就停——正是利用回繞本身來判斷。本機用 ASan 跑，印出 5 4 3 2 1、exit 0，沒有報錯。
+> 兩個建議：
+> - 你沒有貼 ASan 版**執行**的結果，只有編譯（跟 2-3 題一樣，ASan 要執行才會檢查）。
+> - 那個警告還在，因為 `i >= 0` 還留著。它永遠成立、沒有作用，刪掉只留 `i < 5`，警告就消失了。另一種常見寫法是 `for (size_t i = n; i-- > 0; )`：先比較、再減，`i` 在迴圈本體裡是 4、3、2、1、0。
