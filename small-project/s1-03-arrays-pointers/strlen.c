@@ -19,5 +19,10 @@ int main() {
     printf("Length of '%s' is %zu\n", word, my_strlen(word));
     printf("Length of '%s' is %zu\n", t, my_strlen(t));
     printf("Length of '%s' is %zu\n", u, my_strlen(u));
+
+    char name[16] = "Linux";
+    printf("Length of '%s' is %zu\n", name, sizeof name);
+    printf("Length of '%s' is %zu\n", name, my_strlen(name));
+    
     return 0;
 }

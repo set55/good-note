@@ -73,8 +73,48 @@ l+2 address = 0x7fffe3fe7c60 差 l 16byte
 **第 2 次（重答，2026-09-29）**
 > 題目：編譯執行，貼上輸出，跟預測對照。兩個相減的結果要用哪個 `printf` 格式印？為什麼不是 `%d` 也不是 `%zu`？
 ```
+s address = 0x7fffe3fe7c44
+s+3 address = 0x7fffe3fe7c4a 差 s 6byte
+l address = 0x7fffe3fe7c50
+l+2 address = 0x7fffe3fe7c60 差 l 16byte
+&s + 1 address = 0x7fffe3fe7c50 差 s 12 byte剛好一個數組的長度
+&s[5] - &s[1] = 4
+(char *)(l + 2) - (char *)l = 16
 
+ptrdiff_t 8byte 有號整數
+int是4byte
+zu是無號
+
+&s[5] - &s[1] = 4 這個出來的型別是ptrdiff_t 不是int 也不是size_t 至於爲什麼我不確定
 ```
+
+> **批改（第 2 次）**：**大致對**。答案需要的兩個性質你都寫出來了——`ptrdiff_t` 是 **8 byte**、**有號**；`int` 是 4 byte；`%zu` 是無號——只差最後一步：把這兩個性質接到「所以不能用」。
+> 已經兩次作答，公布參考答案。本機實測（`fmt.c`，印 `&s[1] - &s[5]`，應該是 −4）：
+> ```
+> $ gcc -Wall -Wextra -g -O0 fmt.c -o fmt
+> fmt.c:8:20: warning: format '%d' expects argument of type 'int', but argument 2 has type 'long int' [-Wformat=]
+> $ ./fmt
+> %td: -4
+> %zu: 18446744073709551612      ← 把 −4 的 8 個 byte 當成無號讀：2⁶⁴ − 4
+> %d : -4                        ← 這次碰巧對，但 gcc 已經警告型別不符
+> ```
+> `fmt.c` 原始碼：
+> ```c
+> #include <stdio.h>
+>
+> int main(void)
+> {
+>     short s[6] = {1, 2, 3, 4, 5, 6};
+>     printf("%%td: %td\n", &s[1] - &s[5]);
+>     printf("%%zu: %zu\n", &s[1] - &s[5]);
+>     printf("%%d : %d\n", &s[1] - &s[5]);
+>     return 0;
+> }
+> ```
+>
+> **參考答案**：用 **`%td`**，因為相減的結果型別是 `ptrdiff_t`（`t` 就是它的長度修飾字）。
+> - 不用 `%d`：`%d` 要的是 4 byte 的 `int`，`ptrdiff_t` 在本機是 8 byte 的 `long`，**大小不符**——gcc 的 `-Wformat` 會警告；差距超出 `int` 範圍時印出來的數字就是錯的。
+> - 不用 `%zu`：`%zu` 要的是**無號**的 `size_t`，但指標相減**可以是負的**（`&s[1] - &s[5]` 是 −4），用 `%zu` 印會變成 18446744073709551612（第 2 課的「同寬換讀法」）。
 
 ### 1-3. `&s[5] - &s[1]` 和 `(char *)&s[5] - (char *)&s[1]` 差在哪裡？為什麼同樣兩個位址相減，會得到兩個不同的數？【筆記[第二節](../../c/陣列、字串與指標運算-C不檢查邊界與用gdb找segfault.md#二指標運算p--1-走一個元素不是一個-byte)】
 
@@ -156,6 +196,27 @@ arr2 reversed: 6 5 4 3 2 1
 **第 2 次（重答，2026-09-29）**
 > 題目：貼上你的 `reverse` 函式和執行結果。奇數個和偶數個元素，你的迴圈分別在什麼條件下停止？
 ```
+我不太確定題目想讓我怎麼寫,可以直接寫出來嗎?
+```
+
+> **批改（第 2 次）**：還沒作答，你問題目要怎麼寫——這裡把題目說清楚。程式那一半第 1 次已經對了，**只剩停止條件**：
+> 你的迴圈是 `while (start < end)`，它在 `start < end` 變成**不成立**的那一刻停。「不成立」有兩種可能：`start == end`，或 `start > end`。
+> 題目問的是：5 個元素時是哪一種？6 個元素時是哪一種？
+>
+> **怎麼寫**：照下面的格式，把你的迴圈**用手**走一次（或在 `while` 裡加一行 `printf` 印出 `start`、`end`），填完兩張表，最後各用一句話回答「停的時候 `start` 和 `end` 是什麼關係」、以及「奇數時中間那一格有沒有被換、需不需要換」。
+> ```
+> n = 5：
+> 檢查第幾次   start   end   start < end ?
+> 1            0       4     成立 → 交換
+> 2            ?       ?     ?
+> ...
+> n = 6：
+> （同上）
+> ```
+
+**第 3 次（重答，2026-09-30）**
+> 題目：貼上你的 `reverse` 函式和執行結果。奇數個和偶數個元素，你的迴圈分別在什麼條件下停止？
+```
 
 ```
 
@@ -203,9 +264,44 @@ rev.c:31:23: warning: comparison of integer expressions of different signedness:
 **第 2 次（重答，2026-09-29）**
 > 題目：在 `main` 裡故意把 5 個元素的陣列用 `reverse(a, 6)` 呼叫。**先預測**：用一般方式編譯執行，會當掉嗎？再加 `-fsanitize=address` 編譯執行，貼上報告的前 5 行，說明它是 `READ` 還是 `WRITE`、幾個 byte、發生在哪一行，以及為什麼一般編譯的版本可能看不出錯。
 ```
+size of first: 8
+=================================================================
+==9732==ERROR: AddressSanitizer: stack-buffer-overflow on address 0x777b5bb00034 at pc 0x5942bee5c351 bp 0x7ffda5d08460 sp 0x7ffda5d08450
+READ of size 4 at 0x777b5bb00034 thread T0
+    #0 0x5942bee5c350 in reverse /home/set/work/Projects/github/good-note/small-project/s1-03-arrays-pointers/rev.c:12
+    #1 0x5942bee5c700 in main /home/set/work/Projects/github/good-note/small-project/s1-03-arrays-pointers/rev.c:23
+    #2 0x777b5da2a1c9 in __libc_start_call_main ../sysdeps/nptl/libc_start_call_main.h:58
+    #3 0x777b5da2a28a in __libc_start_main_impl ../csu/libc-start.c:360
+    #4 0x5942bee5c1a4 in _start (/home/set/work/Projects/github/good-note/small-project/s1-03-arrays-pointers/rev+0x11a4) (BuildId: 39769f27c794178662c6263c65a077f98c280931)
+
+Address 0x777b5bb00034 is located in stack of thread T0 at offset 52 in frame
+    #0 0x5942bee5c38d in main /home/set/work/Projects/github/good-note/small-project/s1-03-arrays-pointers/rev.c:20           
+
+是read出錯,在程式12行
+*getfirst = *getend;
+
+看錯誤像是超出stack, 但具體原因可能要麻煩你跟我說
+主要是因爲arr只有5個,但是我們直接只向第6個byte的位址所以stack overflow?
+```
+
+> **批改（第 2 次）**：這次**有執行、有加 `-g`**，報告有行號了。（作答原本寫在空白框下面，已搬進框裡。）
+> - `READ`、第 12 行 `*getfirst = *getend;` **對**。幾個 byte 沒寫出來：報告寫 `READ of size 4`——4 byte，剛好一個 `int`。
+> - 「指向第 6 個 **byte**」**不對**：是第 6 個**元素**（`arr[5]`），位址是 `arr` + 5 × 4 = 偏移 20 byte。這正是第 1 題練的「`p + 1` 走一個元素」。
+> - 你問「`stack-buffer-overflow` 是不是 stack overflow」：**不是**，這兩個是不同的東西。報告的名字要拆開讀：**stack** 上的一個 **buffer**（緩衝區，就是陣列）被 **overflow**（寫／讀超過結尾）——
+>   也就是「**堆疊上的陣列越界**」（筆記[第七節](../../c/陣列、字串與指標運算-C不檢查邊界與用gdb找segfault.md#七addresssanitizer在第一次越界的當下抓到它)那張表的第一列）。
+>   「stack overflow」（堆疊溢位）則是整個堆疊用完了，例如遞迴太深——第 5 題會碰到。
+> - 報告的下半段你沒有貼：本機重跑是 `[32, 52) 'arr' (line 21) <== Memory access at offset 52 overflows this variable`。`arr` 佔偏移 32～51（5 × 4 = 20 byte），讀的是偏移 52，**剛好超出結尾**。
+> - 「為什麼一般版本看不出錯」這次沒答（第 1 次答的方向是對的）。
+>
+> **提示**：
+> 1. 第 12 行 `*getfirst = *getend;` 同時有讀和寫，第 13 行 `*getend = temp;` 是寫。越界的那一格**先被讀、後被寫**，為什麼報告只說 `READ`，沒有 `WRITE`？【筆記[第七節](../../c/陣列、字串與指標運算-C不檢查邊界與用gdb找segfault.md#七addresssanitizer在第一次越界的當下抓到它)那張表最後一列】
+> 2. 一般編譯（不加 ASan）執行一次，貼上 `arr reversed:` 那一行。第一個數字是什麼、從哪裡來？原本 `arr` 裡的 `1` 被搬到哪裡去了？這說明一般版本是「沒有錯」還是「錯了但沒當掉」？【筆記[第五節](../../c/陣列、字串與指標運算-C不檢查邊界與用gdb找segfault.md#五c-不檢查邊界越界的三種下場)〈下場一：安靜地出錯〉】
+
+**第 3 次（重答，2026-09-30）**
+> 題目：在 `main` 裡故意把 5 個元素的陣列用 `reverse(a, 6)` 呼叫。**先預測**：用一般方式編譯執行，會當掉嗎？再加 `-fsanitize=address` 編譯執行，貼上報告的前 5 行，說明它是 `READ` 還是 `WRITE`、幾個 byte、發生在哪一行，以及為什麼一般編譯的版本可能看不出錯。
+```
 
 ```
-           
 
 ---
 
@@ -260,8 +356,17 @@ Length of '字' is 3
 **第 2 次（重答，2026-09-29）**
 > 題目：貼上你的 `my_strlen`，並用 `"Linux"`、`""`（空字串）、`"字"` 三個字串測試，貼上結果。`"字"` 的結果為什麼不是 1？
 ```
-
+我直接回答錯的部分
+是因爲我的my_strlen 是一個字元一個字元算,到\0這個字元停下,所以走了3次,因此判斷"字"是三個字元
 ```
+
+> **批改（第 2 次）**：**不完整**。「`my_strlen` 一格一格走、走到 `\0` 停，所以走了 3 步」**對**。
+> 但「一個字元一個字元算」和「字是三個字元」還是把兩種「字元」混在一起了：`my_strlen` 一步走的是一個 **`char`，也就是 1 個 byte**，不是一個字元（字）。
+> 答案需要的「byte」「UTF-8」兩個詞都沒有出現。已經兩次作答，公布參考答案——這跟〈字元是什麼〉第 5 題是同一個觀念，明天（10/1）以後複習那篇時會再考。
+>
+> **參考答案**：`my_strlen` 的指標是 `char *`，每次 `s++` 前進 **1 個 byte**，所以它數的是 **byte 數**，不是字元數。
+> 「字」是**一個**字元（一個 Unicode code point，U+5B57），原始碼存成 **UTF-8**，一個中文字用 **3 個 byte**（`e5 ad 97`）表示，
+> 後面才是 `\0`，所以走 3 步。C 的 `char` 叫「字元」，其實是「1 byte 的整數」（〈字元是什麼〉[第一節](../../c/字元是什麼-char就是1byte的整數與ASCII和UTF-8.md#一字元就是一個數字)），這個名字就是混淆的來源。
 
 ### 3-2. 宣告 `char name[16] = "Linux";`。**先預測** `sizeof name` 和 `my_strlen(name)` 各是多少，再執行驗證。為什麼兩個數字不一樣？`name[5]` 到 `name[15]` 裡是什麼？【筆記[第四節](../../c/陣列、字串與指標運算-C不檢查邊界與用gdb找segfault.md#四字串以-0-結尾的-char-陣列)；後半【新觀念，先猜】】
 
@@ -289,8 +394,27 @@ name[5]是\0
 **第 2 次（重答，2026-09-29）**
 > 題目：宣告 `char name[16] = "Linux";`。**先預測** `sizeof name` 和 `my_strlen(name)` 各是多少，再執行驗證。為什麼兩個數字不一樣？`name[5]` 到 `name[15]` 裡是什麼？
 ```
+其餘的描述同上,我這邊改寫了strlen.c 並且把輸出貼上
+Length of 'Linux' is 5
+Length of '' is 0
+Length of '字' is 3
+Length of 'LinuxLinux' is 10
+Length of 'LinuLinuxLinux' is 14
+Length of 'Linux' is 16
+Length of 'Linux' is 5
+
+sizeof name 預測是 16(byte)
+my_strlen(name) 預測是5
+sizeof name是整個陣列,所以是整個陣列的大小
+
 
 ```
+
+> **批改（第 2 次）**：**對**。實際執行得到 16 和 5，跟預測一致；「`sizeof name` 是整個陣列的大小」這次把「指標」拿掉了，說法正確。
+> 小提醒：你印 `sizeof name` 那行的標籤也寫成 `Length of`，自己回頭看輸出時容易搞混，標籤寫 `sizeof` 比較好。
+>
+> **參考答案**：`sizeof name` 量的是**陣列佔多少 byte**（宣告時決定，16），`my_strlen` 量的是**從開頭到第一個 `\0` 有幾個 byte**（5）。兩個量的東西不同。
+> `name[5]` 到 `name[15]` 全是 0：初始值比陣列短時，沒給到的格子補 0（補教見筆記第四節〈陣列大小跟字串長度不一樣時〉）。
 
 ### 3-3. 再宣告 `char t[5] = "Linux";` 和 `char u[4] = "Linux";`。**先預測**：`-Wall -Wextra` 會對哪一行警告？（【新觀念，先猜】）然後對 `t` 呼叫 `my_strlen`，分別用一般方式和 `-fsanitize=address` 編譯執行，貼上結果。`t` 少了什麼？為什麼一般編譯可能印出看起來正確的 5？【筆記[第四節](../../c/陣列、字串與指標運算-C不檢查邊界與用gdb找segfault.md#四字串以-0-結尾的-char-陣列)、[第五節](../../c/陣列、字串與指標運算-C不檢查邊界與用gdb找segfault.md#五c-不檢查邊界越界的三種下場)、[第七節](../../c/陣列、字串與指標運算-C不檢查邊界與用gdb找segfault.md#七addresssanitizer在第一次越界的當下抓到它)】
 
@@ -392,6 +516,83 @@ Shadow byte legend (one shadow byte represents 8 application bytes):
 > 3. 你的 `t` 印出 10 而不是 5。什麼情況下會印出「看起來正確」的 5？印出 5 代表程式是對的嗎？【筆記[第五節](../../c/陣列、字串與指標運算-C不檢查邊界與用gdb找segfault.md#五c-不檢查邊界越界的三種下場)〈下場一：安靜地出錯〉】
 
 **第 2 次（重答，2026-09-29）**
+> 題目：再宣告 `char t[5] = "Linux";` 和 `char u[4] = "Linux";`。**先預測**：`-Wall -Wextra` 會對哪一行警告？（【新觀念，先猜】）然後對 `t` 呼叫 `my_strlen`，分別用一般方式和 `-fsanitize=address` 編譯執行，貼上結果。`t` 少了什麼？為什麼一般編譯可能印出看起來正確的 5？
+```
+其他輸出同上
+t的5格
+0x4c    0x69    0x6e    0x75    0x78
+少了\0 = 0x00
+
+Start Addr           End Addr       Size     Offset  Perms  objfile
+      0x555555554000     0x555555555000     0x1000        0x0  r--p   /home/set/work/Projects/github/good-note/small-project/s1-03-arrays-pointers/strlen
+      0x555555555000     0x555555556000     0x1000     0x1000  r-xp   /home/set/work/Projects/github/good-note/small-project/s1-03-arrays-pointers/strlen
+      0x555555556000     0x555555557000     0x1000     0x2000  r--p   /home/set/work/Projects/github/good-note/small-project/s1-03-arrays-pointers/strlen
+      0x555555557000     0x555555558000     0x1000     0x2000  r--p   /home/set/work/Projects/github/good-note/small-project/s1-03-arrays-pointers/strlen
+      0x555555558000     0x555555559000     0x1000     0x3000  rw-p   /home/set/work/Projects/github/good-note/small-project/s1-03-arrays-pointers/strlen
+      0x555555559000     0x55555557a000    0x21000        0x0  rw-p   [heap]
+      0x7ffff7c00000     0x7ffff7c28000    0x28000        0x0  r--p   /usr/lib/x86_64-linux-gnu/libc.so.6
+      0x7ffff7c28000     0x7ffff7db1000   0x189000    0x28000  r-xp   /usr/lib/x86_64-linux-gnu/libc.so.6
+      0x7ffff7db1000     0x7ffff7e00000    0x4f000   0x1b1000  r--p   /usr/lib/x86_64-linux-gnu/libc.so.6
+      0x7ffff7e00000     0x7ffff7e04000     0x4000   0x1ff000  r--p   /usr/lib/x86_64-linux-gnu/libc.so.6
+      0x7ffff7e04000     0x7ffff7e06000     0x2000   0x203000  rw-p   /usr/lib/x86_64-linux-gnu/libc.so.6
+      0x7ffff7e06000     0x7ffff7e13000     0xd000        0x0  rw-p
+      0x7ffff7f9e000     0x7ffff7fa1000     0x3000        0x0  rw-p
+      0x7ffff7fbb000     0x7ffff7fbd000     0x2000        0x0  rw-p
+      0x7ffff7fbd000     0x7ffff7fc1000     0x4000        0x0  r--p   [vvar]
+      0x7ffff7fc1000     0x7ffff7fc3000     0x2000        0x0  r--p   [vvar_vclock]
+      0x7ffff7fc3000     0x7ffff7fc5000     0x2000        0x0  r-xp   [vdso]
+      0x7ffff7fc5000     0x7ffff7fc6000     0x1000        0x0  r--p   /usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2
+      0x7ffff7fc6000     0x7ffff7ff1000    0x2b000     0x1000  r-xp   /usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2
+      0x7ffff7ff1000     0x7ffff7ffb000     0xa000    0x2c000  r--p   /usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2
+      0x7ffff7ffb000     0x7ffff7ffd000     0x2000    0x36000  r--p   /usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2
+      0x7ffff7ffd000     0x7ffff7fff000     0x2000    0x38000  rw-p   /usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2
+      0x7ffffffdd000     0x7ffffffff000    0x22000        0x0  rw-p   [stack]
+  0xffffffffff600000 0xffffffffff601000     0x1000        0x0  --xp   [vsyscall]
+
+  (gdb) x t
+0x7fffffffd5f5: 0x4c
+(gdb) x u
+0x7fffffffd5f1: 0x4c
+(gdb) x li
+0x7fffffffd5fa: 0x4c
+(gdb) x/6xb li
+0x7fffffffd5fa: 0x4c    0x69    0x6e    0x75    0x78    0x00
+(gdb) x empty
+0x7fffffffd5ec: 0x00
+(gdb) x word
+0x7fffffffd5ed: 0xe5
+(gdb) x/11xb u
+0x7fffffffd5f1: 0x4c    0x69    0x6e    0x75    0x4c    0x69    0x6e    0x75
+0x7fffffffd5f9: 0x78    0x4c    0x69
+(gdb) x/12xb u
+0x7fffffffd5f1: 0x4c    0x69    0x6e    0x75    0x4c    0x69    0x6e    0x75
+0x7fffffffd5f9: 0x78    0x4c    0x69    0x6e
+(gdb) x/13xb u
+0x7fffffffd5f1: 0x4c    0x69    0x6e    0x75    0x4c    0x69    0x6e    0x75
+0x7fffffffd5f9: 0x78    0x4c    0x69    0x6e    0x75
+(gdb) x/15xb u
+0x7fffffffd5f1: 0x4c    0x69    0x6e    0x75    0x4c    0x69    0x6e    0x75
+0x7fffffffd5f9: 0x78    0x4c    0x69    0x6e    0x75    0x78    0x00
+我的沒有印出5, t,li在記憶體位址連在一起了
+
+中間也沒有/0做區隔
+
+如果長度剛好是5個,而且雖然沒有\0的那個格,c允許他這樣寫
+```
+
+> **批改（第 2 次）**：提示的三件事：1 **對**、2 **未答**、3 **不完整**。
+> - 1：`t` 的 5 格是 `4c 69 6e 75 78`（`Linux`），**少了 `\0`** ——對。你還自己用 gdb 的 `x/15xb u` 把 `u`（`d5f1`）→ `t`（`d5f5`）→ `li`（`d5fa`）一路讀到 `li` 的 `00`，
+>   親眼證實三個陣列緊緊相連、中間沒有 `\0`，所以 `t` 得到 10。這個實驗做得很好，也跟筆記補教的位址實測吻合。（`info proc mappings` 這題用不到，可以不貼。）
+> - 2：ASan 報告沒有解讀。
+> - 3：「C 允許剛好 5 格的寫法」是**為什麼沒有警告**的答案，不是「什麼時候會印出 5」的答案。
+>
+> **提示**：
+> 1. 看你第 1 次貼的報告：`READ of size 1` 和 `[96, 101) 't' (line 15) <== Memory access at offset 101 overflows this variable`。`t` 佔哪幾個偏移？讀的是哪一個偏移、那是 `t` 的第幾格？
+>    是**讀**還是**寫**？（對照你在 2-3 讀過的 `[32, 52) 'arr'`，是同一種看法。）
+> 2. 你的 gdb 輸出裡，`t` 後面緊接的那個 byte（`0x7fffffffd5fa`）是什麼？`my_strlen(t)` 要在第 5 步就停下來、印出 5，那個 byte 必須是什麼？
+>    如果印出了 5，代表 `t` 是一個正確的字串嗎？
+
+**第 3 次（重答，2026-09-30）**
 > 題目：再宣告 `char t[5] = "Linux";` 和 `char u[4] = "Linux";`。**先預測**：`-Wall -Wextra` 會對哪一行警告？（【新觀念，先猜】）然後對 `t` 呼叫 `my_strlen`，分別用一般方式和 `-fsanitize=address` 編譯執行，貼上結果。`t` 少了什麼？為什麼一般編譯可能印出看起來正確的 5？
 ```
 
