@@ -813,6 +813,97 @@ exit=1
 | `Shadow bytes` 那一列 | ASan 用 1 個「影子 byte」記錄每 8 個 byte 能不能碰：`00` 可以、`f1`／`f3` 是陣列左右的禁區；`[f3]` 是這次碰到的那一格 |
 | `ABORTING`、`exit=1` | **第一個錯誤就停**，後面第 12 行的越界寫入沒有機會報告 |
 
+### `[96, 101)` 怎麼讀：半開區間、偏移與影子 byte
+
+> 2026-09-30 補：批改作業第 3-3 題時使用者問「`[96,101)` 是什麼意思」。
+
+**`[a, b)` 是數學的「半開區間」（half-open interval）寫法**：方括號 `[` 表示**包含**這一端，圓括號 `)` 表示**不包含**。
+所以 `[96, 101)` 是 96 ≤ 偏移 < 101，也就是 96、97、98、99、100 這 **5 個 byte**。記法：
+
+- 長度 = 右端 − 左端：101 − 96 = 5，剛好是 `char t[5]` 的大小，不用 ±1。
+- 右端那個數字**就是「剛好超出結尾」的第一個 byte**。報告說存取的是 `offset 101`，一看就知道是 `t` 後面緊接的那一格（`t[5]`）。
+- C 的習慣本來就是這樣：陣列索引 0～n−1、迴圈寫 `i < n`，`n` 本身不在範圍內——`[0, n)`。
+
+**偏移（offset）從哪裡算？** 從這個函式的「區域變數區塊」起點算起，以 byte 為單位。報告的位址減掉偏移就是起點。
+下面是作業第 3 題 `strlen.c`（使用者的作業程式）的 ASan 輸出，完整原始碼：
+
+```c
+#include <stdio.h>
+
+size_t my_strlen(char *s){
+    char *start = s;
+    while (*s != '\0') {                                        /* 第 5 行：越界讀取發生在這裡 */
+        s++;
+    }
+    return s - start;
+}
+
+int main() {
+    char li[] = "Linux";
+    char empty[] = ""; 
+    char word[] = "字";
+    char t[5] = "Linux";                                        /* 第 15 行：剛好 5 格，沒有 '\0' */
+    char u[4] = "Linux";
+    printf("Length of '%s' is %zu\n", li, my_strlen(li));
+    printf("Length of '%s' is %zu\n", empty, my_strlen(empty));
+    printf("Length of '%s' is %zu\n", word, my_strlen(word));
+    printf("Length of '%s' is %zu\n", t, my_strlen(t));        /* 第 20 行 */
+    printf("Length of '%s' is %zu\n", u, my_strlen(u));
+
+    char name[16] = "Linux";
+    printf("Length of '%s' is %zu\n", name, sizeof name);
+    printf("Length of '%s' is %zu\n", name, my_strlen(name));
+    
+    return 0;
+}
+```
+
+```
+$ gcc -Wall -Wextra -g -O0 -fsanitize=address strlen.c -o strlen_asan    （u 那一行的警告省略）
+$ ./strlen_asan                                                              （節錄）
+==17658==ERROR: AddressSanitizer: stack-buffer-overflow on address 0x700862d00065 ...
+READ of size 1 at 0x700862d00065 thread T0
+    #0 0x5f45c56ac2fb in my_strlen strlen.c:5
+Address 0x700862d00065 is located in stack of thread T0 at offset 101 in frame
+  This frame has 6 object(s):
+    [48, 49) 'empty' (line 13)
+    [64, 68) 'word' (line 14)
+    [80, 84) 'u' (line 16)
+    [96, 101) 't' (line 15) <== Memory access at offset 101 overflows this variable
+    [128, 134) 'li' (line 12)
+    [160, 176) 'name' (line 23)
+Shadow bytes around the buggy address:
+=>0x700862d00000: f1 f1 f1 f1 f1 f1 01 f2 04 f2 04 f2[05]f2 f2 f2
+  0x700862d00080: 06 f2 f2 f2 00 00 f3 f3 00 00 00 00 00 00 00 00
+```
+
+- 位址 `0x700862d00065` − 偏移 101（`0x65`）= `0x700862d00000`，正是 `=>` 那一列的開頭：區域變數區塊從這裡開始。
+- 每個變數的區間長度都等於它的大小：`empty` 1（`""` 只有 `\0`）、`word` 4（`字` 的 3 byte ＋ `\0`）、`u` 4、`t` 5、`li` 6、`name` 16。
+- 區間之間**有空隙**（例如 `[84, 96)`、`[101, 128)`）：那就是 ASan 塞進去的**禁區**。沒有 ASan 時，同一支程式的 `u`、`t`、`li` 是緊緊相連的（第四節〈陣列大小跟字串長度不一樣時〉的實測）——
+  所以一般編譯讀過 `t` 會安靜地讀進 `li`，ASan 版讀過 `t` 則立刻踩進禁區。
+
+**影子 byte 那一列跟區間是同一件事的另一種寫法**：1 個影子 byte 代表 8 個真正的 byte，`=>` 那一列的 16 個影子 byte 就是偏移 0～127：
+
+```
+影子 byte：  f1 f1 f1 f1 f1 f1 | 01    | f2    | 04    | f2    | 04    | f2    |[05]    | f2 f2 f2
+代表偏移：   0 ～ 47           | 48～55 | 56～63 | 64～71 | 72～79 | 80～87 | 88～95 | 96～103 | 104～127
+對應變數：   左禁區             | empty  | 禁區   | word   | 禁區   | u      | 禁區   | t       | 禁區
+```
+
+- `00` 表示這 8 個 byte 全部可以碰；`01`～`07` 表示**只有前 N 個**可以碰。`[05]` 就是「偏移 96～103 這 8 個 byte 裡，只有前 5 個（96～100）屬於 `t`」——跟 `[96, 101)` 說的完全一樣。
+- 方括號 `[05]` 標出這次存取落在哪一組；偏移 101 是這組的第 6 個 byte，超出前 5 個，所以報錯。
+- 下一列開頭的 `06` 是 `li`（偏移 128～133，6 個 byte），`00 00` 是 `name` 的 16 個 byte。
+
+**附帶一提：這個位址為什麼不像 `[stack]` 的 `0x7ff…`？** ASan 預設開著 `detect_stack_use_after_return`（`ASAN_OPTIONS=help=1 ./strlen_asan` 可以看到 `Current Value: true`），
+它會把區域變數放在自己另外配置的一塊記憶體（「假的堆疊」），才能抓「函式返回後還在用它的區域變數」這種錯。關掉它，位址就回到真正的堆疊，偏移不變：
+
+```
+$ ASAN_OPTIONS=detect_stack_use_after_return=0 ./strlen_asan     （節錄）
+READ of size 1 at 0x7ffd5b033245 thread T0
+Address 0x7ffd5b033245 is located in stack of thread T0 at offset 101 in frame
+    [96, 101) 't' (line 15) <== Memory access at offset 101 overflows this variable
+```
+
 再拿 `smash.c` 試——剛才堆疊保護要等到返回時才抓到，ASan 在第一次越界時就抓到：
 
 ```
@@ -900,3 +991,4 @@ SUMMARY: AddressSanitizer: stack-buffer-overflow smash.c:12 in main
 3. `char s1[] = "hi";` 可以改 `s1[0]`，`char *s2 = "hi";` 改 `s2[0]` 卻 segfault。兩者的 `"hi"` 分別在記憶體的哪裡？為什麼寫入一個會當、一個不會？你會怎麼在 gdb 裡確認？
 4. 本課看到越界存取有三種下場：安靜出錯、`stack smashing detected`、segfault。分別是什麼決定會落到哪一種？為什麼「程式沒當掉」不能證明沒有越界？
 5. 情境題：同事的程式偶爾 segfault，gdb 的 `bt` 顯示當在 `parse()` 裡 `x = buf[k];` 這一行，`k` 的值是 523871，而 `buf` 只有 256 個元素。你接下來要怎麼查出真正的錯誤在哪裡？為什麼不能直接修改這一行就算解決？如果想在「第一次越界的當下」就抓到它，要怎麼做？
+6. 情境題：ASan 報告裡有一行 `[16, 40) 'buf' (line 7) <== Memory access at offset 40 overflows this variable`，上面寫著 `WRITE of size 4`。`buf` 佔幾個 byte？如果它是 `int` 陣列，有幾個元素？這次寫到的是 `buf` 的第幾格（索引多少）？影子 byte 那一列裡，`buf` 會是幾個什麼樣的影子 byte？
