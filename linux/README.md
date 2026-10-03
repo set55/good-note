@@ -6,7 +6,7 @@
 
 - [通用方法論](#通用方法論)（1 篇）
 - [套件管理（dpkg / dkms）](#套件管理dpkg--dkms)（3 篇）
-- [核心與驅動](#核心與驅動)（5 篇）
+- [核心與驅動](#核心與驅動)（6 篇）
 - [網路基礎與設定](#網路基礎與設定)（18 篇）
 - [網路查詢與追蹤](#網路查詢與追蹤)（4 篇）
 - [Shell 與重新導向](#shell-與重新導向)（11 篇）
@@ -44,6 +44,7 @@
 | [procfs與conntrack遺失問題.md](./procfs與conntrack遺失問題.md) | `/proc` 虛擬檔案系統的本質與兩大類內容；為何模組載入了 `/proc/net/nf_conntrack` 仍不存在（編譯期 vs 執行期） | `procfs` `/proc/sys` `sysctl` `nf_conntrack` `netlink` `sysfs` `kernel config` |
 | [sysctl是什麼-核心參數的讀寫與持久化.md](./sysctl是什麼-核心參數的讀寫與持久化.md) | sysctl 只是 `/proc/sys` 的命令列包裝，「調參數」就是「寫檔案」；可寫與否看檔案權限（唯讀的是儀表不是旋鈕）、持久化三目錄的兩層載入規則（檔名排序 vs 同名時目錄優先權）、`-` 前綴代表參數不存在就略過，以及「改了沒生效」的五個原因——含實測 `net.*` 是每個 network namespace 各一份，主機調了不影響容器 | `sysctl -a` `sysctl -w` `sysctl -p` `sysctl --system` `/proc/sys` `/etc/sysctl.d` `/usr/lib/sysctl.d` `systemd-sysctl` `somaxconn` `inotify.max_user_watches` `vm.max_map_count` `netns` `docker --sysctl` `all vs default` |
 | [journalctl看服務日誌.md](./journalctl看服務日誌.md) | systemd 服務的 stdout／stderr 預設被 journald 收走，所以沒有 log 檔——`journalctl -u <服務>` 就是；journal 存的是**帶結構化欄位的二進位資料庫**，能用 `-u`／`-p`／`--since`／`-g` 與 `_PID=`／`_COMM=` 精確過濾（`tail` 做不到）；含完整選項（來源／過濾／輸出／命令四組）、`--user` 與 `--system` 分家、`/var/log/journal` 存不存在決定是否持久化、`--vacuum-*` 清理，以及與 OpenWrt `logread` 的逐項對照 | `journalctl -u` `-f` `-e` `-n` `-b` `-p` `-g` `--since/--until` `-o json-pretty` `_PID=` `_COMM=` `_SYSTEMD_UNIT=` `-N` `-F` `--list-boots` `--disk-usage` `--vacuum-size` `--user` `StandardOutput=journal` `journald.conf Storage=` |
+| [openvpn-dco-dkms核心升級編譯失敗-核心內部API改了.md](./openvpn-dco-dkms核心升級編譯失敗-核心內部API改了.md) | 新核心 7.0.0-38 改了 `setup_udp_tunnel_sock` 與 `proto.recvmsg` 的簽名，樹外 `ovpn-dco` 編不過；套件已是最新版，重裝／升級都沒用。DCO 只是加速且目前未載入，移除 `openvpn-dco-dkms`（僅 Recommends/Suggests）再 `dpkg --configure -a` 收尾；樹內 `ovpn.ko` 要 OpenVPN 2.7 才認得 | `dkms` `make.log` `-Werror` `openvpn-dco-dkms` `ovpn-dco-v2` `ovpn.ko` `DCO` `apt-cache policy` `Recommends` `iF` `dpkg --configure -a` `netlink family` |
 
 ### 網路基礎與設定
 
