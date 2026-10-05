@@ -119,6 +119,131 @@ Value returned is $1 = 5050
 `finish` 讓 `sum_to` 跑完並印出回傳值 5050——這是 `-O0` 下實際一圈一圈跑出來的，
 跟 [gcc最佳化等級](./gcc最佳化等級-O0到O3差在哪.md) 裡 `-O2` 在編譯時就算好的 5050 是同一個答案、完全不同的過程。
 
+### 一步一步編譯時，`-g` 要加在哪個階段？（2026-10-05 使用者提問）
+
+> 情境：使用者照第 1 課的四個階段分開編 `sumto0`：`gcc -S -O0 sumto.c -o sumto0.s` → `gcc -c sumto0.s -o sumto0.o` → `gcc sumto0.o -o sumto0`，
+> 問 `-g` 應該加在哪一步。
+
+**答案：加在「C 變成組合語言」那一步（`-S`），也就是唯一還看得到 `.c` 的那一步。** 除錯資訊的核心是「哪個位址對應**原始檔**第幾行、哪個變數」，
+只有讀 `.c` 的編譯器 `cc1` 知道這件事；它把對照表寫成 `.loc` 指示詞和 `.debug_*` 區段放進 `.s`，後面的 `as`、`ld` 只是照著組譯、合併。
+
+用的程式是第 4 課的 `sumto.c`（有 `main`，第 18 行是 `printf`、第 19 行是 `return 0;`）：
+
+```c
+#include <stdio.h>
+
+int sum_to(int n)
+{
+    int total = 0;
+    for (int i = 1; i <= n; i++)
+        total += i;
+    return total;
+}
+
+int answer(void)
+{
+    return sum_to(100);
+}
+
+int main(void)
+{
+	printf("answer:%d\n", answer());
+	return 0;
+}
+```
+
+本機把 `-g` 分別只放在三個階段之一，各編一次：
+
+```sh
+# A：-g 放在 -S（C → 組合語言）
+gcc -S -O0 -g sumto.c -o A.s && gcc -c A.s -o A.o && gcc A.o -o A
+# B：-g 只放在 -c（組合語言 → .o）
+gcc -S -O0 sumto.c -o B.s && gcc -c -g B.s -o B.o && gcc B.o -o B
+# C：-g 只放在連結
+gcc -c B.s -o C.o && gcc -g C.o -o C
+
+for x in A B C; do readelf -S -W $x | grep -c debug; gdb -q -batch -ex 'break 19' -ex run -ex 'info source' ./$x; done
+```
+
+| | `-g` 放在 | `.s` 行數 | 執行檔的 `.debug_*` 區段 | `break 19` 的結果 |
+|---|---|---|---|---|
+| A | `-S` | 506（B.s 只有 97） | 6 個 | `Breakpoint 1 at 0x11b2: file sumto.c, line 19.` → 停在 `main () at sumto.c:19`（`return 0;`） ✅ |
+| B | `-c` | 97 | 6 個 | `Breakpoint 1 at 0x1164: file B.s, line 19.` → 停在 `sum_to () at B.s:19` ⚠️ |
+| C | 連結 | 97 | 0 個 | 沒有除錯資訊，`break 19` 下不了，`run` 直接跑完 ❌ |
+
+**A 是正解。** `A.s` 裡多了這些東西（`.file 0` 那行原本是完整的目錄路徑）：
+
+```asm
+	.file 0 "<編譯時所在的目錄>" "sumto.c"
+	.file 1 "sumto.c"              ← 1 號檔案 = sumto.c
+	.loc 1 4 1                     ← 下面的指令屬於 1 號檔案第 4 行第 1 欄
+	...
+	.loc 1 19 9 is_stmt 1
+	movl	$0, %eax               ← 第 19 行 return 0;
+	.loc 1 20 1
+	popq	%rbp
+	...
+	.section	.debug_info,"",@progbits     ← 還有 .debug_abbrev、.debug_aranges、.debug_line、.debug_line_str、.debug_str
+```
+
+**B 很有意思：它也有除錯資訊，但對照的是 `B.s` 本身的行號。** `B.s` 裡沒有 `.loc`，`as` 不知道 `sumto.c` 的存在；
+加了 `-g` 之後，`gcc` 叫 `as` 時多傳一個 `--gdwarf-5`（`gcc -v -c -g B.s` 看得到：`as -v --gdwarf-5 --64 -o ... B.s`），
+意思是「替**這個組合語言檔**產生行號資訊」。所以 `break 19` 停的是 `B.s` 的第 19 行——`sum_to` 迴圈裡的 `movl -4(%rbp), %eax`，
+`gdb` 的 `list` 顯示的也是組合語言。這在「自己手寫組合語言」時才有用；對 C 程式來說，變數名稱、型別、C 的行號全都沒有。
+
+**C 什麼都沒有。** 連結時的 `-g` 不會憑空產生除錯資訊——`ld` 只會把各個 `.o` 已經有的 `.debug_*` 區段合併起來，`C.o` 裡沒有，就什麼都沒有。
+
+**實務上**：每一步都加 `-g` 也無妨（A 的做法再加上 `-c -g`、連結 `-g`，結果跟 A 一樣：`A.s` 裡已經有 `.loc`，`as` 會照它的，不會改用 `.s` 的行號——本機實測三步都加 `-g`，`break 19` 仍是 `file sumto.c, line 19`、停在 `main () at sumto.c:19`）。
+真正必要的只有 `-S` 那一步；一次編完時（`gcc -g -O0 sumto.c -o sumto0`）就不用想這件事，`gcc` 會把 `-g` 交給 `cc1`。
+
+#### 陷阱：只重跑加了 `-g` 的第一步，後面兩個檔案還是舊的（2026-10-05 使用者實際遇到）
+
+> 情境：使用者在舊的 `sumto0.s`、`sumto0.o`、`sumto0` 都還在的情況下，加 `-g` 重跑第一步，`break 19` 還是不行；
+> 把三個檔案刪掉、三步重跑一次就可以了。他懷疑「同名檔案存在時 gcc 不會重新建立」。
+
+**不是 gcc 不覆寫。** `-o` 指定的輸出檔存在時，gcc 一律**覆寫**。本機實測同一個 `sumto0.s` 重編前後：
+
+```
+sumto0.s inode=18483378 mtime=2026-10-05 19:36:00.023660069 +0800
+sumto0.s inode=18483378 mtime=2026-10-05 19:36:03.238718871 +0800   ← 同一個檔案，內容與修改時間更新了
+```
+
+**真正的原因：三個階段是三個獨立的命令，每個只產生自己 `-o` 的那個檔案。** 只重跑第一步，就只有 `sumto0.s` 是新的；
+`sumto0.o` 和 `sumto0` 還是舊的、沒有除錯資訊的版本，gdb 讀的是 `sumto0`。本機重現（先不加 `-g` 三步編好，再只重跑第一步）：
+
+```sh
+gcc -S -O0 sumto.c -o sumto0.s && gcc -c sumto0.s -o sumto0.o && gcc sumto0.o -o sumto0
+gcc -S -O0 -g sumto.c -o sumto0.s          # 只重跑第一步
+ls -l --time-style=+%T sumto0.s sumto0.o sumto0
+file sumto0
+```
+
+```
+-rwxrwxr-x 1 set set 16024 19:35:58 sumto0       ← 舊的
+-rw-rw-r-- 1 set set  1808 19:35:57 sumto0.o     ← 舊的
+-rw-rw-r-- 1 set set  7518 19:36:00 sumto0.s     ← 只有它是新的（裡面已經有 17 個 .loc）
+sumto0: ELF 64-bit LSB pie executable, ..., not stripped        ← 沒有 with debug_info
+```
+
+接著補跑第二、三步，`sumto0.o` 從 1808 變 4576 byte、`sumto0` 從 16024 變 17560 byte，`file` 變成 `with debug_info, not stripped`，`break 19` 就成功了：
+
+```
+Breakpoint 1 at 0x11b2: file sumto.c, line 19.
+```
+
+**怎麼檢查自己拿到的執行檔是不是新的、有沒有除錯資訊：**
+
+| 檢查 | 命令 | 看什麼 |
+|---|---|---|
+| 檔案新舊 | `ls -l --time-style=+%T sumto0.s sumto0.o sumto0` | 後一步的產物，時間應該比前一步晚 |
+| 有沒有除錯資訊 | `file sumto0` | 有 `with debug_info` 才有 |
+| 同上，更直接 | `readelf -S sumto0 \| grep debug` | 有 `.debug_info`、`.debug_line` 等區段 |
+| gdb 載入時 | `gdb ./sumto0` 開頭 | 出現 `(No debugging symbols found in ./sumto0)` 就是沒有 |
+
+另一個可能的干擾：如果一直沿用**同一個 gdb**，前面設錯的中斷點（例如被綁到 glibc 的 `errname.c` 那兩個，見[第八節](#沒加--g-就用行號下中斷點中斷點跑到-glibc-裡永遠不會停2026-10-05-使用者實際遇到)）還留著，用 `info breakpoints` 看、`delete` 清掉，或乾脆重開 gdb。
+
+「改了來源檔，要記得把**後面所有依賴它的檔案**都重做」正是 `make` 要解決的問題：它比較檔案的修改時間，自動判斷哪幾步要重跑（第 ① 站第 6 課）。在那之前，分階段編譯時就三步一起重跑。
+
 ---
 
 ## 二、啟動 gdb：命令列文法與全部選項
@@ -971,6 +1096,60 @@ gdb -q -batch -ex 'break average' -ex run -ex bt -ex next -ex 'info locals' ./av
 | `<optimized out>` | 變數存在於原始碼，但此刻沒有可以讀的位置 | 見 [gcc最佳化等級](./gcc最佳化等級-O0到O3差在哪.md) 第三節 |
 | 中斷點設了卻從來沒停 | 函式被內嵌、或整段在編譯時被算掉了 | 用 `-O0` 重編；或看 `disassemble` 確認函式還在不在 |
 | `Breakpoint 1, 0x... in average ()`（沒有行號與參數） | 沒有除錯資訊（沒加 `-g`） | 加 `-g` 重編 |
+| `No current process: you must name one.` | `info proc`（包括 `info proc mappings`）要看的是**正在跑的行程**；程式還沒 `run`，或已經跑完（`exited normally`） | 先讓程式**停**在某處再下，例如 `break sum_to` → `run`，或 `start`、`starti` |
+| `No line 19 in the current file.` 接著問 `Make breakpoint pending on future shared library load? (y or [n])` | 「目前的檔案」裡沒有第 19 行可以停——最常見是程式**沒加 `-g`**，gdb 根本不知道 `.c` 的行號 | 回答 `n`；改用函式名稱（`break main`），或加 `-g` 重編。見下面〈沒加 `-g` 就用行號下中斷點〉 |
+
+### 沒加 `-g` 就用行號下中斷點：中斷點跑到 glibc 裡，永遠不會停（2026-10-05 使用者實際遇到）
+
+> 情境：第 4 課想照筆記用 `info proc mappings` 看 `sumto0` 的記憶體對映。`sumto0` 是照筆記 `gcc -O0 sumto.c -o sumto0` 編的（**沒有 `-g`**）。
+> 使用者 `run` 完下 `info proc mapping` → `No current process`；`break 19` → 回答 `y` 設成 pending；再 `break 18` → 停到 glibc 的 `errname.c`；每次 `run` 都直接印出 `answer:5050` 跑完。
+
+本機重現（`set breakpoint pending on` 等於互動時對那個問題回答 `y`）：
+
+```sh
+gcc -O0 sumto.c -o sumto0          # sumto.c 見第 4 課筆記第一節，第 18 行是 printf、第 19 行是 return 0
+gdb -q -batch -ex 'set breakpoint pending on' -ex run -ex 'break 19' -ex run \
+    -ex 'info source' -ex 'break 18' -ex 'info breakpoints' ./sumto0
+```
+
+```
+answer:5050
+[Inferior 1 (process 17294) exited normally]       ← 1. 沒有中斷點，run 直接跑完；這時下 info proc mappings 就是 No current process
+No line 19 in the current file.                    ← 2. 沒有 -g，gdb 不知道 sumto.c 的行號
+Breakpoint 1 (19) pending.                         ←    回答 y：先記著「某個檔案的第 19 行」，等之後載入的函式庫有這一行再設
+answer:5050
+[Inferior 1 (process 17297) exited normally]
+Current source file is ./stdio-common/errname.c    ← 3. 「目前的檔案」變成 glibc 的原始檔！
+...
+Breakpoint 2 at 0x7ffff7c83400: ./stdio-common/errname.c:18. (2 locations)
+Num     Type           Disp Enb Address            What
+1       breakpoint     keep y   <MULTIPLE>
+1.1                         y   0x00007ffff7c83400 in __get_errname at ./stdio-common/errname.c:55
+1.2                         y   0x00007ffff7fef960 in __get_errname at ./stdio-common/errname.c:55
+2       breakpoint     keep y   <MULTIPLE>
+...
+```
+
+三件事疊在一起：
+
+1. **`info proc mappings` 要有正在跑的行程。** `run` 之後沒有任何中斷點擋著，程式就一路跑完、行程消失，什麼都看不到。
+2. **行號要靠 `-g` 的除錯資訊。** `sumto0` 沒有 `-g`，gdb 開頭就說了 `(No debugging symbols found in ./sumto0)`，它只有符號表（函式名稱），不知道哪一行對應哪個位址。
+3. **行號中斷點是「目前的檔案」的第幾行，而目前的檔案被 glibc 佔走了。** 本機裝了 `libc6-dbg`（glibc 的除錯資訊，[第七節〈實驗：用 `avg.c` 看 `next` 與 `step` 的差別〉](#實驗用-avgc-看-next-與-step-的差別2026-09-23-補充)提過），
+   程式跑過一次、libc 和 `ld.so` 被載入後，gdb 能找到行號的「目前檔案」就變成 glibc 的 `errname.c`。
+   於是 pending 的「第 19 行」和新下的「第 18 行」都被綁到 `errname.c`（那幾行沒有程式碼，往下移到有程式碼的第 55 行，函式 `__get_errname`）；
+   `2 locations` 是因為 libc（`0x7ffff7c8...`）和 `ld.so`（`0x7ffff7fe...`）各有一份這個函式。`sumto0` 從來不會呼叫它，所以永遠不停。
+
+**怎麼做才對**（都實測過）：
+
+| 做法 | 命令 | 說明 |
+|---|---|---|
+| 用函式名稱下中斷點 | `break sum_to` → `run` → `info proc mappings` | 函式名稱在符號表裡，沒有 `-g` 也能用。第 4 課筆記就是這樣做的 |
+| 停在 `main` | `start` → `info proc mappings` | `start` ＝ 在 `main` 設暫時中斷點再 `run`；沒有 `-g` 也行（實測停在 `0x0000555555555197 in main ()`） |
+| 停在第一個指令 | `starti` → `info proc mappings` | 停在 `ld.so` 的 `_start`，`main` 都還沒開始；`sumto0` 的分頁已經對映好了 |
+| 要用行號 | `gcc -g -O0 sumto.c -o sumto0` 重編，再 `break 19` | 有除錯資訊後，`break 19` 才會綁到 `sumto.c:19`；不放心就先 `info source` 或 `list` 確認目前的檔案（[第三節〈怎麼知道要用哪個行號〉](#怎麼知道要用哪個行號2026-09-25-補充)） |
+
+**教訓：gdb 問 `Make breakpoint pending ...?` 時，除非你確定那個位置在「之後才載入的共享函式庫」裡，否則回答 `n`——它通常代表你下錯了，而不是要等。**
+已經設錯的中斷點用 `info breakpoints` 看、`delete 1` 刪掉。
 
 ---
 
