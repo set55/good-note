@@ -617,6 +617,83 @@ widen_char_l:
 `widen_char` 回傳 C 的 `int`，用的是 `movsbl`；`widen_char_l` 回傳 C 的 `long`，用的卻是 `movsbq`。
 指令名字裡的 `l` 跟 C 的 `long` 對不上，對上 C 的 `long` 的是 `q`。
 
+#### 讀懂這個範例：為什麼寫 `1(%rdi)`、為什麼用 `%dil`
+
+> 2026-10-06 課後提問：「為什麼 `rdi` 要寫成 `1(%rdi)`？為什麼要用 `dil`，我們不是在用 64 位元的系統嗎？」
+
+**`leaq 1(%rdi), %rax` 是「`%rax = %rdi + 1`」，不是讀記憶體。** `1(%rdi)` 是記憶體運算元的寫法 `D(B,I,S)` 只寫了 `D` 和 `B`
+（`D` ＝ 1、`B` ＝ `%rdi`，省略 `I`、`S`，見上面的 `D(B,I,S)` 表），算出來的數字是 `1 + %rdi`。
+但指令是 `lea`，只算數字、不去那個位址讀東西（[第四節](#四mov-與-lea搬資料-vs-算位址)〈`lea` 被拿來做算術〉）。
+`%rdi` 是第 1 個參數 `x`，`%rax` 是回傳值，所以這一行就是 `return x + 1;`。
+
+為什麼不用 `add`：`add` 只能把結果寫回其中一個運算元。`addq $1, %rdi` 的結果在 `%rdi`，還得再 `movq %rdi, %rax` 搬到回傳值的位置，
+要兩個指令；`lea` 可以讀 `%rdi`、把結果寫到**另一個**暫存器 `%rax`，一個指令做完。
+
+**「64 位元系統」指的是暫存器和位址是 64 位元，不是每個資料都變成 64 位元。** C 的 `signed char` 仍然是 1 byte、`int` 仍然是 4 byte。
+參數 `c` 是 `signed char`，放在第 1 個參數暫存器 `%rdi` 裡，但**只有最低的 1 byte 是 `c`**，這 1 byte 的名字就是 `%dil`（[第二節](#二暫存器cpu-裡的-16-個變數)的暫存器表）。
+`movsbl %dil, %eax` 的意思是「讀 `%rdi` 最低的 1 byte，符號擴展成 4 byte，放進 `%eax`」。
+
+**為什麼不能直接讀整個 `%rdi`：另外 7 個 byte 不是 `c`，裡面是什麼不保證。** 呼叫的人只負責把 `c` 放進最低的 1 byte，高位是多少沒有約定
+（這是 System V ABI 的規定，第 5 課講呼叫慣例時再細看；這裡只實測 gcc 的行為）。下面用 `gdb` 實際看。`dil.c` 完整原始碼：
+
+```c
+#include <stdio.h>
+
+__attribute__((noinline)) int widen_char(signed char c) { return c; }
+
+int main(void)
+{
+    printf("%d\n", widen_char(-1));
+    return 0;
+}
+```
+
+（`__attribute__((noinline))` 是 gcc 的擴充語法，意思是「不要把這個函式內嵌」。不加的話，`-O2` 會把 `widen_char(-1)` 直接算成 `-1`
+（[gcc最佳化等級第二節](./gcc最佳化等級-O0到O3差在哪.md#二實驗同一段程式不同等級編出什麼)〈「內嵌」是什麼〉），就看不到呼叫了。）
+
+```
+$ gcc -O2 -g dil.c -o dil
+$ objdump -d --no-show-raw-insn dil     （節錄 main 與 widen_char）
+0000000000001060 <main>:
+    1060:	endbr64
+    1064:	sub    $0x8,%rsp
+    1068:	mov    $0xffffffff,%edi              ← 呼叫的人：把 -1 放進 %edi
+    106d:	lea    0xf90(%rip),%rsi
+    1074:	call   1180 <widen_char>
+    ...
+0000000000001180 <widen_char>:
+    1180:	endbr64
+    1184:	movsbl %dil,%eax                     ← 被呼叫的人：只讀最低 1 byte
+    1188:	ret
+```
+
+`main` 寫的是 `%edi`（4 byte），所以 `%rdi` 的高 4 byte 被清成 0（[第二節](#二暫存器cpu-裡的-16-個變數)〈寫低位的名字時，高位會怎樣？〉），
+整個 `%rdi` 是 `0x00000000ffffffff`。如果 `widen_char` 把整個 `%rdi` 當成數字，得到的是 4294967295，不是 −1。
+（`main` 裡其他幾行是準備 `printf` 的參數，`printf` 在 `-O2` 下被換成檢查版的 `__printf_chk`，跟本題無關。）
+
+接著在 `gdb` 裡故意把 `%rdi` 的高 7 byte 改成亂七八糟的值，只留最低 1 byte 是 `0xff`，看 `movsbl` 的結果會不會變：
+
+```
+$ gdb -batch -ex 'break *widen_char+4' -ex run -ex 'p/x $rdi' \
+      -ex 'set $rdi = 0x11223344556677ff' -ex 'p/x $rdi' -ex 'p/x $dil' \
+      -ex stepi -ex 'p $eax' -ex 'p/x $rax' -ex continue ./dil
+Breakpoint 1 at 0x1184: file dil.c, line 3.
+Breakpoint 1, widen_char (c=c@entry=-1 '\377') at dil.c:3
+$1 = 0xffffffff                ← 呼叫時 %rdi 的真正內容：高 4 byte 是 0
+$2 = 0x11223344556677ff        ← 故意把高 7 byte 改成垃圾
+$3 = 0xff                      ← %dil 只看最低 1 byte，仍是 0xff
+$4 = -1                        ← stepi 執行完 movsbl 之後，%eax = -1
+$5 = 0xffffffff                ← 寫 %eax 時，%rax 的高 4 byte 被清成 0
+-1                             ← continue 讓程式跑完，printf 印出 -1
+```
+
+用到的 `gdb` 命令：`break *widen_char+4`（在 `widen_char` 開頭往後 4 byte、也就是 `endbr64` 之後的那條指令下中斷點，`*` 代表後面是位址）、
+`p/x $rdi`（用十六進位印暫存器）、`set $rdi = …`（改暫存器的值）、`stepi`（只執行一條機器指令，第 5 課詳講）、`continue`。
+完整說明見 [gdb完整命令參考](./gdb完整命令參考.md)。
+
+不管高 7 byte 是什麼，結果都是 −1，因為 `movsbl` 只讀 `%dil`。**參數有多大，指令就讀多大的名字**：`signed char` 讀 `%dil`、`short` 讀 `%di`、
+`int` 讀 `%edi`、`long` 和指標讀 `%rdi`。看組合語言時，從暫存器的名字就能反推參數的大小（作業第 5 題會用到）。
+
 **組譯器的資料指示詞也用同一套名字。** 第六節的 `.s` 檔尾出現過 `.long`。下面直接用組譯器 `as` 組譯一個只放資料的 `.s` 檔，看每個指示詞佔幾個 byte。`data.s` 完整內容：
 
 ```asm
@@ -1271,3 +1348,4 @@ gcc 的選項有上千個，下面只列本課用到的 6 個，完整清單見 
 5. 情境題：你在 kernel 的反組譯裡看到 `movq 24(%rdi,%rsi,8), %rax`，`%rdi` 是函式的第 1 個參數、`%rsi` 是第 2 個。推測它對應的 C 可能長怎樣：第 1 個參數最可能是指向什麼大小的元素的指標？存取的是第幾個元素（用 `i` 表示）？如果同一個位置看到的是 `leaq` 而不是 `movq`，C 又會是什麼？
 6. （課後提問延伸）`movsbl` 的 `l` 叫 long，為什麼是 4 byte，而本機 C 的 `long` 是 8 byte？本機 C 的 `long` 在組合語言裡對到哪個字尾？
    情境題：第 5 課你在 `gdb` 裡想看一個 `int` 變數的 4 個 byte，同學說「`int` 在組合語言是 `l`，所以用 `x/1l`」。這樣對嗎？應該用哪個大小字母，為什麼？
+7. （課後提問延伸）`int widen_char(signed char c) { return c; }` 編出 `movsbl %dil, %eax`。在 64 位元的機器上，為什麼它只讀 `%dil`，而不讀整個 `%rdi`？假設 `widen_char` 改成讀 4 byte 的 `movl %edi, %eax`，在筆記的 `gdb` 實驗裡把 `%rdi` 改成 `0x11223344556677ff` 之後，`%eax` 的十六進位是多少？是正數還是負數？跟 C 期望的 −1 差在哪？
