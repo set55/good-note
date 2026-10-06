@@ -523,7 +523,7 @@ widen_u:
 - `widen_u`（`unsigned` → `long`）要**零擴展**：高位補 0。剛好「寫 `%eax` 就把高 32 位元清 0」，所以一個普通的 `movl` 就做完了。
 - `widen_s`（`int` → `long`）要**符號擴展**：高位補符號位元。普通的 `mov` 做不到，要用專門的 `movslq`。
 
-擴展用的指令有一套命名規則：`movs` 或 `movz`，接「來源大小」，再接「目的大小」：
+擴展用的指令有一套命名規則：`movs` 或 `movz`，接「來源大小」，再接「目的大小」。大小用一個字母表示：`b`＝1、`w`＝2、`l`＝4、`q`＝8 byte（完整說明在[第三節](#三指令的文法助憶符大小後綴運算元)的大小後綴表；**這裡的 long 是 4 byte，不是 C 的 `long`**，原因見第三節〈[為什麼 `l` 叫 long 卻是 4 byte](#為什麼-l-叫-long-卻是-4-byte組合語言的大小名稱和-c-的型別是兩套)〉）：
 
 | 指令 | 讀法 | 意思 |
 |---|---|---|
@@ -565,6 +565,114 @@ AT&T 語法的一行指令：
 | `q` | quad word | 8 | `long`、指標 |
 
 （「word」是 2 byte，是 16 位元時代的命名留下來的。注意 AT&T 的 `l` 是 4 byte，**跟 C 的 `long`（8 byte）不一樣**。）
+
+### 為什麼 `l` 叫 long 卻是 4 byte：組合語言的大小名稱和 C 的型別是兩套
+
+> 2026-10-06 課後提問：「第二節的 `movsbl` 說 long 是 4 byte，跟 C 的 `long` 是 8 byte 不一樣，這正常嗎？」
+
+**正常。組合語言的 `l`（long）和 C 的 `long` 只是剛好同名，是兩套各自定下來、後來沒有一起改的名字。**
+
+- **組合語言這套（byte／word／long／quad）是按 x86 的歷史定的**：x86 最早的 CPU（8086）是 16 位元的，所以「一個 word」＝ 2 byte。
+  後來 CPU 變成 32 位元，32 位元的資料就叫「兩個 word」——Intel 的手冊叫 double word（dword），AT&T 語法叫 long，字尾寫 `l`；
+  再變成 64 位元時叫 quad word（四個 word），字尾寫 `q`。為了讓舊的組合語言程式還能用，**名字一旦定了就不改**，
+  所以到了 64 位元的今天，word 仍然是 2 byte、long 仍然是 4 byte。
+- **C 的 `long` 是按平台的慣例定的**：C 標準只規定 `long` 至少 32 位元，確切大小由平台決定。
+  本機 x86-64 Linux 採用 LP64（[第 2 課第一節](./C的資料在記憶體裡長怎樣-位元組、指標、位元組順序與有號無號.md#一位元組與型別大小)），`long` 是 8 byte；
+  64 位元 Windows 的 `long` 是 4 byte。所以連 C 的 `long` 自己，換平台都不一定一樣大。
+
+因此讀組合語言時，**看到字尾的 `l` 就想「4 byte」，不要想成 C 的 `long`**。本機 C 型別對到字尾的關係是：
+`char` → `b`、`short` → `w`、`int`／`unsigned` → `l`、**C 的 `long`、指標 → `q`**。
+
+**實驗：C 的 `long` 編出來是 `q`，不是 `l`。** `suffix.c` 完整原始碼（只用 `-S`，不需要 `main`）：
+
+```c
+long  add1_long(long x)          { return x + 1; }
+int   add1_int(int x)            { return x + 1; }
+int   widen_char(signed char c)  { return c; }
+long  widen_char_l(signed char c){ return c; }
+```
+
+```
+$ gcc -S -O2 -fno-asynchronous-unwind-tables suffix.c -o suffix.s
+（只列函式本體）
+add1_long:
+	endbr64
+	leaq	1(%rdi), %rax        ← C 的 long：字尾 q（8 byte），64 位元暫存器 %rax
+	ret
+add1_int:
+	endbr64
+	leal	1(%rdi), %eax        ← C 的 int：字尾 l（4 byte），32 位元暫存器 %eax
+	ret
+widen_char:
+	endbr64
+	movsbl	%dil, %eax           ← signed char → int：byte 擴展成 "long"（4 byte）
+	ret
+widen_char_l:
+	endbr64
+	movsbq	%dil, %rax           ← signed char → C 的 long：byte 擴展成 quad（8 byte）
+	ret
+```
+
+（`%dil` 是 `%rdi` 最低的 1 byte，見[第二節](#二暫存器cpu-裡的-16-個變數)的暫存器表。）
+`widen_char` 回傳 C 的 `int`，用的是 `movsbl`；`widen_char_l` 回傳 C 的 `long`，用的卻是 `movsbq`。
+指令名字裡的 `l` 跟 C 的 `long` 對不上，對上 C 的 `long` 的是 `q`。
+
+**組譯器的資料指示詞也用同一套名字。** 第六節的 `.s` 檔尾出現過 `.long`。下面直接用組譯器 `as` 組譯一個只放資料的 `.s` 檔，看每個指示詞佔幾個 byte。`data.s` 完整內容：
+
+```asm
+	.data
+a:	.byte 0x11
+b:	.word 0x2222
+c:	.long 0x33333333
+d:	.quad 0x4444444444444444
+```
+
+（`.data` 是「接下來的東西放進 `.data` 區段」；`a:`、`b:` 這些是標籤，代表那個位置的位址。）
+
+```
+$ as data.s -o data.o
+$ readelf -sW data.o | grep -E ' [abcd]$'
+     1: 0000000000000000     0 NOTYPE  LOCAL  DEFAULT    2 a
+     2: 0000000000000001     0 NOTYPE  LOCAL  DEFAULT    2 b
+     3: 0000000000000003     0 NOTYPE  LOCAL  DEFAULT    2 c
+     4: 0000000000000007     0 NOTYPE  LOCAL  DEFAULT    2 d
+$ objdump -s -j .data data.o
+Contents of section .data:
+ 0000 11222233 33333344 44444444 444444    .""3333DDDDDDDD
+```
+
+`a` 在 0、`b` 在 1、`c` 在 3、`d` 在 7：`.byte` 佔 1、`.word` 佔 2、`.long` 佔 4、`.quad` 佔 8 byte，總共 15 byte。
+`.long` 一樣是 4 byte。（`readelf -s` 列符號表、`objdump -s -j .data` 以十六進位傾印 `.data` 區段的內容，兩個工具的完整選項見
+[readelf完整選項參考](./readelf完整選項參考.md) 與第八節〈`objdump`：本課用到的選項〉。傾印裡的 `2222` 和 `3333…` 看不出順序，換成 `0x12345678` 會看到小端序，見第 2 課第三節。）
+
+**第三套名字：`gdb` 的 `x` 命令。** 第 5 課會用 `gdb` 的 `x` 看記憶體，它的大小字母**又是另一套**。本機 `gdb 15.1` 的 `help x`：
+
+```
+$ gdb -batch -ex 'help x'
+...
+Size letters are b(byte), h(halfword), w(word), g(giant, 8 bytes).
+```
+
+| byte 數 | AT&T 字尾／`as` 指示詞 | Intel 手冊 | `gdb` 的 `x` | 本機 C 型別 |
+|---|---|---|---|---|
+| 1 | `b`／`.byte` | byte | `b` | `char` |
+| 2 | `w`／`.word`（word） | word | `h`（halfword） | `short` |
+| 4 | `l`／`.long`（long） | doubleword | **`w`（word）** | `int` |
+| 8 | `q`／`.quad`（quad） | quadword | `g`（giant） | `long`、指標 |
+
+**同一個字 word，在 AT&T 語法是 2 byte，在 `gdb` 的 `x` 是 4 byte。** 三套名字各有各的歷史，沒有誰對誰錯；
+記法是**一律換算成 byte 數再想**，不要拿名字去對 C 的型別。
+
+拿錯一套名字時 `gdb` 的反應（`xv.c` 完整原始碼：`int v = 0x12345678; int main(void){return 0;}`，用 `gcc -g xv.c -o xv` 編譯）：
+
+```
+$ gdb -batch -ex 'x/1l &v' -ex 'x/1xw &v' -ex 'x/1xh &v' ./xv
+0x4010 <v>:	Undefined output format "l".     ← l 不是 gdb 的大小字母（gdb 把它當成格式字母，也不認得）
+0x4010 <v>:	0x12345678                      ← w：4 byte，整個 int
+0x4010 <v>:	0x5678                          ← h：2 byte，只有低位那一半（小端序，低位在前）
+```
+
+（`x` 的完整文法 `x/<個數><格式字母><大小字母> <位址>` 見 [gdb完整命令參考](./gdb完整命令參考.md)，第 5 課會實際用。）
 
 - 運算元裡**有暫存器**時，大小其實看暫存器名字就知道（`%eax` 一定是 4 byte），後綴可以省略。`objdump` 就常省略：上面的 `mov -0x4(%rbp),%eax`。
 - 運算元裡**沒有暫存器**時（例如 `movl $0x0,-0x8(%rbp)`：常數搬到記憶體），後綴就**一定要有**——否則不知道要寫 1、2、4 還是 8 個 byte。所以 `objdump` 在這種地方會印出 `movl`、`addl`。
@@ -1161,3 +1269,5 @@ gcc 的選項有上千個，下面只列本課用到的 6 個，完整清單見 
 3. `lt_s` 和 `lt_u` 的 `cmpl %esi, %edi` 一模一樣，gdb 也看到兩者的旗標完全相同（`[ SF IF ]`），為什麼一個回傳 1、一個回傳 0？C 的「有號還是無號」在組合語言裡到底是在哪裡決定的？
 4. `-O2` 的 `sum_to` 裡，`andl $1, %edi` 和 `je .L3` 中間夾了一個 `movl $1, %eax`。`je` 判斷的是哪個指令的結果？為什麼 gcc 可以這樣排？如果中間夾的是 `addl $1, %eax`，會怎樣？
 5. 情境題：你在 kernel 的反組譯裡看到 `movq 24(%rdi,%rsi,8), %rax`，`%rdi` 是函式的第 1 個參數、`%rsi` 是第 2 個。推測它對應的 C 可能長怎樣：第 1 個參數最可能是指向什麼大小的元素的指標？存取的是第幾個元素（用 `i` 表示）？如果同一個位置看到的是 `leaq` 而不是 `movq`，C 又會是什麼？
+6. （課後提問延伸）`movsbl` 的 `l` 叫 long，為什麼是 4 byte，而本機 C 的 `long` 是 8 byte？本機 C 的 `long` 在組合語言裡對到哪個字尾？
+   情境題：第 5 課你在 `gdb` 裡想看一個 `int` 變數的 4 個 byte，同學說「`int` 在組合語言是 `l`，所以用 `x/1l`」。這樣對嗎？應該用哪個大小字母，為什麼？
