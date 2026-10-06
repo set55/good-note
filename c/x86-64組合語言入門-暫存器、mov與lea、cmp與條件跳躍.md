@@ -694,6 +694,129 @@ $5 = 0xffffffff                ← 寫 %eax 時，%rax 的高 4 byte 被清成 0
 不管高 7 byte 是什麼，結果都是 −1，因為 `movsbl` 只讀 `%dil`。**參數有多大，指令就讀多大的名字**：`signed char` 讀 `%dil`、`short` 讀 `%di`、
 `int` 讀 `%edi`、`long` 和指標讀 `%rdi`。看組合語言時，從暫存器的名字就能反推參數的大小（作業第 5 題會用到）。
 
+#### 組合語言裡只有 `%edi`、`%dil`，為什麼 gdb 印得出 `$rdi`？
+
+> 2026-10-06 課後提問：「組合語言完全沒有用到 `rdi`，為什麼 gdb 打印 `rdi` 出得來？文中也要我看 `rdi`。」
+
+**因為 `%edi`、`%di`、`%dil` 不是另外的暫存器，它們都是 `%rdi` 這**一個**暫存器的一部分的名字**（[第二節](#二暫存器cpu-裡的-16-個變數)的表，同一列就是同一個暫存器）。
+CPU 裡實際只有 16 個 64 位元的通用暫存器，`%rdi` 是其中一個；寫 `%edi` 就是寫它的低 4 byte，讀 `%dil` 就是讀它的最低 1 byte：
+
+```
+             %rdi（64 位元，8 byte）
+┌────┬────┬────┬────┬────┬────┬────┬────┐
+│ 11 │ 22 │ 33 │ 44 │ 55 │ 66 │ 77 │ 88 │   ← 高位在左（這是數值的寫法，不是記憶體裡的順序）
+└────┴────┴────┴────┴────┴────┴────┴────┘
+                    └──── %edi（低 4 byte）┘
+                              └ %di（低 2 byte）┘
+                                   └ %dil（最低 1 byte）┘
+```
+
+所以 `main` 的 `mov $0xffffffff,%edi` 寫的就是 `%rdi`（低 4 byte 寫 `ff ff ff ff`、高 4 byte 清成 0），`widen_char` 的 `movsbl %dil,%eax` 讀的也是 `%rdi`（最低 1 byte）。
+組合語言沒寫出 `%rdi` 這個名字，只代表那個指令只碰它的一部分，暫存器本身一直都在。
+
+**gdb 可以印任何一個暫存器，不管程式有沒有用到。** 暫存器是 CPU 裡固定存在的儲存格，程式停下來時，gdb 請核心把這個行程**整組**暫存器的值讀出來給它
+（讀的方法是第 ② 站之後的內容），所以 `$rdi`、`$rsi`、`$rcx` 都印得出來；程式沒用到的暫存器裡，是之前留下來的值。
+
+同一個暫存器、不同名字的實驗。接著上面的 `dil.c` 與 `dil`，停在 `widen_char` 裡，先把 `%rdi` 設成一個每個 byte 都不同的值，再用各種名字去看、去改：
+
+```
+$ gdb -batch -ex 'break *widen_char+4' -ex run \
+      -ex 'set $rdi = 0x1122334455667788' \
+      -ex 'p/x $rdi' -ex 'p/x $edi' -ex 'p/x $di' -ex 'p/x $dil' \
+      -ex 'set $dil = 0xff' -ex 'p/x $rdi' \
+      -ex 'set $edi = 0xaabbccdd' -ex 'p/x $rdi' \
+      -ex 'info registers rdi rsi rcx' -ex kill ./dil
+$1 = 0x1122334455667788        ← $rdi：整個 8 byte
+$2 = 0x55667788                ← $edi：低 4 byte
+$3 = 0x7788                    ← $di ：低 2 byte
+$4 = 0x88                      ← $dil：最低 1 byte
+$5 = 0x11223344556677ff        ← 改 $dil，$rdi 的最低 1 byte 跟著變：證明是同一個暫存器
+$6 = 0x11223344aabbccdd        ← 改 $edi，$rdi 的低 4 byte 跟著變（注意高 4 byte 沒有被清成 0，見下面）
+rdi            0x11223344aabbccdd  1234605617868164317
+rsi            0x555555556004      93824992239620
+rcx            0x555555557dc0      93824992247232     ← widen_char 沒用到 %rcx，照樣印得出來（是之前留下來的值）
+```
+
+（`info registers 名字…` 列出指定暫存器的十六進位與十進位值，不給名字就列出全部；`kill` 結束被除錯的程式。完整說明見 [gdb完整命令參考](./gdb完整命令參考.md)。）
+
+**注意 `$6`：gdb 的 `set $edi = …` 沒有把高 4 byte 清成 0。** 「寫 32 位元的名字會把高 32 位元清成 0」是 **CPU 執行指令**時的規則（[第二節](#二暫存器cpu-裡的-16-個變數)〈寫低位的名字時，高位會怎樣？〉），
+`main` 的 `mov $0xffffffff,%edi` 是 CPU 執行的指令，所以有清；gdb 的 `set` 不是 CPU 指令，是 gdb 自己改暫存器的值，它只改你指定的那幾個 byte。用 gdb 改暫存器做實驗時要記得這個差別。
+
+#### `%dil` 是 `0xff`，為什麼 `%eax` 變成 `0xffffffff`：符號擴展補的是第 7 位元
+
+> 2026-10-06 課後提問：「`%dil` 已經是 `0xff`，從 `%eax` 出來為什麼是 `0xffffffff`？高 3 個 byte 怎麼自動用 1 填？」
+
+**這就是 `movsbl` 的「s」：符號擴展（sign extension）。** `movsbl %dil, %eax` ＝ move **s**ign-extended **b**yte to **l**ong：
+把 1 byte 放進 `%eax` 的最低 1 byte，**新多出來的高 3 byte，每一個 bit 都複製來源的最高位元（第 7 位元，也就是符號位）**。
+`0xff` 是 `1111 1111`，第 7 位元是 1，所以高 3 byte 全補 1，得到 `0xffffffff`。C 層級的同一件事在
+[第 2 課第六節](./C的資料在記憶體裡長怎樣-位元組、指標、位元組順序與有號無號.md#六有號與無號之間的轉換位元不變換個讀法)〈**變寬（擴展，extension）**〉（`extend.c` 的 `a1`）。
+
+**為什麼要補 1：為了讓值不變。** 參數是 `signed char`，`0xff` 用二補數讀是 −1（最高位的權重是 −2⁷）：
+−128 + 127 = −1。要把它變成 `int` 而且仍然是 −1，`int` 的二補數裡 −1 就是 `0xffffffff`（−2³¹ + (2³¹ − 1) = −1）。
+一般來說，在二補數最前面多補一個「跟原本最高位相同」的 bit，值不會變：
+- 最高位是 0（正數或 0）：前面補 0，多出來的位元權重乘上 0，值當然不變。
+- 最高位是 1（負數）：原本最高位的權重是 −2ⁿ，補一個 1 在更前面之後，新的最高位權重是 −2ⁿ⁺¹、原本那一位變成 +2ⁿ，合起來 −2ⁿ⁺¹ + 2ⁿ = −2ⁿ，跟原來一樣。補幾個都是同樣的道理。
+
+對照**零擴展（zero extension）**的 `movzbl`（move **z**ero-extended **b**yte to **l**ong）：不管第 7 位元是什麼，高位一律補 0。
+參數是 `unsigned char` 時 gcc 就用它，因為無號的 `0x80` 代表 128，補 0 才能保持 128。
+
+實驗：同一個 byte，分別交給 `movsbl` 和 `movzbl`。`ext.c` 完整原始碼：
+
+```c
+#include <stdio.h>
+
+__attribute__((noinline)) int widen_char(signed char c)    { return c; }
+__attribute__((noinline)) int widen_uchar(unsigned char c) { return c; }
+
+int main(void)
+{
+    printf("%d %d\n", widen_char(-1), widen_uchar(255));
+    return 0;
+}
+```
+
+```
+$ gcc -O2 -g ext.c -o ext
+$ objdump -d --no-show-raw-insn ext     （節錄）
+0000000000001190 <widen_char>:
+    1190:	endbr64
+    1194:	movsbl %dil,%eax          ← signed char：符號擴展
+    1198:	ret
+00000000000011a0 <widen_uchar>:
+    11a0:	endbr64
+    11a4:	movzbl %dil,%eax          ← unsigned char：零擴展
+    11a8:	ret
+```
+
+在 gdb 裡兩個函式各下一個中斷點，停下來時把 `%rdi` 設成高位是垃圾、最低 1 byte 是 `0x80` 的值，`stepi` 執行擴展指令，再印 `%eax`
+（`x/i $pc` 印出「下一條要執行的指令」，用來確認停在哪個函式）：
+
+```
+$ gdb -batch -ex 'break *widen_char+4' -ex 'break *widen_uchar+4' -ex run \
+      -ex 'x/i $pc' -ex 'set $rdi = 0x1122334455667780' -ex stepi -ex 'p/x $eax' -ex 'p $eax' \
+      -ex continue \
+      -ex 'x/i $pc' -ex 'set $rdi = 0x1122334455667780' -ex stepi -ex 'p/x $eax' -ex 'p $eax' \
+      -ex kill ./ext
+=> 0x5555555551a4 <widen_uchar+4>:	movzbl %dil,%eax
+$1 = 0x80
+$2 = 128
+=> 0x555555555194 <widen_char+4>:	movsbl %dil,%eax
+$3 = 0xffffff80
+$4 = -128
+```
+
+（先停在 `widen_uchar`：C 標準沒有規定函式參數的求值順序，gcc 這次先算 `printf` 的第 3 個參數。）
+把 `0x80` 換成 `0x7f`、`0xff` 各跑一次，結果整理成表：
+
+| `%dil` | 二進位 | 第 7 位元 | `movsbl` 後的 `%eax` | `movzbl` 後的 `%eax` |
+|---|---|---|---|---|
+| `0x7f` | `0111 1111` | 0 | `0x0000007f` ＝ 127 | `0x0000007f` ＝ 127 |
+| `0x80` | `1000 0000` | 1 | `0xffffff80` ＝ −128 | `0x00000080` ＝ 128 |
+| `0xff` | `1111 1111` | 1 | `0xffffffff` ＝ −1 | `0x000000ff` ＝ 255 |
+
+第 7 位元是 0 時兩個指令結果一樣；是 1 時才分出差別。CPU 不知道這個 byte「是」有號還是無號，**是 gcc 依 C 的型別選了 `movs` 還是 `movz`**——
+跟[第五節](#五旗標與條件跳躍cmp-只負責比跳不跳由下一個指令決定)「有號還是無號由條件碼決定」是同一個道理：型別只活在編譯器選的指令裡。
+
 **組譯器的資料指示詞也用同一套名字。** 第六節的 `.s` 檔尾出現過 `.long`。下面直接用組譯器 `as` 組譯一個只放資料的 `.s` 檔，看每個指示詞佔幾個 byte。`data.s` 完整內容：
 
 ```asm
@@ -1351,3 +1474,5 @@ gcc 的選項有上千個，下面只列本課用到的 6 個，完整清單見 
 6. （課後提問延伸）`movsbl` 的 `l` 叫 long，為什麼是 4 byte，而本機 C 的 `long` 是 8 byte？本機 C 的 `long` 在組合語言裡對到哪個字尾？
    情境題：第 5 課你在 `gdb` 裡想看一個 `int` 變數的 4 個 byte，同學說「`int` 在組合語言是 `l`，所以用 `x/1l`」。這樣對嗎？應該用哪個大小字母，為什麼？
 7. （課後提問延伸）`int widen_char(signed char c) { return c; }` 編出 `movsbl %dil, %eax`。在 64 位元的機器上，為什麼它只讀 `%dil`，而不讀整個 `%rdi`？假設 `widen_char` 改成讀 4 byte 的 `movl %edi, %eax`，在筆記的 `gdb` 實驗裡把 `%rdi` 改成 `0x11223344556677ff` 之後，`%eax` 的十六進位是多少？是正數還是負數？跟 C 期望的 −1 差在哪？
+8. （課後提問延伸）`dil.c` 的組合語言裡只出現 `%edi`、`%dil`，沒有 `%rdi`，為什麼 gdb 能印出 `$rdi`？在 gdb 裡 `set $edi = 0xaabbccdd`，`$rdi` 的高 4 byte 會不會被清成 0？跟 CPU 執行 `movl $0xaabbccdd, %edi` 有什麼不同？
+9. （課後提問延伸）`movsbl` 把 1 byte 擴展成 4 byte 時，新補的高 3 byte 是照哪一個位元補的？為什麼這樣補，`signed char` 的 −1 變成 `int` 之後才會還是 −1（用二補數的權重解釋）？
