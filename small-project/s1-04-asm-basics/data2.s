@@ -1,0 +1,4 @@
+	.data
+a:	.byte 0x11
+b:	.word 0x1234
+c:	.long 0x12345678

@@ -24,6 +24,25 @@
 
 ---
 
+## 筆記的範例程式
+
+課程筆記裡每個實驗的原始碼都存成檔案放在這個資料夾（2026-10-07 起），可以直接編譯、跟著筆記重做。**它們是範例，不是作業**；作業的檔名（`mul.c`、`elem.c`、`pick.c`、`sumarr.c`、`mystery.c`）跟它們不重複。編譯命令寫在筆記對應的那一段。
+
+| 檔案 | 筆記裡的位置 | 示範什麼 |
+|---|---|---|
+| [`ops.c`](./ops.c) | [第二節](../../c/x86-64組合語言入門-暫存器、mov與lea、cmp與條件跳躍.md#二暫存器cpu-裡的-16-個變數)〈寫低位的名字時，高位會怎樣？〉、第四、五節 | `widen_s`／`widen_u`、`get`／`addr`、`times3`、`lt_s`／`lt_u` |
+| [`paren.c`](./paren.c) | [第三節](../../c/x86-64組合語言入門-暫存器、mov與lea、cmp與條件跳躍.md#三指令的文法助憶符大小後綴運算元)〈上表第一列 `(B)` 的 `(%rdi)`〉、〈`break *widen_char+4` 的 `*`〉 | `%rdi` vs `(%rdi)`；`break *位址` |
+| [`forms.c`](./forms.c) | 第三節〈上表其他五列〉 | `D(B)`、`(B,I,S)`、`D(B,I,S)`、`D(,I,S)`、`D(%rip)` |
+| [`suffix.c`](./suffix.c) | 第三節〈為什麼 `l` 叫 long 卻是 4 byte〉實驗一 | C 的 `long` 編成 `q` 字尾 |
+| [`data.s`](./data.s)、[`data2.s`](./data2.s) | 同上，實驗二 | 手寫的 `.s`：`.byte`／`.word`／`.long`／`.quad` 的大小、小端序 |
+| [`xv.c`](./xv.c) | 同上，gdb 的 `x` | `x/1l` 的錯誤與 `w`／`h` |
+| [`dil.c`](./dil.c) | 第三節〈讀懂實驗一的範例〉、〈`$rdi`〉 | 參數只佔 `%rdi` 最低 1 byte；暫存器的名字 |
+| [`ext.c`](./ext.c) | 第三節〈符號擴展補的是第 7 位元〉 | `movsbl` vs `movzbl` |
+| [`lt.c`](./lt.c)、[`ltmain.c`](./ltmain.c) | [第五節](../../c/x86-64組合語言入門-暫存器、mov與lea、cmp與條件跳躍.md#五旗標與條件跳躍cmp-只負責比跳不跳由下一個指令決定)〈實驗：同一個 `cmp`、同一組旗標〉 | `setl` vs `setb` 的旗標 |
+| [`../s1-01-hello-compile/sumto.c`](../s1-01-hello-compile/sumto.c) | 第一、六、七節 | `sum_to` 的 `-O0`／`-O2`（第 1 課的檔案） |
+
+---
+
 ## 1. 用 `lea` 做乘法
 
 寫 `mul.c`，裡面四個函式（都是 `long`）：

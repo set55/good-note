@@ -1,2 +1,2 @@
-#!/usr/bin/echo
-這一行 echo 不會讀
+#!/usr/bin/cat
+這一行 cat 不會讀

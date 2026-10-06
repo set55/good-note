@@ -4,8 +4,8 @@
 > 情境：系統化學習路線第 ① 站第 4 課。對應 CS:APP 第 3.1～3.6 節（程式的機器層級表示：資料格式、存取資訊、算術與邏輯運算、控制——條件碼與跳躍、迴圈）；
 > 函式呼叫與堆疊框（3.7 節）留到第 5 課
 > 適用範圍：實測本機 Ubuntu 24.04、x86-64、gcc 13.3.0、GNU as／objdump 2.42（binutils）、gdb 15.1；所有組合語言都是本機 gcc 實際產生的
-> 對應檔案：每個實驗程式的完整原始碼都寫在它出現的那一節，可以直接複製編譯；
-> 作業在 [`small-project/s1-04-asm-basics/`](../small-project/s1-04-asm-basics/)（會進 git）
+> 對應檔案：每個實驗程式的完整原始碼都寫在它出現的那一節，可以直接複製編譯；同樣的程式也存成檔案放在
+> [`small-project/s1-04-asm-basics/`](../small-project/s1-04-asm-basics/)（2026-10-07 起，每個範例旁邊都有檔案連結；會進 git，編譯產物不進），作業也在同一個資料夾
 > 相關：[hello.c怎麼變成能跑的程式](./hello.c怎麼變成能跑的程式-編譯的四個階段.md)（第 1 課：`.s` 是怎麼來的）、
 > [gcc最佳化等級](./gcc最佳化等級-O0到O3差在哪.md)（`sum_to` 第一次出現的地方）、
 > [C的資料在記憶體裡長怎樣](./C的資料在記憶體裡長怎樣-位元組、指標、位元組順序與有號無號.md)（第 2 課：二補數、符號擴展）、
@@ -58,7 +58,7 @@
 [第 1 課](./hello.c怎麼變成能跑的程式-編譯的四個階段.md)看過：`gcc -S` 停在「編譯」之後，產生 `.s` 檔，`as` 再把它組譯成 `.o`。
 `.s` 裡的每一行指令，在 `.o` 裡都對應**一串固定的 byte**（機器碼）。用 `objdump -d` 可以兩邊對照著看。
 
-實驗用的程式就是 [gcc最佳化等級](./gcc最佳化等級-O0到O3差在哪.md) 的 `sum_to`（第 1 課作業資料夾裡的 `sumto.c`），左邊標的是行號，第六節會用到：
+實驗用的程式就是 [gcc最佳化等級](./gcc最佳化等級-O0到O3差在哪.md) 的 `sum_to`（第 1 課作業資料夾裡的 [`sumto.c`](../small-project/s1-01-hello-compile/sumto.c)），左邊標的是行號，第六節會用到：
 
 ```c
 /* sumto.c */
@@ -486,7 +486,7 @@ gcc -S -O0 -masm=intel -fno-asynchronous-unwind-tables sumto.c -o sumto0_intel.s
 | 寫 32 位元名字（`%eax`） | **高 32 位元自動清成 0** |
 | 寫 16 位元（`%ax`）或 8 位元（`%al`） | 高位**不動**，保留原本的值 |
 
-所以 `movl %edi, %eax` 不只是寫 `%eax`，整個 `%rax` 都被設定好了（高 32 位元是 0）。用下面這個實驗看它的後果：
+所以 `movl %edi, %eax` 不只是寫 `%eax`，整個 `%rax` 都被設定好了（高 32 位元是 0）。用下面這個實驗看它的後果（檔案：[`ops.c`](../small-project/s1-04-asm-basics/ops.c)）：
 
 ```c
 /* ops.c：只用 -S 看組合語言，不需要 main */
@@ -613,7 +613,7 @@ AT&T 語法的一行指令：
 所以 `(%rdi)` 裡的 `%rdi` 仍然是暫存器；括號的意思是「它裝的數字是一個位址，請去記憶體的那裡」。這就是運算元種類表說的「**用的是那個位址裡的值**」。
 上表其他寫法也一樣，只是位址不再只是 B，而是 D ＋ B ＋ I × S 算出來的數字，算完同樣去那個位址拿值。
 
-實驗：兩個函式，一個回傳參數本身，一個回傳參數指向的值。`paren.c` 完整原始碼：
+實驗：兩個函式，一個回傳參數本身，一個回傳參數指向的值。`paren.c`（檔案：[`paren.c`](../small-project/s1-04-asm-basics/paren.c)）完整原始碼：
 
 ```c
 #include <stdio.h>
@@ -674,7 +674,7 @@ deref (p=p@entry=0x4d2) at paren.c:4
 > 所以下面另外寫一支程式，五種寫法各一個函式，並用 gdb 驗證「算出來的位址」就是 C 裡那個東西的位址。
 
 讀每一種寫法時都照同一個步驟：**① 把括號裡的東西照「位址 ＝ D ＋ B ＋ I × S」算出一個數字（沒寫的當 0，S 沒寫當 1）；② 到記憶體的那個位址拿值。**
-跟 `(B)` 一樣，差別只在第 ① 步怎麼算。`forms.c` 完整原始碼：
+跟 `(B)` 一樣，差別只在第 ① 步怎麼算。`forms.c`（檔案：[`forms.c`](../small-project/s1-04-asm-basics/forms.c)）完整原始碼：
 
 ```c
 #include <stdio.h>
@@ -824,7 +824,7 @@ $3 = 0x404070              ← C 的 &tbl[2]：一樣
 因此讀組合語言時，**看到字尾的 `l` 就想「4 byte」，不要想成 C 的 `long`**。本機 C 型別對到字尾的關係是：
 `char` → `b`、`short` → `w`、`int`／`unsigned` → `l`、**C 的 `long`、指標 → `q`**。
 
-**實驗一：C 的 `long` 編出來是 `q`，不是 `l`。** `suffix.c` 完整原始碼（只用 `-S`，不需要 `main`）：
+**實驗一：C 的 `long` 編出來是 `q`，不是 `l`。** `suffix.c`（檔案：[`suffix.c`](../small-project/s1-04-asm-basics/suffix.c)）完整原始碼（只用 `-S`，不需要 `main`）：
 
 ```c
 long  add1_long(long x)          { return x + 1; }
@@ -865,7 +865,7 @@ widen_char_l:
 
 **`data.s` 是什麼、從哪裡來**：它**不是 gcc 產生的**，是為了這個實驗**自己手寫**的組合語言原始檔。平常的 `.s` 是 `gcc -S` 從 C 翻出來的
 （[第 1 課第三節](./hello.c怎麼變成能跑的程式-編譯的四個階段.md#三編譯c-變成組合語言以及一個意外)）；這裡跳過 C，直接用編輯器新增一個 `data.s`，內容是下面這 5 行，
-再把它交給組譯器 `as`（第 1 課四個階段的第 3 步：組合語言 → `.o`）。
+再把它交給組譯器 `as`（第 1 課四個階段的第 3 步：組合語言 → `.o`）。寫好的檔案：[`data.s`](../small-project/s1-04-asm-basics/data.s)。
 
 ```asm
 	.data
@@ -954,7 +954,7 @@ a    b       c             d
 
 **結論：`.long` 佔 4 byte，跟字尾 `l` 一致**——組譯器的資料指示詞和指令字尾是同一套名字。
 
-**順便看小端序。** 上面每個資料的 byte 都一樣，看不出順序。把數值換成每個 byte 都不同的 `data2.s`：
+**順便看小端序。** 上面每個資料的 byte 都一樣，看不出順序。把數值換成每個 byte 都不同的 `data2.s`（檔案：[`data2.s`](../small-project/s1-04-asm-basics/data2.s)）：
 
 ```asm
 	.data
@@ -991,7 +991,7 @@ Size letters are b(byte), h(halfword), w(word), g(giant, 8 bytes).
 **同一個字 word，在 AT&T 語法是 2 byte，在 `gdb` 的 `x` 是 4 byte。** 三套名字各有各的歷史，沒有誰對誰錯；
 記法是**一律換算成 byte 數再想**，不要拿名字去對 C 的型別。
 
-拿錯一套名字時 `gdb` 的反應（`xv.c` 完整原始碼：`int v = 0x12345678; int main(void){return 0;}`，用 `gcc -g xv.c -o xv` 編譯）：
+拿錯一套名字時 `gdb` 的反應（`xv.c`（檔案：[`xv.c`](../small-project/s1-04-asm-basics/xv.c)）完整原始碼：`int v = 0x12345678; int main(void){return 0;}`，用 `gcc -g xv.c -o xv` 編譯）：
 
 ```
 $ gdb -batch -ex 'x/1l &v' -ex 'x/1xw &v' -ex 'x/1xh &v' ./xv
@@ -1019,7 +1019,7 @@ $ gdb -batch -ex 'x/1l &v' -ex 'x/1xw &v' -ex 'x/1xh &v' ./xv
 `movsbl %dil, %eax` 的意思是「讀 `%rdi` 最低的 1 byte，符號擴展成 4 byte，放進 `%eax`」。
 
 **為什麼不能直接讀整個 `%rdi`：另外 7 個 byte 不是 `c`，裡面是什麼不保證。** 呼叫的人只負責把 `c` 放進最低的 1 byte，高位是多少沒有約定
-（這是 System V ABI 的規定，第 5 課講呼叫慣例時再細看；這裡只實測 gcc 的行為）。下面用 `gdb` 實際看。`dil.c` 完整原始碼：
+（這是 System V ABI 的規定，第 5 課講呼叫慣例時再細看；這裡只實測 gcc 的行為）。下面用 `gdb` 實際看。`dil.c`（檔案：[`dil.c`](../small-project/s1-04-asm-basics/dil.c)）完整原始碼：
 
 ```c
 #include <stdio.h>
@@ -1258,7 +1258,7 @@ rcx            0x555555557dc0      93824992247232     ← widen_char 沒用到 %
 對照**零擴展（zero extension）**的 `movzbl`（move **z**ero-extended **b**yte to **l**ong）：不管第 7 位元是什麼，高位一律補 0。
 參數是 `unsigned char` 時 gcc 就用它，因為無號的 `0x80` 代表 128，補 0 才能保持 128。
 
-實驗：同一個 byte，分別交給 `movsbl` 和 `movzbl`。`ext.c` 完整原始碼：
+實驗：同一個 byte，分別交給 `movsbl` 和 `movzbl`。`ext.c`（檔案：[`ext.c`](../small-project/s1-04-asm-basics/ext.c)）完整原始碼：
 
 ```c
 #include <stdio.h>
@@ -1459,7 +1459,7 @@ lt_u:                                 # int lt_u(unsigned a, unsigned b) { retur
 	ret
 ```
 
-**兩個函式只差一個字母**。用 `gdb` 在 `set` 那一行停下，看 `cmp` 剛做完時的旗標：
+**兩個函式只差一個字母**。用 `gdb` 在 `set` 那一行停下，看 `cmp` 剛做完時的旗標（檔案：[`lt.c`](../small-project/s1-04-asm-basics/lt.c)、[`ltmain.c`](../small-project/s1-04-asm-basics/ltmain.c)）：
 
 ```c
 /* lt.c：用 -O2 編，跟 ops.c 的 lt_s、lt_u 相同 */
