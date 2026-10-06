@@ -95,6 +95,84 @@ LONG_MAX 9223372036854775807
 
 `CHAR_MIN`、`INT_MAX` 這些常數來自 `<limits.h>`（第九節）。
 
+### `unsigned` 單獨寫就是 `unsigned int`：整數型別的所有寫法
+
+> 2026-10-06 補教：使用者讀第 4 課的 `long widen_u(unsigned x)` 時問「`unsigned` 是什麼類型」。本課的表只寫了 `int`、`long` 這些名字，
+> 沒說明 C 的整數型別可以有好幾種寫法，是教學上的漏洞。
+
+**結論：單獨寫 `unsigned`，就是 `unsigned int`**（本機 4 byte，0～4294967295）。C 的整數型別名字是由幾個**型別指定字（type specifier）**
+組合起來的：`signed`／`unsigned`（有號／無號）、`short`／`long`／`long long`（大小）、`int`、`char`。C 標準（C11 6.7.2）規定了三件事：
+
+- **有了其他指定字時，`int` 可以省略**：`unsigned` ＝ `unsigned int`、`short` ＝ `short int`、`long` ＝ `long int`。
+- **沒寫 `signed`／`unsigned` 時，預設有號**：`int` ＝ `signed int` ＝ `signed`、`long` ＝ `signed long`。**唯一的例外是 `char`**（見下面）。
+- 指定字的**順序不重要**：`long unsigned int`、`int unsigned long`、`unsigned long` 都是同一個型別（但沒人這樣亂寫，慣例是 `unsigned long`）。
+
+| 型別 | 所有合法寫法（同一列都是同一個型別） | 本機大小 |
+|---|---|---|
+| `char` | `char` | 1 |
+| `signed char` | `signed char` | 1 |
+| `unsigned char` | `unsigned char` | 1 |
+| `short` | `short`、`signed short`、`short int`、`signed short int` | 2 |
+| `unsigned short` | `unsigned short`、`unsigned short int` | 2 |
+| `int` | `int`、`signed`、`signed int` | 4 |
+| `unsigned int` | `unsigned`、`unsigned int` | 4 |
+| `long` | `long`、`signed long`、`long int`、`signed long int` | 8 |
+| `unsigned long` | `unsigned long`、`unsigned long int` | 8 |
+| `long long` | `long long`、`signed long long`、`long long int`、`signed long long int` | 8 |
+| `unsigned long long` | `unsigned long long`、`unsigned long long int` | 8 |
+
+（這張表是 C 的**全部**標準整數型別。另外還有 `_Bool`（C23 改叫 `bool`），以及浮點的 `float`、`double`、`long double`；
+`<stdint.h>` 的 `uint32_t` 這些不是新型別，而是上表某一個型別的**別名**（`typedef`），例如本機 `uint32_t` 就是 `unsigned int`。）
+
+**`char` 是例外：`char`、`signed char`、`unsigned char` 是三個不同的型別。** 本機的 `char` 雖然是有號的（上面 `CHAR_MIN` 是 -128），
+值的範圍跟 `signed char` 一樣，但在型別系統裡它們**不是同一個型別**。這是因為 C 標準讓平台決定 `char` 有號還是無號，
+所以 `char` 不能被定義成兩者之一。
+
+**怎麼驗證「同一個型別」：讓 gcc 告訴你。** 同一個函式宣告兩次時，型別完全相同就不報錯，不同就報 `conflicting types`，
+而且錯誤訊息會用 gcc 自己的寫法印出型別。`same.c` 完整原始碼（只編譯不連結，所以不需要 `main`）：
+
+```c
+unsigned int f(unsigned int x);
+unsigned     f(unsigned x);          /* 第 2 行：跟第 1 行同一個型別，不報錯 */
+long int unsigned f2(void);
+unsigned long     f2(void);          /* 第 4 行：順序不同、省略 int，仍是同一個型別 */
+int          f(unsigned x);          /* 第 5 行：回傳型別改成 int，跟第 1 行衝突 */
+signed char  h(void);
+char         h(void);                /* 第 7 行：本機 char 有號，但 char 和 signed char 是不同型別 */
+```
+
+```
+$ gcc -c same.c -o same.o
+same.c:5:14: error: conflicting types for ‘f’; have ‘int(unsigned int)’
+    5 | int          f(unsigned x);          /* 第 5 行：回傳型別改成 int，跟第 1 行衝突 */
+      |              ^
+same.c:2:14: note: previous declaration of ‘f’ with type ‘unsigned int(unsigned int)’
+    2 | unsigned     f(unsigned x);          /* 第 2 行：跟第 1 行同一個型別，不報錯 */
+      |              ^
+same.c:7:14: error: conflicting types for ‘h’; have ‘char(void)’
+    7 | char         h(void);                /* 第 7 行：本機 char 有號，但 char 和 signed char 是不同型別 */
+      |              ^
+same.c:6:14: note: previous declaration of ‘h’ with type ‘signed char(void)’
+    6 | signed char  h(void);
+      |              ^
+```
+
+逐行看：
+
+- 第 2 行沒有報錯，代表 `unsigned f(unsigned x)` 跟第 1 行的 `unsigned int f(unsigned int x)` 是同一個型別。而且 gcc 在 note 裡**把第 2 行印成**
+  `unsigned int(unsigned int)`：你寫的是 `unsigned`，gcc 心裡的名字是 `unsigned int`。（`unsigned int(unsigned int)` 是 gcc 印函式型別的寫法：
+  括號外是回傳型別，括號內是參數型別。）
+- 第 4 行沒有報錯：`long int unsigned` 和 `unsigned long` 是同一個型別。
+- 第 5 行報錯：回傳型別從 `unsigned int` 改成 `int`，有號無號不同就是不同型別。
+- 第 7 行報錯：`char` 和 `signed char` 在本機範圍一樣，型別卻不同。
+
+gcc 自己偏好的寫法會把 `int` 放在最後、大小放在有號無號之前，例如 `unsigned long` 會被印成 `long unsigned int`、
+`unsigned long long` 印成 `long long unsigned int`。之後在錯誤訊息或 `gdb` 的 `ptype` 裡看到這種寫法，它跟你寫的 `unsigned long` 是同一個型別。
+
+所以第 4 課的 `long widen_u(unsigned x)` 就是「參數是 `unsigned int`（4 byte 無號）、回傳 `long`（8 byte 有號）」：
+從 4 byte 變成 8 byte 要擴展，來源是無號的所以做零擴展（第六節），編出來就是一個 `movl %edi, %eax`。
+把參數改寫成 `unsigned int x`，編出來的組合語言一模一樣。
+
 ---
 
 ## 二、指標就是位址
@@ -1131,3 +1209,5 @@ $ gcc -Q --help=warnings -Wall -Wextra | grep -c '\[enabled\]' → 172
    這個判斷在什麼情況下會出錯？為什麼 gcc 對 `len - used < 0` 會警告、對 `> 0` 卻不會？
    另外，為什麼 `int sum = x + y; if (sum < x)` 這種溢位檢查在 `-O2` 下可能完全失效？
 10. `long a = -1; unsigned int b = 1;` 與 `int c = -1; unsigned long d = 1;`，`a < b` 和 `c < d` 各是真還是假？兩邊各被轉成什麼型別，依據的是哪一條規則？為什麼 gcc 只對其中一個發出 `-Wsign-compare` 警告？
+11. `unsigned x`、`unsigned int x`、`signed x` 各是什麼型別？為什麼 `char` 和 `signed char` 在本機的範圍完全一樣，gcc 卻說它們是不同型別、宣告衝突？
+   情境題：同事在錯誤訊息裡看到 `long unsigned int`，說「我明明寫的是 `unsigned long`，gcc 是不是把型別搞錯了？」你怎麼回答？
