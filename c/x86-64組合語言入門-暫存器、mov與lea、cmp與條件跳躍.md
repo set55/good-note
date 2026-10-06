@@ -566,6 +566,113 @@ AT&T 語法的一行指令：
 
 （「word」是 2 byte，是 16 位元時代的命名留下來的。注意 AT&T 的 `l` 是 4 byte，**跟 C 的 `long`（8 byte）不一樣**。）
 
+- 運算元裡**有暫存器**時，大小其實看暫存器名字就知道（`%eax` 一定是 4 byte），後綴可以省略。`objdump` 就常省略：上面的 `mov -0x4(%rbp),%eax`。
+- 運算元裡**沒有暫存器**時（例如 `movl $0x0,-0x8(%rbp)`：常數搬到記憶體），後綴就**一定要有**——否則不知道要寫 1、2、4 還是 8 個 byte。所以 `objdump` 在這種地方會印出 `movl`、`addl`。
+- 省略的規則：有暫存器可以推斷大小時才該省略。兩邊都推不出大小時，本機 `as` 2.42 不會報錯，而是發出警告 ``Warning: no instruction mnemonic suffix given and no register operands; using default for `mov'``，自己挑一個預設大小（實測 `mov $0, -8(%rbp)` 被組譯成 `movl`，4 byte）——**這很危險**，你想寫 8 byte 時它只寫了 4 byte。自己寫組合語言時永遠加後綴。
+
+**3. 運算元（operand）**：有三種，用前綴區分。
+
+| 種類 | 寫法 | 例子 | 意思 |
+|---|---|---|---|
+| 立即數（immediate） | `$` 開頭 | `$1`、`$0x64`、`$5050` | 常數本身 |
+| 暫存器 | `%` 開頭 | `%eax`、`%rdi` | 暫存器裡的值 |
+| 記憶體 | `D(B,I,S)` 或它的省略形式 | `-4(%rbp)`、`(%rdi,%rsi,4)` | 算出一個位址，**用的是那個位址裡的值** |
+
+記憶體運算元的完整形式是 `D(B,I,S)`，**位址 ＝ D ＋ B ＋ I × S**：
+
+| 位置 | 名稱 | 可以是什麼 | 省略時 |
+|---|---|---|---|
+| `D` | 位移（displacement） | 常數（可以是負數）或符號名稱（`.LC0`） | 0 |
+| `B` | 基底（base） | 一個 64 位元暫存器 | 0 |
+| `I` | 索引（index） | 一個 64 位元暫存器（不能是 `%rsp`） | 0 |
+| `S` | 倍數（scale） | **只能是 1、2、4、8** | 1 |
+
+常見的省略形式：
+
+| 寫法 | 位址 | 典型用途 | 本課實例 |
+|---|---|---|---|
+| `(B)` | B | `*p` | `addq (%rdi), %rax`（作業第 4 題） |
+| `D(B)` | B ＋ D | 區域變數、結構成員 | `-4(%rbp)`：`%rbp` 往下 4 byte，就是 `i` |
+| `(B,I,S)` | B ＋ I × S | `a[i]` | `(%rdi,%rsi,4)` |
+| `D(B,I,S)` | B ＋ I × S ＋ D | `a[i + 常數]` | `1(%rdx,%rax,2)`（第七節，拿來算數） |
+| `D(,I,S)` | I × S ＋ D | 沒有基底，只要倍數 | `0(,%rdi,8)`（作業第 1 題會看到） |
+| `D(%rip)` | 下一個指令的位址 ＋ D | 取全域資料的位址（PIE 用） | `.LC0(%rip)` |
+
+**上表第一列 `(B)` 的 `(%rdi)`：`%rdi` 和 `(%rdi)` 差在哪？括號就是 C 的 `*`。**
+
+> 2026-10-06 課後提問：「`(%rdi)` 的 `%rdi` 不是暫存器嗎？為什麼變成記憶體位址了？」
+
+上表 `(B)` 那一列寫「位址 ＝ B」，例子是 `(%rdi)`。乍看會奇怪：`%rdi` 明明是暫存器，怎麼變成記憶體？
+關鍵是：暫存器裡裝的永遠只是一個 64 位元的數字。同一個暫存器，寫法不同，指令拿這個數字做的事就不同：
+
+| 寫法 | 指令拿到的是 | 對應 C |
+|---|---|---|
+| `%rdi` | 暫存器裡的**數字本身** | `x`（用變數的值） |
+| `(%rdi)` | 把暫存器裡的數字**當成位址**，到記憶體的那個位址去讀（或寫）那裡的值 | `*p`（用指標指向的值） |
+
+所以 `(%rdi)` 裡的 `%rdi` 仍然是暫存器；括號的意思是「它裝的數字是一個位址，請去記憶體的那裡」。這就是運算元種類表說的「**用的是那個位址裡的值**」。
+上表其他寫法也一樣，只是位址不再只是 B，而是 D ＋ B ＋ I × S 算出來的數字，算完同樣去那個位址拿值。
+
+實驗：兩個函式，一個回傳參數本身，一個回傳參數指向的值。`paren.c` 完整原始碼：
+
+```c
+#include <stdio.h>
+
+__attribute__((noinline)) long copy_val(long x)  { return x; }    /* 回傳 x 本身 */
+__attribute__((noinline)) long deref(long *p)    { return *p; }   /* 回傳 p 指向的值 */
+
+int main(void)
+{
+    long v = 1234;
+    printf("%ld %ld\n", copy_val(v), deref(&v));
+    return 0;
+}
+```
+
+（`__attribute__((noinline))` 的意思見下方〈讀懂實驗一的範例〉。）
+
+```
+$ gcc -O2 -g paren.c -o paren
+$ objdump -d --no-show-raw-insn paren     （節錄）
+00000000000011e0 <copy_val>:
+    11e0:	endbr64
+    11e4:	mov    %rdi,%rax       ← 沒有括號：把 %rdi 的數字複製到 %rax
+    11e7:	ret
+00000000000011f0 <deref>:
+    11f0:	endbr64
+    11f4:	mov    (%rdi),%rax     ← 有括號：把 %rdi 的數字當位址，去記憶體讀 8 byte 到 %rax
+    11f7:	ret
+```
+
+兩行只差一對括號。用 `gdb` 停在 `deref` 的 `mov` 之前，看 `%rdi` 裡是什麼、那個位址裡又是什麼：
+
+```
+$ gdb -batch -ex 'break *deref+4' -ex run -ex 'p/x $rdi' -ex 'x/1gd $rdi' -ex stepi -ex 'p $rax' -ex kill ./paren
+Breakpoint 1, deref (p=p@entry=0x7fffffffd420) at paren.c:4
+$1 = 0x7fffffffd420           ← %rdi 裡的數字：main 的變數 v 的位址（&v，在堆疊上）
+0x7fffffffd420:	1234          ← x/1gd：到這個位址看 1 個 8 byte（g）、用十進位（d）印 → v 的值
+$2 = 1234                     ← 執行 mov (%rdi),%rax 之後，%rax 拿到的是記憶體裡的 1234，不是 %rdi 的數字
+```
+
+對照 `copy_val`：`%rdi` 裡就是 `1234` 這個數字（`v` 的值），`mov %rdi,%rax` 之後 `%rax` 也是 1234——它沒有碰記憶體。
+
+如果 `%rdi` 裡的數字不是合法的位址，加了括號就會出事。在同一個中斷點把 `%rdi` 改成 1234 再執行：
+
+```
+$ gdb -batch -ex 'break *deref+4' -ex run -ex 'set $rdi = 1234' -ex stepi -ex kill ./paren
+Program received signal SIGSEGV, Segmentation fault.
+deref (p=p@entry=0x4d2) at paren.c:4
+```
+
+`(%rdi)` 要去讀位址 1234（`0x4d2`）的記憶體，那裡沒有對映任何分頁，就 segfault——跟
+[第 3 課第五節](./陣列、字串與指標運算-C不檢查邊界與用gdb找segfault.md#五c-不檢查邊界越界的三種下場)用壞掉的指標 `*p` 是同一件事。
+（gdb 命令：`x/1gd 位址` 是「看記憶體：1 個、8 byte、十進位」，大小字母的意思見下方〈為什麼 `l` 叫 long 卻是 4 byte〉的 gdb 表；其他見 [gdb完整命令參考](./gdb完整命令參考.md)。）
+
+**S 只能是 1、2、4、8，正好是 `char`、`short`、`int`、`long`／指標的大小**——這就是硬體直接支援
+[第 3 課第二節](./陣列、字串與指標運算-C不檢查邊界與用gdb找segfault.md#二指標運算p--1-走一個元素不是一個-byte)的指標運算：`a + i` 走 `i × sizeof(*a)` 個 byte。
+
+一條限制：**一個指令最多只能有一個記憶體運算元**。要把記憶體搬到記憶體，得先搬進暫存器再搬出去——這是第六節 `-O0` 裡一直出現 `movl -4(%rbp), %eax` 的原因之一。
+
 ### 為什麼 `l` 叫 long 卻是 4 byte：組合語言的大小名稱和 C 的型別是兩套
 
 > 2026-10-06 課後提問：「第二節的 `movsbl` 說 long 是 4 byte，跟 C 的 `long` 是 8 byte 不一樣，這正常嗎？」
@@ -583,7 +690,7 @@ AT&T 語法的一行指令：
 因此讀組合語言時，**看到字尾的 `l` 就想「4 byte」，不要想成 C 的 `long`**。本機 C 型別對到字尾的關係是：
 `char` → `b`、`short` → `w`、`int`／`unsigned` → `l`、**C 的 `long`、指標 → `q`**。
 
-**實驗：C 的 `long` 編出來是 `q`，不是 `l`。** `suffix.c` 完整原始碼（只用 `-S`，不需要 `main`）：
+**實驗一：C 的 `long` 編出來是 `q`，不是 `l`。** `suffix.c` 完整原始碼（只用 `-S`，不需要 `main`）：
 
 ```c
 long  add1_long(long x)          { return x + 1; }
@@ -617,7 +724,151 @@ widen_char_l:
 `widen_char` 回傳 C 的 `int`，用的是 `movsbl`；`widen_char_l` 回傳 C 的 `long`，用的卻是 `movsbq`。
 指令名字裡的 `l` 跟 C 的 `long` 對不上，對上 C 的 `long` 的是 `q`。
 
-#### 讀懂這個範例：為什麼寫 `1(%rdi)`、為什麼用 `%dil`
+**實驗二：組譯器的 `.byte`／`.word`／`.long`／`.quad` 也是這套大小。**
+
+> 2026-10-06 使用者反映這段看不懂、不知道 `data.s` 從哪裡來，改寫成逐步說明。這個實驗只是要再證明一次「`.long` 是 4 byte」，
+> 看不懂不影響主線；以 `.` 開頭的指示詞，[第六節](#六逐行讀-sum_to-的--o0-版)〈先看完整的 `.s` 檔：哪些是指令、哪些不是〉才正式介紹。
+
+**`data.s` 是什麼、從哪裡來**：它**不是 gcc 產生的**，是為了這個實驗**自己手寫**的組合語言原始檔。平常的 `.s` 是 `gcc -S` 從 C 翻出來的
+（[第 1 課第三節](./hello.c怎麼變成能跑的程式-編譯的四個階段.md#三編譯c-變成組合語言以及一個意外)）；這裡跳過 C，直接用編輯器新增一個 `data.s`，內容是下面這 5 行，
+再把它交給組譯器 `as`（第 1 課四個階段的第 3 步：組合語言 → `.o`）。
+
+```asm
+	.data
+a:	.byte 0x11
+b:	.word 0x2222
+c:	.long 0x33333333
+d:	.quad 0x4444444444444444
+```
+
+逐行：
+
+| 行 | 是什麼 | 意思 |
+|---|---|---|
+| `.data` | 指示詞（directive）：以 `.` 開頭，不是 CPU 指令，是給組譯器的命令 | 「接下來的東西放進 `.data` 區段」（`.data` 是放有初始值的資料的區段，區段見 [ELF 是什麼](./ELF是什麼-可執行與可連結格式的兩種視角.md)） |
+| `a:` | 標籤（label）：名字後面加冒號 | 替「目前這個位置」取名字 `a`，作用像 C 的變數名；組譯器會把它記進符號表 |
+| `.byte 0x11` | 指示詞 | 在這裡放 **1** byte，值是 `0x11` |
+| `.word 0x2222` | 指示詞 | 放 **2** byte，值是 `0x2222` |
+| `.long 0x33333333` | 指示詞 | 放 **4** byte |
+| `.quad 0x4444444444444444` | 指示詞 | 放 **8** byte |
+
+這 5 行大約等於 C 的 `char a = 0x11; short b = 0x2222; int c = 0x33333333; long d = 0x4444444444444444;`（四個全域變數），
+差別是手寫的版本沒有對齊，四個資料一個緊接一個。實驗的想法：**如果 `.long` 是 4 byte，`d` 就應該從第 1 ＋ 2 ＋ 4 ＝ 7 個 byte 開始。**
+
+**步驟一：組譯。**
+
+```
+$ as data.s -o data.o
+（沒有輸出就是成功）
+```
+
+**步驟二：看每個標籤在第幾個 byte——符號表。** `readelf -s` 列出 `.o` 的符號表（symbol table），標籤就記在這裡；`-W` 是不截斷長行：
+
+```
+$ readelf -sW data.o
+Symbol table '.symtab' contains 5 entries:
+   Num:    Value          Size Type    Bind   Vis      Ndx Name
+     0: 0000000000000000     0 NOTYPE  LOCAL  DEFAULT  UND
+     1: 0000000000000000     0 NOTYPE  LOCAL  DEFAULT    2 a
+     2: 0000000000000001     0 NOTYPE  LOCAL  DEFAULT    2 b
+     3: 0000000000000003     0 NOTYPE  LOCAL  DEFAULT    2 c
+     4: 0000000000000007     0 NOTYPE  LOCAL  DEFAULT    2 d
+```
+
+這裡只要看三欄：
+
+| 欄 | 意思 | 本例 |
+|---|---|---|
+| `Value` | 標籤的位置：從所在區段的開頭算起第幾個 byte（`.o` 還沒連結，所以從 0 算） | `a`＝0、`b`＝1、`c`＝3、`d`＝7 |
+| `Ndx` | 標籤在第幾號區段 | 都是 2；`readelf -S data.o` 列出區段表，`[ 2]` 就是 `.data`（見下） |
+| `Name` | 名字 | `a`～`d` |
+
+其他欄這個實驗用不到：第 0 列是 ELF 規定的空白項；`Size` 是 0，因為手寫標籤沒有宣告大小；`Type`、`Bind`、`Vis` 是符號的種類與可見範圍
+（`LOCAL` 代表只在這個檔案裡看得到）。各欄完整說明見 [readelf完整選項參考](./readelf完整選項參考.md)〈2.3 符號〉。
+
+相鄰兩個標籤相減，就是前一個資料佔幾個 byte：`b − a` ＝ 1（`.byte`）、`c − b` ＝ 2（`.word`）、`d − c` ＝ 4（**`.long`**）。
+`.quad` 後面沒有標籤，改看區段大小：
+
+```
+$ readelf -SW data.o      （節錄）
+  [Nr] Name              Type            Address          Off    Size   ES Flg Lk Inf Al
+  [ 2] .data             PROGBITS        0000000000000000 000040 00000f 00  WA  0   0  1
+```
+
+`.data` 的 `Size` 是 `0xf` ＝ 15 byte，`15 − 7` ＝ 8（`.quad`）。
+
+**步驟三：看區段裡實際放了什麼 byte。** `objdump -s` 以十六進位傾印區段內容，`-j .data` 只看 `.data` 這一個區段：
+
+```
+$ objdump -s -j .data data.o
+
+data.o:     file format elf64-x86-64
+
+Contents of section .data:
+ 0000 11222233 33333344 44444444 444444    .""3333DDDDDDDD
+```
+
+這一行的讀法：最左邊 `0000` 是這一行從區段的第幾個 byte 開始；中間是內容，每 4 byte 一組（8 個十六進位字）；
+最右邊是同樣的 byte 當成 ASCII 字元顯示（`0x22` 是 `"`、`0x33` 是 `3`、`0x44` 是 `D`，不能顯示的印成 `.`）。
+把中間那段重新切開，就是寫進去的四個資料：
+
+```
+11 | 22 22 | 33 33 33 33 | 44 44 44 44 44 44 44 44
+a    b       c             d
+1    2       4             8   byte
+```
+
+**結論：`.long` 佔 4 byte，跟字尾 `l` 一致**——組譯器的資料指示詞和指令字尾是同一套名字。
+
+**順便看小端序。** 上面每個資料的 byte 都一樣，看不出順序。把數值換成每個 byte 都不同的 `data2.s`：
+
+```asm
+	.data
+a:	.byte 0x11
+b:	.word 0x1234
+c:	.long 0x12345678
+```
+
+```
+$ as data2.s -o data2.o && objdump -s -j .data data2.o
+Contents of section .data:
+ 0000 11341278 563412                      .4.xV4.
+```
+
+切開是 `11 | 34 12 | 78 56 34 12`：`0x1234` 存成 `34 12`、`0x12345678` 存成 `78 56 34 12`，**低位的 byte 放在前面**，
+就是[第 2 課第三節](./C的資料在記憶體裡長怎樣-位元組、指標、位元組順序與有號無號.md#三位元組順序endianness)的小端序。
+（`objdump` 的全部選項見[第八節](#八本課用到的工具選項與完整清單在哪)〈`objdump`：本課用到的選項〉。）
+
+**第三套名字：`gdb` 的 `x` 命令。** 第 5 課會用 `gdb` 的 `x` 看記憶體，它的大小字母**又是另一套**。本機 `gdb 15.1` 的 `help x`：
+
+```
+$ gdb -batch -ex 'help x'
+...
+Size letters are b(byte), h(halfword), w(word), g(giant, 8 bytes).
+```
+
+| byte 數 | AT&T 字尾／`as` 指示詞 | Intel 手冊 | `gdb` 的 `x` | 本機 C 型別 |
+|---|---|---|---|---|
+| 1 | `b`／`.byte` | byte | `b` | `char` |
+| 2 | `w`／`.word`（word） | word | `h`（halfword） | `short` |
+| 4 | `l`／`.long`（long） | doubleword | **`w`（word）** | `int` |
+| 8 | `q`／`.quad`（quad） | quadword | `g`（giant） | `long`、指標 |
+
+**同一個字 word，在 AT&T 語法是 2 byte，在 `gdb` 的 `x` 是 4 byte。** 三套名字各有各的歷史，沒有誰對誰錯；
+記法是**一律換算成 byte 數再想**，不要拿名字去對 C 的型別。
+
+拿錯一套名字時 `gdb` 的反應（`xv.c` 完整原始碼：`int v = 0x12345678; int main(void){return 0;}`，用 `gcc -g xv.c -o xv` 編譯）：
+
+```
+$ gdb -batch -ex 'x/1l &v' -ex 'x/1xw &v' -ex 'x/1xh &v' ./xv
+0x4010 <v>:	Undefined output format "l".     ← l 不是 gdb 的大小字母（gdb 把它當成格式字母，也不認得）
+0x4010 <v>:	0x12345678                      ← w：4 byte，整個 int
+0x4010 <v>:	0x5678                          ← h：2 byte，只有低位那一半（小端序，低位在前）
+```
+
+（`x` 的完整文法 `x/<個數><格式字母><大小字母> <位址>` 見 [gdb完整命令參考](./gdb完整命令參考.md)，第 5 課會實際用。）
+
+### 讀懂實驗一的範例：為什麼寫 `1(%rdi)`、為什麼用 `%dil`
 
 > 2026-10-06 課後提問：「為什麼 `rdi` 要寫成 `1(%rdi)`？為什麼要用 `dil`，我們不是在用 64 位元的系統嗎？」
 
@@ -694,7 +945,7 @@ $5 = 0xffffffff                ← 寫 %eax 時，%rax 的高 4 byte 被清成 0
 不管高 7 byte 是什麼，結果都是 −1，因為 `movsbl` 只讀 `%dil`。**參數有多大，指令就讀多大的名字**：`signed char` 讀 `%dil`、`short` 讀 `%di`、
 `int` 讀 `%edi`、`long` 和指標讀 `%rdi`。看組合語言時，從暫存器的名字就能反推參數的大小（作業第 5 題會用到）。
 
-#### 組合語言裡只有 `%edi`、`%dil`，為什麼 gdb 印得出 `$rdi`？
+### 組合語言裡只有 `%edi`、`%dil`，為什麼 gdb 印得出 `$rdi`？
 
 > 2026-10-06 課後提問：「組合語言完全沒有用到 `rdi`，為什麼 gdb 打印 `rdi` 出得來？文中也要我看 `rdi`。」
 
@@ -742,7 +993,7 @@ rcx            0x555555557dc0      93824992247232     ← widen_char 沒用到 %
 **注意 `$6`：gdb 的 `set $edi = …` 沒有把高 4 byte 清成 0。** 「寫 32 位元的名字會把高 32 位元清成 0」是 **CPU 執行指令**時的規則（[第二節](#二暫存器cpu-裡的-16-個變數)〈寫低位的名字時，高位會怎樣？〉），
 `main` 的 `mov $0xffffffff,%edi` 是 CPU 執行的指令，所以有清；gdb 的 `set` 不是 CPU 指令，是 gdb 自己改暫存器的值，它只改你指定的那幾個 byte。用 gdb 改暫存器做實驗時要記得這個差別。
 
-#### `%dil` 是 `0xff`，為什麼 `%eax` 變成 `0xffffffff`：符號擴展補的是第 7 位元
+### `%dil` 是 `0xff`，為什麼 `%eax` 變成 `0xffffffff`：符號擴展補的是第 7 位元
 
 > 2026-10-06 課後提問：「`%dil` 已經是 `0xff`，從 `%eax` 出來為什麼是 `0xffffffff`？高 3 個 byte 怎麼自動用 1 填？」
 
@@ -816,100 +1067,6 @@ $4 = -128
 
 第 7 位元是 0 時兩個指令結果一樣；是 1 時才分出差別。CPU 不知道這個 byte「是」有號還是無號，**是 gcc 依 C 的型別選了 `movs` 還是 `movz`**——
 跟[第五節](#五旗標與條件跳躍cmp-只負責比跳不跳由下一個指令決定)「有號還是無號由條件碼決定」是同一個道理：型別只活在編譯器選的指令裡。
-
-**組譯器的資料指示詞也用同一套名字。** 第六節的 `.s` 檔尾出現過 `.long`。下面直接用組譯器 `as` 組譯一個只放資料的 `.s` 檔，看每個指示詞佔幾個 byte。`data.s` 完整內容：
-
-```asm
-	.data
-a:	.byte 0x11
-b:	.word 0x2222
-c:	.long 0x33333333
-d:	.quad 0x4444444444444444
-```
-
-（`.data` 是「接下來的東西放進 `.data` 區段」；`a:`、`b:` 這些是標籤，代表那個位置的位址。）
-
-```
-$ as data.s -o data.o
-$ readelf -sW data.o | grep -E ' [abcd]$'
-     1: 0000000000000000     0 NOTYPE  LOCAL  DEFAULT    2 a
-     2: 0000000000000001     0 NOTYPE  LOCAL  DEFAULT    2 b
-     3: 0000000000000003     0 NOTYPE  LOCAL  DEFAULT    2 c
-     4: 0000000000000007     0 NOTYPE  LOCAL  DEFAULT    2 d
-$ objdump -s -j .data data.o
-Contents of section .data:
- 0000 11222233 33333344 44444444 444444    .""3333DDDDDDDD
-```
-
-`a` 在 0、`b` 在 1、`c` 在 3、`d` 在 7：`.byte` 佔 1、`.word` 佔 2、`.long` 佔 4、`.quad` 佔 8 byte，總共 15 byte。
-`.long` 一樣是 4 byte。（`readelf -s` 列符號表、`objdump -s -j .data` 以十六進位傾印 `.data` 區段的內容，兩個工具的完整選項見
-[readelf完整選項參考](./readelf完整選項參考.md) 與第八節〈`objdump`：本課用到的選項〉。傾印裡的 `2222` 和 `3333…` 看不出順序，換成 `0x12345678` 會看到小端序，見第 2 課第三節。）
-
-**第三套名字：`gdb` 的 `x` 命令。** 第 5 課會用 `gdb` 的 `x` 看記憶體，它的大小字母**又是另一套**。本機 `gdb 15.1` 的 `help x`：
-
-```
-$ gdb -batch -ex 'help x'
-...
-Size letters are b(byte), h(halfword), w(word), g(giant, 8 bytes).
-```
-
-| byte 數 | AT&T 字尾／`as` 指示詞 | Intel 手冊 | `gdb` 的 `x` | 本機 C 型別 |
-|---|---|---|---|---|
-| 1 | `b`／`.byte` | byte | `b` | `char` |
-| 2 | `w`／`.word`（word） | word | `h`（halfword） | `short` |
-| 4 | `l`／`.long`（long） | doubleword | **`w`（word）** | `int` |
-| 8 | `q`／`.quad`（quad） | quadword | `g`（giant） | `long`、指標 |
-
-**同一個字 word，在 AT&T 語法是 2 byte，在 `gdb` 的 `x` 是 4 byte。** 三套名字各有各的歷史，沒有誰對誰錯；
-記法是**一律換算成 byte 數再想**，不要拿名字去對 C 的型別。
-
-拿錯一套名字時 `gdb` 的反應（`xv.c` 完整原始碼：`int v = 0x12345678; int main(void){return 0;}`，用 `gcc -g xv.c -o xv` 編譯）：
-
-```
-$ gdb -batch -ex 'x/1l &v' -ex 'x/1xw &v' -ex 'x/1xh &v' ./xv
-0x4010 <v>:	Undefined output format "l".     ← l 不是 gdb 的大小字母（gdb 把它當成格式字母，也不認得）
-0x4010 <v>:	0x12345678                      ← w：4 byte，整個 int
-0x4010 <v>:	0x5678                          ← h：2 byte，只有低位那一半（小端序，低位在前）
-```
-
-（`x` 的完整文法 `x/<個數><格式字母><大小字母> <位址>` 見 [gdb完整命令參考](./gdb完整命令參考.md)，第 5 課會實際用。）
-
-- 運算元裡**有暫存器**時，大小其實看暫存器名字就知道（`%eax` 一定是 4 byte），後綴可以省略。`objdump` 就常省略：上面的 `mov -0x4(%rbp),%eax`。
-- 運算元裡**沒有暫存器**時（例如 `movl $0x0,-0x8(%rbp)`：常數搬到記憶體），後綴就**一定要有**——否則不知道要寫 1、2、4 還是 8 個 byte。所以 `objdump` 在這種地方會印出 `movl`、`addl`。
-- 省略的規則：有暫存器可以推斷大小時才該省略。兩邊都推不出大小時，本機 `as` 2.42 不會報錯，而是發出警告 ``Warning: no instruction mnemonic suffix given and no register operands; using default for `mov'``，自己挑一個預設大小（實測 `mov $0, -8(%rbp)` 被組譯成 `movl`，4 byte）——**這很危險**，你想寫 8 byte 時它只寫了 4 byte。自己寫組合語言時永遠加後綴。
-
-**3. 運算元（operand）**：有三種，用前綴區分。
-
-| 種類 | 寫法 | 例子 | 意思 |
-|---|---|---|---|
-| 立即數（immediate） | `$` 開頭 | `$1`、`$0x64`、`$5050` | 常數本身 |
-| 暫存器 | `%` 開頭 | `%eax`、`%rdi` | 暫存器裡的值 |
-| 記憶體 | `D(B,I,S)` 或它的省略形式 | `-4(%rbp)`、`(%rdi,%rsi,4)` | 算出一個位址，**用的是那個位址裡的值** |
-
-記憶體運算元的完整形式是 `D(B,I,S)`，**位址 ＝ D ＋ B ＋ I × S**：
-
-| 位置 | 名稱 | 可以是什麼 | 省略時 |
-|---|---|---|---|
-| `D` | 位移（displacement） | 常數（可以是負數）或符號名稱（`.LC0`） | 0 |
-| `B` | 基底（base） | 一個 64 位元暫存器 | 0 |
-| `I` | 索引（index） | 一個 64 位元暫存器（不能是 `%rsp`） | 0 |
-| `S` | 倍數（scale） | **只能是 1、2、4、8** | 1 |
-
-常見的省略形式：
-
-| 寫法 | 位址 | 典型用途 | 本課實例 |
-|---|---|---|---|
-| `(B)` | B | `*p` | `addq (%rdi), %rax`（作業第 4 題） |
-| `D(B)` | B ＋ D | 區域變數、結構成員 | `-4(%rbp)`：`%rbp` 往下 4 byte，就是 `i` |
-| `(B,I,S)` | B ＋ I × S | `a[i]` | `(%rdi,%rsi,4)` |
-| `D(B,I,S)` | B ＋ I × S ＋ D | `a[i + 常數]` | `1(%rdx,%rax,2)`（第七節，拿來算數） |
-| `D(,I,S)` | I × S ＋ D | 沒有基底，只要倍數 | `0(,%rdi,8)`（作業第 1 題會看到） |
-| `D(%rip)` | 下一個指令的位址 ＋ D | 取全域資料的位址（PIE 用） | `.LC0(%rip)` |
-
-**S 只能是 1、2、4、8，正好是 `char`、`short`、`int`、`long`／指標的大小**——這就是硬體直接支援
-[第 3 課第二節](./陣列、字串與指標運算-C不檢查邊界與用gdb找segfault.md#二指標運算p--1-走一個元素不是一個-byte)的指標運算：`a + i` 走 `i × sizeof(*a)` 個 byte。
-
-一條限制：**一個指令最多只能有一個記憶體運算元**。要把記憶體搬到記憶體，得先搬進暫存器再搬出去——這是第六節 `-O0` 裡一直出現 `movl -4(%rbp), %eax` 的原因之一。
 
 ---
 
@@ -1476,3 +1633,4 @@ gcc 的選項有上千個，下面只列本課用到的 6 個，完整清單見 
 7. （課後提問延伸）`int widen_char(signed char c) { return c; }` 編出 `movsbl %dil, %eax`。在 64 位元的機器上，為什麼它只讀 `%dil`，而不讀整個 `%rdi`？假設 `widen_char` 改成讀 4 byte 的 `movl %edi, %eax`，在筆記的 `gdb` 實驗裡把 `%rdi` 改成 `0x11223344556677ff` 之後，`%eax` 的十六進位是多少？是正數還是負數？跟 C 期望的 −1 差在哪？
 8. （課後提問延伸）`dil.c` 的組合語言裡只出現 `%edi`、`%dil`，沒有 `%rdi`，為什麼 gdb 能印出 `$rdi`？在 gdb 裡 `set $edi = 0xaabbccdd`，`$rdi` 的高 4 byte 會不會被清成 0？跟 CPU 執行 `movl $0xaabbccdd, %edi` 有什麼不同？
 9. （課後提問延伸）`movsbl` 把 1 byte 擴展成 4 byte 時，新補的高 3 byte 是照哪一個位元補的？為什麼這樣補，`signed char` 的 −1 變成 `int` 之後才會還是 −1（用二補數的權重解釋）？
+10. （課後提問延伸）`mov %rdi,%rax` 和 `mov (%rdi),%rax` 只差一對括號，兩個指令各拿 `%rdi` 裡的數字做什麼？各對應 C 的什麼寫法？如果 `%rdi` 裡是 1234，哪一個會 segfault，為什麼？
