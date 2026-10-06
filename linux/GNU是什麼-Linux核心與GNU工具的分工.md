@@ -274,9 +274,17 @@ GNU 寫了 **GPL**（GNU General Public License，GNU 通用公共授權）來�
 
 ## 自我測驗
 
+> 參考答案寫在每題下面（2026-10-06 使用者指定）。作答時先遮住答案、自己想過再對照。
+
 1. 「Linux」這個詞嚴格說指的是什麼？那 `gcc`、`bash`、glibc 屬於誰？為什麼 FSF 主張叫 GNU/Linux？
+   > **參考答案**【[第一節](#一名字與起源)、[第三節](#三gnu-缺的那一塊核心以及gnulinux之爭)】嚴格說「Linux」只指**核心**。`gcc`、`bash`、glibc 都是 GNU 計畫的成果，位在使用者空間。日常說的「Linux 系統」其實是 Linux 核心＋GNU 工具；FSF 認為只叫「Linux」抹去了 GNU 的貢獻，所以主張叫 GNU/Linux。
 2. 目標三元組 `x86_64-linux-gnu` 的三段各代表什麼？為什麼說它剛好說明了「核心」和「C 函式庫」是兩件事？
+   > **參考答案**【[第二節](#二gnu-做了什麼你這台機器上到處都是)〈那個到處出現的 `x86_64-linux-gnu` 是什麼〉】`x86_64` 是 CPU 架構，`linux` 是核心，`gnu` 是 ABI／C 函式庫（glibc）。同一個 Linux 核心可以搭 glibc（`x86_64-linux-gnu`），也可以搭 musl（`x86_64-linux-musl`，例如 OpenWrt 的 `aarch64-linux-musl`）。核心和 C 函式庫可以**各自替換**，所以三元組要分成兩欄寫，正好說明它們是兩件事。
 3. 情境題：一支 shell 腳本在你的 Ubuntu 上用 `bash` 測試完全正常，放到 OpenWrt 上卻出錯。從本篇的角度，最可能的原因是什麼？寫腳本時該怎麼預防？
+   > **參考答案**【[第四節](#四不是-gnu-的-linux你已經遇過了)】OpenWrt 不是 GNU 使用者空間，沒有 bash，`/bin/sh` 是 BusyBox 的 `ash`，只支援 POSIX 語法；腳本用了 bash 才有的擴充語法（陣列、`[[ ]]`、`[^...]` 等）就會出錯。預防：只用 POSIX 規定的語法與選項，並在本機用 `busybox sh 腳本` 或 `dash 腳本` 測試。特別注意本機 `/bin/sh -> bash`：第一行寫 `#!/bin/sh` 直接 `./腳本`，跑的仍是 bash，測不出問題。改第一行解決不了：`#!/bin/busybox` 會報 `applet not found`。
 4. GPL 的 copyleft 要求什麼？glibc 用 LGPL 而不是 GPL，對「商業軟體能不能連結 libc」有什麼差別？
+   > **參考答案**【[第五節](#五gplgnu-最深遠的影響)】copyleft：可以自由使用、修改、散布，但**散布**修改後的版本時，必須用**同樣的授權（GPL）**、並提供原始碼——自由不能在傳遞途中被拿走（自己改了自己用、不給別人，沒有義務）。glibc 用 LGPL（較寬鬆）：允許非自由的程式**連結**它而不必開放自己的原始碼，所以商業軟體都能動態連結 `libc.so.6`；如果 glibc 是 GPL，連結它的程式在散布時就得整個用 GPL 開放。
 5. 你將來送 kernel patch 時要加的 `Signed-off-by:` 跟 GPL 有什麼關係？
+   > **參考答案**【[第五節](#五gplgnu-最深遠的影響)】`Signed-off-by:` 是 **DCO（Developer Certificate of Origin，開發者原創聲明）**：加上這一行，就是聲明這段程式碼是你自己寫的，或你有權以這個專案的授權（kernel 是 GPL-2.0）貢獻它。Linux 核心以 GPL-2.0 散布，每段合併進去的程式碼都必須能合法地以 GPL-2.0 散布；DCO 讓每個 patch 都有人為此負責，出了著作權爭議時查得到是誰聲明的。它是 kernel 社群的規定，不是 GPL 條文本身的要求。
 6. 情境題：同事說「我在這台機器上打 `uname -o` 看到 `GNU/Linux`，所以它一定用 glibc」。這個推論錯在哪？`uname` 的哪些欄位可以信、哪一欄不行，為什麼？你會改看什麼來判斷？
+   > **參考答案**【[第四節](#四不是-gnu-的-linux你已經遇過了)〈`uname -o` 印出 `GNU/Linux`，不代表它是 GNU〉】錯在把 `-o` 當證據：它是 `uname` 這支程式編譯時寫死的字串，不是問核心得來的——BusyBox 版也印 `GNU/Linux`，實測 OpenWrt（musl）一樣印。可以信的是 `-s`、`-n`、`-r`、`-v`、`-m`，它們來自 `uname()` 系統呼叫回傳的 `struct utsname`；不能信 `-o`（寫死），`-p`、`-i` 也是程式自己判斷的（標明 non-portable）。判斷 libc 要看動態載入器：`readelf -l /bin/ls | grep interpreter`（glibc 是 `/lib64/ld-linux-x86-64.so.2`，musl 是 `/lib/ld-musl-x86_64.so.1`），或 `ls /lib/ld-musl-*`、直接執行載入器看它的自我介紹。
