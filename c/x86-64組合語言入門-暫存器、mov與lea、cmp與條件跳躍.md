@@ -668,6 +668,140 @@ deref (p=p@entry=0x4d2) at paren.c:4
 [第 3 課第五節](./陣列、字串與指標運算-C不檢查邊界與用gdb找segfault.md#五c-不檢查邊界越界的三種下場)用壞掉的指標 `*p` 是同一件事。
 （gdb 命令：`x/1gd 位址` 是「看記憶體：1 個、8 byte、十進位」，大小字母的意思見下方〈為什麼 `l` 叫 long 卻是 4 byte〉的 gdb 表；其他見 [gdb完整命令參考](./gdb完整命令參考.md)。）
 
+**上表其他五列：每一種用一個實際的 C 函式對照。**
+
+> 2026-10-06 課後提問：「`(B)` 看懂了，其他還是看不懂。」上表「本課實例」欄的例子大多出現在後面的章節和作業，在這裡讀不到，
+> 所以下面另外寫一支程式，五種寫法各一個函式，並用 gdb 驗證「算出來的位址」就是 C 裡那個東西的位址。
+
+讀每一種寫法時都照同一個步驟：**① 把括號裡的東西照「位址 ＝ D ＋ B ＋ I × S」算出一個數字（沒寫的當 0，S 沒寫當 1）；② 到記憶體的那個位址拿值。**
+跟 `(B)` 一樣，差別只在第 ① 步怎麼算。`forms.c` 完整原始碼：
+
+```c
+#include <stdio.h>
+
+long tbl[4] = {100, 200, 300, 400};   /* 全域陣列 */
+long g = 42;                          /* 全域變數 */
+
+__attribute__((noinline)) long second(long *p)      { return p[1]; }      /* D(B)     */
+__attribute__((noinline)) int  get(int *a, long i)  { return a[i]; }      /* (B,I,S)  */
+__attribute__((noinline)) int  get3(int *a, long i) { return a[i + 3]; }  /* D(B,I,S) */
+__attribute__((noinline)) long get_tbl(long i)      { return tbl[i]; }    /* D(,I,S)  */
+__attribute__((noinline)) long get_g(void)          { return g; }         /* D(%rip)  */
+
+int main(void)
+{
+    long arr[2]  = {7, 8};
+    int  nums[6] = {10, 11, 12, 13, 14, 15};
+    printf("%ld %d %d %ld %ld\n", second(arr), get(nums, 1), get3(nums, 1), get_tbl(2), get_g());
+    return 0;
+}
+```
+
+```
+$ gcc -O2 -g forms.c -o forms_pie && ./forms_pie
+8 11 14 300 42
+$ objdump -d --no-show-raw-insn forms_pie      （節錄五個函式）
+0000000000001220 <second>:
+    1224:	mov    0x8(%rdi),%rax
+0000000000001230 <get>:
+    1234:	mov    (%rdi,%rsi,4),%eax
+0000000000001240 <get3>:
+    1244:	mov    0xc(%rdi,%rsi,4),%eax
+0000000000001250 <get_tbl>:
+    1254:	lea    0x2de5(%rip),%rax        # 4040 <tbl>
+    125b:	mov    (%rax,%rdi,8),%rax
+0000000000001260 <get_g>:
+    1264:	mov    0x2db5(%rip),%rax        # 4020 <g>
+    126b:	ret
+```
+
+（每個函式第一行都是 `endbr64`，最後是 `ret`，這裡省略。`objdump` 把 `D` 印成十六進位：`0x8` 是 8、`0xc` 是 12；`gcc -S` 的 `.s` 會印十進位。）
+
+以下 gdb 的做法都一樣：`break *函式名+4` 停在那條 `mov` 上（`*` 的意思見下方〈上面 `break *widen_char+4` 的 `*`：為什麼要加？〉），
+用 `p/x` 照公式把位址算出來，再用 C 的寫法 `&…` 問 gdb 那個東西的位址，兩個應該相同；最後用 `x` 看那個位址裡的值
+（`x/1gd`：1 個 8 byte、十進位；`x/1wd`：1 個 4 byte、十進位；大小字母見下方〈為什麼 `l` 叫 long 卻是 4 byte〉的 gdb 表）。
+
+**`D(B)`：位址 ＝ B ＋ D。`second` 的 `mov 0x8(%rdi),%rax`。** `p` 在 `%rdi`，`p[1]` 在 `p` 往後一個 `long`，也就是往後 8 byte，所以 `D` ＝ 8、`B` ＝ `%rdi`：
+
+```
+$ gdb -batch -ex 'break *second+4' -ex run -ex 'p/x $rdi' -ex 'p/x $rdi + 8' -ex 'p/x &p[1]' -ex 'x/1gd $rdi + 8' -ex kill ./forms_pie
+$1 = 0x7fffffffd400        ← B：%rdi 裡是 p（main 的 arr 的位址）
+$2 = 0x7fffffffd408        ← 照公式算：B ＋ D
+$3 = 0x7fffffffd408        ← C 的 &p[1]：一樣
+0x7fffffffd408:	8          ← 那裡的值是 arr[1]，也就是 8
+```
+
+`D` 是寫死在指令裡的常數，常用在「起點加一個固定距離」：陣列的固定第幾格、結構的某個成員（第 ② 站之後會看到）。
+`D` 也可以是負數，第六節的 `-4(%rbp)` 就是「`%rbp` 往前 4 byte」（`%rbp` 是什麼，第 5 課講）。
+
+**`(B,I,S)`：位址 ＝ B ＋ I × S。`get` 的 `mov (%rdi,%rsi,4),%eax`。** `a` 在 `%rdi`（`B`）、`i` 在 `%rsi`（`I`），每個 `int` 4 byte，所以 `S` ＝ 4：
+
+```
+$ gdb -batch -ex 'break *get+4' -ex run -ex 'p/x $rdi' -ex 'p $rsi' -ex 'p/x $rdi + $rsi*4' -ex 'p/x &a[i]' -ex 'x/1wd $rdi + $rsi*4' -ex kill ./forms_pie
+$1 = 0x7fffffffd410        ← B：a（main 的 nums）
+$2 = 1                     ← I：i
+$3 = 0x7fffffffd414        ← B ＋ I × S ＝ a ＋ 1 × 4
+$4 = 0x7fffffffd414        ← C 的 &a[i]：一樣
+0x7fffffffd414:	11         ← nums[1]
+```
+
+`D` 寫死在指令裡，`I` 是暫存器，所以 `I` 可以在執行時改變——這就是「第 `i` 個」的 `a[i]`。`S` 由元素的大小決定，這也是 `S` 只能是 1、2、4、8 的理由（見表後那段）。
+
+**`D(B,I,S)`：位址 ＝ B ＋ I × S ＋ D。`get3` 的 `mov 0xc(%rdi,%rsi,4),%eax`。** `a[i + 3]` 是 `a ＋ (i ＋ 3) × 4 ＝ a ＋ i × 4 ＋ 12`，
+前兩項是 `(B,I,S)`，固定的 `＋ 12` 就放進 `D`。注意 `D` 是 **12（byte）**，不是原始碼裡的 3（個元素）：
+
+```
+$ gdb -batch -ex 'break *get3+4' -ex run -ex 'p/x $rdi + $rsi*4 + 12' -ex 'p/x &a[i+3]' -ex 'x/1wd $rdi + $rsi*4 + 12' -ex kill ./forms_pie
+$1 = 0x7fffffffd420        ← a ＋ 1 × 4 ＋ 12（a 一樣是 0x7fffffffd410）
+$2 = 0x7fffffffd420        ← C 的 &a[i+3]：一樣
+0x7fffffffd420:	14         ← nums[4]
+```
+
+**`D(%rip)`：位址 ＝ 下一條指令的位址 ＋ D。`get_g` 的 `mov 0x2db5(%rip),%rax`。** 全域變數 `g` 不在任何參數暫存器裡，要用 `%rip` 當基準來找。
+`%rip` 是「下一條要執行的指令在哪裡」（[第二節](#二暫存器cpu-裡的-16-個變數)的 `%rip`），`mov` 從 `0x1264` 開始、長 7 byte，下一條 `ret` 在 `0x126b`：
+`0x126b ＋ 0x2db5 ＝ 0x4020`，正是 `objdump` 在右邊註解的 `# 4020 <g>`。
+
+```
+$ gdb -batch -ex 'break *get_g+4' -ex run -ex 'p/x $pc' -ex 'p/x $pc + 7 + 0x2db5' -ex 'p/x &g' -ex 'x/1gd &g' -ex kill ./forms_pie
+$1 = 0x555555555264        ← 停在 mov 上（gdb 的 $pc 是「這一條」的位址，所以下一條要再 ＋ 7）
+$2 = 0x555555558020        ← 下一條指令的位址 ＋ D
+$3 = 0x555555558020        ← C 的 &g：一樣
+0x555555558020 <g>:	42
+```
+
+為什麼不直接把 `g` 的位址寫進 `D`？因為 PIE 程式執行時會被整支搬到基底位址上（見下方〈上面中斷點 4 的 `break *0x11f4`：為什麼 `run` 之後失敗？〉），`g` 的位址要執行時才知道；
+但「`g` 跟這條指令相距多遠」（`0x2db5`）不管搬到哪裡都不變。用 `%rip` 加距離，程式放在哪裡都找得到 `g`——這就是表上說「PIE 用」的意思。
+
+**`D(,I,S)`：位址 ＝ I × S ＋ D，沒有 `B`。** 上面 `get_tbl`（`tbl[i]`）在 PIE 下被拆成兩條：先 `lea 0x2de5(%rip),%rax` 用 `%rip` 算出 `tbl` 的位址放進 `%rax`
+（`lea` 只算位址、不讀記憶體，[第四節](#四mov-與-lea搬資料-vs-算位址)），再用 `(%rax,%rdi,8)`，是 `(B,I,S)`。
+要看到 `D(,I,S)`，得讓 `tbl` 的位址在編譯時就固定，也就是編成非 PIE：
+
+```
+$ gcc -O2 -g -fno-pie -no-pie forms.c -o forms_np
+$ objdump -d --no-show-raw-insn forms_np      （節錄）
+0000000000401240 <get_tbl>:
+  401244:	mov    0x404060(,%rdi,8),%rax
+$ gdb -batch -ex 'break *get_tbl+4' -ex run -ex 'p $rdi' -ex 'p/x 0x404060 + $rdi*8' -ex 'p/x &tbl[2]' -ex 'x/1gd 0x404060 + $rdi*8' -ex kill ./forms_np
+$1 = 2                     ← I：i
+$2 = 0x404070              ← D ＋ I × S ＝ 0x404060 ＋ 2 × 8
+$3 = 0x404070              ← C 的 &tbl[2]：一樣
+0x404070 <tbl+16>:	300
+```
+
+（`-fno-pie` 叫編譯器產生非 PIE 的程式碼、`-no-pie` 叫連結器產生非 PIE 的執行檔，兩個都要加；只加 `-no-pie`，本機 gcc 仍然產生上面 `lea …(%rip)` 那種寫法。）
+這裡的 `D` ＝ `0x404060` 就是 `tbl` 固定的位址；括號裡逗號前面空著，代表沒有 `B`。所以 `D(,I,S)` 是「`D` 本身就是陣列的起點」：固定位址的陣列的第 `i` 格。
+
+五種寫法整理：
+
+| 寫法 | 本例 | ① 算位址 | 對應 C |
+|---|---|---|---|
+| `(B)` | `(%rdi)` | `p` | `*p` |
+| `D(B)` | `0x8(%rdi)` | `p ＋ 8` | `p[1]`（`long`） |
+| `(B,I,S)` | `(%rdi,%rsi,4)` | `a ＋ i × 4` | `a[i]`（`int`） |
+| `D(B,I,S)` | `0xc(%rdi,%rsi,4)` | `a ＋ i × 4 ＋ 12` | `a[i + 3]`（`int`） |
+| `D(,I,S)` | `0x404060(,%rdi,8)` | `0x404060 ＋ i × 8` | `tbl[i]`（固定位址的 `long` 陣列） |
+| `D(%rip)` | `0x2db5(%rip)` | 下一條指令 ＋ `0x2db5` | `g`（全域變數） |
+
 **S 只能是 1、2、4、8，正好是 `char`、`short`、`int`、`long`／指標的大小**——這就是硬體直接支援
 [第 3 課第二節](./陣列、字串與指標運算-C不檢查邊界與用gdb找segfault.md#二指標運算p--1-走一個元素不是一個-byte)的指標運算：`a + i` 走 `i × sizeof(*a)` 個 byte。
 
@@ -941,6 +1075,119 @@ $5 = 0xffffffff                ← 寫 %eax 時，%rax 的高 4 byte 被清成 0
 用到的 `gdb` 命令：`break *widen_char+4`（在 `widen_char` 開頭往後 4 byte、也就是 `endbr64` 之後的那條指令下中斷點，`*` 代表後面是位址）、
 `p/x $rdi`（用十六進位印暫存器）、`set $rdi = …`（改暫存器的值）、`stepi`（只執行一條機器指令，第 5 課詳講）、`continue`。
 完整說明見 [gdb完整命令參考](./gdb完整命令參考.md)。
+
+**上面 `break *widen_char+4` 的 `*`：為什麼要加？**
+
+> 2026-10-06 課後提問：「`break *deref+4` 為什麼前面要加 `*`？」
+
+`break` 後面的「位置」有兩種主要寫法（[gdb完整命令參考第三節](./gdb完整命令參考.md#三gdb-內部命令的共通文法)〈位置（LOCATION）〉的表）：
+
+| 寫法 | 例子 | gdb 怎麼理解 |
+|---|---|---|
+| 行號規格（linespec） | `break deref`、`break 4` | 後面是**函式名或行號**，gdb 用除錯資訊找出那一行「該停的地方」 |
+| 位址 | `break *deref`、`break *deref+4`、`break *0x11f4` | `*` 開頭：後面是一個**算出位址的式子**，就停在那個位址的那條機器指令 |
+
+這裡的 `*` 是 `break` 的語法記號，意思是「後面是位址」，**不是 C 的取值 `*`**。`*` 後面的 `deref+4` 會當成式子計算：
+`deref` 代表函式的開頭位址，`+4` 是往後 4 byte。本機 `paren.c`（上面〈上表第一列 `(B)`〉那段的程式）實測：
+
+```
+$ gdb -batch -ex 'break deref' -ex 'break *deref' -ex 'break *deref+4' -ex 'break deref+4' -ex 'break *0x11f4' ./paren
+Breakpoint 1 at 0x11f0: file paren.c, line 4.          ← 函式名
+Breakpoint 2 at 0x11f0: file paren.c, line 4.          ← * 函式開頭的位址
+Breakpoint 3 at 0x11f4: file paren.c, line 4.          ← * 開頭往後 4 byte：endbr64 之後的 mov
+Function "deref+4" not defined.                        ← 沒有 *：gdb 把 deref+4 整串當成函式名，找不到
+Make breakpoint pending on future shared library load? (y or [n]) [answered N; input not from terminal]
+Breakpoint 4 at 0x11f4: file paren.c, line 4.          ← * 直接寫數字：現在看起來跟 3 一樣，但 run 之後會失敗（見下方〈上面中斷點 4 的 `break *0x11f4`：為什麼 `run` 之後失敗？〉）
+```
+
+（`0x11f4` 是 `objdump -d` 印出的 `deref` 裡 `mov (%rdi),%rax` 那一行的位址。程式還沒執行時，gdb 顯示的是檔案裡的位址，所以 3 和 4 看起來一樣；**程式跑起來以後就不一樣了**，見下方。）
+
+**為什麼實驗要用 `*…+4`，不用 `break deref`**：實驗要停在「`mov` 還沒執行」的那一刻，改 `%rdi` 之後再 `stepi` 執行 `mov`。
+`-O2` 的 `break deref` 停在 `0x11f0`，也就是 `endbr64` 那一條；在那裡 `stepi` 執行的是 `endbr64`，不是 `mov`。
+用 `*deref+4` 才能精確停在 `mov` 上。
+
+**`break 函式名` 和 `break *函式名` 不一定停在同一個地方。** 上面 `-O2` 兩者剛好都是 `0x11f0`；同一個 `paren.c` 改用 `-O0` 編：
+
+```
+$ gcc -O0 -g paren.c -o paren0
+$ objdump -d --no-show-raw-insn paren0      （節錄 deref）
+000000000000117b <deref>:
+    117b:	endbr64
+    117f:	push   %rbp
+    1180:	mov    %rsp,%rbp
+    1183:	mov    %rdi,-0x8(%rbp)
+    1187:	mov    -0x8(%rbp),%rax
+    118b:	mov    (%rax),%rax
+    118e:	pop    %rbp
+    118f:	ret
+$ gdb -batch -ex 'break deref' -ex 'break *deref' ./paren0
+Breakpoint 1 at 0x1187: file paren.c, line 4.     ← 函式名：跳過開頭的準備工作，停在函式本體的第一條
+Breakpoint 2 at 0x117b: file paren.c, line 4.     ← *：一定是函式的第一條指令 endbr64
+```
+
+`break deref` 會跳過函式開頭「把參數存進堆疊」這些準備指令（`push %rbp` 到 `mov %rdi,-0x8(%rbp)`，第 5 課〈堆疊框〉的內容），
+停在原始碼那一行真正開始做事的地方，這對「一行一行看 C」最方便；`break *deref` 則不跳過任何東西。
+**看 C 用函式名或行號；看組合語言、要精確控制停在哪一條指令時，用 `*位址`。**
+
+**上面中斷點 4 的 `break *0x11f4`：為什麼 `run` 之後失敗？**
+
+> 2026-10-06 使用者實際操作：用 `objdump -d paren` 查到 `deref+4` 是 `0x11f4`，`break *0x11f4` 之後 `run`，得到 `Cannot insert breakpoint 1. Cannot access memory at address 0x11f4`；
+> 同樣的程式 `break *deref+4` 卻正常停下。上面把中斷點 4 說成「跟 3 是同一個地方」是錯的，已更正。
+
+**`objdump -d` 印的是「檔案裡的位址」，不是「執行時的位址」。** 本機 gcc 預設產生 PIE（[ELF是什麼第三節](./ELF是什麼-可執行與可連結格式的兩種視角.md#三一種格式四種檔案)：`Type` 是 DYN），
+PIE 的程式執行時會被整支搬到某個基底位址（base address）上，**執行時的位址 ＝ 基底 ＋ 檔案裡的位址**（[第一節](#一組合語言在哪裡一行文字一個機器指令)〈第 1 欄的位址從哪裡算：`.text` 區段〉的 `info proc mappings` 實驗看過同一件事）。
+在 gdb 裡，基底是 `0x555555554000`：
+
+```
+$ gdb -batch -ex 'break *deref+4' -ex run -ex 'p deref' -ex 'info proc mappings' -ex kill ./paren
+$1 = {long (long *)} 0x5555555551f0 <deref>          ← 執行時 deref 在 0x5555555551f0，不是 0x11f0
+      0x555555554000     0x555555555000     0x1000        0x0  r--p   …/paren   ← 基底 0x555555554000
+      0x555555555000     0x555555556000     0x1000     0x1000  r-xp   …/paren   ← 機器碼所在的分頁
+      …
+```
+
+`0x555555554000 ＋ 0x11f4 ＝ 0x5555555551f4`，這才是 `deref+4` 執行時的位址；`0x11f4` 這個位址在執行時沒有對映任何分頁，所以 gdb 放不進中斷點。
+
+兩種寫法的差別在於 gdb **什麼時候算位址**。兩個中斷點一起下、`run` 前後各看一次 `info breakpoints`：
+
+```
+$ gdb -batch -ex 'break *0x11f4' -ex 'break *deref+4' -ex 'info breakpoints' -ex run -ex 'info breakpoints' ./paren
+Num     Type           Disp Enb Address            What
+1       breakpoint     keep y   0x00000000000011f4 in deref at paren.c:4
+2       breakpoint     keep y   0x00000000000011f4 in deref at paren.c:4     ← run 之前：兩個一樣
+Warning:
+Cannot insert breakpoint 1.
+Cannot access memory at address 0x11f4
+
+Num     Type           Disp Enb Address            What
+1       breakpoint     keep y   0x00000000000011f4                           ← 寫死的數字：不會跟著搬
+2       breakpoint     keep y   0x00005555555551f4 in deref at paren.c:4     ← 用名字寫的：程式載入後 gdb 重新算
+```
+
+- `break *deref+4`：位置裡有符號名稱 `deref`，程式載入後 gdb 用新的位址重新算一次，所以會自動跟著搬到 `0x5555555551f4`。
+- `break *0x11f4`：只是一個數字，gdb 不知道它跟哪個函式有關，不會重新算。
+
+**想直接寫數字時有兩個做法：**
+
+1. 寫執行時的位址：`break *0x5555555551f4`（實測可以停下，`x/i $pc` 顯示 `=> 0x5555555551f4 <deref+4>: mov (%rdi),%rax`）。
+   這個數字在 gdb 裡每次都一樣，因為 gdb 預設關掉位址隨機化（`show disable-randomization` 印出 `Disabling randomization of debuggee's virtual address space is on.`）；
+   在 gdb 外面直接執行時，基底每次都不同（ASLR，Address Space Layout Randomization，位址空間配置隨機化）。
+2. 編成非 PIE：`gcc -O2 -g -no-pie paren.c -o paren_nopie`，`objdump -d` 印的就是執行時的位址：
+
+   ```
+   $ objdump -d --no-show-raw-insn paren_nopie      （節錄）
+   00000000004011e0 <deref>:
+     4011e0:	endbr64
+     4011e4:	mov    (%rdi),%rax
+   $ gdb -batch -ex 'break *0x4011e4' -ex run -ex 'x/i $pc' -ex kill ./paren_nopie
+   Breakpoint 1 at 0x4011e4: file paren.c, line 4.
+   Breakpoint 1, deref (p=p@entry=0x7fffffffd410) at paren.c:4
+   => 0x4011e4 <deref+4>:	mov    (%rdi),%rax
+   ```
+
+   非 PIE 的程式（`Type` 是 EXEC）固定放在檔案寫的位址，不會搬，所以檔案裡的位址就是執行時的位址。
+
+**實務上最簡單的是第三種：用「函式名＋位移」（`break *deref+4`），讓 gdb 自己算。** 位移 `+4` 可以從 `objdump -d` 讀：`11f4 − 11f0 ＝ 4`。
 
 不管高 7 byte 是什麼，結果都是 −1，因為 `movsbl` 只讀 `%dil`。**參數有多大，指令就讀多大的名字**：`signed char` 讀 `%dil`、`short` 讀 `%di`、
 `int` 讀 `%edi`、`long` 和指標讀 `%rdi`。看組合語言時，從暫存器的名字就能反推參數的大小（作業第 5 題會用到）。
@@ -1634,3 +1881,6 @@ gcc 的選項有上千個，下面只列本課用到的 6 個，完整清單見 
 8. （課後提問延伸）`dil.c` 的組合語言裡只出現 `%edi`、`%dil`，沒有 `%rdi`，為什麼 gdb 能印出 `$rdi`？在 gdb 裡 `set $edi = 0xaabbccdd`，`$rdi` 的高 4 byte 會不會被清成 0？跟 CPU 執行 `movl $0xaabbccdd, %edi` 有什麼不同？
 9. （課後提問延伸）`movsbl` 把 1 byte 擴展成 4 byte 時，新補的高 3 byte 是照哪一個位元補的？為什麼這樣補，`signed char` 的 −1 變成 `int` 之後才會還是 −1（用二補數的權重解釋）？
 10. （課後提問延伸）`mov %rdi,%rax` 和 `mov (%rdi),%rax` 只差一對括號，兩個指令各拿 `%rdi` 裡的數字做什麼？各對應 C 的什麼寫法？如果 `%rdi` 裡是 1234，哪一個會 segfault，為什麼？
+11. （課後提問延伸）`break deref+4` 會得到 `Function "deref+4" not defined.`，`break *deref+4` 卻可以，`*` 讓 gdb 怎麼理解後面的東西？這個 `*` 跟 C 的 `*p` 是同一個意思嗎？在 `-O0` 的程式上，`break deref` 和 `break *deref` 為什麼會停在不同的位址？
+12. （課後實作延伸）用 `objdump -d paren` 查到 `deref+4` 在 `0x11f4`，`break *0x11f4` 之後 `run` 卻得到 `Cannot access memory at address 0x11f4`，`break *deref+4` 就沒問題。為什麼？如果程式是用 `-no-pie` 編的，`break *` 加 `objdump` 查到的位址會不會成功？
+13. （課後提問延伸）`get_g` 讀全域變數 `g` 用的是 `mov 0x2db5(%rip),%rax`，為什麼 PIE 程式不能直接把 `g` 的位址寫進指令，而要用 `%rip` ＋ 距離？同一個 `tbl[i]`，為什麼非 PIE 的程式可以寫成一條 `mov 0x404060(,%rdi,8),%rax`？

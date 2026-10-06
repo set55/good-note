@@ -354,6 +354,8 @@ gdb [選項] --args 執行檔 [傳給程式的參數 ...]
 
 `break` 不給位置時，用「目前選取的堆疊框正在執行的位址」。
 
+上表「位址」那一列的 `*` 是位置的語法記號（「後面是一個算出位址的式子」），不是 C 的取值 `*`；沒加 `*` 時 gdb 會把 `main + 4` 當成函式名去找而報 `Function "main + 4" not defined.`（本機實測）。另外 `break 函式名` 會跳過函式開頭的準備指令、`break *函式名` 停在第一條指令，兩者在 `-O0` 下位址不同。實測與說明見 [x86-64組合語言入門第三節](./x86-64組合語言入門-暫存器、mov與lea、cmp與條件跳躍.md#三指令的文法助憶符大小後綴運算元)〈上面 `break *widen_char+4` 的 `*`：為什麼要加？〉（2026-10-06 補充）。
+
 #### 怎麼知道要用哪個行號（2026-09-25 補充）
 
 > 起因：使用者問「要怎麼知道一個 `.c` 檔在 gdb 裡正確的行數」。以下用 `small-project/s1-01-hello-compile/avg.c`
@@ -1097,6 +1099,8 @@ gdb -q -batch -ex 'break average' -ex run -ex bt -ex next -ex 'info locals' ./av
 | 中斷點設了卻從來沒停 | 函式被內嵌、或整段在編譯時被算掉了 | 用 `-O0` 重編；或看 `disassemble` 確認函式還在不在 |
 | `Breakpoint 1, 0x... in average ()`（沒有行號與參數） | 沒有除錯資訊（沒加 `-g`） | 加 `-g` 重編 |
 | `No current process: you must name one.` | `info proc`（包括 `info proc mappings`）要看的是**正在跑的行程**；程式還沒 `run`，或已經跑完（`exited normally`） | 先讓程式**停**在某處再下，例如 `break sum_to` → `run`，或 `start`、`starti` |
+| `Warning: Cannot insert breakpoint 1. Cannot access memory at address 0x11f4`（`run` 時） | 用 `break *數字` 寫了 `objdump -d` 查到的**檔案裡的位址**；PIE 程式執行時被搬到基底 `0x555555554000` 之後，這個位址沒有對映 | 改用 `break *函式名+位移`（gdb 會重新算），或寫執行時的位址（`0x555555554000` ＋ 檔案位址）。見 [x86-64組合語言入門第三節](./x86-64組合語言入門-暫存器、mov與lea、cmp與條件跳躍.md#三指令的文法助憶符大小後綴運算元)〈上面中斷點 4 的 `break *0x11f4`：為什麼 `run` 之後失敗？〉 |
+| `Function "deref+4" not defined.` 接著問 `Make breakpoint pending …?` | 想用「函式＋位移」下中斷點卻忘了 `*`，gdb 把 `deref+4` 整串當成函式名 | 回答 `n`，改成 `break *deref+4` |
 | `No line 19 in the current file.` 接著問 `Make breakpoint pending on future shared library load? (y or [n])` | 「目前的檔案」裡沒有第 19 行可以停——最常見是程式**沒加 `-g`**，gdb 根本不知道 `.c` 的行號 | 回答 `n`；改用函式名稱（`break main`），或加 `-g` 重編。見下面〈沒加 `-g` 就用行號下中斷點〉 |
 
 ### 沒加 `-g` 就用行號下中斷點：中斷點跑到 glibc 裡，永遠不會停（2026-10-05 使用者實際遇到）
