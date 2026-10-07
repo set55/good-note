@@ -1513,11 +1513,21 @@ gcc -O0 -g flagsmain.c flags.s -o flags
 
 **ZF（結果是 0）**——①、⑧、⑩ 是 1，三列的結果都是 `0x00`。
 - ① 5 − 5 = 0，這是 `cmp` 用 ZF 判斷「相等」的原理：D − S 是 0，就是 D == S。
-- ⑩ 是陷阱：128 + 128 的正確答案是 256，但 256 是 `0x100`，8 位元只留下 `0x00`，ZF 照樣是 1。**ZF 只看留下來的位元，不管數學上的答案。**
+- ⑩ 要注意：128 + 128 的正確答案是 256，但 256 是 `0x100`，8 位元只留下 `0x00`，ZF 照樣是 1。**ZF 只看留下來的位元，不管數學上的答案。**
 
 **SF（最高位元是 1）**——③、④、⑦ 是 1，結果分別是 `0xfe`、`0xfe`、`0x80`，二進位最左邊都是 1。
 - SF 就是把結果的第 7 位元（8 位元的最高位元）抄一份，**它不判斷什麼**。當成有號數讀，最高位元是 1 就是負數，所以叫 sign flag。
-- ⑦ 是陷阱：127 + 1 的正確答案是 +128，但留下的 `0x80` 當有號讀是 −128，SF = 1 說「負的」——**溢位時 SF 是錯的**。這就是下面 OF 存在的理由。
+- ⑦ 要注意：127 + 1 的正確答案是 +128，但留下的 `0x80` 當有號讀是 −128，SF = 1 說「負的」——**溢位時，SF 跟數學答案的正負號不一致**。這就是下面 OF 存在的理由。
+
+**上面⑦：位元變成 `0x80` 很正常，為什麼還要特別注意？**
+
+> 2026-10-07 課後提問：「這看起來很正常？有什麼問題嗎？為什麼說它是陷阱？」
+
+對，**位元本身完全正常**：8 位元的 127 + 1 就是會變成 `0x80`——`addb` 只是把位元相加、留下最低 8 位元（C 裡的有號溢位是未定義行為，見[第 2 課第八節](./C的資料在記憶體裡長怎樣-位元組、指標、位元組順序與有號無號.md#八溢位無號回繞有號是未定義行為)；但機器指令本身就是這樣算），SF 也沒算錯，它忠實地抄了第 7 位元。
+要注意的不是 SF，而是**讀 SF 的人**：SF 叫「正負號旗標」，很容易被當成「這次運算的答案是負的」。但 127 + 1 的答案是 +128，是正的；SF = 1 只說得出「**留下來的位元**當有號讀是負的」。兩件事只在沒溢位時一致。
+
+這會在哪裡出錯？`cmp` 就是靠減法比大小：想知道 D < S，最直覺的做法是看「D − S 是不是負的」，也就是只看 SF。這個直覺在溢位時就會答錯——下面〈回頭看條件碼表〉的⑥就是實例：−128 < 1 明明成立，但 −128 − 1 溢位，SF 卻是 0。
+所以 CPU 另外用 OF 記下「這次有沒有溢位」，條件碼 `l` 才能用 SF ≠ OF 把 SF 校正回來。⑦ 先讓你看到 SF 會「說錯」，⑥ 讓你看到說錯的後果。
 
 **CF（當成無號數，裝不下）**——只看「無號」那一欄：
 - ③ 3 − 5：無號數沒有負數，小減大要向更高位借位（borrow），CF = 1。所以 `cmp` 之後 **CF = 1 就代表 D < S（無號）**，上表寫的「`cmp` 時就是 D 比 S 小」就是這個意思。
@@ -1525,6 +1535,190 @@ gcc -O0 -g flagsmain.c flags.s -o flags
 - ④ 255 − 1 = 254：大減小，不用借位，CF = 0。有號那欄是 −1 − 1 = −2（負的），CF 還是 0。
 - ⑧ 255 + 1、⑨ 200 + 100、⑩ 128 + 128：正確答案 256、300、256 都超過 255，最高位元往外進位（carry），CF = 1。
 - ⑦ 127 + 1 = 128，沒超過 255，CF = 0。
+
+**上面③：3 − 5 在 CPU 裡實際上是怎麼算的？**
+
+> 2026-10-07 課後提問：「3 − 5 實際上到底是怎麼運作的？」
+
+跟小學的直式減法一模一樣，只是每一位只有 0 和 1、借位借到的是 2 而不是 10。先用十進位暖身：算 03 − 05，個位 3 減 5 不夠，向十位借 1（＝個位的 10），13 − 5 = 8；十位變成 0 − 0 − 1，又不夠，再往左借……如果紙上只有兩位數，最後一次要向「百位」借，但紙上沒有百位——**照樣先借、記一筆欠帳**，紙上留下 98，外加一個「我向紙外借了 1」的記號。98 就是 3 − 5 + 100，那個記號提醒你「這個答案多加了 100，真正的答案是 98 − 100 = −2」。
+
+**上面這段十進位暖身：十位也是 0，98 是從哪裡冒出來的？**
+
+> 2026-10-07 課後提問：「看不懂，向 10 借位，但 10 位數也是 0，就像外面借，然後就突然出現了 98？不懂」
+
+**先用倒數來想，不用借位。** 想像一個只有兩格的機械計數器（像舊式的里程表），現在顯示 `03`。3 − 5 就是往回撥 5 下：
+
+```
+03 → 02 → 01 → 00 → 99 → 98
+```
+
+撥到 `00` 再往回一下，兩格裝不下 −1，計數器就**翻過去**變成 `99`，再一下是 `98`。98 不是突然出現的，是「翻過 0」之後接著倒數的結果。翻過去的那一下，等於向紙外的百位借了 100：98 = 3 − 5 + 100。
+
+8 位元一模一樣，只是翻過 0 之後回到的是 255。`countdown.c`（檔案：[`countdown.c`](../small-project/s1-04-asm-basics/countdown.c)）用 8 位元的 `unsigned char` 從 3 減 1 減 5 次：
+
+```c
+/* countdown.c：8 位元的計數器從 3 往回倒數 5 下，看它怎麼「翻過 0」 */
+#include <stdio.h>
+
+int main(void)
+{
+    unsigned char x = 3;            /* 8 位元，只能裝 0～255 */
+
+    printf("開始：%3u (0x%02x)\n", x, x);
+    for (int i = 1; i <= 5; i++) {
+        x = x - 1;                  /* 每次減 1，總共減 5，就是 3 − 5 */
+        printf("減第 %d 下：%3u (0x%02x)\n", i, x, x);
+    }
+    return 0;
+}
+```
+
+```sh
+gcc -O0 -Wall countdown.c -o countdown
+./countdown
+```
+
+本機輸出：
+
+```
+開始：  3 (0x03)
+減第 1 下：  2 (0x02)
+減第 2 下：  1 (0x01)
+減第 3 下：  0 (0x00)
+減第 4 下：255 (0xff)
+減第 5 下：254 (0xfe)
+```
+
+第 4 下從 0 翻到 255，這一下就是「向第 8 位元之外借位」，也就是 CF 記下的那件事。最後停在 254，跟上面 `cmpb` 3 − 5 得到的 `0xfe` 一樣。
+
+**再用直式減法算一次，一格一格寫清楚。** 卡住的地方是十位：十位本來是 0，又被個位借走 1，它自己也不夠，**只好再向左邊的百位借**。紙上沒有百位，但規則照走：先借來、記一筆「欠百位 1」。
+
+| 步驟 | 百位（紙外） | 十位 | 個位 | 說明 |
+|---|---|---|---|---|
+| 開始 | — | 0 | 3 | 03 − 05 |
+| 個位 | — | 0（被借走 1，**欠 1**） | 3 + 10 − 5 = **8** | 3 不夠減 5，向十位借 1，在個位值 10 |
+| 十位 | **借出 1** | 0 + 10 − 0 − 1 = **9** | 8 | 十位要算 0 − 0，再還被個位借走的 1，不夠；向百位借 1，在十位值 10 |
+| 結果 | 欠 1（＝欠 100） | 9 | 8 | 紙上留下 98 |
+
+所以 98 的 9 是「十位向百位借來 10，扣掉被個位借走的 1」，8 是「個位向十位借來 10，13 − 5」。最後欠百位的那個 1，價值 100，所以真正的答案是 98 − 100 = −2。
+
+8 位元的直式減法（下面 `borrow.c` 的輸出）是同一件事：第 3～7 位每一位都跟這裡的十位一樣——本來是 0、被右邊借走 1、只好再向左借，借來的 2 扣掉 1 留下 1；第 7 位向「第 8 位元」借，那一下就是 CF = 1。
+
+CPU 的 8 位元減法完全一樣，只是「紙」只有 8 格，最高位往外借到的是 256。**往最高位之外借的那一下，就是 CF。**
+
+`borrow.c`（檔案：[`borrow.c`](../small-project/s1-04-asm-basics/borrow.c)）用 C 照直式減法一位一位地算，最後再呼叫上面 `flags.s` 的 `flags_cmp` 讓 CPU 真的做一次 `cmpb`，兩邊對照。完整原始碼：
+
+```c
+/* borrow.c：用直式減法一個位元一個位元地算 8 位元的 D − S，跟 CPU 的 cmpb 對照 */
+#include <stdio.h>
+
+unsigned long flags_cmp(unsigned char d, unsigned char s);   /* 在 flags.s */
+
+static void print_bits(unsigned char x)
+{
+    for (int i = 7; i >= 0; i--)
+        putchar(((x >> i) & 1) ? '1' : '0');
+}
+
+static void sub_by_hand(unsigned char d, unsigned char s)
+{
+    unsigned char r = 0;
+    int borrow = 0;                       /* 從右邊那一位借走的 1 */
+
+    printf("D = %3u = ", d); print_bits(d); putchar('\n');
+    printf("S = %3u = ", s); print_bits(s); putchar('\n');
+    printf("位元  D  S  借入  這一位的算式        借出\n");
+    for (int i = 0; i < 8; i++) {         /* 從最右邊（第 0 位元）往左做 */
+        int db = (d >> i) & 1, sb = (s >> i) & 1;
+        int v = db - sb - borrow;         /* 這一位要算的：D 位 − S 位 − 被借走的 */
+        int out = 0;
+        if (v < 0) { v += 2; out = 1; }   /* 不夠減：向左邊那一位借 1（＝這一位的 2） */
+        printf("  %d   %d  %d   %d    %d - %d - %d %s= %d    %d\n",
+               i, db, sb, borrow, db, sb, borrow,
+               out ? "+ 2 " : "    ", v, out);
+        r |= (unsigned char)(v << i);
+        borrow = out;
+    }
+    printf("手算結果 = "); print_bits(r);
+    printf(" = 0x%02x，最高位元還要往外借：%d\n", r, borrow);
+
+    unsigned sum = d + (unsigned char)~s + 1;   /* 加法器的做法：D + (S 反轉) + 1 */
+    printf("加法器：%u + %u + 1 = %u，%s 255 → 往外進位 %d\n",
+           d, (unsigned char)~s, sum, sum > 255 ? "超過" : "沒超過", sum > 255);
+
+    unsigned long f = flags_cmp(d, s);
+    printf("CPU cmpb：結果 0x%02x，CF = %lu\n\n", (unsigned char)(d - s), f & 1);
+}
+
+int main(void)
+{
+    sub_by_hand(3, 5);
+    sub_by_hand(5, 3);
+    return 0;
+}
+```
+
+程式裡沒教過的寫法：`(d >> i) & 1` 是「取出第 i 位元」（上面 `flagsmain.c` 用過）；`~s` 是 C 的「每個位元反過來」運算子，就是[第 2 課第五節](./C的資料在記憶體裡長怎樣-位元組、指標、位元組順序與有號無號.md#五有號整數二補數)「取負數：每個 bit 反過來，再加 1」的那個「反過來」；`r |= v << i` 是把算好的這一位放回第 i 位元。
+
+```sh
+cd small-project/s1-04-asm-basics
+gcc -O0 -g -Wall borrow.c flags.s -o borrow
+./borrow
+```
+
+本機輸出：
+
+```
+D =   3 = 00000011
+S =   5 = 00000101
+位元  D  S  借入  這一位的算式        借出
+  0   1  1   0    1 - 1 - 0     = 0    0
+  1   1  0   0    1 - 0 - 0     = 1    0
+  2   0  1   0    0 - 1 - 0 + 2 = 1    1
+  3   0  0   1    0 - 0 - 1 + 2 = 1    1
+  4   0  0   1    0 - 0 - 1 + 2 = 1    1
+  5   0  0   1    0 - 0 - 1 + 2 = 1    1
+  6   0  0   1    0 - 0 - 1 + 2 = 1    1
+  7   0  0   1    0 - 0 - 1 + 2 = 1    1
+手算結果 = 11111110 = 0xfe，最高位元還要往外借：1
+加法器：3 + 250 + 1 = 254，沒超過 255 → 往外進位 0
+CPU cmpb：結果 0xfe，CF = 1
+
+D =   5 = 00000101
+S =   3 = 00000011
+位元  D  S  借入  這一位的算式        借出
+  0   1  1   0    1 - 1 - 0     = 0    0
+  1   0  1   0    0 - 1 - 0 + 2 = 1    1
+  2   1  0   1    1 - 0 - 1     = 0    0
+  3   0  0   0    0 - 0 - 0     = 0    0
+  4   0  0   0    0 - 0 - 0     = 0    0
+  5   0  0   0    0 - 0 - 0     = 0    0
+  6   0  0   0    0 - 0 - 0     = 0    0
+  7   0  0   0    0 - 0 - 0     = 0    0
+手算結果 = 00000010 = 0x02，最高位元還要往外借：0
+加法器：5 + 252 + 1 = 258，超過 255 → 往外進位 1
+CPU cmpb：結果 0x02，CF = 0
+```
+
+照 3 − 5 那張表從第 0 位元（最右邊）往左讀：
+
+1. 第 0 位：1 − 1 = 0，不用借。第 1 位：1 − 0 = 1，不用借。
+2. 第 2 位：0 − 1 不夠，**向第 3 位借 1**。借來的 1 在這一位值 2，所以是 0 + 2 − 1 = 1，「借出」記 1。
+3. 第 3 位：本來是 0，又被第 2 位借走 1，變成 0 − 0 − 1，還是不夠，再向第 4 位借：0 + 2 − 0 − 1 = 1。
+4. 第 4～7 位一路重複同一件事：每一位都是 0，都被右邊借走 1，都只好再向左借。每一位都留下 1。
+5. 第 7 位是最高位，它要借的「第 8 位」**不存在**——8 位元只有 8 格。CPU 還是照算，留下 `11111110` = `0xfe`（無號讀是 254），並把「最高位往外借了」記在 **CF = 1**。
+
+254 就是 3 − 5 + 256：結果偷偷多了 256，CF = 1 就是在提醒你這件事。最後一行 CPU 的 `cmpb` 結果也是 `0xfe`、CF = 1，跟手算一致。
+
+對照 5 − 3：只有第 1 位借了一次，第 2 位就把它還清了（1 − 0 − 1 = 0），最高位不用往外借，CF = 0。
+
+**為什麼「CF = 1」剛好等於「D < S（無號）」**：兩個都在 0～255 之間時，D ≥ S 的差落在 0～255，8 格裝得下，最高位不必往外借；D < S 的差是負的，無號數裝不下負數，一定會借到最高位之外。所以「最高位有沒有往外借」跟「D 是不是比 S 小」是同一件事。
+
+**電路上其實是用加法做的**：CPU 裡沒有另外一套減法電路，它算 D − S 的方法是 **D + (S 每個位元反過來) + 1**——「反過來再加 1」就是 −S（[第 2 課第五節](./C的資料在記憶體裡長怎樣-位元組、指標、位元組順序與有號無號.md#五有號整數二補數)），所以等於 D + (−S)。輸出的「加法器」那一行就是這樣算的：
+- 3 − 5：3 + 250 + 1 = 254，沒超過 255，**沒有**往外進位。
+- 5 − 3：5 + 252 + 1 = 258，超過 255，**有**往外進位（留下 258 − 256 = 2）。
+
+注意進位跟借位**剛好相反**：減法時「加法器沒有進位」就代表「減法要借位」。x86 在 `sub`／`cmp` 時會把加法器的進位反過來再存進 CF，所以 CF 在減法裡的意思統一是「借位了」：3 − 5 的 CF = 1、5 − 3 的 CF = 0，跟直式減法的結論一致。（有些 CPU，例如 ARM，減法時直接存加法器的進位，CF 的意思就反過來；讀別的架構的組合語言時要注意。）
 
 **OF（當成有號數，裝不下）**——只看「有號」那一欄：
 - ⑥ −128 − 1：正確答案 −129，比 −128 還小，裝不下 → OF = 1。留下的 `0x7f` 讀成 +127，正負號反了。
@@ -1551,6 +1745,118 @@ gcc -O0 -g flagsmain.c flags.s -o flags
 | `test S, D` | D & S | **丟掉**，只設旗標（CF、OF 清成 0） | `testl %edi, %edi`：看 `n` 是 0、負數還是正數 |
 
 **AT&T 的順序要特別小心**：`cmp S, D` 算的是 **D − S**，所以 `cmpl %esi, %edi; jl` 的意思是「`%edi` < `%esi` 就跳」，**右邊的那個在比較式的左邊**。
+
+**上表「典型用途」欄的 `i`、`n` 是誰？**
+
+> 2026-10-07 課後提問：「這裡面提到的 i、n 是什麼？」
+
+上表的兩個例子都是從後面[第六節](#六逐行讀-sum_to-的--o0-版)、[第七節](#七逐行讀-sum_to-的--o2-版)要逐行讀的 `sum_to` 抄來的，在這裡還沒介紹就先用了。`sum_to` 是第 1 課就寫過的函式（檔案：[`sumto.c`](../small-project/s1-01-hello-compile/sumto.c)），`n` 是它的參數、`i` 是迴圈變數：
+
+```c
+int sum_to(int n)
+{
+    int total = 0;
+    for (int i = 1; i <= n; i++)
+        total += i;
+    return total;
+}
+```
+
+**`cmpl -20(%rbp), %eax` 為什麼是在比 `i` 和 `n`**（`-O0` 版，第六節）：`-O0` 把每個變數放在記憶體的固定位置——`n` 在 `-20(%rbp)`、`i` 在 `-4(%rbp)`（`%rbp` 往下 20、4 byte；`%rbp` 本身是什麼第 5 課講，這裡只要知道「那是某個變數的位置」）。迴圈條件 `i <= n` 編出來是這三行：
+
+```asm
+	movl	-4(%rbp), %eax	# 把 i 讀進 %eax
+	cmpl	-20(%rbp), %eax	# 算 %eax − n，也就是 i − n，只設旗標
+	jle	.L3	# i <= n 就跳回迴圈本體 .L3
+```
+
+所以 `cmpl` 的 S 是 `n`（記憶體裡）、D 是 `%eax`（`i` 的複本），照上面的 AT&T 順序，算的是 **i − n**。
+
+**`testl %edi, %edi` 為什麼是在看 `n`**（`-O2` 版，第七節）：`-O2` 不把 `n` 存到記憶體，它一直待在第 1 個參數的暫存器 `%edi`（[第二節](#二暫存器cpu-裡的-16-個變數)）。`sum_to` 一進來第一件事是：
+
+```asm
+	testl	%edi, %edi	# 算 n & n，只設旗標
+	jle	.L4	# n <= 0 就直接跳去回傳 0（迴圈一次都不用跑）
+```
+
+`&` 是逐位元的 AND：兩邊都是 1 才得 1。一個數 AND 自己，每一位都不變，所以 `n & n` 就是 `n`。`test` 不存結果、只設旗標，等於「拿 `n` 本身來設 ZF 和 SF」：`n` 是 0 → ZF = 1；`n` 是負的（最高位元是 1）→ SF = 1；兩個都是 0 就是正的。CF、OF 被 `test` 清成 0。
+
+**實測**：照前面 `flags.s` 的作法，`cmptest.s`（檔案：[`cmptest.s`](../small-project/s1-04-asm-basics/cmptest.s)）用 32 位元做跟 `sum_to` 一樣的 `cmpl`（`i − n`）和 `testl`（`n & n`），`cmptestmain.c`（檔案：[`cmptestmain.c`](../small-project/s1-04-asm-basics/cmptestmain.c)）餵幾組數字印旗標：
+
+```asm
+# cmptest.s：32 位元的 cmpl 與 testl，把做完後的旗標整包回傳（寫法同 flags.s）
+	.text
+	.globl	flags_cmpl
+flags_cmpl:                      # unsigned long flags_cmpl(int i, int n)
+	cmpl	%esi, %edi           # 算 i − n（%edi 是 i、%esi 是 n），結果丟掉，只設旗標
+	pushfq                       # 把 rflags 複製到 %rax（見 flags.s 的說明）
+	popq	%rax
+	ret
+
+	.globl	flags_testl
+flags_testl:                     # unsigned long flags_testl(int n)
+	testl	%edi, %edi           # 算 n & n，結果丟掉，只設旗標
+	pushfq
+	popq	%rax
+	ret
+
+	.section	.note.GNU-stack,"",@progbits
+```
+
+```c
+/* cmptestmain.c：模仿 sum_to 的兩個判斷——cmpl 比 i 和 n、testl 看 n 的正負 */
+#include <stdio.h>
+
+unsigned long flags_cmpl(int i, int n);   /* 在 cmptest.s */
+unsigned long flags_testl(int n);
+
+/* CF 第 0 位元、ZF 第 6、SF 第 7、OF 第 11 */
+static void show(const char *what, unsigned long f)
+{
+    printf("%-22s ZF=%lu SF=%lu CF=%lu OF=%lu\n", what,
+           (f >> 6) & 1, (f >> 7) & 1, (f >> 0) & 1, (f >> 11) & 1);
+}
+
+int main(void)
+{
+    char buf[64];
+    int pairs[][2] = { {3, 5}, {5, 5}, {6, 5} };   /* {i, n} */
+    int ns[] = { 5, 0, -3 };
+
+    for (int k = 0; k < 3; k++) {
+        int i = pairs[k][0], n = pairs[k][1];
+        snprintf(buf, sizeof buf, "cmpl: i=%d, n=%d", i, n);
+        show(buf, flags_cmpl(i, n));
+    }
+    for (int k = 0; k < 3; k++) {
+        snprintf(buf, sizeof buf, "testl: n=%d", ns[k]);
+        show(buf, flags_testl(ns[k]));
+    }
+    return 0;
+}
+```
+
+（`snprintf` 只是把說明文字組成字串，跟旗標無關。）
+
+```sh
+cd small-project/s1-04-asm-basics
+gcc -O0 -g -Wall cmptestmain.c cmptest.s -o cmptest
+./cmptest
+```
+
+本機輸出：
+
+```
+cmpl: i=3, n=5         ZF=0 SF=1 CF=1 OF=0
+cmpl: i=5, n=5         ZF=1 SF=0 CF=0 OF=0
+cmpl: i=6, n=5         ZF=0 SF=0 CF=0 OF=0
+testl: n=5             ZF=0 SF=0 CF=0 OF=0
+testl: n=0             ZF=1 SF=0 CF=0 OF=0
+testl: n=-3            ZF=0 SF=1 CF=0 OF=0
+```
+
+- `cmpl`：i = 3、n = 5，3 − 5 是負的，SF = 1（也借位了，CF = 1）；i = 5、n = 5 相減是 0，ZF = 1；i = 6、n = 5 是正的 1，四個都是 0。`jle` 看「ZF = 1 或 SF ≠ OF」：前兩組成立、會跳回迴圈；第三組不成立，迴圈結束——正是 `i <= n` 的意思。
+- `testl`：n = 5 四個都是 0；n = 0 只有 ZF = 1；n = −3 只有 SF = 1。三組的 CF、OF 都是 0。`-O2` 的 `jle .L4` 在 n = 0（ZF = 1）和 n = −3（SF = 1 ≠ OF = 0）時成立，`n <= 0` 就不跑迴圈。
 
 ### 條件碼：全部 16 種
 
@@ -1654,6 +1960,72 @@ eflags         0x282               [ SF IF ]
 
 （`break *lt_s+8` 的 `*` 表示「在這個**位址**停」，而不是在某一行原始碼；`+8` 是 `setl` 在函式裡的位置，從 `gdb -batch -ex 'disassemble lt_s' ./lt` 看來的：
 `<+0>` `endbr64`、`<+4>` `xor`、`<+6>` `cmp`、`<+8>` `setl`。位址一定要對準某個指令的**開頭**：本機第一次試時打成 `+10`，停在 `setl` 的中間，gdb 插進去的中斷點 byte 把指令弄壞了，程式印出 `lt_s(-1, 1) = 256`——指令長度不固定，就有這種陷阱。`info registers` 與 `x/i` 的完整說明見 [gdb完整命令參考](./gdb完整命令參考.md)，第 5 課會正式用它們觀察暫存器。）
+
+**上面 gdb 命令裡的 `$pc` 是什麼？**
+
+> 2026-10-07 課後提問：「請問在 gdb `$pc` 是什麼意思？」
+
+`$pc` 是 **program counter（程式計數器）** 的縮寫，就是「CPU 下一個要執行的指令在哪個位址」。在 x86-64 上，存這個位址的暫存器叫 `%rip`（[第二節](#二暫存器cpu-裡的-16-個變數)暫存器表下面「`%rip`（instruction pointer，指令指標）」那一點），所以 **gdb 的 `$pc` 就是 `$rip`**，兩個名字指同一個暫存器。
+
+- `$`：在 gdb 的表達式裡，`$` 開頭的名字代表暫存器或 gdb 自己的變數（[gdb完整命令參考第三節](./gdb完整命令參考.md#三gdb-內部命令的共通文法)〈表達式、值歷史、便利變數〉）。暫存器在組合語言裡寫 `%rip`，在 gdb 裡寫 `$rip`。
+- 為什麼有 `$pc` 這個別名：每種 CPU 的「指令位址暫存器」名字不同（x86-64 叫 `rip`、32 位元 x86 叫 `eip`、ARM 叫 `pc`）。gdb 提供四個**每種架構都通用**的標準名字，寫 gdb 命令時不用管是哪種 CPU：
+
+| gdb 標準名字 | 意思 | 在 x86-64 上 | 本課用到嗎 |
+|---|---|---|---|
+| `$pc` | program counter：下一個要執行的指令的位址 | 就是 `$rip` | 用到 |
+| `$sp` | stack pointer：堆疊頂端 | 就是 `$rsp` | 第 5 課 |
+| `$fp` | frame pointer：目前這一層函式的框架（frame）位址 | gdb 自己算出來的，第 5 課講堆疊時再看 | 第 5 課 |
+| `$ps` | processor status：狀態旗標 | 就是 `eflags`（印出來跟 `info registers eflags` 一樣） | 用到（等於看旗標） |
+
+（這是 gdb 手冊〈Registers〉一節列的全部 4 個標準名字。）
+
+**實測**（用本節的 `lt`，編譯命令同上；停在 `lt_s` 的 `cmp` 上，`stepi` 執行一個指令後再看一次）：
+
+```sh
+gdb -q -batch -ex 'break *lt_s+6' -ex run \
+    -ex 'p $pc' -ex 'p $rip' -ex 'p/x $pc' -ex 'info registers rip' \
+    -ex 'x/i $pc' -ex 'x/3i $pc' \
+    -ex stepi -ex 'p $pc' -ex 'x/i $pc' \
+    -ex 'p $sp' -ex 'p $rsp' -ex 'p $ps' -ex 'info registers eflags' \
+    -ex 'p $eip' -ex 'p $foo' -ex kill ./lt
+```
+
+本機輸出（GNU gdb 15.1，刪掉 `Thread debugging` 兩行與結尾 `kill` 的訊息）：
+
+```
+Breakpoint 1 at 0x11b6: file lt.c, line 2.
+
+Breakpoint 1, 0x00005555555551b6 in lt_s (a=-1, b=1) at lt.c:2
+2	int lt_s(int a, int b)           { return a < b; }
+$1 = (void (*)()) 0x5555555551b6 <lt_s+6>
+$2 = (void (*)()) 0x5555555551b6 <lt_s+6>
+$3 = 0x5555555551b6
+rip            0x5555555551b6      0x5555555551b6 <lt_s+6>
+=> 0x5555555551b6 <lt_s+6>:	cmp    %esi,%edi
+=> 0x5555555551b6 <lt_s+6>:	cmp    %esi,%edi
+   0x5555555551b8 <lt_s+8>:	setl   %al
+   0x5555555551bb <lt_s+11>:	ret
+0x00005555555551b8	2	int lt_s(int a, int b)           { return a < b; }
+$4 = (void (*)()) 0x5555555551b8 <lt_s+8>
+=> 0x5555555551b8 <lt_s+8>:	setl   %al
+$5 = (void *) 0x7fffffffd438
+$6 = (void *) 0x7fffffffd438
+$7 = [ SF IF ]
+eflags         0x282               [ SF IF ]
+$8 = void
+$9 = void
+```
+
+逐行看（`$fp` 要等第 5 課講堆疊才看得懂，命令裡沒放）：
+
+1. `p $pc` 和 `p $rip` 印出**同一個值** `0x5555555551b6`，後面的 `<lt_s+6>` 是 gdb 幫你翻譯成「`lt_s` 開頭往後 6 byte」。`(void (*)())` 是 gdb 把它當成「指向程式碼的指標」型別，不用管；只想看數字就用 `p/x $pc`。
+2. `info registers rip` 是另一種看法，結果一樣。
+3. `x/i $pc`：`x` 是「檢查（examine）記憶體」，`/i` 是「把那裡的 byte 當成指令（instruction）反組譯」，`$pc` 是「從哪個位址開始」。合起來就是**「印出下一個要執行的指令」**。`=>` 標出 `$pc` 所在的那一條。`x/3i $pc` 是往後印 3 條。`x` 的完整格式見 [gdb完整命令參考第三節](./gdb完整命令參考.md#三gdb-內部命令的共通文法)〈輸出格式 `/FMT`：`print` 與 `x` 共用〉。
+4. **停下來時，`$pc` 指的那一條還沒執行**：停在 `cmp` 上，`cmp` 還沒做。`stepi`（執行一個機器指令）之後，`$pc` 變成 `0x...1b8`——`cmp` 是 2 byte（`1b6` → `1b8`），`$pc` 就前進到下一條 `setl`。
+5. `p $sp` 跟 `p $rsp` 一樣；`p $ps` 印出 `[ SF IF ]`，跟 `info registers eflags` 一樣，就是 `cmp` 做完後的旗標。
+6. **錯誤對照**：`p $eip` 印 `void`、`p $foo` 也印 `void`——**沒有報錯**。x86-64 沒有叫 `eip` 的暫存器，gdb 就把它當成一個還沒設定過的便利變數，值是 `void`。所以看到 `void` 就代表名字打錯了（或用了別的架構的暫存器名），不是暫存器的值是 0。
+
+**跟第三節 `D(%rip)` 的「下一個指令的位址」差在哪**：gdb 停下時的 `$pc` 是「**接下來要執行**的這一條」的位址；CPU **正在執行**某一條時，`%rip` 已經指到它的**下一條**，所以 `D(%rip)` 算位址時用的是下一條的位址。這就是[第三節](#三指令的文法助憶符大小後綴運算元)〈上表其他五列：每一種用一個實際的 C 函式對照。〉的 `get_g` 實驗要寫 `$pc + 7 + 0x2db5`（`mov` 是 7 byte）的原因。
 
 逐步算：
 
@@ -1930,6 +2302,108 @@ answer:
 
 **`movl $1, %eax` 夾在 `andl` 和 `je` 中間**，這是[第五節](#哪些指令會改旗標)「`mov` 不改旗標」的實際應用：gcc 把不相干的指令塞進比較和跳躍之間，`je` 讀到的仍然是 `andl` 的結果。
 
+**上表的 `andl` 和 `testl`：看起來一樣，差在哪？**
+
+> 2026-10-07 課後提問：「`andl` 跟 `testl` 在我看來好像是一樣的？」
+
+算的東西確實一樣：兩個都做**逐位元 AND**，也用同樣的規則設旗標（結果是 0 → ZF = 1、最高位元是 1 → SF = 1、CF 和 OF 清成 0）。差別只有一個：
+
+| 指令 | 算什麼 | 結果寫到哪 | 旗標 |
+|---|---|---|---|
+| `and S, D` | D & S | **寫回 D**（D 被改掉） | 照結果設 |
+| `test S, D` | D & S | **丟掉**（D 不變） | 照結果設，跟 `and` 一模一樣 |
+
+這跟 `sub` 和 `cmp` 的關係完全一樣：`cmp` 就是「不寫回結果的 `sub`」，`test` 就是「不寫回結果的 `and`」（[第五節〈`cmp` 與 `test`〉](#cmp-與-test)）。
+
+**實測**：`andtest.s`（檔案：[`andtest.s`](../small-project/s1-04-asm-basics/andtest.s)）對同一個 `n` 各做一次 `andl $1, %edi` 和 `testl $1, %edi`，回傳做完後的 `%edi` 或旗標；`andtestmain.c`（檔案：[`andtestmain.c`](../small-project/s1-04-asm-basics/andtestmain.c)）印出來比對：
+
+```asm
+# andtest.s：andl 與 testl 做一樣的 AND，差在結果有沒有寫回 %edi
+	.text
+	.globl	and_val
+and_val:                         # unsigned and_val(unsigned n)：andl 之後的 %edi
+	andl	$1, %edi             # %edi = n & 1，寫回 %edi，設旗標
+	movl	%edi, %eax           # 把做完後的 %edi 當回傳值
+	ret
+
+	.globl	test_val
+test_val:                        # unsigned test_val(unsigned n)：testl 之後的 %edi
+	testl	$1, %edi             # 算 n & 1，結果丟掉，只設旗標
+	movl	%edi, %eax
+	ret
+
+	.globl	and_flags
+and_flags:                       # unsigned long and_flags(unsigned n)：andl 之後的旗標
+	andl	$1, %edi
+	pushfq                       # 把 rflags 複製到 %rax（見 flags.s 的說明）
+	popq	%rax
+	ret
+
+	.globl	test_flags
+test_flags:                      # unsigned long test_flags(unsigned n)：testl 之後的旗標
+	testl	$1, %edi
+	pushfq
+	popq	%rax
+	ret
+
+	.section	.note.GNU-stack,"",@progbits
+```
+
+```c
+/* andtestmain.c：同一個 n，比較 andl $1 與 testl $1 做完後的 %edi 和旗標 */
+#include <stdio.h>
+
+unsigned and_val(unsigned n);              /* 在 andtest.s */
+unsigned test_val(unsigned n);
+unsigned long and_flags(unsigned n);
+unsigned long test_flags(unsigned n);
+
+/* CF 第 0 位元、ZF 第 6、SF 第 7、OF 第 11 */
+static void show(const char *op, unsigned n, unsigned edi, unsigned long f)
+{
+    printf("%-6s n=%u：做完後 %%edi = %u   ZF=%lu SF=%lu CF=%lu OF=%lu\n", op, n, edi,
+           (f >> 6) & 1, (f >> 7) & 1, (f >> 0) & 1, (f >> 11) & 1);
+}
+
+int main(void)
+{
+    unsigned ns[] = { 4, 5 };
+
+    for (int k = 0; k < 2; k++) {
+        unsigned n = ns[k];
+        show("andl", n, and_val(n), and_flags(n));
+        show("testl", n, test_val(n), test_flags(n));
+    }
+    return 0;
+}
+```
+
+```sh
+cd small-project/s1-04-asm-basics
+gcc -O0 -g -Wall andtestmain.c andtest.s -o andtest
+./andtest
+```
+
+本機輸出：
+
+```
+andl   n=4：做完後 %edi = 0   ZF=1 SF=0 CF=0 OF=0
+testl  n=4：做完後 %edi = 4   ZF=1 SF=0 CF=0 OF=0
+andl   n=5：做完後 %edi = 1   ZF=0 SF=0 CF=0 OF=0
+testl  n=5：做完後 %edi = 5   ZF=0 SF=0 CF=0 OF=0
+```
+
+- **旗標**：同一個 `n`，`andl` 和 `testl` 的四個旗標完全相同。`n = 4`（偶數）時 `4 & 1 = 0`，ZF = 1；`n = 5`（奇數）時 `5 & 1 = 1`，ZF = 0。
+- **`%edi`**：`andl` 做完後 `%edi` 變成 `n & 1`（0 或 1），**原本的 `n` 不見了**；`testl` 做完後 `%edi` 還是 4、5。
+
+**回到 `sum_to`：為什麼開頭用 `test`、中間用 `and`？**
+
+- 開頭的 `testl %edi, %edi` 只是要看 `n` 是不是 `<= 0`。這時 `n` **後面還要用**（下一條 `leal 1(%rdi), %ecx` 要拿它算 `n + 1`），所以只能看、不能改——用 `test`。
+  （其實 `n & n` 寫回去也還是 `n`，寫成 `andl %edi, %edi` 結果相同；但「只想看旗標」時，慣例就是用不寫回的 `test`，讀的人一看就知道「這裡只是在判斷」。）
+- 中間的 `andl $1, %edi` 時，`n + 1` 已經存進 `%ecx`，之後的指令只用 `%eax`、`%edx`、`%ecx`，**`%edi` 再也沒被讀過**。原本的 `n` 被改成 `n & 1` 也無所謂，gcc 就直接用 `and`。這裡換成 `testl $1, %edi` 也一樣正確，只是 gcc 選了 `and`。
+
+**判斷法**：看到 `and` 就問「被改掉的 D 之後還有沒有用到？」——有用到的話，它要的是 AND 的**結果**；沒用到的話，它要的只是**旗標**，效果跟 `test` 一樣。
+
 ### 手動追蹤：`n = 4` 和 `n = 5`
 
 | 步驟 | `n = 4`（偶數） | `n = 5`（奇數） |
@@ -2033,3 +2507,5 @@ gcc 的選項有上千個，下面只列本課用到的 6 個，完整清單見 
 13. （課後提問延伸）`get_g` 讀全域變數 `g` 用的是 `mov 0x2db5(%rip),%rax`，為什麼 PIE 程式不能直接把 `g` 的位址寫進指令，而要用 `%rip` ＋ 距離？同一個 `tbl[i]`，為什麼非 PIE 的程式可以寫成一條 `mov 0x404060(,%rdi,8),%rax`？
 14. （課後提問延伸）8 位元的 `cmpb %sil, %dil`，`%dil` = `0x7f`、`%sil` = `0xff`。寫出做完後 ZF、SF、CF、OF 各是 0 還是 1，並說明 CF、OF 各是用哪一種解讀（無號／有號）算出來的。接著 `setl` 和 `setb` 各會得到 1 還是 0？為什麼有號的「小於」要看 SF ≠ OF，不能只看 SF？
    情境題：同學說「OF = 1 就代表這次加法的結果錯了」。這句話什麼時候對、什麼時候不對？用 8 位元的 `0x7f + 0x01` 說明。
+15. （課後提問延伸）8 位元算 4 − 9：照直式減法，最高位（第 7 位元）需不需要往外借？CF 是多少？留下的位元當無號讀是多少，它跟數學上的正確答案差了多少、為什麼剛好差這麼多？如果 CPU 是用加法器算（D + S 反轉 + 1），加法器有沒有往外進位，跟 CF 是什麼關係？
+16. （課後提問延伸）`andl $1, %edi` 和 `testl $1, %edi` 做完後，旗標有什麼不同？`%edi` 有什麼不同？`sum_to` 的 `-O2` 開頭為什麼一定要用 `testl %edi, %edi` 而不能用 `andl $1, %edi` 之類會改掉 `%edi` 的指令，中間的 `andl $1, %edi` 卻可以改掉 `%edi`？

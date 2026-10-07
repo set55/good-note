@@ -39,7 +39,11 @@
 | [`dil.c`](./dil.c) | 第三節〈讀懂實驗一的範例〉、〈`$rdi`〉 | 參數只佔 `%rdi` 最低 1 byte；暫存器的名字 |
 | [`ext.c`](./ext.c) | 第三節〈符號擴展補的是第 7 位元〉 | `movsbl` vs `movzbl` |
 | [`lt.c`](./lt.c)、[`ltmain.c`](./ltmain.c) | [第五節](../../c/x86-64組合語言入門-暫存器、mov與lea、cmp與條件跳躍.md#五旗標與條件跳躍cmp-只負責比跳不跳由下一個指令決定)〈實驗：同一個 `cmp`、同一組旗標〉 | `setl` vs `setb` 的旗標 |
+| [`cmptest.s`](./cmptest.s)、[`cmptestmain.c`](./cmptestmain.c) | 第五節〈上表「典型用途」欄的 `i`、`n` 是誰？〉 | `sum_to` 的 `cmpl`（i − n）與 `testl`（n & n）的旗標 |
+| [`andtest.s`](./andtest.s)、[`andtestmain.c`](./andtestmain.c) | [第七節](../../c/x86-64組合語言入門-暫存器、mov與lea、cmp與條件跳躍.md#七逐行讀-sum_to-的--o2-版)〈上表的 `andl` 和 `testl`：看起來一樣，差在哪？〉 | `and` 寫回結果、`test` 只設旗標；旗標相同 |
 | [`flags.s`](./flags.s)、[`flagsmain.c`](./flagsmain.c) | [第五節](../../c/x86-64組合語言入門-暫存器、mov與lea、cmp與條件跳躍.md#五旗標與條件跳躍cmp-只負責比跳不跳由下一個指令決定)〈上表的四個旗標在講什麼〉 | 10 組 8 位元 `cmpb`／`addb` 的 ZF/SF/CF/OF；手寫 `.s` |
+| [`countdown.c`](./countdown.c) | 第五節〈上面這段十進位暖身：十位也是 0，98 是從哪裡冒出來的？〉 | 8 位元從 3 倒數 5 下，翻過 0 變 255、254 |
+| [`borrow.c`](./borrow.c)（配 `flags.s`） | [第五節](../../c/x86-64組合語言入門-暫存器、mov與lea、cmp與條件跳躍.md#五旗標與條件跳躍cmp-只負責比跳不跳由下一個指令決定)〈上面③：3 − 5 在 CPU 裡實際上是怎麼算的？〉 | 直式減法逐位借位、CF＝最高位往外借；加法器 D + ~S + 1 |
 | [`../s1-01-hello-compile/sumto.c`](../s1-01-hello-compile/sumto.c) | 第一、六、七節 | `sum_to` 的 `-O0`／`-O2`（第 1 課的檔案） |
 
 ---

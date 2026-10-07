@@ -461,6 +461,8 @@ gdb [選項] --args 執行檔 [傳給程式的參數 ...]
   `print a[1] + n`、`print *ptr`、`print &sum`、`print sizeof(int)`。
 - 每次 `print` 的結果會存成 `$1`、`$2`……（值歷史），之後可以直接拿來用：`print $1 * 2`；`$` 是上一個、`$$` 是上上個。
 - `$` 開頭的自訂名字是**便利變數（convenience variable）**：`set $i = 0`。暫存器也用 `$` 表示：`$rip`、`$rsp`、`$rax`。
+  另外有 4 個**每種架構都通用的標準暫存器名字**（gdb 手冊〈Registers〉）：`$pc`（program counter，下一個要執行的指令位址；x86-64 上＝`$rip`）、`$sp`（stack pointer；＝`$rsp`）、`$fp`（frame pointer，目前這層函式的框架位址）、`$ps`（processor status；＝`eflags`）。
+  打錯暫存器名字**不會報錯**：`p $eip`（x86-64 沒有這個暫存器）印出 `void`，因為 gdb 把它當成還沒設定的便利變數。實測見 [x86-64組合語言入門第五節](./x86-64組合語言入門-暫存器、mov與lea、cmp與條件跳躍.md#五旗標與條件跳躍cmp-只負責比跳不跳由下一個指令決定)〈上面 gdb 命令裡的 `$pc` 是什麼？〉（2026-10-07 補充）。
 - 除了 C 的語法，gdb 的表達式還多了兩個**gdb 自己的**運算子（`help print` 裡的說明，2026-09-27 第 3 課補充）：
   - **`FOO@NUM`**：把「從 `FOO` 開始、連續 `NUM` 個同型別的東西」當成陣列。函式參數是 `int *p` 時，`print p` 只印位址，
     `print *p@10` 才印出它指向的 10 個 `int`（gdb 跟 C 一樣不知道指標指向幾個元素，要你告訴它）。`FOO` 必須是在記憶體裡的東西。
