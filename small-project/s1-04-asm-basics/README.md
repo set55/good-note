@@ -39,6 +39,7 @@
 | [`dil.c`](./dil.c) | 第三節〈讀懂實驗一的範例〉、〈`$rdi`〉 | 參數只佔 `%rdi` 最低 1 byte；暫存器的名字 |
 | [`ext.c`](./ext.c) | 第三節〈符號擴展補的是第 7 位元〉 | `movsbl` vs `movzbl` |
 | [`lt.c`](./lt.c)、[`ltmain.c`](./ltmain.c) | [第五節](../../c/x86-64組合語言入門-暫存器、mov與lea、cmp與條件跳躍.md#五旗標與條件跳躍cmp-只負責比跳不跳由下一個指令決定)〈實驗：同一個 `cmp`、同一組旗標〉 | `setl` vs `setb` 的旗標 |
+| [`flags.s`](./flags.s)、[`flagsmain.c`](./flagsmain.c) | [第五節](../../c/x86-64組合語言入門-暫存器、mov與lea、cmp與條件跳躍.md#五旗標與條件跳躍cmp-只負責比跳不跳由下一個指令決定)〈上表的四個旗標在講什麼〉 | 10 組 8 位元 `cmpb`／`addb` 的 ZF/SF/CF/OF；手寫 `.s` |
 | [`../s1-01-hello-compile/sumto.c`](../s1-01-hello-compile/sumto.c) | 第一、六、七節 | `sum_to` 的 `-O0`／`-O2`（第 1 課的檔案） |
 
 ---
