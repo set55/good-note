@@ -2186,6 +2186,76 @@ test:
 
 `-O0` 這樣寫是為了**除錯**：變數一直在記憶體裡，`gdb` 隨時 `print total` 都讀得到正確的值，停在任何一行也都對應得到原始碼（[gcc最佳化等級第三節](./gcc最佳化等級-O0到O3差在哪.md#三為什麼除錯要用--o0)）。代價是每圈有 5 個指令要碰記憶體（其中兩個 `addl` 還是先讀再寫）。
 
+### `if` 怎麼翻：條件跳躍檢查的是 C 條件的「反面」
+
+> 2026-10-08 批改作業時補教：作業 [3-3](../small-project/s1-04-asm-basics/README.md) 問「C 寫 `a > b`，`pick_s` 的條件跳躍為什麼檢查小於或等於」，這是本課原本沒教的新觀念。
+
+上面的 `for` 迴圈，底部的 `jle .L3` 檢查的條件跟 C 一樣（`i <= n`）。換成 `if`，條件卻會反過來。用一個最小的例子看：
+
+`clamp0.c`（檔案：[`clamp0.c`](../small-project/s1-04-asm-basics/clamp0.c)）完整原始碼：
+
+```c
+int clamp0(int x)
+{
+    if (x < 0)
+        return 0;
+    return x;
+}
+```
+
+```sh
+gcc -S -O0 -fno-asynchronous-unwind-tables clamp0.c -o clamp0.s
+```
+
+本機 gcc 13.3 的輸出（函式本體）：
+
+```asm
+clamp0:
+	endbr64
+	pushq	%rbp
+	movq	%rsp, %rbp
+	movl	%edi, -4(%rbp)
+	cmpl	$0, -4(%rbp)
+	jns	.L2
+	movl	$0, %eax
+	jmp	.L3
+.L2:
+	movl	-4(%rbp), %eax
+.L3:
+	popq	%rbp
+	ret
+```
+
+| 指令 | 做什麼 | 對應的 C |
+|---|---|---|
+| `movl %edi, -4(%rbp)` | 參數 `x` 存進記憶體 | 參數 `x` |
+| `cmpl $0, -4(%rbp)` | 算 `x − 0`，設旗標 | `x < 0` 的比較 |
+| `jns .L2` | SF = 0（結果**不是**負的）就跳到 `.L2` | **條件不成立**（`x >= 0`）就跳過 `if` 的本體 |
+| `movl $0, %eax` | 回傳值設成 0 | `return 0;`（`if` 的本體） |
+| `jmp .L3` | 無條件跳到結尾 | 本體做完，跳過後面的 `return x;` |
+| `.L2:` `movl -4(%rbp), %eax` | 回傳值設成 `x` | `return x;` |
+| `.L3:` `popq %rbp` `ret` | 回到呼叫者 | 函式結束 |
+
+**為什麼是反面？** 條件跳躍只有兩條路：條件成立就跳，不成立就往下一行執行。`-O0` 照原始碼的順序排，`if` 的本體緊接在條件跳躍的**下面**：
+
+- 條件成立 → 要執行本體 → 本體就在下面，所以**不跳**，直接往下走；
+- 條件不成立 → 要跳過本體 → 這時才需要**跳**。
+
+跳躍是拿來「跳過本體」的，所以它檢查的是「什麼時候該跳過」，也就是 C 條件的反面。用 C 的 `goto` 寫出來：
+
+```c
+    if (!(x < 0)) goto L2;   // jns .L2：x 不是負的，就跳過本體
+    return 0;                // 本體：條件成立時不跳，往下就執行到這裡
+L2:
+    return x;
+```
+
+`!(x < 0)` 就是 `x >= 0`。照[條件碼表](#條件碼全部-16-種)，有號的 `>=` 是 `ge`（SF = OF），這裡 gcc 印的卻是單一旗標的 `ns`（SF = 0）：跟 0 比時 `x − 0` 不可能溢位，OF 一定是 0，所以「SF = OF」跟「SF = 0」是同一件事。
+
+**跟迴圈對照：往前跳是為了「跳過」，用反面條件；往回跳是為了「再跑一次」，用原本的條件。** `sum_to` 迴圈底部的 `jle .L3` 是往回跳（條件成立就回去再跑一圈），所以跟 C 的 `i <= n` 同向；`if` 的跳躍是往前跳過本體，所以是反向。
+
+這不是唯一的排法：gcc 也可以把「條件成立」的程式放到後面、用原本的條件跳過去，只是 `-O0` 固定照原始碼順序排；`-O2` 則常把短的 `if` 改寫成不需要跳躍的指令（例如上面條件碼表下方提到的 `set<cc>`、`cmov<cc>`），所以作業第 3 題要用 `-O0` 才看得到跳躍。
+
 ### 順便看 `answer` 和 `main`
 
 ```asm
@@ -2426,13 +2496,91 @@ testl  n=5：做完後 %edi = 5   ZF=0 SF=0 CF=0 OF=0
 
 最後一列就是 [gcc最佳化等級第三節](./gcc最佳化等級-O0到O3差在哪.md#三為什麼除錯要用--o0)說的 `<optimized out>` 的來源：`-O2` 的 `total` 只存在 `%edx` 裡，而且迴圈裡它一次跳兩個數，`gdb` 停在某一圈時，「`total` 現在是多少」在原始碼的意義上可能根本不存在。
 
+### 陣列迴圈的 `i` 為什麼不見了：歸納變數最佳化
+
+> 2026-10-08 批改作業時補教：作業 [4-4](../small-project/s1-04-asm-basics/README.md) 後半「gcc 為什麼要把 `i` 改寫掉」是本課原本沒教的新觀念。
+
+`sum_to` 的 `-O2` 還留著 `i`（`%eax`），因為 `i` 本身就是要加進 `total` 的數。如果 `i` 只拿來**算位址**（`a[i]`）和**判斷結束**（`i < n`），gcc 會把它整個換掉。用一個走訪 `int` 陣列的迴圈看：
+
+`ivopts.c`（檔案：[`ivopts.c`](../small-project/s1-04-asm-basics/ivopts.c)）完整原始碼：
+
+```c
+long sum_int(int *a, long n)
+{
+    long t = 0;
+    for (long i = 0; i < n; i++)
+        t += a[i];
+    return t;
+}
+```
+
+分別用預設的 `-O2`，和 `-O2` 加上關掉這個最佳化的 `-fno-ivopts` 編譯：
+
+```sh
+gcc -S -O2 -fno-asynchronous-unwind-tables ivopts.c -o ivopts.s
+gcc -S -O2 -fno-ivopts -fno-asynchronous-unwind-tables ivopts.c -o noivopts.s
+```
+
+本機 gcc 13.3 的輸出（`.p2align` 指示詞已刪掉；`movslq` 是第二節擴展指令表裡的「4 byte 有號 → 8 byte」，因為元素是 `int`、`t` 是 `long`）：
+
+```asm
+# 預設 -O2                           # -O2 -fno-ivopts
+sum_int:                             sum_int:
+	endbr64                          	endbr64
+	testq	%rsi, %rsi               	testq	%rsi, %rsi
+	jle	.L4                          	jle	.L4
+	leaq	(%rdi,%rsi,4), %rcx      	xorl	%eax, %eax
+	xorl	%eax, %eax               	xorl	%edx, %edx
+.L3:                                 .L3:
+	movslq	(%rdi), %rdx             	movslq	(%rdi,%rax,4), %rcx
+	addq	$4, %rdi                 	addq	$1, %rax
+	addq	%rdx, %rax               	addq	%rcx, %rdx
+	cmpq	%rcx, %rdi               	cmpq	%rax, %rsi
+	jne	.L3                          	jg	.L3
+	ret                              	movq	%rdx, %rax
+                                     	ret
+.L4:                                 .L4:
+	xorl	%eax, %eax               	xorl	%edx, %edx
+	ret                              	movq	%rdx, %rax
+                                     	ret
+```
+
+兩邊的暫存器各代表什麼：
+
+| | 預設 `-O2` | `-O2 -fno-ivopts` |
+|---|---|---|
+| 指向元素的東西 | `%rdi`：一個**一直往前走的指標** `p`，每圈 `+4`（一個 `int`） | `%rdi`：固定是 `a`；`%rax`：`i`，每圈 `+1` |
+| 讀元素 | `movslq (%rdi), %rdx`：`*p` | `movslq (%rdi,%rax,4), %rcx`：`a[i]`，每圈算一次 `a + i×4` |
+| 終點 | `%rcx` ＝ `a + n×4`，也就是 `&a[n]`（迴圈前用 `leaq` 算一次） | `%rsi`：`n` |
+| 判斷結束 | `p != &a[n]`（`cmpq` ＋ `jne`） | `n > i`（`cmpq %rax, %rsi` 算 `n − i`，`jg`） |
+| `t` | `%rax` | `%rdx`，最後要多一個 `movq %rdx, %rax` 搬到回傳值 |
+
+預設版等於把 C 改寫成這樣：
+
+```c
+    int *p = a, *end = a + n;
+    do {
+        t += *p;
+        p++;
+    } while (p != end);
+```
+
+**為什麼要這樣改寫？** 迴圈裡每圈固定加一個量的變數叫**歸納變數**（induction variable），`i`（每圈 +1）和 `a + i×4`（每圈 +4）都是。原本的寫法同時維護 `i`，又每圈用 `i` 重算一次位址；gcc 發現 `i` 除了算位址和判斷結束之外沒有別的用途，就只留下「每圈 +4 的位址」這一個，把結束條件也改成拿位址去比終點。這類「把每圈重算的乘法換成每圈加一個固定量」的改寫叫**強度削減**（strength reduction）。gcc 做這件事的最佳化就是 `-fivopts`（`gcc --help=optimizers` 的說明是 `Optimize induction variables on trees.`），預設開著：`gcc -Q -O2 --help=optimizers` 會列出 `-fivopts [enabled]`。（`-O0` 也列成 `[enabled]`，但 `-O0` 根本不執行這一類最佳化，所以開關本身沒有作用。）
+
+上面的對照看得出它換到什麼：
+
+1. **少一個變數**：`i` 和 `a` 合成一個指標，迴圈裡用到的暫存器少一個；`n` 在算出終點之後就不再需要。
+2. **記憶體運算元變簡單**：`(%rdi,%rax,4)` 變成 `(%rdi)`，不用每圈算 `B + I×S`。gcc 的成本模型（cost model）認為簡單的定址比較便宜。
+
+要老實說的是：**這個例子裡每圈的指令數一樣（都是 5 個）**，差別不在指令數。本課沒有量測兩版的速度，在現代 CPU 上這種小迴圈差異通常很小——重點是讀懂 `-O2` 為什麼常常「找不到 `i`」：看到一個每圈加固定量、拿來跟某個終點位址比的暫存器，它就是被換掉的 `i`。
+
 ---
 
 ## 八、本課用到的工具、選項與完整清單在哪
 
 ### `gcc`：本課用到的選項
 
-gcc 的選項有上千個，下面只列本課用到的 6 個，完整清單見 `man gcc`（第 1 課的 [hello.c 筆記](./hello.c怎麼變成能跑的程式-編譯的四個階段.md)與 [gcc最佳化等級](./gcc最佳化等級-O0到O3差在哪.md)有其他常用的）：
+gcc 的選項有上千個，下面只列本課用到的 7 個，完整清單見 `man gcc`（第 1 課的 [hello.c 筆記](./hello.c怎麼變成能跑的程式-編譯的四個階段.md)與 [gcc最佳化等級](./gcc最佳化等級-O0到O3差在哪.md)有其他常用的）：
 
 | 選項 | 做什麼 |
 |---|---|
@@ -2441,6 +2589,7 @@ gcc 的選項有上千個，下面只列本課用到的 6 個，完整清單見 
 | `-fno-asynchronous-unwind-tables` | 不產生 `.cfi_*` 指示詞（程式碼不變），讓 `.s` 比較好讀 |
 | `-fverbose-asm` | 在 `.s` 裡加註解：原始碼行號與每個運算元對應的變數 |
 | `-masm=intel` | 改用 Intel 語法（預設 `-masm=att`） |
+| `-fno-ivopts` | 關掉歸納變數最佳化（`-fivopts`，預設開著），用來對照第七節〈陣列迴圈的 `i` 為什麼不見了〉的兩種寫法。`-f` 開頭的最佳化開關全部列表見 `gcc --help=optimizers` |
 | `-fcf-protection=none` | 不產生 `endbr64`（Ubuntu 預設開著 `-fcf-protection`）。本課沒用，想讓輸出再短一點時可以加 |
 
 ### `objdump`：本課用到的選項
