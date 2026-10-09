@@ -265,5 +265,11 @@ ELF Header:
    > **參考答案**【[第三節](#三一種格式四種檔案)〈DYN／EXEC 跟「有沒有動態連結」無關：兩個反例〉】本機 gcc 預設產生 **PIE**（Position-Independent Executable，位置無關執行檔），每次執行被放在不同的隨機位址（ASLR），跟共享函式庫「可以放在任意位址」的性質相同，所以 `Type` 都是 DYN。`-static` 版是傳統的固定位址執行檔，所以是 EXEC。`Type` 只看「是不是 PIE」，跟有沒有動態連結無關：`-no-pie` 動態連結 → EXEC，`-static-pie` 靜態連結 → DYN。
 4. 區段（section）和載入段（segment）差在哪？為什麼核心載入時要把很多區段打包成少數幾個載入段？
    > **參考答案**【[第四節](#四名字的關鍵兩種視角)】區段（section）是連結視角的單位，切得很細（`hello` 有 31 個），給 `ld`、`nm`、`objdump` 用；載入段（segment）是執行視角的單位，數量很少（4 個 `LOAD`），給核心與動態載入器用，描述「哪一塊放進記憶體、權限是什麼」。核心載入時只在乎權限（可讀／可寫／可執行），而記憶體權限**最小只能以分頁（本機 4096 byte）為單位**設定——同一個分頁不能一半可執行、一半可寫。所以 `ld` 把權限相同的區段排在一起、打包成一個載入段，核心用少數幾次映射、每塊設一種權限就能把程式放進記憶體。
-5. 情境題：你把 Ubuntu（x86-64）上編好的程式複製到路由器（ARM），`file` 顯示它是 ELF，執行卻失敗。這跟 [interpreter 那篇](./ELF的interpreter是什麼-動態載入器與井字號驚嘆號.md) 第五節「interpreter 不存在」是不是同一種問題？從檔頭的哪一欄可以看出來？
-   > **參考答案**【[第五節](#五檔頭裡的其他欄位)】不是同一種問題。ELF 格式本身在哪台機器都讀得懂，但檔案裡的機器碼是給特定 CPU 的。檔頭的 **`Machine`** 欄位（`readelf -h`）寫著 `Advanced Micro Devices X86-64`，核心在 `execve` 時發現跟本機 CPU 不符，回 `ENOEXEC`（`Exec format error`）；interpreter 不存在則是另一個錯誤 `ENOENT`（`not found`）。
+5. 情境題：你把 Ubuntu（x86-64）上編好的程式複製到路由器（ARM），`file` 顯示它是 ELF，執行卻失敗。**讓它失敗的原因**，跟 [interpreter 那篇](./ELF的interpreter是什麼-動態載入器與井字號驚嘆號.md) 第五節「interpreter 不存在」是不是同一種問題？（提示：一般 `gcc` 編出的是動態連結程式，路由器上也沒有它要的 interpreter，想想核心先檢查哪一個。）從檔頭的哪一欄可以看出來？（2026-10-09 改寫題目：原題沒講明問的是「失敗的原因」，動態程式在路由器上同時缺 interpreter，容易混淆）
+   > **參考答案**【[第五節](#五檔頭裡的其他欄位)】（2026-10-09 改寫成核心關鍵格式）
+   >
+   > 核心關鍵：
+   > 1. 不是同一種問題：ELF 格式在哪台機器都讀得懂，但裡面的**機器碼是給特定 CPU 的**。
+   > 2. 看檔頭的 **`Machine`** 欄位（`readelf -h`），它寫著 `Advanced Micro Devices X86-64`。kernel 在 `execve` 發現跟 CPU 不符，回 `ENOEXEC`（`Exec format error`）；interpreter 不存在則是 `ENOENT`（`not found`）。
+   >
+   > 詳細說明：動態連結的程式在路由器上確實**也**缺 interpreter（`/lib64/ld-linux-x86-64.so.2`），但架構不符時，kernel 讀檔頭就停了，還沒走到「找 interpreter」那一步；就算把 x86-64 的載入器放到那個路徑，它自己也是 x86-64 的機器碼，一樣跑不了。`INTERP` 在程式標頭（program header），不是檔頭；就算程式是靜態編譯、根本沒有 `INTERP`，x86-64 的機器碼一樣不能在 ARM 上跑。

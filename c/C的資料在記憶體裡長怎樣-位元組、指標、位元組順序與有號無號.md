@@ -1220,7 +1220,14 @@ $ gcc -Q --help=warnings -Wall -Wextra | grep -c '\[enabled\]' → 172
    另外，為什麼 `int sum = x + y; if (sum < x)` 這種溢位檢查在 `-O2` 下可能完全失效？
    > **參考答案**【[第七節](#七陷阱有號和無號混在一起比較)〈`-Wtype-limits` 只抓「永遠成立／永遠不成立」的比較〉、[第八節](#八溢位無號回繞有號是未定義行為)〈另一種寫法：`x + y < x` 被改寫成 `y < 0`〉】`len < used` 時，`len - used` 回繞成很大的正數，程式會誤判「還有空間」。無號數 `< 0` **永遠為假**，gcc 用 `-Wtype-limits` 警告；`> 0` 等於 `!= 0`，結果不固定，是合法寫法，gcc 不會警告。有號溢位是 UB，gcc 假設它不發生；在這個假設下 `x + y < x` 等於 `y < 0`，檢查被改寫成「`y` 是不是負的」，真的溢位時照樣回傳 0。溢位檢查要在運算**之前**，用不會溢位的式子判斷（例如 `y > 0 && x > INT_MAX - y`）。
 10. `long a = -1; unsigned int b = 1;` 與 `int c = -1; unsigned long d = 1;`，`a < b` 和 `c < d` 各是真還是假？兩邊各被轉成什麼型別，依據的是哪一條規則？為什麼 gcc 只對其中一個發出 `-Wsign-compare` 警告？
-    > **參考答案**【[第四節](#四無號整數二進位與回繞)〈怎麼確定一個常數的型別？比較時以誰為準？〉】`a < b`：`long` 對 `unsigned int`，無號那邊的等級（rank）比較低，而 `long`（8 byte）裝得下所有 `unsigned int` 的值 → 兩邊轉成 `long`，−1 < 1 為**真**。`c < d`：`int` 對 `unsigned long`，無號那邊的等級 ≥ 有號那邊 → 兩邊轉成 `unsigned long`，−1 變成 18446744073709551615，為**假**。gcc 只對 `c < d` 警告：只有它把有號的值轉成無號、負數的值會改變；`a < b` 轉成 `long`，值不變，不會出事。
+    > **參考答案**【[第四節](#四無號整數二進位與回繞)〈怎麼確定一個常數的型別？比較時以誰為準？〉】（2026-10-09 改寫成核心關鍵格式）
+    >
+    > 核心關鍵：
+    > 1. `a < b` 為**真**：`long` 裝得下所有 `unsigned int` 的值 → 兩邊轉成 `long`，值不變，−1 < 1。
+    > 2. `c < d` 為**假**：無號那邊（`unsigned long`）的等級 ≥ 有號那邊（`int`）→ 兩邊轉成 `unsigned long`，−1 變成 18446744073709551615。
+    > 3. 只對 `c < d` 警告：只有它**把有號的值轉成無號**，負數的值會變；`a < b` 轉成 `long`，值不變。
+    >
+    > 詳細說明：要看的是**轉換的方向**，不是「`<` 兩邊有一邊是 signed」（`a < b` 的 `a` 也是 signed，卻沒有警告）：`c < d` 的轉換來源是有號的 `int`、目標是無號，`a < b` 的轉換來源是無號的 `unsigned int`、目標是有號的 `long`。`a < b` 的規則也不只是「`long` 等級比較高」：在 `long` 只有 4 byte 的 32 位元平台，`long` 裝不下所有 `unsigned int` 的值，兩邊會改成轉 `unsigned long`（C 標準的規則，本機未實測）。有號轉無號不是 UB，C 標準規定得很清楚：位元不變，換成無號的讀法（[第六節](#六有號與無號之間的轉換位元不變換個讀法)）；UB 是有號溢位。
 11. `unsigned x`、`unsigned int x`、`signed x` 各是什麼型別？為什麼 `char` 和 `signed char` 在本機的範圍完全一樣，gcc 卻說它們是不同型別、宣告衝突？
    情境題：同事在錯誤訊息裡看到 `long unsigned int`，說「我明明寫的是 `unsigned long`，gcc 是不是把型別搞錯了？」你怎麼回答？
     > **參考答案**【[第一節](#一位元組與型別大小)〈`unsigned` 單獨寫就是 `unsigned int`：整數型別的所有寫法〉】`unsigned x` 和 `unsigned int x` 都是 `unsigned int`；`signed x` 是 `int`（＝ `signed int`）。`char` 有號還是無號，C 標準交給平台決定（x86-64 有號、ARM 通常無號），所以標準沒辦法把 `char` 定義成 `signed char` 或 `unsigned char` 其中之一——定成哪一個，換到另一種平台就錯了。因此 `char` 是**第三個獨立的型別**，範圍跟其中一個相同，型別卻不同；型別相不相同看標準的規定，不看範圍。情境題：gcc 沒有搞錯，`unsigned long` 和 `long unsigned int` 是同一個型別——指定字的順序不重要、有了其他指定字時 `int` 可以省略；gcc 印型別時用它自己的寫法（大小在前、有號無號居中、`int` 放最後），`same.c` 實驗裡 `unsigned f(unsigned x)` 也被印成 `unsigned int(unsigned int)`。

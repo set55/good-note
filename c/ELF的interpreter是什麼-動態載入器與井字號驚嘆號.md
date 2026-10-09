@@ -334,7 +334,11 @@ dash: 1: ./hello_badinterp: not found                           ← dash 的訊�
 3. 腳本的 `#!/bin/sh` 和 ELF 的 interpreter，哪裡相同、哪裡不同？用 `#!/bin/cat` 的實驗說明「核心把什麼交給直譯器」。
    > **參考答案**【[第四節](#四跟腳本的--是同一個機制)、〈交給直譯器的是「路徑」，不是內容：三個實驗〉】相同：都由核心在 `execve` 時讀到「請先執行這支程式」，先啟動直譯器，而不是檔案本身。不同：寫的地方（文字檔第一行的 `#!` vs 程式標頭的 `INTERP`）；直譯器拿到檔案後做的事（`sh` 逐行讀文字、執行命令 vs `ld.so` 載入函式庫、填好位址後跳進程式本身，之後由 CPU 執行程式的指令）。`#!/bin/cat` 的腳本被執行時，核心實際跑的是 **`/bin/cat ./catscript`**：交給直譯器的是**腳本的路徑（當作參數）**，不是內容；`cat` 用這個路徑自己打開檔案，把整個檔案（含第一行）印出來。`#!/usr/bin/echo` 的實驗印出的是 `./echoscript.sh` 這個路徑，正是證據。
 4. 為什麼靜態連結的程式沒有 interpreter 也能跑？`ld-linux-x86-64.so.2` 自己又為什麼不需要 interpreter？
-   > **參考答案**【[第三節](#三它自己也是一支程式可以直接執行)】靜態連結時 `ld` 已經把需要的函式庫程式碼複製進執行檔，執行時沒有東西需要載入，所以不需要 interpreter，核心直接從程式的進入點開始執行。`ld-linux-x86-64.so.2` 自己是 **static-pie**（`file` 看得到 `static-pie linked`），不需要別人載入；如果它也需要 interpreter，就會變成「誰來載入載入器」的無限循環。
+   > **參考答案**【[第三節](#三它自己也是一支程式可以直接執行)】（2026-10-09 改寫成核心關鍵格式）
+   >
+   > 核心關鍵：
+   > 1. 靜態連結時，`ld` 已經把需要的函式庫程式碼複製進執行檔，執行時沒有東西要載入，kernel 直接從程式的進入點開始執行。
+   > 2. `ld-linux-x86-64.so.2` 自己是靜態的（`file` 顯示 `static-pie linked`），不需要別人載入；它要是也需要 interpreter，就會變成「誰來載入載入器」的無限循環。
 5. 情境題：你把 Ubuntu 上編好的程式複製到一台 Alpine Linux，`ls -l` 看得到檔案、也有 x 權限，執行卻說 `not found`。最可能的原因是什麼？你會用哪兩個步驟確認？用第 1 課學過的哪一種編譯方式可以避開這個問題？
    > **參考答案**【[第五節](#五直譯器不存在時明明有檔案卻說找不到)】程式在 Ubuntu（glibc）上編譯，interpreter 是 `/lib64/ld-linux-x86-64.so.2`；Alpine 用 musl，**沒有這個檔案**（它的載入器是 `ld-musl-*`）。核心找不到 interpreter，回報「檔案不存在」（`ENOENT`），shell 把它說成你的程式 `not found`。確認：① `readelf -l 程式 | grep interpreter`（或 `file 程式`）看它要求哪個 interpreter；② 在 Alpine 上 `ls -l` 那個路徑，確認不存在。避開：用 `-static` 靜態連結，沒有 interpreter、也不依賴外部的 libc。
 6. 情境題：一支腳本權限是 `---x--x--x`（只有執行權限），第一行是 `#!/bin/sh`，執行時出現 `/bin/sh: ./x.sh: Permission denied`。

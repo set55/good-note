@@ -287,4 +287,11 @@ GNU 寫了 **GPL**（GNU General Public License，GNU 通用公共授權）來�
 5. 你將來送 kernel patch 時要加的 `Signed-off-by:` 跟 GPL 有什麼關係？
    > **參考答案**【[第五節](#五gplgnu-最深遠的影響)】`Signed-off-by:` 是 **DCO（Developer Certificate of Origin，開發者原創聲明）**：加上這一行，就是聲明這段程式碼是你自己寫的，或你有權以這個專案的授權（kernel 是 GPL-2.0）貢獻它。Linux 核心以 GPL-2.0 散布，每段合併進去的程式碼都必須能合法地以 GPL-2.0 散布；DCO 讓每個 patch 都有人為此負責，出了著作權爭議時查得到是誰聲明的。它是 kernel 社群的規定，不是 GPL 條文本身的要求。
 6. 情境題：同事說「我在這台機器上打 `uname -o` 看到 `GNU/Linux`，所以它一定用 glibc」。這個推論錯在哪？`uname` 的哪些欄位可以信、哪一欄不行，為什麼？你會改看什麼來判斷？
-   > **參考答案**【[第四節](#四不是-gnu-的-linux你已經遇過了)〈`uname -o` 印出 `GNU/Linux`，不代表它是 GNU〉】錯在把 `-o` 當證據：它是 `uname` 這支程式編譯時寫死的字串，不是問核心得來的——BusyBox 版也印 `GNU/Linux`，實測 OpenWrt（musl）一樣印。可以信的是 `-s`、`-n`、`-r`、`-v`、`-m`，它們來自 `uname()` 系統呼叫回傳的 `struct utsname`；不能信 `-o`（寫死），`-p`、`-i` 也是程式自己判斷的（標明 non-portable）。判斷 libc 要看動態載入器：`readelf -l /bin/ls | grep interpreter`（glibc 是 `/lib64/ld-linux-x86-64.so.2`，musl 是 `/lib/ld-musl-x86_64.so.1`），或 `ls /lib/ld-musl-*`、直接執行載入器看它的自我介紹。
+   > **參考答案**【[第四節](#四不是-gnu-的-linux你已經遇過了)〈`uname -o` 印出 `GNU/Linux`，不代表它是 GNU〉】（2026-10-09 改寫成核心關鍵格式）
+   >
+   > 核心關鍵：
+   > 1. 錯在把 `-o` 當證據：它是 `uname` 程式寫死的字串，不是問 kernel 來的（BusyBox 版也印 `GNU/Linux`，實測用 musl 的 OpenWrt 一樣印）。
+   > 2. `-s`、`-n`、`-r`、`-v`、`-m` 來自 `uname()` 系統呼叫（kernel 回傳的 `struct utsname`），可以信；`-o` 不行，`-p`、`-i` 也是程式自己判斷的（說明裡標 non-portable）。
+   > 3. 判斷 libc 要看**程式本身**：`readelf -l /bin/ls | grep interpreter`（`ld-linux-*` 是 glibc、`ld-musl-*` 是 musl），或用 `readelf -V` 看有沒有 `GLIBC_` 版本需求。
+   >
+   > 詳細說明：本機 `/bin/ls` 的 interpreter 是 `/lib64/ld-linux-x86-64.so.2`；`readelf -V /bin/ls` 列出 `File: libc.so.6`、`Name: GLIBC_2.38` 等項目。musl 不用符號版本，所以沒有 `GLIBC_` 項目。也可以 `ls /lib/ld-musl-*`，或直接執行載入器，看它怎麼自我介紹。
