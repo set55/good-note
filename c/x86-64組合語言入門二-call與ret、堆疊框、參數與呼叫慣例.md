@@ -213,6 +213,59 @@ continue
 用到的 gdb 命令（第八節有完整清單的位置）：`break *位址` 停在那一條指令；`stepi` 執行剛好一條機器指令（遇到 `call` 會跟進去）；
 `x/i $pc` 印出下一條要執行的指令；`info registers 名字…` 印出指定的暫存器；`x/2gx $rsp` 從 `%rsp` 指的位址開始，印 2 個 `g`（8 byte）、用 `x`（十六進位）顯示。
 
+---
+
+**上面的 `info registers`：輸出的三欄各是什麼**
+
+> 2026-10-09 課後提問：「在 gdb 這三欄是什麼意思」（貼的是 `info registers` 印出的 `rax`～`rsi` 五列）
+
+拿上面的 `frame.c`（`gcc -O0 -g -o frame frame.c`）停在 `main` 的第一條指令，不給名字，列出全部暫存器：
+
+```
+$ gdb -batch -ex 'break *main' -ex run -ex 'info registers' ./frame
+rax            0x555555555179      93824992235897
+rbx            0x7fffffffd548      140737488344392
+rcx            0x555555557dc0      93824992247232
+rdx            0x7fffffffd558      140737488344408
+rsi            0x7fffffffd548      140737488344392
+rdi            0x1                 1
+rbp            0x7fffffffd4c0      0x7fffffffd4c0
+rsp            0x7fffffffd428      0x7fffffffd428
+r8             0x0                 0
+…（r9～r15 省略，格式同 r8）
+rip            0x555555555179      0x555555555179 <main>
+eflags         0x246               [ PF ZF IF ]
+cs             0x33                51
+…（ss、ds、es、fs、gs、fs_base、gs_base 省略）
+```
+
+| 欄 | 是什麼 | 例子 |
+|---|---|---|
+| 第 1 欄 | 暫存器名字（gdb 裡寫成 `$rax`） | `rax` |
+| 第 2 欄 | 暫存器裡的值，一律用**十六進位**印（raw，原始位元） | `0x555555555179` |
+| 第 3 欄 | **同一個值**，用 gdb 認為這個暫存器「天然的」格式（natural format）再印一次，格式依暫存器的**型別**決定 | 見下 |
+
+第 2、3 欄是同一個值的兩種寫法，不是兩個不同的數。第 3 欄的格式由 gdb 給每個暫存器的型別決定（用 `ptype $rax` 這種命令問得到）：
+
+- `rax`、`rbx`、`rdi`、`r8`… 型別是 `int64_t`（整數），第 3 欄印**十進位**：`0x1` 印成 `1`，`0x555555555179` 印成 `93824992235897`。
+- `rbp`、`rsp` 型別是 `void *`（指標），指標的天然格式就是十六進位，所以第 3 欄跟第 2 欄**看起來一樣**。
+- `rip` 型別是 `void (*)()`（指向程式碼的指標），除了十六進位，還在 `<>` 裡標出它指在哪個函式：`<main>`。停在 `main+27` 時就會印 `<main+27>`。
+- `eflags` 型別是一組旗標，第 3 欄印出**哪些旗標是 1**：`0x246` 是 `[ PF ZF IF ]`（第 4 課[第五節](./x86-64組合語言入門-暫存器、mov與lea、cmp與條件跳躍.md#五旗標與條件跳躍cmp-只負責比跳不跳由下一個指令決定)講過的旗標）。
+
+所以讀 `rax` 那一列時看第 2 欄就好：十進位的 `93824992235897` 沒有意義，因為這個值其實是位址。`info symbol $rax` 印出 `main in section .text`，也就是說剛好是 `main` 的位址（是呼叫 `main` 的 glibc 留下來的，不是 `main` 自己算的）。
+
+這一頁也能用本課的觀念讀：停在 `main` 的第一條指令時，`main` 剛被呼叫，所以參數暫存器裡是 `main` 的參數（`main` 其實會收到 `argc`、`argv`、`envp` 三個參數，`frame.c` 寫成 `main(void)` 只是不用它們）：
+
+- `rdi = 1`：`argc`，命令列只有程式名稱一個字串。
+- `rsi = 0x7fffffffd548`：`argv`，指向字串指標的陣列。`x/s *(char **)$rsi` 印出程式的完整路徑。
+- `rdx = 0x7fffffffd558`：`envp`，指向環境變數的陣列。`x/s *(char **)$rdx` 印出第一個環境變數。它比 `argv` 大 16，因為中間隔著 `argv[0]` 和結尾的 `NULL` 兩個 8 byte 指標。
+
+`info registers` 只列整數暫存器，`info all-registers` 連浮點與 `%xmm` 暫存器都列。完整說明見 [gdb完整命令參考第五節](./gdb完整命令參考.md#五info-的全部-65-個子命令)。
+
+*（追問補充結束，以下回到主線）*
+
+---
+
 ```
 $ gdb -q -batch -x trace.gdb ./frame
 ```
