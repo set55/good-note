@@ -298,7 +298,13 @@ GNU 寫了 **GPL**（GNU General Public License，GNU 通用公共授權）來�
    >
    > 詳細說明：copyleft 的目的是讓「自由不能在傳遞途中被拿走」：拿到 GPL 軟體的人，也要拿得到原始碼、有同樣的權利。例子：公司內部改了 GPL 的工具自己用，不必公開；把改過的版本賣給客戶，就要給客戶原始碼，並讓客戶同樣能以 GPL 再散布。
 5. 你將來送 kernel patch 時要加的 `Signed-off-by:` 跟 GPL 有什麼關係？
-   > **參考答案**【[第五節](#五gplgnu-最深遠的影響)】`Signed-off-by:` 是 **DCO（Developer Certificate of Origin，開發者原創聲明）**：加上這一行，就是聲明這段程式碼是你自己寫的，或你有權以這個專案的授權（kernel 是 GPL-2.0）貢獻它。Linux 核心以 GPL-2.0 散布，每段合併進去的程式碼都必須能合法地以 GPL-2.0 散布；DCO 讓每個 patch 都有人為此負責，出了著作權爭議時查得到是誰聲明的。它是 kernel 社群的規定，不是 GPL 條文本身的要求。
+   > **參考答案**【[第五節](#五gplgnu-最深遠的影響)】（2026-10-11 改寫成核心關鍵格式）
+   >
+   > 核心關鍵：
+   > 1. `Signed-off-by:` 是 DCO（Developer Certificate of Origin，開發者原創聲明）：貢獻者聲明這段程式碼是自己寫的，或自己有權以專案的授權（kernel 是 GPL-2.0）貢獻它。
+   > 2. kernel 以 GPL-2.0 散布，每段併入的程式碼都必須能合法以 GPL-2.0 散布；DCO 讓每個 patch 都有人為來源負責，出了著作權爭議查得到是誰聲明的。
+   >
+   > 詳細說明：DCO 是 kernel 社群的規定，不是 GPL 條文本身的要求，GPL 沒有規定發布時要署名。
 6. 情境題：同事說「我在這台機器上打 `uname -o` 看到 `GNU/Linux`，所以它一定用 glibc」。這個推論錯在哪？`uname` 的哪些欄位可以信、哪一欄不行，為什麼？你會改看什麼來判斷？
    > **參考答案**【[第四節](#四不是-gnu-的-linux你已經遇過了)〈`uname -o` 印出 `GNU/Linux`，不代表它是 GNU〉】（2026-10-09 改寫成核心關鍵格式）
    >
