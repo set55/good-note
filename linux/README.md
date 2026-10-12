@@ -10,7 +10,7 @@
 - [網路基礎與設定](#網路基礎與設定)（18 篇）
 - [網路查詢與追蹤](#網路查詢與追蹤)（4 篇）
 - [Shell 與重新導向](#shell-與重新導向)（11 篇）
-- [終端機與 tmux](#終端機與-tmux)（4 篇）
+- [終端機與 tmux](#終端機與-tmux)（5 篇）
 - [桌面環境（GNOME）](#桌面環境gnome)（1 篇）
 - [系統組成（核心與使用者空間）](#系統組成核心與使用者空間)（1 篇）
 - [開機（GRUB）](#開機grub)（1 篇）
@@ -110,6 +110,7 @@ shell 的語法真相與 fd 0／1／2 這三條線怎麼接。
 | [把檔案內容複製到剪貼簿.md](./把檔案內容複製到剪貼簿.md) | X11 有 PRIMARY／CLIPBOARD／SECONDARY 三個互不相干的選區，`xclip`／`xsel` 預設寫的是 PRIMARY，所以 Ctrl+V 貼不出來——要加 `-selection clipboard`／`-b`；含兩者完整選項與取捨、選區由行程保管所以 xclip 必須留在背景、Wayland 的 `wl-copy`（預設剛好相反）、SSH 情境用 OSC 52 讓終端機代寫，以及 tmux 緩衝區與系統剪貼簿為何不同步 | `xclip` `xsel` `wl-copy` `wl-paste` `PRIMARY` `CLIPBOARD` `-selection clipboard` `-rmlastnl` `--trim` `-target image/png` `OSC 52` `base64 -w0` `set-clipboard on` `tmux load-buffer` `XDG_SESSION_TYPE` |
 | [tmux重命名session.md](./tmux重命名session.md) | tmux session 改名的三種方式：指令、指定 session、快捷鍵 | `tmux` `rename-session` |
 | [用當前目錄名命名tmux-session.md](./用當前目錄名命名tmux-session.md) | 用 `tmux new -d -s "${PWD##*/}"` 讓 session 名稱自動等於當前目錄名；參數展開 `#`/`##`/`%`/`%%` 的切除規則、為何勝過 `basename`，以及 tmux 把 `.`/`:` 換成 `_`、`-A` 與 `-d` 衝突、同名目錄碰撞等陷阱 | `tmux` `new-session` `${PWD##*/}` `parameter expansion` `basename` `has-session -t=` `duplicate session` |
+| [tmux切換window的方法.md](./tmux切換window的方法.md) | `Ctrl+b s` 其實是 session 樹（`choose-tree -Zs`），切 window 用 `0`～`9`／`'`（編號）、`l`（上一個，來回切）、`n`／`p`、`w`（window 清單）、`f`（搜尋名稱與畫面）或滑鼠點狀態列；含 6 個背後命令的完整旗標、`-t session:window` 的六步查找順序與 `=` 完全比對，並實測 | `tmux` `select-window` `last-window` `next-window` `previous-window` `choose-tree` `find-window` `target-window` `{last}` |
 
 ### 桌面環境（GNOME）
 
