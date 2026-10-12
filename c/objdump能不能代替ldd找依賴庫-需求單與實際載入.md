@@ -334,4 +334,11 @@ objdump <選項> <檔案>...
    > 詳細說明：執行時找函式庫的是 `ld-linux-x86-64.so.2`，搜尋順序是：執行檔裡的 `RUNPATH`、`LD_LIBRARY_PATH`、`/etc/ld.so.cache`、預設目錄（`/lib`、`/usr/lib`）。修法是在連結時加 `-Wl,-rpath,…` 把路徑寫進執行檔（這時才真的有路徑進 dynamic section，記成 `RUNPATH`），或執行時設 `LD_LIBRARY_PATH`。`error while loading shared libraries` 是載入器在真正執行時發出的；`ldd` 是請載入器「找一次、印結果」，找不到的就標 `not found`，兩者是同一件事的兩種呈現。
 4. 情境題：同事傳來一支 ARM 開發板用的執行檔，問你「它需要哪些函式庫」。你在自己的 x86-64 電腦上該用哪個工具？
    用 `ldd` 會發生什麼事，為什麼？
-   > **參考答案**【[第三節](#三ldd-會執行東西這是它的代價)、[第五節](#五怎麼選)】用 `readelf -d` 看 `NEEDED`：只讀檔案、不執行，任何架構都能讀，區段標頭被剝掉也讀得到。`ldd` 要靠本機載入器實際載入，本機載入器處理不了 ARM 的執行檔，於是印出誤導的 `not a dynamic executable`；直接執行則會看到核心的 `exec format error`。
+   > **參考答案**【[第三節](#三ldd-會執行東西這是它的代價)、[第五節](#五怎麼選)】（2026-10-12 改寫成核心關鍵格式）
+   >
+   > 核心關鍵：
+   >
+   > 1. 用 **`readelf -d`** 看 `NEEDED`：只讀檔案、不執行，任何架構的 ELF 都讀得了。
+   > 2. `ldd` 要靠**本機的 x86-64 載入器**實際載入，處理不了 ARM 的檔案，於是印出誤導人的 **`not a dynamic executable`**。
+   >
+   > 詳細說明：`ldd` 平常列出 vdso、間接依賴的那整套機制，都建立在「本機載入器能載入它」上面；架構不同，第一步就失敗。`objdump -p` 平常也行，但開發板上的檔案常被剝掉區段標頭，`readelf -d` 能透過程式標頭的 `DYNAMIC` 找到同一份資料，比較保險。直接執行則會看到核心的 `exec format error`。

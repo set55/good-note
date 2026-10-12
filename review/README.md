@@ -65,6 +65,7 @@
 | 2026-10-09 | [2026-10-09-陣列-gcc-GNU-C資料-interp-ELF.md](./2026-10-09-陣列-gcc-GNU-C資料-interp-ELF.md) | 10 | 對 5（陣列 5、gcc 3、gcc 4〔改判〕、C資料 10〔改判〕、interp 4）、大致對 4（陣列 2、陣列 3、gcc 2、GNU 6）、錯 1（ELF 5） |
 | 2026-10-10 | [2026-10-10-C資料-GNU-interp-hello-gcc.md](./2026-10-10-C資料-GNU-interp-hello-gcc.md) | 10 | 對 5（C資料 1、C資料 5、GNU 2、hello 3、gcc 1）、不完整 5（C資料 11、C資料 7、GNU 4、interp 2、interp 3） |
 | 2026-10-11 | [2026-10-11-字元-C資料-objdump-GNU-陣列.md](./2026-10-11-字元-C資料-objdump-GNU-陣列.md) | 10 | 對 4（字元 3、字元 2、C資料 4、objdump 2）、大致對 1（字元 5）、不完整 5（C資料 6、C資料 9、objdump 3、GNU 5、陣列 6） |
+| 2026-10-12 | [2026-10-12-objdump-hello-ELF-陣列-組語.md](./2026-10-12-objdump-hello-ELF-陣列-組語.md) | 10 | 對 6（hello 5、陣列 1、組語 2、組語 5、ELF 3〔改判〕、組語 3〔改判〕）、大致對 3（陣列 4、組語 1、組語 6）、不完整 1（objdump 4） |
 
 ---
 > 每天建立新的複習檔時，記得在上面的「每日紀錄」表格加一列。
