@@ -590,6 +590,40 @@ $ objdump -dr --no-show-raw-insn args8.o
 - **誰清掉堆疊上的參數**：`call8` 自己推的，`call` 回來後由 `call8` 用 `add $0x10,%rsp` 丟掉。被呼叫的 `sum8` 用 `ret` 返回時只拿走返回位址。
 - `call 88 <call8+0x31>`：`.o` 裡 `call` 的位移還是 0，所以 `objdump` 把目標算成「下一條指令」`0x88`，這個數字沒有意義。真正的目標是下一行的重定位項目 `R_X86_64_PLT32 sum8-0x4`，連結時才填上。
 
+### 補教：`char`、`short` 參數為什麼先 `mov %edi,%edx` 再存 `%dl`
+
+（2026-10-12 批改作業 1-2 時補教。）參數比 8 byte 小時，只佔暫存器最低的幾個 byte，但 `-O0` 存它的時候常常**先用 32 位元的名字把整個暫存器複製一份**，再只存低位。作業的 `pick.c` 完整原始碼：
+
+```c
+long pick(char a, short b, int c, long d, unsigned char *e, unsigned int f)
+{
+    return a + b + c + d + *e + f;
+}
+```
+
+```
+gcc -O0 -c -fno-asynchronous-unwind-tables pick.c
+objdump -dr --no-show-raw-insn pick.o
+```
+
+存參數的部分（本機實測）：
+
+```asm
+   8:	mov    %esi,%eax           # b 在 %si：先把整個 %esi 複製到暫存用的 %eax
+   a:	mov    %edx,-0xc(%rbp)     # c（int，4 byte）
+   d:	mov    %rcx,-0x18(%rbp)    # d（long，8 byte）
+  11:	mov    %r8,-0x20(%rbp)     # e（指標，8 byte）
+  15:	mov    %r9d,-0x10(%rbp)    # f（unsigned int，4 byte）
+  19:	mov    %edi,%edx           # a 在 %dil：先把整個 %edi 複製到 %edx
+  1b:	mov    %dl,-0x4(%rbp)      # 只存最低 1 byte：a
+  1e:	mov    %ax,-0x8(%rbp)      # 只存最低 2 byte：b
+```
+
+- `a` 確實是用 `%dil`、`b` 確實是用 `%si` 傳進來的；`mov %edi,%edx`、`mov %esi,%eax` 只是 gcc 在 `-O0` 下的搬法：先整個複製到別的暫存器，再用 8／16 位元的名字（`%dl`、`%ax`）存進堆疊。
+- 複製過去的高位是垃圾（[第 4 課第三節](./x86-64組合語言入門-暫存器、mov與lea、cmp與條件跳躍.md#三指令的文法助憶符大小後綴運算元)〈讀懂實驗一的範例〉：參數只佔最低幾個 byte，高位不保證），但最後只存低位，所以不影響結果。
+- 所以判斷「參數用哪個名字傳進來」要看**最後存進堆疊或拿去運算時用的名字**（`%dl`、`%ax`），不要被中間的 32 位元複製騙了。
+- `-O2` 不存堆疊，直接 `movsbl %dil,%edi`、`movswl %si,%esi`，看得更清楚。
+
 ---
 
 ## 六、誰負責保存暫存器，以及 16 byte 對齊

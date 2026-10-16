@@ -1151,6 +1151,62 @@ Breakpoint 2 at 0x117b: file paren.c, line 4.     ← *：一定是函式的第�
 停在原始碼那一行真正開始做事的地方，這對「一行一行看 C」最方便；`break *deref` 則不跳過任何東西。
 **看 C 用函式名或行號；看組合語言、要精確控制停在哪一條指令時，用 `*位址`。**
 
+---
+
+**上面說 `break deref`「跳過」準備指令：停下來時 `1183` 執行了沒？**
+
+> 2026-10-13 複習提問：「deref還沒有執行1183」（指上面 `-O0` 的 `deref` 裡 `1183: mov %rdi,-0x8(%rbp)` 那一條；複習組語 11-3 批改時提出，並貼出自己的 gdb 輸出：`break deref` 停在 `0x1183`）
+
+**看有沒有 `-g`。** 先記一條規則：**中斷點停在某個位址時，那個位址的指令「還沒」執行，它前面的都已經執行完了。**所以問題變成「`break deref` 下在哪個位址」，而這取決於 gdb 用什麼方法決定「函式開頭的準備工作到哪裡結束」：
+
+| 編譯 | gdb 怎麼找「準備工作的結尾」 | `break deref` 下在 | 停下時 `1183` |
+|---|---|---|---|
+| `gcc -O0 -g`（有除錯資訊） | 查除錯資訊裡的**行號表**：編譯器標明「原始碼第 4 行真正開始做事」的位址 | `0x1187` | **已執行**（`p` 已存進堆疊） |
+| `gcc -O0`（沒有 `-g`） | 沒有行號表，gdb **自己分析開頭的機器碼**，只認得 `endbr64`、`push %rbp`、`mov %rsp,%rbp` 這種固定的序言 | `0x1183` | **還沒執行** |
+
+上面表格前的實驗用的是 `-g` 版，所以寫成「跳過到 `mov %rdi,-0x8(%rbp)` 之後、停在 `0x1187`」；使用者手上的 `paren0` 是沒加 `-g` 編的，停在 `0x1183`。兩個都是實測結果，不衝突。
+這也是本節前面〈`break sum_to` 停在 `+8`〉那段說的「沒有 `-g` 時它自己分析開頭的 `endbr64; push; mov`」。
+
+實測（程式同上面的 `paren.c`）。兩種編法各下 `break deref` 和 `break *deref`，先停 `*deref`、再 `continue` 停 `deref`，用 `x/i $pc` 看下一條要執行的指令，再看堆疊上 `-0x8(%rbp)` 裡有沒有 `p`：
+
+```
+$ gcc -O0 -g paren.c -o paren0                    ← 有 -g
+$ gdb -q -batch -ex 'break deref' -ex 'break *deref' -ex run -ex 'p/x $pc' -ex 'x/i $pc' \
+      -ex continue -ex 'p/x $pc' -ex 'x/i $pc' -ex 'p/x $rdi' -ex 'x/gx $rbp-8' -ex kill ./paren0
+Breakpoint 2, deref (p=0x0) at paren.c:4                    ← 停在 *deref：p 顯示成 0x0（見下方）
+$1 = 0x55555555517b
+=> 0x55555555517b <deref>:	endbr64                         ← 還沒執行的是 endbr64，函式一條都還沒跑
+Breakpoint 1, deref (p=0x7fffffffd440) at paren.c:4         ← 停在 deref：p 正確了
+$2 = 0x555555555187
+=> 0x555555555187 <deref+12>:	mov    -0x8(%rbp),%rax      ← 還沒執行的是 1187
+$3 = 0x7fffffffd440                                         ← %rdi 裡的 p
+0x7fffffffd428:	0x00007fffffffd440                          ← -0x8(%rbp) 裡已經是 p：1183 已經執行過了
+
+$ gcc -O0 paren.c -o paren0_nog                   ← 沒有 -g
+$ gdb -q -batch -ex 'break deref' -ex 'break *deref' -ex run -ex continue \
+      -ex 'x/i $pc' -ex 'x/gx $rbp-8' -ex 'p/x $rdi' -ex kill ./paren0_nog
+Breakpoint 1 at 0x1183                                      ← 沒有行號表：只跳過 endbr64、push、mov %rsp,%rbp
+Breakpoint 2 at 0x117b
+Breakpoint 2, 0x000055555555517b in deref ()
+Breakpoint 1, 0x0000555555555183 in deref ()
+=> 0x555555555183 <deref+8>:	mov    %rdi,-0x8(%rbp)      ← 還沒執行的是 1183
+0x7fffffffd428:	0x0000000000000000                          ← -0x8(%rbp) 還沒存 p
+$1 = 0x7fffffffd440                                         ← p 還只在 %rdi 裡
+```
+
+（`x/i $pc`：把 `$pc` 指的那條指令反組譯印出來，`=>` 標的就是**下一條要執行**的指令。`x/gx $rbp-8`：看 `%rbp − 8` 這個位址的 8 byte、十六進位。沒有 `-g` 時 gdb 不知道參數叫 `p`，所以只印 `in deref ()`。）
+
+讀法：
+
+- 有 `-g`：`-0x8(%rbp)` 裡已經是 `0x7fffffffd440`，跟 `%rdi` 一樣——只有 `1183` 的 `mov %rdi,-0x8(%rbp)` 會把它寫進去，所以 `1183` 執行過了。
+- 沒有 `-g`：`-0x8(%rbp)` 還是 0，`p` 還只在 `%rdi`，`1183` 還沒執行。
+- 有 `-g` 停在 `*deref` 時 gdb 把參數印成 `p=0x0`：除錯資訊告訴 gdb「`p` 放在 `-0x8(%rbp)`」，但這時序言和 `1183` 都還沒執行，`%rbp` 還是呼叫者的、那個位置也還沒存 `p`，gdb 讀到的是不相干的值。
+  這正是有 `-g` 時 `break 函式名` 要等到 `1183` 之後才停的原因：停在那之前，C 層次的變數還讀不對。
+
+*（追問補充結束，以下回到主線）*
+
+---
+
 **上面中斷點 4 的 `break *0x11f4`：為什麼 `run` 之後失敗？**
 
 > 2026-10-06 使用者實際操作：用 `objdump -d paren` 查到 `deref+4` 是 `0x11f4`，`break *0x11f4` 之後 `run`，得到 `Cannot insert breakpoint 1. Cannot access memory at address 0x11f4`；
@@ -2894,10 +2950,10 @@ gcc 的選項有上千個，下面只列本課用到的 7 個，完整清單見 
    >
    > **9-2**【[第三節](#三指令的文法助憶符大小後綴運算元)〈`%dil` 是 `0xff`，為什麼 `%eax` 變成 `0xffffffff`：符號擴展補的是第 7 位元〉】核心關鍵：
    >
-   > 1. 二補數的**最高位權重是負的**：8 位元 `0xff` ＝ −2⁷ ＋ (2⁷ − 1) ＝ −1。
-   > 2. 前面多補一個 1：新的最高位權重是 −2⁸，原本那一位變成 +2⁷，合起來 −2⁸ ＋ 2⁷ ＝ −2⁷，跟原來一樣，**值不變**；補幾個都同理（補 0 時多的位元權重乘 0，也不變）。
+   > 1. 二補數的**最高位權重是負的**：8 位元 `0xff` ＝ −2⁷ ＋ (2⁷ − 1) ＝ −1；32 位元 `0xffffffff` ＝ −2³¹ ＋ (2³¹ − 1) ＝ −1。
+   > 2. 所以高位全補 1，值還是 −1；補 0 的話 `0x000000ff` ＝ 255，值就變了。
    >
-   > 詳細說明：所以 `int` 的 `0xffffffff` ＝ −2³¹ ＋ (2³¹ − 1) ＝ −1，跟 `signed char` 的 `0xff` 是同一個值。對照零擴展 `movzbl`：一律補 0，用在 `unsigned char`（`0x80` 才能保持 128）。
+   > 詳細說明：（2026-10-13 複習批改時修正核心關鍵：題目問的是 −1，用權重算出全 1 的 `int` 是 −1 就答到了；一般化的推導移到這裡）一般化：前面多補一個 1，新的最高位權重是 −2⁸，原本那一位從 −2⁷ 變成 +2⁷，合起來 −2⁸ ＋ 2⁷ ＝ −2⁷，跟原來一樣，**值不變**；補幾個都同理。對照零擴展 `movzbl`：一律補 0，用在 `unsigned char`（`0x80` 才能保持 128）。
 10. （課後提問延伸）`mov %rdi,%rax` 和 `mov (%rdi),%rax` 只差一對括號，兩個指令各拿 `%rdi` 裡的數字做什麼？各對應 C 的什麼寫法？如果 `%rdi` 裡是 1234，哪一個會 segfault，為什麼？
     > **參考答案**（核心關鍵＋詳細說明）
     >
@@ -2939,7 +2995,7 @@ gcc 的選項有上千個，下面只列本課用到的 7 個，完整清單見 
     >
     > **11-3**【[第三節](#三指令的文法助憶符大小後綴運算元)〈上面 `break *widen_char+4` 的 `*`：為什麼要加？〉的「`break 函式名` 和 `break *函式名` 不一定停在同一個地方」】核心關鍵：
     >
-    > 1. `break deref`（函式名）會**跳過函式開頭的準備工作**（`-O0` 的 `push %rbp`、把參數存進堆疊），停在原始碼那一行真正開始做事的指令（實測 `0x1187`）。
+    > 1. `break deref`（函式名）會把中斷點**下在函式開頭的準備工作之後**（`-O0` 的 `push %rbp`、`mov %rsp,%rbp` 等；這些指令照常執行，停下時已經跑完）。準備工作算到哪裡看有沒有 `-g`：有 `-g` 照行號表，連「把參數存進堆疊」也算進去，停在 `0x1187`；沒有 `-g` 由 gdb 分析序言，停在 `0x1183`（2026-10-13 使用者實測後修正）。
     > 2. `break *deref` 不跳過任何東西，停在函式的**第一條指令** `endbr64`（實測 `0x117b`）。
     >
     > 詳細說明：`-O2` 沒有這些準備指令，所以兩者剛好都是 `0x11f0`。用法：看 C 用函式名或行號；看組合語言、要精確停在某一條指令時用 `*位址`。
@@ -3049,3 +3105,35 @@ gcc 的選項有上千個，下面只列本課用到的 7 個，完整清單見 
     > 2. 中間 `andl` 時，`n + 1` 已經存進 `%ecx`，之後 `%edi` **再也沒被讀過**，改成 `n & 1` 也沒關係。
     >
     > 詳細說明：判斷法：看到 `and` 就問「被改掉的 D 之後還有沒有用到？」——沒用到的話，它要的只是旗標，效果跟 `test` 一樣（這裡換成 `testl $1, %edi` 也對）。
+17. （2026-10-13 複習提問延伸）同一個 `paren.c` 用 `gcc -O0 -g` 編，`break deref` 下在 `0x1187`；用 `gcc -O0`（沒有 `-g`）編，`break deref` 卻下在 `0x1183`。兩種情況停下來時，`1183: mov %rdi,-0x8(%rbp)` 各執行了沒有？為什麼兩者下的位址不同？有 `-g` 時，停在 `break *deref`（`0x117b`）gdb 把參數印成 `p=0x0`，停在 `break deref` 卻印對了，為什麼？
+
+    `paren.c`（檔案：[`paren.c`](../small-project/s1-04-asm-basics/paren.c)）與 `deref` 的組合語言：
+
+    ```c
+    #include <stdio.h>
+
+    __attribute__((noinline)) long copy_val(long x)  { return x; }    /* 回傳 x 本身 */
+    __attribute__((noinline)) long deref(long *p)    { return *p; }   /* 回傳 p 指向的值 */
+
+    int main(void)
+    {
+        long v = 1234;
+        printf("%ld %ld\n", copy_val(v), deref(&v));
+        return 0;
+    }
+    ```
+
+    ```
+    $ gcc -O0 -g paren.c -o paren0              （有 -g）
+    $ gcc -O0 paren.c -o paren0_nog             （沒有 -g，機器碼跟上面一樣）
+    $ objdump -d --no-show-raw-insn paren0      （節錄 deref）
+    000000000000117b <deref>:
+        117b:	endbr64                 # 控制流程保護標記
+        117f:	push   %rbp             # 存呼叫者的 %rbp
+        1180:	mov    %rsp,%rbp        # 建立這個函式的堆疊框
+        1183:	mov    %rdi,-0x8(%rbp)  # 把參數 p 存進堆疊
+        1187:	mov    -0x8(%rbp),%rax  # 從堆疊讀回 p
+        118b:	mov    (%rax),%rax      # *p
+        118e:	pop    %rbp
+        118f:	ret
+    ```
