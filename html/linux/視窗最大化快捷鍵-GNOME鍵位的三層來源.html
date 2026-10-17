@@ -1,0 +1,334 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>用快捷鍵把視窗最大化 —— 為什麼 Super+Up 查 GNOME 設定卻是空的</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/app.js"></script>
+</head>
+<body>
+<button class="menu-btn" onclick="toggleMenu()">☰ 目錄</button>
+<div class="layout">
+<nav class="side">
+<div class="crumbs"><a href="../index.html">🏠 首頁</a> / <a href="README.html">linux</a></div>
+<div class="tools"><button onclick="toggleTheme()">🌓 主題</button></div>
+<ul>
+<li class="l2"><a href="#%E7%9B%AE%E9%8C%84">目錄</a></li>
+<li class="l2"><a href="#%E4%B8%80%E5%85%88%E7%B5%A6%E7%AD%94%E6%A1%88%E8%83%BD%E7%94%A8%E7%9A%84%E9%8D%B5">一、先給答案：能用的鍵</a></li>
+<li class="l2"><a href="#%E4%BA%8C%E7%82%BA%E4%BB%80%E9%BA%BC%E6%9F%A5-maximize-%E6%98%AF%E7%A9%BA%E7%9A%84">二、為什麼查 maximize 是空的</a></li>
+<li class="l2"><a href="#%E4%B8%89%E9%8D%B5%E4%BD%8D%E7%9A%84%E4%B8%89%E5%B1%A4%E4%BE%86%E6%BA%90">三、鍵位的三層來源</a></li>
+<li class="l2"><a href="#%E5%9B%9B%E6%9C%80%E5%A4%A7%E5%8C%96--%E5%85%A8%E8%9E%A2%E5%B9%95--%E5%B9%B3%E9%8B%AA%E6%98%AF%E4%B8%89%E4%BB%B6%E4%B8%8D%E5%90%8C%E7%9A%84%E4%BA%8B">四、最大化 / 全螢幕 / 平鋪是三件不同的事</a></li>
+<li class="l2"><a href="#%E4%BA%94%E6%80%8E%E9%BA%BC%E6%9F%A5%E8%87%AA%E5%B7%B1%E6%A9%9F%E5%99%A8%E4%B8%8A%E7%9A%84%E9%8D%B5%E4%BD%8D">五、怎麼查自己機器上的鍵位</a></li>
+<li class="l2"><a href="#%E5%85%AD%E6%80%8E%E9%BA%BC%E6%94%B9%E4%BB%A5%E5%8F%8A%E5%B8%B8%E8%A6%8B%E9%99%B7%E9%98%B1">六、怎麼改，以及常見陷阱</a></li>
+<li class="l2"><a href="#gsettings-%E5%AE%8C%E6%95%B4%E5%91%BD%E4%BB%A4%E8%88%87%E9%81%B8%E9%A0%85">gsettings 完整命令與選項</a></li>
+<li class="l3"><a href="#%E5%91%BD%E4%BB%A4%E5%85%A8%E9%83%A8-15-%E5%80%8B">命令（全部 15 個）</a></li>
+<li class="l3"><a href="#%E9%81%B8%E9%A0%85">選項</a></li>
+<li class="l2"><a href="#%E8%87%AA%E6%88%91%E6%B8%AC%E9%A9%97">自我測驗</a></li>
+</ul>
+</nav>
+<main>
+<h1 id="用快捷鍵把視窗最大化--為什麼-superup-查-gnome-設定卻是空的">用快捷鍵把視窗最大化 —— 為什麼 <code>Super+Up</code> 查 GNOME 設定卻是空的</h1>
+<blockquote>
+<p>日期：2026-09-12<br />
+情境：想知道 Linux 上把視窗放到最大的快捷鍵（keyboard shortcut），順手反查鍵位是誰綁的，發現 GNOME 官方的 <code>maximize</code> 設定是空的，鍵其實被擴充套件接走了<br />
+適用範圍：Ubuntu 24.04 / GNOME Shell 46 / X11 session（Wayland 的差異見第六節）</p>
+</blockquote>
+<p><strong>一句話結論：GNOME 的視窗快捷鍵有三層來源——mutter 內建、GNOME Shell 擴充套件（extension）、應用程式自己——查鍵位時只看 <code>org.gnome.desktop.wm.keybindings</code> 會漏掉後兩層，正確做法是拿鍵位字串反向全域搜尋。</strong></p>
+<hr />
+<h2 id="目錄">目錄</h2>
+<ul>
+<li><a href="#%E4%B8%80%E5%85%88%E7%B5%A6%E7%AD%94%E6%A1%88%E8%83%BD%E7%94%A8%E7%9A%84%E9%8D%B5">一、先給答案：能用的鍵</a></li>
+<li><a href="#%E4%BA%8C%E7%82%BA%E4%BB%80%E9%BA%BC%E6%9F%A5-maximize-%E6%98%AF%E7%A9%BA%E7%9A%84">二、為什麼查 maximize 是空的</a></li>
+<li><a href="#%E4%B8%89%E9%8D%B5%E4%BD%8D%E7%9A%84%E4%B8%89%E5%B1%A4%E4%BE%86%E6%BA%90">三、鍵位的三層來源</a></li>
+<li><a href="#%E5%9B%9B%E6%9C%80%E5%A4%A7%E5%8C%96--%E5%85%A8%E8%9E%A2%E5%B9%95--%E5%B9%B3%E9%8B%AA%E6%98%AF%E4%B8%89%E4%BB%B6%E4%B8%8D%E5%90%8C%E7%9A%84%E4%BA%8B">四、最大化 / 全螢幕 / 平鋪是三件不同的事</a></li>
+<li><a href="#%E4%BA%94%E6%80%8E%E9%BA%BC%E6%9F%A5%E8%87%AA%E5%B7%B1%E6%A9%9F%E5%99%A8%E4%B8%8A%E7%9A%84%E9%8D%B5%E4%BD%8D">五、怎麼查自己機器上的鍵位</a></li>
+<li><a href="#%E5%85%AD%E6%80%8E%E9%BA%BC%E6%94%B9%E4%BB%A5%E5%8F%8A%E5%B8%B8%E8%A6%8B%E9%99%B7%E9%98%B1">六、怎麼改，以及常見陷阱</a></li>
+<li><a href="#%E8%87%AA%E6%88%91%E6%B8%AC%E9%A9%97">自我測驗</a></li>
+</ul>
+<hr />
+<h2 id="一先給答案能用的鍵">一、先給答案：能用的鍵</h2>
+<p>本機實測（Ubuntu 24.04 + GNOME 46）：</p>
+<table>
+<thead>
+<tr>
+<th>動作</th>
+<th>快捷鍵</th>
+<th>由誰提供</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>最大化</td>
+<td><code>Super</code>+<code>↑</code>（或 <code>Super</code>+小鍵盤 <code>5</code>）</td>
+<td>tiling-assistant 擴充套件</td>
+</tr>
+<tr>
+<td>還原原本大小</td>
+<td><code>Super</code>+<code>↓</code></td>
+<td>tiling-assistant 擴充套件</td>
+</tr>
+<tr>
+<td>最大化 ⇄ 還原切換</td>
+<td><code>Alt</code>+<code>F10</code></td>
+<td>mutter 內建</td>
+</tr>
+<tr>
+<td>靠左／右半螢幕</td>
+<td><code>Super</code>+<code>←</code> / <code>Super</code>+<code>→</code></td>
+<td>tiling-assistant 擴充套件</td>
+</tr>
+<tr>
+<td>四分之一畫面</td>
+<td><code>Super</code>+小鍵盤 <code>1</code>/<code>3</code>/<code>7</code>/<code>9</code></td>
+<td>tiling-assistant 擴充套件</td>
+</tr>
+<tr>
+<td>最小化</td>
+<td><code>Super</code>+<code>H</code></td>
+<td>mutter 內建</td>
+</tr>
+<tr>
+<td>全螢幕</td>
+<td><code>F11</code></td>
+<td><strong>應用程式自己</strong>，不是 WM</td>
+</tr>
+<tr>
+<td>用滑鼠最大化</td>
+<td>雙擊標題列</td>
+<td>mutter（<code>action-double-click-titlebar</code>）</td>
+</tr>
+</tbody>
+</table>
+<p><code>Super</code> 就是鍵盤上的 Windows 鍵。</p>
+<h2 id="二為什麼查-maximize-是空的">二、為什麼查 maximize 是空的</h2>
+<p>直覺的查法是問 GNOME 的視窗管理員（Window Manager, WM）設定：</p>
+<pre><code class="language-bash">gsettings<span class="w"> </span>get<span class="w"> </span>org.gnome.desktop.wm.keybindings<span class="w"> </span>maximize
+<span class="c1"># @as []        ← 空陣列，沒有綁任何鍵</span>
+gsettings<span class="w"> </span>get<span class="w"> </span>org.gnome.desktop.wm.keybindings<span class="w"> </span>unmaximize
+<span class="c1"># @as []</span>
+gsettings<span class="w"> </span>get<span class="w"> </span>org.gnome.desktop.wm.keybindings<span class="w"> </span>toggle-maximized
+<span class="c1"># [&#39;&lt;Alt&gt;F10&#39;]</span>
+</code></pre>
+<p><code>@as []</code> 是 GVariant 的型別標註，意思是「型別為字串陣列（array of string）的空陣列」。也就是說：<strong>GNOME 原生的 <code>maximize</code> 真的沒綁鍵</strong>，只有 <code>toggle-maximized</code> 綁了 <code>Alt+F10</code>。但 <code>Super+Up</code> 明明會動。</p>
+<p>矛盾點就是線索。拿鍵位字串去反查整個 dconf 資料庫：</p>
+<pre><code class="language-bash">gsettings<span class="w"> </span>list-recursively<span class="w"> </span><span class="m">2</span>&gt;/dev/null<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-i<span class="w"> </span><span class="s2">&quot;super&gt;up&quot;</span>
+<span class="c1"># org.gnome.shell.extensions.tiling-assistant tile-maximize [&#39;&lt;Super&gt;Up&#39;, &#39;&lt;Super&gt;KP_5&#39;]</span>
+</code></pre>
+<p>找到了。Ubuntu 預設啟用的 <strong>tiling-assistant</strong> 擴充套件把 <code>Super+Up</code> 接走了，並且順手把 mutter 原本的 <code>maximize</code> 清成空值，避免兩邊搶同一顆鍵。</p>
+<pre><code class="language-bash">gsettings<span class="w"> </span>get<span class="w"> </span>org.gnome.shell<span class="w"> </span>enabled-extensions
+<span class="c1"># [&#39;ding@rastersoft.com&#39;, &#39;ubuntu-dock@ubuntu.com&#39;, &#39;tiling-assistant@ubuntu.com&#39;]</span>
+</code></pre>
+<p>這也解釋了一個常見困惑：<strong>別人的 Ubuntu 教學說 <code>Super+Up</code> 是內建的，你去設定裡卻找不到它</strong>——因為在 24.04 上它已經不是內建的了。</p>
+<h2 id="三鍵位的三層來源">三、鍵位的三層來源</h2>
+<p>按攔截順序由上而下：</p>
+<ol>
+<li><strong>GNOME Shell 擴充套件</strong>：最上層。擴充套件用 <code>Main.wm.addKeybinding()</code> 註冊，會蓋過 mutter 的同名鍵。設定放在 <code>org.gnome.shell.extensions.&lt;名稱&gt;</code>。停用擴充套件，這層鍵就整批消失。</li>
+<li><strong>mutter（GNOME 的 WM）內建</strong>：<code>org.gnome.desktop.wm.keybindings</code>（視窗操作）和 <code>org.gnome.mutter.keybindings</code>（平鋪等）。另有 <code>org.gnome.settings-daemon.plugins.media-keys</code> 管音量、截圖之類的系統鍵。</li>
+<li><strong>應用程式自己</strong>：<code>F11</code> 全螢幕是瀏覽器、影片播放器自己實作的，WM 只是被動收到請求。所以 <code>F11</code> 在不同程式行為不一致，有些程式根本沒有。</li>
+</ol>
+<p><strong>推論</strong>：快捷鍵沒反應時，先問「這顆鍵該由哪一層負責」。第 3 層的鍵在 WM 設定裡查不到也改不了，是正常的，不是壞掉。</p>
+<h2 id="四最大化--全螢幕--平鋪是三件不同的事">四、最大化 / 全螢幕 / 平鋪是三件不同的事</h2>
+<p>底層是 EWMH（Extended Window Manager Hints，延伸視窗管理員提示）定義的不同視窗狀態：</p>
+<table>
+<thead>
+<tr>
+<th>概念</th>
+<th>EWMH 狀態</th>
+<th>結果</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>最大化（maximize）</td>
+<td><code>_NET_WM_STATE_MAXIMIZED_VERT</code> + <code>_NET_WM_STATE_MAXIMIZED_HORZ</code></td>
+<td>佔滿工作區，<strong>保留標題列與上方面板</strong></td>
+</tr>
+<tr>
+<td>全螢幕（fullscreen）</td>
+<td><code>_NET_WM_STATE_FULLSCREEN</code></td>
+<td>佔滿整個螢幕，標題列與面板都不見</td>
+</tr>
+<tr>
+<td>平鋪（tiling）</td>
+<td>沒有標準狀態，由 WM／擴充套件自行實作</td>
+<td>半螢幕、四分之一螢幕</td>
+</tr>
+</tbody>
+</table>
+<p>兩個關鍵細節：</p>
+<ul>
+<li>最大化是<strong>兩個獨立的狀態旗標</strong>（垂直、水平）。只加一個的話視窗只會往那個方向拉長。這就是為什麼 <code>wmctrl</code> 要一次指定兩個：<pre><code class="language-bash">wmctrl<span class="w"> </span>-r<span class="w"> </span>:ACTIVE:<span class="w"> </span>-b<span class="w"> </span>add,maximized_vert,maximized_horz
+</code></pre>
+</li>
+<li>本機的 WM 支援哪些狀態可以直接問根視窗（root window）：<pre><code class="language-bash">xprop<span class="w"> </span>-root<span class="w"> </span>_NET_SUPPORTED<span class="w"> </span><span class="p">|</span><span class="w"> </span>tr<span class="w"> </span><span class="s1">&#39;,&#39;</span><span class="w"> </span><span class="s1">&#39;\n&#39;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-iE<span class="w"> </span><span class="s1">&#39;MAXIMIZED|FULLSCREEN&#39;</span>
+</code></pre>
+沒列出來的狀態，任何工具都沒辦法叫 WM 做到。</li>
+</ul>
+<h2 id="五怎麼查自己機器上的鍵位">五、怎麼查自己機器上的鍵位</h2>
+<p>正查（我知道動作名稱，想知道綁哪顆鍵）：</p>
+<pre><code class="language-bash">gsettings<span class="w"> </span>list-recursively<span class="w"> </span>org.gnome.desktop.wm.keybindings<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-v<span class="w"> </span><span class="s1">&#39;\[\]$&#39;</span>
+</code></pre>
+<p>反查（我知道鍵，想知道是誰接走的）——<strong>這招才是重點</strong>，因為它會掃過所有 schema，包含擴充套件：</p>
+<pre><code class="language-bash">gsettings<span class="w"> </span>list-recursively<span class="w"> </span><span class="m">2</span>&gt;/dev/null<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-i<span class="w"> </span><span class="s2">&quot;super&gt;up&quot;</span>
+</code></pre>
+<p>鍵位字串的寫法：修飾鍵用角括號 <code>&lt;Super&gt;</code>、<code>&lt;Control&gt;</code>、<code>&lt;Alt&gt;</code>、<code>&lt;Shift&gt;</code>，直接接鍵名；小鍵盤（numeric keypad）是 <code>KP_5</code> 這種寫法。字母鍵一律小寫，<code>&lt;Super&gt;h</code> 不是 <code>&lt;Super&gt;H</code>（大寫代表要按 Shift）。</p>
+<p>這種「先推翻前提、再擴大搜尋範圍」的查法，和 <a href="%E6%8E%92%E6%9F%A5%E6%96%B9%E6%B3%95%E8%AB%96.html">排查方法論</a> 是同一套思路。</p>
+<h2 id="六怎麼改以及常見陷阱">六、怎麼改，以及常見陷阱</h2>
+<p>改鍵位有兩條路。圖形介面：<strong>設定 → 鍵盤 → 鍵盤快捷鍵</strong>。命令列：</p>
+<pre><code class="language-bash"><span class="c1"># 幫 toggle-fullscreen 綁一顆鍵（預設沒綁）</span>
+gsettings<span class="w"> </span><span class="nb">set</span><span class="w"> </span>org.gnome.desktop.wm.keybindings<span class="w"> </span>toggle-fullscreen<span class="w"> </span><span class="s2">&quot;[&#39;&lt;Super&gt;f&#39;]&quot;</span>
+
+<span class="c1"># 改擴充套件的鍵</span>
+gsettings<span class="w"> </span><span class="nb">set</span><span class="w"> </span>org.gnome.shell.extensions.tiling-assistant<span class="w"> </span>tile-maximize<span class="w"> </span><span class="s2">&quot;[&#39;&lt;Super&gt;Up&#39;]&quot;</span>
+
+<span class="c1"># 改壞了就重設回預設</span>
+gsettings<span class="w"> </span>reset<span class="w"> </span>org.gnome.desktop.wm.keybindings<span class="w"> </span>toggle-fullscreen
+</code></pre>
+<p>注意值是<strong>字串陣列</strong>，所以外層引號裡面還要有 <code>[...]</code> 和單引號，一顆鍵也一樣要包成陣列。</p>
+<p>陷阱清單：</p>
+<ul>
+<li><strong>鍵沒反應，但設定看起來是對的</strong>：多半是被上一層搶走。用第五節的反查法找衝突，而不是反覆改同一個設定。</li>
+<li><strong><code>Super</code> 單獨按會叫出 Activities 總覽</strong>：這是 GNOME Shell 的 overlay key，和組合鍵不衝突，但在遠端桌面或虛擬機裡常被主機端吃掉，導致 <code>Super+Up</code> 傳不進客體系統。</li>
+<li><strong>小鍵盤那組要開 NumLock</strong> 才會送出 <code>KP_5</code>，否則送的是方向鍵。</li>
+<li><strong>Wayland vs X11</strong>：快捷鍵本身兩邊都一樣（都由 mutter 處理）。差別在<strong>用命令列操作視窗</strong>：<code>wmctrl</code>、<code>xdotool</code> 靠 X11 協定，在 Wayland session 下對原生 Wayland 視窗完全無效。查目前是哪種：<pre><code class="language-bash"><span class="nb">echo</span><span class="w"> </span><span class="nv">$XDG_SESSION_TYPE</span><span class="w">    </span><span class="c1"># x11 或 wayland</span>
+</code></pre>
+Wayland 下要用合成器自己的介面：sway 用 <code>swaymsg fullscreen toggle</code>、Hyprland 用 <code>hyprctl dispatch fullscreen 1</code>、KDE 用 <code>kdotool</code>；GNOME Wayland 則沒有官方的命令列做法。</li>
+<li><strong>不是 GNOME 就整套不一樣</strong>：KDE 的鍵位在系統設定的 KWin 區塊，i3／sway 直接寫在設定檔（<code>bindsym $mod+f fullscreen toggle</code>）。上面的 <code>gsettings</code> 路徑只對 GNOME 有效。</li>
+<li><strong>終端機裡的「最大化」是另一回事</strong>：tmux 的 <code>prefix</code> + <code>z</code> 是把 pane 放大到整個 window，跟 WM 無關，見 <a href="%E7%94%A8%E7%95%B6%E5%89%8D%E7%9B%AE%E9%8C%84%E5%90%8D%E5%91%BD%E5%90%8Dtmux-session.html">用當前目錄名命名tmux-session</a> 所在的 tmux 系列筆記。</li>
+</ul>
+<hr />
+<h2 id="gsettings-完整命令與選項">gsettings 完整命令與選項</h2>
+<pre><code>gsettings [--schemadir &lt;目錄&gt;] &lt;命令&gt; [參數...]
+</code></pre>
+<h3 id="命令全部-15-個">命令（全部 15 個）</h3>
+<p><strong>列出</strong></p>
+<table>
+<thead>
+<tr>
+<th>命令</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>list-schemas</code></td>
+<td>列出所有已安裝的 schema</td>
+</tr>
+<tr>
+<td><code>list-relocatable-schemas</code></td>
+<td>列出可重定位的 schema（需要路徑的那種）</td>
+</tr>
+<tr>
+<td><code>list-keys &lt;schema&gt;</code></td>
+<td>列出該 schema 的所有鍵</td>
+</tr>
+<tr>
+<td><code>list-children &lt;schema&gt;</code></td>
+<td>列出子 schema</td>
+</tr>
+<tr>
+<td><code>list-recursively [schema]</code></td>
+<td><strong>遞迴列出鍵與值</strong> ← 找設定時最實用</td>
+</tr>
+</tbody>
+</table>
+<p><strong>查詢單一鍵</strong></p>
+<table>
+<thead>
+<tr>
+<th>命令</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>get &lt;schema&gt; &lt;key&gt;</code></td>
+<td>取值</td>
+</tr>
+<tr>
+<td><code>range &lt;schema&gt; &lt;key&gt;</code></td>
+<td><strong>這個鍵可以填什麼</strong>（型別與允許範圍）</td>
+</tr>
+<tr>
+<td><code>describe &lt;schema&gt; &lt;key&gt;</code></td>
+<td><strong>這個鍵是做什麼的</strong>（說明文字）</td>
+</tr>
+<tr>
+<td><code>writable &lt;schema&gt; &lt;key&gt;</code></td>
+<td>這個鍵能不能寫（可能被 lockdown 鎖住）</td>
+</tr>
+</tbody>
+</table>
+<p><strong>修改</strong></p>
+<table>
+<thead>
+<tr>
+<th>命令</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>set &lt;schema&gt; &lt;key&gt; &lt;值&gt;</code></td>
+<td>設定</td>
+</tr>
+<tr>
+<td><code>reset &lt;schema&gt; &lt;key&gt;</code></td>
+<td><strong>還原成預設值</strong></td>
+</tr>
+<tr>
+<td><code>reset-recursively &lt;schema&gt;</code></td>
+<td>還原整個 schema</td>
+</tr>
+</tbody>
+</table>
+<p><strong>其他</strong></p>
+<table>
+<thead>
+<tr>
+<th>命令</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>monitor &lt;schema&gt; [key]</code></td>
+<td><strong>即時監看變化</strong> ← 想知道「我在 GUI 上按的那個鈕改了哪個鍵」就用它</td>
+</tr>
+<tr>
+<td><code>help [命令]</code></td>
+<td>說明</td>
+</tr>
+<tr>
+<td><code>--version</code></td>
+<td>版本</td>
+</tr>
+</tbody>
+</table>
+<h3 id="選項">選項</h3>
+<p>只有一個：<code>--schemadir &lt;目錄&gt;</code>，指定額外的 schema 搜尋路徑（用於未安裝到系統的 schema）。</p>
+<p><strong><code>monitor</code> 與 <code>describe</code> 是查設定的兩把鑰匙</strong>：前者讓你反查「GUI 動作對應哪個鍵」，後者讓你看懂「這個鍵是幹嘛的」——不用去翻 GNOME 原始碼。</p>
+<h2 id="自我測驗">自我測驗</h2>
+<ol>
+<li>
+<p><code>gsettings get org.gnome.desktop.wm.keybindings maximize</code> 回傳 <code>@as []</code>，但 <code>Super+Up</code> 實際按下去視窗確實最大化了。這個矛盾說明了什麼？你會怎麼找出真正綁鍵的地方？</p>
+</li>
+<li>
+<p>最大化（maximize）和全螢幕（fullscreen）在 EWMH 裡是不同的狀態。為什麼「最大化」需要設定兩個狀態旗標，而全螢幕只要一個？如果只設其中一個會發生什麼事？</p>
+</li>
+<li>
+<p>同事說他的 <code>F11</code> 在某個程式裡沒用，要你幫忙改 GNOME 的快捷鍵設定。為什麼這個請求本身就有問題？</p>
+</li>
+<li>
+<p>情境應用題：你在一台機器上寫了一個腳本，用 <code>wmctrl -r :ACTIVE: -b add,maximized_vert,maximized_horz</code> 自動最大化視窗，在自己電腦上跑得好好的，換到同事的電腦上卻毫無反應，也沒有任何錯誤訊息。請列出你會依序檢查的三件事，並說明每一項各自能排除什麼可能。</p>
+</li>
+<li>
+<p>你想把 <code>Super+M</code> 綁成全螢幕切換，但執行 <code>gsettings set org.gnome.desktop.wm.keybindings toggle-fullscreen &quot;&lt;Super&gt;m&quot;</code> 之後沒有生效也沒有報錯。問題出在哪？從第五節的鍵位字串規則來看，還有哪一個地方也很容易寫錯？</p>
+</li>
+</ol>
+
+</main>
+</div>
+</body>
+</html>

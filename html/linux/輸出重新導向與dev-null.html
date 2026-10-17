@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>/dev/null 是什麼？&gt;/dev/null 2&gt;&amp;1 到底在做什麼？</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/app.js"></script>
+</head>
+<body>
+<button class="menu-btn" onclick="toggleMenu()">☰ 目錄</button>
+<div class="layout">
+<nav class="side">
+<div class="crumbs"><a href="../index.html">🏠 首頁</a> / <a href="README.html">linux</a></div>
+<div class="tools"><button onclick="toggleTheme()">🌓 主題</button></div>
+<ul>
+<li class="l2"><a href="#%E4%B8%80%E4%B8%89%E5%80%8B%E6%A8%99%E6%BA%96%E6%AA%94%E6%A1%88%E6%8F%8F%E8%BF%B0%E7%AC%A6">一、三個標準檔案描述符</a></li>
+<li class="l2"><a href="#%E4%BA%8Cdevnull%E5%AF%AB%E5%85%A5%E5%B0%B1%E6%B6%88%E5%A4%B1%E7%9A%84%E9%BB%91%E6%B4%9E">二、/dev/null：寫入就消失的黑洞</a></li>
+<li class="l2"><a href="#%E4%B8%89%E9%87%8D%E6%96%B0%E5%B0%8E%E5%90%91%E8%AA%9E%E6%B3%95%E9%80%90%E5%AD%97%E6%8B%86%E8%A7%A3">三、重新導向語法逐字拆解</a></li>
+<li class="l2"><a href="#%E5%9B%9B%E9%A0%86%E5%BA%8F%E5%BE%88%E9%87%8D%E8%A6%81%E7%94%B1%E5%B7%A6%E5%88%B0%E5%8F%B3%E5%A5%97%E7%94%A8">四、順序很重要：由左到右套用</a></li>
+<li class="l2"><a href="#%E4%BA%94%E5%B8%B8%E8%A6%8B%E7%B5%84%E5%90%88">五、常見組合</a></li>
+<li class="l2"><a href="#%E8%87%AA%E6%88%91%E6%B8%AC%E9%A9%97">自我測驗</a></li>
+</ul>
+</nav>
+<main>
+<h1 id="devnull-是什麼devnull-21-到底在做什麼"><code>/dev/null</code> 是什麼？<code>&gt;/dev/null 2&gt;&amp;1</code> 到底在做什麼？</h1>
+<blockquote>
+<p>日期：2026-09-19<br />
+情境：學到 <code>setsid -f prog &gt;/dev/null 2&gt;&amp;1</code> 之後，追問 <code>/dev/null</code> 和 <code>2&gt;&amp;1</code> 的意思（當時誤寫成 <code>$2&gt;1</code>）<br />
+適用範圍：bash / zsh / POSIX sh 都通用（<code>&amp;&gt;</code> 簡寫除外）<br />
+延伸自：<a href="%E5%BE%9E%E7%B5%82%E7%AB%AF%E6%A9%9F%E5%95%9F%E5%8B%95GUI%E7%A8%8B%E5%BC%8F%E4%B8%A6%E8%84%AB%E9%9B%A2%E7%B5%82%E7%AB%AF%E6%A9%9F.html">從終端機啟動GUI程式並脫離終端機</a></p>
+</blockquote>
+<p><strong>一句話結論：每個行程有編號 0／1／2 的三個輸入輸出口；<code>&gt;</code> 是把某個編號改接到檔案，<code>2&gt;&amp;1</code> 是「讓 2 號接到 1 號</strong>現在<strong>接的地方」。<code>/dev/null</code> 是核心提供的黑洞裝置，寫進去的東西直接丟掉。重新導向由左到右套用，所以順序會改變結果。</strong></p>
+<hr />
+<h2 id="一三個標準檔案描述符">一、三個標準檔案描述符</h2>
+<p>檔案描述符（file descriptor，fd）是行程手上的一張「已開啟檔案」編號表。每個行程一開始就有三個：</p>
+<table>
+<thead>
+<tr>
+<th>fd</th>
+<th>名稱</th>
+<th>預設接到</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0</td>
+<td>stdin（standard input，標準輸入）</td>
+<td>終端機</td>
+<td>程式讀取輸入</td>
+</tr>
+<tr>
+<td>1</td>
+<td>stdout（standard output，標準輸出）</td>
+<td>終端機</td>
+<td>正常結果</td>
+</tr>
+<tr>
+<td>2</td>
+<td>stderr（standard error，標準錯誤）</td>
+<td>終端機</td>
+<td>錯誤訊息、警告、log</td>
+</tr>
+</tbody>
+</table>
+<p>stdout 和 stderr 在畫面上看起來一樣，但其實是<strong>兩條獨立的線</strong>，只是預設都接到同一個終端機。分成兩條，是為了讓你能把「結果」和「錯誤」分開處理（例如結果存檔，錯誤照樣顯示在畫面上）。</p>
+<p>可以直接看：<code>ls -l /proc/self/fd/</code> 會顯示 0、1、2 各自指向哪裡（在終端機裡通常是 <code>/dev/pts/N</code>）。</p>
+<hr />
+<h2 id="二devnull寫入就消失的黑洞">二、<code>/dev/null</code>：寫入就消失的黑洞</h2>
+<pre><code>$ ls -l /dev/null
+crw-rw-rw- 1 root root 1, 3 ... /dev/null
+</code></pre>
+<ul>
+<li>開頭的 <code>c</code> 代表字元裝置（character device），不是一般檔案——它是核心提供的虛擬裝置，主／次裝置號（major/minor number）是 <code>1, 3</code>。</li>
+<li><strong>寫入</strong>：永遠成功，資料直接丟棄，不佔磁碟空間。</li>
+<li><strong>讀取</strong>：立刻回傳 EOF（End Of File，檔案結尾），讀到 0 個位元組（<code>wc -c &lt;/dev/null</code> 輸出 <code>0</code>）。</li>
+<li>權限 <code>rw-rw-rw-</code>：所有使用者都能用。</li>
+</ul>
+<p>所以 <code>&gt;/dev/null</code> 的意思就是「把輸出丟掉」。</p>
+<hr />
+<h2 id="三重新導向語法逐字拆解">三、重新導向語法逐字拆解</h2>
+<table>
+<thead>
+<tr>
+<th>寫法</th>
+<th>意思</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>&gt; file</code></td>
+<td>等同 <code>1&gt; file</code>：把 fd 1（stdout）改接到 <code>file</code>（覆寫）</td>
+</tr>
+<tr>
+<td><code>&gt;&gt; file</code></td>
+<td>同上，但改成附加（append）</td>
+</tr>
+<tr>
+<td><code>2&gt; file</code></td>
+<td>把 fd 2（stderr）改接到 <code>file</code></td>
+</tr>
+<tr>
+<td><code>2&gt;&amp;1</code></td>
+<td>把 fd 2 改接到 <strong>fd 1 目前接的地方</strong>（複製 fd 1 的連接）</td>
+</tr>
+<tr>
+<td><code>&lt; file</code></td>
+<td>等同 <code>0&lt; file</code>：從 <code>file</code> 讀取 stdin</td>
+</tr>
+<tr>
+<td><code>&amp;&gt; file</code></td>
+<td>bash／zsh 簡寫，等同 <code>&gt; file 2&gt;&amp;1</code>（POSIX sh 不支援）</td>
+</tr>
+</tbody>
+</table>
+<p><strong><code>&amp;</code> 為什麼不能省：</strong> <code>2&gt;1</code> 裡的 <code>1</code> 會被當成<strong>檔名</strong>——實測 <code>ls /nonexist 2&gt;1</code> 會在當前目錄建立一個叫 <code>1</code> 的檔案，錯誤訊息被寫進去。加了 <code>&amp;</code>，shell 才知道 <code>1</code> 指的是 fd 1 而不是檔案。</p>
+<p><strong><code>$2</code> 是完全不同的東西：</strong> <code>$2</code> 是位置參數（positional parameter），代表傳給腳本或函式的第二個引數（<code>set -- a b; echo $2</code> → <code>b</code>），跟 fd 無關。重新導向的數字前面不加 <code>$</code>。</p>
+<hr />
+<h2 id="四順序很重要由左到右套用">四、順序很重要：由左到右套用</h2>
+<p><code>2&gt;&amp;1</code> 是在<strong>那一刻</strong>複製 fd 1 的連接，不是永久綁在一起。所以：</p>
+<pre><code class="language-bash">cmd<span class="w"> </span>&gt;/dev/null<span class="w"> </span><span class="m">2</span>&gt;<span class="p">&amp;</span><span class="m">1</span>
+<span class="c1"># 1. fd1 → /dev/null</span>
+<span class="c1"># 2. fd2 → fd1 現在接的地方 = /dev/null</span>
+<span class="c1"># 結果：兩個都丟掉 ✅</span>
+
+cmd<span class="w"> </span><span class="m">2</span>&gt;<span class="p">&amp;</span><span class="m">1</span><span class="w"> </span>&gt;/dev/null
+<span class="c1"># 1. fd2 → fd1 現在接的地方 = 終端機</span>
+<span class="c1"># 2. fd1 → /dev/null</span>
+<span class="c1"># 結果：stdout 丟掉，stderr 照樣印在終端機上 ❌（如果你原本想全部丟掉）</span>
+</code></pre>
+<p>實測：<code>ls /nonexist 2&gt;&amp;1 &gt;/dev/null | sed 's/^/[piped] /'</code> 輸出 <code>[piped] ls: cannot access ...</code>——錯誤訊息沒被丟掉，還跑進了管線（pipe）。這個「錯誤的順序」其實有正當用途：<strong>只把 stderr 送進管線、丟掉 stdout</strong>。</p>
+<hr />
+<h2 id="五常見組合">五、常見組合</h2>
+<pre><code class="language-bash">cmd<span class="w"> </span>&gt;/dev/null<span class="w"> </span><span class="m">2</span>&gt;<span class="p">&amp;</span><span class="m">1</span><span class="w">        </span><span class="c1"># 全部靜音（最常見，也是背景啟動 GUI 程式的寫法）</span>
+cmd<span class="w"> </span><span class="m">2</span>&gt;/dev/null<span class="w">            </span><span class="c1"># 只丟錯誤，例如 find / -name x 2&gt;/dev/null 藏掉 Permission denied</span>
+cmd<span class="w"> </span>&gt;out.log<span class="w"> </span><span class="m">2</span>&gt;<span class="p">&amp;</span><span class="m">1</span><span class="w">          </span><span class="c1"># 結果和錯誤都寫進同一個 log</span>
+cmd<span class="w"> </span>&gt;out.log<span class="w"> </span><span class="m">2</span>&gt;err.log<span class="w">     </span><span class="c1"># 分開存</span>
+cmd<span class="w"> </span><span class="m">2</span>&gt;<span class="p">&amp;</span><span class="m">1</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>less<span class="w">            </span><span class="c1"># 錯誤也送進管線一起翻頁（管線只接 stdout，所以要先把 2 併進 1）</span>
+cmd<span class="w"> </span>&lt;/dev/null<span class="w">             </span><span class="c1"># 給程式一個空的 stdin，避免它卡著等輸入</span>
+</code></pre>
+<hr />
+<h2 id="自我測驗">自我測驗</h2>
+<ol>
+<li>stdout 和 stderr 在畫面上看起來一樣，為什麼還要分成兩個 fd？</li>
+<li><code>2&gt;&amp;1</code> 裡的 <code>&amp;</code> 如果漏掉寫成 <code>2&gt;1</code>，會發生什麼事？為什麼？</li>
+<li><code>cmd &gt;/dev/null 2&gt;&amp;1</code> 和 <code>cmd 2&gt;&amp;1 &gt;/dev/null</code> 的結果差在哪？用「<code>2&gt;&amp;1</code> 複製的是什麼」解釋。</li>
+<li>情境題：你執行 <code>find / -name '*.conf' | grep nginx</code>，畫面還是被一大堆 <code>Permission denied</code> 洗版。為什麼管線沒把它們濾掉？要怎麼改？</li>
+<li>情境題：某個背景程式啟動時會讀 stdin 等使用者輸入，結果一放到背景就卡住。可以用 <code>/dev/null</code> 的哪個特性解決？</li>
+</ol>
+
+</main>
+</div>
+</body>
+</html>

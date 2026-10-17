@@ -1,0 +1,402 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Docker Compose 用法筆記</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/app.js"></script>
+</head>
+<body>
+<button class="menu-btn" onclick="toggleMenu()">☰ 目錄</button>
+<div class="layout">
+<nav class="side">
+<div class="crumbs"><a href="../index.html">🏠 首頁</a> / <a href="README.html">docker</a></div>
+<div class="tools"><button onclick="toggleTheme()">🌓 主題</button></div>
+<ul>
+<li class="l2"><a href="#%E4%B8%80compose-%E6%98%AF%E4%BB%80%E9%BA%BC">一、Compose 是什麼</a></li>
+<li class="l2"><a href="#%E4%BA%8C%E5%B8%B8%E7%94%A8%E6%8C%87%E4%BB%A4%E9%83%BD%E5%9C%A8%E5%B0%88%E6%A1%88%E6%A0%B9%E7%9B%AE%E9%8C%84%E5%9F%B7%E8%A1%8C">二、常用指令（都在專案根目錄執行）</a></li>
+<li class="l2"><a href="#%E4%B8%89%E5%B0%8D%E7%85%A7%E6%9C%AC%E5%B0%88%E6%A1%88-compose-%E8%AC%9B%E8%A7%A3%E8%AA%9E%E6%B3%95">三、對照本專案 compose 講解語法</a></li>
+<li class="l3"><a href="#1-yaml-%E9%8C%A8%E9%BB%9Eanchor%E8%88%87%E6%93%B4%E5%85%85%E6%AC%84%E4%BD%8D--%E9%81%BF%E5%85%8D%E9%87%8D%E8%A4%87">1. YAML 錨點（anchor）與擴充欄位 —— 避免重複</a></li>
+<li class="l3"><a href="#2-build-%E5%8D%80%E5%A1%8A--%E5%BE%9E%E5%8E%9F%E5%A7%8B%E7%A2%BC%E5%BB%BA-image">2. build 區塊 —— 從原始碼建 image</a></li>
+<li class="l3"><a href="#3-build-args-%E5%B8%B6-proxy--%E5%8F%AA%E5%BD%B1%E9%9F%BF-build-%E5%AE%B9%E5%99%A8%E5%85%A7">3. build-args 帶 proxy —— 只影響 build 容器內</a></li>
+<li class="l3"><a href="#4-network_mode-host--%E5%AE%B9%E5%99%A8%E5%85%B1%E7%94%A8%E4%B8%BB%E6%A9%9F%E7%B6%B2%E8%B7%AF">4. network_mode: host —— 容器共用主機網路</a></li>
+<li class="l3"><a href="#5-volumes--%E6%8A%8A%E4%B8%BB%E6%A9%9F%E6%AA%94%E6%8E%9B%E9%80%B2%E5%AE%B9%E5%99%A8">5. volumes —— 把主機檔掛進容器</a></li>
+<li class="l3"><a href="#6-depends_on--%E5%95%9F%E5%8B%95%E9%A0%86%E5%BA%8F">6. depends_on —— 啟動順序</a></li>
+<li class="l2"><a href="#%E5%9B%9B%E5%96%AE%E4%B8%80%E6%9C%8D%E5%8B%99%E9%A9%97%E8%AD%89%E6%B5%81%E7%A8%8B%E6%9C%AC%E5%B0%88%E6%A1%88">四、單一服務驗證流程（本專案）</a></li>
+<li class="l2"><a href="#%E4%BA%94%E5%B8%B8%E8%A6%8B%E5%9D%91">五、常見坑</a></li>
+<li class="l2"><a href="#%E5%85%AD%E8%A7%80%E5%BF%B5%E6%95%B4%E7%90%86">六、觀念整理</a></li>
+<li class="l2"><a href="#docker-compose-%E5%AE%8C%E6%95%B4%E5%AD%90%E5%91%BD%E4%BB%A4">docker compose 完整子命令</a></li>
+</ul>
+</nav>
+<main>
+<h1 id="docker-compose-用法筆記">Docker Compose 用法筆記</h1>
+<blockquote>
+<p>建立日期：2026-07-06<br />
+情境：用 Docker 在本地跑 fuwei-cloud（member / merchant / payment 服務）<br />
+對應檔案：<code>fuwei-cloud/.set/docker/docker-compose.yml</code>（個人開發用，不入 git）</p>
+</blockquote>
+<hr />
+<h2 id="一compose-是什麼">一、Compose 是什麼</h2>
+<p>一份 YAML 描述「要跑哪幾個容器、怎麼 build、怎麼連網、掛哪些檔」，用一條指令一次拉起整組服務，取代手動一個個 <code>docker run</code>。</p>
+<ul>
+<li>檔名慣例：<code>docker-compose.yml</code> 或 <code>compose.yml</code>。</li>
+<li>放在非預設路徑時，用 <code>-f</code> 指定：<code>docker compose -f 路徑 …</code>。</li>
+<li>新版是 <code>docker compose</code>（子指令，內建），舊版是獨立的 <code>docker-compose</code>（有連字號）。優先用前者。</li>
+</ul>
+<hr />
+<h2 id="二常用指令都在專案根目錄執行">二、常用指令（都在專案根目錄執行）</h2>
+<pre><code class="language-bash"><span class="c1"># 指定 compose 檔的前綴（下面用 $C 代表，實際要打完整）</span>
+<span class="nv">C</span><span class="o">=</span><span class="s2">&quot;docker compose -f .set/docker/docker-compose.yml&quot;</span>
+
+<span class="c1"># --- build ---</span>
+<span class="nv">$C</span><span class="w"> </span>build<span class="w">                 </span><span class="c1"># build 全部 service</span>
+<span class="nv">$C</span><span class="w"> </span>build<span class="w"> </span>member-rpc<span class="w">      </span><span class="c1"># 只 build 指定 service</span>
+
+<span class="c1"># --- 啟動 ---</span>
+<span class="nv">$C</span><span class="w"> </span>up<span class="w"> </span>-d<span class="w">                 </span><span class="c1"># 背景啟動全部（-d = detached）</span>
+<span class="nv">$C</span><span class="w"> </span>up<span class="w"> </span>-d<span class="w"> </span>member-rpc<span class="w">      </span><span class="c1"># 只啟動指定 service（會連帶 depends_on）</span>
+<span class="nv">$C</span><span class="w"> </span>up<span class="w"> </span>-d<span class="w"> </span>--build<span class="w"> </span>member-rpc<span class="w">   </span><span class="c1"># build + 啟動 一步到位</span>
+
+<span class="c1"># --- 看狀態 / log ---</span>
+<span class="nv">$C</span><span class="w"> </span>ps<span class="w">                    </span><span class="c1"># 列出這組容器的狀態</span>
+<span class="nv">$C</span><span class="w"> </span>logs<span class="w"> </span>-f<span class="w"> </span>member-rpc<span class="w">    </span><span class="c1"># 跟一個 service 的 log（-f = follow）</span>
+<span class="nv">$C</span><span class="w"> </span>logs<span class="w"> </span>--tail<span class="o">=</span><span class="m">100</span><span class="w"> </span>member-rpc
+
+<span class="c1"># --- 停止 / 清理 ---</span>
+<span class="nv">$C</span><span class="w"> </span>stop<span class="w"> </span>member-rpc<span class="w">       </span><span class="c1"># 只停不刪</span>
+<span class="nv">$C</span><span class="w"> </span>down<span class="w">                  </span><span class="c1"># 停掉並刪除這組容器 / 網路</span>
+<span class="nv">$C</span><span class="w"> </span>down<span class="w"> </span>-v<span class="w">               </span><span class="c1"># 連 named volume 也刪（謹慎）</span>
+
+<span class="c1"># --- 進容器 / 執行 ---</span>
+<span class="nv">$C</span><span class="w"> </span><span class="nb">exec</span><span class="w"> </span>member-rpc<span class="w"> </span>sh<span class="w">    </span><span class="c1"># 進到跑著的容器內</span>
+<span class="nv">$C</span><span class="w"> </span>run<span class="w"> </span>--rm<span class="w"> </span>member-rpc<span class="w"> </span>sh<span class="w">  </span><span class="c1"># 用該 service 的 image 起臨時容器</span>
+
+<span class="c1"># --- 重新來過 ---</span>
+<span class="nv">$C</span><span class="w"> </span>up<span class="w"> </span>-d<span class="w"> </span>--force-recreate<span class="w"> </span>member-rpc<span class="w">   </span><span class="c1"># 強制重建容器（設定變了時）</span>
+<span class="nv">$C</span><span class="w"> </span>build<span class="w"> </span>--no-cache<span class="w"> </span>member-rpc<span class="w">         </span><span class="c1"># 不用 build cache 重編</span>
+</code></pre>
+<blockquote>
+<p>只操作單一 service 時，把 service 名接在指令後即可。<code>up</code> 某個 service 會自動把它的 <code>depends_on</code> 一起帶起來。</p>
+</blockquote>
+<hr />
+<h2 id="三對照本專案-compose-講解語法">三、對照本專案 compose 講解語法</h2>
+<p>以下逐段解釋 <code>.set/docker/docker-compose.yml</code> 用到的寫法。</p>
+<h3 id="1-yaml-錨點anchor與擴充欄位--避免重複">1. YAML 錨點（anchor）與擴充欄位 —— 避免重複</h3>
+<pre><code class="language-yaml"><span class="nt">x-common</span><span class="p">:</span><span class="w"> </span><span class="nl">&amp;common</span><span class="w">          </span><span class="c1"># x- 開頭 = Compose 忽略的「擴充欄位」，只拿來被引用</span>
+<span class="w">  </span><span class="nt">restart</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">unless-stopped</span>
+<span class="w">  </span><span class="nt">network_mode</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">host</span>
+
+<span class="nt">services</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">member-rpc</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">&lt;&lt;</span><span class="p">:</span><span class="w"> </span><span class="nv">*common</span><span class="w">            </span><span class="c1"># 把 &amp;common 的內容展開（merge）進來</span>
+<span class="w">    </span><span class="nt">container_name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">fuwei-member-rpc</span>
+</code></pre>
+<ul>
+<li><code>x-xxx:</code>：Compose 規範保留的<strong>擴充欄位前綴</strong>，本身不會變成服務，純粹當「可重用區塊」。</li>
+<li><code>&amp;name</code>：定義一個<strong>錨點</strong>。</li>
+<li><code>*name</code>：<strong>引用</strong>該錨點。</li>
+<li><code>&lt;&lt;: *name</code>：把錨點內容<strong>合併</strong>進當前 map（YAML merge key）。本專案用它讓四個服務共用 <code>restart</code> / <code>network_mode</code>。</li>
+</ul>
+<h3 id="2-build-區塊--從原始碼建-image">2. build 區塊 —— 從原始碼建 image</h3>
+<pre><code class="language-yaml"><span class="nt">build</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">context</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">../..</span><span class="w">                       </span><span class="c1"># build context 根目錄（相對 compose 檔）</span>
+<span class="w">  </span><span class="nt">dockerfile</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">.set/docker/Dockerfile</span><span class="w">   </span><span class="c1"># Dockerfile 路徑（相對 context）</span>
+<span class="w">  </span><span class="nt">args</span><span class="p">:</span><span class="w">                                </span><span class="c1"># 傳給 Dockerfile 的 ARG</span>
+<span class="w">    </span><span class="nt">&lt;&lt;</span><span class="p">:</span><span class="w"> </span><span class="nv">*build-args</span>
+<span class="w">    </span><span class="nt">SERVICE_SRC</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">app/member/cmd/rpc/member.go</span>
+</code></pre>
+<ul>
+<li><code>context</code>：打包送給 daemon 的目錄範圍（會受該目錄 <code>.dockerignore</code> 影響）。這裡是 <code>../..</code> = 專案根目錄。</li>
+<li><code>dockerfile</code>：<strong>相對 context</strong> 的 Dockerfile 位置。</li>
+<li><code>args</code>：build 期的 <code>ARG</code>。本專案用 <code>SERVICE_SRC</code> 讓<strong>同一份 Dockerfile 編不同服務</strong>。</li>
+<li><code>image:</code>（本專案另有寫）：給 build 出來的 image 命名，如 <code>fuwei/member-rpc:local</code>。</li>
+</ul>
+<h3 id="3-build-args-帶-proxy--只影響-build-容器內">3. build-args 帶 proxy —— 只影響 build 容器內</h3>
+<pre><code class="language-yaml"><span class="nt">x-build-args</span><span class="p">:</span><span class="w"> </span><span class="nl">&amp;build-args</span>
+<span class="w">  </span><span class="nt">HTTP_PROXY</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">http://192.168.1.1:8880</span>
+<span class="w">  </span><span class="nt">HTTPS_PROXY</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">http://192.168.1.1:8880</span>
+<span class="w">  </span><span class="nt">NO_PROXY</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">localhost,127.0.0.1,192.168.0.0/16,10.0.0.0/8,172.16.0.0/12</span>
+</code></pre>
+<p>⚠️ 這裡的 proxy <strong>只給 build 容器內的程式用</strong>（例：<code>go mod download</code> 翻牆抓 module）。
+<strong>daemon 自己拉 image（含 frontend <code>docker/dockerfile:1</code>）不吃這個</strong>——那要另設 daemon proxy。</p>
+<blockquote>
+<p>詳見同目錄《Docker拉取映像檔失敗-daemon缺proxy排查.md》第七節。</p>
+</blockquote>
+<h3 id="4-network_mode-host--容器共用主機網路">4. network_mode: host —— 容器共用主機網路</h3>
+<pre><code class="language-yaml"><span class="nt">network_mode</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">host</span>
+</code></pre>
+<ul>
+<li>容器<strong>不隔離網路</strong>，直接用主機的 network stack。</li>
+<li>好處：容器內連 <code>127.0.0.1:3306</code> 就是主機的 MySQL；設定檔寫死的 <code>127.0.0.1</code> 原樣可用，不必改。</li>
+<li>代價：<strong>不能再用 <code>ports:</code> 映射</strong>（host 模式下無意義），服務綁哪個 port 就直接佔主機那個 port。</li>
+<li>僅 Linux 有效；macOS / Windows 的 Docker Desktop 行為不同。</li>
+</ul>
+<h3 id="5-volumes--把主機檔掛進容器">5. volumes —— 把主機檔掛進容器</h3>
+<pre><code class="language-yaml"><span class="nt">volumes</span><span class="p">:</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">../../app/member/cmd/rpc/etc/member.yaml:/app/etc/config.yaml:ro</span>
+</code></pre>
+<p>格式 <code>主機路徑:容器內路徑:選項</code>：</p>
+<ul>
+<li>把主機的 <code>member.yaml</code> 掛到容器內 <code>/app/etc/config.yaml</code>。</li>
+<li><code>:ro</code> = 唯讀（read-only）。</li>
+<li><strong>設定檔含密鑰，用掛載而非烤進 image</strong>：改設定不用重 build，也避免密鑰被打進映像。</li>
+</ul>
+<h3 id="6-depends_on--啟動順序">6. depends_on —— 啟動順序</h3>
+<pre><code class="language-yaml"><span class="nt">depends_on</span><span class="p">:</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">member-rpc</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">payment-rpc</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">merchant-rpc</span>
+</code></pre>
+<ul>
+<li>保證這些 service <strong>先啟動</strong>，才啟動 member-api。</li>
+<li>⚠️ 只保證「容器啟動先後」，<strong>不保證被依賴的服務內部已就緒</strong>（rpc 已註冊進 etcd）。要真正等就緒得靠 healthcheck 或應用層重試。</li>
+</ul>
+<hr />
+<h2 id="四單一服務驗證流程本專案">四、單一服務驗證流程（本專案）</h2>
+<p>以驗證 member-rpc 為例：</p>
+<pre><code class="language-bash"><span class="nv">C</span><span class="o">=</span><span class="s2">&quot;docker compose -f .set/docker/docker-compose.yml&quot;</span>
+
+<span class="c1"># 0) 先確認本機依賴在跑（host 模式直連本機）</span>
+ss<span class="w"> </span>-tlnp<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-E<span class="w"> </span><span class="s1">&#39;:(3306|6379|2379)&#39;</span><span class="w">   </span><span class="c1"># MySQL / Redis / etcd</span>
+
+<span class="c1"># 1) build</span>
+<span class="nv">$C</span><span class="w"> </span>build<span class="w"> </span>member-rpc
+
+<span class="c1"># 2) 啟動</span>
+<span class="nv">$C</span><span class="w"> </span>up<span class="w"> </span>-d<span class="w"> </span>member-rpc
+
+<span class="c1"># 3) 看 log（出現 Starting rpc server 且無 etcd/DB 連線錯誤 = OK）</span>
+<span class="nv">$C</span><span class="w"> </span>logs<span class="w"> </span>-f<span class="w"> </span>member-rpc
+
+<span class="c1"># 4) 收工</span>
+<span class="nv">$C</span><span class="w"> </span>down
+</code></pre>
+<hr />
+<h2 id="五常見坑">五、常見坑</h2>
+<table>
+<thead>
+<tr>
+<th>現象</th>
+<th>原因 / 解法</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>build 卡在拉 <code>docker/dockerfile:1</code> timeout</td>
+<td>daemon 拉 image 沒 proxy 或走了死 mirror；見排查筆記第七節。</td>
+</tr>
+<tr>
+<td>改了 <code>etc/*.yaml</code> 但沒生效</td>
+<td>設定是<strong>掛載</strong>的，改完 <code>restart</code> 容器即可，不必重 build。</td>
+</tr>
+<tr>
+<td>改了 compose / Dockerfile 但沒生效</td>
+<td><code>up</code> 會沿用舊容器；加 <code>--build</code> 或 <code>--force-recreate</code>。</td>
+</tr>
+<tr>
+<td>host 模式下 <code>ports:</code> 沒作用</td>
+<td><code>network_mode: host</code> 時 <code>ports</code> 無意義，直接看服務綁的 port。</td>
+</tr>
+<tr>
+<td>容器連不到本機 MySQL/Redis</td>
+<td>確認本機服務在跑、且綁在容器連得到的位址（host 模式下即 <code>127.0.0.1</code>）。</td>
+</tr>
+<tr>
+<td><code>down</code> 後資料不見</td>
+<td><code>down -v</code> 會刪 named volume；只想停不刪資料別加 <code>-v</code>。</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="六觀念整理">六、觀念整理</h2>
+<table>
+<thead>
+<tr>
+<th>觀念</th>
+<th>說明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>service vs container</td>
+<td>compose 裡一個 <code>service</code> 定義，<code>up</code> 後變成實際的 <code>container</code>。</td>
+</tr>
+<tr>
+<td>build-args proxy vs daemon proxy</td>
+<td>前者給 build 容器內程式；後者管 daemon 拉 image。兩者獨立，見排查筆記。</td>
+</tr>
+<tr>
+<td><code>up</code> 只帶 depends_on 順序</td>
+<td>保證啟動先後，不保證就緒。</td>
+</tr>
+<tr>
+<td>掛載設定檔</td>
+<td>密鑰不入 image，改設定免重 build。</td>
+</tr>
+<tr>
+<td><code>-f</code> 指定路徑</td>
+<td>compose 檔不在預設位置時必加，本專案在 <code>.set/docker/</code>。</td>
+</tr>
+</tbody>
+</table>
+<h2 id="docker-compose-完整子命令"><code>docker compose</code> 完整子命令</h2>
+<blockquote>
+<p><strong><code>docker</code> 本身有 53 個頂層命令</strong>，這裡只涵蓋 <code>docker compose</code> 這一組（本機這版共 31 個）。
+<code>docker</code> 的完整命令見 <code>docker --help</code>；<strong>每個子命令自己的旗標用
+<code>docker compose &lt;子命令&gt; --help</code> 查</strong>，數量太多不在此列。</p>
+</blockquote>
+<p><strong>生命週期</strong></p>
+<table>
+<thead>
+<tr>
+<th>子命令</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>up</code></td>
+<td><strong>建立並啟動</strong>（最常用；<code>-d</code> 背景、<code>--build</code> 順便重建）</td>
+</tr>
+<tr>
+<td><code>down</code></td>
+<td><strong>停止並移除</strong>容器與網路（<code>-v</code> 連 volume 一起刪）</td>
+</tr>
+<tr>
+<td><code>create</code> / <code>start</code> / <code>stop</code> / <code>restart</code></td>
+<td>只建立／只啟動／停止／重啟</td>
+</tr>
+<tr>
+<td><code>pause</code> / <code>unpause</code></td>
+<td>暫停／恢復</td>
+</tr>
+<tr>
+<td><code>kill</code></td>
+<td>強制停止（送訊號）</td>
+</tr>
+<tr>
+<td><code>rm</code></td>
+<td>移除已停止的服務容器</td>
+</tr>
+<tr>
+<td><code>scale</code></td>
+<td>調整服務的容器數量</td>
+</tr>
+</tbody>
+</table>
+<p><strong>建置與映像</strong></p>
+<table>
+<thead>
+<tr>
+<th>子命令</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>build</code></td>
+<td>建置或重建服務映像</td>
+</tr>
+<tr>
+<td><code>pull</code> / <code>push</code></td>
+<td>拉取／推送服務映像</td>
+</tr>
+<tr>
+<td><code>images</code></td>
+<td>列出這些容器用到的映像</td>
+</tr>
+<tr>
+<td><code>commit</code></td>
+<td>把服務容器的變更做成新映像</td>
+</tr>
+<tr>
+<td><code>publish</code></td>
+<td>發布 compose 應用</td>
+</tr>
+</tbody>
+</table>
+<p><strong>觀察與除錯</strong></p>
+<table>
+<thead>
+<tr>
+<th>子命令</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ps</code></td>
+<td>列出容器</td>
+</tr>
+<tr>
+<td><code>ls</code></td>
+<td><strong>列出所有執行中的 compose 專案</strong>（不只當前目錄）</td>
+</tr>
+<tr>
+<td><code>logs</code></td>
+<td>看輸出（<code>-f</code> 跟隨）</td>
+</tr>
+<tr>
+<td><code>top</code></td>
+<td>顯示容器內的行程</td>
+</tr>
+<tr>
+<td><code>stats</code></td>
+<td><strong>即時資源使用統計</strong></td>
+</tr>
+<tr>
+<td><code>events</code></td>
+<td>即時事件串流</td>
+</tr>
+<tr>
+<td><code>port</code></td>
+<td>查某個 port binding 對外的埠</td>
+</tr>
+<tr>
+<td><code>config</code></td>
+<td><strong>把 compose 檔解析成正規化格式印出</strong> ← 驗證變數替換結果的利器</td>
+</tr>
+<tr>
+<td><code>version</code></td>
+<td>版本</td>
+</tr>
+</tbody>
+</table>
+<p><strong>互動</strong></p>
+<table>
+<thead>
+<tr>
+<th>子命令</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>exec</code></td>
+<td>在執行中的容器裡執行指令</td>
+</tr>
+<tr>
+<td><code>run</code></td>
+<td><strong>跑一次性指令</strong>（會另開容器）</td>
+</tr>
+<tr>
+<td><code>attach</code></td>
+<td>接上服務容器的標準輸入輸出</td>
+</tr>
+<tr>
+<td><code>cp</code></td>
+<td>在容器與本機之間複製檔案</td>
+</tr>
+<tr>
+<td><code>export</code></td>
+<td>把容器檔案系統匯出成 tar</td>
+</tr>
+</tbody>
+</table>
+<p><strong><code>config</code> 特別值得記住</strong>：compose 檔裡的變數替換、<code>extends</code>、多檔合併的最終結果，用 <code>docker compose config</code> 一次看清楚——比猜測為什麼變數沒生效快得多。</p>
+
+</main>
+</div>
+</body>
+</html>

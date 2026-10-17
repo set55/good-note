@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>查詢 Linux 的轉發表（forwarding table）</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/app.js"></script>
+</head>
+<body>
+<button class="menu-btn" onclick="toggleMenu()">☰ 目錄</button>
+<div class="layout">
+<nav class="side">
+<div class="crumbs"><a href="../index.html">🏠 首頁</a> / <a href="README.html">linux</a></div>
+<div class="tools"><button onclick="toggleTheme()">🌓 主題</button></div>
+<ul>
+<li class="l2"><a href="#%E5%B8%B8%E7%94%A8%E6%8C%87%E4%BB%A4">常用指令</a></li>
+<li class="l2"><a href="#%E8%BC%B8%E5%87%BA%E7%AF%84%E4%BE%8B%E8%88%87%E6%AC%84%E4%BD%8D%E8%AA%AA%E6%98%8E">輸出範例與欄位說明</a></li>
+<li class="l2"><a href="#src-%E6%AC%84%E4%BD%8D%E8%A9%B3%E8%A7%A3%E4%BE%86%E6%BA%90-ip-%E6%98%AF%E6%80%8E%E9%BA%BC%E6%B1%BA%E5%AE%9A%E7%9A%84">src 欄位詳解：來源 IP 是怎麼決定的</a></li>
+<li class="l2"><a href="#%E5%88%A4%E6%96%B7%E9%82%8F%E8%BC%AF">判斷邏輯</a></li>
+<li class="l2"><a href="#%E5%AF%A6%E7%94%A8%E6%8A%80%E5%B7%A7">實用技巧</a></li>
+<li class="l2"><a href="#%E7%B8%BD%E7%B5%90">總結</a></li>
+</ul>
+</nav>
+<main>
+<h1 id="查詢-linux-的轉發表forwarding-table">查詢 Linux 的轉發表（forwarding table）</h1>
+<blockquote>
+<p>Linux 沒有獨立叫「forwarding table」的指令，實務上查的就是<strong>核心的路由表（routing table）</strong>——核心會根據這張表決定封包怎麼轉發。</p>
+</blockquote>
+<hr />
+<blockquote>
+<p><strong><code>ip route</code> / <code>ip rule</code> 的完整動詞、參數與全域選項</strong>見
+<a href="ip-rule%E8%88%87ip-route%E5%AE%8C%E6%95%B4%E6%8C%87%E5%8D%97.html#%E4%BA%8C%E5%91%BD%E4%BB%A4%E7%9A%84%E7%B5%B1%E4%B8%80%E6%96%87%E6%B3%95">ip-rule與ip-route完整指南</a>，本篇只列查詢路由表會用到的。</p>
+</blockquote>
+<h2 id="常用指令">常用指令</h2>
+<pre><code class="language-bash"><span class="c1"># IPv4 路由/轉發表（最常用）</span>
+ip<span class="w"> </span>route<span class="w"> </span>show
+
+<span class="c1"># 查特定目的 IP 實際會走哪條路由（最推薦拿來驗證）</span>
+ip<span class="w"> </span>route<span class="w"> </span>get<span class="w"> </span>&lt;目的IP&gt;
+
+<span class="c1"># IPv6</span>
+ip<span class="w"> </span>-6<span class="w"> </span>route<span class="w"> </span>show
+
+<span class="c1"># 傳統舊指令（等同 ip route，較舊系統/腳本常見）</span>
+route<span class="w"> </span>-n
+netstat<span class="w"> </span>-rn
+
+<span class="c1"># 核心是否開啟 IP forwarding（轉發功能本身開關）</span>
+cat<span class="w"> </span>/proc/sys/net/ipv4/ip_forward
+sysctl<span class="w"> </span>net.ipv4.ip_forward
+
+<span class="c1"># ARP（Address Resolution Protocol，位址解析協定）/ 鄰居表（L2，OSI 模型第二層／資料鏈結層 對應，MAC（Media Access Control，網卡實體位址）↔ IP）</span>
+ip<span class="w"> </span>neigh<span class="w"> </span>show
+
+<span class="c1"># 有多張路由表時（policy-based routing）</span>
+ip<span class="w"> </span>route<span class="w"> </span>show<span class="w"> </span>table<span class="w"> </span>all
+ip<span class="w"> </span>rule<span class="w"> </span>show
+</code></pre>
+<hr />
+<h2 id="輸出範例與欄位說明">輸出範例與欄位說明</h2>
+<pre><code>default via 192.168.1.1 dev eth0 proto dhcp metric 100
+192.168.1.0/24 dev eth0 proto kernel scope link src 192.168.1.50 metric 100
+10.0.0.0/8 via 192.168.1.254 dev eth0 metric 200
+169.254.0.0/16 dev eth0 scope link metric 1000
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>欄位</th>
+<th>意義</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>default</code> 或 <code>192.168.1.0/24</code></td>
+<td>目的網段。<code>default</code> = <code>0.0.0.0/0</code>，其他路由都不符合時的最後選擇</td>
+</tr>
+<tr>
+<td><code>via 192.168.1.1</code></td>
+<td>下一跳（next hop）IP，封包先送到這台設備</td>
+</tr>
+<tr>
+<td><code>dev eth0</code></td>
+<td>從哪個網卡送出</td>
+</tr>
+<tr>
+<td><code>proto dhcp</code> / <code>proto kernel</code> / <code>proto static</code></td>
+<td>這條路由的來源（DHCP，Dynamic Host Configuration Protocol，動態主機設定協定，自動配、核心自動產生、手動設定）</td>
+</tr>
+<tr>
+<td><code>scope link</code></td>
+<td>同網段可直接到達，不需要 gateway</td>
+</tr>
+<tr>
+<td><code>src 192.168.1.50</code></td>
+<td>從這條路由送封包時使用的來源 IP</td>
+</tr>
+<tr>
+<td><code>metric 100</code></td>
+<td>優先度，數字越小優先權越高</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="src-欄位詳解來源-ip-是怎麼決定的"><code>src</code> 欄位詳解：來源 IP 是怎麼決定的</h2>
+<p><code>src</code> 只影響<strong>這台主機自己發起的封包</strong>，代表核心會在 IP header 的 source address 欄位填上這個值——前提是應用程式（socket）沒有自己指定要用哪個來源 IP。</p>
+<ul>
+<li><strong>只管本機發起的封包，不管轉發的封包</strong>：如果這台機器只是路由器/閘道，幫別人轉發封包，封包的來源 IP 是原始發送者的，不會被改成這個 <code>src</code>（除非有設定 NAT/SNAT，Network Address Translation／Source NAT，網路位址轉換／來源位址轉換）。只有本機自己發起連線（例如在這台機器上 <code>curl</code>、<code>ping</code>）時，才會用這個 <code>src</code> 當來源 IP。</li>
+<li><strong>是「該路由的預設來源 IP」，可以被 app 覆蓋</strong>：如果程式用 <code>bind()</code> 明確指定了來源 IP，就用程式指定的；沒指定時，核心才會照路由表選這個網段對應的 <code>src</code> 當預設值。</li>
+<li><strong>為什麼需要指定</strong>：常見於一張網卡有多個 IP、或多網卡多路由的情況，核心需要知道「走這條路由時該用哪個 IP 自報家門」。</li>
+</ul>
+<p>驗證方式一樣是 <code>ip route get</code>，輸出裡的 <code>src</code> 就是核心實際會用的來源 IP：</p>
+<pre><code class="language-bash">ip<span class="w"> </span>route<span class="w"> </span>get<span class="w"> </span><span class="m">8</span>.8.8.8
+</code></pre>
+<hr />
+<h2 id="判斷邏輯">判斷邏輯</h2>
+<ol>
+<li><strong>最長前綴匹配（longest prefix match）</strong>：核心拿目的 IP 比對所有路由的網段（CIDR，Classless Inter-Domain Routing，無類別網域間路由，即 <code>/24</code> 這種網段表示法），選前綴最精確的一條。</li>
+<li><strong>metric 決勝負</strong>：若有多條前綴長度相同的路由，比較 <code>metric</code>，數字小的優先。</li>
+</ol>
+<hr />
+<h2 id="實用技巧">實用技巧</h2>
+<p>不用自己比對整張表，直接問核心「這個目的地會走哪條路由」：</p>
+<pre><code class="language-bash">ip<span class="w"> </span>route<span class="w"> </span>get<span class="w"> </span><span class="m">8</span>.8.8.8
+</code></pre>
+<p>會直接回傳實際會用到的介面、下一跳、來源 IP，最適合用來驗證設定是否如預期生效。</p>
+<hr />
+<h2 id="總結">總結</h2>
+<ul>
+<li>Linux 上的「forwarding table」= <code>ip route show</code> 看到的路由表。</li>
+<li>想知道特定目的地實際走哪條路，用 <code>ip route get</code> 而不是自己肉眼比對。</li>
+<li><code>ip_forward</code> 是「這台機器要不要幫忙轉發」的開關，跟路由表本身是兩回事，別搞混。</li>
+</ul>
+
+</main>
+</div>
+</body>
+</html>

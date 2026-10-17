@@ -1,0 +1,425 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GNU 是什麼？—— 為什麼 gcc、gdb、glibc 都叫 GNU，而 Linux 只是其中的「核心」</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/app.js"></script>
+</head>
+<body>
+<button class="menu-btn" onclick="toggleMenu()">☰ 目錄</button>
+<div class="layout">
+<nav class="side">
+<div class="crumbs"><a href="../index.html">🏠 首頁</a> / <a href="README.html">linux</a></div>
+<div class="tools"><button onclick="toggleTheme()">🌓 主題</button><button onclick="toggleAnswers(true)">展開答案</button><button onclick="toggleAnswers(false)">收起答案</button></div>
+<ul>
+<li class="l2"><a href="#%E4%B8%80%E5%90%8D%E5%AD%97%E8%88%87%E8%B5%B7%E6%BA%90">一、名字與起源</a></li>
+<li class="l2"><a href="#%E4%BA%8Cgnu-%E5%81%9A%E4%BA%86%E4%BB%80%E9%BA%BC%E4%BD%A0%E9%80%99%E5%8F%B0%E6%A9%9F%E5%99%A8%E4%B8%8A%E5%88%B0%E8%99%95%E9%83%BD%E6%98%AF">二、GNU 做了什麼：你這台機器上到處都是</a></li>
+<li class="l3"><a href="#%E9%82%A3%E5%80%8B%E5%88%B0%E8%99%95%E5%87%BA%E7%8F%BE%E7%9A%84-x86_64-linux-gnu-%E6%98%AF%E4%BB%80%E9%BA%BC">那個到處出現的 x86_64-linux-gnu 是什麼</a></li>
+<li class="l2"><a href="#%E4%B8%89gnu-%E7%BC%BA%E7%9A%84%E9%82%A3%E4%B8%80%E5%A1%8A%E6%A0%B8%E5%BF%83%E4%BB%A5%E5%8F%8Agnulinux%E4%B9%8B%E7%88%AD">三、GNU 缺的那一塊：核心，以及「GNU/Linux」之爭</a></li>
+<li class="l2"><a href="#%E5%9B%9B%E4%B8%8D%E6%98%AF-gnu-%E7%9A%84-linux%E4%BD%A0%E5%B7%B2%E7%B6%93%E9%81%87%E9%81%8E%E4%BA%86">四、不是 GNU 的 Linux：你已經遇過了</a></li>
+<li class="l3"><a href="#uname--o-%E5%8D%B0%E5%87%BA-gnulinux%E4%B8%8D%E4%BB%A3%E8%A1%A8%E5%AE%83%E6%98%AF-gnu">uname -o 印出 GNU/Linux，不代表它是 GNU</a></li>
+<li class="l2"><a href="#%E4%BA%94gplgnu-%E6%9C%80%E6%B7%B1%E9%81%A0%E7%9A%84%E5%BD%B1%E9%9F%BF">五、GPL：GNU 最深遠的影響</a></li>
+<li class="l2"><a href="#%E8%87%AA%E6%88%91%E6%B8%AC%E9%A9%97">自我測驗</a></li>
+</ul>
+</nav>
+<main>
+<h1 id="gnu-是什麼-為什麼-gccgdbglibc-都叫-gnu而-linux-只是其中的核心">GNU 是什麼？—— 為什麼 gcc、gdb、glibc 都叫 GNU，而 Linux 只是其中的「核心」</h1>
+<blockquote>
+<p>日期：2026-09-22<br />
+情境：第 ① 站第 1 課一路用了 gcc、GNU ld、<code>gdb</code>（GNU Debugger）、glibc，追問「GNU 是什麼」<br />
+適用範圍：本機 Ubuntu 24.04 的版本輸出為實測；歷史年份與授權條款依 GNU／FSF 公開資料<br />
+相關：<a href="../c/hello.c%E6%80%8E%E9%BA%BC%E8%AE%8A%E6%88%90%E8%83%BD%E8%B7%91%E7%9A%84%E7%A8%8B%E5%BC%8F-%E7%B7%A8%E8%AD%AF%E7%9A%84%E5%9B%9B%E5%80%8B%E9%9A%8E%E6%AE%B5.html">hello.c怎麼變成能跑的程式-編譯的四個階段</a>、
+<a href="../learning/Linux%E8%88%87%E7%B3%BB%E7%B5%B1%E7%A8%8B%E5%BC%8F%E7%9A%84%E7%B3%BB%E7%B5%B1%E5%8C%96%E5%AD%B8%E7%BF%92%E8%B7%AF%E7%B7%9A.html">Linux與系統程式的系統化學習路線</a>（kernel 維護者路線）</p>
+</blockquote>
+<p><strong>一句話結論：GNU 是一個 1983 年開始的「自由軟體作業系統」計畫，名字是遞迴縮寫 <em>GNU's Not Unix</em>。它做出了幾乎所有使用者空間的基本工具——gcc、binutils、glibc、bash、coreutils、gdb、make——卻一直缺一個可用的核心；1991 年的 Linux 核心補上了這一塊。所以你平常用的「Linux 系統」其實是 <strong>Linux 核心 ＋ GNU 工具</strong>，（注意：<code>uname -o</code> 印出 <code>GNU/Linux</code> <strong>不能</strong>當成證據——它是編譯進 <code>uname</code> 程式裡的固定字串，連 OpenWrt 的 BusyBox 版也印 <code>GNU/Linux</code>，見第四節。）反過來，OpenWrt、Android 用的是 Linux 核心，但<strong>不是</strong> GNU
+的工具——這正是你在路由器上遇到 BusyBox、<code>ash</code> 行為不同的根源。</strong></p>
+<hr />
+<h2 id="一名字與起源">一、名字與起源</h2>
+<ul>
+<li><strong>GNU</strong> 是 <em>GNU's Not Unix</em> 的遞迴縮寫（recursive acronym）：縮寫裡又包含它自己。唸法是「g-noo」，G 要發音。</li>
+<li>1983 年由 Richard Stallman 發起，目標是做出一套<strong>完整、像 Unix、而且是自由軟體</strong>的作業系統。當時的 Unix 是 AT&amp;T 的商業軟體，使用者不能拿到原始碼、不能修改、不能分享。</li>
+<li>1985 年成立 <strong>FSF</strong>（Free Software Foundation，自由軟體基金會）支持這個計畫。</li>
+</ul>
+<p>這裡的「自由」（free）指的是<strong>自由</strong>，不是免費（<em>free as in freedom, not free beer</em>）。
+GNU 對自由軟體的定義是四項自由：執行、研究並修改（所以要能拿到原始碼）、再散布、散布修改後的版本。</p>
+<hr />
+<h2 id="二gnu-做了什麼你這台機器上到處都是">二、GNU 做了什麼：你這台機器上到處都是</h2>
+<p>本機實測，第 1 課用到的工具幾乎全出自 GNU 計畫：</p>
+<table>
+<thead>
+<tr>
+<th>工具</th>
+<th>本機 <code>--version</code> 第一行</th>
+<th>在第 1 課扮演的角色</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>gcc（GNU Compiler Collection）</td>
+<td><code>gcc (Ubuntu 13.3.0-...) 13.3.0</code></td>
+<td>編譯器總指揮</td>
+</tr>
+<tr>
+<td>binutils</td>
+<td><code>GNU ld (GNU Binutils for Ubuntu) 2.42</code></td>
+<td><code>as</code>、<code>ld</code>、<code>nm</code>、<code>objdump</code>、<code>readelf</code> 都在這一包</td>
+</tr>
+<tr>
+<td>glibc（GNU C Library）</td>
+<td><code>ldd (Ubuntu GLIBC 2.39-...) 2.39</code></td>
+<td><code>puts</code>、<code>printf</code> 的真正程式碼、動態載入器</td>
+</tr>
+<tr>
+<td>gdb（GNU Debugger）</td>
+<td><code>GNU gdb (Ubuntu 15.1-...) 15.1</code></td>
+<td>除錯器</td>
+</tr>
+<tr>
+<td>coreutils</td>
+<td><code>ls (GNU coreutils) 9.4</code></td>
+<td><code>ls</code>、<code>cp</code>、<code>chmod</code>、<code>cat</code> 等基本指令</td>
+</tr>
+<tr>
+<td>bash（Bourne Again SHell）</td>
+<td><code>GNU bash, version 5.2.21(1)-release (x86_64-pc-linux-gnu)</code></td>
+<td>互動 shell（本機的 <code>/bin/sh</code> 也指向它）</td>
+</tr>
+<tr>
+<td>make</td>
+<td><code>GNU Make 4.3</code></td>
+<td>建置工具</td>
+</tr>
+<tr>
+<td>grep</td>
+<td><code>grep (GNU grep) 3.11</code></td>
+<td>搜尋</td>
+</tr>
+</tbody>
+</table>
+<p>連 <strong>Linux 核心本身也是用 GNU 工具編出來的</strong>：</p>
+<pre><code>$ cat /proc/version
+Linux version 7.0.0-31-generic (...) (x86_64-linux-gnu-gcc-13 (...) 13.3.0, GNU ld (GNU Binutils for Ubuntu) 2.42) ...
+</code></pre>
+<h3 id="那個到處出現的-x86_64-linux-gnu-是什麼">那個到處出現的 <code>x86_64-linux-gnu</code> 是什麼</h3>
+<p>你已經在很多地方看過它：<code>/usr/lib/x86_64-linux-gnu/libc.so.6</code>、<code>x86_64-linux-gnu-gcc-13</code>、
+bash 版本字串裡的 <code>x86_64-pc-linux-gnu</code>。這叫<strong>目標三元組（target triple）</strong>，描述「程式要跑在什麼環境」：</p>
+<pre><code>x86_64 - linux - gnu
+  │       │      └─ ABI／C 函式庫：用 glibc（GNU 的 C 函式庫與它的呼叫慣例）
+  │       └──────── 作業系統核心：Linux
+  └──────────────── CPU 架構：64 位元 x86
+</code></pre>
+<p>同樣是 Linux 核心，C 函式庫換成別的，三元組就不同：OpenWrt、Alpine 用 musl，就是 <code>x86_64-linux-musl</code>
+（或路由器的 <code>mips-openwrt-linux-musl</code> 這類）。<strong>三元組把「核心」和「C 函式庫」分成兩欄，正好說明兩者是不同的東西。</strong></p>
+<hr />
+<h2 id="三gnu-缺的那一塊核心以及gnulinux之爭">三、GNU 缺的那一塊：核心，以及「GNU/Linux」之爭</h2>
+<p>到 1990 年代初，GNU 已經有編譯器、shell、C 函式庫和大部分工具，但它自己的核心 <strong>GNU Hurd</strong> 一直沒有成熟到能實用。</p>
+<p>1991 年 Linus Torvalds 發表了 <strong>Linux 核心</strong>，隔年改用 GNU 的 GPL（見下節）授權。把 Linux 核心和 GNU 工具放在一起，就第一次得到一套完整、可用的自由作業系統。</p>
+<pre><code>┌─────────────────────────────────────────────┐
+│ 使用者空間：bash、coreutils、gcc、gdb …      │  ← 大多來自 GNU
+│ C 函式庫：glibc                               │  ← GNU
+├──────────────── 系統呼叫 ────────────────────┤  ← 第 1 課 strace 看到的那一層
+│ 核心：Linux                                   │  ← Linus Torvalds 與 kernel 社群
+└─────────────────────────────────────────────┘
+</code></pre>
+<p>因此 FSF 主張應該叫「<strong>GNU/Linux</strong>」，認為只叫「Linux」抹去了 GNU 的貢獻；多數人日常還是簡稱 Linux。（<code>uname -o</code> 在本機印出 <code>GNU/Linux</code>，但那只是 <code>uname</code> 這支程式自己寫死的字串，不是核心回報的，見第四節。）<strong>嚴格說，「Linux」這個詞只指核心。</strong> 對你的 kernel 目標來說，這個區分很重要：你之後要貢獻的是橫線以下那一塊，<code>strace</code> 看到的系統呼叫就是它和上面那一層的邊界。</p>
+<hr />
+<h2 id="四不是-gnu-的-linux你已經遇過了">四、不是 GNU 的 Linux：你已經遇過了</h2>
+<p>「Linux 核心 ＋ 別家的使用者空間」完全可以成立，而且你在路由器上已經碰到：</p>
+<table>
+<thead>
+<tr>
+<th>系統</th>
+<th>核心</th>
+<th>C 函式庫</th>
+<th>基本工具與 shell</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Ubuntu（本機）</td>
+<td>Linux</td>
+<td>glibc（GNU）</td>
+<td>GNU coreutils、bash</td>
+</tr>
+<tr>
+<td>OpenWrt（你的路由器）</td>
+<td>Linux</td>
+<td>musl</td>
+<td><strong>BusyBox</strong>（<code>ash</code>、<code>chmod</code>、<code>ls</code> 都是同一個程式）</td>
+</tr>
+<tr>
+<td>Alpine（常見的 Docker 映像）</td>
+<td>Linux</td>
+<td>musl</td>
+<td>BusyBox</td>
+</tr>
+<tr>
+<td>Android</td>
+<td>Linux</td>
+<td>bionic</td>
+<td>toybox</td>
+</tr>
+</tbody>
+</table>
+<p>這解釋了之前幾篇筆記裡的差異：</p>
+<ul>
+<li><a href="shell%E7%9A%84case%E8%AA%9E%E6%B3%95-%E6%A8%A3%E5%BC%8F%E6%AF%94%E5%B0%8D%E8%88%87%E5%88%86%E6%94%AF.html">shell的case語法</a>：<code>[^...]</code> bash 認、dash 不認——bash 是 GNU 的，POSIX 只規定 <code>[!...]</code>。</li>
+<li><a href="root%E5%9F%B7%E8%A1%8C%E8%85%B3%E6%9C%AC%E4%B9%9FPermission-denied-%E7%BC%BA%E5%9F%B7%E8%A1%8C%E4%BD%8D%E5%85%83.html">root執行腳本也Permission-denied</a>：OpenWrt 的 <code>chmod</code> 是 BusyBox 版，選項比 GNU coreutils 少。</li>
+<li>很多 GNU 工具有 POSIX 沒規定的擴充選項（例如長選項 <code>--version</code>）。<strong>寫要在路由器上跑的腳本時，只能假設 POSIX 有的功能。</strong></li>
+</ul>
+<p>常見的誤解是「把開頭改成 <code>#!/bin/busybox</code> 就好」（2026-09-23 自我測驗中出現）。這樣行不通：</p>
+<pre><code>$ cat t1.sh
+#!/usr/bin/busybox
+echo hi
+$ ./t1.sh
+t1.sh: applet not found
+</code></pre>
+<p>核心照 <code>#!</code> 的規則執行 <code>busybox ./t1.sh</code>（見 <a href="../c/ELF%E7%9A%84interpreter%E6%98%AF%E4%BB%80%E9%BA%BC-%E5%8B%95%E6%85%8B%E8%BC%89%E5%85%A5%E5%99%A8%E8%88%87%E4%BA%95%E5%AD%97%E8%99%9F%E9%A9%9A%E5%98%86%E8%99%9F.html">ELF的interpreter是什麼</a> 第四節），
+busybox 把第一個參數 <code>t1.sh</code> 當成要執行的工具名稱，找不到就報 <code>applet not found</code>。另外，OpenWrt 沒有 bash，是因為<strong>沒有安裝 bash 套件</strong>，跟 C 函式庫用 musl 無關：bash 和 musl 是兩個不同的東西。路由器實測：<code>/bin/bash</code> 不存在，<code>/bin/sh -&gt; busybox</code>。</p>
+<p><strong>本機要特別小心：<code>/bin/sh</code> 指向 bash。</strong> Ubuntu 預設的 <code>/bin/sh</code> 是 dash，但這台機器被改成了 bash：</p>
+<pre><code>$ ls -l /bin/sh
+lrwxrwxrwx 1 root root 4 May 24  2025 /bin/sh -&gt; bash
+</code></pre>
+<p>所以就算腳本第一行寫 <code>#!/bin/sh</code>，在本機跑的還是 bash，bash 的擴充語法照樣能跑，<strong>在本機完全測不出問題</strong>。要在本機模擬路由器，就要明確用精簡的 shell 來跑：</p>
+<pre><code>$ cat t4.sh
+#!/bin/sh
+arr=(a b); echo ${arr[1]}          ← bash 陣列
+$ busybox sh t4.sh
+t4.sh: line 2: syntax error: unexpected &quot;(&quot;
+
+$ cat t5.sh
+#!/bin/sh
+set -- a b; echo &quot;$2&quot;              ← POSIX 的寫法：用位置參數代替陣列
+$ busybox sh t5.sh
+b
+$ dash t5.sh
+b
+</code></pre>
+<p>（本機也裝了 BusyBox：<code>busybox</code> 印出 <code>BusyBox v1.36.1 (Ubuntu ...) multi-call binary</code>，可以用它在本機模擬路由器上的指令行為。）</p>
+<h3 id="uname--o-印出-gnulinux不代表它是-gnu"><code>uname -o</code> 印出 <code>GNU/Linux</code>，不代表它是 GNU</h3>
+<blockquote>
+<p>補充日期：2026-09-23。使用者在 OpenWrt 上打 <code>uname --all</code>，最後一欄是 <code>GNU/Linux</code>，跟本節「OpenWrt 不是 GNU」看起來矛盾。原本的一句話結論與第三節把 <code>uname -o</code> 當成 GNU 的證據，是<strong>筆記寫錯</strong>，已更正。</p>
+</blockquote>
+<p><strong>結論：<code>uname</code> 的輸出分兩種來源。前五欄是向核心問來的；<code>-o</code>（operating system）那一欄核心根本沒有，是 <code>uname</code> 這支程式自己寫死的字串。BusyBox 的 <code>uname</code> 預設也寫死 <code>GNU/Linux</code>，所以 OpenWrt 上一樣印 <code>GNU/Linux</code>。</strong></p>
+<p><strong>證據一：<code>-o</code> 根本沒有問核心。</strong> 用 <code>strace</code> 只追 <code>uname</code> 這個系統呼叫：</p>
+<pre><code>$ strace -e trace=uname uname -s
+uname({sysname=&quot;Linux&quot;, nodename=&quot;set-Vector-17-HX-A14VFG&quot;, ...}) = 0     ← 有問核心
+Linux
+
+$ strace -e trace=uname uname -o
+GNU/Linux                                                                 ← 沒有任何系統呼叫，直接印出
+</code></pre>
+<p>核心回傳的結構 <code>struct utsname</code>（<code>man 2 uname</code>）只有這幾個欄位，<strong>沒有「作業系統名稱」</strong>：</p>
+<pre><code>struct utsname {
+    char sysname[];    /* 核心名稱，例如 &quot;Linux&quot;  → uname -s */
+    char nodename[];   /* 主機名稱               → uname -n */
+    char release[];    /* 核心版本號              → uname -r */
+    char version[];    /* 核心的建置資訊          → uname -v */
+    char machine[];    /* 硬體架構               → uname -m */
+    char domainname[]; /* NIS 網域名稱（GNU 擴充，uname 指令不印） */
+};
+</code></pre>
+<p>所以 <code>-o</code> 的答案只能來自 <code>uname</code> 程式本身：GNU coreutils 在編譯時決定這個字串，glibc 系統上就是 <code>GNU/Linux</code>。</p>
+<p><strong>證據二：BusyBox 的 <code>uname</code> 也印 <code>GNU/Linux</code>。</strong> 本機剛好有 BusyBox（Ubuntu 套件，v1.36.1），它就是 OpenWrt 用的同一套工具：</p>
+<pre><code>$ busybox uname -o
+GNU/Linux
+
+$ strings /usr/bin/busybox | grep -x GNU/Linux
+GNU/Linux                   ← 字串就放在 busybox 執行檔裡
+</code></pre>
+<p>BusyBox 的原始碼把這個字串做成編譯設定（<code>CONFIG_UNAME_OSNAME</code>），預設值就是 <code>&quot;GNU/Linux&quot;</code>，OpenWrt 沒有改它。</p>
+<p><strong>證據三：在路由器上實測</strong>（OpenWrt 24.10.2，<code>mediatek/filogic</code>，aarch64，2026-09-23 經 <code>ssh root@192.168.1.1</code> 執行）：</p>
+<pre><code>root@OpenWrt:~# uname -a
+Linux OpenWrt 6.6.93 #0 SMP Mon Jun 23 20:40:36 2025 aarch64 GNU/Linux     ← 最後一欄一樣是 GNU/Linux
+
+root@OpenWrt:~# ls -l $(which uname)
+lrwxrwxrwx  1 root root  7 Jun 23  2025 /bin/uname -&gt; busybox              ← uname 就是 BusyBox
+
+root@OpenWrt:~# strings /bin/busybox | grep -x GNU/Linux
+GNU/Linux                                                                  ← 字串寫在 busybox 裡
+
+root@OpenWrt:~# ls -l /lib/ld-musl-*.so.1 /lib/libc.so
+lrwxrwxrwx  1 root root       7 Jun 23  2025 /lib/ld-musl-aarch64.so.1 -&gt; libc.so
+-rwxr-xr-x  1 root root  590852 Jun 23  2025 /lib/libc.so
+
+root@OpenWrt:~# /lib/ld-musl-aarch64.so.1
+musl libc (aarch64)
+Version 1.2.5
+Dynamic Program Loader
+</code></pre>
+<p><code>uname -o</code> 說自己是 <code>GNU/Linux</code>，但檔案顯示工具是 BusyBox、C 函式庫是 musl 1.2.5。<strong>看檔案，不要看程式自我介紹的字串。</strong></p>
+<p>判斷方法整理：</p>
+<table>
+<thead>
+<tr>
+<th>想確認的</th>
+<th>執行</th>
+<th>OpenWrt 實測</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>uname</code> 是不是 BusyBox</td>
+<td><code>ls -l $(which uname)</code></td>
+<td><code>/bin/uname -&gt; busybox</code></td>
+</tr>
+<tr>
+<td>C 函式庫是不是 musl</td>
+<td><code>ls -l /lib/ld-musl-*.so.1</code></td>
+<td>存在（musl 的動態載入器，名字裡直接寫 musl；glibc 系統是 <code>ld-linux-*.so.2</code>）</td>
+</tr>
+<tr>
+<td>同上，另一個角度</td>
+<td>直接執行 <code>/lib/ld-musl-*.so.1</code>（不加參數）</td>
+<td>印出 <code>musl libc (aarch64)</code>、<code>Version 1.2.5</code></td>
+</tr>
+</tbody>
+</table>
+<p>還有一個跟 glibc 很不一樣的地方：<strong>musl 的載入器 <code>ld-musl-aarch64.so.1</code> 只是指向 <code>libc.so</code> 的符號連結——載入器和 C 函式庫是同一個檔案。</strong>
+glibc 則把兩者分成 <code>ld-linux-x86-64.so.2</code> 和 <code>libc.so.6</code> 兩個檔案（見<a href="../c/hello.c%E6%80%8E%E9%BA%BC%E8%AE%8A%E6%88%90%E8%83%BD%E8%B7%91%E7%9A%84%E7%A8%8B%E5%BC%8F-%E7%B7%A8%E8%AD%AF%E7%9A%84%E5%9B%9B%E5%80%8B%E9%9A%8E%E6%AE%B5.html#%E5%8D%81%E4%B8%89%E5%80%8B%E5%90%8D%E5%AD%97%E5%BE%88%E5%83%8F%E7%9A%84%E6%AA%94%E6%A1%88ldld-linux-x86-64so2libcso6">第 1 課筆記第十節</a>）。</p>
+<p>這跟 <a href="../c/ELF%E7%9A%84interpreter%E6%98%AF%E4%BB%80%E9%BA%BC-%E5%8B%95%E6%85%8B%E8%BC%89%E5%85%A5%E5%99%A8%E8%88%87%E4%BA%95%E5%AD%97%E8%99%9F%E9%A9%9A%E5%98%86%E8%99%9F.html">ELF 的 interpreter</a> 是同一個思路：
+<strong>載入器的檔名就能說明這支程式是跟哪個 C 函式庫一起連結的。</strong></p>
+<p><code>uname</code> 的全部選項（本機 <code>uname --help</code>，GNU coreutils 版，共 11 個，全列）：</p>
+<table>
+<thead>
+<tr>
+<th>選項</th>
+<th>印出什麼</th>
+<th>來源</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-a</code>, <code>--all</code></td>
+<td>以下全部，依序；<code>-p</code>、<code>-i</code> 不知道時省略</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>-s</code>, <code>--kernel-name</code></td>
+<td>核心名稱（<code>Linux</code>）；<strong>不加任何選項時的預設</strong></td>
+<td>核心 <code>sysname</code></td>
+</tr>
+<tr>
+<td><code>-n</code>, <code>--nodename</code></td>
+<td>主機名稱</td>
+<td>核心 <code>nodename</code></td>
+</tr>
+<tr>
+<td><code>-r</code>, <code>--kernel-release</code></td>
+<td>核心版本號（<code>7.0.0-31-generic</code>）</td>
+<td>核心 <code>release</code></td>
+</tr>
+<tr>
+<td><code>-v</code>, <code>--kernel-version</code></td>
+<td>核心建置資訊（<code>#31~24.04.1-Ubuntu SMP ...</code>）</td>
+<td>核心 <code>version</code></td>
+</tr>
+<tr>
+<td><code>-m</code>, <code>--machine</code></td>
+<td>硬體架構（<code>x86_64</code>）</td>
+<td>核心 <code>machine</code></td>
+</tr>
+<tr>
+<td><code>-p</code>, <code>--processor</code></td>
+<td>處理器類型（標明 non-portable，不同系統不一致；本機 <code>x86_64</code>）</td>
+<td>程式自己判斷</td>
+</tr>
+<tr>
+<td><code>-i</code>, <code>--hardware-platform</code></td>
+<td>硬體平台（non-portable；本機 <code>x86_64</code>）</td>
+<td>程式自己判斷</td>
+</tr>
+<tr>
+<td><code>-o</code>, <code>--operating-system</code></td>
+<td>作業系統名稱（<code>GNU/Linux</code>）</td>
+<td><strong>程式寫死的字串</strong></td>
+</tr>
+<tr>
+<td><code>--help</code></td>
+<td>印出說明後結束</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>--version</code></td>
+<td>印出版本後結束</td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<p>BusyBox 版（<code>busybox uname --help</code>）只有 <code>-a -m -n -r -s -p -v -i -o</code> 九個短選項，意思相同，沒有長選項。查法：<code>uname --help</code>、<code>man uname</code>、<code>man 2 uname</code>（系統呼叫與 <code>struct utsname</code>）。</p>
+<hr />
+<h2 id="五gplgnu-最深遠的影響">五、GPL：GNU 最深遠的影響</h2>
+<p>GNU 寫了 <strong>GPL</strong>（GNU General Public License，GNU 通用公共授權）來保護前面那四項自由。它的核心機制叫
+<strong>copyleft（著佐權）</strong>：你可以自由使用、修改、散布，但<strong>散布修改後的版本時，也必須用同樣的授權、提供原始碼</strong>。自由不能在傳遞途中被拿走。</p>
+<p>跟你直接有關的兩點：</p>
+<ul>
+<li><strong>Linux 核心是 GPL 第 2 版</strong>（GPL-2.0-only）。之後你送出的每個 kernel patch，都要加一行
+<code>Signed-off-by: 你的名字 &lt;email&gt;</code>，表示你確認自己有權以這個授權貢獻這段程式碼（這叫 DCO，Developer Certificate of Origin，開發者原創聲明；規則在 kernel 原始碼的
+<code>Documentation/process/submitting-patches.rst</code>，K1 會實際讀到）。</li>
+<li><strong>glibc 用的是 LGPL</strong>（GNU Lesser General Public License，較寬鬆的版本）：允許非自由的程式<strong>連結</strong>它，不必開放自己的原始碼。這就是為什麼任何程式——包括商業軟體——都能動態連結 <code>libc.so.6</code>（<a href="../c/hello.c%E6%80%8E%E9%BA%BC%E8%AE%8A%E6%88%90%E8%83%BD%E8%B7%91%E7%9A%84%E7%A8%8B%E5%BC%8F-%E7%B7%A8%E8%AD%AF%E7%9A%84%E5%9B%9B%E5%80%8B%E9%9A%8E%E6%AE%B5.html#%E4%BA%94%E9%80%A3%E7%B5%90%E6%8A%8A%E6%B4%9E%E6%8E%A5%E4%B8%8A%E4%BD%86-puts-%E9%82%84%E6%98%AF%E6%B2%92%E6%8E%A5%E5%AE%8C">第 1 課第五節</a>）。</li>
+</ul>
+<p>本機的授權全文放在 <code>/usr/share/common-licenses/</code>（<code>GPL-2</code>、<code>GPL-3</code>、<code>LGPL-2.1</code> 等都在）。</p>
+<hr />
+<h2 id="自我測驗">自我測驗</h2>
+<blockquote>
+<p>參考答案寫在每題下面（2026-10-06 使用者指定）。作答時先遮住答案、自己想過再對照。</p>
+</blockquote>
+<ol>
+<li>「Linux」這個詞嚴格說指的是什麼？那 <code>gcc</code>、<code>bash</code>、glibc 屬於誰？為什麼 FSF 主張叫 GNU/Linux？<details class="answer"><summary>參考答案</summary>
+<p>【<a href="#%E4%B8%80%E5%90%8D%E5%AD%97%E8%88%87%E8%B5%B7%E6%BA%90">第一節</a>、<a href="#%E4%B8%89gnu-%E7%BC%BA%E7%9A%84%E9%82%A3%E4%B8%80%E5%A1%8A%E6%A0%B8%E5%BF%83%E4%BB%A5%E5%8F%8Agnulinux%E4%B9%8B%E7%88%AD">第三節</a>】嚴格說「Linux」只指<strong>核心</strong>。<code>gcc</code>、<code>bash</code>、glibc 都是 GNU 計畫的成果，位在使用者空間。日常說的「Linux 系統」其實是 Linux 核心＋GNU 工具；FSF 認為只叫「Linux」抹去了 GNU 的貢獻，所以主張叫 GNU/Linux。</p>
+</details>
+</li>
+<li>目標三元組 <code>x86_64-linux-gnu</code> 的三段各代表什麼？為什麼說它剛好說明了「核心」和「C 函式庫」是兩件事？<details class="answer"><summary>參考答案</summary>
+<p>【<a href="#%E4%BA%8Cgnu-%E5%81%9A%E4%BA%86%E4%BB%80%E9%BA%BC%E4%BD%A0%E9%80%99%E5%8F%B0%E6%A9%9F%E5%99%A8%E4%B8%8A%E5%88%B0%E8%99%95%E9%83%BD%E6%98%AF">第二節</a>〈那個到處出現的 <code>x86_64-linux-gnu</code> 是什麼〉】（2026-10-10 改寫成核心關鍵格式）</p>
+<p>核心關鍵：</p>
+<ol>
+<li><code>x86_64</code> 是 CPU 架構，<code>linux</code> 是核心，<code>gnu</code> 是 ABI／C 函式庫（glibc）。</li>
+<li>核心和 C 函式庫可以各自替換（同一個 Linux 核心搭 musl 就是 <code>x86_64-linux-musl</code>），所以三元組要分成兩欄寫，正好說明它們是兩件事。</li>
+</ol>
+<p>詳細說明：OpenWrt 用的是 <code>aarch64-linux-musl</code> 這類三元組：核心一樣是 Linux，C 函式庫換成 musl。</p>
+</details>
+</li>
+<li>情境題：一支 shell 腳本在你的 Ubuntu 上用 <code>bash</code> 測試完全正常，放到 OpenWrt 上卻出錯。從本篇的角度，最可能的原因是什麼？寫腳本時該怎麼預防？<details class="answer"><summary>參考答案</summary>
+<p>【<a href="#%E5%9B%9B%E4%B8%8D%E6%98%AF-gnu-%E7%9A%84-linux%E4%BD%A0%E5%B7%B2%E7%B6%93%E9%81%87%E9%81%8E%E4%BA%86">第四節</a>】OpenWrt 不是 GNU 使用者空間，沒有 bash，<code>/bin/sh</code> 是 BusyBox 的 <code>ash</code>，只支援 POSIX 語法；腳本用了 bash 才有的擴充語法（陣列、<code>[[ ]]</code>、<code>[^...]</code> 等）就會出錯。預防：只用 POSIX 規定的語法與選項，並在本機用 <code>busybox sh 腳本</code> 或 <code>dash 腳本</code> 測試。特別注意本機 <code>/bin/sh -&gt; bash</code>：第一行寫 <code>#!/bin/sh</code> 直接 <code>./腳本</code>，跑的仍是 bash，測不出問題。改第一行解決不了：<code>#!/bin/busybox</code> 會報 <code>applet not found</code>。</p>
+</details>
+</li>
+<li>GPL 的 copyleft 要求什麼？glibc 用 LGPL 而不是 GPL，對「商業軟體能不能連結 libc」有什麼差別？<details class="answer"><summary>參考答案</summary>
+<p>【<a href="#%E4%BA%94gplgnu-%E6%9C%80%E6%B7%B1%E9%81%A0%E7%9A%84%E5%BD%B1%E9%9F%BF">第五節</a>】（2026-10-10 改寫成核心關鍵格式）</p>
+<p>核心關鍵：</p>
+<ol>
+<li>copyleft：可以自由使用、修改、散布，但<strong>散布</strong>修改後（或以它為基礎）的版本時，必須用<strong>同樣的授權（GPL）</strong>並提供原始碼。</li>
+<li>只是使用、或改了自己用、不給別人，沒有義務。</li>
+<li>glibc 用 LGPL：允許非自由的程式<strong>連結</strong>它而不必開放自己的原始碼，所以商業軟體都能連結 <code>libc.so.6</code>；如果 glibc 是 GPL，連結它的程式在散布時就得整個用 GPL 開放。</li>
+</ol>
+<p>詳細說明：copyleft 的目的是讓「自由不能在傳遞途中被拿走」：拿到 GPL 軟體的人，也要拿得到原始碼、有同樣的權利。例子：公司內部改了 GPL 的工具自己用，不必公開；把改過的版本賣給客戶，就要給客戶原始碼，並讓客戶同樣能以 GPL 再散布。</p>
+</details>
+</li>
+<li>你將來送 kernel patch 時要加的 <code>Signed-off-by:</code> 跟 GPL 有什麼關係？<details class="answer"><summary>參考答案</summary>
+<p>【<a href="#%E4%BA%94gplgnu-%E6%9C%80%E6%B7%B1%E9%81%A0%E7%9A%84%E5%BD%B1%E9%9F%BF">第五節</a>】（2026-10-11 改寫成核心關鍵格式）</p>
+<p>核心關鍵：</p>
+<ol>
+<li><code>Signed-off-by:</code> 是 DCO（Developer Certificate of Origin，開發者原創聲明）：貢獻者聲明這段程式碼是自己寫的，或自己有權以專案的授權（kernel 是 GPL-2.0）貢獻它。</li>
+<li>kernel 以 GPL-2.0 散布，每段併入的程式碼都必須能合法以 GPL-2.0 散布；DCO 讓每個 patch 都有人為來源負責，出了著作權爭議查得到是誰聲明的。</li>
+</ol>
+<p>詳細說明：DCO 是 kernel 社群的規定，不是 GPL 條文本身的要求，GPL 沒有規定發布時要署名。</p>
+</details>
+</li>
+<li>情境題：同事說「我在這台機器上打 <code>uname -o</code> 看到 <code>GNU/Linux</code>，所以它一定用 glibc」。這個推論錯在哪？<code>uname</code> 的哪些欄位可以信、哪一欄不行，為什麼？你會改看什麼來判斷？<details class="answer"><summary>參考答案</summary>
+<p>【<a href="#%E5%9B%9B%E4%B8%8D%E6%98%AF-gnu-%E7%9A%84-linux%E4%BD%A0%E5%B7%B2%E7%B6%93%E9%81%87%E9%81%8E%E4%BA%86">第四節</a>〈<code>uname -o</code> 印出 <code>GNU/Linux</code>，不代表它是 GNU〉】（2026-10-09 改寫成核心關鍵格式）</p>
+<p>核心關鍵：</p>
+<ol>
+<li>錯在把 <code>-o</code> 當證據：它是 <code>uname</code> 程式寫死的字串，不是問 kernel 來的（BusyBox 版也印 <code>GNU/Linux</code>，實測用 musl 的 OpenWrt 一樣印）。</li>
+<li><code>-s</code>、<code>-n</code>、<code>-r</code>、<code>-v</code>、<code>-m</code> 來自 <code>uname()</code> 系統呼叫（kernel 回傳的 <code>struct utsname</code>），可以信；<code>-o</code> 不行，<code>-p</code>、<code>-i</code> 也是程式自己判斷的（說明裡標 non-portable）。</li>
+<li>判斷 libc 要看<strong>程式本身</strong>：<code>readelf -l /bin/ls | grep interpreter</code>（<code>ld-linux-*</code> 是 glibc、<code>ld-musl-*</code> 是 musl），或用 <code>readelf -V</code> 看有沒有 <code>GLIBC_</code> 版本需求。</li>
+</ol>
+<p>詳細說明：本機 <code>/bin/ls</code> 的 interpreter 是 <code>/lib64/ld-linux-x86-64.so.2</code>；<code>readelf -V /bin/ls</code> 列出 <code>File: libc.so.6</code>、<code>Name: GLIBC_2.38</code> 等項目。musl 不用符號版本，所以沒有 <code>GLIBC_</code> 項目。也可以 <code>ls /lib/ld-musl-*</code>，或直接執行載入器，看它怎麼自我介紹。</p>
+</details>
+</li>
+</ol>
+
+</main>
+</div>
+</body>
+</html>

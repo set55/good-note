@@ -1,0 +1,751 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>筆記總索引</title>
+<link rel="stylesheet" href="assets/style.css">
+<script src="assets/app.js"></script>
+</head>
+<body>
+<button class="menu-btn" onclick="toggleMenu()">☰ 目錄</button>
+<div class="layout">
+<nav class="side">
+<div class="crumbs">🏠 首頁</div><div class="tools"><button onclick="toggleTheme()">🌓 主題</button></div><ul><li class="l2"><a href="#c">C</a></li><li class="l2"><a href="#claude-code">Claude Code</a></li><li class="l2"><a href="#docker">Docker</a></li><li class="l2"><a href="#electron">Electron</a></li><li class="l2"><a href="#golang">Golang</a></li><li class="l2"><a href="#istr-react">istr-react</a></li><li class="l2"><a href="#kubernetes">Kubernetes</a></li><li class="l2"><a href="#learning">Learning</a></li><li class="l2"><a href="#linux">Linux</a></li><li class="l3"><a href="#linux-%E9%80%9A%E7%94%A8%E6%96%B9%E6%B3%95%E8%AB%96">通用方法論</a></li><li class="l3"><a href="#linux-%E5%A5%97%E4%BB%B6%E7%AE%A1%E7%90%86dpkg--dkms">套件管理（dpkg / dkms）</a></li><li class="l3"><a href="#linux-%E6%A0%B8%E5%BF%83%E8%88%87%E9%A9%85%E5%8B%95">核心與驅動</a></li><li class="l3"><a href="#linux-%E7%B6%B2%E8%B7%AF%E5%9F%BA%E7%A4%8E%E8%88%87%E8%A8%AD%E5%AE%9A">網路基礎與設定</a></li><li class="l3"><a href="#linux-%E7%B6%B2%E8%B7%AF%E6%9F%A5%E8%A9%A2%E8%88%87%E8%BF%BD%E8%B9%A4">網路查詢與追蹤</a></li><li class="l3"><a href="#linux-shell-%E8%88%87%E9%87%8D%E6%96%B0%E5%B0%8E%E5%90%91">Shell 與重新導向</a></li><li class="l3"><a href="#linux-%E7%B5%82%E7%AB%AF%E6%A9%9F%E8%88%87-tmux">終端機與 tmux</a></li><li class="l3"><a href="#linux-%E6%A1%8C%E9%9D%A2%E7%92%B0%E5%A2%83gnome">桌面環境（GNOME）</a></li><li class="l3"><a href="#linux-%E7%B3%BB%E7%B5%B1%E7%B5%84%E6%88%90%E6%A0%B8%E5%BF%83%E8%88%87%E4%BD%BF%E7%94%A8%E8%80%85%E7%A9%BA%E9%96%93">系統組成（核心與使用者空間）</a></li><li class="l3"><a href="#linux-%E9%96%8B%E6%A9%9Fgrub">開機（GRUB）</a></li><li class="l2"><a href="#nginx">nginx</a></li><li class="l2"><a href="#openwrt">OpenWrt</a></li></ul>
+</nav>
+<main>
+<h1>筆記總索引</h1><input class="search" id="q" placeholder="搜尋筆記、主題、關鍵字（共 87 篇，空白分隔多個詞）" autofocus><p class="empty" id="empty" hidden>沒有符合的筆記。</p><div class="index"><section class="domain"><h2 id="c">C 筆記索引 <span class="count">12 篇 · <a href="c/README.html">完整 README</a></span></h2>
+<div class="intro"><p>這個目錄收錄 C 語言、編譯與連結工具鏈（gcc、binutils）、ELF 與程式執行前後的機制——
+也就是「一支 C 程式怎麼變成行程」這一層。系統呼叫本身（行程、記憶體、I/O、網路）的筆記仍放在 <code>linux/</code>。</p>
+</div>
+<div class="cat"><table>
+<thead>
+<tr>
+<th>筆記</th>
+<th>主題</th>
+<th>關鍵字</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="c/hello.c%E6%80%8E%E9%BA%BC%E8%AE%8A%E6%88%90%E8%83%BD%E8%B7%91%E7%9A%84%E7%A8%8B%E5%BC%8F-%E7%B7%A8%E8%AD%AF%E7%9A%84%E5%9B%9B%E5%80%8B%E9%9A%8E%E6%AE%B5.html">hello.c怎麼變成能跑的程式-編譯的四個階段</a></td>
+<td><code>gcc</code> 是總指揮，依序呼叫 cc1（前處理＋編譯）、as、collect2／ld；<code>.i</code> 仍是 C、<code>.s</code> 是組合語言、<code>.o</code> 是機器碼但外部呼叫留下全 0 的洞與重定位項目；連結後 <code>puts</code> 仍是 <code>U</code>，因為動態連結要到執行時由 <code>ld-linux-x86-64.so.2</code> 填上；gcc 在 <code>-O0</code> 也會把 <code>printf(&quot;%s\n&quot;)</code> 換成 <code>puts</code>；<code>strace</code> 顯示印字最後只是一次 <code>write(1, ...)</code>，34 次系統呼叫大多是動態載入器</td>
+<td><code>gcc -E/-S/-c/-v/-save-temps</code> <code>-fno-builtin</code> <code>-static</code> <code>cc1</code> <code>as</code> <code>collect2</code> <code>ELF</code> <code>relocatable</code> <code>R_X86_64_PLT32</code> <code>nm</code> <code>objdump -dr</code> <code>ldd</code> <code>file</code> <code>strace -c</code> <code>System V ABI</code> <code>%rdi</code> <code>%eax</code> <code>PLT</code> <code>execve</code> <code>write</code> <code>exit_group</code></td>
+</tr>
+<tr>
+<td><a href="c/gcc%E6%9C%80%E4%BD%B3%E5%8C%96%E7%AD%89%E7%B4%9A-O0%E5%88%B0O3%E5%B7%AE%E5%9C%A8%E5%93%AA.html">gcc最佳化等級-O0到O3差在哪</a></td>
+<td><code>-O0</code> 是大寫 O 加數字 0＝不最佳化，且是預設值；全部等級（<code>-O0/1/2/3/s/z/g/fast</code>）的意義、「最後一個 <code>-O</code> 為準」、<code>-Q --help=optimizers</code> 自查；實測 <code>-O0</code> 每圈讀寫記憶體、<code>-O2</code> 把 <code>sum_to(100)</code> 內嵌並在編譯時算成 5050；最佳化不等於變小（<code>-O3</code> 234 bytes 最大）；除錯用 <code>-O0</code>／<code>-Og</code>；kernel 預設 <code>-O2</code>、不能用 <code>-O0</code>，所以要習慣 <code>&lt;optimized out&gt;</code></td>
+<td><code>-O0</code> <code>-O1</code> <code>-O2</code> <code>-O3</code> <code>-Os</code> <code>-Oz</code> <code>-Og</code> <code>-Ofast</code> <code>-Q --help=optimizers</code> <code>-g</code> <code>inline</code> <code>constant folding</code> <code>size -A</code> <code>gdb</code> <code>&lt;optimized out&gt;</code></td>
+</tr>
+<tr>
+<td><a href="c/gdb%E5%AE%8C%E6%95%B4%E5%91%BD%E4%BB%A4%E5%8F%83%E8%80%83.html">gdb完整命令參考</a></td>
+<td>本機 gdb 15.1 的完整參考：<code>gdb --help</code> 全部啟動選項（依其 7 組）、命令共通文法（縮寫與別名、Enter 重複、LOCATION 三種寫法、C 表達式、<code>$N</code> 值歷史、<code>/FMT</code> 格式與大小字母）、依 <code>help all</code> 的 13 類<strong>全部 173 個頂層命令</strong>與別名、<code>info</code> 全部 65 個子命令；<code>set</code>／<code>show</code>／<code>maintenance</code>（456／463／197 個）明講不逐項列的原因與查法；<code>next</code>/<code>step</code>/<code>finish</code>/<code>until</code>/<code>advance</code>、<code>break</code>/<code>tbreak</code>/<code>watch</code>/<code>catch</code>、<code>delete</code>/<code>clear</code>、<code>info</code> vs <code>show</code> 的差別與錯誤訊息對照</td>
+<td><code>gdb</code> <code>-g</code> <code>break</code> <code>tbreak</code> <code>watch</code> <code>catch</code> <code>run</code> <code>start</code> <code>starti</code> <code>next</code> <code>step</code> <code>finish</code> <code>until</code> <code>print/FMT</code> <code>x/FMT</code> <code>display</code> <code>ptype</code> <code>backtrace</code> <code>frame</code> <code>info locals</code> <code>info registers</code> <code>disassemble</code> <code>help all</code> <code>apropos</code> <code>-batch -ex</code></td>
+</tr>
+<tr>
+<td><a href="c/ELF%E7%9A%84interpreter%E6%98%AF%E4%BB%80%E9%BA%BC-%E5%8B%95%E6%85%8B%E8%BC%89%E5%85%A5%E5%99%A8%E8%88%87%E4%BA%95%E5%AD%97%E8%99%9F%E9%A9%9A%E5%98%86%E8%99%9F.html">ELF的interpreter是什麼-動態載入器與井字號驚嘆號</a></td>
+<td>interpreter 是執行檔自己指定的「請先幫我跑這個程式」：程式標頭的 <code>INTERP</code>（<code>.interp</code> 區段）寫著 <code>/lib64/ld-linux-x86-64.so.2</code>，核心 <code>execve</code> 時先跑它，由它載入 libc、檢查符號版本、填好位址，再交給程式；跟腳本 <code>#!</code> 同一機制（<code>#!/bin/cat</code> 實驗：核心把腳本路徑交給直譯器）；<code>ldd</code> 其實是呼叫 <code>ld.so --list</code> 的 bash 腳本、<code>ld.so</code> 自己是 static-pie；interpreter 不存在時「檔案明明在卻 not found」（glibc 程式搬到 Alpine／OpenWrt）；含 <code>ld.so</code> 全部 14 個選項</td>
+<td><code>INTERP</code> <code>.interp</code> <code>program interpreter</code> <code>ld.so</code> <code>ld-linux-x86-64.so.2</code> <code>dynamic linker</code> <code>execve</code> <code>#!</code> <code>shebang</code> <code>ldd</code> <code>--list</code> <code>static-pie</code> <code>-Wl,--dynamic-linker</code> <code>not found</code> <code>musl</code></td>
+</tr>
+<tr>
+<td><a href="c/readelf%E5%AE%8C%E6%95%B4%E9%81%B8%E9%A0%85%E5%8F%83%E8%80%83.html">readelf完整選項參考</a></td>
+<td><code>readelf</code> 只讀 ELF 結構、不反組譯（反組譯用 <code>objdump</code>）；<code>--help</code> 全部 52 行選項依用途分 8 組列出（綜合、標頭與區段、符號、動態連結／版本／重定位、傾印、DWARF、CTF／SFrame、輸出）；課程常用 <code>-h</code>／<code>-l</code>／<code>-S</code>／<code>-s</code>／<code>-d</code>／<code>-V</code>／<code>-r</code>／<code>-p</code>／<code>-W</code> 與對應用途；錯誤訊息實測對照</td>
+<td><code>readelf</code> <code>-h</code> <code>-l</code> <code>-S</code> <code>-s</code> <code>-d</code> <code>-V</code> <code>-r</code> <code>-p</code> <code>-W</code> <code>--dyn-syms</code> <code>-w</code> <code>DWARF</code> <code>program header</code> <code>section header</code> <code>NEEDED</code> <code>objdump</code></td>
+</tr>
+<tr>
+<td><a href="c/ELF%E6%98%AF%E4%BB%80%E9%BA%BC-%E5%8F%AF%E5%9F%B7%E8%A1%8C%E8%88%87%E5%8F%AF%E9%80%A3%E7%B5%90%E6%A0%BC%E5%BC%8F%E7%9A%84%E5%85%A9%E7%A8%AE%E8%A6%96%E8%A7%92.html">ELF是什麼-可執行與可連結格式的兩種視角</a></td>
+<td>ELF＝Executable and Linkable Format，Linux 上 <code>.o</code>／執行檔／<code>.so</code>／core 檔的統一格式，開頭魔術數字 <code>7f 45 4c 46</code>；四種 Type（REL／EXEC／DYN／CORE，PIE 執行檔為何跟 <code>.so</code> 同屬 DYN）；名字對應兩種視角：連結器看區段（<code>-S</code>），核心看載入段（<code>-l</code>），<code>.o</code> 沒有程式標頭；檔頭欄位（Class、little endian、Machine、Entry point＝<code>_start</code>）；改 <code>Machine</code> 實測得到 <code>ENOEXEC (Exec format error)</code>，與 interpreter 不存在的 not found 區分</td>
+<td><code>ELF</code> <code>magic number</code> <code>\177ELF</code> <code>REL</code> <code>EXEC</code> <code>DYN</code> <code>CORE</code> <code>PIE</code> <code>ASLR</code> <code>section</code> <code>segment</code> <code>program header</code> <code>section header</code> <code>readelf -h</code> <code>Entry point</code> <code>_start</code> <code>ENOEXEC</code> <code>Exec format error</code> <code>a.out</code> <code>SVR4</code></td>
+</tr>
+<tr>
+<td><a href="c/objdump%E8%83%BD%E4%B8%8D%E8%83%BD%E4%BB%A3%E6%9B%BFldd%E6%89%BE%E4%BE%9D%E8%B3%B4%E5%BA%AB-%E9%9C%80%E6%B1%82%E5%96%AE%E8%88%87%E5%AF%A6%E9%9A%9B%E8%BC%89%E5%85%A5.html">objdump能不能代替ldd找依賴庫-需求單與實際載入</a></td>
+<td>只能取代一半：<code>objdump -p</code>／<code>readelf -d</code> 讀的是 <code>ld</code> 寫下的需求單（<code>NEEDED</code>），只有直接依賴、只有名字；<code>ldd</code> 是 shell 腳本，設 <code>LD_TRACE_LOADED_OBJECTS=1</code> 請動態載入器模擬載入，得到完整依賴樹、實際路徑與 <code>not found</code>（<code>curl</code> 實測 3 vs 33 行）；<code>-L</code> 只給 <code>ld</code> 看所以連結成功、執行找不到；對不信任或別架構的檔案只能用 <code>objdump</code>／<code>readelf</code>（OpenWrt aarch64 實測：<code>ldd</code> 誤報 <code>not a dynamic executable</code>；區段標頭被剝掉時 <code>objdump -p</code> 看不到 <code>NEEDED</code>，<code>readelf -d</code> 靠程式標頭仍讀得到）；含 <code>ldd</code> 全部 6 個選項與 <code>objdump</code> 「顯示什麼」組全部 31 項</td>
+<td><code>objdump -p</code> <code>NEEDED</code> <code>ldd</code> <code>LD_TRACE_LOADED_OBJECTS</code> <code>ld.so --list</code> <code>readelf -d</code> <code>not found</code> <code>error while loading shared libraries</code> <code>LD_LIBRARY_PATH</code> <code>-L</code> <code>linux-vdso.so.1</code> <code>ldd -u</code> <code>objdump -x</code> <code>no section header</code> <code>aarch64</code></td>
+</tr>
+<tr>
+<td><a href="c/C%E7%9A%84%E8%B3%87%E6%96%99%E5%9C%A8%E8%A8%98%E6%86%B6%E9%AB%94%E8%A3%A1%E9%95%B7%E6%80%8E%E6%A8%A3-%E4%BD%8D%E5%85%83%E7%B5%84%E3%80%81%E6%8C%87%E6%A8%99%E3%80%81%E4%BD%8D%E5%85%83%E7%B5%84%E9%A0%86%E5%BA%8F%E8%88%87%E6%9C%89%E8%99%9F%E7%84%A1%E8%99%9F.html">C的資料在記憶體裡長怎樣-位元組、指標、位元組順序與有號無號</a></td>
+<td>記憶體只有位元組、沒有型別，型別決定讀幾個 byte、怎麼解讀；指標就是 8 byte 的位址（ASLR 讓它每次不同，gdb 預設關掉）；x86-64 是小端序（<code>x/4xb</code> 看到 <code>78 56 34 12</code>，即 <code>readelf -h</code> 的 <code>little endian</code>）；無號溢位回繞有定義；有號用二補數（<code>2's complement</code>），與無號互轉位元不變、截斷留低位、符號擴展 vs 零擴展；<code>int</code> 遇上 <code>unsigned</code> 會被轉成無號，<code>-1 &lt; 0u</code> 為假，<code>-Wall</code> 不警告、要 <code>-Wextra</code>；有號溢位是 UB，<code>bigger(INT_MAX)</code> 在 <code>-O0</code> 回 0、<code>-O2</code> 回 1，一行版連 <code>-O0</code> 都被化簡；<code>-fwrapv</code>、UBSan（要配 <code>-O0</code>／<code>-Og</code>）、kernel 用 <code>-fno-strict-overflow</code>；含 <code>printf</code> 格式完整文法（22 個轉換字元、10 個長度修飾、7 個旗標）</td>
+<td><code>sizeof</code> <code>LP64</code> <code>limits.h</code> <code>&amp;</code> <code>*</code> <code>%p</code> <code>void *</code> <code>ASLR</code> <code>endianness</code> <code>little endian</code> <code>big endian</code> <code>x/4xb</code> <code>two's complement</code> <code>sign extension</code> <code>truncation</code> <code>-Wsign-compare</code> <code>-Wtype-limits</code> <code>-Wextra</code> <code>undefined behavior</code> <code>-fwrapv</code> <code>-fsanitize=undefined</code> <code>-fno-strict-overflow</code> <code>-fdump-tree-original</code> <code>printf</code></td>
+</tr>
+<tr>
+<td><a href="c/%E5%AD%97%E5%85%83%E6%98%AF%E4%BB%80%E9%BA%BC-char%E5%B0%B1%E6%98%AF1byte%E7%9A%84%E6%95%B4%E6%95%B8%E8%88%87ASCII%E5%92%8CUTF-8.html">字元是什麼-char就是1byte的整數與ASCII和UTF-8</a></td>
+<td>字元是符號，靠編碼表對應成數字：<code>char</code> 就是 1 byte 整數，<code>'A'</code> 是 65、<code>'0'</code> 是 48（<code>'7' - '0'</code> 得 7），<code>%c</code>／<code>%d</code> 只是兩種印法；ASCII 128 個的分段（完整表 <code>man ascii</code>）；C 的字元常數型別是 <code>int</code>（<code>sizeof('A')</code> 是 4）、跳脫序列全表；中文用 UTF-8 編成 3 byte（「字」＝<code>e5 ad 97</code>，<code>sizeof(&quot;字&quot;)</code> 是 4），所以 <code>char</code> 不等於一個字；<code>char</code> 有號，讀到 <code>0xe5</code> 是 −27，處理位元組要用 <code>unsigned char</code></td>
+<td><code>char</code> <code>'A'</code> <code>%c</code> <code>ASCII</code> <code>man ascii</code> <code>character constant</code> <code>escape sequence</code> <code>\n</code> <code>\0</code> <code>\x41</code> <code>\u5b57</code> <code>Unicode</code> <code>UTF-8</code> <code>man utf-8</code> <code>unsigned char</code> <code>sign extension</code></td>
+</tr>
+<tr>
+<td><a href="c/%E9%99%A3%E5%88%97%E3%80%81%E5%AD%97%E4%B8%B2%E8%88%87%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97-C%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%88%87%E7%94%A8gdb%E6%89%BEsegfault.html">陣列、字串與指標運算-C不檢查邊界與用gdb找segfault</a></td>
+<td>陣列是連續同型別的格子，長度只存在型別裡；<code>p + 1</code> 走 <code>sizeof(*p)</code> 個 byte，<code>p[i]</code> 定義上就是 <code>*(p + i)</code>（<code>2[p]</code> 也合法），指標相減得元素個數、型別 <code>ptrdiff_t</code>（有號，<code>%td</code>）；陣列名稱退化成指標，函式參數 <code>int a[]</code> 就是 <code>int *</code>（<code>-Wsizeof-array-argument</code>），長度要另外傳，<code>&amp;a + 1</code> 走整個陣列；字串是 <code>\0</code> 結尾的 <code>char</code> 陣列，<code>char s[]</code> 是副本、<code>char *s</code> 指向 <code>.rodata</code>（<code>r--p</code> 分頁，寫入 segfault）；越界是 UB，三種下場：安靜出錯（<code>-O0</code> 無警告，<code>-Warray-bounds</code> 要 <code>-O2</code>）、<code>stack smashing detected</code>（Ubuntu 預設 <code>-fstack-protector-strong</code>，返回時才檢查；關掉後蓋到返回位址 <code>saved rip = 0x4141414141414141</code>）、碰到沒對映的分頁才 segfault（讀到 <code>[stack]</code> 盡頭）；gdb 找 segfault 的步驟（<code>run</code>／<code>bt</code>／<code>frame</code>／<code>print *p@10</code>／<code>info proc mappings</code>），當掉的那一行 ≠ 犯錯的那一行；ASan（<code>-fsanitize=address</code>）在第一次越界當下報告行號與讀寫；結束狀態 139／134＝128＋訊號編號</td>
+<td><code>array</code> <code>pointer arithmetic</code> <code>p[i]</code> <code>*(p + i)</code> <code>ptrdiff_t</code> <code>%td</code> <code>array decay</code> <code>-Wsizeof-array-argument</code> <code>&amp;a</code> <code>string literal</code> <code>.rodata</code> <code>\0</code> <code>strlen</code> <code>out-of-bounds</code> <code>undefined behavior</code> <code>-Warray-bounds</code> <code>-fstack-protector-strong</code> <code>stack smashing detected</code> <code>canary</code> <code>buffer overflow</code> <code>saved rip</code> <code>SIGSEGV</code> <code>SIGABRT</code> <code>bt</code> <code>frame</code> <code>@</code> <code>info proc mappings</code> <code>info frame</code> <code>-fsanitize=address</code> <code>ASan</code> <code>KASAN</code></td>
+</tr>
+<tr>
+<td><a href="c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80-%E6%9A%AB%E5%AD%98%E5%99%A8%E3%80%81mov%E8%88%87lea%E3%80%81cmp%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D.html">x86-64組合語言入門-暫存器、mov與lea、cmp與條件跳躍</a></td>
+<td>組合語言是機器碼的文字版（<code>objdump -d</code> 對照，跳躍距離是有號的相對位移）；AT&amp;T vs Intel 語法（<code>-masm=intel</code>，順序相反）；16 個通用暫存器與 64／32／16／8 位元名字，寫 32 位元自動清高位所以 <code>movl</code> 就是零擴展、符號擴展要 <code>movslq</code>（<code>movs*</code>／<code>movz*</code> 命名）；指令文法 <code>助憶符[b/w/l/q] 來源, 目的</code>、記憶體運算元 <code>D(B,I,S)</code>＝<code>D+B+I×S</code>（S 只能 1/2/4/8＝<code>a[i]</code> 的硬體支援）；<code>mov</code> 讀記憶體、<code>lea</code> 只算位址（拿來做 <code>x*3</code>）；<code>cmp</code> 只設 ZF/SF/CF/OF，有號無號由條件碼決定（<code>l</code>/<code>g</code> 有號、<code>b</code>/<code>a</code> 無號，全部 16 種），gdb 實測 <code>lt_s</code>／<code>lt_u</code> 旗標相同 <code>[ SF IF ]</code> 結果相反；<code>mov</code> 不改旗標；逐行讀 <code>sum_to</code>：<code>-O0</code> 變數住 <code>-N(%rbp)</code>、先 <code>jmp</code> 到底部檢查，<code>-O2</code> 變數住暫存器、一圈加兩個數、指令反而變多；<code>.s</code> 的標籤／指示詞（<code>.cfi_*</code>、<code>.p2align</code>…）／指令；<code>endbr64</code></td>
+<td><code>AT&amp;T</code> <code>-masm=intel</code> <code>objdump -d</code> <code>-M intel</code> <code>%rax</code> <code>%eax</code> <code>%rdi</code> <code>%rsi</code> <code>%rsp</code> <code>%rbp</code> <code>%rip</code> <code>rflags</code> <code>movl</code> <code>movq</code> <code>movslq</code> <code>movzbl</code> <code>movswl</code> <code>lea</code> <code>D(B,I,S)</code> <code>add</code> <code>sub</code> <code>xor</code> <code>and</code> <code>cmp</code> <code>test</code> <code>jmp</code> <code>jle</code> <code>jb</code> <code>jne</code> <code>setl</code> <code>setb</code> <code>ZF</code> <code>SF</code> <code>CF</code> <code>OF</code> <code>-fverbose-asm</code> <code>-fno-asynchronous-unwind-tables</code> <code>.cfi</code> <code>.p2align</code> <code>endbr64</code> <code>CET</code> <code>info registers eflags</code></td>
+</tr>
+<tr>
+<td><a href="c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80%E4%BA%8C-call%E8%88%87ret%E3%80%81%E5%A0%86%E7%96%8A%E6%A1%86%E3%80%81%E5%8F%83%E6%95%B8%E8%88%87%E5%91%BC%E5%8F%AB%E6%85%A3%E4%BE%8B.html">x86-64組合語言入門二-call與ret、堆疊框、參數與呼叫慣例</a></td>
+<td>函式呼叫只是堆疊加四個指令：<code>call</code> ＝ 推返回位址＋跳、<code>ret</code> ＝ 從堆疊頂取位址跳回（gdb <code>stepi</code> 實測 <code>%rsp</code> 每步 ±8）；<code>push %rbp; mov %rsp,%rbp</code> 建堆疊框、<code>leave</code> 拆掉、<code>%rbp</code> 串成鏈；葉函式用紅區；參數 <code>%rdi</code>…<code>%r9</code>、第 7 個起推堆疊（<code>0x10(%rbp)</code>）、呼叫者清；callee-saved <code>%rbx</code>/<code>%rbp</code>/<code>%r12</code>～<code>%r15</code>；<code>call</code> 時 <code>%rsp</code> 16 byte 對齊（<code>sub $0x8</code>）；可變參數函式的 <code>%al</code> ＝ 用了幾個 <code>%xmm</code></td>
+<td><code>call</code> <code>ret</code> <code>push</code> <code>pop</code> <code>leave</code> <code>%rsp</code> <code>%rbp</code> <code>stack frame</code> <code>red zone</code> <code>System V AMD64 ABI</code> <code>caller-saved</code> <code>callee-saved</code> <code>16-byte alignment</code> <code>%al</code> <code>varargs</code> <code>stepi</code> <code>info symbol</code> <code>objdump -r</code></td>
+</tr>
+</tbody>
+</table>
+</div></section>
+<section class="domain"><h2 id="claude-code">Claude Code 筆記索引 <span class="count">1 篇 · <a href="claude-code/README.html">完整 README</a></span></h2>
+<div class="intro"><p>這個目錄收錄 Claude Code（Anthropic 的命令列 AI 編碼工具）本身的使用與整合紀錄：非互動（headless）執行、與作業系統排程機制的搭配、權限與憑證設定等。關於「如何寫筆記／如何學習」的方法論在 <a href="../learning/">learning/</a>，這裡只放工具本身。</p>
+</div>
+<div class="cat"><table>
+<thead>
+<tr>
+<th>筆記</th>
+<th>主題</th>
+<th>關鍵字</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="claude-code/Claude-Code%E8%83%BD%E5%83%8Fsystemd-service%E4%B8%80%E6%A8%A3%E5%B8%B8%E9%A7%90%E5%97%8E.html">Claude-Code能像systemd-service一樣常駐嗎</a></td>
+<td>Claude Code 沒有 daemon 模式（子命令裡沒有 <code>serve</code>／<code>daemon</code>）；「常駐」要先拆成背景執行／定時執行／雲端排程／長駐服務四種需求，各有正確工具。重點是用 <code>systemctl --user</code> + timer 包 <code>claude -p</code> 的完整範例，以及三個必踩的坑：system service 讀不到家目錄憑證、非互動模式沒人能回答權限提示、systemd 的乾淨 PATH</td>
+<td><code>claude -p</code> <code>--bg</code> <code>claude agents</code> <code>systemd --user</code> <code>Type=oneshot</code> <code>OnCalendar</code> <code>Persistent</code> <code>loginctl enable-linger</code> <code>CLAUDE_CODE_OAUTH_TOKEN</code> <code>setup-token</code> <code>--permission-mode</code> <code>--permission-prompts</code> <code>--max-budget-usd</code> <code>status=203/EXEC</code> <code>/schedule</code> <code>Agent SDK</code></td>
+</tr>
+</tbody>
+</table>
+</div></section>
+<section class="domain"><h2 id="docker">Docker 筆記索引 <span class="count">2 篇 · <a href="docker/README.html">完整 README</a></span></h2>
+<div class="intro"><p>這個目錄收錄 Docker 容器化（containerization）相關的實戰紀錄，包含 Docker Compose 編排（orchestration）用法，以及 docker daemon（背景服務行程 dockerd）網路連線的排查。</p>
+</div>
+<div class="cat"><table>
+<thead>
+<tr>
+<th>筆記</th>
+<th>主題</th>
+<th>關鍵字</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="docker/Docker-Compose%E7%94%A8%E6%B3%95%E7%AD%86%E8%A8%98.html">Docker-Compose用法筆記</a></td>
+<td>Docker Compose 核心觀念與常用指令：YAML 錨點（anchor）語法、build context 與 build-args、<code>network_mode: host</code> 的取捨、設定檔掛載（volume mount）、<code>depends_on</code> 只保證啟動順序不保證服務就緒，以及單一服務驗證流程與常見坑</td>
+<td><code>docker compose</code> <code>YAML anchor</code> <code>build context</code> <code>network_mode: host</code> <code>depends_on</code> <code>volumes</code></td>
+</tr>
+<tr>
+<td><a href="docker/Docker%E6%8B%89%E5%8F%96%E6%98%A0%E5%83%8F%E6%AA%94%E5%A4%B1%E6%95%97-daemon%E7%BC%BAproxy%E6%8E%92%E6%9F%A5.html">Docker拉取映像檔失敗-daemon缺proxy排查</a></td>
+<td><code>docker pull</code> 逾時（<code>context deadline exceeded</code>）的根因是 docker daemon（dockerd，實際負責拉映像檔的背景行程）本身沒有代理伺服器（proxy）設定，跟 shell 環境的 proxy 是分開的兩件事；用 systemd drop-in 設定 daemon proxy 修復，續集記錄 <code>registry-mirrors</code>（映像加速器）失效擋住 <code>docker compose build</code> 的排查與解法</td>
+<td><code>dockerd</code> <code>daemon proxy</code> <code>systemd drop-in</code> <code>registry-mirrors</code> <code>context deadline exceeded</code> <code>docker/dockerfile:1</code></td>
+</tr>
+</tbody>
+</table>
+</div></section>
+<section class="domain"><h2 id="electron">Electron 筆記索引 <span class="count">1 篇 · <a href="electron/README.html">完整 README</a></span></h2>
+<div class="intro"><p>這個目錄收錄 Electron 框架（用 Chromium + Node.js 寫跨平台桌面程式）的概念與實戰觀察，例如 VS Code 這類 Electron 應用程式的行程架構。</p>
+</div>
+<div class="cat"><table>
+<thead>
+<tr>
+<th>筆記</th>
+<th>主題</th>
+<th>關鍵字</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="electron/Electron%E6%98%AF%E4%BB%80%E9%BA%BC-%E7%82%BA%E4%BB%80%E9%BA%BCVSCode%E6%9C%89%E5%8D%81%E5%B9%BE%E5%80%8B%E8%A1%8C%E7%A8%8B.html">Electron是什麼-為什麼VSCode有十幾個行程</a></td>
+<td>Electron = Chromium（畫 UI）+ Node.js（碰作業系統）+ 原生 API；<code>code</code> 執行檔其實是 Electron，VS Code 本體只是 <code>resources/app/</code> 裡的 JavaScript；多行程架構繼承自 Chromium（main／renderer／zygote／GPU／utility），換來安全與穩定，代價是記憶體與體積；RSS 加總會高估記憶體用量</td>
+<td><code>Electron</code> <code>Chromium</code> <code>Node.js</code> <code>main process</code> <code>renderer process</code> <code>zygote</code> <code>--type=</code> <code>extension host</code> <code>IPC</code> <code>RSS</code> <code>PSS</code> <code>Tauri</code></td>
+</tr>
+</tbody>
+</table>
+</div></section>
+<section class="domain"><h2 id="golang">Golang 筆記索引 <span class="count">1 篇 · <a href="golang/README.html">完整 README</a></span></h2>
+<div class="intro"><p>這個目錄收錄 Go 語言開發過程中的觀念釐清與實戰紀錄，目前以 GORM（Go 生態圈常用的
+ORM，Object-Relational Mapping／物件關聯對映函式庫）為主。</p>
+</div>
+<div class="cat"><table>
+<thead>
+<tr>
+<th>筆記</th>
+<th>主題</th>
+<th>關鍵字</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="golang/gorm-foreignKey-vs-references.html">gorm-foreignKey-vs-references</a></td>
+<td>GORM 的 <code>foreignKey</code> 與 <code>references</code> tag 恆等定義：<code>foreignKey</code> 永遠是存放外鍵（FK, Foreign Key）指標的欄位，<code>references</code> 是被指向的欄位；但這兩個欄位分屬哪個 struct 會隨 <code>belongs_to</code> 與 <code>has_one</code>／<code>has_many</code> 關聯方向翻轉，容易誤判 model 寫錯；提供用 <code>schema.Parse</code> 直接驗證關聯方向的方法，並記錄 <code>has_one</code> 有級聯（cascade）upsert 寫入的額外風險</td>
+<td><code>GORM</code> <code>foreignKey</code> <code>references</code> <code>FK</code> <code>belongs_to</code> <code>has_one</code> <code>has_many</code> <code>schema.Parse</code></td>
+</tr>
+</tbody>
+</table>
+</div></section>
+<section class="domain"><h2 id="istr-react">istr-react 筆記索引 <span class="count">1 篇 · <a href="istr-react/README.html">完整 README</a></span></h2>
+<div class="intro"><p>這個目錄收錄 istr-react（前端專案）在本機開發、打包（build）與容器化部署過程中遇到的問題排查。</p>
+</div>
+<div class="cat"><table>
+<thead>
+<tr>
+<th>筆記</th>
+<th>主題</th>
+<th>關鍵字</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="istr-react/captcha%E6%89%93%E5%88%B0%E5%81%87%E7%B6%B2%E5%9D%80-BASEURL%E5%93%A8%E5%85%B5%E5%AD%97%E4%B8%B2%E6%9C%AA%E6%9B%BF%E6%8F%9B.html">captcha打到假網址-BASEURL哨兵字串未替換</a></td>
+<td>umi（React 專案的建置框架）打包時會依 <code>NODE_ENV=production</code> 自動疊上 <code>config.prod.ts</code>，把 API 基底網址（BASEURL）在編譯期（compile time）烤成寫死的哨兵字串（sentinel string，佔位用假網址）<code>https://replace-api-url.arpha-tech.com</code>，導致 captcha 等所有 API 請求打到假網址；修法是在不入 git 追蹤的 Dockerfile 內，對 build 產物做字串替換（用 <code>sed</code>）把哨兵字串換成空字串，改走 nginx 反向代理（reverse proxy）走同源（same-origin）請求</td>
+<td><code>umi</code> <code>NODE_ENV</code> <code>config.prod.ts</code> <code>BASEURL</code> <code>編譯期常數</code> <code>sentinel string</code> <code>nginx reverse proxy</code> <code>same-origin</code></td>
+</tr>
+</tbody>
+</table>
+</div></section>
+<section class="domain"><h2 id="kubernetes">Kubernetes 筆記索引 <span class="count">6 篇 · <a href="kubernetes/README.html">完整 README</a></span></h2>
+<div class="intro"><p>這個目錄收錄 Kubernetes（K8s，容器編排平台 container orchestration）的架構理解、運作原理與排查紀錄。從「有哪些組件」到「一個請求怎麼走到 Pod」，四篇合起來是一條完整的學習路徑，建議照表格順序讀。</p>
+</div>
+<div class="cat"><table>
+<thead>
+<tr>
+<th>筆記</th>
+<th>主題</th>
+<th>關鍵字</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="kubernetes/k8s%E6%9E%B6%E6%A7%8B%E7%B8%BD%E8%A6%BD-%E6%8E%A7%E5%88%B6%E5%B9%B3%E9%9D%A2%E8%88%87%E7%AF%80%E9%BB%9E%E7%B5%84%E4%BB%B6.html">k8s架構總覽-控制平面與節點組件</a></td>
+<td>K8s 的本質是「一個共用資料庫 etcd + 一群各自盯著它做事的迴圈」，所有組件只跟 API Server 講話、彼此從不直接呼叫；逐一拆解控制平面（etcd／apiserver／scheduler／controller-manager／cloud-controller-manager）與節點組件（kubelet／containerd／kube-proxy）的職責，並用「哪個組件掛掉會怎樣」的對照表反推各自的責任邊界</td>
+<td><code>etcd</code> <code>kube-apiserver</code> <code>kube-scheduler</code> <code>kube-controller-manager</code> <code>kubelet</code> <code>kube-proxy</code> <code>CRI</code> <code>CNI</code> <code>CSI</code> <code>containerd</code> <code>CoreDNS</code> <code>leader election</code> <code>static pod</code> <code>crictl</code> <code>control plane</code> <code>hub-and-spoke</code></td>
+</tr>
+<tr>
+<td><a href="kubernetes/%E5%AE%A3%E5%91%8A%E5%BC%8FAPI%E8%88%87%E6%8E%A7%E5%88%B6%E5%99%A8%E8%AA%BF%E8%AB%A7%E8%BF%B4%E5%9C%88.html">宣告式API與控制器調諧迴圈</a></td>
+<td>控制器的內部運作：<code>spec</code>／<code>status</code> 的分工、調諧迴圈為何必須冪等、<strong>水平觸發（level-triggered）而非邊緣觸發</strong>才是自我修復的根源；並解釋 list-watch／Informer／workqueue、<code>resourceVersion</code> 樂觀併發、<code>ownerReferences</code> 級聯刪除與 finalizer 卡住的成因、<code>apply</code> 三方合併為何不同於 <code>replace</code></td>
+<td><code>declarative API</code> <code>reconcile loop</code> <code>level-triggered</code> <code>edge-triggered</code> <code>list-watch</code> <code>informer</code> <code>workqueue</code> <code>resync</code> <code>resourceVersion</code> <code>409 Conflict</code> <code>optimistic concurrency</code> <code>ownerReferences</code> <code>finalizer</code> <code>Terminating</code> <code>three-way merge</code> <code>server-side apply</code> <code>CRD</code> <code>Operator</code></td>
+</tr>
+<tr>
+<td><a href="kubernetes/%E5%BE%9Ekubectl-apply%E5%88%B0Pod%E9%81%8B%E8%A1%8C%E7%9A%84%E5%AE%8C%E6%95%B4%E6%B5%81%E7%A8%8B.html">從kubectl-apply到Pod運行的完整流程</a></td>
+<td>一次 <code>kubectl apply</code> 的完整時間軸：API Server 的六道請求管線（認證→授權→mutating→驗證→validating→etcd）、Deployment→ReplicaSet→Pod 的接力、scheduler 的過濾與評分、kubelet 建 pause sandbox 與呼叫 CNI／CSI、探針與 status 回寫、最後才進 EndpointSlice；另含刪除時「移出流量」與「SIGTERM」的競態與 <code>preStop</code> 解法、滾動更新原理、以及「Pod 狀態 → 該查哪一棒」的排查對照表</td>
+<td><code>admission webhook</code> <code>mutating</code> <code>validating</code> <code>RBAC</code> <code>pod-template-hash</code> <code>Binding</code> <code>spec.nodeName</code> <code>pause container</code> <code>sandbox</code> <code>ContainerCreating</code> <code>ImagePullBackOff</code> <code>CrashLoopBackOff</code> <code>Pending</code> <code>livenessProbe</code> <code>readinessProbe</code> <code>preStop</code> <code>terminationGracePeriodSeconds</code> <code>maxSurge</code> <code>maxUnavailable</code> <code>rollout undo</code></td>
+</tr>
+<tr>
+<td><a href="kubernetes/Service%E8%88%87%E5%B0%81%E5%8C%85%E8%B7%AF%E5%BE%91-ClusterIP%E6%80%8E%E9%BA%BC%E8%B5%B0%E5%88%B0Pod.html">Service與封包路徑-ClusterIP怎麼走到Pod</a></td>
+<td>ClusterIP 不存在於任何網卡上，它只是每台節點核心裡一條 DNAT 規則的觸發條件——由此推導出 ping 不通卻 curl 得通、負載平衡在發起端節點就完成、長連線永遠黏在同一個 Pod；另含逐跳封包追蹤與回程反向 NAT 對 conntrack 的依賴、iptables／IPVS／eBPF 取捨、<code>ndots:5</code> 拖慢外部 DNS、<code>externalTrafficPolicy</code> 與來源 IP 遺失、NetworkPolicy 在 Flannel 上靜默失效</td>
+<td><code>ClusterIP</code> <code>DNAT</code> <code>conntrack</code> <code>kube-proxy</code> <code>iptables</code> <code>IPVS</code> <code>eBPF</code> <code>EndpointSlice</code> <code>selector</code> <code>headless service</code> <code>CoreDNS</code> <code>ndots</code> <code>search domain</code> <code>NodePort</code> <code>LoadBalancer</code> <code>Ingress</code> <code>externalTrafficPolicy</code> <code>SNAT</code> <code>NetworkPolicy</code> <code>VXLAN</code> <code>MTU</code> <code>veth</code></td>
+</tr>
+<tr>
+<td><a href="kubernetes/%E6%9C%AC%E5%9C%B0%E7%8E%A9K8s%E8%A6%81%E5%85%88%E9%96%8B%E8%99%9B%E6%93%AC%E6%A9%9F%E5%97%8E-kind-k3s-minikube%E6%80%8E%E9%BA%BC%E9%81%B8.html">本地玩K8s要先開虛擬機嗎-kind-k3s-minikube怎麼選</a></td>
+<td>Linux 上不必開 VM：K8s 節點要的是核心功能（cgroup／namespace／netfilter）而非一台機器，kind 把節點做成容器即可；只有實驗對象涉及核心本身（模組、全域 sysctl、核心版本、kubeadm 從零安裝）才需要 VM；macOS／Windows 的 Docker Desktop 本身就藏著一台 VM；另含 kind 的 proxy、本地映像檔、LoadBalancer pending 等坑</td>
+<td><code>kind</code> <code>k3s</code> <code>k3d</code> <code>minikube</code> <code>VM</code> <code>kubeadm</code> <code>kindest/node</code> <code>kind load docker-image</code> <code>imagePullPolicy</code> <code>cloud-provider-kind</code> <code>MetalLB</code> <code>HTTP_PROXY</code> <code>inotify</code> <code>br_netfilter</code> <code>network namespace</code> <code>Docker Desktop</code></td>
+</tr>
+<tr>
+<td><a href="kubernetes/%E7%94%A8VM%E8%88%87kubeadm%E5%BE%9E%E9%9B%B6%E6%9E%B6%E8%A8%ADK8s%E5%8F%A2%E9%9B%86.html">用VM與kubeadm從零架設K8s叢集</a></td>
+<td>multipass 開 3 台 VM、kubeadm + containerd + Calico 架完整叢集；每一步對應哪個組件的前提：swap、<code>br_netfilter</code>／<code>ip_forward</code> 給 kube-proxy 與 CNI、<code>SystemdCgroup</code> 讓 containerd 與 kubelet 的 cgroup driver 一致、<code>init</code> 各階段把控制平面做成 static Pod、沒裝 CNI 前節點一定 <code>NotReady</code>；另含 Calico 預設 <code>192.168.0.0/16</code> 蓋掉家用 LAN、VirtualBox 節點 IP 重複、IP 變動讓憑證失效、proxy 的 <code>NO_PROXY</code> 要含叢集網段等坑</td>
+<td><code>kubeadm init</code> <code>kubeadm join</code> <code>kubeadm reset</code> <code>multipass</code> <code>containerd</code> <code>SystemdCgroup</code> <code>cgroup driver</code> <code>br_netfilter</code> <code>bridge-nf-call-iptables</code> <code>ip_forward</code> <code>swap</code> <code>pod-network-cidr</code> <code>Calico</code> <code>tigera-operator</code> <code>NotReady</code> <code>static Pod</code> <code>/etc/kubernetes/pki</code> <code>bootstrap token</code> <code>discovery-token-ca-cert-hash</code> <code>apt-mark hold</code> <code>version skew</code> <code>NO_PROXY</code></td>
+</tr>
+</tbody>
+</table>
+</div></section>
+<section class="domain"><h2 id="learning">Learning 筆記索引 <span class="count">3 篇 · <a href="learning/README.html">完整 README</a></span></h2>
+<div class="intro"><p>這個目錄收錄「怎麼學」本身的方法論——學習、記憶、複習策略，以及這些原則該如何套用到本筆記庫的寫作與複習流程上。與技術領域無關，但決定了其他資料夾裡的筆記能不能真的留在腦子裡。</p>
+</div>
+<div class="cat"><table>
+<thead>
+<tr>
+<th>筆記</th>
+<th>主題</th>
+<th>關鍵字</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="learning/%E5%AD%B8%E4%BA%86%E5%B0%B1%E5%BF%98-%E5%A6%82%E4%BD%95%E6%8A%8A%E7%9F%A5%E8%AD%98%E8%BD%89%E6%88%90%E9%95%B7%E6%9C%9F%E8%A8%98%E6%86%B6.html">學了就忘-如何把知識轉成長期記憶</a></td>
+<td>「學了就忘」的根因是只做輸入沒做提取，而非記憶力衰退：儲存強度與提取強度的區分、流暢性錯覺為何讓重讀無效、提取練習／間隔重複／交錯練習三大機制、40 歲後流體智力與晶體智力的消長該如何調整策略，以及把自我測驗區塊與 <code>&gt; 下次複習：</code> 排程欄位加進本筆記庫的具體作法</td>
+<td><code>retrieval practice</code> <code>testing effect</code> <code>spacing effect</code> <code>interleaving</code> <code>desirable difficulties</code> <code>fluency illusion</code> <code>forgetting curve</code> <code>storage strength</code> <code>retrieval strength</code> <code>SRS</code> <code>Anki</code> <code>elaborative interrogation</code> <code>generation effect</code> <code>consolidation</code> <code>crystallized intelligence</code></td>
+</tr>
+<tr>
+<td><a href="learning/Linux%E8%88%87%E7%B3%BB%E7%B5%B1%E7%A8%8B%E5%BC%8F%E7%9A%84%E7%B3%BB%E7%B5%B1%E5%8C%96%E5%AD%B8%E7%BF%92%E8%B7%AF%E7%B7%9A.html">Linux與系統程式的系統化學習路線</a></td>
+<td>零散感來自缺主線而非知識量：改走「程式 → 行程 → 虛擬記憶體 → 執行緒 → 檔案與 I/O → 網路」六站，每站一個 C 專案（迷你 shell、malloc、thread pool、echo→epoll 伺服器）再用 Rust 重寫；教材只選 CS:APP（主幹）、OSTEP（觀念）、TLPI（字典），C++ 延後；並把 <code>linux/</code> 既有筆記歸位到地圖上，看出網路／netfilter 很深、但虛擬記憶體與執行緒整站空白；第二段為 kernel 維護者路線（K0 編 kernel → K1 郵件 patch 流程 → K2 第一批 patch → K3 深耕子系統 → K4 <code>MAINTAINERS</code>），建議從 netfilter 切入</td>
+<td><code>學習路線</code> <code>CS:APP</code> <code>OSTEP</code> <code>TLPI</code> <code>Beej</code> <code>Rust Atomics and Locks</code> <code>xv6</code> <code>process</code> <code>thread</code> <code>virtual memory</code> <code>socket</code> <code>strace</code> <code>gdb</code> <code>C</code> <code>Rust</code> <code>MAINTAINERS</code> <code>checkpatch.pl</code> <code>get_maintainer.pl</code> <code>git send-email</code> <code>b4</code> <code>lore.kernel.org</code> <code>netfilter-devel</code></td>
+</tr>
+<tr>
+<td><a href="../learning/%E5%AD%B8%E7%BF%92%E9%80%B2%E5%BA%A6.md">學習進度.md</a></td>
+<td>逐課教學的進度檔：目前在哪一站、哪一課、哪些作業與自我測驗還沒交、下一課教什麼，以及第 ① 站的課程規劃與間隔複習排程；每課結束都要更新</td>
+<td><code>學習進度</code> <code>目前位置</code> <code>課程紀錄</code> <code>待複習</code> <code>第 ① 站</code></td>
+</tr>
+<tr>
+<td><a href="../learning/%E8%A4%87%E7%BF%92%E6%8E%92%E7%A8%8B.md">複習排程.md</a></td>
+<td>逐題的間隔複習排程：以「題」而不是「整篇筆記」為單位，盒子 1～5 間隔 1／3／7／14／30 天，答對升格、答錯回盒子 1，每天最多 10 題；解決整篇重做造成每天複習要花半天的問題</td>
+<td><code>間隔重複</code> <code>Leitner</code> <code>SRS</code> <code>複習排程</code> <code>盒子</code></td>
+</tr>
+<tr>
+<td><a href="learning/%E5%AD%B8C%E8%88%87kernel%E5%B0%8DGo%E5%BE%8C%E7%AB%AF%E6%9C%89%E6%B2%92%E6%9C%89%E7%94%A8-%E5%BA%95%E5%B1%A4%E7%9F%A5%E8%AD%98%E6%80%8E%E9%BA%BC%E6%8E%A5%E5%88%B0%E6%97%A5%E5%B8%B8%E5%B7%A5%E4%BD%9C%E8%88%87%E7%B3%BB%E7%B5%B1%E8%A8%AD%E8%A8%88.html">學C與kernel對Go後端有沒有用</a></td>
+<td>底層路線對 Go 後端有用，因為 Go runtime 把行程／執行緒／記憶體／網路藏起來、出事時才看起來玄；兩個實測：用了 <code>net</code> 的 Go 執行檔預設有 <code>INTERP</code>（進 scratch／Alpine 會 <code>no such file or directory</code>）、卡在系統呼叫的 goroutine 各佔一條 OS 執行緒；六站對應到後端真實問題的對照表；系統設計分單機與分散式兩層，本路線只覆蓋單機層，分散式要另補 DDIA；kernel 段 K2 以後是職涯選擇而非必要</td>
+<td><code>Go runtime</code> <code>goroutine</code> <code>GOMAXPROCS</code> <code>CGO_ENABLED</code> <code>INTERP</code> <code>netpoller</code> <code>epoll</code> <code>cgroup</code> <code>CFS throttling</code> <code>OOMKilled</code> <code>GOMEMLIMIT</code> <code>system design</code> <code>DDIA</code> <code>p99</code></td>
+</tr>
+</tbody>
+</table>
+</div></section>
+<section class="domain"><h2 id="linux">Linux 筆記索引 <span class="count">51 篇 · <a href="linux/README.html">完整 README</a></span></h2>
+<div class="intro"><p>這個目錄收錄 Linux 系統管理、排查與實戰紀錄。筆記檔案都平放在本目錄，下面的索引依主題分成十類；一篇筆記只會出現在一類裡。</p>
+</div>
+<div class="cat"><h3 id="linux-通用方法論">通用方法論</h3>
+<p>不綁定特定工具的思考框架，遇到任何「東西不見了／行為不對」先讀這篇。</p>
+<table>
+<thead>
+<tr>
+<th>筆記</th>
+<th>主題</th>
+<th>關鍵字</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="linux/%E6%8E%92%E6%9F%A5%E6%96%B9%E6%B3%95%E8%AB%96.html">排查方法論</a></td>
+<td>通用方法論：東西不在「該在的地方」時怎麼找——先推翻前提、再掃命名空間、挖二進位檔、觀察執行時行為</td>
+<td><code>find</code> <code>strings</code> <code>strace</code> <code>lsof</code> <code>dpkg -S</code> <code>對照組</code> <code>ENOENT</code></td>
+</tr>
+</tbody>
+</table>
+</div><div class="cat"><h3 id="linux-套件管理dpkg--dkms">套件管理（dpkg / dkms）</h3>
+<p><code>.deb</code> 的安裝、查詢與修復，以及 dpkg 管不到的核心模組由誰接手。</p>
+<table>
+<thead>
+<tr>
+<th>筆記</th>
+<th>主題</th>
+<th>關鍵字</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="linux/dpkg%E5%AE%8C%E6%95%B4%E4%BD%BF%E7%94%A8%E6%8C%87%E5%8D%97.html">dpkg完整使用指南</a></td>
+<td>dpkg 只負責「解開 .deb、寫資料庫」，不下載也不解相依；<code>.deb</code> 的三段結構、unpack／configure 兩階段狀態機、<code>ii</code>／<code>rc</code>／<code>iU</code>／<code>iF</code> 各代表什麼、conffile 三方比對為何有時問有時不問，以及 <code>--configure -a</code> → <code>--fix-broken</code> → <code>--force-overwrite</code> 的修復順序</td>
+<td><code>dpkg -i</code> <code>dpkg -L</code> <code>dpkg -S</code> <code>dpkg -V</code> <code>dpkg --audit</code> <code>dpkg --configure -a</code> <code>dpkg-deb</code> <code>dpkg-query -W -f</code> <code>conffiles</code> <code>--force-overwrite</code> <code>maintainer script</code> <code>trigger</code> <code>/var/lib/dpkg</code> <code>dpkg-divert</code> <code>apt-mark hold</code></td>
+</tr>
+<tr>
+<td><a href="linux/%E5%BE%9Edpkg%E5%8F%8D%E6%8E%A8%E5%A5%97%E4%BB%B6%E7%9A%84%E5%95%9F%E5%8B%95%E5%91%BD%E4%BB%A4.html">從dpkg反推套件的啟動命令</a></td>
+<td><code>.deb</code> 沒有 entry point 欄位，dpkg 查不到「啟動命令」；入口只會在三處——PATH 執行檔、<code>.desktop</code> 的 <code>Exec=</code>、systemd unit 的 <code>ExecStart=</code>，一律用 <code>dpkg -L</code> 列檔案再反推；實測 apifox 整包在 <code>/opt</code> 且 <code>/usr/bin</code> 無檔案，唯一線索就是 <code>.desktop</code></td>
+<td><code>dpkg -L</code> <code>dpkg-deb -c</code> <code>.desktop</code> <code>Exec=</code> <code>TryExec</code> <code>field code %U</code> <code>gtk-launch</code> <code>ExecStart</code> <code>systemd unit</code> <code>update-alternatives</code> <code>dpkg -S</code> <code>readlink -f</code> <code>/opt</code></td>
+</tr>
+<tr>
+<td><a href="linux/dpkg%E8%88%87dkms%E7%9A%84%E9%97%9C%E4%BF%82.html">dpkg與dkms的關係</a></td>
+<td>dpkg 與 dkms 的分工：前者管一般軟體，後者管會隨核心變動的第三方驅動</td>
+<td><code>dpkg</code> <code>dkms</code> <code>apt</code> <code>kernel module</code></td>
+</tr>
+</tbody>
+</table>
+</div><div class="cat"><h3 id="linux-核心與驅動">核心與驅動</h3>
+<p>核心模組、DKMS 重編譯、以及核心編譯期選項造成的「功能根本不存在」。</p>
+<table>
+<thead>
+<tr>
+<th>筆記</th>
+<th>主題</th>
+<th>關鍵字</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="linux/NVIDIA-DKMS%E6%A0%B8%E5%BF%83%E5%8D%87%E7%B4%9A%E5%A4%B1%E6%95%97%E6%8E%92%E6%9F%A5.html">NVIDIA-DKMS核心升級失敗排查</a></td>
+<td><code>apt upgrade</code> 時 NVIDIA DKMS 模組對新核心編譯失敗，由 570-open 升級到 595-open 的完整排查與收尾</td>
+<td><code>dkms</code> <code>nvidia</code> <code>apt</code> <code>kernel</code> <code>iF/iU</code> <code>force-overwrite</code> <code>initramfs</code></td>
+</tr>
+<tr>
+<td><a href="linux/%E6%A0%B8%E5%BF%83%E6%A8%A1%E7%B5%84%E6%AA%A2%E6%9F%A5.html">核心模組檢查</a></td>
+<td>核心模組的三層「安裝」概念（載入中／檔案就位／套件提供）、各層查法，以及「驅動裝了卻沒作用」的排查順序</td>
+<td><code>lsmod</code> <code>modinfo</code> <code>modprobe</code> <code>vermagic</code> <code>lspci -k</code> <code>dkms</code> <code>secure boot</code> <code>initramfs</code></td>
+</tr>
+<tr>
+<td><a href="linux/procfs%E8%88%87conntrack%E9%81%BA%E5%A4%B1%E5%95%8F%E9%A1%8C.html">procfs與conntrack遺失問題</a></td>
+<td><code>/proc</code> 虛擬檔案系統的本質與兩大類內容；為何模組載入了 <code>/proc/net/nf_conntrack</code> 仍不存在（編譯期 vs 執行期）</td>
+<td><code>procfs</code> <code>/proc/sys</code> <code>sysctl</code> <code>nf_conntrack</code> <code>netlink</code> <code>sysfs</code> <code>kernel config</code></td>
+</tr>
+<tr>
+<td><a href="linux/sysctl%E6%98%AF%E4%BB%80%E9%BA%BC-%E6%A0%B8%E5%BF%83%E5%8F%83%E6%95%B8%E7%9A%84%E8%AE%80%E5%AF%AB%E8%88%87%E6%8C%81%E4%B9%85%E5%8C%96.html">sysctl是什麼-核心參數的讀寫與持久化</a></td>
+<td>sysctl 只是 <code>/proc/sys</code> 的命令列包裝，「調參數」就是「寫檔案」；可寫與否看檔案權限（唯讀的是儀表不是旋鈕）、持久化三目錄的兩層載入規則（檔名排序 vs 同名時目錄優先權）、<code>-</code> 前綴代表參數不存在就略過，以及「改了沒生效」的五個原因——含實測 <code>net.*</code> 是每個 network namespace 各一份，主機調了不影響容器</td>
+<td><code>sysctl -a</code> <code>sysctl -w</code> <code>sysctl -p</code> <code>sysctl --system</code> <code>/proc/sys</code> <code>/etc/sysctl.d</code> <code>/usr/lib/sysctl.d</code> <code>systemd-sysctl</code> <code>somaxconn</code> <code>inotify.max_user_watches</code> <code>vm.max_map_count</code> <code>netns</code> <code>docker --sysctl</code> <code>all vs default</code></td>
+</tr>
+<tr>
+<td><a href="linux/journalctl%E7%9C%8B%E6%9C%8D%E5%8B%99%E6%97%A5%E8%AA%8C.html">journalctl看服務日誌</a></td>
+<td>systemd 服務的 stdout／stderr 預設被 journald 收走，所以沒有 log 檔——<code>journalctl -u &lt;服務&gt;</code> 就是；journal 存的是<strong>帶結構化欄位的二進位資料庫</strong>，能用 <code>-u</code>／<code>-p</code>／<code>--since</code>／<code>-g</code> 與 <code>_PID=</code>／<code>_COMM=</code> 精確過濾（<code>tail</code> 做不到）；含完整選項（來源／過濾／輸出／命令四組）、<code>--user</code> 與 <code>--system</code> 分家、<code>/var/log/journal</code> 存不存在決定是否持久化、<code>--vacuum-*</code> 清理，以及與 OpenWrt <code>logread</code> 的逐項對照</td>
+<td><code>journalctl -u</code> <code>-f</code> <code>-e</code> <code>-n</code> <code>-b</code> <code>-p</code> <code>-g</code> <code>--since/--until</code> <code>-o json-pretty</code> <code>_PID=</code> <code>_COMM=</code> <code>_SYSTEMD_UNIT=</code> <code>-N</code> <code>-F</code> <code>--list-boots</code> <code>--disk-usage</code> <code>--vacuum-size</code> <code>--user</code> <code>StandardOutput=journal</code> <code>journald.conf Storage=</code></td>
+</tr>
+<tr>
+<td><a href="linux/openvpn-dco-dkms%E6%A0%B8%E5%BF%83%E5%8D%87%E7%B4%9A%E7%B7%A8%E8%AD%AF%E5%A4%B1%E6%95%97-%E6%A0%B8%E5%BF%83%E5%85%A7%E9%83%A8API%E6%94%B9%E4%BA%86.html">openvpn-dco-dkms核心升級編譯失敗-核心內部API改了</a></td>
+<td>新核心 7.0.0-38 改了 <code>setup_udp_tunnel_sock</code> 與 <code>proto.recvmsg</code> 的簽名，樹外 <code>ovpn-dco</code> 編不過；套件已是最新版，重裝／升級都沒用。DCO 只是加速且目前未載入，移除 <code>openvpn-dco-dkms</code>（僅 Recommends/Suggests）再 <code>dpkg --configure -a</code> 收尾；樹內 <code>ovpn.ko</code> 要 OpenVPN 2.7 才認得</td>
+<td><code>dkms</code> <code>make.log</code> <code>-Werror</code> <code>openvpn-dco-dkms</code> <code>ovpn-dco-v2</code> <code>ovpn.ko</code> <code>DCO</code> <code>apt-cache policy</code> <code>Recommends</code> <code>iF</code> <code>dpkg --configure -a</code> <code>netlink family</code></td>
+</tr>
+</tbody>
+</table>
+</div><div class="cat"><h3 id="linux-網路基礎與設定">網路基礎與設定</h3>
+<p>本機這台機器的位址、DNS、路由與連外通道是怎麼來的、怎麼設定與確認。</p>
+<table>
+<thead>
+<tr>
+<th>筆記</th>
+<th>主題</th>
+<th>關鍵字</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="linux/DHCP%E5%AE%8C%E6%95%B4%E6%B5%81%E7%A8%8B%E8%88%87%E5%B0%81%E5%8C%85%E9%80%90%E4%BD%8D%E5%85%83%E7%B5%84%E8%A7%A3%E5%89%96.html">DHCP完整流程與封包逐位元組解剖</a></td>
+<td>DHCP 取得租約的 DORA 四步逐封包解剖：四個封包的完整 hex dump 與每個欄位為何那樣填；關鍵結論是租約只在 ACK 成立、REQUEST 必須廣播好讓落選伺服器收回位址、<code>siaddr</code> 不是伺服器位址（身分在 option 54）、四種 REQUEST 靠 <code>ciaddr</code>／option 50／option 54 分辨狀態；另含 T1/T2 續約、NAK/DECLINE/RELEASE/INFORM、relay 的 <code>giaddr</code>、抓包排查對照表</td>
+<td><code>dhcp</code> <code>DORA</code> <code>bootp</code> <code>port 67/68</code> <code>xid</code> <code>chaddr</code> <code>yiaddr</code> <code>giaddr</code> <code>magic cookie</code> <code>option 53</code> <code>option 54</code> <code>option 50</code> <code>option 55</code> <code>T1/T2</code> <code>DHCPNAK</code> <code>DHCPDECLINE</code> <code>dhcp relay</code> <code>option 82</code> <code>tcpdump</code> <code>ARP probe</code></td>
+</tr>
+<tr>
+<td><a href="linux/%E7%A2%BA%E8%AA%8D%E7%B6%B2%E8%B7%AF%E4%BB%8B%E9%9D%A2%E6%98%AF%E5%90%A6%E4%BD%BF%E7%94%A8DHCP.html">確認網路介面是否使用DHCP</a></td>
+<td>三個訊號判斷網路是不是 DHCP 自動配發：<code>ip route show</code> 的 <code>proto dhcp</code>、<code>ip addr show</code> 的 <code>dynamic</code> 旗標與有限 <code>valid_lft</code>（固定 IP 是 <code>forever</code>），以及 NetworkManager 連線設定檔的 <code>ipv4.method</code>（<code>auto</code>/<code>manual</code>）</td>
+<td><code>dhcp</code> <code>ip route</code> <code>proto dhcp</code> <code>valid_lft</code> <code>dynamic</code> <code>nmcli</code> <code>ipv4.method</code> <code>dhclient</code></td>
+</tr>
+<tr>
+<td><a href="linux/%E6%9F%A5%E8%A9%A2%E7%9B%AE%E5%89%8D%E4%BD%BF%E7%94%A8%E7%9A%84DNS%E4%BC%BA%E6%9C%8D%E5%99%A8.html">查詢目前使用的DNS伺服器</a></td>
+<td>用 <code>resolvectl status</code> 查真正的上游 DNS；<code>cat /etc/resolv.conf</code> 在 systemd-resolved 系統上常只會看到本機 stub resolver <code>127.0.0.53</code>，不是真正的伺服器；並逐欄解讀 <code>resolvectl status</code> 輸出（<code>Scopes</code>、<code>+DefaultRoute</code>、Docker bridge 介面為何顯示 <code>none</code>），以及 stub resolver 與 full/recursive resolver 的差異</td>
+<td><code>resolvectl</code> <code>systemd-resolved</code> <code>/etc/resolv.conf</code> <code>stub resolver</code> <code>recursive resolver</code> <code>nmcli</code> <code>dig</code> <code>DefaultRoute</code> <code>Current Scopes</code> <code>LLMNR</code> <code>mDNS</code> <code>DNSSEC</code></td>
+</tr>
+<tr>
+<td><a href="linux/%E6%9F%A5%E8%A9%A2%E8%BD%89%E7%99%BC%E8%A1%A8%E8%88%87%E8%B7%AF%E7%94%B1%E8%A1%A8.html">查詢轉發表與路由表</a></td>
+<td>Linux 的 forwarding table 其實就是核心路由表；<code>ip route show</code> 各欄位意義、最長前綴匹配 + metric 的判斷邏輯、用 <code>ip route get</code> 直接驗證</td>
+<td><code>ip route</code> <code>route -n</code> <code>netstat -rn</code> <code>ip neigh</code> <code>ip_forward</code> <code>longest prefix match</code></td>
+</tr>
+<tr>
+<td><a href="linux/ip-rule%E8%88%87ip-route%E5%AE%8C%E6%95%B4%E6%8C%87%E5%8D%97.html">ip-rule與ip-route完整指南</a></td>
+<td>路由決策是兩層：<code>ip rule</code>（RPDB）先決定查哪張表，才輪到表內的最長前綴匹配；含命令文法（<code>ip route add/change/replace/append/del/get/save</code>、<code>ip rule</code> 的 SELECTOR＋ACTION 完整清單、<code>ip route help</code> 可自查文法、<code>-br</code>/<code>-j</code> 輸出）與一整節實例（靜態路由、雙 ISP、VPN 分流、<code>throw</code>、blackhole、多路徑、netns、備份還原、為何腳本要用 <code>replace</code> 而 <code>ip rule add</code> 會重複疊加）；預設三條規則為何讓人感覺不到第一層、規則命中但表是空的會悄悄掉回下一條（「規則沒作用」的常見真因）、<code>local</code> 表與 <code>local</code> 路由型別的意義，並用 <code>ip route get</code> 逐一驗證；最後逐字解釋 TPROXY 那兩行為何能讓封包留在本機</td>
+<td><code>ip rule</code> <code>RPDB</code> <code>policy routing</code> <code>fwmark</code> <code>uidrange</code> <code>lookup table</code> <code>rt_tables</code> <code>table local/main/default</code> <code>route type local</code> <code>throw</code> <code>blackhole</code> <code>ip route get</code> <code>ip route replace</code> <code>多出口</code> <code>ip rule flush 的危險</code> <code>conntrack 不重新路由</code></td>
+</tr>
+<tr>
+<td><a href="linux/SSH%E8%B5%B0%E4%BB%A3%E7%90%86%E8%A8%AD%E5%AE%9A.html">SSH走代理設定</a></td>
+<td>讓 ssh 連線走 HTTP/SOCKS 代理的幾種方式：<code>ProxyCommand</code> + <code>nc</code>/<code>connect</code>，以及走跳板機的 <code>ProxyJump</code></td>
+<td><code>ssh</code> <code>ProxyCommand</code> <code>ProxyJump</code> <code>socks5</code> <code>nc</code> <code>connect</code></td>
+</tr>
+<tr>
+<td><a href="linux/scp%E7%94%A8%E6%B3%95%E8%88%87OpenSSH9%E7%9A%84%E5%8D%94%E5%AE%9A%E8%AE%8A%E5%8B%95.html">scp用法與OpenSSH9的協定變動</a></td>
+<td><code>scp 來源 目的地</code>，冒號決定是本機還是遠端；<strong>OpenSSH 8.8+ 起底層改用 SFTP 協定</strong>，對方沒有 sftp-server 就失敗——實測本機 9.6 對 dropbear 路由器下載直接 <code>Connection closed</code>，加 <code>-O</code> 退回舊協定才成功；含全部選項（<code>-P</code> 與 <code>-p</code> 大小寫意義相反、<code>-l</code> 限速、<code>-J</code> 跳板、<code>-B</code> 批次）、<code>ssh</code>＋<code>tar</code> 管線的萬用替代法，以及常見錯誤對照</td>
+<td><code>scp</code> <code>-O</code> <code>-P vs -p</code> <code>-r</code> <code>-C</code> <code>-l</code> <code>-J</code> <code>-B</code> <code>-T</code> <code>-X nrequests</code> <code>sftp-server</code> <code>dropbear</code> <code>OpenSSH 9</code> <code>ssh 管線</code> <code>tar 串流</code> <code>rsync</code> <code>~/.ssh/config</code></td>
+</tr>
+<tr>
+<td><a href="linux/%E8%AE%93%E6%95%B4%E5%80%8B%E7%B3%BB%E7%B5%B1%E8%B5%B0SOCKS5%E4%BB%A3%E7%90%86.html">讓整個系統走SOCKS5代理</a></td>
+<td>Linux 沒有「全系統代理」——<code>all_proxy</code> 只是環境變數慣例，只有願意讀它的程式才理；四層方案（環境變數／各程式設定檔／<code>LD_PRELOAD</code> 攔截／TUN 虛擬網卡）與各自涵蓋範圍；實測 <code>.zshrc</code> 只對互動 shell 有效、<code>socks5://</code> 與 <code>socks5h://</code> 的 DNS 差別、wget 完全不支援 SOCKS、<code>sudo</code> 會清掉變數</td>
+<td><code>all_proxy</code> <code>socks5h</code> <code>http_proxy</code> <code>no_proxy</code> <code>/etc/environment</code> <code>environment.d</code> <code>.zshenv</code> <code>pam_env</code> <code>sudo env_keep</code> <code>httpoxy</code> <code>apt.conf.d</code> <code>gsettings proxy</code> <code>proxychains4</code> <code>LD_PRELOAD</code> <code>TUN mode</code> <code>clash-verge</code> <code>redsocks</code></td>
+</tr>
+<tr>
+<td><a href="linux/clash-verge%E6%80%8E%E9%BA%BC%E7%94%A8-%E6%B5%81%E9%87%8F%E8%A6%81%E5%85%88%E9%80%B2%E5%BE%97%E5%8E%BB%E6%A0%B8%E5%BF%83.html">clash-verge怎麼用-流量要先進得去核心</a></td>
+<td>clash-verge 是 GUI 外殼，幹活的是 <code>verge-mihomo</code> 核心，TUN 靠 root helper；重點不是按哪個鈕，而是流量用哪條路進核心（系統代理／TUN／手動指埠）——實測本機核心在跑但連線數為 0 完全空轉；含 fake-ip 為何是 TUN 的關鍵、proxy-group 與規則分流、把自架 SOCKS5 接進來的正確位置（Merge 而非產生物）、六個誤判坑與救援順序</td>
+<td><code>clash-verge</code> <code>verge-mihomo</code> <code>mihomo</code> <code>TUN mode</code> <code>service mode</code> <code>CAP_NET_ADMIN</code> <code>mixed-port</code> <code>external-controller</code> <code>fake-ip</code> <code>dns-hijack</code> <code>auto-route</code> <code>strict-route</code> <code>gvisor</code> <code>proxy-group</code> <code>Selector</code> <code>URLTest</code> <code>MATCH</code> <code>/connections</code></td>
+</tr>
+<tr>
+<td><a href="linux/iptables%E8%88%87nftables%E6%80%8E%E9%BA%BC%E7%94%A8.html">iptables與nftables怎麼用</a></td>
+<td>兩者不是兩套防火牆而是 netfilter 的兩代前端——實測 Ubuntu 上的 <code>iptables</code> 其實是 <code>iptables-nft</code> 相容層（<code>iptables -V</code> 顯示 <code>(nf_tables)</code>），OpenWrt 24.10 則連裝都沒裝 iptables；含五個 hook 的封包路徑（三條路線＋完整流程圖）、hook 與 jump 為何是兩回事、<code>accept</code>／<code>drop</code> 的作用範圍、<code>nat</code> 鏈只處理每條連線首包、<code>iifname</code>／<code>oifname</code> 靠「這個 hook 知不知道答案」來記、iptables 四表五鏈與 nft 自宣告 table/chain 的用法、官方 <code>iptables-translate</code> 實測產生的語法對照表、<code>-A</code> vs <code>-I</code> 順序陷阱、<code>nft -f</code> 的原子更新、為什麼 Ubuntu 上除了 Docker 什麼規則都沒有，以及規則沒作用時的五步排查</td>
+<td><code>iptables</code> <code>nftables</code> <code>nft</code> <code>netfilter</code> <code>iptables-nft</code> <code>iptables-legacy</code> <code>update-alternatives</code> <code>hook</code> <code>prerouting</code> <code>postrouting</code> <code>conntrack</code> <code>ct state</code> <code>MASQUERADE</code> <code>DNAT</code> <code>SNAT</code> <code>handle</code> <code>vmap</code> <code>set</code> <code>iptables-translate</code> <code>nft -f</code> <code>iptables-save</code> <code>DROP vs REJECT</code></td>
+</tr>
+<tr>
+<td><a href="linux/TPROXY%E8%88%87REDIRECT%E7%9A%84%E5%B7%AE%E5%88%A5%E8%88%87%E5%8E%9F%E7%90%86.html">TPROXY與REDIRECT的差別與原理</a></td>
+<td>REDIRECT 是 DNAT 特例、<strong>改寫</strong>目的地後靠 conntrack 與 <code>SO_ORIGINAL_DST</code> 問回原址；TPROXY <strong>完全不改封包</strong>、靠 <code>IP_TRANSPARENT</code> 交付並用 <code>IP_RECVORIGDSTADDR</code> 直接讀出原址；由此推出 REDIRECT 為何機制上做不到 UDP（UDP 沒有 per-connection socket 可查 conntrack），以及兩者 hook 限制不同——<code>redirect</code> 可用於 output 故能代理本機流量，<code>tproxy</code> 只能 prerouting；含完整對照表、決策表與 nft／v2ray 兩邊的寫法對照</td>
+<td><code>TPROXY</code> <code>REDIRECT</code> <code>DNAT</code> <code>SO_ORIGINAL_DST</code> <code>IP_RECVORIGDSTADDR</code> <code>IP_TRANSPARENT</code> <code>CAP_NET_ADMIN</code> <code>conntrack</code> <code>type nat vs type filter</code> <code>priority dstnat/mangle</code> <code>fwmark</code> <code>ip route local</code> <code>dokodemo-door</code> <code>sockopt.tproxy</code> <code>UDP/QUIC</code></td>
+</tr>
+<tr>
+<td><a href="linux/%E4%BB%A3%E7%90%86%E8%88%87VPN%E7%9A%84%E6%A0%B9%E6%9C%AC%E5%B7%AE%E5%88%A5-%E7%82%BA%E4%BB%80%E9%BA%BC%E9%9C%80%E8%A6%81sniffing.html">代理與VPN的根本差別-為什麼需要sniffing</a></td>
+<td>VPN 轉發<strong>IP 封包</strong>、代理轉發<strong>連線</strong>——vmess 的請求標頭必填目的位址，協定裡沒有「這是封包請幫我路由」的語意，所以目的地一定要給；TPROXY 交給 v2ray 的也是已建立的 socket 而非封包；於是真正的問題是「給 IP 還是給域名」，而域名要靠 sniffing 從 TLS SNI／HTTP Host／QUIC 還原，好處是免疫 DNS 污染、域名分流可用、CDN 就近，代價是延遲、嗅不到就退回 IP、<code>destOverride</code> 可能改錯目標</td>
+<td><code>L3 隧道 vs L7 代理</code> <code>vmess 請求標頭</code> <code>sniffing</code> <code>destOverride</code> <code>routeOnly</code> <code>TLS SNI</code> <code>HTTP Host</code> <code>QUIC</code> <code>fakedns</code> <code>IP_RECVORIGDSTADDR</code> <code>DNS 污染</code> <code>geosite vs geoip</code> <code>CDN 就近解析</code></td>
+</tr>
+<tr>
+<td><a href="linux/%E7%89%B9%E6%AE%8A%E7%94%A8%E9%80%94IP%E4%BD%8D%E5%9D%80%E5%8D%80%E5%A1%8A.html">特殊用途IP位址區塊</a></td>
+<td>透明代理 bypass 清單裡那些 CIDR 出自 IANA 的特殊用途位址註冊表（RFC 1918／1122／3927／1112 等），共同特徵是「不是公網上可路由的目的地」；逐項說明用途，並指出常見清單漏掉的 <code>100.64.0.0/10</code>（CGNAT）與 <code>198.18.0.0/15</code>（clash fake-ip 正用這段）；含本機兩台機器位址的落點對照、比較完整的一份清單，以及同一份知識在 DNS rebinding 防護／反欺騙／split-tunnel 的重複用途</td>
+<td><code>RFC 1918</code> <code>RFC 6598 CGNAT</code> <code>RFC 3927 link-local</code> <code>RFC 5737 TEST-NET</code> <code>RFC 2544 benchmarking</code> <code>IANA Special-Purpose Registry</code> <code>Globally Reachable</code> <code>0.0.0.0/8</code> <code>224.0.0.0/4</code> <code>240.0.0.0/4</code> <code>flags interval</code> <code>bypass set</code> <code>DNS rebinding</code> <code>anti-spoofing</code></td>
+</tr>
+<tr>
+<td><a href="linux/nft%E5%AE%8C%E6%95%B4%E7%94%A8%E6%B3%95-%E5%BE%9E%E5%91%BD%E4%BB%A4%E5%88%B0%E8%A6%8F%E5%89%87%E8%AA%9E%E6%B3%95.html">nft完整用法-從命令到規則語法</a></td>
+<td>nft 的單一完整參考，分兩層：<strong>命令層</strong>（<code>nft &lt;動詞&gt; &lt;物件&gt; &lt;識別&gt; [規格]</code> 的統一骨架、<code>add</code>/<code>create</code>/<code>insert</code> 的差別、刪 rule 只能用 handle、<code>-a</code>/<code>-c</code>/<code>-f</code> 三個關鍵選項、<code>describe</code> 查欄位可用值、<code>nft -f</code> 的原子套用）與<strong>規則層</strong>（<code>type filter hook forward priority filter;</code> 逐 token 拆解、鏈名 vs hook 與兩個 <code>filter</code> 的同名陷阱、<code>{}</code> 的四種用途、<code>.</code> 串接、<code>&amp;</code>/<code>==</code> 位元遮罩）</td>
+<td><code>nft add/create/insert/replace/delete/flush</code> <code>handle</code> <code>position/index</code> <code>nft -a</code> <code>nft -c</code> <code>nft -f</code> <code>nft describe</code> <code>nft monitor</code> <code>具名集合</code> <code>element</code> <code>vmap</code> <code>table/chain/rule</code> <code>family inet</code> <code>type filter/nat/route</code> <code>hook</code> <code>priority</code> <code>policy</code> <code>expression</code> <code>statement</code> <code>concatenation</code> <code>tcp flags 遮罩</code> <code>MSS clamping</code></td>
+</tr>
+<tr>
+<td><a href="linux/netstat%E6%80%8E%E9%BA%BC%E7%94%A8-%E4%BB%A5%E5%8F%8A%E8%A9%B2%E6%94%B9%E7%94%A8ss%E7%9A%84%E7%90%86%E7%94%B1.html">netstat怎麼用-以及該改用ss的理由</a></td>
+<td>讀懂三欄就有方向：<code>Local Address</code> 決定誰連得到（實測 clash 綁 <code>127.0.0.1:7897</code> 正是 <code>allow-lan: false</code> 的效果）、<code>State</code> 看連線走到哪、<code>Recv-Q/Send-Q</code> 在 ESTABLISHED 與 LISTEN 下意義完全不同（後者是 accept 佇列與 backlog 上限）；另含 <code>TIME_WAIT</code> 是協定正常而 <code>CLOSE_WAIT</code> 是程式沒關 socket 的責任歸屬、netstat→ss 對照與 ss 為何更快</td>
+<td><code>netstat -tulnp</code> <code>ss</code> <code>net-tools</code> <code>iproute2</code> <code>sock_diag</code> <code>Recv-Q</code> <code>Send-Q</code> <code>backlog</code> <code>somaxconn</code> <code>LISTEN</code> <code>TIME_WAIT</code> <code>CLOSE_WAIT</code> <code>SYN_SENT</code> <code>0.0.0.0 vs 127.0.0.1</code> <code>allow-lan</code> <code>lsof -i</code> <code>ss -tni</code> <code>netns</code></td>
+</tr>
+<tr>
+<td><a href="linux/%E4%BB%80%E9%BA%BC%E6%98%AFbacklog-TCP%E4%BA%A4%E6%8F%A1%E8%83%8C%E5%BE%8C%E7%9A%84%E5%85%A9%E5%80%8B%E4%BD%87%E5%88%97.html">什麼是backlog-TCP交握背後的兩個佇列</a></td>
+<td>連線是核心建的、程式 <code>accept()</code> 只是領走，所以中間需要佇列——這就是 backlog；三向交握對應 SYN queue 與 Accept queue 兩個佇列，上限分別來自 <code>tcp_max_syn_backlog</code> 與 <code>min(listen backlog, somaxconn)</code>；Accept queue 滿時預設「默默丟棄 ACK」，所以體感是偶爾很慢而非連線被拒；含本機 511/200/64/4096 各自的來源與 <code>ListenOverflows</code> 判斷法</td>
+<td><code>backlog</code> <code>listen()</code> <code>accept()</code> <code>SYN queue</code> <code>accept queue</code> <code>somaxconn</code> <code>tcp_max_syn_backlog</code> <code>tcp_syncookies</code> <code>tcp_abort_on_overflow</code> <code>ListenOverflows</code> <code>ListenDrops</code> <code>nstat</code> <code>ss -ltn</code> <code>SYN_RECV</code> <code>SYN flood</code></td>
+</tr>
+<tr>
+<td><a href="linux/%E5%A4%9A%E5%BC%B5nft%E8%A1%A8%E7%9A%84%E5%9F%B7%E8%A1%8C%E9%A0%86%E5%BA%8F%E8%88%87ip-rule%E7%9A%84%E4%BD%8D%E7%BD%AE.html">多張nft表的執行順序與ip-rule的位置</a></td>
+<td>核心不選表：表只是命名空間，所有表掛在同一 hook 的 base chain 依 <code>priority</code> 由小到大全部執行（鏈名無意義、family 要對得上）；<code>accept</code> 只結束自己那條、<code>drop</code>／<code>policy drop</code> 才終結，所以放行要每張表都同意；多條 nat 鏈由第一個做出轉換的決定；<code>ip rule</code>／<code>ip route</code> 是夾在 hook 之間的路由判定站——進來的封包先 prerouting 後路由（故 mark／DNAT 要在 prerouting 做），本機發出的先路由後 output（故要 <code>type route</code> 觸發重新路由）；用 <code>nft list hooks</code>、<code>nftrace</code>、<code>ip route get</code> 驗證</td>
+<td><code>nft list hooks</code> <code>base chain</code> <code>priority</code> <code>hook</code> <code>table 命名空間</code> <code>accept vs drop</code> <code>policy drop</code> <code>family inet/ip/netdev</code> <code>conntrack -200</code> <code>routing decision</code> <code>ip rule fwmark</code> <code>type route</code> <code>reroute</code> <code>dstnat</code> <code>srcnat</code> <code>nftrace</code> <code>nft monitor trace</code> <code>ip route get</code></td>
+</tr>
+<tr>
+<td><a href="linux/socket%E6%98%AF%E4%BB%80%E9%BA%BC-%E5%BE%9E%E6%A0%B8%E5%BF%83%E7%9C%8B%E9%80%A3%E7%B7%9A%E7%9A%84%E7%AB%AF%E9%BB%9E.html">socket是什麼-從核心看連線的端點</a></td>
+<td>socket 是核心裡代表<strong>一個端點</strong>的物件（fd → <code>struct file</code> → <code>struct socket</code> → <code>struct sock</code>），不是連線；一條 TCP 連線是兩端各一個 socket 加四元組，監聽 socket 不屬於任何連線、每次交握核心另生新 socket（實測 2 條連線 = 5 個 socket）；UDP 一個 socket 收所有人；封包進來時核心先用四元組找已建立的 socket、再用目的位址:埠找監聽 socket、都沒有就 RST——TPROXY 就是跳過這步事先指定 socket，並由此解釋 <code>IP_TRANSPARENT</code>、TCP 用 <code>getsockname()</code> 取原始目的地、UDP 要 <code>IP_RECVORIGDSTADDR</code></td>
+<td><code>socket</code> <code>struct sock</code> <code>fd</code> <code>四元組</code> <code>LISTEN</code> <code>ESTAB</code> <code>UNCONN</code> <code>bind</code> <code>listen</code> <code>accept</code> <code>connect</code> <code>recvfrom</code> <code>getsockname</code> <code>demultiplexing</code> <code>Connection refused</code> <code>IP_TRANSPARENT</code> <code>ss -tanpe</code> <code>/proc/&lt;pid&gt;/fd</code></td>
+</tr>
+</tbody>
+</table>
+</div><div class="cat"><h3 id="linux-網路查詢與追蹤">網路查詢與追蹤</h3>
+<p>封包出了本機之後——走哪條路、經過哪些 AS／ISP、那些號碼背後是誰。</p>
+<table>
+<thead>
+<tr>
+<th>筆記</th>
+<th>主題</th>
+<th>關鍵字</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="linux/%E6%9F%A5%E8%A9%A2%E8%AB%8B%E6%B1%82%E7%B6%93%E9%81%8E%E5%93%AA%E4%BA%9BAS%E8%88%87ISP.html">查詢請求經過哪些AS與ISP</a></td>
+<td>查連線經過哪些 AS／ISP 必然是兩步：traceroute 問出每跳 IP，再靠 BGP 資料把 IP 對照成 ASN（<code>traceroute -A</code>／<code>mtr -z</code>／Team Cymru）；並說明 <code>*</code> 不等於丟包、去程不等於回程、traceroute 量不到真正的 AS_PATH</td>
+<td><code>traceroute -A</code> <code>mtr -z</code> <code>tracepath</code> <code>whois.cymru.com</code> <code>origin.asn.cymru.com</code> <code>peer.asn.cymru.com</code> <code>ASN</code> <code>BGP</code> <code>AS_PATH</code> <code>IXP</code> <code>anycast</code> <code>MPLS</code></td>
+</tr>
+<tr>
+<td><a href="linux/%E6%9F%A5ASN%E5%B1%AC%E6%96%BC%E5%93%AA%E5%AE%B6%E5%85%AC%E5%8F%B8.html">查ASN屬於哪家公司</a></td>
+<td>查 ASN 背後的公司有三個來源：Cymru／bgp.tools 快查、RDAP 的 registrant 才是法人名、RIR 的 <code>aut-num</code> 給完整聯絡資料；並解釋 <code>as-name</code>／<code>descr</code> 為何不是公司名、註冊資料為何常過時，以及公司名反查 ASN</td>
+<td><code>whois -h whois.cymru.com</code> <code>bgp.tools</code> <code>RDAP</code> <code>rdap.org/autnum</code> <code>aut-num</code> <code>as-name</code> <code>descr</code> <code>registrant</code> <code>RIPEstat</code> <code>searchcomplete</code></td>
+</tr>
+<tr>
+<td><a href="linux/RIR%E6%98%AF%E4%BB%80%E9%BA%BC-IANA%E8%88%87ARIN-APNIC%E7%9A%84%E5%88%86%E5%B7%A5.html">RIR是什麼-IANA與ARIN-APNIC的分工</a></td>
+<td>ARIN／APNIC 等五個 RIR 是 IP 與 ASN 的區域發放機構；IANA → RIR → NIR／LIR → 使用者的階層、該問哪台 whois、以及兩個實測矛盾（號碼區塊管理者不等於登記的 RIR、1990 年的 legacy 配發）、IPv4 耗盡與 4-byte ASN</td>
+<td><code>RIR</code> <code>IANA</code> <code>ARIN</code> <code>APNIC</code> <code>RIPE NCC</code> <code>LACNIC</code> <code>AFRINIC</code> <code>NIR</code> <code>LIR</code> <code>whois.iana.org</code> <code>RDAP bootstrap</code> <code>LEGACY</code> <code>AS_TRANS</code> <code>CGNAT</code></td>
+</tr>
+<tr>
+<td><a href="linux/mtr%E6%94%B9%E7%94%A8TCP%E6%88%96UDP%E6%8E%A2%E6%B8%AC.html">mtr改用TCP或UDP探測</a></td>
+<td>mtr 預設送 ICMP ECHO，<code>-T</code>／<code>-u</code> 可改送 TCP SYN／UDP，但中途跳點的回覆一律是 ICMP <code>time exceeded</code>——換協定只影響「封包出不出得去」；附三種模式的實測對照、中間跳點 Loss%／RTT 為何不可信、<code>cap_net_raw</code> 免 sudo 的原理</td>
+<td><code>mtr -T</code> <code>-P</code> <code>-u</code> <code>-S</code> <code>ICMP time exceeded</code> <code>TTL</code> <code>ECMP</code> <code>rate limit</code> <code>cap_net_raw</code> <code>mtr-packet</code> <code>CGNAT</code></td>
+</tr>
+</tbody>
+</table>
+</div><div class="cat"><h3 id="linux-shell-與重新導向">Shell 與重新導向</h3>
+<p>shell 的語法真相與 fd 0／1／2 這三條線怎麼接。</p>
+<table>
+<thead>
+<tr>
+<th>筆記</th>
+<th>主題</th>
+<th>關鍵字</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="linux/shell%E6%A2%9D%E4%BB%B6%E5%88%A4%E6%96%B7%E6%B8%AC%E8%A9%A6.html">shell條件判斷測試</a></td>
+<td><code>[</code> 其實是命令不是語法，由此推出空格與引號的所有規則；<code>[ ]</code> / <code>[[ ]]</code> / <code>(( ))</code> 的取捨與 dash 可攜性陷阱</td>
+<td><code>test</code> <code>[[ ]]</code> <code>(( ))</code> <code>exit status</code> <code>quoting</code> <code>dash</code> <code>sh</code></td>
+</tr>
+<tr>
+<td><a href="linux/shell%E7%9A%84for%E8%BF%B4%E5%9C%88%E8%AA%9E%E6%B3%95.html">shell的for迴圈語法</a></td>
+<td><code>for</code> 只有三種形式（清單／隱含 <code>&quot;$@&quot;</code>／C 風格非 POSIX），九成的 bug 不在 <code>for</code> 而在「清單是怎麼被切出來的」；含七個實測陷阱——<code>$(ls)</code> 被分詞而 glob 不會、bash 的 <code>{1..$n}</code> 因展開順序印出字面值、glob 無配對時 bash 給字面值而 zsh 直接失敗、bash 管線讓迴圈跑在子 shell 導致變數改動消失（zsh 不會）；並說明逐行處理該用 <code>while IFS= read -r</code></td>
+<td><code>for in</code> <code>for ((;;))</code> <code>do/done</code> <code>break N</code> <code>continue N</code> <code>word splitting</code> <code>IFS</code> <code>glob</code> <code>nullglob</code> <code>brace expansion</code> <code>seq</code> <code>子 shell</code> <code>lastpipe</code> <code>process substitution</code> <code>read -r -d</code> <code>find -print0</code></td>
+</tr>
+<tr>
+<td><a href="linux/%E8%BC%B8%E5%87%BA%E9%87%8D%E6%96%B0%E5%B0%8E%E5%90%91%E8%88%87dev-null.html">輸出重新導向與dev-null</a></td>
+<td>fd 0／1／2 是三條獨立的線；<code>/dev/null</code> 是寫入即丟、讀取即 EOF 的字元裝置；<code>2&gt;&amp;1</code> 是複製 fd 1「當下」的連接，所以 <code>&gt;/dev/null 2&gt;&amp;1</code> 與 <code>2&gt;&amp;1 &gt;/dev/null</code> 結果不同；<code>2&gt;1</code> 會建立名為 <code>1</code> 的檔案；<code>$2</code> 是位置參數與重新導向無關</td>
+<td><code>/dev/null</code> <code>2&gt;&amp;1</code> <code>&amp;&gt;</code> <code>stdin</code> <code>stdout</code> <code>stderr</code> <code>file descriptor</code> <code>redirection</code> <code>pipe</code> <code>positional parameter</code></td>
+</tr>
+<tr>
+<td><a href="linux/fd%E6%98%AF%E4%BB%80%E9%BA%BC-%E8%A1%8C%E7%A8%8B%E7%9A%84%E6%AA%94%E6%A1%88%E6%8F%8F%E8%BF%B0%E7%AC%A6%E8%A1%A8.html">fd是什麼-行程的檔案描述符表</a></td>
+<td>fd 只是行程 fd 表的整數索引，編號離開行程就沒意義；關鍵是「fd → open file description → inode」三層結構，<code>dup</code>／<code>fork</code> 共享中間那層（共用 offset）而兩次 <code>open</code> 不共享；實測 chrome 479 個 fd 的型別分布（socket／pipe／eventfd／epoll／<code>(deleted)</code>）說明「一切皆檔案」，含 <code>(deleted)</code> 造成 df/du 對不上、<code>EMFILE</code> vs <code>ENFILE</code> 三層上限、以及 fd 洩漏與 <code>CLOSE_WAIT</code> 的交叉驗證</td>
+<td><code>file descriptor</code> <code>/proc/PID/fd</code> <code>open file description</code> <code>offset</code> <code>dup</code> <code>dup2</code> <code>fork</code> <code>SCM_RIGHTS</code> <code>socket:[]</code> <code>anon_inode</code> <code>eventfd</code> <code>epoll</code> <code>(deleted)</code> <code>lsof +L1</code> <code>ulimit -n</code> <code>fs.nr_open</code> <code>fs.file-max</code> <code>EMFILE</code> <code>ENFILE</code> <code>LimitNOFILE</code> <code>fd leak</code></td>
+</tr>
+<tr>
+<td><a href="linux/%E5%BE%9E%E7%B5%82%E7%AB%AF%E6%A9%9F%E5%95%9F%E5%8B%95GUI%E7%A8%8B%E5%BC%8F%E4%B8%A6%E8%84%AB%E9%9B%A2%E7%B5%82%E7%AB%AF%E6%A9%9F.html">從終端機啟動GUI程式並脫離終端機</a></td>
+<td>關終端機程式跟著死是因為 shell 把 SIGHUP 轉發給 job、一直印輸出是因為 stdout/stderr 繼承自 pty；兩者要分開處理——<code>setsid -f prog &gt;/dev/null 2&gt;&amp;1</code> 最徹底；另說明 <code>code</code> 本身就會 detach 的特例</td>
+<td><code>setsid</code> <code>nohup</code> <code>disown</code> <code>&amp;!</code> <code>SIGHUP</code> <code>session</code> <code>controlling terminal</code> <code>/dev/null</code> <code>xdg-open</code> <code>gtk-launch</code> <code>pgrep</code> <code>pstree</code></td>
+</tr>
+<tr>
+<td><a href="linux/bin%E8%88%87sbin%E7%9A%84%E5%B7%AE%E5%88%A5-%E4%BB%A5%E5%8F%8A%E6%80%8E%E9%BA%BC%E6%AD%A3%E7%A2%BA%E6%89%BE%E5%88%B0%E5%9F%B7%E8%A1%8C%E6%AA%94.html">bin與sbin的差別-以及怎麼正確找到執行檔</a></td>
+<td><code>bin</code> vs <code>sbin</code> 看「一般使用者執行有沒有意義」（iptables 套件裡只有純文字處理的 <code>iptables-xml</code> 被放進 <code>/usr/bin</code> 是最好的例證），<code>/</code> vs <code>/usr</code> 看開機早期需不需要——但 usrmerge 後 <code>/bin</code>→<code>usr/bin</code> 已是符號連結，第二個維度消失；並說明為何該用 <code>command -v</code>／<code>type -a</code> 問系統而不是憑慣例猜路徑</td>
+<td><code>FHS</code> <code>/bin</code> <code>/sbin</code> <code>/usr/bin</code> <code>/usr/sbin</code> <code>usrmerge</code> <code>command -v</code> <code>type -a</code> <code>which</code> <code>whereis</code> <code>readlink -f</code> <code>dpkg -S</code> <code>dpkg -L</code> <code>PATH</code> <code>/usr/local</code> <code>DEP17</code></td>
+</tr>
+<tr>
+<td><a href="linux/%E9%8C%A2%E5%AD%97%E8%99%9F%E5%B1%95%E9%96%8B%E7%9A%84%E5%9B%9B%E7%A8%AE%E5%BD%A2%E5%BC%8F-bad-substitution%E7%9A%84%E6%A0%B9%E5%9B%A0.html">錢字號展開的四種形式-bad-substitution的根因</a></td>
+<td><code>${}</code> 是參數展開（裡面只能放變數名＋運算子）、<code>$()</code> 才是命令替換，把指令寫進 <code>${}</code> 會在解析階段就報 <code>bad substitution</code>；另含雙引號擋不住 <code>${}</code> 展開（只有單引號能）、反引號的三個缺點，以及實測「zsh 不對 <code>$var</code> 分詞但仍會對 <code>$(...)</code> 分詞」的常見誤解</td>
+<td><code>${}</code> <code>$()</code> <code>$(())</code> <code>&lt;()</code> <code>bad substitution</code> <code>parameter expansion</code> <code>command substitution</code> <code>arithmetic expansion</code> <code>process substitution</code> <code>word splitting</code> <code>IFS</code> <code>backtick</code> <code>quoting</code> <code>zsh vs bash</code></td>
+</tr>
+<tr>
+<td><a href="linux/shell%E7%9A%84case%E8%AA%9E%E6%B3%95-%E6%A8%A3%E5%BC%8F%E6%AF%94%E5%B0%8D%E8%88%87%E5%88%86%E6%94%AF.html">shell的case語法-樣式比對與分支</a></td>
+<td><code>case &lt;字&gt; in [(]樣式[|樣式]) 命令 ;; esac</code> 逐位置拆解：由上往下第一個配對成功就離開、全沒中也不報錯、<code>&lt;字&gt;</code> 不分詞所以不必加引號；樣式是 glob 不是正規表示式（<code>*</code> <code>?</code> <code>[...]</code> <code>[!...]</code>、<code>]</code>／<code>-</code> 放置規則、字元類別、沒有「重複」），補集要寫 <code>!</code>——dash 不認 <code>[^...]</code>；樣式加引號變字面、未加引號的變數會變回萬用字元；以 TPROXY 腳本的 <code>''|*[!0-9./]*</code> 為例說明為何空字串要另外擋、只擋字元就能防注入；另含 <code>&gt;&amp;2; exit 1</code>、<code>${v:+X}</code> 與 <code>${v+X}</code> 的差別、<code>;&amp;</code>／<code>;;&amp;</code> 是 bash 限定，以及各種寫錯的 dash／bash 錯誤訊息對照</td>
+<td><code>case</code> <code>esac</code> <code>;;</code> <code>;&amp;</code> <code>;;&amp;</code> <code>pattern</code> <code>glob</code> <code>[!...]</code> <code>[^...]</code> <code>[[:digit:]]</code> <code>&quot;$@&quot;</code> <code>&gt;&amp;2</code> <code>exit</code> <code>${var:+alt}</code> <code>${var+alt}</code> <code>dash -n</code> <code>POSIX sh</code></td>
+</tr>
+<tr>
+<td><a href="linux/root%E5%9F%B7%E8%A1%8C%E8%85%B3%E6%9C%AC%E4%B9%9FPermission-denied-%E7%BC%BA%E5%9F%B7%E8%A1%8C%E4%BD%8D%E5%85%83.html">root執行腳本也Permission-denied-缺執行位元</a></td>
+<td>新檔案（scp、編輯器建立）預設 <code>rw-r--r--</code> 沒有 x，<code>./檔名</code> 要核心 <code>execve</code> 所以被擋；root 的 <code>CAP_DAC_OVERRIDE</code> 對執行有例外——至少要有一個 x 位元；<code>sh 檔名</code> 只需 r 所以繞得過但會忽略 <code>#!</code>；含 <code>chmod</code> 三種形式、符號模式 <code>[ugoa][+-=][rwxXst]</code> 逐段與省略時受 umask 影響、八進位、完整選項，以及 <code>noexec</code> 掛載、<code>#!</code> 直譯器不存在／CRLF（回 <code>not found</code>）等相似錯誤的對照</td>
+<td><code>Permission denied</code> <code>chmod +x</code> <code>chmod 755</code> <code>x bit</code> <code>CAP_DAC_OVERRIDE</code> <code>execve</code> <code>shebang</code> <code>sh script.sh</code> <code>umask</code> <code>scp -p</code> <code>noexec</code> <code>CRLF</code> <code>not found</code> <code>BusyBox ash</code></td>
+</tr>
+<tr>
+<td><a href="linux/%E5%9C%A8%E7%B5%82%E7%AB%AF%E6%A9%9F%E6%80%8E%E9%BA%BC%E8%A8%88%E7%AE%97-shell%E7%AE%97%E8%A1%93bc%E8%88%87printf.html">在終端機怎麼計算-shell算術bc與printf</a></td>
+<td>整數與進位換算用 shell 內建的 <code>$(( ))</code>（到處都有，含路由器 ash），小數與大數用 <code>bc</code>（<code>-l</code> 才有小數），印成十六／八進位用 <code>printf</code>；四個陷阱：bash 只有整數（zsh 例外）、<code>^</code> 是 XOR 不是次方（<code>bc</code> 的 <code>^</code> 才是）、<code>010</code> 在 bash 是八進位（<code>08</code> 報 value too great for base）、超過 64 位元默默溢位成負數；<code>bc</code> 要先設 <code>obase</code> 再設 <code>ibase</code>；<code>expr 3 * 4</code> 的 <code>*</code> 會被展開；含 <code>$(( ))</code> 全部運算子、<code>bc</code> 全部選項與函式</td>
+<td><code>$(( ))</code> <code>(( ))</code> <code>arithmetic expansion</code> <code>**</code> <code>^ XOR</code> <code>0x</code> <code>base#n</code> <code>octalzeroes</code> <code>[#16]</code> <code>bc -l</code> <code>scale</code> <code>ibase</code> <code>obase</code> <code>printf %x</code> <code>awk BEGIN</code> <code>expr</code> <code>overflow</code></td>
+</tr>
+<tr>
+<td><a href="linux/%E5%88%86%E8%99%9F%E8%88%87%E7%B5%90%E6%9D%9F%E7%8B%80%E6%85%8B-%E5%91%BD%E4%BB%A4%E4%B8%B2%E6%8E%A5%E8%88%87%E9%8C%A2%E5%AD%97%E8%99%9F%E5%95%8F%E8%99%9F.html">分號與結束狀態-命令串接與錢字號問號</a></td>
+<td><code>./oob; echo &quot;exit=$?&quot;</code> 是兩個命令：<code>;</code> 不論成敗都接著跑（用 <code>&amp;&amp;</code> 的話程式當掉時 <code>echo</code> 根本不跑），<code>$?</code> 只記得<strong>上一個</strong>命令、每跑一個就被覆蓋，所以要緊接著印或先存 <code>rc=$?</code>；結束狀態只有 8 bit（<code>return 300</code> → 44、<code>-1</code> → 255，同 C 的截斷）、被訊號殺掉是 128+N、126 不能執行、127 找不到；背景 <code>&amp;</code> 的 <code>$?</code> 是 0 要 <code>wait</code>、管線只看最後一個（<code>PIPESTATUS</code>／zsh <code>pipestatus</code>／<code>pipefail</code>）；含串列運算子與 bash 8 個特殊參數的完整清單、單雙引號差別、<code>echo</code> 全部選項與 bash／zsh 預設解不解讀 <code>\t</code> 的差異（實測 zsh 非互動時連 segfault 訊息都不印，只能靠 <code>$?</code>）</td>
+<td><code>;</code> <code>&amp;&amp;</code> <code>||</code> <code>&amp;</code> <code>$?</code> <code>exit status</code> <code>128+N</code> <code>126</code> <code>127</code> <code>PATH</code> <code>./</code> <code>PIPESTATUS</code> <code>pipestatus</code> <code>pipefail</code> <code>wait $!</code> <code>$status</code> <code>special parameters</code> <code>$#</code> <code>$@</code> <code>$$</code> <code>$!</code> <code>echo -n -e -E</code> <code>printf</code> <code>zsh vs bash</code></td>
+</tr>
+</tbody>
+</table>
+</div><div class="cat"><h3 id="linux-終端機與-tmux">終端機與 tmux</h3>
+<p>終端機本身是什麼（PTY），以及 tmux session 的日常操作。</p>
+<table>
+<thead>
+<tr>
+<th>筆記</th>
+<th>主題</th>
+<th>關鍵字</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="linux/PTY%E6%98%AF%E4%BB%80%E9%BA%BC-%E7%B5%82%E7%AB%AF%E6%A9%9F%E6%A8%A1%E6%93%AC%E5%99%A8%E8%88%87%E8%99%9B%E6%93%AC%E7%B5%82%E7%AB%AF.html">PTY是什麼-終端機模擬器與虛擬終端</a></td>
+<td>PTY 是核心提供的 master／slave 裝置對：終端機模擬器（alacritty、tmux server、sshd）握 master，shell 用 slave <code>/dev/pts/N</code> 當 fd 0／1／2；中間的 line discipline 把 Ctrl+C 變 SIGINT、處理回顯；master 關閉 → SIGHUP；以本機實測解釋關掉 alacritty 為何 tmux 裡的工作不會死</td>
+<td><code>pty</code> <code>tty</code> <code>/dev/ptmx</code> <code>/dev/pts</code> <code>master/slave</code> <code>line discipline</code> <code>stty</code> <code>isatty</code> <code>controlling terminal</code> <code>SIGHUP</code> <code>tmux</code> <code>sshd</code></td>
+</tr>
+<tr>
+<td><a href="linux/%E6%8A%8A%E6%AA%94%E6%A1%88%E5%85%A7%E5%AE%B9%E8%A4%87%E8%A3%BD%E5%88%B0%E5%89%AA%E8%B2%BC%E7%B0%BF.html">把檔案內容複製到剪貼簿</a></td>
+<td>X11 有 PRIMARY／CLIPBOARD／SECONDARY 三個互不相干的選區，<code>xclip</code>／<code>xsel</code> 預設寫的是 PRIMARY，所以 Ctrl+V 貼不出來——要加 <code>-selection clipboard</code>／<code>-b</code>；含兩者完整選項與取捨、選區由行程保管所以 xclip 必須留在背景、Wayland 的 <code>wl-copy</code>（預設剛好相反）、SSH 情境用 OSC 52 讓終端機代寫，以及 tmux 緩衝區與系統剪貼簿為何不同步</td>
+<td><code>xclip</code> <code>xsel</code> <code>wl-copy</code> <code>wl-paste</code> <code>PRIMARY</code> <code>CLIPBOARD</code> <code>-selection clipboard</code> <code>-rmlastnl</code> <code>--trim</code> <code>-target image/png</code> <code>OSC 52</code> <code>base64 -w0</code> <code>set-clipboard on</code> <code>tmux load-buffer</code> <code>XDG_SESSION_TYPE</code></td>
+</tr>
+<tr>
+<td><a href="linux/tmux%E9%87%8D%E5%91%BD%E5%90%8Dsession.html">tmux重命名session</a></td>
+<td>tmux session 改名的三種方式：指令、指定 session、快捷鍵</td>
+<td><code>tmux</code> <code>rename-session</code></td>
+</tr>
+<tr>
+<td><a href="linux/%E7%94%A8%E7%95%B6%E5%89%8D%E7%9B%AE%E9%8C%84%E5%90%8D%E5%91%BD%E5%90%8Dtmux-session.html">用當前目錄名命名tmux-session</a></td>
+<td>用 <code>tmux new -d -s &quot;${PWD##*/}&quot;</code> 讓 session 名稱自動等於當前目錄名；參數展開 <code>#</code>/<code>##</code>/<code>%</code>/<code>%%</code> 的切除規則、為何勝過 <code>basename</code>，以及 tmux 把 <code>.</code>/<code>:</code> 換成 <code>_</code>、<code>-A</code> 與 <code>-d</code> 衝突、同名目錄碰撞等陷阱</td>
+<td><code>tmux</code> <code>new-session</code> <code>${PWD##*/}</code> <code>parameter expansion</code> <code>basename</code> <code>has-session -t=</code> <code>duplicate session</code></td>
+</tr>
+<tr>
+<td><a href="linux/tmux%E5%88%87%E6%8F%9Bwindow%E7%9A%84%E6%96%B9%E6%B3%95.html">tmux切換window的方法</a></td>
+<td><code>Ctrl+b s</code> 其實是 session 樹（<code>choose-tree -Zs</code>），切 window 用 <code>0</code>～<code>9</code>／<code>'</code>（編號）、<code>l</code>（上一個，來回切）、<code>n</code>／<code>p</code>、<code>w</code>（window 清單）、<code>f</code>（搜尋名稱與畫面）或滑鼠點狀態列；含 6 個背後命令的完整旗標、<code>-t session:window</code> 的六步查找順序與 <code>=</code> 完全比對，並實測</td>
+<td><code>tmux</code> <code>select-window</code> <code>last-window</code> <code>next-window</code> <code>previous-window</code> <code>choose-tree</code> <code>find-window</code> <code>target-window</code> <code>{last}</code></td>
+</tr>
+</tbody>
+</table>
+</div><div class="cat"><h3 id="linux-桌面環境gnome">桌面環境（GNOME）</h3>
+<p>桌面快捷鍵與視窗行為，以及它們到底由哪一層決定。</p>
+<table>
+<thead>
+<tr>
+<th>筆記</th>
+<th>主題</th>
+<th>關鍵字</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="linux/%E8%A6%96%E7%AA%97%E6%9C%80%E5%A4%A7%E5%8C%96%E5%BF%AB%E6%8D%B7%E9%8D%B5-GNOME%E9%8D%B5%E4%BD%8D%E7%9A%84%E4%B8%89%E5%B1%A4%E4%BE%86%E6%BA%90.html">視窗最大化快捷鍵-GNOME鍵位的三層來源</a></td>
+<td>視窗最大化的快捷鍵是 <code>Super</code>+<code>↑</code>，但 GNOME 原生的 <code>maximize</code> 其實是空的——鍵被 Ubuntu 的 tiling-assistant 擴充套件接走；由此帶出鍵位的三層來源（擴充套件／mutter／應用程式）、用鍵位字串反查綁定者的方法，以及 maximize／fullscreen／tiling 在 EWMH 上的差別</td>
+<td><code>gsettings</code> <code>org.gnome.desktop.wm.keybindings</code> <code>tiling-assistant</code> <code>mutter</code> <code>toggle-maximized</code> <code>Alt+F10</code> <code>Super+Up</code> <code>_NET_WM_STATE_MAXIMIZED_VERT</code> <code>_NET_WM_STATE_FULLSCREEN</code> <code>wmctrl</code> <code>xprop -root _NET_SUPPORTED</code> <code>XDG_SESSION_TYPE</code></td>
+</tr>
+</tbody>
+</table>
+</div><div class="cat"><h3 id="linux-系統組成核心與使用者空間">系統組成（核心與使用者空間）</h3>
+<p>一套「Linux 系統」由哪些部分組成、各自出自誰：核心、C 函式庫、使用者空間工具。</p>
+<table>
+<thead>
+<tr>
+<th>筆記</th>
+<th>主題</th>
+<th>關鍵字</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="linux/GNU%E6%98%AF%E4%BB%80%E9%BA%BC-Linux%E6%A0%B8%E5%BF%83%E8%88%87GNU%E5%B7%A5%E5%85%B7%E7%9A%84%E5%88%86%E5%B7%A5.html">GNU是什麼-Linux核心與GNU工具的分工</a></td>
+<td>GNU（<em>GNU's Not Unix</em>，1983 起）做出 gcc、binutils、glibc、bash、coreutils、gdb 等幾乎所有使用者空間工具，卻缺可用核心，1991 年由 Linux 核心補上，所以日常的「Linux」其實是 Linux 核心＋GNU 工具（但 <code>uname -o</code> 的 <code>GNU/Linux</code> 是程式寫死的字串、不向核心查詢，OpenWrt 的 BusyBox 也這樣印，不能當證據）；目標三元組 <code>x86_64-linux-gnu</code> 把核心與 C 函式庫分成兩欄；OpenWrt／Alpine 是 Linux＋musl＋BusyBox、不是 GNU，這是路由器上 <code>ash</code>、<code>chmod</code> 行為不同的根源；GPL 的 copyleft、glibc 用 LGPL 所以任何程式都能連結、kernel 為 GPL-2.0 與 <code>Signed-off-by</code></td>
+<td><code>GNU</code> <code>FSF</code> <code>GPL</code> <code>LGPL</code> <code>copyleft</code> <code>GNU/Linux</code> <code>glibc</code> <code>musl</code> <code>BusyBox</code> <code>coreutils</code> <code>binutils</code> <code>target triple</code> <code>x86_64-linux-gnu</code> <code>uname -o</code> <code>Signed-off-by</code> <code>DCO</code> <code>uname -o</code> <code>struct utsname</code> <code>ld-musl</code></td>
+</tr>
+</tbody>
+</table>
+</div><div class="cat"><h3 id="linux-開機grub">開機（GRUB）</h3>
+<p>開機載入程式（boot loader）的設定：設定檔分層、選單外觀。</p>
+<table>
+<thead>
+<tr>
+<th>筆記</th>
+<th>主題</th>
+<th>關鍵字</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="linux/GRUB%E9%96%8B%E6%A9%9F%E9%81%B8%E5%96%AE%E5%AD%97%E5%A4%AA%E5%B0%8F-%E8%A8%AD%E5%AE%9A%E6%AA%94%E5%9C%A8%E5%93%AA%E8%88%87%E6%8F%9B%E5%A4%A7%E5%AD%97%E9%AB%94.html">GRUB開機選單字太小-設定檔在哪與換大字體</a></td>
+<td>要改的是 <code>/etc/default/grub</code>，<code>/boot/grub/grub.cfg</code> 是 <code>update-grub</code>（＝<code>grub-mkconfig -o</code>）依 <code>/etc/grub.d/*</code> 腳本產生的、手改會被核心升級蓋掉；字小是因為預設 <code>unicode.pf2</code> 是 16px Unifont 點陣字、面板 2560x1600——用 <code>grub-mkfont -s 32</code> 轉出大號 PF2 放 <code>/boot/grub/fonts/</code>、設 <code>GRUB_FONT</code>；<code>GRUB_TERMINAL=console</code> 會讓字型失效；含降 <code>GRUB_GFXMODE</code> 的替代做法、<code>00_header</code> 字型邏輯、<code>grub-mkfont</code> 全部 15 個選項</td>
+<td><code>/etc/default/grub</code> <code>update-grub</code> <code>grub-mkconfig</code> <code>/etc/grub.d/00_header</code> <code>grub.cfg</code> <code>GRUB_FONT</code> <code>grub-mkfont</code> <code>pf2</code> <code>unicode.pf2</code> <code>GRUB_GFXMODE</code> <code>GRUB_TERMINAL</code> <code>gfxterm</code> <code>loadfont</code> <code>videoinfo</code> <code>ESP</code></td>
+</tr>
+</tbody>
+</table>
+</div></section>
+<section class="domain"><h2 id="nginx">nginx 筆記索引 <span class="count">1 篇 · <a href="nginx/README.html">完整 README</a></span></h2>
+<div class="intro"><p>這個目錄收錄 nginx 的設定解讀、反向代理、TLS 憑證與排查紀錄。</p>
+</div>
+<div class="cat"><table>
+<thead>
+<tr>
+<th>筆記</th>
+<th>主題</th>
+<th>關鍵字</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="nginx/%E8%AE%80%E6%87%82V2Ray%E5%89%8D%E9%9D%A2%E7%9A%84nginx%E8%A8%AD%E5%AE%9A-WebSocket%E5%8F%8D%E5%90%91%E4%BB%A3%E7%90%86%E8%88%87Certbot%E6%86%91%E8%AD%89.html">讀懂V2Ray前面的nginx設定-WebSocket反向代理與Certbot憑證</a></td>
+<td>逐段解讀 V2Ray 前置 nginx：設定檔文法（區塊／繼承覆寫／include 載入順序）、選 server 的三層篩選（IP:埠 → SNI 選憑證 → Host 選 server，443 沒寫 <code>default_server</code> 時第一個 server 接走掃 IP 的流量）、<code>location</code> 五種匹配與前綴陷阱、WebSocket 為何要手動補 <code>Upgrade</code>／<code>Connection</code>（逐跳 header）；SSL 是 <code>certbot --nginx</code> 經 ACME HTTP-01 向 Let's Encrypt 申請並直接改寫設定檔，含 <code>/etc/letsencrypt</code> 結構、<code>options-ssl-nginx.conf</code> 內容與續期；實測發現 http 層 TLSv1/1.1 無效、<code>/player</code> 未上鎖、token 寫進 access.log</td>
+<td><code>server_name</code> <code>default_server</code> <code>SNI</code> <code>Host</code> <code>location =</code> <code>proxy_pass</code> <code>proxy_http_version 1.1</code> <code>Upgrade</code> <code>Connection</code> <code>hop-by-hop</code> <code>$http_*</code> <code>certbot --nginx</code> <code>ACME HTTP-01</code> <code>fullchain.pem</code> <code>options-ssl-nginx.conf</code> <code>ssl_dhparam</code> <code>certbot renew --dry-run</code> <code>ssl_reject_handshake</code> <code>nginx -T</code></td>
+</tr>
+</tbody>
+</table>
+</div></section>
+<section class="domain"><h2 id="openwrt">OpenWrt 筆記索引 <span class="count">8 篇 · <a href="openwrt/README.html">完整 README</a></span></h2>
+<div class="intro"><p>這個目錄收錄 OpenWrt 路由器的設定、透明代理與排查紀錄。</p>
+</div>
+<div class="cat"><table>
+<thead>
+<tr>
+<th>筆記</th>
+<th>主題</th>
+<th>關鍵字</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="openwrt/%E8%B7%AF%E7%94%B1%E5%99%A8%E4%B8%8A%E7%9A%84%E9%80%8F%E6%98%8E%E4%BB%A3%E7%90%86-%E7%82%BA%E4%BB%80%E9%BA%BC%E4%B8%8D%E6%98%AFTUN%E6%A8%A1%E5%BC%8F.html">路由器上的透明代理-為什麼不是TUN模式</a></td>
+<td>TUN 攔的是「本機自己產生」的流量，路由器上的是「幫別人轉發」的流量，兩者在核心走不同路徑——轉發流量要用 TPROXY／REDIRECT；含三方案對照、REDIRECT 為何不支援 UDP、TPROXY 三個零件（<code>IP_TRANSPARENT</code>／fwmark 策略路由／nftables tproxy）的分工，以及本機實測缺少 <code>kmod-nft-tproxy</code></td>
+<td><code>tproxy</code> <code>redirect</code> <code>nftables</code> <code>fw4</code> <code>ip rule fwmark</code> <code>local 0.0.0.0/0 dev lo</code> <code>IP_TRANSPARENT</code> <code>SO_MARK</code> <code>dokodemo-door</code> <code>kmod-nft-tproxy</code> <code>nft_redir</code> <code>app/tun</code> <code>conntrack</code> <code>dnsmasq</code></td>
+</tr>
+<tr>
+<td><a href="openwrt/OpenWrt%E7%9A%84%E6%9C%8D%E5%8B%99%E7%AE%A1%E7%90%86-service%E8%88%87procd.html">OpenWrt的服務管理-service與procd</a></td>
+<td>OpenWrt 用 procd 不是 systemd：<code>service &lt;名稱&gt; &lt;動作&gt;</code> 只是轉呼叫 <code>/etc/init.d/</code> 的 wrapper，<strong>不給參數的 <code>service</code> 就是 <code>systemctl list-units</code> 的對應</strong>；含 rc.common 提供的完整動作（<code>enable</code> vs <code>enabled</code> 的陷阱）、<code>enable</code> 實為建立 <code>/etc/rc.d/S99</code>／<code>K15</code> 符號連結、啟動順序靠 <code>START=</code> 數字而非宣告依賴、<code>logread</code> 完整選項、以及用 <code>ubus call service list</code> 取得 PID／命令列／重啟策略</td>
+<td><code>service</code> <code>/etc/init.d</code> <code>/etc/rc.common</code> <code>procd</code> <code>USE_PROCD</code> <code>procd_open_instance</code> <code>START/STOP</code> <code>/etc/rc.d</code> <code>enable vs enabled</code> <code>logread -f -e</code> <code>ubus call service list</code> <code>systemd 對照</code></td>
+</tr>
+<tr>
+<td><a href="openwrt/%E7%94%A8dokodemo-door%E5%81%9ATPROXY%E9%80%8F%E6%98%8E%E4%BB%A3%E7%90%86.html">用dokodemo-door做TPROXY透明代理</a></td>
+<td>實作篇：TPROXY 要三個零件同時成立——dokodemo-door 的 <code>sockopt.tproxy</code>（收得到非本機目的的封包）、<code>ip rule fwmark</code> + <code>route local</code>（讓封包留在本機，漏掉就是「規則寫了沒作用」的頭號原因）、nft 在 prerouting/mangle 的 <code>tproxy to</code>；含 <code>followRedirect</code>／<code>sniffing</code> 為何關鍵、排除清單的理由、為何 prerouting-only 不會迴圈（不必 <code>SO_MARK</code>）、逐段用 counter 定位斷點的驗證法、init script 持久化與回退救援</td>
+<td><code>tproxy</code> <code>dokodemo-door</code> <code>followRedirect</code> <code>sniffing destOverride</code> <code>IP_TRANSPARENT</code> <code>sockopt.tproxy</code> <code>ip rule fwmark</code> <code>route local table 100</code> <code>priority mangle</code> <code>kmod-nft-tproxy</code> <code>bypass set</code> <code>flags interval</code> <code>SO_MARK</code> <code>procd init script</code> <code>failsafe</code></td>
+</tr>
+<tr>
+<td><a href="openwrt/LuCI%E8%83%BD%E8%A8%AD%E5%AE%9ATPROXY%E5%97%8E-fw4%E7%9A%84uci%E6%8A%BD%E8%B1%A1%E9%82%8A%E7%95%8C.html">LuCI能設定TPROXY嗎-fw4的uci抽象邊界</a></td>
+<td>不行——LuCI 是 uci 設定檔的 GUI 而非 nftables 的 GUI，mangle hook／fwmark／<code>ip rule</code> 都不在 fw4 的 schema 裡；「自訂規則」分頁寫的是 iptables 時代的 <code>/etc/firewall.user</code>，無 include 就是死的；fw4 時代的正確持久化入口是 <code>/etc/nftables.d/*.nft</code>（在 inet fw4 table 內、可引用具名 set）；要完整 GUI 只能裝 homeproxy／passwall 等套件並放棄手寫那套</td>
+<td><code>LuCI</code> <code>luci-app-firewall</code> <code>fw4</code> <code>firewall4</code> <code>uci schema</code> <code>/etc/firewall.user</code> <code>fw4_compatible</code> <code>/etc/nftables.d</code> <code>inet fw4</code> <code>named set</code> <code>luci-app-homeproxy</code> <code>luci-app-passwall</code> <code>luci-app-nikki</code> <code>opkg update</code></td>
+</tr>
+<tr>
+<td><a href="openwrt/nftables%E8%88%87uci%E6%98%AF%E4%BB%80%E9%BA%BC-%E5%85%A9%E5%B1%A4%E8%A8%AD%E5%AE%9A%E7%9A%84%E5%88%86%E5%B7%A5.html">nftables與uci是什麼-兩層設定的分工</a></td>
+<td>兩者不同層也不同來源：nftables 是 Linux 核心的封包過濾框架（table→chain→rule，chain 靠 hook 與 priority 決定何時執行），uci 是 OpenWrt 特有的設定抽象層（<code>config</code>/<code>option</code>/<code>list</code> + commit 交易機制）；在 OpenWrt 上是上下游——實測 30 行 uci 經 fw4 編譯成 180 行 nft，zone 展開成整組 chain 並帶 <code>!fw4:</code> 註解，由此推出「不要手改產生物」的通用心法</td>
+<td><code>nftables</code> <code>nft</code> <code>nf_tables</code> <code>netfilter hook</code> <code>prerouting</code> <code>priority mangle</code> <code>vmap</code> <code>inet fw4</code> <code>uci</code> <code>/etc/config</code> <code>uci commit</code> <code>uci changes</code> <code>@zone[0]</code> <code>LuCI</code> <code>fw4</code> <code>/etc/nftables.d</code> <code>產生物</code></td>
+</tr>
+<tr>
+<td><a href="openwrt/%E8%AE%80%E6%87%82fw4%E7%9A%84nft%E8%A6%8F%E5%89%87.html">讀懂fw4的nft規則</a></td>
+<td>180 行規則不要從頭讀——先把 chain 分成有 <code>hook</code> 的 base chain（13 條，核心的入口）與被 <code>jump</code> 的 regular chain（22 條子函式），再挑一條封包路徑追下去；含 fw4 的鏈命名規律（<code>input_&lt;zone&gt;</code>／<code>accept_to_&lt;zone&gt;</code>／<code>srcnat_&lt;zone&gt;</code>）、逐行走完「LAN 開網頁」與「外網連路由器」兩條真實路徑（含 prerouting 四站的完整經過）、為何 13 條 base chain 有大半是空的（<code>dstnat</code> 空＝沒設埠轉發）、mangle 在本機只做 MSS clamping 且源自一個 <code>mtu_fix=1</code> 的 uci 開關、<code>vmap</code> 為何放第一行、<code>counter</code> 作為排查線索、<code>drop</code> vs <code>reject</code></td>
+<td><code>nft list ruleset</code> <code>base chain</code> <code>regular chain</code> <code>hook</code> <code>priority</code> <code>policy drop</code> <code>vmap</code> <code>ct state</code> <code>iifname</code> <code>oifname</code> <code>meta nfproto</code> <code>counter</code> <code>masquerade</code> <code>handle_reject</code> <code>syn_flood</code> <code>zone</code> <code>!fw4:</code> <code>nft monitor trace</code></td>
+</tr>
+<tr>
+<td><a href="openwrt/TPROXY%E8%A8%AD%E5%AE%9A%E8%85%B3%E6%9C%AC%E5%8F%83%E6%95%B8%E5%8C%96%E8%88%87%E5%8F%AF%E9%87%8D%E8%A4%87%E5%9F%B7%E8%A1%8C.html">TPROXY設定腳本參數化與可重複執行</a></td>
+<td>把 TPROXY 三個零件收成 <code>tproxy-up.sh &lt;IP...&gt;</code>：用 <code>&quot;$@&quot;</code> 收參數、組成 nft 具名集合 <code>@proxy_src</code>（執行期可 <code>add element</code> 不必重跑）、<code>case</code> 限制字元防止參數注入 nft 語法；重點是冪等——原腳本重跑會疊出重複的 <code>ip rule</code> 與 nft 規則，改成 <code>ip rule del pref</code> 再 <code>add</code>、<code>ip route replace</code>、在同一份 <code>nft -f</code> 裡「建空表→刪表→重建」達成無空窗的原子替換；含特殊參數 <code>$0 $# &quot;$@&quot; &quot;$*&quot; $? $$ $! $-</code> 完整對照、<code>set -eu</code>、here-document 引號差別與對應的 down 腳本</td>
+<td><code>&quot;$@&quot; vs &quot;$*&quot;</code> <code>$#</code> <code>${VAR:-default}</code> <code>${VAR:+alt}</code> <code>set -eu</code> <code>|| true</code> <code>case pattern</code> <code>here-document &lt;&lt;EOF</code> <code>nft -f -</code> <code>atomic replace</code> <code>named set</code> <code>add element</code> <code>ip route replace</code> <code>ip rule del pref</code> <code>idempotent</code></td>
+</tr>
+<tr>
+<td><a href="openwrt/OpenWrt%E4%B8%8A%E6%B2%92%E6%9C%89readelf%E6%80%8E%E9%BA%BC%E8%A7%80%E5%AF%9FELF%E6%AA%94-BusyBox%E8%88%87proc%E7%9A%84%E6%9B%BF%E4%BB%A3%E6%96%B9%E6%B3%95.html">OpenWrt上沒有readelf怎麼觀察ELF檔-BusyBox與proc的替代方法</a></td>
+<td>路由器只有 BusyBox（119 個 applet，關掉了 <code>--list</code>，要從符號連結反推），沒有 binutils；不裝東西也能看：<code>ldd</code> 存在（<code>/usr/bin/ldd -&gt; libc.so</code>，musl 的函式庫＝載入器＝<code>ldd</code>，看 <code>argv[0]</code> 決定角色）、<code>hexdump -C -n 64</code> 逐 byte 讀 ELF 檔頭（little endian 倒著讀，實測 busybox 是 EXEC、AArch64）、<code>strings</code> 粗找 interpreter、<code>/proc/&lt;PID&gt;/maps</code> 看執行時實際載入與權限分塊；要完整工具用 <code>opkg install binutils/file/strace</code> 或 <code>scp -O</code> 複製回 Ubuntu；含 BusyBox <code>hexdump</code>／<code>strings</code> 全部選項與 <code>opkg</code> 全部 26 個子命令</td>
+<td><code>busybox</code> <code>applet</code> <code>ldd</code> <code>musl</code> <code>ld-musl</code> <code>hexdump -C</code> <code>strings</code> <code>/proc/self/maps</code> <code>ELF header</code> <code>e_machine</code> <code>little endian</code> <code>opkg list/info/search</code> <code>binutils</code> <code>scp -O</code> <code>sftp-server</code></td>
+</tr>
+</tbody>
+</table>
+</div></section></div><script>(function(){var q=document.getElementById('q');var rows=[].slice.call(document.querySelectorAll('.index tbody tr'));rows.forEach(function(r){r._t=r.textContent.toLowerCase();});q.addEventListener('input',function(){var ws=q.value.toLowerCase().split(/\s+/).filter(Boolean),hits=0;rows.forEach(function(r){var ok=ws.every(function(w){return r._t.indexOf(w)>=0;});r.style.display=ok?'':'none';if(ok)hits++;});var vis=function(el){return [].some.call(el.querySelectorAll('tbody tr'),function(r){return r.style.display!=='none';});};document.querySelectorAll('.index .cat').forEach(function(c){c.style.display=(!ws.length||vis(c))?'':'none';});document.querySelectorAll('.index .domain').forEach(function(d){d.style.display=(!ws.length||vis(d))?'':'none';var i=d.querySelector('.intro');if(i)i.style.display=ws.length?'none':'';});document.getElementById('empty').hidden=!(ws.length&&!hits);});})();</script>
+</main>
+</div>
+</body>
+</html>

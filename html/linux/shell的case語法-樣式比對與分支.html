@@ -1,0 +1,516 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>shell 的 case 怎麼寫？—— 從一段參數檢查迴圈看懂樣式比對</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/app.js"></script>
+</head>
+<body>
+<button class="menu-btn" onclick="toggleMenu()">☰ 目錄</button>
+<div class="layout">
+<nav class="side">
+<div class="crumbs"><a href="../index.html">🏠 首頁</a> / <a href="README.html">linux</a></div>
+<div class="tools"><button onclick="toggleTheme()">🌓 主題</button></div>
+<ul>
+<li class="l2"><a href="#%E7%9B%AE%E9%8C%84">目錄</a></li>
+<li class="l2"><a href="#%E4%B8%80%E5%85%88%E7%9C%8B%E6%95%B4%E6%AE%B5%E5%9C%A8%E5%81%9A%E4%BB%80%E9%BA%BC">一、先看整段在做什麼</a></li>
+<li class="l2"><a href="#%E4%BA%8Ccase-%E7%9A%84%E5%AE%8C%E6%95%B4%E6%96%87%E6%B3%95">二、case 的完整文法</a></li>
+<li class="l3"><a href="#%E5%9F%B7%E8%A1%8C%E8%A6%8F%E5%89%87">執行規則</a></li>
+<li class="l3"><a href="#%E5%88%86%E6%94%AF%E7%B5%90%E5%B0%BE-%E4%BB%A5%E5%A4%96%E7%9A%84%E5%85%A9%E7%A8%AEbash-%E9%99%90%E5%AE%9A">分支結尾：;; 以外的兩種（bash 限定）</a></li>
+<li class="l2"><a href="#%E4%B8%89%E6%A8%A3%E5%BC%8Fpattern%E7%9A%84%E5%AE%8C%E6%95%B4%E8%A6%8F%E5%89%87">三、樣式（pattern）的完整規則</a></li>
+<li class="l3"><a href="#%E5%AE%B9%E6%98%93%E8%B8%A9%E7%9A%84%E4%B8%89%E5%80%8B%E5%9C%B0%E6%96%B9">容易踩的三個地方</a></li>
+<li class="l3"><a href="#%E9%80%99%E4%B8%8D%E6%98%AF%E6%AD%A3%E8%A6%8F%E8%A1%A8%E7%A4%BA%E5%BC%8F">這不是正規表示式</a></li>
+<li class="l2"><a href="#%E5%9B%9B%E6%8B%86%E8%A7%A3-0-9">四、拆解 &#x27;&#x27;|*[!0-9./]*</a></li>
+<li class="l2"><a href="#%E4%BA%94%E9%8C%AF%E8%AA%A4%E8%99%95%E7%90%86%E9%82%A3%E4%B8%80%E8%A1%8Cecho--2-exit-1">五、錯誤處理那一行：echo ... &gt;&amp;2; exit 1</a></li>
+<li class="l2"><a href="#%E5%85%AD%E7%B4%AF%E5%8A%A0%E5%AD%97%E4%B8%B2srcsrc-ip">六、累加字串：${SRC:+$SRC, }$ip</a></li>
+<li class="l2"><a href="#%E4%B8%83%E5%AF%AB%E9%8C%AF%E6%99%82%E7%9A%84%E9%8C%AF%E8%AA%A4%E8%A8%8A%E6%81%AF">七、寫錯時的錯誤訊息</a></li>
+<li class="l2"><a href="#%E8%87%AA%E6%88%91%E6%B8%AC%E9%A9%97">自我測驗</a></li>
+</ul>
+</nav>
+<main>
+<h1 id="shell-的-case-怎麼寫-從一段參數檢查迴圈看懂樣式比對">shell 的 <code>case</code> 怎麼寫？—— 從一段參數檢查迴圈看懂樣式比對</h1>
+<blockquote>
+<p>日期：2026-09-22<br />
+情境：<a href="../openwrt/TPROXY%E8%A8%AD%E5%AE%9A%E8%85%B3%E6%9C%AC%E5%8F%83%E6%95%B8%E5%8C%96%E8%88%87%E5%8F%AF%E9%87%8D%E8%A4%87%E5%9F%B7%E8%A1%8C.html">TPROXY設定腳本參數化與可重複執行</a>
+裡「把參數組成 nft 集合元素」那段 8 行迴圈看不懂：<code>case</code>、<code>''|*[!0-9./]*)</code>、<code>;;</code>、<code>esac</code>、
+<code>${SRC:+$SRC, }</code> 各是什麼<br />
+適用範圍：POSIX sh；所有範例輸出都在 dash 0.5 與 bash 5.2 實測，兩者不同處會註明<br />
+相關：<a href="shell%E7%9A%84for%E8%BF%B4%E5%9C%88%E8%AA%9E%E6%B3%95.html">shell的for迴圈語法</a>、
+<a href="shell%E6%A2%9D%E4%BB%B6%E5%88%A4%E6%96%B7%E6%B8%AC%E8%A9%A6.html">shell條件判斷測試</a>、
+<a href="%E8%BC%B8%E5%87%BA%E9%87%8D%E6%96%B0%E5%B0%8E%E5%90%91%E8%88%87dev-null.html">輸出重新導向與dev-null</a>、
+<a href="%E9%8C%A2%E5%AD%97%E8%99%9F%E5%B1%95%E9%96%8B%E7%9A%84%E5%9B%9B%E7%A8%AE%E5%BD%A2%E5%BC%8F-bad-substitution%E7%9A%84%E6%A0%B9%E5%9B%A0.html">錢字號展開的四種形式-bad-substitution的根因</a></p>
+</blockquote>
+<p><strong>一句話結論：<code>case</code> 是「拿一個字串去跟一串樣式（pattern）比，第一個配對成功的那組才執行」的分支語法；樣式用的是跟檔名萬用字元同一套規則（<code>*</code>、<code>?</code>、<code>[...]</code>、<code>[!...]</code>），不是正規表示式（regular expression）。在 <code>#!/bin/sh</code> 裡要做「字串長得像不像某種格式」的檢查，<code>case</code> 是唯一不必呼叫外部程式、又在所有 shell 都能用的寫法。</strong></p>
+<hr />
+<h2 id="目錄">目錄</h2>
+<ul>
+<li><a href="#%E4%B8%80%E5%85%88%E7%9C%8B%E6%95%B4%E6%AE%B5%E5%9C%A8%E5%81%9A%E4%BB%80%E9%BA%BC">一、先看整段在做什麼</a></li>
+<li><a href="#%E4%BA%8Ccase-%E7%9A%84%E5%AE%8C%E6%95%B4%E6%96%87%E6%B3%95">二、<code>case</code> 的完整文法</a></li>
+<li><a href="#%E4%B8%89%E6%A8%A3%E5%BC%8Fpattern%E7%9A%84%E5%AE%8C%E6%95%B4%E8%A6%8F%E5%89%87">三、樣式（pattern）的完整規則</a></li>
+<li><a href="#%E5%9B%9B%E6%8B%86%E8%A7%A3-0-9">四、拆解 <code>''|*[!0-9./]*</code></a></li>
+<li><a href="#%E4%BA%94%E9%8C%AF%E8%AA%A4%E8%99%95%E7%90%86%E9%82%A3%E4%B8%80%E8%A1%8Cecho--2-exit-1">五、錯誤處理那一行：<code>echo ... &gt;&amp;2; exit 1</code></a></li>
+<li><a href="#%E5%85%AD%E7%B4%AF%E5%8A%A0%E5%AD%97%E4%B8%B2srcsrc-ip">六、累加字串：<code>${SRC:+$SRC, }$ip</code></a></li>
+<li><a href="#%E4%B8%83%E5%AF%AB%E9%8C%AF%E6%99%82%E7%9A%84%E9%8C%AF%E8%AA%A4%E8%A8%8A%E6%81%AF">七、寫錯時的錯誤訊息</a></li>
+<li><a href="#%E8%87%AA%E6%88%91%E6%B8%AC%E9%A9%97">自我測驗</a></li>
+</ul>
+<hr />
+<h2 id="一先看整段在做什麼">一、先看整段在做什麼</h2>
+<pre><code class="language-sh"><span class="nv">SRC</span><span class="o">=</span><span class="s2">&quot;&quot;</span><span class="w">                                  </span><span class="c1"># ① 準備一個空字串來裝結果</span>
+<span class="k">for</span><span class="w"> </span>ip<span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="s2">&quot;</span><span class="nv">$@</span><span class="s2">&quot;</span><span class="p">;</span><span class="w"> </span><span class="k">do</span><span class="w">                      </span><span class="c1"># ② 參數一個一個取出來，每圈放進變數 ip</span>
+<span class="w">    </span><span class="k">case</span><span class="w"> </span><span class="nv">$ip</span><span class="w"> </span><span class="k">in</span><span class="w">                         </span><span class="c1"># ③ 拿 ip 的值去比對下面的樣式</span>
+<span class="w">        </span><span class="s1">&#39;&#39;</span><span class="p">|</span>*<span class="o">[</span>!0-9./<span class="o">]</span>*<span class="o">)</span><span class="w">                  </span><span class="c1"># ④ 空字串，或含有數字、點、斜線以外的字元</span>
+<span class="w">            </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;不像 IPv4 位址或網段: &#39;</span><span class="nv">$ip</span><span class="s2">&#39;&quot;</span><span class="w"> </span>&gt;<span class="p">&amp;</span><span class="m">2</span><span class="w">   </span><span class="c1"># ⑤ 錯誤訊息寫到 stderr</span>
+<span class="w">            </span><span class="nb">exit</span><span class="w"> </span><span class="m">1</span><span class="w"> </span><span class="p">;;</span><span class="w">                   </span><span class="c1"># ⑥ 整支腳本以失敗結束；;; 是這組分支的結尾</span>
+<span class="w">    </span><span class="k">esac</span><span class="w">                                </span><span class="c1"># ⑦ case 的結尾（case 倒過來拼）</span>
+<span class="w">    </span><span class="nv">SRC</span><span class="o">=</span><span class="s2">&quot;</span><span class="si">${</span><span class="nv">SRC</span><span class="p">:+</span><span class="nv">$SRC</span><span class="p">, </span><span class="si">}</span><span class="nv">$ip</span><span class="s2">&quot;</span><span class="w">             </span><span class="c1"># ⑧ 通過檢查的才會走到這裡：接到 SRC 後面</span>
+<span class="k">done</span><span class="w">                                    </span><span class="c1"># ⑨ 迴圈結尾</span>
+</code></pre>
+<p>（原腳本把 ④⑤⑥ 寫在同一行，意思相同；這裡為了逐行標號而拆開。）</p>
+<p>跑 <code>tproxy-up.sh 192.168.1.50 192.168.1.60</code> 時：</p>
+<table>
+<thead>
+<tr>
+<th>圈</th>
+<th><code>ip</code></th>
+<th><code>case</code> 結果</th>
+<th>這圈結束後的 <code>SRC</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td><code>192.168.1.50</code></td>
+<td>沒配對到任何樣式 → 什麼都不做</td>
+<td><code>192.168.1.50</code></td>
+</tr>
+<tr>
+<td>2</td>
+<td><code>192.168.1.60</code></td>
+<td>同上</td>
+<td><code>192.168.1.50, 192.168.1.60</code></td>
+</tr>
+</tbody>
+</table>
+<p>只要有任何一個參數不合格，就在 ⑥ 直接結束，<strong>後面的 <code>ip rule</code>、<code>nft</code> 一行都不會執行</strong>——
+先把所有輸入檢查完，才開始動系統。</p>
+<p>② 的 <code>for ip in &quot;$@&quot;</code> 在 <a href="shell%E7%9A%84for%E8%BF%B4%E5%9C%88%E8%AA%9E%E6%B3%95.html">shell的for迴圈語法</a> 有完整說明；重點是 <code>&quot;$@&quot;</code> 一定要加引號，每個參數才會各自成為一圈。沒有參數時 <code>&quot;$@&quot;</code> 展開成零個字，迴圈一圈都不跑（實測 dash：<code>set --; for ip in &quot;$@&quot;; do ...</code> 不會進入迴圈）。</p>
+<hr />
+<h2 id="二case-的完整文法">二、<code>case</code> 的完整文法</h2>
+<p><code>man dash</code> 的 Case Statements 一節給的骨架：</p>
+<pre><code>case &lt;字&gt; in
+    [(]&lt;樣式&gt;[|&lt;樣式&gt;]...) &lt;命令串&gt; ;;
+    [(]&lt;樣式&gt;[|&lt;樣式&gt;]...) &lt;命令串&gt; ;;
+    ...
+esac
+</code></pre>
+<p>逐個位置：</p>
+<table>
+<thead>
+<tr>
+<th>位置</th>
+<th>是什麼</th>
+<th>固定關鍵字還是自己寫的</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>case</code></td>
+<td>開始</td>
+<td>固定關鍵字</td>
+</tr>
+<tr>
+<td><code>&lt;字&gt;</code></td>
+<td>要被比對的字串，通常是 <code>$變數</code></td>
+<td>自己寫</td>
+</tr>
+<tr>
+<td><code>in</code></td>
+<td>分隔「要比的字」和「樣式清單」</td>
+<td>固定關鍵字，不能省</td>
+</tr>
+<tr>
+<td><code>(</code></td>
+<td>樣式前面<strong>可以</strong>加一個左括號，純粹是為了左右對稱</td>
+<td>可省略，省略沒有任何差別</td>
+</tr>
+<tr>
+<td><code>&lt;樣式&gt;</code></td>
+<td>要比對的形狀，規則見第三節</td>
+<td>自己寫</td>
+</tr>
+<tr>
+<td><code>|</code></td>
+<td>在同一組裡放多個樣式：「這個<strong>或</strong>那個」</td>
+<td>固定符號</td>
+</tr>
+<tr>
+<td><code>)</code></td>
+<td>樣式清單結束，後面開始是這組要執行的命令</td>
+<td>固定符號，不能省</td>
+</tr>
+<tr>
+<td><code>&lt;命令串&gt;</code></td>
+<td>配對成功時要執行的一或多個命令，用 <code>;</code> 或換行分隔</td>
+<td>自己寫，也可以是空的</td>
+</tr>
+<tr>
+<td><code>;;</code></td>
+<td>這一組結束</td>
+<td>固定符號；<strong>最後一組的 <code>;;</code> 可以省略</strong>（實測 dash）</td>
+</tr>
+<tr>
+<td><code>esac</code></td>
+<td>整個 <code>case</code> 結束</td>
+<td>固定關鍵字（<code>case</code> 倒過來拼，跟 <code>if</code>／<code>fi</code> 同一個命名習慣）</td>
+</tr>
+</tbody>
+</table>
+<h3 id="執行規則">執行規則</h3>
+<ol>
+<li><strong>由上往下比，第一個配對成功的那組執行完就離開整個 <code>case</code></strong>，後面的組不會再比。<pre><code>$ case abc in a*) echo 第一個;; ab*) echo 第二個;; esac
+第一個                       ← ab* 也配得上，但輪不到它
+</code></pre>
+所以「萬用的」<code>*)</code> 一定要放在最後，當作「以上皆非」（相當於其他語言的 <code>default</code>）。</li>
+<li><strong>都沒配對到就什麼都不做</strong>，不會報錯，結束狀態是 0。本腳本正是利用這點：合格的 IP 不會配對到 ④，<code>case</code> 安靜地結束，往下走到 ⑧。</li>
+<li><strong><code>&lt;字&gt;</code> 不會被分詞、也不會做路徑展開</strong>，所以 <code>case $ip in</code> 不加引號也安全（實測 <code>x=&quot;a b&quot;; case $x in &quot;a b&quot;)</code> 配對成功）。這跟 <code>[ ]</code> 裡變數一定要加引號不同——
+<code>case</code> 是語法，不是命令（對照 <a href="shell%E6%A2%9D%E4%BB%B6%E5%88%A4%E6%96%B7%E6%B8%AC%E8%A9%A6.html">shell條件判斷測試</a> 第一節）。</li>
+</ol>
+<h3 id="分支結尾-以外的兩種bash-限定">分支結尾：<code>;;</code> 以外的兩種（bash 限定）</h3>
+<table>
+<thead>
+<tr>
+<th>結尾</th>
+<th>意思</th>
+<th>哪裡能用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>;;</code></td>
+<td>結束整個 <code>case</code></td>
+<td>POSIX，所有 shell</td>
+</tr>
+<tr>
+<td><code>;&amp;</code></td>
+<td>不比對了，<strong>直接執行下一組</strong>的命令（fall-through，相當於 C 的 switch 沒寫 break）</td>
+<td>bash、zsh；<strong>dash 會報 <code>Syntax error: &quot;&amp;&quot; unexpected</code></strong></td>
+</tr>
+<tr>
+<td><code>;;&amp;</code></td>
+<td>繼續拿下一組的樣式來比，配對到就也執行</td>
+<td>bash</td>
+</tr>
+</tbody>
+</table>
+<p><code>#!/bin/sh</code> 的腳本只用 <code>;;</code>。（BusyBox ash 是否支援 <code>;&amp;</code> 沒有實測，不要依賴。）</p>
+<hr />
+<h2 id="三樣式pattern的完整規則">三、樣式（pattern）的完整規則</h2>
+<p><code>case</code> 的樣式跟 <code>ls *.md</code> 的萬用字元（glob）是<strong>同一套</strong>規則。依 <code>man dash</code> 的 Shell Patterns 一節，特殊字元只有 <code>*</code>、<code>?</code>、<code>[</code>、<code>!</code> 四個：</p>
+<table>
+<thead>
+<tr>
+<th>寫法</th>
+<th>配對什麼</th>
+<th>例</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>一般字元</td>
+<td>它自己</td>
+<td><code>start</code> 只配 <code>start</code></td>
+</tr>
+<tr>
+<td><code>*</code></td>
+<td><strong>任意長度</strong>的任意字元，包含零個</td>
+<td><code>a*</code> 配 <code>a</code>、<code>ab</code>、<code>abc</code></td>
+</tr>
+<tr>
+<td><code>?</code></td>
+<td><strong>剛好一個</strong>任意字元</td>
+<td><code>a?</code> 配 <code>ab</code>，不配 <code>a</code>、<code>abc</code></td>
+</tr>
+<tr>
+<td><code>[abc]</code></td>
+<td>括號裡的<strong>任一個</strong>字元（只算一個字元的位置）</td>
+<td><code>[yY]</code> 配 <code>y</code> 或 <code>Y</code></td>
+</tr>
+<tr>
+<td><code>[a-z]</code></td>
+<td>範圍：<code>a</code> 到 <code>z</code> 之間任一個字元</td>
+<td><code>[0-9]</code> 配一個數字</td>
+</tr>
+<tr>
+<td><code>[!abc]</code></td>
+<td><strong>不是</strong>括號裡任一個字元的一個字元（補集）</td>
+<td><code>[!0-9]</code> 配一個非數字字元</td>
+</tr>
+<tr>
+<td><code>[[:digit:]]</code> 等</td>
+<td>字元類別：<code>alpha</code>、<code>digit</code>、<code>alnum</code>、<code>space</code>、<code>upper</code>、<code>lower</code>、<code>punct</code> 等</td>
+<td><code>[[:digit:]]</code> 等同 <code>[0-9]</code></td>
+</tr>
+</tbody>
+</table>
+<p>括號裡的兩個特例（<code>man dash</code> 原文規定）：</p>
+<ul>
+<li>要把 <code>]</code> 本身放進去，把它放在<strong>第一個</strong>（在 <code>!</code> 之後）：<code>[]]</code>、<code>[!]]</code></li>
+<li>要把 <code>-</code> 本身放進去，放在<strong>第一個或最後一個</strong>：<code>[a-]</code>、<code>[-a]</code>；放中間就會被當成範圍</li>
+</ul>
+<h3 id="容易踩的三個地方">容易踩的三個地方</h3>
+<ol>
+<li><strong>樣式要「整個字串」都配上，不是「包含」就算。</strong> <code>1*</code> 配 <code>1.2.3.4</code>，但 <code>2*</code> 不配——
+開頭是 <code>1</code>。想表達「任何位置含有 X」要寫 <code>*X*</code>，兩邊都加 <code>*</code>。</li>
+<li><strong>補集要用 <code>!</code>，不是 <code>^</code>。</strong> 正規表示式的習慣是 <code>[^0-9]</code>，但 POSIX 樣式規定的是 <code>[!0-9]</code>。實測 bash 兩種都認；<strong>dash 的 <code>[^a]</code> 不會當成補集</strong>（<code>case x in [^a])</code> 在 dash 配對失敗）。
+OpenWrt 的 <code>/bin/sh</code> 不是 bash，一律寫 <code>!</code>。</li>
+<li><strong>加引號就變成字面文字。</strong><pre><code>case 'a*' in 'a*') ...          ← 配對成功：引號裡的 * 只是星號這個字元
+case ab   in 'a*') ...          ← 配對失敗：它不再是萬用字元
+p='a*'; case abc in $p) ...     ← 配對成功：沒加引號的變數，值裡的 * 會變回萬用字元
+p='a*'; case abc in &quot;$p&quot;) ...   ← 配對失敗：加了引號就是字面比較
+</code></pre>
+樣式裡要比對使用者給的字串時（例如「是不是等於某個檔名」），<strong>樣式那邊要加引號</strong>，否則對方給的 <code>*</code> 會把你的判斷變成永遠成立。</li>
+</ol>
+<h3 id="這不是正規表示式">這不是正規表示式</h3>
+<table>
+<thead>
+<tr>
+<th>想表達</th>
+<th>正規表示式</th>
+<th><code>case</code> 樣式</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>任意字串</td>
+<td><code>.*</code></td>
+<td><code>*</code></td>
+</tr>
+<tr>
+<td>一個任意字元</td>
+<td><code>.</code></td>
+<td><code>?</code></td>
+</tr>
+<tr>
+<td>不是數字</td>
+<td><code>[^0-9]</code></td>
+<td><code>[!0-9]</code></td>
+</tr>
+<tr>
+<td>一個以上的數字</td>
+<td><code>[0-9]+</code></td>
+<td><strong>做不到</strong>（樣式沒有「重複」的概念）</td>
+</tr>
+<tr>
+<td>這個或那個</td>
+<td><code>a|b</code></td>
+<td><code>a|b</code>（只能用在整組樣式之間）</td>
+</tr>
+</tbody>
+</table>
+<p>「重複」做不到，所以 <code>case</code> 很難寫出「剛好四段、每段 0～255」的完整 IPv4 驗證。本腳本只拿它擋掉危險字元（見下一節），完整的格式檢查交給 nft 自己報錯。</p>
+<hr />
+<h2 id="四拆解-0-9">四、拆解 <code>''|*[!0-9./]*</code></h2>
+<pre><code>''   |   *   [!0-9./]   *
+│    │   │      │       └─ 後面接任意字串（可以是空的）
+│    │   │      └───────── 剛好一個字元，而且「不是」0～9、. 、/ 中的任一個
+│    │   └──────────────── 前面接任意字串（可以是空的）
+│    └──────────────────── 或
+└───────────────────────── 空字串（兩個單引號之間什麼都沒有）
+</code></pre>
+<ul>
+<li>右半邊 <code>*[!0-9./]*</code> 讀成：<strong>「字串裡某個位置，有一個不是數字、點、斜線的字元」</strong>。兩邊的 <code>*</code> 就是第三節說的「要表達『含有』得兩邊都加 <code>*</code>」。</li>
+<li>左半邊 <code>''</code> 要另外寫，是因為<strong>空字串裡沒有任何字元</strong>，右半邊找不到「不合格的字元」，會讓空字串通過。使用者執行 <code>tproxy-up.sh ''</code> 就會產生 <code>elements = { }</code> 這種壞規則。</li>
+</ul>
+<p>實測 dash 與 bash 結果相同：</p>
+<table>
+<thead>
+<tr>
+<th>參數</th>
+<th>結果</th>
+<th>為什麼</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>192.168.1.50</code></td>
+<td>通過</td>
+<td>全是數字和點</td>
+</tr>
+<tr>
+<td><code>192.168.1.0/24</code></td>
+<td>通過</td>
+<td>斜線也在允許清單裡，所以網段可以用</td>
+</tr>
+<tr>
+<td><code>''</code></td>
+<td>拒絕</td>
+<td>配對到左半邊</td>
+</tr>
+<tr>
+<td><code>'1.2.3.4 '</code>（尾巴有空白）</td>
+<td>拒絕</td>
+<td>空白不在允許清單</td>
+</tr>
+<tr>
+<td><code>abc</code></td>
+<td>拒絕</td>
+<td>字母</td>
+</tr>
+<tr>
+<td><code>1.2.3.4;rm</code></td>
+<td>拒絕</td>
+<td><code>;</code> 不在允許清單——這正是要擋的東西</td>
+</tr>
+<tr>
+<td><code>-1</code></td>
+<td>拒絕</td>
+<td><code>-</code> 不在允許清單</td>
+</tr>
+<tr>
+<td><code>*</code></td>
+<td>拒絕</td>
+<td><code>*</code> 是被比對的字串，不是樣式，這裡就只是一個不合格字元</td>
+</tr>
+<tr>
+<td><code>999.1.1.1</code></td>
+<td><strong>通過</strong></td>
+<td>字元都合格。這個檢查只管「字元」，不管「數值範圍」</td>
+</tr>
+</tbody>
+</table>
+<p>為什麼只擋字元就夠：參數會被原封不動插進 nft 的規則文字裡，真正危險的是 <code>}</code>、<code>;</code>、空白、換行這些會<strong>改變 nft 語法結構</strong>的字元。<code>999.1.1.1</code> 不會改變結構，nft 讀到時自己會報錯。</p>
+<hr />
+<h2 id="五錯誤處理那一行echo--2-exit-1">五、錯誤處理那一行：<code>echo ... &gt;&amp;2; exit 1</code></h2>
+<pre><code class="language-sh"><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;不像 IPv4 位址或網段: &#39;</span><span class="nv">$ip</span><span class="s2">&#39;&quot;</span><span class="w"> </span>&gt;<span class="p">&amp;</span><span class="m">2</span><span class="p">;</span><span class="w"> </span><span class="nb">exit</span><span class="w"> </span><span class="m">1</span><span class="w"> </span><span class="p">;;</span>
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>片段</th>
+<th>意思</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>&quot;...'$ip'...&quot;</code></td>
+<td>外層是雙引號，所以裡面的 <code>$ip</code> <strong>會展開</strong>；裡面那對單引號在雙引號中<strong>只是普通字元</strong>，會照樣印出來，用來把值框起來。印出來是 <code>不像 IPv4 位址或網段: '1.2.3.4 '</code>，尾巴的空白一眼就看得到</td>
+</tr>
+<tr>
+<td><code>&gt;&amp;2</code></td>
+<td>把這個 <code>echo</code> 的標準輸出（fd 1）改接到標準錯誤（fd 2）。錯誤訊息應該寫到 stderr，這樣別人用 <code>tproxy-up.sh ... &gt; log</code> 時錯誤還是會出現在螢幕上（fd 的觀念見 <a href="%E8%BC%B8%E5%87%BA%E9%87%8D%E6%96%B0%E5%B0%8E%E5%90%91%E8%88%87dev-null.html">輸出重新導向與dev-null</a>）</td>
+</tr>
+<tr>
+<td><code>;</code></td>
+<td>分隔同一行裡的兩個命令</td>
+</tr>
+<tr>
+<td><code>exit 1</code></td>
+<td><strong>結束整支腳本</strong>（不是只結束迴圈或 <code>case</code>），結束狀態 1 表示失敗。呼叫它的人可以用 <code>$?</code> 或 <code>if</code> 判斷</td>
+</tr>
+<tr>
+<td><code>;;</code></td>
+<td>這組 <code>case</code> 分支結束</td>
+</tr>
+</tbody>
+</table>
+<p><code>exit</code> 和 <code>break</code> 要分清楚：<code>break</code> 只跳出迴圈、腳本繼續往下跑；<code>exit</code> 是整個行程結束。這裡要的是「有任何一個參數不合格就什麼都不做」，所以用 <code>exit</code>。</p>
+<hr />
+<h2 id="六累加字串srcsrc-ip">六、累加字串：<code>${SRC:+$SRC, }$ip</code></h2>
+<pre><code class="language-sh"><span class="nv">SRC</span><span class="o">=</span><span class="s2">&quot;</span><span class="si">${</span><span class="nv">SRC</span><span class="p">:+</span><span class="nv">$SRC</span><span class="p">, </span><span class="si">}</span><span class="nv">$ip</span><span class="s2">&quot;</span>
+</code></pre>
+<p>右邊是兩段黏在一起：<code>${SRC:+$SRC, }</code> 和 <code>$ip</code>。</p>
+<p><code>${變數:+替代值}</code> 的規則：<strong>變數有值（非空）時展開成「替代值」，否則展開成空字串</strong>。這裡的替代值是 <code>$SRC, </code>——原本的內容加上逗號和空白。</p>
+<pre><code>第 1 圈：SRC=&quot;&quot;               → ${SRC:+...} 展開為 &quot;&quot;                 → SRC = &quot;&quot; + &quot;192.168.1.50&quot;
+第 2 圈：SRC=&quot;192.168.1.50&quot;   → ${SRC:+...} 展開為 &quot;192.168.1.50, &quot;   → SRC = &quot;192.168.1.50, &quot; + &quot;192.168.1.60&quot;
+</code></pre>
+<p>效果是「元素之間才有逗號，第一個前面沒有」。如果直接寫 <code>SRC=&quot;$SRC, $ip&quot;</code>，結果會是 <code>, 192.168.1.50, 192.168.1.60</code>，開頭多一個逗號，<code>{ , 192.168.1.50 }</code> 不是合法的集合元素寫法。</p>
+<p>有冒號和沒冒號差在「空字串算不算有值」：</p>
+<table>
+<thead>
+<tr>
+<th>寫法</th>
+<th>變數未設定</th>
+<th>設為空字串</th>
+<th>有值</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>${v:+X}</code></td>
+<td>空</td>
+<td><strong>空</strong></td>
+<td><code>X</code></td>
+</tr>
+<tr>
+<td><code>${v+X}</code></td>
+<td>空</td>
+<td><strong><code>X</code></strong></td>
+<td><code>X</code></td>
+</tr>
+</tbody>
+</table>
+<p>（實測：<code>e=&quot;&quot;</code> 時 <code>${e:+X}</code> 是空、<code>${e+X}</code> 是 <code>X</code>。）這裡 <code>SRC</code> 一開始就被設成 <code>&quot;&quot;</code>，所以一定要用有冒號的 <code>:+</code>，否則第一圈就會多出逗號。</p>
+<p>其他參數展開形式（<code>:-</code>、<code>:=</code>、<code>:?</code>、<code>#</code>、<code>%</code>）見
+<a href="%E9%8C%A2%E5%AD%97%E8%99%9F%E5%B1%95%E9%96%8B%E7%9A%84%E5%9B%9B%E7%A8%AE%E5%BD%A2%E5%BC%8F-bad-substitution%E7%9A%84%E6%A0%B9%E5%9B%A0.html">錢字號展開的四種形式</a> 與 <code>man dash</code> 的
+Parameter Expansion 一節；這裡只講本段用到的 <code>:+</code>。</p>
+<hr />
+<h2 id="七寫錯時的錯誤訊息">七、寫錯時的錯誤訊息</h2>
+<table>
+<thead>
+<tr>
+<th>寫法</th>
+<th>dash</th>
+<th>bash</th>
+<th>錯在哪</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>case a in a) echo 1</code>（沒有 <code>esac</code>）</td>
+<td><code>end of file unexpected (expecting &quot;;;&quot;)</code></td>
+<td><code>unexpected end of file</code></td>
+<td>整個 <code>case</code> 沒有結尾</td>
+</tr>
+<tr>
+<td><code>case a in a) echo 1; b) echo 2;; esac</code></td>
+<td><code>&quot;)&quot; unexpected (expecting &quot;;;&quot;)</code></td>
+<td><code>near unexpected token `)'</code></td>
+<td>第一組只寫了 <code>;</code>，沒寫 <code>;;</code>，下一組的 <code>b)</code> 被當成命令的一部分</td>
+</tr>
+<tr>
+<td><code>case a a) echo 1;; esac</code></td>
+<td><code>word unexpected (expecting &quot;in&quot;)</code></td>
+<td><code>near unexpected token `a'</code></td>
+<td>少了 <code>in</code></td>
+</tr>
+<tr>
+<td><code>case a in a echo 1;; esac</code></td>
+<td><code>word unexpected (expecting &quot;)&quot;)</code></td>
+<td><code>near unexpected token `echo'</code></td>
+<td>樣式後面少了 <code>)</code></td>
+</tr>
+<tr>
+<td><code>case a in a) echo 1;&amp; b) ...</code>（在 dash）</td>
+<td><code>Syntax error: &quot;&amp;&quot; unexpected</code></td>
+<td>（bash 正常）</td>
+<td><code>;&amp;</code> 是 bash 擴充</td>
+</tr>
+</tbody>
+</table>
+<p>dash 的訊息會直接說它<strong>期待</strong>什麼（<code>expecting &quot;;;&quot;</code>），比 bash 好反推。寫 <code>#!/bin/sh</code> 的腳本，除錯時可以先 <code>dash -n script.sh</code> 只做語法檢查、不執行。</p>
+<hr />
+<h2 id="自我測驗">自我測驗</h2>
+<ol>
+<li><code>case</code> 由上往下比對，第一個配對成功就停。如果把 <code>*)</code> 放在第一組，會發生什麼事？</li>
+<li><code>''|*[!0-9./]*</code> 為什麼要單獨寫一個 <code>''</code>？拿掉它、只留右半邊，哪一種輸入會溜過去，會造成什麼後果？</li>
+<li>為什麼 <code>case $ip in</code> 不加引號也安全，但 <code>[ $ip = x ]</code> 不行？反過來，為什麼<strong>樣式</strong>那邊的變數有時一定要加引號？</li>
+<li>情境題：你把 <code>[!0-9./]</code> 改成 <code>[^0-9./]</code>，在自己的 Ubuntu 上用 <code>bash tproxy-up.sh abc</code> 測試，確實被拒絕了。之後把腳本拿到 <code>/bin/sh</code> 是 dash 的 Debian 上用 <code>sh tproxy-up.sh abc</code> 執行，會怎樣？為什麼本機的測試抓不到這個問題？</li>
+<li><code>SRC=&quot;${SRC:+$SRC, }$ip&quot;</code> 如果改成 <code>${SRC+$SRC, }</code>（少了冒號），結果會變怎樣？為什麼？</li>
+</ol>
+
+</main>
+</div>
+</body>
+</html>

@@ -1,0 +1,249 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>tmux 用 Ctrl+b c 開了好幾個 window，除了 Ctrl+b s 還能怎麼切？</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/app.js"></script>
+</head>
+<body>
+<button class="menu-btn" onclick="toggleMenu()">☰ 目錄</button>
+<div class="layout">
+<nav class="side">
+<div class="crumbs"><a href="../index.html">🏠 首頁</a> / <a href="README.html">linux</a></div>
+<div class="tools"><button onclick="toggleTheme()">🌓 主題</button><button onclick="toggleAnswers(true)">展開答案</button><button onclick="toggleAnswers(false)">收起答案</button></div>
+<ul>
+<li class="l2"><a href="#%E4%B8%80%E5%85%88%E9%87%90%E6%B8%85ctrlb-s-%E5%85%B6%E5%AF%A6%E6%98%AF%E9%81%B8-session%E7%9A%84%E6%B8%85%E5%96%AE">一、先釐清：Ctrl+b s 其實是「選 session」的清單</a></li>
+<li class="l2"><a href="#%E4%BA%8C%E6%89%80%E6%9C%89%E5%88%87-window-%E7%9A%84%E6%96%B9%E6%B3%95">二、所有切 window 的方法</a></li>
+<li class="l2"><a href="#%E4%B8%89%E8%83%8C%E5%BE%8C%E7%9A%84%E5%91%BD%E4%BB%A4%E8%88%87%E5%AE%8C%E6%95%B4%E6%97%97%E6%A8%99">三、背後的命令與完整旗標</a></li>
+<li class="l3"><a href="#-t-target-window-%E6%80%8E%E9%BA%BC%E5%AF%AB">-t target-window 怎麼寫</a></li>
+<li class="l3"><a href="#%E5%AF%A6%E6%B8%AC">實測</a></li>
+<li class="l2"><a href="#%E5%9B%9B%E5%AF%A6%E7%94%A8%E5%BB%BA%E8%AD%B0">四、實用建議</a></li>
+<li class="l2"><a href="#%E8%87%AA%E6%88%91%E6%B8%AC%E9%A9%97">自我測驗</a></li>
+</ul>
+</nav>
+<main>
+<h1 id="tmux-用-ctrlb-c-開了好幾個-window除了-ctrlb-s-還能怎麼切">tmux 用 <code>Ctrl+b c</code> 開了好幾個 window，除了 <code>Ctrl+b s</code> 還能怎麼切？</h1>
+<blockquote>
+<p>日期：2026-10-12<br />
+情境：用 <code>Ctrl+b c</code> 建了多個 window，只會用 <code>Ctrl+b s</code> 叫出清單來切，想知道其他方法。<br />
+適用範圍：tmux 3.4（Ubuntu 24.04）；按鍵以預設設定為準（<code>~/.tmux.conf</code> 只有 <code>set -g mouse on</code>，沒有改按鍵）。</p>
+</blockquote>
+<p><strong>一句話結論：快捷鍵只是 <code>select-window</code>／<code>next-window</code>／<code>previous-window</code>／<code>last-window</code>／<code>choose-tree</code>／<code>find-window</code> 這幾個命令的別名——知道編號用 <code>Ctrl+b 數字</code>，來回兩個用 <code>Ctrl+b l</code>，依序走用 <code>n</code>／<code>p</code>，忘了在哪用 <code>w</code>（看清單）或 <code>f</code>（搜尋）。</strong></p>
+<hr />
+<h2 id="一先釐清ctrlb-s-其實是選-session的清單">一、先釐清：<code>Ctrl+b s</code> 其實是「選 session」的清單</h2>
+<p>tmux 的層級是 <strong>session（工作階段）→ window（視窗，狀態列上一格一格的那個）→ pane（窗格，一個 window 切出來的區塊）</strong>。</p>
+<p><code>Ctrl+b s</code> 綁的是 <code>choose-tree -Zs</code>：<code>-s</code> 的意思是<strong>一開始把 session 收合起來</strong>，所以你看到的是 session 清單，要展開才看到 window。它能切 window 只是因為這棵樹裡也有 window。專門給 window 用的是 <code>Ctrl+b w</code>（<code>choose-tree -Zw</code>，<code>-w</code> 是把 window 收合，所以畫面會直接列出每個 session 底下的 window）。</p>
+<p>用 <code>tmux list-keys -T prefix</code> 可以查到預設綁定（這是 prefix 表全部 85 個綁定裡跟切 window 有關的部分）：</p>
+<pre><code class="language-text">bind-key    -T prefix 0       select-window -t :=0
+...（1～9 同理）
+bind-key    -T prefix \&#39;      command-prompt -T window-target -p index { select-window -t &quot;:%%&quot; }
+bind-key    -T prefix f       command-prompt { find-window -Z &quot;%%&quot; }
+bind-key    -T prefix l       last-window
+bind-key    -T prefix n       next-window
+bind-key    -T prefix p       previous-window
+bind-key    -T prefix s       choose-tree -Zs
+bind-key    -T prefix w       choose-tree -Zw
+bind-key    -T prefix M-n     next-window -a
+bind-key    -T prefix M-p     previous-window -a
+</code></pre>
+<h2 id="二所有切-window-的方法">二、所有切 window 的方法</h2>
+<table>
+<thead>
+<tr>
+<th>按法（先按 <code>Ctrl+b</code> 放開再按）</th>
+<th>實際執行的命令</th>
+<th>什麼時候用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>0</code>～<code>9</code></td>
+<td><code>select-window -t :=N</code></td>
+<td>知道編號（狀態列上 <code>0:bash 1:vim</code> 前面的數字），最快</td>
+</tr>
+<tr>
+<td><code>'</code> 再輸入編號 Enter</td>
+<td><code>select-window -t :N</code></td>
+<td>編號 ≥ 10，按一個數字鍵到不了</td>
+</tr>
+<tr>
+<td><code>n</code> / <code>p</code></td>
+<td><code>next-window</code> / <code>previous-window</code></td>
+<td>依編號往後／往前一個，走到底會繞回頭</td>
+</tr>
+<tr>
+<td><code>l</code>（小寫 L）</td>
+<td><code>last-window</code></td>
+<td><strong>在最近兩個 window 之間來回</strong>，像遙控器的「上一台」</td>
+</tr>
+<tr>
+<td><code>w</code></td>
+<td><code>choose-tree -Zw</code></td>
+<td>看全部 window 清單（含預覽）再選</td>
+</tr>
+<tr>
+<td><code>f</code> 再輸入字串</td>
+<td><code>find-window -Z</code></td>
+<td>忘了編號，只記得名字或畫面上出現過的字</td>
+</tr>
+<tr>
+<td><code>Alt+n</code> / <code>Alt+p</code></td>
+<td><code>next-window -a</code> / <code>previous-window -a</code></td>
+<td>只跳到「有警示（alert）」的 window，例如有 bell 的</td>
+</tr>
+<tr>
+<td>滑鼠點狀態列</td>
+<td>（mouse 綁定）</td>
+<td>你的設定有 <code>set -g mouse on</code>，直接點狀態列上的 window 名稱就切過去</td>
+</tr>
+</tbody>
+</table>
+<p>在 <code>w</code>／<code>s</code> 的樹狀清單裡：上下鍵移動、Enter 選定；每行左邊括號裡的字（<code>(0)</code>、<code>(1)</code>…）可以<strong>直接按那個鍵</strong>立刻跳過去，不用移游標；<code>q</code> 離開。清單模式全部的按鍵見 <code>man tmux</code> 的 <code>choose-tree</code> 一節（共 25 個，例如 <code>x</code> 關掉選中的項目、<code>C-s</code> 搜尋名稱）。</p>
+<h2 id="三背後的命令與完整旗標">三、背後的命令與完整旗標</h2>
+<blockquote>
+<p>tmux 3.4 共有 90 個子命令（<code>tmux list-commands</code> 列全部），這裡只列切 window 的 6 個；完整清單見 <code>man tmux</code>。<br />
+文法骨架：<code>tmux &lt;命令&gt; [旗標] [-t 目標]</code>。在 tmux 裡也可以按 <code>Ctrl+b :</code> 直接打命令（不用加前面的 <code>tmux</code>）。</p>
+</blockquote>
+<table>
+<thead>
+<tr>
+<th>命令（別名）</th>
+<th>文法</th>
+<th>旗標逐一</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>select-window</code> (<code>selectw</code>)</td>
+<td><code>[-lnpT] [-t target-window]</code></td>
+<td><code>-l</code>＝<code>last-window</code>；<code>-n</code>＝<code>next-window</code>；<code>-p</code>＝<code>previous-window</code>；<code>-T</code>：目標已經是目前的 window 時改成 <code>last-window</code>（拿來做「按同一鍵來回切」）</td>
+</tr>
+<tr>
+<td><code>next-window</code> (<code>next</code>)</td>
+<td><code>[-a] [-t target-session]</code></td>
+<td><code>-a</code>：只找有警示的 window</td>
+</tr>
+<tr>
+<td><code>previous-window</code> (<code>prev</code>)</td>
+<td><code>[-a] [-t target-session]</code></td>
+<td><code>-a</code>：同上，往前</td>
+</tr>
+<tr>
+<td><code>last-window</code> (<code>last</code>)</td>
+<td><code>[-t target-session]</code></td>
+<td>只有 <code>-t</code>；省略時是目前的 session</td>
+</tr>
+<tr>
+<td><code>find-window</code> (<code>findw</code>)</td>
+<td><code>[-iCNrTZ] [-t target-pane] match-string</code></td>
+<td><code>-C</code> 只比對畫面內容；<code>-N</code> 只比對 window 名稱；<code>-T</code> 只比對標題；<strong>都不給時預設 <code>-CNT</code> 三種都比</strong>；<code>-i</code> 不分大小寫；<code>-r</code> 把字串當正規表示式（預設是 <code>fnmatch(3)</code> 萬用字元）；<code>-Z</code> 放大 pane。注意只搜<strong>目前畫面</strong>，不搜捲動歷史</td>
+</tr>
+<tr>
+<td><code>choose-tree</code></td>
+<td><code>[-GNrswZ] [-F 格式] [-f 過濾] [-K 鍵格式] [-O 排序] [-t target-pane] [template]</code></td>
+<td><code>-s</code> session 收合；<code>-w</code> window 收合；<code>-Z</code> 放大；<code>-N</code> 不顯示預覽；<code>-G</code> 顯示 session group 裡所有 session；<code>-r</code> 反向排序；<code>-O</code> 起始排序欄位（<code>index</code>／<code>name</code>／<code>time</code>）；<code>-f</code> 過濾條件；<code>-F</code>／<code>-K</code> 每行內容與快捷鍵的格式；<code>template</code> 選定後要執行的命令（預設 <code>switch-client -t '%%'</code>）</td>
+</tr>
+</tbody>
+</table>
+<h3 id="-t-target-window-怎麼寫"><code>-t target-window</code> 怎麼寫</h3>
+<p>格式是 <code>session:window</code>，<code>session</code> 省略就是目前的 session。<code>window</code> 這段 tmux 依序這樣找（<code>man tmux</code> 的 target-window 一節）：</p>
+<ol>
+<li>特殊記號：<code>{start}</code>／<code>^</code> 編號最小、<code>{end}</code>／<code>$</code> 編號最大、<code>{last}</code>／<code>!</code> 上一個、<code>{next}</code>／<code>+</code> 下一個、<code>{previous}</code>／<code>-</code> 前一個</li>
+<li>window 編號，例如 <code>demo:1</code></li>
+<li>window ID，例如 <code>@1</code></li>
+<li>完整名稱，例如 <code>demo:build</code></li>
+<li><strong>名稱開頭</strong>，例如 <code>demo:bu</code> 也會找到 <code>build</code></li>
+<li><code>fnmatch</code> 萬用字元比對</li>
+</ol>
+<p>前面加 <code>=</code> 表示<strong>只接受完全相符</strong>——這就是 <code>Ctrl+b 1</code> 綁 <code>:=1</code> 而不是 <code>:1</code> 的原因：按 <code>1</code> 就要編號 1，不能「沒有編號 1 就去找名字開頭是 1 的 window」。</p>
+<h3 id="實測">實測</h3>
+<p>在獨立的 tmux server（<code>-L probe</code>，不影響自己正在用的 tmux；<code>-f /dev/null</code> 不讀設定檔）建一個 session、三個 window，逐一試切換命令。
+<code>lsw -F</code> 印出每個 window 的「編號 名稱 標記」，<code>*</code> 是目前的 window，<code>-</code> 是 <code>last-window</code> 會回去的那個：</p>
+<pre><code class="language-bash">t<span class="o">(){</span><span class="w"> </span>tmux<span class="w"> </span>-L<span class="w"> </span>probe<span class="w"> </span>-f<span class="w"> </span>/dev/null<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$@</span><span class="s2">&quot;</span><span class="p">;</span><span class="w"> </span><span class="o">}</span>
+ls_<span class="o">(){</span><span class="w"> </span>t<span class="w"> </span>lsw<span class="w"> </span>-t<span class="w"> </span>demo<span class="w"> </span>-F<span class="w"> </span><span class="s1">&#39;#I #W #{?window_active,*,}#{?window_last_flag,-,}&#39;</span><span class="p">;</span><span class="w"> </span><span class="o">}</span>
+t<span class="w"> </span>new<span class="w"> </span>-d<span class="w"> </span>-s<span class="w"> </span>demo<span class="w"> </span>-n<span class="w"> </span>editor<span class="p">;</span><span class="w"> </span>t<span class="w"> </span>neww<span class="w"> </span>-t<span class="w"> </span>demo<span class="w"> </span>-n<span class="w"> </span>build<span class="p">;</span><span class="w"> </span>t<span class="w"> </span>neww<span class="w"> </span>-t<span class="w"> </span>demo<span class="w"> </span>-n<span class="w"> </span>logs<span class="p">;</span><span class="w"> </span>ls_
+<span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;--- selectw -t demo:editor&quot;</span><span class="p">;</span><span class="w"> </span>t<span class="w"> </span>selectw<span class="w"> </span>-t<span class="w"> </span>demo:editor<span class="p">;</span><span class="w"> </span>ls_
+<span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;--- last&quot;</span><span class="p">;</span><span class="w">                   </span>t<span class="w"> </span>last<span class="w"> </span>-t<span class="w"> </span>demo<span class="p">;</span><span class="w"> </span>ls_
+<span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;--- next&quot;</span><span class="p">;</span><span class="w">                   </span>t<span class="w"> </span>next<span class="w"> </span>-t<span class="w"> </span>demo<span class="p">;</span><span class="w"> </span>ls_
+<span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;--- selectw -t demo:bu&quot;</span><span class="p">;</span><span class="w">     </span>t<span class="w"> </span>selectw<span class="w"> </span>-t<span class="w"> </span>demo:bu<span class="p">;</span><span class="w"> </span>ls_
+<span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;--- selectw -t &#39;demo:{end}&#39;&quot;</span><span class="p">;</span><span class="w"> </span>t<span class="w"> </span>selectw<span class="w"> </span>-t<span class="w"> </span><span class="s1">&#39;demo:{end}&#39;</span><span class="p">;</span><span class="w"> </span>ls_
+<span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;--- selectw -t demo:9&quot;</span><span class="p">;</span><span class="w">      </span>t<span class="w"> </span>selectw<span class="w"> </span>-t<span class="w"> </span>demo:9
+<span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;--- selectw -t demo:=bu&quot;</span><span class="p">;</span><span class="w">    </span>t<span class="w"> </span>selectw<span class="w"> </span>-t<span class="w"> </span>demo:<span class="o">=</span>bu
+t<span class="w"> </span>kill-server
+</code></pre>
+<p>輸出：</p>
+<pre><code class="language-text">0 editor 
+1 build -
+2 logs *
+--- selectw -t demo:editor
+0 editor *
+1 build 
+2 logs -
+--- last
+0 editor -
+1 build 
+2 logs *
+--- next
+0 editor *
+1 build 
+2 logs -
+--- selectw -t demo:bu
+0 editor -
+1 build *
+2 logs 
+--- selectw -t &#39;demo:{end}&#39;
+0 editor 
+1 build -
+2 logs *
+--- selectw -t demo:9
+can&#39;t find window: 9
+--- selectw -t demo:=bu
+can&#39;t find window: bu
+</code></pre>
+<p>逐段看：</p>
+<ul>
+<li><code>last</code>：從 <code>editor</code> 回到上一個 <code>logs</code>，而且 <code>editor</code> 變成新的 <code>-</code>——所以連按 <code>Ctrl+b l</code> 就是在兩個之間來回。</li>
+<li><code>next</code>：在 <code>logs</code>（編號最大）按下一個，<strong>繞回</strong> <code>editor</code>（編號 0）。</li>
+<li><code>demo:bu</code>：只打名稱開頭也找得到 <code>build</code>（規則第 5 條）。</li>
+<li><code>demo:=bu</code>：加了 <code>=</code> 只接受完全相符，<code>bu</code> 不是完整名稱，所以找不到。</li>
+<li><code>demo:9</code>：不存在的編號直接報錯 <code>can't find window: 9</code>。</li>
+</ul>
+<h2 id="四實用建議">四、實用建議</h2>
+<ul>
+<li>給 window 取名字：<code>Ctrl+b ,</code> 改名（<code>rename-window</code>），之後 <code>Ctrl+b w</code> 清單、<code>Ctrl+b f</code> 搜尋、<code>-t 名稱開頭</code> 都好用很多。</li>
+<li>最常用的組合：常駐的幾個 window 記編號用 <code>Ctrl+b 數字</code>；兩個之間反覆切用 <code>Ctrl+b l</code>。</li>
+<li>改綁定（例如不想按 prefix）屬於設定檔範圍，例如 <code>bind -n M-1 select-window -t :=1</code> 讓 <code>Alt+1</code> 直接切；<code>-n</code> 表示不用先按 prefix。</li>
+</ul>
+<hr />
+<h2 id="自我測驗">自我測驗</h2>
+<blockquote>
+<p>參考答案寫在每題下面，作答時先遮住答案。</p>
+</blockquote>
+<ol>
+<li><code>Ctrl+b s</code> 跟 <code>Ctrl+b w</code> 都能切到某個 window，兩者差在哪？為什麼說 <code>s</code> 不是「切 window」專用的？<details class="answer"><summary>參考答案</summary>
+<p>【<a href="#%E4%B8%80%E5%85%88%E9%87%90%E6%B8%85ctrlb-s-%E5%85%B6%E5%AF%A6%E6%98%AF%E9%81%B8-session%E7%9A%84%E6%B8%85%E5%96%AE">第一節</a>】核心關鍵：(1) 兩個都是同一個命令 <code>choose-tree</code>，差別只在一開始收合哪一層：<code>s</code> 是 <code>-s</code>（session 收合），<code>w</code> 是 <code>-w</code>（window 收合）；(2) 所以 <code>s</code> 先看到 session，要展開才看到 window，<code>w</code> 直接列出每個 session 底下的 window。<br />
+詳細說明：<code>s</code> 不是「只能選 session」——同一棵樹裡展開後一樣能選 window 甚至 pane；說它不是切 window 專用，是因為它的起始畫面是為選 session 設計的。</p>
+</details>
+</li>
+<li>你在 window 3 寫程式、window 7 跑測試，要一直在這兩個之間來回。用 <code>n</code>／<code>p</code> 跟用 <code>l</code> 各要按幾次、哪個合適？為什麼 <code>l</code> 能做到「來回」？<details class="answer"><summary>參考答案</summary>
+<p>【<a href="#%E4%BA%8C%E6%89%80%E6%9C%89%E5%88%87-window-%E7%9A%84%E6%96%B9%E6%B3%95">第二節</a>、<a href="#%E5%AF%A6%E6%B8%AC">第三節〈實測〉</a>】核心關鍵：(1) <code>n</code>／<code>p</code> 每趟要按 4 次（3→7 按 <code>n</code> 4 次，回來按 <code>p</code> 4 次）；<code>l</code> 每趟 1 次，所以用 <code>l</code>；(2) <code>last-window</code> 切回「上一個」window，而切過去之後原本的 window 變成新的「上一個」，所以連按就在兩者之間來回。<br />
+詳細說明：實測裡 <code>last</code> 前後 <code>-</code> 標記會互換，就是這個原因。</p>
+</details>
+</li>
+<li>預設綁定 <code>Ctrl+b 1</code> 是 <code>select-window -t :=1</code> 而不是 <code>select-window -t :1</code>。如果拿掉 <code>=</code>，在什麼情況下會出現跟預期不同的結果？<details class="answer"><summary>參考答案</summary>
+<p>【<a href="#-t-target-window-%E6%80%8E%E9%BA%BC%E5%AF%AB">第三節〈<code>-t target-window</code> 怎麼寫〉</a>】核心關鍵：(1) 沒有 <code>=</code> 時，<strong>編號 1 不存在</strong>，tmux 會繼續往下用名稱找（完整名稱 → 名稱開頭 → 萬用字元）；(2) 所以會跳到一個名稱以 <code>1</code> 開頭的 window（例如叫 <code>1abc</code> 的 window 2），而不是報錯；加了 <code>=</code> 就只接受完全相符，找不到就報錯。<br />
+詳細說明：跟「二位數」無關——<code>:1</code> 的編號比對只看編號 1，不會比對到編號 11。2026-10-12 實測：window 0 <code>editor</code>、2 <code>1abc</code>、3 <code>logs</code>，<code>selectw -t demo:1</code> 跳到 <code>2 1abc</code>；<code>selectw -t demo:=1</code> 報 <code>can't find window: 1</code>。</p>
+</details>
+</li>
+<li>情境題：你開了 12 個 window，想切到 window 11，但按 <code>Ctrl+b 1</code> 再按 <code>1</code> 只會到 window 1。該怎麼切？另外，如果你忘了編號、只記得那個 window 裡曾經印出 <code>segmentation fault</code>，有什麼辦法找到它？這個辦法什麼情況下會找不到？<details class="answer"><summary>參考答案</summary>
+<p>【<a href="#%E4%BA%8C%E6%89%80%E6%9C%89%E5%88%87-window-%E7%9A%84%E6%96%B9%E6%B3%95">第二節</a>、<a href="#%E4%B8%89%E8%83%8C%E5%BE%8C%E7%9A%84%E5%91%BD%E4%BB%A4%E8%88%87%E5%AE%8C%E6%95%B4%E6%97%97%E6%A8%99">第三節</a>】核心關鍵：(1) 按 <code>Ctrl+b '</code> 再輸入 <code>11</code> Enter（或 <code>Ctrl+b w</code> 從清單選）；(2) 按 <code>Ctrl+b f</code> 輸入 <code>segmentation</code>，<code>find-window</code> 預設同時比對名稱、標題與畫面內容；(3) 它只搜<strong>目前可見的畫面</strong>，那行字已經捲到歷史裡（被後面的輸出推上去）就找不到。</p>
+</details>
+</li>
+</ol>
+
+</main>
+</div>
+</body>
+</html>

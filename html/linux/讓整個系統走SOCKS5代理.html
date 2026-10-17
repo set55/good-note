@@ -1,0 +1,500 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>怎麼讓「整個系統」都走 all_proxy=socks5://...？—— 沒有這種東西</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/app.js"></script>
+</head>
+<body>
+<button class="menu-btn" onclick="toggleMenu()">☰ 目錄</button>
+<div class="layout">
+<nav class="side">
+<div class="crumbs"><a href="../index.html">🏠 首頁</a> / <a href="README.html">linux</a></div>
+<div class="tools"><button onclick="toggleTheme()">🌓 主題</button></div>
+<ul>
+<li class="l2"><a href="#%E7%9B%AE%E9%8C%84">目錄</a></li>
+<li class="l2"><a href="#%E4%B8%80%E5%85%88%E6%8E%A8%E7%BF%BB%E5%89%8D%E6%8F%90%E4%BB%A3%E7%90%86%E4%B8%8D%E6%98%AF%E7%B3%BB%E7%B5%B1%E5%8A%9F%E8%83%BD">一、先推翻前提：代理不是系統功能</a></li>
+<li class="l2"><a href="#%E4%BA%8C%E5%9B%9B%E5%B1%A4%E6%96%B9%E6%A1%88%E8%88%87%E6%80%8E%E9%BA%BC%E9%81%B8">二、四層方案與怎麼選</a></li>
+<li class="l2"><a href="#%E4%B8%89%E7%AC%AC%E4%B8%80%E5%B1%A4%E7%92%B0%E5%A2%83%E8%AE%8A%E6%95%B8%E8%A6%81%E5%AF%AB%E5%9C%A8%E5%93%AA%E8%A3%A1">三、第一層：環境變數要寫在哪裡</a></li>
+<li class="l3"><a href="#%E5%BB%BA%E8%AD%B0%E7%9A%84%E5%AF%AB%E6%B3%95">建議的寫法</a></li>
+<li class="l2"><a href="#%E5%9B%9B%E7%92%B0%E5%A2%83%E8%AE%8A%E6%95%B8%E7%9A%84%E4%BA%94%E5%80%8B%E5%9D%91">四、環境變數的五個坑</a></li>
+<li class="l3"><a href="#1-all_proxy-%E4%B8%8D%E6%98%AF%E9%80%9A%E7%94%A8%E6%A8%99%E6%BA%96wget-%E6%A0%B9%E6%9C%AC%E4%B8%8D%E6%94%AF%E6%8F%B4">1. all_proxy 不是通用標準——wget 根本不支援</a></li>
+<li class="l3"><a href="#2-socks5-%E8%88%87-socks5hdns-%E5%9C%A8%E8%AA%B0%E9%82%A3%E9%82%8A%E8%A7%A3%E6%9E%90">2. socks5:// 與 socks5h://：DNS 在誰那邊解析</a></li>
+<li class="l3"><a href="#3-no_proxy-%E7%9A%84%E6%AF%94%E5%B0%8D%E8%A6%8F%E5%89%87%E5%BE%88%E4%B8%8D%E4%B8%80%E8%87%B4">3. no_proxy 的比對規則很不一致</a></li>
+<li class="l3"><a href="#4-%E5%A4%A7%E5%B0%8F%E5%AF%ABhttp_proxy-%E6%9C%89%E5%AE%89%E5%85%A8%E8%80%83%E9%87%8F">4. 大小寫：HTTP_PROXY 有安全考量</a></li>
+<li class="l3"><a href="#5-sudo-%E9%A0%90%E8%A8%AD%E6%9C%83%E6%8A%8A%E7%92%B0%E5%A2%83%E8%AE%8A%E6%95%B8%E6%B8%85%E6%8E%89">5. sudo 預設會把環境變數清掉</a></li>
+<li class="l2"><a href="#%E4%BA%94%E7%AC%AC%E4%BA%8C%E5%B1%A4%E4%B8%8D%E8%AE%80%E7%92%B0%E5%A2%83%E8%AE%8A%E6%95%B8%E7%9A%84%E7%A8%8B%E5%BC%8F%E8%A6%81%E5%90%84%E8%87%AA%E8%A8%AD%E5%AE%9A">五、第二層：不讀環境變數的程式要各自設定</a></li>
+<li class="l2"><a href="#%E5%85%AD%E7%AC%AC%E4%B8%89%E5%B1%A4ld_preload-%E5%BC%B7%E5%88%B6%E6%94%94%E6%88%AAproxychains">六、第三層：LD_PRELOAD 強制攔截（proxychains）</a></li>
+<li class="l2"><a href="#%E4%B8%83%E7%AC%AC%E5%9B%9B%E5%B1%A4tun-%E6%A8%A1%E5%BC%8F%E5%94%AF%E4%B8%80%E7%9C%9F%E6%AD%A3%E7%9A%84%E5%85%A8%E7%B3%BB%E7%B5%B1">七、第四層：TUN 模式——唯一真正的「全系統」</a></li>
+<li class="l2"><a href="#%E5%85%AB%E9%A9%97%E8%AD%89%E6%96%B9%E6%B3%95">八、驗證方法</a></li>
+<li class="l2"><a href="#%E4%B9%9D%E6%9C%AC%E6%A9%9F%E7%8F%BE%E6%B3%81%E8%88%87%E5%BB%BA%E8%AD%B0">九、本機現況與建議</a></li>
+<li class="l2"><a href="#proxychains4-%E7%9A%84%E5%AE%8C%E6%95%B4%E9%81%B8%E9%A0%85">proxychains4 的完整選項</a></li>
+<li class="l2"><a href="#%E8%87%AA%E6%88%91%E6%B8%AC%E9%A9%97">自我測驗</a></li>
+</ul>
+</nav>
+<main>
+<h1 id="怎麼讓整個系統都走-all_proxysocks5-沒有這種東西">怎麼讓「整個系統」都走 <code>all_proxy=socks5://...</code>？—— 沒有這種東西</h1>
+<blockquote>
+<p>日期：2026-09-20<br />
+情境：想讓系統上所有程式都走 <code>all_proxy=socks5://192.168.1.1:1080</code><br />
+對應檔案：<code>~/.zshrc</code>（個人用，不入 git）、<code>/etc/apt/apt.conf.d/</code>、
+<code>/etc/systemd/system/docker.service.d/http-proxy.conf</code>（系統設定，本機已存在）<br />
+適用範圍：Ubuntu 24.04／任何 systemd + GNOME 的桌面 Linux<br />
+相關：<a href="SSH%E8%B5%B0%E4%BB%A3%E7%90%86%E8%A8%AD%E5%AE%9A.html">SSH走代理設定</a>、<a href="../docker/Docker%E6%8B%89%E5%8F%96%E6%98%A0%E5%83%8F%E6%AA%94%E5%A4%B1%E6%95%97-daemon%E7%BC%BAproxy%E6%8E%92%E6%9F%A5.html">Docker拉取映像檔失敗-daemon缺proxy排查</a></p>
+</blockquote>
+<p><strong>一句話結論：Linux 核心沒有「全系統代理」這個開關——<code>all_proxy</code> 只是一個環境變數慣例，只有「自己願意讀它」的程式才會理你。所以「讓所有程式走 proxy」不是一個設定，而是四層選擇：環境變數（對願意讀的程式）→ 各程式自己的設定檔（對不讀環境變數的）→ <code>LD_PRELOAD</code> 攔截（對不合作的）→ TUN 虛擬網卡（對全部，這才是真的「全系統」）。</strong></p>
+<hr />
+<h2 id="目錄">目錄</h2>
+<ul>
+<li><a href="#%E4%B8%80%E5%85%88%E6%8E%A8%E7%BF%BB%E5%89%8D%E6%8F%90%E4%BB%A3%E7%90%86%E4%B8%8D%E6%98%AF%E7%B3%BB%E7%B5%B1%E5%8A%9F%E8%83%BD">一、先推翻前提：代理不是系統功能</a></li>
+<li><a href="#%E4%BA%8C%E5%9B%9B%E5%B1%A4%E6%96%B9%E6%A1%88%E8%88%87%E6%80%8E%E9%BA%BC%E9%81%B8">二、四層方案與怎麼選</a></li>
+<li><a href="#%E4%B8%89%E7%AC%AC%E4%B8%80%E5%B1%A4%E7%92%B0%E5%A2%83%E8%AE%8A%E6%95%B8%E8%A6%81%E5%AF%AB%E5%9C%A8%E5%93%AA%E8%A3%A1">三、第一層：環境變數要寫在哪裡</a></li>
+<li><a href="#%E5%9B%9B%E7%92%B0%E5%A2%83%E8%AE%8A%E6%95%B8%E7%9A%84%E4%BA%94%E5%80%8B%E5%9D%91">四、環境變數的五個坑</a></li>
+<li><a href="#%E4%BA%94%E7%AC%AC%E4%BA%8C%E5%B1%A4%E4%B8%8D%E8%AE%80%E7%92%B0%E5%A2%83%E8%AE%8A%E6%95%B8%E7%9A%84%E7%A8%8B%E5%BC%8F%E8%A6%81%E5%90%84%E8%87%AA%E8%A8%AD%E5%AE%9A">五、第二層：不讀環境變數的程式要各自設定</a></li>
+<li><a href="#%E5%85%AD%E7%AC%AC%E4%B8%89%E5%B1%A4ld_preload-%E5%BC%B7%E5%88%B6%E6%94%94%E6%88%AAproxychains">六、第三層：<code>LD_PRELOAD</code> 強制攔截（proxychains）</a></li>
+<li><a href="#%E4%B8%83%E7%AC%AC%E5%9B%9B%E5%B1%A4tun-%E6%A8%A1%E5%BC%8F%E5%94%AF%E4%B8%80%E7%9C%9F%E6%AD%A3%E7%9A%84%E5%85%A8%E7%B3%BB%E7%B5%B1">七、第四層：TUN 模式——唯一真正的「全系統」</a></li>
+<li><a href="#%E5%85%AB%E9%A9%97%E8%AD%89%E6%96%B9%E6%B3%95">八、驗證方法</a></li>
+<li><a href="#%E8%87%AA%E6%88%91%E6%B8%AC%E9%A9%97">自我測驗</a></li>
+</ul>
+<hr />
+<h2 id="一先推翻前提代理不是系統功能">一、先推翻前提：代理不是系統功能</h2>
+<p>Windows 有「系統 Proxy 設定」（WinINET），macOS 有網路偏好設定的代理欄位，兩者作業系統層有統一入口。<strong>Linux 沒有。</strong></p>
+<p>原因在於代理發生的位置：</p>
+<pre><code>應用程式  ← proxy 在這一層（程式自己決定要不要把連線交給 proxy）
+--------
+socket API / TCP / IP   ← 核心只認 IP 與 port，不知道「proxy」是什麼概念
+--------
+網路卡
+</code></pre>
+<p>核心的 <code>connect()</code> 只會照你給的 IP 去連。<strong>要走 SOCKS5，得由程式自己先連到 proxy、再用 SOCKS5 協定說「幫我轉接到 example.com:443」</strong>——這是應用層的行為。所以：</p>
+<ul>
+<li><code>http_proxy</code> / <code>all_proxy</code> 這些變數<strong>不是核心讀的</strong>，是 libcurl、Python requests、Go 的 <code>net/http</code> 這些函式庫各自去讀的。</li>
+<li>沒去讀的程式（<code>ssh</code>、<code>ping</code>、<code>nc</code>、絕大多數自己寫 socket 的程式）<strong>設了也完全沒用</strong>。</li>
+<li><code>ping</code> 永遠不可能走 SOCKS5——SOCKS5 只代理 TCP 與 UDP associate，ICMP 根本不在協定裡。</li>
+</ul>
+<p><strong>這就是為什麼「讓所有程式走 proxy」必須分層處理，而不是找一個設定檔。</strong></p>
+<hr />
+<h2 id="二四層方案與怎麼選">二、四層方案與怎麼選</h2>
+<table>
+<thead>
+<tr>
+<th>層</th>
+<th>做法</th>
+<th>涵蓋範圍</th>
+<th>代價</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>L1</td>
+<td>環境變數（<code>all_proxy</code> 等）</td>
+<td>只有讀環境變數的程式（curl、git、pip、Go/Python 的 HTTP client）</td>
+<td>最簡單，但涵蓋率最低</td>
+</tr>
+<tr>
+<td>L2</td>
+<td>各程式自己的設定檔</td>
+<td>apt、docker daemon、snap、GNOME GUI、systemd 服務</td>
+<td>要一個一個設，但最穩、最可控</td>
+</tr>
+<tr>
+<td>L3</td>
+<td><code>proxychains4</code>（<code>LD_PRELOAD</code> 攔 <code>connect()</code>）</td>
+<td>動態連結且你願意加前綴跑的程式</td>
+<td>對靜態連結／Go 程式無效，只能逐次呼叫</td>
+</tr>
+<tr>
+<td>L4</td>
+<td>TUN 虛擬網卡 + 路由（clash-verge／sing-box 的 TUN mode）</td>
+<td><strong>真正全部</strong>，含 ssh、ping、遊戲、靜態連結程式</td>
+<td>要 root／<code>CAP_NET_ADMIN</code>，設錯會斷網</td>
+</tr>
+</tbody>
+</table>
+<p><strong>選法：</strong></p>
+<ul>
+<li>只想讓終端機的下載、<code>git clone</code>、<code>pip install</code> 走 → <strong>L1 + L2 就夠</strong>，不要碰 L4。</li>
+<li>有特定程式不合作、只是偶爾要繞 → <strong>L3</strong>（<code>proxychains4 &lt;cmd&gt;</code>）。</li>
+<li>真的要「整個系統」，包含 ssh、ping、不合作的商用軟體 → <strong>只有 L4</strong>。你機器上已經裝了 <code>clash-verge</code>，打開它的 TUN 模式就是這一層。</li>
+</ul>
+<hr />
+<h2 id="三第一層環境變數要寫在哪裡">三、第一層：環境變數要寫在哪裡</h2>
+<p><strong>關鍵在「哪個檔案會被哪種程式讀到」。</strong> 本機實測（用 <code>env -i</code> 清空環境後啟動各種 shell）：</p>
+<table>
+<thead>
+<tr>
+<th>設定位置</th>
+<th style="text-align:center">互動終端機</th>
+<th style="text-align:center"><code>zsh -c</code> 腳本／cron</th>
+<th style="text-align:center">login shell</th>
+<th style="text-align:center">systemd user service</th>
+<th style="text-align:center">GUI（從選單點開）</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>~/.zshrc</code>（現況）</td>
+<td style="text-align:center">✅</td>
+<td style="text-align:center">❌</td>
+<td style="text-align:center">❌</td>
+<td style="text-align:center">❌</td>
+<td style="text-align:center">❌</td>
+</tr>
+<tr>
+<td><code>~/.zshenv</code></td>
+<td style="text-align:center">✅</td>
+<td style="text-align:center">✅</td>
+<td style="text-align:center">✅</td>
+<td style="text-align:center">❌</td>
+<td style="text-align:center">❌</td>
+</tr>
+<tr>
+<td><code>/etc/environment</code></td>
+<td style="text-align:center">✅</td>
+<td style="text-align:center">✅</td>
+<td style="text-align:center">✅</td>
+<td style="text-align:center">❌</td>
+<td style="text-align:center">✅</td>
+</tr>
+<tr>
+<td><code>~/.config/environment.d/*.conf</code></td>
+<td style="text-align:center">✅</td>
+<td style="text-align:center">✅</td>
+<td style="text-align:center">✅</td>
+<td style="text-align:center">✅</td>
+<td style="text-align:center">✅</td>
+</tr>
+<tr>
+<td>systemd unit 的 <code>Environment=</code></td>
+<td style="text-align:center">—</td>
+<td style="text-align:center">—</td>
+<td style="text-align:center">—</td>
+<td style="text-align:center">✅</td>
+<td style="text-align:center">—</td>
+</tr>
+</tbody>
+</table>
+<p>實測輸出（<code>all_proxy</code> 只寫在 <code>~/.zshrc</code> 時）：</p>
+<pre><code>1. 互動 zsh（你平常的終端機）  : socks5://192.168.1.1:1080
+2. 非互動 zsh -c（腳本、cron） : （空）
+3. login shell zsh -l          : （空）
+4. sh -c（腳本 #!/bin/sh）     : （空）
+5. systemd user service        : （空）
+6. gnome-shell 的 /proc/PID/environ : （沒有任何 proxy 變數）
+</code></pre>
+<p><strong>為什麼？</strong> zsh 的啟動檔各有適用情境：<code>.zshenv</code> 每次都讀、<code>.zshrc</code> <strong>只有互動式</strong> shell 讀、<code>.zprofile</code> 只有 login shell 讀。把 export 放在 <code>.zshrc</code>，等於宣告「只有我手打指令時才走 proxy」。</p>
+<h3 id="建議的寫法">建議的寫法</h3>
+<p><strong>桌面與 GUI 也要涵蓋</strong> → <code>/etc/environment</code>（由 PAM 的 <code>pam_env</code> 在登入時套用，圖形登入也算）：</p>
+<pre><code class="language-bash">sudo<span class="w"> </span>tee<span class="w"> </span>-a<span class="w"> </span>/etc/environment<span class="w"> </span>&gt;/dev/null<span class="w"> </span><span class="s">&lt;&lt;&#39;EOF&#39;</span>
+<span class="s">all_proxy=socks5h://192.168.1.1:1080</span>
+<span class="s">http_proxy=http://192.168.1.1:8880</span>
+<span class="s">https_proxy=http://192.168.1.1:8880</span>
+<span class="s">no_proxy=localhost,127.0.0.1,::1,192.168.0.0/16,10.0.0.0/8,172.16.0.0/12,*.local</span>
+<span class="s">EOF</span>
+</code></pre>
+<blockquote>
+<p><strong><code>/etc/environment</code> 不是 shell script</strong>：不能寫 <code>export</code>、不能用 <code>$VAR</code> 展開、不能有 <code>if</code>。寫錯不會報錯，只會安靜地不生效。</p>
+</blockquote>
+<p><strong>只要自己用、且要涵蓋 systemd user service</strong> → <code>~/.config/environment.d/proxy.conf</code>（同樣是 <code>KEY=value</code> 格式，不是 script）。</p>
+<p><strong>要重開機才生效</strong>：這兩種都是登入時載入，改完要重新登入（或 <code>systemctl --user import-environment</code> 手動補）。</p>
+<hr />
+<h2 id="四環境變數的五個坑">四、環境變數的五個坑</h2>
+<h3 id="1-all_proxy-不是通用標準wget-根本不支援">1. <code>all_proxy</code> 不是通用標準——<code>wget</code> 根本不支援</h3>
+<p>實測：<code>wget --help</code> 裡「socks」出現 <strong>0 次</strong>；man page 只列 <code>http_proxy</code>、<code>https_proxy</code>、<code>ftp_proxy</code>。<strong>wget 完全不支援 SOCKS</strong>，你設 <code>all_proxy</code> 它視而不見。要讓 wget 走 SOCKS，只能靠 L3/L4，或改用 <code>curl</code>。</p>
+<p><code>all_proxy</code> 主要是 <strong>curl／libcurl 系</strong>的慣例（<code>git</code>、<code>pip</code>、<code>aria2</code> 等跟進）。</p>
+<h3 id="2-socks5-與-socks5hdns-在誰那邊解析">2. <code>socks5://</code> 與 <code>socks5h://</code>：DNS 在誰那邊解析</h3>
+<p>這是最容易出事、也最少人知道的一點。本機實測：</p>
+<pre><code>$ curl -v -x socks5://192.168.1.1:1080 https://example.com
+* Host example.com:443 was resolved.
+* SOCKS5 connect to 104.20.23.154:443 (locally resolved)      ← 本機先查 DNS
+
+$ curl -v -x socks5h://192.168.1.1:1080 https://example.com
+* SOCKS5 connect to example.com:443 (remotely resolved)       ← 把域名交給 proxy 查
+</code></pre>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>誰解析 DNS</th>
+<th>後果</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>socks5://</code></td>
+<td><strong>本機</strong></td>
+<td>DNS 查詢不走 proxy（會洩漏你在查什麼）；本機 DNS 被污染或查不到該域名時，連線直接失敗</td>
+</tr>
+<tr>
+<td><code>socks5h://</code></td>
+<td><strong>proxy 端</strong></td>
+<td>DNS 也走代理；翻越 DNS 污染要用這個</td>
+</tr>
+</tbody>
+</table>
+<p><strong><code>h</code> 就是 hostname 的意思。</strong> 如果你設代理的目的包含「繞過 DNS 污染／存取內網域名」，<code>socks5://</code> 會讓你白忙一場——這時要用 <code>socks5h://</code>。</p>
+<h3 id="3-no_proxy-的比對規則很不一致">3. <code>no_proxy</code> 的比對規則很不一致</h3>
+<p><code>no_proxy=192.168.0.0/16</code> 這種 CIDR 寫法，<strong>curl 7.86 以後才支援</strong>，更舊的版本與很多語言的 HTTP client（Python requests、Go）只做字尾字串比對，CIDR 會被當成無意義字串。跨工具最保險的是列舉：</p>
+<pre><code>no_proxy=localhost,127.0.0.1,::1,.local,.internal,192.168.1.1
+</code></pre>
+<p>另外別漏掉 <strong>proxy 自己的位址</strong>（<code>192.168.1.1</code>），否則某些程式會試圖「透過 proxy 連 proxy」。</p>
+<h3 id="4-大小寫http_proxy-有安全考量">4. 大小寫：<code>HTTP_PROXY</code> 有安全考量</h3>
+<p>curl 對 <code>http_proxy</code> <strong>只讀小寫</strong>，這是為了擋 httpoxy 漏洞（CVE-2016-5385）——CGI 環境會把 HTTP 標頭 <code>Proxy:</code> 變成環境變數 <code>HTTP_PROXY</code>，攻擊者就能劫持伺服器的對外連線。其餘變數（<code>https_proxy</code>、<code>all_proxy</code>、<code>no_proxy</code>）大小寫都讀。<strong>兩種都設是最保險的做法</strong>（Java、Go 等偏好大寫）。</p>
+<h3 id="5-sudo-預設會把環境變數清掉">5. <code>sudo</code> 預設會把環境變數清掉</h3>
+<p>sudoers 預設 <code>env_reset</code>，所以 <code>sudo curl ...</code> 拿不到你的 proxy 變數——這是「我明明設了，為什麼 sudo 執行就不通」的頭號原因。兩種解法：</p>
+<pre><code class="language-bash">sudo<span class="w"> </span>-E<span class="w"> </span>curl<span class="w"> </span>https://example.com<span class="w">        </span><span class="c1"># 臨時：-E 保留當前環境</span>
+<span class="c1"># 永久：sudo visudo，加上</span>
+Defaults<span class="w"> </span><span class="nv">env_keep</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="s2">&quot;http_proxy https_proxy all_proxy no_proxy HTTP_PROXY HTTPS_PROXY ALL_PROXY NO_PROXY&quot;</span>
+</code></pre>
+<hr />
+<h2 id="五第二層不讀環境變數的程式要各自設定">五、第二層：不讀環境變數的程式要各自設定</h2>
+<table>
+<thead>
+<tr>
+<th>程式</th>
+<th>設定位置</th>
+<th>備註</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>apt</strong></td>
+<td><code>/etc/apt/apt.conf.d/80proxy</code>（本機實際檔名；<code>apt.conf.d/</code> 下檔名自訂，依字母序讀入）</td>
+<td><code>Acquire::http::Proxy &quot;http://...&quot;;</code> 與 <code>Acquire::https::Proxy</code>（本機兩者都設 8880）。apt <strong>會讀</strong> <code>http_proxy</code> 環境變數（<code>man apt-transport-http</code>），但實務上一律 <code>sudo apt</code>，而 <code>sudo</code> 預設 <code>env_reset</code> 會清掉變數，所以要寫進設定檔才穩。用 <code>apt-config dump | grep -i proxy</code> 確認實際生效值</td>
+</tr>
+<tr>
+<td><strong>apt 走 socks5</strong></td>
+<td><code>Acquire::http::Proxy &quot;socks5h://192.168.1.1:1080&quot;;</code></td>
+<td>apt 支援的 scheme 只有 <code>socks5h</code>、<code>http</code>、<code>https</code>，<strong>不支援 <code>socks5</code></strong>（只有 h 版）</td>
+</tr>
+<tr>
+<td><strong>docker daemon</strong>（pull 映像）</td>
+<td><code>/etc/systemd/system/docker.service.d/http-proxy.conf</code></td>
+<td>改完要 <code>systemctl daemon-reload &amp;&amp; systemctl restart docker</code>。本機已設</td>
+</tr>
+<tr>
+<td><strong>docker 容器內</strong>（build／run）</td>
+<td><code>~/.docker/config.json</code> 的 <code>proxies</code> 欄位</td>
+<td>daemon 的設定<strong>不會</strong>傳進容器，這是兩回事</td>
+</tr>
+<tr>
+<td><strong>git</strong></td>
+<td><code>git config --global http.proxy socks5h://192.168.1.1:1080</code></td>
+<td>只對 <code>http(s)://</code> 的 remote 有效；<code>git@github.com</code> 走 SSH，要改 <code>~/.ssh/config</code> 的 <code>ProxyCommand</code></td>
+</tr>
+<tr>
+<td><strong>npm / pip</strong></td>
+<td><code>~/.npmrc</code>、<code>~/.config/pip/pip.conf</code></td>
+<td>會讀環境變數，但設定檔優先</td>
+</tr>
+<tr>
+<td><strong>snap</strong></td>
+<td><code>sudo snap set system proxy.http=...</code></td>
+<td>snapd 是系統服務，不讀你的環境變數</td>
+</tr>
+<tr>
+<td><strong>GNOME / Chrome / Electron 程式</strong></td>
+<td><code>gsettings set org.gnome.system.proxy mode 'manual'</code> 等</td>
+<td>本機目前是 <code>'none'</code>。Chrome 系會讀 GNOME 設定</td>
+</tr>
+<tr>
+<td><strong>任何 systemd 服務</strong></td>
+<td><code>/etc/systemd/system/&lt;svc&gt;.service.d/proxy.conf</code> 的 <code>Environment=</code></td>
+<td>systemd 服務<strong>完全不繼承</strong>你的 shell 環境</td>
+</tr>
+</tbody>
+</table>
+<p>「所有 systemd 服務都走 proxy」可以用 <code>/etc/systemd/system.conf</code> 的 <code>DefaultEnvironment=</code>，但<strong>不建議</strong>：開機早期的服務（網路還沒起來）也會套用，出問題時很難排查。</p>
+<hr />
+<h2 id="六第三層ld_preload-強制攔截proxychains">六、第三層：<code>LD_PRELOAD</code> 強制攔截（proxychains）</h2>
+<p>你機器上已裝好 <code>proxychains4</code>。原理是用 <code>LD_PRELOAD</code> 把自己的 <code>connect()</code> 插到程式前面，攔下每一個對外連線再改送 SOCKS5：</p>
+<pre><code class="language-bash"><span class="c1"># /etc/proxychains4.conf 的 [ProxyList] 改成</span>
+socks5<span class="w"> </span><span class="m">192</span>.168.1.1<span class="w"> </span><span class="m">1080</span>
+
+proxychains4<span class="w"> </span>wget<span class="w"> </span>https://example.com<span class="w">     </span><span class="c1"># 連不支援 SOCKS 的 wget 都能走</span>
+proxychains4<span class="w"> </span>-q<span class="w"> </span>nc<span class="w"> </span>example.com<span class="w"> </span><span class="m">443</span>
+</code></pre>
+<p>設定檔裡兩個關鍵選項（本機現況是 <code>strict_chain</code> + <code>proxy_dns</code>）：</p>
+<ul>
+<li><code>strict_chain</code> / <code>dynamic_chain</code>：前者要求鏈上每個 proxy 都通，後者自動跳過掛掉的。</li>
+<li><code>proxy_dns</code>：把 DNS 查詢也導向 proxy——效果等同 <code>socks5h</code>。</li>
+</ul>
+<p><strong>失效情況（重要）：</strong></p>
+<ul>
+<li><strong>靜態連結的程式攔不到</strong>——<code>LD_PRELOAD</code> 只對動態連結有效。</li>
+<li><strong>Go 程式通常攔不到</strong>：Go 預設靜態連結，而且直接下 syscall，不經過 libc 的 <code>connect()</code>。</li>
+<li>setuid 程式（如 <code>ping</code>）會忽略 <code>LD_PRELOAD</code>。</li>
+<li>要逐個指令加前綴，不是「全系統」。</li>
+</ul>
+<hr />
+<h2 id="七第四層tun-模式唯一真正的全系統">七、第四層：TUN 模式——唯一真正的「全系統」</h2>
+<p>這層不再問程式願不願意合作，而是<strong>從路由下手</strong>：建一張虛擬網卡（TUN），把預設路由指過去，核心就把所有 IP 封包交給它；使用者空間的程式（clash-verge / sing-box / tun2socks）收到封包後，解析出目的地，再用 SOCKS5 送出去。</p>
+<pre><code>程式（毫不知情）→ connect() → 核心路由表 → tun0 → clash/sing-box → SOCKS5 → 192.168.1.1:1080
+</code></pre>
+<p>因為攔截點在 IP 層，<strong>ssh、ping（ICMP 由工具自行處理）、遊戲、靜態連結程式全都涵蓋</strong>，程式完全不需要支援 proxy。</p>
+<p>你機器上已經有 <code>clash-verge</code>，所以最省事的做法就是在它的設定裡開 <strong>TUN Mode（服務模式）</strong>，把 <code>192.168.1.1:1080</code> 設為 outbound。</p>
+<p><strong>代價與風險：</strong></p>
+<ul>
+<li>需要 root 或 <code>CAP_NET_ADMIN</code>（clash-verge 會裝一個 service helper）。</li>
+<li>會改動預設路由——設錯就斷網。<strong>務必先確認 proxy 本身的位址被排除</strong>（<code>192.168.1.1</code> 要走原本的路由，否則封包會繞回 tun0 形成迴圈，整台機器斷線）。</li>
+<li>DNS 要一起處理（fake-ip 或 DNS 劫持），否則域名解析仍走原本的路。</li>
+<li>排查時多一層：<code>ip route</code> 看到的 <code>default dev tun0</code> 就是它幹的（見 <a href="%E6%9F%A5%E8%A9%A2%E8%BD%89%E7%99%BC%E8%A1%A8%E8%88%87%E8%B7%AF%E7%94%B1%E8%A1%A8.html">查詢轉發表與路由表</a>）。</li>
+</ul>
+<blockquote>
+<p>另一個等價作法是 <code>redsocks</code> + iptables <code>REDIRECT</code>（把 TCP 導進本機的 redsocks 再轉 SOCKS5），概念相同但只能處理 TCP，且 iptables 規則寫錯同樣會斷網。</p>
+</blockquote>
+<hr />
+<h2 id="八驗證方法">八、驗證方法</h2>
+<pre><code class="language-bash"><span class="c1"># 1. 變數到底有沒有進到「那個」程式（不要只看你自己的 shell）</span>
+env<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-i<span class="w"> </span>proxy<span class="w">                       </span><span class="c1"># 當前 shell</span>
+sudo<span class="w"> </span>env<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-i<span class="w"> </span>proxy<span class="w">                  </span><span class="c1"># sudo 之後還在嗎（多半不在）</span>
+tr<span class="w"> </span><span class="s1">&#39;\0&#39;</span><span class="w"> </span><span class="s1">&#39;\n&#39;</span><span class="w"> </span>&lt;<span class="w"> </span>/proc/&lt;PID&gt;/environ<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-i<span class="w"> </span>proxy<span class="w">    </span><span class="c1"># 某個已在跑的程式真正拿到什麼</span>
+systemctl<span class="w"> </span>show<span class="w"> </span>&lt;svc&gt;<span class="w"> </span>-p<span class="w"> </span>Environment<span class="w">       </span><span class="c1"># systemd 服務拿到什麼</span>
+
+<span class="c1"># 2. 連線實際走了哪條路</span>
+curl<span class="w"> </span>-v<span class="w"> </span>-x<span class="w"> </span>socks5h://192.168.1.1:1080<span class="w"> </span>https://example.com<span class="w"> </span><span class="m">2</span>&gt;<span class="p">&amp;</span><span class="m">1</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>SOCKS5
+curl<span class="w"> </span>-s<span class="w"> </span>https://ifconfig.me<span class="p">;</span><span class="w"> </span><span class="nb">echo</span><span class="w">        </span><span class="c1"># 出口 IP 是不是 proxy 的</span>
+ss<span class="w"> </span>-tnp<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span><span class="m">1080</span><span class="w">                      </span><span class="c1"># 有沒有真的連到 proxy 的 1080</span>
+
+<span class="c1"># 3. 分辨「沒走 proxy」與「proxy 壞了」</span>
+curl<span class="w"> </span>--noproxy<span class="w"> </span><span class="s1">&#39;*&#39;</span><span class="w"> </span>-sS<span class="w"> </span>-o<span class="w"> </span>/dev/null<span class="w"> </span>-w<span class="w"> </span><span class="s1">&#39;%{http_code}\n&#39;</span><span class="w"> </span>https://example.com<span class="w">   </span><span class="c1"># 強制不走 proxy 對照</span>
+nc<span class="w"> </span>-zv<span class="w"> </span><span class="m">192</span>.168.1.1<span class="w"> </span><span class="m">1080</span><span class="w">                  </span><span class="c1"># proxy 本身通不通</span>
+</code></pre>
+<p><strong>心法：永遠用「同一個請求走／不走 proxy」做對照組</strong>，才能分清楚是沒設到、還是 proxy 本身有問題——這就是 <a href="%E6%8E%92%E6%9F%A5%E6%96%B9%E6%B3%95%E8%AB%96.html">排查方法論</a> 的對照組原則。</p>
+<hr />
+<h2 id="九本機現況與建議">九、本機現況與建議</h2>
+<table>
+<thead>
+<tr>
+<th>現況</th>
+<th>問題</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>~/.zshrc</code> 有 export（4 個變數）</td>
+<td>只有互動終端機有效；腳本、cron、systemd、GUI 全都拿不到</td>
+</tr>
+<tr>
+<td><code>/etc/apt/apt.conf.d/</code> 已設 http 8880</td>
+<td>✅ apt 正常</td>
+</tr>
+<tr>
+<td>docker drop-in 已設 8880</td>
+<td>✅ daemon pull 正常；但容器內沒有（需 <code>~/.docker/config.json</code>）</td>
+</tr>
+<tr>
+<td>GNOME proxy mode = <code>none</code></td>
+<td>Chrome／Electron 系 GUI 不走 proxy</td>
+</tr>
+<tr>
+<td><code>http_proxy</code> 用 8880、<code>all_proxy</code> 用 1080</td>
+<td>兩條不同通道，行為不一致——讀 <code>all_proxy</code> 的走 socks5，讀 <code>http_proxy</code> 的走 http</td>
+</tr>
+<tr>
+<td><code>all_proxy</code> 用的是 <code>socks5://</code></td>
+<td>DNS 在本機解析，繞不過 DNS 污染。建議改 <code>socks5h://</code></td>
+</tr>
+</tbody>
+</table>
+<p><strong>建議順序：</strong></p>
+<ol>
+<li>把 <code>~/.zshrc</code> 那四行搬到 <code>/etc/environment</code>（涵蓋 GUI 與腳本），<code>socks5</code> 改成 <code>socks5h</code>。</li>
+<li><code>sudo visudo</code> 加 <code>env_keep</code>，讓 <code>sudo</code> 也帶得過去。</li>
+<li>需要 GUI 瀏覽器走 proxy → 設 <code>gsettings org.gnome.system.proxy</code>。</li>
+<li>真的要「所有程式」（含 ssh、ping、不合作的軟體）→ 開 clash-verge 的 TUN 模式，前三步就可以全部省略。</li>
+</ol>
+<hr />
+<h2 id="proxychains4-的完整選項">proxychains4 的完整選項</h2>
+<pre><code>proxychains4 [-q] [-f 設定檔] &lt;程式&gt; [參數...]
+</code></pre>
+<p><strong>它只有兩個選項：</strong></p>
+<table>
+<thead>
+<tr>
+<th>選項</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-q</code></td>
+<td><strong>安靜模式</strong>（蓋過設定檔裡的 <code>quiet_mode</code>）——不印那些 <code>[proxychains] Strict chain ...</code></td>
+</tr>
+<tr>
+<td><code>-f &lt;設定檔&gt;</code></td>
+<td><strong>指定設定檔</strong>，不用預設的搜尋順序</td>
+</tr>
+</tbody>
+</table>
+<p><strong>真正的設定全在設定檔裡，不在命令列。</strong> 設定檔的搜尋順序是：
+<code>-f</code> 指定的 → <code>./proxychains.conf</code> → <code>$HOME/.proxychains/proxychains.conf</code> →
+<code>/etc/proxychains4.conf</code>。</p>
+<p>設定檔的關鍵項目（本機 <code>/etc/proxychains4.conf</code>）：</p>
+<table>
+<thead>
+<tr>
+<th>項目</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>strict_chain</code></td>
+<td>依序經過清單裡<strong>每一個</strong> proxy，任一掛掉就失敗</td>
+</tr>
+<tr>
+<td><code>dynamic_chain</code></td>
+<td>同上但<strong>自動跳過掛掉的</strong></td>
+</tr>
+<tr>
+<td><code>random_chain</code></td>
+<td>隨機挑一個</td>
+</tr>
+<tr>
+<td><code>round_robin_chain</code></td>
+<td>輪流</td>
+</tr>
+<tr>
+<td><code>proxy_dns</code></td>
+<td><strong>把 DNS 查詢也導向 proxy</strong>（效果等同 <code>socks5h</code>）</td>
+</tr>
+<tr>
+<td><code>remote_dns_subnet</code></td>
+<td>假 IP 的網段（預設 224）</td>
+</tr>
+<tr>
+<td><code>tcp_read_time_out</code> / <code>tcp_connect_time_out</code></td>
+<td>逾時（毫秒）</td>
+</tr>
+<tr>
+<td><code>localnet &lt;網段&gt;</code></td>
+<td><strong>排除不走 proxy 的網段</strong></td>
+</tr>
+<tr>
+<td><code>[ProxyList]</code></td>
+<td>每行一個：<code>&lt;類型&gt; &lt;主機&gt; &lt;埠&gt; [帳號] [密碼]</code>，類型為 <code>http</code>／<code>socks4</code>／<code>socks5</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="自我測驗">自我測驗</h2>
+<ol>
+<li>為什麼 Linux 沒有像 Windows 那樣的「系統代理」開關？從 <code>connect()</code> 發生在哪一層說明，並解釋為什麼 <code>ping</code> 不管怎麼設都不會走 SOCKS5。</li>
+<li><code>socks5://</code> 和 <code>socks5h://</code> 差在哪？如果你設代理的目的是繞過 DNS 污染，用錯哪一個會完全失效、為什麼？</li>
+<li>你把 <code>export all_proxy=...</code> 寫在 <code>~/.zshrc</code>，終端機裡 <code>curl</code> 正常，但 cron 裡的備份腳本與從選單點開的 GUI 程式都不走 proxy。用「哪個檔案被哪種 shell 讀」解釋，並說出兩個正確的存放位置。</li>
+<li><code>sudo apt update</code> 走了 proxy，但 <code>sudo curl https://example.com</code> 卻直連。這兩個為什麼行為不同？各自的設定來源是什麼？</li>
+<li>情境題：你用 <code>proxychains4</code> 跑一個 Go 寫的 CLI 工具，發現它完全沒走 proxy，但同樣指令跑 <code>wget</code> 就正常。請說明原因，並指出要讓這支 Go 工具走 proxy 有哪兩條路可走。</li>
+</ol>
+<p>（以下 6～8 題是 2026-09-23 追問「apt 走代理的設定在哪」時新增的，答案在第五節的 apt 那兩列）</p>
+<ol start="6">
+<li>你在 <code>~/.zshrc</code> 設了 <code>export http_proxy=...</code>，然後 <code>sudo apt update</code> 沒走代理——可是 apt 明明會讀 <code>http_proxy</code>。問題出在哪？</li>
+<li>同事只設了 <code>Acquire::http::Proxy &quot;http://proxy:8880/&quot;;</code>，<code>apt update</code> 時某個 <code>https://download.docker.com</code> 的來源仍然直連。為什麼？</li>
+<li>有人寫 <code>Acquire::http::Proxy &quot;socks5://192.168.1.1:1080&quot;;</code> 想讓 apt 走 SOCKS。會成功嗎？該怎麼改？那個 <code>h</code> 代表什麼差別？</li>
+</ol>
+
+</main>
+</div>
+</body>
+</html>

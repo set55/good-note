@@ -1,0 +1,490 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>字元是什麼？—— char 就是 1 byte 的整數，字元靠編碼表對應成數字</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/app.js"></script>
+</head>
+<body>
+<button class="menu-btn" onclick="toggleMenu()">☰ 目錄</button>
+<div class="layout">
+<nav class="side">
+<div class="crumbs"><a href="../index.html">🏠 首頁</a> / <a href="README.html">c</a></div>
+<div class="tools"><button onclick="toggleTheme()">🌓 主題</button><button onclick="toggleAnswers(true)">展開答案</button><button onclick="toggleAnswers(false)">收起答案</button></div>
+<ul>
+<li class="l2"><a href="#%E4%B8%80%E5%AD%97%E5%85%83%E5%B0%B1%E6%98%AF%E4%B8%80%E5%80%8B%E6%95%B8%E5%AD%97">一、字元就是一個數字</a></li>
+<li class="l2"><a href="#%E4%BA%8C%E7%B7%A8%E7%A2%BC%E8%A1%A8ascii">二、編碼表：ASCII</a></li>
+<li class="l2"><a href="#%E4%B8%89c-%E7%9A%84%E5%AD%97%E5%85%83%E5%B8%B8%E6%95%B8%E5%96%AE%E5%BC%95%E8%99%9F%E8%80%8C%E4%B8%94%E5%9E%8B%E5%88%A5%E6%98%AF-int">三、C 的字元常數：單引號，而且型別是 int</a></li>
+<li class="l3"><a href="#%E8%B7%B3%E8%84%AB%E5%BA%8F%E5%88%97escape-sequence%E5%85%A8%E9%83%A8%E5%88%97%E5%87%BA">跳脫序列（escape sequence）：全部列出</a></li>
+<li class="l2"><a href="#%E5%9B%9B%E4%B8%AD%E6%96%87%E5%AD%97%E4%B8%80%E5%80%8B-byte-%E8%A3%9D%E4%B8%8D%E4%B8%8Butf-8-%E7%94%A8-3-%E5%80%8B-byte">四、中文字：一個 byte 裝不下，UTF-8 用 3 個 byte</a></li>
+<li class="l3"><a href="#%E8%B7%9F%E7%AC%AC-2-%E8%AA%B2%E7%9A%84%E9%80%A3%E7%B5%90char-%E6%9C%89%E8%99%9F%E8%AE%80%E5%88%B0%E4%B8%AD%E6%96%87%E6%9C%83%E8%AE%8A%E8%B2%A0%E6%95%B8">跟第 2 課的連結：char 有號，讀到中文會變負數</a></li>
+<li class="l3"><a href="#%E5%88%A4%E6%96%B7%E6%98%AF%E4%B8%8D%E6%98%AF%E9%9D%9E-ascii-%E7%9A%84-byte%E7%94%A8%E5%93%AA%E5%80%8B%E5%9E%8B%E5%88%A5%E7%82%BA%E4%BB%80%E9%BA%BC%E6%98%AF-127">判斷「是不是非 ASCII 的 byte」：用哪個型別、為什麼是 127</a></li>
+<li class="l2"><a href="#%E4%BA%94%E9%82%A3%E5%AD%97%E6%98%AF-3-%E5%80%8B%E5%AD%97%E5%85%83%E5%97%8E%E7%9C%8B%E4%BD%A0%E8%AA%AA%E7%9A%84%E6%98%AF%E5%93%AA%E4%B8%80%E7%A8%AE%E5%AD%97%E5%85%83">五、那「字」是 3 個字元嗎？——看你說的是哪一種「字元」</a></li>
+<li class="l2"><a href="#%E8%87%AA%E6%88%91%E6%B8%AC%E9%A9%97">自我測驗</a></li>
+</ul>
+</nav>
+<main>
+<h1 id="字元是什麼-char-就是-1-byte-的整數字元靠編碼表對應成數字">字元是什麼？—— <code>char</code> 就是 1 byte 的整數，字元靠編碼表對應成數字</h1>
+<blockquote>
+<p>日期：2026-09-24<br />
+情境：第 ① 站第 2 課的延伸提問。<a href="C%E7%9A%84%E8%B3%87%E6%96%99%E5%9C%A8%E8%A8%98%E6%86%B6%E9%AB%94%E8%A3%A1%E9%95%B7%E6%80%8E%E6%A8%A3-%E4%BD%8D%E5%85%83%E7%B5%84%E3%80%81%E6%8C%87%E6%A8%99%E3%80%81%E4%BD%8D%E5%85%83%E7%B5%84%E9%A0%86%E5%BA%8F%E8%88%87%E6%9C%89%E8%99%9F%E7%84%A1%E8%99%9F.html">第 2 課筆記</a> 裡出現了 <code>char</code>、<code>%c</code>、「印幾個字元」，使用者問「字元是什麼？」<br />
+適用範圍：實測本機 Ubuntu 24.04、x86-64、gcc 13.3.0、gdb 15.1，locale 是 <code>en_US.UTF-8</code>；所有輸出都是本機實際執行結果<br />
+對應檔案：實驗程式 <code>chars.c</code>、<code>utf.c</code>、<code>count.c</code> 的完整原始碼都寫在正文裡，可以直接複製編譯<br />
+相關：<a href="C%E7%9A%84%E8%B3%87%E6%96%99%E5%9C%A8%E8%A8%98%E6%86%B6%E9%AB%94%E8%A3%A1%E9%95%B7%E6%80%8E%E6%A8%A3-%E4%BD%8D%E5%85%83%E7%B5%84%E3%80%81%E6%8C%87%E6%A8%99%E3%80%81%E4%BD%8D%E5%85%83%E7%B5%84%E9%A0%86%E5%BA%8F%E8%88%87%E6%9C%89%E8%99%9F%E7%84%A1%E8%99%9F.html">C的資料在記憶體裡長怎樣</a>（第一節 <code>char</code> 有號、第六節符號擴展）</p>
+</blockquote>
+<p><strong>一句話結論：字元（character）是一個符號：字母、數字、標點、換行。電腦記不住符號，只記得住數字，所以用一張編碼表（encoding）把每個符號對應成一個數字：<code>A</code> 是 65、<code>0</code> 是 48、換行是 10。C 的 <code>char</code> 其實就是 <strong>1 byte 的整數</strong>，
+<code>%c</code> 和 <code>%d</code> 只是同一個數字的兩種印法。英文字母一個 byte 就裝得下（ASCII）；中文字要用 UTF-8 編成 <strong>3 個 byte</strong>，所以 C 的「一個 <code>char</code>」不等於人眼中的「一個字」：「字」是 3 個 <code>char</code>（byte），但只算 1 個 Unicode 字元。</strong></p>
+<hr />
+<h2 id="一字元就是一個數字">一、字元就是一個數字</h2>
+<p><code>chars.c</code> 完整原始碼：</p>
+<pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="kt">char</span><span class="w"> </span><span class="n">c</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="sc">&#39;A&#39;</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">char</span><span class="w"> </span><span class="n">d</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">65</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">char</span><span class="w"> </span><span class="n">nl</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="sc">&#39;\n&#39;</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">char</span><span class="w"> </span><span class="n">zero</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="sc">&#39;0&#39;</span><span class="p">;</span>
+
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;c    : %%c=%c  %%d=%d  hex=0x%x</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">c</span><span class="p">,</span><span class="w"> </span><span class="n">c</span><span class="p">,</span><span class="w"> </span><span class="n">c</span><span class="p">);</span><span class="w">    </span><span class="cm">/* 第 10 行 */</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;d    : %%c=%c  %%d=%d</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">d</span><span class="p">,</span><span class="w"> </span><span class="n">d</span><span class="p">);</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;c + 1: %%c=%c  %%d=%d</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">c</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="n">c</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="p">);</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;&#39;0&#39;  : %%c=%c  %%d=%d</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">zero</span><span class="p">,</span><span class="w"> </span><span class="n">zero</span><span class="p">);</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;&#39;</span><span class="se">\\</span><span class="s">n&#39; : %%d=%d</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">nl</span><span class="p">);</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;sizeof(c) = %zu, sizeof(&#39;A&#39;) = %zu</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="k">sizeof</span><span class="p">(</span><span class="n">c</span><span class="p">),</span><span class="w"> </span><span class="k">sizeof</span><span class="p">(</span><span class="sc">&#39;A&#39;</span><span class="p">));</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;sizeof(</span><span class="se">\&quot;</span><span class="s">A</span><span class="se">\&quot;</span><span class="s">) = %zu, sizeof(</span><span class="se">\&quot;</span><span class="s">字</span><span class="se">\&quot;</span><span class="s">) = %zu</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="k">sizeof</span><span class="p">(</span><span class="s">&quot;A&quot;</span><span class="p">),</span><span class="w"> </span><span class="k">sizeof</span><span class="p">(</span><span class="s">&quot;字&quot;</span><span class="p">));</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<pre><code>$ gcc -Wall -Wextra -g -O0 chars.c -o chars &amp;&amp; ./chars
+c    : %c=A  %d=65  hex=0x41
+d    : %c=A  %d=65          ← 寫 'A' 和寫 65，存進去的是同一個東西
+c + 1: %c=B  %d=66          ← 字元可以做加法：'A' + 1 就是 'B'
+'0'  : %c=0  %d=48          ← 字元 '0' 不是數字 0，它的編號是 48
+'\n' : %d=10                ← 換行也是一個字元，編號 10
+sizeof(c) = 1, sizeof('A') = 4               ← 第三節
+sizeof(&quot;A&quot;) = 2, sizeof(&quot;字&quot;) = 4            ← 第三、四節
+</code></pre>
+<p>用 <code>gdb</code> 看記憶體，<code>c</code> 那一格存的就是一個 byte <code>0x41</code>：</p>
+<pre><code>$ gdb -q ./chars
+(gdb) break 10          ← chars.c 標註的第 10 行
+(gdb) run
+(gdb) x/1xb &amp;c
+0x7fffffffd26c:	0x41
+(gdb) print c
+$1 = 65 'A'                 ← gdb 把兩種讀法都印出來
+</code></pre>
+<p>這跟 <a href="C%E7%9A%84%E8%B3%87%E6%96%99%E5%9C%A8%E8%A8%98%E6%86%B6%E9%AB%94%E8%A3%A1%E9%95%B7%E6%80%8E%E6%A8%A3-%E4%BD%8D%E5%85%83%E7%B5%84%E3%80%81%E6%8C%87%E6%A8%99%E3%80%81%E4%BD%8D%E5%85%83%E7%B5%84%E9%A0%86%E5%BA%8F%E8%88%87%E6%9C%89%E8%99%9F%E7%84%A1%E8%99%9F.html">第 2 課</a> 的主線是同一件事：<strong>記憶體裡只有數字，怎麼解讀是別人決定的</strong>。這裡決定解讀方式的是 <code>printf</code> 的格式：<code>%c</code> 拿數字去查編碼表、印出對應的符號；<code>%d</code> 直接印數字。</p>
+<p><strong><code>'0'</code> 和 <code>0</code> 的差別</strong>是最常見的錯誤來源：<code>'0'</code> 是「數字 0 這個符號」，編號 48；<code>0</code> 是數值零。因為 <code>'0'</code>～<code>'9'</code> 在編碼表裡是連號的（48～57），要把數字字元轉成數值，減掉 <code>'0'</code> 就好：</p>
+<pre><code>'7' - '0' = 7
+</code></pre>
+<hr />
+<h2 id="二編碼表ascii">二、編碼表：ASCII</h2>
+<p>C 程式裡 <code>'A'</code> 是 65，是因為 <strong>ASCII</strong>（American Standard Code for Information Interchange，美國資訊交換標準碼）這張表這樣規定。
+ASCII 只有 128 個（0～127），7 個 bit 就裝得下，一個 byte 綽綽有餘。<strong>完整的表見 <code>man ascii</code></strong>（本機有安裝），開頭長這樣：</p>
+<pre><code>$ man ascii
+       Oct   Dec   Hex   Char                        Oct   Dec   Hex   Char
+       ────────────────────────────────────────────────────────────────────────
+       000   0     00    NUL '\0' (null character)   100   64    40    @
+       001   1     01    SOH (start of heading)      101   65    41    A
+       002   2     02    STX (start of text)         102   66    42    B
+       ...
+</code></pre>
+<p>欄位是八進位、十進位、十六進位、符號。表的結構，記住這幾段就夠了（這裡只是分段摘要，逐個字元的完整清單請查 <code>man ascii</code>）：</p>
+<table>
+<thead>
+<tr>
+<th>範圍（十進位）</th>
+<th>內容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0～31</td>
+<td><strong>控制字元</strong>：不是拿來顯示的，而是控制動作，例如 0 是 NUL（空字元）、9 是 Tab、10 是換行、13 是歸位（carriage return）</td>
+</tr>
+<tr>
+<td>32</td>
+<td>空白</td>
+</tr>
+<tr>
+<td>33～47、58～64、91～96、123～126</td>
+<td>標點與符號（<code>!</code>、<code>#</code>、<code>@</code>、<code>[</code>、<code>{</code> 等）</td>
+</tr>
+<tr>
+<td>48～57</td>
+<td><code>0</code>～<code>9</code></td>
+</tr>
+<tr>
+<td>65～90</td>
+<td><code>A</code>～<code>Z</code></td>
+</tr>
+<tr>
+<td>97～122</td>
+<td><code>a</code>～<code>z</code>（小寫比大寫多 32）</td>
+</tr>
+<tr>
+<td>127</td>
+<td>DEL（刪除），也是控制字元</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="三c-的字元常數單引號而且型別是-int">三、C 的字元常數：單引號，而且型別是 <code>int</code></h2>
+<p><code>'A'</code> 這種單引號的寫法叫<strong>字元常數（character constant）</strong>。兩件事要注意：</p>
+<ul>
+<li><strong>單引號是一個字元，雙引號是字串</strong>：<code>'A'</code> 是數字 65；<code>&quot;A&quot;</code> 是字串，第 3 課會講，這裡只看大小：
+<code>sizeof(&quot;A&quot;)</code> 是 <strong>2</strong>，因為字串後面還藏了一個結尾的 <code>'\0'</code>（值是 0 的 byte）。</li>
+<li><strong>在 C 裡，<code>'A'</code> 的型別是 <code>int</code>，不是 <code>char</code></strong>：</li>
+</ul>
+<pre><code>sizeof(c) = 1, sizeof('A') = 4          ← chars.c 輸出的第 6 行
+</code></pre>
+<p>存進 <code>char</code> 變數時才會變窄成 1 byte。（C++ 的 <code>'A'</code> 是 <code>char</code>，這是兩個語言的差異之一。）</p>
+<h3 id="跳脫序列escape-sequence全部列出">跳脫序列（escape sequence）：全部列出</h3>
+<p>控制字元打不出來、單引號本身又被語法佔用，所以 C 用反斜線開頭的寫法表示它們。以下是 C 標準規定的<strong>全部</strong>。「值」那一欄是第四節 <code>utf.c</code> 最後一行實測印出來的：</p>
+<table>
+<thead>
+<tr>
+<th>寫法</th>
+<th>值</th>
+<th>意思</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>\a</code></td>
+<td>7</td>
+<td>響鈴（alert）</td>
+</tr>
+<tr>
+<td><code>\b</code></td>
+<td>8</td>
+<td>退格（backspace）</td>
+</tr>
+<tr>
+<td><code>\f</code></td>
+<td>12</td>
+<td>換頁（form feed）</td>
+</tr>
+<tr>
+<td><code>\n</code></td>
+<td>10</td>
+<td>換行（newline）</td>
+</tr>
+<tr>
+<td><code>\r</code></td>
+<td>13</td>
+<td>歸位（carriage return），游標回到行首</td>
+</tr>
+<tr>
+<td><code>\t</code></td>
+<td>9</td>
+<td>水平 Tab</td>
+</tr>
+<tr>
+<td><code>\v</code></td>
+<td>11</td>
+<td>垂直 Tab</td>
+</tr>
+<tr>
+<td><code>\\</code></td>
+<td>92</td>
+<td>反斜線本身</td>
+</tr>
+<tr>
+<td><code>\'</code></td>
+<td>39</td>
+<td>單引號</td>
+</tr>
+<tr>
+<td><code>\&quot;</code></td>
+<td>34</td>
+<td>雙引號</td>
+</tr>
+<tr>
+<td><code>\?</code></td>
+<td>63</td>
+<td>問號（歷史原因，避免被當成三字元序列）</td>
+</tr>
+<tr>
+<td><code>\</code> 加 1～3 位八進位</td>
+<td>—</td>
+<td>直接寫編號：<code>\101</code> 是 65（<code>A</code>），<code>\0</code> 是 0</td>
+</tr>
+<tr>
+<td><code>\x</code> 加十六進位</td>
+<td>—</td>
+<td>直接寫編號：<code>\x41</code> 是 65（<code>A</code>）</td>
+</tr>
+<tr>
+<td><code>\u</code> 加 4 位、<code>\U</code> 加 8 位十六進位</td>
+<td>—</td>
+<td>Unicode 編號（universal character name），例如 <code>\u5b57</code> 是「字」</td>
+</tr>
+</tbody>
+</table>
+<p><code>\0</code> 就是 ASCII 表的第 0 號 NUL，它是 C 字串的結尾記號（第 3 課）。</p>
+<hr />
+<h2 id="四中文字一個-byte-裝不下utf-8-用-3-個-byte">四、中文字：一個 byte 裝不下，UTF-8 用 3 個 byte</h2>
+<p>ASCII 只有 128 個位置，放不下中文。現在通用的做法是 <strong>Unicode</strong>：給全世界每個符號一個編號（「字」是 U+5B57），再用 <strong>UTF-8</strong>（Unicode Transformation Format – 8-bit）這種<strong>編碼方式</strong>，把編號轉成 1～4 個 byte 存起來。英文字母在 UTF-8 裡跟 ASCII 完全一樣，還是 1 個 byte；中文字通常是 3 個。</p>
+<pre><code>sizeof(&quot;A&quot;) = 2, sizeof(&quot;字&quot;) = 4        ← chars.c 輸出的最後一行：「字」3 個 byte，加上結尾的 '\0'
+
+（同一個 gdb 工作階段，停在第 10 行）
+(gdb) x/2xb &quot;A&quot;
+0x5555555592a0:	0x41	0x00
+(gdb) x/4xb &quot;字&quot;
+0x5555555592c0:	0xe5	0xad	0x97	0x00
+</code></pre>
+<p>（這裡的位址是 <code>gdb</code> 為了印這個字串，臨時放進程式記憶體的位置，不用在意。）</p>
+<p>本機的原始碼、終端機都是 UTF-8（<code>locale</code> 顯示 <code>LANG=en_US.UTF-8</code>），所以在 <code>chars.c</code> 裡打的「字」，存進檔案就是這 3 個 byte。
+UTF-8 怎麼把編號拆成 byte 的規則見 <code>man utf-8</code>（本機有安裝）。</p>
+<p><strong>所以 C 的 <code>char</code> 不等於「一個字」</strong>：<code>char</code> 是 1 byte，「字」要 3 個 <code>char</code> 才裝得下。將來 <code>strlen</code> 算字串長度時，算的是 <strong>byte 數</strong>，不是人眼看到的字數。</p>
+<h3 id="跟第-2-課的連結char-有號讀到中文會變負數">跟第 2 課的連結：<code>char</code> 有號，讀到中文會變負數</h3>
+<p><a href="C%E7%9A%84%E8%B3%87%E6%96%99%E5%9C%A8%E8%A8%98%E6%86%B6%E9%AB%94%E8%A3%A1%E9%95%B7%E6%80%8E%E6%A8%A3-%E4%BD%8D%E5%85%83%E7%B5%84%E3%80%81%E6%8C%87%E6%A8%99%E3%80%81%E4%BD%8D%E5%85%83%E7%B5%84%E9%A0%86%E5%BA%8F%E8%88%87%E6%9C%89%E8%99%9F%E7%84%A1%E8%99%9F.html#%E4%B8%80%E4%BD%8D%E5%85%83%E7%B5%84%E8%88%87%E5%9E%8B%E5%88%A5%E5%A4%A7%E5%B0%8F">第 2 課第一節</a>說本機的 <code>char</code> 是有號的。UTF-8 的中文 byte 都大於 127（最高位是 1），用 <code>char</code> 讀就變成負數：</p>
+<p><code>&quot;字&quot;[0]</code> 是取字串的第一個 byte <code>0xe5</code>（<code>[0]</code> 的語法第 3 課教）。<code>utf.c</code> 完整原始碼：</p>
+<pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="kt">char</span><span class="w"> </span><span class="n">s</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;字&quot;</span><span class="p">[</span><span class="mi">0</span><span class="p">];</span>
+<span class="w">    </span><span class="kt">unsigned</span><span class="w"> </span><span class="kt">char</span><span class="w"> </span><span class="n">u</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;字&quot;</span><span class="p">[</span><span class="mi">0</span><span class="p">];</span>
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">from_s</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">s</span><span class="p">,</span><span class="w"> </span><span class="n">from_u</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">u</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">char</span><span class="w"> </span><span class="n">digit</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="sc">&#39;7&#39;</span><span class="p">;</span>
+
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;char: %d, unsigned char: %d</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">from_s</span><span class="p">,</span><span class="w"> </span><span class="n">from_u</span><span class="p">);</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;&#39;7&#39; - &#39;0&#39; = %d</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">digit</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="sc">&#39;0&#39;</span><span class="p">);</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;escapes: </span><span class="se">\\</span><span class="s">a=%d </span><span class="se">\\</span><span class="s">b=%d </span><span class="se">\\</span><span class="s">f=%d </span><span class="se">\\</span><span class="s">n=%d </span><span class="se">\\</span><span class="s">r=%d </span><span class="se">\\</span><span class="s">t=%d </span><span class="se">\\</span><span class="s">v=%d </span><span class="se">\\\\</span><span class="s">=%d </span><span class="se">\\</span><span class="s">&#39;=%d </span><span class="se">\\\&quot;</span><span class="s">=%d </span><span class="se">\\</span><span class="s">?=%d </span><span class="se">\\</span><span class="s">0=%d </span><span class="se">\\</span><span class="s">101=%d </span><span class="se">\\</span><span class="s">x41=%d</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span>
+<span class="w">           </span><span class="sc">&#39;\a&#39;</span><span class="p">,</span><span class="w"> </span><span class="sc">&#39;\b&#39;</span><span class="p">,</span><span class="w"> </span><span class="sc">&#39;\f&#39;</span><span class="p">,</span><span class="w"> </span><span class="sc">&#39;\n&#39;</span><span class="p">,</span><span class="w"> </span><span class="sc">&#39;\r&#39;</span><span class="p">,</span><span class="w"> </span><span class="sc">&#39;\t&#39;</span><span class="p">,</span><span class="w"> </span><span class="sc">&#39;\v&#39;</span><span class="p">,</span><span class="w"> </span><span class="sc">&#39;\\&#39;</span><span class="p">,</span><span class="w"> </span><span class="sc">&#39;\&#39;&#39;</span><span class="p">,</span><span class="w"> </span><span class="sc">&#39;\&quot;&#39;</span><span class="p">,</span><span class="w"> </span><span class="sc">&#39;\?&#39;</span><span class="p">,</span><span class="w"> </span><span class="sc">&#39;\0&#39;</span><span class="p">,</span><span class="w"> </span><span class="sc">&#39;\101&#39;</span><span class="p">,</span><span class="w"> </span><span class="sc">&#39;\x41&#39;</span><span class="p">);</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<pre><code>$ gcc -Wall -Wextra utf.c -o utf &amp;&amp; ./utf
+char: -27, unsigned char: 229
+'7' - '0' = 7                                    ← 第一節的 '0' 轉換
+escapes: \a=7 \b=8 \f=12 \n=10 \r=13 \t=9 \v=11 \\=92 \'=39 \&quot;=34 \?=63 \0=0 \101=65 \x41=65   ← 第三節的跳脫序列表
+</code></pre>
+<p>同一個 byte <code>0xe5</code>：當 <code>signed char</code> 讀，最高位是符號位，二補數是 −27，擴展成 <code>int</code> 時做符號擴展，還是 −27；當 <code>unsigned char</code> 讀是 229，零擴展後還是 229。這正是<a href="C%E7%9A%84%E8%B3%87%E6%96%99%E5%9C%A8%E8%A8%98%E6%86%B6%E9%AB%94%E8%A3%A1%E9%95%B7%E6%80%8E%E6%A8%A3-%E4%BD%8D%E5%85%83%E7%B5%84%E3%80%81%E6%8C%87%E6%A8%99%E3%80%81%E4%BD%8D%E5%85%83%E7%B5%84%E9%A0%86%E5%BA%8F%E8%88%87%E6%9C%89%E8%99%9F%E7%84%A1%E8%99%9F.html#%E4%B8%80%E4%BD%8D%E5%85%83%E7%B5%84%E8%88%87%E5%9E%8B%E5%88%A5%E5%A4%A7%E5%B0%8F">第 2 課第一節</a>說「要處理「原始位元組」時，一律寫 <code>unsigned char</code>」的實際例子（理由在<a href="C%E7%9A%84%E8%B3%87%E6%96%99%E5%9C%A8%E8%A8%98%E6%86%B6%E9%AB%94%E8%A3%A1%E9%95%B7%E6%80%8E%E6%A8%A3-%E4%BD%8D%E5%85%83%E7%B5%84%E3%80%81%E6%8C%87%E6%A8%99%E3%80%81%E4%BD%8D%E5%85%83%E7%B5%84%E9%A0%86%E5%BA%8F%E8%88%87%E6%9C%89%E8%99%9F%E7%84%A1%E8%99%9F.html#%E5%85%AD%E6%9C%89%E8%99%9F%E8%88%87%E7%84%A1%E8%99%9F%E4%B9%8B%E9%96%93%E7%9A%84%E8%BD%89%E6%8F%9B%E4%BD%8D%E5%85%83%E4%B8%8D%E8%AE%8A%E6%8F%9B%E5%80%8B%E8%AE%80%E6%B3%95">第 2 課第六節</a>最後一段）：用 <code>char</code> 處理 UTF-8 文字，一拿去做比較或當索引就會出錯。</p>
+<h3 id="判斷是不是非-ascii-的-byte用哪個型別為什麼是-127">判斷「是不是非 ASCII 的 byte」：用哪個型別、為什麼是 127</h3>
+<blockquote>
+<p>2026-09-27 自我測驗第 4 題追問：「改成 <code>unsigned int</code> 好嗎？具體 <code>&gt; 127</code> 就好嗎？為什麼是 127？」</p>
+</blockquote>
+<p><strong>為什麼是 127</strong>：ASCII 只用 7 個 bit，值是 0～127（<code>0x00</code>～<code>0x7f</code>）。UTF-8 刻意這樣設計：ASCII 字元照舊是 1 個 byte、值不變；非 ASCII 字元（例如中文）的<strong>每一個</strong> byte 最高位都是 1，也就是 ≥ 128（<code>0x80</code>～<code>0xff</code>）。所以「byte 的值 &gt; 127」就等於「這個 byte 不是 ASCII」。前提是<strong>用 0～255 的讀法</strong>去讀這個 byte——這正是 <code>char</code> 做不到的地方。</p>
+<p><strong>用哪個型別</strong>：同一個 byte <code>0xe5</code>（「字」的第一個 byte）用三種型別讀。<code>bytes.c</code> 完整原始碼：</p>
+<pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="k">const</span><span class="w"> </span><span class="kt">char</span><span class="w"> </span><span class="o">*</span><span class="n">s</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;字&quot;</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">char</span><span class="w"> </span><span class="n">c</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">s</span><span class="p">[</span><span class="mi">0</span><span class="p">];</span>
+<span class="w">    </span><span class="kt">unsigned</span><span class="w"> </span><span class="kt">char</span><span class="w"> </span><span class="n">uc</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">s</span><span class="p">[</span><span class="mi">0</span><span class="p">];</span>
+<span class="w">    </span><span class="kt">unsigned</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">ui</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">s</span><span class="p">[</span><span class="mi">0</span><span class="p">];</span>
+
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;char          : %d  (c &gt; 127 -&gt; %d, c &lt; 0 -&gt; %d)</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">c</span><span class="p">,</span><span class="w"> </span><span class="n">c</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">127</span><span class="p">,</span><span class="w"> </span><span class="n">c</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">0</span><span class="p">);</span><span class="w">    </span><span class="cm">/* 第 10 行 */</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;unsigned char : %d  (uc &gt; 127 -&gt; %d)</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">uc</span><span class="p">,</span><span class="w"> </span><span class="n">uc</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">127</span><span class="p">);</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;unsigned int  : %u  (ui &gt; 127 -&gt; %d)</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">ui</span><span class="p">,</span><span class="w"> </span><span class="n">ui</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">127</span><span class="p">);</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;&#39;A&#39; as unsigned char &gt; 127 -&gt; %d</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="kt">unsigned</span><span class="w"> </span><span class="kt">char</span><span class="p">)</span><span class="sc">&#39;A&#39;</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">127</span><span class="p">);</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<p>（<code>s[0]</code> 是取字串第一個 byte，語法第 3 課教。）</p>
+<pre><code>$ gcc -Wall -Wextra bytes.c -o bytes &amp;&amp; ./bytes
+bytes.c:10:71: warning: comparison is always false due to limited range of data type [-Wtype-limits]
+char          : -27  (c &gt; 127 -&gt; 0, c &lt; 0 -&gt; 1)
+unsigned char : 229  (uc &gt; 127 -&gt; 1)
+unsigned int  : 4294967269  (ui &gt; 127 -&gt; 1)
+'A' as unsigned char &gt; 127 -&gt; 0
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>型別</th>
+<th><code>0xe5</code> 讀成</th>
+<th><code>&gt; 127</code></th>
+<th>評語</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>char</code>（本機有號，−128～127）</td>
+<td>−27</td>
+<td><strong>永遠假</strong></td>
+<td>就是題目的 bug。<code>-Wextra</code> 的 <code>-Wtype-limits</code> 直接警告「因為型別範圍有限，永遠為假」（<a href="C%E7%9A%84%E8%B3%87%E6%96%99%E5%9C%A8%E8%A8%98%E6%86%B6%E9%AB%94%E8%A3%A1%E9%95%B7%E6%80%8E%E6%A8%A3-%E4%BD%8D%E5%85%83%E7%B5%84%E3%80%81%E6%8C%87%E6%A8%99%E3%80%81%E4%BD%8D%E5%85%83%E7%B5%84%E9%A0%86%E5%BA%8F%E8%88%87%E6%9C%89%E8%99%9F%E7%84%A1%E8%99%9F.html#%E4%B8%83%E9%99%B7%E9%98%B1%E6%9C%89%E8%99%9F%E5%92%8C%E7%84%A1%E8%99%9F%E6%B7%B7%E5%9C%A8%E4%B8%80%E8%B5%B7%E6%AF%94%E8%BC%83">第 2 課第七節</a>〈<code>-Wtype-limits</code> 只抓「永遠成立／永遠不成立」的比較〉的同一個警告）</td>
+</tr>
+<tr>
+<td><code>unsigned char</code>（0～255）</td>
+<td><strong>229</strong></td>
+<td>真</td>
+<td><strong>正解</strong>：byte 本來就是 0～255 的數，值正確，<code>&gt; 127</code> 的意思也正確</td>
+</tr>
+<tr>
+<td><code>unsigned int</code></td>
+<td>4294967269</td>
+<td>真</td>
+<td>判斷<strong>碰巧</strong>對了，但值是錯的：<code>s[0]</code> 是有號的 <code>char</code>，轉成 <code>unsigned int</code> 時先照原本的型別做<strong>符號擴展</strong>（<a href="C%E7%9A%84%E8%B3%87%E6%96%99%E5%9C%A8%E8%A8%98%E6%86%B6%E9%AB%94%E8%A3%A1%E9%95%B7%E6%80%8E%E6%A8%A3-%E4%BD%8D%E5%85%83%E7%B5%84%E3%80%81%E6%8C%87%E6%A8%99%E3%80%81%E4%BD%8D%E5%85%83%E7%B5%84%E9%A0%86%E5%BA%8F%E8%88%87%E6%9C%89%E8%99%9F%E7%84%A1%E8%99%9F.html#%E5%85%AD%E6%9C%89%E8%99%9F%E8%88%87%E7%84%A1%E8%99%9F%E4%B9%8B%E9%96%93%E7%9A%84%E8%BD%89%E6%8F%9B%E4%BD%8D%E5%85%83%E4%B8%8D%E8%AE%8A%E6%8F%9B%E5%80%8B%E8%AE%80%E6%B3%95">第 2 課第六節</a>），變成 <code>0xffffffe5</code>。拿去當陣列索引、查表、印出來都會出錯</td>
+</tr>
+</tbody>
+</table>
+<p>所以正確的改法是<strong>把變數改成 <code>unsigned char</code></strong>（或比較時寫 <code>(unsigned char)c &gt; 127</code>），而不是換成更大的無號型別：問題出在 <code>char</code> 把 byte 讀成負數，要修的是「讀法」，換成 <code>unsigned int</code> 只是把 −27 變成另一個錯的數。（用 <code>char</code> 硬要判斷也可以寫 <code>c &lt; 0</code>，但這依賴 <code>char</code> 在這台機器上有號——ARM 上的 <code>char</code> 通常是無號的，同一行程式會變成永遠假。）</p>
+<hr />
+<h2 id="五那字是-3-個字元嗎看你說的是哪一種字元">五、那「字」是 3 個字元嗎？——看你說的是哪一種「字元」</h2>
+<blockquote>
+<p>2026-09-24 追問：「那這樣中文字就是 3 個字元？」</p>
+</blockquote>
+<p>「字元」這個詞有兩個意思，要先分清楚：</p>
+<table>
+<thead>
+<tr>
+<th>說法</th>
+<th>指的是</th>
+<th>「字」算幾個</th>
+<th>「字A」算幾個</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>C 的 <code>char</code>（位元組）</td>
+<td>1 byte</td>
+<td><strong>3</strong></td>
+<td>4</td>
+</tr>
+<tr>
+<td>Unicode 的字元（碼位，code point）</td>
+<td>編碼表裡的一個編號，例如 U+5B57</td>
+<td><strong>1</strong></td>
+<td>2</td>
+</tr>
+</tbody>
+</table>
+<p>C 的 <code>char</code> 取名的年代，英文一個字元剛好一個 byte，兩種意思沒有差別；到了 UTF-8 才分開。所以<strong>「字」是 3 個 <code>char</code>（3 個 byte），但只是 1 個字元</strong>。說「字元」時，要看上下文指的是哪一種；嚴謹的文件會直接說 byte 或 code point。</p>
+<p>實測兩種數法。<code>setlocale(LC_ALL, &quot;&quot;)</code> 照環境變數設定 locale，程式才知道文字是 UTF-8；
+<code>mbstowcs(NULL, s, 0)</code> 第一個參數給 <code>NULL</code> 代表只數不存；<code>L&quot;字A&quot;</code> 是寬字元字串，每個字元一個 <code>wchar_t</code>。<code>count.c</code> 完整原始碼：</p>
+<pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;string.h&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdlib.h&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;locale.h&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;wchar.h&gt;</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="k">const</span><span class="w"> </span><span class="kt">char</span><span class="w"> </span><span class="o">*</span><span class="n">s</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;字A&quot;</span><span class="p">;</span>
+
+<span class="w">    </span><span class="n">setlocale</span><span class="p">(</span><span class="n">LC_ALL</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;&quot;</span><span class="p">);</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;strlen(</span><span class="se">\&quot;</span><span class="s">字A</span><span class="se">\&quot;</span><span class="s">)   = %zu   (bytes)</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">strlen</span><span class="p">(</span><span class="n">s</span><span class="p">));</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;mbstowcs count  = %zu   (characters)</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">mbstowcs</span><span class="p">(</span><span class="nb">NULL</span><span class="p">,</span><span class="w"> </span><span class="n">s</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">));</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;wcslen(L</span><span class="se">\&quot;</span><span class="s">字A</span><span class="se">\&quot;</span><span class="s">) = %zu</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">wcslen</span><span class="p">(</span><span class="sa">L</span><span class="s">&quot;字A&quot;</span><span class="p">));</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;sizeof(wchar_t) = %zu</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="k">sizeof</span><span class="p">(</span><span class="kt">wchar_t</span><span class="p">));</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;L&#39;字&#39; = 0x%x</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="kt">unsigned</span><span class="p">)</span><span class="sa">L</span><span class="sc">&#39;字&#39;</span><span class="p">);</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<pre><code>$ gcc -Wall -Wextra count.c -o count &amp;&amp; ./count
+strlen(&quot;字A&quot;)   = 4   (bytes)            ← 3 + 1
+mbstowcs count  = 2   (characters)       ← 字、A
+wcslen(L&quot;字A&quot;) = 2
+sizeof(wchar_t) = 4                       ← Linux 上一個寬字元 4 byte，裝得下任何 Unicode 編號
+L'字' = 0x5b57                            ← 寬字元存的就是 Unicode 編號 U+5B57
+</code></pre>
+<p>用到的東西（C 的多位元組與寬字元函式很多，本機 <code>man -k '^wcs'</code> 就有 24 個，這裡<strong>只列本節用到的 5 個</strong>，各自見 <code>man 3 &lt;名稱&gt;</code>）：</p>
+<table>
+<thead>
+<tr>
+<th>名稱</th>
+<th>標頭檔</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>strlen</code></td>
+<td><code>&lt;string.h&gt;</code></td>
+<td>數到 <code>'\0'</code> 為止有幾個 <strong>byte</strong></td>
+</tr>
+<tr>
+<td><code>setlocale(LC_ALL, &quot;&quot;)</code></td>
+<td><code>&lt;locale.h&gt;</code></td>
+<td>依環境變數（<code>LANG</code> 等）設定程式的語系；不呼叫的話，C 程式預設是 <code>&quot;C&quot;</code> locale，只認 ASCII</td>
+</tr>
+<tr>
+<td><code>mbstowcs</code></td>
+<td><code>&lt;stdlib.h&gt;</code></td>
+<td>multibyte string to wide-character string：把 UTF-8 這種多位元組文字轉成寬字元；第一個參數給 <code>NULL</code> 時只回傳字元數</td>
+</tr>
+<tr>
+<td><code>wchar_t</code>、<code>L&quot;...&quot;</code>、<code>L'...'</code></td>
+<td><code>&lt;wchar.h&gt;</code></td>
+<td>寬字元型別，與寬字元字串／字元常數的寫法</td>
+</tr>
+<tr>
+<td><code>wcslen</code></td>
+<td><code>&lt;wchar.h&gt;</code></td>
+<td>數寬字元字串有幾個<strong>字元</strong></td>
+</tr>
+</tbody>
+</table>
+<p><strong><code>setlocale</code> 一定要呼叫</strong>：在 <code>C</code> locale 下，<code>mbstowcs</code> 看不懂 UTF-8，回傳錯誤：</p>
+<pre><code>$ LC_ALL=C ./count
+mbstowcs count  = 18446744073709551615   (characters)
+</code></pre>
+<p>這個怪數字就是第 2 課的內容：<code>mbstowcs</code> 用 <code>(size_t)-1</code> 表示錯誤，<code>-1</code> 轉成 8 byte 的無號 <code>size_t</code> 就是 2⁶⁴ − 1。</p>
+<p>（其他語言多半直接用「字元」的意思：Python 的 <code>len(&quot;字A&quot;)</code> 是 2，<code>len(&quot;字A&quot;.encode())</code> 才是 4 byte。）</p>
+<hr />
+<h2 id="自我測驗">自我測驗</h2>
+<blockquote>
+<p>參考答案寫在每題下面（2026-10-06 使用者指定）。作答時先遮住答案、自己想過再對照。</p>
+</blockquote>
+<ol>
+<li><code>char c = 'A';</code> 和 <code>char c = 65;</code> 存進記憶體的東西一樣嗎？為什麼 <code>printf</code> 用 <code>%c</code> 印出 <code>A</code>、用 <code>%d</code> 印出 65？<details class="answer"><summary>參考答案</summary>
+<p>【<a href="#%E4%B8%80%E5%AD%97%E5%85%83%E5%B0%B1%E6%98%AF%E4%B8%80%E5%80%8B%E6%95%B8%E5%AD%97">第一節</a>】一樣，記憶體裡都是 65（<code>0x41</code>）。字元只是一個數字；印成什麼由 <code>printf</code> 的格式決定：<code>%c</code> 把數字當編碼查表、印出那個字，<code>%d</code> 印成十進位數字。</p>
+</details>
+</li>
+<li>使用者輸入的字元是 <code>'7'</code>，你想得到數值 7。直接把它當數字用會得到多少？該怎麼轉，這個方法為什麼成立？<details class="answer"><summary>參考答案</summary>
+<p>【<a href="#%E4%B8%80%E5%AD%97%E5%85%83%E5%B0%B1%E6%98%AF%E4%B8%80%E5%80%8B%E6%95%B8%E5%AD%97">第一節</a>、<a href="#%E4%BA%8C%E7%B7%A8%E7%A2%BC%E8%A1%A8ascii">第二節</a>】（2026-10-11 改寫成核心關鍵格式）</p>
+<p>核心關鍵：</p>
+<ol>
+<li>直接當數字用，<code>'7'</code> 是 55（它的 ASCII 碼），不是 7。</li>
+<li>要寫成 <code>c - '0'</code>（<code>'0'</code> 是 48）。</li>
+<li>這個方法成立是因為 <code>'0'</code>～<code>'9'</code> 在編碼表裡是<strong>連號的</strong>（48～57），數字字元減掉 <code>'0'</code> 就是它跟 <code>'0'</code> 差幾號，也就是它代表的數值。</li>
+</ol>
+<p>詳細說明：<code>'7' - '0'</code> = 55 − 48 = 7。寫 <code>'0'</code> 比寫 48 好：讀的人一看就懂意思；而且 C 標準只保證 <code>'0'</code>～<code>'9'</code> 一定連號，沒有保證 <code>'0'</code> 是 48，寫 <code>'0'</code> 就不用依賴 ASCII 的具體數字。</p>
+</details>
+</li>
+<li><code>sizeof('A')</code>、<code>sizeof(&quot;A&quot;)</code>、<code>sizeof(&quot;字&quot;)</code> 在本機各是多少？分別解釋為什麼。<details class="answer"><summary>參考答案</summary>
+<p>【<a href="#%E4%B8%89c-%E7%9A%84%E5%AD%97%E5%85%83%E5%B8%B8%E6%95%B8%E5%96%AE%E5%BC%95%E8%99%9F%E8%80%8C%E4%B8%94%E5%9E%8B%E5%88%A5%E6%98%AF-int">第三節</a>、<a href="#%E5%9B%9B%E4%B8%AD%E6%96%87%E5%AD%97%E4%B8%80%E5%80%8B-byte-%E8%A3%9D%E4%B8%8D%E4%B8%8Butf-8-%E7%94%A8-3-%E5%80%8B-byte">第四節</a>】（2026-10-11 改寫成核心關鍵格式）</p>
+<p>核心關鍵：</p>
+<ol>
+<li><code>sizeof('A')</code> = 4：在 C 裡，字元常數 <code>'A'</code> 的型別是 <code>int</code>（C++ 才是 <code>char</code>）。</li>
+<li><code>sizeof(&quot;A&quot;)</code> = 2：<code>'A'</code> 加上結尾的 <code>'\0'</code>。</li>
+<li><code>sizeof(&quot;字&quot;)</code> = 4：UTF-8 用 3 byte 表示「字」，再加上 <code>'\0'</code>。</li>
+</ol>
+<p>詳細說明：<code>'A'</code> 只是寫數字 65 的另一種方式，C 裡沒有後綴的整數常數都是 <code>int</code>，所以佔 4 byte。字串常數是 <code>char</code> 陣列，<code>sizeof</code> 量的是整個陣列，含 <code>'\0'</code>；<code>strlen</code> 才不算 <code>'\0'</code>（<code>strlen(&quot;字&quot;)</code> 是 3）。「字」的 UTF-8 是 <code>e5 ad 97</code>。</p>
+</details>
+</li>
+<li>情境題：你寫了一個函式，用 <code>char c</code> 一個一個 byte 讀一段 UTF-8 文字，並用 <code>if (c &gt; 127)</code> 判斷「這是不是非 ASCII 的 byte」。在本機這個判斷會成立嗎？為什麼？該怎麼改？<details class="answer"><summary>參考答案</summary>
+<p>【<a href="#%E5%9B%9B%E4%B8%AD%E6%96%87%E5%AD%97%E4%B8%80%E5%80%8B-byte-%E8%A3%9D%E4%B8%8D%E4%B8%8Butf-8-%E7%94%A8-3-%E5%80%8B-byte">第四節</a>〈跟第 2 課的連結：<code>char</code> 有號，讀到中文會變負數〉、〈判斷「是不是非 ASCII 的 byte」：用哪個型別、為什麼是 127〉】（2026-10-13 改寫成核心關鍵格式）</p>
+<p><strong>核心關鍵</strong>：</p>
+<ol>
+<li>不會成立：本機 <code>char</code> 有號（−128～127），UTF-8 的非 ASCII byte 是 <code>0x80</code>～<code>0xff</code>，用 <code>char</code> 讀變成負數，<code>c &gt; 127</code> 永遠為假。</li>
+<li>改成 <code>unsigned char c</code>（或比較時寫 <code>(unsigned char)c &gt; 127</code>），byte 照 0～255 讀，<code>&gt; 127</code> 的意思才正確。</li>
+</ol>
+<p><strong>詳細說明</strong>：例如 <code>0xe5</code> 用 <code>char</code> 讀是 −27。<code>-Wextra</code> 的 <code>-Wtype-limits</code> 會警告「永遠為假」。不要改成 <code>unsigned int</code>：會先符號擴展成 <code>0xffffffe5</code>，判斷碰巧對、值卻是錯的；也不要寫 <code>c &lt; 0</code>（或 <code>c &lt;= -1 &amp;&amp; c &gt;= -128</code>），它依賴 <code>char</code> 有號，換到 ARM 就失效。</p>
+</details>
+</li>
+<li>有人說「『字』是 3 個字元」，另一個人說「是 1 個字元」，誰對？<code>strlen(&quot;字&quot;)</code> 和 <code>mbstowcs(NULL, &quot;字&quot;, 0)</code> 各會得到多少？如果程式忘了呼叫 <code>setlocale</code>，後者會得到什麼，那個數字是怎麼來的？<details class="answer"><summary>參考答案</summary>
+<p>【<a href="#%E4%BA%94%E9%82%A3%E5%AD%97%E6%98%AF-3-%E5%80%8B%E5%AD%97%E5%85%83%E5%97%8E%E7%9C%8B%E4%BD%A0%E8%AA%AA%E7%9A%84%E6%98%AF%E5%93%AA%E4%B8%80%E7%A8%AE%E5%AD%97%E5%85%83">第五節</a>】（2026-10-11 改寫成核心關鍵格式）</p>
+<p>核心關鍵：</p>
+<ol>
+<li>兩個人都對：以 <code>char</code>（byte）算是 <strong>3</strong> 個，以 Unicode 字元算是 <strong>1</strong> 個。</li>
+<li><code>strlen(&quot;字&quot;)</code> = 3；呼叫 <code>setlocale</code> 之後 <code>mbstowcs</code> = 1。</li>
+<li>忘了 <code>setlocale</code> → 用 <code>&quot;C&quot;</code> locale，看不懂 UTF-8 → 回傳 <code>(size_t)-1</code>，也就是 <strong>18446744073709551615</strong>（2⁶⁴ − 1）。</li>
+</ol>
+<p>詳細說明：「字」在 UTF-8 是 3 個 byte（<code>e5 ad 97</code>），碼位是 U+5B57。<code>strlen</code> 數的是 byte；<code>mbstowcs</code> 數的是字元，但它要先知道編碼，必須呼叫 <code>setlocale(LC_ALL, &quot;&quot;)</code> 讀進環境變數 <code>LANG</code>（例如 <code>zh_TW.UTF-8</code>）。沒呼叫時，不管 <code>LANG</code> 設什麼，程式都用預設的 <code>&quot;C&quot;</code> locale，只認 ASCII（0～127），看到 <code>0xe5</code> 就判定是無效的多位元組序列，回傳 <code>(size_t)-1</code>。<code>size_t</code> 在本機是 8 byte 無號，<code>-1</code> 轉成無號就是全部位元為 1（跟 <code>int</code> 的 −1 轉 <code>unsigned</code> 得到 4294967295 ＝ 2³² − 1 是同一個道理）。</p>
+</details>
+</li>
+</ol>
+
+</main>
+</div>
+</body>
+</html>

@@ -1,0 +1,488 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>objdump 能不能代替 ldd 找出 ELF 的依賴庫？—— 讀需求單 vs 請載入器實際跑一次</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/app.js"></script>
+</head>
+<body>
+<button class="menu-btn" onclick="toggleMenu()">☰ 目錄</button>
+<div class="layout">
+<nav class="side">
+<div class="crumbs"><a href="../index.html">🏠 首頁</a> / <a href="README.html">c</a></div>
+<div class="tools"><button onclick="toggleTheme()">🌓 主題</button><button onclick="toggleAnswers(true)">展開答案</button><button onclick="toggleAnswers(false)">收起答案</button></div>
+<ul>
+<li class="l2"><a href="#%E4%B8%80%E5%85%88%E7%9C%8B%E5%B7%AE%E5%A4%9A%E5%B0%91curl-%E7%9A%84%E4%BE%8B%E5%AD%90">一、先看差多少：curl 的例子</a></li>
+<li class="l2"><a href="#%E4%BA%8C%E7%82%BA%E4%BB%80%E9%BA%BC%E6%9C%83%E5%B7%AE%E9%80%99%E9%BA%BC%E5%A4%9A%E5%85%A9%E8%80%85%E7%9C%8B%E7%9A%84%E6%98%AF%E4%B8%8D%E5%90%8C%E6%99%82%E9%96%93%E9%BB%9E">二、為什麼會差這麼多：兩者看的是不同時間點</a></li>
+<li class="l2"><a href="#%E4%B8%89ldd-%E6%9C%83%E5%9F%B7%E8%A1%8C%E6%9D%B1%E8%A5%BF%E9%80%99%E6%98%AF%E5%AE%83%E7%9A%84%E4%BB%A3%E5%83%B9">三、ldd 會執行東西：這是它的代價</a></li>
+<li class="l2"><a href="#%E5%9B%9B%E6%89%BE%E4%B8%8D%E5%88%B0%E5%87%BD%E5%BC%8F%E5%BA%AB%E6%99%82%E5%85%A9%E8%80%85%E5%90%84%E7%9C%8B%E5%88%B0%E4%BB%80%E9%BA%BC">四、找不到函式庫時，兩者各看到什麼</a></li>
+<li class="l2"><a href="#%E4%BA%94%E6%80%8E%E9%BA%BC%E9%81%B8">五、怎麼選</a></li>
+<li class="l2"><a href="#%E5%85%AD%E6%9C%AC%E7%AF%87%E7%94%A8%E5%88%B0%E7%9A%84%E5%B7%A5%E5%85%B7%E9%81%B8%E9%A0%85">六、本篇用到的工具選項</a></li>
+<li class="l3"><a href="#ldd%E5%85%A8%E9%83%A8%E9%81%B8%E9%A0%85ldd---help-%E5%AF%A6%E6%B8%AC%E5%85%B1-6-%E5%80%8B%E5%85%A8%E5%88%97">ldd：全部選項（ldd --help 實測，共 6 個，全列）</a></li>
+<li class="l3"><a href="#objdump%E9%A1%AF%E7%A4%BA%E4%BB%80%E9%BA%BC%E9%80%99%E4%B8%80%E7%B5%84%E5%85%A8%E9%83%A8%E5%88%97%E5%87%BA">objdump：「顯示什麼」這一組全部列出</a></li>
+<li class="l2"><a href="#%E8%87%AA%E6%88%91%E6%B8%AC%E9%A9%97">自我測驗</a></li>
+</ul>
+</nav>
+<main>
+<h1 id="objdump-能不能代替-ldd-找出-elf-的依賴庫-讀需求單-vs-請載入器實際跑一次"><code>objdump</code> 能不能代替 <code>ldd</code> 找出 ELF 的依賴庫？—— 讀需求單 vs 請載入器實際跑一次</h1>
+<blockquote>
+<p>日期：2026-09-23<br />
+情境：第 ① 站第 1 課的延伸提問。剛學完〈三個名字很像的檔案〉（<code>ld</code>／<code>ld-linux-x86-64.so.2</code>／<code>libc.so.6</code>）後，問 <code>objdump</code> 能不能取代 <code>ldd</code><br />
+適用範圍：實測本機 Ubuntu 24.04、x86-64、glibc 2.39、GNU binutils 2.42（<code>objdump</code>）；所有輸出都是本機實際執行結果<br />
+對應檔案：跨架構實驗用的 <code>busybox</code>、<code>libc.so</code> 從 OpenWrt 路由器（24.10.2，aarch64）複製到 scratchpad，不入 git<br />
+相關：<a href="hello.c%E6%80%8E%E9%BA%BC%E8%AE%8A%E6%88%90%E8%83%BD%E8%B7%91%E7%9A%84%E7%A8%8B%E5%BC%8F-%E7%B7%A8%E8%AD%AF%E7%9A%84%E5%9B%9B%E5%80%8B%E9%9A%8E%E6%AE%B5.html">hello.c怎麼變成能跑的程式</a> 第十節、
+<a href="ELF%E7%9A%84interpreter%E6%98%AF%E4%BB%80%E9%BA%BC-%E5%8B%95%E6%85%8B%E8%BC%89%E5%85%A5%E5%99%A8%E8%88%87%E4%BA%95%E5%AD%97%E8%99%9F%E9%A9%9A%E5%98%86%E8%99%9F.html">ELF的interpreter是什麼</a>、
+<a href="readelf%E5%AE%8C%E6%95%B4%E9%81%B8%E9%A0%85%E5%8F%83%E8%80%83.html">readelf完整選項參考</a></p>
+</blockquote>
+<p><strong>一句話結論：只能取代一半。<code>objdump -p</code> 讀的是執行檔裡 <code>ld</code> 寫下的「需求單」（<code>NEEDED</code>），只有<strong>直接</strong>依賴、只有名字、不知道檔案在哪、也不知道找不找得到；<code>ldd</code> 則是<strong>請動態載入器實際模擬載入一次</strong>，得到完整的依賴樹（含間接依賴）、實際路徑、找不到的會標 <code>not found</code>。反過來，<code>objdump</code>／<code>readelf</code> 不執行任何東西，所以檢查來路不明或別的架構的檔案時，只有它們能用；其中 <code>readelf -d</code> 更可靠——路由器上那種剝掉區段標頭的檔案，<code>objdump -p</code> 會看不到 <code>NEEDED</code>。</strong></p>
+<hr />
+<h2 id="一先看差多少curl-的例子">一、先看差多少：<code>curl</code> 的例子</h2>
+<pre><code>$ objdump -p /usr/bin/curl | grep NEEDED
+  NEEDED               libcurl.so.4
+  NEEDED               libz.so.1
+  NEEDED               libc.so.6
+
+$ ldd /usr/bin/curl | wc -l
+33
+$ ldd /usr/bin/curl
+	linux-vdso.so.1 (0x00007737cc745000)
+	libcurl.so.4 =&gt; /lib/x86_64-linux-gnu/libcurl.so.4 (0x00007737cc619000)
+	libz.so.1 =&gt; /lib/x86_64-linux-gnu/libz.so.1 (0x00007737cc5fd000)
+	libc.so.6 =&gt; /lib/x86_64-linux-gnu/libc.so.6 (0x00007737cc200000)
+	libnghttp2.so.14 =&gt; /lib/x86_64-linux-gnu/libnghttp2.so.14 (0x00007737cc5d2000)
+	libssl.so.3 =&gt; /lib/x86_64-linux-gnu/libssl.so.3 (0x00007737cc460000)
+	...（中間省略，共 33 行）
+	/lib64/ld-linux-x86-64.so.2 (0x00007737cc747000)
+	...
+</code></pre>
+<p>3 個 vs 33 行。差在哪裡：</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th><code>objdump -p</code>（或 <code>readelf -d</code>）</th>
+<th><code>ldd</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>列出什麼</td>
+<td>只有<strong>這個檔案自己</strong>的 <code>NEEDED</code>（直接依賴）</td>
+<td>整棵依賴樹：直接依賴 <strong>＋依賴的依賴</strong>（間接依賴）</td>
+</tr>
+<tr>
+<td>名字 → 路徑</td>
+<td>只有名字 <code>libcurl.so.4</code></td>
+<td>解析成實際路徑 <code>/lib/x86_64-linux-gnu/libcurl.so.4</code></td>
+</tr>
+<tr>
+<td>找不到的函式庫</td>
+<td>看不出來，照樣列名字</td>
+<td>標成 <code>not found</code></td>
+</tr>
+<tr>
+<td>其他項目</td>
+<td>沒有</td>
+<td>還會列出 <code>linux-vdso.so.1</code>（核心直接塞進行程的虛擬函式庫，磁碟上沒有這個檔）與載入器本身</td>
+</tr>
+<tr>
+<td>位址</td>
+<td>沒有</td>
+<td>括號裡是這次模擬載入的位址，每次都不一樣，沒有意義</td>
+</tr>
+<tr>
+<td>會不會執行東西</td>
+<td><strong>不會</strong>，只讀檔案</td>
+<td><strong>會</strong>請動態載入器跑起來（見第三節）</td>
+</tr>
+</tbody>
+</table>
+<p>那 30 個多出來的是哪來的？例如 <code>libssl.so.3</code>：<code>curl</code> 自己沒有要它，是 <code>libcurl.so.4</code> 要的：</p>
+<pre><code>$ objdump -p /lib/x86_64-linux-gnu/libcurl.so.4 | grep NEEDED | wc -l
+14
+</code></pre>
+<p>每個 <code>.so</code> 也有自己的需求單。<code>objdump</code> 只讀你給它的那一個檔案，<strong>不會自己往下追</strong>；要用 <code>objdump</code> 得到完整清單，就得自己對每一個依賴再跑一次，還得自己知道每個名字對應到哪個路徑。</p>
+<hr />
+<h2 id="二為什麼會差這麼多兩者看的是不同時間點">二、為什麼會差這麼多：兩者看的是不同時間點</h2>
+<p>套用〈三個名字很像的檔案〉那個比喻：</p>
+<ul>
+<li><strong><code>objdump -p</code> 是在讀施工單。</strong> <code>NEEDED libc.so.6</code> 這一行是 <code>ld</code> 在<strong>連結時</strong>寫進檔案的。施工單上只寫「要 libc.so.6」，沒寫倉庫在哪條街，也沒寫 libc 自己又要什麼。</li>
+<li><strong><code>ldd</code> 是請工頭實際走一趟。</strong> 誰去找檔案、決定路徑、再讀每個 <code>.so</code> 的需求單往下追？就是<strong>執行時</strong>的動態載入器
+<code>ld-linux-x86-64.so.2</code>。<code>ldd</code> 本身不會做這件事，它把工作交給載入器。</li>
+</ul>
+<p>證據：<code>ldd</code> 根本不是一支編譯過的程式，而是 shell 腳本：</p>
+<pre><code>$ file /usr/bin/ldd
+/usr/bin/ldd: Bourne-Again shell script, ASCII text executable
+
+$ grep -n LD_TRACE /usr/bin/ldd
+103:add_env=&quot;LD_TRACE_LOADED_OBJECTS=1 LD_WARN=$warn LD_BIND_NOW=$bind_now&quot;
+</code></pre>
+<p>它做的事是：設一個環境變數 <code>LD_TRACE_LOADED_OBJECTS=1</code>，再啟動載入器處理你的程式。載入器看到這個變數，就照常把依賴一個個找出來、載入，<strong>但在跳進 <code>main</code> 之前停下來</strong>，改成把清單印出來。所以下面三個寫法的輸出一模一樣：</p>
+<pre><code>$ ldd /usr/bin/curl
+$ LD_TRACE_LOADED_OBJECTS=1 /usr/bin/curl                 ← 直接設變數跑程式
+$ /lib64/ld-linux-x86-64.so.2 --list /usr/bin/curl        ← 直接叫載入器
+	linux-vdso.so.1 (0x...)
+	libcurl.so.4 =&gt; /lib/x86_64-linux-gnu/libcurl.so.4 (0x...)
+	...
+</code></pre>
+<p>這也解釋了表格裡每一個差異：路徑、<code>not found</code>、間接依賴，全都是<strong>搜尋</strong>的結果，而搜尋是載入器在執行時才做的事；需求單上本來就沒有這些資訊。</p>
+<hr />
+<h2 id="三ldd-會執行東西這是它的代價">三、<code>ldd</code> 會執行東西：這是它的代價</h2>
+<p>因為 <code>ldd</code> 要靠載入器跑起來，<code>man ldd</code> 的 Security 一節特別警告：</p>
+<blockquote>
+<p>in some circumstances (e.g., where the program specifies an ELF interpreter other than ld-linux.so),
+some versions of ldd may attempt to obtain the dependency information by attempting to directly execute the program</p>
+</blockquote>
+<p>意思是：如果一個執行檔在 interpreter 欄位寫的<strong>不是</strong>正常的 <code>ld-linux</code>，而是攻擊者自己寫的程式，那麼對它跑 <code>ldd</code>，就可能執行到攻擊者的程式碼。本機的 <code>ldd</code> 腳本會先用 <code>--verify</code> 檢查載入器（<code>/usr/bin/ldd</code> 第 159 行），但 man page 的建議仍然是：<strong>對不信任的檔案，不要用 <code>ldd</code></strong>，改用 <code>objdump -p</code> 或 <code>readelf -d</code>。（這個攻擊本機未實測。）</p>
+<p>另外還有兩種情況，<code>ldd</code> 根本不能用、只能靠 <code>objdump</code>／<code>readelf</code>：</p>
+<ul>
+<li><strong>別的架構的檔案</strong>：本機的載入器沒辦法處理別的架構，<code>ldd</code> 給不出結果，而且<strong>錯誤訊息會誤導人</strong>。實測：從 OpenWrt 路由器（aarch64，musl）複製 <code>/bin/busybox</code> 回本機（2026-09-23）：</li>
+</ul>
+<pre><code>$ file busybox
+busybox: ELF 64-bit LSB executable, ARM aarch64, ..., dynamically linked, interpreter /lib/ld-musl-aarch64.so.1, no section header
+
+$ ldd ./busybox
+	not a dynamic executable            ← 錯！file 明明說 dynamically linked，只是本機載入器處理不了 ARM
+$ ./busybox
+exec format error: ./busybox            ← 直接執行：核心拒絕（見 ELF 筆記的 ENOEXEC）
+
+$ readelf -d busybox | grep NEEDED      ← 只讀檔案，照樣看得到
+ 0x0000000000000001 (NEEDED)             Shared library: [libgcc_s.so.1]
+ 0x0000000000000001 (NEEDED)             Shared library: [libc.so]
+</code></pre>
+<p>注意這裡用的是 <code>readelf -d</code>，不是 <code>objdump -p</code>——原因見下一段。</p>
+<ul>
+<li><strong>靜態連結的檔案</strong>：兩者都會告訴你「沒有依賴」，只是說法不同：</li>
+</ul>
+<pre><code>$ ldd hs                          （hs 是用 gcc -static 編出來的）
+	not a dynamic executable
+$ objdump -p hs | grep -c NEEDED
+0
+</code></pre>
+<p><strong>陷阱：<code>objdump -p</code> 在「剝掉區段標頭」的檔案上看不到 <code>NEEDED</code>。</strong> 同一支 <code>busybox</code>：</p>
+<pre><code>$ objdump -p busybox | grep NEEDED
+（沒有輸出——只印出了 Program Header）
+
+$ readelf -S busybox
+There are no sections in this file.
+</code></pre>
+<p>OpenWrt 為了省空間，連區段標頭（section header）都剝掉了（<code>file</code> 顯示 <code>no section header</code>）。
+<code>objdump -p</code> 是透過<strong>區段標頭</strong>找到 <code>.dynamic</code> 區段的，區段標頭沒了就找不到；
+<code>readelf -d</code> 則是透過<strong>程式標頭</strong>的 <code>DYNAMIC</code> 那一項找到同一份資料，所以照樣讀得到。這正是 <a href="ELF%E6%98%AF%E4%BB%80%E9%BA%BC-%E5%8F%AF%E5%9F%B7%E8%A1%8C%E8%88%87%E5%8F%AF%E9%80%A3%E7%B5%90%E6%A0%BC%E5%BC%8F%E7%9A%84%E5%85%A9%E7%A8%AE%E8%A6%96%E8%A7%92.html">ELF 是什麼</a> 講的兩種視角：區段是給連結器看的、可以丟；程式標頭是給核心與載入器看的，<strong>丟了程式就跑不起來，所以一定還在</strong>。
+<strong>要檢查的檔案可能被剝過（嵌入式裝置、路由器韌體）時，用 <code>readelf -d</code>。</strong></p>
+<hr />
+<h2 id="四找不到函式庫時兩者各看到什麼">四、找不到函式庫時，兩者各看到什麼</h2>
+<p>自己做一個函式庫，連結完再讓它找不到（兩個檔案當初沒有保存，這是重建版，2026-09-24 重新實測，輸出與下面一致）。</p>
+<p><code>foo.c</code>：函式庫的內容，只有一個函式。</p>
+<pre><code class="language-c"><span class="kt">int</span><span class="w"> </span><span class="nf">foo</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">42</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<p><code>main.c</code>：呼叫 <code>foo()</code> 的程式。第 3 行是宣告，告訴編譯器 <code>foo</code> 在別處、回傳 <code>int</code>。</p>
+<pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">foo</span><span class="p">(</span><span class="kt">void</span><span class="p">);</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;%d</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">foo</span><span class="p">());</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<p><code>-shared</code> 是「做成共享函式庫（<code>.so</code>）」，<code>-fPIC</code> 是「產生不管被載入到哪個位址都能執行的程式碼」（共享函式庫每次載入的位址不同，所以需要）；
+<code>-lfoo</code> 是「連結名叫 <code>libfoo.so</code> 的函式庫」（<code>-l</code> 後面的名字會自動補上 <code>lib</code> 前綴與 <code>.so</code> 副檔名）。這幾個 gcc 選項的完整說明見 <code>man gcc</code>（Link Options、Code Gen Options）。</p>
+<pre><code>$ gcc -shared -fPIC foo.c -o libfoo.so      # 做一個共享函式庫
+$ gcc main.c -L. -lfoo -o app               # 連結時用 -L. 告訴 ld 去目前目錄找
+$ LD_LIBRARY_PATH=. ./app                   # 執行時也告訴載入器去目前目錄找
+42
+
+$ objdump -p app | grep NEEDED              # 需求單：看不出有問題
+  NEEDED               libfoo.so
+  NEEDED               libc.so.6
+
+$ ldd ./app                                 # 請載入器實際找：找不到
+	linux-vdso.so.1 (0x00007c775b07b000)
+	libfoo.so =&gt; not found
+	libc.so.6 =&gt; /lib/x86_64-linux-gnu/libc.so.6 (0x00007c775ae00000)
+	/lib64/ld-linux-x86-64.so.2 (0x00007c775b07d000)
+
+$ ./app                                     # 實際執行：跟 ldd 說的一樣
+./app: error while loading shared libraries: libfoo.so: cannot open shared object file: No such file or directory
+</code></pre>
+<p>這個實驗再一次把兩個時間點分開：</p>
+<ul>
+<li>連結時 <code>ld</code> 找得到 <code>libfoo.so</code>（因為有 <code>-L.</code>），所以連結成功，需求單上寫了 <code>libfoo.so</code>。</li>
+<li>執行時載入器<strong>不知道</strong> <code>-L.</code> 這回事，那個選項只給 <code>ld</code> 看，沒有寫進執行檔。載入器只去它自己的預設路徑找，所以找不到。</li>
+<li>錯誤訊息開頭的 <code>error while loading shared libraries</code> 就是載入器發出的，跟 <code>ldd</code> 的 <code>not found</code> 是同一件事。</li>
+</ul>
+<p><strong>所以要回答「這支程式在這台機器上能不能跑」，要用 <code>ldd</code>；<code>objdump</code> 答不了這個問題。</strong></p>
+<hr />
+<h2 id="五怎麼選">五、怎麼選</h2>
+<table>
+<thead>
+<tr>
+<th>你想知道的</th>
+<th>用什麼</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>這支程式在<strong>這台機器</strong>上跑不跑得起來、缺哪個 <code>.so</code></td>
+<td><code>ldd</code>（要找 <code>not found</code>）</td>
+</tr>
+<tr>
+<td>這支程式<strong>自己</strong>宣告要哪些函式庫</td>
+<td><code>objdump -p | grep NEEDED</code> 或 <code>readelf -d | grep NEEDED</code></td>
+</tr>
+<tr>
+<td>檔案來路不明，不想冒執行的風險</td>
+<td><code>readelf -d</code>（或 <code>objdump -p</code>）</td>
+</tr>
+<tr>
+<td>別的架構的檔案、路由器／嵌入式韌體裡的檔案</td>
+<td><code>readelf -d</code>（區段標頭常被剝掉，<code>objdump -p</code> 可能看不到）</td>
+</tr>
+<tr>
+<td>需要的 glibc 符號版本（例如 <code>GLIBC_2.34</code>）</td>
+<td><code>objdump -p</code> 的 <code>Version References</code> 段、<code>readelf -V</code>（見第 1 課筆記第九節）</td>
+</tr>
+</tbody>
+</table>
+<p><code>readelf -d</code> 跟 <code>objdump -p</code> 讀的是同一份資料（動態區段），但找到它的路徑不同：<code>objdump -p</code> 靠區段標頭，
+<code>readelf -d</code> 靠程式標頭。一般檔案兩者結果一樣；<strong>區段標頭被剝掉的檔案只有 <code>readelf -d</code> 讀得到</strong>（第三節實測）。
+<code>readelf</code> 的全部選項見 <a href="readelf%E5%AE%8C%E6%95%B4%E9%81%B8%E9%A0%85%E5%8F%83%E8%80%83.html">readelf完整選項參考</a>。</p>
+<hr />
+<h2 id="六本篇用到的工具選項">六、本篇用到的工具選項</h2>
+<h3 id="ldd全部選項ldd---help-實測共-6-個全列"><code>ldd</code>：全部選項（<code>ldd --help</code> 實測，共 6 個，全列）</h3>
+<pre><code>ldd [選項]... 檔案...
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>選項</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--help</code></td>
+<td>印出說明後結束</td>
+</tr>
+<tr>
+<td><code>--version</code></td>
+<td>印出版本（本機 <code>ldd (Ubuntu GLIBC 2.39-0ubuntu8.9) 2.39</code>，版本就是 glibc 的版本）</td>
+</tr>
+<tr>
+<td><code>-d</code>, <code>--data-relocs</code></td>
+<td>額外做資料的重定位，並回報缺少的符號（只對執行檔有效）</td>
+</tr>
+<tr>
+<td><code>-r</code>, <code>--function-relocs</code></td>
+<td>資料與函式的重定位都做，回報缺少的符號與函式</td>
+</tr>
+<tr>
+<td><code>-u</code>, <code>--unused</code></td>
+<td>列出「寫在需求單上卻沒用到」的直接依賴（<code>ldd -u /usr/bin/curl</code> 沒有輸出，代表每個都有用到）</td>
+</tr>
+<tr>
+<td><code>-v</code>, <code>--verbose</code></td>
+<td>印出全部資訊，包括每個函式庫需要的符號版本</td>
+</tr>
+</tbody>
+</table>
+<p>相關的環境變數：<code>LD_TRACE_LOADED_OBJECTS=1</code>（<code>ldd</code> 背後用的機制，見第二節）；
+<code>LD_DEBUG</code> 的全部選項見 <a href="hello.c%E6%80%8E%E9%BA%BC%E8%AE%8A%E6%88%90%E8%83%BD%E8%B7%91%E7%9A%84%E7%A8%8B%E5%BC%8F-%E7%B7%A8%E8%AD%AF%E7%9A%84%E5%9B%9B%E5%80%8B%E9%9A%8E%E6%AE%B5.html#%E5%8D%81%E4%B8%89%E5%80%8B%E5%90%8D%E5%AD%97%E5%BE%88%E5%83%8F%E7%9A%84%E6%AA%94%E6%A1%88ldld-linux-x86-64so2libcso6">第 1 課筆記第十節</a>。</p>
+<h3 id="objdump顯示什麼這一組全部列出"><code>objdump</code>：「顯示什麼」這一組全部列出</h3>
+<pre><code>objdump &lt;選項&gt; &lt;檔案&gt;...
+</code></pre>
+<p><code>objdump --help</code> 把選項分成兩組：</p>
+<ul>
+<li><strong>第一組「至少要給一個」</strong>：決定<strong>顯示什麼</strong>，每一個都是一種功能。下表<strong>全部列出（31 項）</strong>。</li>
+<li><strong>第二組「選用」</strong>：調整顯示的方式（例如 <code>-M intel</code> 改用 Intel 語法、<code>-C</code> 還原 C++ 名稱、<code>--no-show-raw-insn</code> 不印機器碼），約 40 行，有些是同一個選項的不同值，這裡<strong>不列</strong>，完整清單見 <code>objdump --help</code> 或 <code>man objdump</code>。</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>選項</th>
+<th>顯示什麼</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-a</code>, <code>--archive-headers</code></td>
+<td>靜態函式庫（<code>.a</code> 封存檔）裡每個成員的檔頭</td>
+</tr>
+<tr>
+<td><code>-f</code>, <code>--file-headers</code></td>
+<td>整個檔案的檔頭摘要（架構、類型、進入點）</td>
+</tr>
+<tr>
+<td><code>-p</code>, <code>--private-headers</code></td>
+<td><strong>該格式特有的檔頭內容</strong>：對 ELF 是程式標頭、<code>.dynamic</code>（<code>NEEDED</code> 在這裡）、版本需求。本篇的主角</td>
+</tr>
+<tr>
+<td><code>-P</code>, <code>--private=OPT,...</code></td>
+<td>該格式特有的其他內容（依格式而定，ELF 很少用）</td>
+</tr>
+<tr>
+<td><code>-h</code>, <code>--[section-]headers</code></td>
+<td>區段標頭（每個 section 的名字、大小、位址）</td>
+</tr>
+<tr>
+<td><code>-x</code>, <code>--all-headers</code></td>
+<td>全部檔頭，等於 <code>-a -f -h -p -r -t</code> 合在一起</td>
+</tr>
+<tr>
+<td><code>-d</code>, <code>--disassemble</code></td>
+<td>反組譯可執行的區段（第 1 課用過）</td>
+</tr>
+<tr>
+<td><code>-D</code>, <code>--disassemble-all</code></td>
+<td>反組譯<strong>所有</strong>區段，連資料也當成指令解讀</td>
+</tr>
+<tr>
+<td><code>--disassemble=&lt;sym&gt;</code></td>
+<td>只反組譯某個符號（例如 <code>--disassemble=main</code>）</td>
+</tr>
+<tr>
+<td><code>-S</code>, <code>--source</code></td>
+<td>反組譯時穿插原始碼（要用 <code>-g</code> 編譯）</td>
+</tr>
+<tr>
+<td><code>--source-comment[=&lt;txt&gt;]</code></td>
+<td>同 <code>-S</code>，但原始碼那幾行前面加上註解前綴</td>
+</tr>
+<tr>
+<td><code>-s</code>, <code>--full-contents</code></td>
+<td>以十六進位傾印區段的完整內容</td>
+</tr>
+<tr>
+<td><code>-Z</code>, <code>--decompress</code></td>
+<td>顯示前先把壓縮過的區段解壓縮</td>
+</tr>
+<tr>
+<td><code>-g</code>, <code>--debugging</code></td>
+<td>除錯資訊</td>
+</tr>
+<tr>
+<td><code>-e</code>, <code>--debugging-tags</code></td>
+<td>除錯資訊，用 ctags 格式輸出</td>
+</tr>
+<tr>
+<td><code>-G</code>, <code>--stabs</code></td>
+<td>舊式的 STABS 除錯資訊（原始格式）</td>
+</tr>
+<tr>
+<td><code>-W</code>, <code>--dwarf[=...]</code></td>
+<td>DWARF（現代的除錯資訊格式）各區段的內容，可用字母或名稱只挑一種</td>
+</tr>
+<tr>
+<td><code>-Wk</code>, <code>--dwarf=links</code></td>
+<td>指向「獨立除錯資訊檔」的區段</td>
+</tr>
+<tr>
+<td><code>-WK</code>, <code>--dwarf=follow-links</code></td>
+<td>追進獨立的除錯資訊檔（預設）</td>
+</tr>
+<tr>
+<td><code>-WN</code>, <code>--dwarf=no-follow-links</code></td>
+<td>不追進獨立的除錯資訊檔</td>
+</tr>
+<tr>
+<td><code>-L</code>, <code>--process-links</code></td>
+<td>顯示獨立除錯資訊檔裡的非除錯區段（隱含 <code>-WK</code>）</td>
+</tr>
+<tr>
+<td><code>--ctf[=SECTION]</code></td>
+<td>CTF（Compact Type Format，精簡型別格式）型別資訊</td>
+</tr>
+<tr>
+<td><code>--sframe[=SECTION]</code></td>
+<td>SFrame（簡單堆疊框格式）資訊</td>
+</tr>
+<tr>
+<td><code>-t</code>, <code>--syms</code></td>
+<td>符號表（類似 <code>nm</code>）</td>
+</tr>
+<tr>
+<td><code>-T</code>, <code>--dynamic-syms</code></td>
+<td>動態符號表（類似 <code>nm -D</code>；<a href="hello.c%E6%80%8E%E9%BA%BC%E8%AE%8A%E6%88%90%E8%83%BD%E8%B7%91%E7%9A%84%E7%A8%8B%E5%BC%8F-%E7%B7%A8%E8%AD%AF%E7%9A%84%E5%9B%9B%E5%80%8B%E9%9A%8E%E6%AE%B5.html#%E8%87%AA%E6%88%91%E6%B8%AC%E9%A9%97%E7%AC%AC-5-%E9%A1%8C%E5%BB%B6%E4%BC%B8%E6%89%BE%E4%B8%8D%E5%88%B0%E7%89%88%E6%9C%AC%E7%AC%A6%E8%99%9F%E6%98%AF%E6%80%8E%E9%BA%BC%E5%9B%9E%E4%BA%8B">第 1 課第九節</a>〈自我測驗第 5 題延伸〉用來看 <code>GLIBC_2.34</code>）</td>
+</tr>
+<tr>
+<td><code>-r</code>, <code>--reloc</code></td>
+<td>重定位項目（第 1 課看 <code>R_X86_64_PLT32 puts-0x4</code> 用的）</td>
+</tr>
+<tr>
+<td><code>-R</code>, <code>--dynamic-reloc</code></td>
+<td>動態重定位項目（留給執行時載入器處理的那些）</td>
+</tr>
+<tr>
+<td><code>@&lt;file&gt;</code></td>
+<td>從檔案讀選項</td>
+</tr>
+<tr>
+<td><code>-v</code>, <code>--version</code></td>
+<td>印出版本</td>
+</tr>
+<tr>
+<td><code>-i</code>, <code>--info</code></td>
+<td>列出支援的檔案格式與架構</td>
+</tr>
+<tr>
+<td><code>-H</code>, <code>--help</code></td>
+<td>印出說明</td>
+</tr>
+</tbody>
+</table>
+<p><strong>文法可以問工具</strong>：<code>objdump --help</code>、<code>ldd --help</code>、<code>man objdump</code>、<code>man ldd</code>、<code>man ld.so</code>（<code>LD_TRACE_LOADED_OBJECTS</code> 等環境變數寫在這裡）。</p>
+<hr />
+<h2 id="自我測驗">自我測驗</h2>
+<blockquote>
+<p>參考答案寫在每題下面（2026-10-06 使用者指定）。作答時先遮住答案、自己想過再對照。</p>
+</blockquote>
+<ol>
+<li><code>objdump -p /usr/bin/curl</code> 只列出 3 個 <code>NEEDED</code>，<code>ldd</code> 卻列出 33 行。多出來的是哪幾類東西？為什麼 <code>objdump</code> 看不到？<details class="answer"><summary>參考答案</summary>
+<p>【<a href="#%E4%BA%8C%E7%82%BA%E4%BB%80%E9%BA%BC%E6%9C%83%E5%B7%AE%E9%80%99%E9%BA%BC%E5%A4%9A%E5%85%A9%E8%80%85%E7%9C%8B%E7%9A%84%E6%98%AF%E4%B8%8D%E5%90%8C%E6%99%82%E9%96%93%E9%BB%9E">第二節</a>】多出來的是 (1) <strong>間接依賴</strong>（最大宗，例如 <code>libssl.so.3</code> 是 <code>libcurl.so.4</code> 要的，不是 <code>curl</code> 自己要的）、(2) <code>linux-vdso.so.1</code>（核心提供的虛擬函式庫）、(3) 動態載入器本身。<code>objdump -p</code> 只讀連結時寫進 <code>curl</code> 的需求單（只有直接依賴）；<code>ldd</code> 是請載入器實際跑一次，才拿到完整清單。</p>
+</details>
+</li>
+<li><code>ldd</code> 是怎麼得到依賴清單的？從這個機制解釋：為什麼對來路不明的執行檔用 <code>ldd</code> 有風險，<code>objdump -p</code> 卻沒有？<details class="answer"><summary>參考答案</summary>
+<p>【<a href="#%E4%B8%89ldd-%E6%9C%83%E5%9F%B7%E8%A1%8C%E6%9D%B1%E8%A5%BF%E9%80%99%E6%98%AF%E5%AE%83%E7%9A%84%E4%BB%A3%E5%83%B9">第三節</a>】（2026-10-11 改寫成核心關鍵格式）</p>
+<p>核心關鍵：</p>
+<ol>
+<li><code>ldd</code> 讓動態載入器實際處理這支程式：載入器照常找、載入全部依賴（含間接依賴），在進 <code>main</code> 前停下來印清單。</li>
+<li>風險：載入器是誰由檔案的 <code>INTERP</code> 決定，攻擊者可以寫成自己的程式，跑 <code>ldd</code> 就執行了它。</li>
+<li><code>objdump -p</code> 只讀檔案裡的 <code>NEEDED</code>，不啟動任何東西。</li>
+</ol>
+<p>詳細說明：<code>grep -n LD_TRACE /usr/bin/ldd</code> 可以看到腳本裡的 <code>LD_TRACE_LOADED_OBJECTS=1</code>；直接設這個變數跑程式（<code>LD_TRACE_LOADED_OBJECTS=1 /usr/bin/curl</code>）會得到跟 <code>ldd</code> 一樣的清單。所以對來路不明的檔案要看依賴，用 <code>objdump -p</code> 或 <code>readelf -d</code>。</p>
+</details>
+</li>
+<li>一支程式連結時用了 <code>-L./lib -lfoo</code>，編譯成功；執行時卻出現 <code>error while loading shared libraries: libfoo.so</code>。用「連結時」與「執行時」分別是誰在找檔案，解釋為什麼連結找得到、執行卻找不到。這時 <code>objdump -p</code> 與 <code>ldd</code> 各會顯示什麼？<details class="answer"><summary>參考答案</summary>
+<p>【<a href="#%E5%9B%9B%E6%89%BE%E4%B8%8D%E5%88%B0%E5%87%BD%E5%BC%8F%E5%BA%AB%E6%99%82%E5%85%A9%E8%80%85%E5%90%84%E7%9C%8B%E5%88%B0%E4%BB%80%E9%BA%BC">第四節</a>、<a href="#%E4%BA%8C%E7%82%BA%E4%BB%80%E9%BA%BC%E6%9C%83%E5%B7%AE%E9%80%99%E9%BA%BC%E5%A4%9A%E5%85%A9%E8%80%85%E7%9C%8B%E7%9A%84%E6%98%AF%E4%B8%8D%E5%90%8C%E6%99%82%E9%96%93%E9%BB%9E">第二節</a>】（2026-10-11 改寫成核心關鍵格式）</p>
+<p>核心關鍵：</p>
+<ol>
+<li>連結時是 <strong><code>ld</code></strong> 在找：照 <code>-L./lib</code> 找到 <code>libfoo.so</code>，在執行檔寫下 <code>NEEDED libfoo.so</code>，<strong>只有名字、沒有路徑</strong>。</li>
+<li>執行時是<strong>動態載入器</strong>在找：它不知道當初的 <code>-L</code>，只找自己的預設路徑（加上 <code>LD_LIBRARY_PATH</code> 等），所以找不到。</li>
+<li><code>objdump -p</code> 照樣列出 <code>NEEDED libfoo.so</code>（看不出問題）；<code>ldd</code> 顯示 <code>libfoo.so =&gt; not found</code>。</li>
+</ol>
+<p>詳細說明：執行時找函式庫的是 <code>ld-linux-x86-64.so.2</code>，搜尋順序是：執行檔裡的 <code>RUNPATH</code>、<code>LD_LIBRARY_PATH</code>、<code>/etc/ld.so.cache</code>、預設目錄（<code>/lib</code>、<code>/usr/lib</code>）。修法是在連結時加 <code>-Wl,-rpath,…</code> 把路徑寫進執行檔（這時才真的有路徑進 dynamic section，記成 <code>RUNPATH</code>），或執行時設 <code>LD_LIBRARY_PATH</code>。<code>error while loading shared libraries</code> 是載入器在真正執行時發出的；<code>ldd</code> 是請載入器「找一次、印結果」，找不到的就標 <code>not found</code>，兩者是同一件事的兩種呈現。</p>
+</details>
+</li>
+<li>情境題：同事傳來一支 ARM 開發板用的執行檔，問你「它需要哪些函式庫」。你在自己的 x86-64 電腦上該用哪個工具？用 <code>ldd</code> 會發生什麼事，為什麼？<details class="answer"><summary>參考答案</summary>
+<p>【<a href="#%E4%B8%89ldd-%E6%9C%83%E5%9F%B7%E8%A1%8C%E6%9D%B1%E8%A5%BF%E9%80%99%E6%98%AF%E5%AE%83%E7%9A%84%E4%BB%A3%E5%83%B9">第三節</a>、<a href="#%E4%BA%94%E6%80%8E%E9%BA%BC%E9%81%B8">第五節</a>】（2026-10-12 改寫成核心關鍵格式）</p>
+<p>核心關鍵：</p>
+<ol>
+<li>用 <strong><code>readelf -d</code></strong> 看 <code>NEEDED</code>：只讀檔案、不執行，任何架構的 ELF 都讀得了。</li>
+<li><code>ldd</code> 要靠<strong>本機的 x86-64 載入器</strong>實際載入，處理不了 ARM 的檔案，於是印出誤導人的 <strong><code>not a dynamic executable</code></strong>。</li>
+</ol>
+<p>詳細說明：<code>ldd</code> 平常列出 vdso、間接依賴的那整套機制，都建立在「本機載入器能載入它」上面；架構不同，第一步就失敗。<code>objdump -p</code> 平常也行，但開發板上的檔案常被剝掉區段標頭，<code>readelf -d</code> 能透過程式標頭的 <code>DYNAMIC</code> 找到同一份資料，比較保險。直接執行則會看到核心的 <code>exec format error</code>。</p>
+</details>
+</li>
+</ol>
+
+</main>
+</div>
+</body>
+</html>

@@ -1,0 +1,461 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>怎麼把檔案內容複製到剪貼簿？</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/app.js"></script>
+</head>
+<body>
+<button class="menu-btn" onclick="toggleMenu()">☰ 目錄</button>
+<div class="layout">
+<nav class="side">
+<div class="crumbs"><a href="../index.html">🏠 首頁</a> / <a href="README.html">linux</a></div>
+<div class="tools"><button onclick="toggleTheme()">🌓 主題</button></div>
+<ul>
+<li class="l2"><a href="#%E4%B8%80%E5%85%88%E7%9C%8B%E4%BD%A0%E7%9A%84%E5%B7%A5%E4%BD%9C%E9%9A%8E%E6%AE%B5%E6%98%AF-x11-%E9%82%84%E6%98%AF-wayland">一、先看你的工作階段是 X11 還是 Wayland</a></li>
+<li class="l2"><a href="#%E4%BA%8Cx11-%E7%9A%84%E4%B8%89%E5%80%8B%E9%81%B8%E5%8D%80selection">二、X11 的三個選區（selection）</a></li>
+<li class="l2"><a href="#%E4%B8%89xclip%E5%AE%8C%E6%95%B4%E9%81%B8%E9%A0%85">三、xclip：完整選項</a></li>
+<li class="l3"><a href="#%E5%B8%B8%E7%94%A8%E5%AF%AB%E6%B3%95">常用寫法</a></li>
+<li class="l3"><a href="#%E7%82%BA%E4%BB%80%E9%BA%BC-xclip-%E5%9F%B7%E8%A1%8C%E5%AE%8C%E9%82%84%E7%95%99%E5%9C%A8%E8%83%8C%E6%99%AF">為什麼 xclip 執行完還留在背景？</a></li>
+<li class="l2"><a href="#%E5%9B%9Bxsel%E5%AE%8C%E6%95%B4%E9%81%B8%E9%A0%85">四、xsel：完整選項</a></li>
+<li class="l3"><a href="#%E5%B8%B8%E7%94%A8%E5%AF%AB%E6%B3%95-1">常用寫法</a></li>
+<li class="l3"><a href="#xclip-%E8%88%87-xsel-%E6%80%8E%E9%BA%BC%E9%81%B8">xclip 與 xsel 怎麼選</a></li>
+<li class="l2"><a href="#%E4%BA%94waylandwl-copy--wl-paste">五、Wayland：wl-copy / wl-paste</a></li>
+<li class="l2"><a href="#%E5%85%ADssh-%E6%88%96%E7%B4%94%E7%B5%82%E7%AB%AF%E6%A9%9Fosc-52">六、SSH 或純終端機：OSC 52</a></li>
+<li class="l2"><a href="#%E4%B8%83tmux-%E8%87%AA%E5%B7%B1%E7%9A%84%E7%B7%A9%E8%A1%9D%E5%8D%80">七、tmux 自己的緩衝區</a></li>
+<li class="l2"><a href="#%E5%85%AB%E9%80%9F%E6%9F%A5">八、速查</a></li>
+<li class="l2"><a href="#%E8%87%AA%E6%88%91%E6%B8%AC%E9%A9%97">自我測驗</a></li>
+</ul>
+</nav>
+<main>
+<h1 id="怎麼把檔案內容複製到剪貼簿">怎麼把檔案內容複製到剪貼簿？</h1>
+<blockquote>
+<p>日期：2026-09-21<br />
+情境：想把檔案內容直接送進剪貼簿，方便貼到別的地方，不想用滑鼠選取整個終端機畫面<br />
+適用範圍：實測 Ubuntu 24.04、<strong>X11 工作階段</strong>（<code>XDG_SESSION_TYPE=x11</code>）、
+xclip 0.13、xsel 1.2.1、tmux 3.4；Wayland 與 SSH 情境另列<br />
+相關：<a href="PTY%E6%98%AF%E4%BB%80%E9%BA%BC-%E7%B5%82%E7%AB%AF%E6%A9%9F%E6%A8%A1%E6%93%AC%E5%99%A8%E8%88%87%E8%99%9B%E6%93%AC%E7%B5%82%E7%AB%AF.html">PTY是什麼-終端機模擬器與虛擬終端</a>、
+<a href="%E8%BC%B8%E5%87%BA%E9%87%8D%E6%96%B0%E5%B0%8E%E5%90%91%E8%88%87dev-null.html">輸出重新導向與dev-null</a></p>
+</blockquote>
+<p><strong>一句話結論：X11 上用 <code>xclip -selection clipboard -in &lt;檔案&gt;</code>（或 <code>xsel -b -i &lt; 檔案</code>）。但先搞懂一件事——X11 有</strong>三個<strong>獨立的「剪貼簿」，預設操作的不是 Ctrl+V 那個，這是九成的人第一次用會失敗的原因。</strong></p>
+<hr />
+<h2 id="一先看你的工作階段是-x11-還是-wayland">一、先看你的工作階段是 X11 還是 Wayland</h2>
+<p><strong>工具選錯就完全不會動</strong>，所以第一步是確認：</p>
+<pre><code class="language-bash">$<span class="w"> </span><span class="nb">echo</span><span class="w"> </span><span class="nv">$XDG_SESSION_TYPE</span>
+x11<span class="w">                        </span><span class="c1"># ← 本機是這個</span>
+
+<span class="c1"># 或者更可靠（環境變數可能沒設）</span>
+$<span class="w"> </span>loginctl<span class="w"> </span>show-session<span class="w"> </span><span class="k">$(</span>loginctl<span class="w"> </span><span class="p">|</span><span class="w"> </span>awk<span class="w"> </span><span class="s1">&#39;/&#39;</span><span class="nv">$USER</span><span class="s1">&#39;/{print $1; exit}&#39;</span><span class="k">)</span><span class="w"> </span>-p<span class="w"> </span>Type
+<span class="nv">Type</span><span class="o">=</span>x11
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>工作階段</th>
+<th>工具</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>X11</strong></td>
+<td><code>xclip</code> 或 <code>xsel</code></td>
+</tr>
+<tr>
+<td><strong>Wayland</strong></td>
+<td><code>wl-copy</code> / <code>wl-paste</code>（套件 <code>wl-clipboard</code>）</td>
+</tr>
+<tr>
+<td><strong>SSH／無圖形介面</strong></td>
+<td>OSC 52 跳脫序列，見第六節</td>
+</tr>
+</tbody>
+</table>
+<p>本機兩個 X11 工具都有裝；<code>wl-copy</code> 沒有（因為用不到）。</p>
+<hr />
+<h2 id="二x11-的三個選區selection">二、X11 的三個選區（selection）</h2>
+<p>這是最關鍵的概念。X11 沒有「一個剪貼簿」，而是<strong>三個互不相干的選區</strong>：</p>
+<table>
+<thead>
+<tr>
+<th>選區</th>
+<th>什麼時候寫入</th>
+<th>怎麼貼出來</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>PRIMARY</code></td>
+<td><strong>用滑鼠選取文字時自動寫入</strong>（不用按任何鍵）</td>
+<td><strong>滑鼠中鍵</strong></td>
+</tr>
+<tr>
+<td><code>CLIPBOARD</code></td>
+<td>按 Ctrl+C／選單「複製」時寫入</td>
+<td><strong>Ctrl+V</strong></td>
+</tr>
+<tr>
+<td><code>SECONDARY</code></td>
+<td>幾乎沒人用</td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<p><strong><code>xclip</code> 與 <code>xsel</code> 的預設選區都是 <code>PRIMARY</code></strong>，所以：</p>
+<pre><code class="language-bash">xclip<span class="w"> </span>file.txt<span class="w">              </span><span class="c1"># 寫進 PRIMARY → 按 Ctrl+V 貼不出來！</span>
+xclip<span class="w"> </span>-selection<span class="w"> </span>clipboard<span class="w"> </span>file.txt<span class="w">   </span><span class="c1"># 寫進 CLIPBOARD → Ctrl+V 可以貼</span>
+</code></pre>
+<p><strong>這就是「明明執行了卻貼不出來」的標準原因。</strong> 要 Ctrl+V 貼得到，就一定要指定 <code>clipboard</code>。</p>
+<hr />
+<h2 id="三xclip完整選項">三、<code>xclip</code>：完整選項</h2>
+<pre><code>xclip [選項] [檔案]...
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>選項</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-i</code>、<code>-in</code></td>
+<td><strong>從標準輸入或檔案讀進選區</strong>（預設行為）</td>
+</tr>
+<tr>
+<td><code>-o</code>、<code>-out</code></td>
+<td><strong>把選區印到標準輸出</strong>（通常接管線或導向檔案）</td>
+</tr>
+<tr>
+<td><code>-selection &lt;選區&gt;</code></td>
+<td><strong><code>primary</code>（預設）／<code>secondary</code>／<code>clipboard</code>／<code>buffer-cut</code></strong></td>
+</tr>
+<tr>
+<td><code>-l</code>、<code>-loops &lt;n&gt;</code></td>
+<td>結束前要服務幾次貼上請求（見下方「為什麼會停留在背景」）</td>
+</tr>
+<tr>
+<td><code>-d</code>、<code>-display &lt;顯示器&gt;</code></td>
+<td>連到哪個 X display（例如 <code>localhost:0</code>）</td>
+</tr>
+<tr>
+<td><code>-target &lt;atom&gt;</code></td>
+<td>指定目標 atom（貼圖片等非純文字時用，例如 <code>image/png</code>）</td>
+</tr>
+<tr>
+<td><code>-rmlastnl</code></td>
+<td><strong>去掉結尾的換行字元</strong> ← 複製單行值時很有用</td>
+</tr>
+<tr>
+<td><code>-noutf8</code></td>
+<td>不當成 UTF-8，用舊式 unicode</td>
+</tr>
+<tr>
+<td><code>-silent</code></td>
+<td>只報錯誤，在背景執行（<strong>預設</strong>）</td>
+</tr>
+<tr>
+<td><code>-quiet</code></td>
+<td>在前景執行並顯示動作</td>
+</tr>
+<tr>
+<td><code>-verbose</code></td>
+<td>詳細說明</td>
+</tr>
+<tr>
+<td><code>-h</code>、<code>-help</code> / <code>-version</code></td>
+<td>說明／版本</td>
+</tr>
+</tbody>
+</table>
+<h3 id="常用寫法">常用寫法</h3>
+<pre><code class="language-bash">xclip<span class="w"> </span>-selection<span class="w"> </span>clipboard<span class="w"> </span>-in<span class="w"> </span>file.txt<span class="w">      </span><span class="c1"># 檔案 → 剪貼簿</span>
+xclip<span class="w"> </span>-selection<span class="w"> </span>clipboard<span class="w"> </span>&lt;<span class="w"> </span>file.txt<span class="w">        </span><span class="c1"># 等價（用重新導向）</span>
+cat<span class="w"> </span>file.txt<span class="w"> </span><span class="p">|</span><span class="w"> </span>xclip<span class="w"> </span>-selection<span class="w"> </span>clipboard<span class="w">    </span><span class="c1"># 等價（多一個行程，沒必要）</span>
+
+xclip<span class="w"> </span>-selection<span class="w"> </span>clipboard<span class="w"> </span>-out<span class="w"> </span>&gt;<span class="w"> </span>out.txt<span class="w">    </span><span class="c1"># 剪貼簿 → 檔案</span>
+xclip<span class="w"> </span>-selection<span class="w"> </span>clipboard<span class="w"> </span>-out<span class="w">              </span><span class="c1"># 剪貼簿 → 螢幕</span>
+
+<span class="c1"># 複製單一值時去掉尾端換行（貼進表單不會多一行）</span>
+<span class="nb">printf</span><span class="w"> </span><span class="s1">&#39;%s&#39;</span><span class="w"> </span><span class="s2">&quot;</span><span class="k">$(</span>cat<span class="w"> </span>id.txt<span class="k">)</span><span class="s2">&quot;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>xclip<span class="w"> </span>-selection<span class="w"> </span>clipboard
+xclip<span class="w"> </span>-selection<span class="w"> </span>clipboard<span class="w"> </span>-rmlastnl<span class="w"> </span>-in<span class="w"> </span>id.txt<span class="w">      </span><span class="c1"># 或用這個選項</span>
+
+<span class="c1"># 複製圖片</span>
+xclip<span class="w"> </span>-selection<span class="w"> </span>clipboard<span class="w"> </span>-target<span class="w"> </span>image/png<span class="w"> </span>-in<span class="w"> </span>shot.png
+</code></pre>
+<p><strong>建議設成 alias</strong>（<code>-sel c</code> 是 <code>-selection clipboard</code> 的合法縮寫）：</p>
+<pre><code class="language-bash"><span class="nb">alias</span><span class="w"> </span><span class="nv">cbcopy</span><span class="o">=</span><span class="s1">&#39;xclip -selection clipboard&#39;</span>
+<span class="nb">alias</span><span class="w"> </span><span class="nv">cbpaste</span><span class="o">=</span><span class="s1">&#39;xclip -selection clipboard -out&#39;</span>
+</code></pre>
+<h3 id="為什麼-xclip-執行完還留在背景">為什麼 <code>xclip</code> 執行完還留在背景？</h3>
+<p><strong>X11 的選區內容不是存在系統某處，而是「由擁有它的那個行程保管」</strong>——
+別人要貼上時，X server 會去跟擁有者要。所以 <code>xclip</code> 寫完之後<strong>必須繼續活著</strong>，否則剪貼簿內容就消失了。這就是它預設 <code>-silent</code>（背景執行）的原因。</p>
+<p><code>-loops &lt;n&gt;</code> 就是「服務 n 次貼上請求之後就可以死了」。預設 0＝永遠留著。</p>
+<p><strong>副作用</strong>：關掉終端機或該 <code>xclip</code> 行程被殺，剪貼簿就空了。
+GNOME 等桌面環境通常有 clipboard manager 會接手保存，但不是所有環境都有。</p>
+<hr />
+<h2 id="四xsel完整選項">四、<code>xsel</code>：完整選項</h2>
+<pre><code>xsel [選項]
+</code></pre>
+<p><strong>輸入</strong></p>
+<table>
+<thead>
+<tr>
+<th>選項</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-i</code>、<code>--input</code></td>
+<td>讀標準輸入進選區</td>
+</tr>
+<tr>
+<td><code>-a</code>、<code>--append</code></td>
+<td><strong>附加</strong>到選區而不是取代</td>
+</tr>
+<tr>
+<td><code>-f</code>、<code>--follow</code></td>
+<td><strong>持續附加</strong>（輸入增長時跟著加，像 <code>tail -f</code>）</td>
+</tr>
+<tr>
+<td><code>-z</code>、<code>--zeroflush</code></td>
+<td>收到 <code>\0</code> 時覆寫選區</td>
+</tr>
+</tbody>
+</table>
+<p><strong>輸出</strong></p>
+<table>
+<thead>
+<tr>
+<th>選項</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-o</code>、<code>--output</code></td>
+<td>把選區寫到標準輸出</td>
+</tr>
+</tbody>
+</table>
+<p><strong>動作</strong></p>
+<table>
+<thead>
+<tr>
+<th>選項</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-c</code>、<code>--clear</code></td>
+<td>清空選區</td>
+</tr>
+<tr>
+<td><code>-d</code>、<code>--delete</code></td>
+<td>要求清空，並請擁有者刪除內容</td>
+</tr>
+</tbody>
+</table>
+<p><strong>選區</strong></p>
+<table>
+<thead>
+<tr>
+<th>選項</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-p</code>、<code>--primary</code></td>
+<td>PRIMARY（<strong>預設</strong>）</td>
+</tr>
+<tr>
+<td><code>-s</code>、<code>--secondary</code></td>
+<td>SECONDARY</td>
+</tr>
+<tr>
+<td><code>-b</code>、<code>--clipboard</code></td>
+<td><strong>CLIPBOARD</strong> ← Ctrl+V 要的那個</td>
+</tr>
+<tr>
+<td><code>-k</code>、<code>--keep</code></td>
+<td>不改內容，但讓 PRIMARY／SECONDARY 在來源程式結束後仍保留</td>
+</tr>
+<tr>
+<td><code>-x</code>、<code>--exchange</code></td>
+<td>交換 PRIMARY 與 SECONDARY</td>
+</tr>
+</tbody>
+</table>
+<p><strong>X 與其他</strong></p>
+<table>
+<thead>
+<tr>
+<th>選項</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--display &lt;顯示器&gt;</code></td>
+<td>指定 X server 連線</td>
+</tr>
+<tr>
+<td><code>-m</code>、<code>--name &lt;wm&gt;</code></td>
+<td>行程識別名稱</td>
+</tr>
+<tr>
+<td><code>-t</code>、<code>--selectionTimeout &lt;毫秒&gt;</code></td>
+<td>取得選區的逾時（0＝不逾時，預設）</td>
+</tr>
+<tr>
+<td><code>--trim</code></td>
+<td><strong>去掉輸入／輸出結尾的換行</strong></td>
+</tr>
+<tr>
+<td><code>-l</code>、<code>--logfile &lt;檔&gt;</code></td>
+<td>detach 後的錯誤記錄檔</td>
+</tr>
+<tr>
+<td><code>-n</code>、<code>--nodetach</code></td>
+<td><strong>不要 fork 到背景</strong>（預設會 fork）</td>
+</tr>
+</tbody>
+</table>
+<h3 id="常用寫法-1">常用寫法</h3>
+<pre><code class="language-bash">xsel<span class="w"> </span>-b<span class="w"> </span>-i<span class="w"> </span>&lt;<span class="w"> </span>file.txt<span class="w">        </span><span class="c1"># 檔案 → 剪貼簿</span>
+xsel<span class="w"> </span>-b<span class="w"> </span>-o<span class="w"> </span>&gt;<span class="w"> </span>out.txt<span class="w">         </span><span class="c1"># 剪貼簿 → 檔案</span>
+xsel<span class="w"> </span>-b<span class="w"> </span>-o<span class="w">                   </span><span class="c1"># 剪貼簿 → 螢幕</span>
+xsel<span class="w"> </span>-b<span class="w"> </span>-c<span class="w">                   </span><span class="c1"># 清空剪貼簿</span>
+</code></pre>
+<h3 id="xclip-與-xsel-怎麼選"><code>xclip</code> 與 <code>xsel</code> 怎麼選</h3>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>xclip</th>
+<th>xsel</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>直接吃檔名</td>
+<td>✅ <code>xclip file.txt</code></td>
+<td>❌ 只能用重新導向</td>
+</tr>
+<tr>
+<td>附加模式</td>
+<td>❌</td>
+<td>✅ <code>-a</code>／<code>-f</code></td>
+</tr>
+<tr>
+<td>非文字 target（圖片）</td>
+<td>✅ <code>-target</code></td>
+<td>❌</td>
+</tr>
+<tr>
+<td>去尾端換行</td>
+<td><code>-rmlastnl</code></td>
+<td><code>--trim</code></td>
+</tr>
+<tr>
+<td>選區預設</td>
+<td>PRIMARY</td>
+<td>PRIMARY</td>
+</tr>
+</tbody>
+</table>
+<p><strong>兩個都能用就挑順手的</strong>；要貼圖片或指定 MIME 型別只能用 <code>xclip</code>，要「持續附加」只能用 <code>xsel</code>。</p>
+<hr />
+<h2 id="五waylandwl-copy--wl-paste">五、Wayland：<code>wl-copy</code> / <code>wl-paste</code></h2>
+<p>本機沒裝（X11 用不到），但換到 Wayland 就得改用它：</p>
+<pre><code class="language-bash">sudo<span class="w"> </span>apt<span class="w"> </span>install<span class="w"> </span>wl-clipboard
+
+wl-copy<span class="w"> </span>&lt;<span class="w"> </span>file.txt<span class="w">                 </span><span class="c1"># 檔案 → 剪貼簿</span>
+wl-copy<span class="w"> </span>--primary<span class="w"> </span>&lt;<span class="w"> </span>file.txt<span class="w">       </span><span class="c1"># 寫進 PRIMARY</span>
+wl-paste<span class="w"> </span>&gt;<span class="w"> </span>out.txt<span class="w">                 </span><span class="c1"># 剪貼簿 → 檔案</span>
+wl-paste<span class="w"> </span>-n<span class="w">                        </span><span class="c1"># 不補尾端換行</span>
+wl-copy<span class="w"> </span>--clear<span class="w">                    </span><span class="c1"># 清空</span>
+wl-copy<span class="w"> </span>--type<span class="w"> </span>image/png<span class="w"> </span>&lt;<span class="w"> </span>a.png<span class="w">   </span><span class="c1"># 指定型別</span>
+</code></pre>
+<p><strong>Wayland 的預設剛好相反</strong>：<code>wl-copy</code> 預設寫 CLIPBOARD，要 PRIMARY 才要加 <code>--primary</code>。
+<strong>比 X11 直覺。</strong></p>
+<hr />
+<h2 id="六ssh-或純終端機osc-52">六、SSH 或純終端機：OSC 52</h2>
+<p>前面那些都需要圖形介面。<strong>你 SSH 進 OpenWrt 時，路由器上根本沒有 X server</strong>，
+<code>xclip</code> 也不會裝。這時可以用 <strong>OSC 52</strong>——一個讓<strong>終端機模擬器</strong>代為寫入剪貼簿的跳脫序列。</p>
+<p>原理：程式印出一段特殊字元，<strong>你本機的終端機</strong>（alacritty 等）認得它，就把內容放進你本機的剪貼簿。因為是走終端機輸出，所以<strong>穿得過 SSH</strong>。</p>
+<pre><code class="language-bash"><span class="c1"># 把檔案內容送進本機剪貼簿（在遠端主機上執行）</span>
+<span class="nb">printf</span><span class="w"> </span><span class="s1">&#39;\033]52;c;%s\a&#39;</span><span class="w"> </span><span class="s2">&quot;</span><span class="k">$(</span>base64<span class="w"> </span>-w0<span class="w"> </span>&lt;<span class="w"> </span>file.txt<span class="k">)</span><span class="s2">&quot;</span>
+</code></pre>
+<p>寫成函式方便用：</p>
+<pre><code class="language-bash">osc52<span class="o">()</span><span class="w"> </span><span class="o">{</span><span class="w"> </span><span class="nb">printf</span><span class="w"> </span><span class="s1">&#39;\033]52;c;%s\a&#39;</span><span class="w"> </span><span class="s2">&quot;</span><span class="k">$(</span>base64<span class="w"> </span>-w0<span class="w"> </span><span class="s2">&quot;</span><span class="si">${</span><span class="nv">1</span><span class="k">:-</span><span class="p">/dev/stdin</span><span class="si">}</span><span class="s2">&quot;</span><span class="k">)</span><span class="s2">&quot;</span><span class="p">;</span><span class="w"> </span><span class="o">}</span>
+osc52<span class="w"> </span>file.txt
+cat<span class="w"> </span>file.txt<span class="w"> </span><span class="p">|</span><span class="w"> </span>osc52
+</code></pre>
+<p><strong>三個限制：</strong></p>
+<ol>
+<li><strong>終端機必須支援且允許</strong>。alacritty 預設支援；有些終端機要開設定（安全考量——
+遠端主機能寫你的剪貼簿本來就有風險）。</li>
+<li><strong>有長度上限</strong>，各終端機不同（常見數十 KB），大檔案會被截斷。</li>
+<li><strong>在 tmux 裡要另外開</strong>：tmux 預設會攔掉。需要
+<code>set -g set-clipboard on</code>（tmux 2.6+），並確認外層終端機也支援。</li>
+</ol>
+<blockquote>
+<p>我沒辦法在這裡替你驗證 OSC 52——我執行指令時 stdout 是管線，跳脫序列到不了你的終端機。
+<strong>你自己在互動式終端機裡跑一次上面那行，然後按 Ctrl+V 看看</strong>就知道你的終端機支不支援。</p>
+</blockquote>
+<hr />
+<h2 id="七tmux-自己的緩衝區">七、tmux 自己的緩衝區</h2>
+<p>tmux 有<strong>獨立於系統剪貼簿</strong>的緩衝區，常被搞混：</p>
+<pre><code class="language-bash">tmux<span class="w"> </span>load-buffer<span class="w"> </span>file.txt<span class="w">            </span><span class="c1"># 檔案 → tmux 緩衝區</span>
+tmux<span class="w"> </span>save-buffer<span class="w"> </span>out.txt<span class="w">             </span><span class="c1"># tmux 緩衝區 → 檔案</span>
+tmux<span class="w"> </span>show-buffer<span class="w">                     </span><span class="c1"># 印出內容</span>
+tmux<span class="w"> </span>list-buffers<span class="w">                    </span><span class="c1"># 列出所有緩衝區</span>
+tmux<span class="w"> </span>set-buffer<span class="w"> </span><span class="s2">&quot;文字&quot;</span><span class="w">                </span><span class="c1"># 直接設定內容</span>
+
+<span class="c1"># 讓 tmux 緩衝區與系統剪貼簿互通</span>
+tmux<span class="w"> </span>show-buffer<span class="w"> </span><span class="p">|</span><span class="w"> </span>xclip<span class="w"> </span>-selection<span class="w"> </span>clipboard
+tmux<span class="w"> </span>load-buffer<span class="w"> </span>&lt;<span class="o">(</span>xclip<span class="w"> </span>-selection<span class="w"> </span>clipboard<span class="w"> </span>-o<span class="o">)</span>
+</code></pre>
+<p>在 tmux 裡按 <code>Prefix + ]</code> 貼的是 <strong>tmux 緩衝區</strong>，不是系統剪貼簿——
+<strong>這兩者預設不同步</strong>，除非你設定 <code>set -g set-clipboard on</code> 並讓終端機支援 OSC 52。</p>
+<hr />
+<h2 id="八速查">八、速查</h2>
+<pre><code class="language-bash"><span class="c1"># X11（本機）</span>
+xclip<span class="w"> </span>-selection<span class="w"> </span>clipboard<span class="w"> </span>-in<span class="w">  </span>file.txt<span class="w">     </span><span class="c1"># 檔案 → 剪貼簿</span>
+xclip<span class="w"> </span>-selection<span class="w"> </span>clipboard<span class="w"> </span>-out<span class="w">              </span><span class="c1"># 剪貼簿 → 螢幕</span>
+xsel<span class="w">  </span>-b<span class="w"> </span>-i<span class="w"> </span>&lt;<span class="w"> </span>file.txt<span class="w">                       </span><span class="c1"># 同上（xsel 版）</span>
+xsel<span class="w">  </span>-b<span class="w"> </span>-o
+
+<span class="c1"># Wayland</span>
+wl-copy<span class="w"> </span>&lt;<span class="w"> </span>file.txt<span class="w"> </span><span class="p">;</span><span class="w"> </span>wl-paste
+
+<span class="c1"># SSH／遠端（靠終端機）</span>
+<span class="nb">printf</span><span class="w"> </span><span class="s1">&#39;\033]52;c;%s\a&#39;</span><span class="w"> </span><span class="s2">&quot;</span><span class="k">$(</span>base64<span class="w"> </span>-w0<span class="w"> </span>&lt;<span class="w"> </span>file.txt<span class="k">)</span><span class="s2">&quot;</span>
+
+<span class="c1"># tmux 緩衝區（≠ 系統剪貼簿）</span>
+tmux<span class="w"> </span>load-buffer<span class="w"> </span>file.txt<span class="w"> </span><span class="p">;</span><span class="w"> </span>tmux<span class="w"> </span>show-buffer
+
+<span class="c1"># 建議的 alias</span>
+<span class="nb">alias</span><span class="w"> </span><span class="nv">cbcopy</span><span class="o">=</span><span class="s1">&#39;xclip -selection clipboard&#39;</span>
+<span class="nb">alias</span><span class="w"> </span><span class="nv">cbpaste</span><span class="o">=</span><span class="s1">&#39;xclip -selection clipboard -out&#39;</span>
+</code></pre>
+<hr />
+<h2 id="自我測驗">自我測驗</h2>
+<ol>
+<li>你執行了 <code>xclip file.txt</code>，接著在瀏覽器按 Ctrl+V 卻什麼都沒貼出來。為什麼？要怎麼改？</li>
+<li>X11 的選區內容「存在哪裡」？為什麼 <code>xclip</code> 執行完之後還會留在背景不結束？這個設計會造成什麼副作用？</li>
+<li>你 SSH 到一台沒有圖形介面的機器，想把上面某個檔案的內容複製到<strong>你本機</strong>的剪貼簿。
+<code>xclip</code> 不能用，還有什麼辦法？它為什麼穿得過 SSH？</li>
+<li>在 tmux 裡按 <code>Prefix + ]</code> 貼出來的內容，和你按 Ctrl+V 貼出來的，是同一份東西嗎？為什麼？</li>
+<li>情境題：你要把一個 API token 複製到網頁表單，但貼上後發現多了一個換行導致驗證失敗。用 <code>xclip</code> 和 <code>xsel</code> 各有一個選項可以解決，分別是什麼？還有什麼不靠選項的寫法？</li>
+</ol>
+
+</main>
+</div>
+</body>
+</html>

@@ -1,0 +1,324 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Docker 拉不到映像檔 —— daemon 缺 proxy 的排查與解法</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/app.js"></script>
+</head>
+<body>
+<button class="menu-btn" onclick="toggleMenu()">☰ 目錄</button>
+<div class="layout">
+<nav class="side">
+<div class="crumbs"><a href="../index.html">🏠 首頁</a> / <a href="README.html">docker</a></div>
+<div class="tools"><button onclick="toggleTheme()">🌓 主題</button></div>
+<ul>
+<li class="l2"><a href="#%E4%B8%80%E5%8E%9F%E5%A7%8B%E5%95%8F%E9%A1%8C">一、原始問題</a></li>
+<li class="l2"><a href="#%E4%BA%8C%E6%A0%B9%E6%9C%AC%E5%8E%9F%E5%9B%A0">二、根本原因</a></li>
+<li class="l2"><a href="#%E4%B8%89%E6%8E%92%E6%9F%A5%E6%80%9D%E8%B7%AF%E9%87%8D%E9%BB%9E%E6%96%B9%E6%B3%95">三、排查思路（重點方法）</a></li>
+<li class="l3"><a href="#%E5%B8%B8%E8%A6%8B%E6%8E%92%E6%9F%A5%E6%8C%87%E4%BB%A4">常見排查指令</a></li>
+<li class="l2"><a href="#%E5%9B%9B%E8%A7%A3%E6%B3%95%E5%B9%AB-docker-daemon-%E8%A8%AD%E5%AE%9A-proxy">四、解法：幫 docker daemon 設定 proxy</a></li>
+<li class="l2"><a href="#%E4%BA%94%E8%B8%A9%E5%88%B0%E7%9A%84%E5%9D%91">五、踩到的坑</a></li>
+<li class="l3"><a href="#1-heredoc-%E5%8D%A1%E5%9C%A8-heredoc-%E4%B8%8D%E7%B5%90%E6%9D%9F">1. heredoc 卡在 heredoc&gt; 不結束</a></li>
+<li class="l3"><a href="#2-ipv6-%E6%98%AF%E7%B4%85%E9%AF%A1%E9%AD%9A">2. IPv6 是紅鯡魚</a></li>
+<li class="l2"><a href="#%E5%85%AD%E8%A7%80%E5%BF%B5%E6%95%B4%E7%90%86">六、觀念整理</a></li>
+<li class="l2"><a href="#%E4%B8%83%E7%BA%8C%E9%9B%86docker-compose-build-%E5%8D%A1%E5%9C%A8%E6%8B%89-dockerdockerfile1%E6%AD%BB-mirror-%E6%93%8B%E8%B7%AF">七、續集：docker compose build 卡在拉 docker/dockerfile:1（死 mirror 擋路）</a></li>
+<li class="l3"><a href="#%E6%83%85%E5%A2%83">情境</a></li>
+<li class="l3"><a href="#%E6%A0%B9%E6%9C%AC%E5%8E%9F%E5%9B%A0">根本原因</a></li>
+<li class="l3"><a href="#daemonjson--registry-mirrors-%E7%94%A8%E6%B3%95">daemon.json / registry-mirrors 用法</a></li>
+<li class="l3"><a href="#%E8%A7%A3%E6%B3%95">解法</a></li>
+<li class="l3"><a href="#%E6%95%99%E8%A8%93">教訓</a></li>
+<li class="l2"><a href="#%E6%9C%AC%E7%AF%87%E7%94%A8%E5%88%B0%E7%9A%84%E6%8C%87%E4%BB%A4%E6%B6%B5%E8%93%8B%E7%AF%84%E5%9C%8D%E8%AA%AA%E6%98%8E">本篇用到的指令，涵蓋範圍說明</a></li>
+</ul>
+</nav>
+<main>
+<h1 id="docker-拉不到映像檔--daemon-缺-proxy-的排查與解法">Docker 拉不到映像檔 —— daemon 缺 proxy 的排查與解法</h1>
+<blockquote>
+<p>日期：2026-07-05<br />
+症狀：<code>docker pull</code> 一直失敗，錯誤訊息 <code>context deadline exceeded</code></p>
+</blockquote>
+<hr />
+<h2 id="一原始問題">一、原始問題</h2>
+<p>執行以下指令下載 Jaeger，一直下載不了：</p>
+<pre><code class="language-bash">docker<span class="w"> </span>run<span class="w"> </span>--rm<span class="w"> </span>-d<span class="w"> </span>--name<span class="w"> </span>jaeger<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-p<span class="w"> </span><span class="m">16686</span>:16686<span class="w"> </span>-p<span class="w"> </span><span class="m">4317</span>:4317<span class="w"> </span>-p<span class="w"> </span><span class="m">4318</span>:4318<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-p<span class="w"> </span><span class="m">5778</span>:5778<span class="w"> </span>-p<span class="w"> </span><span class="m">9411</span>:9411<span class="w"> </span>-p<span class="w"> </span><span class="m">14268</span>:14268<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>cr.jaegertracing.io/jaegertracing/jaeger:2.19.0
+</code></pre>
+<p>報錯：</p>
+<pre><code>Error response from daemon: Get &quot;https://registry-1.docker.io/v2/&quot;:
+context deadline exceeded (Client.Timeout exceeded while awaiting headers)
+</code></pre>
+<hr />
+<h2 id="二根本原因">二、根本原因</h2>
+<p><strong>docker daemon（dockerd）沒有 proxy，無法連到外網的 Docker Hub。</strong></p>
+<p>這台機器的網路<strong>必須走 proxy <code>192.168.1.1:8880</code></strong> 才能出外網：</p>
+<table>
+<thead>
+<tr>
+<th>情境</th>
+<th>結果</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>直連 Docker Hub（不走 proxy）</td>
+<td>❌ timeout</td>
+</tr>
+<tr>
+<td>經 proxy 連 Docker Hub</td>
+<td>✅ HTTP 401，2 秒（正常，代表通）</td>
+</tr>
+<tr>
+<td>shell 環境（<code>http_proxy</code>）</td>
+<td>✅ 有設 proxy</td>
+</tr>
+<tr>
+<td><strong>docker daemon 環境</strong></td>
+<td>❌ <strong>沒有 proxy</strong></td>
+</tr>
+</tbody>
+</table>
+<p>失敗的完整鏈路：</p>
+<ol>
+<li><code>cr.jaegertracing.io</code> 其實只是 <strong>Docker Hub 的代理入口</strong>，它的認證 service 是 <code>registry.docker.io</code>，pull 它最終仍要連 <code>registry-1.docker.io</code>。</li>
+<li>shell 有 <code>http_proxy=http://192.168.1.1:8880</code>，所以 <code>curl</code>、<code>go</code>、<code>git</code> 都正常。</li>
+<li>但 <strong>dockerd 由 systemd 啟動，不會繼承 shell 的 proxy</strong>，它嘗試「直連」Docker Hub → 直連被擋 → timeout。</li>
+<li>連官方最小的 <code>hello-world</code> 也一樣失敗 → 證明是<strong>通用連線問題</strong>，與 jaeger 無關。</li>
+</ol>
+<hr />
+<h2 id="三排查思路重點方法">三、排查思路（重點方法）</h2>
+<ol>
+<li><strong>先確認網路本身通不通</strong>：用 <code>curl</code> 測 registry，回 <code>401</code> 就代表「連得到」（401 是未帶認證的正常回應，不是錯誤）。</li>
+<li><strong>切開問題範圍</strong>：改拉官方最小映像檔 <code>docker pull hello-world</code>。
+<ul>
+<li>連 hello-world 都失敗 → 是「daemon 連 Docker Hub」的通用問題。</li>
+<li>只有特定映像檔失敗 → 才是該映像檔（tag / registry）的問題。</li>
+</ul>
+</li>
+<li><strong>區分「shell 環境」與「daemon 環境」</strong>：
+<ul>
+<li>curl / go 能通，是因為 shell 有 proxy。</li>
+<li>daemon 是獨立行程，要看它自己的環境變數。</li>
+</ul>
+</li>
+<li><strong>模擬 daemon 處境</strong>：<code>curl --noproxy '*' https://registry-1.docker.io/v2/</code> 直連 → timeout，重現了 daemon 的失敗。</li>
+</ol>
+<h3 id="常見排查指令">常見排查指令</h3>
+<pre><code class="language-bash"><span class="c1"># 看 daemon 目前的環境變數（是否有 proxy）</span>
+systemctl<span class="w"> </span>show<span class="w"> </span>docker<span class="w"> </span>--property<span class="o">=</span>Environment
+
+<span class="c1"># 看 registry 認證挑戰，能得知該 registry 背後是誰</span>
+curl<span class="w"> </span>-sSI<span class="w"> </span>https://cr.jaegertracing.io/v2/<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-i<span class="w"> </span>www-authenticate
+<span class="c1"># -&gt; Bearer realm=&quot;https://auth.docker.io/token&quot;, service=&quot;registry.docker.io&quot;</span>
+<span class="c1">#    代表它其實是 Docker Hub 的代理</span>
+
+<span class="c1"># 模擬 daemon 直連（不走 proxy）</span>
+curl<span class="w"> </span>--noproxy<span class="w"> </span><span class="s1">&#39;*&#39;</span><span class="w"> </span>https://registry-1.docker.io/v2/
+</code></pre>
+<hr />
+<h2 id="四解法幫-docker-daemon-設定-proxy">四、解法：幫 docker daemon 設定 proxy</h2>
+<p>⚠️ <code>~/.docker/config.json</code> 裡的 <code>proxies</code> 只影響<strong>容器內</strong>，<strong>不影響 daemon 拉 image</strong>。要讓 daemon 能 pull，必須用 <strong>systemd drop-in</strong> 設定 daemon 的環境變數。</p>
+<pre><code class="language-bash">sudo<span class="w"> </span>mkdir<span class="w"> </span>-p<span class="w"> </span>/etc/systemd/system/docker.service.d
+
+sudo<span class="w"> </span>tee<span class="w"> </span>/etc/systemd/system/docker.service.d/http-proxy.conf<span class="w"> </span>&gt;/dev/null<span class="w"> </span><span class="s">&lt;&lt;&#39;EOF&#39;</span>
+<span class="s">[Service]</span>
+<span class="s">Environment=&quot;HTTP_PROXY=http://192.168.1.1:8880&quot;</span>
+<span class="s">Environment=&quot;HTTPS_PROXY=http://192.168.1.1:8880&quot;</span>
+<span class="s">Environment=&quot;NO_PROXY=localhost,127.0.0.1,::1,192.168.0.0/16,10.0.0.0/8,172.16.0.0/12&quot;</span>
+<span class="s">EOF</span>
+
+sudo<span class="w"> </span>systemctl<span class="w"> </span>daemon-reload
+sudo<span class="w"> </span>systemctl<span class="w"> </span>restart<span class="w"> </span>docker
+</code></pre>
+<p>驗證：</p>
+<pre><code class="language-bash">systemctl<span class="w"> </span>show<span class="w"> </span>docker<span class="w"> </span>--property<span class="o">=</span>Environment<span class="w">          </span><span class="c1"># 應看到 HTTP_PROXY... 等</span>
+docker<span class="w"> </span>pull<span class="w"> </span>hello-world<span class="w">                                </span><span class="c1"># 能拉成功即修好</span>
+</code></pre>
+<hr />
+<h2 id="五踩到的坑">五、踩到的坑</h2>
+<h3 id="1-heredoc-卡在-heredoc-不結束">1. heredoc 卡在 <code>heredoc&gt;</code> 不結束</h3>
+<p>用 <code>&lt;&lt;'EOF'</code> 時，結束標記 <code>EOF</code> <strong>必須頂到行首、前面不能有任何空白／縮排</strong>，否則 shell 認不出結束符，一直等輸入。</p>
+<ul>
+<li>
+<p>脫困：按 <code>Ctrl+C</code> 重來，或輸入一個頂格的 <code>EOF</code>。</p>
+</li>
+<li>
+<p>避坑替代寫法（不靠 heredoc）：</p>
+<pre><code class="language-bash"><span class="nb">printf</span><span class="w"> </span><span class="s1">&#39;[Service]\nEnvironment=&quot;HTTP_PROXY=http://192.168.1.1:8880&quot;\n...\n&#39;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span><span class="p">|</span><span class="w"> </span>sudo<span class="w"> </span>tee<span class="w"> </span>/etc/systemd/system/docker.service.d/http-proxy.conf
+</code></pre>
+</li>
+</ul>
+<h3 id="2-ipv6-是紅鯡魚">2. IPv6 是紅鯡魚</h3>
+<p>排查中一度以為是 IPv6 問題（<code>curl -6</code> 瞬間失敗）。實際上是因為 curl 走的 proxy（<code>192.168.1.1</code>）本身沒有 IPv6，跟 registry 的 IPv6 無關。<strong>教訓：有 proxy 時，任何連線測試都要先想到「這條測試是不是也走了 proxy」。</strong></p>
+<hr />
+<h2 id="六觀念整理">六、觀念整理</h2>
+<table>
+<thead>
+<tr>
+<th>觀念</th>
+<th>說明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>daemon 與 client 是分開的</strong></td>
+<td><code>docker</code> CLI 送指令，<code>dockerd</code> 才真正去拉 image。兩者環境變數各自獨立。</td>
+</tr>
+<tr>
+<td><strong>拉 image 的網路由 daemon 負責</strong></td>
+<td>所以 proxy 要設在 daemon（systemd drop-in），不是 shell、也不是 config.json。</td>
+</tr>
+<tr>
+<td><strong><code>config.json</code> 的 <code>proxies</code></strong></td>
+<td>只給容器內程式用，跟拉 image 無關。</td>
+</tr>
+<tr>
+<td><strong><code>config.json</code> 的 <code>auths</code></strong></td>
+<td>存 <code>docker login</code> 的憑證（base64，非加密），屬敏感資料。</td>
+</tr>
+<tr>
+<td><strong>HTTP 401 ≠ 壞掉</strong></td>
+<td>對 registry 的 <code>/v2/</code> 而言，401 代表「連得到、只是要認證」，是連線正常的訊號。</td>
+</tr>
+<tr>
+<td><strong><code>cr.jaegertracing.io</code></strong></td>
+<td>只是 Docker Hub 的代理入口，背後仍是 <code>registry-1.docker.io</code>。</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="七續集docker-compose-build-卡在拉-dockerdockerfile1死-mirror-擋路">七、續集：<code>docker compose build</code> 卡在拉 <code>docker/dockerfile:1</code>（死 mirror 擋路）</h2>
+<blockquote>
+<p>日期：2026-07-06<br />
+症狀：<code>docker compose build</code> 一開始就失敗在解析 frontend 映像檔 <code>docker/dockerfile:1</code></p>
+</blockquote>
+<h3 id="情境">情境</h3>
+<p>用 <code>.set/docker/docker-compose.yml</code> build member-rpc：</p>
+<pre><code class="language-bash">docker<span class="w"> </span>compose<span class="w"> </span>-f<span class="w"> </span>.set/docker/docker-compose.yml<span class="w"> </span>build<span class="w"> </span>member-rpc
+</code></pre>
+<p>報錯：</p>
+<pre><code>=&gt; ERROR resolve image config for docker-image://docker.io/docker/dockerfile:1
+failed to resolve source metadata for docker.io/docker/dockerfile:1:
+Head &quot;https://hub.geekery.cn/v2/docker/dockerfile/manifests/1?ns=docker.io&quot;:
+dial tcp 192.133.77.197:443: i/o timeout
+</code></pre>
+<h3 id="根本原因">根本原因</h3>
+<p>跟第二節同源（<strong>daemon 拉 image 的路不通</strong>），但這次多了一層：</p>
+<ol>
+<li>Dockerfile 第一行 <code># syntax=docker/dockerfile:1</code> → <strong>BuildKit 得先去 Docker Hub 拉 <code>docker/dockerfile:1</code> 這個 frontend 映像檔</strong>，才能開始 build。</li>
+<li>compose 裡的 <code>HTTP_PROXY</code> <strong>build-args</strong> 只注入到 <strong>build 容器內</strong>（給 <code>go mod download</code> 用），<strong>管不到 daemon 自己拉 frontend image 這一步</strong>。</li>
+<li>而 <code>/etc/docker/daemon.json</code> 裡配了 <strong>registry-mirrors（映像加速器）</strong>，daemon 會<strong>優先</strong>走 mirror → 但那兩個 mirror（<code>hub.geekery.cn</code> / <code>hub.littlediary.cn</code>）<strong>已失效、超時</strong> → 直接卡死。</li>
+</ol>
+<p>換言之：<strong>壞掉的加速器擋在前面，比「daemon 沒 proxy」更隱蔽</strong>——就算你設了 proxy，只要 mirror 還在，daemon 仍優先走死 mirror 而失敗。</p>
+<h3 id="daemonjson--registry-mirrors-用法"><code>daemon.json</code> / <code>registry-mirrors</code> 用法</h3>
+<p><code>/etc/docker/daemon.json</code> 是 <strong>docker daemon 的設定檔</strong>（改完要 <code>systemctl restart docker</code> 才生效）。</p>
+<pre><code class="language-json"><span class="p">{</span>
+<span class="w">    </span><span class="nt">&quot;registry-mirrors&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+<span class="w">        </span><span class="s2">&quot;https://hub.geekery.cn&quot;</span><span class="p">,</span>
+<span class="w">        </span><span class="s2">&quot;https://hub.littlediary.cn&quot;</span>
+<span class="w">    </span><span class="p">]</span>
+<span class="p">}</span>
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>概念</th>
+<th>說明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>registry-mirrors</code></td>
+<td>Docker Hub 的<strong>映像加速器</strong>。拉 <code>docker.io</code> 的 image 時，daemon 會<strong>優先</strong>去這些 mirror，而非官方 <code>registry-1.docker.io</code>。</td>
+</tr>
+<tr>
+<td>用途</td>
+<td>國內直連官方 Hub 慢／不通時，用第三方 mirror 加速。</td>
+</tr>
+<tr>
+<td>陷阱</td>
+<td>mirror <strong>只對 Docker Hub（docker.io）生效</strong>；且一旦 mirror 掛掉，反而<strong>擋住</strong>拉 image。mirror 站是第三方、壽命不定，常常說掛就掛。</td>
+</tr>
+<tr>
+<td>與 proxy 的取捨</td>
+<td><strong>有自己的 proxy 能直連官方 Hub 時，就不需要 mirror</strong>——兩者都是為了「連得到 Hub」，proxy 直連官方更穩、更可控。</td>
+</tr>
+</tbody>
+</table>
+<h3 id="解法">解法</h3>
+<p>因為已有可用 proxy <code>192.168.1.1:8880</code>，最乾淨的做法是<strong>設 daemon proxy（見第四節）+ 拿掉死 mirror</strong>，讓 daemon 經 proxy 直連官方 Hub：</p>
+<pre><code class="language-bash"><span class="c1"># 1) daemon proxy：同第四節的 systemd drop-in（若之前已設可略）</span>
+
+<span class="c1"># 2) 拿掉失效的 registry-mirrors（先備份再清空）</span>
+sudo<span class="w"> </span>cp<span class="w"> </span>/etc/docker/daemon.json<span class="w"> </span>/etc/docker/daemon.json.bak
+<span class="nb">echo</span><span class="w"> </span><span class="s1">&#39;{}&#39;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>sudo<span class="w"> </span>tee<span class="w"> </span>/etc/docker/daemon.json
+
+<span class="c1"># 3) 重載並重啟</span>
+sudo<span class="w"> </span>systemctl<span class="w"> </span>daemon-reload
+sudo<span class="w"> </span>systemctl<span class="w"> </span>restart<span class="w"> </span>docker
+
+<span class="c1"># 4) 驗證 proxy 生效後再 build</span>
+systemctl<span class="w"> </span>show<span class="w"> </span>docker<span class="w"> </span>--property<span class="o">=</span>Environment<span class="w"> </span><span class="p">|</span><span class="w"> </span>tr<span class="w"> </span><span class="s1">&#39; &#39;</span><span class="w"> </span><span class="s1">&#39;\n&#39;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-i<span class="w"> </span>proxy
+docker<span class="w"> </span>compose<span class="w"> </span>-f<span class="w"> </span>.set/docker/docker-compose.yml<span class="w"> </span>build<span class="w"> </span>member-rpc
+</code></pre>
+<blockquote>
+<p><code>daemon.json</code> 清成 <code>{}</code> = 沒有任何特殊設定，daemon 回到「直連官方 Hub」的預設行為，而這條路現在會經過 proxy。</p>
+</blockquote>
+<h3 id="教訓">教訓</h3>
+<ul>
+<li><strong>compose 的 build-args proxy ≠ daemon proxy</strong>：前者給 build 容器內程式用，後者才管 daemon 拉 image（含 frontend）。兩者要分開設、互補。</li>
+<li>拉 image 失敗時，<strong>先看 <code>daemon.json</code> 有沒有配 mirror</strong>——死掉的加速器是常見卻隱蔽的元兇。</li>
+<li><strong>有 proxy 就別再堆第三方 mirror</strong>，少一層第三方相依，少一個會半夜掛掉的點。</li>
+</ul>
+<h2 id="本篇用到的指令涵蓋範圍說明">本篇用到的指令，涵蓋範圍說明</h2>
+<blockquote>
+<p><code>docker</code> 有 53 個頂層命令、<code>systemctl</code> 的動詞與選項也很多。
+<strong>這裡只列本文排查流程用到的那些</strong>，完整清單見 <code>docker --help</code>、<code>man systemctl</code>。</p>
+</blockquote>
+<table>
+<thead>
+<tr>
+<th>指令</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>docker pull &lt;映像&gt;</code></td>
+<td>拉取映像（本文的症狀來源）</td>
+</tr>
+<tr>
+<td><code>docker info</code></td>
+<td><strong>顯示 daemon 的設定</strong>，包含生效中的 proxy</td>
+</tr>
+<tr>
+<td><code>systemctl show docker -p Environment</code></td>
+<td><strong>查 daemon 實際拿到的環境變數</strong> ← 驗證 drop-in 有沒有生效</td>
+</tr>
+<tr>
+<td><code>systemctl daemon-reload</code></td>
+<td>重新載入 unit 設定（改完 drop-in 必做）</td>
+</tr>
+<tr>
+<td><code>systemctl restart docker</code></td>
+<td>重啟 daemon</td>
+</tr>
+<tr>
+<td><code>systemctl cat docker</code></td>
+<td>顯示 unit 與所有 drop-in 的合併結果</td>
+</tr>
+<tr>
+<td><code>journalctl -u docker</code></td>
+<td>看 daemon 日誌</td>
+</tr>
+</tbody>
+</table>
+<p><strong><code>systemctl cat</code> 與 <code>systemctl show</code> 是這類問題的兩把鑰匙</strong>：前者看「設定檔寫了什麼」，後者看「服務實際生效的是什麼」——兩者不一致就是沒 <code>daemon-reload</code>。</p>
+
+</main>
+</div>
+</body>
+</html>

@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>tmux 重命名 session</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/app.js"></script>
+</head>
+<body>
+<button class="menu-btn" onclick="toggleMenu()">☰ 目錄</button>
+<div class="layout">
+<nav class="side">
+<div class="crumbs"><a href="../index.html">🏠 首頁</a> / <a href="README.html">linux</a></div>
+<div class="tools"><button onclick="toggleTheme()">🌓 主題</button></div>
+<ul>
+<li class="l2"><a href="#%E9%87%8D%E5%91%BD%E5%90%8D%E7%9B%AE%E5%89%8D%E6%89%80%E5%9C%A8%E7%9A%84-session">重命名目前所在的 session</a></li>
+<li class="l2"><a href="#%E9%87%8D%E5%91%BD%E5%90%8D%E6%8C%87%E5%AE%9A%E7%9A%84-session%E4%B8%8D%E5%BF%85%E8%BA%AB%E8%99%95%E5%85%B6%E4%B8%AD">重命名指定的 session（不必身處其中）</a></li>
+<li class="l2"><a href="#%E7%94%A8%E5%BF%AB%E6%8D%B7%E9%8D%B5%E5%9C%A8-tmux-%E5%85%A7">用快捷鍵（在 tmux 內）</a></li>
+<li class="l2"><a href="#tmux-%E7%9A%84%E7%9B%B8%E9%97%9C%E5%91%BD%E4%BB%A4%E8%88%87%E5%AE%8C%E6%95%B4%E5%8F%83%E6%95%B8">tmux 的相關命令與完整參數</a></li>
+</ul>
+</nav>
+<main>
+<h1 id="tmux-重命名-session">tmux 重命名 session</h1>
+<blockquote>
+<p>日期：2026-08-27</p>
+</blockquote>
+<h2 id="重命名目前所在的-session">重命名目前所在的 session</h2>
+<pre><code class="language-bash">tmux<span class="w"> </span>rename-session<span class="w"> </span>&lt;new-name&gt;
+</code></pre>
+<h2 id="重命名指定的-session不必身處其中">重命名指定的 session（不必身處其中）</h2>
+<pre><code class="language-bash">tmux<span class="w"> </span>rename-session<span class="w"> </span>-t<span class="w"> </span>&lt;old-name&gt;<span class="w"> </span>&lt;new-name&gt;
+</code></pre>
+<h2 id="用快捷鍵在-tmux-內">用快捷鍵（在 tmux 內）</h2>
+<p><code>Ctrl-b</code> 然後按 <code>$</code>，輸入新名稱，Enter 確認。</p>
+<h2 id="tmux-的相關命令與完整參數">tmux 的相關命令與完整參數</h2>
+<blockquote>
+<p><strong>tmux 有 90 個子命令</strong>（<code>tmux list-commands</code> 可列出全部），這裡只列 session 操作這一組；完整清單見 <code>man tmux</code>。查單一命令的文法用 <code>tmux list-commands | grep &lt;命令&gt;</code>。</p>
+</blockquote>
+<table>
+<thead>
+<tr>
+<th>命令（別名）</th>
+<th>完整文法</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>new-session</code> (<code>new</code>)</td>
+<td><code>[-AdDEPX] [-c 起始目錄] [-e 環境變數] [-F 格式] [-f 旗標] [-n 視窗名] [-s session名] [-t 目標session] [-x 寬] [-y 高] [shell 指令]</code></td>
+</tr>
+<tr>
+<td><code>rename-session</code> (<code>rename</code>)</td>
+<td><code>[-t 目標session] &lt;新名字&gt;</code></td>
+</tr>
+<tr>
+<td><code>has-session</code> (<code>has</code>)</td>
+<td><code>[-t 目標session]</code></td>
+</tr>
+<tr>
+<td><code>attach-session</code> (<code>attach</code>)</td>
+<td><code>[-dErx] [-c 工作目錄] [-f 旗標] [-t 目標session]</code></td>
+</tr>
+</tbody>
+</table>
+<p><strong><code>new-session</code> 的旗標逐一</strong></p>
+<table>
+<thead>
+<tr>
+<th>旗標</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-A</code></td>
+<td><strong>已存在同名 session 就 attach 而不是建新的</strong>（等同 <code>new-session</code> + <code>has-session</code> 的組合）</td>
+</tr>
+<tr>
+<td><code>-d</code></td>
+<td><strong>建立後不要 attach</strong>（腳本必用）</td>
+</tr>
+<tr>
+<td><code>-D</code></td>
+<td>配合 <code>-A</code> 時，把其他客戶端從該 session 踢掉</td>
+</tr>
+<tr>
+<td><code>-E</code></td>
+<td>不套用 <code>update-environment</code></td>
+</tr>
+<tr>
+<td><code>-P</code></td>
+<td>印出新 session 的資訊</td>
+</tr>
+<tr>
+<td><code>-X</code></td>
+<td>不使用 <code>destroy-unattached</code></td>
+</tr>
+<tr>
+<td><code>-c &lt;目錄&gt;</code></td>
+<td>起始工作目錄</td>
+</tr>
+<tr>
+<td><code>-e &lt;k=v&gt;</code></td>
+<td>設定環境變數</td>
+</tr>
+<tr>
+<td><code>-F &lt;格式&gt;</code></td>
+<td>配合 <code>-P</code> 的輸出格式</td>
+</tr>
+<tr>
+<td><code>-n &lt;名稱&gt;</code></td>
+<td>第一個視窗的名稱</td>
+</tr>
+<tr>
+<td><code>-s &lt;名稱&gt;</code></td>
+<td><strong>session 名稱</strong></td>
+</tr>
+<tr>
+<td><code>-t &lt;目標&gt;</code></td>
+<td>分組到既有 session</td>
+</tr>
+<tr>
+<td><code>-x</code> / <code>-y</code></td>
+<td>指定寬高（detached 時有用）</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong><code>-A</code> 與 <code>-d</code> 一起用會互相影響</strong>：<code>-A</code> 時若 session 已存在，<code>-d</code> 的語意變成「attach 時
+detach 其他客戶端」。腳本要冪等地建 session，用 <code>has-session || new-session -d</code> 最不會出錯。</p>
+</blockquote>
+
+</main>
+</div>
+</body>
+</html>

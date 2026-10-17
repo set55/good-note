@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PTY 是什麼？終端機視窗、shell、tmux 之間到底怎麼接起來的</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/app.js"></script>
+</head>
+<body>
+<button class="menu-btn" onclick="toggleMenu()">☰ 目錄</button>
+<div class="layout">
+<nav class="side">
+<div class="crumbs"><a href="../index.html">🏠 首頁</a> / <a href="README.html">linux</a></div>
+<div class="tools"><button onclick="toggleTheme()">🌓 主題</button></div>
+<ul>
+<li class="l2"><a href="#%E4%B8%80%E5%90%8D%E5%AD%97%E5%BE%9E%E5%93%AA%E4%BE%86tty--pty">一、名字從哪來：TTY → PTY</a></li>
+<li class="l2"><a href="#%E4%BA%8C%E4%B8%80%E5%B0%8D%E8%A3%9D%E7%BD%AEmaster-%E8%88%87-slave">二、一對裝置：master 與 slave</a></li>
+<li class="l2"><a href="#%E4%B8%89%E4%B8%AD%E9%96%93%E9%82%A3%E5%B1%A4%E6%A0%B8%E5%BF%83%E5%81%9A%E4%BA%86%E4%BB%80%E9%BA%BCline-discipline">三、中間那層核心做了什麼：line discipline</a></li>
+<li class="l2"><a href="#%E5%9B%9B%E8%B7%9F-sighup-%E7%9A%84%E9%97%9C%E4%BF%82">四、跟 SIGHUP 的關係</a></li>
+<li class="l2"><a href="#%E4%BA%94%E5%AF%A6%E4%BE%8B%E6%9C%AC%E6%A9%9F-alacritty--tmux-%E7%9A%84-pty-%E6%8E%A5%E7%B7%9A">五、實例：本機 alacritty + tmux 的 PTY 接線</a></li>
+<li class="l2"><a href="#%E8%87%AA%E6%88%91%E6%B8%AC%E9%A9%97">自我測驗</a></li>
+</ul>
+</nav>
+<main>
+<h1 id="pty-是什麼終端機視窗shelltmux-之間到底怎麼接起來的">PTY 是什麼？終端機視窗、shell、tmux 之間到底怎麼接起來的</h1>
+<blockquote>
+<p>日期：2026-09-19<br />
+情境：讀 <a href="%E5%BE%9E%E7%B5%82%E7%AB%AF%E6%A9%9F%E5%95%9F%E5%8B%95GUI%E7%A8%8B%E5%BC%8F%E4%B8%A6%E8%84%AB%E9%9B%A2%E7%B5%82%E7%AB%AF%E6%A9%9F.html">從終端機啟動GUI程式並脫離終端機</a> 時遇到「pty」一詞而追問<br />
+適用範圍：Linux（macOS 等 Unix 系統概念相同，裝置路徑不同）；本機環境為 alacritty + tmux + zsh</p>
+</blockquote>
+<p><strong>一句話結論：PTY（pseudo-terminal，虛擬終端）是核心提供的一對裝置——master 端給「扮演終端機的程式」（alacritty、tmux、sshd）握著，slave 端（<code>/dev/pts/N</code>）給 shell 當成 stdin／stdout／stderr。中間的核心負責把 Ctrl+C 變成 SIGINT、處理回顯與行編輯；master 一關，核心就對 slave 那頭送 SIGHUP。</strong></p>
+<hr />
+<h2 id="一名字從哪來tty--pty">一、名字從哪來：TTY → PTY</h2>
+<ul>
+<li><strong>TTY（TeleTYpewriter，電傳打字機）</strong>：早期 Unix 的「終端機」是一台實體的打字機／顯示器，用序列線接到主機。核心裡負責跟它溝通的那層叫 TTY 子系統（tty subsystem）。</li>
+<li>後來終端機變成桌面上的<strong>程式</strong>（終端機模擬器（terminal emulator））或網路連線（ssh），沒有實體線路了——但 shell 等程式仍然預期自己在跟「一台終端機」說話。</li>
+<li><strong>PTY（pseudo-terminal，虛擬／偽終端）</strong> 就是核心用軟體模擬出來的那條線路：一頭假裝成終端機硬體，另一頭假裝成接在主機上的序列埠。</li>
+</ul>
+<p>所以 PTY 的存在目的是：<strong>讓「用程式扮演的終端機」能沿用整套為實體終端機設計的機制</strong>，shell 完全不需要知道對面是 alacritty 還是真的打字機。</p>
+<hr />
+<h2 id="二一對裝置master-與-slave">二、一對裝置：master 與 slave</h2>
+<pre><code> 你按鍵盤
+    │
+ alacritty（終端機模擬器）
+    │  讀寫 master 端（打開 /dev/ptmx 取得）
+ ┌──┴───────────────────────────┐
+ │ 核心：line discipline（線路規則）  │ ← Ctrl+C→SIGINT、回顯、行編輯、Ctrl+D→EOF
+ └──┬───────────────────────────┘
+    │  slave 端 = /dev/pts/0
+ zsh 的 fd 0／1／2 都指向 /dev/pts/0
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>端</th>
+<th>誰握著</th>
+<th>在哪</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>master</strong></td>
+<td>終端機模擬器、tmux server、sshd、<code>script</code>、<code>expect</code></td>
+<td>打開 <code>/dev/ptmx</code> 取得（每打開一次就配出一對新的 PTY）</td>
+</tr>
+<tr>
+<td><strong>slave</strong></td>
+<td>shell 與它啟動的程式</td>
+<td><code>/dev/pts/N</code>，N 是編號</td>
+</tr>
+</tbody>
+</table>
+<p>資料流：</p>
+<ul>
+<li>你按 <code>l</code> <code>s</code> Enter → alacritty 寫進 master → 核心處理 → shell 從 slave（fd 0）讀到 <code>ls\n</code>。</li>
+<li><code>ls</code> 寫結果到 fd 1（slave）→ 核心 → alacritty 從 master 讀到 → 畫在視窗上。</li>
+</ul>
+<p><code>tty</code> 指令會告訴你目前 shell 的 slave 是哪一個（例如 <code>/dev/pts/0</code>）；<code>ps</code> 的 <code>TT</code> 欄位顯示的也是它。</p>
+<hr />
+<h2 id="三中間那層核心做了什麼line-discipline">三、中間那層核心做了什麼：line discipline</h2>
+<p>PTY 不只是一條管子。核心在中間放了一層 <strong>line discipline（線路規則）</strong>，這就是終端機「有行為」的原因：</p>
+<table>
+<thead>
+<tr>
+<th>你按</th>
+<th>核心做的事</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Ctrl+C</td>
+<td>不送字元給程式，而是對<strong>前景行程群組</strong>送 SIGINT</td>
+</tr>
+<tr>
+<td>Ctrl+Z</td>
+<td>送 SIGTSTP（暫停，作業控制用）</td>
+</tr>
+<tr>
+<td>Ctrl+D</td>
+<td>讓讀取的程式收到 EOF</td>
+</tr>
+<tr>
+<td>一般字元</td>
+<td>回顯（echo）到畫面、在按 Enter 前允許 Backspace 編輯</td>
+</tr>
+</tbody>
+</table>
+<p>這些都能用 <code>stty -a</code> 查看與修改（<code>intr = ^C</code>、<code>susp = ^Z</code>、<code>eof = ^D</code>）。輸入密碼時字不會顯示，就是程式暫時關掉了回顯（<code>stty -echo</code>）；vim、less 這類全螢幕程式會切成 raw mode，自己處理每一個按鍵。</p>
+<p><strong>這也是 PTY 和 pipe 的差別</strong>：pipe 只是單純的位元組管道，沒有信號、沒有回顯。所以很多程式會檢查 stdout 是不是終端機（<code>isatty()</code>），是的話才輸出顏色——<code>ls | cat</code> 沒有顏色就是這個原因。</p>
+<hr />
+<h2 id="四跟-sighup-的關係">四、跟 SIGHUP 的關係</h2>
+<p>「控制終端機（controlling terminal）」指的就是一個 session 綁定的那個 PTY slave。</p>
+<p>關掉終端機視窗時：alacritty 結束 → master 端被關閉 → 核心對「以這個 PTY 為控制終端機的 session leader」送 SIGHUP → shell 再轉送給自己的 job。這就是 <a href="%E5%BE%9E%E7%B5%82%E7%AB%AF%E6%A9%9F%E5%95%9F%E5%8B%95GUI%E7%A8%8B%E5%BC%8F%E4%B8%A6%E8%84%AB%E9%9B%A2%E7%B5%82%E7%AB%AF%E6%A9%9F.html">從終端機啟動GUI程式並脫離終端機</a> 那條 SIGHUP 傳遞鏈的起點。</p>
+<p><code>setsid</code> 後 <code>ps</code> 的 <code>TT</code> 顯示 <code>?</code>，意思就是「這個 session 沒有綁任何 PTY」，所以 master 關掉時跟它無關。</p>
+<hr />
+<h2 id="五實例本機-alacritty--tmux-的-pty-接線">五、實例：本機 alacritty + tmux 的 PTY 接線</h2>
+<p>實測（2026-09-19，<code>ps -eo pid,tty,comm</code>、<code>tmux list-panes -a -F '#{pane_tty}'</code>、檢查各行程的 <code>/proc/&lt;pid&gt;/fd</code> 是否握著 <code>ptmx</code>）：</p>
+<pre><code>alacritty (9032)                 ← 握 1 個 master
+  └─ /dev/pts/0
+       └─ zsh (9043)
+            └─ tmux attach (16899)   ← tmux client，只負責把畫面轉給 alacritty
+
+tmux server (9603, TT = ?)       ← 握 2 個 master，自己沒有控制終端機
+  ├─ /dev/pts/1  → zsh (9607) → claude    （session good-note）
+  └─ /dev/pts/2  → zsh (16523)             （session workspace）
+</code></pre>
+<p>這解釋了<strong>為什麼關掉 alacritty，tmux 裡的東西還活著</strong>：</p>
+<ul>
+<li>alacritty 關閉只會關掉 <code>pts/0</code> 的 master → SIGHUP 只送到 <code>pts/0</code> 那個 session（zsh 與 tmux client）。</li>
+<li>你的工作跑在 <code>pts/1</code>、<code>pts/2</code>，它們的 master 由 tmux server 握著；tmux server 本身 <code>TT = ?</code>（已脫離終端機，跟 <code>setsid</code> 同一招），所以不受影響。</li>
+<li>之後 <code>tmux attach</code> 只是開一個新的 client，重新把畫面接到新的終端機視窗。</li>
+</ul>
+<p><strong>tmux 其實就是一個「不會因為視窗關掉而消失的終端機模擬器」。</strong> ssh 也是同樣結構：sshd 握 master，遠端 shell 用 slave，網路斷線 = master 關閉 = SIGHUP。</p>
+<hr />
+<h2 id="自我測驗">自我測驗</h2>
+<ol>
+<li>既然現在已經沒有實體終端機了，為什麼核心還需要 PTY？直接用 pipe 接 shell 不行嗎？缺了什麼？</li>
+<li>PTY 的 master 和 slave 分別由誰握著？你在 alacritty 裡按 Ctrl+C，信號是誰產生、送給誰的？</li>
+<li><code>ps</code> 的 <code>TT</code> 欄位顯示 <code>pts/3</code> 和 <code>?</code> 各代表什麼？這跟關閉終端機時會不會收到 SIGHUP 有什麼關係？</li>
+<li>情境題：你在 tmux 裡跑一個要跑三小時的編譯，然後把 alacritty 視窗關掉。編譯會不會中斷？用 PTY 的 master 由誰握著來解釋。</li>
+<li>情境題：你 ssh 到伺服器、直接（不用 tmux）執行一個長時間的指令，結果網路斷線，指令也跟著死了。為什麼？跟本機關掉終端機視窗是同一件事嗎？</li>
+</ol>
+
+</main>
+</div>
+</body>
+</html>

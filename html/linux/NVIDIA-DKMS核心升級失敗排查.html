@@ -1,0 +1,338 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>apt upgrade 時 NVIDIA DKMS 模組編譯失敗（新核心不相容）— 完整實戰紀錄</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/app.js"></script>
+</head>
+<body>
+<button class="menu-btn" onclick="toggleMenu()">☰ 目錄</button>
+<div class="layout">
+<nav class="side">
+<div class="crumbs"><a href="../index.html">🏠 首頁</a> / <a href="README.html">linux</a></div>
+<div class="tools"><button onclick="toggleTheme()">🌓 主題</button></div>
+<ul>
+<li class="l2"><a href="#%E7%9B%AE%E9%8C%84">目錄</a></li>
+<li class="l2"><a href="#%E4%B8%80%E5%95%8F%E9%A1%8C%E7%8F%BE%E8%B1%A1">一、問題現象</a></li>
+<li class="l2"><a href="#%E4%BA%8C%E8%A8%BA%E6%96%B7%E5%91%BD%E4%BB%A4%E9%80%9F%E6%9F%A5%E5%90%AB%E5%9B%9E%E6%87%89%E8%88%87%E5%88%A4%E8%AE%80">二、診斷命令速查（含回應與判讀）</a></li>
+<li class="l3"><a href="#2-1-dkms-status--%E7%AC%AC%E4%B8%80%E6%89%8B%E7%9C%8B%E5%93%AA%E5%80%8B%E6%A8%A1%E7%B5%84%E5%B0%8D%E5%93%AA%E5%80%8B%E6%A0%B8%E5%BF%83%E7%B7%A8%E5%A5%BD%E4%BA%86">2-1. dkms status —— 第一手，看哪個模組對哪個核心編好了</a></li>
+<li class="l3"><a href="#2-2-uname--r--%E7%8F%BE%E5%9C%A8%E5%AF%A6%E9%9A%9B%E5%9C%A8%E8%B7%91%E5%93%AA%E5%80%8B%E6%A0%B8%E5%BF%83">2-2. uname -r —— 現在實際在跑哪個核心</a></li>
+<li class="l3"><a href="#2-3-dpkg--l-%E9%81%8E%E6%BF%BE--%E7%9C%8B%E5%B7%B2%E8%A3%9D%E7%9A%84%E6%A0%B8%E5%BF%83headers%E4%BB%A5%E5%8F%8A%E5%8D%8A%E6%AE%98%E5%A5%97%E4%BB%B6">2-3. dpkg -l 過濾 —— 看已裝的核心、headers、以及半殘套件</a></li>
+<li class="l3"><a href="#2-4-%E7%A2%BA%E8%AA%8D%E4%B8%8D%E6%98%AF%E7%BC%BA-headers">2-4. 確認「不是缺 headers」</a></li>
+<li class="l3"><a href="#2-5--%E8%AE%80-dkms-%E7%9A%84-makelog--%E6%89%BE%E7%AC%AC%E4%B8%80%E5%80%8B-error">2-5. ★ 讀 DKMS 的 make.log —— 找「第一個 error」</a></li>
+<li class="l3"><a href="#2-6-%E7%9B%B4%E6%8E%A5%E6%AA%A2%E6%9F%A5%E6%96%B0%E7%89%88%E5%8E%9F%E5%A7%8B%E7%A2%BC%E6%9C%89%E6%B2%92%E6%9C%89%E4%BF%AE%E6%8E%89%E5%95%8F%E9%A1%8C%E6%B1%BA%E5%AE%9A%E5%8D%87%E7%B4%9A%E6%98%AF%E5%90%A6%E6%9C%89%E6%84%8F%E7%BE%A9">2-6. 直接檢查新版原始碼有沒有修掉問題（決定升級是否有意義）</a></li>
+<li class="l3"><a href="#2-7-%E7%9C%8B%E6%97%A5%E8%AA%8C%E5%9B%9E%E6%BA%AF%E4%B8%8A%E6%AC%A1%E5%88%B0%E5%BA%95%E5%81%9A%E5%88%B0%E5%93%AA">2-7. 看日誌回溯「上次到底做到哪」</a></li>
+<li class="l2"><a href="#%E4%B8%89%E6%A0%B9%E6%9C%AC%E5%8E%9F%E5%9B%A0">三、根本原因</a></li>
+<li class="l2"><a href="#%E5%9B%9B%E7%A2%BA%E8%AA%8D%E9%A1%AF%E5%8D%A1%E8%88%87%E6%96%B0%E9%A9%85%E5%8B%95%E7%9B%B8%E5%AE%B9">四、確認顯卡與新驅動相容</a></li>
+<li class="l2"><a href="#%E4%BA%94%E8%A7%A3%E6%B3%95%E8%88%87%E6%94%B6%E5%B0%BE%E5%85%A8%E6%B5%81%E7%A8%8B%E5%90%AB%E6%AF%8F%E4%B8%80%E9%97%9C%E7%9A%84%E8%B8%A9%E5%9D%91">五、解法與收尾全流程（含每一關的踩坑）</a></li>
+<li class="l3"><a href="#%E7%AC%AC-0-%E6%AD%A5%E5%8D%87%E7%B4%9A%E9%A9%85%E5%8B%95%E4%BD%BF%E7%94%A8%E8%80%85%E5%B7%B2%E5%85%88%E6%89%8B%E5%8B%95%E5%9F%B7%E8%A1%8C">第 0 步：升級驅動（使用者已先手動執行）</a></li>
+<li class="l3"><a href="#%E7%AC%AC-1-%E6%AD%A5%E8%AE%93-dpkg-%E6%8A%8A%E4%B8%AD%E6%96%B7%E7%9A%84%E8%A8%AD%E5%AE%9A%E6%8E%A5%E8%91%97%E8%B7%91%E5%AE%8C">第 1 步：讓 dpkg 把中斷的設定接著跑完</a></li>
+<li class="l3"><a href="#%E7%AC%AC-2-%E6%AD%A5%E8%A3%9C%E7%9B%B8%E4%BE%9D--%E6%92%9E%E5%88%B0%E6%AA%94%E6%A1%88%E8%A1%9D%E7%AA%81">第 2 步：補相依 → 撞到檔案衝突</a></li>
+<li class="l3"><a href="#%E7%AC%AC-3-%E6%AD%A5%E6%83%B3%E7%A7%BB%E9%99%A4%E8%88%8A%E5%A5%97%E4%BB%B6--%E6%92%9E%E5%88%B0%E7%9B%B8%E4%BE%9D%E6%AD%BB%E7%B5%90">第 3 步：想移除舊套件 → 撞到相依死結</a></li>
+<li class="l3"><a href="#%E7%AC%AC-4-%E6%AD%A5%E7%94%A8-dpkg-%E7%9B%B4%E6%8E%A5%E6%89%93%E7%A0%B4%E6%AD%BB%E7%B5%90--force-overwrite">第 4 步：用 dpkg 直接打破死結（--force-overwrite）</a></li>
+<li class="l3"><a href="#%E7%AC%AC-5-%E6%AD%A5%E6%B8%85%E6%8E%89%E8%A2%AB%E5%8F%96%E4%BB%A3%E7%9A%84%E7%A9%BA%E6%AE%BC%E8%88%8A%E5%A5%97%E4%BB%B6">第 5 步：清掉被取代的空殼舊套件</a></li>
+<li class="l2"><a href="#%E5%85%AD%E6%9C%80%E7%B5%82%E9%A9%97%E8%AD%89">六、最終驗證</a></li>
+<li class="l3"><a href="#6-1-dkms-%E5%85%A9%E6%A0%B8%E5%BF%83%E9%83%BD-installed">6-1. DKMS 兩核心都 installed</a></li>
+<li class="l3"><a href="#6-2-%E6%B2%92%E6%9C%89%E6%AE%98%E7%95%99%E7%9A%84%E5%8D%8A%E8%A8%AD%E5%AE%9A%E5%A5%97%E4%BB%B6%E9%80%B2%E5%BA%A6%E6%A2%9D%E6%AD%B8%E9%9B%B6">6-2. 沒有殘留的半設定套件（進度條歸零）</a></li>
+<li class="l3"><a href="#6-3-initramfsinitial-ram-filesystem%E9%96%8B%E6%A9%9F%E6%97%A9%E6%9C%9F%E7%94%A8%E7%9A%84%E6%9A%AB%E5%AD%98%E6%A0%B9%E6%AA%94%E6%A1%88%E7%B3%BB%E7%B5%B1%E6%98%AF%E5%90%A6%E9%9C%80%E8%A6%81%E6%89%8B%E5%8B%95%E9%87%8D%E5%BB%BA%E4%B8%8D%E7%94%A8%E5%B7%B2%E8%87%AA%E5%8B%95%E8%99%95%E7%90%86">6-3. initramfs（initial RAM filesystem，開機早期用的暫存根檔案系統）是否需要手動重建？——不用，已自動處理</a></li>
+<li class="l3"><a href="#6-4-%E9%87%8D%E9%96%8B%E6%A9%9F%E5%BE%8C">6-4. 重開機後</a></li>
+<li class="l2"><a href="#%E4%B8%83%E9%80%9A%E7%94%A8%E5%BF%83%E6%B3%95">七、通用心法</a></li>
+<li class="l2"><a href="#%E9%99%84%E9%8C%84%E6%9C%AC%E6%AC%A1%E7%94%A8%E5%88%B0%E7%9A%84%E6%89%80%E6%9C%89%E5%91%BD%E4%BB%A4%E4%B8%80%E8%A6%BD">附錄：本次用到的所有命令一覽</a></li>
+</ul>
+</nav>
+<main>
+<h1 id="apt-upgrade-時-nvidia-dkms-模組編譯失敗新核心不相容-完整實戰紀錄">apt upgrade 時 NVIDIA DKMS 模組編譯失敗（新核心不相容）— 完整實戰紀錄</h1>
+<blockquote>
+<p>日期：2026-07-17<br />
+環境：Ubuntu 24.04 (HWE，Hardware Enablement，硬體支援堆疊：讓較新硬體用上較新核心與驅動的更新機制)、Optimus 雙顯卡筆電（Intel UHD 630 + NVIDIA RTX 2060 Mobile）<br />
+結果：由 <code>nvidia-driver-570-open</code> 升級到 <code>nvidia-driver-595-open</code>，兩個核心（6.17.0-40 / 7.0.0-28）皆成功</p>
+</blockquote>
+<hr />
+<h2 id="目錄">目錄</h2>
+<ol>
+<li><a href="#%E4%B8%80%E5%95%8F%E9%A1%8C%E7%8F%BE%E8%B1%A1">問題現象</a></li>
+<li><a href="#%E4%BA%8C%E8%A8%BA%E6%96%B7%E5%91%BD%E4%BB%A4%E9%80%9F%E6%9F%A5%E5%90%AB%E5%9B%9E%E6%87%89%E8%88%87%E5%88%A4%E8%AE%80">診斷命令速查（含回應與判讀）</a></li>
+<li><a href="#%E4%B8%89%E6%A0%B9%E6%9C%AC%E5%8E%9F%E5%9B%A0">根本原因</a></li>
+<li><a href="#%E5%9B%9B%E7%A2%BA%E8%AA%8D%E9%A1%AF%E5%8D%A1%E8%88%87%E6%96%B0%E9%A9%85%E5%8B%95%E7%9B%B8%E5%AE%B9">確認顯卡與新驅動相容</a></li>
+<li><a href="#%E4%BA%94%E8%A7%A3%E6%B3%95%E8%88%87%E6%94%B6%E5%B0%BE%E5%85%A8%E6%B5%81%E7%A8%8B%E5%90%AB%E6%AF%8F%E4%B8%80%E9%97%9C%E7%9A%84%E8%B8%A9%E5%9D%91">解法與收尾全流程（含每一關的踩坑）</a></li>
+<li><a href="#%E5%85%AD%E6%9C%80%E7%B5%82%E9%A9%97%E8%AD%89">最終驗證</a></li>
+<li><a href="#%E4%B8%83%E9%80%9A%E7%94%A8%E5%BF%83%E6%B3%95">通用心法</a></li>
+</ol>
+<hr />
+<h2 id="一問題現象">一、問題現象</h2>
+<p>執行 <code>sudo apt upgrade</code> 時，系統要安裝新的 HWE 核心 <code>7.0.0-28-generic</code>，但 NVIDIA 驅動的 DKMS（Dynamic Kernel Module Support，動態核心模組支援；詳見
+<a href="dpkg%E8%88%87dkms%E7%9A%84%E9%97%9C%E4%BF%82.html">dpkg與dkms的關係</a>）模組在為新核心編譯時失敗，導致核心 postinst 失敗，
+apt 卡在半設定狀態（套件狀態出現 <code>iF</code> / <code>iU</code>）。</p>
+<p><strong>重點：當下正在跑的舊核心 <code>6.17.0-40-generic</code> 上 nvidia 仍正常，沒有立即風險，只是升級沒收尾。</strong></p>
+<hr />
+<h2 id="二診斷命令速查含回應與判讀">二、診斷命令速查（含回應與判讀）</h2>
+<blockquote>
+<p>這一節是這次 debug 的核心。每條命令都附「當時實際回應」與「我怎麼看它」。<br />
+排查順序大致：先看全域狀態 → 縮小到單一模組 → 讀原始錯誤 log → 對照原始碼/相容性。</p>
+</blockquote>
+<h3 id="2-1-dkms-status--第一手看哪個模組對哪個核心編好了">2-1. <code>dkms status</code> —— 第一手，看哪個模組對哪個核心編好了</h3>
+<pre><code class="language-bash">dkms<span class="w"> </span>status
+</code></pre>
+<p>回應：</p>
+<pre><code>nvidia/570.211.01, 6.17.0-40-generic, x86_64: installed
+ovpn-dco/..., 6.17.0-40-generic, x86_64: installed
+ovpn-dco/..., 7.0.0-28-generic,  x86_64: installed
+</code></pre>
+<p><strong>怎麼看：</strong> 格式是 <code>模組/版本, 核心, 架構: 狀態</code>。逐行對照「哪個核心有、哪個沒有」是最快的分流法。這裡 <code>ovpn-dco</code> 對<strong>兩個</strong>核心都 installed，但 <code>nvidia</code> <strong>只有 6.17，缺 7.0</strong>。
+→ 立刻鎖定：問題是 nvidia 這支對新核心編不出來，而不是 DKMS 機制壞掉（否則 ovpn-dco 也會缺）。</p>
+<h3 id="2-2-uname--r--現在實際在跑哪個核心">2-2. <code>uname -r</code> —— 現在實際在跑哪個核心</h3>
+<pre><code class="language-bash">uname<span class="w"> </span>-r
+</code></pre>
+<p>回應：<code>6.17.0-40-generic</code>
+<strong>怎麼看：</strong> 跟 2-1 對照 → 「正在跑的核心 nvidia 是好的，壞的是還沒開機的新核心」。這決定了風險等級：<strong>目前桌面不會掛，只是升級沒收尾</strong>，可以從容處理，不必急救。</p>
+<h3 id="2-3-dpkg--l-過濾--看已裝的核心headers以及半殘套件">2-3. <code>dpkg -l</code> 過濾 —— 看已裝的核心、headers、以及半殘套件</h3>
+<pre><code class="language-bash">dpkg<span class="w"> </span>-l<span class="w"> </span><span class="s1">&#39;linux-image-*&#39;</span><span class="w">   </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span><span class="s1">&#39;^ii&#39;</span><span class="w">          </span><span class="c1"># 完整安裝的核心</span>
+dpkg<span class="w"> </span>-l<span class="w"> </span><span class="s1">&#39;linux-headers-*&#39;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span><span class="s1">&#39;^ii&#39;</span><span class="w">          </span><span class="c1"># 完整安裝的 headers</span>
+dpkg<span class="w"> </span>-l<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-E<span class="w"> </span><span class="s1">&#39;^i[FU]&#39;</span><span class="w">                       </span><span class="c1"># ★ 半設定/半安裝的問題套件</span>
+dpkg<span class="w"> </span>-l<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span><span class="s1">&#39;7.0.0-28&#39;</span><span class="w">                        </span><span class="c1"># 特定核心的相關套件狀態</span>
+</code></pre>
+<p><strong>dpkg 狀態碼怎麼看（最左兩碼）：</strong></p>
+<table>
+<thead>
+<tr>
+<th>碼</th>
+<th>意思</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ii</code></td>
+<td>已安裝且設定完成（正常）</td>
+</tr>
+<tr>
+<td><code>iU</code></td>
+<td>已解壓，但<strong>設定未完成</strong>（unpacked, not configured）</td>
+</tr>
+<tr>
+<td><code>iF</code></td>
+<td>設定中途<strong>失敗</strong>（half-configured / Failed-config）</td>
+</tr>
+<tr>
+<td><code>rc</code></td>
+<td>已移除，但<strong>設定檔殘留</strong>（removed, config remains，通常無害）</td>
+</tr>
+</tbody>
+</table>
+<p>當時 <code>dpkg -l | grep '7.0.0-28'</code> 回應（節錄）：</p>
+<pre><code>iF linux-headers-7.0.0-28-generic
+iF linux-image-7.0.0-28-generic
+</code></pre>
+<p><strong>怎麼看：</strong> <code>iF</code> 的是新核心的 image/headers → 它們的 postinst（會觸發 DKMS 建置）失敗了。這就是 apt「卡住」的具體位置。後面每做一步，我都用
+<code>dpkg -l | grep -E '^i[FU]'</code> 這條<strong>當作進度條</strong> —— 只要它還有輸出，代表還沒收乾淨。</p>
+<h3 id="2-4-確認不是缺-headers">2-4. 確認「不是缺 headers」</h3>
+<pre><code class="language-bash">ls<span class="w"> </span>-d<span class="w"> </span>/usr/src/linux-headers-7.0.0-28-generic
+</code></pre>
+<p>回應：<code>/usr/src/linux-headers-7.0.0-28-generic</code>（存在）
+<strong>怎麼看：</strong> DKMS 編譯要靠 <code>/usr/src/linux-headers-&lt;核心&gt;</code> 這份原始碼樹。它存在 → <strong>排除「缺 headers」這個最常見的假設</strong>，把問題往「原始碼本身編不過」推。（順帶：<code>ovpn-dco</code> 能為 7.0 編成功，也反證 headers 沒問題。）</p>
+<h3 id="2-5--讀-dkms-的-makelog--找第一個-error">2-5. ★ 讀 DKMS 的 <code>make.log</code> —— 找「第一個 error」</h3>
+<p>這是整個 debug 最關鍵的一步。DKMS 的建置 log 位置有兩種：</p>
+<pre><code class="language-bash"><span class="c1"># 成功過的：/var/lib/dkms/&lt;模組&gt;/&lt;版本&gt;/&lt;核心&gt;/x86_64/log/make.log</span>
+<span class="c1"># 失敗當下的：常停在 build/ 目錄</span>
+tail<span class="w"> </span>-50<span class="w"> </span>/var/lib/dkms/nvidia/570.211.01/build/make.log
+</code></pre>
+<p>回應（節錄，只抓關鍵）：</p>
+<pre><code>nvidia/nv-pci.c:240:9: error: too few arguments to function 'pci_resize_resource'
+  240 |   r = pci_resize_resource(pci_dev, NV_GPU_BAR1, requested_size);
+/usr/src/linux-headers-7.0.0-28-generic/include/linux/pci.h:1480:
+ 1480 | int pci_resize_resource(struct pci_dev *dev, int i, int size, ...)
+</code></pre>
+<p><strong>怎麼看：</strong></p>
+<ul>
+<li>log 裡 <strong>warning 一堆是雜訊，要找第一個 <code>error:</code></strong> —— 那才是真正讓 build 中止的原因。</li>
+<li><code>too few arguments to function 'pci_resize_resource'</code> +下面核心 header 顯示它現在要 4 個參數，但驅動只傳 3 個 → <strong>典型的「模組原始碼 vs 核心 API 版本不匹配」</strong>。</li>
+<li>看到 <code>too few/many arguments</code> / <code>unknown type</code> / <code>implicit declaration</code> 這類字眼，幾乎都指向同一結論：<strong>驅動太舊、跟不上新核心 API</strong>。解法是升驅動，不是改核心。</li>
+</ul>
+<h3 id="2-6-直接檢查新版原始碼有沒有修掉問題決定升級是否有意義">2-6. 直接檢查新版原始碼有沒有修掉問題（決定升級是否有意義）</h3>
+<p>換版本前，先確認新版真的能編過，避免白忙一場：</p>
+<pre><code class="language-bash">grep<span class="w"> </span>-rn<span class="w"> </span><span class="s1">&#39;pci_resize_resource&#39;</span><span class="w"> </span>/usr/src/nvidia-595.71.05/nvidia/nv-pci.c
+</code></pre>
+<p>回應：</p>
+<pre><code>256:  r = pci_resize_resource(pci_dev, NV_GPU_BAR1, requested_size, 0);   ← 4 參數（新核心）
+258:  r = pci_resize_resource(pci_dev, NV_GPU_BAR1, requested_size);      ← 3 參數（舊核心）
+</code></pre>
+<p><strong>怎麼看：</strong> 595 原始碼同時有 4 參數與 3 參數兩種呼叫，用 <code>#if</code> 依核心版本二選一。
+→ 證明 <strong>595 已針對新核心 API 做了分支</strong>，升上去能編過。決策從「賭一把」變成「有把握」。</p>
+<h3 id="2-7-看日誌回溯上次到底做到哪">2-7. 看日誌回溯「上次到底做到哪」</h3>
+<pre><code class="language-bash">grep<span class="w"> </span>-E<span class="w"> </span><span class="s1">&#39;2026-07-17&#39;</span><span class="w"> </span>/var/log/dpkg.log<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-Ei<span class="w"> </span><span class="s1">&#39;nvidia|linux-(image|headers)-7&#39;</span>
+</code></pre>
+<p><strong>怎麼看：</strong> <code>/var/log/dpkg.log</code> 每個套件都有 <code>install / half-installed / unpacked / configure</code> 的時間軸。當時看到所有 595 套件停在 <code>unpacked</code>、<strong>完全沒有 <code>configure</code> 行</strong> →
+判斷 apt 只解壓完就在「設定階段」中止了（被既有的 <code>iF</code> 擋下），套件全留在 <code>iU</code>。</p>
+<blockquote>
+<p>補充：<code>/var/log/apt/term.log</code> 有完整互動輸出，但通常要 sudo 才能讀。</p>
+</blockquote>
+<hr />
+<h2 id="三根本原因">三、根本原因</h2>
+<p><strong>NVIDIA 570.211.01 這版驅動原始碼跟核心 7.0 的新 kernel API 不相容。</strong></p>
+<ul>
+<li>核心 7.0 改了 <code>pci_resize_resource()</code> 的函式簽名（多了一個參數），舊驅動只傳 3 個 → 編譯 error。</li>
+<li>加上核心開了 <code>-Werror</code>，<code>enum/int</code> 不匹配的 warning 也直接變 error。</li>
+</ul>
+<p>一句話：<strong>不是磁碟、不是 headers、不是 DKMS 壞掉，是「驅動版本太舊，撐不住新核心」。</strong></p>
+<hr />
+<h2 id="四確認顯卡與新驅動相容">四、確認顯卡與新驅動相容</h2>
+<pre><code class="language-bash">lspci<span class="w"> </span>-nn<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-Ei<span class="w"> </span><span class="s1">&#39;vga|3d|display&#39;</span><span class="w">                                  </span><span class="c1"># 顯卡型號 + PCI ID（VGA 這裡是 lspci 對「顯示裝置」這個類別的稱呼，跟實體 VGA 接頭無關）</span>
+nvidia-smi<span class="w"> </span>--query-gpu<span class="o">=</span>name,driver_version,memory.total<span class="w"> </span>--format<span class="o">=</span>csv<span class="w">   </span><span class="c1"># 目前驅動讀不讀得到卡</span>
+ubuntu-drivers<span class="w"> </span>devices<span class="w">                                                 </span><span class="c1"># ★ 針對本機 GPU 的相容/推薦</span>
+</code></pre>
+<p><code>ubuntu-drivers devices</code> 回應（重點）：</p>
+<pre><code>01:00.0 VGA ... NVIDIA TU106M [GeForce RTX 2060 Mobile] [10de:1f11]
+driver : nvidia-driver-595-open - distro non-free recommended   ← 推薦
+</code></pre>
+<p><strong>判斷相容性的三個確認點：</strong></p>
+<ol>
+<li><strong><code>ubuntu-drivers devices</code> 標 <code>recommended</code></strong> —— 它拿 GPU（Graphics Processing Unit，顯示晶片）的 PCI（Peripheral Component Interconnect，週邊裝置互連匯流排）ID（<code>10DE:1F11</code>）比對驅動內建支援清單得出，最權威。</li>
+<li><strong>RTX 2060 = TU106 = Turing 架構</strong> —— NVIDIA open module（<code>-open</code>）要求 Turing 或更新，剛好達標。</li>
+<li><strong>本來就在跑 <code>-open</code> 版</strong> —— 570-open → 595-open 是同線升級，不換 flavor，風險最小。</li>
+</ol>
+<hr />
+<h2 id="五解法與收尾全流程含每一關的踩坑">五、解法與收尾全流程（含每一關的踩坑）</h2>
+<blockquote>
+<p><strong>重點教訓：DKMS 編譯成功只是第一關。</strong> 這次後面還連續踩了「相依缺失 → 檔案衝突 → 相依死結」三關才真正收乾淨。以下是實際順序。</p>
+</blockquote>
+<h3 id="第-0-步升級驅動使用者已先手動執行">第 0 步：升級驅動（使用者已先手動執行）</h3>
+<pre><code class="language-bash">sudo<span class="w"> </span>apt<span class="w"> </span>install<span class="w"> </span>nvidia-driver-595-open
+</code></pre>
+<p>結果：apt 解壓完所有 595 套件，但一進設定階段就被既有的 <code>iF</code> 擋下中止 → 全部留在 <code>iU</code>。（用 2-3、2-7 的命令確認了這個狀態。）</p>
+<h3 id="第-1-步讓-dpkg-把中斷的設定接著跑完">第 1 步：讓 dpkg 把中斷的設定接著跑完</h3>
+<pre><code class="language-bash">sudo<span class="w"> </span>dpkg<span class="w"> </span>--configure<span class="w"> </span>-a
+</code></pre>
+<p>關鍵輸出：</p>
+<pre><code>Building initial module nvidia/595.71.05 for 6.17.0-40-generic ... done   ✅
+Building initial module nvidia/595.71.05 for 7.0.0-28-generic  ... done   ✅  ← 原本卡住的核心，這次過了
+...
+dpkg: dependency problems prevent configuration of nvidia-driver-595-open:
+ nvidia-driver-595-open depends on libnvidia-gl-595 ...; however:
+  Package libnvidia-gl-595:amd64 is not installed.
+</code></pre>
+<p><strong>怎麼看：</strong></p>
+<ul>
+<li>因為舊的 570 已從 dkms 移除（不再撞 7.0），這次 <strong>DKMS 對兩個核心都編過並簽章</strong>——最難的關過了。</li>
+<li>但冒出<strong>新的一關</strong>：metapackage <code>nvidia-driver-595-open</code> 缺相依 <code>libnvidia-gl-595</code>（在最初 install 時沒解壓成功，狀態 <code>not-installed</code>）。</li>
+</ul>
+<h3 id="第-2-步補相依--撞到檔案衝突">第 2 步：補相依 → 撞到檔案衝突</h3>
+<pre><code class="language-bash">sudo<span class="w"> </span>apt<span class="w"> </span>--fix-broken<span class="w"> </span>install
+</code></pre>
+<p>結果：</p>
+<pre><code>trying to overwrite '/usr/lib/x86_64-linux-gnu/libnvidia-egl-xcb.so.1.0.5',
+which is also in package libnvidia-egl-xcb1
+</code></pre>
+<p><strong>怎麼看：</strong> 新的 <code>libnvidia-gl-595</code> <strong>自帶</strong> EGL 函式庫，跟舊的<strong>獨立套件</strong> <code>libnvidia-egl-xcb1</code>/<code>libnvidia-egl-xlib1</code>（570 時代殘留）搶同一個檔案。這兩個舊套件正好就是 apt 一直提示的「no longer required」。</p>
+<h3 id="第-3-步想移除舊套件--撞到相依死結">第 3 步：想移除舊套件 → 撞到相依死結</h3>
+<pre><code class="language-bash">sudo<span class="w"> </span>apt<span class="w"> </span>remove<span class="w"> </span>libnvidia-egl-xcb1<span class="w"> </span>libnvidia-egl-xlib1
+</code></pre>
+<p>結果：apt 拒絕，因為整體處於 broken 狀態（<code>nvidia-driver-595-open</code> 仍有未滿足相依），它要求先 <code>--fix-broken</code>，但 <code>--fix-broken</code> 又卡在上一步的檔案衝突。→ <strong>先有雞還是先有蛋</strong>。</p>
+<h3 id="第-4-步用-dpkg-直接打破死結--force-overwrite">第 4 步：用 dpkg 直接打破死結（<code>--force-overwrite</code>）</h3>
+<pre><code class="language-bash">sudo<span class="w"> </span>dpkg<span class="w"> </span>-i<span class="w"> </span>--force-overwrite<span class="w"> </span>/var/cache/apt/archives/libnvidia-gl-595_595.71.05-0ubuntu0.24.04.1_amd64.deb
+sudo<span class="w"> </span>apt<span class="w"> </span>--fix-broken<span class="w"> </span>install
+</code></pre>
+<p><strong>怎麼看：</strong> 針對「overwrite ... also in package」這種檔案衝突，<code>--force-overwrite</code> 讓新套件覆蓋掉那個本來就該被取代的舊 <code>.so</code>。繞過 apt 的相依解析後，<code>libnvidia-gl-595</code> 裝好、
+<code>nvidia-driver-595-open</code> 相依滿足 → 設定完成。</p>
+<h3 id="第-5-步清掉被取代的空殼舊套件">第 5 步：清掉被取代的空殼舊套件</h3>
+<pre><code class="language-bash">sudo<span class="w"> </span>apt<span class="w"> </span>autoremove
+</code></pre>
+<p>確認移除清單<strong>只含舊殘留</strong>（安全）：</p>
+<pre><code>libnvidia-egl-xcb1  libnvidia-egl-xlib1  nvidia-firmware-570  nvidia-modprobe
+</code></pre>
+<p><strong>怎麼看：</strong> 全是 570 時代 / 已被取代的套件，沒有任何 595 → 放心 y。</p>
+<blockquote>
+<p><code>autoremove</code> / 大量移除前<strong>一定先看清單</strong>：出現 <code>nvidia-driver-595-*</code>、<code>libnvidia-gl-595</code> 或桌面 meta 套件就要喊停。
+<code>nvidia-modprobe</code> 只有「無 X（X Window System，Linux 圖形視窗系統）的純 CUDA（Compute Unified Device Architecture，NVIDIA 的 GPU 通用運算架構）/headless」情境才需要，桌面用不到；日後要再 <code>sudo apt install nvidia-modprobe</code> 補回。</p>
+</blockquote>
+<hr />
+<h2 id="六最終驗證">六、最終驗證</h2>
+<h3 id="6-1-dkms-兩核心都-installed">6-1. DKMS 兩核心都 installed</h3>
+<pre><code class="language-bash">dkms<span class="w"> </span>status
+</code></pre>
+<pre><code>nvidia/595.71.05, 6.17.0-40-generic, x86_64: installed   ✅
+nvidia/595.71.05, 7.0.0-28-generic,  x86_64: installed   ✅
+</code></pre>
+<h3 id="6-2-沒有殘留的半設定套件進度條歸零">6-2. 沒有殘留的半設定套件（進度條歸零）</h3>
+<pre><code class="language-bash">dpkg<span class="w"> </span>-l<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-E<span class="w"> </span><span class="s1">&#39;^i[FU]&#39;</span>
+</code></pre>
+<p>回應：<strong>（空）</strong> → 代表沒有 <code>iF</code>/<code>iU</code>，apt 狀態恢復正常。</p>
+<h3 id="6-3-initramfsinitial-ram-filesystem開機早期用的暫存根檔案系統是否需要手動重建不用已自動處理">6-3. initramfs（initial RAM filesystem，開機早期用的暫存根檔案系統）是否需要手動重建？——不用，已自動處理</h3>
+<p>過程中常看到 <code>update-initramfs: deferring update (trigger activated)</code>，那是 dpkg 把 initramfs 更新<strong>延後累積</strong>，等整批結束的觸發器階段（<code>Processing triggers for initramfs-tools</code> / <code>linux-image-7.0.0-28</code>）一次重建。用時間戳驗證「initramfs 是在新模組之後才產生」即可安心：</p>
+<pre><code class="language-bash">ls<span class="w"> </span>-la<span class="w"> </span>--time-style<span class="o">=</span>+<span class="s1">&#39;%Y-%m-%d_%H:%M:%S&#39;</span><span class="w"> </span>/boot/initrd.img-*
+ls<span class="w"> </span>-la<span class="w"> </span>--time-style<span class="o">=</span>+<span class="s1">&#39;%Y-%m-%d_%H:%M:%S&#39;</span><span class="w"> </span>/lib/modules/<span class="o">{</span><span class="m">6</span>.17.0-40,7.0.0-28<span class="o">}</span>-generic/updates/dkms/nvidia.ko.zst
+</code></pre>
+<p>判讀（本次實測）：</p>
+<pre><code>6.17 模組 12:27:19  →  initrd-6.17 產生 12:28:27   ✅ 晚於模組
+7.0  模組 12:28:12  →  initrd-7.0  產生 12:28:39   ✅ 晚於模組
+</code></pre>
+<p>→ initramfs 已含新模組，<strong>不需手動處理</strong>。（想 100% 保險可 <code>sudo update-initramfs -u -k all</code>，但時間戳已證明沒必要。）</p>
+<h3 id="6-4-重開機後">6-4. 重開機後</h3>
+<pre><code class="language-bash">sudo<span class="w"> </span>reboot
+<span class="c1"># 開機後：</span>
+uname<span class="w"> </span>-r<span class="w">      </span><span class="c1"># 期望 7.0.0-28-generic</span>
+nvidia-smi<span class="w">    </span><span class="c1"># 期望 RTX 2060 + Driver Version: 595.71.05</span>
+</code></pre>
+<blockquote>
+<p>萬一新核心黑畫面：grub（GRUB，GRand Unified Bootloader，開機管理程式）→ Advanced → 選 <code>6.17.0-40-generic</code>（該核心的 595 模組也編好了）仍可正常開機。</p>
+</blockquote>
+<hr />
+<h2 id="七通用心法">七、通用心法</h2>
+<ol>
+<li><strong>先分流再深入</strong>：<code>dkms status</code> + <code>uname -r</code> → 判斷是「單一模組壞」還是「整個 DKMS 壞」、以及「正在跑的核心會不會受影響」（決定急不急）。</li>
+<li><strong>排除缺 headers</strong>：<code>ls /usr/src/linux-headers-$(uname -r)</code>；有別的模組能編過，也反證 headers 沒問題。</li>
+<li><strong>一定要讀 <code>make.log</code></strong>：<code>/var/lib/dkms/&lt;mod&gt;/&lt;ver&gt;/build/make.log</code>（或 <code>.../&lt;核心&gt;/x86_64/log/make.log</code>）。
+<strong>略過 warning，找第一個 <code>error:</code></strong> 才是根因。</li>
+<li><strong>看到 <code>too few/many arguments</code> / <code>unknown type</code> / <code>implicit declaration</code></strong> → 幾乎都是「模組 vs 核心 API 不匹配」→ <strong>升模組/驅動版本，別動核心</strong>。</li>
+<li><strong>換版本前先 <code>grep</code> 新版原始碼</strong>確認問題已修（如本次 2-6），把「賭」變成「有把握」。</li>
+<li><strong>DKMS 編過 ≠ 收工</strong>：後面還可能有相依缺失、檔案衝突、相依死結。
+<ul>
+<li>檔案衝突（<code>trying to overwrite ... also in package</code>）→ 多半是舊獨立套件被新套件內建取代，用 <code>dpkg -i --force-overwrite &lt;deb&gt;</code> 或先移除舊套件破解。</li>
+<li>相依死結（remove 要先 fix-broken、fix-broken 又卡住）→ 用 <code>dpkg</code> 繞過 apt 的解析。</li>
+</ul>
+</li>
+<li><strong>把 <code>dpkg -l | grep -E '^i[FU]'</code> 當進度條</strong>：每做一步就看一次，歸零才算乾淨。</li>
+<li><strong>任何 install/remove/autoremove 前先看清單</strong>：避免誤刪桌面環境或新驅動。</li>
+<li><strong>NVIDIA 專屬</strong>：<code>ubuntu-drivers devices</code> 確認顯卡在支援清單並看推薦版；<code>-open</code> 版需 Turing(RTX 20xx) 以上。</li>
+<li><strong>initramfs</strong>：過程看到 <code>deferring update</code> 不用慌，觸發器階段會補；用 <code>/boot/initrd.img-*</code> 時間戳晚於模組即可確認。</li>
+</ol>
+<hr />
+<h2 id="附錄本次用到的所有命令一覽">附錄：本次用到的所有命令一覽</h2>
+<pre><code class="language-bash"><span class="c1"># —— 診斷 ——</span>
+dkms<span class="w"> </span>status
+uname<span class="w"> </span>-r
+dpkg<span class="w"> </span>-l<span class="w"> </span><span class="s1">&#39;linux-image-*&#39;</span><span class="w">   </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span><span class="s1">&#39;^ii&#39;</span>
+dpkg<span class="w"> </span>-l<span class="w"> </span><span class="s1">&#39;linux-headers-*&#39;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span><span class="s1">&#39;^ii&#39;</span>
+dpkg<span class="w"> </span>-l<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-E<span class="w"> </span><span class="s1">&#39;^i[FU]&#39;</span><span class="w">                 </span><span class="c1"># 半設定/半安裝套件（當進度條）</span>
+dpkg<span class="w"> </span>-l<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span><span class="s1">&#39;7.0.0-28&#39;</span><span class="w">                  </span><span class="c1"># 特定核心相關套件狀態</span>
+ls<span class="w"> </span>-d<span class="w"> </span>/usr/src/linux-headers-7.0.0-28-generic
+tail<span class="w"> </span>-50<span class="w"> </span>/var/lib/dkms/nvidia/570.211.01/build/make.log
+grep<span class="w"> </span>-rn<span class="w"> </span><span class="s1">&#39;pci_resize_resource&#39;</span><span class="w"> </span>/usr/src/nvidia-595.71.05/nvidia/nv-pci.c
+grep<span class="w"> </span>-E<span class="w"> </span><span class="s1">&#39;2026-07-17&#39;</span><span class="w"> </span>/var/log/dpkg.log<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-Ei<span class="w"> </span><span class="s1">&#39;nvidia|linux-(image|headers)-7&#39;</span>
+
+<span class="c1"># —— 相容性 ——</span>
+lspci<span class="w"> </span>-nn<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-Ei<span class="w"> </span><span class="s1">&#39;vga|3d|display&#39;</span>
+nvidia-smi<span class="w"> </span>--query-gpu<span class="o">=</span>name,driver_version,memory.total<span class="w"> </span>--format<span class="o">=</span>csv
+ubuntu-drivers<span class="w"> </span>devices
+
+<span class="c1"># —— 解法與收尾 ——</span>
+sudo<span class="w"> </span>apt<span class="w"> </span>install<span class="w"> </span>nvidia-driver-595-open
+sudo<span class="w"> </span>dpkg<span class="w"> </span>--configure<span class="w"> </span>-a
+sudo<span class="w"> </span>apt<span class="w"> </span>--fix-broken<span class="w"> </span>install
+sudo<span class="w"> </span>dpkg<span class="w"> </span>-i<span class="w"> </span>--force-overwrite<span class="w"> </span>/var/cache/apt/archives/libnvidia-gl-595_595.71.05-0ubuntu0.24.04.1_amd64.deb
+sudo<span class="w"> </span>apt<span class="w"> </span>autoremove
+
+<span class="c1"># —— 驗證 ——</span>
+dkms<span class="w"> </span>status
+dpkg<span class="w"> </span>-l<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-E<span class="w"> </span><span class="s1">&#39;^i[FU]&#39;</span>
+ls<span class="w"> </span>-la<span class="w"> </span>--time-style<span class="o">=</span>+<span class="s1">&#39;%Y-%m-%d_%H:%M:%S&#39;</span><span class="w"> </span>/boot/initrd.img-*
+sudo<span class="w"> </span>update-initramfs<span class="w"> </span>-u<span class="w"> </span>-k<span class="w"> </span>all<span class="w">      </span><span class="c1"># 選用，保險用</span>
+sudo<span class="w"> </span>reboot
+uname<span class="w"> </span>-r
+nvidia-smi
+</code></pre>
+
+</main>
+</div>
+</body>
+</html>

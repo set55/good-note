@@ -1,0 +1,881 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>iptables 與 nftables 怎麼用？—— 同一個核心框架的兩代前端</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/app.js"></script>
+</head>
+<body>
+<button class="menu-btn" onclick="toggleMenu()">☰ 目錄</button>
+<div class="layout">
+<nav class="side">
+<div class="crumbs"><a href="../index.html">🏠 首頁</a> / <a href="README.html">linux</a></div>
+<div class="tools"><button onclick="toggleTheme()">🌓 主題</button></div>
+<ul>
+<li class="l2"><a href="#%E7%9B%AE%E9%8C%84">目錄</a></li>
+<li class="l2"><a href="#%E4%B8%80%E5%85%88%E7%A0%B4%E9%99%A4%E8%AA%A4%E8%A7%A3%E4%BD%A0%E7%9A%84-iptables-%E5%8F%AF%E8%83%BD%E6%A0%B9%E6%9C%AC%E4%B8%8D%E6%98%AF-iptables">一、先破除誤解：你的 iptables 可能根本不是 iptables</a></li>
+<li class="l2"><a href="#%E4%BA%8C%E5%85%A9%E8%80%85%E5%85%B1%E7%94%A8%E7%9A%84%E5%BF%83%E6%99%BA%E6%A8%A1%E5%9E%8B">二、兩者共用的心智模型</a></li>
+<li class="l3"><a href="#hook-%E8%88%87-jump-%E6%98%AF%E5%85%A9%E5%9B%9E%E4%BA%8B">hook 與 jump 是兩回事</a></li>
+<li class="l3"><a href="#acceptdropjump-%E7%9A%84%E4%BD%9C%E7%94%A8%E7%AF%84%E5%9C%8D">accept／drop／jump 的作用範圍</a></li>
+<li class="l3"><a href="#nat-%E5%9E%8B%E5%88%A5%E7%9A%84%E9%8F%88%E5%8F%AA%E8%99%95%E7%90%86%E6%AF%8F%E6%A2%9D%E9%80%A3%E7%B7%9A%E7%9A%84%E7%AC%AC%E4%B8%80%E5%80%8B%E5%B0%81%E5%8C%85">nat 型別的鏈只處理每條連線的第一個封包</a></li>
+<li class="l3"><a href="#iifname-%E8%88%87-oifname-%E6%80%8E%E9%BA%BC%E8%A8%98">iifname 與 oifname 怎麼記</a></li>
+<li class="l3"><a href="#%E9%A0%86%E5%B8%B6iif-%E8%88%87-iifname-%E5%B7%AE%E5%9C%A8%E5%93%AA">順帶：iif 與 iifname 差在哪</a></li>
+<li class="l2"><a href="#%E4%B8%89iptables-%E6%80%8E%E9%BA%BC%E7%94%A8">三、iptables 怎麼用</a></li>
+<li class="l3"><a href="#%E5%9B%9B%E8%A1%A8%E4%BA%94%E9%8F%88">四表五鏈</a></li>
+<li class="l3"><a href="#%E8%AA%9E%E6%B3%95%E9%AA%A8%E6%9E%B6">語法骨架</a></li>
+<li class="l3"><a href="#%E5%AE%8C%E6%95%B4%E6%8C%87%E4%BB%A4%E8%88%87%E9%81%B8%E9%A0%85%E4%BE%9D%E6%9C%AC%E6%A9%9F-iptables---help1810">完整指令與選項（依本機 iptables --help，1.8.10）</a></li>
+<li class="l3"><a href="#%E5%B8%B8%E7%94%A8%E9%85%8D%E6%96%B9">常用配方</a></li>
+<li class="l3"><a href="#%E6%8C%81%E4%B9%85%E5%8C%96">持久化</a></li>
+<li class="l2"><a href="#%E5%9B%9Bnftables-%E6%80%8E%E9%BA%BC%E7%94%A8">四、nftables 怎麼用</a></li>
+<li class="l2"><a href="#%E4%BA%94%E8%AA%9E%E6%B3%95%E5%B0%8D%E7%85%A7%E5%AE%98%E6%96%B9%E5%B7%A5%E5%85%B7%E5%AF%A6%E6%B8%AC%E7%94%A2%E7%94%9F">五、語法對照（官方工具實測產生）</a></li>
+<li class="l2"><a href="#%E5%85%AD%E9%97%9C%E9%8D%B5%E5%B7%AE%E7%95%B0">六、關鍵差異</a></li>
+<li class="l2"><a href="#%E4%B8%83%E7%82%BA%E4%BB%80%E9%BA%BC%E6%88%91%E7%9A%84-iptables-%E7%9C%8B%E8%B5%B7%E4%BE%86%E6%98%AF%E7%A9%BA%E7%9A%84">七、為什麼我的 iptables 看起來是空的？</a></li>
+<li class="l3"><a href="#%E8%AA%B0%E6%9C%83%E8%87%AA%E5%B7%B1%E5%AF%AB%E8%A6%8F%E5%89%87">誰會自己寫規則</a></li>
+<li class="l3"><a href="#docker-%E7%82%BA%E4%BB%80%E9%BA%BC%E4%B8%80%E5%AE%9A%E6%9C%83%E6%9C%89%E8%A6%8F%E5%89%87">Docker 為什麼一定會有規則</a></li>
+<li class="l3"><a href="#%E4%B8%89%E5%80%8B%E6%98%8E%E6%98%8E%E6%9C%89%E8%A6%8F%E5%89%87%E5%8D%BB%E7%9C%8B%E4%B8%8D%E5%88%B0%E7%9A%84%E6%8A%80%E8%A1%93%E5%8E%9F%E5%9B%A0">三個「明明有規則卻看不到」的技術原因</a></li>
+<li class="l3"><a href="#%E9%A0%86%E5%B8%B6%E6%B2%92%E6%9C%89%E9%98%B2%E7%81%AB%E7%89%86%E6%99%82%E6%9A%B4%E9%9C%B2%E9%9D%A2%E5%B0%B1%E7%AD%89%E6%96%BC%E7%9B%A3%E8%81%BD%E6%B8%85%E5%96%AE">順帶：沒有防火牆時，暴露面就等於監聽清單</a></li>
+<li class="l2"><a href="#%E5%85%AB%E6%8E%92%E6%9F%A5%E8%A6%8F%E5%89%87%E5%AF%AB%E4%BA%86%E5%8D%BB%E6%B2%92%E4%BD%9C%E7%94%A8">八、排查：規則寫了卻沒作用</a></li>
+<li class="l3"><a href="#%E4%BA%94%E5%80%8B%E5%B8%B8%E8%A6%8B%E9%99%B7%E9%98%B1">五個常見陷阱</a></li>
+<li class="l2"><a href="#%E4%B9%9D%E9%80%9F%E6%9F%A5">九、速查</a></li>
+<li class="l2"><a href="#%E8%87%AA%E6%88%91%E6%B8%AC%E9%A9%97">自我測驗</a></li>
+</ul>
+</nav>
+<main>
+<h1 id="iptables-與-nftables-怎麼用-同一個核心框架的兩代前端">iptables 與 nftables 怎麼用？—— 同一個核心框架的兩代前端</h1>
+<blockquote>
+<p>日期：2026-09-20<br />
+情境：研究透明代理時一直碰到這兩個工具，想從頭搞懂用法與差別<br />
+適用範圍：實測 Ubuntu 24.04（iptables 1.8.10、nftables 1.0.9）與 OpenWrt 24.10.2（nftables 1.1.1）<br />
+相關：<a href="../openwrt/nftables%E8%88%87uci%E6%98%AF%E4%BB%80%E9%BA%BC-%E5%85%A9%E5%B1%A4%E8%A8%AD%E5%AE%9A%E7%9A%84%E5%88%86%E5%B7%A5.html">nftables與uci是什麼-兩層設定的分工</a>、
+<a href="%E6%9F%A5%E8%A9%A2%E8%BD%89%E7%99%BC%E8%A1%A8%E8%88%87%E8%B7%AF%E7%94%B1%E8%A1%A8.html">查詢轉發表與路由表</a></p>
+</blockquote>
+<p><strong>一句話結論：它們不是兩套防火牆，而是同一個核心框架（netfilter）的兩代使用者空間前端。更關鍵的是——
+現代發行版上你打的 <code>iptables</code> 指令，底層寫進去的其實已經是 nftables 規則了。所以新系統只需要學 nft，
+iptables 的語法「看得懂」就夠。</strong></p>
+<hr />
+<h2 id="目錄">目錄</h2>
+<ul>
+<li><a href="#%E4%B8%80%E5%85%88%E7%A0%B4%E9%99%A4%E8%AA%A4%E8%A7%A3%E4%BD%A0%E7%9A%84-iptables-%E5%8F%AF%E8%83%BD%E6%A0%B9%E6%9C%AC%E4%B8%8D%E6%98%AF-iptables">一、先破除誤解：你的 iptables 可能根本不是 iptables</a></li>
+<li><a href="#%E4%BA%8C%E5%85%A9%E8%80%85%E5%85%B1%E7%94%A8%E7%9A%84%E5%BF%83%E6%99%BA%E6%A8%A1%E5%9E%8B">二、兩者共用的心智模型</a></li>
+<li><a href="#%E4%B8%89iptables-%E6%80%8E%E9%BA%BC%E7%94%A8">三、iptables 怎麼用</a></li>
+<li><a href="#%E5%9B%9Bnftables-%E6%80%8E%E9%BA%BC%E7%94%A8">四、nftables 怎麼用</a></li>
+<li><a href="#%E4%BA%94%E8%AA%9E%E6%B3%95%E5%B0%8D%E7%85%A7%E5%AE%98%E6%96%B9%E5%B7%A5%E5%85%B7%E5%AF%A6%E6%B8%AC%E7%94%A2%E7%94%9F">五、語法對照（官方工具實測產生）</a></li>
+<li><a href="#%E5%85%AD%E9%97%9C%E9%8D%B5%E5%B7%AE%E7%95%B0">六、關鍵差異</a></li>
+<li><a href="#%E4%B8%83%E7%82%BA%E4%BB%80%E9%BA%BC%E6%88%91%E7%9A%84-iptables-%E7%9C%8B%E8%B5%B7%E4%BE%86%E6%98%AF%E7%A9%BA%E7%9A%84">七、為什麼我的 iptables 看起來是空的？</a></li>
+<li><a href="#%E5%85%AB%E6%8E%92%E6%9F%A5%E8%A6%8F%E5%89%87%E5%AF%AB%E4%BA%86%E5%8D%BB%E6%B2%92%E4%BD%9C%E7%94%A8">八、排查：規則寫了卻沒作用</a></li>
+<li><a href="#%E4%B9%9D%E9%80%9F%E6%9F%A5">九、速查</a></li>
+<li><a href="#%E8%87%AA%E6%88%91%E6%B8%AC%E9%A9%97">自我測驗</a></li>
+</ul>
+<hr />
+<h2 id="一先破除誤解你的-iptables-可能根本不是-iptables">一、先破除誤解：你的 iptables 可能根本不是 iptables</h2>
+<pre><code class="language-bash">$<span class="w"> </span>iptables<span class="w"> </span>-V
+iptables<span class="w"> </span>v1.8.10<span class="w"> </span><span class="o">(</span>nf_tables<span class="o">)</span><span class="w">        </span><span class="c1"># ← 括號裡寫著 nf_tables</span>
+</code></pre>
+<p><strong>這個括號是整件事的關鍵。</strong> 現在的 <code>iptables</code> 套件提供兩個不同的實作：</p>
+<pre><code class="language-bash">$<span class="w"> </span>ls<span class="w"> </span>-l<span class="w"> </span>/usr/sbin/iptables*
+iptables<span class="w">         </span>-&gt;<span class="w"> </span>/etc/alternatives/iptables
+iptables-legacy<span class="w">  </span>-&gt;<span class="w"> </span>xtables-legacy-multi<span class="w">     </span><span class="c1"># 真正的舊版：寫進核心的 x_tables</span>
+iptables-nft<span class="w">     </span>-&gt;<span class="w"> </span>xtables-nft-multi<span class="w">        </span><span class="c1"># 相容層：語法是 iptables，寫進去的是 nftables</span>
+
+$<span class="w"> </span>update-alternatives<span class="w"> </span>--display<span class="w"> </span>iptables
+link<span class="w"> </span>currently<span class="w"> </span>points<span class="w"> </span>to<span class="w"> </span>/usr/sbin/iptables-nft
+</code></pre>
+<p>也就是說，在 Ubuntu 24.04 上你打 <code>iptables -A INPUT ...</code>，<strong>核心裡建立的是 nftables 規則</strong>，只是用 iptables 的語法輸入而已。核心裡的舊 <code>x_tables</code> 子系統仍在，但預設沒人用它。</p>
+<p>另一頭，OpenWrt 24.10 更直接：</p>
+<pre><code class="language-bash">$<span class="w"> </span>ssh<span class="w"> </span>root@192.168.1.1<span class="w"> </span><span class="s1">&#39;which iptables nft&#39;</span>
+/usr/sbin/nft
+ash:<span class="w"> </span>iptables:<span class="w"> </span>not<span class="w"> </span>found<span class="w">              </span><span class="c1"># ← iptables 連裝都沒裝</span>
+</code></pre>
+<p><strong>所以結論很清楚：新系統一律用 nft；iptables 只需要具備「讀得懂別人的腳本、看得懂網路上的教學」的程度。</strong> 兩者混用要小心——用 <code>iptables-legacy</code> 寫的規則，<code>nft list ruleset</code> 看不到，這是「明明設了規則卻查不到」的經典原因。</p>
+<hr />
+<h2 id="二兩者共用的心智模型">二、兩者共用的心智模型</h2>
+<p>不管哪一代，底下都是 <strong>netfilter</strong>：核心在封包經過網路堆疊時開的五個攔截點（hook）。</p>
+<p><strong>先記三條路線就好</strong>——任何封包只會走其中一條：</p>
+<pre><code>① 給本機的      入網卡 → [prerouting] → 路由判定 →「給我的」→ [input] → 本機程式
+② 本機發出的    本機程式 → 路由判定 → [output] → [postrouting] → 出網卡
+③ 幫別人轉的    入網卡 → [prerouting] → 路由判定 →「不是給我的」→ [forward] → [postrouting] → 出網卡
+</code></pre>
+<p>把三條疊起來看，就是完整的流程圖：</p>
+<pre><code>  入網卡
+    │
+    ▼
+[prerouting]
+    │
+    ▼
+  路由判定 ──── 不是給我的 ───► [forward] ──┐
+    │                                       │
+  給我的                                    │
+    │                                       │
+    ▼                                       │
+ [input]                                    │
+    │                                       │
+    ▼                                       │
+  本機程式                                  │
+    │                                       │
+    ▼                                       │
+  路由判定                                  │
+    │                                       │
+    ▼                                       │
+ [output]                                   │
+    │                                       │
+    └─────────────────┬─────────────────────┘
+                      ▼
+                [postrouting]
+                      │
+                      ▼
+                   出網卡
+</code></pre>
+<p><strong>兩個容易看錯的地方：</strong></p>
+<ol>
+<li><strong><code>input</code> 和 <code>output</code> 不在同一條路上</strong>。它們是「進來給本機」與「本機發出去」兩個方向的端點，中間隔著本機程式。只有轉發的封包（③）才會走 <code>forward</code>，而且<strong>轉發的封包永遠不會經過
+<code>input</code>／<code>output</code></strong>——這正是<a href="../openwrt/%E8%B7%AF%E7%94%B1%E5%99%A8%E4%B8%8A%E7%9A%84%E9%80%8F%E6%98%8E%E4%BB%A3%E7%90%86-%E7%82%BA%E4%BB%80%E9%BA%BC%E4%B8%8D%E6%98%AFTUN%E6%A8%A1%E5%BC%8F.html">路由器上的透明代理</a>
+那篇的核心。</li>
+<li><strong>本機發出的封包，路由判定在 <code>output</code> 之前</strong>。所以在 <code>output</code> 鏈裡改了目的位址，路由已經選好了、不會自動重選——需要重新查路由時得用 nftables 的 <code>type route</code> 鏈（iptables 的 <code>mangle OUTPUT</code> 也有同樣的問題）。</li>
+</ol>
+<table>
+<thead>
+<tr>
+<th>hook</th>
+<th>什麼時候</th>
+<th>典型用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>prerouting</code></td>
+<td>剛進來、<strong>路由判定之前</strong></td>
+<td>DNAT（Destination NAT，目的位址轉換）、TPROXY</td>
+</tr>
+<tr>
+<td><code>input</code></td>
+<td>確定是給本機的</td>
+<td>保護本機服務</td>
+</tr>
+<tr>
+<td><code>forward</code></td>
+<td>確定要轉給別人</td>
+<td>路由器的過濾規則</td>
+</tr>
+<tr>
+<td><code>output</code></td>
+<td>本機程式剛發出（<strong>路由判定之後</strong>）</td>
+<td>限制本機對外</td>
+</tr>
+<tr>
+<td><code>postrouting</code></td>
+<td>要出網卡前</td>
+<td>SNAT（Source NAT）／MASQUERADE</td>
+</tr>
+</tbody>
+</table>
+<h3 id="hook-與-jump-是兩回事"><code>hook</code> 與 <code>jump</code> 是兩回事</h3>
+<p>一條 base chain 加上它 <code>jump</code> 進去的所有子鏈，是<strong>一棵樹</strong>；<code>jump</code> 只能在<strong>這棵樹內部</strong>流動。封包從樹裡出來之後，<strong>不會再跳去別的 hook</strong>——是核心繼續把它往網路堆疊的下一步送，到了下一個 hook，核心才<strong>重新</strong>呼叫掛在那裡的 base chain。</p>
+<p><strong>把不同 hook 串起來的是核心的封包路徑，不是規則。</strong></p>
+<p>所以「filter 的 forward 鏈 <code>accept</code> 之後，怎麼跑到 nat 的 postrouting 鏈去做 NAT？」這個問題的答案是：<strong>沒有任何規則做這件事，是封包自己走到了那裡。</strong></p>
+<pre><code>   ┌── 核心呼叫 ──┐              ┌── 核心呼叫 ──┐
+  forward hook                 postrouting hook
+    └ chain forward              └ chain srcnat
+        └ jump &lt;子鏈&gt;                └ jump &lt;子鏈&gt;
+            └ jump &lt;子鏈&gt;                └ masquerade
+                └ accept ─┐
+                          │（離開 forward hook，
+                          │  封包繼續走網路堆疊）
+                          └──────────────► 抵達 postrouting hook
+</code></pre>
+<h3 id="acceptdropjump-的作用範圍"><code>accept</code>／<code>drop</code>／<code>jump</code> 的作用範圍</h3>
+<p><strong><code>accept</code> 不是「整個防火牆放行」，而是「結束當前這條 base chain 的處理」。</strong>
+封包接著照常往下走，後面的 hook 一個都不會少。</p>
+<table>
+<thead>
+<tr>
+<th>動作</th>
+<th>效果</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>accept</code></td>
+<td>結束<strong>當前 base chain</strong>（含它的 jump 樹），封包繼續走後續 hook</td>
+</tr>
+<tr>
+<td><code>drop</code></td>
+<td><strong>立刻丟棄</strong>，整趟旅程到此為止，後面所有 hook 都不執行</td>
+</tr>
+<tr>
+<td><code>jump &lt;鏈&gt;</code></td>
+<td>進入子鏈；子鏈跑完沒有結論就<strong>回到原處繼續</strong></td>
+</tr>
+</tbody>
+</table>
+<p>還有一個容易忽略的細節：<strong>同一個 hook 上可以掛多條 base chain</strong>（靠 priority 排序），而 <code>accept</code> 只結束自己那一條，<strong>priority 排在後面的照樣會執行</strong>。例如 OpenWrt 的 forward hook：</p>
+<pre><code>mangle_forward   priority mangle (-150)   ← 先跑
+forward          priority filter (0)      ← 後跑
+</code></pre>
+<p>只有 <code>drop</code> 是跨 hook 的終結——一旦 drop，後面什麼都不會再跑。</p>
+<h3 id="nat-型別的鏈只處理每條連線的第一個封包"><code>nat</code> 型別的鏈只處理每條連線的第一個封包</h3>
+<p><code>type nat</code>（iptables 的 nat 表）的鏈<strong>不是每個封包都會進去</strong>。第一個封包決定了怎麼轉換之後，
+conntrack 會記住這條連線的對應關係，<strong>後續封包與回程封包由 conntrack 直接套用</strong>，不再進 nat 鏈。</p>
+<p>兩個實際後果：</p>
+<ul>
+<li><strong>在 nat 鏈上加 <code>counter</code> 量到的是「連線數」，不是封包數</strong>。同一條連線的 filter 鏈 counter
+可能是幾萬，nat 鏈只會是 1。</li>
+<li><strong>改了 nat 規則，不影響已經建立的連線</strong>——它們的轉換方式早就記在 conntrack 裡了。要讓新規則對現有連線生效，得清掉 conntrack 表（<code>conntrack -F</code>）。</li>
+</ul>
+<h3 id="iifname-與-oifname-怎麼記"><code>iifname</code> 與 <code>oifname</code> 怎麼記</h3>
+<p><strong><code>i</code> = in（進來的介面），<code>o</code> = out（出去的介面）</strong>，方向都是相對於<strong>這台機器</strong>，不是相對於網路。</p>
+<p>但更好的記法不是背字母，而是問一句：<strong>「封包走到這個 hook 時，核心知不知道答案？」</strong></p>
+<table>
+<thead>
+<tr>
+<th>hook</th>
+<th>封包當下的處境</th>
+<th style="text-align:center"><code>iifname</code></th>
+<th style="text-align:center"><code>oifname</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>prerouting</code></td>
+<td>剛進門，<strong>還沒查路由</strong></td>
+<td style="text-align:center">✅</td>
+<td style="text-align:center">❌ 還不知道要從哪出去</td>
+</tr>
+<tr>
+<td><code>input</code></td>
+<td>已確定是給本機的</td>
+<td style="text-align:center">✅</td>
+<td style="text-align:center">❌ 沒有「出去」這回事</td>
+</tr>
+<tr>
+<td><code>forward</code></td>
+<td>進來了，也決定好要從哪出去</td>
+<td style="text-align:center">✅</td>
+<td style="text-align:center">✅ <strong>兩個都有</strong></td>
+</tr>
+<tr>
+<td><code>output</code></td>
+<td><strong>本機自己產生的</strong></td>
+<td style="text-align:center">❌ 沒有進來的介面</td>
+<td style="text-align:center">✅</td>
+</tr>
+<tr>
+<td><code>postrouting</code></td>
+<td>準備出門</td>
+<td style="text-align:center">（轉發的還有）</td>
+<td style="text-align:center">✅</td>
+</tr>
+</tbody>
+</table>
+<p><strong>這不是規定，是資訊在那個時間點存不存在。</strong> 想不起來時就重走一次
+<a href="#%E4%BA%8C%E5%85%A9%E8%80%85%E5%85%B1%E7%94%A8%E7%9A%84%E5%BF%83%E6%99%BA%E6%A8%A1%E5%9E%8B">上面那三條路線</a>：封包還沒被路由，核心當然答不出「要從哪張網卡出去」。</p>
+<p>上面那張表可以用本機路由器的規則直接驗證——fw4 產生的規則<strong>沒有一條例外</strong>：</p>
+<pre><code>chain prerouting  (hook prerouting)   iifname × 1     oifname × 0
+chain input       (hook input)        iifname × 4     oifname × 0
+chain forward     (hook forward)      iifname × 3     oifname × 0
+  └ accept_to_wan （forward 的子鏈）   iifname × 0     oifname × 1   ← forward 樹裡兩者都用得到
+chain output      (hook output)       iifname × 0     oifname × 4
+chain srcnat      (hook postrouting)  iifname × 0     oifname × 2
+</code></pre>
+<p><strong>一個可靠的自我檢查：寫規則時如果你想在 <code>output</code> 鏈裡比對 <code>iifname</code>，那一定是想錯了</strong>——
+本機自己發出的封包沒有「進來的介面」。</p>
+<h3 id="順帶iif-與-iifname-差在哪">順帶：<code>iif</code> 與 <code>iifname</code> 差在哪</h3>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>比對什麼</th>
+<th>特性</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>iif</code> / <code>oif</code></td>
+<td>介面的<strong>索引編號</strong>（integer）</td>
+<td>比對快；但<strong>介面刪除重建後編號會變</strong>，規則就失效</td>
+</tr>
+<tr>
+<td><code>iifname</code> / <code>oifname</code></td>
+<td>介面<strong>名稱</strong>（字串）</td>
+<td>稍慢；<strong>介面還不存在時也能先寫規則</strong></td>
+</tr>
+</tbody>
+</table>
+<p>所以動態建立的介面（<code>ppp0</code>、<code>tun0</code>、容器的 veth）一定要用 <code>iifname</code>。</p>
+<p>本機路由器的規則正好示範了這個取捨：</p>
+<pre><code>iif &quot;lo&quot; accept                     ← loopback 永遠存在、編號固定，用 iif
+iifname &quot;br-lan&quot; jump input_lan     ← 其他介面用 iifname
+iifname &quot;tun0&quot; jump input_ovpnsetwall   ← OpenVPN 的 tun0 是動態建立的，更非用 iifname 不可
+</code></pre>
+<p>iptables 的對應寫法是 <code>-i</code>（in）與 <code>-o</code>（out），規則完全一樣。</p>
+<p>三個共通的觀念：</p>
+<ol>
+<li><strong>規則由上而下比對，第一個命中就決定</strong>（除非動作是 <code>return</code>／<code>jump</code>）。</li>
+<li><strong>每條規則都有 counter</strong>（封包數／位元組數）——這是判斷「規則有沒有被命中」的唯一可靠依據。</li>
+<li><strong>conntrack（connection tracking，連線追蹤）</strong> 記住每條連線的狀態，所以只要放行「新連線」，回程封包用 <code>established,related</code> 一條規則就全放行——這條通常放在最前面，既正確又省效能。</li>
+</ol>
+<hr />
+<h2 id="三iptables-怎麼用">三、iptables 怎麼用</h2>
+<h3 id="四表五鏈">四表五鏈</h3>
+<table>
+<thead>
+<tr>
+<th>表（table）</th>
+<th>用途</th>
+<th>常用鏈</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>filter</code>（預設）</td>
+<td>過濾</td>
+<td>INPUT / FORWARD / OUTPUT</td>
+</tr>
+<tr>
+<td><code>nat</code></td>
+<td>位址轉換</td>
+<td>PREROUTING / POSTROUTING / OUTPUT</td>
+</tr>
+<tr>
+<td><code>mangle</code></td>
+<td>改封包欄位、打 mark</td>
+<td>五條都有</td>
+</tr>
+<tr>
+<td><code>raw</code></td>
+<td>在 conntrack 之前處理</td>
+<td>PREROUTING / OUTPUT</td>
+</tr>
+</tbody>
+</table>
+<h3 id="語法骨架">語法骨架</h3>
+<pre><code>iptables [-t 表] &lt;指令&gt; &lt;鏈&gt; [比對條件...] -j &lt;目標&gt;
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>指令</th>
+<th>意思</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-A &lt;鏈&gt;</code></td>
+<td>append，加到<strong>最後面</strong></td>
+</tr>
+<tr>
+<td><code>-I &lt;鏈&gt; [位置]</code></td>
+<td>insert，插到<strong>最前面</strong>（或指定第幾條）</td>
+</tr>
+<tr>
+<td><code>-D &lt;鏈&gt; &lt;編號或規則&gt;</code></td>
+<td>刪除</td>
+</tr>
+<tr>
+<td><code>-R &lt;鏈&gt; &lt;編號&gt;</code></td>
+<td>取代</td>
+</tr>
+<tr>
+<td><code>-L</code> / <code>-S</code></td>
+<td>列出（<code>-S</code> 印成可複製的指令形式）</td>
+</tr>
+<tr>
+<td><code>-F &lt;鏈&gt;</code></td>
+<td>清空整條鏈</td>
+</tr>
+<tr>
+<td><code>-P &lt;鏈&gt; &lt;目標&gt;</code></td>
+<td>設鏈的預設政策</td>
+</tr>
+</tbody>
+</table>
+<p>常用比對：<code>-p tcp|udp|icmp</code>、<code>-s 來源</code>、<code>-d 目的</code>、<code>--dport</code>／<code>--sport</code>、<code>-i 進入網卡</code>、
+<code>-o 送出網卡</code>、<code>-m conntrack --ctstate</code>、<code>-m multiport --dports</code>、<code>-m limit</code>。</p>
+<p>常用目標：<code>ACCEPT</code>、<code>DROP</code>（默默丟棄）、<code>REJECT</code>（回一個錯誤）、<code>LOG</code>、<code>MASQUERADE</code>、
+<code>DNAT</code>、<code>SNAT</code>、<code>RETURN</code>。</p>
+<h3 id="完整指令與選項依本機-iptables---help1810">完整指令與選項（依本機 <code>iptables --help</code>，1.8.10）</h3>
+<p>前面只挑了常用的，以下是<strong>完整清單</strong>。</p>
+<p><strong>指令（Commands）——每次只能用一個</strong></p>
+<table>
+<thead>
+<tr>
+<th>短</th>
+<th>長</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-A &lt;鏈&gt;</code></td>
+<td><code>--append</code></td>
+<td>加到鏈的<strong>最後</strong></td>
+</tr>
+<tr>
+<td><code>-I &lt;鏈&gt; [n]</code></td>
+<td><code>--insert</code></td>
+<td>插到第 n 條（<strong>預設 1＝最前面</strong>）</td>
+</tr>
+<tr>
+<td><code>-D &lt;鏈&gt; &lt;規則|n&gt;</code></td>
+<td><code>--delete</code></td>
+<td>刪除（可用規則內容或行號）</td>
+</tr>
+<tr>
+<td><code>-R &lt;鏈&gt; &lt;n&gt;</code></td>
+<td><code>--replace</code></td>
+<td>取代第 n 條</td>
+</tr>
+<tr>
+<td><code>-C &lt;鏈&gt; &lt;規則&gt;</code></td>
+<td><code>--check</code></td>
+<td><strong>檢查規則存不存在</strong>（腳本判斷用，不會改動）</td>
+</tr>
+<tr>
+<td><code>-L [鏈 [n]]</code></td>
+<td><code>--list</code></td>
+<td>列出規則（人看的）</td>
+</tr>
+<tr>
+<td><code>-S [鏈 [n]]</code></td>
+<td><code>--list-rules</code></td>
+<td><strong>印成可複製的指令形式</strong></td>
+</tr>
+<tr>
+<td><code>-F [鏈]</code></td>
+<td><code>--flush</code></td>
+<td>清空鏈（或全部鏈）的規則</td>
+</tr>
+<tr>
+<td><code>-Z [鏈 [n]]</code></td>
+<td><code>--zero</code></td>
+<td><strong>把 counter 歸零</strong></td>
+</tr>
+<tr>
+<td><code>-N &lt;鏈&gt;</code></td>
+<td><code>--new</code></td>
+<td>建立自訂鏈</td>
+</tr>
+<tr>
+<td><code>-X [鏈]</code></td>
+<td><code>--delete-chain</code></td>
+<td>刪除自訂鏈</td>
+</tr>
+<tr>
+<td><code>-P &lt;鏈&gt; &lt;目標&gt;</code></td>
+<td><code>--policy</code></td>
+<td>設定鏈的<strong>預設政策</strong></td>
+</tr>
+<tr>
+<td><code>-E &lt;舊&gt; &lt;新&gt;</code></td>
+<td><code>--rename-chain</code></td>
+<td>改鏈名（會連帶更新引用）</td>
+</tr>
+</tbody>
+</table>
+<p><code>-C</code> 值得記住：<strong>寫腳本時先 <code>-C</code> 檢查再 <code>-A</code>，就不會重複加規則</strong>——
+這是 iptables 版的「冪等」寫法（它沒有 nft 的 <code>add</code> 那種安靜成功）。</p>
+<p><strong>選項（Options）</strong></p>
+<table>
+<thead>
+<tr>
+<th>短</th>
+<th>長</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-t &lt;表&gt;</code></td>
+<td><code>--table</code></td>
+<td>操作哪張表（預設 <code>filter</code>）</td>
+</tr>
+<tr>
+<td><code>-p &lt;協定&gt;</code></td>
+<td><code>--protocol</code></td>
+<td>協定（名稱或數字）</td>
+</tr>
+<tr>
+<td><code>-s &lt;位址&gt;</code></td>
+<td><code>--source</code></td>
+<td>來源位址／網段</td>
+</tr>
+<tr>
+<td><code>-d &lt;位址&gt;</code></td>
+<td><code>--destination</code></td>
+<td>目的位址／網段</td>
+</tr>
+<tr>
+<td><code>-i &lt;介面&gt;</code></td>
+<td><code>--in-interface</code></td>
+<td>進入介面（<code>+</code> 是萬用字元，如 <code>eth+</code>）</td>
+</tr>
+<tr>
+<td><code>-o &lt;介面&gt;</code></td>
+<td><code>--out-interface</code></td>
+<td>送出介面</td>
+</tr>
+<tr>
+<td><code>-j &lt;目標&gt;</code></td>
+<td><code>--jump</code></td>
+<td><strong>目標</strong>（可載入 target 擴充）</td>
+</tr>
+<tr>
+<td><code>-g &lt;鏈&gt;</code></td>
+<td><code>--goto</code></td>
+<td>跳到該鏈且<strong>不返回</strong></td>
+</tr>
+<tr>
+<td><code>-m &lt;模組&gt;</code></td>
+<td><code>--match</code></td>
+<td><strong>載入比對擴充模組</strong>（見下）</td>
+</tr>
+<tr>
+<td><code>-f</code></td>
+<td><code>--fragment</code></td>
+<td>只比對第二個以後的分片</td>
+</tr>
+<tr>
+<td><code>-c &lt;封包&gt; &lt;位元組&gt;</code></td>
+<td><code>--set-counters</code></td>
+<td>插入時直接設定 counter 值</td>
+</tr>
+<tr>
+<td><code>-n</code></td>
+<td><code>--numeric</code></td>
+<td><strong>數字輸出</strong>（不做 DNS／服務名解析）</td>
+</tr>
+<tr>
+<td><code>-v</code></td>
+<td><code>--verbose</code></td>
+<td>囉嗦模式（列出時會顯示 counter）</td>
+</tr>
+<tr>
+<td><code>-x</code></td>
+<td><code>--exact</code></td>
+<td>顯示精確數字（不用 K/M/G 縮寫）</td>
+</tr>
+<tr>
+<td>—</td>
+<td><code>--line-numbers</code></td>
+<td><strong>列出時顯示行號</strong>（刪規則要用）</td>
+</tr>
+<tr>
+<td><code>-w [秒]</code></td>
+<td><code>--wait</code></td>
+<td>等待 xtables 鎖最多幾秒（<strong>避免並行執行時失敗</strong>）</td>
+</tr>
+<tr>
+<td><code>-4</code> / <code>-6</code></td>
+<td><code>--ipv4</code> / <code>--ipv6</code></td>
+<td>在 <code>iptables-restore</code> 檔案中標示只適用某版本</td>
+</tr>
+<tr>
+<td>—</td>
+<td><code>--modprobe=&lt;指令&gt;</code></td>
+<td>指定載入模組的指令</td>
+</tr>
+<tr>
+<td><code>-V</code></td>
+<td><code>--version</code></td>
+<td>版本</td>
+</tr>
+</tbody>
+</table>
+<p><code>[!]</code> 可以加在多數比對選項前面表示<strong>否定</strong>：<code>! -s 10.0.0.0/8</code>、<code>! -p tcp</code>、<code>! -i lo</code>。</p>
+<p><strong>目標（<code>-j</code> 的值）</strong></p>
+<p>內建：<code>ACCEPT</code>、<code>DROP</code>、<code>RETURN</code>、<code>QUEUE</code>。常用擴充：<code>REJECT</code>（可配 <code>--reject-with</code>）、<code>LOG</code>（<code>--log-prefix</code>）、<code>DNAT</code>（<code>--to-destination</code>）、
+<code>SNAT</code>（<code>--to-source</code>）、<code>MASQUERADE</code>、<code>REDIRECT</code>（<code>--to-ports</code>）、<code>TPROXY</code>、<code>MARK</code>（<code>--set-mark</code>）、
+<code>TTL</code>、<code>TCPMSS</code>（<code>--clamp-mss-to-pmtu</code>）、<code>NFQUEUE</code>、<code>NOTRACK</code>、<code>CT</code>、<code>AUDIT</code>、<code>CONNMARK</code>。</p>
+<p><strong>比對擴充（<code>-m</code> 的值）</strong></p>
+<p>常用：<code>conntrack</code>（<code>--ctstate</code>）、<code>state</code>（舊版）、<code>multiport</code>（<code>--dports</code>）、<code>limit</code>（<code>--limit</code>）、
+<code>mac</code>（<code>--mac-source</code>）、<code>iprange</code>、<code>owner</code>（<code>--uid-owner</code>）、<code>comment</code>（<code>--comment</code>）、
+<code>tcp</code>／<code>udp</code>（<code>--dport</code>／<code>--sport</code>／<code>--tcp-flags</code>）、<code>addrtype</code>、<code>set</code>（ipset）、<code>recent</code>、
+<code>string</code>、<code>time</code>、<code>hashlimit</code>、<code>connlimit</code>、<code>physdev</code>、<code>policy</code>、<code>mark</code>。</p>
+<blockquote>
+<p><strong>每個 target 與 match 擴充各自還有自己的選項</strong>，數量太多不適合全列。<br />
+查法：<code>iptables -j &lt;目標&gt; --help</code> 或 <code>iptables -m &lt;模組&gt; --help</code> <strong>會把該擴充的選項印出來</strong>，完整說明見 <code>man iptables-extensions</code>。</p>
+</blockquote>
+<h3 id="常用配方">常用配方</h3>
+<pre><code class="language-bash"><span class="c1"># 基本三件套（順序很重要）</span>
+iptables<span class="w"> </span>-P<span class="w"> </span>INPUT<span class="w"> </span>DROP<span class="w">                                          </span><span class="c1"># 預設拒絕</span>
+iptables<span class="w"> </span>-A<span class="w"> </span>INPUT<span class="w"> </span>-i<span class="w"> </span>lo<span class="w"> </span>-j<span class="w"> </span>ACCEPT<span class="w">                               </span><span class="c1"># 本機迴路一定要放行</span>
+iptables<span class="w"> </span>-A<span class="w"> </span>INPUT<span class="w"> </span>-m<span class="w"> </span>conntrack<span class="w"> </span>--ctstate<span class="w"> </span>ESTABLISHED,RELATED<span class="w"> </span>-j<span class="w"> </span>ACCEPT<span class="w">   </span><span class="c1"># 回程流量</span>
+
+<span class="c1"># 開放服務</span>
+iptables<span class="w"> </span>-A<span class="w"> </span>INPUT<span class="w"> </span>-p<span class="w"> </span>tcp<span class="w"> </span>--dport<span class="w"> </span><span class="m">22</span><span class="w"> </span>-j<span class="w"> </span>ACCEPT
+iptables<span class="w"> </span>-A<span class="w"> </span>INPUT<span class="w"> </span>-p<span class="w"> </span>tcp<span class="w"> </span>-m<span class="w"> </span>multiport<span class="w"> </span>--dports<span class="w"> </span><span class="m">80</span>,443<span class="w"> </span>-j<span class="w"> </span>ACCEPT
+
+<span class="c1"># 封鎖來源</span>
+iptables<span class="w"> </span>-I<span class="w"> </span>INPUT<span class="w"> </span><span class="m">1</span><span class="w"> </span>-s<span class="w"> </span><span class="m">1</span>.2.3.4<span class="w"> </span>-j<span class="w"> </span>DROP<span class="w">                          </span><span class="c1"># -I 插到最前面才會生效</span>
+
+<span class="c1"># 分享網路（NAT）</span>
+iptables<span class="w"> </span>-t<span class="w"> </span>nat<span class="w"> </span>-A<span class="w"> </span>POSTROUTING<span class="w"> </span>-o<span class="w"> </span>eth0<span class="w"> </span>-j<span class="w"> </span>MASQUERADE
+<span class="nb">echo</span><span class="w"> </span><span class="m">1</span><span class="w"> </span>&gt;<span class="w"> </span>/proc/sys/net/ipv4/ip_forward
+
+<span class="c1"># 通訊埠轉發</span>
+iptables<span class="w"> </span>-t<span class="w"> </span>nat<span class="w"> </span>-A<span class="w"> </span>PREROUTING<span class="w"> </span>-p<span class="w"> </span>tcp<span class="w"> </span>--dport<span class="w"> </span><span class="m">80</span><span class="w"> </span>-j<span class="w"> </span>DNAT<span class="w"> </span>--to-destination<span class="w"> </span><span class="m">192</span>.168.1.10:8080
+
+<span class="c1"># 查看（排查必用）</span>
+iptables<span class="w"> </span>-L<span class="w"> </span>-n<span class="w"> </span>-v<span class="w"> </span>--line-numbers<span class="w">       </span><span class="c1"># -n 不做 DNS 反查（快很多）、-v 看 counter</span>
+iptables<span class="w"> </span>-t<span class="w"> </span>nat<span class="w"> </span>-L<span class="w"> </span>-n<span class="w"> </span>-v
+iptables<span class="w"> </span>-S<span class="w">                            </span><span class="c1"># 印成指令形式，好複製</span>
+
+<span class="c1"># 刪除</span>
+iptables<span class="w"> </span>-D<span class="w"> </span>INPUT<span class="w"> </span><span class="m">3</span><span class="w">                    </span><span class="c1"># 用 --line-numbers 看到的編號</span>
+</code></pre>
+<p><strong><code>-A</code> 與 <code>-I</code> 的陷阱</strong>：鏈裡若已經有一條 <code>-j DROP</code> 或預設政策是 DROP，你用 <code>-A</code> 加的放行規則排在後面，永遠輪不到。<strong>加放行規則用 <code>-I</code>，加封鎖規則用 <code>-A</code></strong>——記不住就先 <code>-L --line-numbers</code>
+看清楚順序再決定。</p>
+<h3 id="持久化">持久化</h3>
+<p>iptables 規則<strong>重開機就消失</strong>。</p>
+<pre><code class="language-bash">iptables-save<span class="w"> </span>&gt;<span class="w"> </span>/etc/iptables/rules.v4<span class="w">      </span><span class="c1"># 匯出</span>
+iptables-restore<span class="w"> </span>&lt;<span class="w"> </span>/etc/iptables/rules.v4<span class="w">   </span><span class="c1"># 匯入</span>
+apt<span class="w"> </span>install<span class="w"> </span>iptables-persistent<span class="w">             </span><span class="c1"># Debian/Ubuntu：開機自動還原</span>
+</code></pre>
+<hr />
+<h2 id="四nftables-怎麼用">四、nftables 怎麼用</h2>
+<p>nft 的完整用法——<strong>命令文法（add／delete／list…）與規則語法（每個 token 的意思）</strong>——
+獨立成一篇：<strong><a href="nft%E5%AE%8C%E6%95%B4%E7%94%A8%E6%B3%95-%E5%BE%9E%E5%91%BD%E4%BB%A4%E5%88%B0%E8%A6%8F%E5%89%87%E8%AA%9E%E6%B3%95.html">nft完整用法-從命令到規則語法</a></strong>。</p>
+<p>本篇只保留「兩代工具的對照」與 iptables 自己的用法；要動手寫 nft 規則請看那篇。</p>
+<h2 id="五語法對照官方工具實測產生">五、語法對照（官方工具實測產生）</h2>
+<p><code>iptables-translate</code> 會把 iptables 指令翻成 nft 語法，<strong>不需要 root、也不會真的套用</strong>，是最好的學習與遷移工具。以下是在本機跑出來的實際輸出：</p>
+<table>
+<thead>
+<tr>
+<th>iptables</th>
+<th>nft</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-A INPUT -p tcp --dport 22 -j ACCEPT</code></td>
+<td><code>add rule ip filter INPUT tcp dport 22 counter accept</code></td>
+</tr>
+<tr>
+<td><code>-A INPUT -s 10.0.0.0/8 -j DROP</code></td>
+<td><code>add rule ip filter INPUT ip saddr 10.0.0.0/8 counter drop</code></td>
+</tr>
+<tr>
+<td><code>-A INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT</code></td>
+<td><code>add rule ip filter INPUT ct state related,established counter accept</code></td>
+</tr>
+<tr>
+<td><code>-t nat -A POSTROUTING -o eth0 -j MASQUERADE</code></td>
+<td><code>add rule ip nat POSTROUTING oifname &quot;eth0&quot; counter masquerade</code></td>
+</tr>
+<tr>
+<td><code>-t nat -A PREROUTING -p tcp --dport 80 -j DNAT --to-destination 192.168.1.10:8080</code></td>
+<td><code>add rule ip nat PREROUTING tcp dport 80 counter dnat to 192.168.1.10:8080</code></td>
+</tr>
+<tr>
+<td><code>-A INPUT -p tcp -m multiport --dports 80,443 -j ACCEPT</code></td>
+<td><code>add rule ip filter INPUT ip protocol tcp tcp dport { 80, 443 } counter accept</code></td>
+</tr>
+<tr>
+<td><code>-A INPUT -p icmp -j REJECT --reject-with icmp-port-unreachable</code></td>
+<td><code>add rule ip filter INPUT ip protocol icmp counter reject</code></td>
+</tr>
+<tr>
+<td><code>-I INPUT 1 -i lo -j ACCEPT</code></td>
+<td><code>insert rule ip filter INPUT iifname &quot;lo&quot; counter accept</code></td>
+</tr>
+</tbody>
+</table>
+<p>觀察幾個規律：<strong><code>-A</code> → <code>add</code>／<code>-I</code> → <code>insert</code>、<code>-j ACCEPT</code> → <code>accept</code>（小寫）、
+<code>-m multiport --dports 80,443</code> → <code>{ 80, 443 }</code>（集合取代了 match 模組）、
+<code>-m conntrack --ctstate</code> → <code>ct state</code>。</strong></p>
+<p>整份腳本可以用 <code>iptables-restore-translate -f rules.v4</code> 一次翻譯。</p>
+<hr />
+<h2 id="六關鍵差異">六、關鍵差異</h2>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>iptables</th>
+<th>nftables</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>工具數量</td>
+<td>4 套（<code>iptables</code>／<code>ip6tables</code>／<code>arptables</code>／<code>ebtables</code>）</td>
+<td>1 套 <code>nft</code></td>
+</tr>
+<tr>
+<td>IPv4／IPv6</td>
+<td>各寫一遍</td>
+<td><code>inet</code> family 一套搞定</td>
+</tr>
+<tr>
+<td>表與鏈</td>
+<td>固定的四表五鏈</td>
+<td><strong>自己宣告</strong> family／hook／priority</td>
+</tr>
+<tr>
+<td>更新</td>
+<td>逐條下指令，中途可能半套</td>
+<td><code>nft -f</code> <strong>原子更新</strong></td>
+</tr>
+<tr>
+<td>集合</td>
+<td>要另外裝 ipset</td>
+<td>內建 set／map／vmap，支援 timeout</td>
+</tr>
+<tr>
+<td>比對擴充</td>
+<td><code>-m xxx</code> 一堆 match 模組</td>
+<td>統一的運算式語法</td>
+</tr>
+<tr>
+<td>刪除規則</td>
+<td>用行號</td>
+<td>用 handle（要先 <code>-a</code>）</td>
+</tr>
+<tr>
+<td>效能</td>
+<td>規則多時線性比對</td>
+<td>集合用雜湊／區間查找，規則多時明顯較快</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="七為什麼我的-iptables-看起來是空的">七、為什麼我的 iptables 看起來是空的？</h2>
+<p><strong>因為 Ubuntu 預設就沒有任何防火牆規則——這是正常的，不是壞了。</strong></p>
+<p>桌面版 Ubuntu 出廠時三條鏈的預設政策都是 <code>ACCEPT</code>、一條規則都沒有。它的安全性不是靠防火牆，而是靠「預設沒有服務對外監聽」。所以你會看到的規則，<strong>全部來自某個自己去寫規則的程式</strong>。</p>
+<h3 id="誰會自己寫規則">誰會自己寫規則</h3>
+<table>
+<thead>
+<tr>
+<th>來源</th>
+<th>什麼時候會出現</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Docker</strong></td>
+<td>只要 daemon 在跑就一定有——它<strong>必須</strong>寫規則才能運作</td>
+</tr>
+<tr>
+<td><code>ufw</code></td>
+<td>只有 <code>ufw enable</code> 之後（會出現一堆 <code>ufw-*</code> 鏈）</td>
+</tr>
+<tr>
+<td><code>firewalld</code></td>
+<td>RHEL 系的預設，Ubuntu 通常沒裝</td>
+</tr>
+<tr>
+<td>libvirt／VirtualBox</td>
+<td>開了虛擬機的 NAT 網路時</td>
+</tr>
+<tr>
+<td>Kubernetes（kube-proxy）</td>
+<td>節點上會有大量 <code>KUBE-*</code> 鏈</td>
+</tr>
+<tr>
+<td><code>fail2ban</code>、tailscale 等</td>
+<td>各自插自己的鏈</td>
+</tr>
+</tbody>
+</table>
+<p>本機實測，為什麼只剩 Docker：</p>
+<pre><code class="language-bash">$<span class="w"> </span>systemctl<span class="w"> </span>is-active<span class="w"> </span>ufw
+active<span class="w">                              </span><span class="c1"># ← 看起來開著？</span>
+$<span class="w"> </span>grep<span class="w"> </span>^ENABLED<span class="w"> </span>/etc/ufw/ufw.conf
+<span class="nv">ENABLED</span><span class="o">=</span>no<span class="w">                          </span><span class="c1"># ← 實際上是關的</span>
+</code></pre>
+<p><strong>這是個很容易誤判的陷阱</strong>：<code>ufw</code> 的 systemd unit 是 <code>active</code>，但它開機時讀設定檔發現
+<code>ENABLED=no</code>，於是什麼都不做就結束了。<strong>要看 <code>ufw status</code>（需 root），不是看 <code>systemctl</code>。</strong></p>
+<p>其餘的：<code>nftables.service</code> 是 <code>disabled</code>、<code>/etc/iptables/</code> 不存在（沒裝 <code>iptables-persistent</code>）、
+<code>firewalld</code> 沒裝。所以整台機器只剩 Docker 在寫規則。</p>
+<h3 id="docker-為什麼一定會有規則">Docker 為什麼一定會有規則</h3>
+<p>因為它的兩個核心功能都靠 netfilter 實作：</p>
+<ul>
+<li><strong>容器要連得到外網</strong> → 需要 <code>MASQUERADE</code>（在 <code>nat</code> 表的 <code>POSTROUTING</code>）</li>
+<li><strong><code>-p 8080:80</code> 的埠對映</strong> → 需要 <code>DNAT</code>（在 <code>nat</code> 表的 <code>PREROUTING</code>）</li>
+</ul>
+<p>本機有 <code>docker0</code>（172.17.0.0/16）與另一個自訂 bridge，所以這些規則一定存在。想確認的話，<code>iptables -t nat -L -n</code> 會看到 <code>DOCKER</code> 鏈。</p>
+<h3 id="三個明明有規則卻看不到的技術原因">三個「明明有規則卻看不到」的技術原因</h3>
+<ol>
+<li><strong>只看了 <code>filter</code> 表</strong>。<code>iptables -L</code> 不加 <code>-t</code> 預設只列 <code>filter</code>，而 Docker 最主要的規則在 <code>nat</code>。要看全部：<code>iptables -L -n -v; iptables -t nat -L -n -v</code>。</li>
+<li><strong><code>iptables</code> 看不到原生 nft 規則</strong>。<code>iptables-nft</code> 只認得它自己建立的那幾張相容表（<code>ip filter</code>、<code>ip nat</code>…）。如果有工具直接用 nft 建了自己的 table（像 OpenWrt 的
+<code>inet fw4</code>），<code>iptables -L</code> <strong>完全看不到</strong>。<strong><code>nft list ruleset</code> 才是唯一的全貌。</strong></li>
+<li><strong>沒有 root</strong>。非 root 執行會直接報權限錯誤，不是「空的」。</li>
+</ol>
+<h3 id="順帶沒有防火牆時暴露面就等於監聽清單">順帶：沒有防火牆時，暴露面就等於監聽清單</h3>
+<p>既然沒有規則擋，<strong>任何綁在 <code>0.0.0.0</code> 的服務，區網內都連得到</strong>。本機實測綁在 <code>0.0.0.0</code>／<code>::</code>
+的埠包括：</p>
+<pre><code>80 (http)   111 (sunrpc)   2049 (nfs)   5432 (postgresql)   2080   6030   6060  …
+</code></pre>
+<p><code>rpcbind</code>(111)、NFS(2049)、PostgreSQL(5432) 都在對整個區網開著。這不一定有問題（看你信不信任這個網路），但<strong>值得知道現況</strong>——判斷暴露面要看 <code>ss -ltn</code> 的綁定位址，而不是「我沒設防火牆應該沒差」。（綁定位址的意義見
+<a href="netstat%E6%80%8E%E9%BA%BC%E7%94%A8-%E4%BB%A5%E5%8F%8A%E8%A9%B2%E6%94%B9%E7%94%A8ss%E7%9A%84%E7%90%86%E7%94%B1.html">netstat 那篇</a>。）</p>
+<hr />
+<h2 id="八排查規則寫了卻沒作用">八、排查：規則寫了卻沒作用</h2>
+<p>照這個順序查：</p>
+<pre><code class="language-bash"><span class="c1"># 1. 規則真的在嗎？（注意 legacy/nft 兩套後端可能各存各的）</span>
+nft<span class="w"> </span>list<span class="w"> </span>ruleset
+iptables<span class="w"> </span>-S<span class="w"> </span><span class="p">;</span><span class="w"> </span>iptables-legacy<span class="w"> </span>-S<span class="w"> </span><span class="m">2</span>&gt;/dev/null
+
+<span class="c1"># 2. 有沒有被命中？看 counter</span>
+iptables<span class="w"> </span>-L<span class="w"> </span>-n<span class="w"> </span>-v<span class="w"> </span>--line-numbers<span class="w">        </span><span class="c1"># pkts/bytes 一直是 0 → 根本沒命中</span>
+nft<span class="w"> </span>list<span class="w"> </span>ruleset<span class="w">                        </span><span class="c1"># 規則裡的 counter 同理</span>
+
+<span class="c1"># 3. 是不是順序問題？前面有沒有更早命中的規則</span>
+iptables<span class="w"> </span>-L<span class="w"> </span>INPUT<span class="w"> </span>-n<span class="w"> </span>--line-numbers
+
+<span class="c1"># 4. 是不是根本沒走到這個 hook？（轉發流量不會經過 INPUT）</span>
+<span class="c1">#    先確認封包路徑，再確認 hook 選對</span>
+
+<span class="c1"># 5. 追封包實際經過哪些規則</span>
+nft<span class="w"> </span>monitor<span class="w"> </span>trace<span class="w">                       </span><span class="c1"># 搭配 `meta nftrace set 1` 的規則</span>
+</code></pre>
+<h3 id="五個常見陷阱">五個常見陷阱</h3>
+<ol>
+<li><strong>Docker 會自己插規則</strong>：Docker daemon 啟動時會建立自己的鏈並改 NAT 表，你手動加的規則可能被它的規則搶先命中，或被它重啟時覆蓋。</li>
+<li><strong><code>ufw</code>／<code>firewalld</code> 只是前端</strong>：用了它們就不要再手動下 iptables／nft，兩邊會互相覆蓋。</li>
+<li><strong>重開機消失</strong>：nft 與 iptables 的規則都在記憶體裡，沒存檔就沒了。臨時測試時這其實是<strong>優點</strong>
+——改壞了重開機就恢復。</li>
+<li><strong><code>DROP</code> 與 <code>REJECT</code> 的差別</strong>：<code>DROP</code> 不回應，對方會一直等到逾時（掃描者看起來像沒這台機器）；
+<code>REJECT</code> 立刻回 ICMP（Internet Control Message Protocol，網際網路控制訊息協定）錯誤，對方馬上知道被拒。對內用 <code>REJECT</code> 體驗較好，對外常用 <code>DROP</code>。</li>
+<li><strong>預設政策設成 DROP 之前，先確保 SSH 放行規則已經生效</strong>——否則遠端操作時會把自己鎖在門外。保險作法：先設一個 <code>sleep 60 &amp;&amp; nft flush ruleset</code> 的背景任務當後路。</li>
+</ol>
+<hr />
+<h2 id="九速查">九、速查</h2>
+<pre><code class="language-bash"><span class="c1"># === nftables ===</span>
+nft<span class="w"> </span>list<span class="w"> </span>ruleset<span class="w">                        </span><span class="c1"># 看全部</span>
+nft<span class="w"> </span>-a<span class="w"> </span>list<span class="w"> </span>ruleset<span class="w">                     </span><span class="c1"># 帶 handle（刪除時需要）</span>
+nft<span class="w"> </span>add<span class="w"> </span>table<span class="w"> </span>inet<span class="w"> </span>t
+nft<span class="w"> </span>add<span class="w"> </span>chain<span class="w"> </span>inet<span class="w"> </span>t<span class="w"> </span>c<span class="w"> </span><span class="s1">&#39;{ type filter hook input priority 0; policy drop; }&#39;</span>
+nft<span class="w"> </span>add<span class="w"> </span>rule<span class="w"> </span>inet<span class="w"> </span>t<span class="w"> </span>c<span class="w"> </span>tcp<span class="w"> </span>dport<span class="w"> </span><span class="o">{</span><span class="w"> </span><span class="m">22</span>,<span class="w"> </span><span class="m">80</span><span class="w"> </span><span class="o">}</span><span class="w"> </span>accept
+nft<span class="w"> </span>insert<span class="w"> </span>rule<span class="w"> </span>inet<span class="w"> </span>t<span class="w"> </span>c<span class="w"> </span>iif<span class="w"> </span>lo<span class="w"> </span>accept<span class="w">  </span><span class="c1"># 插到最前面</span>
+nft<span class="w"> </span>delete<span class="w"> </span>rule<span class="w"> </span>inet<span class="w"> </span>t<span class="w"> </span>c<span class="w"> </span>handle<span class="w"> </span><span class="m">7</span>
+nft<span class="w"> </span>flush<span class="w"> </span>ruleset<span class="w">                       </span><span class="c1"># 清空全部（危險）</span>
+nft<span class="w"> </span>-f<span class="w"> </span>/etc/nftables.conf<span class="w">               </span><span class="c1"># 原子套用整份</span>
+nft<span class="w"> </span>-c<span class="w"> </span>-f<span class="w"> </span>file.nft<span class="w">                      </span><span class="c1"># 只檢查語法不套用</span>
+
+<span class="c1"># === iptables ===</span>
+iptables<span class="w"> </span>-L<span class="w"> </span>-n<span class="w"> </span>-v<span class="w"> </span>--line-numbers<span class="w">        </span><span class="c1"># 看規則與 counter</span>
+iptables<span class="w"> </span>-S<span class="w">                             </span><span class="c1"># 指令形式</span>
+iptables<span class="w"> </span>-A<span class="w"> </span>INPUT<span class="w"> </span>-p<span class="w"> </span>tcp<span class="w"> </span>--dport<span class="w"> </span><span class="m">22</span><span class="w"> </span>-j<span class="w"> </span>ACCEPT
+iptables<span class="w"> </span>-I<span class="w"> </span>INPUT<span class="w"> </span><span class="m">1</span><span class="w"> </span>-i<span class="w"> </span>lo<span class="w"> </span>-j<span class="w"> </span>ACCEPT
+iptables<span class="w"> </span>-D<span class="w"> </span>INPUT<span class="w"> </span><span class="m">3</span>
+iptables-save<span class="w"> </span>&gt;<span class="w"> </span>rules.v4<span class="w"> </span><span class="p">;</span><span class="w"> </span>iptables-restore<span class="w"> </span>&lt;<span class="w"> </span>rules.v4
+
+<span class="c1"># === 兩者之間 ===</span>
+iptables<span class="w"> </span>-V<span class="w">                             </span><span class="c1"># 看括號：(nf_tables) 還是 (legacy)</span>
+iptables-translate<span class="w"> </span>-A<span class="w"> </span>INPUT<span class="w"> </span>-p<span class="w"> </span>tcp<span class="w"> </span>--dport<span class="w"> </span><span class="m">22</span><span class="w"> </span>-j<span class="w"> </span>ACCEPT<span class="w">    </span><span class="c1"># 語法翻譯</span>
+iptables-restore-translate<span class="w"> </span>-f<span class="w"> </span>rules.v4<span class="w">                      </span><span class="c1"># 整份腳本翻譯</span>
+</code></pre>
+<hr />
+<h2 id="自我測驗">自我測驗</h2>
+<ol>
+<li><code>iptables -V</code> 顯示 <code>(nf_tables)</code> 代表什麼？在這種系統上用 <code>iptables</code> 和用 <code>nft</code> 下規則，核心裡發生的事有什麼不同？</li>
+<li>為什麼 <code>-A</code> 加的放行規則常常「沒有作用」，改成 <code>-I</code> 就好了？背後是什麼機制？</li>
+<li>一條 filter 的 forward 鏈 <code>accept</code> 之後，封包怎麼會跑到 nat 的 postrouting 鏈去做 NAT？是哪條規則把它送過去的？順便說明 <code>accept</code> 和 <code>drop</code> 的作用範圍差在哪。</li>
+<li>nftables 的 <code>nft -f</code> 相較於逐條下 iptables 指令，最大的安全優勢是什麼？為什麼遠端改防火牆時這點特別重要？</li>
+<li>情境題：你在伺服器上加了一條 <code>iptables -A INPUT -p tcp --dport 8080 -j ACCEPT</code>，但外面還是連不上。請列出你的排查順序（至少三個檢查點），並說明每一步分別能排除什麼可能。</li>
+</ol>
+
+</main>
+</div>
+</body>
+</html>

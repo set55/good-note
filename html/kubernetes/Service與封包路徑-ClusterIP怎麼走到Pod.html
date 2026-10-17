@@ -1,0 +1,551 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Service 的 ClusterIP 不存在於任何網卡上，封包是怎麼走到 Pod 的？</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/app.js"></script>
+</head>
+<body>
+<button class="menu-btn" onclick="toggleMenu()">☰ 目錄</button>
+<div class="layout">
+<nav class="side">
+<div class="crumbs"><a href="../index.html">🏠 首頁</a> / <a href="README.html">kubernetes</a></div>
+<div class="tools"><button onclick="toggleTheme()">🌓 主題</button></div>
+<ul>
+<li class="l2"><a href="#%E4%B8%80%E5%8F%A5%E8%A9%B1%E7%B5%90%E8%AB%96">一句話結論</a></li>
+<li class="l2"><a href="#%E7%9B%AE%E9%8C%84">目錄</a></li>
+<li class="l2"><a href="#%E4%B8%80%E5%9B%9B%E5%B1%A4%E7%B6%B2%E8%B7%AF%E6%A8%A1%E5%9E%8B%E5%85%88%E5%88%86%E6%B8%85%E6%A5%9A%E8%AA%B0%E6%98%AF%E8%AA%B0">一、四層網路模型：先分清楚誰是誰</a></li>
+<li class="l2"><a href="#%E4%BA%8Cpod-%E7%B6%B2%E8%B7%AF%E5%90%8C%E7%AF%80%E9%BB%9E%E8%88%87%E8%B7%A8%E7%AF%80%E9%BB%9E">二、Pod 網路：同節點與跨節點</a></li>
+<li class="l3"><a href="#%E5%90%8C%E4%B8%80%E7%AF%80%E9%BB%9E%E4%B8%8A%E7%9A%84%E5%85%A9%E5%80%8B-pod">同一節點上的兩個 Pod</a></li>
+<li class="l3"><a href="#%E8%B7%A8%E7%AF%80%E9%BB%9E%E7%9A%84%E5%85%A9%E5%80%8B-pod">跨節點的兩個 Pod</a></li>
+<li class="l2"><a href="#%E4%B8%89%E7%82%BA%E4%BB%80%E9%BA%BC%E9%9C%80%E8%A6%81-service">三、為什麼需要 Service</a></li>
+<li class="l2"><a href="#%E5%9B%9Bclusterip-%E7%9A%84%E7%9C%9F%E7%9B%B8%E4%B8%80%E6%A2%9D-dnat-%E8%A6%8F%E5%89%87">四、ClusterIP 的真相：一條 DNAT 規則</a></li>
+<li class="l3"><a href="#%E9%95%B7%E9%80%A3%E7%B7%9A%E5%95%8F%E9%A1%8C%E7%9A%84%E6%AD%A3%E8%A7%A3">長連線問題的正解</a></li>
+<li class="l2"><a href="#%E4%BA%94%E5%AE%8C%E6%95%B4%E5%B0%81%E5%8C%85%E8%B7%AF%E5%BE%91%E9%80%90%E8%B7%B3%E8%BF%BD%E8%B9%A4">五、完整封包路徑逐跳追蹤</a></li>
+<li class="l2"><a href="#%E5%85%ADiptables-%E6%A8%A1%E5%BC%8F-vs-ipvs-%E6%A8%A1%E5%BC%8F-vs-ebpf">六、iptables 模式 vs IPVS 模式 vs eBPF</a></li>
+<li class="l2"><a href="#%E4%B8%83dns%E5%90%8D%E5%AD%97%E6%98%AF%E6%80%8E%E9%BA%BC%E8%A7%A3%E5%87%BA%E4%BE%86%E7%9A%84">七、DNS：名字是怎麼解出來的</a></li>
+<li class="l2"><a href="#%E5%85%ABservice-%E7%9A%84%E5%90%84%E7%A8%AE%E9%A1%9E%E5%9E%8B%E8%88%87%E5%BE%9E%E5%A4%96%E9%83%A8%E9%80%B2%E4%BE%86%E7%9A%84%E8%B7%AF%E5%BE%91">八、Service 的各種類型與從外部進來的路徑</a></li>
+<li class="l3"><a href="#externaltrafficpolicy%E4%BE%86%E6%BA%90-ip-%E7%82%BA%E4%BD%95%E4%B8%8D%E8%A6%8B%E4%BA%86">externalTrafficPolicy：來源 IP 為何不見了</a></li>
+<li class="l2"><a href="#%E4%B9%9D%E5%B9%BE%E5%80%8B%E4%B8%80%E5%AE%9A%E6%9C%83%E8%B8%A9%E5%88%B0%E7%9A%84%E5%9D%91">九、幾個一定會踩到的坑</a></li>
+<li class="l2"><a href="#%E5%8D%81%E6%8E%92%E6%9F%A5%E9%A0%86%E5%BA%8F">十、排查順序</a></li>
+<li class="l2"><a href="#%E7%9B%B8%E9%97%9C%E7%AD%86%E8%A8%98">相關筆記</a></li>
+<li class="l2"><a href="#%E6%8C%87%E4%BB%A4%E9%81%B8%E9%A0%85%E7%9A%84%E6%B6%B5%E8%93%8B%E7%AF%84%E5%9C%8D%E8%AA%AA%E6%98%8E">指令選項的涵蓋範圍說明</a></li>
+<li class="l2"><a href="#%E8%87%AA%E6%88%91%E6%B8%AC%E9%A9%97">自我測驗</a></li>
+</ul>
+</nav>
+<main>
+<h1 id="service-的-clusterip-不存在於任何網卡上封包是怎麼走到-pod-的">Service 的 ClusterIP 不存在於任何網卡上，封包是怎麼走到 Pod 的？</h1>
+<blockquote>
+<p>日期：2026-09-12<br />
+情境：學完 K8s 組件與部署流程後，補上網路這一半——一個請求從 Pod 內部發出，到底經過哪些機制才落到另一個 Pod 上<br />
+適用範圍：Kubernetes v1.28+，kube-proxy 的 iptables 模式（預設）與 IPVS 模式</p>
+</blockquote>
+<hr />
+<h2 id="一句話結論">一句話結論</h2>
+<blockquote>
+<p><strong>Service 的 ClusterIP 是一個「不存在的 IP」——沒有任何網卡持有它，你 ping 它通常不會通，但連它就是會成功。</strong>
+因為它不是一個位址，而是<strong>每台節點核心裡的一條 NAT（Network Address Translation，網路位址轉換）規則的觸發條件</strong>。理解這一點，K8s 網路的所有怪現象都能解釋。</p>
+</blockquote>
+<hr />
+<h2 id="目錄">目錄</h2>
+<ul>
+<li><a href="#%E4%B8%80%E5%9B%9B%E5%B1%A4%E7%B6%B2%E8%B7%AF%E6%A8%A1%E5%9E%8B%E5%85%88%E5%88%86%E6%B8%85%E6%A5%9A%E8%AA%B0%E6%98%AF%E8%AA%B0">一、四層網路模型：先分清楚誰是誰</a></li>
+<li><a href="#%E4%BA%8Cpod-%E7%B6%B2%E8%B7%AF%E5%90%8C%E7%AF%80%E9%BB%9E%E8%88%87%E8%B7%A8%E7%AF%80%E9%BB%9E">二、Pod 網路：同節點與跨節點</a></li>
+<li><a href="#%E4%B8%89%E7%82%BA%E4%BB%80%E9%BA%BC%E9%9C%80%E8%A6%81-service">三、為什麼需要 Service</a></li>
+<li><a href="#%E5%9B%9Bclusterip-%E7%9A%84%E7%9C%9F%E7%9B%B8%E4%B8%80%E6%A2%9D-dnat-%E8%A6%8F%E5%89%87">四、ClusterIP 的真相：一條 DNAT 規則</a></li>
+<li><a href="#%E4%BA%94%E5%AE%8C%E6%95%B4%E5%B0%81%E5%8C%85%E8%B7%AF%E5%BE%91%E9%80%90%E8%B7%B3%E8%BF%BD%E8%B9%A4">五、完整封包路徑逐跳追蹤</a></li>
+<li><a href="#%E5%85%ADiptables-%E6%A8%A1%E5%BC%8F-vs-ipvs-%E6%A8%A1%E5%BC%8F-vs-ebpf">六、iptables 模式 vs IPVS 模式 vs eBPF</a></li>
+<li><a href="#%E4%B8%83dns%E5%90%8D%E5%AD%97%E6%98%AF%E6%80%8E%E9%BA%BC%E8%A7%A3%E5%87%BA%E4%BE%86%E7%9A%84">七、DNS：名字是怎麼解出來的</a></li>
+<li><a href="#%E5%85%ABservice-%E7%9A%84%E5%90%84%E7%A8%AE%E9%A1%9E%E5%9E%8B%E8%88%87%E5%BE%9E%E5%A4%96%E9%83%A8%E9%80%B2%E4%BE%86%E7%9A%84%E8%B7%AF%E5%BE%91">八、Service 的各種類型與從外部進來的路徑</a></li>
+<li><a href="#%E4%B9%9D%E5%B9%BE%E5%80%8B%E4%B8%80%E5%AE%9A%E6%9C%83%E8%B8%A9%E5%88%B0%E7%9A%84%E5%9D%91">九、幾個一定會踩到的坑</a></li>
+<li><a href="#%E5%8D%81%E6%8E%92%E6%9F%A5%E9%A0%86%E5%BA%8F">十、排查順序</a></li>
+<li><a href="#%E8%87%AA%E6%88%91%E6%B8%AC%E9%A9%97">自我測驗</a></li>
+</ul>
+<hr />
+<h2 id="一四層網路模型先分清楚誰是誰">一、四層網路模型：先分清楚誰是誰</h2>
+<p>K8s 裡有<strong>四種完全不同的 IP</strong>，混淆它們是所有網路困惑的起點：</p>
+<table>
+<thead>
+<tr>
+<th>類型</th>
+<th>誰持有</th>
+<th>範圍</th>
+<th>誰分配</th>
+<th>會變嗎</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Node IP</strong></td>
+<td>實體/虛擬機的網卡</td>
+<td>真實網路</td>
+<td>你的基礎設施 / DHCP</td>
+<td>幾乎不變</td>
+</tr>
+<tr>
+<td><strong>Pod IP</strong></td>
+<td>Pod 的網路命名空間</td>
+<td>叢集內部（如 <code>10.244.0.0/16</code>）</td>
+<td><strong>CNI 外掛</strong></td>
+<td><strong>每次重建就變</strong></td>
+</tr>
+<tr>
+<td><strong>ClusterIP</strong></td>
+<td><strong>沒有人持有</strong></td>
+<td>叢集內部（如 <code>10.96.0.0/12</code>）</td>
+<td>API Server 從服務網段撥號</td>
+<td>Service 存活期間不變</td>
+</tr>
+<tr>
+<td><strong>外部 IP</strong></td>
+<td>雲端負載平衡器</td>
+<td>公網</td>
+<td>cloud-controller-manager</td>
+<td>依 Service 生命週期</td>
+</tr>
+</tbody>
+</table>
+<p>K8s 對網路只提出<strong>三條強制要求</strong>（怎麼實作是 CNI 的事）：</p>
+<ol>
+<li>每個 Pod 有自己<strong>獨立且叢集內唯一</strong>的 IP</li>
+<li><strong>所有 Pod 之間可以直接互通，中間不做 NAT</strong>（Pod A 看到的來源 IP 就是 Pod B 的真實 Pod IP）</li>
+<li>節點上的代理程式（kubelet 等）可以直接連到該節點上的所有 Pod</li>
+</ol>
+<blockquote>
+<p>第 2 條「Pod 之間不做 NAT」是 K8s 網路模型的核心承諾。它讓應用不需要知道自己在容器裡——<strong>Pod 看到的自己的 IP，跟別人看到它的 IP 是同一個</strong>。這跟 Docker 預設的 bridge 網路（會做 SNAT）完全不同。</p>
+</blockquote>
+<hr />
+<h2 id="二pod-網路同節點與跨節點">二、Pod 網路：同節點與跨節點</h2>
+<h3 id="同一節點上的兩個-pod">同一節點上的兩個 Pod</h3>
+<pre><code>        Pod A (10.244.1.5)          Pod B (10.244.1.6)
+        ┌──────────────┐            ┌──────────────┐
+        │    eth0      │            │    eth0      │      ← 各自 netns 裡的網卡
+        └──────┬───────┘            └──────┬───────┘
+               │ veth pair                 │ veth pair    ← 一對虛擬網線，一端在 Pod，一端在主機
+        ┌──────┴───────────────────────────┴───────┐
+        │        cni0 / cbr0（Linux bridge）        │      ← 主機上的虛擬交換器
+        └──────────────────────────────────────────┘
+</code></pre>
+<p>就是一個二層交換：ARP 找到對方 MAC，走 bridge 直接送達。</p>
+<h3 id="跨節點的兩個-pod">跨節點的兩個 Pod</h3>
+<p>由 CNI 決定，主要兩派：</p>
+<table>
+<thead>
+<tr>
+<th>作法</th>
+<th>原理</th>
+<th>代表</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Overlay（疊加網路）</strong></td>
+<td>把 Pod 封包<strong>包進</strong>一個 UDP 封包（VXLAN），送到對方節點再拆開</td>
+<td>Flannel VXLAN、Calico VXLAN</td>
+</tr>
+<tr>
+<td><strong>Underlay / 路由模式</strong></td>
+<td>不封裝，直接在底層網路的路由表上宣告「<code>10.244.1.0/24</code> 走 node1」</td>
+<td>Calico BGP、雲端 VPC 原生模式</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>Overlay：<strong>不需要底層網路配合</strong>，到處都能跑，代價是封裝開銷與 MTU（Maximum Transmission Unit，最大傳輸單元）縮水。</li>
+<li>路由模式：效能好、封包乾淨可抓，但需要底層網路（交換器或雲端 VPC）願意學這些路由。</li>
+</ul>
+<blockquote>
+<p><strong>MTU 是 overlay 的經典陷阱</strong>：VXLAN 每個封包多 50 bytes 標頭。若 Pod 的 MTU 還是 1500 而底層也是 1500，大封包就會需要分片或被丟棄。症狀非常典型：<strong>小請求正常、大 body 的請求卡死（TLS 握手成功但傳輸掛住）</strong>。</p>
+</blockquote>
+<hr />
+<h2 id="三為什麼需要-service">三、為什麼需要 Service</h2>
+<p>Pod IP <strong>每次重建就變</strong>，而且有多個副本。如果讓呼叫方直接記 Pod IP：</p>
+<ul>
+<li>Pod 重啟 → 位址失效</li>
+<li>擴容 → 呼叫方不知道有新的可用</li>
+<li>沒有負載平衡</li>
+</ul>
+<p>Service 提供<strong>一個穩定的名字 + 一個穩定的虛擬 IP + 自動的負載平衡</strong>，並且成員清單由控制器自動維護（Pod 一 Ready 就自動加入，一掛掉就自動移除）。</p>
+<pre><code class="language-yaml"><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">v1</span>
+<span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Service</span>
+<span class="nt">metadata</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">web</span>
+<span class="nt">spec</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">selector</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">app</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">web</span><span class="w">          </span><span class="c1"># ← 靠標籤選 Pod，不是靠名字。這是唯一的連結方式</span>
+<span class="w">  </span><span class="nt">ports</span><span class="p">:</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">port</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">80</span><span class="w">          </span><span class="c1"># Service 對外的 port</span>
+<span class="w">    </span><span class="nt">targetPort</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">8080</span><span class="w">  </span><span class="c1"># Pod 上實際監聽的 port</span>
+</code></pre>
+<p><strong>Service 與 Pod 之間唯一的連結是「標籤選擇器（label selector）」。</strong> 選擇器打錯一個字，Service 建得起來、DNS 解得出來、連線卻永遠被拒——因為後端是空的。這是<strong>最常見的 K8s 網路故障</strong>。</p>
+<hr />
+<h2 id="四clusterip-的真相一條-dnat-規則">四、ClusterIP 的真相：一條 DNAT 規則</h2>
+<p>建立 Service 之後發生兩件事：</p>
+<ol>
+<li>API Server 從服務網段（<code>--service-cluster-ip-range</code>）分配一個 IP，例如 <code>10.96.10.20</code>。</li>
+<li>EndpointSlice 控制器把所有「符合 selector <strong>且 Ready</strong>」的 Pod IP 寫進 EndpointSlice。</li>
+</ol>
+<p>然後<strong>每台節點</strong>的 kube-proxy watch 到這些變化，在本機寫下 iptables 規則。簡化後長這樣：</p>
+<pre><code># 所有出站流量都會經過的鏈
+-A OUTPUT -j KUBE-SERVICES
+
+# 目的地是這個 ClusterIP + port 的，跳到該 Service 專屬的鏈
+-A KUBE-SERVICES -d 10.96.10.20/32 -p tcp --dport 80 -j KUBE-SVC-XXXX
+
+# 該 Service 的鏈：用機率做隨機負載平衡（三個後端）
+-A KUBE-SVC-XXXX -m statistic --mode random --probability 0.333 -j KUBE-SEP-AAA
+-A KUBE-SVC-XXXX -m statistic --mode random --probability 0.500 -j KUBE-SEP-BBB   # 剩下兩個裡選一個
+-A KUBE-SVC-XXXX -j KUBE-SEP-CCC
+
+# 每個後端的鏈：真正做 DNAT，把目的地改寫成 Pod IP
+-A KUBE-SEP-AAA -p tcp -j DNAT --to-destination 10.244.1.5:8080
+</code></pre>
+<p><strong>幾個由此推導出來的關鍵事實</strong>：</p>
+<table>
+<thead>
+<tr>
+<th>事實</th>
+<th>為什麼</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong><code>ping &lt;ClusterIP&gt;</code> 不通是正常的</strong></td>
+<td>規則只匹配 <code>-p tcp --dport 80</code>。ICMP 沒有 port，匹配不到任何規則，沒人回應它</td>
+</tr>
+<tr>
+<td><strong>ClusterIP 不在任何網卡上</strong></td>
+<td><code>ip addr</code> 永遠找不到它。它只是 iptables 規則的比對條件</td>
+</tr>
+<tr>
+<td><strong>負載平衡在「發起端的節點」就完成了</strong></td>
+<td>封包離開來源節點時，目的地已經是真正的 Pod IP。中途沒有任何集中式的負載平衡器</td>
+</tr>
+<tr>
+<td><strong>選後端是「連線建立時」決定的</strong></td>
+<td>DNAT 記進 conntrack（連線追蹤）表，同一條 TCP 連線之後的封包都走同一個後端</td>
+</tr>
+<tr>
+<td><strong>長連線不會被重新平衡</strong></td>
+<td>HTTP/2、gRPC、資料庫連線池打一條連線用一整天，就永遠黏在同一個 Pod 上。<strong>擴容對它們無效</strong></td>
+</tr>
+<tr>
+<td><strong><code>probability 0.333</code> 是等機率而非輪詢（round-robin）</strong></td>
+<td>短時間內的分佈可能不均</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>心法</strong>：Service 不是一個「跑在某處的負載平衡器」，而是<strong>散佈在每台節點核心裡的、對同一份資料的一致實作</strong>。這也解釋了為什麼 kube-proxy 掛掉時「只有那台節點連不出去」，其他節點完全不受影響。</p>
+</blockquote>
+<h3 id="長連線問題的正解">長連線問題的正解</h3>
+<p>因為 DNAT 只在連線建立時發生，gRPC 之類的長連線用戶端會失衡。解法有三種：</p>
+<ol>
+<li>客戶端做<strong>用戶端負載平衡</strong>（client-side LB），配合 <strong>headless Service</strong>（<code>clusterIP: None</code>）——DNS 直接回傳所有 Pod IP，由客戶端自己輪詢連線。</li>
+<li>用<strong>服務網格（service mesh）</strong>如 Istio、Linkerd——sidecar 在 L7 層做每個請求的負載平衡。</li>
+<li>設定連線的<strong>最長存活時間</strong>，強迫定期重連。</li>
+</ol>
+<hr />
+<h2 id="五完整封包路徑逐跳追蹤">五、完整封包路徑逐跳追蹤</h2>
+<p>Pod A（node1，<code>10.244.1.5</code>）連 <code>http://web</code>，後端是 Pod C（node2，<code>10.244.2.8:8080</code>）：</p>
+<pre><code>① Pod A 解析 DNS &quot;web&quot;
+      → 查 /etc/resolv.conf → nameserver = CoreDNS 的 ClusterIP (10.96.0.10)
+      → 這個查詢本身也是走 Service！也要經過一次 DNAT 才到 CoreDNS 的 Pod
+      → CoreDNS 回 10.96.10.20（web 這個 Service 的 ClusterIP）
+
+② Pod A 送出 TCP SYN：src=10.244.1.5  dst=10.96.10.20:80
+      → 封包離開 Pod 的 netns，經過 veth 進入 node1 的核心
+
+③ node1 的 iptables（nat 表 PREROUTING/OUTPUT → KUBE-SERVICES）
+      → 匹配到 ClusterIP + port
+      → 隨機挑中後端 Pod C
+      → DNAT：dst 改寫成 10.244.2.8:8080
+      → 寫進 conntrack 表（記住這條連線選了誰）
+
+④ 因為來源與目的都是 Pod IP，且 K8s 承諾 Pod 間不做 NAT
+      → src 保持 10.244.1.5 不變
+
+⑤ node1 查路由：10.244.2.0/24 在 node2
+      → overlay 就封裝成 VXLAN；路由模式就直接送出
+
+⑥ node2 收到，拆封（若有），送進 Pod C 的 veth
+
+⑦ Pod C 收到：src=10.244.1.5, dst=10.244.2.8:8080
+      → 應用看到的來源 IP 是「真正的 Pod A」，不是節點 IP  ← 這就是「不做 NAT」的價值
+
+⑧ 回程：Pod C 回覆 src=10.244.2.8 → dst=10.244.1.5
+      → 封包回到 node1，conntrack 認出這是既有連線
+      → 反向 NAT：把 src 改回 10.96.10.20
+      → Pod A 看到的回覆來自它連的那個 ClusterIP，一切合理
+</code></pre>
+<p><strong>第 ⑧ 步的反向轉換是關鍵</strong>：如果沒有它，Pod A 送給 <code>10.96.10.20</code> 卻收到 <code>10.244.2.8</code> 的回覆，作業系統會直接丟棄（不屬於任何已知連線）。<strong>整個機制完全依賴 conntrack 表</strong>。</p>
+<blockquote>
+<p>這也是為什麼 conntrack 表滿了（<code>nf_conntrack: table full, dropping packet</code>）會造成整個節點的網路詭異丟包。相關概念見 <a href="../linux/procfs%E8%88%87conntrack%E9%81%BA%E5%A4%B1%E5%95%8F%E9%A1%8C.html">procfs與conntrack遺失問題</a>。</p>
+</blockquote>
+<hr />
+<h2 id="六iptables-模式-vs-ipvs-模式-vs-ebpf">六、iptables 模式 vs IPVS 模式 vs eBPF</h2>
+<table>
+<thead>
+<tr>
+<th>模式</th>
+<th>規則結構</th>
+<th>匹配複雜度</th>
+<th>負載平衡演算法</th>
+<th>適用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>iptables</strong>（預設）</td>
+<td>線性的鏈，每個 Service 一組</td>
+<td><strong>O(n)</strong>——封包要逐條比對</td>
+<td>只有隨機</td>
+<td>中小叢集（&lt; 幾千 Service）</td>
+</tr>
+<tr>
+<td><strong>IPVS</strong></td>
+<td>核心內的雜湊表</td>
+<td><strong>O(1)</strong></td>
+<td>rr / lc / sh / dh 等多種</td>
+<td>大叢集、Service 數量多</td>
+</tr>
+<tr>
+<td><strong>eBPF</strong>（Cilium）</td>
+<td>直接掛在網卡驅動層的程式</td>
+<td>O(1)，且<strong>繞過大部分核心網路堆疊</strong></td>
+<td>可程式化</td>
+<td>追求極致效能、可完全取代 kube-proxy</td>
+</tr>
+</tbody>
+</table>
+<p><strong>什麼時候會痛</strong>：iptables 模式下規則數量約是 <code>Service 數 × 後端數</code>。到幾萬條時，<strong>更新一次規則要重寫整張表</strong>，kube-proxy 的同步延遲從毫秒變成數十秒——<strong>症狀是「Pod 已經 Ready 很久了，流量卻遲遲不進來」</strong>。這時就該換 IPVS。</p>
+<pre><code class="language-bash"><span class="c1"># 看目前是什麼模式</span>
+kubectl<span class="w"> </span>-n<span class="w"> </span>kube-system<span class="w"> </span>get<span class="w"> </span>cm<span class="w"> </span>kube-proxy<span class="w"> </span>-o<span class="w"> </span>yaml<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>mode
+<span class="c1"># iptables 模式看規則</span>
+iptables<span class="w"> </span>-t<span class="w"> </span>nat<span class="w"> </span>-L<span class="w"> </span>KUBE-SERVICES<span class="w"> </span>-n<span class="w"> </span><span class="p">|</span><span class="w"> </span>head
+<span class="c1"># IPVS 模式看規則</span>
+ipvsadm<span class="w"> </span>-Ln
+</code></pre>
+<hr />
+<h2 id="七dns名字是怎麼解出來的">七、DNS：名字是怎麼解出來的</h2>
+<p>每個 Pod 的 <code>/etc/resolv.conf</code> 由 kubelet 寫入：</p>
+<pre><code>nameserver 10.96.0.10                                    # CoreDNS 的 ClusterIP
+search default.svc.cluster.local svc.cluster.local cluster.local
+options ndots:5
+</code></pre>
+<p><strong>完整網域名稱（FQDN）規則</strong>：<code>&lt;service&gt;.&lt;namespace&gt;.svc.cluster.local</code></p>
+<p>搭配 <code>search</code> 清單，就能有幾種簡寫：</p>
+<table>
+<thead>
+<tr>
+<th>你寫的</th>
+<th>能解出來的條件</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>web</code></td>
+<td>同一個 namespace</td>
+</tr>
+<tr>
+<td><code>web.other-ns</code></td>
+<td>跨 namespace</td>
+</tr>
+<tr>
+<td><code>web.other-ns.svc.cluster.local</code></td>
+<td>永遠可以（完整名稱）</td>
+</tr>
+</tbody>
+</table>
+<p><strong><code>ndots:5</code> 這個設定值要特別注意</strong>：意思是「名字裡的點少於 5 個就先套 search 清單」。所以查 <code>api.example.com</code>（2 個點）時，會<strong>先</strong>依序試 <code>api.example.com.default.svc.cluster.local</code>、<code>api.example.com.svc.cluster.local</code>、<code>api.example.com.cluster.local</code>，<strong>全部失敗之後</strong>才查真正的 <code>api.example.com</code>。</p>
+<blockquote>
+<p>也就是說，<strong>每次查外部網域都會浪費 3 次以上的失敗查詢</strong>（IPv4/IPv6 各一輪就是 6～8 次）。這是 K8s 上「外部 API 呼叫延遲莫名偏高」與「CoreDNS 負載爆表」的經典原因。</p>
+<p><strong>解法</strong>：對外部網域<strong>在結尾加一個點</strong>（<code>api.example.com.</code>，表示這是絕對名稱、不套 search），或在 Pod 上調低 <code>dnsConfig.options.ndots</code>。</p>
+</blockquote>
+<p><strong>headless Service</strong>（<code>clusterIP: None</code>）的 DNS 行為完全不同：不回 ClusterIP，而是<strong>直接回傳所有後端 Pod 的 IP 清單</strong>。用在 StatefulSet（每個 Pod 有自己的穩定網域名稱）與需要客戶端自己做負載平衡的場景。</p>
+<hr />
+<h2 id="八service-的各種類型與從外部進來的路徑">八、Service 的各種類型與從外部進來的路徑</h2>
+<table>
+<thead>
+<tr>
+<th>類型</th>
+<th>做的事</th>
+<th>外部能連嗎</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ClusterIP</code>（預設）</td>
+<td>叢集內部虛擬 IP</td>
+<td>✗</td>
+</tr>
+<tr>
+<td><code>NodePort</code></td>
+<td>在<strong>每台節點</strong>開一個相同的高位 port（30000-32767），轉進 ClusterIP</td>
+<td>✓ 連任一節點的該 port</td>
+</tr>
+<tr>
+<td><code>LoadBalancer</code></td>
+<td>NodePort 之上，再叫雲端開一台負載平衡器指向所有節點</td>
+<td>✓</td>
+</tr>
+<tr>
+<td><code>ExternalName</code></td>
+<td>只是一筆 DNS CNAME，不做任何代理</td>
+<td>不適用</td>
+</tr>
+<tr>
+<td>headless（<code>clusterIP: None</code>）</td>
+<td>不分配 IP、不做代理，DNS 直接回 Pod IP</td>
+<td>✗</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Ingress 與 Service 的關係常被搞混</strong>：</p>
+<ul>
+<li>Service 是 <strong>L4（傳輸層）</strong>：只認 IP 與 port。</li>
+<li>Ingress 是 <strong>L7（應用層）</strong>：認 HTTP 的 host 與 path，可以做 TLS 終結（TLS termination）。</li>
+<li><strong>Ingress 物件本身只是一份設定</strong>，真正幹活的是 <strong>Ingress Controller</strong>（nginx / Traefik 等），而它自己就是叢集裡的一組 Pod，<strong>再透過一個 <code>type: LoadBalancer</code> 的 Service 對外</strong>。</li>
+</ul>
+<p>所以外部流量的完整路徑是：</p>
+<pre><code>使用者 → 雲端 LB → NodePort → iptables DNAT → Ingress Controller Pod
+      → （它讀 Ingress 規則，依 host/path 決定路由）
+      → 直接連後端 Pod（多數 controller 會跳過 Service 的 ClusterIP，自己 watch EndpointSlice）
+</code></pre>
+<h3 id="externaltrafficpolicy來源-ip-為何不見了">externalTrafficPolicy：來源 IP 為何不見了</h3>
+<p><code>type: NodePort</code> / <code>LoadBalancer</code> 預設 <code>externalTrafficPolicy: Cluster</code>：</p>
+<ul>
+<li>流量打到<strong>任何一台</strong>節點都會被轉到<strong>任何一台</strong>節點上的 Pod（多一跳）。</li>
+<li>為了讓回程封包能走回原來那台節點，<strong>必須做 SNAT</strong> → <strong>後端應用看到的來源 IP 變成節點 IP，真實客戶端 IP 遺失</strong>。</li>
+</ul>
+<p>改成 <code>externalTrafficPolicy: Local</code>：</p>
+<ul>
+<li>只轉給<strong>本節點上的</strong> Pod，沒有第二跳，<strong>不做 SNAT，客戶端 IP 保留</strong>。</li>
+<li>代價：本節點上沒有該 Pod 的話直接丟棄（所以雲端 LB 的健康檢查會自動把那些節點剔除），而且流量分佈依「每台節點上有幾個 Pod」而不均。</li>
+</ul>
+<blockquote>
+<p><strong>想在應用裡拿到真實客戶端 IP</strong>，就是這兩條路：<code>externalTrafficPolicy: Local</code>，或走 L7（Ingress）用 <code>X-Forwarded-For</code> 標頭。</p>
+</blockquote>
+<hr />
+<h2 id="九幾個一定會踩到的坑">九、幾個一定會踩到的坑</h2>
+<table>
+<thead>
+<tr>
+<th>現象</th>
+<th>根因</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Service 建好了，連線 <code>connection refused</code></td>
+<td><strong>selector 與 Pod labels 不符</strong> → <code>kubectl get endpointslice</code> 是空的。<strong>永遠先查這個</strong></td>
+</tr>
+<tr>
+<td>Pod Ready 了但流量沒進來</td>
+<td>EndpointSlice 或 kube-proxy 尚未收斂；規則數量太大時特別明顯</td>
+</tr>
+<tr>
+<td><code>ping ClusterIP</code> 不通但 <code>curl</code> 通</td>
+<td>正常。iptables 規則只匹配 TCP/UDP 的特定 port</td>
+</tr>
+<tr>
+<td>外部 API 呼叫慢</td>
+<td><code>ndots:5</code> 造成大量無效 DNS 查詢</td>
+</tr>
+<tr>
+<td>大檔案傳輸卡住、小請求正常</td>
+<td>overlay 的 MTU 沒調對</td>
+</tr>
+<tr>
+<td>應用只看得到節點 IP</td>
+<td><code>externalTrafficPolicy: Cluster</code> 的 SNAT</td>
+</tr>
+<tr>
+<td>擴容後負載不均</td>
+<td>gRPC / 連線池的長連線黏在舊 Pod 上</td>
+</tr>
+<tr>
+<td>滾動更新時零星 502</td>
+<td>EndpointSlice 移除與 SIGTERM 的競態（見 <a href="%E5%BE%9Ekubectl-apply%E5%88%B0Pod%E9%81%8B%E8%A1%8C%E7%9A%84%E5%AE%8C%E6%95%B4%E6%B5%81%E7%A8%8B.html">從kubectl-apply到Pod運行的完整流程</a>）</td>
+</tr>
+<tr>
+<td>某台節點的 Pod 連不出去、其他節點正常</td>
+<td>該節點的 kube-proxy 或 conntrack 出問題</td>
+</tr>
+<tr>
+<td><code>type: LoadBalancer</code> 永遠 <code>&lt;pending&gt;</code></td>
+<td>自建機房沒有 cloud-controller-manager，也沒裝 MetalLB</td>
+</tr>
+</tbody>
+</table>
+<p><strong>NetworkPolicy 的兩個陷阱</strong>：</p>
+<ol>
+<li><strong>它由 CNI 執行，不是 K8s 核心</strong>。Flannel 不支援 NetworkPolicy——你的政策會被建立、被儲存、然後<strong>完全不生效</strong>，而且<strong>沒有任何錯誤訊息</strong>。</li>
+<li><strong>一旦某個 Pod 被任何一條 NetworkPolicy 選中，它就從「預設全通」變成「預設全擋」</strong>，只有政策明確允許的才通。所以加第一條政策時常常把自己鎖死（記得 DNS 也要放行）。</li>
+</ol>
+<hr />
+<h2 id="十排查順序">十、排查順序</h2>
+<p><strong>「連不到某個 Service」的固定流程</strong>（照順序，不要跳）：</p>
+<pre><code class="language-bash"><span class="c1"># ① 後端到底有沒有人？—— 空的話後面都不用看了，回去對 selector 與 labels</span>
+kubectl<span class="w"> </span>get<span class="w"> </span>endpointslice<span class="w"> </span>-l<span class="w"> </span>kubernetes.io/service-name<span class="o">=</span>&lt;svc&gt;
+kubectl<span class="w"> </span>describe<span class="w"> </span>svc<span class="w"> </span>&lt;svc&gt;<span class="w">          </span><span class="c1"># 看 Endpoints 欄位</span>
+
+<span class="c1"># ② 名字解得出來嗎？</span>
+kubectl<span class="w"> </span>run<span class="w"> </span>tmp<span class="w"> </span>--rm<span class="w"> </span>-it<span class="w"> </span>--image<span class="o">=</span>nicolaka/netshoot<span class="w"> </span>--<span class="w"> </span>nslookup<span class="w"> </span>&lt;svc&gt;.&lt;ns&gt;.svc.cluster.local
+
+<span class="c1"># ③ 繞過 Service，直接連 Pod IP —— 這一步能把問題切成兩半</span>
+kubectl<span class="w"> </span>run<span class="w"> </span>tmp<span class="w"> </span>--rm<span class="w"> </span>-it<span class="w"> </span>--image<span class="o">=</span>nicolaka/netshoot<span class="w"> </span>--<span class="w"> </span>curl<span class="w"> </span>-sv<span class="w"> </span>&lt;podIP&gt;:&lt;targetPort&gt;
+<span class="c1">#   直連通、走 Service 不通 → 問題在 kube-proxy / iptables / conntrack</span>
+<span class="c1">#   直連也不通          → 問題在應用本身、targetPort 寫錯、或 NetworkPolicy</span>
+
+<span class="c1"># ④ 應用是不是只聽 127.0.0.1？（超常見）</span>
+kubectl<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>&lt;pod&gt;<span class="w"> </span>--<span class="w"> </span>ss<span class="w"> </span>-tlnp<span class="w">        </span><span class="c1"># 要看到 0.0.0.0:8080 或 *:8080，不能是 127.0.0.1:8080</span>
+
+<span class="c1"># ⑤ 節點層級：規則寫進去了嗎</span>
+iptables<span class="w"> </span>-t<span class="w"> </span>nat<span class="w"> </span>-L<span class="w"> </span>KUBE-SERVICES<span class="w"> </span>-n<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>&lt;clusterIP&gt;
+</code></pre>
+<blockquote>
+<p><strong>心法</strong>：<strong>第 ③ 步是整個排查的分水嶺</strong>——先用「繞過 Service 直連 Pod IP」把問題切成「網路層」與「應用層」兩半，再往下鑽。這就是 <a href="../linux/%E6%8E%92%E6%9F%A5%E6%96%B9%E6%B3%95%E8%AB%96.html">排查方法論</a> 講的「建立對照組」在 K8s 上的具體形式。</p>
+</blockquote>
+<hr />
+<h2 id="相關筆記">相關筆記</h2>
+<ul>
+<li><a href="k8s%E6%9E%B6%E6%A7%8B%E7%B8%BD%E8%A6%BD-%E6%8E%A7%E5%88%B6%E5%B9%B3%E9%9D%A2%E8%88%87%E7%AF%80%E9%BB%9E%E7%B5%84%E4%BB%B6.html">k8s架構總覽-控制平面與節點組件</a>——kube-proxy、CoreDNS、CNI 在架構中的位置</li>
+<li><a href="%E5%BE%9Ekubectl-apply%E5%88%B0Pod%E9%81%8B%E8%A1%8C%E7%9A%84%E5%AE%8C%E6%95%B4%E6%B5%81%E7%A8%8B.html">從kubectl-apply到Pod運行的完整流程</a>——Pod 是怎麼被加進 EndpointSlice 的</li>
+<li><a href="../linux/procfs%E8%88%87conntrack%E9%81%BA%E5%A4%B1%E5%95%8F%E9%A1%8C.html">procfs與conntrack遺失問題</a>——conntrack 的底層</li>
+<li><a href="../linux/%E6%9F%A5%E8%A9%A2%E8%BD%89%E7%99%BC%E8%A1%A8%E8%88%87%E8%B7%AF%E7%94%B1%E8%A1%A8.html">查詢轉發表與路由表</a>——跨節點路由的基礎</li>
+</ul>
+<hr />
+<h2 id="指令選項的涵蓋範圍說明">指令選項的涵蓋範圍說明</h2>
+<blockquote>
+<p><strong>本篇只列這個主題用得到的指令與旗標，不是完整清單。</strong></p>
+<p><code>kubectl</code> 有數十個子命令、每個子命令各自又有十幾到數十個旗標，
+<code>kubeadm</code>／<code>multipass</code>／<code>kind</code>／<code>crictl</code> 也各自龐大。這類工具不適合在筆記裡全列。</p>
+<p><strong>查法（這才是該記住的）：</strong></p>
+<pre><code class="language-bash">kubectl<span class="w"> </span>--help<span class="w">                  </span><span class="c1"># 所有子命令，依用途分組</span>
+kubectl<span class="w"> </span>&lt;子命令&gt;<span class="w"> </span>--help<span class="w">          </span><span class="c1"># 該子命令的完整旗標</span>
+kubectl<span class="w"> </span>options<span class="w">                 </span><span class="c1"># 所有子命令共用的全域旗標</span>
+kubectl<span class="w"> </span>explain<span class="w"> </span>&lt;資源&gt;<span class="o">[</span>.欄位<span class="o">]</span><span class="w">    </span><span class="c1"># ★ 查資源的欄位定義，等同線上 API 文件</span>
+kubeadm<span class="w"> </span>--help<span class="w"> </span>/<span class="w"> </span>kubeadm<span class="w"> </span>&lt;子命令&gt;<span class="w"> </span>--help
+multipass<span class="w"> </span><span class="nb">help</span><span class="w"> </span><span class="o">[</span>&lt;命令&gt;<span class="o">]</span><span class="w"> </span>/<span class="w"> </span>kind<span class="w"> </span>--help<span class="w"> </span>/<span class="w"> </span>crictl<span class="w"> </span>--help
+</code></pre>
+<p><strong><code>kubectl explain</code> 特別值得記住</strong>——寫 YAML 時不確定某個欄位叫什麼、能填什麼，問它比翻文件快，而且回答的是<strong>你這個叢集版本</strong>的定義。</p>
+<p>附帶一提：撰寫本篇的這台機器上<strong>沒有安裝這些工具</strong>，所以上面的查法是給你在有叢集的環境上用的，不是從本機 <code>--help</code> 抄來的清單。</p>
+</blockquote>
+<h2 id="自我測驗">自我測驗</h2>
+<ol>
+<li>為什麼 <code>ping &lt;ClusterIP&gt;</code> 通常不通，<code>curl &lt;ClusterIP&gt;:80</code> 卻可以成功？由這個現象反推：ClusterIP 到底「存在」於什麼地方？</li>
+<li>一個 Service 有 3 個後端 Pod。你的 gRPC 客戶端建立了一條長連線，之後把後端擴容到 10 個。流量會自動分散到新 Pod 上嗎？為什麼？有哪些解法？</li>
+<li>回程封包的來源位址必須被改回 ClusterIP，否則客戶端會丟棄。這個「改回去」是誰做的、憑什麼知道要改成什麼？如果這份資訊滿了會發生什麼？</li>
+<li><code>ndots:5</code> 是什麼意思？為什麼它會讓「呼叫外部 API」變慢，而不是讓「呼叫叢集內服務」變慢？</li>
+<li><code>externalTrafficPolicy</code> 設成 <code>Cluster</code> 和 <code>Local</code> 各有什麼取捨？想在應用裡拿到真實的客戶端 IP 該怎麼選，代價是什麼？</li>
+<li>（情境題）你部署了服務，<code>kubectl get pods</code> 全部 <code>Running</code> 且 <code>1/1 READY</code>，DNS 解得出 ClusterIP，但 <code>curl</code> 該 Service 一直 <code>connection refused</code>。請按照你認為最有效率的順序列出排查步驟，並說明每一步能排除掉哪些可能性。</li>
+<li>（情境題）某個叢集用 Flannel 作為 CNI。你套用了一條 NetworkPolicy 想禁止某個 namespace 對外連線，<code>kubectl get networkpolicy</code> 顯示它確實存在，但測試發現流量照通、也沒有任何錯誤訊息。根因是什麼？從這個案例可以歸納出 K8s 的哪一類設計特性？</li>
+</ol>
+
+</main>
+</div>
+</body>
+</html>

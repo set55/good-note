@@ -1,0 +1,281 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>路由器上的 v2ray 要怎麼改成 TUN 模式？—— 你要的其實是透明代理</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/app.js"></script>
+</head>
+<body>
+<button class="menu-btn" onclick="toggleMenu()">☰ 目錄</button>
+<div class="layout">
+<nav class="side">
+<div class="crumbs"><a href="../index.html">🏠 首頁</a> / <a href="README.html">openwrt</a></div>
+<div class="tools"><button onclick="toggleTheme()">🌓 主題</button></div>
+<ul>
+<li class="l2"><a href="#%E7%9B%AE%E9%8C%84">目錄</a></li>
+<li class="l2"><a href="#%E4%B8%80%E7%82%BA%E4%BB%80%E9%BA%BC%E8%B7%AF%E7%94%B1%E5%99%A8%E4%B8%8D%E7%94%A8-tun">一、為什麼路由器不用 TUN</a></li>
+<li class="l2"><a href="#%E4%BA%8C%E4%B8%89%E6%A2%9D%E8%B7%AF%E7%9A%84%E5%B0%8D%E7%85%A7">二、三條路的對照</a></li>
+<li class="l2"><a href="#%E4%B8%89%E6%9C%AC%E6%A9%9F%E5%AF%A6%E6%B3%81%E6%AA%A2%E6%9F%A5">三、本機實況檢查</a></li>
+<li class="l2"><a href="#%E5%9B%9Btproxy-%E6%98%AF%E6%80%8E%E9%BA%BC%E9%81%8B%E4%BD%9C%E7%9A%84">四、TPROXY 是怎麼運作的</a></li>
+<li class="l3"><a href="#1-%E4%BB%A3%E7%90%86%E7%A8%8B%E5%BC%8F%E7%AB%AFip_transparent">1. 代理程式端：IP_TRANSPARENT</a></li>
+<li class="l3"><a href="#2-%E7%AD%96%E7%95%A5%E8%B7%AF%E7%94%B1%E6%8A%8A%E6%89%93%E4%BA%86%E6%A8%99%E8%A8%98%E7%9A%84%E5%B0%81%E5%8C%85%E7%95%99%E5%9C%A8%E6%9C%AC%E6%A9%9F">2. 策略路由：把打了標記的封包留在本機</a></li>
+<li class="l3"><a href="#3-nftables%E6%89%93%E6%A8%99%E8%A8%98%E4%B8%A6%E4%BA%A4%E4%BB%98">3. nftables：打標記並交付</a></li>
+<li class="l2"><a href="#%E4%BA%94%E7%9C%9F%E7%9A%84%E8%A6%81%E5%9C%A8%E8%B7%AF%E7%94%B1%E5%99%A8%E4%B8%8A%E7%94%A8-tun-%E7%9A%84%E8%A9%B1">五、真的要在路由器上用 TUN 的話</a></li>
+<li class="l2"><a href="#%E5%85%ADdns-%E6%B2%92%E8%99%95%E7%90%86%E7%AD%89%E6%96%BC%E7%99%BD%E5%81%9A">六、DNS 沒處理等於白做</a></li>
+<li class="l2"><a href="#%E4%B8%83%E5%8B%95%E6%89%8B%E5%89%8D%E7%9A%84%E9%A2%A8%E9%9A%AA%E8%88%87%E6%95%91%E6%8F%B4">七、動手前的風險與救援</a></li>
+<li class="l2"><a href="#fw4-%E7%9A%84%E5%AE%8C%E6%95%B4%E5%AD%90%E5%91%BD%E4%BB%A4">fw4 的完整子命令</a></li>
+<li class="l2"><a href="#%E8%87%AA%E6%88%91%E6%B8%AC%E9%A9%97">自我測驗</a></li>
+</ul>
+</nav>
+<main>
+<h1 id="路由器上的-v2ray-要怎麼改成-tun-模式-你要的其實是透明代理">路由器上的 v2ray 要怎麼改成 TUN 模式？—— 你要的其實是透明代理</h1>
+<blockquote>
+<p>日期：2026-09-20<br />
+情境：桌機用 clash-verge 的 TUN 模式做到了 L4（第四層）全系統代理，想把同一招套到
+OpenWrt 上的 v2ray<br />
+對應檔案：<code>/root/v2ray/v2ray</code>、<code>/root/v2ray/config_openwrt.json</code>、<code>/etc/init.d/v2ray</code>
+（皆為路由器上的正式設定，不在本 repo 內）<br />
+適用範圍：OpenWrt 24.10.2（mediatek/filogic、aarch64、kernel 6.6.93）、v2ray 5.40.0、nftables 1.1.1<br />
+相關：<a href="../linux/%E8%AE%93%E6%95%B4%E5%80%8B%E7%B3%BB%E7%B5%B1%E8%B5%B0SOCKS5%E4%BB%A3%E7%90%86.html">讓整個系統走SOCKS5代理</a>、
+<a href="../linux/clash-verge%E6%80%8E%E9%BA%BC%E7%94%A8-%E6%B5%81%E9%87%8F%E8%A6%81%E5%85%88%E9%80%B2%E5%BE%97%E5%8E%BB%E6%A0%B8%E5%BF%83.html">clash-verge怎麼用-流量要先進得去核心</a></p>
+</blockquote>
+<p><strong>一句話結論：TUN 模式解決的是「本機自己產生的流量」，而路由器上絕大多數流量是「幫別人轉發的」——
+轉發流量根本不經過本機的 socket 層，改本機預設路由對它毫無作用。攔截轉發流量的標準機制是透明代理（transparent proxy）的 TPROXY／REDIRECT。兩者同樣是 L4、程式同樣無感，差別只在流量是誰的。</strong></p>
+<hr />
+<h2 id="目錄">目錄</h2>
+<ul>
+<li><a href="#%E4%B8%80%E7%82%BA%E4%BB%80%E9%BA%BC%E8%B7%AF%E7%94%B1%E5%99%A8%E4%B8%8D%E7%94%A8-tun">一、為什麼路由器不用 TUN</a></li>
+<li><a href="#%E4%BA%8C%E4%B8%89%E6%A2%9D%E8%B7%AF%E7%9A%84%E5%B0%8D%E7%85%A7">二、三條路的對照</a></li>
+<li><a href="#%E4%B8%89%E6%9C%AC%E6%A9%9F%E5%AF%A6%E6%B3%81%E6%AA%A2%E6%9F%A5">三、本機實況檢查</a></li>
+<li><a href="#%E5%9B%9Btproxy-%E6%98%AF%E6%80%8E%E9%BA%BC%E9%81%8B%E4%BD%9C%E7%9A%84">四、TPROXY 是怎麼運作的</a></li>
+<li><a href="#%E4%BA%94%E7%9C%9F%E7%9A%84%E8%A6%81%E5%9C%A8%E8%B7%AF%E7%94%B1%E5%99%A8%E4%B8%8A%E7%94%A8-tun-%E7%9A%84%E8%A9%B1">五、真的要在路由器上用 TUN 的話</a></li>
+<li><a href="#%E5%85%ADdns-%E6%B2%92%E8%99%95%E7%90%86%E7%AD%89%E6%96%BC%E7%99%BD%E5%81%9A">六、DNS 沒處理等於白做</a></li>
+<li><a href="#%E4%B8%83%E5%8B%95%E6%89%8B%E5%89%8D%E7%9A%84%E9%A2%A8%E9%9A%AA%E8%88%87%E6%95%91%E6%8F%B4">七、動手前的風險與救援</a></li>
+<li><a href="#%E8%87%AA%E6%88%91%E6%B8%AC%E9%A9%97">自我測驗</a></li>
+</ul>
+<hr />
+<h2 id="一為什麼路由器不用-tun">一、為什麼路由器不用 TUN</h2>
+<p>關鍵在<strong>封包在核心裡走的路不同</strong>：</p>
+<pre><code>本機自己發起的連線（桌機的情境）
+  程式 socket → 路由表查詢 → 出口網卡
+                    ↑
+              TUN 在這裡攔：把預設路由改指向虛擬網卡
+
+幫別的裝置轉發的連線（路由器的情境）
+  LAN 網卡 → PREROUTING → 路由判定「這不是給我的」→ FORWARD → NAT → WAN 網卡
+                  ↑
+          透明代理在這裡攔：TPROXY／REDIRECT
+</code></pre>
+<p><strong>轉發流量從頭到尾不會經過路由器的 socket 層</strong>，也不會去查「本機該走哪個預設路由」——它只是被核心從一張網卡搬到另一張網卡。所以：</p>
+<ul>
+<li>TUN 那套「建虛擬網卡 + 改預設路由」對轉發流量<strong>沒有任何作用</strong>。</li>
+<li>你在路由器上開 TUN，只會攔到<strong>路由器自己</strong>發起的連線（opkg 更新、ntp、ping 等）。</li>
+</ul>
+<p><strong>心法：問「這個流量是誰產生的」——自己產生的用 TUN，幫別人轉的用 TPROXY。</strong></p>
+<hr />
+<h2 id="二三條路的對照">二、三條路的對照</h2>
+<table>
+<thead>
+<tr>
+<th>方案</th>
+<th>機制</th>
+<th>UDP</th>
+<th>需要的核心模組</th>
+<th>攔得到誰</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>A. TPROXY</strong></td>
+<td>nftables <code>tproxy</code> 把封包交給 dokodemo-door，配合 fwmark 策略路由</td>
+<td>✅</td>
+<td><code>nft_tproxy</code>、<code>nft_socket</code></td>
+<td><strong>整個 LAN 所有裝置</strong></td>
+</tr>
+<tr>
+<td><strong>B. REDIRECT</strong></td>
+<td>nftables nat <code>redirect</code> 改寫目的埠</td>
+<td>❌ 僅 TCP</td>
+<td><code>nft_redir</code></td>
+<td>整個 LAN，但只有 TCP</td>
+</tr>
+<tr>
+<td><strong>C. v2ray TUN</strong></td>
+<td><code>app/tun</code> 建虛擬網卡</td>
+<td>✅</td>
+<td>無（binary 內建）</td>
+<td><strong>只有路由器自己</strong>，不含 LAN 裝置</td>
+</tr>
+</tbody>
+</table>
+<p>A 是 OpenWrt 上的標準作法；B 只適合快速驗證（UDP、QUIC、DNS 全部漏掉）；C 解決的是另一個問題。</p>
+<p><strong>REDIRECT 為什麼不支援 UDP</strong>：<code>REDIRECT</code> 屬於 NAT，它把目的位址改寫成本機後，原始目的地是靠
+conntrack 記錄還原的。TCP 有連線狀態可以對應回去，UDP 是無連線的，代理程式拿不回「這個封包原本要去哪」。TPROXY 則不改寫封包，而是在保留原始目的位址的情況下把封包<strong>交付</strong>給本機 socket——
+這就是它能支援 UDP 的原因，也是它需要額外核心模組的原因。</p>
+<hr />
+<h2 id="三本機實況檢查">三、本機實況檢查</h2>
+<p>路由器（192.168.1.1）唯讀檢查結果：</p>
+<pre><code class="language-bash">$<span class="w"> </span>nft<span class="w"> </span>-v
+nftables<span class="w"> </span>v1.1.1<span class="w">                          </span><span class="c1"># ✅ 24.10 用 fw4 + nftables</span>
+
+$<span class="w"> </span>ls<span class="w"> </span>/lib/modules/6.6.93/<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-iE<span class="w"> </span><span class="s1">&#39;tproxy|socket|redir&#39;</span>
+nft_redir.ko<span class="w">                             </span><span class="c1"># ⚠️ 只有 redir，沒有 nft_tproxy.ko</span>
+
+$<span class="w"> </span>opkg<span class="w"> </span>list-installed<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>kmod-nft
+kmod-nft-core<span class="w"> </span>/<span class="w"> </span>kmod-nft-fib<span class="w"> </span>/<span class="w"> </span>kmod-nft-nat<span class="w"> </span>/<span class="w"> </span>kmod-nft-offload
+<span class="w">                                         </span><span class="c1"># ❌ kmod-nft-tproxy 沒裝</span>
+
+$<span class="w"> </span>netstat<span class="w"> </span>-lntup<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>v2ray
+:::1080<span class="w">  </span>tcp+udp<span class="w">     </span>:::3080<span class="w">  </span>tcp+udp<span class="w">    </span><span class="c1"># SOCKS5</span>
+:::8880<span class="w">  </span>tcp<span class="w">         </span>:::8890<span class="w">  </span>tcp<span class="w">        </span><span class="c1"># HTTP proxy</span>
+:::12345<span class="w"> </span>tcp+udp<span class="w">                         </span><span class="c1"># ← TCP 與 UDP 都聽，dokodemo-door 的典型特徵</span>
+
+$<span class="w"> </span>nft<span class="w"> </span>list<span class="w"> </span>ruleset<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-iE<span class="w"> </span><span class="s1">&#39;tproxy|12345|meta mark&#39;</span>
+<span class="o">(</span>空<span class="o">)</span><span class="w">                                      </span><span class="c1"># ❌ 沒有任何把流量導進 12345 的規則</span>
+
+$<span class="w"> </span>ip<span class="w"> </span>rule<span class="w"> </span>show
+<span class="m">0</span>:<span class="w"> </span>from<span class="w"> </span>all<span class="w"> </span>lookup<span class="w"> </span><span class="nb">local</span><span class="w"> </span>/<span class="w"> </span><span class="m">32766</span>:<span class="w"> </span>main<span class="w"> </span>/<span class="w"> </span><span class="m">32767</span>:<span class="w"> </span>default
+<span class="w">                                         </span><span class="c1"># ❌ 沒有 fwmark 策略路由</span>
+</code></pre>
+<p><strong>結論：透明代理的 inbound（12345）早就備好了，但核心模組沒裝、防火牆規則沒寫、策略路由沒設。現在這台路由器純粹是個「顯式代理伺服器」——LAN 裝置必須自己把 proxy 指過來才會用到它。</strong></p>
+<hr />
+<h2 id="四tproxy-是怎麼運作的">四、TPROXY 是怎麼運作的</h2>
+<p>三個零件缺一不可，這也是它比 REDIRECT 難設的原因：</p>
+<h3 id="1-代理程式端ip_transparent">1. 代理程式端：<code>IP_TRANSPARENT</code></h3>
+<p>dokodemo-door 監聽時要設 <code>IP_TRANSPARENT</code> socket option，核心才允許它接收「目的地不是自己」的封包。v2ray 的實作在 <code>transport/internet/sockopt_linux.go</code>（<code>IP_TRANSPARENT</code>、<code>SO_MARK</code>、
+<code>IP_RECVORIGDSTADDR</code> 都在裡面），設定上對應 <code>streamSettings.sockopt.tproxy: &quot;tproxy&quot;</code>。</p>
+<h3 id="2-策略路由把打了標記的封包留在本機">2. 策略路由：把打了標記的封包留在本機</h3>
+<pre><code class="language-bash">ip<span class="w"> </span>rule<span class="w"> </span>add<span class="w"> </span>fwmark<span class="w"> </span><span class="m">1</span><span class="w"> </span>lookup<span class="w"> </span><span class="m">100</span>
+ip<span class="w"> </span>route<span class="w"> </span>add<span class="w"> </span><span class="nb">local</span><span class="w"> </span><span class="m">0</span>.0.0.0/0<span class="w"> </span>dev<span class="w"> </span>lo<span class="w"> </span>table<span class="w"> </span><span class="m">100</span>
+</code></pre>
+<p><code>local 0.0.0.0/0 dev lo</code> 的意思是「這張表裡所有位址都算本機位址」。沒有這兩行，核心在
+PREROUTING 之後會判定「這封包不是給我的」而直接轉發出去，TPROXY 規則根本輪不到。
+<strong>這是最常被漏掉的一步，也是「規則寫了卻沒作用」的頭號原因。</strong></p>
+<h3 id="3-nftables打標記並交付">3. nftables：打標記並交付</h3>
+<pre><code>chain prerouting {
+    type filter hook prerouting priority mangle;
+    # 先排除不該被代理的目的地
+    ip daddr { 127.0.0.0/8, 192.168.0.0/16, 10.0.0.0/8, 172.16.0.0/12, 224.0.0.0/4 } return
+    # 其餘交給 12345，並打上 mark 1
+    meta l4proto { tcp, udp } tproxy to 127.0.0.1:12345 meta mark set 1 accept
+}
+</code></pre>
+<p>還要有一條 <strong>output 鏈的排除規則</strong>：v2ray 自己連往上游伺服器的封包若再被自己攔一次，就是無窮迴圈。標準解法是 v2ray 出站帶 <code>SO_MARK</code>（<code>sockopt.mark</code>），nftables 看到那個 mark 就 return。</p>
+<p><strong>三個零件的關係：nftables 負責「攔下來並打標記」，ip rule 負責「讓打了標記的封包留在本機」，
+IP_TRANSPARENT 負責「讓程式收得到不是寄給自己的信」。</strong></p>
+<hr />
+<h2 id="五真的要在路由器上用-tun-的話">五、真的要在路由器上用 TUN 的話</h2>
+<p>如果你的目的是讓<strong>路由器自己</strong>（不是 LAN 裝置）的流量走代理——例如 <code>opkg update</code>、路由器上的其他服務——那 TUN 才是對的工具。v2ray v5 內建 <code>app/tun</code>（gVisor netstack），而且
+<code>app/tun/device/gvisor/gvisor_linux.go</code> 的 build constraint 是 <code>linux &amp;&amp; (amd64 || arm64)</code>，
+<strong>aarch64 的這台路由器編得出來</strong>。</p>
+<p>v5 JSON 設定長這樣：</p>
+<pre><code class="language-json"><span class="p">{</span>
+<span class="w">  </span><span class="nt">&quot;services&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nt">&quot;tun&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nt">&quot;name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;tun0&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;mtu&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">1500</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;tag&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;tun-in&quot;</span><span class="p">,</span>
+<span class="w">             </span><span class="nt">&quot;ips&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[{</span><span class="nt">&quot;ip&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;198.18.0.1&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;prefix&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">30</span><span class="p">}]</span><span class="w"> </span><span class="p">}</span>
+<span class="w">  </span><span class="p">}</span>
+<span class="p">}</span>
+</code></pre>
+<p><strong>但有個大坑</strong>：<code>ips</code> 與 <code>routes</code> 是設給 gVisor 的<strong>使用者空間協定堆疊</strong>的，不是核心介面。
+v2ray 只做 <code>open(&quot;/dev/net/tun&quot;)</code> + <code>TUNSETIFF</code>（需要 <code>CAP_NET_ADMIN</code>），整個 <code>app/tun/</code>
+裡<strong>沒有任何 netlink 或 <code>ip route</code> 呼叫</strong>——核心側的 <code>ip addr add</code>、<code>ip link set up</code>、路由改寫全部要你自己補，而且要記得排除上游伺服器位址，否則封包繞回 tun 形成迴圈、路由器直接失聯。</p>
+<p>這也是為什麼 clash-verge 有個 <code>auto-route</code> 選項而 v2ray 沒有：clash 幫你做了核心側的路由設定，
+v2ray 把這件事留給使用者。</p>
+<hr />
+<h2 id="六dns-沒處理等於白做">六、DNS 沒處理等於白做</h2>
+<p>透明代理只攔 TCP／UDP 的連線，但 LAN 裝置<strong>查 DNS 這一步</strong>若還是走原本的路：</p>
+<ul>
+<li>你的分流規則是寫域名的，卻拿不到正確解析結果；</li>
+<li>被污染的 DNS 會讓你連到錯的 IP，代理再怎麼設都沒用。</li>
+</ul>
+<p>OpenWrt 上常見的兩種處理：把 dnsmasq 的上游改指向 v2ray 的 DNS inbound，或用 nftables 把
+53 埠的查詢一併 TPROXY 進去。無論哪種，<strong>都要和代理規則一起規劃</strong>，不能只做一半。</p>
+<hr />
+<h2 id="七動手前的風險與救援">七、動手前的風險與救援</h2>
+<p>改路由器的防火牆與路由表，<strong>失敗的後果是全家斷網</strong>，而且你很可能正透過這台路由器連線。</p>
+<table>
+<thead>
+<tr>
+<th>原則</th>
+<th>做法</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>先用非持久化規則測試</strong></td>
+<td>直接下 <code>nft add</code> / <code>ip rule add</code>，<strong>不要</strong>先寫進 <code>/etc/nftables.d/</code> 或 uci。搞砸了重開機就全部消失</td>
+</tr>
+<tr>
+<td>保留一條後路</td>
+<td>確認有實體網路孔或 Wi-Fi 能連上，或設一個排除規則讓自己的 IP 不走代理</td>
+</tr>
+<tr>
+<td>分段驗證</td>
+<td>先只對<strong>單一測試裝置的 IP</strong> 套規則，確認沒問題再擴大到整個網段</td>
+</tr>
+<tr>
+<td>確認能救回來</td>
+<td><code>/etc/init.d/firewall restart</code> 會重載 fw4 規則；<code>reboot</code> 清掉所有手動規則</td>
+</tr>
+</tbody>
+</table>
+<p><strong>心法：在路由器上做實驗，第一件事不是「怎麼設定」，而是「設壞了怎麼回到現在這個狀態」。</strong></p>
+<hr />
+<blockquote>
+<p><strong>OpenWrt 的服務管理（<code>service</code>／<code>/etc/init.d</code> 的完整動作、<code>/etc/rc.d</code> 符號連結、
+procd 與 systemd 的對照）</strong> 獨立成一篇：
+<a href="OpenWrt%E7%9A%84%E6%9C%8D%E5%8B%99%E7%AE%A1%E7%90%86-service%E8%88%87procd.html">OpenWrt的服務管理-service與procd</a>。</p>
+</blockquote>
+<h2 id="fw4-的完整子命令"><code>fw4</code> 的完整子命令</h2>
+<table>
+<thead>
+<tr>
+<th>子命令</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>start</code> / <code>stop</code> / <code>restart</code> / <code>reload</code></td>
+<td>啟動／停止／重啟／重載防火牆</td>
+</tr>
+<tr>
+<td><code>flush</code></td>
+<td><strong>清空 fw4 的規則</strong></td>
+</tr>
+<tr>
+<td><code>reload-sets</code></td>
+<td><strong>只重載具名集合的內容</strong>，不動規則本身</td>
+</tr>
+<tr>
+<td><code>print</code></td>
+<td><strong>印出算繪後的完整 ruleset</strong>（看 uci 會編譯成什麼，不套用）</td>
+</tr>
+<tr>
+<td><code>check</code></td>
+<td><strong>用 nft 的檢查模式測試 ruleset，不套用</strong> ← 改設定後先跑這個</td>
+</tr>
+<tr>
+<td><code>network &lt;網段&gt;</code></td>
+<td>印出涵蓋該網段的 zone 名稱（找不到則離開碼 1）</td>
+</tr>
+</tbody>
+</table>
+<p>選項：<code>-v</code>（囉嗦）、<code>-q</code>（安靜）。</p>
+<p><strong><code>fw4 print</code> 與 <code>fw4 check</code> 是改防火牆前的兩道保險</strong>——前者讓你先看產生物，後者讓你在不影響現行規則的前提下驗證語法。</p>
+<h2 id="自我測驗">自我測驗</h2>
+<ol>
+<li>為什麼「改本機預設路由」這招對路由器上的轉發流量沒有作用？從封包在核心裡經過的路徑說明。</li>
+<li>REDIRECT 為什麼不能代理 UDP，而 TPROXY 可以？從「原始目的位址怎麼被還原」解釋兩者的差別。</li>
+<li>TPROXY 三個零件中，<code>ip rule add fwmark 1 lookup 100</code> + <code>ip route add local 0.0.0.0/0 dev lo table 100</code>
+在做什麼？少了它，nftables 的 tproxy 規則會發生什麼事？</li>
+<li>代理程式自己連往上游伺服器的流量，為什麼一定要排除？通常用什麼機制排除？</li>
+<li>情境題：你想讓路由器<strong>自己</strong>的 <code>opkg update</code> 走代理，但 LAN 裝置維持直連。這該用本文的哪一種方案？為什麼另外兩種不適合？實作時最容易讓路由器失聯的是哪一步？</li>
+</ol>
+
+</main>
+</div>
+</body>
+</html>

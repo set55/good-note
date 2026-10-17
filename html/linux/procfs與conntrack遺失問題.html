@@ -1,0 +1,289 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>procfs（process filesystem，行程檔案系統，即 /proc）是什麼，以及為什麼 /proc/net/nf_conntrack 不存在</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/app.js"></script>
+</head>
+<body>
+<button class="menu-btn" onclick="toggleMenu()">☰ 目錄</button>
+<div class="layout">
+<nav class="side">
+<div class="crumbs"><a href="../index.html">🏠 首頁</a> / <a href="README.html">linux</a></div>
+<div class="tools"><button onclick="toggleTheme()">🌓 主題</button></div>
+<ul>
+<li class="l2"><a href="#%E7%9B%AE%E9%8C%84">目錄</a></li>
+<li class="l2"><a href="#%E4%B8%80%E5%95%8F%E9%A1%8C%E7%8F%BE%E5%A0%B4">一、問題現場</a></li>
+<li class="l2"><a href="#%E4%BA%8Cprocfs-%E6%98%AF%E4%BB%80%E9%BA%BC">二、procfs 是什麼</a></li>
+<li class="l3"><a href="#%E7%82%BA%E4%BB%80%E9%BA%BC%E8%A6%81%E5%81%9A%E6%88%90%E6%AA%94%E6%A1%88">為什麼要做成檔案</a></li>
+<li class="l2"><a href="#%E4%B8%89proc-%E7%9A%84%E5%85%A9%E5%A4%A7%E9%A1%9E%E5%85%A7%E5%AE%B9">三、/proc 的兩大類內容</a></li>
+<li class="l3"><a href="#3-1-%E6%95%B8%E5%AD%97%E7%9B%AE%E9%8C%84--%E6%AF%8F%E5%80%8B%E8%A1%8C%E7%A8%8B%E4%B8%80%E5%80%8B">3-1 數字目錄 = 每個行程一個</a></li>
+<li class="l3"><a href="#3-2-%E7%B3%BB%E7%B5%B1%E5%85%A8%E5%9F%9F%E8%B3%87%E8%A8%8A">3-2 系統全域資訊</a></li>
+<li class="l2"><a href="#%E5%9B%9Bprocsys-%E7%89%B9%E4%BE%8B%E5%8F%AF%E4%BB%A5%E5%AF%AB%E7%9A%84%E6%97%8B%E9%88%95">四、/proc/sys 特例：可以寫的旋鈕</a></li>
+<li class="l2"><a href="#%E4%BA%94%E5%9B%9E%E9%A0%AD%E8%A7%A3-nf_conntrack">五、回頭解 nf_conntrack</a></li>
+<li class="l3"><a href="#%E7%82%BA%E4%BB%80%E9%BA%BC%E6%A8%A1%E7%B5%84%E8%BC%89%E5%85%A5%E4%BA%86%E9%82%84%E6%98%AF%E6%B2%92%E6%9C%89%E6%AA%94%E6%A1%88">為什麼「模組載入了」還是沒有檔案</a></li>
+<li class="l3"><a href="#%E4%B8%89%E5%80%8B%E5%B1%A4%E6%AC%A1%E8%A6%81%E5%88%86%E9%96%8B%E7%9C%8B">三個層次要分開看</a></li>
+<li class="l3"><a href="#%E7%82%BA%E4%BB%80%E9%BA%BC-ubuntu-%E8%A6%81%E9%97%9C%E6%8E%89">為什麼 Ubuntu 要關掉</a></li>
+<li class="l2"><a href="#%E5%85%AD%E6%9B%BF%E4%BB%A3%E6%96%B9%E6%A1%88%E8%B5%B0-netlink">六、替代方案：走 netlink</a></li>
+<li class="l2"><a href="#%E4%B8%83procfs--sysfs--netlink-%E7%9A%84%E5%88%86%E5%B7%A5">七、procfs / sysfs / netlink 的分工</a></li>
+<li class="l2"><a href="#%E5%85%AB%E5%8F%AF%E5%B8%B6%E8%B5%B0%E7%9A%84%E9%80%9A%E5%89%87">八、可帶走的通則</a></li>
+<li class="l2"><a href="#%E7%B8%BD%E7%B5%90">總結</a></li>
+</ul>
+</nav>
+<main>
+<h1 id="procfsprocess-filesystem行程檔案系統即-proc是什麼以及為什麼-procnetnf_conntrack-不存在">procfs（process filesystem，行程檔案系統，即 <code>/proc</code>）是什麼，以及為什麼 <code>/proc/net/nf_conntrack</code> 不存在</h1>
+<blockquote>
+<p>日期：2026-07-25<br />
+起因：<code>lsmod</code> 明明看得到 <code>nf_conntrack</code> 已載入，但 <code>/proc/net/nf_conntrack</code> 卻不存在<br />
+結論先講：<strong>這是核心編譯期的決定（<code>CONFIG_NF_CONNTRACK_PROCFS</code> 沒開），不是模組沒裝，也沒有任何 runtime 開關可以打開它</strong><br />
+關聯：<a href="%E6%8E%92%E6%9F%A5%E6%96%B9%E6%B3%95%E8%AB%96.html">排查方法論</a>（「東西不在該在的地方」的通用找法）、<a href="%E6%A0%B8%E5%BF%83%E6%A8%A1%E7%B5%84%E6%AA%A2%E6%9F%A5.html">核心模組檢查</a>（模組三層安裝概念）</p>
+</blockquote>
+<hr />
+<h2 id="目錄">目錄</h2>
+<ol>
+<li><a href="#%E4%B8%80%E5%95%8F%E9%A1%8C%E7%8F%BE%E5%A0%B4">問題現場</a></li>
+<li><a href="#%E4%BA%8Cprocfs-%E6%98%AF%E4%BB%80%E9%BA%BC">procfs 是什麼</a></li>
+<li><a href="#%E4%B8%89proc-%E7%9A%84%E5%85%A9%E5%A4%A7%E9%A1%9E%E5%85%A7%E5%AE%B9"><code>/proc</code> 的兩大類內容</a></li>
+<li><a href="#%E5%9B%9Bprocsys-%E7%89%B9%E4%BE%8B%E5%8F%AF%E4%BB%A5%E5%AF%AB%E7%9A%84%E6%97%8B%E9%88%95"><code>/proc/sys</code> 特例：可以寫的旋鈕</a></li>
+<li><a href="#%E4%BA%94%E5%9B%9E%E9%A0%AD%E8%A7%A3-nf_conntrack">回頭解 nf_conntrack</a></li>
+<li><a href="#%E5%85%AD%E6%9B%BF%E4%BB%A3%E6%96%B9%E6%A1%88%E8%B5%B0-netlink">替代方案：走 netlink</a></li>
+<li><a href="#%E4%B8%83procfs--sysfs--netlink-%E7%9A%84%E5%88%86%E5%B7%A5">procfs / sysfs / netlink 的分工</a></li>
+<li><a href="#%E5%85%AB%E5%8F%AF%E5%B8%B6%E8%B5%B0%E7%9A%84%E9%80%9A%E5%89%87">可帶走的通則</a></li>
+</ol>
+<hr />
+<h2 id="一問題現場">一、問題現場</h2>
+<p>模組明明在跑，而且有三個使用者：</p>
+<pre><code class="language-bash">lsmod<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-i<span class="w"> </span>conntrack
+</code></pre>
+<pre><code>xt_conntrack           12288  2
+nf_conntrack          192512  3 xt_conntrack,nf_nat,xt_MASQUERADE
+nf_defrag_ipv6         24576  1 nf_conntrack
+nf_defrag_ipv4         12288  1 nf_conntrack
+</code></pre>
+<p>功能也確實正常運作（連線追蹤表裡有 73 筆）：</p>
+<pre><code class="language-bash">cat<span class="w"> </span>/proc/sys/net/netfilter/nf_conntrack_count<span class="w">   </span><span class="c1"># 73</span>
+cat<span class="w"> </span>/proc/sys/net/netfilter/nf_conntrack_max<span class="w">     </span><span class="c1"># 262144</span>
+</code></pre>
+<p>但檔案就是不在：</p>
+<pre><code class="language-bash">ls<span class="w"> </span>-l<span class="w"> </span>/proc/net/nf_conntrack
+<span class="c1"># ls: cannot access &#39;/proc/net/nf_conntrack&#39;: No such file or directory</span>
+</code></pre>
+<p><strong>注意這裡的矛盾</strong>：<code>/proc/sys/net/netfilter/nf_conntrack_*</code> 存在，<code>/proc/net/nf_conntrack</code> 不存在。同樣掛在 <code>/proc</code> 底下，一個有一個沒有——這代表它們背後是<strong>兩套不同的註冊機制</strong>，不能因為前者在就推論後者也該在。</p>
+<hr />
+<h2 id="二procfs-是什麼">二、procfs 是什麼</h2>
+<p><code>/proc</code> 是一個<strong>虛擬檔案系統</strong>（virtual filesystem）。確實有掛載：</p>
+<pre><code class="language-bash">mount<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span><span class="s1">&#39;^proc &#39;</span>
+<span class="c1"># proc on /proc type proc (rw,nosuid,nodev,noexec,relatime)</span>
+</code></pre>
+<p>但它<strong>不佔任何磁碟空間</strong>。底下每個「檔案」都不是真的檔案，而是核心在你 <code>read()</code> 的那一瞬間<strong>現場產生的一段文字</strong>——你 <code>cat</code> 一次，核心就跑一次對應的函式，把內部資料格式化成字串回給你。</p>
+<p>驗證它是即時產生的：</p>
+<pre><code class="language-bash">cat<span class="w"> </span>/proc/uptime<span class="p">;</span><span class="w"> </span>sleep<span class="w"> </span><span class="m">2</span><span class="p">;</span><span class="w"> </span>cat<span class="w"> </span>/proc/uptime
+</code></pre>
+<pre><code>4823.19 38102.44
+4825.23 38118.51     ← 數字變了，不是靜態檔案
+</code></pre>
+<h3 id="為什麼要做成檔案">為什麼要做成檔案</h3>
+<p>Unix 哲學是 &quot;everything is a file&quot;。與其為「查行程列表」「查記憶體用量」各發明一套 syscall，不如全部長成檔案——這樣 <code>cat</code>、<code>grep</code>、<code>awk</code>、任何語言的 <code>open()</code> 都能直接用，不需要學特殊 API。</p>
+<p><strong>這就是理解 procfs 的入口問題</strong>：</p>
+<blockquote>
+<p><code>ps</code> 指令怎麼知道系統上有哪些行程在跑？</p>
+</blockquote>
+<p>它不可能自己知道，資料一定得從核心來。答案是它去讀 <code>/proc/&lt;PID&gt;/status</code> 這類檔案。<code>ps</code>、<code>top</code>、<code>htop</code>、<code>free</code>、<code>lsof</code>、<code>netstat</code> 全部都只是在 parse <code>/proc</code> 底下的文字——沒有 procfs 它們就瞎了。</p>
+<hr />
+<h2 id="三proc-的兩大類內容">三、<code>/proc</code> 的兩大類內容</h2>
+<h3 id="3-1-數字目錄--每個行程一個">3-1 數字目錄 = 每個行程一個</h3>
+<p><code>ls /proc</code> 看到的 <code>1</code>、<code>10</code>、<code>1023</code>… 那些數字就是 PID（Process ID，行程識別碼）：</p>
+<pre><code class="language-bash">cat<span class="w"> </span>/proc/self/cmdline<span class="w">    </span><span class="c1"># 命令列（用 \0 分隔，可搭配 tr &#39;\0&#39; &#39; &#39;）</span>
+cat<span class="w"> </span>/proc/self/maps<span class="w">       </span><span class="c1"># 記憶體映射</span>
+ls<span class="w"> </span>-l<span class="w"> </span>/proc/self/fd/<span class="w">      </span><span class="c1"># 開啟的所有 fd（symlink 指向真正的檔案/pipe/socket）</span>
+cat<span class="w"> </span>/proc/self/limits<span class="w">     </span><span class="c1"># ulimit 各項上限</span>
+cat<span class="w"> </span>/proc/self/status<span class="w">     </span><span class="c1"># 狀態、UID、記憶體摘要</span>
+cat<span class="w"> </span>/proc/self/environ<span class="w">    </span><span class="c1"># 環境變數</span>
+</code></pre>
+<p><code>/proc/self</code> 是<strong>魔術 symlink</strong>，永遠指向「正在讀它的那個行程」。用 <code>/proc/&lt;PID&gt;/</code> 則可以看別人的（權限允許的話）。</p>
+<h3 id="3-2-系統全域資訊">3-2 系統全域資訊</h3>
+<table>
+<thead>
+<tr>
+<th>路徑</th>
+<th>內容</th>
+<th>誰在讀它</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>/proc/cpuinfo</code></td>
+<td>CPU 型號、核心數、旗標</td>
+<td><code>lscpu</code></td>
+</tr>
+<tr>
+<td><code>/proc/meminfo</code></td>
+<td>記憶體各項統計</td>
+<td><code>free</code></td>
+</tr>
+<tr>
+<td><code>/proc/mounts</code></td>
+<td>掛載表</td>
+<td><code>mount</code>（無參數時）</td>
+</tr>
+<tr>
+<td><code>/proc/modules</code></td>
+<td>已載入模組</td>
+<td><code>lsmod</code></td>
+</tr>
+<tr>
+<td><code>/proc/net/tcp</code></td>
+<td>TCP（Transmission Control Protocol，傳輸控制協定）連線表</td>
+<td><code>netstat</code> / <code>ss</code>（<code>ss</code> 主要走 netlink）</td>
+</tr>
+<tr>
+<td><code>/proc/net/stat/nf_conntrack</code></td>
+<td>conntrack 的 per-CPU 統計</td>
+<td><code>conntrack -S</code></td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>注意最後一列：<code>/proc/net/stat/nf_conntrack</code>（統計）<strong>存在</strong>，<code>/proc/net/nf_conntrack</code>（連線列表）<strong>不存在</strong>。兩個不同的東西，別看到名字像就以為是同一個。</p>
+</blockquote>
+<hr />
+<h2 id="四procsys-特例可以寫的旋鈕">四、<code>/proc/sys</code> 特例：可以寫的旋鈕</h2>
+<p><code>/proc</code> 絕大部分是唯讀的，但 <code>/proc/sys</code> 底下是<strong>可寫的核心參數</strong>，寫進去即時生效——這就是 <code>sysctl</code> 的本體：</p>
+<pre><code class="language-bash">cat<span class="w">  </span>/proc/sys/net/ipv4/ip_forward<span class="w">          </span><span class="c1"># 讀</span>
+<span class="nb">echo</span><span class="w"> </span><span class="m">1</span><span class="w"> </span>&gt;<span class="w"> </span>/proc/sys/net/ipv4/ip_forward<span class="w">      </span><span class="c1"># 寫（需 root）</span>
+sudo<span class="w"> </span>sysctl<span class="w"> </span>-w<span class="w"> </span>net.ipv4.ip_forward<span class="o">=</span><span class="m">1</span><span class="w">        </span><span class="c1"># 等價寫法</span>
+</code></pre>
+<p><strong>路徑對應規則</strong>：<code>sysctl</code> 的點換成斜線，前面加 <code>/proc/sys/</code></p>
+<pre><code>net.ipv4.ip_forward              ↔  /proc/sys/net/ipv4/ip_forward
+net.netfilter.nf_conntrack_max   ↔  /proc/sys/net/netfilter/nf_conntrack_max
+</code></pre>
+<p><code>echo</code> 寫進去的是<strong>暫時的</strong>，重開機消失；要永久生效寫進 <code>/etc/sysctl.conf</code> 或 <code>/etc/sysctl.d/*.conf</code>。</p>
+<p>想知道有哪些旋鈕可調，直接列：</p>
+<pre><code class="language-bash">sysctl<span class="w"> </span>-a<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>conntrack<span class="w">        </span><span class="c1"># 或</span>
+ls<span class="w"> </span>/proc/sys/net/netfilter/
+</code></pre>
+<hr />
+<h2 id="五回頭解-nf_conntrack">五、回頭解 nf_conntrack</h2>
+<p>查核心編譯設定（Ubuntu 會把設定檔放在 <code>/boot/config-$(uname -r)</code>）：</p>
+<pre><code class="language-bash">grep<span class="w"> </span>-E<span class="w"> </span><span class="s2">&quot;CONFIG_NF_CONNTRACK(_PROCFS)?=&quot;</span><span class="w"> </span>/boot/config-<span class="k">$(</span>uname<span class="w"> </span>-r<span class="k">)</span>
+grep<span class="w"> </span>NF_CONNTRACK_PROCFS<span class="w"> </span>/boot/config-<span class="k">$(</span>uname<span class="w"> </span>-r<span class="k">)</span>
+</code></pre>
+<pre><code>CONFIG_NF_CONNTRACK=m
+# CONFIG_NF_CONNTRACK_PROCFS is not set     ← 兇手
+</code></pre>
+<h3 id="為什麼模組載入了還是沒有檔案">為什麼「模組載入了」還是沒有檔案</h3>
+<p><code>/proc/net/nf_conntrack</code> 這個節點，是 <code>nf_conntrack</code> 模組載入時<strong>主動去 procfs 註冊</strong>才會出現的。而那段註冊程式碼在原始碼裡被 <code>#ifdef CONFIG_NF_CONNTRACK_PROCFS</code> 包住——選項沒開，那段程式碼<strong>根本沒被編進模組</strong>，載入時自然不會註冊。</p>
+<p>它不是「檔案遺失」或「權限問題」，是<strong>核心從來沒打算生它</strong>。</p>
+<h3 id="三個層次要分開看">三個層次要分開看</h3>
+<table>
+<thead>
+<tr>
+<th>層次</th>
+<th>決定時機</th>
+<th>本例狀態</th>
+<th>能不能事後改</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>核心編譯選項 <code>CONFIG_NF_CONNTRACK_PROCFS</code></td>
+<td>編譯 kernel 時</td>
+<td><strong>未開啟</strong></td>
+<td>❌ 只能重編核心</td>
+</tr>
+<tr>
+<td>模組是否載入 <code>nf_conntrack</code></td>
+<td><code>modprobe</code> / 自動載入</td>
+<td>已載入</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>procfs 節點是否註冊</td>
+<td>模組載入時，受編譯選項控制</td>
+<td>沒註冊</td>
+<td>❌ 沒有 sysctl／模組參數可開</td>
+</tr>
+</tbody>
+</table>
+<p>所以 <code>modprobe nf_conntrack</code> 再跑一百次也不會生出這個檔案。</p>
+<h3 id="為什麼-ubuntu-要關掉">為什麼 Ubuntu 要關掉</h3>
+<p><code>CONFIG_NF_CONNTRACK_PROCFS</code> 在核心 3.x 之後就被標為 <strong>deprecated</strong>，預設 <code>n</code>。Debian/Ubuntu 很久以前就跟進關閉。官方立場是：這個介面應該被 netlink 取代（見下節）。</p>
+<hr />
+<h2 id="六替代方案走-netlink">六、替代方案：走 netlink</h2>
+<p>官方取代方案是 <code>NFNETLINK_CONNTRACK</code>，使用者端工具是 <code>conntrack</code>：</p>
+<pre><code class="language-bash">sudo<span class="w"> </span>apt<span class="w"> </span>install<span class="w"> </span>conntrack
+</code></pre>
+<pre><code class="language-bash">sudo<span class="w"> </span>conntrack<span class="w"> </span>-L<span class="w">            </span><span class="c1"># 列出所有連線（等同舊的 cat /proc/net/nf_conntrack）</span>
+sudo<span class="w"> </span>conntrack<span class="w"> </span>-L<span class="w"> </span>-p<span class="w"> </span>tcp<span class="w">     </span><span class="c1"># 只看 TCP</span>
+sudo<span class="w"> </span>conntrack<span class="w"> </span>-C<span class="w">            </span><span class="c1"># 只印當前連線數</span>
+sudo<span class="w"> </span>conntrack<span class="w"> </span>-E<span class="w">            </span><span class="c1"># 即時 event 串流（tail -f 的效果）</span>
+sudo<span class="w"> </span>conntrack<span class="w"> </span>-S<span class="w">            </span><span class="c1"># per-CPU 統計：drop / invalid / insert_failed</span>
+sudo<span class="w"> </span>conntrack<span class="w"> </span>-F<span class="w">            </span><span class="c1"># 清空整張表（謹慎）</span>
+</code></pre>
+<p>沒裝工具時的替代觀察點（這些不受該編譯選項影響）：</p>
+<pre><code class="language-bash">cat<span class="w"> </span>/proc/sys/net/netfilter/nf_conntrack_count<span class="w">    </span><span class="c1"># 當前筆數</span>
+cat<span class="w"> </span>/proc/sys/net/netfilter/nf_conntrack_max<span class="w">      </span><span class="c1"># 上限</span>
+cat<span class="w"> </span>/proc/net/stat/nf_conntrack<span class="w">                   </span><span class="c1"># per-CPU 統計原始數字</span>
+</code></pre>
+<hr />
+<h2 id="七procfs--sysfs--netlink-的分工">七、procfs / sysfs / netlink 的分工</h2>
+<p><code>/proc</code> 因為歷史因素塞了太多雜物（<code>/proc/meminfo</code> 一個檔案裡幾十個數值，要自己 parse），後來的設計把東西往外分流：</p>
+<table>
+<thead>
+<tr>
+<th>介面</th>
+<th>設計原則</th>
+<th>現在該放什麼</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>procfs</strong> <code>/proc</code></td>
+<td>早期，格式自由、一檔多值</td>
+<td>行程資訊（它的本分）、<code>/proc/sys</code> 參數</td>
+</tr>
+<tr>
+<td><strong>sysfs（system filesystem，系統檔案系統）</strong> <code>/sys</code></td>
+<td>一個檔案一個值，嚴格對應裝置模型</td>
+<td>裝置 / 驅動 / bus 屬性</td>
+</tr>
+<tr>
+<td><strong>netlink</strong></td>
+<td>socket 式 API，二進位、可訂閱事件</td>
+<td>網路狀態與統計（<code>ss</code>、<code>ip</code>、<code>conntrack</code> 都走這條）</td>
+</tr>
+</tbody>
+</table>
+<p><code>CONFIG_NF_CONNTRACK_PROCFS</code> 被 deprecated，就是這股「把東西推離 procfs」潮流的一部分。</p>
+<p><strong>副作用</strong>：舊教學／StackOverflow 答案大量使用 <code>cat /proc/net/nf_conntrack</code>，在現代發行版上會直接失敗。看到舊文章叫你 cat 某個 <code>/proc</code> 檔卻找不到時，先想「這介面是不是被淘汰了」。</p>
+<hr />
+<h2 id="八可帶走的通則">八、可帶走的通則</h2>
+<ol>
+<li>
+<p><strong><code>/proc</code> 底下的東西是「有人註冊才存在」的，不是天生就有。</strong> 不同節點由不同模組／子系統各自註冊，彼此獨立。<code>/proc/sys/net/netfilter/*</code> 在，不代表 <code>/proc/net/nf_conntrack</code> 該在。</p>
+</li>
+<li>
+<p><strong>分清楚「編譯期」與「執行期」。</strong> 執行期的手段（<code>modprobe</code>、<code>sysctl</code>、改權限）對編譯期就被 <code>#ifdef</code> 排除的功能完全無效。查 <code>/boot/config-$(uname -r)</code> 是最快的判定方式。</p>
+</li>
+<li>
+<p><strong>模組「載入了」不等於「功能全開」。</strong> 同一個模組的功能可以被編譯選項切掉一部分——這是 <a href="%E6%A0%B8%E5%BF%83%E6%A8%A1%E7%B5%84%E6%AA%A2%E6%9F%A5.html">核心模組檢查</a> 裡「三層安裝」概念的延伸：還有第四層是「編進去的功能子集」。</p>
+</li>
+<li>
+<p><strong>找不到東西時先推翻前提</strong>（見 <a href="%E6%8E%92%E6%9F%A5%E6%96%B9%E6%B3%95%E8%AB%96.html">排查方法論</a>）。本例中「前提」就是「conntrack 表一定在 /proc/net」——這個前提在 2026 年的 Ubuntu 上根本不成立。</p>
+</li>
+</ol>
+<hr />
+<h2 id="總結">總結</h2>
+<p><strong><code>/proc</code> 是核心把內部狀態偽裝成檔案攤出來給你看的地方，內容即時產生、不佔磁碟；<code>/proc/sys</code> 是其中可寫的參數旋鈕。</strong></p>
+<p><strong><code>/proc/net/nf_conntrack</code> 不存在，是因為 Ubuntu 編譯核心時關閉了 <code>CONFIG_NF_CONNTRACK_PROCFS</code>（該介面已 deprecated）。conntrack 功能本身完全正常，改用 <code>conntrack</code> 指令走 netlink 查詢即可。</strong></p>
+<pre><code class="language-bash"><span class="c1"># 一行判定這類問題</span>
+grep<span class="w"> </span>-i<span class="w"> </span><span class="s2">&quot;&lt;某功能&gt;&quot;</span><span class="w"> </span>/boot/config-<span class="k">$(</span>uname<span class="w"> </span>-r<span class="k">)</span>
+<span class="c1"># 出現 &quot;# CONFIG_XXX is not set&quot; → 編譯期就沒了，別再找 runtime 開關</span>
+</code></pre>
+
+</main>
+</div>
+</body>
+</html>

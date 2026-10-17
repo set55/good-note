@@ -1,0 +1,502 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kubernetes 有哪些組件？它們各自在做什麼？</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/app.js"></script>
+</head>
+<body>
+<button class="menu-btn" onclick="toggleMenu()">☰ 目錄</button>
+<div class="layout">
+<nav class="side">
+<div class="crumbs"><a href="../index.html">🏠 首頁</a> / <a href="README.html">kubernetes</a></div>
+<div class="tools"><button onclick="toggleTheme()">🌓 主題</button></div>
+<ul>
+<li class="l2"><a href="#%E4%B8%80%E5%8F%A5%E8%A9%B1%E7%B5%90%E8%AB%96">一句話結論</a></li>
+<li class="l2"><a href="#%E7%9B%AE%E9%8C%84">目錄</a></li>
+<li class="l2"><a href="#%E4%B8%80%E5%85%88%E8%AC%9B%E6%B8%85%E6%A5%9A-k8s-%E5%88%B0%E5%BA%95%E5%9C%A8%E8%A7%A3%E6%B1%BA%E4%BB%80%E9%BA%BC%E5%95%8F%E9%A1%8C">一、先講清楚 K8s 到底在解決什麼問題</a></li>
+<li class="l2"><a href="#%E4%BA%8C%E5%85%A9%E5%80%8B%E5%B9%B3%E9%9D%A2%E6%8E%A7%E5%88%B6%E5%B9%B3%E9%9D%A2%E8%88%87%E5%B7%A5%E4%BD%9C%E7%AF%80%E9%BB%9E">二、兩個平面：控制平面與工作節點</a></li>
+<li class="l2"><a href="#%E4%B8%89%E6%8E%A7%E5%88%B6%E5%B9%B3%E9%9D%A2%E7%B5%84%E4%BB%B6%E9%80%90%E4%B8%80%E6%8B%86%E8%A7%A3">三、控制平面組件逐一拆解</a></li>
+<li class="l3"><a href="#31-etcd--%E5%8F%A2%E9%9B%86%E7%9A%84%E5%94%AF%E4%B8%80%E7%9C%9F%E7%9B%B8%E4%BE%86%E6%BA%90">3.1 etcd —— 叢集的唯一真相來源</a></li>
+<li class="l3"><a href="#32-kube-apiserver--%E5%94%AF%E4%B8%80%E7%9A%84%E5%A4%A7%E9%96%80">3.2 kube-apiserver —— 唯一的大門</a></li>
+<li class="l3"><a href="#33-kube-scheduler--%E5%8F%AA%E5%81%9A%E4%B8%80%E4%BB%B6%E4%BA%8B%E6%8C%91%E6%A9%9F%E5%99%A8">3.3 kube-scheduler —— 只做一件事：挑機器</a></li>
+<li class="l3"><a href="#34-kube-controller-manager--%E5%B9%BE%E5%8D%81%E5%80%8B%E6%8E%A7%E5%88%B6%E8%BF%B4%E5%9C%88%E4%BD%8F%E5%9C%A8%E5%90%8C%E4%B8%80%E5%80%8B%E8%A1%8C%E7%A8%8B">3.4 kube-controller-manager —— 幾十個控制迴圈住在同一個行程</a></li>
+<li class="l3"><a href="#35-cloud-controller-manager--%E8%B7%9F%E9%9B%B2%E5%BB%A0%E5%95%86-api-%E6%89%93%E4%BA%A4%E9%81%93%E7%9A%84%E9%83%A8%E5%88%86">3.5 cloud-controller-manager —— 跟雲廠商 API 打交道的部分</a></li>
+<li class="l2"><a href="#%E5%9B%9B%E6%AF%8F%E5%80%8B%E7%AF%80%E9%BB%9E%E4%B8%8A%E7%9A%84%E7%B5%84%E4%BB%B6">四、每個節點上的組件</a></li>
+<li class="l3"><a href="#41-kubelet--%E7%AF%80%E9%BB%9E%E4%B8%8A%E7%9A%84%E5%94%AF%E4%B8%80%E4%B8%BB%E8%A7%92">4.1 kubelet —— 節點上的唯一主角</a></li>
+<li class="l3"><a href="#42-%E5%AE%B9%E5%99%A8%E5%9F%B7%E8%A1%8C%E7%92%B0%E5%A2%83container-runtime">4.2 容器執行環境（Container Runtime）</a></li>
+<li class="l3"><a href="#43-kube-proxy--%E8%AE%93-service-%E7%9A%84%E8%99%9B%E6%93%AC-ip-%E7%94%9F%E6%95%88">4.3 kube-proxy —— 讓 Service 的虛擬 IP 生效</a></li>
+<li class="l2"><a href="#%E4%BA%94%E9%99%84%E5%8A%A0%E7%B5%84%E4%BB%B6add-ons%E6%B2%92%E6%9C%89%E5%AE%83%E5%80%91%E5%8F%A2%E9%9B%86%E4%B8%8D%E8%83%BD%E7%94%A8%E4%BD%86%E5%AE%83%E5%80%91%E4%B8%8D%E6%98%AF%E6%A0%B8%E5%BF%83">五、附加組件（Add-ons）：沒有它們叢集不能用，但它們不是核心</a></li>
+<li class="l2"><a href="#%E5%85%AD%E7%82%BA%E4%BB%80%E9%BA%BC%E6%98%AF%E6%98%9F%E7%8B%80%E6%9E%B6%E6%A7%8B%E8%80%8C%E4%B8%8D%E6%98%AF%E4%BA%92%E7%9B%B8%E5%91%BC%E5%8F%AB">六、為什麼是「星狀」架構而不是互相呼叫</a></li>
+<li class="l2"><a href="#%E4%B8%83%E5%93%AA%E5%80%8B%E7%B5%84%E4%BB%B6%E6%8E%9B%E6%8E%89%E6%9C%83%E6%80%8E%E6%A8%A3%E6%9C%80%E6%9C%89%E5%83%B9%E5%80%BC%E7%9A%84%E4%B8%80%E5%BC%B5%E8%A1%A8">七、哪個組件掛掉會怎樣（最有價值的一張表）</a></li>
+<li class="l2"><a href="#%E5%85%AB%E5%9C%A8%E7%9C%9F%E6%A9%9F%E4%B8%8A%E6%8A%8A%E9%80%99%E4%BA%9B%E7%B5%84%E4%BB%B6%E6%89%BE%E5%87%BA%E4%BE%86">八、在真機上把這些組件找出來</a></li>
+<li class="l2"><a href="#%E7%9B%B8%E9%97%9C%E7%AD%86%E8%A8%98">相關筆記</a></li>
+<li class="l2"><a href="#%E6%8C%87%E4%BB%A4%E9%81%B8%E9%A0%85%E7%9A%84%E6%B6%B5%E8%93%8B%E7%AF%84%E5%9C%8D%E8%AA%AA%E6%98%8E">指令選項的涵蓋範圍說明</a></li>
+<li class="l2"><a href="#%E8%87%AA%E6%88%91%E6%B8%AC%E9%A9%97">自我測驗</a></li>
+</ul>
+</nav>
+<main>
+<h1 id="kubernetes-有哪些組件它們各自在做什麼">Kubernetes 有哪些組件？它們各自在做什麼？</h1>
+<blockquote>
+<p>日期：2026-09-12<br />
+情境：從零開始學 Kubernetes，先建立「整個系統長什麼樣」的骨架，之後所有細節都掛在這張圖上<br />
+適用範圍：Kubernetes v1.28+ 的自建叢集（kubeadm / k3s / kind 皆適用），雲端託管叢集（EKS、GKE、AKS）控制平面被雲廠商藏起來，但組件與行為相同</p>
+</blockquote>
+<hr />
+<h2 id="一句話結論">一句話結論</h2>
+<blockquote>
+<p><strong>Kubernetes 不是一個「指揮官程式」，而是「一個共用資料庫（etcd）+ 一群各自盯著資料庫做事的無狀態迴圈」。</strong>
+所有組件只跟 API Server 講話，<strong>彼此之間從不直接呼叫</strong>。理解這件事，整個 K8s 的行為就全部說得通了。</p>
+</blockquote>
+<hr />
+<h2 id="目錄">目錄</h2>
+<ul>
+<li><a href="#%E4%B8%80%E5%85%88%E8%AC%9B%E6%B8%85%E6%A5%9A-k8s-%E5%88%B0%E5%BA%95%E5%9C%A8%E8%A7%A3%E6%B1%BA%E4%BB%80%E9%BA%BC%E5%95%8F%E9%A1%8C">一、先講清楚 K8s 到底在解決什麼問題</a></li>
+<li><a href="#%E4%BA%8C%E5%85%A9%E5%80%8B%E5%B9%B3%E9%9D%A2%E6%8E%A7%E5%88%B6%E5%B9%B3%E9%9D%A2%E8%88%87%E5%B7%A5%E4%BD%9C%E7%AF%80%E9%BB%9E">二、兩個平面：控制平面與工作節點</a></li>
+<li><a href="#%E4%B8%89%E6%8E%A7%E5%88%B6%E5%B9%B3%E9%9D%A2%E7%B5%84%E4%BB%B6%E9%80%90%E4%B8%80%E6%8B%86%E8%A7%A3">三、控制平面組件逐一拆解</a></li>
+<li><a href="#%E5%9B%9B%E6%AF%8F%E5%80%8B%E7%AF%80%E9%BB%9E%E4%B8%8A%E7%9A%84%E7%B5%84%E4%BB%B6">四、每個節點上的組件</a></li>
+<li><a href="#%E4%BA%94%E9%99%84%E5%8A%A0%E7%B5%84%E4%BB%B6add-ons%E6%B2%92%E6%9C%89%E5%AE%83%E5%80%91%E5%8F%A2%E9%9B%86%E4%B8%8D%E8%83%BD%E7%94%A8%E4%BD%86%E5%AE%83%E5%80%91%E4%B8%8D%E6%98%AF%E6%A0%B8%E5%BF%83">五、附加組件（Add-ons）：沒有它們叢集不能用，但它們不是核心</a></li>
+<li><a href="#%E5%85%AD%E7%82%BA%E4%BB%80%E9%BA%BC%E6%98%AF%E6%98%9F%E7%8B%80%E6%9E%B6%E6%A7%8B%E8%80%8C%E4%B8%8D%E6%98%AF%E4%BA%92%E7%9B%B8%E5%91%BC%E5%8F%AB">六、為什麼是「星狀」架構而不是互相呼叫</a></li>
+<li><a href="#%E4%B8%83%E5%93%AA%E5%80%8B%E7%B5%84%E4%BB%B6%E6%8E%9B%E6%8E%89%E6%9C%83%E6%80%8E%E6%A8%A3%E6%9C%80%E6%9C%89%E5%83%B9%E5%80%BC%E7%9A%84%E4%B8%80%E5%BC%B5%E8%A1%A8">七、哪個組件掛掉會怎樣（最有價值的一張表）</a></li>
+<li><a href="#%E5%85%AB%E5%9C%A8%E7%9C%9F%E6%A9%9F%E4%B8%8A%E6%8A%8A%E9%80%99%E4%BA%9B%E7%B5%84%E4%BB%B6%E6%89%BE%E5%87%BA%E4%BE%86">八、在真機上把這些組件找出來</a></li>
+<li><a href="#%E8%87%AA%E6%88%91%E6%B8%AC%E9%A9%97">自我測驗</a></li>
+</ul>
+<hr />
+<h2 id="一先講清楚-k8s-到底在解決什麼問題">一、先講清楚 K8s 到底在解決什麼問題</h2>
+<p>沒有 K8s 的時候，跑一個服務你要自己處理：機器選哪台、掛了誰重啟、要擴容時誰去開新的、IP 變了誰去改設定、新版本怎麼一台一台換。</p>
+<p>K8s 把這些全部變成<strong>一句宣告</strong>：「我要 3 份這個容器在跑」。你不再說「怎麼做」，只說「要什麼」。</p>
+<p>這種模式叫<strong>宣告式 API（Declarative API）</strong>，相對於傳統的<strong>命令式（Imperative）</strong>。它帶來一個關鍵性質：</p>
+<blockquote>
+<p>因為系統隨時知道「你要什麼」，它就能<strong>隨時比對現實、隨時修正</strong>——這就是自我修復（self-healing）的來源。</p>
+</blockquote>
+<p>細節見 <a href="%E5%AE%A3%E5%91%8A%E5%BC%8FAPI%E8%88%87%E6%8E%A7%E5%88%B6%E5%99%A8%E8%AA%BF%E8%AB%A7%E8%BF%B4%E5%9C%88.html">宣告式API與控制器調諧迴圈</a>。</p>
+<hr />
+<h2 id="二兩個平面控制平面與工作節點">二、兩個平面：控制平面與工作節點</h2>
+<p>一個 K8s 叢集（cluster）由兩種角色的機器組成：</p>
+<pre><code>┌──────────────────────── Control Plane（控制平面，通常 1 或 3 台）─────────────────────┐
+│                                                                                       │
+│    ┌────────┐      ┌──────────────────┐      ┌──────────────────────────┐             │
+│    │  etcd  │◀────▶│  kube-apiserver  │◀────▶│ kube-controller-manager  │             │
+│    └────────┘      └──────────────────┘      └──────────────────────────┘             │
+│    唯一有狀態的       唯一能碰 etcd 的           一堆控制迴圈住在同一個行程              │
+│                            ▲  ▲                                                       │
+│                            │  └──────────────┐                                        │
+│                    ┌───────┴────────┐   ┌────┴─────────────────────┐                  │
+│                    │ kube-scheduler │   │ cloud-controller-manager │（僅雲端環境）     │
+│                    └────────────────┘   └──────────────────────────┘                  │
+└───────────────────────────────▲───────────────────────────────────────────────────────┘
+                                │ 全部走 HTTPS，所有組件只跟 API Server 說話
+        ┌───────────────────────┼───────────────────────┐
+        │                       │                       │
+┌───────┴────────┐     ┌────────┴───────┐      ┌────────┴───────┐
+│    Node 1      │     │     Node 2     │      │     Node 3     │   ← Worker Node（工作節點）
+│  kubelet       │     │  kubelet       │      │  kubelet       │
+│  kube-proxy    │     │  kube-proxy    │      │  kube-proxy    │
+│  containerd    │     │  containerd    │      │  containerd    │
+│  └ Pod Pod Pod │     │  └ Pod Pod     │      │  └ Pod Pod Pod │
+└────────────────┘     └────────────────┘      └────────────────┘
+</code></pre>
+<ul>
+<li><strong>控制平面（Control Plane）</strong>：做決策的大腦。決定「哪個 Pod 該跑在哪台」「數量不對時該補幾個」。</li>
+<li><strong>工作節點（Worker Node）</strong>：真正跑容器的地方。只負責執行控制平面交辦的事，並回報現況。</li>
+</ul>
+<blockquote>
+<p>注意：控制平面本身也可以是一台 Node（單機叢集如 kind、minikube 就是這樣），差別只在有沒有被打上污點（taint）不讓一般 Pod 排上去。</p>
+</blockquote>
+<hr />
+<h2 id="三控制平面組件逐一拆解">三、控制平面組件逐一拆解</h2>
+<h3 id="31-etcd--叢集的唯一真相來源">3.1 etcd —— 叢集的唯一真相來源</h3>
+<p><strong>它是什麼</strong>：一個分散式的鍵值資料庫（key-value store），用 Raft 共識演算法（consensus algorithm）做多副本一致性。</p>
+<p><strong>它存什麼</strong>：<strong>整個叢集的全部狀態</strong>。每一個 Pod、Service、Secret、ConfigMap、Node 都是 etcd 裡的一筆資料，key 長得像 <code>/registry/pods/default/nginx-abc123</code>。</p>
+<p><strong>關鍵性質</strong>：</p>
+<table>
+<thead>
+<tr>
+<th>性質</th>
+<th>說明</th>
+<th>為什麼重要</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>唯一有狀態的組件</td>
+<td>其他所有組件重開都不掉資料</td>
+<td>備份只要備 etcd 就夠了</td>
+</tr>
+<tr>
+<td>只有 API Server 能連</td>
+<td>其他組件一律不直連 etcd</td>
+<td>所有寫入都能被驗證與稽核</td>
+</tr>
+<tr>
+<td>支援 watch</td>
+<td>可以訂閱「某個 key 之後的所有變化」</td>
+<td>這是整個 K8s 事件驅動的物理基礎</td>
+</tr>
+<tr>
+<td>每筆資料有 revision</td>
+<td>全域單調遞增的版本號</td>
+<td>對應到 API 物件的 <code>resourceVersion</code>，樂觀鎖靠它</td>
+</tr>
+<tr>
+<td>Raft 需要多數決</td>
+<td>3 台掛 1 台可用；掛 2 台整個停寫</td>
+<td>所以控制平面要嘛 1 台要嘛 3 台，<strong>2 台比 1 台還糟</strong></td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>心法</strong>：etcd 掛了 = 叢集失憶。已經在跑的 Pod 不會死（kubelet 有本地快取且不依賴 etcd 續跑），但你<strong>改不了任何東西</strong>。</p>
+</blockquote>
+<h3 id="32-kube-apiserver--唯一的大門">3.2 kube-apiserver —— 唯一的大門</h3>
+<p><strong>它是什麼</strong>：一個無狀態的 HTTPS REST 伺服器。<strong>它是整個系統唯一的樞紐（hub）</strong>。</p>
+<p><strong>它負責的事，依請求經過的順序</strong>：</p>
+<ol>
+<li><strong>認證（Authentication）</strong>——你是誰？（憑證 client certificate、ServiceAccount 的 token、OIDC）</li>
+<li><strong>授權（Authorization）</strong>——你能不能做這件事？（RBAC，Role-Based Access Control，基於角色的存取控制）</li>
+<li><strong>變更型准入控制（Mutating Admission）</strong>——在存檔前偷偷改你的物件（例如自動注入 sidecar、補上預設值）</li>
+<li><strong>結構驗證（Schema Validation）</strong>——欄位型別對不對、必填有沒有填</li>
+<li><strong>驗證型准入控制（Validating Admission）</strong>——最後把關，可以拒絕（例如 Pod Security、資源配額 ResourceQuota）</li>
+<li><strong>寫入 etcd</strong></li>
+</ol>
+<p><strong>它額外做的事</strong>：</p>
+<ul>
+<li>提供 <strong>watch</strong> 端點：客戶端可以掛著一條長連線，物件一有變動就推播過來。這是所有控制器不用輪詢（polling）的原因。</li>
+<li>做 <strong>API 聚合（aggregation）與版本轉換</strong>：同一個物件可以有 <code>v1beta1</code>、<code>v1</code> 多種呈現，etcd 裡只存一種，轉換在 API Server 做。</li>
+</ul>
+<blockquote>
+<p><strong>心法</strong>：<strong>API Server 不做任何業務決策</strong>。它不知道「Deployment 要生 3 個 Pod」這件事——那是控制器的工作。它只是一個「有權限控管、會驗證、能訂閱的資料庫代理」。</p>
+</blockquote>
+<h3 id="33-kube-scheduler--只做一件事挑機器">3.3 kube-scheduler —— 只做一件事：挑機器</h3>
+<p><strong>它是什麼</strong>：一個迴圈，專門找 <code>spec.nodeName</code> 是空的 Pod（還沒被指派節點的 Pod）。</p>
+<p><strong>它做的事</strong>：對每個待排程的 Pod 跑兩階段：</p>
+<ol>
+<li><strong>過濾（Filtering / Predicates）</strong>——哪些節點「可以」放？
+<ul>
+<li>資源夠不夠（CPU / memory 的 requests）</li>
+<li>節點選擇器（nodeSelector）、親和性（affinity）符不符合</li>
+<li>污點與容忍（taints / tolerations）</li>
+<li>Port 有沒有衝突、儲存卷（volume）能不能掛上</li>
+</ul>
+</li>
+<li><strong>評分（Scoring / Priorities）</strong>——可以的節點裡哪個「最好」？
+<ul>
+<li>資源使用越平均越好、鏡像已經在本機的加分、分散在不同節點/可用區加分……</li>
+</ul>
+</li>
+</ol>
+<p>最後把最高分的節點寫回去：<strong>它只是對 API Server 發一個 <code>Binding</code> 請求，把 <code>spec.nodeName</code> 填上而已</strong>。</p>
+<blockquote>
+<p><strong>心法</strong>：<strong>排程器不啟動任何容器</strong>。它只是「填一個欄位」。填完它的工作就結束了，剩下是 kubelet 的事。</p>
+</blockquote>
+<h3 id="34-kube-controller-manager--幾十個控制迴圈住在同一個行程">3.4 kube-controller-manager —— 幾十個控制迴圈住在同一個行程</h3>
+<p><strong>它是什麼</strong>：一個行程，裡面塞了 30 多個獨立的控制器（controller），每個控制器負責一種資源的調諧（reconcile）。</p>
+<p><strong>幾個你一定會遇到的</strong>：</p>
+<table>
+<thead>
+<tr>
+<th>控制器</th>
+<th>盯著什麼</th>
+<th>做什麼</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Deployment Controller</td>
+<td>Deployment</td>
+<td>建立/更新 ReplicaSet，執行滾動更新（rolling update）</td>
+</tr>
+<tr>
+<td>ReplicaSet Controller</td>
+<td>ReplicaSet</td>
+<td>數 Pod 數量，少了就建、多了就刪</td>
+</tr>
+<tr>
+<td>Node Controller</td>
+<td>Node</td>
+<td>節點失聯超過時限就標記 <code>NotReady</code>，並驅逐（evict）上面的 Pod</td>
+</tr>
+<tr>
+<td>Endpoint / EndpointSlice Controller</td>
+<td>Service + Pod</td>
+<td>把符合選擇器（selector）且就緒的 Pod IP 寫進 EndpointSlice</td>
+</tr>
+<tr>
+<td>Job / CronJob Controller</td>
+<td>Job / CronJob</td>
+<td>跑批次任務、依排程建立 Job</td>
+</tr>
+<tr>
+<td>Namespace Controller</td>
+<td>Namespace</td>
+<td>刪 namespace 時清掉裡面所有資源</td>
+</tr>
+<tr>
+<td>ServiceAccount / Token Controller</td>
+<td>ServiceAccount</td>
+<td>建預設帳號與其憑證</td>
+</tr>
+</tbody>
+</table>
+<p><strong>為什麼包成一個行程</strong>：省資源、共用一份 informer 快取（同一份 Pod 清單不用抓 30 次）。<strong>邏輯上它們仍然完全獨立</strong>。</p>
+<blockquote>
+<p>多台控制平面時，controller-manager 只有一個實例真的在工作——靠 <strong>領導者選舉（leader election）</strong>，其他的待命。scheduler 也一樣。</p>
+</blockquote>
+<h3 id="35-cloud-controller-manager--跟雲廠商-api-打交道的部分">3.5 cloud-controller-manager —— 跟雲廠商 API 打交道的部分</h3>
+<p>把「跟 AWS / GCP / Azure 講話」的邏輯從核心抽出來的組件。負責：</p>
+<ul>
+<li><strong>Node Controller</strong>：跟雲端 API 確認機器是不是真的被刪了</li>
+<li><strong>Route Controller</strong>：在雲端的路由表（routing table）上開 Pod 網段的路由</li>
+<li><strong>Service Controller</strong>：<code>type: LoadBalancer</code> 的 Service 出現時，去雲端開一台負載平衡器（load balancer）</li>
+</ul>
+<p><strong>自建機房（bare metal）沒有這個組件</strong>——這就是為什麼在自建叢集裡開 <code>type: LoadBalancer</code> 的 Service 會永遠卡在 <code>&lt;pending&gt;</code>（除非裝了 MetalLB 這類替代品）。</p>
+<hr />
+<h2 id="四每個節點上的組件">四、每個節點上的組件</h2>
+<h3 id="41-kubelet--節點上的唯一主角">4.1 kubelet —— 節點上的唯一主角</h3>
+<p><strong>它是什麼</strong>：跑在每台節點上的代理程式（agent），是<strong>唯一會真的去啟動容器的東西</strong>。</p>
+<p><strong>它的核心迴圈</strong>：</p>
+<pre><code>1. 向 API Server watch「spec.nodeName == 我」的 Pod 清單   ← 這是它唯一的輸入
+2. 比對「該跑的 Pod」與「本機實際在跑的容器」
+3. 有差異就動手：
+   - 該有沒有 → 建立（拉鏡像、透過 CRI 建 sandbox、掛 volume、起容器）
+   - 不該有卻有 → 砍掉
+4. 執行探針（probe）：liveness / readiness / startup
+5. 把每個 Pod 的實際狀況寫回 API Server 的 pod.status
+6. 定期回報自己還活著（Node Lease）與節點資源狀況
+</code></pre>
+<p><strong>它管的三個介面（K8s 的可插拔設計）</strong>：</p>
+<table>
+<thead>
+<tr>
+<th>介面</th>
+<th>全名</th>
+<th>用途</th>
+<th>常見實作</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>CRI</strong></td>
+<td>Container Runtime Interface（容器執行環境介面）</td>
+<td>建立/刪除容器與 sandbox</td>
+<td>containerd、CRI-O</td>
+</tr>
+<tr>
+<td><strong>CNI</strong></td>
+<td>Container Network Interface（容器網路介面）</td>
+<td>給 Pod 一個 IP、接上網路</td>
+<td>Calico、Cilium、Flannel</td>
+</tr>
+<tr>
+<td><strong>CSI</strong></td>
+<td>Container Storage Interface（容器儲存介面）</td>
+<td>掛載持久化儲存卷</td>
+<td>AWS EBS CSI、Ceph RBD、local-path</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>心法</strong>：<strong>kubelet 不管別台機器的事，也不管「應該要有幾個副本」</strong>。它的世界只有「派給我這台的 Pod 清單」。它連 Deployment 是什麼都不知道。</p>
+</blockquote>
+<h3 id="42-容器執行環境container-runtime">4.2 容器執行環境（Container Runtime）</h3>
+<p>實際去操作 Linux 命名空間（namespace）與控制群組（cgroup）把容器跑起來的東西。</p>
+<p>分兩層：</p>
+<ul>
+<li><strong>高階執行環境</strong>：containerd、CRI-O——管鏡像、實作 CRI</li>
+<li><strong>低階執行環境（OCI runtime）</strong>：runc、crun、gVisor、Kata——真的去呼叫 <code>clone()</code> / <code>setns()</code> 建立隔離環境</li>
+</ul>
+<blockquote>
+<p>Docker 在 K8s v1.24 之後<strong>不再被 kubelet 直接支援</strong>（移除了 dockershim）。但 Docker 底層本來就是 containerd，所以 containerd 直接接 kubelet，只是少了 Docker 這一層轉譯。你用 Docker 建的鏡像（OCI 標準）在 K8s 上照跑。</p>
+</blockquote>
+<h3 id="43-kube-proxy--讓-service-的虛擬-ip-生效">4.3 kube-proxy —— 讓 Service 的虛擬 IP 生效</h3>
+<p><strong>它是什麼</strong>：每台節點上的一個小程式，盯著 Service 與 EndpointSlice 的變化，<strong>去改本機的封包轉發規則</strong>（iptables 或 IPVS）。</p>
+<p><strong>它不是 proxy</strong>（名字騙人）：在 iptables / IPVS 模式下，<strong>流量根本不經過 kube-proxy 這個行程</strong>。它只是規則的「寫入者」，寫完就沒它的事，封包由 Linux 核心自己轉發。</p>
+<p>完整封包路徑見 <a href="Service%E8%88%87%E5%B0%81%E5%8C%85%E8%B7%AF%E5%BE%91-ClusterIP%E6%80%8E%E9%BA%BC%E8%B5%B0%E5%88%B0Pod.html">Service與封包路徑-ClusterIP怎麼走到Pod</a>。</p>
+<blockquote>
+<p>用 eBPF 的 CNI（如 Cilium）可以完全取代 kube-proxy，效果一樣但不用 iptables。</p>
+</blockquote>
+<hr />
+<h2 id="五附加組件add-ons沒有它們叢集不能用但它們不是核心">五、附加組件（Add-ons）：沒有它們叢集不能用，但它們不是核心</h2>
+<p>這些都是<strong>跑在叢集裡的普通 Pod</strong>，不是 K8s 二進位檔的一部分：</p>
+<table>
+<thead>
+<tr>
+<th>組件</th>
+<th>沒有它會怎樣</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>CoreDNS</strong></td>
+<td>Pod 之間無法用服務名稱互連（<code>http://my-svc</code> 解不出來），只能用 IP</td>
+</tr>
+<tr>
+<td><strong>CNI 外掛</strong>（Calico / Cilium / Flannel）</td>
+<td><strong>所有 Node 永遠 <code>NotReady</code>，Pod 永遠 <code>ContainerCreating</code></strong>——這是新手裝叢集最常卡的地方</td>
+</tr>
+<tr>
+<td><strong>metrics-server</strong></td>
+<td><code>kubectl top</code> 沒資料、HPA（Horizontal Pod Autoscaler，水平自動擴縮）無法依 CPU 擴縮</td>
+</tr>
+<tr>
+<td><strong>Ingress Controller</strong>（nginx / Traefik）</td>
+<td>Ingress 物件建了也沒人理，外部 HTTP 進不來</td>
+</tr>
+<tr>
+<td><strong>CSI 驅動</strong></td>
+<td>PVC（PersistentVolumeClaim）永遠 <code>Pending</code></td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>心法</strong>：K8s 核心刻意只定義「介面」，不綁定實作。所以一個「裝好了但不能用」的叢集，八成是缺了某個介面的實作方（最常見是 CNI）。</p>
+</blockquote>
+<hr />
+<h2 id="六為什麼是星狀架構而不是互相呼叫">六、為什麼是「星狀」架構而不是互相呼叫</h2>
+<p>所有組件只跟 API Server 說話，形成<strong>輪輻式（hub-and-spoke）</strong>結構。這是刻意設計，換來四個性質：</p>
+<ol>
+<li><strong>組件可以任意重啟</strong>——狀態都在 etcd，沒有人記憶體裡藏著關鍵資料。scheduler 砍掉重開，它重新 list 一次未排程的 Pod 就繼續了。</li>
+<li><strong>組件可以任意替換</strong>——你可以寫自己的排程器，只要它會填 <code>spec.nodeName</code>。沒人需要知道你的存在。</li>
+<li><strong>不用處理啟動順序</strong>——控制器起來的先後無所謂，反正大家都在看同一份資料。</li>
+<li><strong>擴充 = 加一個新的控制器</strong>——這就是 Operator 模式（Operator pattern）的全部秘密：自訂資源（CRD，Custom Resource Definition）+ 一個自己寫的控制迴圈，享有跟內建控制器完全同等的地位。</li>
+</ol>
+<p><strong>代價</strong>：API Server 是單點瓶頸，大叢集要靠多副本 + etcd 調校撐住。</p>
+<hr />
+<h2 id="七哪個組件掛掉會怎樣最有價值的一張表">七、哪個組件掛掉會怎樣（最有價值的一張表）</h2>
+<p>這張表是理解各組件職責的最好方式——<strong>看它壞掉時什麼還能動</strong>：</p>
+<table>
+<thead>
+<tr>
+<th>掛掉的組件</th>
+<th>已跑的 Pod</th>
+<th>新建 Pod</th>
+<th>崩潰的 Pod 會重啟嗎</th>
+<th>節點掛了會轉移嗎</th>
+<th>Service 流量</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>etcd</strong></td>
+<td>照跑</td>
+<td>✗</td>
+<td>✓（kubelet 自己會重啟容器）</td>
+<td>✗</td>
+<td>照通（規則已在核心裡）</td>
+</tr>
+<tr>
+<td><strong>kube-apiserver</strong></td>
+<td>照跑</td>
+<td>✗</td>
+<td>✓</td>
+<td>✗</td>
+<td>照通</td>
+</tr>
+<tr>
+<td><strong>kube-scheduler</strong></td>
+<td>照跑</td>
+<td>建得出來但<strong>永遠 <code>Pending</code></strong></td>
+<td>✓</td>
+<td>✗（新 Pod 排不上去）</td>
+<td>照通</td>
+</tr>
+<tr>
+<td><strong>controller-manager</strong></td>
+<td>照跑</td>
+<td>手寫的 Pod 可以，<strong>Deployment 生不出 Pod</strong></td>
+<td>✓</td>
+<td>✗</td>
+<td>新 Pod 不會被加進 Endpoint</td>
+</tr>
+<tr>
+<td><strong>kubelet</strong>（單一節點）</td>
+<td>該節點的照跑</td>
+<td>該節點 ✗</td>
+<td><strong>✗</strong></td>
+<td>約 5 分鐘後被驅逐到別台</td>
+<td>照通，但故障 Pod 不會被移出</td>
+</tr>
+<tr>
+<td><strong>kube-proxy</strong>（單一節點）</td>
+<td>照跑</td>
+<td>✓</td>
+<td>✓</td>
+<td>✓</td>
+<td><strong>該節點發出的 Service 連線壞掉</strong></td>
+</tr>
+<tr>
+<td><strong>CoreDNS</strong></td>
+<td>照跑</td>
+<td>✓</td>
+<td>✓</td>
+<td>✓</td>
+<td>用 IP 通、<strong>用名稱不通</strong></td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>教訓</strong>：K8s 的控制平面掛掉，<strong>資料平面（data plane，也就是實際跑的服務）通常還活著</strong>。這是它把「決策」與「執行」徹底分離的直接好處。所以控制平面故障是「緊急但不一定是災難」——你失去的是「改變的能力」，不是「服務本身」。</p>
+</blockquote>
+<hr />
+<h2 id="八在真機上把這些組件找出來">八、在真機上把這些組件找出來</h2>
+<pre><code class="language-bash"><span class="c1"># 控制平面組件本身就是 Pod（kubeadm 叢集用 static Pod 方式跑）</span>
+kubectl<span class="w"> </span>get<span class="w"> </span>pods<span class="w"> </span>-n<span class="w"> </span>kube-system
+
+<span class="c1"># static Pod 的定義檔在節點上，不在 etcd 裡 —— kubelet 直接讀這個目錄</span>
+ls<span class="w"> </span>/etc/kubernetes/manifests/<span class="w">       </span><span class="c1"># etcd.yaml  kube-apiserver.yaml  kube-scheduler.yaml ...</span>
+
+<span class="c1"># 節點上的組件是 systemd 服務，不是 Pod</span>
+systemctl<span class="w"> </span>status<span class="w"> </span>kubelet
+crictl<span class="w"> </span>ps<span class="w">                            </span><span class="c1"># 用 CRI 直接看容器（不經過 K8s），kubelet 出問題時的對照組</span>
+
+<span class="c1"># 誰是目前的 leader</span>
+kubectl<span class="w"> </span>get<span class="w"> </span>lease<span class="w"> </span>-n<span class="w"> </span>kube-system
+
+<span class="c1"># API Server 到底提供哪些資源類型（含所有 CRD）</span>
+kubectl<span class="w"> </span>api-resources
+
+<span class="c1"># 把一個物件在 etcd 裡的原始樣子挖出來（含 resourceVersion、managedFields）</span>
+kubectl<span class="w"> </span>get<span class="w"> </span>pod<span class="w"> </span>&lt;name&gt;<span class="w"> </span>-o<span class="w"> </span>yaml
+</code></pre>
+<blockquote>
+<p><strong>排查心法</strong>（延伸自 <a href="../linux/%E6%8E%92%E6%9F%A5%E6%96%B9%E6%B3%95%E8%AB%96.html">排查方法論</a>）：K8s 出事時的第一個問題永遠是「<strong>這件事該由誰負責？</strong>」。Pod 卡 <code>Pending</code> → 找 scheduler；卡 <code>ContainerCreating</code> → 找 kubelet 與 CNI；Pod 在跑但連不到 → 找 kube-proxy 與 EndpointSlice。<strong>先定位負責的組件，再去看那個組件的 log</strong>，不要一開始就亂翻。</p>
+</blockquote>
+<hr />
+<h2 id="相關筆記">相關筆記</h2>
+<ul>
+<li><a href="%E5%AE%A3%E5%91%8A%E5%BC%8FAPI%E8%88%87%E6%8E%A7%E5%88%B6%E5%99%A8%E8%AA%BF%E8%AB%A7%E8%BF%B4%E5%9C%88.html">宣告式API與控制器調諧迴圈</a>——控制器內部是怎麼運作的</li>
+<li><a href="%E5%BE%9Ekubectl-apply%E5%88%B0Pod%E9%81%8B%E8%A1%8C%E7%9A%84%E5%AE%8C%E6%95%B4%E6%B5%81%E7%A8%8B.html">從kubectl-apply到Pod運行的完整流程</a>——把上面所有組件串成一條時間軸</li>
+<li><a href="Service%E8%88%87%E5%B0%81%E5%8C%85%E8%B7%AF%E5%BE%91-ClusterIP%E6%80%8E%E9%BA%BC%E8%B5%B0%E5%88%B0Pod.html">Service與封包路徑-ClusterIP怎麼走到Pod</a>——網路那一半</li>
+</ul>
+<hr />
+<h2 id="指令選項的涵蓋範圍說明">指令選項的涵蓋範圍說明</h2>
+<blockquote>
+<p><strong>本篇只列這個主題用得到的指令與旗標，不是完整清單。</strong></p>
+<p><code>kubectl</code> 有數十個子命令、每個子命令各自又有十幾到數十個旗標，
+<code>kubeadm</code>／<code>multipass</code>／<code>kind</code>／<code>crictl</code> 也各自龐大。這類工具不適合在筆記裡全列。</p>
+<p><strong>查法（這才是該記住的）：</strong></p>
+<pre><code class="language-bash">kubectl<span class="w"> </span>--help<span class="w">                  </span><span class="c1"># 所有子命令，依用途分組</span>
+kubectl<span class="w"> </span>&lt;子命令&gt;<span class="w"> </span>--help<span class="w">          </span><span class="c1"># 該子命令的完整旗標</span>
+kubectl<span class="w"> </span>options<span class="w">                 </span><span class="c1"># 所有子命令共用的全域旗標</span>
+kubectl<span class="w"> </span>explain<span class="w"> </span>&lt;資源&gt;<span class="o">[</span>.欄位<span class="o">]</span><span class="w">    </span><span class="c1"># ★ 查資源的欄位定義，等同線上 API 文件</span>
+kubeadm<span class="w"> </span>--help<span class="w"> </span>/<span class="w"> </span>kubeadm<span class="w"> </span>&lt;子命令&gt;<span class="w"> </span>--help
+multipass<span class="w"> </span><span class="nb">help</span><span class="w"> </span><span class="o">[</span>&lt;命令&gt;<span class="o">]</span><span class="w"> </span>/<span class="w"> </span>kind<span class="w"> </span>--help<span class="w"> </span>/<span class="w"> </span>crictl<span class="w"> </span>--help
+</code></pre>
+<p><strong><code>kubectl explain</code> 特別值得記住</strong>——寫 YAML 時不確定某個欄位叫什麼、能填什麼，問它比翻文件快，而且回答的是<strong>你這個叢集版本</strong>的定義。</p>
+<p>附帶一提：撰寫本篇的這台機器上<strong>沒有安裝這些工具</strong>，所以上面的查法是給你在有叢集的環境上用的，不是從本機 <code>--help</code> 抄來的清單。</p>
+</blockquote>
+<h2 id="自我測驗">自我測驗</h2>
+<ol>
+<li>kube-scheduler 選好節點之後，是它自己去那台機器上啟動容器嗎？如果不是，它實際上做了什麼動作，接下來是誰把容器跑起來的？</li>
+<li>有人說「etcd 掛了整個叢集就死了，所有服務都會中斷」。這句話哪裡對、哪裡錯？請分別說明「已經在跑的 Pod」「Pod 崩潰後的重啟」「新建 Pod」三種情況。</li>
+<li>為什麼控制平面建議 1 台或 3 台，而 2 台反而比 1 台更糟？</li>
+<li>一個新裝的叢集，<code>kubectl get nodes</code> 顯示所有節點都是 <code>NotReady</code>，而 CoreDNS 的 Pod 卡在 <code>ContainerCreating</code>。最可能缺了什麼？請說明你的推理過程，以及為什麼「控制平面組件都正常」這件事不能排除這個嫌疑。</li>
+<li>（情境題）你的叢集裡，某個 Deployment 的 Pod 被手動 <code>kubectl delete pod</code> 刪掉後<strong>沒有自動補回來</strong>，但同一時間其他節點上既有的 Pod 都跑得好好的，Service 也通。你會優先懷疑哪一個組件？換成「Pod 有補回來但一直是 <code>Pending</code>」，答案又會變成哪一個？為什麼這兩個症狀能區分出不同的組件？</li>
+</ol>
+
+</main>
+</div>
+</body>
+</html>

@@ -1,0 +1,260 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>socket 是什麼？—— 從 Linux 核心看：它是「端點」，不是「連線」</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/app.js"></script>
+</head>
+<body>
+<button class="menu-btn" onclick="toggleMenu()">☰ 目錄</button>
+<div class="layout">
+<nav class="side">
+<div class="crumbs"><a href="../index.html">🏠 首頁</a> / <a href="README.html">linux</a></div>
+<div class="tools"><button onclick="toggleTheme()">🌓 主題</button></div>
+<ul>
+<li class="l2"><a href="#%E7%9B%AE%E9%8C%84">目錄</a></li>
+<li class="l2"><a href="#%E4%B8%80socket-%E4%B8%8D%E6%98%AF%E9%80%A3%E7%B7%9A%E5%85%88%E7%9C%8B%E5%AF%A6%E7%89%A9">一、socket 不是連線：先看實物</a></li>
+<li class="l2"><a href="#%E4%BA%8C%E6%A0%B8%E5%BF%83%E8%A3%A1%E7%9A%84%E5%9B%9B%E5%B1%A4%E7%B5%90%E6%A7%8B">二、核心裡的四層結構</a></li>
+<li class="l2"><a href="#%E4%B8%89tcp%E7%9B%A3%E8%81%BD-socket-%E8%88%87%E9%80%A3%E7%B7%9A-socket-%E6%98%AF%E5%85%A9%E7%A8%AE%E6%9D%B1%E8%A5%BF">三、TCP：監聽 socket 與連線 socket 是兩種東西</a></li>
+<li class="l2"><a href="#%E5%9B%9Budp%E4%B8%80%E5%80%8B-socket-%E5%B0%8D%E6%89%80%E6%9C%89%E4%BA%BA">四、UDP：一個 socket 對所有人</a></li>
+<li class="l2"><a href="#%E4%BA%94%E5%B0%81%E5%8C%85%E9%80%B2%E4%BE%86%E6%99%82%E6%A0%B8%E5%BF%83%E6%80%8E%E9%BA%BC%E6%89%BE%E5%88%B0-socket">五、封包進來時，核心怎麼找到 socket</a></li>
+<li class="l2"><a href="#%E5%85%AD%E5%9B%9E%E5%88%B0-tproxy%E6%AF%8F%E4%B8%80%E5%8F%A5%E8%A9%B1%E7%8F%BE%E5%9C%A8%E9%83%BD%E8%AA%AA%E5%BE%97%E9%80%9A">六、回到 TPROXY：每一句話現在都說得通</a></li>
+<li class="l2"><a href="#%E4%B8%83%E8%87%AA%E5%B7%B1%E8%A7%80%E5%AF%9F%E7%9A%84%E6%96%B9%E6%B3%95">七、自己觀察的方法</a></li>
+<li class="l2"><a href="#%E8%87%AA%E6%88%91%E6%B8%AC%E9%A9%97">自我測驗</a></li>
+</ul>
+</nav>
+<main>
+<h1 id="socket-是什麼-從-linux-核心看它是端點不是連線">socket 是什麼？—— 從 Linux 核心看：它是「端點」，不是「連線」</h1>
+<blockquote>
+<p>日期：2026-09-22<br />
+情境：讀 TPROXY 時一直看到「交給 12345 那個 socket」「找已建立的連線 socket」，原本對 socket 的理解只有「好像就是連線」，想從核心的角度搞清楚<br />
+適用範圍：Linux 通用；實測本機 kernel 7.0、Python 3、iproute2 的 <code>ss</code><br />
+相關：<a href="fd%E6%98%AF%E4%BB%80%E9%BA%BC-%E8%A1%8C%E7%A8%8B%E7%9A%84%E6%AA%94%E6%A1%88%E6%8F%8F%E8%BF%B0%E7%AC%A6%E8%A1%A8.html">fd是什麼-行程的檔案描述符表</a>、
+<a href="%E4%BB%80%E9%BA%BC%E6%98%AFbacklog-TCP%E4%BA%A4%E6%8F%A1%E8%83%8C%E5%BE%8C%E7%9A%84%E5%85%A9%E5%80%8B%E4%BD%87%E5%88%97.html">什麼是backlog-TCP交握背後的兩個佇列</a>、
+<a href="netstat%E6%80%8E%E9%BA%BC%E7%94%A8-%E4%BB%A5%E5%8F%8A%E8%A9%B2%E6%94%B9%E7%94%A8ss%E7%9A%84%E7%90%86%E7%94%B1.html">netstat怎麼用-以及該改用ss的理由</a>、
+<a href="TPROXY%E8%88%87REDIRECT%E7%9A%84%E5%B7%AE%E5%88%A5%E8%88%87%E5%8E%9F%E7%90%86.html">TPROXY與REDIRECT的差別與原理</a></p>
+</blockquote>
+<p><strong>一句話結論：socket 是核心裡代表「一個通訊端點（endpoint）」的物件，裡面放著這一端的位址與埠、狀態、收發緩衝區；行程手上拿到的只是指向它的 fd。一條 TCP 連線是<strong>兩個</strong> socket（兩端各一個）加上把它們配對起來的四元組；而伺服器那個「監聽中」的 socket 根本不屬於任何連線——每接受一條連線，核心就另外生一個新的 socket。封包進來時，核心的工作就是「照封包標頭找出該交給哪個 socket」，
+TPROXY 做的正是<strong>跳過這一步、事先指定好 socket</strong>。</strong></p>
+<hr />
+<h2 id="目錄">目錄</h2>
+<ul>
+<li><a href="#%E4%B8%80socket-%E4%B8%8D%E6%98%AF%E9%80%A3%E7%B7%9A%E5%85%88%E7%9C%8B%E5%AF%A6%E7%89%A9">一、socket 不是連線：先看實物</a></li>
+<li><a href="#%E4%BA%8C%E6%A0%B8%E5%BF%83%E8%A3%A1%E7%9A%84%E5%9B%9B%E5%B1%A4%E7%B5%90%E6%A7%8B">二、核心裡的四層結構</a></li>
+<li><a href="#%E4%B8%89tcp%E7%9B%A3%E8%81%BD-socket-%E8%88%87%E9%80%A3%E7%B7%9A-socket-%E6%98%AF%E5%85%A9%E7%A8%AE%E6%9D%B1%E8%A5%BF">三、TCP：監聽 socket 與連線 socket 是兩種東西</a></li>
+<li><a href="#%E5%9B%9Budp%E4%B8%80%E5%80%8B-socket-%E5%B0%8D%E6%89%80%E6%9C%89%E4%BA%BA">四、UDP：一個 socket 對所有人</a></li>
+<li><a href="#%E4%BA%94%E5%B0%81%E5%8C%85%E9%80%B2%E4%BE%86%E6%99%82%E6%A0%B8%E5%BF%83%E6%80%8E%E9%BA%BC%E6%89%BE%E5%88%B0-socket">五、封包進來時，核心怎麼找到 socket</a></li>
+<li><a href="#%E5%85%AD%E5%9B%9E%E5%88%B0-tproxy%E6%AF%8F%E4%B8%80%E5%8F%A5%E8%A9%B1%E7%8F%BE%E5%9C%A8%E9%83%BD%E8%AA%AA%E5%BE%97%E9%80%9A">六、回到 TPROXY：每一句話現在都說得通</a></li>
+<li><a href="#%E4%B8%83%E8%87%AA%E5%B7%B1%E8%A7%80%E5%AF%9F%E7%9A%84%E6%96%B9%E6%B3%95">七、自己觀察的方法</a></li>
+<li><a href="#%E8%87%AA%E6%88%91%E6%B8%AC%E9%A9%97">自我測驗</a></li>
+</ul>
+<hr />
+<h2 id="一socket-不是連線先看實物">一、socket 不是連線：先看實物</h2>
+<p>用一支 Python 小程式在本機做實驗：一個 TCP 伺服器聽在 <code>127.0.0.1:18080</code>，同一個行程裡再開兩個客戶端連過去、伺服器 <code>accept()</code> 兩次；另外開一個 UDP socket 聽在 <code>18081</code>。</p>
+<pre><code>listen fd 3   accepted fds [6, 7]   client fds [4, 5]   udp fd 8
+</code></pre>
+<p><code>ss -tanp</code> 看到的 TCP 部分：</p>
+<pre><code>State  Local Address:Port  Peer Address:Port  Process
+LISTEN     127.0.0.1:18080      0.0.0.0:*     fd=3   ← 監聽 socket：沒有對端
+ESTAB      127.0.0.1:18080    127.0.0.1:49722 fd=6   ← 伺服器端，第 1 條連線
+ESTAB      127.0.0.1:49722    127.0.0.1:18080 fd=4   ← 客戶端，第 1 條連線
+ESTAB      127.0.0.1:49734    127.0.0.1:18080 fd=5   ← 客戶端，第 2 條連線
+ESTAB      127.0.0.1:18080    127.0.0.1:49734 fd=7   ← 伺服器端，第 2 條連線
+</code></pre>
+<p><strong>2 條連線，卻有 5 個 TCP socket。</strong> 數字是這樣來的：</p>
+<pre><code>第 1 條連線 = fd 4（客戶端那頭）＋ fd 6（伺服器那頭），用四元組 127.0.0.1:49722 ↔ 127.0.0.1:18080 配對
+第 2 條連線 = fd 5 ＋ fd 7，四元組 127.0.0.1:49734 ↔ 127.0.0.1:18080
+監聽 socket = fd 3，不屬於任何一條連線
+</code></pre>
+<p>所以「socket 就是連線」不對。比較準確的說法是：</p>
+<table>
+<thead>
+<tr>
+<th>詞</th>
+<th>是什麼</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>socket</strong></td>
+<td>核心裡的一個物件，代表<strong>一個端點</strong>：「我這一頭」的位址、埠、狀態、緩衝區</td>
+</tr>
+<tr>
+<td><strong>連線（connection）</strong></td>
+<td>兩個端點之間的一段關係，由<strong>四元組</strong>（本地位址、本地埠、對端位址、對端埠）識別；加上協定就是<strong>五元組</strong></td>
+</tr>
+</tbody>
+</table>
+<p>真實網路中兩端通常在不同機器上，所以每台機器上只看得到一個 socket；在同一台機器上實驗，才會兩個都看到。</p>
+<hr />
+<h2 id="二核心裡的四層結構">二、核心裡的四層結構</h2>
+<p><code>socket()</code> 系統呼叫回傳的只是一個整數。從那個整數往下，核心裡是這樣串起來的：</p>
+<pre><code>行程的 fd 表                     （fd 是什麼見 fd是什麼-行程的檔案描述符表.md）
+  fd 6 ──►  struct file          ← 「一切皆檔案」的那一層：所以能 read()/write()/close()
+              │
+              ▼
+           struct socket         ← 通用的 socket 層（BSD socket 層）：型別（STREAM/DGRAM）、
+              │                     一張「這種 socket 的操作函式表」（bind/listen/accept/sendmsg…）
+              ▼
+           struct sock           ← 協定層的本體，真正的狀態都在這裡：
+              │                     本地位址／埠、對端位址／埠、狀態（LISTEN、ESTABLISHED…）、
+              │                     接收佇列、傳送佇列、各種選項（IP_TRANSPARENT、SO_MARK…）
+              ▼
+           struct tcp_sock       ← TCP 專屬的延伸：序號、視窗、重傳計時器、壅塞控制…
+          （UDP 則是 udp_sock）
+</code></pre>
+<p><code>/proc/&lt;pid&gt;/fd</code> 裡看到的 <code>socket:[159253]</code>，那個數字是這個 socket 的 inode 編號；
+<code>ss -e</code> 印出的 <code>ino:159253</code> 就是同一個，可以用來把「哪個 fd」和「哪一條 socket」對起來（本機實測兩邊完全對得上）。</p>
+<p><strong>心智模型：fd 是你手上的號碼牌，<code>struct sock</code> 才是櫃檯後面那個真正存放狀態的抽屜。</strong>
+關掉 fd（<code>close()</code>）只是還號碼牌；核心會在沒有人再引用時才收掉抽屜——TCP 甚至會為了把連線收尾（FIN、TIME_WAIT）讓抽屜在程式結束後多留一陣子。</p>
+<hr />
+<h2 id="三tcp監聽-socket-與連線-socket-是兩種東西">三、TCP：監聽 socket 與連線 socket 是兩種東西</h2>
+<p>伺服器端從無到有的過程，每個系統呼叫各做一件事：</p>
+<table>
+<thead>
+<tr>
+<th>系統呼叫</th>
+<th>對 socket 做了什麼</th>
+<th>之後的狀態</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>socket(AF_INET, SOCK_STREAM, 0)</code></td>
+<td>在核心建立一個空的 socket 物件，回傳 fd</td>
+<td>什麼都沒有：沒位址、沒埠</td>
+</tr>
+<tr>
+<td><code>bind(fd, 0.0.0.0:12345)</code></td>
+<td>填入「我這一頭」的本地位址與埠</td>
+<td>有位址了，但還不收連線</td>
+</tr>
+<tr>
+<td><code>listen(fd, backlog)</code></td>
+<td>把它變成<strong>監聽 socket</strong>，並配上兩個佇列（SYN queue、accept queue，見 <a href="%E4%BB%80%E9%BA%BC%E6%98%AFbacklog-TCP%E4%BA%A4%E6%8F%A1%E8%83%8C%E5%BE%8C%E7%9A%84%E5%85%A9%E5%80%8B%E4%BD%87%E5%88%97.html">backlog 那篇</a>）</td>
+<td><code>LISTEN</code></td>
+</tr>
+<tr>
+<td>（客戶端送來 SYN，核心完成三向交握）</td>
+<td><strong>核心另外建立一個新的 socket</strong>，本地端與對端都填好，放進 accept queue</td>
+<td>新 socket 是 <code>ESTABLISHED</code></td>
+</tr>
+<tr>
+<td><code>accept(fd)</code></td>
+<td>從 accept queue 取出那個新 socket，給它一個<strong>新的 fd</strong> 回傳</td>
+<td>程式拿到連線 socket</td>
+</tr>
+</tbody>
+</table>
+<p>客戶端那邊短得多：<code>socket()</code> → <code>connect(對方位址)</code>。<code>connect()</code> 會自動挑一個本地埠（就是上面的
+<code>49722</code>），送出 SYN，交握完成後這個 socket 就是 <code>ESTABLISHED</code>。</p>
+<p><strong>兩個關鍵事實：</strong></p>
+<ol>
+<li><strong>監聽 socket 永遠不傳資料</strong>，它只負責「接新客人」。所有資料都走 <code>accept()</code> 生出來的連線 socket。所以伺服器有 N 個客戶端時，會有 <strong>N+1 個</strong> socket。</li>
+<li><strong>連線 socket 的本地位址，就是對方當初連過來的目的位址。</strong> 實測 <code>accept()</code> 回來的 socket
+<code>getsockname()</code> 是 <code>('127.0.0.1', 18080)</code>、<code>getpeername()</code> 是 <code>('127.0.0.1', 49722)</code>。這件事在第六節很重要。</li>
+</ol>
+<p>沒有任何 socket 在聽的埠，連過去會怎樣？核心找不到 socket，直接回 RST，客戶端看到的就是：</p>
+<pre><code>connect 沒人聽的埠: [Errno 111] Connection refused
+</code></pre>
+<hr />
+<h2 id="四udp一個-socket-對所有人">四、UDP：一個 socket 對所有人</h2>
+<p>UDP 沒有交握，也沒有「連線」，所以<strong>沒有監聽 socket 與連線 socket 之分</strong>：</p>
+<pre><code>UNCONN  127.0.0.1:18081  0.0.0.0:*   fd=8     ← ss 顯示 UNCONN（unconnected）
+</code></pre>
+<p>同一個 UDP socket 會收到所有人寄來的 datagram，每次 <code>recvfrom()</code> 由核心告訴你「這一包是誰寄的」：</p>
+<pre><code>$ （兩個不同的客戶端各寄一包到 18082）
+(b'from a', ('127.0.0.1', 59931))
+(b'from b', ('127.0.0.1', 47389))     ← 同一個 socket，不同來源
+</code></pre>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>TCP</th>
+<th>UDP</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>伺服器有幾個 socket</td>
+<td>1 個監聽 ＋ 每條連線 1 個</td>
+<td>通常就 1 個</td>
+</tr>
+<tr>
+<td>對端資訊存在哪</td>
+<td>連線 socket 本身（<code>getpeername()</code>）</td>
+<td>每一包的附帶資訊（<code>recvfrom()</code> 的回傳值）</td>
+</tr>
+<tr>
+<td>「這一包原本要寄去哪」</td>
+<td>就是連線 socket 的本地位址（<code>getsockname()</code>）</td>
+<td>要另外請核心附上（<code>IP_RECVORIGDSTADDR</code>）</td>
+</tr>
+</tbody>
+</table>
+<p>UDP socket 也可以 <code>connect()</code>，但那只是「記住預設的對端、過濾掉其他來源」，不會送出任何封包，不是 TCP 意義的連線。</p>
+<hr />
+<h2 id="五封包進來時核心怎麼找到-socket">五、封包進來時，核心怎麼找到 socket</h2>
+<p>這一步叫<strong>解多工（demultiplexing）</strong>：網卡收到一個封包，核心要決定它屬於哪一個 socket。它看的是<strong>封包標頭</strong>上的位址和埠。</p>
+<p><strong>TCP 的查找順序：</strong></p>
+<pre><code>封包：src=192.168.1.50:54321  dst=192.168.1.1:22
+
+① 已建立連線的雜湊表：用完整四元組精確比對
+      有沒有 socket 的 本地=192.168.1.1:22、對端=192.168.1.50:54321？
+      有 → 交給它（同一條連線的第 2 個封包之後都在這裡命中）
+② 監聽 socket 的雜湊表：只用「目的位址:目的埠」比對
+      有沒有 socket 聽在 192.168.1.1:22？沒有的話，有沒有聽在 0.0.0.0:22？
+      （綁定特定位址的優先於 0.0.0.0）
+      有 → 交給它，由它處理交握、生出新的連線 socket
+③ 都沒有 → 回 RST（就是上面的 Connection refused）
+</code></pre>
+<p><strong>UDP</strong> 比較單純：用「目的位址:目的埠」找（有 <code>connect()</code> 過的 UDP socket 會用四元組優先比對），找不到就丟掉，並回一個 ICMP port unreachable。</p>
+<p><strong>這個查找只在「路由判定說這封包是給本機的」之後才會發生。</strong> 被判定為轉發的封包根本不會走到傳輸層，也就不會找 socket。</p>
+<hr />
+<h2 id="六回到-tproxy每一句話現在都說得通">六、回到 TPROXY：每一句話現在都說得通</h2>
+<p>有了上面的模型，<a href="TPROXY%E8%88%87REDIRECT%E7%9A%84%E5%B7%AE%E5%88%A5%E8%88%87%E5%8E%9F%E7%90%86.html">TPROXY與REDIRECT的差別與原理</a>
+裡的句子可以逐一對上：</p>
+<p><strong>「<code>tproxy to :12345</code> 把封包交給 12345 的 socket」</strong>
+LAN 電腦的封包是 <code>dst=1.1.1.1:443</code>。照第五節的查找，核心會去找「本地=1.1.1.1:443」的 socket——
+本機根本沒有，結果就是 RST。<code>tproxy</code> 在 prerouting 先把<strong>監聽在 12345 的那個 socket</strong>綁在封包身上，傳輸層看到「已經指定好了」，就<strong>跳過第五節的查找</strong>，直接交給它。</p>
+<p><strong>「socket 要設 <code>IP_TRANSPARENT</code>」</strong>
+這是 <code>struct sock</code> 上的一個選項旗標。它允許這個 socket 接收、以及使用<strong>不屬於本機的位址</strong>。沒有它，<code>tproxy</code> 找到了 socket 也不會用（核心會檢查這個旗標）。</p>
+<p><strong>「TCP 的原始目的地怎麼拿」</strong>
+監聽 socket 收到 SYN 後，核心照第三節的流程生出新的連線 socket，而連線 socket 的本地位址
+<strong>就是封包的目的位址</strong>——在這裡是 <code>1.1.1.1:443</code>，不是 <code>192.168.1.1:12345</code>。所以代理程式
+<code>accept()</code> 之後呼叫 <code>getsockname()</code>，拿到的就是原始目的地。</p>
+<p><strong>「tproxy 先找已建立的連線 socket」</strong>
+同一條連線的第 2 個封包起，四元組是 <code>192.168.1.50:54321 ↔ 1.1.1.1:443</code>，正好對上那個連線 socket
+的本地與對端——<code>tproxy</code> 先照這個四元組找，找到就交給它；只有新連線的第一個封包才會落到監聽 socket。</p>
+<p><strong>「UDP 要用 <code>IP_RECVORIGDSTADDR</code>」</strong>
+UDP 只有一個 socket 收所有人（第四節），沒有「每條連線一個、本地位址就是原始目的地」的 socket
+可以問，只能請核心在每一包上附帶原始目的地。</p>
+<p><strong>「回程要偽裝成 1.1.1.1」</strong>
+TCP 的連線 socket 本地位址本來就是 <code>1.1.1.1:443</code>，回覆時自然用它當來源。UDP 則要由代理程式另外開一個 socket、<code>bind()</code> 到 <code>1.1.1.1:443</code>（同樣靠 <code>IP_TRANSPARENT</code> 才綁得了非本機位址）再送回去。</p>
+<hr />
+<h2 id="七自己觀察的方法">七、自己觀察的方法</h2>
+<pre><code class="language-sh">ss<span class="w"> </span>-tanp<span class="w">                 </span><span class="c1"># 所有 TCP socket：-t TCP、-a 含 LISTEN、-n 不解析名字、-p 顯示行程與 fd</span>
+ss<span class="w"> </span>-ltnp<span class="w">                 </span><span class="c1"># 只看監聽中的 TCP</span>
+ss<span class="w"> </span>-uanp<span class="w">                 </span><span class="c1"># UDP</span>
+ss<span class="w"> </span>-tanpe<span class="w">                </span><span class="c1"># 多印 ino:（inode）與 uid，用來對照 /proc/&lt;pid&gt;/fd</span>
+ls<span class="w"> </span>-l<span class="w"> </span>/proc/&lt;pid&gt;/fd<span class="w">     </span><span class="c1"># 看行程手上哪些 fd 是 socket:[inode]</span>
+</code></pre>
+<p>在路由器上驗證 dokodemo-door 時：<code>ss -ltnp | grep 12345</code> 應該看到一個 <code>LISTEN</code> 的 v2ray；有 LAN 裝置正在被代理時，<code>ss -tnp</code> 會看到本地位址是<strong>外部網站位址</strong>（例如 <code>1.1.1.1:443</code>）、行程卻是 v2ray 的 <code>ESTAB</code> socket——這就是第六節說的「連線 socket 的本地位址是原始目的地」，也是 TPROXY 正在運作最直接的證據（這一項沒有在路由器上實測，依原理推得）。</p>
+<p><code>ss</code> 的完整選項與每一欄的意義見 <a href="netstat%E6%80%8E%E9%BA%BC%E7%94%A8-%E4%BB%A5%E5%8F%8A%E8%A9%B2%E6%94%B9%E7%94%A8ss%E7%9A%84%E7%90%86%E7%94%B1.html">netstat怎麼用-以及該改用ss的理由</a>。這裡列的系統呼叫只有本篇用到的幾個；完整清單見 <code>man 7 socket</code>、<code>man 7 tcp</code>、<code>man 7 udp</code>、<code>man 7 ip</code>。</p>
+<hr />
+<h2 id="自我測驗">自我測驗</h2>
+<ol>
+<li>一台 web 伺服器同時有 100 個客戶端連著，它有多少個 TCP socket？為什麼不是 100？</li>
+<li>「socket 就是連線」錯在哪？請用「端點」與「四元組」說明兩者的關係。</li>
+<li>監聽 socket 和 <code>accept()</code> 回來的 socket，各自的本地位址、對端位址是什麼？為什麼這個差別讓 TPROXY 的 TCP 代理可以用 <code>getsockname()</code> 拿到原始目的地？</li>
+<li>封包 <code>dst=1.1.1.1:443</code> 被 fwmark 路由判定為「給本機」，但規則裡沒有 <code>tproxy</code>。照第五節的查找順序，會發生什麼事？</li>
+<li>情境題：你在路由器上用 <code>ss -tnp</code> 看到一個 <code>ESTAB</code> 的 socket，本地位址是 <code>142.250.196.110:443</code>、行程是 v2ray。這台路由器並沒有這個 IP。為什麼會這樣？這代表什麼正在正常運作？</li>
+</ol>
+
+</main>
+</div>
+</body>
+</html>

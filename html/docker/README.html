@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Docker 筆記索引</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/app.js"></script>
+</head>
+<body>
+<button class="menu-btn" onclick="toggleMenu()">☰ 目錄</button>
+<div class="layout">
+<nav class="side">
+<div class="crumbs"><a href="../index.html">🏠 首頁</a> / docker</div>
+<div class="tools"><button onclick="toggleTheme()">🌓 主題</button></div>
+<ul>
+<li class="l2"><a href="#%E7%AD%86%E8%A8%98%E5%88%97%E8%A1%A8">筆記列表</a></li>
+<li class="l2"><a href="#%E5%B8%B8%E7%94%A8%E6%8C%87%E4%BB%A4%E9%80%9F%E6%9F%A5%E8%B7%A8%E7%AD%86%E8%A8%98%E9%80%9A%E7%94%A8">常用指令速查（跨筆記通用）</a></li>
+</ul>
+</nav>
+<main>
+<h1 id="docker-筆記索引">Docker 筆記索引</h1>
+<p>這個目錄收錄 Docker 容器化（containerization）相關的實戰紀錄，包含 Docker Compose 編排（orchestration）用法，以及 docker daemon（背景服務行程 dockerd）網路連線的排查。</p>
+<h2 id="筆記列表">筆記列表</h2>
+<table>
+<thead>
+<tr>
+<th>筆記</th>
+<th>主題</th>
+<th>關鍵字</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="Docker-Compose%E7%94%A8%E6%B3%95%E7%AD%86%E8%A8%98.html">Docker-Compose用法筆記</a></td>
+<td>Docker Compose 核心觀念與常用指令：YAML 錨點（anchor）語法、build context 與 build-args、<code>network_mode: host</code> 的取捨、設定檔掛載（volume mount）、<code>depends_on</code> 只保證啟動順序不保證服務就緒，以及單一服務驗證流程與常見坑</td>
+<td><code>docker compose</code> <code>YAML anchor</code> <code>build context</code> <code>network_mode: host</code> <code>depends_on</code> <code>volumes</code></td>
+</tr>
+<tr>
+<td><a href="Docker%E6%8B%89%E5%8F%96%E6%98%A0%E5%83%8F%E6%AA%94%E5%A4%B1%E6%95%97-daemon%E7%BC%BAproxy%E6%8E%92%E6%9F%A5.html">Docker拉取映像檔失敗-daemon缺proxy排查</a></td>
+<td><code>docker pull</code> 逾時（<code>context deadline exceeded</code>）的根因是 docker daemon（dockerd，實際負責拉映像檔的背景行程）本身沒有代理伺服器（proxy）設定，跟 shell 環境的 proxy 是分開的兩件事；用 systemd drop-in 設定 daemon proxy 修復，續集記錄 <code>registry-mirrors</code>（映像加速器）失效擋住 <code>docker compose build</code> 的排查與解法</td>
+<td><code>dockerd</code> <code>daemon proxy</code> <code>systemd drop-in</code> <code>registry-mirrors</code> <code>context deadline exceeded</code> <code>docker/dockerfile:1</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="常用指令速查跨筆記通用">常用指令速查（跨筆記通用）</h2>
+<pre><code class="language-bash"><span class="c1"># Compose（都在 compose 檔所在目錄或指定 -f 路徑執行）</span>
+docker<span class="w"> </span>compose<span class="w"> </span>-f<span class="w"> </span>&lt;path&gt;<span class="w"> </span>up<span class="w"> </span>-d<span class="w"> </span>&lt;service&gt;<span class="w">       </span><span class="c1"># 啟動指定 service（含 depends_on）</span>
+docker<span class="w"> </span>compose<span class="w"> </span>-f<span class="w"> </span>&lt;path&gt;<span class="w"> </span>build<span class="w"> </span>--no-cache<span class="w"> </span>&lt;service&gt;
+docker<span class="w"> </span>compose<span class="w"> </span>-f<span class="w"> </span>&lt;path&gt;<span class="w"> </span>logs<span class="w"> </span>-f<span class="w"> </span>&lt;service&gt;<span class="w">     </span><span class="c1"># 跟 log</span>
+
+<span class="c1"># daemon 網路 / proxy 排查</span>
+systemctl<span class="w"> </span>show<span class="w"> </span>docker<span class="w"> </span>--property<span class="o">=</span>Environment<span class="w">   </span><span class="c1"># 看 dockerd 自己的環境變數（是否有 proxy）</span>
+curl<span class="w"> </span>-sSI<span class="w"> </span>https://cr.jaegertracing.io/v2/<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-i<span class="w"> </span>www-authenticate<span class="w">   </span><span class="c1"># 回 401 = 連得到，只是要認證</span>
+curl<span class="w"> </span>--noproxy<span class="w"> </span><span class="s1">&#39;*&#39;</span><span class="w"> </span>https://registry-1.docker.io/v2/<span class="w">                    </span><span class="c1"># 模擬 daemon 直連（不走 shell 的 proxy）</span>
+
+<span class="c1"># daemon 設定檔（改完都要 systemctl daemon-reload &amp;&amp; systemctl restart docker）</span>
+/etc/systemd/system/docker.service.d/http-proxy.conf<span class="w">   </span><span class="c1"># daemon 的 proxy 設定（systemd drop-in）</span>
+/etc/docker/daemon.json<span class="w">                                 </span><span class="c1"># daemon 的一般設定（含 registry-mirrors）</span>
+</code></pre>
+<hr />
+<blockquote>
+<p>新增筆記時，記得把它加進上面的「筆記列表」表格。</p>
+</blockquote>
+
+</main>
+</div>
+</body>
+</html>

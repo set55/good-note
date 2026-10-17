@@ -1,0 +1,475 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>fd 是什麼？—— 行程手上的那張對照表</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/app.js"></script>
+</head>
+<body>
+<button class="menu-btn" onclick="toggleMenu()">☰ 目錄</button>
+<div class="layout">
+<nav class="side">
+<div class="crumbs"><a href="../index.html">🏠 首頁</a> / <a href="README.html">linux</a></div>
+<div class="tools"><button onclick="toggleTheme()">🌓 主題</button></div>
+<ul>
+<li class="l2"><a href="#%E4%B8%80%E5%85%88%E7%9C%8B%E5%AF%A6%E7%89%A9">一、先看實物</a></li>
+<li class="l2"><a href="#%E4%BA%8C%E4%B8%89%E5%B1%A4%E7%B5%90%E6%A7%8B%E9%80%99%E6%98%AF%E6%9C%80%E9%97%9C%E9%8D%B5%E7%9A%84%E9%83%A8%E5%88%86">二、三層結構：這是最關鍵的部分</a></li>
+<li class="l2"><a href="#%E4%B8%89fd-%E6%8C%87%E7%9A%84%E4%B8%8D%E5%8F%AA%E6%98%AF%E6%AA%94%E6%A1%88">三、fd 指的不只是檔案</a></li>
+<li class="l2"><a href="#%E5%9B%9Bdeleted-%E7%9A%84%E6%84%8F%E7%BE%A9%E7%A9%BA%E9%96%93%E6%B2%92%E8%A2%AB%E9%87%8B%E6%94%BE%E7%9A%84%E5%85%83%E5%85%87">四、(deleted) 的意義：空間沒被釋放的元兇</a></li>
+<li class="l2"><a href="#%E4%BA%94%E4%B8%8A%E9%99%90%E6%9C%89%E4%B8%89%E5%B1%A4">五、上限有三層</a></li>
+<li class="l2"><a href="#%E5%85%ADfd-%E6%B4%A9%E6%BC%8F%E6%80%8E%E9%BA%BC%E8%A8%BA%E6%96%B7">六、fd 洩漏：怎麼診斷</a></li>
+<li class="l2"><a href="#%E4%B8%83%E9%80%9F%E6%9F%A5">七、速查</a></li>
+<li class="l2"><a href="#lsof-%E5%AE%8C%E6%95%B4%E9%81%B8%E9%A0%85%E4%BE%9D%E6%9C%AC%E6%A9%9F-lsof--h4950">lsof 完整選項（依本機 lsof -h，4.95.0）</a></li>
+<li class="l2"><a href="#%E8%87%AA%E6%88%91%E6%B8%AC%E9%A9%97">自我測驗</a></li>
+</ul>
+</nav>
+<main>
+<h1 id="fd-是什麼-行程手上的那張對照表">fd 是什麼？—— 行程手上的那張對照表</h1>
+<blockquote>
+<p>日期：2026-09-20<br />
+情境：談 <code>CLOSE_WAIT</code> 堆積會撞上 <code>too many open files</code> 時追問的：fd 到底是什麼<br />
+適用範圍：實測 Ubuntu 24.04（kernel 7.0）<br />
+相關：<a href="%E8%BC%B8%E5%87%BA%E9%87%8D%E6%96%B0%E5%B0%8E%E5%90%91%E8%88%87dev-null.html">輸出重新導向與dev-null</a>（fd 0／1／2 的用法在那篇）、
+<a href="netstat%E6%80%8E%E9%BA%BC%E7%94%A8-%E4%BB%A5%E5%8F%8A%E8%A9%B2%E6%94%B9%E7%94%A8ss%E7%9A%84%E7%90%86%E7%94%B1.html">netstat怎麼用-以及該改用ss的理由</a>、
+<a href="%E6%8E%92%E6%9F%A5%E6%96%B9%E6%B3%95%E8%AB%96.html">排查方法論</a></p>
+</blockquote>
+<p><strong>一句話結論：fd（file descriptor，檔案描述符）是<strong>一個整數</strong>，是行程手上那張「編號 → 已開啟資源」對照表的索引。關鍵有三點：這張表<strong>每個行程各一份</strong>（所以編號只在該行程內有意義）；表裡指的
+<strong>不只是檔案</strong>（socket、pipe、計時器都是 fd，這就是「一切皆檔案」的實作）；而且<strong>編號背後還有一層</strong>（open file description），<code>dup</code> 與 <code>fork</code> 共享的是那一層，這解釋了很多看似奇怪的行為。</strong></p>
+<hr />
+<h2 id="一先看實物">一、先看實物</h2>
+<pre><code class="language-bash">$<span class="w"> </span>ls<span class="w"> </span>-l<span class="w"> </span>/proc/self/fd/
+lr-x------<span class="w"> </span><span class="m">0</span><span class="w"> </span>-&gt;<span class="w"> </span>/dev/null
+l-wx------<span class="w"> </span><span class="m">1</span><span class="w"> </span>-&gt;<span class="w"> </span>pipe:<span class="o">[</span><span class="m">202486</span><span class="o">]</span>
+l-wx------<span class="w"> </span><span class="m">2</span><span class="w"> </span>-&gt;<span class="w"> </span>/dev/null
+lr-x------<span class="w"> </span><span class="m">3</span><span class="w"> </span>-&gt;<span class="w"> </span>/proc/44101/fd
+</code></pre>
+<p>左邊那個 <code>0</code>、<code>1</code>、<code>2</code>、<code>3</code> 就是 fd——<strong>它就只是個整數</strong>。右邊是它目前指向的東西。</p>
+<p><code>/proc/&lt;PID&gt;/fd/</code> 是核心直接把這張表以符號連結的形式呈現出來，所以「fd 是什麼」不用想像，直接 <code>ls</code> 就看得到。</p>
+<p><strong>這張表是每個行程各一份</strong>：</p>
+<pre><code class="language-bash">$<span class="w"> </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;</span><span class="k">$(</span>readlink<span class="w"> </span>/proc/self/fd/1<span class="k">)</span><span class="s2">&quot;</span><span class="w">          </span><span class="c1"># pipe:[176011]</span>
+$<span class="w"> </span>sh<span class="w"> </span>-c<span class="w"> </span><span class="s1">&#39;readlink /proc/self/fd/1&#39;</span><span class="w">            </span><span class="c1"># pipe:[222420]   ← 不同的東西</span>
+</code></pre>
+<p>同樣是編號 1，在不同行程裡指向完全不同的資源。<strong>fd 的編號離開它的行程就沒有意義</strong>——
+不能把 fd 3 傳給另一個程式叫它用（真要傳得透過 Unix socket 的 <code>SCM_RIGHTS</code> 機制，核心會在對方的表裡新建一個項目）。</p>
+<p>新開的 fd 一律拿<strong>當前最小的可用編號</strong>，所以關掉 fd 1 之後再開檔案，新檔案就會變成 fd 1——
+這正是 shell 做重新導向的原理。</p>
+<hr />
+<h2 id="二三層結構這是最關鍵的部分">二、三層結構：這是最關鍵的部分</h2>
+<pre><code>行程 A 的 fd 表          系統層的 open file description        inode（檔案本體）
+┌────┬──────┐           ┌──────────────────────┐           ┌──────────────┐
+│ 0  │ ───► │──────────►│ offset: 1024         │──────────►│ /var/log/x   │
+│ 1  │ ───► │──────┐    │ flags: O_WRONLY      │           │ 權限、大小…  │
+│ 2  │ ───► │──────┘    └──────────────────────┘           └──────────────┘
+└────┴──────┘                （1 與 2 指向同一個）
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>層</th>
+<th>屬於誰</th>
+<th>存了什麼</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>fd</strong></td>
+<td>行程</td>
+<td>就是一個整數索引</td>
+</tr>
+<tr>
+<td><strong>open file description</strong></td>
+<td>系統（核心）</td>
+<td><strong>讀寫位置（offset）</strong>、開啟模式、旗標</td>
+</tr>
+<tr>
+<td><strong>inode</strong></td>
+<td>檔案系統</td>
+<td>檔案本體、權限、大小</td>
+</tr>
+</tbody>
+</table>
+<p><strong>分成三層的後果，全都在「誰跟誰共享 offset」上：</strong></p>
+<table>
+<thead>
+<tr>
+<th>情況</th>
+<th>共享 description？</th>
+<th>後果</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>dup</code> / <code>dup2</code>（<code>2&gt;&amp;1</code> 用的）</td>
+<td>✅ 共享</td>
+<td><strong>共用同一個 offset</strong>，一邊寫另一邊的位置也跟著動</td>
+</tr>
+<tr>
+<td><code>fork</code> 出的子行程</td>
+<td>✅ 共享</td>
+<td>父子寫同一個檔案不會互相覆蓋</td>
+</tr>
+<tr>
+<td>對同一個檔案 <code>open</code> 兩次</td>
+<td>❌ 各自獨立</td>
+<td>兩個 offset 互不相干，會互相覆蓋</td>
+</tr>
+</tbody>
+</table>
+<p><strong>這就是 <code>&gt;/dev/null 2&gt;&amp;1</code> 和 <code>2&gt;&amp;1 &gt;/dev/null</code> 結果不同的根本原因</strong>：<code>2&gt;&amp;1</code> 複製的是「fd 1 <strong>當下</strong>指向的那個 description」，而不是「fd 1 這個編號」。（完整推導見
+<a href="%E8%BC%B8%E5%87%BA%E9%87%8D%E6%96%B0%E5%B0%8E%E5%90%91%E8%88%87dev-null.html">輸出重新導向與dev-null</a>。）</p>
+<p>同理，<code>cmd &gt;&gt;file</code> 的 append 模式是記在 description 上的旗標，所以父子行程同時 append
+不會打架；而兩次獨立 <code>open</code> 的非 append 寫入就會。</p>
+<hr />
+<h2 id="三fd-指的不只是檔案">三、fd 指的不只是檔案</h2>
+<p>看一個真實的大型程式（本機 chrome，479 個 fd）：</p>
+<pre><code>  117  （一般檔案）
+  110  (deleted)              ← 已被刪除但還開著的檔案
+   99  socket:[…]             ← 網路連線
+    9  anon_inode:[eventfd]   ← 行程內／執行緒間的事件通知
+    8  pipe:[…]               ← 管線
+    4  anon_inode:[eventpoll] ← epoll 實例本身也是一個 fd
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>型別</th>
+<th>是什麼</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>一般檔案</td>
+<td>真的檔案</td>
+</tr>
+<tr>
+<td><code>socket:[N]</code></td>
+<td>TCP／UDP／Unix socket；<code>N</code> 是 inode 編號，可以拿去跟 <code>ss -e</code> 對上</td>
+</tr>
+<tr>
+<td><code>pipe:[N]</code></td>
+<td>管線的一端</td>
+</tr>
+<tr>
+<td><code>anon_inode:[eventfd]</code></td>
+<td>純粹用來喚醒對方的計數器</td>
+</tr>
+<tr>
+<td><code>anon_inode:[eventpoll]</code></td>
+<td><strong>epoll 實例</strong>——用來監看其他 fd 的 fd</td>
+</tr>
+<tr>
+<td><code>anon_inode:[timerfd]</code></td>
+<td>計時器</td>
+</tr>
+<tr>
+<td><code>anon_inode:[inotify]</code></td>
+<td>檔案變動監看</td>
+</tr>
+</tbody>
+</table>
+<p><strong>「一切皆檔案」的實際意思就是這個</strong>：不管底層是網路連線、計時器還是事件通知，對程式來說都是「一個 fd」，都能用 <code>read</code>／<code>write</code>／<code>close</code>、都能丟進 <code>epoll</code> 一起等。這讓一個事件迴圈能同時處理網路、計時與訊號，不必為每種資源寫一套邏輯。</p>
+<hr />
+<h2 id="四deleted-的意義空間沒被釋放的元兇">四、<code>(deleted)</code> 的意義：空間沒被釋放的元兇</h2>
+<p>chrome 那 110 個 <code>(deleted)</code> 是一個非常實用的排查線索。</p>
+<p><strong>在 Linux 上刪除檔案，刪的是「目錄項」（unlink），不是資料本身。</strong> 只要還有任何行程開著它，
+inode 與磁碟空間就不會釋放：</p>
+<pre><code>df -h   → 磁碟滿了
+du -sh  → 加起來卻遠小於那個數字
+</code></pre>
+<p><strong>兩者對不上，就去找「已刪除但還開著」的檔案</strong>：</p>
+<pre><code class="language-bash">lsof<span class="w"> </span>+L1<span class="w">                              </span><span class="c1"># 列出連結數為 0（已刪除）卻還開著的檔案</span>
+ls<span class="w"> </span>-l<span class="w"> </span>/proc/&lt;PID&gt;/fd/<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>deleted
+</code></pre>
+<p>最經典的場景是有人用 <code>rm</code> 刪了一個正在被寫入的大 log 檔——空間完全沒有回來，要等到重啟那個行程（或它自己 <code>close</code>）才會釋放。</p>
+<hr />
+<h2 id="五上限有三層">五、上限有三層</h2>
+<pre><code class="language-bash">$<span class="w"> </span><span class="nb">ulimit</span><span class="w"> </span>-Sn<span class="w"> </span>/<span class="w"> </span>-Hn<span class="w">        </span><span class="c1"># 1048576 / 1048576   ← 單一行程（soft/hard）</span>
+$<span class="w"> </span>sysctl<span class="w"> </span>-n<span class="w"> </span>fs.nr_open<span class="w">    </span><span class="c1"># 1048576             ← 單一行程的硬天花板</span>
+$<span class="w"> </span>sysctl<span class="w"> </span>-n<span class="w"> </span>fs.file-max<span class="w">   </span><span class="c1"># 9223372036854775807 ← 全系統（本機等於無限）</span>
+$<span class="w"> </span>cat<span class="w"> </span>/proc/sys/fs/file-nr
+<span class="m">16658</span><span class="w">   </span><span class="m">0</span><span class="w">   </span><span class="m">9223372036854775807</span><span class="w">                  </span><span class="c1"># 已配置 / 未使用 / 上限</span>
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>層</th>
+<th>誰管</th>
+<th>超過時</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ulimit -n</code>（soft）</td>
+<td>每個行程，可自行調高到 hard</td>
+<td><strong><code>EMFILE</code>：too many open files</strong></td>
+</tr>
+<tr>
+<td><code>fs.nr_open</code></td>
+<td>核心，<code>ulimit</code> 不能超過它</td>
+<td>調 ulimit 時被拒</td>
+</tr>
+<tr>
+<td><code>fs.file-max</code></td>
+<td>全系統總量</td>
+<td><strong><code>ENFILE</code>：file table overflow</strong></td>
+</tr>
+</tbody>
+</table>
+<p><strong><code>EMFILE</code> 與 <code>ENFILE</code> 是兩個不同的問題</strong>：前者是「這個行程開太多」（多半是程式洩漏），後者是「整台機器開太多」（罕見）。看到 <code>too many open files</code> 先確認是哪一個——
+調 <code>ulimit</code> 對 <code>ENFILE</code> 沒有用。</p>
+<blockquote>
+<p>服務用 systemd 啟動時，<code>ulimit</code> 由 unit 的 <code>LimitNOFILE=</code> 決定，<strong>不會</strong>繼承你 shell 裡調好的值。這是「我明明調大了 ulimit，服務還是報 EMFILE」的標準答案。</p>
+</blockquote>
+<hr />
+<h2 id="六fd-洩漏怎麼診斷">六、fd 洩漏：怎麼診斷</h2>
+<p><strong>症狀</strong>：服務跑一陣子後開始報 <code>too many open files</code>，重啟就好——典型的洩漏曲線。</p>
+<pre><code class="language-bash"><span class="c1"># 1. 哪個行程 fd 最多</span>
+<span class="k">for</span><span class="w"> </span>p<span class="w"> </span><span class="k">in</span><span class="w"> </span>/proc/<span class="o">[</span><span class="m">0</span>-9<span class="o">]</span>*<span class="p">;</span><span class="w"> </span><span class="k">do</span><span class="w"> </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;</span><span class="k">$(</span>ls<span class="w"> </span><span class="nv">$p</span>/fd<span class="w"> </span><span class="m">2</span>&gt;/dev/null<span class="w"> </span><span class="p">|</span><span class="w"> </span>wc<span class="w"> </span>-l<span class="k">)</span><span class="s2"> </span><span class="k">$(</span>basename<span class="w"> </span><span class="nv">$p</span><span class="k">)</span><span class="s2">&quot;</span><span class="p">;</span><span class="w"> </span><span class="k">done</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span><span class="p">|</span><span class="w"> </span>sort<span class="w"> </span>-rn<span class="w"> </span><span class="p">|</span><span class="w"> </span>head<span class="w"> </span>-5
+
+<span class="c1"># 2. 持續觀察單一行程（會不會只增不減）</span>
+watch<span class="w"> </span>-n5<span class="w"> </span><span class="s2">&quot;ls /proc/&lt;PID&gt;/fd | wc -l&quot;</span>
+
+<span class="c1"># 3. 洩漏的是什麼型別</span>
+ls<span class="w"> </span>-l<span class="w"> </span>/proc/&lt;PID&gt;/fd/<span class="w"> </span><span class="p">|</span><span class="w"> </span>awk<span class="w"> </span><span class="s1">&#39;{print $NF}&#39;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>sed<span class="w"> </span><span class="s1">&#39;s/\[[0-9]*\]//&#39;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>sort<span class="w"> </span><span class="p">|</span><span class="w"> </span>uniq<span class="w"> </span>-c<span class="w"> </span><span class="p">|</span><span class="w"> </span>sort<span class="w"> </span>-rn
+
+<span class="c1"># 4. 和它的上限比</span>
+cat<span class="w"> </span>/proc/&lt;PID&gt;/limits<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span><span class="s1">&#39;open files&#39;</span>
+</code></pre>
+<p><strong>第 3 步的型別會直接告訴你洩漏在哪</strong>：</p>
+<ul>
+<li><code>socket:[…]</code> 一直增加 → 沒有 <code>close()</code> 連線。<strong>搭配 <code>ss -tp state close-wait</code> 一起看</strong>，大量 <code>CLOSE_WAIT</code> + fd 只增不減，就是同一個 bug 的兩個症狀（見
+<a href="netstat%E6%80%8E%E9%BA%BC%E7%94%A8-%E4%BB%A5%E5%8F%8A%E8%A9%B2%E6%94%B9%E7%94%A8ss%E7%9A%84%E7%90%86%E7%94%B1.html">netstat 那篇</a>）。</li>
+<li>一般檔案一直增加 → 開檔沒關，常見於錯誤處理路徑忘了關。</li>
+<li><code>(deleted)</code> 一直增加 → 開著已刪除的暫存檔。</li>
+</ul>
+<p><strong>權限提醒</strong>：非 root 讀不到別人的 <code>/proc/&lt;PID&gt;/fd/</code>。本機實測 <code>verge-mihomo</code> 是以 <strong>root</strong>
+執行的，所以一般使用者 <code>ls</code> 它的 fd 會得到空結果——<strong>不是沒有 fd，是沒權限</strong>。這種「空結果」最容易誤導，先用 <code>ps -o user</code> 確認擁有者。</p>
+<hr />
+<h2 id="七速查">七、速查</h2>
+<pre><code class="language-bash">ls<span class="w"> </span>-l<span class="w"> </span>/proc/self/fd/<span class="w">                 </span><span class="c1"># 自己的 fd 表</span>
+ls<span class="w"> </span>-l<span class="w"> </span>/proc/&lt;PID&gt;/fd/<span class="w">                </span><span class="c1"># 別人的（需同使用者或 root）</span>
+lsof<span class="w"> </span>-p<span class="w"> </span>&lt;PID&gt;<span class="w">                        </span><span class="c1"># 同樣的資訊，格式更好讀</span>
+lsof<span class="w"> </span>-i<span class="w"> </span>:8080<span class="w">                        </span><span class="c1"># 誰開著這個埠</span>
+lsof<span class="w"> </span>+L1<span class="w">                             </span><span class="c1"># 已刪除但還開著的檔案 ← 磁碟空間對不上時用</span>
+cat<span class="w"> </span>/proc/&lt;PID&gt;/limits<span class="w">               </span><span class="c1"># 這個行程實際的上限</span>
+<span class="nb">ulimit</span><span class="w"> </span>-n<span class="w">                            </span><span class="c1"># 當前 shell 的 soft limit</span>
+ss<span class="w"> </span>-e<span class="w">                                </span><span class="c1"># socket 的 inode 編號，可與 fd 的 socket:[N] 對上</span>
+</code></pre>
+<hr />
+<h2 id="lsof-完整選項依本機-lsof--h4950">lsof 完整選項（依本機 <code>lsof -h</code>，4.95.0）</h2>
+<p>lsof 的選項有個特色：<strong>很多選項同時有 <code>-</code> 與 <code>+</code> 兩種形式，意思相反或互補</strong>
+（<code>-</code> 通常是關閉／排除，<code>+</code> 是開啟／包含）。</p>
+<p><strong>選擇要列出什麼</strong></p>
+<table>
+<thead>
+<tr>
+<th>選項</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-a</code></td>
+<td><strong>把多個條件變成 AND</strong>（預設多條件是 OR）← 最常忘記加</td>
+</tr>
+<tr>
+<td><code>-c &lt;c&gt;</code></td>
+<td>依指令名選（支援 <code>^c</code> 排除、<code>/c/</code> 正規式）</td>
+</tr>
+<tr>
+<td><code>+c &lt;寬度&gt;</code></td>
+<td>COMMAND 欄位寬度（預設 9，<strong>名字被截斷時調它</strong>）</td>
+</tr>
+<tr>
+<td><code>-p &lt;s&gt;</code></td>
+<td>依 PID 選（<code>^</code> 排除）</td>
+</tr>
+<tr>
+<td><code>-g [s]</code></td>
+<td>依行程群組 ID 選並顯示</td>
+</tr>
+<tr>
+<td><code>-u &lt;s&gt;</code></td>
+<td>依登入名／UID 選（<code>^</code> 排除）</td>
+</tr>
+<tr>
+<td><code>-d &lt;s&gt;</code></td>
+<td><strong>依 fd 集合選</strong>（例如 <code>-d 0-2</code>、<code>-d cwd</code>）</td>
+</tr>
+<tr>
+<td><code>+d &lt;目錄&gt;</code></td>
+<td>列出該目錄底下被開啟的檔案</td>
+</tr>
+<tr>
+<td><code>+D &lt;目錄&gt;</code></td>
+<td><strong>遞迴整棵目錄樹</strong>（慢）</td>
+</tr>
+<tr>
+<td><code>-i [i]</code></td>
+<td><strong>選網路檔案</strong>：<code>-i</code>／<code>-i 4</code>／<code>-i TCP:80</code>／<code>-i @host</code></td>
+</tr>
+<tr>
+<td><code>-N</code></td>
+<td>NFS 檔案</td>
+</tr>
+<tr>
+<td><code>-U</code></td>
+<td>Unix domain socket</td>
+</tr>
+<tr>
+<td><code>-x [fl]</code></td>
+<td><code>+d</code>／<code>+D</code> 時跨越檔案系統或符號連結</td>
+</tr>
+<tr>
+<td><code>+|-L [l]</code></td>
+<td>依連結數篩選；<strong><code>+L1</code> 就是「已刪除但還開著」</strong></td>
+</tr>
+<tr>
+<td><code>-s &lt;p:s&gt;</code></td>
+<td>依協定狀態選（例如 <code>-s TCP:CLOSE_WAIT</code>）</td>
+</tr>
+<tr>
+<td><code>-K [i]</code></td>
+<td>列出／忽略 tasks（執行緒）</td>
+</tr>
+<tr>
+<td><code>-X</code></td>
+<td>跳過 TCP、UDP 檔案</td>
+</tr>
+<tr>
+<td><code>-Z &lt;Z&gt;</code></td>
+<td>依 SELinux 脈絡選</td>
+</tr>
+<tr>
+<td><code>names</code></td>
+<td>直接給檔名或掛載點</td>
+</tr>
+</tbody>
+</table>
+<p><strong>輸出控制</strong></p>
+<table>
+<thead>
+<tr>
+<th>選項</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-t</code></td>
+<td><strong>只印 PID</strong>（給 <code>kill</code> 用：<code>kill $(lsof -t file)</code>）</td>
+</tr>
+<tr>
+<td><code>-F [f]</code></td>
+<td><strong>欄位化輸出</strong>給程式剖析（<code>-F?</code> 看有哪些欄位）</td>
+</tr>
+<tr>
+<td><code>-n</code></td>
+<td>不做主機名反查（<strong>同 netstat 的理由</strong>）</td>
+</tr>
+<tr>
+<td><code>-P</code></td>
+<td>不把埠號翻成服務名</td>
+</tr>
+<tr>
+<td><code>-l</code></td>
+<td>UID 印數字不印名字</td>
+</tr>
+<tr>
+<td><code>-o</code> / <code>-o &lt;n&gt;</code></td>
+<td>顯示檔案偏移量／偏移位數（預設 8）</td>
+</tr>
+<tr>
+<td><code>-s</code></td>
+<td>顯示檔案大小</td>
+</tr>
+<tr>
+<td><code>-R</code></td>
+<td>顯示父行程 PID</td>
+</tr>
+<tr>
+<td><code>-E</code> / <code>+E</code></td>
+<td>顯示端點資訊／連同檔案</td>
+</tr>
+<tr>
+<td><code>-T [t]</code> / <code>-T fqs</code></td>
+<td>關閉／選擇 TCP 資訊（Fl、Q、St）</td>
+</tr>
+<tr>
+<td><code>+|-f[gG]</code></td>
+<td>檔案系統／檔名模式；<code>g</code>／<code>G</code> 顯示旗標</td>
+</tr>
+<tr>
+<td><code>+|-M</code></td>
+<td>portmap 註冊資訊</td>
+</tr>
+<tr>
+<td><code>+m [m]</code></td>
+<td>使用／建立 mount supplement</td>
+</tr>
+<tr>
+<td><code>-v</code> / <code>-V</code></td>
+<td>版本／囉嗦搜尋</td>
+</tr>
+<tr>
+<td><code>+|-w</code></td>
+<td>開啟／關閉警告</td>
+</tr>
+</tbody>
+</table>
+<p><strong>行為與效能</strong></p>
+<table>
+<thead>
+<tr>
+<th>選項</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-b</code></td>
+<td><strong>避免可能阻塞的核心呼叫</strong>（NFS 掛掉時 lsof 卡住就用它）</td>
+</tr>
+<tr>
+<td><code>-O</code></td>
+<td>不用 fork 的額外開銷（標示 <em>RISKY</em>）</td>
+</tr>
+<tr>
+<td><code>+|-e &lt;s&gt;</code></td>
+<td>豁免某檔案系統（標示 <em>RISKY</em>）</td>
+</tr>
+<tr>
+<td><code>-S [t]</code></td>
+<td>stat 的逾時秒數（預設 15）</td>
+</tr>
+<tr>
+<td><code>-Q</code></td>
+<td>允許搜尋失敗不報錯</td>
+</tr>
+<tr>
+<td><code>+|-r [t]</code></td>
+<td><strong>每 t 秒重複執行</strong>（<code>+</code> 直到沒檔案、<code>-</code> 永遠）</td>
+</tr>
+<tr>
+<td><code>--</code></td>
+<td>結束選項解析</td>
+</tr>
+</tbody>
+</table>
+<p><strong>最該記住的兩個</strong>：<code>-a</code>（多條件變 AND，不加就是 OR，結果會多到看不完）與 <code>+L1</code>（找已刪除但還開著的檔案）。</p>
+<h2 id="自我測驗">自我測驗</h2>
+<ol>
+<li>為什麼說「fd 的編號離開它的行程就沒有意義」？那要把一個已開啟的資源交給另一個行程，核心提供了什麼機制？</li>
+<li><code>dup</code> 出來的兩個 fd 和「對同一個檔案 open 兩次」得到的兩個 fd，差別在哪一層？這個差別會造成什麼實際後果？</li>
+<li><code>df</code> 說磁碟滿了，<code>du</code> 卻加不出那麼多。最可能是什麼原因？用一個指令就能找出兇手，是哪個？</li>
+<li><code>EMFILE</code> 和 <code>ENFILE</code> 分別代表什麼？為什麼看到 <code>too many open files</code> 不能反射性地調 <code>ulimit</code>？如果服務是用 systemd 啟動的，還要多注意什麼？</li>
+<li>情境題：某服務的 fd 數量只增不減，你 <code>ls -l /proc/&lt;PID&gt;/fd/</code> 發現九成是 <code>socket:[…]</code>。這指向哪一類 bug？你會再用哪一個網路指令交叉驗證、預期看到什麼？</li>
+</ol>
+
+</main>
+</div>
+</body>
+</html>

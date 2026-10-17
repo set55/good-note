@@ -1,0 +1,1926 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DHCP 完整流程與封包逐位元組解剖 —— 一次租約從 DISCOVER 到 ACK 到底交換了什麼</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/app.js"></script>
+</head>
+<body>
+<button class="menu-btn" onclick="toggleMenu()">☰ 目錄</button>
+<div class="layout">
+<nav class="side">
+<div class="crumbs"><a href="../index.html">🏠 首頁</a> / <a href="README.html">linux</a></div>
+<div class="tools"><button onclick="toggleTheme()">🌓 主題</button></div>
+<ul>
+<li class="l2"><a href="#%E7%9B%AE%E9%8C%84">目錄</a></li>
+<li class="l2"><a href="#%E6%9C%AC%E6%96%87%E4%BD%BF%E7%94%A8%E7%9A%84%E5%AF%A6%E9%A9%97%E5%A0%B4%E6%99%AF">本文使用的實驗場景</a></li>
+<li class="l2"><a href="#%E4%B8%80%E5%85%88%E6%9C%89%E9%9B%9E%E9%82%84%E6%98%AF%E5%85%88%E6%9C%89%E8%9B%8B">一、先有雞還是先有蛋</a></li>
+<li class="l2"><a href="#%E4%BA%8Cdora-%E5%9B%9B%E6%AD%A5%E5%85%A8%E6%99%AF">二、DORA 四步全景</a></li>
+<li class="l2"><a href="#%E4%B8%89%E5%B0%81%E5%8C%85%E7%9A%84%E4%B8%89%E5%B1%A4%E5%A4%96%E6%AE%BC">三、封包的三層外殼</a></li>
+<li class="l2"><a href="#%E5%9B%9Bbootp-%E5%9B%BA%E5%AE%9A%E6%AC%84%E4%BD%8D-236-bytes">四、BOOTP 固定欄位 236 bytes</a></li>
+<li class="l2"><a href="#%E4%BA%94options-%E7%9A%84-tlv-%E7%B7%A8%E7%A2%BC">五、Options 的 TLV 編碼</a></li>
+<li class="l2"><a href="#%E5%85%AD%E5%B0%81%E5%8C%85%E4%B8%80discover">六、封包一：DISCOVER</a></li>
+<li class="l3"><a href="#61-%E9%80%90%E6%AC%84%E4%BD%8D%E6%8B%86%E8%A7%A3">6.1 逐欄位拆解</a></li>
+<li class="l3"><a href="#62-%E5%85%A9%E5%80%8B%E8%A6%81%E8%A8%98%E4%BD%8F%E7%9A%84%E9%87%8D%E9%BB%9E">6.2 兩個要記住的重點</a></li>
+<li class="l3"><a href="#63-%E6%B2%92%E6%94%B6%E5%88%B0%E5%9B%9E%E8%A6%86%E6%80%8E%E9%BA%BC%E8%BE%A6%E9%87%8D%E9%80%81%E7%AD%96%E7%95%A5">6.3 沒收到回覆怎麼辦：重送策略</a></li>
+<li class="l2"><a href="#%E4%B8%83%E5%B0%81%E5%8C%85%E4%BA%8Coffer">七、封包二：OFFER</a></li>
+<li class="l3"><a href="#71-%E5%A4%96%E6%AE%BC%E7%9A%84%E8%AE%8A%E5%8C%96">7.1 外殼的變化</a></li>
+<li class="l3"><a href="#72-bootp-%E6%AC%84%E4%BD%8D%E7%9A%84%E8%AE%8A%E5%8C%96">7.2 BOOTP 欄位的變化</a></li>
+<li class="l3"><a href="#73-options-%E9%80%90%E9%A0%85">7.3 Options 逐項</a></li>
+<li class="l3"><a href="#74-%E7%82%BA%E4%BB%80%E9%BA%BC-siaddr-%E6%98%AF-0-%E4%BD%86-option-54-%E6%9C%89%E5%80%BC">7.4 為什麼 siaddr 是 0 但 option 54 有值</a></li>
+<li class="l2"><a href="#%E5%85%AB%E5%B0%81%E5%8C%85%E4%B8%89request">八、封包三：REQUEST</a></li>
+<li class="l3"><a href="#81-%E4%B8%89%E5%80%8B%E5%AE%B9%E6%98%93%E7%AD%94%E9%8C%AF%E7%9A%84%E6%AC%84%E4%BD%8D">8.1 三個容易答錯的欄位</a></li>
+<li class="l3"><a href="#82-options-%E9%80%90%E9%A0%85">8.2 Options 逐項</a></li>
+<li class="l3"><a href="#83-%E5%9B%9B%E7%A8%AE-request-%E7%9A%84%E5%88%A4%E5%88%A5%E8%A1%A8">8.3 四種 REQUEST 的判別表</a></li>
+<li class="l2"><a href="#%E4%B9%9D%E5%B0%81%E5%8C%85%E5%9B%9Back">九、封包四：ACK</a></li>
+<li class="l2"><a href="#%E5%8D%81%E6%8B%BF%E5%88%B0-ack-%E4%B9%8B%E5%BE%8C%E5%AE%A2%E6%88%B6%E7%AB%AF%E5%81%9A%E4%BA%86%E4%BB%80%E9%BA%BC">十、拿到 ACK 之後客戶端做了什麼</a></li>
+<li class="l3"><a href="#101-arp-probe%E8%A1%9D%E7%AA%81%E5%81%B5%E6%B8%AC">10.1 ARP probe（衝突偵測）</a></li>
+<li class="l3"><a href="#102-gratuitous-arp%E7%84%A1%E5%84%9F-arp">10.2 Gratuitous ARP（無償 ARP）</a></li>
+<li class="l3"><a href="#103-%E5%A5%97%E7%94%A8%E5%88%B0%E7%B3%BB%E7%B5%B1%E4%B8%8A">10.3 套用到系統上</a></li>
+<li class="l2"><a href="#%E5%8D%81%E4%B8%80%E7%A7%9F%E7%B4%84%E7%94%9F%E5%91%BD%E9%80%B1%E6%9C%9F%E8%88%87%E7%BA%8C%E7%B4%84%E5%B0%81%E5%8C%85">十一、租約生命週期與續約封包</a></li>
+<li class="l3"><a href="#111-%E7%BA%8C%E7%B4%84%E7%9A%84-requestrenewing%E5%96%AE%E6%92%AD">11.1 續約的 REQUEST（RENEWING，單播）</a></li>
+<li class="l3"><a href="#112-%E6%8B%92%E7%B5%95dhcpnak">11.2 拒絕：DHCPNAK</a></li>
+<li class="l2"><a href="#%E5%8D%81%E4%BA%8C%E5%85%B6%E4%BB%96%E8%A8%8A%E6%81%AF%E9%A1%9E%E5%9E%8B">十二、其他訊息類型</a></li>
+<li class="l3"><a href="#dhcpdeclineoption-53--4">DHCPDECLINE（option 53 = 4）</a></li>
+<li class="l3"><a href="#dhcpreleaseoption-53--7">DHCPRELEASE（option 53 = 7）</a></li>
+<li class="l3"><a href="#dhcpinformoption-53--8">DHCPINFORM（option 53 = 8）</a></li>
+<li class="l3"><a href="#%E5%B0%8D%E7%85%A7dhcpv6-%E5%AE%8C%E5%85%A8%E6%98%AF%E5%8F%A6%E4%B8%80%E5%A5%97">對照：DHCPv6 完全是另一套</a></li>
+<li class="l2"><a href="#%E5%8D%81%E4%B8%89%E8%B7%A8%E7%B6%B2%E6%AE%B5dhcp-relay-%E8%88%87-giaddr">十三、跨網段：DHCP Relay 與 giaddr</a></li>
+<li class="l2"><a href="#%E5%8D%81%E5%9B%9B%E6%8A%93%E5%8C%85%E8%88%87%E6%8E%92%E6%9F%A5%E5%AF%A6%E6%88%B0">十四、抓包與排查實戰</a></li>
+<li class="l3"><a href="#141-%E6%8A%93%E5%8C%85%E6%8C%87%E4%BB%A4">14.1 抓包指令</a></li>
+<li class="l3"><a href="#142-wireshark-%E9%81%8E%E6%BF%BE%E8%AA%9E%E6%B3%95">14.2 Wireshark 過濾語法</a></li>
+<li class="l3"><a href="#143-%E8%AE%80-log">14.3 讀 log</a></li>
+<li class="l3"><a href="#144-%E7%97%87%E7%8B%80--%E6%8A%93%E5%8C%85%E8%A9%B2%E7%9C%8B%E4%BB%80%E9%BA%BC">14.4 症狀 → 抓包該看什麼</a></li>
+<li class="l2"><a href="#%E5%8D%81%E4%BA%94%E5%B8%B8%E8%A6%8B%E8%AA%A4%E8%A7%A3%E8%88%87%E9%99%B7%E9%98%B1">十五、常見誤解與陷阱</a></li>
+<li class="l2"><a href="#%E9%80%9F%E6%9F%A5">速查</a></li>
+<li class="l2"><a href="#%E5%8F%83%E8%80%83">參考</a></li>
+<li class="l2"><a href="#%E5%8D%81%E5%85%AD%E8%87%AA%E6%88%91%E6%B8%AC%E9%A9%97">十六、自我測驗</a></li>
+<li class="l2"><a href="#tcpdump-%E9%81%B8%E9%A0%85">tcpdump 選項</a></li>
+</ul>
+</nav>
+<main>
+<h1 id="dhcp-完整流程與封包逐位元組解剖--一次租約從-discover-到-ack-到底交換了什麼">DHCP 完整流程與封包逐位元組解剖 —— 一次租約從 DISCOVER 到 ACK 到底交換了什麼</h1>
+<blockquote>
+<p>日期：2026-09-11<br />
+情境：知道網卡是靠 DHCP 拿 IP，但不知道那四個封包實際長什麼樣、每個欄位為什麼要那樣填<br />
+對應檔案：無（協定解析；hex dump 為依 RFC 2131／2132 規格組出的教學範例封包，非真實抓包檔，欄位值與校驗和皆已計算驗證）<br />
+適用範圍：DHCPv4（RFC 2131 / RFC 2132）；DHCPv6 只在第十二節做對照<br />
+關聯：<a href="%E7%A2%BA%E8%AA%8D%E7%B6%B2%E8%B7%AF%E4%BB%8B%E9%9D%A2%E6%98%AF%E5%90%A6%E4%BD%BF%E7%94%A8DHCP.html">確認網路介面是否使用DHCP</a>（怎麼判斷這台在用 DHCP）、
+<a href="%E6%9F%A5%E8%A9%A2%E8%BD%89%E7%99%BC%E8%A1%A8%E8%88%87%E8%B7%AF%E7%94%B1%E8%A1%A8.html">查詢轉發表與路由表</a>（DHCP 派下來的 default route 長什麼樣）、
+<a href="%E6%9F%A5%E8%A9%A2%E7%9B%AE%E5%89%8D%E4%BD%BF%E7%94%A8%E7%9A%84DNS%E4%BC%BA%E6%9C%8D%E5%99%A8.html">查詢目前使用的DNS伺服器</a>（option 6 派下來的 DNS 去了哪裡）</p>
+</blockquote>
+<blockquote>
+<p><strong>一句話結論：DHCP（Dynamic Host Configuration Protocol，動態主機設定協定）整個設計都在解一個先有雞還是先有蛋的問題——「還沒有 IP 的機器要怎麼用 IP 網路去要一個 IP」。答案是全部靠廣播（broadcast）＋把自己的 MAC 位址寫進封包內容裡當身分證。四步 DORA 中真正成立租約的只有
+REQUEST／ACK 這一對，DISCOVER／OFFER 只是「有誰在？」「我在，這個給你要不要？」的詢價階段。</strong></p>
+</blockquote>
+<hr />
+<h2 id="目錄">目錄</h2>
+<ol>
+<li><a href="#%E4%B8%80%E5%85%88%E6%9C%89%E9%9B%9E%E9%82%84%E6%98%AF%E5%85%88%E6%9C%89%E8%9B%8B">先有雞還是先有蛋</a></li>
+<li><a href="#%E4%BA%8Cdora-%E5%9B%9B%E6%AD%A5%E5%85%A8%E6%99%AF">DORA 四步全景</a></li>
+<li><a href="#%E4%B8%89%E5%B0%81%E5%8C%85%E7%9A%84%E4%B8%89%E5%B1%A4%E5%A4%96%E6%AE%BC">封包的三層外殼</a></li>
+<li><a href="#%E5%9B%9Bbootp-%E5%9B%BA%E5%AE%9A%E6%AC%84%E4%BD%8D-236-bytes">BOOTP 固定欄位 236 bytes</a></li>
+<li><a href="#%E4%BA%94options-%E7%9A%84-tlv-%E7%B7%A8%E7%A2%BC">Options 的 TLV 編碼</a></li>
+<li><a href="#%E5%85%AD%E5%B0%81%E5%8C%85%E4%B8%80discover">封包一：DISCOVER</a></li>
+<li><a href="#%E4%B8%83%E5%B0%81%E5%8C%85%E4%BA%8Coffer">封包二：OFFER</a></li>
+<li><a href="#%E5%85%AB%E5%B0%81%E5%8C%85%E4%B8%89request">封包三：REQUEST</a></li>
+<li><a href="#%E4%B9%9D%E5%B0%81%E5%8C%85%E5%9B%9Back">封包四：ACK</a></li>
+<li><a href="#%E5%8D%81%E6%8B%BF%E5%88%B0-ack-%E4%B9%8B%E5%BE%8C%E5%AE%A2%E6%88%B6%E7%AB%AF%E5%81%9A%E4%BA%86%E4%BB%80%E9%BA%BC">拿到 ACK 之後客戶端做了什麼</a></li>
+<li><a href="#%E5%8D%81%E4%B8%80%E7%A7%9F%E7%B4%84%E7%94%9F%E5%91%BD%E9%80%B1%E6%9C%9F%E8%88%87%E7%BA%8C%E7%B4%84%E5%B0%81%E5%8C%85">租約生命週期與續約封包</a></li>
+<li><a href="#%E5%8D%81%E4%BA%8C%E5%85%B6%E4%BB%96%E8%A8%8A%E6%81%AF%E9%A1%9E%E5%9E%8B">其他訊息類型</a></li>
+<li><a href="#%E5%8D%81%E4%B8%89%E8%B7%A8%E7%B6%B2%E6%AE%B5dhcp-relay-%E8%88%87-giaddr">跨網段：DHCP Relay 與 giaddr</a></li>
+<li><a href="#%E5%8D%81%E5%9B%9B%E6%8A%93%E5%8C%85%E8%88%87%E6%8E%92%E6%9F%A5%E5%AF%A6%E6%88%B0">抓包與排查實戰</a></li>
+<li><a href="#%E5%8D%81%E4%BA%94%E5%B8%B8%E8%A6%8B%E8%AA%A4%E8%A7%A3%E8%88%87%E9%99%B7%E9%98%B1">常見誤解與陷阱</a></li>
+<li><a href="#%E5%8D%81%E5%85%AD%E8%87%AA%E6%88%91%E6%B8%AC%E9%A9%97">自我測驗</a></li>
+</ol>
+<hr />
+<h2 id="本文使用的實驗場景">本文使用的實驗場景</h2>
+<p>整篇筆記都用同一組數字，方便對照 hex dump：</p>
+<table>
+<thead>
+<tr>
+<th>角色</th>
+<th>值</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>客戶端 MAC（Media Access Control，媒體存取控制位址）</td>
+<td><code>3c:58:c2:4a:1b:7e</code></td>
+</tr>
+<tr>
+<td>客戶端主機名稱</td>
+<td><code>nb-set</code></td>
+</tr>
+<tr>
+<td>DHCP 伺服器（家用路由器）MAC</td>
+<td><code>74:da:88:9f:02:10</code></td>
+</tr>
+<tr>
+<td>DHCP 伺服器 IP</td>
+<td><code>192.168.1.1</code></td>
+</tr>
+<tr>
+<td>要配發給客戶端的 IP</td>
+<td><code>192.168.1.151/24</code></td>
+</tr>
+<tr>
+<td>租約長度（lease time）</td>
+<td>43200 秒（12 小時）</td>
+</tr>
+<tr>
+<td>交易編號 xid</td>
+<td><code>0x3d1a7f56</code></td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="一先有雞還是先有蛋">一、先有雞還是先有蛋</h2>
+<p>一台剛接上網路線（或剛連上 Wi-Fi）的機器，處境是這樣的：</p>
+<ul>
+<li>它沒有 IP 位址，所以<strong>不能當來源位址</strong>去送任何一般的 IP 封包。</li>
+<li>它不知道 DHCP 伺服器的 IP，所以<strong>不知道目的位址要填誰</strong>。</li>
+<li>它不知道路由器（default gateway）是誰，所以<strong>送不出這個子網路</strong>。</li>
+<li>它連子網路遮罩（subnet mask）都不知道，所以<strong>連「誰算是同一個子網路」都判斷不了</strong>。</li>
+</ul>
+<p>DHCP 的每一個設計怪癖，幾乎都是為了繞開這四點：</p>
+<table>
+<thead>
+<tr>
+<th>問題</th>
+<th>DHCP 的解法</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>沒有來源 IP</td>
+<td>來源位址填 <code>0.0.0.0</code>（RFC 791 定義的「本主機、本網路」）</td>
+</tr>
+<tr>
+<td>不知道伺服器 IP</td>
+<td>目的位址填 <code>255.255.255.255</code>（受限廣播，limited broadcast，路由器不會轉送）</td>
+</tr>
+<tr>
+<td>不知道 gateway</td>
+<td>廣播根本不需要 gateway，交換器（switch）會把它送到同一個廣播網域的每一台機器</td>
+</tr>
+<tr>
+<td>沒有 IP 就沒辦法用一般 socket 收封包</td>
+<td>客戶端直接開 raw socket／<code>AF_PACKET</code>，繞過核心的 IP 協定堆疊</td>
+</tr>
+<tr>
+<td>伺服器要回話，但客戶端還沒有 IP，沒辦法用 ARP 問到 MAC</td>
+<td>客戶端把自己的 MAC 寫在 DHCP 內容的 <code>chaddr</code> 欄位裡，伺服器直接拿它當第二層目的位址</td>
+</tr>
+</tbody>
+</table>
+<p><strong>最後一點是整個協定的靈魂。</strong> 一般網路通訊「IP → ARP → MAC」的順序在這裡完全走不通，所以 DHCP 把 MAC 位址搬進應用層封包內容裡，變成一張隨封包附上的身分證。這也是為什麼 DHCP 封包裡會有一個看起來很多餘的 <code>chaddr</code>（client hardware address）欄位——
+外層乙太網路標頭明明已經有來源 MAC 了，但那個標頭在經過 relay（中繼代理）之後會被換掉，
+<code>chaddr</code> 才是那個能一路傳到底、不會被改寫的身分。</p>
+<blockquote>
+<p><strong>心法：DHCP 之所以長得這麼怪，是因為它是一個「必須在網路層還沒設定好之前就能運作」的協定。它不能依賴任何它自己正要去設定的東西。</strong></p>
+</blockquote>
+<p>還有一個副作用值得記住：因為客戶端在拿到 IP 之前必須用 raw socket 直接收送原始乙太網路訊框，所以 DHCP 客戶端行程（<code>dhclient</code>、<code>dhcpcd</code>、NetworkManager 內建的客戶端）都需要 root 權限或 <code>CAP_NET_RAW</code> 能力（capability）。這跟 <code>mtr</code> 需要 <code>cap_net_raw</code> 是同一個原因，細節見 <a href="mtr%E6%94%B9%E7%94%A8TCP%E6%88%96UDP%E6%8E%A2%E6%B8%AC.html">mtr改用TCP或UDP探測</a> 的權限一節。</p>
+<hr />
+<h2 id="二dora-四步全景">二、DORA 四步全景</h2>
+<p>DHCP 取得租約的四個步驟合稱 <strong>DORA</strong>，取四個訊息的字首：</p>
+<pre><code>客戶端 (nb-set)                                          伺服器 (192.168.1.1)
+3c:58:c2:4a:1b:7e                                        74:da:88:9f:02:10
+      |                                                          |
+      |  1. DHCPDISCOVER                                         |
+      |     Ethernet: → ff:ff:ff:ff:ff:ff  (廣播)                |
+      |     IP: 0.0.0.0 → 255.255.255.255                        |
+      |     UDP: 68 → 67                                         |
+      |     「有沒有 DHCP 伺服器？我的 MAC 是 3c:58:...」          |
+      |---------------------------------------------------------&gt;|
+      |                                                          |
+      |  2. DHCPOFFER                                            |
+      |     Ethernet: → 3c:58:c2:4a:1b:7e （單播，靠 chaddr）     |
+      |     IP: 192.168.1.1 → 192.168.1.151                      |
+      |     UDP: 67 → 68                                         |
+      |     「我在。192.168.1.151 給你用 12 小時，附遮罩/GW/DNS」  |
+      |&lt;---------------------------------------------------------|
+      |                                                          |
+      |  3. DHCPREQUEST                                          |
+      |     Ethernet: → ff:ff:ff:ff:ff:ff  (仍然是廣播！)         |
+      |     IP: 0.0.0.0 → 255.255.255.255                        |
+      |     「我要 192.168.1.151，選 192.168.1.1 這家。            |
+      |      其他有出價的伺服器請把位址收回去」                     |
+      |---------------------------------------------------------&gt;|
+      |                                                          |
+      |  4. DHCPACK                                              |
+      |     「成交。租約 43200 秒從現在開始算」                     |
+      |&lt;---------------------------------------------------------|
+      |                                                          |
+      |  5. （客戶端自行）ARP probe 確認沒人在用這個 IP            |
+      |     然後才真的把 IP 掛上網卡                              |
+</code></pre>
+<p>四步的分工必須說清楚，這是最多人搞混的地方：</p>
+<table>
+<thead>
+<tr>
+<th>步驟</th>
+<th>誰送</th>
+<th>這一步「成立」了什麼</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>DISCOVER</td>
+<td>客戶端廣播</td>
+<td>什麼都沒成立。只是在問「這個廣播網域裡有誰能發 IP？」</td>
+</tr>
+<tr>
+<td>OFFER</td>
+<td>伺服器</td>
+<td><strong>還沒成立租約。</strong> 這只是報價。伺服器通常會暫時保留這個 IP，但那是實作善意，不是協定保證</td>
+</tr>
+<tr>
+<td>REQUEST</td>
+<td>客戶端廣播</td>
+<td>客戶端公開宣告「我選這一家」。<strong>廣播是關鍵</strong>，落選的伺服器靠這個廣播知道自己沒被選上</td>
+</tr>
+<tr>
+<td>ACK</td>
+<td>伺服器</td>
+<td><strong>租約在此刻成立</strong>，租約計時從客戶端收到 ACK 開始算</td>
+</tr>
+</tbody>
+</table>
+<p><strong>為什麼要四步而不是兩步？</strong> 因為同一個網段可能有多台 DHCP 伺服器（例如公司有主備兩台，或有人不小心接了一台家用路由器上來）。兩步的話，每台伺服器都會自作主張配一個 IP 給你，你會拿到好幾個互相衝突的位址。四步把流程拆成「詢價」和「下單」，並且刻意讓下單那一步用<strong>廣播</strong>，好讓所有出價者都聽得到結果。</p>
+<p><strong>不是每次都要走完四步。</strong> 客戶端重開機時如果本機還存著上次的租約檔（lease file），會直接從 REQUEST 開始（稱為 INIT-REBOOT 狀態），變成兩步的 REQUEST／ACK。續約也是兩步。真正跑完整套 DORA 的時機其實只有「這張網卡第一次接觸這個網路」。</p>
+<hr />
+<h2 id="三封包的三層外殼">三、封包的三層外殼</h2>
+<p>DHCP 是應用層協定，所以每個 DHCP 封包外面包了三層：</p>
+<pre><code>+--------------------------------------------------+
+| Ethernet 標頭 14 bytes                            |
+| dst MAC(6) | src MAC(6) | EtherType 0x0800 (2)    |
++--------------------------------------------------+
+| IP 標頭 20 bytes                                  |
+| 版本/長度 | ToS | 總長度 | ID | 旗標 | TTL | 協定 17 |
+| 檢查碼 | 來源 IP | 目的 IP                          |
++--------------------------------------------------+
+| UDP 標頭 8 bytes                                  |
+| 來源埠 | 目的埠 | 長度 | 檢查碼                     |
++--------------------------------------------------+
+| DHCP／BOOTP 內容 至少 300 bytes                    |
+| 固定欄位 236 bytes + magic cookie 4 + options      |
++--------------------------------------------------+
+</code></pre>
+<p>幾個必須解釋的設計：</p>
+<p><strong>（1）為什麼是 UDP（User Datagram Protocol，使用者資料包協定）不是 TCP？</strong>
+TCP 需要三次握手，而握手需要雙方都有 IP——客戶端沒有。而且 TCP 不能廣播。
+UDP 沒有連線狀態，可以直接廣播，正好符合需求。可靠性由 DHCP 自己用「逾時重送」補起來。</p>
+<p><strong>（2）為什麼是 67 和 68 兩個埠，而不是像其他協定那樣「伺服器固定埠、客戶端隨機埠」？</strong>
+因為回覆是<strong>廣播</strong>送出去的。如果客戶端用隨機埠（例如 51234），那台網段上所有機器都會收到這個廣播，但只有那個剛好開著 51234 的客戶端會收——問題是伺服器在回覆時可能得廣播給一台<strong>還沒有 IP</strong> 的機器，核心協定堆疊沒辦法把封包對應到 socket。把客戶端埠固定成 68，收送雙方才能在完全沒有 IP 的狀態下用 raw socket 精確過濾出「這是給 DHCP 客戶端的」。</p>
+<ul>
+<li><strong>67</strong>：伺服器埠（<code>bootps</code>）。客戶端 → 伺服器的封包，目的埠一律 67。</li>
+<li><strong>68</strong>：客戶端埠（<code>bootpc</code>）。伺服器 → 客戶端的封包，目的埠一律 68。</li>
+</ul>
+<p>所以抓包過濾條件永遠是 <code>port 67 or port 68</code>。</p>
+<p><strong>（3）為什麼 IP 的 TTL（Time To Live，存活跳數）常常是 255 或 64？</strong>
+兩者都看得到。ISC dhclient 送 255（historical，確保不會被中途丟掉），
+Linux 核心預設 64。TTL 在這裡沒有實質意義，因為封包本來就不會離開本網段。</p>
+<p><strong>（4）為什麼 DHCP 內容至少 300 bytes？</strong>
+繼承自 BOOTP（Bootstrap Protocol，開機協定）。BOOTP 規定最小訊息 300 bytes，因為早年有些 BOOTP 實作是寫死在網路卡的開機唯讀記憶體裡，收到短封包會出事。所以現在的 DHCP 封包尾端常常有一大串 <code>00</code> 填充（pad）——那不是資料，是為了湊到 300。</p>
+<hr />
+<h2 id="四bootp-固定欄位-236-bytes">四、BOOTP 固定欄位 236 bytes</h2>
+<p>DHCP 不是全新的協定，它是<strong>在 BOOTP 上長出來的</strong>（RFC 2131 明說 DHCP 是 BOOTP 的擴充）。所以 DHCP 內容的前 236 bytes 完全沿用 BOOTP 的固定欄位格式，很多欄位在 DHCP 時代已經沒用了，但為了相容還是留著。逐一解釋（偏移量從 DHCP 內容起算）：</p>
+<table>
+<thead>
+<tr>
+<th>偏移</th>
+<th>長度</th>
+<th>欄位</th>
+<th>意義與注意事項</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0</td>
+<td>1</td>
+<td><code>op</code></td>
+<td>操作碼。<code>1</code> = BOOTREQUEST（客戶端→伺服器），<code>2</code> = BOOTREPLY（伺服器→客戶端）。<strong>只分方向，不分訊息類型</strong>——DISCOVER 和 REQUEST 的 <code>op</code> 都是 1，真正的訊息類型在 option 53</td>
+</tr>
+<tr>
+<td>1</td>
+<td>1</td>
+<td><code>htype</code></td>
+<td>硬體類型。<code>1</code> = Ethernet（乙太網路），沿用 ARP 的編號表</td>
+</tr>
+<tr>
+<td>2</td>
+<td>1</td>
+<td><code>hlen</code></td>
+<td>硬體位址長度。乙太網路 MAC 是 6</td>
+</tr>
+<tr>
+<td>3</td>
+<td>1</td>
+<td><code>hops</code></td>
+<td>經過幾個 relay。客戶端送出時填 0，每經過一個 DHCP relay 就 +1。用來防止 relay 迴圈</td>
+</tr>
+<tr>
+<td>4</td>
+<td>4</td>
+<td><code>xid</code></td>
+<td>交易編號（transaction ID）。客戶端隨機產生，<strong>同一輪 DORA 四個封包的 xid 必須相同</strong>。客戶端就是靠這個把收到的廣播回覆認出來「這是回我的」</td>
+</tr>
+<tr>
+<td>8</td>
+<td>2</td>
+<td><code>secs</code></td>
+<td>客戶端從開始嘗試取得位址到現在經過幾秒。多數客戶端填 0 或很小的值。用途：某些備援設計會讓備用伺服器只回應 <code>secs</code> 超過門檻的請求（代表主伺服器沒回應）</td>
+</tr>
+<tr>
+<td>10</td>
+<td>2</td>
+<td><code>flags</code></td>
+<td>只有最高位元有意義：<strong>broadcast flag（廣播旗標，B）</strong>。設為 1 表示「我還不能收單播，請用廣播回我」。其餘 15 bits 保留為 0</td>
+</tr>
+<tr>
+<td>12</td>
+<td>4</td>
+<td><code>ciaddr</code></td>
+<td>client IP address。<strong>只有在客戶端已經有可用 IP 而且能收單播時才填</strong>（也就是續約 RENEWING／REBINDING 狀態）。DISCOVER 和第一次的 REQUEST <strong>必須填 0.0.0.0</strong></td>
+</tr>
+<tr>
+<td>16</td>
+<td>4</td>
+<td><code>yiaddr</code></td>
+<td>&quot;your&quot; IP address。<strong>伺服器要配給你的 IP 就在這裡</strong>。客戶端送出的封包這欄一律 0</td>
+</tr>
+<tr>
+<td>20</td>
+<td>4</td>
+<td><code>siaddr</code></td>
+<td>next server IP。<strong>不是 DHCP 伺服器的位址！</strong> 這是網路開機（PXE，Preboot Execution Environment，開機前執行環境）流程中「下一步去哪台抓開機映像檔」的位址。DHCP 伺服器自己的身分是用 option 54 表達的。這是最常被誤讀的欄位</td>
+</tr>
+<tr>
+<td>24</td>
+<td>4</td>
+<td><code>giaddr</code></td>
+<td>gateway IP address，其實是 <strong>relay agent 的位址</strong>。客戶端永遠填 0；如果封包經過 DHCP relay，relay 會把自己面向客戶端那一側的 IP 填進去。伺服器靠它判斷「這個請求來自哪個網段，該從哪個位址池撈 IP」，並且知道回覆要送回給誰</td>
+</tr>
+<tr>
+<td>28</td>
+<td>16</td>
+<td><code>chaddr</code></td>
+<td>client hardware address。客戶端 MAC，<strong>靠左對齊，後面補 0 到 16 bytes</strong>（乙太網路只用前 6 bytes）。這是客戶端的身分證</td>
+</tr>
+<tr>
+<td>44</td>
+<td>64</td>
+<td><code>sname</code></td>
+<td>伺服器主機名稱字串，選填。PXE 場景會用，一般 DHCP 全填 0。（option overload 機制可以把它借來塞 options，罕見）</td>
+</tr>
+<tr>
+<td>108</td>
+<td>128</td>
+<td><code>file</code></td>
+<td>開機檔名，選填。PXE 用來指定開機映像檔路徑（例如 <code>pxelinux.0</code>）。一般 DHCP 全填 0</td>
+</tr>
+<tr>
+<td>236</td>
+<td>4</td>
+<td>magic cookie</td>
+<td>固定四個位元組 <code>63 82 53 63</code>（十進位 99.130.83.99）。<strong>這是 BOOTP 與 DHCP 的分界線</strong>：解析器看到這四個位元組，才知道後面是 DHCP options 而不是 BOOTP 的 vendor 欄位</td>
+</tr>
+<tr>
+<td>240</td>
+<td>變動</td>
+<td>options</td>
+<td>TLV 編碼的選項，見下一節</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>注意 <code>ciaddr</code>／<code>yiaddr</code>／<code>siaddr</code>／<code>giaddr</code> 這四個名字非常容易混淆，但它們的填法就是判斷「這個封包處在租約流程哪一個階段」最可靠的依據。</strong>
+之後的封包解析會反覆用到這一點。</p>
+</blockquote>
+<hr />
+<h2 id="五options-的-tlv-編碼">五、Options 的 TLV 編碼</h2>
+<p>Magic cookie 之後全部是 options，用 <strong>TLV（Type-Length-Value，類型—長度—值）</strong> 編碼：</p>
+<pre><code>+--------+--------+--------+--------+--- ... ---+
+|  code  | length |      value (length bytes)   |
++--------+--------+--------+--------+--- ... ---+
+   1 byte  1 byte
+</code></pre>
+<p>兩個例外不帶長度欄位：</p>
+<ul>
+<li><strong><code>0x00</code> Pad</strong>：單獨一個位元組，用來對齊或填充，沒有 length、沒有 value。</li>
+<li><strong><code>0xff</code> End</strong>：單獨一個位元組，代表 options 結束。之後的位元組全部忽略。</li>
+</ul>
+<p>長度只有 1 byte，所以<strong>單一 option 的值最多 255 bytes</strong>。要塞更長的資料就得靠拆分或
+option overload（把 <code>sname</code>／<code>file</code> 欄位借來當 options 空間）。</p>
+<p>常用 options 對照表（本文封包會用到的都在裡面）：</p>
+<table>
+<thead>
+<tr>
+<th>code</th>
+<th>十六進位</th>
+<th>名稱</th>
+<th>說明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td><code>01</code></td>
+<td>Subnet Mask</td>
+<td>子網路遮罩</td>
+</tr>
+<tr>
+<td>3</td>
+<td><code>03</code></td>
+<td>Router</td>
+<td>default gateway，可以給多個（每個 4 bytes）</td>
+</tr>
+<tr>
+<td>6</td>
+<td><code>06</code></td>
+<td>Domain Name Server</td>
+<td>DNS 伺服器清單</td>
+</tr>
+<tr>
+<td>12</td>
+<td><code>0c</code></td>
+<td>Host Name</td>
+<td>客戶端主機名稱（客戶端送出，讓伺服器登記／做動態 DNS 更新）</td>
+</tr>
+<tr>
+<td>15</td>
+<td><code>0f</code></td>
+<td>Domain Name</td>
+<td>搜尋網域（search domain）</td>
+</tr>
+<tr>
+<td>26</td>
+<td><code>1a</code></td>
+<td>Interface MTU</td>
+<td>最大傳輸單元（Maximum Transmission Unit）</td>
+</tr>
+<tr>
+<td>28</td>
+<td><code>1c</code></td>
+<td>Broadcast Address</td>
+<td>本網段廣播位址</td>
+</tr>
+<tr>
+<td>42</td>
+<td><code>2a</code></td>
+<td>NTP Servers</td>
+<td>時間伺服器（Network Time Protocol）</td>
+</tr>
+<tr>
+<td>50</td>
+<td><code>32</code></td>
+<td>Requested IP Address</td>
+<td><strong>客戶端</strong>用來說「我想要這個 IP」</td>
+</tr>
+<tr>
+<td>51</td>
+<td><code>33</code></td>
+<td>IP Address Lease Time</td>
+<td>租約秒數</td>
+</tr>
+<tr>
+<td>53</td>
+<td><code>35</code></td>
+<td><strong>DHCP Message Type</strong></td>
+<td><strong>最重要的 option</strong>，決定這是 DISCOVER 還是 OFFER……</td>
+</tr>
+<tr>
+<td>54</td>
+<td><code>36</code></td>
+<td><strong>Server Identifier</strong></td>
+<td><strong>DHCP 伺服器的真正身分</strong>（不是 <code>siaddr</code>！）</td>
+</tr>
+<tr>
+<td>55</td>
+<td><code>37</code></td>
+<td>Parameter Request List</td>
+<td>客戶端列出「我想知道哪些參數」的 option 編號清單</td>
+</tr>
+<tr>
+<td>56</td>
+<td><code>38</code></td>
+<td>Message</td>
+<td>錯誤訊息字串，通常跟著 NAK 出現</td>
+</tr>
+<tr>
+<td>57</td>
+<td><code>39</code></td>
+<td>Maximum DHCP Message Size</td>
+<td>客戶端能接受的最大訊息長度</td>
+</tr>
+<tr>
+<td>58</td>
+<td><code>3a</code></td>
+<td>Renewal Time (T1)</td>
+<td>何時開始續約，預設 = 租約的 50%</td>
+</tr>
+<tr>
+<td>59</td>
+<td><code>3b</code></td>
+<td>Rebinding Time (T2)</td>
+<td>何時開始改用廣播找任何伺服器，預設 = 租約的 87.5%</td>
+</tr>
+<tr>
+<td>61</td>
+<td><code>3d</code></td>
+<td>Client Identifier</td>
+<td>客戶端身分識別，格式是「1 byte 硬體類型 + MAC」，也可以是任意字串</td>
+</tr>
+<tr>
+<td>82</td>
+<td><code>52</code></td>
+<td>Relay Agent Information</td>
+<td>relay 加上的資訊（電路 ID、遠端 ID），企業網路用來定位交換器埠</td>
+</tr>
+<tr>
+<td>121</td>
+<td><code>79</code></td>
+<td>Classless Static Route</td>
+<td>無類別靜態路由，比 option 33 更常用</td>
+</tr>
+<tr>
+<td>255</td>
+<td><code>ff</code></td>
+<td>End</td>
+<td>結束標記</td>
+</tr>
+</tbody>
+</table>
+<p><strong>option 53 的值</strong>就是訊息類型：</p>
+<table>
+<thead>
+<tr>
+<th>值</th>
+<th>訊息</th>
+<th>方向</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>DHCPDISCOVER</td>
+<td>客戶端 → 伺服器</td>
+</tr>
+<tr>
+<td>2</td>
+<td>DHCPOFFER</td>
+<td>伺服器 → 客戶端</td>
+</tr>
+<tr>
+<td>3</td>
+<td>DHCPREQUEST</td>
+<td>客戶端 → 伺服器</td>
+</tr>
+<tr>
+<td>4</td>
+<td>DHCPDECLINE</td>
+<td>客戶端 → 伺服器</td>
+</tr>
+<tr>
+<td>5</td>
+<td>DHCPACK</td>
+<td>伺服器 → 客戶端</td>
+</tr>
+<tr>
+<td>6</td>
+<td>DHCPNAK</td>
+<td>伺服器 → 客戶端</td>
+</tr>
+<tr>
+<td>7</td>
+<td>DHCPRELEASE</td>
+<td>客戶端 → 伺服器</td>
+</tr>
+<tr>
+<td>8</td>
+<td>DHCPINFORM</td>
+<td>客戶端 → 伺服器</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="六封包一discover">六、封包一：DISCOVER</h2>
+<p>客戶端廣播出去的第一個封包。完整訊框 342 bytes（乙太網路 14 + IP 20 + UDP 8 + DHCP 300）。</p>
+<pre><code>0000  ff ff ff ff ff ff 3c 58 c2 4a 1b 7e 08 00 45 00  ......&lt;X.J.~..E.
+0010  01 48 00 00 00 00 40 11 79 a6 00 00 00 00 ff ff  .H....@.y.......
+0020  ff ff 00 44 00 43 01 34 5c 4d 01 01 06 00 3d 1a  ...D.C.4\M....=.
+0030  7f 56 00 00 00 00 00 00 00 00 00 00 00 00 00 00  .V..............
+0040  00 00 00 00 00 00 3c 58 c2 4a 1b 7e 00 00 00 00  ......&lt;X.J.~....
+0050  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+      〔0x0050 – 0x0115 全部是 00：chaddr 的 10 bytes 補零 + sname 64 bytes + file 128 bytes〕
+0110  00 00 00 00 00 00 63 82 53 63 35 01 01 3d 07 01  ......c.Sc5..=..
+0120  3c 58 c2 4a 1b 7e 0c 06 6e 62 2d 73 65 74 37 08  &lt;X.J.~..nb-set7.
+0130  01 03 06 0c 0f 1a 1c 79 39 02 05 dc ff 00 00 00  .......y9.......
+0140  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+0150  00 00 00 00 00 00                                ......
+</code></pre>
+<h3 id="61-逐欄位拆解">6.1 逐欄位拆解</h3>
+<p><strong>乙太網路標頭（0x0000 – 0x000d）</strong></p>
+<table>
+<thead>
+<tr>
+<th>偏移</th>
+<th>位元組</th>
+<th>欄位</th>
+<th>解讀</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0x00</td>
+<td><code>ff ff ff ff ff ff</code></td>
+<td>目的 MAC</td>
+<td><strong>廣播位址</strong>。交換器會把它送到本廣播網域的每一個埠</td>
+</tr>
+<tr>
+<td>0x06</td>
+<td><code>3c 58 c2 4a 1b 7e</code></td>
+<td>來源 MAC</td>
+<td>客戶端網卡</td>
+</tr>
+<tr>
+<td>0x0c</td>
+<td><code>08 00</code></td>
+<td>EtherType</td>
+<td>0x0800 = IPv4</td>
+</tr>
+</tbody>
+</table>
+<p><strong>IP 標頭（0x000e – 0x0021）</strong></p>
+<table>
+<thead>
+<tr>
+<th>偏移</th>
+<th>位元組</th>
+<th>欄位</th>
+<th>解讀</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0x0e</td>
+<td><code>45</code></td>
+<td>版本 + 標頭長度</td>
+<td>4 = IPv4，5 = 標頭 5×4 = 20 bytes（沒有 IP options）</td>
+</tr>
+<tr>
+<td>0x0f</td>
+<td><code>00</code></td>
+<td>ToS／DSCP</td>
+<td>一般優先權。ISC dhclient 有時會填 <code>10</code>（IPTOS_LOWDELAY）</td>
+</tr>
+<tr>
+<td>0x10</td>
+<td><code>01 48</code></td>
+<td>總長度</td>
+<td>0x0148 = <strong>328</strong> bytes（20 + 8 + 300）</td>
+</tr>
+<tr>
+<td>0x12</td>
+<td><code>00 00</code></td>
+<td>識別碼</td>
+<td>分片重組用，這裡不分片，填什麼都行</td>
+</tr>
+<tr>
+<td>0x14</td>
+<td><code>00 00</code></td>
+<td>旗標 + 分片偏移</td>
+<td>沒設 DF（Don't Fragment），沒分片</td>
+</tr>
+<tr>
+<td>0x16</td>
+<td><code>40</code></td>
+<td>TTL</td>
+<td>64</td>
+</tr>
+<tr>
+<td>0x17</td>
+<td><code>11</code></td>
+<td>協定</td>
+<td>0x11 = 17 = UDP</td>
+</tr>
+<tr>
+<td>0x18</td>
+<td><code>79 a6</code></td>
+<td>標頭檢查碼</td>
+<td>已驗證（把整個標頭含檢查碼再算一次會得到 0）</td>
+</tr>
+<tr>
+<td>0x1a</td>
+<td><code>00 00 00 00</code></td>
+<td>來源 IP</td>
+<td><strong><code>0.0.0.0</code>——我還沒有位址</strong></td>
+</tr>
+<tr>
+<td>0x1e</td>
+<td><code>ff ff ff ff</code></td>
+<td>目的 IP</td>
+<td><strong><code>255.255.255.255</code> 受限廣播</strong></td>
+</tr>
+</tbody>
+</table>
+<p><code>255.255.255.255</code> 和「網段廣播位址」（例如 <code>192.168.1.255</code>）不同：受限廣播<strong>永遠不會被路由器轉送</strong>，只在本鏈路有效。這正是想要的效果——客戶端根本不知道自己在哪個網段，不可能算出網段廣播位址。</p>
+<p><strong>UDP 標頭（0x0022 – 0x0029）</strong></p>
+<table>
+<thead>
+<tr>
+<th>偏移</th>
+<th>位元組</th>
+<th>欄位</th>
+<th>解讀</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0x22</td>
+<td><code>00 44</code></td>
+<td>來源埠</td>
+<td>68（bootpc）</td>
+</tr>
+<tr>
+<td>0x24</td>
+<td><code>00 43</code></td>
+<td>目的埠</td>
+<td>67（bootps）</td>
+</tr>
+<tr>
+<td>0x26</td>
+<td><code>01 34</code></td>
+<td>長度</td>
+<td>0x0134 = <strong>308</strong>（8 + 300）</td>
+</tr>
+<tr>
+<td>0x28</td>
+<td><code>5c 4d</code></td>
+<td>檢查碼</td>
+<td>UDP 在 IPv4 是選用，填 <code>00 00</code> 表示不檢查也合法</td>
+</tr>
+</tbody>
+</table>
+<p><strong>BOOTP 固定欄位（0x002a – 0x0119）</strong></p>
+<table>
+<thead>
+<tr>
+<th>偏移</th>
+<th>位元組</th>
+<th>欄位</th>
+<th>解讀</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0x2a</td>
+<td><code>01</code></td>
+<td><code>op</code></td>
+<td>BOOTREQUEST</td>
+</tr>
+<tr>
+<td>0x2b</td>
+<td><code>01</code></td>
+<td><code>htype</code></td>
+<td>Ethernet</td>
+</tr>
+<tr>
+<td>0x2c</td>
+<td><code>06</code></td>
+<td><code>hlen</code></td>
+<td>MAC 長 6 bytes</td>
+</tr>
+<tr>
+<td>0x2d</td>
+<td><code>00</code></td>
+<td><code>hops</code></td>
+<td>0，還沒經過任何 relay</td>
+</tr>
+<tr>
+<td>0x2e</td>
+<td><code>3d 1a 7f 56</code></td>
+<td><code>xid</code></td>
+<td>交易編號，接下來三個封包都必須是這個值</td>
+</tr>
+<tr>
+<td>0x32</td>
+<td><code>00 00</code></td>
+<td><code>secs</code></td>
+<td>0 秒</td>
+</tr>
+<tr>
+<td>0x34</td>
+<td><code>00 00</code></td>
+<td><code>flags</code></td>
+<td><strong>廣播旗標沒設</strong>——「我有能力收單播回覆」</td>
+</tr>
+<tr>
+<td>0x36</td>
+<td><code>00 00 00 00</code></td>
+<td><code>ciaddr</code></td>
+<td>0.0.0.0（我還沒有 IP）</td>
+</tr>
+<tr>
+<td>0x3a</td>
+<td><code>00 00 00 00</code></td>
+<td><code>yiaddr</code></td>
+<td>0.0.0.0（這欄由伺服器填，客戶端一律 0）</td>
+</tr>
+<tr>
+<td>0x3e</td>
+<td><code>00 00 00 00</code></td>
+<td><code>siaddr</code></td>
+<td>0.0.0.0</td>
+</tr>
+<tr>
+<td>0x42</td>
+<td><code>00 00 00 00</code></td>
+<td><code>giaddr</code></td>
+<td>0.0.0.0（沒有 relay）</td>
+</tr>
+<tr>
+<td>0x46</td>
+<td><code>3c 58 c2 4a 1b 7e</code> + 10 個 <code>00</code></td>
+<td><code>chaddr</code></td>
+<td><strong>客戶端的身分證。伺服器等一下要靠它把回覆送回來</strong></td>
+</tr>
+<tr>
+<td>0x56</td>
+<td>64 個 <code>00</code></td>
+<td><code>sname</code></td>
+<td>空</td>
+</tr>
+<tr>
+<td>0x96</td>
+<td>128 個 <code>00</code></td>
+<td><code>file</code></td>
+<td>空</td>
+</tr>
+<tr>
+<td>0x116</td>
+<td><code>63 82 53 63</code></td>
+<td>magic cookie</td>
+<td>後面是 DHCP options</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Options（0x011a 起）</strong></p>
+<table>
+<thead>
+<tr>
+<th>位元組</th>
+<th>拆解</th>
+<th>意義</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>35 01 01</code></td>
+<td>code 53, len 1, value 1</td>
+<td><strong>DHCP Message Type = DISCOVER</strong></td>
+</tr>
+<tr>
+<td><code>3d 07 01 3c 58 c2 4a 1b 7e</code></td>
+<td>code 61, len 7, value <code>01</code>+MAC</td>
+<td><strong>Client Identifier</strong>。開頭的 <code>01</code> 是硬體類型（Ethernet），後面 6 bytes 是 MAC</td>
+</tr>
+<tr>
+<td><code>0c 06 6e 62 2d 73 65 74</code></td>
+<td>code 12, len 6, <code>&quot;nb-set&quot;</code></td>
+<td><strong>Host Name</strong>。客戶端主動告訴伺服器自己叫什麼，路由器的「已連接裝置」清單就是這樣來的</td>
+</tr>
+<tr>
+<td><code>37 08 01 03 06 0c 0f 1a 1c 79</code></td>
+<td>code 55, len 8</td>
+<td><strong>Parameter Request List</strong>：我想要 1(遮罩) 3(路由器) 6(DNS) 12(主機名) 15(網域) 26(MTU) 28(廣播位址) 121(無類別靜態路由)</td>
+</tr>
+<tr>
+<td><code>39 02 05 dc</code></td>
+<td>code 57, len 2, value 0x05dc</td>
+<td><strong>Max DHCP Message Size</strong> = 1500</td>
+</tr>
+<tr>
+<td><code>ff</code></td>
+<td>End</td>
+<td>options 結束</td>
+</tr>
+<tr>
+<td>之後 25 個 <code>00</code></td>
+<td>Pad</td>
+<td>湊到 BOOTP 最小長度 300 bytes</td>
+</tr>
+</tbody>
+</table>
+<h3 id="62-兩個要記住的重點">6.2 兩個要記住的重點</h3>
+<p><strong>（1）option 55 決定了你會拿到什麼。</strong> 伺服器就算設定了 NTP 伺服器，如果客戶端沒在 option 55 裡問，多數伺服器就不會給。「路由器明明設了但客戶端沒拿到某個參數」，第一個要查的就是客戶端有沒有去要。</p>
+<p><strong>（2）<code>flags</code> 的廣播旗標是個雞生蛋問題的殘留。</strong> 有些老舊的 TCP/IP 協定堆疊在 IP 位址設定好之前，沒辦法接收目的位址不是自己的單播封包。這種客戶端必須把 B 位元設成 1，要求伺服器改用廣播回覆。現代 Linux 客戶端用 raw socket 收封包，不受這個限制，所以填 0。<strong>抓包時看到 <code>flags</code> 是 <code>80 00</code>，就代表對方要求廣播回覆。</strong></p>
+<h3 id="63-沒收到回覆怎麼辦重送策略">6.3 沒收到回覆怎麼辦：重送策略</h3>
+<p>RFC 2131 規定用<strong>指數退避（exponential backoff）</strong>：第一次等 4 秒，然後 8、16、32、64 秒，之後固定 64 秒重試，而且每次都要再加上 −1 到 +1 秒的隨機抖動（randomization），避免整棟大樓停電復電後所有機器同時廣播（thundering herd，驚群效應）。</p>
+<p>所以「插上網路線後大約 5 秒、13 秒、29 秒各看到一個 DISCOVER」是正常的重送節奏，不是客戶端壞掉。</p>
+<hr />
+<h2 id="七封包二offer">七、封包二：OFFER</h2>
+<p>伺服器的報價。訊框 343 bytes。</p>
+<pre><code>0000  3c 58 c2 4a 1b 7e 74 da 88 9f 02 10 08 00 45 00  &lt;X.J.~t.......E.
+0010  01 49 1a 2b 00 00 40 11 db 90 c0 a8 01 01 c0 a8  .I.+..@.........
+0020  01 97 00 43 00 44 01 35 ef d2 02 01 06 00 3d 1a  ...C.D.5......=.
+0030  7f 56 00 00 00 00 00 00 00 00 c0 a8 01 97 00 00  .V..............
+0040  00 00 00 00 00 00 3c 58 c2 4a 1b 7e 00 00 00 00  ......&lt;X.J.~....
+      〔0x0050 – 0x0115 全部是 00：sname 與 file〕
+0110  00 00 00 00 00 00 63 82 53 63 35 01 02 36 04 c0  ......c.Sc5..6..
+0120  a8 01 01 33 04 00 00 a8 c0 3a 04 00 00 54 60 3b  ...3.....:...T`;
+0130  04 00 00 93 a8 01 04 ff ff ff 00 1c 04 c0 a8 01  ................
+0140  ff 03 04 c0 a8 01 01 06 08 c0 a8 01 01 01 01 01  ................
+0150  01 0f 03 6c 61 6e ff                             ...lan.
+</code></pre>
+<h3 id="71-外殼的變化">7.1 外殼的變化</h3>
+<table>
+<thead>
+<tr>
+<th>偏移</th>
+<th>位元組</th>
+<th>欄位</th>
+<th>解讀</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0x00</td>
+<td><code>3c 58 c2 4a 1b 7e</code></td>
+<td>目的 MAC</td>
+<td><strong>單播給客戶端</strong>。伺服器是從 <code>chaddr</code> 讀出來的，<strong>沒有做 ARP 查詢</strong></td>
+</tr>
+<tr>
+<td>0x06</td>
+<td><code>74 da 88 9f 02 10</code></td>
+<td>來源 MAC</td>
+<td>伺服器網卡</td>
+</tr>
+<tr>
+<td>0x1a</td>
+<td><code>c0 a8 01 01</code></td>
+<td>來源 IP</td>
+<td>192.168.1.1</td>
+</tr>
+<tr>
+<td>0x1e</td>
+<td><code>c0 a8 01 97</code></td>
+<td>目的 IP</td>
+<td><strong>192.168.1.151——那個還沒被客戶端接受的位址</strong></td>
+</tr>
+<tr>
+<td>0x22</td>
+<td><code>00 43</code></td>
+<td>來源埠</td>
+<td>67</td>
+</tr>
+<tr>
+<td>0x24</td>
+<td><code>00 44</code></td>
+<td>目的埠</td>
+<td>68</td>
+</tr>
+</tbody>
+</table>
+<p><strong>這裡有一個很違反直覺的細節：<strong>伺服器把 IP 封包的目的位址填成 <code>192.168.1.151</code>，可是那台機器現在根本還沒設定這個 IP，也不會回應對這個 IP 的 ARP 查詢。伺服器怎麼送得出去？答案是</strong>它不用 ARP</strong>——它把 <code>chaddr</code> 直接當作乙太網路目的位址寫進訊框。在 Linux 上這通常是靠 raw socket 直接組訊框，或先用 <code>ioctl(SIOCSARP)</code> 塞一筆暫時的 ARP 表項目。</p>
+<p>如果客戶端設了廣播旗標，這個封包的目的就會變成 <code>ff:ff:ff:ff:ff:ff</code> ＋ <code>255.255.255.255</code>。</p>
+<h3 id="72-bootp-欄位的變化">7.2 BOOTP 欄位的變化</h3>
+<table>
+<thead>
+<tr>
+<th>偏移</th>
+<th>位元組</th>
+<th>欄位</th>
+<th>解讀</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0x2a</td>
+<td><code>02</code></td>
+<td><code>op</code></td>
+<td><strong>BOOTREPLY</strong></td>
+</tr>
+<tr>
+<td>0x2e</td>
+<td><code>3d 1a 7f 56</code></td>
+<td><code>xid</code></td>
+<td><strong>和 DISCOVER 一模一樣</strong>。客戶端就是靠這個認出「這是回我的」</td>
+</tr>
+<tr>
+<td>0x34</td>
+<td><code>00 00</code></td>
+<td><code>flags</code></td>
+<td>照抄客戶端送來的值</td>
+</tr>
+<tr>
+<td>0x36</td>
+<td><code>00 00 00 00</code></td>
+<td><code>ciaddr</code></td>
+<td>0（客戶端還沒有 IP）</td>
+</tr>
+<tr>
+<td>0x3a</td>
+<td><code>c0 a8 01 97</code></td>
+<td><strong><code>yiaddr</code></strong></td>
+<td><strong>192.168.1.151——這就是要給你的位址</strong></td>
+</tr>
+<tr>
+<td>0x3e</td>
+<td><code>00 00 00 00</code></td>
+<td><code>siaddr</code></td>
+<td>0（沒有 PXE 開機伺服器）</td>
+</tr>
+<tr>
+<td>0x42</td>
+<td><code>00 00 00 00</code></td>
+<td><code>giaddr</code></td>
+<td>0（沒經過 relay）</td>
+</tr>
+<tr>
+<td>0x46</td>
+<td><code>3c 58 c2 4a 1b 7e</code></td>
+<td><code>chaddr</code></td>
+<td><strong>原封不動照抄</strong>。這是回覆給誰的憑據</td>
+</tr>
+</tbody>
+</table>
+<h3 id="73-options-逐項">7.3 Options 逐項</h3>
+<table>
+<thead>
+<tr>
+<th>位元組</th>
+<th>拆解</th>
+<th>意義</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>35 01 02</code></td>
+<td>53, len 1, value 2</td>
+<td><strong>Message Type = OFFER</strong></td>
+</tr>
+<tr>
+<td><code>36 04 c0 a8 01 01</code></td>
+<td>54, len 4</td>
+<td><strong>Server Identifier = 192.168.1.1</strong>。這才是伺服器的身分，不是 <code>siaddr</code></td>
+</tr>
+<tr>
+<td><code>33 04 00 00 a8 c0</code></td>
+<td>51, len 4, 0x0000a8c0</td>
+<td><strong>Lease Time = 43200 秒</strong>（12 小時）</td>
+</tr>
+<tr>
+<td><code>3a 04 00 00 54 60</code></td>
+<td>58, len 4, 0x00005460</td>
+<td><strong>T1（Renewal）= 21600 秒</strong>＝租約的 50%</td>
+</tr>
+<tr>
+<td><code>3b 04 00 00 93 a8</code></td>
+<td>59, len 4, 0x000093a8</td>
+<td><strong>T2（Rebinding）= 37800 秒</strong>＝租約的 87.5%</td>
+</tr>
+<tr>
+<td><code>01 04 ff ff ff 00</code></td>
+<td>1, len 4</td>
+<td>Subnet Mask = 255.255.255.0</td>
+</tr>
+<tr>
+<td><code>1c 04 c0 a8 01 ff</code></td>
+<td>28, len 4</td>
+<td>Broadcast = 192.168.1.255</td>
+</tr>
+<tr>
+<td><code>03 04 c0 a8 01 01</code></td>
+<td>3, len 4</td>
+<td>Router = 192.168.1.1</td>
+</tr>
+<tr>
+<td><code>06 08 c0 a8 01 01 01 01 01 01</code></td>
+<td>6, len 8</td>
+<td><strong>DNS = 192.168.1.1 和 1.1.1.1</strong>（兩個位址，所以 len 是 8 不是 4）</td>
+</tr>
+<tr>
+<td><code>0f 03 6c 61 6e</code></td>
+<td>15, len 3, <code>&quot;lan&quot;</code></td>
+<td>Domain Name = lan</td>
+</tr>
+<tr>
+<td><code>ff</code></td>
+<td>End</td>
+<td>結束</td>
+</tr>
+</tbody>
+</table>
+<p><strong>注意這裡沒有 pad</strong>：內容已經 301 bytes，超過 300 的最小長度了。</p>
+<h3 id="74-為什麼-siaddr-是-0-但-option-54-有值">7.4 為什麼 <code>siaddr</code> 是 0 但 option 54 有值</h3>
+<p>這是本節最重要的一句：<strong><code>siaddr</code> 不是 DHCP 伺服器位址。</strong></p>
+<ul>
+<li><code>siaddr</code>（next server）：PXE 網路開機時「去哪台 TFTP 伺服器抓開機檔」，跟 DHCP 身分無關。</li>
+<li><strong>option 54（Server Identifier）</strong>：這台 DHCP 伺服器的身分。客戶端在 REQUEST 裡就是複製這個值來宣告「我選這一家」；續約時也是拿它當單播目的位址。</li>
+</ul>
+<p>如果同時有兩台伺服器發 OFFER，客戶端會收到兩個 OFFER（xid 相同、<code>yiaddr</code> 不同、option 54 不同）。
+RFC 沒有規定選哪一個——多數實作是「先到先選」。這也是為什麼網路上多一台流氓 DHCP 伺服器（rogue DHCP server）會造成隨機性的災難：誰快誰贏。</p>
+<hr />
+<h2 id="八封包三request">八、封包三：REQUEST</h2>
+<p>客戶端下單。訊框 342 bytes。</p>
+<pre><code>0000  ff ff ff ff ff ff 3c 58 c2 4a 1b 7e 08 00 45 00  ......&lt;X.J.~..E.
+0010  01 48 00 01 00 00 40 11 79 a5 00 00 00 00 ff ff  .H....@.y.......
+0020  ff ff 00 44 00 43 01 34 6e 5b 01 01 06 00 3d 1a  ...D.C.4n[....=.
+0030  7f 56 00 00 00 00 00 00 00 00 00 00 00 00 00 00  .V..............
+0040  00 00 00 00 00 00 3c 58 c2 4a 1b 7e 00 00 00 00  ......&lt;X.J.~....
+      〔0x0050 – 0x0115 全部是 00〕
+0110  00 00 00 00 00 00 63 82 53 63 35 01 03 3d 07 01  ......c.Sc5..=..
+0120  3c 58 c2 4a 1b 7e 32 04 c0 a8 01 97 36 04 c0 a8  &lt;X.J.~2.....6...
+0130  01 01 0c 06 6e 62 2d 73 65 74 37 08 01 03 06 0c  ....nb-set7.....
+0140  0f 1a 1c 79 39 02 05 dc ff 00 00 00 00 00 00 00  ...y9...........
+0150  00 00 00 00 00 00                                ......
+</code></pre>
+<h3 id="81-三個容易答錯的欄位">8.1 三個容易答錯的欄位</h3>
+<table>
+<thead>
+<tr>
+<th>欄位</th>
+<th>值</th>
+<th><strong>為什麼是這個值</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>目的 MAC / 目的 IP</td>
+<td><code>ff:ff:...</code> / <code>255.255.255.255</code></td>
+<td><strong>還是廣播！<strong>明明 OFFER 裡已經告訴我伺服器是 192.168.1.1 了，為什麼不單播？因為要讓</strong>落選的伺服器也聽到</strong>這個結果，好把它們保留的位址放回位址池</td>
+</tr>
+<tr>
+<td>來源 IP</td>
+<td><code>0.0.0.0</code></td>
+<td><strong>還沒有 IP。</strong>OFFER 只是報價，租約要等 ACK 才成立，這一刻不能用 192.168.1.151 當來源</td>
+</tr>
+<tr>
+<td><code>ciaddr</code>（0x36）</td>
+<td><code>00 00 00 00</code></td>
+<td>同上。RFC 2131 明文規定 SELECTING 狀態的 REQUEST，<code>ciaddr</code> <strong>必須</strong>是 0，想要的位址要放在 <strong>option 50</strong></td>
+</tr>
+</tbody>
+</table>
+<p><strong>「想要的 IP 放在 option 50 而不是 <code>ciaddr</code>」是 DHCP 設計裡最精準的一刀。</strong>
+<code>ciaddr</code> 的語意是「我現在正在使用而且能收單播的位址」，option 50 的語意是「我希望拿到的位址」。兩者一旦混用，伺服器就分不出「這台在續約」和「這台第一次要位址」。</p>
+<h3 id="82-options-逐項">8.2 Options 逐項</h3>
+<table>
+<thead>
+<tr>
+<th>位元組</th>
+<th>拆解</th>
+<th>意義</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>35 01 03</code></td>
+<td>53, len 1, value 3</td>
+<td><strong>Message Type = REQUEST</strong></td>
+</tr>
+<tr>
+<td><code>3d 07 01 3c 58 ...</code></td>
+<td>61, len 7</td>
+<td>Client Identifier，與 DISCOVER 相同</td>
+</tr>
+<tr>
+<td><code>32 04 c0 a8 01 97</code></td>
+<td><strong>50</strong>, len 4</td>
+<td><strong>Requested IP Address = 192.168.1.151</strong>。「我要的是這個」</td>
+</tr>
+<tr>
+<td><code>36 04 c0 a8 01 01</code></td>
+<td><strong>54</strong>, len 4</td>
+<td><strong>Server Identifier = 192.168.1.1</strong>。「我選這一家」——<strong>這是把 OFFER 裡的 option 54 原封複製過來</strong></td>
+</tr>
+<tr>
+<td><code>0c 06 6e 62 2d 73 65 74</code></td>
+<td>12</td>
+<td>Host Name</td>
+</tr>
+<tr>
+<td><code>37 08 01 03 06 0c 0f 1a 1c 79</code></td>
+<td>55</td>
+<td>Parameter Request List，再要一次</td>
+</tr>
+<tr>
+<td><code>39 02 05 dc</code></td>
+<td>57</td>
+<td>Max message size</td>
+</tr>
+<tr>
+<td><code>ff</code> + pad</td>
+<td></td>
+<td>結束並補到 300</td>
+</tr>
+</tbody>
+</table>
+<p><strong>「同時有 option 50 和 option 54」是 SELECTING 狀態 REQUEST 的簽名。</strong>
+記住這個特徵，因為接下來四種 REQUEST 的差異就靠這兩個 option 分辨。</p>
+<h3 id="83-四種-request-的判別表">8.3 四種 REQUEST 的判別表</h3>
+<p>同樣是 option 53 = 3 的 REQUEST，填法不同代表客戶端處在不同狀態。<strong>這是整篇筆記最實用的一張表</strong>：</p>
+<table>
+<thead>
+<tr>
+<th>狀態</th>
+<th>什麼時候</th>
+<th>送法</th>
+<th><code>ciaddr</code></th>
+<th>option 50</th>
+<th>option 54</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>SELECTING</strong></td>
+<td>DORA 的第三步</td>
+<td>廣播</td>
+<td>0.0.0.0</td>
+<td><strong>有</strong></td>
+<td><strong>有</strong></td>
+</tr>
+<tr>
+<td><strong>INIT-REBOOT</strong></td>
+<td>重開機，本機還有上次的租約檔</td>
+<td>廣播</td>
+<td>0.0.0.0</td>
+<td><strong>有</strong></td>
+<td><strong>無</strong></td>
+</tr>
+<tr>
+<td><strong>RENEWING</strong></td>
+<td>到達 T1（租約 50%）</td>
+<td><strong>單播</strong>給 option 54 那台</td>
+<td><strong>填自己的 IP</strong></td>
+<td>無</td>
+<td>無</td>
+</tr>
+<tr>
+<td><strong>REBINDING</strong></td>
+<td>到達 T2（租約 87.5%），續約沒回應</td>
+<td>廣播</td>
+<td><strong>填自己的 IP</strong></td>
+<td>無</td>
+<td>無</td>
+</tr>
+</tbody>
+</table>
+<p>判讀邏輯：</p>
+<ul>
+<li><strong><code>ciaddr</code> 是不是 0</strong> → 分出「還沒有位址」（前兩者）和「已經在用位址」（後兩者）。</li>
+<li><strong>有沒有 option 54</strong> → 分出「已經選定某一家」（SELECTING）和「問所有人」（INIT-REBOOT、REBINDING）。</li>
+<li><strong>單播還是廣播</strong> → RENEWING 是唯一單播的。</li>
+</ul>
+<hr />
+<h2 id="九封包四ack">九、封包四：ACK</h2>
+<p>租約在這一刻成立。訊框 343 bytes。</p>
+<pre><code>0000  3c 58 c2 4a 1b 7e 74 da 88 9f 02 10 08 00 45 00  &lt;X.J.~t.......E.
+0010  01 49 1a 2c 00 00 40 11 db 8f c0 a8 01 01 c0 a8  .I.,..@.........
+0020  01 97 00 43 00 44 01 35 ec d2 02 01 06 00 3d 1a  ...C.D.5......=.
+0030  7f 56 00 00 00 00 00 00 00 00 c0 a8 01 97 00 00  .V..............
+0040  00 00 00 00 00 00 3c 58 c2 4a 1b 7e 00 00 00 00  ......&lt;X.J.~....
+      〔0x0050 – 0x0115 全部是 00〕
+0110  00 00 00 00 00 00 63 82 53 63 35 01 05 36 04 c0  ......c.Sc5..6..
+0120  a8 01 01 33 04 00 00 a8 c0 3a 04 00 00 54 60 3b  ...3.....:...T`;
+0130  04 00 00 93 a8 01 04 ff ff ff 00 1c 04 c0 a8 01  ................
+0140  ff 03 04 c0 a8 01 01 06 08 c0 a8 01 01 01 01 01  ................
+0150  01 0f 03 6c 61 6e ff                             ...lan.
+</code></pre>
+<p><strong>跟 OFFER 逐位元組比對，只有兩個位元組不一樣：</strong></p>
+<table>
+<thead>
+<tr>
+<th>差異點</th>
+<th>OFFER</th>
+<th>ACK</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>option 53 的值（0x011c）</td>
+<td><code>02</code></td>
+<td><strong><code>05</code></strong></td>
+</tr>
+<tr>
+<td>IP 標頭識別碼（0x12，無意義）</td>
+<td><code>1a 2b</code></td>
+<td><code>1a 2c</code></td>
+</tr>
+<tr>
+<td>IP 檢查碼（隨識別碼變動）</td>
+<td><code>db 90</code></td>
+<td><code>db 8f</code></td>
+</tr>
+</tbody>
+</table>
+<p><strong>這件事本身就是一個重要觀念：OFFER 和 ACK 在結構上是同一種封包，差別只在 option 53。</strong>
+真正的區別是<strong>語意</strong>：OFFER 是「要不要」，ACK 是「成交，租約現在開始計時」。</p>
+<p>客戶端收到 ACK 之後才做這幾件事：</p>
+<ol>
+<li>記錄租約起算時間 = <strong>收到 ACK 的那一刻</strong>（不是伺服器送出的時刻，DHCP 不同步時鐘）。</li>
+<li>算出 T1、T2 的絕對時間點。</li>
+<li>做 ARP 衝突偵測（下一節）。</li>
+<li>把 IP、遮罩、路由、DNS 真的套用到系統上。</li>
+<li>把租約寫進 lease 檔，供下次開機直接 INIT-REBOOT 用。</li>
+</ol>
+<hr />
+<h2 id="十拿到-ack-之後客戶端做了什麼">十、拿到 ACK 之後客戶端做了什麼</h2>
+<p>協定沒有結束在 ACK。RFC 2131 要求客戶端在套用位址前<strong>先確認沒有別人在用它</strong>：</p>
+<h3 id="101-arp-probe衝突偵測">10.1 ARP probe（衝突偵測）</h3>
+<p>客戶端送出一個特殊的 ARP（Address Resolution Protocol，位址解析協定）請求：</p>
+<pre><code>ARP Request
+  sender MAC = 3c:58:c2:4a:1b:7e
+  sender IP  = 0.0.0.0            ← 刻意填 0，因為我還沒真的擁有這個 IP
+  target IP  = 192.168.1.151      ← 我要問的，就是我即將使用的位址
+</code></pre>
+<p><code>sender IP</code> 填 <code>0.0.0.0</code> 是重點：如果填 <code>192.168.1.151</code>，就會污染別人的 ARP 快取，萬一真的有衝突反而把對方的連線弄壞。填 0 的 ARP 只問不宣告。</p>
+<ul>
+<li><strong>沒人回應</strong> → 這個位址沒被佔用，可以用。</li>
+<li><strong>有人回應</strong> → 有人已經在用了（通常是有人設了靜態 IP 撞進 DHCP 位址池）。客戶端必須送 <strong>DHCPDECLINE</strong> 給伺服器，然後<strong>回到 INIT 狀態重跑整個 DORA</strong>。伺服器收到 DECLINE 會把這個位址標記成有問題、暫時不再發放。</li>
+</ul>
+<h3 id="102-gratuitous-arp無償-arp">10.2 Gratuitous ARP（無償 ARP）</h3>
+<p>確認沒衝突之後，客戶端會廣播一則「無償 ARP」：sender IP 和 target IP 都填 <code>192.168.1.151</code>。沒人需要回答，目的是<strong>主動更新整個網段的 ARP 快取</strong>，讓大家知道這個 IP 現在對應到我的 MAC。換機器接手同一個 IP 時，這一則廣播能讓別人不必等 ARP 快取逾時。</p>
+<h3 id="103-套用到系統上">10.3 套用到系統上</h3>
+<p>Linux 上這一步的成果，就是 <a href="%E7%A2%BA%E8%AA%8D%E7%B6%B2%E8%B7%AF%E4%BB%8B%E9%9D%A2%E6%98%AF%E5%90%A6%E4%BD%BF%E7%94%A8DHCP.html">確認網路介面是否使用DHCP</a> 裡看到的那些痕跡：</p>
+<table>
+<thead>
+<tr>
+<th>DHCP 帶來的東西</th>
+<th>在系統上呈現成</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>yiaddr</code> + option 1（遮罩）</td>
+<td><code>ip addr</code> 的 <code>inet 192.168.1.151/24</code> 加上 <strong><code>dynamic</code></strong> 旗標</td>
+</tr>
+<tr>
+<td>option 51（租約）</td>
+<td><code>valid_lft</code> 的<strong>有限秒數</strong>（靜態 IP 是 <code>forever</code>）</td>
+</tr>
+<tr>
+<td>option 3（router）</td>
+<td><code>ip route</code> 裡的 <code>default via 192.168.1.1 ... proto dhcp</code></td>
+</tr>
+<tr>
+<td>option 6（DNS）</td>
+<td><code>resolvectl status</code> 裡該介面的 <code>DNS Servers</code></td>
+</tr>
+<tr>
+<td>option 121</td>
+<td>額外的靜態路由，同樣標 <code>proto dhcp</code></td>
+</tr>
+</tbody>
+</table>
+<p>「<code>proto dhcp</code>」這個標記就是核心在說：<strong>這條路由是 DHCP 客戶端寫進去的</strong>。</p>
+<hr />
+<h2 id="十一租約生命週期與續約封包">十一、租約生命週期與續約封包</h2>
+<p>租約不是拿到就永久有效。三個時間點：</p>
+<pre><code>收到 ACK                T1 = 50%              T2 = 87.5%          租約到期
+   |                     |                       |                    |
+   |&lt;---- BOUND --------&gt;|&lt;--- RENEWING -------&gt;|&lt;-- REBINDING -----&gt;|
+   0                  21600s                 37800s              43200s
+                          |                       |                    |
+              單播 REQUEST 給原伺服器    廣播 REQUEST 給任何伺服器   放棄位址
+              失敗就繼續重試到 T2        失敗就重試到到期          回到 INIT 重跑 DORA
+</code></pre>
+<p><strong>為什麼要分兩階段？</strong> 這是一個很優雅的降級（graceful degradation）設計：</p>
+<ul>
+<li><strong>T1 到 T2（RENEWING）</strong>：先假設「原本那台伺服器還在，只是我該去續了」，用單播去問，不打擾網段上其他機器。這時候租約還有一半可用，慢慢試沒關係。</li>
+<li><strong>T2 之後（REBINDING）</strong>：既然原伺服器一直不回應，可能它掛了或被換掉了，改成<strong>廣播</strong>，讓網段上任何一台 DHCP 伺服器都有機會接手。</li>
+<li><strong>到期</strong>：必須立刻放棄位址、拆掉路由，回到 INIT 從 DISCOVER 重來。這是協定裡少數強制的動作——不能繼續用過期的位址。</li>
+</ul>
+<p><strong>如果租約中途成功續約，計時全部歸零重算。</strong> 正常運作的網路，客戶端每過租約的一半就續一次，永遠不會走到 REBINDING，所以抓包時看到 REBINDING 就代表 DHCP 伺服器出過問題。</p>
+<h3 id="111-續約的-requestrenewing單播">11.1 續約的 REQUEST（RENEWING，單播）</h3>
+<pre><code>0000  74 da 88 9f 02 10 3c 58 c2 4a 1b 7e 08 00 45 00  t.....&lt;X.J.~..E.
+0010  01 48 00 02 00 00 40 11 f5 ba c0 a8 01 97 c0 a8  .H....@.........
+0020  01 01 00 44 00 43 01 34 6b 7d 01 01 06 00 7c 04  ...D.C.4k}....|.
+0030  e9 12 00 00 00 00 c0 a8 01 97 00 00 00 00 00 00  ................
+0040  00 00 00 00 00 00 3c 58 c2 4a 1b 7e 00 00 00 00  ......&lt;X.J.~....
+      〔0x0050 – 0x0115 全部是 00〕
+0110  00 00 00 00 00 00 63 82 53 63 35 01 03 3d 07 01  ......c.Sc5..=..
+0120  3c 58 c2 4a 1b 7e 0c 06 6e 62 2d 73 65 74 37 08  &lt;X.J.~..nb-set7.
+0130  01 03 06 0c 0f 1a 1c 79 39 02 05 dc ff 00 00 00  .......y9.......
+</code></pre>
+<p>跟第八節那個 REQUEST 對照，四個決定性差異：</p>
+<table>
+<thead>
+<tr>
+<th>欄位</th>
+<th>SELECTING 的 REQUEST</th>
+<th>RENEWING 的 REQUEST</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>目的 MAC（0x00）</td>
+<td><code>ff ff ff ff ff ff</code> 廣播</td>
+<td><strong><code>74 da 88 9f 02 10</code> 單播給伺服器</strong></td>
+</tr>
+<tr>
+<td>來源／目的 IP</td>
+<td><code>0.0.0.0</code> → <code>255.255.255.255</code></td>
+<td><strong><code>c0 a8 01 97</code> → <code>c0 a8 01 01</code>，即 192.168.1.151 → 192.168.1.1</strong></td>
+</tr>
+<tr>
+<td><code>ciaddr</code>（0x36）</td>
+<td><code>00 00 00 00</code></td>
+<td><strong><code>c0 a8 01 97</code>——我現在正在用這個位址</strong></td>
+</tr>
+<tr>
+<td>option 50 / 54</td>
+<td>兩個都有</td>
+<td><strong>兩個都沒有</strong></td>
+</tr>
+<tr>
+<td><code>xid</code>（0x2e）</td>
+<td><code>3d 1a 7f 56</code></td>
+<td><strong><code>7c 04 e9 12</code>——新的一輪交易，換新編號</strong></td>
+</tr>
+</tbody>
+</table>
+<p>沒有 option 50 和 54，是因為兩者的資訊都已經隱含在封包裡了：想要哪個位址？就是 <code>ciaddr</code> 這個我正在用的。要問誰？就是這個單播封包的目的位址。</p>
+<p><strong><code>xid</code> 換新的</strong>：<code>xid</code> 的作用範圍是「一輪交易」，DORA 是一輪，每次續約是新的一輪。不要誤以為 <code>xid</code> 是整個租約的識別碼。</p>
+<p>伺服器同意續約，就回一個 ACK（單播），租約計時重新開始。</p>
+<h3 id="112-拒絕dhcpnak">11.2 拒絕：DHCPNAK</h3>
+<p>如果伺服器認為這個請求不合法（例如客戶端換了網段還在要舊網段的位址、或伺服器重設過位址池已經不認得這筆租約），它回 <strong>NAK（Negative Acknowledgement，否定應答）</strong>：</p>
+<pre><code>0000  ff ff ff ff ff ff 74 da 88 9f 02 10 08 00 45 00  ......t.......E.
+0010  01 48 1a 2d 00 00 40 11 9d cf c0 a8 01 01 ff ff  .H.-..@.........
+0020  ff ff 00 43 00 44 01 34 f9 6a 02 01 06 00 7c 04  ...C.D.4.j....|.
+0030  e9 12 00 00 80 00 00 00 00 00 00 00 00 00 00 00  ................
+0040  00 00 00 00 00 00 3c 58 c2 4a 1b 7e 00 00 00 00  ......&lt;X.J.~....
+      〔0x0050 – 0x0115 全部是 00〕
+0110  00 00 00 00 00 00 63 82 53 63 35 01 06 36 04 c0  ......c.Sc5..6..
+0120  a8 01 01 38 1f 72 65 71 75 65 73 74 65 64 20 61  ...8.requested a
+0130  64 64 72 65 73 73 20 6e 6f 74 20 61 76 61 69 6c  ddress not avail
+0140  61 62 6c 65 ff 00 00 00 00 00 00 00 00 00 00 00  able............
+</code></pre>
+<p>NAK 有幾個獨特之處：</p>
+<table>
+<thead>
+<tr>
+<th>特徵</th>
+<th>值</th>
+<th>為什麼</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>目的位址</td>
+<td><strong>廣播</strong> <code>ff:ff:...</code> / <code>255.255.255.255</code></td>
+<td>因為 NAK 的意思就是「你那個位址是無效的」，所以不能拿那個無效位址當目的位址送過去</td>
+</tr>
+<tr>
+<td><code>flags</code>（0x34）</td>
+<td><strong><code>80 00</code></strong></td>
+<td>廣播旗標被設起來，明確要求廣播</td>
+</tr>
+<tr>
+<td><code>yiaddr</code>（0x3a）</td>
+<td><code>00 00 00 00</code></td>
+<td>沒有任何位址要給你</td>
+</tr>
+<tr>
+<td>option 53</td>
+<td><code>35 01 06</code></td>
+<td>Message Type = <strong>NAK</strong></td>
+</tr>
+<tr>
+<td>option 54</td>
+<td><code>36 04 c0 a8 01 01</code></td>
+<td>還是要標明是誰拒絕的</td>
+</tr>
+<tr>
+<td>option 56</td>
+<td><code>38 1f</code> + 31 bytes 的 <code>&quot;requested address not available&quot;</code></td>
+<td><strong>Message</strong>，人類可讀的原因。抓包時這個字串直接告訴你為什麼被拒</td>
+</tr>
+</tbody>
+</table>
+<p><strong>客戶端收到 NAK 的反應是強制的：立刻拆掉現有 IP 設定，回到 INIT 狀態重跑 DORA。</strong>
+「筆電從公司帶回家，一開蓋網路斷一下才會通」——那一下就是 NAK 加上重跑 DORA。</p>
+<hr />
+<h2 id="十二其他訊息類型">十二、其他訊息類型</h2>
+<p>DORA 之外還有四種訊息，都是短命但關鍵的角色：</p>
+<h3 id="dhcpdeclineoption-53--4">DHCPDECLINE（option 53 = 4）</h3>
+<p><strong>時機</strong>：客戶端在 ARP probe 時發現要給它的位址已經有人在用。
+<strong>內容</strong>：option 50 填那個有問題的位址，option 54 填那台伺服器。廣播送出。
+<strong>後果</strong>：伺服器把該位址標記為「有問題」並保留一段時間不發放；客戶端等 10 秒後重跑 DORA。
+<strong>排查價值</strong>：抓包看到 DECLINE，就是「位址池跟某台靜態 IP 撞了」的鐵證。</p>
+<h3 id="dhcpreleaseoption-53--7">DHCPRELEASE（option 53 = 7）</h3>
+<p><strong>時機</strong>：客戶端主動放棄租約（<code>dhclient -r</code>、正常關機、<code>nmcli con down</code>）。
+<strong>內容</strong>：<code>ciaddr</code> 填自己正在用的位址、option 54 填伺服器，<strong>單播</strong>送給伺服器。
+<strong>注意</strong>：RELEASE <strong>沒有回覆</strong>——是 UDP 單向通知，送出去就算數。所以它不可靠，封包掉了伺服器就不知道你走了，那個位址會一直保留到租約自然到期。
+<strong>這也是為什麼路由器上常看到一堆已經不在的裝置還佔著位址。</strong></p>
+<h3 id="dhcpinformoption-53--8">DHCPINFORM（option 53 = 8）</h3>
+<p><strong>時機</strong>：機器<strong>已經有靜態 IP</strong>，但想跟 DHCP 伺服器要其他參數（DNS、WPAD proxy 設定等）。
+<strong>內容</strong>：<code>ciaddr</code> 填自己的靜態 IP，option 55 列出想要的參數，<strong>不含 option 50/51</strong>。
+<strong>回覆</strong>：伺服器回 ACK，但<strong>不含 option 51（租約時間）</strong>——因為沒有位址被租出去，沒有租約可言。
+<strong>判別技巧</strong>：看到一個 ACK 沒有 option 51，八成是在回應 INFORM。</p>
+<h3 id="對照dhcpv6-完全是另一套">對照：DHCPv6 完全是另一套</h3>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>DHCPv4</th>
+<th>DHCPv6（RFC 8415）</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>埠</td>
+<td>67 / 68</td>
+<td><strong>547 / 546</strong></td>
+</tr>
+<tr>
+<td>定址</td>
+<td>廣播 255.255.255.255</td>
+<td><strong>多播</strong> <code>ff02::1:2</code>（All_DHCP_Relay_Agents_and_Servers）</td>
+</tr>
+<tr>
+<td>四步名稱</td>
+<td>DISCOVER / OFFER / REQUEST / ACK</td>
+<td><strong>SOLICIT / ADVERTISE / REQUEST / REPLY</strong></td>
+</tr>
+<tr>
+<td>客戶端身分</td>
+<td>MAC（<code>chaddr</code>）</td>
+<td><strong>DUID</strong>（DHCP Unique Identifier，跨網卡穩定的識別碼）</td>
+</tr>
+<tr>
+<td>封包格式</td>
+<td>BOOTP 固定欄位 + options</td>
+<td><strong>沒有 BOOTP 遺產</strong>，全部是 options</td>
+</tr>
+<tr>
+<td>是否必要</td>
+<td>幾乎必要</td>
+<td>常常不需要——IPv6 可以只用 SLAAC（Stateless Address Autoconfiguration，無狀態位址自動設定）靠路由器通告（RA）自己算出位址</td>
+</tr>
+</tbody>
+</table>
+<p><strong>IPv6 環境最容易踩的坑</strong>：位址是 RA 給的、DNS 可能是 DHCPv6 給的，兩套機制同時在跑。「IPv6 有位址但 DNS 不對」通常就是 RA 的 M／O 旗標設定跟 DHCPv6 伺服器不一致。</p>
+<hr />
+<h2 id="十三跨網段dhcp-relay-與-giaddr">十三、跨網段：DHCP Relay 與 giaddr</h2>
+<p>DHCP 全靠廣播，而<strong>廣播不跨路由器</strong>。那企業裡幾十個 VLAN 難道要放幾十台 DHCP 伺服器？不用——用 <strong>DHCP relay agent（中繼代理，也叫 IP helper）</strong>。</p>
+<pre><code>客戶端                      路由器/L3 交換器                  DHCP 伺服器
+(VLAN 20)                   (relay, 10.20.0.1)               10.0.0.5
+   |                              |                              |
+   | DISCOVER                     |                              |
+   | 廣播, src 0.0.0.0            |                              |
+   |-----------------------------&gt;|                              |
+   |                              | DISCOVER                     |
+   |                              | 單播, src 10.20.0.1           |
+   |                              | dst 10.0.0.5                 |
+   |                              | giaddr = 10.20.0.1  ★        |
+   |                              | hops = 1                     |
+   |                              |-----------------------------&gt;|
+   |                              |                              |
+   |                              |            OFFER (單播回 relay)|
+   |                              |&lt;-----------------------------|
+   |          OFFER               |                              |
+   |   (relay 依 giaddr 判斷該從哪個介面送出，還原成廣播/單播)      |
+   |&lt;-----------------------------|                              |
+</code></pre>
+<p>Relay 做了三件事：</p>
+<ol>
+<li><strong>改寫外殼</strong>：把廣播改成單播給設定好的伺服器位址，來源 IP 換成自己的。</li>
+<li><strong>填 <code>giaddr</code></strong>：填入自己<strong>面向客戶端那一側</strong>的介面 IP。這是整個機制的核心。</li>
+<li><strong><code>hops</code> + 1</strong>：防迴圈。</li>
+</ol>
+<p><strong><code>giaddr</code> 一個欄位同時承擔兩個任務：</strong></p>
+<ul>
+<li><strong>告訴伺服器該從哪個位址池挑位址</strong>。伺服器看到 <code>giaddr = 10.20.0.1</code>，就知道「這台客戶端在 10.20.0.0/24 這個網段」，於是從那個 scope 撈位址。
+<strong>沒有 <code>giaddr</code>，跨網段的 DHCP 根本不可能運作</strong>——伺服器完全沒有別的線索知道客戶端在哪。</li>
+<li><strong>告訴伺服器回覆要送去哪裡</strong>。伺服器把 OFFER／ACK 單播回 <code>giaddr</code>，由 relay 負責送到客戶端。</li>
+</ul>
+<p>順帶一提 <strong>option 82（Relay Agent Information）</strong>：relay 可以額外塞進「這個請求是從哪台交換器的哪個埠進來的」，伺服器可以據此發放固定位址或做存取控制。企業網路的「這個網路孔只能給這台機器用」通常就是靠它。</p>
+<p><strong>排查關鍵</strong>：跨網段的 DHCP 出問題時，先在伺服器端抓包看 <code>giaddr</code>。</p>
+<ul>
+<li><code>giaddr</code> 是 0 → relay 沒設定或沒生效（路由器上少了 <code>ip helper-address</code>）。</li>
+<li><code>giaddr</code> 有值但伺服器沒回 → 伺服器上沒有對應那個網段的 scope。</li>
+<li>伺服器有回但客戶端沒收到 → relay 的回程路徑或防火牆有問題。</li>
+</ul>
+<hr />
+<h2 id="十四抓包與排查實戰">十四、抓包與排查實戰</h2>
+<h3 id="141-抓包指令">14.1 抓包指令</h3>
+<pre><code class="language-bash"><span class="c1"># 最基本：看 DHCP 交握（-e 顯示乙太網路標頭，-n 不解析名稱）</span>
+sudo<span class="w"> </span>tcpdump<span class="w"> </span>-i<span class="w"> </span>&lt;iface&gt;<span class="w"> </span>-n<span class="w"> </span>-e<span class="w"> </span>-vv<span class="w"> </span><span class="s1">&#39;port 67 or port 68&#39;</span>
+
+<span class="c1"># 存成檔案給 Wireshark 慢慢看（-s 0 抓完整封包，不截斷）</span>
+sudo<span class="w"> </span>tcpdump<span class="w"> </span>-i<span class="w"> </span>&lt;iface&gt;<span class="w"> </span>-n<span class="w"> </span>-s<span class="w"> </span><span class="m">0</span><span class="w"> </span>-w<span class="w"> </span>/tmp/dhcp.pcap<span class="w"> </span><span class="s1">&#39;port 67 or port 68&#39;</span>
+
+<span class="c1"># 直接看十六進位內容（-XX 連乙太網路標頭一起印，就是本文那種 hex dump）</span>
+sudo<span class="w"> </span>tcpdump<span class="w"> </span>-i<span class="w"> </span>&lt;iface&gt;<span class="w"> </span>-n<span class="w"> </span>-XX<span class="w"> </span><span class="s1">&#39;port 67 or port 68&#39;</span>
+
+<span class="c1"># 主動觸發一次完整 DORA 來抓（另開一個終端機）</span>
+sudo<span class="w"> </span>dhclient<span class="w"> </span>-r<span class="w"> </span>&lt;iface&gt;<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>sudo<span class="w"> </span>dhclient<span class="w"> </span>-v<span class="w"> </span>&lt;iface&gt;<span class="w">     </span><span class="c1"># 先 RELEASE 再重跑</span>
+sudo<span class="w"> </span>nmcli<span class="w"> </span>connection<span class="w"> </span>down<span class="w"> </span>&lt;名稱&gt;<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>sudo<span class="w"> </span>nmcli<span class="w"> </span>connection<span class="w"> </span>up<span class="w"> </span>&lt;名稱&gt;<span class="w">   </span><span class="c1"># NetworkManager 環境</span>
+</code></pre>
+<p><strong>注意</strong>：<code>tcpdump -i any</code> 抓不到某些 DHCP 封包，因為客戶端用的是 raw socket，路徑跟一般封包不同。<strong>盡量指定實體介面名稱</strong>。</p>
+<h3 id="142-wireshark-過濾語法">14.2 Wireshark 過濾語法</h3>
+<pre><code>bootp                      # 所有 DHCPv4（Wireshark 沿用 bootp 這個名字；新版也接受 dhcp）
+bootp.option.dhcp == 1     # 只看 DISCOVER
+bootp.option.dhcp == 6     # 只看 NAK（找租約被拒的原因）
+bootp.hw.mac_addr == 3c:58:c2:4a:1b:7e   # 只看某台機器
+bootp.id == 0x3d1a7f56     # 用 xid 把同一輪交易的四個封包串起來
+dhcpv6                     # IPv6 版
+</code></pre>
+<h3 id="143-讀-log">14.3 讀 log</h3>
+<pre><code class="language-bash"><span class="c1"># NetworkManager 環境（多數桌面發行版）</span>
+journalctl<span class="w"> </span>-u<span class="w"> </span>NetworkManager<span class="w"> </span>-b<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-i<span class="w"> </span>dhcp
+
+<span class="c1"># systemd-networkd 環境（多數雲端主機、容器宿主）</span>
+journalctl<span class="w"> </span>-u<span class="w"> </span>systemd-networkd<span class="w"> </span>-b<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-i<span class="w"> </span>-E<span class="w"> </span><span class="s1">&#39;dhcp|lease&#39;</span>
+
+<span class="c1"># 獨立 dhclient</span>
+journalctl<span class="w"> </span>-t<span class="w"> </span>dhclient<span class="w"> </span>-b
+grep<span class="w"> </span>-i<span class="w"> </span>dhcp<span class="w"> </span>/var/log/syslog
+
+<span class="c1"># 租約檔（看目前這份租約的完整內容，含所有 option）</span>
+cat<span class="w"> </span>/var/lib/NetworkManager/internal-*.lease<span class="w">      </span><span class="c1"># NetworkManager 內建客戶端</span>
+cat<span class="w"> </span>/var/lib/dhcp/dhclient.leases<span class="w">                 </span><span class="c1"># ISC dhclient</span>
+networkctl<span class="w"> </span>status<span class="w"> </span>&lt;iface&gt;<span class="w">                          </span><span class="c1"># systemd-networkd，直接印出 DHCP 拿到什麼</span>
+</code></pre>
+<h3 id="144-症狀--抓包該看什麼">14.4 症狀 → 抓包該看什麼</h3>
+<p>這張表是本節的重點，把「拿不到 IP」拆成可判定的分支：</p>
+<table>
+<thead>
+<tr>
+<th>抓到的現象</th>
+<th>判讀</th>
+<th>下一步</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>只看到自己的 DISCOVER 一直重送，完全沒有 OFFER</td>
+<td>伺服器沒收到，或收到了不想回</td>
+<td>檢查是不是接錯 VLAN、交換器埠有沒有通、跨網段的話 relay（<code>ip helper-address</code>）有沒有設</td>
+</tr>
+<tr>
+<td>看到 OFFER 但客戶端不理，繼續送 DISCOVER</td>
+<td>客戶端沒認出這個 OFFER</td>
+<td>比對 <code>xid</code> 是否一致、<code>chaddr</code> 是否正確；也可能客戶端要求廣播回覆（<code>flags</code> = <code>80 00</code>）但伺服器單播了</td>
+</tr>
+<tr>
+<td>收到<strong>兩個不同的 OFFER</strong></td>
+<td><strong>網段上有流氓 DHCP 伺服器</strong></td>
+<td>比對兩個 OFFER 的 option 54，用來源 MAC 去交換器的 MAC 位址表查是哪個埠</td>
+</tr>
+<tr>
+<td>REQUEST 之後收到 NAK</td>
+<td>伺服器認為請求不合法</td>
+<td><strong>讀 option 56 的字串</strong>，那就是原因；常見於換網段還在要舊位址</td>
+</tr>
+<tr>
+<td>拿到 ACK 但馬上又送 DECLINE</td>
+<td>ARP probe 撞到別人</td>
+<td>網段上有人設了靜態 IP 撞進位址池，或位址池與另一台伺服器重疊</td>
+</tr>
+<tr>
+<td>拿到 IP 但上不了網</td>
+<td>DHCP 本身成功了，問題在別處</td>
+<td>查 option 3（gateway）和 option 6（DNS）給了什麼，對照 <code>ip route</code>（見<a href="%E6%9F%A5%E8%A9%A2%E8%BD%89%E7%99%BC%E8%A1%A8%E8%88%87%E8%B7%AF%E7%94%B1%E8%A1%A8.html">查詢轉發表與路由表</a>）與 <code>resolvectl status</code>（見<a href="%E6%9F%A5%E8%A9%A2%E7%9B%AE%E5%89%8D%E4%BD%BF%E7%94%A8%E7%9A%84DNS%E4%BC%BA%E6%9C%8D%E5%99%A8.html">查詢目前使用的DNS伺服器</a>）</td>
+</tr>
+<tr>
+<td>平常好好的，每隔幾小時斷一下</td>
+<td>續約失敗，撐到 REBINDING 或到期</td>
+<td>抓包確認 T1 時的單播 REQUEST 有沒有得到 ACK；常見於伺服器換過位址、或防火牆擋掉了單播的 67 埠</td>
+</tr>
+<tr>
+<td>拿到 <code>169.254.x.x</code></td>
+<td><strong>完全沒有任何 DHCP 回應</strong>，作業系統退回 APIPA／link-local 自動配置</td>
+<td>這代表整條 DHCP 路徑不通，回到第一列的排查</td>
+</tr>
+</tbody>
+</table>
+<p><strong>方法論提醒</strong>：上表的用法是先確認「問題在 DHCP 交握的哪一步斷掉」，而不是一看到沒 IP 就重灌驅動。這正是 <a href="%E6%8E%92%E6%9F%A5%E6%96%B9%E6%B3%95%E8%AB%96.html">排查方法論</a> 說的「先確認你量到的是不是你以為的東西」。</p>
+<hr />
+<h2 id="十五常見誤解與陷阱">十五、常見誤解與陷阱</h2>
+<p><strong>誤解一：「OFFER 就代表我拿到 IP 了」</strong>
+不是。OFFER 只是報價。伺服器多半會暫時保留，但協定沒有規定它必須保留。租約成立的唯一時刻是<strong>客戶端收到 ACK</strong>。</p>
+<p><strong>誤解二：「<code>siaddr</code> 是 DHCP 伺服器的位址」</strong>
+不是。<code>siaddr</code> 是 PXE 網路開機的「下一台伺服器」，跟 DHCP 身分無關，一般情況都是 0。伺服器身分永遠看 <strong>option 54</strong>。</p>
+<p><strong>誤解三：「REQUEST 應該單播給選中的伺服器」</strong>
+DORA 裡的 REQUEST <strong>必須廣播</strong>，這樣落選的伺服器才知道要把保留的位址放回去。只有續約（RENEWING）的 REQUEST 才是單播。</p>
+<p><strong>誤解四：「租約到期前客戶端會被通知」</strong>
+不會。DHCP 沒有伺服器主動推送的機制，<strong>全部由客戶端計時、客戶端主動發起</strong>。伺服器完全是被動的。這也是為什麼改了 DHCP 設定（例如換 DNS）不會立刻生效——
+要等客戶端下次續約，或手動觸發。</p>
+<p><strong>誤解五：「同一台機器一定拿到同一個 IP」</strong>
+不保證。多數伺服器會盡量把舊位址發回給同一個 MAC（affinity），但那是實作善意。要保證就得在伺服器上做 <strong>DHCP reservation</strong>（依 MAC 綁定固定位址）。注意：reservation 仍然是 DHCP，客戶端還是照跑 DORA、還是有租約，所以在客戶端上看起來仍然是 <code>dynamic</code> + 有限的 <code>valid_lft</code>。</p>
+<p><strong>誤解六：「MAC 隨機化不影響 DHCP」</strong>
+影響很大。現代手機和筆電預設對每個 Wi-Fi SSID 用不同的隨機 MAC（randomized MAC）。因為 DHCP 的身分就是 MAC，換了 MAC 就是一台全新的機器：拿到新 IP、之前的 reservation 全部失效、位址池被吃光的速度變快。「我明明綁了 MAC 但手機還是拿到別的 IP」——先去手機的 Wi-Fi 設定關掉隨機 MAC。</p>
+<p><strong>誤解七：「DHCP 有身分驗證」</strong>
+沒有。DHCP 完全沒有認證機制，這是它最大的安全弱點：</p>
+<ul>
+<li><strong>Rogue DHCP server</strong>：任何人接上網段就能發 IP，把 gateway 指向自己做中間人攻擊。防禦手段是交換器上的 <strong>DHCP snooping</strong>（只信任特定埠來的 OFFER／ACK）。</li>
+<li><strong>DHCP starvation</strong>：攻擊者偽造大量不同的 <code>chaddr</code> 狂送 DISCOVER，把位址池吃光，讓正常裝置拿不到 IP。防禦是交換器的 <strong>port security</strong>（限制每埠的 MAC 數量）。</li>
+</ul>
+<p><strong>陷阱八：容器與虛擬機的橋接</strong>
+Docker 的 <code>docker0</code> 是自己配位址的，不走 DHCP（所以它的 <code>valid_lft</code> 是 <code>forever</code>）。但<strong>橋接模式的虛擬機</strong>會直接向實體網段的 DHCP 伺服器要位址，在位址池小的家用網路很容易把位址用光。</p>
+<hr />
+<h2 id="速查">速查</h2>
+<pre><code class="language-bash"><span class="c1"># 抓包</span>
+sudo<span class="w"> </span>tcpdump<span class="w"> </span>-i<span class="w"> </span>&lt;iface&gt;<span class="w"> </span>-n<span class="w"> </span>-e<span class="w"> </span>-vv<span class="w"> </span><span class="s1">&#39;port 67 or port 68&#39;</span><span class="w">    </span><span class="c1"># 看交握</span>
+sudo<span class="w"> </span>tcpdump<span class="w"> </span>-i<span class="w"> </span>&lt;iface&gt;<span class="w"> </span>-n<span class="w"> </span>-XX<span class="w"> </span><span class="s1">&#39;port 67 or port 68&#39;</span><span class="w">       </span><span class="c1"># 看原始位元組</span>
+sudo<span class="w"> </span>tcpdump<span class="w"> </span>-i<span class="w"> </span>&lt;iface&gt;<span class="w"> </span>-s<span class="w"> </span><span class="m">0</span><span class="w"> </span>-w<span class="w"> </span>/tmp/dhcp.pcap<span class="w"> </span><span class="s1">&#39;port 67 or port 68&#39;</span>
+
+<span class="c1"># 觸發</span>
+sudo<span class="w"> </span>dhclient<span class="w"> </span>-r<span class="w"> </span>&lt;iface&gt;<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>sudo<span class="w"> </span>dhclient<span class="w"> </span>-v<span class="w"> </span>&lt;iface&gt;<span class="w">      </span><span class="c1"># RELEASE 後重跑 DORA</span>
+sudo<span class="w"> </span>nmcli<span class="w"> </span>connection<span class="w"> </span>down<span class="w"> </span>&lt;名稱&gt;<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>sudo<span class="w"> </span>nmcli<span class="w"> </span>connection<span class="w"> </span>up<span class="w"> </span>&lt;名稱&gt;
+
+<span class="c1"># 查結果</span>
+ip<span class="w"> </span>-4<span class="w"> </span>addr<span class="w"> </span>show<span class="w"> </span>&lt;iface&gt;<span class="w">          </span><span class="c1"># dynamic + 有限 valid_lft = DHCP 來的</span>
+ip<span class="w"> </span>route<span class="w"> </span>show<span class="w">                    </span><span class="c1"># proto dhcp 的路由</span>
+resolvectl<span class="w"> </span>status<span class="w">                </span><span class="c1"># option 6 給的 DNS</span>
+networkctl<span class="w"> </span>status<span class="w"> </span>&lt;iface&gt;<span class="w">        </span><span class="c1"># systemd-networkd：直接看拿到哪些 option</span>
+
+<span class="c1"># 查歷史</span>
+journalctl<span class="w"> </span>-u<span class="w"> </span>NetworkManager<span class="w"> </span>-b<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-i<span class="w"> </span>dhcp
+cat<span class="w"> </span>/var/lib/NetworkManager/internal-*.lease
+</code></pre>
+<p><strong>四個封包的一句話記憶法：</strong></p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>誰送</th>
+<th>送法</th>
+<th>關鍵欄位</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>D</strong>ISCOVER</td>
+<td>客戶端</td>
+<td>廣播</td>
+<td><code>chaddr</code> = 我的 MAC，option 55 = 我想要什麼</td>
+</tr>
+<tr>
+<td><strong>O</strong>FFER</td>
+<td>伺服器</td>
+<td>單播（靠 <code>chaddr</code>）</td>
+<td><code>yiaddr</code> = 給你的 IP，option 54 = 我是誰</td>
+</tr>
+<tr>
+<td><strong>R</strong>EQUEST</td>
+<td>客戶端</td>
+<td><strong>廣播</strong></td>
+<td>option 50 = 我要的 IP，option 54 = 我選誰</td>
+</tr>
+<tr>
+<td><strong>A</strong>CK</td>
+<td>伺服器</td>
+<td>單播</td>
+<td>跟 OFFER 只差 option 53 = 5，<strong>租約從這一刻起算</strong></td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="參考">參考</h2>
+<ul>
+<li>判斷這台機器是不是在用 DHCP：<a href="%E7%A2%BA%E8%AA%8D%E7%B6%B2%E8%B7%AF%E4%BB%8B%E9%9D%A2%E6%98%AF%E5%90%A6%E4%BD%BF%E7%94%A8DHCP.html">確認網路介面是否使用DHCP</a></li>
+<li>DHCP 派下來的 default route 怎麼讀：<a href="%E6%9F%A5%E8%A9%A2%E8%BD%89%E7%99%BC%E8%A1%A8%E8%88%87%E8%B7%AF%E7%94%B1%E8%A1%A8.html">查詢轉發表與路由表</a></li>
+<li>option 6 的 DNS 最後去了哪裡：<a href="%E6%9F%A5%E8%A9%A2%E7%9B%AE%E5%89%8D%E4%BD%BF%E7%94%A8%E7%9A%84DNS%E4%BC%BA%E6%9C%8D%E5%99%A8.html">查詢目前使用的DNS伺服器</a></li>
+<li>抓包工具需要 <code>cap_net_raw</code> 的原因：<a href="mtr%E6%94%B9%E7%94%A8TCP%E6%88%96UDP%E6%8E%A2%E6%B8%AC.html">mtr改用TCP或UDP探測</a></li>
+<li>排查時「先推翻前提」的思路：<a href="%E6%8E%92%E6%9F%A5%E6%96%B9%E6%B3%95%E8%AB%96.html">排查方法論</a></li>
+<li>規格原文：RFC 2131（協定）、RFC 2132（options 清單）、RFC 8415（DHCPv6）</li>
+</ul>
+<hr />
+<h2 id="十六自我測驗">十六、自我測驗</h2>
+<ol>
+<li>DORA 的第三步 REQUEST，客戶端明明已經從 OFFER 裡知道伺服器 IP 是 <code>192.168.1.1</code> 了，為什麼還要用廣播送、來源 IP 還填 <code>0.0.0.0</code>？兩個原因分別是什麼？</li>
+<li>你抓到一個 option 53 = 3 的 REQUEST，<code>ciaddr</code> 是 <code>0.0.0.0</code>，有 option 50 但<strong>沒有</strong> option 54，而且是廣播送出的。這台客戶端處在什麼狀態、剛剛發生了什麼事？如果 <code>ciaddr</code> 改成有值、而且是單播送出的，結論又變成什麼？</li>
+<li>為什麼 DHCP 要把客戶端的 MAC 位址放進 <code>chaddr</code> 這個應用層欄位裡，而不是直接用乙太網路標頭的來源 MAC 就好？講出至少兩個乙太網路標頭不夠用的場合。</li>
+<li><code>siaddr</code> 和 option 54 都是「一個 IP 位址」，很容易被當成同一件事。它們各自代表什麼？如果一台伺服器把 option 54 填錯成別人的位址，客戶端的續約會發生什麼事？</li>
+<li>情境題：使用者回報「筆電在公司好好的，帶回家連家裡 Wi-Fi 要等十幾秒、而且中間網路圖示閃一下才通」。你抓包，發現一開始有一個 REQUEST，緊接著一個伺服器回的封包，然後才開始跑完整的 DORA。那個中間的封包最可能是哪一種訊息？它的哪個 option 能直接告訴你原因？整件事的機制是什麼？</li>
+<li>情境題：某個網段裡有幾台機器「拿到 IP 後幾秒鐘又重新開始跑 DORA」，循環不斷。抓包發現每次 ACK 之後客戶端都送出一個 option 53 = 4 的封包。根因是什麼？你會怎麼縮小範圍找到那台肇事機器？</li>
+<li>情境題：你把 DHCP 伺服器上的 DNS 從 <code>192.168.1.1</code> 改成 <code>1.1.1.1</code>，租約設定是 24 小時。改完之後有些機器立刻生效、有些過了大半天才變、有些重開機就好了。用租約狀態機解釋這三種行為，並說明為什麼「改了 DHCP 設定不會立刻全網生效」是協定設計的必然結果，而不是伺服器的 bug。</li>
+</ol>
+<h2 id="tcpdump-選項">tcpdump 選項</h2>
+<blockquote>
+<p><strong>tcpdump 的選項超過 50 個、過濾語法（pcap-filter）更是自成一套語言。</strong>
+以下列出抓包排查最常用的一組；<strong>完整清單見 <code>tcpdump --help</code> 與 <code>man tcpdump</code>，過濾語法見 <code>man pcap-filter</code>。</strong></p>
+</blockquote>
+<p><strong>選要抓什麼</strong></p>
+<table>
+<thead>
+<tr>
+<th>選項</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-i &lt;介面&gt;</code></td>
+<td>指定網卡（<code>-i any</code> 抓全部）</td>
+</tr>
+<tr>
+<td><code>-c &lt;n&gt;</code></td>
+<td>抓到 n 個封包就停</td>
+</tr>
+<tr>
+<td><code>-s &lt;長度&gt;</code></td>
+<td>每個封包擷取幾位元組（<code>-s 0</code> 或不給＝完整封包）</td>
+</tr>
+<tr>
+<td><code>-w &lt;檔&gt;</code></td>
+<td><strong>寫成 pcap 檔</strong>（給 Wireshark 開）</td>
+</tr>
+<tr>
+<td><code>-r &lt;檔&gt;</code></td>
+<td>讀取 pcap 檔</td>
+</tr>
+<tr>
+<td><code>-G &lt;秒&gt;</code> / <code>-W &lt;n&gt;</code></td>
+<td>每 n 秒換檔／最多保留幾個檔（長期抓包用）</td>
+</tr>
+</tbody>
+</table>
+<p><strong>顯示格式</strong></p>
+<table>
+<thead>
+<tr>
+<th>選項</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-n</code></td>
+<td><strong>不做 DNS 反查</strong>（同 netstat 的理由）</td>
+</tr>
+<tr>
+<td><code>-nn</code></td>
+<td>連埠號也不翻成服務名</td>
+</tr>
+<tr>
+<td><code>-v</code> / <code>-vv</code> / <code>-vvv</code></td>
+<td>越多越詳細</td>
+</tr>
+<tr>
+<td><code>-X</code></td>
+<td><strong>同時顯示 hex 與 ASCII</strong> ← 本篇逐位元組解剖用的</td>
+</tr>
+<tr>
+<td><code>-XX</code></td>
+<td>連乙太網路標頭也一起</td>
+</tr>
+<tr>
+<td><code>-e</code></td>
+<td>顯示鏈路層標頭（MAC 位址）</td>
+</tr>
+<tr>
+<td><code>-t</code> / <code>-tt</code> / <code>-ttt</code> / <code>-tttt</code></td>
+<td>時間戳格式（不印／Unix 時間／相對時間／可讀時間）</td>
+</tr>
+<tr>
+<td><code>-q</code></td>
+<td>精簡輸出</td>
+</tr>
+<tr>
+<td><code>-A</code></td>
+<td>只用 ASCII 顯示內容</td>
+</tr>
+</tbody>
+</table>
+<p><strong>其他</strong></p>
+<table>
+<thead>
+<tr>
+<th>選項</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-D</code></td>
+<td><strong>列出可以抓的介面</strong></td>
+</tr>
+<tr>
+<td><code>-Z &lt;使用者&gt;</code></td>
+<td>丟掉 root 權限後以該使用者執行</td>
+</tr>
+<tr>
+<td><code>-p</code></td>
+<td>不進入混雜模式</td>
+</tr>
+<tr>
+<td><code>-l</code></td>
+<td>行緩衝（配合 `</td>
+</tr>
+</tbody>
+</table>
+<p><strong>過濾語法（filter expression）</strong> 是獨立的一套，常用的原語：
+<code>host</code>／<code>net</code>／<code>port</code>／<code>portrange</code>／<code>src</code>／<code>dst</code>／<code>tcp</code>／<code>udp</code>／<code>icmp</code>／<code>ether</code>／<code>vlan</code>，可用 <code>and</code>／<code>or</code>／<code>not</code> 組合，也能直接比對位元組（<code>tcp[13] &amp; 2 != 0</code> 抓 SYN）。</p>
+
+</main>
+</div>
+</body>
+</html>

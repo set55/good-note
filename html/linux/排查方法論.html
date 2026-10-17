@@ -1,0 +1,710 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>通用排查方法論：東西不在「該在的地方」時怎麼找</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/app.js"></script>
+</head>
+<body>
+<button class="menu-btn" onclick="toggleMenu()">☰ 目錄</button>
+<div class="layout">
+<nav class="side">
+<div class="crumbs"><a href="../index.html">🏠 首頁</a> / <a href="README.html">linux</a></div>
+<div class="tools"><button onclick="toggleTheme()">🌓 主題</button></div>
+<ul>
+<li class="l2"><a href="#%E7%9B%AE%E9%8C%84">目錄</a></li>
+<li class="l2"><a href="#%E4%B8%80%E5%85%A9%E6%A2%9D%E6%A0%B8%E5%BF%83%E5%8E%9F%E5%89%87">一、兩條核心原則</a></li>
+<li class="l3"><a href="#%E5%8E%9F%E5%89%87%E4%B8%80%E5%85%88%E9%A9%97%E8%AD%89%E5%AE%83%E8%A9%B2%E5%9C%A8%E9%82%A3%E8%A3%A1%E8%80%8C%E4%B8%8D%E6%98%AF%E5%85%88%E6%89%BE%E5%AE%83%E8%B7%91%E5%8E%BB%E5%93%AA">原則一：先驗證「它該在那裡」，而不是先找「它跑去哪」</a></li>
+<li class="l3"><a href="#%E5%8E%9F%E5%89%87%E4%BA%8C%E4%B8%8D%E8%A6%81%E5%95%8F%E5%AE%83%E5%9C%A8%E5%93%AA%E8%A6%81%E5%95%8F%E8%AA%B0%E8%B2%A0%E8%B2%AC%E6%8A%8A%E5%AE%83%E6%94%BE%E5%9C%A8%E9%82%A3%E8%A3%A1">原則二：不要問「它在哪」，要問「誰負責把它放在那裡」</a></li>
+<li class="l2"><a href="#%E4%BA%8C%E6%8A%80%E5%B7%A7%E9%80%9F%E6%9F%A5%E8%A1%A8">二、技巧速查表</a></li>
+<li class="l2"><a href="#%E4%B8%89%E6%8A%80%E5%B7%A7-1find-%E6%8E%83%E5%91%BD%E5%90%8D%E7%A9%BA%E9%96%93">三、技巧 1：find 掃命名空間</a></li>
+<li class="l2"><a href="#%E4%B8%89%E4%B9%8B%E4%BA%8C%E6%8E%83%E5%87%BA%E4%B8%80%E5%A0%86%E7%B5%90%E6%9E%9C%E5%BE%8C%E4%B8%89%E5%B1%A4%E7%AF%A9%E6%B3%95">三之二、掃出一堆結果後：三層篩法</a></li>
+<li class="l3"><a href="#%E7%AC%AC-1-%E5%B1%A4%E5%9E%8B%E5%88%A5%E7%AF%A9%E6%8E%89%E4%B8%80%E5%8D%8A">第 1 層：型別篩掉一半</a></li>
+<li class="l3"><a href="#%E7%AC%AC-2-%E5%B1%A4%E9%9D%A0%E8%B7%AF%E5%BE%91%E8%AA%9E%E7%BE%A9%E5%88%A4%E6%96%B7%E8%AA%B0%E5%BB%BA%E7%9A%84">第 2 層：靠路徑語義判斷「誰建的」</a></li>
+<li class="l3"><a href="#%E7%AC%AC-3-%E5%B1%A4%E4%B8%8D%E7%8C%9C%E8%B7%AF%E5%BE%91%E7%9B%B4%E6%8E%A5%E6%8C%89%E5%85%A7%E5%AE%B9%E6%90%9C">第 3 層：不猜路徑，直接按內容搜</a></li>
+<li class="l3"><a href="#%E5%9D%91%E4%B8%80%E5%90%8C%E4%B8%80%E5%80%8B%E6%9D%B1%E8%A5%BF%E5%9C%A8%E4%B8%8D%E5%90%8C%E4%BB%8B%E9%9D%A2%E5%8F%AB%E4%B8%8D%E5%90%8C%E5%90%8D%E5%AD%97--%E6%9C%80%E5%AE%B9%E6%98%93%E7%99%BD%E5%BF%99">坑一：同一個東西在不同介面叫不同名字 ← 最容易白忙</a></li>
+<li class="l3"><a href="#%E5%9D%91%E4%BA%8Cprocsys-%E8%A3%A1%E6%9C%89%E7%A1%AC%E9%AB%94%E8%83%8C%E6%9B%B8%E7%9A%84%E5%81%BD%E6%AA%94%E6%A1%88">坑二：/proc、/sys 裡有「硬體背書」的偽檔案</a></li>
+<li class="l2"><a href="#%E5%9B%9B%E6%8A%80%E5%B7%A7-2strings-%E6%8C%96%E7%A1%AC%E7%B7%A8%E7%A2%BC%E8%B7%AF%E5%BE%91">四、技巧 2：strings 挖硬編碼路徑</a></li>
+<li class="l3"><a href="#%E5%9D%91%E4%B8%80%E5%A3%93%E7%B8%AE--%E5%81%87%E9%99%B0%E6%80%A7">坑一：壓縮 = 假陰性</a></li>
+<li class="l3"><a href="#%E5%9D%91%E4%BA%8C%E6%89%BE%E7%89%87%E6%AE%B5%E4%B8%8D%E8%A6%81%E6%89%BE%E5%AE%8C%E6%95%B4%E8%B7%AF%E5%BE%91">坑二：找片段，不要找完整路徑</a></li>
+<li class="l3"><a href="#%E9%99%84%E5%B8%B6%E6%94%B6%E7%A9%AB%E7%AC%A6%E8%99%9F%E5%90%8D%E7%A8%B1%E6%9C%AC%E8%BA%AB%E5%B0%B1%E6%98%AF%E6%96%87%E4%BB%B6">附帶收穫：符號名稱本身就是文件</a></li>
+<li class="l2"><a href="#%E4%BA%94%E6%8A%80%E5%B7%A7-3strace-%E7%9C%8B%E5%AF%A6%E9%9A%9B%E8%A1%8C%E7%82%BA">五、技巧 3：strace 看實際行為</a></li>
+<li class="l3"><a href="#%E5%9D%91%E4%B8%8D%E8%A6%81%E5%8F%AA%E6%8A%93-openat">坑：不要只抓 openat</a></li>
+<li class="l3"><a href="#%E5%85%B6%E4%BB%96%E5%B8%B8%E7%94%A8%E9%96%8B%E9%97%9C">其他常用開關</a></li>
+<li class="l2"><a href="#%E5%85%AD%E6%8A%80%E5%B7%A7-4%E5%95%8F%E5%A5%97%E4%BB%B6%E7%AE%A1%E7%90%86%E5%93%A1">六、技巧 4：問套件管理員</a></li>
+<li class="l2"><a href="#%E4%B8%83%E6%8A%80%E5%B7%A7-5lsof-%E7%9C%8B%E5%9F%B7%E8%A1%8C%E4%B8%AD%E7%A8%8B%E5%BA%8F">七、技巧 5：lsof 看執行中程序</a></li>
+<li class="l2"><a href="#%E5%85%AB%E5%AE%8C%E6%95%B4%E6%B1%BA%E7%AD%96%E6%B5%81%E7%A8%8B">八、完整決策流程</a></li>
+<li class="l2"><a href="#%E4%B9%9D%E9%99%84%E9%8C%84%E6%9C%AC%E7%AF%87%E7%9A%84%E5%AE%8C%E6%95%B4%E5%AF%A6%E4%BE%8B">九、附錄：本篇的完整實例</a></li>
+<li class="l2"><a href="#%E9%80%9F%E6%9F%A5">速查</a></li>
+<li class="l2"><a href="#%E6%9C%AC%E7%AF%87%E7%94%A8%E5%88%B0%E7%9A%84%E5%B7%A5%E5%85%B7%E9%81%B8%E9%A0%85%E6%B6%B5%E8%93%8B%E7%AF%84%E5%9C%8D%E8%AA%AA%E6%98%8E">本篇用到的工具，選項涵蓋範圍說明</a></li>
+<li class="l3"><a href="#find%E6%9C%AC%E6%96%87%E7%94%A8%E5%88%B0%E7%9A%84%E9%83%A8%E5%88%86">find（本文用到的部分）</a></li>
+<li class="l3"><a href="#strace%E6%9C%AC%E6%96%87%E7%94%A8%E5%88%B0%E7%9A%84%E9%83%A8%E5%88%86">strace（本文用到的部分）</a></li>
+<li class="l3"><a href="#strings">strings</a></li>
+</ul>
+</nav>
+<main>
+<h1 id="通用排查方法論東西不在該在的地方時怎麼找">通用排查方法論：東西不在「該在的地方」時怎麼找</h1>
+<blockquote>
+<p>日期：2026-07-25<br />
+起因：查 NVIDIA 模組參數時，<code>/sys/module/nvidia/parameters/</code> 這個「常規位置」不存在<br />
+適用範圍：不限核心模組——設定檔、log、socket、執行檔、函式庫，任何「應該在某處卻找不到」的情況</p>
+</blockquote>
+<hr />
+<h2 id="目錄">目錄</h2>
+<ol>
+<li><a href="#%E4%B8%80%E5%85%A9%E6%A2%9D%E6%A0%B8%E5%BF%83%E5%8E%9F%E5%89%87">兩條核心原則</a></li>
+<li><a href="#%E4%BA%8C%E6%8A%80%E5%B7%A7%E9%80%9F%E6%9F%A5%E8%A1%A8">技巧速查表</a></li>
+<li><a href="#%E4%B8%89%E6%8A%80%E5%B7%A7-1find-%E6%8E%83%E5%91%BD%E5%90%8D%E7%A9%BA%E9%96%93">技巧 1：find 掃命名空間</a>
+3'. <a href="#%E4%B8%89%E4%B9%8B%E4%BA%8C%E6%8E%83%E5%87%BA%E4%B8%80%E5%A0%86%E7%B5%90%E6%9E%9C%E5%BE%8C%E4%B8%89%E5%B1%A4%E7%AF%A9%E6%B3%95">掃出一堆結果後：三層篩法</a></li>
+<li><a href="#%E5%9B%9B%E6%8A%80%E5%B7%A7-2strings-%E6%8C%96%E7%A1%AC%E7%B7%A8%E7%A2%BC%E8%B7%AF%E5%BE%91">技巧 2：strings 挖硬編碼路徑</a></li>
+<li><a href="#%E4%BA%94%E6%8A%80%E5%B7%A7-3strace-%E7%9C%8B%E5%AF%A6%E9%9A%9B%E8%A1%8C%E7%82%BA">技巧 3：strace 看實際行為</a></li>
+<li><a href="#%E5%85%AD%E6%8A%80%E5%B7%A7-4%E5%95%8F%E5%A5%97%E4%BB%B6%E7%AE%A1%E7%90%86%E5%93%A1">技巧 4：問套件管理員</a></li>
+<li><a href="#%E4%B8%83%E6%8A%80%E5%B7%A7-5lsof-%E7%9C%8B%E5%9F%B7%E8%A1%8C%E4%B8%AD%E7%A8%8B%E5%BA%8F">技巧 5：lsof 看執行中程序</a></li>
+<li><a href="#%E5%85%AB%E5%AE%8C%E6%95%B4%E6%B1%BA%E7%AD%96%E6%B5%81%E7%A8%8B">完整決策流程</a></li>
+<li><a href="#%E4%B9%9D%E9%99%84%E9%8C%84%E6%9C%AC%E7%AF%87%E7%9A%84%E5%AE%8C%E6%95%B4%E5%AF%A6%E4%BE%8B">附錄：本篇的完整實例</a></li>
+</ol>
+<hr />
+<h2 id="一兩條核心原則">一、兩條核心原則</h2>
+<h3 id="原則一先驗證它該在那裡而不是先找它跑去哪">原則一：先驗證「它該在那裡」，而不是先找「它跑去哪」</h3>
+<p>找不到東西時，本能是加大搜尋力度。但<strong>多數情況下錯的是預期，不是系統</strong>。</p>
+<p>驗證方法是<strong>找對照組</strong>——同類東西裡挑兩三個你確定正常的，看它們有沒有：</p>
+<pre><code class="language-bash"><span class="k">for</span><span class="w"> </span>m<span class="w"> </span><span class="k">in</span><span class="w"> </span>usbcore<span class="w"> </span>nvidia<span class="w"> </span>bridge<span class="w"> </span>nvidia_drm<span class="p">;</span><span class="w"> </span><span class="k">do</span>
+<span class="w">  </span><span class="nb">printf</span><span class="w"> </span><span class="s2">&quot;%-12s &quot;</span><span class="w"> </span><span class="s2">&quot;</span><span class="nv">$m</span><span class="s2">&quot;</span>
+<span class="w">  </span><span class="o">[</span><span class="w"> </span>-d<span class="w"> </span>/sys/module/<span class="nv">$m</span>/parameters<span class="w"> </span><span class="o">]</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;有&quot;</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;無&quot;</span>
+<span class="k">done</span>
+</code></pre>
+<pre><code>usbcore      有
+nvidia       無
+bridge       無          ← 最普通的 in-tree 模組也沒有
+nvidia_drm   有
+</code></pre>
+<p><strong>只看 nvidia，結論是「nvidia 很怪」；加上對照組，結論變成「這目錄本來就是條件性存在的」。</strong></p>
+<p>問題於是從「nvidia 壞了」（不可查證，且會導向亂修）重新框定為「這目錄的建立條件是什麼」（可查證）。<strong>找對照組成本極低、收益極高，是投報率最高的一步。</strong></p>
+<h3 id="原則二不要問它在哪要問誰負責把它放在那裡">原則二：不要問「它在哪」，要問「誰負責把它放在那裡」</h3>
+<p><code>parameters/</code> 不是 nvidia 建的，是<strong>核心的 <code>module_param()</code> 巨集在載入模組時建的</strong>：</p>
+<pre><code class="language-c"><span class="n">module_param</span><span class="p">(</span><span class="n">foo</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="p">,</span><span class="w"> </span><span class="mo">0444</span><span class="p">);</span><span class="w">   </span><span class="c1">// 第三個參數是 sysfs 權限 → 建立節點</span>
+<span class="n">module_param</span><span class="p">(</span><span class="n">bar</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">);</span><span class="w">      </span><span class="c1">// 權限 0 → 不建立，/sys 裡完全看不到</span>
+</code></pre>
+<p>一旦問題變成「誰建立、依什麼條件」，答案自己就浮現了，而且<strong>一次解釋所有模組的行為，不只眼前這一個</strong>。</p>
+<p>這個轉換的適用範圍遠超模組：</p>
+<table>
+<thead>
+<tr>
+<th>現象</th>
+<th>別問</th>
+<th>要問</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>log 不見了</td>
+<td>log 在哪</td>
+<td>誰寫的？journald / 程式自己 / logrotate 搬走了？</td>
+</tr>
+<tr>
+<td>設定沒生效</td>
+<td>設定檔在哪</td>
+<td>誰讀的？什麼時候讀？讀完後有沒有被覆蓋？</td>
+</tr>
+<tr>
+<td>指令找不到</td>
+<td>執行檔在哪</td>
+<td><code>PATH</code> 誰設的？哪個 shell 啟動檔？</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="二技巧速查表">二、技巧速查表</h2>
+<table>
+<thead>
+<tr>
+<th>情境</th>
+<th>技巧</th>
+<th>侷限</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>東西<strong>已存在</strong>，只是不知在哪</td>
+<td><code>find</code> 掃命名空間</td>
+<td>找不到執行時才建立的</td>
+</tr>
+<tr>
+<td>想知道程式<strong>將會</strong>去哪找</td>
+<td><code>strings</code> 二進位檔</td>
+<td>拼接出的路徑不會有完整字串</td>
+</tr>
+<tr>
+<td>想知道程式<strong>實際</strong>做了什麼</td>
+<td><code>strace -e trace=file</code></td>
+<td>只能用於使用者空間</td>
+</tr>
+<tr>
+<td>東西由套件提供</td>
+<td><code>dpkg -L</code> / <code>dpkg -S</code></td>
+<td>不含執行時生成的檔案</td>
+</tr>
+<tr>
+<td>程式正在跑，想知道它開著什麼</td>
+<td><code>lsof -p &lt;pid&gt;</code></td>
+<td>只看得到當下開啟的</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="三技巧-1find-掃命名空間">三、技巧 1：find 掃命名空間</h2>
+<p>最笨但最有效：<strong>拿關鍵字掃整個相關命名空間</strong>。</p>
+<pre><code class="language-bash">find<span class="w"> </span>/proc<span class="w"> </span>/sys<span class="w"> </span>-maxdepth<span class="w"> </span><span class="m">4</span><span class="w"> </span>-name<span class="w"> </span><span class="s1">&#39;*nvidia*&#39;</span><span class="w"> </span><span class="m">2</span>&gt;/dev/null
+find<span class="w"> </span>/etc<span class="w"> </span>/usr/share<span class="w"> </span>/var/lib<span class="w"> </span>-maxdepth<span class="w"> </span><span class="m">4</span><span class="w"> </span>-iname<span class="w"> </span><span class="s1">&#39;*關鍵字*&#39;</span><span class="w"> </span><span class="m">2</span>&gt;/dev/null
+</code></pre>
+<p>實測第一行就是答案：</p>
+<pre><code>/proc/driver/nvidia          ← 完全不需要事先知道 NVIDIA 有 proc 介面
+/proc/driver/nvidia-uvm
+/sys/module/nvidia
+/sys/bus/pci/drivers/nvidia
+...
+</code></pre>
+<p>往下鑽即得 <code>/proc/driver/nvidia/params</code>。</p>
+<p><strong>兩個必要細節：</strong></p>
+<ul>
+<li><strong><code>-maxdepth</code> 必加</strong>——<code>/proc</code> 有上千個 PID 目錄、<code>/sys</code> 有 symlink 迴圈，不限深度會跑到天荒地老</li>
+<li><strong><code>2&gt;/dev/null</code></strong>——濾掉權限雜訊，否則錯誤訊息會淹沒結果</li>
+</ul>
+<hr />
+<h2 id="三之二掃出一堆結果後三層篩法">三之二、掃出一堆結果後：三層篩法</h2>
+<p><code>find</code> 給 23 條結果，怎麼收斂到 1 條？由粗到細三層。</p>
+<table>
+<thead>
+<tr>
+<th>層</th>
+<th>手段</th>
+<th>效果</th>
+<th>何時用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1. 型別</td>
+<td><code>find ... -type d</code> / <code>-type f</code></td>
+<td>23 → 14</td>
+<td>永遠先做，零成本</td>
+</tr>
+<tr>
+<td>2. 路徑語義</td>
+<td>判斷「誰建立這個命名空間」</td>
+<td>14 → 1 個首選</td>
+<td>不必跑命令，靠理解</td>
+</tr>
+<tr>
+<td>3. 內容反查</td>
+<td><code>grep -rl '&lt;已知關鍵字&gt;' &lt;限定子樹&gt;</code></td>
+<td>直接命中</td>
+<td><strong>有已知關鍵字時優先用</strong></td>
+</tr>
+</tbody>
+</table>
+<h3 id="第-1-層型別篩掉一半">第 1 層：型別篩掉一半</h3>
+<p><strong>symlink 是交叉引用，不是內容本身</strong>——<code>holders/</code>、<code>drivers/</code>、<code>slab/</code> 都只是指回別處的指標：</p>
+<pre><code class="language-bash">find<span class="w"> </span>/proc<span class="w"> </span>/sys<span class="w"> </span>-maxdepth<span class="w"> </span><span class="m">4</span><span class="w"> </span>-name<span class="w"> </span><span class="s1">&#39;*nvidia*&#39;</span><span class="w"> </span>-type<span class="w"> </span>d<span class="w"> </span><span class="m">2</span>&gt;/dev/null<span class="w">    </span><span class="c1"># 23 → 14</span>
+</code></pre>
+<p>想先看每條是什麼型別，再決定怎麼篩：</p>
+<pre><code class="language-bash">find<span class="w"> </span>/proc<span class="w"> </span>/sys<span class="w"> </span>-maxdepth<span class="w"> </span><span class="m">4</span><span class="w"> </span>-name<span class="w"> </span><span class="s1">&#39;*nvidia*&#39;</span><span class="w"> </span><span class="m">2</span>&gt;/dev/null<span class="w"> </span><span class="p">|</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span><span class="k">while</span><span class="w"> </span><span class="nb">read</span><span class="w"> </span>p<span class="p">;</span><span class="w"> </span><span class="k">do</span><span class="w"> </span><span class="nb">printf</span><span class="w"> </span><span class="s2">&quot;%-12s %s\n&quot;</span><span class="w"> </span><span class="s2">&quot;</span><span class="k">$(</span>stat<span class="w"> </span>-c<span class="w"> </span><span class="s1">&#39;%F&#39;</span><span class="w"> </span><span class="s2">&quot;</span><span class="nv">$p</span><span class="s2">&quot;</span><span class="w"> </span><span class="m">2</span>&gt;/dev/null<span class="k">)</span><span class="s2">&quot;</span><span class="w"> </span><span class="s2">&quot;</span><span class="nv">$p</span><span class="s2">&quot;</span><span class="p">;</span><span class="w"> </span><span class="k">done</span>
+</code></pre>
+<h3 id="第-2-層靠路徑語義判斷誰建的">第 2 層：靠路徑語義判斷「誰建的」</h3>
+<p>這層不用跑命令，靠的是知道<strong>每個命名空間由誰負責、因此裡面會有什麼</strong>：</p>
+<table>
+<thead>
+<tr>
+<th>路徑</th>
+<th>誰建立</th>
+<th>內容性質</th>
+<th>可能有廠商自訂資料嗎</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>/sys/module/&lt;m&gt;/</code></td>
+<td><strong>核心自動生成</strong></td>
+<td>固定 schema：<code>refcnt</code>、<code>sections</code>、<code>taint</code>…</td>
+<td>只有 <code>parameters/</code>，且受權限限制</td>
+</tr>
+<tr>
+<td><code>/proc/driver/&lt;name&gt;/</code></td>
+<td><strong>驅動自己呼叫 <code>proc_mkdir</code> 建的</strong></td>
+<td><strong>任意</strong>——廠商想放什麼放什麼</td>
+<td>✅ <strong>最可能</strong></td>
+</tr>
+<tr>
+<td><code>/sys/bus/pci/drivers/&lt;d&gt;/</code></td>
+<td>核心驅動模型</td>
+<td><code>bind</code>/<code>unbind</code>/裝置連結</td>
+<td>✗ 是綁定介面</td>
+</tr>
+<tr>
+<td><code>/proc/irq/&lt;n&gt;/</code></td>
+<td>核心中斷子系統</td>
+<td>中斷親和性</td>
+<td>✗ 無關</td>
+</tr>
+<tr>
+<td><code>/sys/fs/cgroup/…</code></td>
+<td>systemd</td>
+<td>資源控制</td>
+<td>✗ 無關</td>
+</tr>
+<tr>
+<td><code>/sys/kernel/slab/</code></td>
+<td>記憶體配置器</td>
+<td>配置統計</td>
+<td>✗ 無關</td>
+</tr>
+</tbody>
+</table>
+<p><strong>關鍵推理：核心生成的命名空間 schema 固定，廠商塞不進東西；驅動自建的目錄則完全自由。</strong>
+要找「廠商自訂的東西」，就去廠商能自由發揮的地方 → <code>/proc/driver/nvidia/</code> 立刻成為第一順位。</p>
+<blockquote>
+<p>這就是<strong>原則二</strong>在實戰中的樣子：<strong>問「誰負責建立」，答案自動幫你排序了候選清單。</strong></p>
+</blockquote>
+<h3 id="第-3-層不猜路徑直接按內容搜">第 3 層：不猜路徑，直接按內容搜</h3>
+<p>前兩層仍帶推理成分。<strong>最確定的一招是繞過路徑，用「你知道會出現的內容」去搜。</strong></p>
+<pre><code class="language-bash">$<span class="w"> </span>grep<span class="w"> </span>-ril<span class="w"> </span><span class="s1">&#39;modifydevice&#39;</span><span class="w"> </span>/proc/driver<span class="w"> </span>--exclude-dir<span class="o">=</span>gpus
+/proc/driver/nvidia/params
+</code></pre>
+<p><strong>通則：</strong></p>
+<blockquote>
+<p>找不到檔案位置時，先問「<strong>這個檔案裡一定會有什麼字串？</strong>」設定檔有選項名、log 有時間戳或錯誤碼、快取有你查過的值。拿那個字串去 grep 限定的子樹，比猜路徑可靠得多。</p>
+</blockquote>
+<p>但這招有兩個必須知道的坑，兩個都是實際踩到的。</p>
+<h3 id="坑一同一個東西在不同介面叫不同名字--最容易白忙">坑一：同一個東西在不同介面叫不同名字 ← 最容易白忙</h3>
+<p><strong>直覺做法是拿 <code>modinfo -p</code> 給的參數名去搜，結果是搜不到任何東西：</strong></p>
+<pre><code class="language-bash">$<span class="w"> </span>modinfo<span class="w"> </span>-p<span class="w"> </span>nvidia<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-i<span class="w"> </span>modifydevice
+NVreg_ModifyDeviceFiles:<span class="w"> </span><span class="o">(</span>int<span class="o">)</span><span class="w">              </span><span class="c1"># ← modinfo 說它叫這個</span>
+
+$<span class="w"> </span>grep<span class="w"> </span>-i<span class="w"> </span>modifydevice<span class="w"> </span>/proc/driver/nvidia/params
+ModifyDeviceFiles:<span class="w"> </span><span class="m">1</span><span class="w">                        </span><span class="c1"># ← proc 裡卻沒有 NVreg_ 前綴</span>
+
+$<span class="w"> </span>grep<span class="w"> </span>-rl<span class="w"> </span><span class="s1">&#39;NVreg_ModifyDeviceFiles&#39;</span><span class="w"> </span>/proc/driver
+<span class="w">                                            </span><span class="c1"># ← 無結果</span>
+</code></pre>
+<p>不是偶發，是系統性的：</p>
+<pre><code class="language-bash">$<span class="w"> </span>modinfo<span class="w"> </span>-p<span class="w"> </span>nvidia<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-c<span class="w"> </span><span class="s1">&#39;^NVreg_&#39;</span><span class="w">          </span><span class="c1"># 45</span>
+$<span class="w"> </span>grep<span class="w"> </span>-c<span class="w"> </span><span class="s1">&#39;^NVreg_&#39;</span><span class="w"> </span>/proc/driver/nvidia/params<span class="w">   </span><span class="c1"># 0</span>
+</code></pre>
+<p><strong>原因：</strong> 驅動用 <code>module_param_named(NVreg_Foo, Foo, ...)</code> 註冊——
+modprobe 選項名是 <code>NVreg_Foo</code>，驅動內部變數是 <code>Foo</code>，proc 介面印的是後者。</p>
+<p><strong>對策：搜「片段」，不要搜完整名稱，並加 <code>-i</code> 忽略大小寫。</strong></p>
+<pre><code class="language-bash">grep<span class="w"> </span>-ril<span class="w"> </span><span class="s1">&#39;modifydevice&#39;</span><span class="w"> </span>/proc/driver<span class="w"> </span>--exclude-dir<span class="o">=</span>gpus<span class="w">     </span><span class="c1"># ✓</span>
+</code></pre>
+<blockquote>
+<p>這跟<a href="#%E5%9D%91%E4%BA%8C%E6%89%BE%E7%89%87%E6%AE%B5%E4%B8%8D%E8%A6%81%E6%89%BE%E5%AE%8C%E6%95%B4%E8%B7%AF%E5%BE%91">技巧 2 的坑二</a>是<strong>同一個道理</strong>：完整字串常因前綴、拼接、大小寫而對不上。<strong>關鍵字砍短，命中率大增。</strong></p>
+</blockquote>
+<h3 id="坑二procsys-裡有硬體背書的偽檔案">坑二：<code>/proc</code>、<code>/sys</code> 裡有「硬體背書」的偽檔案</h3>
+<p>不只是「別掃 <code>/proc</code> 根目錄」那麼簡單。先講根目錄的兩顆明雷：</p>
+<pre><code>128T  /proc/kcore      ← 代表全部實體記憶體的稀疏偽檔案
+-r--  /proc/kmsg       ← 讀取永久阻塞，等待新核心訊息
+</code></pre>
+<p><strong>但子樹裡也有暗雷。</strong> 本機實測，<code>/proc/driver</code> 只有 22 個檔案，其中一個是：</p>
+<pre><code>/proc/driver/nvidia/gpus/0000:01:00.0/information
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>讀取時的 dGPU 狀態</th>
+<th>耗時</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>已喚醒</td>
+<td><strong>0.002 秒</strong></td>
+</tr>
+<tr>
+<td>runtime suspend（省電休眠）</td>
+<td><strong>1.8 秒</strong>——讀取動作觸發喚醒</td>
+</tr>
+<tr>
+<td>更深的省電狀態</td>
+<td>實測曾 <strong>超過 120 秒</strong></td>
+</tr>
+</tbody>
+</table>
+<p>Optimus 雙顯卡筆電的獨顯平常會 runtime suspend，<strong><code>grep -r</code> 掃過 <code>gpus/</code> 就等於強迫喚醒顯卡</strong>。</p>
+<blockquote>
+<p><strong>通則：<code>/proc</code> 和 <code>/sys</code> 裡有些偽檔案是「硬體背書」的——讀取會觸發真實硬體動作</strong>
+（喚醒裝置、查詢韌體、輪詢感測器）。它們不會永久阻塞，但可能慢到像當機，而且<strong>耗時取決於當下電源狀態，無法穩定重現</strong>——這讓它特別難診斷。</p>
+</blockquote>
+<p><strong>對策：</strong></p>
+<pre><code class="language-bash"><span class="c1"># 1. 排除硬體相關子目錄</span>
+grep<span class="w"> </span>-ril<span class="w"> </span><span class="s1">&#39;kw&#39;</span><span class="w"> </span>/proc/driver<span class="w"> </span>--exclude-dir<span class="o">=</span>gpus
+
+<span class="c1"># 2. 不確定時加 timeout 保險，一次一檔</span>
+find<span class="w"> </span>&lt;子樹&gt;<span class="w"> </span>-type<span class="w"> </span>f<span class="w"> </span><span class="m">2</span>&gt;/dev/null<span class="w"> </span>-exec<span class="w"> </span>timeout<span class="w"> </span><span class="m">1</span><span class="w"> </span>grep<span class="w"> </span>-l<span class="w"> </span><span class="s1">&#39;&lt;kw&gt;&#39;</span><span class="w"> </span><span class="o">{}</span><span class="w"> </span>+<span class="w"> </span><span class="m">2</span>&gt;/dev/null
+
+<span class="c1"># 3. 事後找出是誰卡住的</span>
+find<span class="w"> </span>&lt;子樹&gt;<span class="w"> </span>-type<span class="w"> </span>f<span class="w"> </span><span class="m">2</span>&gt;/dev/null<span class="w"> </span><span class="p">|</span><span class="w"> </span><span class="k">while</span><span class="w"> </span><span class="nb">read</span><span class="w"> </span>f<span class="p">;</span><span class="w"> </span><span class="k">do</span>
+<span class="w">  </span>timeout<span class="w"> </span><span class="m">1</span><span class="w"> </span>cat<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$f</span><span class="s2">&quot;</span><span class="w"> </span>&gt;/dev/null<span class="w"> </span><span class="m">2</span>&gt;<span class="p">&amp;</span><span class="m">1</span><span class="p">;</span><span class="w"> </span><span class="o">[</span><span class="w"> </span><span class="nv">$?</span><span class="w"> </span>-eq<span class="w"> </span><span class="m">124</span><span class="w"> </span><span class="o">]</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;阻塞: </span><span class="nv">$f</span><span class="s2">&quot;</span>
+<span class="k">done</span>
+</code></pre>
+<p><strong>第 2 層與第 3 層互補：推理決定 grep 哪個子樹（順便避開地雷），內容搜尋決定答案。</strong></p>
+<hr />
+<h2 id="四技巧-2strings-挖硬編碼路徑">四、技巧 2：strings 挖硬編碼路徑</h2>
+<p><code>find</code> 只能找<strong>已存在</strong>的東西。若路徑是執行時才建立，或你想知道程式<strong>將會</strong>去讀哪裡，就問二進位檔本身——<strong>路徑字串幾乎一定硬編碼在裡面</strong>。</p>
+<pre><code class="language-bash">zstdcat<span class="w"> </span><span class="s2">&quot;</span><span class="k">$(</span>modinfo<span class="w"> </span>-n<span class="w"> </span>nvidia<span class="k">)</span><span class="s2">&quot;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>strings<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-oE<span class="w"> </span><span class="s1">&#39;/(proc|sys)/[a-zA-Z0-9_/-]+&#39;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>sort<span class="w"> </span>-u
+strings<span class="w"> </span><span class="k">$(</span>which<span class="w"> </span>foo<span class="k">)</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-E<span class="w"> </span><span class="s1">&#39;^/|\.conf|\.d/&#39;</span><span class="w">      </span><span class="c1"># 一般執行檔</span>
+</code></pre>
+<h3 id="坑一壓縮--假陰性">坑一：壓縮 = 假陰性</h3>
+<pre><code class="language-bash">$<span class="w"> </span>strings<span class="w"> </span>/lib/modules/.../nvidia.ko.zst<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-c<span class="w"> </span><span class="s1">&#39;/proc/driver&#39;</span>
+<span class="m">0</span><span class="w">                                    </span><span class="c1"># ← 不是沒有，是根本沒解壓</span>
+</code></pre>
+<p><code>.ko.zst</code>、<code>.gz</code>、<code>.xz</code>、<code>.jar</code>、UPX 殼都一樣。<strong>搜不到時先 <code>file &lt;檔案&gt;</code> 確認是不是壓縮的。</strong></p>
+<h3 id="坑二找片段不要找完整路徑">坑二：找片段，不要找完整路徑</h3>
+<p>解壓後 grep <code>/proc/driver</code> 仍是 0 筆。改找片段才有：</p>
+<pre><code class="language-bash">$<span class="w"> </span>zstdcat<span class="w"> </span><span class="s2">&quot;</span><span class="k">$(</span>modinfo<span class="w"> </span>-n<span class="w"> </span>nvidia<span class="k">)</span><span class="s2">&quot;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>strings<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-oE<span class="w"> </span><span class="s1">&#39;[a-z/]*driver/nvidia[a-z/-]*&#39;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>sort<span class="w"> </span>-u
+driver/nvidia<span class="w">                        </span>←<span class="w"> </span>沒有<span class="w"> </span>/proc/<span class="w"> </span>前綴！
+driver/nvidia-caps
+/driver/nvidia/capabilities/
+</code></pre>
+<p>原因：核心 API <code>proc_mkdir(&quot;driver/nvidia&quot;, NULL)</code> 收的是<strong>相對於 <code>/proc</code> 的路徑</strong>，<code>/proc/</code> 前綴從未出現在檔案中。</p>
+<p><strong>通則：路徑常在執行時被組合（拼接、<code>sprintf</code>、變數展開），完整字串根本不存在。找不到就把關鍵字砍短再試。</strong></p>
+<h3 id="附帶收穫符號名稱本身就是文件">附帶收穫：符號名稱本身就是文件</h3>
+<pre><code class="language-bash">$<span class="w"> </span>zstdcat<span class="w"> </span><span class="s2">&quot;</span><span class="k">$(</span>modinfo<span class="w"> </span>-n<span class="w"> </span>nvidia<span class="k">)</span><span class="s2">&quot;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>strings<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-E<span class="w"> </span><span class="s1">&#39;^proc_(mkdir|create)&#39;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>sort<span class="w"> </span>-u
+proc_create_data
+proc_mkdir_mode
+</code></pre>
+<p>看到這兩個符號，就知道機制是「模組主動呼叫 proc API 建目錄」，不是核心自動生成的——<strong>直接回答了原則二的「誰負責建立」</strong>。</p>
+<hr />
+<h2 id="五技巧-3strace-看實際行為">五、技巧 3：strace 看實際行為</h2>
+<p><strong>對一般程式（非核心模組），這是最強的一招。</strong> 不用猜設定檔在哪，讓程式自己說：</p>
+<pre><code class="language-bash">strace<span class="w"> </span>-e<span class="w"> </span><span class="nv">trace</span><span class="o">=</span>file<span class="w"> </span>&lt;命令&gt;<span class="w"> </span><span class="m">2</span>&gt;<span class="p">&amp;</span><span class="m">1</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>ENOENT
+</code></pre>
+<p>實測 <code>git config --list</code>：</p>
+<pre><code>access(&quot;/etc/gitconfig&quot;, R_OK)               = -1 ENOENT    ← 系統層
+access(&quot;/home/set/.config/git/config&quot;, R_OK) = -1 ENOENT    ← XDG 層
+access(&quot;/home/set/.gitconfig&quot;, R_OK)         = 0            ← 命中
+openat(AT_FDCWD, &quot;/home/set/.gitconfig&quot;, O_RDONLY) = 3
+</code></pre>
+<p><strong><code>ENOENT</code>（Error NO ENTry，POSIX 系統呼叫的標準錯誤碼，意指「找不到該檔案或目錄」）那些行才是重點——它們是「程式找過但沒找到」的完整清單，等於搜尋順序與優先級。</strong>
+要新增設定檔時照這清單挑位置，保證被讀到；要覆蓋既有設定時，挑排在前面的位置。</p>
+<h3 id="坑不要只抓-openat">坑：不要只抓 openat</h3>
+<pre><code class="language-bash">strace<span class="w"> </span>-e<span class="w"> </span><span class="nv">trace</span><span class="o">=</span>openat<span class="w"> </span>git<span class="w"> </span>config<span class="w"> </span>--list<span class="w">    </span><span class="c1"># ← 什麼都抓不到！</span>
+</code></pre>
+<p>git 用 <code>access()</code> 先探測再開檔。<strong>一律用 <code>trace=file</code></strong>，它涵蓋 <code>openat</code>/<code>access</code>/<code>stat</code>/<code>newfstatat</code> 全部檔案相關呼叫。</p>
+<h3 id="其他常用開關">其他常用開關</h3>
+<pre><code class="language-bash">strace<span class="w"> </span>-f<span class="w"> </span>...<span class="w">                    </span><span class="c1"># 跟進子程序（多程序程式必加）</span>
+strace<span class="w"> </span>-e<span class="w"> </span><span class="nv">trace</span><span class="o">=</span>network<span class="w"> </span>...<span class="w">      </span><span class="c1"># 只看網路，查連不上哪個位址</span>
+strace<span class="w"> </span>-p<span class="w"> </span>&lt;pid&gt;<span class="w">                  </span><span class="c1"># 附加到執行中的程序</span>
+strace<span class="w"> </span>-o<span class="w"> </span>out.txt<span class="w"> </span>...<span class="w">            </span><span class="c1"># 輸出到檔案（stderr 量大時）</span>
+</code></pre>
+<p><strong>侷限：核心模組沒有系統呼叫可攔，用不了 strace</strong>——那種情況回到技巧 1、2。</p>
+<hr />
+<h2 id="六技巧-4問套件管理員">六、技巧 4：問套件管理員</h2>
+<pre><code class="language-bash">dpkg<span class="w"> </span>-L<span class="w"> </span>&lt;套件&gt;<span class="w">          </span><span class="c1"># 正查：這套件裝了哪些檔案</span>
+dpkg<span class="w"> </span>-S<span class="w"> </span>&lt;檔案路徑&gt;<span class="w">       </span><span class="c1"># 反查：這檔案屬於哪個套件</span>
+dpkg<span class="w"> </span>-L<span class="w"> </span>&lt;套件&gt;<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-E<span class="w"> </span><span class="s1">&#39;\.conf|/etc/|\.service&#39;</span><span class="w">    </span><span class="c1"># 只看設定檔</span>
+</code></pre>
+<p>實測：</p>
+<pre><code class="language-bash">$<span class="w"> </span>dpkg<span class="w"> </span>-S<span class="w"> </span>/usr/bin/nvidia-smi
+nvidia-utils-580:<span class="w"> </span>/usr/bin/nvidia-smi
+</code></pre>
+<p><strong>反查特別有用</strong>：找到一個檔案後想知道來龍去脈，先查屬於哪個套件，再 <code>dpkg -L</code> 看同套件還裝了什麼——設定檔、文件、systemd unit 通常都在旁邊。</p>
+<p><strong>侷限：只涵蓋套件登記過的檔案。</strong> 執行時生成的（<code>depmod</code> 索引、快取、log）查不到——參見 <a href="%E6%A0%B8%E5%BF%83%E6%A8%A1%E7%B5%84%E6%AA%A2%E6%9F%A5.html">核心模組檢查</a> 第十節的孤兒目錄，正是「dpkg 不認得所以刪不掉」的實例。</p>
+<hr />
+<h2 id="七技巧-5lsof-看執行中程序">七、技巧 5：lsof 看執行中程序</h2>
+<p>適合「服務正在跑，但不知道它讀的是哪個設定檔」。</p>
+<pre><code class="language-bash">sudo<span class="w"> </span>lsof<span class="w"> </span>-p<span class="w"> </span>&lt;pid&gt;<span class="w">              </span><span class="c1"># 該程序開著的所有檔案</span>
+sudo<span class="w"> </span>lsof<span class="w"> </span>-c<span class="w"> </span>nginx<span class="w">              </span><span class="c1"># 依程序名</span>
+sudo<span class="w"> </span>lsof<span class="w"> </span>&lt;檔案&gt;<span class="w">                 </span><span class="c1"># 反查：誰開著這個檔案（查 umount 失敗）</span>
+</code></pre>
+<p><strong>坑：<code>pgrep &lt;name&gt;</code> 對超過 15 字元的程序名會失效</strong>（核心 comm 欄位上限），要用 <code>pgrep -f</code> 比對完整命令列：</p>
+<pre><code class="language-bash">$<span class="w"> </span>pgrep<span class="w"> </span>-n<span class="w"> </span>nvidia-persistenced
+pgrep:<span class="w"> </span>pattern<span class="w"> </span>that<span class="w"> </span>searches<span class="w"> </span><span class="k">for</span><span class="w"> </span>process<span class="w"> </span>name<span class="w"> </span>longer<span class="w"> </span>than<span class="w"> </span><span class="m">15</span><span class="w"> </span>characters<span class="w"> </span>will<span class="w"> </span>result<span class="w"> </span><span class="k">in</span><span class="w"> </span>zero<span class="w"> </span>matches
+$<span class="w"> </span>pgrep<span class="w"> </span>-f<span class="w"> </span>nvidia-persistenced<span class="w">       </span><span class="c1"># ← 正確用法</span>
+</code></pre>
+<hr />
+<h2 id="八完整決策流程">八、完整決策流程</h2>
+<pre><code>找不到預期的東西
+   │
+   ├─0. 找 2-3 個同類對照組 ─── 也沒有？ → 前提錯了，改查「建立條件」
+   │                                       多數在此結案
+   │                                       （查條件：man / 原始碼 / 符號名稱）
+   ├─1. find 掃命名空間（-maxdepth 必加，2&gt;/dev/null）
+   │      └─ 結果太多 → 三層篩法：
+   │           1) -type d/f 濾掉 symlink
+   │           2) 路徑語義判斷「誰建的」→ 決定 grep 哪個子樹
+   │           3) grep -rl '&lt;已知關鍵字&gt;' &lt;子樹&gt;  ← 有關鍵字時直接跳這層
+   │
+   ├─2. 還是沒有 → 它可能執行時才生成
+   │      ├─ 使用者空間程式 → strace -e trace=file，看 ENOENT 清單
+   │      └─ 核心模組       → strings 二進位檔（先解壓、找片段）
+   │
+   ├─3. 想知道來源脈絡 → dpkg -S 反查套件 → dpkg -L 看同套件其他檔案
+   │
+   └─4. 程式正在跑 → lsof -p 看它實際開著什麼
+</code></pre>
+<p><strong>貫穿全程的一句話：</strong></p>
+<blockquote>
+<p>不要停在「找不到」，要推進到「為什麼不在那裡」。前者是死路；後者總能導向一個可查證的機制問題——而機制問題的答案，通常能一次解釋一整類現象，不只眼前這一個。</p>
+</blockquote>
+<hr />
+<h2 id="九附錄本篇的完整實例">九、附錄：本篇的完整實例</h2>
+<p><strong>問題：</strong> <code>/sys/module/nvidia/parameters/</code> 不存在，但 <code>modinfo -p nvidia</code> 明明列出 48 個參數。</p>
+<table>
+<thead>
+<tr>
+<th>步驟</th>
+<th>動作</th>
+<th>結果</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0</td>
+<td>對照 <code>usbcore</code>/<code>bridge</code>/<code>nvidia_drm</code></td>
+<td><code>bridge</code> 也沒有 → <strong>前提錯誤，非 nvidia 專屬問題</strong></td>
+</tr>
+<tr>
+<td>0'</td>
+<td>查建立條件</td>
+<td><code>module_param()</code> 第三個參數為 <code>0</code> 就不建節點</td>
+</tr>
+<tr>
+<td>1</td>
+<td><code>find /proc /sys -maxdepth 4 -name '*nvidia*'</code></td>
+<td>23 條結果，需收斂</td>
+</tr>
+<tr>
+<td>1a</td>
+<td>加 <code>-type d</code> 濾掉 symlink</td>
+<td>23 → 14</td>
+</tr>
+<tr>
+<td>1b</td>
+<td>路徑語義：<code>/proc/driver/&lt;name&gt;/</code> 是驅動自建、內容任意</td>
+<td>鎖定 <code>/proc/driver/nvidia</code></td>
+</tr>
+<tr>
+<td>1c</td>
+<td><code>ls /proc/driver/nvidia/</code></td>
+<td><strong><code>params</code> ← 答案</strong></td>
+</tr>
+<tr>
+<td>1'</td>
+<td>或直接 <code>grep -ril 'modifydevice' /proc/driver --exclude-dir=gpus</code></td>
+<td><strong>一步命中，免推理</strong></td>
+</tr>
+<tr>
+<td>2</td>
+<td><code>strings</code> 驗證機制</td>
+<td>找到 <code>driver/nvidia</code> + <code>proc_mkdir_mode</code></td>
+</tr>
+</tbody>
+</table>
+<p><strong>結論：</strong> NVIDIA 的 48 個 <code>NVreg_*</code> 參數全部用權限 <code>0</code> 宣告，故 <code>/sys</code> 無節點；
+NVIDIA 改為自建 proc 介面暴露這些值：</p>
+<pre><code class="language-bash">cat<span class="w"> </span>/proc/driver/nvidia/params<span class="w">      </span><span class="c1"># 42 行，免 sudo</span>
+</code></pre>
+<p>四支 nvidia 模組的實況對照：</p>
+<table>
+<thead>
+<tr>
+<th>模組</th>
+<th><code>/sys/module/&lt;m&gt;/parameters/</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>nvidia</code></td>
+<td><strong>無</strong>（48 個參數全宣告為權限 0）</td>
+</tr>
+<tr>
+<td><code>nvidia_drm</code></td>
+<td>有，2 個（且權限 <code>0400</code>，需 sudo）</td>
+</tr>
+<tr>
+<td><code>nvidia_modeset</code></td>
+<td>有，14 個</td>
+</tr>
+<tr>
+<td><code>nvidia_uvm</code></td>
+<td>有，53 個</td>
+</tr>
+</tbody>
+</table>
+<p><strong>通則：<code>/sys</code> 沒有時，先看該驅動有沒有自己的 <code>/proc/driver/&lt;name&gt;/</code> 或 <code>/sys/class/</code> 介面。</strong></p>
+<hr />
+<h2 id="速查">速查</h2>
+<pre><code class="language-bash"><span class="c1"># 0. 對照組（最先做）</span>
+<span class="k">for</span><span class="w"> </span>x<span class="w"> </span><span class="k">in</span><span class="w"> </span>&lt;樣本1&gt;<span class="w"> </span>&lt;樣本2&gt;<span class="w"> </span>&lt;樣本3&gt;<span class="p">;</span><span class="w"> </span><span class="k">do</span><span class="w"> </span>...檢查...<span class="w"> </span><span class="p">;</span><span class="w"> </span><span class="k">done</span>
+
+<span class="c1"># 1. 掃命名空間</span>
+find<span class="w"> </span>/proc<span class="w"> </span>/sys<span class="w"> </span>-maxdepth<span class="w"> </span><span class="m">4</span><span class="w"> </span>-name<span class="w"> </span><span class="s1">&#39;*&lt;kw&gt;*&#39;</span><span class="w"> </span><span class="m">2</span>&gt;/dev/null
+find<span class="w"> </span>/etc<span class="w"> </span>/usr/share<span class="w"> </span>/var/lib<span class="w"> </span>-maxdepth<span class="w"> </span><span class="m">4</span><span class="w"> </span>-iname<span class="w"> </span><span class="s1">&#39;*&lt;kw&gt;*&#39;</span><span class="w"> </span><span class="m">2</span>&gt;/dev/null
+
+<span class="c1"># 1&#39;. 結果太多 → 三層篩</span>
+find<span class="w"> </span>...<span class="w"> </span>-type<span class="w"> </span>d<span class="w">                              </span><span class="c1"># ① 濾掉 symlink（交叉引用非內容）</span>
+<span class="w">                                              </span><span class="c1"># ② 想「誰建的」，決定該搜哪個子樹</span>
+grep<span class="w"> </span>-ril<span class="w"> </span><span class="s1">&#39;&lt;關鍵字片段&gt;&#39;</span><span class="w"> </span>&lt;限定子樹&gt;<span class="w">             </span><span class="c1"># ③ 有關鍵字時直接跳這層，最確定</span>
+<span class="w">                                              </span><span class="c1">#    -i + 搜「片段」：不同介面的名字常有前綴差異</span>
+<span class="w">                                              </span><span class="c1">#    （modinfo 的 NVreg_Foo = proc 裡的 Foo）</span>
+grep<span class="w"> </span>-rl<span class="w"> </span><span class="s1">&#39;kw&#39;</span><span class="w"> </span>/proc<span class="w">                           </span><span class="c1"># ✗ 絕不要：撞上 kcore(128T) / kmsg(阻塞)</span>
+grep<span class="w"> </span>-ril<span class="w"> </span><span class="s1">&#39;kw&#39;</span><span class="w"> </span>/proc/driver<span class="w"> </span>--exclude-dir<span class="o">=</span>gpus<span class="w">  </span><span class="c1"># ✗→✓ 子樹也有暗雷：讀 gpus/ 會喚醒獨顯</span>
+
+<span class="c1"># 2. 挖二進位檔（先 file 確認壓縮；找片段，不要找完整路徑）</span>
+file<span class="w"> </span>&lt;檔案&gt;
+strings<span class="w"> </span>&lt;檔案&gt;<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-oE<span class="w"> </span><span class="s1">&#39;/[a-zA-Z0-9_/.-]+&#39;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>sort<span class="w"> </span>-u
+zstdcat<span class="w"> </span>&lt;檔案&gt;.zst<span class="w"> </span><span class="p">|</span><span class="w"> </span>strings<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-E<span class="w"> </span><span class="s1">&#39;&lt;短關鍵字&gt;&#39;</span>
+
+<span class="c1"># 3. 看實際行為（trace=file，不是 openat）</span>
+strace<span class="w"> </span>-f<span class="w"> </span>-e<span class="w"> </span><span class="nv">trace</span><span class="o">=</span>file<span class="w"> </span>&lt;cmd&gt;<span class="w"> </span><span class="m">2</span>&gt;<span class="p">&amp;</span><span class="m">1</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>ENOENT
+
+<span class="c1"># 4. 套件溯源</span>
+dpkg<span class="w"> </span>-S<span class="w"> </span>&lt;路徑&gt;<span class="w">          </span><span class="c1"># 反查套件</span>
+dpkg<span class="w"> </span>-L<span class="w"> </span>&lt;套件&gt;<span class="w">          </span><span class="c1"># 該套件所有檔案</span>
+
+<span class="c1"># 5. 執行中程序</span>
+pgrep<span class="w"> </span>-f<span class="w"> </span>&lt;名稱&gt;<span class="w">          </span><span class="c1"># -f！名稱超過 15 字元時 pgrep &lt;name&gt; 會失效</span>
+sudo<span class="w"> </span>lsof<span class="w"> </span>-p<span class="w"> </span>&lt;pid&gt;
+</code></pre>
+<h2 id="本篇用到的工具選項涵蓋範圍說明">本篇用到的工具，選項涵蓋範圍說明</h2>
+<blockquote>
+<p>這篇是方法論，用到的 <code>find</code>／<code>strace</code>／<code>grep</code>／<code>strings</code>／<code>lsof</code> 每一個都有龐大的選項集（<code>find</code> 超過 80 個、<code>strace</code> 超過 40 個）。<strong>這裡只列本文方法會用到的那些，不是完整清單</strong>；完整內容請看各自的 <code>man</code>。</p>
+</blockquote>
+<h3 id="find本文用到的部分"><code>find</code>（本文用到的部分）</h3>
+<table>
+<thead>
+<tr>
+<th>選項</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-name &lt;樣式&gt;</code> / <code>-iname</code></td>
+<td>依檔名比對（後者不分大小寫）</td>
+</tr>
+<tr>
+<td><code>-path &lt;樣式&gt;</code></td>
+<td>比對完整路徑</td>
+</tr>
+<tr>
+<td><code>-type f|d|l</code></td>
+<td>只找檔案／目錄／符號連結</td>
+</tr>
+<tr>
+<td><code>-maxdepth &lt;n&gt;</code> / <code>-mindepth &lt;n&gt;</code></td>
+<td>限制深度（<strong>放在其他條件之前才有效</strong>）</td>
+</tr>
+<tr>
+<td><code>-mtime &lt;n&gt;</code> / <code>-mmin &lt;n&gt;</code></td>
+<td>依修改時間（天／分鐘）</td>
+</tr>
+<tr>
+<td><code>-size &lt;n&gt;[ckMG]</code></td>
+<td>依大小</td>
+</tr>
+<tr>
+<td><code>-user</code> / <code>-group</code> / <code>-perm</code></td>
+<td>依擁有者／群組／權限</td>
+</tr>
+<tr>
+<td><code>-exec &lt;指令&gt; {} \;</code> / <code>-exec ... {} +</code></td>
+<td>對結果執行指令（<code>+</code> 是批次，快很多）</td>
+</tr>
+<tr>
+<td><code>-print0</code></td>
+<td>以 <code>\0</code> 分隔（配 <code>xargs -0</code>，<strong>檔名含空白時必用</strong>）</td>
+</tr>
+<tr>
+<td><code>-prune</code></td>
+<td>剪掉不要進入的子樹</td>
+</tr>
+<tr>
+<td><code>2&gt;/dev/null</code></td>
+<td>不是 find 的選項，但實務上必加（濾掉 Permission denied）</td>
+</tr>
+</tbody>
+</table>
+<p><strong>完整清單：<code>man find</code>。</strong></p>
+<h3 id="strace本文用到的部分"><code>strace</code>（本文用到的部分）</h3>
+<table>
+<thead>
+<tr>
+<th>選項</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-f</code></td>
+<td><strong>追蹤子行程</strong>（大多數情況必加）</td>
+</tr>
+<tr>
+<td><code>-e trace=&lt;集合&gt;</code></td>
+<td>只追蹤某類呼叫（<code>file</code>／<code>network</code>／<code>process</code>／<code>openat,stat</code>…）</td>
+</tr>
+<tr>
+<td><code>-p &lt;PID&gt;</code></td>
+<td>附加到既有行程</td>
+</tr>
+<tr>
+<td><code>-o &lt;檔&gt;</code></td>
+<td>輸出到檔案</td>
+</tr>
+<tr>
+<td><code>-s &lt;長度&gt;</code></td>
+<td>字串顯示長度（<strong>預設 32 會截斷，通常要調大</strong>）</td>
+</tr>
+<tr>
+<td><code>-t</code> / <code>-tt</code> / <code>-ttt</code></td>
+<td>時間戳</td>
+</tr>
+<tr>
+<td><code>-T</code></td>
+<td>顯示每個呼叫耗時（<strong>找慢在哪</strong> ）</td>
+</tr>
+<tr>
+<td><code>-c</code></td>
+<td><strong>只印統計摘要</strong>（哪個呼叫最多／最慢）</td>
+</tr>
+<tr>
+<td><code>-y</code></td>
+<td>把 fd 顯示成實際路徑（<strong>很好用</strong>）</td>
+</tr>
+</tbody>
+</table>
+<p><strong>完整清單：<code>man strace</code>。</strong></p>
+<h3 id="strings"><code>strings</code></h3>
+<table>
+<thead>
+<tr>
+<th>選項</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-n &lt;長度&gt;</code></td>
+<td>最短字串長度（預設 4）</td>
+</tr>
+<tr>
+<td><code>-t d|o|x</code></td>
+<td>顯示偏移量（十進位／八進位／十六進位）</td>
+</tr>
+<tr>
+<td><code>-a</code></td>
+<td>掃描整個檔案（預設只掃已載入區段）</td>
+</tr>
+<tr>
+<td><code>-e &lt;編碼&gt;</code></td>
+<td>字元編碼（<code>s</code>／<code>S</code>／<code>b</code>／<code>l</code>／<code>B</code>／<code>L</code>）</td>
+</tr>
+</tbody>
+</table>
+
+</main>
+</div>
+</body>
+</html>

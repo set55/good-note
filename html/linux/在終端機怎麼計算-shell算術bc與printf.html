@@ -1,0 +1,497 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>在終端機怎麼計算？—— $(( ))、bc、printf 各管什麼，以及它們的陷阱</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/app.js"></script>
+</head>
+<body>
+<button class="menu-btn" onclick="toggleMenu()">☰ 目錄</button>
+<div class="layout">
+<nav class="side">
+<div class="crumbs"><a href="../index.html">🏠 首頁</a> / <a href="README.html">linux</a></div>
+<div class="tools"><button onclick="toggleTheme()">🌓 主題</button></div>
+<ul>
+<li class="l2"><a href="#%E4%B8%80%E5%85%88%E9%81%B8%E5%B7%A5%E5%85%B7">一、先選工具</a></li>
+<li class="l2"><a href="#%E4%BA%8C-shell-%E5%85%A7%E5%BB%BA%E7%9A%84%E6%95%B4%E6%95%B8%E9%81%8B%E7%AE%97">二、$(( ))：shell 內建的整數運算</a></li>
+<li class="l3"><a href="#%E6%96%87%E6%B3%95">文法</a></li>
+<li class="l3"><a href="#%E5%AF%A6%E6%B8%ACbash-%E8%88%87-zsh-%E4%B8%A6%E6%8E%92">實測（bash 與 zsh 並排）</a></li>
+<li class="l3"><a href="#%E5%9B%9B%E5%80%8B%E9%99%B7%E9%98%B1">四個陷阱</a></li>
+<li class="l3"><a href="#%E5%85%A8%E9%83%A8%E9%81%8B%E7%AE%97%E5%AD%90man-bash-%E7%9A%84-arithmetic-evaluation%E4%BE%9D%E5%84%AA%E5%85%88%E9%A0%86%E5%BA%8F%E7%94%B1%E9%AB%98%E5%88%B0%E4%BD%8E">全部運算子（man bash 的 ARITHMETIC EVALUATION，依優先順序由高到低）</a></li>
+<li class="l3"><a href="#zsh-%E5%B0%88%E5%B1%AC%E7%9B%B4%E6%8E%A5%E8%BC%B8%E5%87%BA%E6%88%90%E5%85%B6%E4%BB%96%E9%80%B2%E4%BD%8D">zsh 專屬：直接輸出成其他進位</a></li>
+<li class="l2"><a href="#%E4%B8%89bc%E5%B0%8F%E6%95%B8%E8%88%87%E4%BB%BB%E6%84%8F%E5%A4%A7%E7%9A%84%E6%95%B8%E5%AD%97">三、bc：小數與任意大的數字</a></li>
+<li class="l3"><a href="#%E7%94%A8%E6%B3%95">用法</a></li>
+<li class="l3"><a href="#%E9%80%B2%E4%BD%8D%E6%8F%9B%E7%AE%97ibaseobase-%E7%9A%84%E9%99%B7%E9%98%B1">進位換算：ibase、obase 的陷阱</a></li>
+<li class="l3"><a href="#%E5%85%A8%E9%83%A8%E9%81%B8%E9%A0%85bc---help-%E5%AF%A6%E6%B8%AC%E5%85%B1-7-%E5%80%8B">全部選項（bc --help 實測，共 7 個）</a></li>
+<li class="l3"><a href="#%E7%89%B9%E6%AE%8A%E8%AE%8A%E6%95%B8%E8%88%87%E5%87%BD%E5%BC%8Fman-bc%E5%85%A8%E5%88%97">特殊變數與函式（man bc，全列）</a></li>
+<li class="l2"><a href="#%E5%9B%9Bprintf%E6%8A%8A%E6%95%B8%E5%AD%97%E5%8D%B0%E6%88%90%E6%9F%90%E7%A8%AE%E6%A0%BC%E5%BC%8F">四、printf：把數字「印成」某種格式</a></li>
+<li class="l2"><a href="#%E4%BA%94%E5%85%B6%E4%BB%96%E6%96%B9%E5%BC%8F">五、其他方式</a></li>
+<li class="l2"><a href="#%E5%85%AD%E8%B7%AF%E7%94%B1%E5%99%A8openwrt%E4%B8%8A%E8%83%BD%E7%94%A8%E4%BB%80%E9%BA%BC">六、路由器（OpenWrt）上能用什麼</a></li>
+<li class="l2"><a href="#%E8%87%AA%E6%88%91%E6%B8%AC%E9%A9%97">自我測驗</a></li>
+</ul>
+</nav>
+<main>
+<h1 id="在終端機怎麼計算--bcprintf-各管什麼以及它們的陷阱">在終端機怎麼計算？—— <code>$(( ))</code>、<code>bc</code>、<code>printf</code> 各管什麼，以及它們的陷阱</h1>
+<blockquote>
+<p>日期：2026-09-24<br />
+情境：讀 ELF 檔頭時常要換算十六進位（例如進入點 <code>0x406500</code> 是十進位多少），問「怎麼用 terminal 計算」<br />
+適用範圍：本機 Ubuntu 24.04：zsh 5.9（互動 shell）、bash 5.2（<code>/bin/sh</code> 也指向它）、GNU bc 1.07.1、GNU coreutils 9.4 的 <code>expr</code>；
+OpenWrt 24.10.2 的 BusyBox ash。所有輸出都是實測<br />
+相關：<a href="%E9%8C%A2%E5%AD%97%E8%99%9F%E5%B1%95%E9%96%8B%E7%9A%84%E5%9B%9B%E7%A8%AE%E5%BD%A2%E5%BC%8F-bad-substitution%E7%9A%84%E6%A0%B9%E5%9B%A0.html">錢字號展開的四種形式</a>（<code>$(( ))</code> 是四種展開之一）、
+<a href="../openwrt/OpenWrt%E4%B8%8A%E6%B2%92%E6%9C%89readelf%E6%80%8E%E9%BA%BC%E8%A7%80%E5%AF%9FELF%E6%AA%94-BusyBox%E8%88%87proc%E7%9A%84%E6%9B%BF%E4%BB%A3%E6%96%B9%E6%B3%95.html">OpenWrt上沒有readelf怎麼觀察ELF檔</a></p>
+</blockquote>
+<p><strong>一句話結論：整數運算、進位換算用 shell 內建的 <code>$(( ))</code>（不用開新程式，到處都有，連路由器都能用）；要小數或超大數字用 <code>bc</code>（<code>-l</code> 才有小數）；要把數字<strong>印成</strong>十六進位、八進位用 <code>printf</code>。四個陷阱要記住：<code>$(( ))</code> 只有整數（zsh 例外）、<code>^</code> 是 XOR 不是次方、<code>010</code> 在 bash 是八進位、超過 64 位元會<strong>默默變成負數</strong>。</strong></p>
+<hr />
+<h2 id="一先選工具">一、先選工具</h2>
+<table>
+<thead>
+<tr>
+<th>需求</th>
+<th>用什麼</th>
+<th>例子</th>
+<th>結果</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>整數四則、餘數、次方</td>
+<td><code>$(( ))</code></td>
+<td><code>echo $(( 7 / 2 ))</code></td>
+<td><code>3</code>（整數除法，捨去小數）</td>
+</tr>
+<tr>
+<td>十六進位 → 十進位</td>
+<td><code>$(( ))</code> 或 <code>printf '%d'</code></td>
+<td><code>echo $(( 0x406500 ))</code></td>
+<td><code>4220160</code></td>
+</tr>
+<tr>
+<td>十進位 → 十六進位</td>
+<td><code>printf '%x'</code></td>
+<td><code>printf '%x\n' 255</code></td>
+<td><code>ff</code></td>
+</tr>
+<tr>
+<td>任意進位（2～64）</td>
+<td><code>$(( base#數字 ))</code></td>
+<td><code>echo $(( 2#1010 ))</code></td>
+<td><code>10</code></td>
+</tr>
+<tr>
+<td>小數</td>
+<td><code>bc -l</code>、<code>awk</code>、zsh 的 <code>$(( ))</code></td>
+<td><code>echo '7/2' | bc -l</code></td>
+<td><code>3.50000000000000000000</code></td>
+</tr>
+<tr>
+<td>超過 64 位元的大數</td>
+<td><code>bc</code>、<code>python3</code></td>
+<td><code>echo '2^100' | bc</code></td>
+<td><code>1267650600228229401496703205376</code></td>
+</tr>
+<tr>
+<td>開根號、三角函數</td>
+<td><code>bc -l</code>、<code>awk</code></td>
+<td><code>echo 'sqrt(2)' | bc -l</code></td>
+<td><code>1.41421356237309504880</code></td>
+</tr>
+</tbody>
+</table>
+<p><strong>為什麼優先用 <code>$(( ))</code></strong>：它是 shell <strong>內建</strong>的語法，不用啟動任何程式，所以 bash、zsh、dash、BusyBox ash 都有，路由器上也能用（第六節）。<code>bc</code> 是另外一支程式，OpenWrt 上就沒有。</p>
+<hr />
+<h2 id="二-shell-內建的整數運算">二、<code>$(( ))</code>：shell 內建的整數運算</h2>
+<h3 id="文法">文法</h3>
+<pre><code>$(( 運算式 ))        算術展開：算出結果，把整段換成結果的文字
+(( 運算式 ))         算術命令：只算、不輸出；結果非 0 時結束狀態為 0（成功），常用在 if／while
+</code></pre>
+<ul>
+<li><code>$(( ))</code> 是<strong>展開</strong>（跟 <code>$var</code>、<code>$(cmd)</code> 同一類，見 <a href="%E9%8C%A2%E5%AD%97%E8%99%9F%E5%B1%95%E9%96%8B%E7%9A%84%E5%9B%9B%E7%A8%AE%E5%BD%A2%E5%BC%8F-bad-substitution%E7%9A%84%E6%A0%B9%E5%9B%A0.html">錢字號展開的四種形式</a>），所以要放在命令裡才看得到結果：<code>echo $(( 1 + 2 ))</code>。只打 <code>$(( 1 + 2 ))</code> 會變成執行一個叫 <code>3</code> 的命令。</li>
+<li>裡面的變數可以不加 <code>$</code>：<code>x=5; echo $(( x * 2 ))</code> → <code>10</code>。</li>
+<li><code>(( ))</code> 沒有 <code>$</code>，用來改變數或做判斷：<code>(( x += 2 ))</code>、<code>if (( x &gt; 3 )); then ...</code>。</li>
+</ul>
+<h3 id="實測bash-與-zsh-並排">實測（bash 與 zsh 並排）</h3>
+<p>以下每一行都是用 <code>bash -c '...'</code> 與 <code>zsh -c '...'</code> 分別執行的結果：</p>
+<pre><code>                               bash                      zsh
+echo $(( 7 / 2 ))              3                         3        ← 整數除法，捨去小數
+echo $(( 7 % 2 ))              1                         1        ← 餘數
+echo $(( 2 ** 10 ))            1024                      1024     ← 次方是 **
+echo $(( 5 ^ 3 ))              6                         6        ← ^ 是 XOR，不是次方！
+echo $(( 0x406500 ))           4220160                   4220160  ← 0x 開頭是十六進位
+echo $(( 16#ff ))              255                       255      ← base#數字
+echo $(( 2#1010 ))             10                        10
+echo $(( 010 ))                8                         10       ← 陷阱：bash 當八進位，zsh 當十進位
+echo $(( 9223372036854775807 + 1 ))
+                               -9223372036854775808      -9223372036854775808   ← 溢位，默默變負數
+echo $(( 7 / 2.0 ))            syntax error: invalid     3.5      ← bash 只有整數；zsh 支援小數
+                               arithmetic operator
+</code></pre>
+<h3 id="四個陷阱">四個陷阱</h3>
+<ol>
+<li><strong>只有整數</strong>（bash、dash、ash）：<code>7 / 2</code> 是 3，而且 bash 看到 <code>2.0</code> 直接報錯：
+<code>syntax error: invalid arithmetic operator (error token is &quot;.0 &quot;)</code>。zsh 例外，運算元有小數點就改用浮點數。</li>
+<li><strong><code>^</code> 是 XOR（位元互斥或）</strong>，不是次方：<code>5 ^ 3</code> 是 <code>101 XOR 011 = 110</code>，也就是 6。次方要用 <code>**</code>。這跟 C 語言一樣（<code>man bash</code>：<em>the same as in the C language</em>），C 也沒有次方運算子。</li>
+<li><strong>開頭是 0 的數字</strong>：bash 依照 C 的規則當成<strong>八進位</strong>，<code>010</code> 是 8；zsh 預設當十進位，要 <code>setopt octalzeroes</code> 才跟 bash 一樣（實測後變成 8）。從檔案讀進來的數字如果帶前導 0（例如日期 <code>08</code>），在 bash 裡還會報錯，因為 8 不是合法的八進位數字。實測：<pre><code>$ bash -c 'm=08; echo $(( m + 1 ))'
+bash: line 1: 08: value too great for base (error token is &quot;08&quot;)
+$ zsh -c 'm=08; echo $(( m + 1 ))'
+9
+</code></pre>
+</li>
+<li><strong>溢位不報錯</strong>：數字是 64 位元有號整數，最大 <code>9223372036854775807</code>，再加 1 就繞回最小的負數。
+<code>man bash</code> 明寫 <em>no check for overflow</em>。為什麼是這個數字、為什麼會變負數，正是第 ① 站第 2 課（整數的表示）的主題。需要更大的數字就用 <code>bc</code>（第三節）。</li>
+</ol>
+<h3 id="全部運算子man-bash-的-arithmetic-evaluation依優先順序由高到低">全部運算子（<code>man bash</code> 的 ARITHMETIC EVALUATION，依優先順序由高到低）</h3>
+<table>
+<thead>
+<tr>
+<th>優先順序</th>
+<th>運算子</th>
+<th>意思</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td><code>id++</code> <code>id--</code></td>
+<td>後置遞增、遞減（先取值再加減）</td>
+</tr>
+<tr>
+<td>2</td>
+<td><code>-</code> <code>+</code></td>
+<td>一元負號、正號</td>
+</tr>
+<tr>
+<td>3</td>
+<td><code>++id</code> <code>--id</code></td>
+<td>前置遞增、遞減（先加減再取值）</td>
+</tr>
+<tr>
+<td>4</td>
+<td><code>!</code> <code>~</code></td>
+<td>邏輯 NOT、位元反轉</td>
+</tr>
+<tr>
+<td>5</td>
+<td><code>**</code></td>
+<td>次方</td>
+</tr>
+<tr>
+<td>6</td>
+<td><code>*</code> <code>/</code> <code>%</code></td>
+<td>乘、除（整數）、餘數</td>
+</tr>
+<tr>
+<td>7</td>
+<td><code>+</code> <code>-</code></td>
+<td>加、減</td>
+</tr>
+<tr>
+<td>8</td>
+<td><code>&lt;&lt;</code> <code>&gt;&gt;</code></td>
+<td>位元左移、右移（<code>1 &lt;&lt; 4</code> 是 16）</td>
+</tr>
+<tr>
+<td>9</td>
+<td><code>&lt;=</code> <code>&gt;=</code> <code>&lt;</code> <code>&gt;</code></td>
+<td>比較，成立是 1、不成立是 0</td>
+</tr>
+<tr>
+<td>10</td>
+<td><code>==</code> <code>!=</code></td>
+<td>相等、不相等</td>
+</tr>
+<tr>
+<td>11</td>
+<td><code>&amp;</code></td>
+<td>位元 AND（<code>0xff &amp; 0x0f</code> 是 15）</td>
+</tr>
+<tr>
+<td>12</td>
+<td><code>^</code></td>
+<td>位元 XOR</td>
+</tr>
+<tr>
+<td>13</td>
+<td><code>|</code></td>
+<td>位元 OR</td>
+</tr>
+<tr>
+<td>14</td>
+<td><code>&amp;&amp;</code></td>
+<td>邏輯 AND</td>
+</tr>
+<tr>
+<td>15</td>
+<td><code>||</code></td>
+<td>邏輯 OR</td>
+</tr>
+<tr>
+<td>16</td>
+<td><code>expr ? expr : expr</code></td>
+<td>條件運算（跟 C 一樣）</td>
+</tr>
+<tr>
+<td>17</td>
+<td><code>=</code> <code>*=</code> <code>/=</code> <code>%=</code> <code>+=</code> <code>-=</code> <code>&lt;&lt;=</code> <code>&gt;&gt;=</code> <code>&amp;=</code> <code>^=</code> <code>|=</code></td>
+<td>指定</td>
+</tr>
+<tr>
+<td>18</td>
+<td><code>expr1 , expr2</code></td>
+<td>逗號：兩個都算，結果取後者</td>
+</tr>
+</tbody>
+</table>
+<p>數字的寫法：<code>0x</code> 或 <code>0X</code> 開頭是十六進位；bash 裡 <code>0</code> 開頭是八進位；<code>base#n</code> 可以指定 2～64 進位（超過 36 進位時，10 以上的數字依序用小寫字母、大寫字母、<code>@</code>、<code>_</code> 表示）。</p>
+<h3 id="zsh-專屬直接輸出成其他進位">zsh 專屬：直接輸出成其他進位</h3>
+<p>zsh 的 <code>$(( ))</code> 可以在前面加 <code>[#進位]</code>，讓<strong>結果</strong>用那個進位印出來（bash 沒有這個功能）：</p>
+<pre><code>$ echo $(( [#16] 255 ))
+16#FF
+$ echo $(( [##16] 255 ))       ← 兩個 # 不印出 16# 前綴
+FF
+$ echo $(( [#2] 10 ))
+2#1010
+$ zmodload zsh/mathfunc; echo $(( sqrt(2) ))    ← 載入數學函式模組後才有 sqrt 等函式
+1.4142135623730951
+</code></pre>
+<p>寫腳本時不要用這些，放到 bash 或路由器上就不能跑（道理跟 <a href="GNU%E6%98%AF%E4%BB%80%E9%BA%BC-Linux%E6%A0%B8%E5%BF%83%E8%88%87GNU%E5%B7%A5%E5%85%B7%E7%9A%84%E5%88%86%E5%B7%A5.html">GNU是什麼</a> 第四節的 bash 擴充語法一樣）。</p>
+<hr />
+<h2 id="三bc小數與任意大的數字">三、<code>bc</code>：小數與任意大的數字</h2>
+<p><code>bc</code>（basic calculator）是一個小型計算語言，精度沒有上限。</p>
+<h3 id="用法">用法</h3>
+<pre><code>echo '運算式' | bc [選項]          一次算一個（最常用）
+bc [選項]                          互動模式，打 quit 離開
+</code></pre>
+<pre><code>$ echo '7/2' | bc
+3                                  ← 預設 scale=0：小數點後 0 位，一樣只有整數！
+$ echo 'scale=4; 7/2' | bc
+3.5000                             ← scale 設定小數點後幾位
+$ echo '1/3' | bc -l
+.33333333333333333333              ← -l 會把 scale 設成 20，並載入數學函式
+$ echo '2^100' | bc
+1267650600228229401496703205376    ← bc 的 ^ 才是次方，而且沒有 64 位元的上限
+$ echo 'sqrt(2)' | bc -l
+1.41421356237309504880
+</code></pre>
+<p>注意：<code>bc</code> 的 <code>^</code> 是<strong>次方</strong>，跟 <code>$(( ))</code> 的 <code>^</code>（XOR）意思完全不同。</p>
+<h3 id="進位換算ibaseobase-的陷阱">進位換算：<code>ibase</code>、<code>obase</code> 的陷阱</h3>
+<p><code>ibase</code> 是<strong>輸入</strong>用幾進位解讀，<code>obase</code> 是<strong>輸出</strong>用幾進位印：</p>
+<pre><code>$ echo 'obase=16; 255' | bc
+FF
+$ echo 'ibase=16; FF' | bc               ← 十六進位的數字要用大寫
+255
+$ echo 'ibase=16; obase=10; FF' | bc
+FF                                       ← 陷阱！
+$ echo 'obase=10; ibase=16; FF' | bc
+255                                      ← 先設 obase 就對了
+</code></pre>
+<p>陷阱的原因：<code>ibase=16</code> 一設下去，<strong>後面所有數字都用十六進位解讀，包括 <code>obase=10</code> 的 10</strong>。十六進位的 <code>10</code> 等於十進位的 16，所以 <code>obase</code> 變成 16，結果照樣印出 <code>FF</code>。<strong>永遠先設 <code>obase</code>，再設 <code>ibase</code></strong>。</p>
+<h3 id="全部選項bc---help-實測共-7-個">全部選項（<code>bc --help</code> 實測，共 7 個）</h3>
+<table>
+<thead>
+<tr>
+<th>選項</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-h</code>, <code>--help</code></td>
+<td>印出說明後結束</td>
+</tr>
+<tr>
+<td><code>-i</code>, <code>--interactive</code></td>
+<td>強制互動模式</td>
+</tr>
+<tr>
+<td><code>-l</code>, <code>--mathlib</code></td>
+<td>載入數學函式庫，並把 <code>scale</code> 設成 20</td>
+</tr>
+<tr>
+<td><code>-q</code>, <code>--quiet</code></td>
+<td>不印開頭的版本橫幅</td>
+</tr>
+<tr>
+<td><code>-s</code>, <code>--standard</code></td>
+<td>使用 POSIX 以外的 bc 語法時報錯</td>
+</tr>
+<tr>
+<td><code>-w</code>, <code>--warn</code></td>
+<td>使用 POSIX 以外的 bc 語法時警告</td>
+</tr>
+<tr>
+<td><code>-v</code>, <code>--version</code></td>
+<td>印出版本後結束</td>
+</tr>
+</tbody>
+</table>
+<h3 id="特殊變數與函式man-bc全列">特殊變數與函式（<code>man bc</code>，全列）</h3>
+<table>
+<thead>
+<tr>
+<th>名稱</th>
+<th>意思</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>scale</code></td>
+<td>小數點後保留幾位，預設 0</td>
+</tr>
+<tr>
+<td><code>ibase</code></td>
+<td>輸入的進位，預設 10</td>
+</tr>
+<tr>
+<td><code>obase</code></td>
+<td>輸出的進位，預設 10</td>
+</tr>
+<tr>
+<td><code>last</code></td>
+<td>上一次的計算結果</td>
+</tr>
+<tr>
+<td><code>length(x)</code></td>
+<td>x 的有效位數</td>
+</tr>
+<tr>
+<td><code>scale(x)</code></td>
+<td>x 小數點後的位數</td>
+</tr>
+<tr>
+<td><code>sqrt(x)</code></td>
+<td>平方根</td>
+</tr>
+<tr>
+<td><code>read()</code></td>
+<td>從標準輸入讀一個數字</td>
+</tr>
+<tr>
+<td><code>s(x)</code> <code>c(x)</code> <code>a(x)</code></td>
+<td>正弦、餘弦、反正切（弧度），<strong>要 <code>-l</code></strong></td>
+</tr>
+<tr>
+<td><code>l(x)</code> <code>e(x)</code></td>
+<td>自然對數、e 的 x 次方，<strong>要 <code>-l</code></strong></td>
+</tr>
+<tr>
+<td><code>j(n,x)</code></td>
+<td>n 階貝索函數，<strong>要 <code>-l</code></strong></td>
+</tr>
+</tbody>
+</table>
+<p><code>bc</code> 還是一個完整的程式語言（<code>if</code>、<code>while</code>、<code>for</code>、<code>define</code> 自訂函式），這部分不列，見 <code>man bc</code>。</p>
+<hr />
+<h2 id="四printf把數字印成某種格式">四、<code>printf</code>：把數字「印成」某種格式</h2>
+<p><code>$(( ))</code> 和 <code>bc</code> 負責<strong>算</strong>，<code>printf</code> 負責<strong>印</strong>，最常用來做進位轉換：</p>
+<pre><code>$ printf '%d %x %X %o %#x\n' 255 255 255 255 255
+255 ff FF 377 0xff
+$ printf '%d\n' 0x406500          ← 參數也可以寫成十六進位
+4220160
+$ printf '%.3f\n' 3.14159
+3.142
+</code></pre>
+<p>文法：<code>printf 格式字串 參數...</code>。格式字串裡每個 <code>%</code> 開頭的<strong>轉換說明（conversion specification）<strong>依序吃掉一個參數。跟數字有關的轉換（這裡只列</strong>數字相關</strong>的這幾個；<code>%s</code>、<code>%b</code>、<code>%q</code> 等字串類與完整清單見 <code>help printf</code>（bash）和 <code>man 3 printf</code>）：</p>
+<table>
+<thead>
+<tr>
+<th>轉換</th>
+<th>印成</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>%d</code>、<code>%i</code></td>
+<td>十進位整數</td>
+</tr>
+<tr>
+<td><code>%u</code></td>
+<td>無號十進位整數</td>
+</tr>
+<tr>
+<td><code>%x</code>、<code>%X</code></td>
+<td>十六進位（小寫、大寫字母）</td>
+</tr>
+<tr>
+<td><code>%o</code></td>
+<td>八進位</td>
+</tr>
+<tr>
+<td><code>%f</code></td>
+<td>小數；<code>%.3f</code> 表示小數點後 3 位</td>
+</tr>
+<tr>
+<td><code>%e</code>、<code>%E</code></td>
+<td>科學記號</td>
+</tr>
+<tr>
+<td><code>%g</code>、<code>%G</code></td>
+<td>自動選 <code>%f</code> 或 <code>%e</code> 裡比較短的</td>
+</tr>
+</tbody>
+</table>
+<p><code>%</code> 和字母之間可以加修飾：<code>#</code>（加上 <code>0x</code>、<code>0</code> 前綴）、寬度（<code>%8x</code>）、<code>0</code> 補零（<code>%08x</code> → <code>000000ff</code>）。</p>
+<hr />
+<h2 id="五其他方式">五、其他方式</h2>
+<table>
+<thead>
+<tr>
+<th>工具</th>
+<th>例子</th>
+<th>特點</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>awk</code></td>
+<td><code>awk 'BEGIN{print 7/2, 2^10, sqrt(2)}'</code> → <code>3.5 1024 1.41421</code></td>
+<td>預設就是浮點數，<code>^</code> 是次方；路由器上也有（BusyBox）</td>
+</tr>
+<tr>
+<td><code>python3</code></td>
+<td><code>python3 -c 'print(7/2, 7//2, hex(255), 2**100)'</code> → <code>3.5 3 0xff 1267650600228229401496703205376</code></td>
+<td>最直觀、整數沒有上限；但要啟動直譯器，比較慢</td>
+</tr>
+<tr>
+<td><code>expr</code></td>
+<td><code>expr 7 / 2</code> → <code>3</code></td>
+<td>最古老的方式，每個運算子都要是獨立參數，而且容易踩坑（見下面）</td>
+</tr>
+</tbody>
+</table>
+<p><strong><code>expr</code> 的陷阱</strong>：<code>*</code> 會先被 shell 當成萬用字元展開成目前目錄的檔名。實測在 <code>/tmp</code> 執行：</p>
+<pre><code>$ expr 3 \* 4
+12
+$ expr 3 * 4
+expr: syntax error: unexpected argument 'claude-1000'     ← * 被展開成 /tmp 底下的檔名
+</code></pre>
+<p><code>expr</code> 是 <code>$(( ))</code> 出現之前的舊方法，新寫的腳本沒有理由用它。它的全部運算子（<code>expr --help</code>，依優先順序由低到高）：
+<code>|</code>、<code>&amp;</code>（邏輯）；<code>&lt;</code> <code>&lt;=</code> <code>=</code> <code>!=</code> <code>&gt;=</code> <code>&gt;</code>（比較）；<code>+</code> <code>-</code>；<code>*</code> <code>/</code> <code>%</code>；
+<code>STRING : REGEXP</code> 與 <code>match</code>（正規表示式比對）、<code>substr</code>、<code>index</code>、<code>length</code>（字串操作）；<code>+ TOKEN</code>（強制當字串）；<code>( )</code>（分組）。</p>
+<hr />
+<h2 id="六路由器openwrt上能用什麼">六、路由器（OpenWrt）上能用什麼</h2>
+<pre><code>root@OpenWrt:~# echo &quot;7/2=$(( 7 / 2 )) 010=$(( 010 )) 0xff=$(( 0xff )) 2**10=$(( 2 ** 10 ))&quot;
+7/2=3 010=8 0xff=255 2**10=1024           ← ash 跟 bash 一樣：010 是八進位
+root@OpenWrt:~# echo $(( 7 / 2.0 ))
+ash: arithmetic syntax error              ← 只有整數
+root@OpenWrt:~# awk 'BEGIN{print 7/2, sqrt(2)}'
+3.5 1.41421                               ← 要小數就用 awk
+root@OpenWrt:~# printf '%x\n' 255
+ff
+</code></pre>
+<p><code>bc</code>、<code>dc</code> 都<strong>沒有</strong>；<code>expr</code> 有。所以在路由器上：整數與進位換算用 <code>$(( ))</code> 和 <code>printf</code>，小數用 <code>awk</code>。</p>
+<hr />
+<h2 id="自我測驗">自我測驗</h2>
+<ol>
+<li><code>echo $(( 5 ^ 3 ))</code> 印出 6，<code>echo '5^3' | bc</code> 印出 125。為什麼同一個符號在兩個工具裡意思不同？<code>$(( ))</code> 裡要算次方該怎麼寫？</li>
+<li>一個 bash 腳本讀進日期的月份 <code>08</code>，做 <code>$(( month + 1 ))</code> 時出錯，但在 zsh 互動模式下測試卻正常。根因是什麼？</li>
+<li><code>echo 'ibase=16; obase=10; FF' | bc</code> 為什麼印出 <code>FF</code> 而不是 255？要怎麼改？</li>
+<li><code>$(( 9223372036854775807 + 1 ))</code> 得到一個負數，而且沒有任何錯誤訊息。這對「用 shell 腳本做計算」有什麼風險？什麼情況下該改用 <code>bc</code>？</li>
+<li>情境題：你在路由器上要把 <code>hexdump</code> 讀到的十六進位 <code>b7</code> 換成十進位，又想算 <code>1/3</code> 到小數點後幾位。路由器上沒有 <code>bc</code>，你會分別用什麼？</li>
+</ol>
+
+</main>
+</div>
+</body>
+</html>

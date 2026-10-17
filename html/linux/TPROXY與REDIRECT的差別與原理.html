@@ -1,0 +1,573 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TPROXY 與 REDIRECT 差在哪？—— 兩種透明代理的原理與取捨</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/app.js"></script>
+</head>
+<body>
+<button class="menu-btn" onclick="toggleMenu()">☰ 目錄</button>
+<div class="layout">
+<nav class="side">
+<div class="crumbs"><a href="../index.html">🏠 首頁</a> / <a href="README.html">linux</a></div>
+<div class="tools"><button onclick="toggleTheme()">🌓 主題</button></div>
+<ul>
+<li class="l2"><a href="#%E7%9B%AE%E9%8C%84">目錄</a></li>
+<li class="l2"><a href="#%E4%B8%80redirect-%E7%9A%84%E5%8E%9F%E7%90%86">一、REDIRECT 的原理</a></li>
+<li class="l2"><a href="#%E4%BA%8Ctproxy-%E7%9A%84%E5%8E%9F%E7%90%86">二、TPROXY 的原理</a></li>
+<li class="l3"><a href="#tproxy-to-12345-%E5%9C%A8-prerouting-%E5%88%B0%E5%BA%95%E5%81%9A%E4%BA%86%E4%BB%80%E9%BA%BC2026-09-22-%E8%A3%9C%E5%85%85">tproxy to :12345 在 prerouting 到底做了什麼（2026-09-22 補充）</a></li>
+<li class="l3"><a href="#%E5%95%8F%E9%A1%8C%E4%B8%80%E6%A0%B8%E5%BF%83%E6%86%91%E4%BB%80%E9%BA%BC%E6%8A%8A%E4%B8%8D%E6%98%AF%E7%B5%A6%E6%88%91%E7%9A%84%E5%B0%81%E5%8C%85%E4%BA%A4%E7%B5%A6%E6%9C%AC%E6%A9%9F-socket">問題一：核心憑什麼把「不是給我的」封包交給本機 socket？</a></li>
+<li class="l3"><a href="#%E5%95%8F%E9%A1%8C%E4%BA%8C%E8%B7%AF%E7%94%B1%E5%88%A4%E5%AE%9A%E6%9C%83%E6%8A%8A%E5%B0%81%E5%8C%85%E8%BD%89%E7%99%BC%E8%B5%B0">問題二：路由判定會把封包轉發走</a></li>
+<li class="l3"><a href="#%E5%95%8F%E9%A1%8C%E4%B8%89%E5%9B%9E%E7%A8%8B%E6%80%8E%E9%BA%BC%E8%BE%A6">問題三：回程怎麼辦</a></li>
+<li class="l2"><a href="#%E4%B8%89%E7%82%BA%E4%BB%80%E9%BA%BC-redirect-%E4%B8%8D%E8%83%BD%E4%BB%A3%E7%90%86-udp">三、為什麼 REDIRECT 不能代理 UDP</a></li>
+<li class="l2"><a href="#%E5%9B%9B%E5%85%A9%E8%80%85%E7%9A%84-hook-%E9%99%90%E5%88%B6%E4%B8%8D%E5%90%8C%E5%BE%88%E5%A4%9A%E4%BA%BA%E4%B8%8D%E7%9F%A5%E9%81%93">四、兩者的 hook 限制不同（很多人不知道）</a></li>
+<li class="l2"><a href="#%E4%BA%94%E5%AE%8C%E6%95%B4%E5%B0%8D%E7%85%A7%E8%A1%A8">五、完整對照表</a></li>
+<li class="l2"><a href="#%E5%85%AD%E5%84%AA%E5%8A%A3%E8%88%87%E6%80%8E%E9%BA%BC%E9%81%B8">六、優劣與怎麼選</a></li>
+<li class="l3"><a href="#redirect-%E7%9A%84%E5%84%AA%E5%8B%A2%E5%9C%A8%E7%B0%A1%E5%96%AE">REDIRECT 的優勢在「簡單」</a></li>
+<li class="l3"><a href="#tproxy-%E7%9A%84%E5%84%AA%E5%8B%A2%E5%9C%A8%E5%AE%8C%E6%95%B4">TPROXY 的優勢在「完整」</a></li>
+<li class="l3"><a href="#%E6%B1%BA%E7%AD%96">決策</a></li>
+<li class="l2"><a href="#%E4%B8%83%E8%A6%8F%E5%89%87%E8%88%87%E7%A8%8B%E5%BC%8F%E7%AB%AF%E7%9A%84%E5%AF%AB%E6%B3%95%E5%B0%8D%E7%85%A7">七、規則與程式端的寫法對照</a></li>
+<li class="l3"><a href="#nftables-%E8%A6%8F%E5%89%87">nftables 規則</a></li>
+<li class="l3"><a href="#v2ray-dokodemo-door-%E8%A8%AD%E5%AE%9A">v2ray dokodemo-door 設定</a></li>
+<li class="l2"><a href="#%E8%87%AA%E6%88%91%E6%B8%AC%E9%A9%97">自我測驗</a></li>
+</ul>
+</nav>
+<main>
+<h1 id="tproxy-與-redirect-差在哪-兩種透明代理的原理與取捨">TPROXY 與 REDIRECT 差在哪？—— 兩種透明代理的原理與取捨</h1>
+<blockquote>
+<p>日期：2026-09-21<br />
+情境：要在 OpenWrt 上做透明代理，發現 v2ray 的 dokodemo-door 設定對兩者的要求不同，想搞清楚它們到底差在哪、為什麼 REDIRECT 不能代理 UDP<br />
+適用範圍：Linux netfilter 通用；語法以 nftables 1.0.9／1.1.1 為準（man nft 為依據）<br />
+相關：<a href="../openwrt/%E7%94%A8dokodemo-door%E5%81%9ATPROXY%E9%80%8F%E6%98%8E%E4%BB%A3%E7%90%86.html">用dokodemo-door做TPROXY透明代理</a>（實作）、
+<a href="../openwrt/%E8%B7%AF%E7%94%B1%E5%99%A8%E4%B8%8A%E7%9A%84%E9%80%8F%E6%98%8E%E4%BB%A3%E7%90%86-%E7%82%BA%E4%BB%80%E9%BA%BC%E4%B8%8D%E6%98%AFTUN%E6%A8%A1%E5%BC%8F.html">路由器上的透明代理-為什麼不是TUN模式</a>、
+<a href="iptables%E8%88%87nftables%E6%80%8E%E9%BA%BC%E7%94%A8.html">iptables與nftables怎麼用</a></p>
+</blockquote>
+<p><strong>一句話結論：REDIRECT 是「<strong>改寫</strong>封包的目的地，事後再去 conntrack 問原本要去哪」；
+TPROXY 是「<strong>完全不改</strong>封包，直接把它交付給一個宣告過 <code>IP_TRANSPARENT</code> 的本機 socket」。一句話的差別，衍生出所有取捨——改寫過的封包只有 TCP 拿得回原始目的地，所以 REDIRECT 只能代理 TCP；而 TPROXY 為了不改寫，就得多付出策略路由那一整套設定，而且只能用在 prerouting。</strong></p>
+<hr />
+<h2 id="目錄">目錄</h2>
+<ul>
+<li><a href="#%E4%B8%80redirect-%E7%9A%84%E5%8E%9F%E7%90%86">一、REDIRECT 的原理</a></li>
+<li><a href="#%E4%BA%8Ctproxy-%E7%9A%84%E5%8E%9F%E7%90%86">二、TPROXY 的原理</a></li>
+<li><a href="#%E4%B8%89%E7%82%BA%E4%BB%80%E9%BA%BC-redirect-%E4%B8%8D%E8%83%BD%E4%BB%A3%E7%90%86-udp">三、為什麼 REDIRECT 不能代理 UDP</a></li>
+<li><a href="#%E5%9B%9B%E5%85%A9%E8%80%85%E7%9A%84-hook-%E9%99%90%E5%88%B6%E4%B8%8D%E5%90%8C%E5%BE%88%E5%A4%9A%E4%BA%BA%E4%B8%8D%E7%9F%A5%E9%81%93">四、兩者的 hook 限制不同（很多人不知道）</a></li>
+<li><a href="#%E4%BA%94%E5%AE%8C%E6%95%B4%E5%B0%8D%E7%85%A7%E8%A1%A8">五、完整對照表</a></li>
+<li><a href="#%E5%85%AD%E5%84%AA%E5%8A%A3%E8%88%87%E6%80%8E%E9%BA%BC%E9%81%B8">六、優劣與怎麼選</a></li>
+<li><a href="#%E4%B8%83%E8%A6%8F%E5%89%87%E8%88%87%E7%A8%8B%E5%BC%8F%E7%AB%AF%E7%9A%84%E5%AF%AB%E6%B3%95%E5%B0%8D%E7%85%A7">七、規則與程式端的寫法對照</a></li>
+<li><a href="#%E8%87%AA%E6%88%91%E6%B8%AC%E9%A9%97">自我測驗</a></li>
+</ul>
+<hr />
+<h2 id="一redirect-的原理">一、REDIRECT 的原理</h2>
+<p><strong>REDIRECT 是 DNAT 的特例</strong>——<code>man nft</code> 說得很白：</p>
+<blockquote>
+<p>The redirect statement is a special form of dnat which always [translates to the local host].</p>
+</blockquote>
+<p>所以它本質上就是位址轉換：</p>
+<pre><code>LAN 電腦送出：  src=192.168.1.50:54321   dst=1.1.1.1:443
+                          │
+                  [nat prerouting] redirect to :12345
+                          │  ← 封包的目的地被改寫
+                          ▼
+核心看到的變成：src=192.168.1.50:54321   dst=192.168.1.1:12345
+                          │
+                  路由判定：「這是給我的」→ input → 本機 12345 socket
+</code></pre>
+<p><strong>原始目的地 <code>1.1.1.1:443</code> 已經不在封包裡了</strong>，那代理程式怎麼知道要連去哪？</p>
+<p>答案是 <strong>conntrack</strong>。做 NAT 時，conntrack 會記錄這條連線的原始五元組。代理程式接受連線後，用一個 socket 選項去問核心：</p>
+<pre><code class="language-c"><span class="n">getsockopt</span><span class="p">(</span><span class="n">fd</span><span class="p">,</span><span class="w"> </span><span class="n">SOL_IP</span><span class="p">,</span><span class="w"> </span><span class="n">SO_ORIGINAL_DST</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">addr</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">len</span><span class="p">);</span><span class="w">   </span><span class="c1">// → 1.1.1.1:443</span>
+</code></pre>
+<p><strong>回程也靠 conntrack</strong>：代理程式回覆時，核心會自動把來源位址反向改寫回 <code>1.1.1.1:443</code>，
+LAN 電腦完全不知道中間發生過什麼。</p>
+<p><strong>三個零件：</strong></p>
+<table>
+<thead>
+<tr>
+<th>零件</th>
+<th>做什麼</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>nat</code> 型別的鏈 + <code>redirect</code></td>
+<td>改寫目的地</td>
+</tr>
+<tr>
+<td>conntrack</td>
+<td>記住原始目的地、處理回程</td>
+</tr>
+<tr>
+<td><code>SO_ORIGINAL_DST</code></td>
+<td>程式向核心問回原始目的地</td>
+</tr>
+</tbody>
+</table>
+<p><strong>程式端不需要任何特殊權限</strong>——只要會呼叫 <code>getsockopt</code> 就行。這是 REDIRECT 最大的優點。</p>
+<hr />
+<h2 id="二tproxy-的原理">二、TPROXY 的原理</h2>
+<p><code>man nft</code> 對 tproxy 的描述是關鍵：</p>
+<blockquote>
+<p>Tproxy redirects the packet to a local socket <strong>without changing the packet header in any way</strong>.</p>
+</blockquote>
+<pre><code>LAN 電腦送出：  src=192.168.1.50:54321   dst=1.1.1.1:443
+                          │
+              [filter prerouting priority mangle] tproxy to :12345
+                          │  ← 封包完全沒變，只是被「交付」給本機 socket
+                          ▼
+封包仍然是：    src=192.168.1.50:54321   dst=1.1.1.1:443
+                          │
+                  但核心把它交給了本機的 12345 socket
+</code></pre>
+<p><strong>因為封包沒被改寫，原始目的地就大剌剌寫在封包上</strong>，程式不需要問 conntrack，直接從封包的輔助資料（control message）讀：</p>
+<pre><code class="language-c"><span class="n">setsockopt</span><span class="p">(</span><span class="n">fd</span><span class="p">,</span><span class="w"> </span><span class="n">SOL_IP</span><span class="p">,</span><span class="w"> </span><span class="n">IP_RECVORIGDSTADDR</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">on</span><span class="p">,</span><span class="w"> </span><span class="k">sizeof</span><span class="p">(</span><span class="n">on</span><span class="p">));</span>
+<span class="n">recvmsg</span><span class="p">(</span><span class="n">fd</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">msg</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">);</span><span class="w">          </span><span class="c1">// 從 msg 的 cmsg 取出原始目的地</span>
+</code></pre>
+<h3 id="tproxy-to-12345-在-prerouting-到底做了什麼2026-09-22-補充"><code>tproxy to :12345</code> 在 prerouting 到底做了什麼（2026-09-22 補充）</h3>
+<p>常見的疑問：「prerouting 之後核心反正會重新查路由表，那在 prerouting 寫 <code>tproxy to :12345</code>
+有什麼用？」答案是：<strong><code>tproxy</code> 和路由判定做的是兩件不同的事，兩件都要有</strong>。</p>
+<table>
+<thead>
+<tr>
+<th>誰</th>
+<th>回答的問題</th>
+<th>決定的東西</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>路由判定</strong>（<code>ip rule</code> → <code>ip route</code>）</td>
+<td>這個封包要<strong>收下</strong>（給本機），還是<strong>轉發</strong>？</td>
+<td>走 input 還是 forward</td>
+</tr>
+<tr>
+<td><strong><code>tproxy</code></strong></td>
+<td>收下之後，要交給<strong>哪一個 socket</strong>？</td>
+<td>封包身上綁定的 socket</td>
+</tr>
+</tbody>
+</table>
+<p><code>tproxy</code> 不改封包的目的位址，也不決定路線。它做的是<strong>預先指定 socket</strong>：在封包身上（核心裡代表封包的 <code>sk_buff</code> 結構的 <code>sk</code> 欄位）先綁好「等一下交給 12345 那個 socket」。（socket 在核心裡是什麼、平常核心怎麼替封包找 socket，見 <a href="socket%E6%98%AF%E4%BB%80%E9%BA%BC-%E5%BE%9E%E6%A0%B8%E5%BF%83%E7%9C%8B%E9%80%A3%E7%B7%9A%E7%9A%84%E7%AB%AF%E9%BB%9E.html">socket是什麼-從核心看連線的端點</a>。）</p>
+<h4 id="文法">文法</h4>
+<pre><code>tproxy to [位址][:埠]            ← ip／ip6 表；位址和埠至少給一個
+tproxy {ip | ip6} to 位址[:埠]    ← inet 表要指定 family 時
+tproxy to :埠                    ← inet 表只給埠時，IPv4／IPv6 都適用
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>位置</th>
+<th>意思</th>
+<th>省略時</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>位址</code></td>
+<td>要找的 socket 綁在哪個本機位址上</td>
+<td>用<strong>封包進來那張網卡的主位址</strong>（例如 <code>br-lan</code> 的 <code>192.168.1.1</code>）——依 <code>man iptables-extensions</code> TPROXY 的 <code>--on-ip</code>：<em>By default the address is the IP address of the incoming interface</em></td>
+</tr>
+<tr>
+<td><code>:埠</code></td>
+<td>要找的 socket 聽在哪個埠</td>
+<td>沿用封包原本的目的埠</td>
+</tr>
+</tbody>
+</table>
+<p>所以 <code>tproxy to :12345</code> 的意思是「找綁在 <code>br-lan 主位址:12345</code> 的透明 socket」。
+dokodemo-door 聽在 <code>0.0.0.0:12345</code>，<code>0.0.0.0</code> 涵蓋所有本機位址，所以找得到。</p>
+<p><code>man nft</code> 另外寫明 <em>Tproxy matching requires another rule that ensures the presence of transport
+protocol header</em>——這就是規則裡一定要有 <code>meta l4proto { tcp, udp }</code> 的原因，
+<code>tproxy</code> 得先確定有 TCP／UDP 標頭，才能讀出埠號。</p>
+<h4 id="一個封包的完整時間軸">一個封包的完整時間軸</h4>
+<pre><code>LAN 送出  src=192.168.1.50:54321  dst=1.1.1.1:443
+   │
+   ├─ [prerouting, priority mangle]
+   │     ① tproxy to :12345
+   │        先找：有沒有已建立、四元組完全相同的連線 socket？（同一條連線的後續封包走這裡）
+   │        沒有：找 192.168.1.1:12345 上、設了 IP_TRANSPARENT 的監聽 socket
+   │        找到 → 把它綁在封包身上（封包內容一個位元都沒改）
+   │     ② meta mark set 1
+   │     ③ accept
+   │
+   ├─ 路由判定：fwmark 1 → table 100 → local 0.0.0.0/0 → 「給本機的」
+   │
+   ├─ [input]
+   │
+   └─ 傳輸層（TCP／UDP）要找 socket 時：
+         封包身上已經綁好 socket → 直接用它
+         （若沒綁，會照封包標頭找「1.1.1.1:443」的 socket——本機根本沒有）
+</code></pre>
+<h4 id="拿掉其中一半會怎樣">拿掉其中一半會怎樣</h4>
+<table>
+<thead>
+<tr>
+<th>情況</th>
+<th>結果</th>
+<th>原因</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>只有 <code>tproxy</code>，沒有 mark＋<code>ip rule</code>＋<code>local</code> 路由</td>
+<td>封包被<strong>轉發</strong>到 <code>1.1.1.1</code>，代理完全沒收到</td>
+<td>路由判定說「不是給我的」，綁好的 socket 沒機會用上。<code>man iptables-extensions</code> 對 <code>--tproxy-mark</code> 的說明正是這句：<em>otherwise these packets will get forwarded</em></td>
+</tr>
+<tr>
+<td>只有 mark＋<code>ip rule</code>＋<code>local</code> 路由，沒有 <code>tproxy</code></td>
+<td>封包被收下，但 TCP 回 RST、UDP 被丟棄</td>
+<td>路由說「給本機」，傳輸層就照標頭找 <code>1.1.1.1:443</code> 的 socket，找不到</td>
+</tr>
+<tr>
+<td>兩者都有</td>
+<td>交給 12345</td>
+<td>路由負責「收下」，<code>tproxy</code> 負責「交給誰」</td>
+</tr>
+</tbody>
+</table>
+<p><strong>為什麼一定要在 prerouting</strong>：socket 必須在傳輸層查找之前就綁好，而且要趁封包還沒被判定成轉發之前。所以 <code>tproxy</code> 只能用在 prerouting（iptables 版更明確：只能在 mangle 表的 PREROUTING）。</p>
+<h4 id="代理沒在聽時的副作用已對照核心原始碼">代理沒在聽時的副作用（已對照核心原始碼）</h4>
+<p>核心 <code>net/netfilter/nft_tproxy.c</code> 的 <code>nft_tproxy_eval_v4()</code> 最後兩行（torvalds/linux master，2026-09-22 查閱）：</p>
+<pre><code class="language-c"><span class="w">	</span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">sk</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">nf_tproxy_sk_is_transparent</span><span class="p">(</span><span class="n">sk</span><span class="p">))</span>
+<span class="w">		</span><span class="n">nf_tproxy_assign_sock</span><span class="p">(</span><span class="n">skb</span><span class="p">,</span><span class="w"> </span><span class="n">sk</span><span class="p">);</span><span class="w">          </span><span class="c1">// 找到透明 socket：綁到封包上</span>
+<span class="w">	</span><span class="k">else</span>
+<span class="w">		</span><span class="n">regs</span><span class="o">-&gt;</span><span class="n">verdict</span><span class="p">.</span><span class="n">code</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">NFT_BREAK</span><span class="p">;</span><span class="w">          </span><span class="c1">// 找不到：這條規則到此中斷</span>
+</code></pre>
+<p><code>NFT_BREAK</code> 的意思是「這條規則不成立，換下一條」。所以<strong>找不到</strong>透明 socket 時（v2ray 沒啟動，或 inbound 沒開 <code>sockopt.tproxy</code>），同一條規則後面的 <code>meta mark set 1</code> 和 <code>accept</code> 都不會執行。同一個函式裡還看得到本節其他說法的出處：非 TCP／UDP 或分片封包一開始就 <code>NFT_BREAK</code>
+（所以需要 <code>meta l4proto</code>）；先用 <code>NF_TPROXY_LOOKUP_ESTABLISHED</code> 找已建立的 socket、找不到才用
+<code>NF_TPROXY_LOOKUP_LISTENER</code> 找監聽 socket；<code>nft_tproxy_validate()</code> 限制只能掛在
+<code>NF_INET_PRE_ROUTING</code>。省略位址時用的 <code>nf_tproxy_laddr4()</code>（<code>net/ipv4/netfilter/nf_tproxy_ipv4.c</code>）取的是入口網卡第一個非 secondary 的位址，沒有才退回封包的目的位址。</p>
+<p>結果是：<strong>封包沒打 mark → 走正常路由 → 直接轉發出去，不經過代理。</strong> 不會斷網，但會「悄悄直連」。排查時如果發現 counter 在跳、流量卻沒經過代理，先確認 12345 真的有在聽，而且是以 tproxy 模式聽的。</p>
+<p>但「不改寫」也帶來兩個必須解決的問題：</p>
+<h3 id="問題一核心憑什麼把不是給我的封包交給本機-socket">問題一：核心憑什麼把「不是給我的」封包交給本機 socket？</h3>
+<p>預設不會。所以 socket 必須先宣告 <code>IP_TRANSPARENT</code>：</p>
+<pre><code class="language-c"><span class="n">setsockopt</span><span class="p">(</span><span class="n">fd</span><span class="p">,</span><span class="w"> </span><span class="n">SOL_IP</span><span class="p">,</span><span class="w"> </span><span class="n">IP_TRANSPARENT</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">on</span><span class="p">,</span><span class="w"> </span><span class="k">sizeof</span><span class="p">(</span><span class="n">on</span><span class="p">));</span><span class="w">   </span><span class="c1">// 需要 CAP_NET_ADMIN</span>
+</code></pre>
+<p>這就是 v2ray dokodemo-door 那個 <code>&quot;sockopt&quot;: {&quot;tproxy&quot;: &quot;tproxy&quot;}</code> 背後做的事。</p>
+<h3 id="問題二路由判定會把封包轉發走">問題二：路由判定會把封包轉發走</h3>
+<p>封包的目的地還是 <code>1.1.1.1</code>，核心在 prerouting 之後做路由判定，當然判定「不是給我的」→ <strong>直接轉發出去</strong>，<code>tproxy</code> 的交付白做了。</p>
+<p>所以要用策略路由騙核心：</p>
+<pre><code class="language-bash">ip<span class="w"> </span>rule<span class="w"> </span>add<span class="w"> </span>fwmark<span class="w"> </span><span class="m">1</span><span class="w"> </span>lookup<span class="w"> </span><span class="m">100</span>
+ip<span class="w"> </span>route<span class="w"> </span>add<span class="w"> </span><span class="nb">local</span><span class="w"> </span><span class="m">0</span>.0.0.0/0<span class="w"> </span>dev<span class="w"> </span>lo<span class="w"> </span>table<span class="w"> </span><span class="m">100</span><span class="w">     </span><span class="c1"># 這張表裡「所有位址都是本機」</span>
+</code></pre>
+<p>（完整推導見 <a href="ip-rule%E8%88%87ip-route%E5%AE%8C%E6%95%B4%E6%8C%87%E5%8D%97.html">ip-rule與ip-route完整指南</a>。）</p>
+<h3 id="問題三回程怎麼辦">問題三：回程怎麼辦</h3>
+<p>代理程式要回覆給 LAN 電腦時，<strong>來源位址必須偽裝成 <code>1.1.1.1:443</code></strong>，否則 LAN 電腦會拒收（它從沒連過路由器的 12345）。這同樣靠 <code>IP_TRANSPARENT</code>——它允許 socket 用不屬於本機的位址當來源。</p>
+<p><strong>四個零件：</strong></p>
+<table>
+<thead>
+<tr>
+<th>零件</th>
+<th>做什麼</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>filter</code> 型別、<code>prerouting</code>、<code>mangle</code> 優先權 + <code>tproxy</code></td>
+<td>交付封包</td>
+</tr>
+<tr>
+<td><code>IP_TRANSPARENT</code></td>
+<td>讓 socket 收得到、也送得出非本機位址</td>
+</tr>
+<tr>
+<td>fwmark + <code>ip rule</code> + <code>local</code> 路由</td>
+<td>阻止核心把封包轉發走</td>
+</tr>
+<tr>
+<td><code>IP_RECVORIGDSTADDR</code></td>
+<td>程式讀出原始目的地</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="三為什麼-redirect-不能代理-udp">三、為什麼 REDIRECT 不能代理 UDP</h2>
+<p>這是最常被問、也最少被解釋清楚的一點。<strong>不是 netfilter 不能 DNAT UDP</strong>——
+DNAT UDP 完全合法。問題出在<strong>應用層拿不回原始目的地</strong>。</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>TCP</th>
+<th>UDP</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>連線模型</td>
+<td>每條連線一個獨立的 accepted socket</td>
+<td><strong>一個 socket 收所有來源的 datagram</strong></td>
+</tr>
+<tr>
+<td>conntrack 對應</td>
+<td>socket ↔ 連線一對一，可用五元組查到 conntrack 條目</td>
+<td>沒有「連線」概念，無法把某個 datagram 對應到特定 socket</td>
+</tr>
+<tr>
+<td><code>SO_ORIGINAL_DST</code></td>
+<td>✅ 查得到</td>
+<td>❌ <strong>沒有可查的對象</strong></td>
+</tr>
+<tr>
+<td><code>IP_RECVORIGDSTADDR</code></td>
+<td>—</td>
+<td>拿得到「封包上的目的地」，但<strong>REDIRECT 已經把它改寫了</strong>，讀到的是 <code>192.168.1.1:12345</code>，不是原始目的地</td>
+</tr>
+</tbody>
+</table>
+<p><strong>所以 UDP + REDIRECT 的結果是：你知道有一個封包來了，但不知道它原本要去哪。</strong> 無法轉發。</p>
+<p>這也解釋了為什麼各家代理軟體的文件都寫「redir 模式僅支援 TCP」——
+v2ray、clash、shadowsocks 都一樣，<strong>不是它們偷懶，是機制上做不到</strong>。</p>
+<p><strong>連帶的後果</strong>：用 REDIRECT 的話，DNS（UDP 53）、QUIC（UDP 443）、遊戲、WireGuard
+全部不會走代理。現代流量裡 QUIC 佔比越來越高，這個限制比以前嚴重。</p>
+<hr />
+<h2 id="四兩者的-hook-限制不同很多人不知道">四、兩者的 hook 限制不同（很多人不知道）</h2>
+<p><code>man nft</code> 的兩句話決定了一個重要差異：</p>
+<blockquote>
+<p>The <strong>nat</strong> statements are only valid from <strong>nat chain types</strong>.
+The dnat and <strong>redirect</strong> statements are only valid in the <strong>prerouting and output</strong> chains.</p>
+</blockquote>
+<p>而 tproxy 的官方範例用的是：</p>
+<pre><code>type filter hook prerouting priority mangle;
+</code></pre>
+<p><strong><code>tproxy</code> 只能用在 prerouting。</strong></p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>REDIRECT</th>
+<th>TPROXY</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>鏈型別</td>
+<td>必須 <code>type nat</code></td>
+<td><code>type filter</code></td>
+</tr>
+<tr>
+<td>可用 hook</td>
+<td><strong><code>prerouting</code> 與 <code>output</code></strong></td>
+<td><strong>只有 <code>prerouting</code></strong></td>
+</tr>
+<tr>
+<td>代理<strong>轉發</strong>流量（LAN 裝置）</td>
+<td>✅</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>代理<strong>本機自己</strong>發起的流量</td>
+<td>✅ 直接在 <code>output</code> 鏈寫</td>
+<td>⚠️ <strong>不能直接在 output 寫</strong>，要繞一圈（見下）</td>
+</tr>
+</tbody>
+</table>
+<p><strong>這是一個實務上很關鍵的差異</strong>：要讓路由器<strong>自己</strong>的流量（<code>opkg update</code>、ntp、容器）走代理，
+<code>tproxy</code> 不能直接寫在 output 鏈。可行的做法有三種：</p>
+<ol>
+<li><strong>繞回 prerouting</strong>：在 <code>type route hook output</code> 的鏈裡替本機流量打 mark → mark 改變觸發重新路由 →
+<code>ip rule fwmark</code> 命中 table 100 的 <code>local</code> 路由 → 封包經 <code>lo</code> 重新進入 <strong>prerouting</strong> →
+在那裡照常做 <code>tproxy</code>（TCP＋UDP 都可以）。這時代理程式自己連往上游的流量一定要用 <code>SO_MARK</code>
+排除，否則會被自己攔回來形成迴圈（推導見
+<a href="%E5%A4%9A%E5%BC%B5nft%E8%A1%A8%E7%9A%84%E5%9F%B7%E8%A1%8C%E9%A0%86%E5%BA%8F%E8%88%87ip-rule%E7%9A%84%E4%BD%8D%E7%BD%AE.html">多張nft表的執行順序與ip-rule的位置</a> 第六節第 4 點）。</li>
+<li>用 <code>output</code> 鏈的 REDIRECT（TCP 限定）。</li>
+<li>改用 <a href="../openwrt/%E8%B7%AF%E7%94%B1%E5%99%A8%E4%B8%8A%E7%9A%84%E9%80%8F%E6%98%8E%E4%BB%A3%E7%90%86-%E7%82%BA%E4%BB%80%E9%BA%BC%E4%B8%8D%E6%98%AFTUN%E6%A8%A1%E5%BC%8F.html">TUN 模式</a>。</li>
+</ol>
+<blockquote>
+<p>更正（2026-09-22）：本節原本寫「TPROXY 代理本機流量：做不到」，這不精確——做不到的是「直接在 output 用 tproxy」，繞回 prerouting 的做法是可行的，也是 v2ray 透明代理教學常見的寫法。</p>
+</blockquote>
+<p>常見的組合是：<code>prerouting</code> 用 TPROXY 處理 LAN 的 TCP+UDP；本機流量則看需求，選「繞回
+prerouting」（要 UDP 時）或 <code>output</code> 的 REDIRECT（只要 TCP、想簡單時）。</p>
+<hr />
+<h2 id="五完整對照表">五、完整對照表</h2>
+<table>
+<thead>
+<tr>
+<th>面向</th>
+<th>REDIRECT</th>
+<th>TPROXY</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>本質</strong></td>
+<td>DNAT 的特例</td>
+<td>封包交付（不做 NAT）</td>
+</tr>
+<tr>
+<td><strong>封包被改寫</strong></td>
+<td>✅ 目的地被改寫</td>
+<td>❌ 完全不動</td>
+</tr>
+<tr>
+<td><strong>取回原始目的地</strong></td>
+<td><code>SO_ORIGINAL_DST</code>（問 conntrack）</td>
+<td><code>IP_RECVORIGDSTADDR</code>（讀封包）</td>
+</tr>
+<tr>
+<td><strong>TCP</strong></td>
+<td>✅</td>
+<td>✅</td>
+</tr>
+<tr>
+<td><strong>UDP</strong></td>
+<td>❌ <strong>機制上做不到</strong></td>
+<td>✅</td>
+</tr>
+<tr>
+<td><strong>鏈型別／hook</strong></td>
+<td><code>type nat</code>；prerouting + <strong>output</strong></td>
+<td><code>type filter</code>；<strong>僅 prerouting</strong></td>
+</tr>
+<tr>
+<td><strong>優先權</strong></td>
+<td><code>dstnat</code>(-100)</td>
+<td><code>mangle</code>(-150)</td>
+</tr>
+<tr>
+<td><strong>程式端需求</strong></td>
+<td>只要會 <code>getsockopt</code></td>
+<td><strong><code>IP_TRANSPARENT</code>（需 CAP_NET_ADMIN）</strong></td>
+</tr>
+<tr>
+<td><strong>額外路由設定</strong></td>
+<td>不需要</td>
+<td><strong>需要 fwmark + ip rule + local 路由</strong></td>
+</tr>
+<tr>
+<td><strong>核心模組</strong></td>
+<td><code>nft_redir</code>／<code>ipt_REDIRECT</code>（幾乎都有）</td>
+<td><strong><code>nft_tproxy</code>／<code>xt_TPROXY</code>（常要另裝）</strong></td>
+</tr>
+<tr>
+<td><strong>conntrack 負擔</strong></td>
+<td>每條連線都佔 NAT 條目</td>
+<td>較輕（不做 NAT）</td>
+</tr>
+<tr>
+<td><strong>回程處理</strong></td>
+<td>conntrack 自動反向改寫</td>
+<td>程式要用 <code>IP_TRANSPARENT</code> 偽裝來源</td>
+</tr>
+<tr>
+<td><strong>IPv6</strong></td>
+<td>支援但歷史上較弱</td>
+<td>支援完整</td>
+</tr>
+<tr>
+<td><strong>設定複雜度</strong></td>
+<td>低（一條規則）</td>
+<td>高（四個零件）</td>
+</tr>
+<tr>
+<td><strong>除錯難度</strong></td>
+<td>低</td>
+<td>高（斷點多，見實作篇的驗證流程）</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="六優劣與怎麼選">六、優劣與怎麼選</h2>
+<h3 id="redirect-的優勢在簡單">REDIRECT 的優勢在「簡單」</h3>
+<ul>
+<li><strong>一條 nft 規則就完成</strong>，不用碰路由表。</li>
+<li>不需要特殊核心模組、不需要特殊權限。</li>
+<li>conntrack 幫你處理回程，錯的機會少。</li>
+<li><strong>可以代理本機自己的流量</strong>（<code>output</code> 鏈）。</li>
+</ul>
+<p><strong>代價只有一個，但很致命：只有 TCP。</strong></p>
+<h3 id="tproxy-的優勢在完整">TPROXY 的優勢在「完整」</h3>
+<ul>
+<li><strong>TCP + UDP 全覆蓋</strong>——DNS、QUIC、遊戲都能代理。</li>
+<li>封包不被改寫，原始資訊完整，代理程式看到的跟真實一模一樣。</li>
+<li>不做 NAT，conntrack 壓力較小（高連線數時有差）。</li>
+</ul>
+<p><strong>代價是四個零件全部要對，而且只能處理轉發流量。</strong></p>
+<h3 id="決策">決策</h3>
+<table>
+<thead>
+<tr>
+<th>你的情況</th>
+<th>選</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>只要網頁、只想快速驗證整條鏈通不通</td>
+<td><strong>REDIRECT</strong></td>
+</tr>
+<tr>
+<td>代理程式沒有 <code>IP_TRANSPARENT</code> 支援</td>
+<td><strong>REDIRECT</strong></td>
+</tr>
+<tr>
+<td>核心沒有 <code>nft_tproxy</code> 又不方便裝</td>
+<td><strong>REDIRECT</strong></td>
+</tr>
+<tr>
+<td>要代理 DNS／QUIC／遊戲／任何 UDP</td>
+<td><strong>TPROXY</strong></td>
+</tr>
+<tr>
+<td>要代理<strong>本機自己</strong>的流量</td>
+<td><strong>REDIRECT（output 鏈）</strong> 或 TUN</td>
+</tr>
+<tr>
+<td>正式長期使用、要求完整</td>
+<td><strong>TPROXY（LAN）+ REDIRECT（本機）</strong></td>
+</tr>
+</tbody>
+</table>
+<p><strong>實務建議：先用 REDIRECT 把整條鏈驗證通</strong>——防火牆規則、代理程式、出口伺服器都確認沒問題之後，再升級成 TPROXY。這樣出問題時你知道是新加的那一半壞掉，而不是從頭猜。</p>
+<hr />
+<h2 id="七規則與程式端的寫法對照">七、規則與程式端的寫法對照</h2>
+<h3 id="nftables-規則">nftables 規則</h3>
+<pre><code class="language-bash"><span class="c1"># ── REDIRECT ──（注意是 type nat）</span>
+nft<span class="w"> </span>add<span class="w"> </span>table<span class="w"> </span>ip<span class="w"> </span>proxy_redir
+nft<span class="w"> </span>add<span class="w"> </span>chain<span class="w"> </span>ip<span class="w"> </span>proxy_redir<span class="w"> </span>prerouting<span class="w"> </span><span class="s1">&#39;{ type nat hook prerouting priority dstnat; policy accept; }&#39;</span>
+nft<span class="w"> </span>add<span class="w"> </span>rule<span class="w">  </span>ip<span class="w"> </span>proxy_redir<span class="w"> </span>prerouting<span class="w"> </span>ip<span class="w"> </span>daddr<span class="w"> </span>@bypass<span class="w"> </span><span class="k">return</span>
+nft<span class="w"> </span>add<span class="w"> </span>rule<span class="w">  </span>ip<span class="w"> </span>proxy_redir<span class="w"> </span>prerouting<span class="w"> </span>iifname<span class="w"> </span><span class="s2">&quot;br-lan&quot;</span><span class="w"> </span>tcp<span class="w"> </span>dport<span class="w"> </span><span class="o">{</span><span class="w"> </span><span class="m">80</span>,<span class="w"> </span><span class="m">443</span><span class="w"> </span><span class="o">}</span><span class="w"> </span>counter<span class="w"> </span>redirect<span class="w"> </span>to<span class="w"> </span>:12345
+<span class="c1">#                                                        ^^^ 只能 tcp</span>
+
+<span class="c1"># ── TPROXY ──（注意是 type filter + mangle 優先權）</span>
+nft<span class="w"> </span>add<span class="w"> </span>table<span class="w"> </span>ip<span class="w"> </span>proxy_tproxy
+nft<span class="w"> </span>add<span class="w"> </span>chain<span class="w"> </span>ip<span class="w"> </span>proxy_tproxy<span class="w"> </span>prerouting<span class="w"> </span><span class="s1">&#39;{ type filter hook prerouting priority mangle; policy accept; }&#39;</span>
+nft<span class="w"> </span>add<span class="w"> </span>rule<span class="w">  </span>ip<span class="w"> </span>proxy_tproxy<span class="w"> </span>prerouting<span class="w"> </span>ip<span class="w"> </span>daddr<span class="w"> </span>@bypass<span class="w"> </span><span class="k">return</span>
+nft<span class="w"> </span>add<span class="w"> </span>rule<span class="w">  </span>ip<span class="w"> </span>proxy_tproxy<span class="w"> </span>prerouting<span class="w"> </span>iifname<span class="w"> </span><span class="s2">&quot;br-lan&quot;</span><span class="w"> </span>meta<span class="w"> </span>l4proto<span class="w"> </span><span class="o">{</span><span class="w"> </span>tcp,<span class="w"> </span>udp<span class="w"> </span><span class="o">}</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>counter<span class="w"> </span>tproxy<span class="w"> </span>to<span class="w"> </span>:12345<span class="w"> </span>meta<span class="w"> </span>mark<span class="w"> </span><span class="nb">set</span><span class="w"> </span><span class="m">1</span><span class="w"> </span>accept
+<span class="c1">#                                     ^^^ tcp udp 都可以</span>
+
+<span class="c1"># TPROXY 還需要這兩行，REDIRECT 不用</span>
+ip<span class="w"> </span>rule<span class="w">  </span>add<span class="w"> </span>fwmark<span class="w"> </span><span class="m">1</span><span class="w"> </span>lookup<span class="w"> </span><span class="m">100</span>
+ip<span class="w"> </span>route<span class="w"> </span>add<span class="w"> </span><span class="nb">local</span><span class="w"> </span><span class="m">0</span>.0.0.0/0<span class="w"> </span>dev<span class="w"> </span>lo<span class="w"> </span>table<span class="w"> </span><span class="m">100</span>
+</code></pre>
+<h3 id="v2ray-dokodemo-door-設定">v2ray dokodemo-door 設定</h3>
+<pre><code class="language-jsonc"><span class="c1">// REDIRECT：只要 followRedirect</span>
+<span class="p">{</span>
+<span class="w">  </span><span class="nt">&quot;port&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">12345</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;protocol&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;dokodemo-door&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;settings&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nt">&quot;network&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;tcp&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;followRedirect&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="w"> </span><span class="p">}</span>
+<span class="p">}</span>
+
+<span class="c1">// TPROXY：多一個 sockopt</span>
+<span class="p">{</span>
+<span class="w">  </span><span class="nt">&quot;port&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">12345</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;protocol&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;dokodemo-door&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;settings&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nt">&quot;network&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;tcp,udp&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;followRedirect&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="w"> </span><span class="p">},</span>
+<span class="w">  </span><span class="nt">&quot;streamSettings&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nt">&quot;sockopt&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nt">&quot;tproxy&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;tproxy&quot;</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="p">}</span>
+<span class="p">}</span>
+</code></pre>
+<p><strong>判斷別人的設定用哪一種，看有沒有 <code>sockopt.tproxy</code> 就知道。</strong></p>
+<hr />
+<h2 id="自我測驗">自我測驗</h2>
+<ol>
+<li>REDIRECT 與 TPROXY 對封包本身做了什麼不同的事？這一個差別如何連帶決定了「代理程式怎麼取回原始目的地」？</li>
+<li>為什麼 REDIRECT 不能代理 UDP？請從「TCP 與 UDP 的 socket 模型差異」回答，而不是「因為軟體不支援」。</li>
+<li>你要讓路由器<strong>自己</strong>發起的連線走代理。為什麼不能直接在 output 鏈寫 <code>tproxy</code>？「繞回 prerouting」的做法靠什麼讓封包回到 prerouting？為什麼這時一定要把代理程式自己的流量排除？</li>
+<li>TPROXY 需要 <code>ip rule</code> + <code>ip route add local</code>，REDIRECT 完全不需要。為什麼？從「封包的目的地有沒有被改寫」解釋。反過來，既然路由判定在 prerouting 之後才發生，
+<code>tproxy to :12345</code> 寫在 prerouting 又負責什麼？只留它、拿掉路由設定，會怎樣？</li>
+<li>情境題：你把 nft 規則從 <code>redirect to :12345</code> 改成 <code>tproxy to :12345</code>，其餘都沒動（鏈型別、優先權、代理程式設定、路由）。會有哪三件事出錯？</li>
+</ol>
+
+</main>
+</div>
+</body>
+</html>

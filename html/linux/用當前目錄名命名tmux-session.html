@@ -1,0 +1,330 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>如何讓 tmux 每次都用當前目錄名稱建立 session？——${PWD##*/} 參數展開</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/app.js"></script>
+</head>
+<body>
+<button class="menu-btn" onclick="toggleMenu()">☰ 目錄</button>
+<div class="layout">
+<nav class="side">
+<div class="crumbs"><a href="../index.html">🏠 首頁</a> / <a href="README.html">linux</a></div>
+<div class="tools"><button onclick="toggleTheme()">🌓 主題</button></div>
+<ul>
+<li class="l2"><a href="#%E7%9B%AE%E9%8C%84">目錄</a></li>
+<li class="l2"><a href="#%E4%B8%80%E5%85%88%E7%B5%A6%E7%AD%94%E6%A1%88">一、先給答案</a></li>
+<li class="l2"><a href="#%E4%BA%8Cpwd-%E9%80%90%E5%AD%97%E6%8B%86%E8%A7%A3">二、${PWD##*/} 逐字拆解</a></li>
+<li class="l2"><a href="#%E4%B8%89%E5%9B%9B%E5%80%8B%E5%88%87%E9%99%A4%E9%81%8B%E7%AE%97%E5%AD%90---">三、四個切除運算子：# ## % %%</a></li>
+<li class="l2"><a href="#%E5%9B%9B%E7%82%BA%E4%BB%80%E9%BA%BC%E4%B8%8D%E7%94%A8-basename">四、為什麼不用 basename</a></li>
+<li class="l2"><a href="#%E4%BA%94%E5%8C%85%E6%88%90%E4%B8%80%E5%80%8B%E5%87%BD%E5%BC%8F%E6%89%8D%E7%9C%9F%E7%9A%84%E6%AF%8F%E6%AC%A1%E9%83%BD%E8%83%BD%E7%94%A8">五、包成一個函式才真的「每次都能用」</a></li>
+<li class="l2"><a href="#%E5%85%ADtmux-%E5%B0%8D-session-%E5%90%8D%E7%A8%B1%E7%9A%84%E9%99%90%E5%88%B6%E8%88%87%E9%99%B7%E9%98%B1">六、tmux 對 session 名稱的限制與陷阱</a></li>
+<li class="l2"><a href="#%E4%B8%83%E9%82%8A%E7%95%8C%E6%83%85%E6%B3%81">七、邊界情況</a></li>
+<li class="l2"><a href="#%E5%8F%83%E8%80%83">參考</a></li>
+<li class="l2"><a href="#%E5%85%AB%E8%87%AA%E6%88%91%E6%B8%AC%E9%A9%97">八、自我測驗</a></li>
+<li class="l2"><a href="#tmux-%E7%9A%84%E7%9B%B8%E9%97%9C%E5%91%BD%E4%BB%A4%E8%88%87%E5%AE%8C%E6%95%B4%E5%8F%83%E6%95%B8">tmux 的相關命令與完整參數</a></li>
+</ul>
+</nav>
+<main>
+<h1 id="如何讓-tmux-每次都用當前目錄名稱建立-sessionpwd-參數展開">如何讓 tmux 每次都用當前目錄名稱建立 session？——<code>${PWD##*/}</code> 參數展開</h1>
+<blockquote>
+<p>日期：2026-09-10<br />
+情境：習慣用 <code>tmux new -d -s &lt;name&gt;</code> 開 session，但每次都要手打名稱；想讓名稱自動等於當前目錄名<br />
+對應檔案：<code>~/.zshrc</code>（個人環境設定，不入 git）<br />
+適用範圍：tmux 3.4；<code>${PWD##*/}</code> 適用 bash / zsh / dash 等所有 POSIX shell</p>
+</blockquote>
+<blockquote>
+<p><strong>一句話結論：<code>${PWD##*/}</code> 是 shell 內建的字串切除（parameter expansion，參數展開），把 <code>$PWD</code> 從左邊砍掉「最長的、符合 <code>*/</code> 的前綴」，剩下的就是目錄名——不開子行程、不怕空白，比 <code>$(basename &quot;$PWD&quot;)</code> 更該是預設選擇。</strong></p>
+</blockquote>
+<hr />
+<h2 id="目錄">目錄</h2>
+<ol>
+<li><a href="#%E4%B8%80%E5%85%88%E7%B5%A6%E7%AD%94%E6%A1%88">先給答案</a></li>
+<li><a href="#%E4%BA%8Cpwd-%E9%80%90%E5%AD%97%E6%8B%86%E8%A7%A3"><code>${PWD##*/}</code> 逐字拆解</a></li>
+<li><a href="#%E4%B8%89%E5%9B%9B%E5%80%8B%E5%88%87%E9%99%A4%E9%81%8B%E7%AE%97%E5%AD%90---">四個切除運算子：<code>#</code> <code>##</code> <code>%</code> <code>%%</code></a></li>
+<li><a href="#%E5%9B%9B%E7%82%BA%E4%BB%80%E9%BA%BC%E4%B8%8D%E7%94%A8-basename">為什麼不用 <code>basename</code></a></li>
+<li><a href="#%E4%BA%94%E5%8C%85%E6%88%90%E4%B8%80%E5%80%8B%E5%87%BD%E5%BC%8F%E6%89%8D%E7%9C%9F%E7%9A%84%E6%AF%8F%E6%AC%A1%E9%83%BD%E8%83%BD%E7%94%A8">包成一個函式才真的「每次都能用」</a></li>
+<li><a href="#%E5%85%ADtmux-%E5%B0%8D-session-%E5%90%8D%E7%A8%B1%E7%9A%84%E9%99%90%E5%88%B6%E8%88%87%E9%99%B7%E9%98%B1">tmux 對 session 名稱的限制與陷阱</a></li>
+<li><a href="#%E4%B8%83%E9%82%8A%E7%95%8C%E6%83%85%E6%B3%81">邊界情況</a></li>
+<li><a href="#%E5%85%AB%E8%87%AA%E6%88%91%E6%B8%AC%E9%A9%97">自我測驗</a></li>
+</ol>
+<hr />
+<h2 id="一先給答案">一、先給答案</h2>
+<pre><code class="language-bash">tmux<span class="w"> </span>new<span class="w"> </span>-d<span class="w"> </span>-s<span class="w"> </span><span class="s2">&quot;</span><span class="si">${</span><span class="nv">PWD</span><span class="p">##*/</span><span class="si">}</span><span class="s2">&quot;</span>
+</code></pre>
+<p>在 <code>/home/set/work/Projects/github/good-note</code> 執行，就會得到名為 <code>good-note</code> 的 session。</p>
+<p>雙引號不能省：目錄名可能含空白（例如 <code>my app</code>），沒引號的話 shell 會把它切成兩個參數，
+<code>-s</code> 只吃到 <code>my</code>，<code>app</code> 變成要在 session 裡執行的 shell-command。</p>
+<hr />
+<h2 id="二pwd-逐字拆解">二、<code>${PWD##*/}</code> 逐字拆解</h2>
+<p>這不是 tmux 的語法，而是 shell 的<strong>參數展開（parameter expansion）</strong>。拆成四塊看：</p>
+<table>
+<thead>
+<tr>
+<th>片段</th>
+<th>意思</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>PWD</code></td>
+<td>shell 自動維護的環境變數，值是當前工作目錄的絕對路徑</td>
+</tr>
+<tr>
+<td><code>##</code></td>
+<td>運算子：從<strong>開頭</strong>切掉符合樣式的部分，取<strong>最長</strong>匹配</td>
+</tr>
+<tr>
+<td><code>*/</code></td>
+<td>樣式（pattern）：任意字元若干個，最後是一個斜線</td>
+</tr>
+<tr>
+<td><code>${...}</code></td>
+<td>參數展開的外框，結果是切除後剩下的字串（原變數不會被改動）</td>
+</tr>
+</tbody>
+</table>
+<p>以 <code>/home/set/work/Projects/github/good-note</code> 為例，符合 <code>*/</code> 的前綴有很多個候選：</p>
+<pre><code>/
+/home/
+/home/set/
+...
+/home/set/work/Projects/github/      ← 最長的那個
+</code></pre>
+<p><code>##</code> 取最長，所以切掉最後那一行，剩下 <code>good-note</code>。</p>
+<p>關鍵理解：<strong><code>*/</code> 裡的 <code>*</code> 是 shell 的通用比對樣式（glob），不是正規表達式（regular expression）。</strong>
+glob 的 <code>*</code> 本身就能跨斜線（<code>/</code> 在 glob 樣式比對中不是特殊字元，只有在檔名展開時才有目錄邊界的概念），所以它才吃得掉中間所有層級。</p>
+<hr />
+<h2 id="三四個切除運算子---">三、四個切除運算子：<code>#</code> <code>##</code> <code>%</code> <code>%%</code></h2>
+<p>記法：鍵盤上 <code>#</code> 在 <code>$</code> 左邊（切前面），<code>%</code> 在 <code>$</code> 右邊（切後面）；單個=最短，雙個=最長。</p>
+<p>以 <code>p=/home/set/work/Projects/github/good-note</code> 實測：</p>
+<pre><code class="language-bash"><span class="si">${</span><span class="nv">p</span><span class="p">##*/</span><span class="si">}</span><span class="w">    </span><span class="c1"># good-note                              ← 切前面、最長 = basename</span>
+<span class="si">${</span><span class="nv">p</span><span class="p">#*/</span><span class="si">}</span><span class="w">     </span><span class="c1"># home/set/work/Projects/github/good-note ← 切前面、最短（只切掉第一個 /）</span>
+<span class="si">${</span><span class="nv">p</span><span class="p">%/*</span><span class="si">}</span><span class="w">     </span><span class="c1"># /home/set/work/Projects/github          ← 切後面、最短 = dirname</span>
+<span class="si">${</span><span class="nv">p</span><span class="p">%%/*</span><span class="si">}</span><span class="w">    </span><span class="c1"># （空字串）                               ← 切後面、最長（整條都被吃掉）</span>
+</code></pre>
+<p>實務上最常用的另一組是切副檔名：</p>
+<pre><code class="language-bash"><span class="nv">f</span><span class="o">=</span>archive.tar.gz
+<span class="si">${</span><span class="nv">f</span><span class="p">%.*</span><span class="si">}</span><span class="w">     </span><span class="c1"># archive.tar   ← 切最後一個副檔名</span>
+<span class="si">${</span><span class="nv">f</span><span class="p">%%.*</span><span class="si">}</span><span class="w">    </span><span class="c1"># archive       ← 切掉所有副檔名</span>
+<span class="si">${</span><span class="nv">f</span><span class="p">##*.</span><span class="si">}</span><span class="w">    </span><span class="c1"># gz            ← 只留最後一個副檔名</span>
+</code></pre>
+<blockquote>
+<p>zsh 另外有更短的修飾子（modifier）寫法：<code>${PWD:t}</code>（tail）等於 <code>${PWD##*/}</code>，
+<code>${PWD:h}</code>（head）等於 <code>${PWD%/*}</code>。好用，但<strong>只有 zsh 有</strong>，寫進要給 bash/sh 跑的腳本會壞掉。</p>
+</blockquote>
+<hr />
+<h2 id="四為什麼不用-basename">四、為什麼不用 <code>basename</code></h2>
+<p><code>$(basename &quot;$PWD&quot;)</code> 結果通常一樣，但有三個實質差別：</p>
+<ol>
+<li><strong>成本</strong>：<code>basename</code> 是 <code>/usr/bin/basename</code>，一個外部程式。每次呼叫要 fork + exec 一個子行程；參數展開完全在 shell 內完成。單次跑看不出差異，寫在迴圈或 shell prompt 裡就會有感。</li>
+<li><strong>引號</strong>：<code>$(basename &quot;$PWD&quot;)</code> 裡面那層引號漏掉，遇到含空白的路徑就錯；
+<code>${PWD##*/}</code> 只需要外面一層引號。</li>
+<li><strong>根目錄的行為不同</strong>：在 <code>/</code> 之下 <code>basename /</code> 回傳 <code>/</code>，而 <code>${PWD##*/}</code> 回傳<strong>空字串</strong>。這不是誰對誰錯，是兩種語意，要自己決定哪種對你有利（見下方邊界情況）。</li>
+</ol>
+<p>反過來說，<code>basename</code> 可以處理「任意一段路徑字串」並支援 <code>-s .txt</code> 去副檔名，在處理非 <code>$PWD</code> 的複雜路徑時仍有它的位置。這裡的結論只是：<strong>取當前目錄名這件事，不值得開一個子行程。</strong></p>
+<hr />
+<h2 id="五包成一個函式才真的每次都能用">五、包成一個函式才真的「每次都能用」</h2>
+<p>原始需求是「每次都」自動命名，所以重點是寫進 <code>~/.zshrc</code>（或 <code>~/.bashrc</code>）：</p>
+<pre><code class="language-bash"><span class="c1"># 用當前目錄名開一個 detached session；已存在就直接進去</span>
+tn<span class="o">()</span><span class="w"> </span><span class="o">{</span>
+<span class="w">  </span><span class="nb">local</span><span class="w"> </span><span class="nv">name</span><span class="o">=</span><span class="s2">&quot;</span><span class="si">${</span><span class="nv">PWD</span><span class="p">##*/</span><span class="si">}</span><span class="s2">&quot;</span>
+<span class="w">  </span><span class="nv">name</span><span class="o">=</span><span class="s2">&quot;</span><span class="si">${</span><span class="nv">name</span><span class="p">//[.:]/_</span><span class="si">}</span><span class="s2">&quot;</span><span class="w">            </span><span class="c1"># tmux 不接受 . 與 :（見下一節）</span>
+<span class="w">  </span><span class="k">if</span><span class="w"> </span><span class="o">[</span><span class="w"> </span>-z<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$name</span><span class="s2">&quot;</span><span class="w"> </span><span class="o">]</span><span class="p">;</span><span class="w"> </span><span class="k">then</span>
+<span class="w">    </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;tn: 目前目錄無法產生 session 名稱（在 / 底下？）&quot;</span><span class="w"> </span>&gt;<span class="p">&amp;</span><span class="m">2</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="m">1</span>
+<span class="w">  </span><span class="k">fi</span>
+<span class="w">  </span><span class="k">if</span><span class="w"> </span>tmux<span class="w"> </span>has-session<span class="w"> </span>-t<span class="o">=</span><span class="s2">&quot;</span><span class="nv">$name</span><span class="s2">&quot;</span><span class="w"> </span><span class="m">2</span>&gt;/dev/null<span class="p">;</span><span class="w"> </span><span class="k">then</span>
+<span class="w">    </span>tmux<span class="w"> </span>attach<span class="w"> </span>-t<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$name</span><span class="s2">&quot;</span><span class="w">          </span><span class="c1"># 已存在 → 附掛進去，不要再 new</span>
+<span class="w">  </span><span class="k">else</span>
+<span class="w">    </span>tmux<span class="w"> </span>new<span class="w"> </span>-d<span class="w"> </span>-s<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$name</span><span class="s2">&quot;</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>tmux<span class="w"> </span>attach<span class="w"> </span>-t<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$name</span><span class="s2">&quot;</span>
+<span class="w">  </span><span class="k">fi</span>
+<span class="o">}</span>
+</code></pre>
+<p><code>-t=</code> 的等號寫法會做精確比對；<code>tmux has-session -t name</code> 是前綴比對，
+<code>good</code> 會誤判成已存在 <code>good-note</code>，開發機上很容易踩到。</p>
+<p>不想寫函式、只要一行別名也可以，但要知道它的行為：</p>
+<pre><code class="language-bash"><span class="nb">alias</span><span class="w"> </span><span class="nv">tn</span><span class="o">=</span><span class="s1">&#39;tmux new -d -s &quot;${PWD##*/}&quot;&#39;</span>
+</code></pre>
+<p>單引號是刻意的——要讓 <code>${PWD##*/}</code> 在<strong>使用時</strong>才展開；用雙引號會在定義 alias 的當下就被展開成固定的字串。</p>
+<hr />
+<h2 id="六tmux-對-session-名稱的限制與陷阱">六、tmux 對 session 名稱的限制與陷阱</h2>
+<ul>
+<li>
+<p><strong><code>.</code> 和 <code>:</code> 會被換成 <code>_</code>。</strong> tmux 用 <code>session:window.pane</code> 的語法定位目標，所以名稱裡不能有這兩個字元。實測目錄 <code>my.app v1</code> 建出來的 session 名稱是 <code>my_app v1</code>——tmux 自動改名，不會報錯。這表示「目錄名」和「session 名」可能不相等，後續想用 <code>tmux attach -t &quot;${PWD##*/}&quot;</code> 就會找不到，所以上面的函式先自己做了替換，讓兩邊的規則一致。</p>
+</li>
+<li>
+<p><strong>空白可以存在</strong>，但每次打名稱都要加引號，建議也一併換成 <code>_</code>。</p>
+</li>
+<li>
+<p><strong>名稱重複會直接失敗</strong>：<code>duplicate session: dup</code>，而且離開狀態碼非 0。</p>
+<pre><code class="language-bash">$<span class="w"> </span>tmux<span class="w"> </span>new<span class="w"> </span>-d<span class="w"> </span>-s<span class="w"> </span>dup
+$<span class="w"> </span>tmux<span class="w"> </span>new<span class="w"> </span>-d<span class="w"> </span>-s<span class="w"> </span>dup
+duplicate<span class="w"> </span>session:<span class="w"> </span>dup
+</code></pre>
+</li>
+<li>
+<p><strong><code>tmux new -A -s &lt;name&gt;</code>（存在就改為 attach）看起來是完美解，但和 <code>-d</code> 合不起來。</strong>
+man page 寫明：給了 <code>-A</code>，在「已存在」那條路徑上它等同 <code>attach-session</code>，此時 <code>-d</code> 的意義變成 attach 的 <code>-d</code>（detach 其他 client），不再是「不要附掛」。所以 <code>tmux new -A -d -s x</code> 在 session 已存在、又沒有終端機（腳本／cron／hook）的情況下會失敗：</p>
+<pre><code>open terminal failed: not a terminal
+</code></pre>
+<p>互動式使用想要「有就進、沒有就開」，<code>tmux new -A -s &quot;${PWD##*/}&quot;</code>（不要 <code>-d</code>）是對的；要寫進腳本且堅持 detached，就用上面 <code>has-session</code> 的分支寫法。</p>
+</li>
+</ul>
+<hr />
+<h2 id="七邊界情況">七、邊界情況</h2>
+<table>
+<thead>
+<tr>
+<th>情況</th>
+<th><code>${PWD##*/}</code> 的結果</th>
+<th>後果</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>cd /</code></td>
+<td>空字串</td>
+<td><code>tmux new -d -s &quot;&quot;</code> → <code>invalid session: </code>，session 不會建立</td>
+</tr>
+<tr>
+<td><code>cd ~</code></td>
+<td><code>set</code>（家目錄名）</td>
+<td>能用，但所有使用者家目錄都長得像，辨識度低</td>
+</tr>
+<tr>
+<td>兩個不同路徑、同一個目錄名（<code>a/build</code>、<code>b/build</code>）</td>
+<td>都是 <code>build</code></td>
+<td>第二次必定 <code>duplicate session</code>——這是這個做法最常見的實際痛點</td>
+</tr>
+<tr>
+<td>目錄名含 <code>.</code>（<code>my.app</code>）</td>
+<td><code>my.app</code></td>
+<td>tmux 自動改成 <code>my_app</code>，名稱與目錄名不再一致</td>
+</tr>
+</tbody>
+</table>
+<p>第三列值得補一個解法：名稱改用「父目錄-目錄」兩層，碰撞機率大降，而且仍然一行搞定。</p>
+<pre><code class="language-bash"><span class="nv">name</span><span class="o">=</span><span class="s2">&quot;</span><span class="si">${</span><span class="nv">PWD</span><span class="p">#</span><span class="s2">&quot;</span><span class="si">${</span><span class="nv">PWD</span><span class="p">%/*/*</span><span class="si">}</span><span class="s2">/&quot;</span><span class="si">}</span><span class="s2">&quot;</span><span class="w">      </span><span class="c1"># a/build → 取最後兩層</span>
+<span class="nv">name</span><span class="o">=</span><span class="s2">&quot;</span><span class="si">${</span><span class="nv">name</span><span class="p">//</span><span class="se">\/</span><span class="p">/-</span><span class="si">}</span><span class="s2">&quot;</span><span class="w">              </span><span class="c1"># 斜線換成 - → a-build</span>
+</code></pre>
+<hr />
+<h2 id="參考">參考</h2>
+<ul>
+<li>參數展開的 <code>*</code> 與引號規則，和 <code>[ ]</code> 測試命令同屬「shell 把東西當命令與參數處理」這套心智模型：
+<a href="shell%E6%A2%9D%E4%BB%B6%E5%88%A4%E6%96%B7%E6%B8%AC%E8%A9%A6.html">shell條件判斷測試</a></li>
+<li>session 建好之後要改名：<a href="tmux%E9%87%8D%E5%91%BD%E5%90%8Dsession.html">tmux重命名session</a></li>
+</ul>
+<hr />
+<h2 id="八自我測驗">八、自我測驗</h2>
+<ol>
+<li><code>${PWD##*/}</code> 和 <code>${PWD%/*}</code> 分別取到路徑的哪一段？從運算子的符號本身推導出答案，而不是背結果。</li>
+<li>為什麼 <code>*/</code> 這個樣式裡的 <code>*</code> 能跨越好幾層斜線？如果它的語意和正規表達式一樣，結果會變成什麼？</li>
+<li>既然 <code>$(basename &quot;$PWD&quot;)</code> 的輸出通常相同，為什麼仍該優先選 <code>${PWD##*/}</code>？至少說出兩個理由，並指出一個「在 <code>/</code> 之下兩者行為不同」的具體差異。</li>
+<li>情境題：你把 <code>alias tn='tmux new -A -d -s &quot;${PWD##*/}&quot;'</code> 寫進 <code>~/.zshrc</code>，在專案目錄第一次用沒問題，第二次卻出現 <code>open terminal failed: not a terminal</code>。請說明這是 <code>-A</code> 與 <code>-d</code> 的哪一條交互作用造成的，以及你會怎麼改。</li>
+<li>情境題：你有 <code>~/work/api/build</code> 和 <code>~/work/web/build</code> 兩個目錄，都想用這套自動命名開 session。會發生什麼事？錯誤訊息會是什麼？提出一個仍然「只看當前目錄就能決定名稱」的修正方案。</li>
+</ol>
+<h2 id="tmux-的相關命令與完整參數">tmux 的相關命令與完整參數</h2>
+<blockquote>
+<p><strong>tmux 有 90 個子命令</strong>（<code>tmux list-commands</code> 可列出全部），這裡只列 session 操作這一組；完整清單見 <code>man tmux</code>。查單一命令的文法用 <code>tmux list-commands | grep &lt;命令&gt;</code>。</p>
+</blockquote>
+<table>
+<thead>
+<tr>
+<th>命令（別名）</th>
+<th>完整文法</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>new-session</code> (<code>new</code>)</td>
+<td><code>[-AdDEPX] [-c 起始目錄] [-e 環境變數] [-F 格式] [-f 旗標] [-n 視窗名] [-s session名] [-t 目標session] [-x 寬] [-y 高] [shell 指令]</code></td>
+</tr>
+<tr>
+<td><code>rename-session</code> (<code>rename</code>)</td>
+<td><code>[-t 目標session] &lt;新名字&gt;</code></td>
+</tr>
+<tr>
+<td><code>has-session</code> (<code>has</code>)</td>
+<td><code>[-t 目標session]</code></td>
+</tr>
+<tr>
+<td><code>attach-session</code> (<code>attach</code>)</td>
+<td><code>[-dErx] [-c 工作目錄] [-f 旗標] [-t 目標session]</code></td>
+</tr>
+</tbody>
+</table>
+<p><strong><code>new-session</code> 的旗標逐一</strong></p>
+<table>
+<thead>
+<tr>
+<th>旗標</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-A</code></td>
+<td><strong>已存在同名 session 就 attach 而不是建新的</strong>（等同 <code>new-session</code> + <code>has-session</code> 的組合）</td>
+</tr>
+<tr>
+<td><code>-d</code></td>
+<td><strong>建立後不要 attach</strong>（腳本必用）</td>
+</tr>
+<tr>
+<td><code>-D</code></td>
+<td>配合 <code>-A</code> 時，把其他客戶端從該 session 踢掉</td>
+</tr>
+<tr>
+<td><code>-E</code></td>
+<td>不套用 <code>update-environment</code></td>
+</tr>
+<tr>
+<td><code>-P</code></td>
+<td>印出新 session 的資訊</td>
+</tr>
+<tr>
+<td><code>-X</code></td>
+<td>不使用 <code>destroy-unattached</code></td>
+</tr>
+<tr>
+<td><code>-c &lt;目錄&gt;</code></td>
+<td>起始工作目錄</td>
+</tr>
+<tr>
+<td><code>-e &lt;k=v&gt;</code></td>
+<td>設定環境變數</td>
+</tr>
+<tr>
+<td><code>-F &lt;格式&gt;</code></td>
+<td>配合 <code>-P</code> 的輸出格式</td>
+</tr>
+<tr>
+<td><code>-n &lt;名稱&gt;</code></td>
+<td>第一個視窗的名稱</td>
+</tr>
+<tr>
+<td><code>-s &lt;名稱&gt;</code></td>
+<td><strong>session 名稱</strong></td>
+</tr>
+<tr>
+<td><code>-t &lt;目標&gt;</code></td>
+<td>分組到既有 session</td>
+</tr>
+<tr>
+<td><code>-x</code> / <code>-y</code></td>
+<td>指定寬高（detached 時有用）</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong><code>-A</code> 與 <code>-d</code> 一起用會互相影響</strong>：<code>-A</code> 時若 session 已存在，<code>-d</code> 的語意變成「attach 時
+detach 其他客戶端」。腳本要冪等地建 session，用 <code>has-session || new-session -d</code> 最不會出錯。</p>
+</blockquote>
+
+</main>
+</div>
+</body>
+</html>

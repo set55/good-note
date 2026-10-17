@@ -1,0 +1,975 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>讀懂 x86-64 組合語言（二）—— call 與 ret、堆疊框、參數放哪裡、誰負責保存暫存器</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/app.js"></script>
+</head>
+<body>
+<button class="menu-btn" onclick="toggleMenu()">☰ 目錄</button>
+<div class="layout">
+<nav class="side">
+<div class="crumbs"><a href="../index.html">🏠 首頁</a> / <a href="README.html">c</a></div>
+<div class="tools"><button onclick="toggleTheme()">🌓 主題</button></div>
+<ul>
+<li class="l2"><a href="#%E7%9B%AE%E9%8C%84">目錄</a></li>
+<li class="l2"><a href="#%E9%9B%B6%E9%96%8B%E8%AA%B2%E8%A4%87%E7%BF%92%E7%AC%AC-4-%E8%AA%B2%E5%8D%A1%E4%BD%8F%E7%9A%84%E4%BA%94%E5%80%8B%E8%A7%80%E5%BF%B5">零、開課複習：第 4 課卡住的五個觀念</a></li>
+<li class="l2"><a href="#%E4%B8%80%E6%9C%AC%E8%AA%B2%E5%9C%A8%E5%81%9A%E4%BB%80%E9%BA%BC%E5%87%BD%E5%BC%8F%E5%91%BC%E5%8F%AB%E5%8F%AA%E6%98%AF%E5%B9%BE%E6%A2%9D%E6%8C%87%E4%BB%A4">一、本課在做什麼：函式呼叫只是幾條指令</a></li>
+<li class="l2"><a href="#%E4%BA%8C%E5%A0%86%E7%96%8Arsp-%E6%8C%87%E8%91%97%E9%A0%82%E7%AB%AF%E5%BE%80%E4%BD%8E%E4%BD%8D%E5%9D%80%E9%95%B7">二、堆疊：%rsp 指著頂端，往低位址長</a></li>
+<li class="l2"><a href="#%E4%B8%89call-%E8%88%87-ret%E7%94%A8-gdb-%E4%B8%80%E6%A2%9D%E4%B8%80%E6%A2%9D%E8%B5%B0">三、call 與 ret：用 gdb 一條一條走</a></li>
+<li class="l3"><a href="#%E5%AF%A6%E9%A9%97framec">實驗：frame.c</a></li>
+<li class="l3"><a href="#%E5%81%9C%E5%9C%A8%E5%87%BD%E5%BC%8F%E5%85%A5%E5%8F%A3%E6%99%82%E6%80%8E%E9%BA%BC%E7%9F%A5%E9%81%93%E6%98%AF%E8%AA%B0%E5%91%BC%E5%8F%AB%E7%9A%84">停在函式入口時，怎麼知道是誰呼叫的</a></li>
+<li class="l2"><a href="#%E5%9B%9B%E5%A0%86%E7%96%8A%E6%A1%86pushq-rbp-movq-rsp-rbp-%E8%88%87-leave">四、堆疊框：pushq %rbp; movq %rsp, %rbp 與 leave</a></li>
+<li class="l3"><a href="#leave%E4%B8%80%E6%A2%9D%E6%8C%87%E4%BB%A4%E5%81%9A%E5%85%A9%E4%BB%B6%E4%BA%8B">leave：一條指令做兩件事</a></li>
+<li class="l3"><a href="#%E7%95%AB%E5%87%BA%E4%BE%86%E5%81%9C%E5%9C%A8-add3-%E8%A3%A1%E9%9D%A2%E6%99%82%E7%9A%84%E5%A0%86%E7%96%8A">畫出來：停在 add3 裡面時的堆疊</a></li>
+<li class="l3"><a href="#%E4%B8%8A%E5%9C%96-add3-%E7%9A%84%E8%AE%8A%E6%95%B8%E5%9C%A8-rsp-%E7%9A%84%E4%B8%8B%E9%9D%A2%E7%B4%85%E5%8D%80">上圖 add3 的變數在 %rsp 的「下面」：紅區</a></li>
+<li class="l2"><a href="#%E4%BA%94%E5%8F%83%E6%95%B8%E8%88%87%E5%9B%9E%E5%82%B3%E5%80%BC%E6%94%BE%E5%93%AA%E8%A3%A1">五、參數與回傳值放哪裡</a></li>
+<li class="l3"><a href="#%E5%AF%A6%E9%A9%978-%E5%80%8B%E5%8F%83%E6%95%B8%E7%AC%AC-78-%E5%80%8B%E5%8E%BB%E5%93%AA%E4%BA%86">實驗：8 個參數，第 7、8 個去哪了</a></li>
+<li class="l3"><a href="#%E8%A3%9C%E6%95%99charshort-%E5%8F%83%E6%95%B8%E7%82%BA%E4%BB%80%E9%BA%BC%E5%85%88-mov-ediedx-%E5%86%8D%E5%AD%98-dl">補教：char、short 參數為什麼先 mov %edi,%edx 再存 %dl</a></li>
+<li class="l2"><a href="#%E5%85%AD%E8%AA%B0%E8%B2%A0%E8%B2%AC%E4%BF%9D%E5%AD%98%E6%9A%AB%E5%AD%98%E5%99%A8%E4%BB%A5%E5%8F%8A-16-byte-%E5%B0%8D%E9%BD%8A">六、誰負責保存暫存器，以及 16 byte 對齊</a></li>
+<li class="l3"><a href="#%E5%AF%A6%E9%A9%97%E8%A6%81%E8%B7%A8%E9%81%8E-call-%E4%BF%9D%E5%AD%98%E7%9A%84%E5%80%BC%E6%94%BE%E5%93%AA%E8%A3%A1">實驗：要跨過 call 保存的值放哪裡</a></li>
+<li class="l3"><a href="#%E4%B8%8A%E9%9D%A2%E7%9A%84-sub-0x8rsp16-byte-%E5%B0%8D%E9%BD%8A">上面的 sub $0x8,%rsp：16 byte 對齊</a></li>
+<li class="l3"><a href="#%E8%A3%9C%E6%95%99%E8%A2%AB%E5%91%BC%E5%8F%AB%E7%9A%84%E5%87%BD%E5%BC%8F%E5%B0%B1%E5%9C%A8%E5%90%8C%E4%B8%80%E5%80%8B%E6%AA%94%E6%A1%88%E6%99%82sub-0x8rsp-%E7%82%BA%E4%BB%80%E9%BA%BC%E4%B8%8D%E8%A6%8B%E4%BA%86">補教：被呼叫的函式就在同一個檔案時，sub $0x8,%rsp 為什麼不見了</a></li>
+<li class="l2"><a href="#%E4%B8%83printf-%E5%89%8D%E7%9A%84-movl-0-eax%E5%8F%AF%E8%AE%8A%E5%8F%83%E6%95%B8%E5%87%BD%E5%BC%8F%E7%9A%84-al">七、printf 前的 movl $0, %eax：可變參數函式的 %al</a></li>
+<li class="l2"><a href="#%E5%85%AB%E6%9C%AC%E8%AA%B2%E7%94%A8%E5%88%B0%E7%9A%84%E5%B7%A5%E5%85%B7%E9%81%B8%E9%A0%85%E8%88%87%E5%AE%8C%E6%95%B4%E6%B8%85%E5%96%AE%E5%9C%A8%E5%93%AA">八、本課用到的工具、選項與完整清單在哪</a></li>
+<li class="l3"><a href="#gdb%E6%9C%AC%E8%AA%B2%E7%94%A8%E5%88%B0%E7%9A%84%E5%91%BD%E4%BB%A4">gdb：本課用到的命令</a></li>
+<li class="l3"><a href="#gccobjdump%E6%9C%AC%E8%AA%B2%E6%96%B0%E7%94%A8%E5%88%B0%E7%9A%84%E9%81%B8%E9%A0%85">gcc、objdump：本課新用到的選項</a></li>
+<li class="l3"><a href="#%E6%9C%AC%E8%AA%B2%E7%9A%84%E6%8C%87%E4%BB%A4">本課的指令</a></li>
+<li class="l2"><a href="#%E4%B9%9D%E5%8B%95%E6%89%8B%E4%BD%9C%E6%A5%AD">九、動手作業</a></li>
+<li class="l2"><a href="#%E8%87%AA%E6%88%91%E6%B8%AC%E9%A9%97">自我測驗</a></li>
+</ul>
+</nav>
+<main>
+<h1 id="讀懂-x86-64-組合語言二-call-與-ret堆疊框參數放哪裡誰負責保存暫存器">讀懂 x86-64 組合語言（二）—— <code>call</code> 與 <code>ret</code>、堆疊框、參數放哪裡、誰負責保存暫存器</h1>
+<blockquote>
+<p>日期：2026-10-09<br />
+情境：系統化學習路線第 ① 站第 5 課。對應 CS:APP 第 3.7 節（程序：執行時堆疊、轉移控制、資料傳送、區域變數、暫存器的使用慣例）；補完第 4 課留下的兩個問題：<code>-O0</code> 函式開頭的 <code>pushq %rbp; movq %rsp, %rbp</code> 在做什麼、<code>main</code> 呼叫 <code>printf</code> 前為什麼要 <code>movl $0, %eax</code><br />
+適用範圍：實測本機 Ubuntu 24.04、x86-64、gcc 13.3.0、GNU objdump 2.42、gdb 15.1；所有組合語言與 gdb 輸出都是本機實際產生的。呼叫慣例的規則（哪個參數放哪個暫存器、誰保存哪些暫存器、對齊）出自 <em>System V AMD64 ABI</em>（Linux 在 x86-64 上用的規範），本篇用實際編出來的程式驗證其中一部分，沒驗證到的地方會註明<br />
+對應檔案：每個實驗程式與 gdb 腳本的完整內容都寫在它出現的那一節；同樣的檔案也放在
+<a href="../../small-project/s1-05-asm-calls/"><code>small-project/s1-05-asm-calls/</code></a>（會進 git，編譯產物不進），作業也在同一個資料夾<br />
+相關：<a href="x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80-%E6%9A%AB%E5%AD%98%E5%99%A8%E3%80%81mov%E8%88%87lea%E3%80%81cmp%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D.html">x86-64組合語言入門（一）</a>（第 4 課：暫存器、<code>mov</code>／<code>lea</code>、旗標）、
+<a href="%E9%99%A3%E5%88%97%E3%80%81%E5%AD%97%E4%B8%B2%E8%88%87%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97-C%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%88%87%E7%94%A8gdb%E6%89%BEsegfault.html">陣列、字串與指標運算</a>（第 3 課：堆疊上的陣列、<code>stack smashing detected</code>）、
+<a href="gdb%E5%AE%8C%E6%95%B4%E5%91%BD%E4%BB%A4%E5%8F%83%E8%80%83.html">gdb完整命令參考</a></p>
+</blockquote>
+<p><strong>一句話結論：函式呼叫在機器層級只是「堆疊」加上四個指令。
+<code>call f</code> ＝ 把<strong>返回位址</strong>（<code>call</code> 下一條指令的位址）推進堆疊，再跳到 <code>f</code>；<code>ret</code> ＝ 從堆疊頂端取出一個位址，跳回去。
+<code>push</code>／<code>pop</code> 讓 <code>%rsp</code> 每次移動 8 byte，堆疊往<strong>低位址</strong>長。每個函式用 <code>%rbp</code> 標出自己那一塊（堆疊框），區域變數用 <code>-8(%rbp)</code> 這種寫法存取。參數照順序放 <code>%rdi</code>、<code>%rsi</code>、<code>%rdx</code>、<code>%rcx</code>、<code>%r8</code>、<code>%r9</code>，第 7 個起放堆疊，回傳值放 <code>%rax</code>。
+<code>%rbx</code>、<code>%rbp</code>、<code>%r12</code>～<code>%r15</code> 由<strong>被呼叫的函式</strong>負責還原（所以要跨過 <code>call</code> 保存的值會放在這些暫存器裡），其他的呼叫完可能被改掉。</strong></p>
+<hr />
+<h2 id="目錄">目錄</h2>
+<ul>
+<li><a href="#%E9%9B%B6%E9%96%8B%E8%AA%B2%E8%A4%87%E7%BF%92%E7%AC%AC-4-%E8%AA%B2%E5%8D%A1%E4%BD%8F%E7%9A%84%E4%BA%94%E5%80%8B%E8%A7%80%E5%BF%B5">零、開課複習：第 4 課卡住的五個觀念</a></li>
+<li><a href="#%E4%B8%80%E6%9C%AC%E8%AA%B2%E5%9C%A8%E5%81%9A%E4%BB%80%E9%BA%BC%E5%87%BD%E5%BC%8F%E5%91%BC%E5%8F%AB%E5%8F%AA%E6%98%AF%E5%B9%BE%E6%A2%9D%E6%8C%87%E4%BB%A4">一、本課在做什麼：函式呼叫只是幾條指令</a></li>
+<li><a href="#%E4%BA%8C%E5%A0%86%E7%96%8Arsp-%E6%8C%87%E8%91%97%E9%A0%82%E7%AB%AF%E5%BE%80%E4%BD%8E%E4%BD%8D%E5%9D%80%E9%95%B7">二、堆疊：<code>%rsp</code> 指著頂端，往低位址長</a></li>
+<li><a href="#%E4%B8%89call-%E8%88%87-ret%E7%94%A8-gdb-%E4%B8%80%E6%A2%9D%E4%B8%80%E6%A2%9D%E8%B5%B0">三、<code>call</code> 與 <code>ret</code>：用 gdb 一條一條走</a></li>
+<li><a href="#%E5%9B%9B%E5%A0%86%E7%96%8A%E6%A1%86pushq-rbp-movq-rsp-rbp-%E8%88%87-leave">四、堆疊框：<code>pushq %rbp; movq %rsp, %rbp</code> 與 <code>leave</code></a></li>
+<li><a href="#%E4%BA%94%E5%8F%83%E6%95%B8%E8%88%87%E5%9B%9E%E5%82%B3%E5%80%BC%E6%94%BE%E5%93%AA%E8%A3%A1">五、參數與回傳值放哪裡</a></li>
+<li><a href="#%E5%85%AD%E8%AA%B0%E8%B2%A0%E8%B2%AC%E4%BF%9D%E5%AD%98%E6%9A%AB%E5%AD%98%E5%99%A8%E4%BB%A5%E5%8F%8A-16-byte-%E5%B0%8D%E9%BD%8A">六、誰負責保存暫存器，以及 16 byte 對齊</a></li>
+<li><a href="#%E4%B8%83printf-%E5%89%8D%E7%9A%84-movl-0-eax%E5%8F%AF%E8%AE%8A%E5%8F%83%E6%95%B8%E5%87%BD%E5%BC%8F%E7%9A%84-al">七、<code>printf</code> 前的 <code>movl $0, %eax</code>：可變參數函式的 <code>%al</code></a></li>
+<li><a href="#%E5%85%AB%E6%9C%AC%E8%AA%B2%E7%94%A8%E5%88%B0%E7%9A%84%E5%B7%A5%E5%85%B7%E9%81%B8%E9%A0%85%E8%88%87%E5%AE%8C%E6%95%B4%E6%B8%85%E5%96%AE%E5%9C%A8%E5%93%AA">八、本課用到的工具、選項與完整清單在哪</a></li>
+<li><a href="#%E4%B9%9D%E5%8B%95%E6%89%8B%E4%BD%9C%E6%A5%AD">九、動手作業</a></li>
+<li><a href="#%E8%87%AA%E6%88%91%E6%B8%AC%E9%A9%97">自我測驗</a></li>
+</ul>
+<hr />
+<h2 id="零開課複習第-4-課卡住的五個觀念">零、開課複習：第 4 課卡住的五個觀念</h2>
+<p>第 4 課的作業與測驗批改後，有五個觀念記成「第 5 課開頭先複習」。本課會一直用到前兩個，所以先講回來（今天的 10 題複習額度已經用完，這裡只講解、不另外出題）：</p>
+<ol>
+<li><strong>寫 32 位元暫存器會清掉高 32 位元，寫 16／8 位元時高位不動</strong>。這是 CPU 指令的規則：<code>movl $1, %eax</code> 之後整個 <code>%rax</code> 是 1；<code>movw $1, %ax</code> 只改低 16 位元。
+gdb 的 <code>set $edi = 1234</code> 不是 CPU 指令，它只改那 32 位元，<strong>不會</strong>清高位。所以本課看到 <code>mov $0x1,%edi</code> 傳一個 <code>long</code> 參數 1，是靠「寫 <code>%edi</code> 會清高位」，整個 <code>%rdi</code> 就是 1。出處：<a href="x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80-%E6%9A%AB%E5%AD%98%E5%99%A8%E3%80%81mov%E8%88%87lea%E3%80%81cmp%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D.html#%E4%BA%8C%E6%9A%AB%E5%AD%98%E5%99%A8cpu-%E8%A3%A1%E7%9A%84-16-%E5%80%8B%E8%AE%8A%E6%95%B8">第 4 課第二節</a>〈寫低位的名字時，高位會怎樣？〉。</li>
+<li><strong><code>break 函式名</code> 會跳過函式開頭的準備指令，<code>break *函式名</code> 停在第一條指令</strong>。本課第三節就是用 <code>break *</code> 停在 <code>call</code> 上、看 <code>%rsp</code> 怎麼變，也會看到「停在第一條指令時 gdb 印出的參數是錯的」。出處：<a href="x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80-%E6%9A%AB%E5%AD%98%E5%99%A8%E3%80%81mov%E8%88%87lea%E3%80%81cmp%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D.html#%E4%B8%89%E6%8C%87%E4%BB%A4%E7%9A%84%E6%96%87%E6%B3%95%E5%8A%A9%E6%86%B6%E7%AC%A6%E5%A4%A7%E5%B0%8F%E5%BE%8C%E7%B6%B4%E9%81%8B%E7%AE%97%E5%85%83">第 4 課第三節</a>〈上面 <code>break *widen_char+4</code> 的 <code>*</code>：為什麼要加？〉。</li>
+<li><strong>OF 要用有號的解讀來算</strong>：兩個有號數相加減，數學上的結果超出範圍才是 OF ＝ 1。<strong><code>setl</code>／<code>jl</code> 看的是 SF ≠ OF</strong>，不是只看 SF。出處：<a href="x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80-%E6%9A%AB%E5%AD%98%E5%99%A8%E3%80%81mov%E8%88%87lea%E3%80%81cmp%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D.html#%E4%BA%94%E6%97%97%E6%A8%99%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8Dcmp-%E5%8F%AA%E8%B2%A0%E8%B2%AC%E6%AF%94%E8%B7%B3%E4%B8%8D%E8%B7%B3%E7%94%B1%E4%B8%8B%E4%B8%80%E5%80%8B%E6%8C%87%E4%BB%A4%E6%B1%BA%E5%AE%9A">第 4 課第五節</a>〈回頭看條件碼表：為什麼有號的「小於」是 SF ≠ OF，而不是只看 SF？〉。</li>
+<li><strong>CF 是無號減法的「借位」</strong>：<code>a − b</code> 需要借位 ⇔ 無號的 <code>a &lt; b</code>，所以 <code>jb</code>（below）看 CF。加法器把「進位」直接存成 CF，減法時剛好反過來，存的是「借位」。出處：同上〈上面③：3 − 5 在 CPU 裡實際上是怎麼算的？〉。</li>
+<li><strong><code>and</code> 會把結果寫回目的運算元，<code>test</code> 只設旗標、不寫回</strong>。之後還要用到結果時用 <code>and</code>，只想判斷時用 <code>test</code>。出處：<a href="x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80-%E6%9A%AB%E5%AD%98%E5%99%A8%E3%80%81mov%E8%88%87lea%E3%80%81cmp%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D.html#%E4%B8%83%E9%80%90%E8%A1%8C%E8%AE%80-sum_to-%E7%9A%84--o2-%E7%89%88">第 4 課第七節</a>〈上表的 <code>andl</code> 和 <code>testl</code>：看起來一樣，差在哪？〉。</li>
+</ol>
+<hr />
+<h2 id="一本課在做什麼函式呼叫只是幾條指令">一、本課在做什麼：函式呼叫只是幾條指令</h2>
+<p>第 4 課讀懂了函式<strong>裡面</strong>的指令。本課讀懂函式<strong>之間</strong>怎麼接起來：</p>
+<ul>
+<li>呼叫的時候怎麼跳過去，跳完怎麼回得來（第二、三節：堆疊、<code>call</code>／<code>ret</code>）；</li>
+<li>每個函式的區域變數放在哪裡，為什麼 <code>-O0</code> 開頭都是 <code>pushq %rbp; movq %rsp, %rbp</code>（第四節）；</li>
+<li>參數和回傳值怎麼傳（第五節）；</li>
+<li>呼叫別人之後，自己暫存器裡的值還在不在（第六節）。</li>
+</ul>
+<p>第 3、4 兩點的規則叫<strong>呼叫慣例</strong>（calling convention）。它不是 CPU 規定的，是所有編譯器、函式庫共同遵守的約定（Linux x86-64 用的是 System V AMD64 ABI，ABI 是 Application Binary Interface，應用程式二進位介面）。大家都照同一套規則，gcc 編的程式才能呼叫別人編好的 <code>libc.so.6</code> 裡的 <code>printf</code>。</p>
+<p>這也是 kernel 維護者每天會用到的東西：kernel 當掉時印出的 call trace，就是從堆疊上一個一個找回「返回位址」，倒推出是誰呼叫了誰。</p>
+<hr />
+<h2 id="二堆疊rsp-指著頂端往低位址長">二、堆疊：<code>%rsp</code> 指著頂端，往低位址長</h2>
+<p><strong>堆疊</strong>（stack）是 kernel 在程式啟動時給的一段記憶體（<a href="%E9%99%A3%E5%88%97%E3%80%81%E5%AD%97%E4%B8%B2%E8%88%87%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97-C%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%88%87%E7%94%A8gdb%E6%89%BEsegfault.html">第 3 課</a>在 <code>info proc mappings</code> 裡看過的 <code>[stack]</code>）。
+CPU 用 <code>%rsp</code>（stack pointer，堆疊指標）記住<strong>目前的頂端</strong>在哪裡。兩個規則：</p>
+<ol>
+<li><strong>堆疊往低位址長</strong>：放東西進去時，<code>%rsp</code> 變小；拿出來時，<code>%rsp</code> 變大。</li>
+<li><strong><code>%rsp</code> 指著最後放進去的那一格</strong>（頂端那格本身，不是它上面的空位）。</li>
+</ol>
+<p><code>push</code> 和 <code>pop</code> 就是照這兩條規則動作的指令，每次搬 8 byte。它們等於下面兩條指令合在一起（這是 Intel 手冊對 <code>push</code>／<code>pop</code> 的定義，下一節用 gdb 驗證）：</p>
+<table>
+<thead>
+<tr>
+<th>指令</th>
+<th>等於</th>
+<th>白話</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>push %rbp</code></td>
+<td><code>sub $8, %rsp</code>，再 <code>mov %rbp, (%rsp)</code></td>
+<td>頂端往下挪 8 byte，把 <code>%rbp</code> 寫進新的頂端</td>
+</tr>
+<tr>
+<td><code>pop %rbp</code></td>
+<td><code>mov (%rsp), %rbp</code>，再 <code>add $8, %rsp</code></td>
+<td>把頂端那 8 byte 讀進 <code>%rbp</code>，頂端往上挪 8 byte</td>
+</tr>
+</tbody>
+</table>
+<p><code>(%rsp)</code> 是第 4 課的寫法：括號就是 C 的 <code>*</code>，「<code>%rsp</code> 存的位址上的那個值」。</p>
+<hr />
+<h2 id="三call-與-ret用-gdb-一條一條走">三、<code>call</code> 與 <code>ret</code>：用 gdb 一條一條走</h2>
+<p><code>call</code> 和 <code>ret</code> 也是用堆疊做事：</p>
+<table>
+<thead>
+<tr>
+<th>指令</th>
+<th>等於</th>
+<th>白話</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>call f</code></td>
+<td><code>push 返回位址</code>，再 <code>jmp f</code></td>
+<td>返回位址 ＝ <code>call</code> <strong>下一條</strong>指令的位址。先記下來，再跳過去</td>
+</tr>
+<tr>
+<td><code>ret</code></td>
+<td><code>pop</code> 到 <code>%rip</code></td>
+<td>把堆疊頂端那 8 byte 當成位址，跳過去</td>
+</tr>
+</tbody>
+</table>
+<p><code>%rip</code> 是第 4 課提過的「下一條要執行的指令的位址」（instruction pointer，gdb 裡也叫 <code>$pc</code>）。沒有指令能直接 <code>mov</code> 到 <code>%rip</code>，<code>ret</code> 等於是「從堆疊取一個值放進 <code>%rip</code>」。</p>
+<p>所以 <code>ret</code> <strong>不知道</strong>自己是被誰呼叫的，它只是盲目地相信堆疊頂端那 8 byte。第 3 課看到的 <code>stack smashing detected</code> 保護的就是這件事：如果陣列越界把返回位址蓋掉，<code>ret</code> 會跳到一個亂七八糟的地方。</p>
+<h3 id="實驗framec">實驗：<code>frame.c</code></h3>
+<p><code>frame.c</code>（檔案：<a href="../../small-project/s1-05-asm-calls/frame.c"><code>frame.c</code></a>）完整原始碼：</p>
+<pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+
+<span class="kt">long</span><span class="w"> </span><span class="nf">add3</span><span class="p">(</span><span class="kt">long</span><span class="w"> </span><span class="n">a</span><span class="p">,</span><span class="w"> </span><span class="kt">long</span><span class="w"> </span><span class="n">b</span><span class="p">,</span><span class="w"> </span><span class="kt">long</span><span class="w"> </span><span class="n">c</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="kt">long</span><span class="w"> </span><span class="n">s</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">b</span><span class="p">;</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">s</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">c</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="kt">long</span><span class="w"> </span><span class="n">r</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">add3</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="mi">3</span><span class="p">);</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;%ld</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">r</span><span class="p">);</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<pre><code>$ gcc -O0 -g -fno-asynchronous-unwind-tables frame.c -o frame
+$ ./frame
+6
+$ objdump -d --no-show-raw-insn frame
+</code></pre>
+<p><code>objdump</code> 輸出中的 <code>add3</code> 和 <code>main</code>（右邊的中文說明是我加的）：</p>
+<pre><code class="language-asm"><span class="err">0000000000001149</span><span class="w"> </span><span class="err">&lt;</span><span class="nf">add3</span><span class="err">&gt;</span><span class="p">:</span>
+<span class="w">    </span><span class="err">1149:</span><span class="w">	</span><span class="nf">endbr64</span><span class="w">                      </span><span class="c1"># 間接跳躍保護的標記（第 4 課第六節），跟本課無關</span>
+<span class="w">    </span><span class="err">114</span><span class="nl">d:</span><span class="w">	</span><span class="nf">push</span><span class="w">   </span><span class="nv">%rbp</span><span class="w">                  </span><span class="c1"># 存起 main 的 %rbp</span>
+<span class="w">    </span><span class="err">114</span><span class="nl">e:</span><span class="w">	</span><span class="nf">mov</span><span class="w">    </span><span class="nv">%rsp</span><span class="p">,</span><span class="nv">%rbp</span><span class="w">             </span><span class="c1"># %rbp = 這個函式的堆疊框基準</span>
+<span class="w">    </span><span class="err">1151:</span><span class="w">	</span><span class="nf">mov</span><span class="w">    </span><span class="nv">%rdi</span><span class="p">,-</span><span class="mi">0x18</span><span class="p">(</span><span class="nv">%rbp</span><span class="p">)</span><span class="w">      </span><span class="c1"># 參數 a（在 %rdi）存到 -0x18(%rbp)</span>
+<span class="w">    </span><span class="err">1155:</span><span class="w">	</span><span class="nf">mov</span><span class="w">    </span><span class="nv">%rsi</span><span class="p">,-</span><span class="mi">0x20</span><span class="p">(</span><span class="nv">%rbp</span><span class="p">)</span><span class="w">      </span><span class="c1"># 參數 b（在 %rsi）存到 -0x20(%rbp)</span>
+<span class="w">    </span><span class="err">1159:</span><span class="w">	</span><span class="nf">mov</span><span class="w">    </span><span class="nv">%rdx</span><span class="p">,-</span><span class="mi">0x28</span><span class="p">(</span><span class="nv">%rbp</span><span class="p">)</span><span class="w">      </span><span class="c1"># 參數 c（在 %rdx）存到 -0x28(%rbp)</span>
+<span class="w">    </span><span class="err">115</span><span class="nl">d:</span><span class="w">	</span><span class="nf">mov</span><span class="w">    </span><span class="mi">-0</span><span class="no">x18</span><span class="p">(</span><span class="nv">%rbp</span><span class="p">),</span><span class="nv">%rdx</span><span class="w">      </span><span class="c1"># %rdx = a</span>
+<span class="w">    </span><span class="err">1161:</span><span class="w">	</span><span class="nf">mov</span><span class="w">    </span><span class="mi">-0</span><span class="no">x20</span><span class="p">(</span><span class="nv">%rbp</span><span class="p">),</span><span class="nv">%rax</span><span class="w">      </span><span class="c1"># %rax = b</span>
+<span class="w">    </span><span class="err">1165:</span><span class="w">	</span><span class="nf">add</span><span class="w">    </span><span class="nv">%rdx</span><span class="p">,</span><span class="nv">%rax</span><span class="w">             </span><span class="c1"># %rax = a + b</span>
+<span class="w">    </span><span class="err">1168:</span><span class="w">	</span><span class="nf">mov</span><span class="w">    </span><span class="nv">%rax</span><span class="p">,-</span><span class="mi">0x8</span><span class="p">(</span><span class="nv">%rbp</span><span class="p">)</span><span class="w">       </span><span class="c1"># s = a + b，存到 -0x8(%rbp)</span>
+<span class="w">    </span><span class="err">116</span><span class="nl">c:</span><span class="w">	</span><span class="nf">mov</span><span class="w">    </span><span class="mi">-0</span><span class="no">x8</span><span class="p">(</span><span class="nv">%rbp</span><span class="p">),</span><span class="nv">%rdx</span><span class="w">       </span><span class="c1"># %rdx = s</span>
+<span class="w">    </span><span class="err">1170:</span><span class="w">	</span><span class="nf">mov</span><span class="w">    </span><span class="mi">-0</span><span class="no">x28</span><span class="p">(</span><span class="nv">%rbp</span><span class="p">),</span><span class="nv">%rax</span><span class="w">      </span><span class="c1"># %rax = c</span>
+<span class="w">    </span><span class="err">1174:</span><span class="w">	</span><span class="nf">add</span><span class="w">    </span><span class="nv">%rdx</span><span class="p">,</span><span class="nv">%rax</span><span class="w">             </span><span class="c1"># %rax = s + c：回傳值放在 %rax</span>
+<span class="w">    </span><span class="err">1177:</span><span class="w">	</span><span class="nf">pop</span><span class="w">    </span><span class="nv">%rbp</span><span class="w">                  </span><span class="c1"># 還原 main 的 %rbp</span>
+<span class="w">    </span><span class="err">1178:</span><span class="w">	</span><span class="nf">ret</span><span class="w">                          </span><span class="c1"># 回到 main</span>
+
+<span class="err">0000000000001179</span><span class="w"> </span><span class="err">&lt;</span><span class="nf">main</span><span class="err">&gt;</span><span class="p">:</span>
+<span class="w">    </span><span class="err">1179:</span><span class="w">	</span><span class="nf">endbr64</span>
+<span class="w">    </span><span class="err">117</span><span class="nl">d:</span><span class="w">	</span><span class="nf">push</span><span class="w">   </span><span class="nv">%rbp</span><span class="w">                  </span><span class="c1"># 存起呼叫 main 的那個函式的 %rbp</span>
+<span class="w">    </span><span class="err">117</span><span class="nl">e:</span><span class="w">	</span><span class="nf">mov</span><span class="w">    </span><span class="nv">%rsp</span><span class="p">,</span><span class="nv">%rbp</span>
+<span class="w">    </span><span class="err">1181:</span><span class="w">	</span><span class="nf">sub</span><span class="w">    </span><span class="no">$0x10</span><span class="p">,</span><span class="nv">%rsp</span><span class="w">            </span><span class="c1"># 替區域變數 r 留空間（為什麼是 16 不是 8：第六節）</span>
+<span class="w">    </span><span class="err">1185:</span><span class="w">	</span><span class="nf">mov</span><span class="w">    </span><span class="no">$0x3</span><span class="p">,</span><span class="nv">%edx</span><span class="w">             </span><span class="c1"># 第 3 個參數 = 3（寫 %edx 會清掉 %rdx 的高 32 位元）</span>
+<span class="w">    </span><span class="err">118</span><span class="nl">a:</span><span class="w">	</span><span class="nf">mov</span><span class="w">    </span><span class="no">$0x2</span><span class="p">,</span><span class="nv">%esi</span><span class="w">             </span><span class="c1"># 第 2 個參數 = 2</span>
+<span class="w">    </span><span class="err">118</span><span class="nl">f:</span><span class="w">	</span><span class="nf">mov</span><span class="w">    </span><span class="no">$0x1</span><span class="p">,</span><span class="nv">%edi</span><span class="w">             </span><span class="c1"># 第 1 個參數 = 1</span>
+<span class="w">    </span><span class="err">1194:</span><span class="w">	</span><span class="nf">call</span><span class="w">   </span><span class="mh">1149</span> <span class="p">&lt;</span><span class="no">add3</span><span class="p">&gt;</span><span class="w">           </span><span class="c1"># 呼叫 add3</span>
+<span class="w">    </span><span class="err">1199:</span><span class="w">	</span><span class="nf">mov</span><span class="w">    </span><span class="nv">%rax</span><span class="p">,-</span><span class="mi">0x8</span><span class="p">(</span><span class="nv">%rbp</span><span class="p">)</span><span class="w">       </span><span class="c1"># r = 回傳值</span>
+<span class="w">    </span><span class="err">119</span><span class="nl">d:</span><span class="w">	</span><span class="nf">mov</span><span class="w">    </span><span class="mi">-0</span><span class="no">x8</span><span class="p">(</span><span class="nv">%rbp</span><span class="p">),</span><span class="nv">%rax</span>
+<span class="w">    </span><span class="err">11</span><span class="nl">a1:</span><span class="w">	</span><span class="nf">mov</span><span class="w">    </span><span class="nv">%rax</span><span class="p">,</span><span class="nv">%rsi</span><span class="w">             </span><span class="c1"># printf 的第 2 個參數 = r</span>
+<span class="w">    </span><span class="err">11</span><span class="nl">a4:</span><span class="w">	</span><span class="nf">lea</span><span class="w">    </span><span class="mi">0xe59</span><span class="p">(</span><span class="nv">%rip</span><span class="p">),</span><span class="nv">%rax</span><span class="w">      </span><span class="c1"># %rax = 字串 &quot;%ld\n&quot; 的位址</span>
+<span class="w">    </span><span class="err">11</span><span class="nl">ab:</span><span class="w">	</span><span class="nf">mov</span><span class="w">    </span><span class="nv">%rax</span><span class="p">,</span><span class="nv">%rdi</span><span class="w">             </span><span class="c1"># printf 的第 1 個參數 = 字串位址</span>
+<span class="w">    </span><span class="err">11</span><span class="nl">ae:</span><span class="w">	</span><span class="nf">mov</span><span class="w">    </span><span class="no">$0x0</span><span class="p">,</span><span class="nv">%eax</span><span class="w">             </span><span class="c1"># 第七節</span>
+<span class="w">    </span><span class="err">11</span><span class="nl">b3:</span><span class="w">	</span><span class="nf">call</span><span class="w">   </span><span class="mh">1050</span> <span class="p">&lt;</span><span class="no">printf@plt</span><span class="p">&gt;</span>
+<span class="w">    </span><span class="err">11</span><span class="nl">b8:</span><span class="w">	</span><span class="nf">mov</span><span class="w">    </span><span class="no">$0x0</span><span class="p">,</span><span class="nv">%eax</span><span class="w">             </span><span class="c1"># return 0;</span>
+<span class="w">    </span><span class="err">11</span><span class="nl">bd:</span><span class="w">	</span><span class="nf">leave</span><span class="w">                        </span><span class="c1"># 第四節</span>
+<span class="w">    </span><span class="err">11</span><span class="nl">be:</span><span class="w">	</span><span class="nf">ret</span>
+</code></pre>
+<p><code>call</code> 那一行在 <code>main+27</code>（<code>0x1194 − 0x1179 = 0x1b = 27</code>），它的下一條指令在 <code>0x1199</code>。所以<strong>返回位址應該是 <code>0x1199</code></strong>（執行時再加上載入位址）。用 gdb 驗證。</p>
+<p><code>trace.gdb</code>（檔案：<a href="../../small-project/s1-05-asm-calls/trace.gdb"><code>trace.gdb</code></a>），gdb 的命令稿，一行一個命令，<code>echo</code> 只是印標題：</p>
+<pre><code>set disassemble-next-line off
+break *main+27
+run
+echo \n=== 1. call 之前\n
+x/i $pc
+info registers rdi rsi rdx rsp rbp
+x/2gx $rsp
+stepi
+echo \n=== 2. call 之後（進到 add3 第一條）\n
+x/i $pc
+info registers rsp rip
+x/gx $rsp
+stepi
+stepi
+echo \n=== 3. push %rbp 之後\n
+x/i $pc
+info registers rsp rbp
+x/2gx $rsp
+stepi
+echo \n=== 4. mov %rsp,%rbp 之後\n
+info registers rsp rbp
+break *add3+47
+continue
+echo \n=== 5. 停在 ret（pop %rbp 已執行）\n
+x/i $pc
+info registers rax rsp rbp
+x/gx $rsp
+stepi
+echo \n=== 6. ret 之後，回到 main\n
+x/i $pc
+info registers rsp rip
+continue
+</code></pre>
+<p>用到的 gdb 命令（第八節有完整清單的位置）：<code>break *位址</code> 停在那一條指令；<code>stepi</code> 執行剛好一條機器指令（遇到 <code>call</code> 會跟進去）；
+<code>x/i $pc</code> 印出下一條要執行的指令；<code>info registers 名字…</code> 印出指定的暫存器；<code>x/2gx $rsp</code> 從 <code>%rsp</code> 指的位址開始，印 2 個 <code>g</code>（8 byte）、用 <code>x</code>（十六進位）顯示。</p>
+<hr />
+<p><strong>上面的 <code>info registers</code>：輸出的三欄各是什麼</strong></p>
+<blockquote>
+<p>2026-10-09 課後提問：「在 gdb 這三欄是什麼意思」（貼的是 <code>info registers</code> 印出的 <code>rax</code>～<code>rsi</code> 五列）</p>
+</blockquote>
+<p>拿上面的 <code>frame.c</code>（<code>gcc -O0 -g -o frame frame.c</code>）停在 <code>main</code> 的第一條指令，不給名字，列出全部暫存器：</p>
+<pre><code>$ gdb -batch -ex 'break *main' -ex run -ex 'info registers' ./frame
+rax            0x555555555179      93824992235897
+rbx            0x7fffffffd548      140737488344392
+rcx            0x555555557dc0      93824992247232
+rdx            0x7fffffffd558      140737488344408
+rsi            0x7fffffffd548      140737488344392
+rdi            0x1                 1
+rbp            0x7fffffffd4c0      0x7fffffffd4c0
+rsp            0x7fffffffd428      0x7fffffffd428
+r8             0x0                 0
+…（r9～r15 省略，格式同 r8）
+rip            0x555555555179      0x555555555179 &lt;main&gt;
+eflags         0x246               [ PF ZF IF ]
+cs             0x33                51
+…（ss、ds、es、fs、gs、fs_base、gs_base 省略）
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>欄</th>
+<th>是什麼</th>
+<th>例子</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>第 1 欄</td>
+<td>暫存器名字（gdb 裡寫成 <code>$rax</code>）</td>
+<td><code>rax</code></td>
+</tr>
+<tr>
+<td>第 2 欄</td>
+<td>暫存器裡的值，一律用<strong>十六進位</strong>印（raw，原始位元）</td>
+<td><code>0x555555555179</code></td>
+</tr>
+<tr>
+<td>第 3 欄</td>
+<td><strong>同一個值</strong>，用 gdb 認為這個暫存器「天然的」格式（natural format）再印一次，格式依暫存器的<strong>型別</strong>決定</td>
+<td>見下</td>
+</tr>
+</tbody>
+</table>
+<p>第 2、3 欄是同一個值的兩種寫法，不是兩個不同的數。第 3 欄的格式由 gdb 給每個暫存器的型別決定（用 <code>ptype $rax</code> 這種命令問得到）：</p>
+<ul>
+<li><code>rax</code>、<code>rbx</code>、<code>rdi</code>、<code>r8</code>… 型別是 <code>int64_t</code>（整數），第 3 欄印<strong>十進位</strong>：<code>0x1</code> 印成 <code>1</code>，<code>0x555555555179</code> 印成 <code>93824992235897</code>。</li>
+<li><code>rbp</code>、<code>rsp</code> 型別是 <code>void *</code>（指標），指標的天然格式就是十六進位，所以第 3 欄跟第 2 欄<strong>看起來一樣</strong>。</li>
+<li><code>rip</code> 型別是 <code>void (*)()</code>（指向程式碼的指標），除了十六進位，還在 <code>&lt;&gt;</code> 裡標出它指在哪個函式：<code>&lt;main&gt;</code>。停在 <code>main+27</code> 時就會印 <code>&lt;main+27&gt;</code>。</li>
+<li><code>eflags</code> 型別是一組旗標，第 3 欄印出<strong>哪些旗標是 1</strong>：<code>0x246</code> 是 <code>[ PF ZF IF ]</code>（第 4 課<a href="x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80-%E6%9A%AB%E5%AD%98%E5%99%A8%E3%80%81mov%E8%88%87lea%E3%80%81cmp%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D.html#%E4%BA%94%E6%97%97%E6%A8%99%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8Dcmp-%E5%8F%AA%E8%B2%A0%E8%B2%AC%E6%AF%94%E8%B7%B3%E4%B8%8D%E8%B7%B3%E7%94%B1%E4%B8%8B%E4%B8%80%E5%80%8B%E6%8C%87%E4%BB%A4%E6%B1%BA%E5%AE%9A">第五節</a>講過的旗標）。</li>
+</ul>
+<p>所以讀 <code>rax</code> 那一列時看第 2 欄就好：十進位的 <code>93824992235897</code> 沒有意義，因為這個值其實是位址。<code>info symbol $rax</code> 印出 <code>main in section .text</code>，也就是說剛好是 <code>main</code> 的位址（是呼叫 <code>main</code> 的 glibc 留下來的，不是 <code>main</code> 自己算的）。</p>
+<p>這一頁也能用本課的觀念讀：停在 <code>main</code> 的第一條指令時，<code>main</code> 剛被呼叫，所以參數暫存器裡是 <code>main</code> 的參數（<code>main</code> 其實會收到 <code>argc</code>、<code>argv</code>、<code>envp</code> 三個參數，<code>frame.c</code> 寫成 <code>main(void)</code> 只是不用它們）：</p>
+<ul>
+<li><code>rdi = 1</code>：<code>argc</code>，命令列只有程式名稱一個字串。</li>
+<li><code>rsi = 0x7fffffffd548</code>：<code>argv</code>，指向字串指標的陣列。<code>x/s *(char **)$rsi</code> 印出程式的完整路徑。</li>
+<li><code>rdx = 0x7fffffffd558</code>：<code>envp</code>，指向環境變數的陣列。<code>x/s *(char **)$rdx</code> 印出第一個環境變數。它比 <code>argv</code> 大 16，因為中間隔著 <code>argv[0]</code> 和結尾的 <code>NULL</code> 兩個 8 byte 指標。</li>
+</ul>
+<p><code>info registers</code> 只列整數暫存器，<code>info all-registers</code> 連浮點與 <code>%xmm</code> 暫存器都列。完整說明見 <a href="gdb%E5%AE%8C%E6%95%B4%E5%91%BD%E4%BB%A4%E5%8F%83%E8%80%83.html#%E4%BA%94info-%E7%9A%84%E5%85%A8%E9%83%A8-65-%E5%80%8B%E5%AD%90%E5%91%BD%E4%BB%A4">gdb完整命令參考第五節</a>。</p>
+<p><em>（追問補充結束，以下回到主線）</em></p>
+<hr />
+<pre><code>$ gdb -q -batch -x trace.gdb ./frame
+</code></pre>
+<p>實際輸出（刪掉 gdb 啟動時的 <code>[Thread debugging ...]</code> 訊息）：</p>
+<pre><code>Breakpoint 1 at 0x1194: file frame.c, line 11.
+
+Breakpoint 1, 0x0000555555555194 in main () at frame.c:11
+11	    long r = add3(1, 2, 3);
+
+=== 1. call 之前
+=&gt; 0x555555555194 &lt;main+27&gt;:	call   0x555555555149 &lt;add3&gt;
+rdi            0x1                 1
+rsi            0x2                 2
+rdx            0x3                 3
+rsp            0x7fffffffd410      0x7fffffffd410
+rbp            0x7fffffffd420      0x7fffffffd420
+0x7fffffffd410:	0x00007fffffffd500	0x00007fffffffd548
+add3 (a=0, b=0, c=0) at frame.c:4
+4	{
+
+=== 2. call 之後（進到 add3 第一條）
+=&gt; 0x555555555149 &lt;add3&gt;:	endbr64
+rsp            0x7fffffffd408      0x7fffffffd408
+rip            0x555555555149      0x555555555149 &lt;add3&gt;
+0x7fffffffd408:	0x0000555555555199
+0x000055555555514d	4	{
+0x000055555555514e	4	{
+
+=== 3. push %rbp 之後
+=&gt; 0x55555555514e &lt;add3+5&gt;:	mov    %rsp,%rbp
+rsp            0x7fffffffd400      0x7fffffffd400
+rbp            0x7fffffffd420      0x7fffffffd420
+0x7fffffffd400:	0x00007fffffffd420	0x0000555555555199
+0x0000555555555151	4	{
+
+=== 4. mov %rsp,%rbp 之後
+rsp            0x7fffffffd400      0x7fffffffd400
+rbp            0x7fffffffd400      0x7fffffffd400
+Breakpoint 2 at 0x555555555178: file frame.c, line 7.
+
+Breakpoint 2, 0x0000555555555178 in add3 (a=1, b=2, c=3) at frame.c:7
+7	}
+
+=== 5. 停在 ret（pop %rbp 已執行）
+=&gt; 0x555555555178 &lt;add3+47&gt;:	ret
+rax            0x6                 6
+rsp            0x7fffffffd408      0x7fffffffd408
+rbp            0x7fffffffd420      0x7fffffffd420
+0x7fffffffd408:	0x0000555555555199
+0x0000555555555199 in main () at frame.c:11
+11	    long r = add3(1, 2, 3);
+
+=== 6. ret 之後，回到 main
+=&gt; 0x555555555199 &lt;main+32&gt;:	mov    %rax,-0x8(%rbp)
+rsp            0x7fffffffd410      0x7fffffffd410
+rip            0x555555555199      0x555555555199 &lt;main+32&gt;
+6
+</code></pre>
+<p>逐段讀：</p>
+<ul>
+<li><strong>1. <code>call</code> 之前</strong>：三個參數已經在 <code>%rdi</code>、<code>%rsi</code>、<code>%rdx</code>（1、2、3）。<code>%rsp</code> 是 <code>0x…d410</code>。程式是 PIE，載入位址是 <code>0x555555554000</code>，所以 <code>objdump</code> 的 <code>0x1194</code> 在這裡是 <code>0x555555555194</code>。</li>
+<li><strong>2. <code>call</code> 之後</strong>：<code>%rsp</code> 從 <code>d410</code> 變成 <strong><code>d408</code>，少了 8</strong>；新的頂端 <code>d408</code> 裡放的是 <strong><code>0x555555555199</code></strong>，就是 <code>call</code> 下一條指令 <code>main+32</code> 的位址。<code>%rip</code> 變成 <code>add3</code> 的開頭。這就是「<code>push 返回位址</code> + <code>jmp add3</code>」。</li>
+<li><strong>3. <code>push %rbp</code> 之後</strong>：<code>%rsp</code> 再少 8，變成 <code>d400</code>；頂端 <code>d400</code> 裡是 <code>0x7fffffffd420</code>，就是 <code>main</code> 的 <code>%rbp</code>。<code>x/2gx</code> 印的第二格 <code>d408</code> 還是返回位址：兩樣東西疊在一起，越晚放的位址越低。</li>
+<li><strong>4. <code>mov %rsp,%rbp</code> 之後</strong>：<code>%rbp</code> 也變成 <code>d400</code>。從這裡開始，<code>add3</code> 用 <code>%rbp</code> 當基準存取自己的變數（第四節）。</li>
+<li><strong>5. 停在 <code>ret</code></strong>：<code>pop %rbp</code> 已經執行，<code>%rbp</code> 還原成 <code>main</code> 的 <code>d420</code>，<code>%rsp</code> 回到 <code>d408</code>，頂端又是返回位址。回傳值 6 已經在 <code>%rax</code>。</li>
+<li><strong>6. <code>ret</code> 之後</strong>：<code>%rip</code> 變成 <code>0x555555555199</code>（<code>main+32</code>），<code>%rsp</code> 回到 <strong><code>d410</code>，跟 <code>call</code> 之前一模一樣</strong>。<code>call</code> 推進去的 8 byte 被 <code>ret</code> 拿走了。</li>
+</ul>
+<p><strong>gdb 在第 1 段結尾印的 <code>add3 (a=0, b=0, c=0)</code> 是錯的</strong>：那時 <code>stepi</code> 剛進到 <code>add3</code> 的第一條指令。gdb 照除錯資訊去 <code>-0x18(%rbp)</code> 這些位置讀 <code>a</code>、<code>b</code>、<code>c</code>，可是參數還在暫存器裡、還沒存進去，而且 <code>%rbp</code> 還是 <code>main</code> 的值，所以讀到的是不相干的記憶體。到了第 5 段，堆疊框已經建好、參數也存好了，gdb 就印出正確的 <code>a=1, b=2, c=3</code>。這正是 <code>break add3</code>（不加 <code>*</code>）要跳過開頭準備指令的原因（零、第 2 點）。</p>
+<h3 id="停在函式入口時怎麼知道是誰呼叫的">停在函式入口時，怎麼知道是誰呼叫的</h3>
+<p>既然 <code>call</code> 一進來，頂端就是返回位址，那麼停在函式<strong>第一條指令</strong>時，<code>x/gx $rsp</code> 就能看出呼叫者。<code>who.gdb</code>（檔案：<a href="../../small-project/s1-05-asm-calls/who.gdb"><code>who.gdb</code></a>）：</p>
+<pre><code>break *add3
+run
+x/gx $rsp
+info symbol *(long *)$rsp
+</code></pre>
+<p><code>info symbol 位址</code> 會回答「這個位址在哪個符號裡、偏移多少」；<code>*(long *)$rsp</code> 是 C 的寫法：把 <code>$rsp</code> 當成 <code>long *</code>、取出它指的 8 byte。</p>
+<pre><code>$ gdb -q -batch -x who.gdb ./frame
+Breakpoint 1 at 0x1149: file frame.c, line 4.
+
+Breakpoint 1, add3 (a=0, b=0, c=0) at frame.c:4
+4	{
+0x7fffffffd408:	0x0000555555555199
+main + 32 in section .text of /tmp/…/frame
+</code></pre>
+<p>（最後一行的路徑是本機的暫存目錄，這裡省略。）返回位址在 <code>main + 32</code>，所以呼叫者是 <code>main</code>。gdb 的 <code>bt</code>（backtrace）做的事情本質上一樣：沿著堆疊一層一層找返回位址。</p>
+<hr />
+<h2 id="四堆疊框pushq-rbp-movq-rsp-rbp-與-leave">四、堆疊框：<code>pushq %rbp; movq %rsp, %rbp</code> 與 <code>leave</code></h2>
+<p><strong>堆疊框</strong>（stack frame）是一個函式在堆疊上用的那一塊：存起來的舊 <code>%rbp</code>、區域變數、要傳給別人的多餘參數。<code>-O0</code> 的函式開頭都是同兩條指令，叫<strong>序言</strong>（prologue）：</p>
+<pre><code class="language-asm"><span class="nf">push</span><span class="w">   </span><span class="nv">%rbp</span><span class="w">          </span><span class="c1"># 1. 把呼叫者的 %rbp 存在堆疊上（之後要還原）</span>
+<span class="nf">mov</span><span class="w">    </span><span class="nv">%rsp</span><span class="p">,</span><span class="nv">%rbp</span><span class="w">     </span><span class="c1"># 2. 把「現在的頂端」當成自己的基準點</span>
+</code></pre>
+<p>之後整個函式裡，<code>%rsp</code> 可能還會動（<code>push</code>、<code>sub</code>），但 <code>%rbp</code> 不動，所以區域變數用 <code>%rbp</code> 加一個固定的負數存取最方便：<code>-0x8(%rbp)</code> 永遠是 <code>s</code>。結尾的<strong>尾聲</strong>（epilogue）把這兩步倒回來：只用到 <code>push</code> 的函式寫 <code>pop %rbp</code>，有 <code>sub</code> 過 <code>%rsp</code> 的函式寫 <code>leave</code>。</p>
+<h3 id="leave一條指令做兩件事"><code>leave</code>：一條指令做兩件事</h3>
+<p><code>leave</code> 等於 <code>mov %rbp, %rsp</code>，再 <code>pop %rbp</code>：先把 <code>%rsp</code> 拉回基準點（中間用 <code>sub</code> 開的空間一次丟掉），再還原呼叫者的 <code>%rbp</code>。
+<code>main</code> 有 <code>sub $0x10,%rsp</code>，所以用 <code>leave</code>；<code>add3</code> 沒動過 <code>%rsp</code>，<code>pop %rbp</code> 就夠了。</p>
+<p><code>leave.gdb</code>（檔案：<a href="../../small-project/s1-05-asm-calls/leave.gdb"><code>leave.gdb</code></a>），停在 <code>main</code> 的 <code>leave</code>（<code>0x11bd − 0x1179 = 68</code>）：</p>
+<pre><code>break *main+68
+run
+x/i $pc
+info registers rsp rbp
+x/gx $rbp
+stepi
+x/i $pc
+info registers rsp rbp
+x/gx $rsp
+continue
+</code></pre>
+<pre><code>$ gdb -q -batch -x leave.gdb ./frame
+Breakpoint 1 at 0x11bd: file frame.c, line 14.
+
+Breakpoint 1, main () at frame.c:14
+14	}
+=&gt; 0x5555555551bd &lt;main+68&gt;:	leave
+rsp            0x7fffffffd410      0x7fffffffd410
+rbp            0x7fffffffd420      0x7fffffffd420
+0x7fffffffd420:	0x00007fffffffd4c0
+0x00005555555551be	14	}
+=&gt; 0x5555555551be &lt;main+69&gt;:	ret
+rsp            0x7fffffffd428      0x7fffffffd428
+rbp            0x7fffffffd4c0      0x7fffffffd4c0
+0x7fffffffd428:	0x00007ffff7c2a1ca
+6
+</code></pre>
+<ul>
+<li><code>leave</code> 之前：<code>%rbp</code> 是 <code>d420</code>，那一格存著呼叫 <code>main</code> 的函式的 <code>%rbp</code>：<code>0x7fffffffd4c0</code>。</li>
+<li><code>leave</code> 之後：<code>%rsp</code> ＝ <code>d420 + 8</code> ＝ <strong><code>d428</code></strong>（先拉回 <code>d420</code>，再 <code>pop</code> 走 8 byte），<code>%rbp</code> ＝ <strong><code>d4c0</code></strong>（剛才那格的值）。頂端 <code>d428</code> 是 <code>main</code> 自己的返回位址 <code>0x7ffff7c2a1ca</code>，在 libc 裡：<code>main</code> 也是被別人 <code>call</code> 的（第 1 課：程式不是從 <code>main</code> 開始的）。</li>
+</ul>
+<h3 id="畫出來停在-add3-裡面時的堆疊">畫出來：停在 <code>add3</code> 裡面時的堆疊</h3>
+<p>把第三節與本節的數字畫在一起（位址只寫最後 3 位，<code>d4xx</code> 都是 <code>0x7fffffffd4xx</code>）。上面是高位址，往下長：</p>
+<pre><code>位址     內容                            誰的
+d428    0x7ffff7c2a1ca（返回 libc）       ┐
+d420    0x7fffffffd4c0（舊 %rbp）  ← main 的 %rbp
+d418    r（-0x8(%rbp)）                    │ main 的堆疊框
+d410    （對齊用，沒用到）                  ┘
+d408    0x555555555199（返回 main+32）    ┐
+d400    0x7fffffffd420（main 的 %rbp） ← add3 的 %rbp 和 %rsp
+d3f8    s       （-0x8(%rbp)）              │ add3 的堆疊框
+d3f0    （沒用到）                          │
+d3e8    a = 1   （-0x18(%rbp)）             │
+d3e0    b = 2   （-0x20(%rbp)）             │
+d3d8    c = 3   （-0x28(%rbp)）             ┘
+</code></pre>
+<p>每個堆疊框的 <code>%rbp</code> 那一格都存著<strong>上一層的 <code>%rbp</code></strong>：<code>d400</code> 裡是 <code>d420</code>，<code>d420</code> 裡是 <code>d4c0</code>……像一串鏈子。所以從任何一層出發，都可以一路往回找到每一層的堆疊框和返回位址。</p>
+<h3 id="上圖-add3-的變數在-rsp-的下面紅區">上圖 <code>add3</code> 的變數在 <code>%rsp</code> 的「下面」：紅區</h3>
+<p>仔細看上圖：<code>add3</code> 的 <code>%rsp</code> 是 <code>d400</code>，可是 <code>a</code>、<code>b</code>、<code>c</code>、<code>s</code> 放在 <code>d3d8</code>～<code>d3f8</code>，<strong>比 <code>%rsp</code> 還低</strong>，照<a href="#%E4%BA%8C%E5%A0%86%E7%96%8Arsp-%E6%8C%87%E8%91%97%E9%A0%82%E7%AB%AF%E5%BE%80%E4%BD%8E%E4%BD%8D%E5%9D%80%E9%95%B7">第二節</a>的兩條規則推下去，那裡不屬於「堆疊裡」（第二節沒有直接寫這句，怎麼推出來見本小節最後的追問補充）。用 <code>redzone.gdb</code> 確認（檔案：<a href="../../small-project/s1-05-asm-calls/redzone.gdb"><code>redzone.gdb</code></a>），停在 <code>s</code> 剛存完之後（<code>add3+35</code>，<code>0x116c</code>）：</p>
+<pre><code>break *add3+35
+run
+info registers rsp rbp
+print &amp;a
+print &amp;s
+x/5gx $rbp-0x28
+</code></pre>
+<pre><code>$ gdb -q -batch -x redzone.gdb ./frame
+Breakpoint 1 at 0x116c: file frame.c, line 6.
+
+Breakpoint 1, add3 (a=1, b=2, c=3) at frame.c:6
+6	    return s + c;
+rsp            0x7fffffffd400      0x7fffffffd400
+rbp            0x7fffffffd400      0x7fffffffd400
+$1 = (long *) 0x7fffffffd3e8
+$2 = (long *) 0x7fffffffd3f8
+0x7fffffffd3d8:	0x0000000000000003	0x0000000000000002
+0x7fffffffd3e8:	0x0000000000000001	0x0000000000000000
+0x7fffffffd3f8:	0x0000000000000003
+</code></pre>
+<p><code>&amp;a</code> ＝ <code>d3e8</code>、<code>&amp;s</code> ＝ <code>d3f8</code>，都比 <code>%rsp</code>（<code>d400</code>）低；記憶體裡依序是 <code>c</code> ＝ 3、<code>b</code> ＝ 2、<code>a</code> ＝ 1、一格 0、<code>s</code> ＝ 3。</p>
+<p>這是 System V AMD64 ABI 的<strong>紅區</strong>（red zone）規定：<code>%rsp</code> 下方 128 byte 保留給目前這個函式，不會被別人（例如訊號處理函式）蓋掉。
+<code>add3</code> 是<strong>葉函式</strong>（leaf function，不再呼叫別人的函式），用的空間在 128 byte 以內，乾脆不 <code>sub %rsp</code>，省一條指令。
+<code>main</code> 要呼叫 <code>add3</code> 和 <code>printf</code>，<code>call</code> 會把返回位址推到 <code>%rsp</code> 下面，蓋掉那一區，所以 <code>main</code> 必須老老實實 <code>sub $0x10,%rsp</code>。</p>
+<blockquote>
+<p>kernel 的程式碼不能用紅區：在 kernel 裡，中斷發生時 CPU 會直接把資料推到目前的堆疊上，會蓋掉 <code>%rsp</code> 下面的東西。所以 kernel 編譯時加了 <code>-mno-red-zone</code>（Linux 原始碼 <code>arch/x86/Makefile</code>；本機未實測）。</p>
+</blockquote>
+<hr />
+<p><strong>「比 <code>%rsp</code> 低就不屬於堆疊裡」：第二節哪裡有這個意思</strong></p>
+<blockquote>
+<p>2026-10-10 課後提問：「仔細看上圖：add3 的 %rsp 是 d400，可是 a、b、c、s 放在 d3d8～d3f8，比 %rsp 還低，照第二節的規則那裡不屬於「堆疊裡」。請問第二節的哪裏有這個意思?」</p>
+</blockquote>
+<p>第二節<strong>沒有直接寫</strong>這句話，它是把第二節的兩條規則合起來推出來的：</p>
+<ol>
+<li>規則 1「堆疊往低位址長」：越晚放進去的東西，位址越低。</li>
+<li>規則 2「<code>%rsp</code> 指著最後放進去的那一格（頂端那格本身）」：<code>%rsp</code> 指的那格是<strong>最晚</strong>放進去的。</li>
+</ol>
+<p>兩條合起來：最晚放進去的那格在 <code>%rsp</code>，比它更晚的東西不存在，所以<strong>比 <code>%rsp</code> 低的位址還沒放任何東西進去</strong>。目前「在堆疊裡」的資料只有從 <code>%rsp</code> 往高位址那一段；<code>%rsp</code> 往下是<strong>空位</strong>，是下一次放東西時要用的地方。</p>
+<p>第二節的 <code>push</code> 表可以直接驗證這點：<code>push %rbp</code> 是先 <code>sub $8, %rsp</code>、再寫進新的 <code>(%rsp)</code>，也就是說<strong>下一次 <code>push</code> 會寫在 <code>%rsp - 8</code></strong>。放在 <code>add3</code> 的情況：<code>%rsp</code> 是 <code>d400</code>，下一次 <code>push</code>（或 <code>call</code> 推返回位址）會寫在 <code>d3f8</code>——正好是 <code>s</code> 所在的那格。照一般規則，這一區隨時可能被下一次 <code>push</code>／<code>call</code> 蓋掉，所以不該拿來放變數；這也是為什麼上面需要「紅區」這條額外規定：
+ABI 保證 <code>%rsp</code> 下方 128 byte 不會被<strong>別人</strong>蓋掉，而 <code>add3</code> 是葉函式，自己也不會再 <code>push</code>／<code>call</code>，那裡才安全。</p>
+<p><em>（追問補充結束，以下回到主線）</em></p>
+<hr />
+<h2 id="五參數與回傳值放哪裡">五、參數與回傳值放哪裡</h2>
+<p>System V AMD64 ABI 規定的整數與指標參數（<code>char</code>、<code>int</code>、<code>long</code>、指標……）：</p>
+<table>
+<thead>
+<tr>
+<th>第幾個參數</th>
+<th>1</th>
+<th>2</th>
+<th>3</th>
+<th>4</th>
+<th>5</th>
+<th>6</th>
+<th>7 以後</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>放在哪</td>
+<td><code>%rdi</code></td>
+<td><code>%rsi</code></td>
+<td><code>%rdx</code></td>
+<td><code>%rcx</code></td>
+<td><code>%r8</code></td>
+<td><code>%r9</code></td>
+<td>堆疊（呼叫者推進去，每個佔 8 byte）</td>
+</tr>
+</tbody>
+</table>
+<p><strong>回傳值</strong>放在 <code>%rax</code>。參數比 8 byte 小的時候，用同一個暫存器較小的名字（<code>int</code> 用 <code>%edi</code>、<code>char</code> 用 <code>%dil</code>，第 4 課第二節的表）。浮點數（<code>double</code>）的參數走另一組暫存器 <code>%xmm0</code>～<code>%xmm7</code>，回傳值在 <code>%xmm0</code>；本路線不學浮點指令，第七節只會看到它們出現。</p>
+<h3 id="實驗8-個參數第-78-個去哪了">實驗：8 個參數，第 7、8 個去哪了</h3>
+<p><code>args8.c</code>（檔案：<a href="../../small-project/s1-05-asm-calls/args8.c"><code>args8.c</code></a>）完整原始碼。不需要 <code>main</code>，因為只編成 <code>.o</code> 看組合語言：</p>
+<pre><code class="language-c"><span class="kt">long</span><span class="w"> </span><span class="nf">sum8</span><span class="p">(</span><span class="kt">long</span><span class="w"> </span><span class="n">a</span><span class="p">,</span><span class="w"> </span><span class="kt">long</span><span class="w"> </span><span class="n">b</span><span class="p">,</span><span class="w"> </span><span class="kt">long</span><span class="w"> </span><span class="n">c</span><span class="p">,</span><span class="w"> </span><span class="kt">long</span><span class="w"> </span><span class="n">d</span><span class="p">,</span><span class="w"> </span><span class="kt">long</span><span class="w"> </span><span class="n">e</span><span class="p">,</span><span class="w"> </span><span class="kt">long</span><span class="w"> </span><span class="n">f</span><span class="p">,</span><span class="w"> </span><span class="kt">long</span><span class="w"> </span><span class="n">g</span><span class="p">,</span><span class="w"> </span><span class="kt">long</span><span class="w"> </span><span class="n">h</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">b</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">c</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">d</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">e</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">f</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">g</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">h</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="kt">long</span><span class="w"> </span><span class="nf">call8</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">sum8</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="mi">3</span><span class="p">,</span><span class="w"> </span><span class="mi">4</span><span class="p">,</span><span class="w"> </span><span class="mi">5</span><span class="p">,</span><span class="w"> </span><span class="mi">6</span><span class="p">,</span><span class="w"> </span><span class="mi">7</span><span class="p">,</span><span class="w"> </span><span class="mi">8</span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre>
+<pre><code>$ gcc -O0 -c -fno-asynchronous-unwind-tables args8.c -o args8.o
+$ objdump -dr --no-show-raw-insn args8.o
+</code></pre>
+<p><code>-r</code> 會把<strong>重定位項目</strong>（relocation）印在相關的指令下面（第 1 課<a href="hello.c%E6%80%8E%E9%BA%BC%E8%AE%8A%E6%88%90%E8%83%BD%E8%B7%91%E7%9A%84%E7%A8%8B%E5%BC%8F-%E7%B7%A8%E8%AD%AF%E7%9A%84%E5%9B%9B%E5%80%8B%E9%9A%8E%E6%AE%B5.html#%E5%9B%9B%E7%B5%84%E8%AD%AF%E6%A9%9F%E5%99%A8%E7%A2%BC%E8%A3%A1%E7%9A%84%E6%B4%9E">第四節</a>：<code>.o</code> 裡 <code>call</code> 的目標還是 0，要等連結器填）。輸出：</p>
+<pre><code class="language-asm"><span class="err">0000000000000000</span><span class="w"> </span><span class="err">&lt;</span><span class="nf">sum8</span><span class="err">&gt;</span><span class="p">:</span>
+<span class="w">   </span><span class="err">0:</span><span class="w">	</span><span class="nf">endbr64</span>
+<span class="w">   </span><span class="err">4:</span><span class="w">	</span><span class="nf">push</span><span class="w">   </span><span class="nv">%rbp</span>
+<span class="w">   </span><span class="err">5:</span><span class="w">	</span><span class="nf">mov</span><span class="w">    </span><span class="nv">%rsp</span><span class="p">,</span><span class="nv">%rbp</span>
+<span class="w">   </span><span class="err">8:</span><span class="w">	</span><span class="nf">mov</span><span class="w">    </span><span class="nv">%rdi</span><span class="p">,-</span><span class="mi">0x8</span><span class="p">(</span><span class="nv">%rbp</span><span class="p">)</span><span class="w">       </span><span class="c1"># a（第 1 個，在 %rdi）</span>
+<span class="w">   </span><span class="nl">c:</span><span class="w">	</span><span class="nf">mov</span><span class="w">    </span><span class="nv">%rsi</span><span class="p">,-</span><span class="mi">0x10</span><span class="p">(</span><span class="nv">%rbp</span><span class="p">)</span><span class="w">      </span><span class="c1"># b</span>
+<span class="w">  </span><span class="err">10:</span><span class="w">	</span><span class="nf">mov</span><span class="w">    </span><span class="nv">%rdx</span><span class="p">,-</span><span class="mi">0x18</span><span class="p">(</span><span class="nv">%rbp</span><span class="p">)</span><span class="w">      </span><span class="c1"># c</span>
+<span class="w">  </span><span class="err">14:</span><span class="w">	</span><span class="nf">mov</span><span class="w">    </span><span class="nv">%rcx</span><span class="p">,-</span><span class="mi">0x20</span><span class="p">(</span><span class="nv">%rbp</span><span class="p">)</span><span class="w">      </span><span class="c1"># d</span>
+<span class="w">  </span><span class="err">18:</span><span class="w">	</span><span class="nf">mov</span><span class="w">    </span><span class="nv">%r8</span><span class="p">,-</span><span class="mi">0x28</span><span class="p">(</span><span class="nv">%rbp</span><span class="p">)</span><span class="w">       </span><span class="c1"># e</span>
+<span class="w">  </span><span class="err">1</span><span class="nl">c:</span><span class="w">	</span><span class="nf">mov</span><span class="w">    </span><span class="nv">%r9</span><span class="p">,-</span><span class="mi">0x30</span><span class="p">(</span><span class="nv">%rbp</span><span class="p">)</span><span class="w">       </span><span class="c1"># f（第 6 個，在 %r9）</span>
+<span class="w">  </span><span class="err">20:</span><span class="w">	</span><span class="nf">mov</span><span class="w">    </span><span class="mi">-0</span><span class="no">x8</span><span class="p">(</span><span class="nv">%rbp</span><span class="p">),</span><span class="nv">%rdx</span><span class="w">       </span><span class="c1"># 以下依序加總</span>
+<span class="w">  </span><span class="err">24:</span><span class="w">	</span><span class="nf">mov</span><span class="w">    </span><span class="mi">-0</span><span class="no">x10</span><span class="p">(</span><span class="nv">%rbp</span><span class="p">),</span><span class="nv">%rax</span>
+<span class="w">  </span><span class="err">28:</span><span class="w">	</span><span class="nf">add</span><span class="w">    </span><span class="nv">%rax</span><span class="p">,</span><span class="nv">%rdx</span>
+<span class="w">  </span><span class="err">2</span><span class="nl">b:</span><span class="w">	</span><span class="nf">mov</span><span class="w">    </span><span class="mi">-0</span><span class="no">x18</span><span class="p">(</span><span class="nv">%rbp</span><span class="p">),</span><span class="nv">%rax</span>
+<span class="w">  </span><span class="err">2</span><span class="nl">f:</span><span class="w">	</span><span class="nf">add</span><span class="w">    </span><span class="nv">%rax</span><span class="p">,</span><span class="nv">%rdx</span>
+<span class="w">  </span><span class="err">32:</span><span class="w">	</span><span class="nf">mov</span><span class="w">    </span><span class="mi">-0</span><span class="no">x20</span><span class="p">(</span><span class="nv">%rbp</span><span class="p">),</span><span class="nv">%rax</span>
+<span class="w">  </span><span class="err">36:</span><span class="w">	</span><span class="nf">add</span><span class="w">    </span><span class="nv">%rax</span><span class="p">,</span><span class="nv">%rdx</span>
+<span class="w">  </span><span class="err">39:</span><span class="w">	</span><span class="nf">mov</span><span class="w">    </span><span class="mi">-0</span><span class="no">x28</span><span class="p">(</span><span class="nv">%rbp</span><span class="p">),</span><span class="nv">%rax</span>
+<span class="w">  </span><span class="err">3</span><span class="nl">d:</span><span class="w">	</span><span class="nf">add</span><span class="w">    </span><span class="nv">%rax</span><span class="p">,</span><span class="nv">%rdx</span>
+<span class="w">  </span><span class="err">40:</span><span class="w">	</span><span class="nf">mov</span><span class="w">    </span><span class="mi">-0</span><span class="no">x30</span><span class="p">(</span><span class="nv">%rbp</span><span class="p">),</span><span class="nv">%rax</span>
+<span class="w">  </span><span class="err">44:</span><span class="w">	</span><span class="nf">add</span><span class="w">    </span><span class="nv">%rax</span><span class="p">,</span><span class="nv">%rdx</span>
+<span class="w">  </span><span class="err">47:</span><span class="w">	</span><span class="nf">mov</span><span class="w">    </span><span class="mi">0x10</span><span class="p">(</span><span class="nv">%rbp</span><span class="p">),</span><span class="nv">%rax</span><span class="w">       </span><span class="c1"># g（第 7 個）：在 %rbp 的「上面」0x10</span>
+<span class="w">  </span><span class="err">4</span><span class="nl">b:</span><span class="w">	</span><span class="nf">add</span><span class="w">    </span><span class="nv">%rax</span><span class="p">,</span><span class="nv">%rdx</span>
+<span class="w">  </span><span class="err">4</span><span class="nl">e:</span><span class="w">	</span><span class="nf">mov</span><span class="w">    </span><span class="mi">0x18</span><span class="p">(</span><span class="nv">%rbp</span><span class="p">),</span><span class="nv">%rax</span><span class="w">       </span><span class="c1"># h（第 8 個）：在 %rbp 上面 0x18</span>
+<span class="w">  </span><span class="err">52:</span><span class="w">	</span><span class="nf">add</span><span class="w">    </span><span class="nv">%rdx</span><span class="p">,</span><span class="nv">%rax</span><span class="w">             </span><span class="c1"># 回傳值在 %rax</span>
+<span class="w">  </span><span class="err">55:</span><span class="w">	</span><span class="nf">pop</span><span class="w">    </span><span class="nv">%rbp</span>
+<span class="w">  </span><span class="err">56:</span><span class="w">	</span><span class="nf">ret</span>
+
+<span class="err">0000000000000057</span><span class="w"> </span><span class="err">&lt;</span><span class="nf">call8</span><span class="err">&gt;</span><span class="p">:</span>
+<span class="w">  </span><span class="err">57:</span><span class="w">	</span><span class="nf">endbr64</span>
+<span class="w">  </span><span class="err">5</span><span class="nl">b:</span><span class="w">	</span><span class="nf">push</span><span class="w">   </span><span class="nv">%rbp</span>
+<span class="w">  </span><span class="err">5</span><span class="nl">c:</span><span class="w">	</span><span class="nf">mov</span><span class="w">    </span><span class="nv">%rsp</span><span class="p">,</span><span class="nv">%rbp</span>
+<span class="w">  </span><span class="err">5</span><span class="nl">f:</span><span class="w">	</span><span class="nf">push</span><span class="w">   </span><span class="no">$0x8</span><span class="w">                  </span><span class="c1"># 第 8 個參數先推</span>
+<span class="w">  </span><span class="err">61:</span><span class="w">	</span><span class="nf">push</span><span class="w">   </span><span class="no">$0x7</span><span class="w">                  </span><span class="c1"># 第 7 個參數後推（所以在比較低的位址）</span>
+<span class="w">  </span><span class="err">63:</span><span class="w">	</span><span class="nf">mov</span><span class="w">    </span><span class="no">$0x6</span><span class="p">,</span><span class="nv">%r9d</span><span class="w">             </span><span class="c1"># 第 6 個</span>
+<span class="w">  </span><span class="err">69:</span><span class="w">	</span><span class="nf">mov</span><span class="w">    </span><span class="no">$0x5</span><span class="p">,</span><span class="nv">%r8d</span><span class="w">             </span><span class="c1"># 第 5 個</span>
+<span class="w">  </span><span class="err">6</span><span class="nl">f:</span><span class="w">	</span><span class="nf">mov</span><span class="w">    </span><span class="no">$0x4</span><span class="p">,</span><span class="nv">%ecx</span>
+<span class="w">  </span><span class="err">74:</span><span class="w">	</span><span class="nf">mov</span><span class="w">    </span><span class="no">$0x3</span><span class="p">,</span><span class="nv">%edx</span>
+<span class="w">  </span><span class="err">79:</span><span class="w">	</span><span class="nf">mov</span><span class="w">    </span><span class="no">$0x2</span><span class="p">,</span><span class="nv">%esi</span>
+<span class="w">  </span><span class="err">7</span><span class="nl">e:</span><span class="w">	</span><span class="nf">mov</span><span class="w">    </span><span class="no">$0x1</span><span class="p">,</span><span class="nv">%edi</span><span class="w">             </span><span class="c1"># 第 1 個</span>
+<span class="w">  </span><span class="err">83:</span><span class="w">	</span><span class="nf">call</span><span class="w">   </span><span class="mh">88</span> <span class="p">&lt;</span><span class="no">call8</span><span class="p">+</span><span class="mi">0x31</span><span class="p">&gt;</span><span class="w">       </span><span class="c1"># 目標還沒填，看下一行的重定位項目</span>
+<span class="w">			</span><span class="err">84:</span><span class="w"> </span><span class="nf">R_X86_64_PLT32</span><span class="w">	</span><span class="no">sum8-0x4</span>
+<span class="w">  </span><span class="err">88:</span><span class="w">	</span><span class="nf">add</span><span class="w">    </span><span class="no">$0x10</span><span class="p">,</span><span class="nv">%rsp</span><span class="w">            </span><span class="c1"># 呼叫完，丟掉剛才推的兩個參數（2 × 8 byte）</span>
+<span class="w">  </span><span class="err">8</span><span class="nl">c:</span><span class="w">	</span><span class="nf">leave</span>
+<span class="w">  </span><span class="err">8</span><span class="nl">d:</span><span class="w">	</span><span class="nf">ret</span>
+</code></pre>
+<p>逐點讀：</p>
+<ul>
+<li><strong>前 6 個參數</strong>完全照表：<code>%rdi</code>、<code>%rsi</code>、<code>%rdx</code>、<code>%rcx</code>、<code>%r8</code>、<code>%r9</code>。<code>call8</code> 寫的是 <code>%r9d</code>、<code>%ecx</code> 這些 32 位元的名字，因為常數小，寫 32 位元就會清掉高位（零、第 1 點），整個 64 位元就是那個值，而且指令比較短。</li>
+<li><strong>第 7、8 個參數</strong>用 <code>push</code> 推進堆疊，<strong>從最後一個開始推</strong>。這樣第 7 個在比較低的位址，離 <code>sum8</code> 的堆疊框最近。</li>
+<li><strong>在 <code>sum8</code> 裡為什麼是 <code>0x10(%rbp)</code></strong>：<code>call</code> 又推了返回位址，<code>sum8</code> 的序言又推了 <code>%rbp</code>。所以從 <code>sum8</code> 的 <code>%rbp</code> 往上看：<code>0(%rbp)</code> 是舊 <code>%rbp</code>、<code>0x8(%rbp)</code> 是返回位址、<code>0x10(%rbp)</code> 才是第 7 個參數、<code>0x18(%rbp)</code> 是第 8 個。<strong>參數用正的偏移（在呼叫者那邊），區域變數用負的偏移（在自己這邊）。</strong></li>
+<li><strong>誰清掉堆疊上的參數</strong>：<code>call8</code> 自己推的，<code>call</code> 回來後由 <code>call8</code> 用 <code>add $0x10,%rsp</code> 丟掉。被呼叫的 <code>sum8</code> 用 <code>ret</code> 返回時只拿走返回位址。</li>
+<li><code>call 88 &lt;call8+0x31&gt;</code>：<code>.o</code> 裡 <code>call</code> 的位移還是 0，所以 <code>objdump</code> 把目標算成「下一條指令」<code>0x88</code>，這個數字沒有意義。真正的目標是下一行的重定位項目 <code>R_X86_64_PLT32 sum8-0x4</code>，連結時才填上。</li>
+</ul>
+<h3 id="補教charshort-參數為什麼先-mov-ediedx-再存-dl">補教：<code>char</code>、<code>short</code> 參數為什麼先 <code>mov %edi,%edx</code> 再存 <code>%dl</code></h3>
+<p>（2026-10-12 批改作業 1-2 時補教。）參數比 8 byte 小時，只佔暫存器最低的幾個 byte，但 <code>-O0</code> 存它的時候常常<strong>先用 32 位元的名字把整個暫存器複製一份</strong>，再只存低位。作業的 <code>pick.c</code> 完整原始碼：</p>
+<pre><code class="language-c"><span class="kt">long</span><span class="w"> </span><span class="nf">pick</span><span class="p">(</span><span class="kt">char</span><span class="w"> </span><span class="n">a</span><span class="p">,</span><span class="w"> </span><span class="kt">short</span><span class="w"> </span><span class="n">b</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">c</span><span class="p">,</span><span class="w"> </span><span class="kt">long</span><span class="w"> </span><span class="n">d</span><span class="p">,</span><span class="w"> </span><span class="kt">unsigned</span><span class="w"> </span><span class="kt">char</span><span class="w"> </span><span class="o">*</span><span class="n">e</span><span class="p">,</span><span class="w"> </span><span class="kt">unsigned</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">f</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">b</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">c</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">d</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="o">*</span><span class="n">e</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">f</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<pre><code>gcc -O0 -c -fno-asynchronous-unwind-tables pick.c
+objdump -dr --no-show-raw-insn pick.o
+</code></pre>
+<p>存參數的部分（本機實測）：</p>
+<pre><code class="language-asm"><span class="w">   </span><span class="err">8:</span><span class="w">	</span><span class="nf">mov</span><span class="w">    </span><span class="nv">%esi</span><span class="p">,</span><span class="nv">%eax</span><span class="w">           </span><span class="c1"># b 在 %si：先把整個 %esi 複製到暫存用的 %eax</span>
+<span class="w">   </span><span class="nl">a:</span><span class="w">	</span><span class="nf">mov</span><span class="w">    </span><span class="nv">%edx</span><span class="p">,-</span><span class="mi">0xc</span><span class="p">(</span><span class="nv">%rbp</span><span class="p">)</span><span class="w">     </span><span class="c1"># c（int，4 byte）</span>
+<span class="w">   </span><span class="nl">d:</span><span class="w">	</span><span class="nf">mov</span><span class="w">    </span><span class="nv">%rcx</span><span class="p">,-</span><span class="mi">0x18</span><span class="p">(</span><span class="nv">%rbp</span><span class="p">)</span><span class="w">    </span><span class="c1"># d（long，8 byte）</span>
+<span class="w">  </span><span class="err">11:</span><span class="w">	</span><span class="nf">mov</span><span class="w">    </span><span class="nv">%r8</span><span class="p">,-</span><span class="mi">0x20</span><span class="p">(</span><span class="nv">%rbp</span><span class="p">)</span><span class="w">     </span><span class="c1"># e（指標，8 byte）</span>
+<span class="w">  </span><span class="err">15:</span><span class="w">	</span><span class="nf">mov</span><span class="w">    </span><span class="nv">%r9d</span><span class="p">,-</span><span class="mi">0x10</span><span class="p">(</span><span class="nv">%rbp</span><span class="p">)</span><span class="w">    </span><span class="c1"># f（unsigned int，4 byte）</span>
+<span class="w">  </span><span class="err">19:</span><span class="w">	</span><span class="nf">mov</span><span class="w">    </span><span class="nv">%edi</span><span class="p">,</span><span class="nv">%edx</span><span class="w">           </span><span class="c1"># a 在 %dil：先把整個 %edi 複製到 %edx</span>
+<span class="w">  </span><span class="err">1</span><span class="nl">b:</span><span class="w">	</span><span class="nf">mov</span><span class="w">    </span><span class="nv">%dl</span><span class="p">,-</span><span class="mi">0x4</span><span class="p">(</span><span class="nv">%rbp</span><span class="p">)</span><span class="w">      </span><span class="c1"># 只存最低 1 byte：a</span>
+<span class="w">  </span><span class="err">1</span><span class="nl">e:</span><span class="w">	</span><span class="nf">mov</span><span class="w">    </span><span class="nv">%ax</span><span class="p">,-</span><span class="mi">0x8</span><span class="p">(</span><span class="nv">%rbp</span><span class="p">)</span><span class="w">      </span><span class="c1"># 只存最低 2 byte：b</span>
+</code></pre>
+<ul>
+<li><code>a</code> 確實是用 <code>%dil</code>、<code>b</code> 確實是用 <code>%si</code> 傳進來的；<code>mov %edi,%edx</code>、<code>mov %esi,%eax</code> 只是 gcc 在 <code>-O0</code> 下的搬法：先整個複製到別的暫存器，再用 8／16 位元的名字（<code>%dl</code>、<code>%ax</code>）存進堆疊。</li>
+<li>複製過去的高位是垃圾（<a href="x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80-%E6%9A%AB%E5%AD%98%E5%99%A8%E3%80%81mov%E8%88%87lea%E3%80%81cmp%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D.html#%E4%B8%89%E6%8C%87%E4%BB%A4%E7%9A%84%E6%96%87%E6%B3%95%E5%8A%A9%E6%86%B6%E7%AC%A6%E5%A4%A7%E5%B0%8F%E5%BE%8C%E7%B6%B4%E9%81%8B%E7%AE%97%E5%85%83">第 4 課第三節</a>〈讀懂實驗一的範例〉：參數只佔最低幾個 byte，高位不保證），但最後只存低位，所以不影響結果。</li>
+<li>所以判斷「參數用哪個名字傳進來」要看<strong>最後存進堆疊或拿去運算時用的名字</strong>（<code>%dl</code>、<code>%ax</code>），不要被中間的 32 位元複製騙了。</li>
+<li><code>-O2</code> 不存堆疊，直接 <code>movsbl %dil,%edi</code>、<code>movswl %si,%esi</code>，看得更清楚。</li>
+</ul>
+<hr />
+<h2 id="六誰負責保存暫存器以及-16-byte-對齊">六、誰負責保存暫存器，以及 16 byte 對齊</h2>
+<p><code>call</code> 之後，被呼叫的函式也要用暫存器。如果它把呼叫者還要用的值蓋掉怎麼辦？ABI 把 16 個暫存器分成兩組：</p>
+<table>
+<thead>
+<tr>
+<th>分類</th>
+<th>暫存器</th>
+<th>規則</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>呼叫者保存</strong>（caller-saved）</td>
+<td><code>%rax</code>、<code>%rcx</code>、<code>%rdx</code>、<code>%rsi</code>、<code>%rdi</code>、<code>%r8</code>～<code>%r11</code></td>
+<td>被呼叫的函式<strong>可以隨便改</strong>。呼叫者如果 <code>call</code> 之後還要用裡面的值，要自己先存起來</td>
+</tr>
+<tr>
+<td><strong>被呼叫者保存</strong>（callee-saved）</td>
+<td><code>%rbx</code>、<code>%rbp</code>、<code>%r12</code>～<code>%r15</code>（以及 <code>%rsp</code>）</td>
+<td>被呼叫的函式如果要用，<strong>必須先存起來、返回前還原</strong>。所以呼叫者可以相信 <code>call</code> 回來後它們沒變</td>
+</tr>
+</tbody>
+</table>
+<p>這張表是 ABI 的規定（本機沒有 ABI 文件可以對照，下面用一個實際例子驗證其中的 <code>%rbx</code>）。記法：傳參數的 6 個、回傳值 <code>%rax</code>、再加上 <code>%r10</code>、<code>%r11</code>，全都是「用完就丟」的；剩下的 6 個是「借了要還」的。</p>
+<h3 id="實驗要跨過-call-保存的值放哪裡">實驗：要跨過 <code>call</code> 保存的值放哪裡</h3>
+<p><code>saved.c</code>（檔案：<a href="../../small-project/s1-05-asm-calls/saved.c"><code>saved.c</code></a>）完整原始碼。<code>g</code> 只有宣告、沒有定義，這樣 gcc 不知道 <code>g</code> 會做什麼，只能照 ABI 假設它會亂改 caller-saved 暫存器：</p>
+<pre><code class="language-c"><span class="kt">long</span><span class="w"> </span><span class="nf">g</span><span class="p">(</span><span class="kt">long</span><span class="w"> </span><span class="n">x</span><span class="p">);</span>
+
+<span class="kt">long</span><span class="w"> </span><span class="nf">f</span><span class="p">(</span><span class="kt">long</span><span class="w"> </span><span class="n">x</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="kt">long</span><span class="w"> </span><span class="n">y</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">g</span><span class="p">(</span><span class="n">x</span><span class="p">);</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">y</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<pre><code>$ gcc -O2 -c -fno-asynchronous-unwind-tables saved.c -o saved.o
+$ objdump -dr --no-show-raw-insn saved.o
+</code></pre>
+<pre><code class="language-asm"><span class="err">0000000000000000</span><span class="w"> </span><span class="err">&lt;</span><span class="nf">f</span><span class="err">&gt;</span><span class="p">:</span>
+<span class="w">   </span><span class="err">0:</span><span class="w">	</span><span class="nf">endbr64</span>
+<span class="w">   </span><span class="err">4:</span><span class="w">	</span><span class="nf">push</span><span class="w">   </span><span class="nv">%rbx</span><span class="w">                  </span><span class="c1"># rbx 是 callee-saved：f 要用它，先替呼叫 f 的人存起來</span>
+<span class="w">   </span><span class="err">5:</span><span class="w">	</span><span class="nf">mov</span><span class="w">    </span><span class="nv">%rdi</span><span class="p">,</span><span class="nv">%rbx</span><span class="w">             </span><span class="c1"># x 從 %rdi 搬到 %rbx</span>
+<span class="w">   </span><span class="err">8:</span><span class="w">	</span><span class="nf">call</span><span class="w">   </span><span class="mh">d</span> <span class="p">&lt;</span><span class="no">f</span><span class="p">+</span><span class="mi">0xd</span><span class="p">&gt;</span><span class="w">             </span><span class="c1"># 呼叫 g（參數 x 還在 %rdi）</span>
+<span class="w">			</span><span class="err">9:</span><span class="w"> </span><span class="nf">R_X86_64_PLT32</span><span class="w">	</span><span class="no">g-0x4</span>
+<span class="w">   </span><span class="nl">d:</span><span class="w">	</span><span class="nf">add</span><span class="w">    </span><span class="nv">%rbx</span><span class="p">,</span><span class="nv">%rax</span><span class="w">             </span><span class="c1"># %rax = g 的回傳值 + x</span>
+<span class="w">  </span><span class="err">10:</span><span class="w">	</span><span class="nf">pop</span><span class="w">    </span><span class="nv">%rbx</span><span class="w">                  </span><span class="c1"># 還原呼叫 f 的人的 %rbx</span>
+<span class="w">  </span><span class="err">11:</span><span class="w">	</span><span class="nf">ret</span>
+</code></pre>
+<p><code>x</code> 在 <code>g</code> 回來之後還要用（<code>x + y</code>），可是它原本在 <code>%rdi</code>，是 caller-saved，<code>g</code> 可能改掉它。gcc 的做法：把 <code>x</code> 搬到 callee-saved 的 <code>%rbx</code>，因為 ABI 保證 <code>g</code> 回來後 <code>%rbx</code> 不變。但 <code>f</code> 自己對呼叫 <code>f</code> 的人也有同樣的義務，所以 <code>f</code> 一開頭 <code>push %rbx</code>，返回前 <code>pop %rbx</code> 還原。</p>
+<p>對照組 <code>noret.c</code>（檔案：<a href="../../small-project/s1-05-asm-calls/noret.c"><code>noret.c</code></a>），<code>call</code> 之後不再用 <code>x</code>：</p>
+<pre><code class="language-c"><span class="kt">long</span><span class="w"> </span><span class="nf">g</span><span class="p">(</span><span class="kt">long</span><span class="w"> </span><span class="n">x</span><span class="p">);</span>
+
+<span class="kt">long</span><span class="w"> </span><span class="nf">f</span><span class="p">(</span><span class="kt">long</span><span class="w"> </span><span class="n">x</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="kt">long</span><span class="w"> </span><span class="n">y</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">g</span><span class="p">(</span><span class="n">x</span><span class="p">);</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">y</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mi">2</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<pre><code>$ gcc -O2 -c -fno-asynchronous-unwind-tables noret.c -o noret.o
+$ objdump -dr --no-show-raw-insn noret.o
+</code></pre>
+<pre><code class="language-asm"><span class="err">0000000000000000</span><span class="w"> </span><span class="err">&lt;</span><span class="nf">f</span><span class="err">&gt;</span><span class="p">:</span>
+<span class="w">   </span><span class="err">0:</span><span class="w">	</span><span class="nf">endbr64</span>
+<span class="w">   </span><span class="err">4:</span><span class="w">	</span><span class="nf">sub</span><span class="w">    </span><span class="no">$0x8</span><span class="p">,</span><span class="nv">%rsp</span><span class="w">             </span><span class="c1"># 不是為了存東西：為了對齊（下面說明）</span>
+<span class="w">   </span><span class="err">8:</span><span class="w">	</span><span class="nf">call</span><span class="w">   </span><span class="mh">d</span> <span class="p">&lt;</span><span class="no">f</span><span class="p">+</span><span class="mi">0xd</span><span class="p">&gt;</span>
+<span class="w">			</span><span class="err">9:</span><span class="w"> </span><span class="nf">R_X86_64_PLT32</span><span class="w">	</span><span class="no">g-0x4</span>
+<span class="w">   </span><span class="nl">d:</span><span class="w">	</span><span class="nf">add</span><span class="w">    </span><span class="no">$0x8</span><span class="p">,</span><span class="nv">%rsp</span>
+<span class="w">  </span><span class="err">11:</span><span class="w">	</span><span class="nf">add</span><span class="w">    </span><span class="nv">%rax</span><span class="p">,</span><span class="nv">%rax</span><span class="w">             </span><span class="c1"># y * 2 寫成 y + y</span>
+<span class="w">  </span><span class="err">14:</span><span class="w">	</span><span class="nf">ret</span>
+</code></pre>
+<p>不需要跨過 <code>call</code> 保存任何值，就不用 <code>%rbx</code>，也沒有 <code>push</code>／<code>pop %rbx</code>。（<code>-O2</code> 不建 <code>%rbp</code> 堆疊框：<code>%rbp</code> 只是讓人和除錯器好讀，最佳化時省掉。）</p>
+<h3 id="上面的-sub-0x8rsp16-byte-對齊">上面的 <code>sub $0x8,%rsp</code>：16 byte 對齊</h3>
+<p><code>noret.c</code> 什麼都不存，為什麼還要把 <code>%rsp</code> 往下挪 8 byte、回來再加回去？因為 ABI 還有一條規定：<strong>執行 <code>call</code> 的那一刻，<code>%rsp</code> 必須是 16 的倍數。</strong></p>
+<p>算一次：</p>
+<ol>
+<li>呼叫 <code>f</code> 的人照規定，<code>call f</code> 時 <code>%rsp</code> 是 16 的倍數。</li>
+<li><code>call</code> 推進 8 byte 的返回位址，進到 <code>f</code> 時 <code>%rsp</code> 變成「16 的倍數 − 8」。</li>
+<li><code>f</code> 要 <code>call g</code>，必須再挪 8 byte 才會回到 16 的倍數。<code>saved.c</code> 的 <code>push %rbx</code> 剛好挪了 8 byte，一舉兩得；<code>noret.c</code> 沒有東西要存，就用 <code>sub $0x8,%rsp</code> 單純挪 8 byte。</li>
+</ol>
+<p><code>frame.c</code> 的 <code>main</code> 也一樣：進 <code>main</code> 時 <code>%rsp</code> 是 <code>d428</code>（<code>0x…28</code>，除以 16 餘 8），<code>push %rbp</code> 後是 <code>d420</code>，<code>sub $0x10</code> 後是 <code>d410</code>（16 的倍數）。區域變數 <code>r</code> 只要 8 byte，gcc 卻留了 16 byte，就是為了這條規定。第三節實測 <code>call add3</code> 之前 <code>%rsp</code> ＝ <code>0x7fffffffd410</code>，確實是 16 的倍數。</p>
+<p>為什麼要 16：有些指令（例如一次搬 16 byte 的 SSE 指令 <code>movaps</code>）要求記憶體位址是 16 的倍數，否則會當掉。ABI 規定進函式時的對齊狀態是固定的，函式裡的區域變數就能直接排成 16 byte 對齊。</p>
+<h3 id="補教被呼叫的函式就在同一個檔案時sub-0x8rsp-為什麼不見了">補教：被呼叫的函式就在同一個檔案時，<code>sub $0x8,%rsp</code> 為什麼不見了</h3>
+<p>（2026-10-16 批改作業 2-5 時補教。）上面的對齊是<strong>為了被呼叫的函式</strong>：讓它可以放心用 <code>movaps</code> 這類要求 16 byte 對齊的指令。所以如果 gcc <strong>看得到</strong>被呼叫的函式、確定它不需要對齊，這一次呼叫就可以不補。</p>
+<p><code>align9.c</code>（檔案：<a href="../../small-project/s1-05-asm-calls/align9.c"><code>align9.c</code></a>）完整原始碼，<code>sum9</code> 有 9 個參數、第 7～9 個要放堆疊（3 × 8 ＝ 24 byte，單靠它們湊不成 16 的倍數）：</p>
+<pre><code class="language-c"><span class="cm">/* align9.c：sum9 和 call9 放在同一個檔案（作業 2-5 的情境） */</span>
+<span class="kt">int</span><span class="w"> </span><span class="nf">sum9</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">a</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">b</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">c</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">d</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">e</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">f</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">g</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">h</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">i</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">b</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">c</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">d</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">e</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">f</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">g</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">h</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">i</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">call9</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">sum9</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span><span class="w"> </span><span class="mi">20</span><span class="p">,</span><span class="w"> </span><span class="mi">30</span><span class="p">,</span><span class="w"> </span><span class="mi">40</span><span class="p">,</span><span class="w"> </span><span class="mi">50</span><span class="p">,</span><span class="w"> </span><span class="mi">60</span><span class="p">,</span><span class="w"> </span><span class="mi">70</span><span class="p">,</span><span class="w"> </span><span class="mi">80</span><span class="p">,</span><span class="w"> </span><span class="mi">90</span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre>
+<pre><code>gcc -O0 -c -fno-asynchronous-unwind-tables align9.c
+objdump -dr --no-show-raw-insn align9.o
+gcc -O0 -c -fno-asynchronous-unwind-tables -fno-ipa-stack-alignment align9.c -o align9-noipa.o
+objdump -dr --no-show-raw-insn align9-noipa.o
+</code></pre>
+<p>兩次的 <code>call9</code> 並排（本機 gcc 13.3 實測；左邊是預設，右邊加了 <code>-fno-ipa-stack-alignment</code>）：</p>
+<pre><code>預設                                    -fno-ipa-stack-alignment
+  49: endbr64                             49: endbr64
+  4d: push   %rbp                         4d: push   %rbp
+  4e: mov    %rsp,%rbp                    4e: mov    %rsp,%rbp
+                                          51: sub    $0x8,%rsp      # 對齊用的 8 byte 回來了
+  51: push   $0x5a     # i = 90           55: push   $0x5a
+  53: push   $0x50     # h = 80           57: push   $0x50
+  55: push   $0x46     # g = 70           59: push   $0x46
+  57: mov    $0x3c,%r9d                   5b: mov    $0x3c,%r9d
+  ...（%r8d、%ecx、%edx、%esi、%edi 同上）
+  77: call   7c &lt;call9+0x33&gt;              7b: call   80 &lt;call9+0x37&gt;
+  7c: add    $0x18,%rsp  # 只丟 24 byte    80: add    $0x20,%rsp  # 丟 32 byte
+  80: leave                               84: leave
+  81: ret                                 85: ret
+</code></pre>
+<p>如果 <code>sum9</code> 只有<strong>宣告</strong>、本體在另一個檔案（作業 2 的 <code>nine.c</code>），結果跟右邊一樣，有 <code>sub $0x8,%rsp</code>。</p>
+<p>為什麼：</p>
+<ol>
+<li><strong>只有宣告時</strong>，gcc 不知道 <code>sum9</code> 裡面做什麼，只能照 ABI 假設它需要 16 byte 對齊，補上 <code>sub $0x8,%rsp</code>。用上一小節的算法：進 <code>call9</code> 餘 8 → <code>push %rbp</code> 餘 0 → <code>sub</code> 餘 8 → 推 24 byte 餘 0 → <code>call</code> 時對齊。</li>
+<li><strong>本體在同一個檔案時</strong>，gcc 先分析 <code>sum9</code>：它不再 <code>call</code> 別人、沒有要求對齊的指令，只需要 8 byte 對齊。於是這一次 <code>call sum9</code> 不補，<code>call</code> 時餘 8 也沒關係；<code>add</code> 也從 <code>0x20</code> 變成剛好 3 個參數的 <code>0x18</code>。</li>
+<li>這個分析是 gcc 的 <code>-fipa-stack-alignment</code>（IPA，Interprocedural Analysis，跨函式分析：看別的函式的本體來決定這個函式怎麼編）。<code>man gcc</code> 的說明是 &quot;Reduce stack alignment on call sites if possible. Enabled by default.&quot;，<code>gcc -Q --help=optimizers -O0 | grep ipa-stack</code> 實測在 <code>-O0</code> 也是 <code>[enabled]</code>。加 <code>-fno-ipa-stack-alignment</code> 就關掉，<code>sub</code> 回來。</li>
+</ol>
+<p>注意這只影響<strong>看得到本體的那一次呼叫</strong>。<code>sum9</code> 是一般的全域函式，別的檔案呼叫它時，那邊的 gcc 只看得到宣告，照樣會補對齊；<code>sum9</code> 自己的程式碼也不變。</p>
+<p>gcc 的最佳化選項很多（本機 gcc 13.3 的 <code>gcc -Q --help=optimizers -O0</code> 列出 260 個 <code>-f</code> 選項），這裡只用到 <code>-fipa-stack-alignment</code> 這一個；完整清單用 <code>gcc --help=optimizers</code>（加 <code>-Q</code> 和 <code>-O0</code>／<code>-O2</code> 會顯示在那個等級是否開啟）或 <code>man gcc</code> 的 &quot;Options That Control Optimization&quot; 一節查。</p>
+<hr />
+<h2 id="七printf-前的-movl-0-eax可變參數函式的-al">七、<code>printf</code> 前的 <code>movl $0, %eax</code>：可變參數函式的 <code>%al</code></h2>
+<p>第 4 課看到 <code>main</code> 呼叫 <code>printf</code> 前有一行 <code>movl $0, %eax</code>，當時說「第 5 課講」。這是 ABI 對<strong>可變參數函式</strong>（variadic function，參數個數不固定，例如 <code>printf(const char *fmt, ...)</code>）的規定：
+<strong>呼叫前把 <code>%al</code>（<code>%rax</code> 最低的 1 byte）設成「這次用了幾個向量暫存器（<code>%xmm0</code>～<code>%xmm7</code>）傳參數」</strong>，給 <code>printf</code> 決定要不要把那些暫存器存起來。</p>
+<p><code>varargs.c</code>（檔案：<a href="../../small-project/s1-05-asm-calls/varargs.c"><code>varargs.c</code></a>）完整原始碼：</p>
+<pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;%d</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">);</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;%f</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="mf">1.5</span><span class="p">);</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;%f %f</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="mf">1.5</span><span class="p">,</span><span class="w"> </span><span class="mf">2.5</span><span class="p">);</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<pre><code>$ gcc -O0 -fno-asynchronous-unwind-tables varargs.c -o varargs
+$ ./varargs
+1
+1.500000
+1.500000 2.500000
+$ objdump -d --no-show-raw-insn varargs
+</code></pre>
+<p><code>main</code> 的部分：</p>
+<pre><code class="language-asm"><span class="err">0000000000001149</span><span class="w"> </span><span class="err">&lt;</span><span class="nf">main</span><span class="err">&gt;</span><span class="p">:</span>
+<span class="w">    </span><span class="err">1149:</span><span class="w">	</span><span class="nf">endbr64</span>
+<span class="w">    </span><span class="err">114</span><span class="nl">d:</span><span class="w">	</span><span class="nf">push</span><span class="w">   </span><span class="nv">%rbp</span>
+<span class="w">    </span><span class="err">114</span><span class="nl">e:</span><span class="w">	</span><span class="nf">mov</span><span class="w">    </span><span class="nv">%rsp</span><span class="p">,</span><span class="nv">%rbp</span>
+<span class="w">    </span><span class="c1"># printf(&quot;%d\n&quot;, 1)</span>
+<span class="w">    </span><span class="err">1151:</span><span class="w">	</span><span class="nf">mov</span><span class="w">    </span><span class="no">$0x1</span><span class="p">,</span><span class="nv">%esi</span><span class="w">                    </span><span class="c1"># 第 2 個參數 1（整數，走 %rsi）</span>
+<span class="w">    </span><span class="err">1156:</span><span class="w">	</span><span class="nf">lea</span><span class="w">    </span><span class="mi">0xeab</span><span class="p">(</span><span class="nv">%rip</span><span class="p">),</span><span class="nv">%rax</span><span class="w">             </span><span class="c1"># 字串 &quot;%d\n&quot; 的位址</span>
+<span class="w">    </span><span class="err">115</span><span class="nl">d:</span><span class="w">	</span><span class="nf">mov</span><span class="w">    </span><span class="nv">%rax</span><span class="p">,</span><span class="nv">%rdi</span><span class="w">                    </span><span class="c1"># 第 1 個參數</span>
+<span class="w">    </span><span class="err">1160:</span><span class="w">	</span><span class="nf">mov</span><span class="w">    </span><span class="no">$0x0</span><span class="p">,</span><span class="nv">%eax</span><span class="w">                    </span><span class="c1"># %al = 0：沒有用到向量暫存器</span>
+<span class="w">    </span><span class="err">1165:</span><span class="w">	</span><span class="nf">call</span><span class="w">   </span><span class="mh">1050</span> <span class="p">&lt;</span><span class="no">printf@plt</span><span class="p">&gt;</span>
+<span class="w">    </span><span class="c1"># printf(&quot;%f\n&quot;, 1.5)</span>
+<span class="w">    </span><span class="err">116</span><span class="nl">a:</span><span class="w">	</span><span class="nf">mov</span><span class="w">    </span><span class="mi">0xea7</span><span class="p">(</span><span class="nv">%rip</span><span class="p">),</span><span class="nv">%rax</span><span class="w">             </span><span class="c1"># 從 .rodata 讀出 1.5 的 8 byte（double）</span>
+<span class="w">    </span><span class="err">1171:</span><span class="w">	</span><span class="nf">movq</span><span class="w">   </span><span class="nv">%rax</span><span class="p">,</span><span class="nv">%xmm0</span><span class="w">                   </span><span class="c1"># 放進 %xmm0：double 參數走向量暫存器</span>
+<span class="w">    </span><span class="err">1176:</span><span class="w">	</span><span class="nf">lea</span><span class="w">    </span><span class="mi">0xe8f</span><span class="p">(</span><span class="nv">%rip</span><span class="p">),</span><span class="nv">%rax</span><span class="w">             </span><span class="c1"># 字串 &quot;%f\n&quot; 的位址</span>
+<span class="w">    </span><span class="err">117</span><span class="nl">d:</span><span class="w">	</span><span class="nf">mov</span><span class="w">    </span><span class="nv">%rax</span><span class="p">,</span><span class="nv">%rdi</span>
+<span class="w">    </span><span class="err">1180:</span><span class="w">	</span><span class="nf">mov</span><span class="w">    </span><span class="no">$0x1</span><span class="p">,</span><span class="nv">%eax</span><span class="w">                    </span><span class="c1"># %al = 1：用了 1 個（%xmm0）</span>
+<span class="w">    </span><span class="err">1185:</span><span class="w">	</span><span class="nf">call</span><span class="w">   </span><span class="mh">1050</span> <span class="p">&lt;</span><span class="no">printf@plt</span><span class="p">&gt;</span>
+<span class="w">    </span><span class="c1"># printf(&quot;%f %f\n&quot;, 1.5, 2.5)</span>
+<span class="w">    </span><span class="err">118</span><span class="nl">a:</span><span class="w">	</span><span class="nf">movsd</span><span class="w">  </span><span class="mi">0xe8e</span><span class="p">(</span><span class="nv">%rip</span><span class="p">),</span><span class="nv">%xmm0</span><span class="w">            </span><span class="c1"># 從 .rodata 讀出 2.5，暫放 %xmm0</span>
+<span class="w">    </span><span class="err">1192:</span><span class="w">	</span><span class="nf">mov</span><span class="w">    </span><span class="mi">0xe7f</span><span class="p">(</span><span class="nv">%rip</span><span class="p">),</span><span class="nv">%rax</span><span class="w">             </span><span class="c1"># 讀出 1.5</span>
+<span class="w">    </span><span class="err">1199:</span><span class="w">	</span><span class="nf">movapd</span><span class="w"> </span><span class="nv">%xmm0</span><span class="p">,</span><span class="nv">%xmm1</span><span class="w">                  </span><span class="c1"># 2.5 搬到 %xmm1（第 2 個 double 參數）</span>
+<span class="w">    </span><span class="err">119</span><span class="nl">d:</span><span class="w">	</span><span class="nf">movq</span><span class="w">   </span><span class="nv">%rax</span><span class="p">,</span><span class="nv">%xmm0</span><span class="w">                   </span><span class="c1"># 1.5 放進 %xmm0（第 1 個 double 參數）</span>
+<span class="w">    </span><span class="err">11</span><span class="nl">a2:</span><span class="w">	</span><span class="nf">lea</span><span class="w">    </span><span class="mi">0xe67</span><span class="p">(</span><span class="nv">%rip</span><span class="p">),</span><span class="nv">%rax</span><span class="w">             </span><span class="c1"># 字串 &quot;%f %f\n&quot; 的位址</span>
+<span class="w">    </span><span class="err">11</span><span class="nl">a9:</span><span class="w">	</span><span class="nf">mov</span><span class="w">    </span><span class="nv">%rax</span><span class="p">,</span><span class="nv">%rdi</span>
+<span class="w">    </span><span class="err">11</span><span class="nl">ac:</span><span class="w">	</span><span class="nf">mov</span><span class="w">    </span><span class="no">$0x2</span><span class="p">,</span><span class="nv">%eax</span><span class="w">                    </span><span class="c1"># %al = 2：用了 2 個（%xmm0、%xmm1）</span>
+<span class="w">    </span><span class="err">11</span><span class="nl">b1:</span><span class="w">	</span><span class="nf">call</span><span class="w">   </span><span class="mh">1050</span> <span class="p">&lt;</span><span class="no">printf@plt</span><span class="p">&gt;</span>
+<span class="w">    </span><span class="err">11</span><span class="nl">b6:</span><span class="w">	</span><span class="nf">mov</span><span class="w">    </span><span class="no">$0x0</span><span class="p">,</span><span class="nv">%eax</span><span class="w">                    </span><span class="c1"># return 0;</span>
+<span class="w">    </span><span class="err">11</span><span class="nl">bb:</span><span class="w">	</span><span class="nf">pop</span><span class="w">    </span><span class="nv">%rbp</span>
+<span class="w">    </span><span class="err">11</span><span class="nl">bc:</span><span class="w">	</span><span class="nf">ret</span>
+</code></pre>
+<p><code>%eax</code> 依序設成 0、1、2，正好是每次呼叫用掉的 <code>%xmm</code> 暫存器個數。寫的是 <code>%eax</code> 而不是 <code>%al</code>，是因為 <code>mov $0x0,%eax</code> 一次清掉整個 <code>%rax</code>（零、第 1 點）。可以注意兩件事：整數參數 <code>1</code> 和 <code>double</code> 參數各走各的暫存器序列：<code>%rdi</code>、<code>%rsi</code> 是整數的第 1、2 個，<code>%xmm0</code>、<code>%xmm1</code> 是浮點的第 1、2 個，互不影響。
+<code>movq</code>、<code>movsd</code>、<code>movapd</code> 是搬浮點資料的指令，本路線不需要記，看得出「把 double 放進 <code>%xmm</code>」就夠了。</p>
+<p><strong>只有可變參數函式需要設 <code>%al</code>。</strong> 呼叫一般函式（例如 <code>add3</code>）時，<code>main</code> 沒有寫這一行（第三節的 <code>main</code> 在 <code>call add3</code> 前沒有 <code>mov $0x0,%eax</code>）。</p>
+<hr />
+<h2 id="八本課用到的工具選項與完整清單在哪">八、本課用到的工具、選項與完整清單在哪</h2>
+<h3 id="gdb本課用到的命令"><code>gdb</code>：本課用到的命令</h3>
+<p>gdb 的頂層命令共 173 個，本課用到其中 9 個（<code>info registers</code>、<code>info symbol</code> 是 <code>info</code> 這一個頂層命令的兩個子命令）；全部依 gdb 自己的 13 類列在 <a href="gdb%E5%AE%8C%E6%95%B4%E5%91%BD%E4%BB%A4%E5%8F%83%E8%80%83.html#%E5%9B%9B%E5%85%A8%E9%83%A8-173-%E5%80%8B%E9%A0%82%E5%B1%A4%E5%91%BD%E4%BB%A4%E4%BE%9D-gdb-%E7%9A%84-13-%E9%A1%9E">gdb完整命令參考第四節</a>，<code>info</code> 的全部 65 個子命令在<a href="gdb%E5%AE%8C%E6%95%B4%E5%91%BD%E4%BB%A4%E5%8F%83%E8%80%83.html#%E4%BA%94info-%E7%9A%84%E5%85%A8%E9%83%A8-65-%E5%80%8B%E5%AD%90%E5%91%BD%E4%BB%A4">第五節</a>。</p>
+<table>
+<thead>
+<tr>
+<th>命令</th>
+<th>本課怎麼用</th>
+<th>在參考筆記的哪一類</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>break *位址</code></td>
+<td><code>break *main+27</code>：停在某一條指令上（不跳過序言）</td>
+<td>4.2 breakpoints；<code>*位址</code> 的寫法見第三節〈位置（LOCATION）〉</td>
+</tr>
+<tr>
+<td><code>run</code></td>
+<td>開始執行</td>
+<td>4.1 running</td>
+</tr>
+<tr>
+<td><code>stepi</code>（<code>si</code>）</td>
+<td>剛好執行一條機器指令，遇到 <code>call</code> 會跟進去</td>
+<td>4.1 running</td>
+</tr>
+<tr>
+<td><code>continue</code>（<code>c</code>）</td>
+<td>繼續跑到下一個中斷點</td>
+<td>4.1 running</td>
+</tr>
+<tr>
+<td><code>x/FMT 位址</code></td>
+<td><code>x/2gx $rsp</code>：看堆疊頂端兩格；<code>x/i $pc</code>：看下一條指令</td>
+<td>4.3 data；格式字母全表見第三節〈輸出格式 <code>/FMT</code>〉</td>
+</tr>
+<tr>
+<td><code>info registers 名字…</code></td>
+<td>只印指定的暫存器</td>
+<td>第五節（<code>info</code> 子命令）</td>
+</tr>
+<tr>
+<td><code>info symbol 位址</code></td>
+<td>位址落在哪個符號＋偏移</td>
+<td>第五節（<code>info</code> 子命令）</td>
+</tr>
+<tr>
+<td><code>print</code></td>
+<td><code>print &amp;a</code>：看變數的位址</td>
+<td>4.3 data</td>
+</tr>
+<tr>
+<td><code>echo 文字</code></td>
+<td>在命令稿裡印標題（本課只當分隔用）</td>
+<td>4.7 support</td>
+</tr>
+<tr>
+<td><code>set 設定 值</code></td>
+<td><code>set disassemble-next-line off</code>：<code>stepi</code> 停下時不要自動印出下一條指令的反組譯（這本來就是預設值，寫出來是確保輸出一致；命令稿用 <code>x/i $pc</code> 自己印）</td>
+<td>4.3 data；<code>set</code> 底下的子命令多到上千個，見<a href="gdb%E5%AE%8C%E6%95%B4%E5%91%BD%E4%BB%A4%E5%8F%83%E8%80%83.html#%E5%85%ADsetshowmaintenance%E6%95%B8%E9%87%8F%E7%82%BA%E4%BB%80%E9%BA%BC%E4%B8%8D%E9%80%90%E9%A0%85%E5%88%97%E6%80%8E%E9%BA%BC%E6%9F%A5">第六節</a></td>
+</tr>
+</tbody>
+</table>
+<p><code>stepi</code> 和 <code>nexti</code> 的差別：<code>nexti</code> 遇到 <code>call</code> 不跟進去，整個被呼叫的函式當成一步執行完。想看 <code>call</code> 推返回位址的那一刻，要用 <code>stepi</code>。</p>
+<p><strong>命令稿</strong>：<code>gdb -q -batch -x 檔案 程式</code> 從檔案一行一行讀命令執行（<code>-x</code>），執行完就結束（<code>-batch</code>），不印開場說明（<code>-q</code>）。gdb 的全部命令列選項列在 <a href="gdb%E5%AE%8C%E6%95%B4%E5%91%BD%E4%BB%A4%E5%8F%83%E8%80%83.html#%E4%BA%8C%E5%95%9F%E5%8B%95-gdb%E5%91%BD%E4%BB%A4%E5%88%97%E6%96%87%E6%B3%95%E8%88%87%E5%85%A8%E9%83%A8%E9%81%B8%E9%A0%85">gdb完整命令參考第二節</a>。</p>
+<h3 id="gccobjdump本課新用到的選項"><code>gcc</code>、<code>objdump</code>：本課新用到的選項</h3>
+<ul>
+<li><code>gcc</code>：主線沒有新選項（2026-10-16 批改作業時的補教用到 <code>-fno-ipa-stack-alignment</code>，見第六節〈補教：被呼叫的函式就在同一個檔案時，<code>sub $0x8,%rsp</code> 為什麼不見了〉），用的都是第 4 課<a href="x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80-%E6%9A%AB%E5%AD%98%E5%99%A8%E3%80%81mov%E8%88%87lea%E3%80%81cmp%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D.html#%E5%85%AB%E6%9C%AC%E8%AA%B2%E7%94%A8%E5%88%B0%E7%9A%84%E5%B7%A5%E5%85%B7%E9%81%B8%E9%A0%85%E8%88%87%E5%AE%8C%E6%95%B4%E6%B8%85%E5%96%AE%E5%9C%A8%E5%93%AA">第八節</a>列過的 <code>-O0</code>、<code>-O2</code>、<code>-c</code>、<code>-g</code>、<code>-fno-asynchronous-unwind-tables</code>。</li>
+<li><code>objdump</code>：新用到 <code>-r</code>（<code>--reloc</code>）：顯示重定位項目，和 <code>-d</code> 一起用時印在相關的指令下面。<code>-d</code>、<code>--no-show-raw-insn</code> 第 4 課教過；「顯示什麼」一組的全部 31 項在 <a href="objdump%E8%83%BD%E4%B8%8D%E8%83%BD%E4%BB%A3%E6%9B%BFldd%E6%89%BE%E4%BE%9D%E8%B3%B4%E5%BA%AB-%E9%9C%80%E6%B1%82%E5%96%AE%E8%88%87%E5%AF%A6%E9%9A%9B%E8%BC%89%E5%85%A5.html#%E5%85%AD%E6%9C%AC%E7%AF%87%E7%94%A8%E5%88%B0%E7%9A%84%E5%B7%A5%E5%85%B7%E9%81%B8%E9%A0%85">objdump能不能代替ldd第六節</a>。</li>
+</ul>
+<h3 id="本課的指令">本課的指令</h3>
+<p>本課新教的指令是 6 個：<code>push</code>、<code>pop</code>、<code>call</code>、<code>ret</code>、<code>leave</code>、<code>sub</code>（<code>sub</code> 第 4 課教過算術，這裡用來挪 <code>%rsp</code>）。看到但不需要學的：<code>endbr64</code>（第 4 課）、搬浮點資料的 <code>movq</code>／<code>movsd</code>／<code>movapd</code>。完整的指令清單與精確定義見第 4 課第八節〈指令與指示詞的完整清單〉列的 Intel 手冊與 <a href="https://www.felixcloutier.com/x86/">https://www.felixcloutier.com/x86/</a>。呼叫慣例的完整規則（結構體怎麼傳、浮點數、超過 16 byte 的回傳值……本課都沒有教）在 <em>System V Application Binary Interface, AMD64 Architecture Processor Supplement</em> 第 3.2 節。</p>
+<hr />
+<h2 id="九動手作業">九、動手作業</h2>
+<p>作業在 <a href="../../small-project/s1-05-asm-calls/README.md"><code>small-project/s1-05-asm-calls/</code></a>，共 5 題：不同型別的參數放進哪個暫存器的哪個名字、9 個參數的堆疊位置、用 gdb 找出兩層呼叫的返回位址與 <code>%rbp</code> 鏈、要跨過兩次 <code>call</code> 保存的值與對齊、可變參數函式的 <code>%al</code>。</p>
+<hr />
+<h2 id="自我測驗">自我測驗</h2>
+<blockquote>
+<p>參考答案寫在每題下面，第一次作答批改完才會補上。作答時先遮住答案、自己想過再對照。作答寫在 <a href="../../small-project/s1-05-asm-calls/quiz.md"><code>s1-05-asm-calls/quiz.md</code></a>。</p>
+</blockquote>
+<ol>
+<li><code>frame.c</code> 的 <code>main</code> 裡有 <code>call 1149 &lt;add3&gt;</code>（位址 <code>0x1194</code>），下一條指令在 <code>0x1199</code>；<code>add3</code> 最後一條是 <code>ret</code>。<code>call</code> 做了哪兩件事？<code>ret</code> 做了什麼？<code>ret</code> 怎麼知道要回到 <code>0x1199</code>？如果 <code>add3</code> 裡有個陣列越界寫入，剛好蓋掉了堆疊上的返回位址，<code>ret</code> 會發生什麼事？<pre><code class="language-asm"><span class="c1"># main</span>
+<span class="err">1194:</span><span class="w">	</span><span class="nf">call</span><span class="w">   </span><span class="mh">1149</span> <span class="p">&lt;</span><span class="no">add3</span><span class="p">&gt;</span>
+<span class="err">1199:</span><span class="w">	</span><span class="nf">mov</span><span class="w">    </span><span class="nv">%rax</span><span class="p">,-</span><span class="mi">0x8</span><span class="p">(</span><span class="nv">%rbp</span><span class="p">)</span>
+<span class="c1"># add3 的最後</span>
+<span class="err">1177:</span><span class="w">	</span><span class="nf">pop</span><span class="w">    </span><span class="nv">%rbp</span>
+<span class="err">1178:</span><span class="w">	</span><span class="nf">ret</span>
+</code></pre>
+</li>
+<li>函式開頭的 <code>push %rbp</code> 和 <code>mov %rsp,%rbp</code> 各在做什麼？<code>main</code> 結尾的 <code>leave</code> 等於哪兩條指令？<code>add3</code> 把區域變數放在 <code>%rsp</code> 下面、沒有 <code>sub %rsp</code>，<code>main</code> 卻要 <code>sub $0x10,%rsp</code>，為什麼？<pre><code class="language-asm"><span class="nl">add3:</span><span class="w">                                 </span><span class="nl">main:</span>
+<span class="w">  </span><span class="nf">push</span><span class="w">   </span><span class="nv">%rbp</span><span class="w">                           </span><span class="no">push</span><span class="w">   </span><span class="nv">%rbp</span>
+<span class="w">  </span><span class="nf">mov</span><span class="w">    </span><span class="nv">%rsp</span><span class="p">,</span><span class="nv">%rbp</span><span class="w">                      </span><span class="no">mov</span><span class="w">    </span><span class="nv">%rsp</span><span class="p">,</span><span class="nv">%rbp</span>
+<span class="w">  </span><span class="nf">mov</span><span class="w">    </span><span class="nv">%rdi</span><span class="p">,-</span><span class="mi">0x18</span><span class="p">(</span><span class="nv">%rbp</span><span class="p">)</span><span class="w">               </span><span class="no">sub</span><span class="w">    </span><span class="no">$0x10</span><span class="p">,</span><span class="nv">%rsp</span>
+<span class="w">  </span><span class="na">...</span><span class="err">（沒有</span><span class="w"> </span><span class="no">sub</span><span class="err">、沒有</span><span class="w"> </span><span class="no">call</span><span class="err">）</span><span class="w">              </span><span class="no">...</span><span class="err">（有</span><span class="w"> </span><span class="no">call</span><span class="w"> </span><span class="no">add3</span><span class="err">、</span><span class="no">call</span><span class="w"> </span><span class="no">printf</span><span class="err">）</span>
+<span class="w">  </span><span class="nf">pop</span><span class="w">    </span><span class="nv">%rbp</span><span class="w">                           </span><span class="no">leave</span>
+<span class="w">  </span><span class="nf">ret</span><span class="w">                                   </span><span class="no">ret</span>
+</code></pre>
+</li>
+<li><code>args8.c</code> 的 <code>sum8</code> 有 8 個 <code>long</code> 參數。前 6 個參數放在哪裡？第 7、8 個放在哪裡、<code>call8</code> 用什麼順序放？在 <code>sum8</code> 裡第 7 個參數為什麼是 <code>0x10(%rbp)</code>，而不是 <code>0(%rbp)</code>？<code>call8</code> 在 <code>call</code> 之後為什麼要 <code>add $0x10,%rsp</code>？<pre><code class="language-c"><span class="kt">long</span><span class="w"> </span><span class="nf">sum8</span><span class="p">(</span><span class="kt">long</span><span class="w"> </span><span class="n">a</span><span class="p">,</span><span class="w"> </span><span class="kt">long</span><span class="w"> </span><span class="n">b</span><span class="p">,</span><span class="w"> </span><span class="kt">long</span><span class="w"> </span><span class="n">c</span><span class="p">,</span><span class="w"> </span><span class="kt">long</span><span class="w"> </span><span class="n">d</span><span class="p">,</span><span class="w"> </span><span class="kt">long</span><span class="w"> </span><span class="n">e</span><span class="p">,</span><span class="w"> </span><span class="kt">long</span><span class="w"> </span><span class="n">f</span><span class="p">,</span><span class="w"> </span><span class="kt">long</span><span class="w"> </span><span class="n">g</span><span class="p">,</span><span class="w"> </span><span class="kt">long</span><span class="w"> </span><span class="n">h</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">b</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">c</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">d</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">e</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">f</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">g</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">h</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="kt">long</span><span class="w"> </span><span class="nf">call8</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">sum8</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="mi">3</span><span class="p">,</span><span class="w"> </span><span class="mi">4</span><span class="p">,</span><span class="w"> </span><span class="mi">5</span><span class="p">,</span><span class="w"> </span><span class="mi">6</span><span class="p">,</span><span class="w"> </span><span class="mi">7</span><span class="p">,</span><span class="w"> </span><span class="mi">8</span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre>
+<pre><code class="language-asm"><span class="nl">call8:</span><span class="w">                                </span><span class="nf">sum8</span><span class="w"> </span><span class="err">裡讀第</span><span class="w"> </span><span class="mi">7</span><span class="err">、</span><span class="mi">8</span><span class="w"> </span><span class="err">個參數：</span>
+<span class="w">  </span><span class="nf">push</span><span class="w">   </span><span class="nv">%rbp</span><span class="w">                           </span><span class="no">mov</span><span class="w">    </span><span class="mi">0x10</span><span class="p">(</span><span class="nv">%rbp</span><span class="p">),</span><span class="nv">%rax</span>
+<span class="w">  </span><span class="nf">mov</span><span class="w">    </span><span class="nv">%rsp</span><span class="p">,</span><span class="nv">%rbp</span><span class="w">                      </span><span class="no">...</span>
+<span class="w">  </span><span class="nf">push</span><span class="w">   </span><span class="no">$0x8</span><span class="w">                           </span><span class="no">mov</span><span class="w">    </span><span class="mi">0x18</span><span class="p">(</span><span class="nv">%rbp</span><span class="p">),</span><span class="nv">%rax</span>
+<span class="w">  </span><span class="nf">push</span><span class="w">   </span><span class="no">$0x7</span>
+<span class="w">  </span><span class="nf">mov</span><span class="w">    </span><span class="no">$0x6</span><span class="p">,</span><span class="nv">%r9d</span>
+<span class="w">  </span><span class="na">...</span><span class="err">（</span><span class="mi">5</span><span class="err">～</span><span class="mi">1</span><span class="w"> </span><span class="err">分別放進</span><span class="w"> </span><span class="nv">%r8d</span><span class="err">、</span><span class="nv">%ecx</span><span class="err">、</span><span class="nv">%edx</span><span class="err">、</span><span class="nv">%esi</span><span class="err">、</span><span class="nv">%edi</span><span class="err">）</span>
+<span class="w">  </span><span class="nf">call</span><span class="w">   </span><span class="no">sum8</span>
+<span class="w">  </span><span class="nf">add</span><span class="w">    </span><span class="no">$0x10</span><span class="p">,</span><span class="nv">%rsp</span>
+<span class="w">  </span><span class="nf">leave</span>
+<span class="w">  </span><span class="nf">ret</span>
+</code></pre>
+</li>
+<li>下面兩個函式用 <code>-O2</code> 編譯（<code>g</code> 只有宣告）。為什麼 <code>saved.c</code> 的 <code>f</code> 要 <code>push %rbx</code>，而不是讓 <code>x</code> 留在 <code>%rdi</code>？<code>noret.c</code> 的 <code>f</code> 不需要保存任何值，為什麼還要 <code>sub $0x8,%rsp</code>？<pre><code class="language-c"><span class="cm">/* saved.c */</span><span class="w">                          </span><span class="cm">/* noret.c */</span>
+<span class="kt">long</span><span class="w"> </span><span class="nf">g</span><span class="p">(</span><span class="kt">long</span><span class="w"> </span><span class="n">x</span><span class="p">);</span><span class="w">                         </span><span class="kt">long</span><span class="w"> </span><span class="nf">g</span><span class="p">(</span><span class="kt">long</span><span class="w"> </span><span class="n">x</span><span class="p">);</span>
+
+<span class="kt">long</span><span class="w"> </span><span class="nf">f</span><span class="p">(</span><span class="kt">long</span><span class="w"> </span><span class="n">x</span><span class="p">)</span><span class="w">                          </span><span class="kt">long</span><span class="w"> </span><span class="n">f</span><span class="p">(</span><span class="kt">long</span><span class="w"> </span><span class="n">x</span><span class="p">)</span>
+<span class="p">{</span><span class="w">                                       </span><span class="p">{</span>
+<span class="w">    </span><span class="kt">long</span><span class="w"> </span><span class="n">y</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">g</span><span class="p">(</span><span class="n">x</span><span class="p">);</span><span class="w">                          </span><span class="kt">long</span><span class="w"> </span><span class="n">y</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">g</span><span class="p">(</span><span class="n">x</span><span class="p">);</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">y</span><span class="p">;</span><span class="w">                           </span><span class="k">return</span><span class="w"> </span><span class="n">y</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mi">2</span><span class="p">;</span>
+<span class="p">}</span><span class="w">                                       </span><span class="p">}</span>
+</code></pre>
+<pre><code class="language-asm"><span class="c1"># saved.c 的 f                          # noret.c 的 f</span>
+<span class="nf">push</span><span class="w">   </span><span class="nv">%rbx</span><span class="w">                             </span><span class="no">sub</span><span class="w">    </span><span class="no">$0x8</span><span class="p">,</span><span class="nv">%rsp</span>
+<span class="nf">mov</span><span class="w">    </span><span class="nv">%rdi</span><span class="p">,</span><span class="nv">%rbx</span><span class="w">                        </span><span class="no">call</span><span class="w">   </span><span class="no">g</span>
+<span class="nf">call</span><span class="w">   </span><span class="no">g</span><span class="w">                                </span><span class="no">add</span><span class="w">    </span><span class="no">$0x8</span><span class="p">,</span><span class="nv">%rsp</span>
+<span class="nf">add</span><span class="w">    </span><span class="nv">%rbx</span><span class="p">,</span><span class="nv">%rax</span><span class="w">                        </span><span class="no">add</span><span class="w">    </span><span class="nv">%rax</span><span class="p">,</span><span class="nv">%rax</span>
+<span class="nf">pop</span><span class="w">    </span><span class="nv">%rbx</span><span class="w">                             </span><span class="no">ret</span>
+<span class="nf">ret</span>
+</code></pre>
+</li>
+<li>情境題：你用 <code>break *add3</code> 停在 <code>add3</code> 的第一條指令（還沒執行 <code>push %rbp</code>），gdb 顯示 <code>add3 (a=0, b=0, c=0)</code>，可是 <code>main</code> 明明傳的是 1、2、3。
+<ul>
+<li>為什麼 gdb 印錯？這時候要看真正的參數，該看哪裡？</li>
+<li>同一個時間點，你想知道「是誰呼叫了 <code>add3</code>」，可是不能用 <code>bt</code>。根據本課，你會看哪個暫存器指的位址？看到的值代表什麼？</li>
+</ul>
+<pre><code class="language-c"><span class="kt">long</span><span class="w"> </span><span class="nf">add3</span><span class="p">(</span><span class="kt">long</span><span class="w"> </span><span class="n">a</span><span class="p">,</span><span class="w"> </span><span class="kt">long</span><span class="w"> </span><span class="n">b</span><span class="p">,</span><span class="w"> </span><span class="kt">long</span><span class="w"> </span><span class="n">c</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="kt">long</span><span class="w"> </span><span class="n">s</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">b</span><span class="p">;</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">s</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">c</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<pre><code class="language-asm"><span class="nl">add3:</span>
+<span class="w">  </span><span class="nf">endbr64</span><span class="w">                 </span><span class="err">←</span><span class="w"> </span><span class="err">停在這裡</span>
+<span class="w">  </span><span class="nf">push</span><span class="w">   </span><span class="nv">%rbp</span>
+<span class="w">  </span><span class="nf">mov</span><span class="w">    </span><span class="nv">%rsp</span><span class="p">,</span><span class="nv">%rbp</span>
+<span class="w">  </span><span class="nf">mov</span><span class="w">    </span><span class="nv">%rdi</span><span class="p">,-</span><span class="mi">0x18</span><span class="p">(</span><span class="nv">%rbp</span><span class="p">)</span>
+<span class="w">  </span><span class="nf">mov</span><span class="w">    </span><span class="nv">%rsi</span><span class="p">,-</span><span class="mi">0x20</span><span class="p">(</span><span class="nv">%rbp</span><span class="p">)</span>
+<span class="w">  </span><span class="nf">mov</span><span class="w">    </span><span class="nv">%rdx</span><span class="p">,-</span><span class="mi">0x28</span><span class="p">(</span><span class="nv">%rbp</span><span class="p">)</span>
+<span class="w">  </span><span class="na">...</span>
+</code></pre>
+</li>
+</ol>
+
+</main>
+</div>
+</body>
+</html>

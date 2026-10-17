@@ -1,0 +1,739 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>hello.c 怎麼變成能跑的程式？—— 前處理、編譯、組譯、連結四個階段</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/app.js"></script>
+</head>
+<body>
+<button class="menu-btn" onclick="toggleMenu()">☰ 目錄</button>
+<div class="layout">
+<nav class="side">
+<div class="crumbs"><a href="../index.html">🏠 首頁</a> / <a href="README.html">c</a></div>
+<div class="tools"><button onclick="toggleTheme()">🌓 主題</button><button onclick="toggleAnswers(true)">展開答案</button><button onclick="toggleAnswers(false)">收起答案</button></div>
+<ul>
+<li class="l2"><a href="#%E7%9B%AE%E9%8C%84">目錄</a></li>
+<li class="l2"><a href="#%E4%B8%80%E5%9B%9B%E5%80%8B%E9%9A%8E%E6%AE%B5%E7%B8%BD%E8%A6%BD">一、四個階段總覽</a></li>
+<li class="l2"><a href="#%E4%BA%8C%E5%89%8D%E8%99%95%E7%90%86include-%E5%8F%AA%E6%98%AF%E8%A4%87%E8%A3%BD%E8%B2%BC%E4%B8%8A">二、前處理：#include 只是複製貼上</a></li>
+<li class="l2"><a href="#%E4%B8%89%E7%B7%A8%E8%AD%AFc-%E8%AE%8A%E6%88%90%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E4%BB%A5%E5%8F%8A%E4%B8%80%E5%80%8B%E6%84%8F%E5%A4%96">三、編譯：C 變成組合語言（以及一個意外）</a></li>
+<li class="l2"><a href="#%E5%9B%9B%E7%B5%84%E8%AD%AF%E6%A9%9F%E5%99%A8%E7%A2%BC%E8%A3%A1%E7%9A%84%E6%B4%9E">四、組譯：機器碼裡的「洞」</a></li>
+<li class="l2"><a href="#%E4%BA%94%E9%80%A3%E7%B5%90%E6%8A%8A%E6%B4%9E%E6%8E%A5%E4%B8%8A%E4%BD%86-puts-%E9%82%84%E6%98%AF%E6%B2%92%E6%8E%A5%E5%AE%8C">五、連結：把洞接上，但 puts 還是沒接完</a></li>
+<li class="l2"><a href="#%E5%85%AD%E5%9F%B7%E8%A1%8C%E5%BE%9E-execve-%E5%88%B0-write">六、執行：從 execve 到 write</a></li>
+<li class="l2"><a href="#%E4%B8%83%E6%9C%AC%E8%AA%B2%E7%94%A8%E5%88%B0%E7%9A%84%E5%B7%A5%E5%85%B7%E8%88%87%E9%81%B8%E9%A0%85">七、本課用到的工具與選項</a></li>
+<li class="l3"><a href="#gcc%E6%8E%A7%E5%88%B6%E5%81%9C%E5%9C%A8%E5%93%AA%E5%80%8B%E9%9A%8E%E6%AE%B5">gcc：控制停在哪個階段</a></li>
+<li class="l3"><a href="#%E8%A7%80%E5%AF%9F%E5%B7%A5%E5%85%B7">觀察工具</a></li>
+<li class="l2"><a href="#%E5%85%AB%E5%8B%95%E6%89%8B%E4%BD%9C%E6%A5%AD">八、動手作業</a></li>
+<li class="l2"><a href="#%E4%B9%9D%E4%BD%9C%E6%A5%AD%E8%A7%A3%E8%AA%AA%E5%9B%9B%E9%A1%8C%E8%83%8C%E5%BE%8C%E7%9A%84%E5%8E%9F%E5%9B%A0">九、作業解說：四題背後的原因</a></li>
+<li class="l3"><a href="#%E7%AC%AC-1-%E9%A1%8Co-15k%E9%80%A3%E7%B5%90%E5%BE%8C%E7%82%BA%E4%BB%80%E9%BA%BC%E8%AE%8A%E6%88%90-16k%E6%96%B0%E8%A7%80%E5%BF%B5elf-%E7%9A%84%E5%8D%80%E6%AE%B5%E8%88%87%E5%88%86%E9%A0%81%E5%B0%8D%E9%BD%8A">第 1 題：.o 1.5K，連結後為什麼變成 16K？（新觀念：ELF 的區段與分頁對齊）</a></li>
+<li class="l3"><a href="#%E7%AC%AC-2-%E9%A1%8C%E5%88%AA%E6%8E%89-include-%E7%82%BA%E4%BB%80%E9%BA%BC%E5%8F%AA%E6%98%AF%E8%AD%A6%E5%91%8A%E7%A8%8B%E5%BC%8F%E9%82%84%E8%83%BD%E8%B7%91%E9%83%A8%E5%88%86%E6%95%99%E9%81%8E%E9%97%9C%E9%8D%B5%E4%B8%80%E5%8F%A5%E6%B2%92%E6%98%8E%E8%AC%9B">第 2 題：刪掉 #include 為什麼只是警告，程式還能跑？（部分教過，關鍵一句沒明講）</a></li>
+<li class="l3"><a href="#%E7%AC%AC-3-%E9%A1%8Cprintfhi-dn-42-%E7%82%BA%E4%BB%80%E9%BA%BC%E4%B8%8D%E6%9C%83%E6%8F%9B%E6%88%90-puts%E6%96%B0%E8%A7%80%E5%BF%B5puts-%E8%83%BD%E5%81%9A%E4%BB%80%E9%BA%BC">第 3 題：printf(&quot;hi %d\n&quot;, 42) 為什麼不會換成 puts？（新觀念：puts 能做什麼）</a></li>
+<li class="l3"><a href="#%E7%AC%AC-4-%E9%A1%8C%E9%9D%9C%E6%85%8B%E7%89%88%E7%82%BA%E4%BB%80%E9%BA%BC%E5%A4%A7-50-%E5%80%8D%E7%82%BA%E4%BB%80%E9%BA%BC%E6%B2%92%E6%9C%89-openat%E7%AC%AC%E4%BA%94%E5%85%AD%E7%AF%80%E6%95%99%E9%81%8E%E9%80%99%E8%A3%A1%E6%8A%8A%E5%85%A9%E7%AF%80%E6%8E%A5%E8%B5%B7%E4%BE%86">第 4 題：靜態版為什麼大 50 倍、為什麼沒有 openat？（第五、六節教過，這裡把兩節接起來）</a></li>
+<li class="l3"><a href="#%E8%87%AA%E6%88%91%E6%B8%AC%E9%A9%97%E7%AC%AC-5-%E9%A1%8C%E5%BB%B6%E4%BC%B8%E6%89%BE%E4%B8%8D%E5%88%B0%E7%89%88%E6%9C%AC%E7%AC%A6%E8%99%9F%E6%98%AF%E6%80%8E%E9%BA%BC%E5%9B%9E%E4%BA%8B">自我測驗第 5 題延伸：「找不到版本符號」是怎麼回事</a></li>
+<li class="l2"><a href="#%E5%8D%81%E4%B8%89%E5%80%8B%E5%90%8D%E5%AD%97%E5%BE%88%E5%83%8F%E7%9A%84%E6%AA%94%E6%A1%88ldld-linux-x86-64so2libcso6">十、三個名字很像的檔案：ld、ld-linux-x86-64.so.2、libc.so.6</a></li>
+<li class="l3"><a href="#1-%E4%B8%89%E5%80%8B%E6%AA%94%E6%A1%88%E4%B8%89%E5%80%8B%E8%A7%92%E8%89%B2">1. 三個檔案，三個角色</a></li>
+<li class="l3"><a href="#2-%E5%AF%A6%E9%A9%97%E4%B8%80puts-%E7%9A%84%E7%A8%8B%E5%BC%8F%E7%A2%BC%E5%9C%A8%E5%93%AA%E5%80%8B%E6%AA%94%E6%A1%88">2. 實驗一：puts 的程式碼在哪個檔案</a></li>
+<li class="l3"><a href="#3-%E5%AF%A6%E9%A9%97%E4%BA%8Cld-%E5%9C%A8%E5%9F%B7%E8%A1%8C%E6%AA%94%E8%A3%A1%E5%AF%AB%E4%BA%86%E4%BB%80%E9%BA%BC">3. 實驗二：ld 在執行檔裡寫了什麼</a></li>
+<li class="l3"><a href="#4-%E5%AF%A6%E9%A9%97%E4%B8%89%E7%B7%A8%E8%AD%AF%E6%99%82%E8%B7%91%E4%BA%86%E5%93%AA%E4%BA%9B%E7%A8%8B%E5%BC%8F%E5%9F%B7%E8%A1%8C%E6%99%82%E5%8F%88%E8%B7%91%E4%BA%86%E5%93%AA%E4%BA%9B">4. 實驗三：編譯時跑了哪些程式、執行時又跑了哪些</a></li>
+<li class="l3"><a href="#5-%E5%AF%A6%E9%A9%97%E5%9B%9B%E7%9C%8B%E5%B7%A5%E9%A0%AD%E5%AF%A6%E9%9A%9B%E6%8E%A5%E7%B7%9A">5. 實驗四：看工頭實際接線</a></li>
+<li class="l3"><a href="#%E9%99%84musl-%E4%B8%8D%E4%B8%80%E6%A8%A3%E8%BC%89%E5%85%A5%E5%99%A8%E5%92%8C%E5%87%BD%E5%BC%8F%E5%BA%AB%E6%98%AF%E5%90%8C%E4%B8%80%E5%80%8B%E6%AA%94%E6%A1%88">附：musl 不一樣——載入器和函式庫是同一個檔案</a></li>
+<li class="l3"><a href="#6-%E7%94%A8%E9%80%99%E4%B8%89%E5%80%8B%E8%A7%92%E8%89%B2%E9%87%8D%E7%AD%94%E4%B8%89%E9%A1%8C">6. 用這三個角色重答三題</a></li>
+<li class="l2"><a href="#%E8%87%AA%E6%88%91%E6%B8%AC%E9%A9%97">自我測驗</a></li>
+</ul>
+</nav>
+<main>
+<h1 id="helloc-怎麼變成能跑的程式-前處理編譯組譯連結四個階段"><code>hello.c</code> 怎麼變成能跑的程式？—— 前處理、編譯、組譯、連結四個階段</h1>
+<blockquote>
+<p>日期：2026-09-22<br />
+情境：系統化學習路線的第 ① 站第 1 課（見 <a href="../learning/Linux%E8%88%87%E7%B3%BB%E7%B5%B1%E7%A8%8B%E5%BC%8F%E7%9A%84%E7%B3%BB%E7%B5%B1%E5%8C%96%E5%AD%B8%E7%BF%92%E8%B7%AF%E7%B7%9A.html">Linux與系統程式的系統化學習路線</a>），對應 CS:APP 第 1 章 1.1～1.4 節<br />
+適用範圍：實測本機 Ubuntu 24.04、x86-64、gcc 13.3.0、GNU binutils 2.42；所有輸出都是本機實際執行結果<br />
+相關：<a href="../linux/fd%E6%98%AF%E4%BB%80%E9%BA%BC-%E8%A1%8C%E7%A8%8B%E7%9A%84%E6%AA%94%E6%A1%88%E6%8F%8F%E8%BF%B0%E7%AC%A6%E8%A1%A8.html">fd是什麼-行程的檔案描述符表</a>、
+<a href="../linux/root%E5%9F%B7%E8%A1%8C%E8%85%B3%E6%9C%AC%E4%B9%9FPermission-denied-%E7%BC%BA%E5%9F%B7%E8%A1%8C%E4%BD%8D%E5%85%83.html">root執行腳本也Permission-denied-缺執行位元</a>（<code>execve</code>）、
+<a href="../linux/bin%E8%88%87sbin%E7%9A%84%E5%B7%AE%E5%88%A5-%E4%BB%A5%E5%8F%8A%E6%80%8E%E9%BA%BC%E6%AD%A3%E7%A2%BA%E6%89%BE%E5%88%B0%E5%9F%B7%E8%A1%8C%E6%AA%94.html">bin與sbin的差別-以及怎麼正確找到執行檔</a></p>
+</blockquote>
+<p><strong>一句話結論：<code>gcc hello.c</code> 不是一個動作，而是四個程式接力：前處理器把 <code>#include</code> 貼進來（<code>.i</code>，還是 C）、編譯器翻成組合語言（<code>.s</code>）、組譯器翻成機器碼但留下「洞」（<code>.o</code>，呼叫外部函式的位址是 0）、連結器把洞接上函式庫。而 <code>puts</code> 這種函式庫函式，直到</strong>程式執行時<strong>才由動態載入器填上真正的位址。
+<code>gcc</code> 本身只是總指揮（driver）。最後程式印出文字，靠的是一個 <code>write(1, ...)</code> 系統呼叫——
+C 語言與作業系統的交界就在這裡。</strong></p>
+<hr />
+<h2 id="目錄">目錄</h2>
+<ul>
+<li><a href="#%E4%B8%80%E5%9B%9B%E5%80%8B%E9%9A%8E%E6%AE%B5%E7%B8%BD%E8%A6%BD">一、四個階段總覽</a></li>
+<li><a href="#%E4%BA%8C%E5%89%8D%E8%99%95%E7%90%86include-%E5%8F%AA%E6%98%AF%E8%A4%87%E8%A3%BD%E8%B2%BC%E4%B8%8A">二、前處理：<code>#include</code> 只是複製貼上</a></li>
+<li><a href="#%E4%B8%89%E7%B7%A8%E8%AD%AFc-%E8%AE%8A%E6%88%90%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E4%BB%A5%E5%8F%8A%E4%B8%80%E5%80%8B%E6%84%8F%E5%A4%96">三、編譯：C 變成組合語言（以及一個意外）</a></li>
+<li><a href="#%E5%9B%9B%E7%B5%84%E8%AD%AF%E6%A9%9F%E5%99%A8%E7%A2%BC%E8%A3%A1%E7%9A%84%E6%B4%9E">四、組譯：機器碼裡的「洞」</a></li>
+<li><a href="#%E4%BA%94%E9%80%A3%E7%B5%90%E6%8A%8A%E6%B4%9E%E6%8E%A5%E4%B8%8A%E4%BD%86-puts-%E9%82%84%E6%98%AF%E6%B2%92%E6%8E%A5%E5%AE%8C">五、連結：把洞接上，但 <code>puts</code> 還是沒接完</a></li>
+<li><a href="#%E5%85%AD%E5%9F%B7%E8%A1%8C%E5%BE%9E-execve-%E5%88%B0-write">六、執行：從 <code>execve</code> 到 <code>write</code></a></li>
+<li><a href="#%E4%B8%83%E6%9C%AC%E8%AA%B2%E7%94%A8%E5%88%B0%E7%9A%84%E5%B7%A5%E5%85%B7%E8%88%87%E9%81%B8%E9%A0%85">七、本課用到的工具與選項</a></li>
+<li><a href="#%E5%85%AB%E5%8B%95%E6%89%8B%E4%BD%9C%E6%A5%AD">八、動手作業</a></li>
+<li><a href="#%E4%B9%9D%E4%BD%9C%E6%A5%AD%E8%A7%A3%E8%AA%AA%E5%9B%9B%E9%A1%8C%E8%83%8C%E5%BE%8C%E7%9A%84%E5%8E%9F%E5%9B%A0">九、作業解說：四題背後的原因</a></li>
+<li><a href="#%E5%8D%81%E4%B8%89%E5%80%8B%E5%90%8D%E5%AD%97%E5%BE%88%E5%83%8F%E7%9A%84%E6%AA%94%E6%A1%88ldld-linux-x86-64so2libcso6">十、三個名字很像的檔案：<code>ld</code>、<code>ld-linux-x86-64.so.2</code>、<code>libc.so.6</code></a></li>
+<li><a href="#%E8%87%AA%E6%88%91%E6%B8%AC%E9%A9%97">自我測驗</a></li>
+</ul>
+<hr />
+<h2 id="一四個階段總覽">一、四個階段總覽</h2>
+<p>實驗用的程式：</p>
+<pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+
+<span class="cp">#define GREETING &quot;hello, world&quot;</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;%s</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">GREETING</span><span class="p">);</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<pre><code>hello.c ──前處理（cpp）──► hello.i ──編譯（cc1）──► hello.s ──組譯（as）──► hello.o ──連結（ld）──► hello
+  C 原始碼               還是 C，但展開了          x86-64 組合語言         可重定位目的檔         可執行檔
+  116 bytes              822 行、21323 bytes       667 bytes              1504 bytes            15960 bytes
+</code></pre>
+<p><code>gcc</code> 自己不做這些事，它是<strong>總指揮（compiler driver）</strong>，依序呼叫別的程式。<code>gcc -v</code> 會把它實際執行的命令印出來（本機輸出，節錄）：</p>
+<pre><code>/usr/libexec/gcc/x86_64-linux-gnu/13/cc1 ... hello.c ...     ← 前處理＋編譯（cc1 內含前處理器）
+as -v --64 -o /tmp/ccDQyhD0.o /tmp/ccS7uQYu.s                ← 組譯
+/usr/libexec/gcc/x86_64-linux-gnu/13/collect2 ... -dynamic-linker /lib64/ld-linux-x86-64.so.2 ...
+                                                              ← 連結（collect2 是 gcc 包在 ld 外面的一層）
+</code></pre>
+<p>平常中間檔寫到 <code>/tmp</code> 用完就刪。<code>gcc -save-temps hello.c -o hello</code> 會把 <code>.i</code>、<code>.s</code>、<code>.o</code> 都留下來，或用 <code>-E</code>／<code>-S</code>／<code>-c</code> 讓它停在某一階段（第七節）。</p>
+<hr />
+<h2 id="二前處理include-只是複製貼上">二、前處理：<code>#include</code> 只是複製貼上</h2>
+<pre><code class="language-sh">gcc<span class="w"> </span>-E<span class="w"> </span>hello.c<span class="w"> </span>-o<span class="w"> </span>hello.i
+</code></pre>
+<p>前處理器（preprocessor）處理所有 <code>#</code> 開頭的指令（directive），輸出<strong>還是 C</strong>：</p>
+<ul>
+<li><code>#include &lt;stdio.h&gt;</code>：把 <code>/usr/include/stdio.h</code>（以及它再 include 的檔案）<strong>整個貼進來</strong>。
+116 bytes 的檔案變成 822 行，裡面有這一行：<pre><code class="language-c"><span class="k">extern</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="nf">printf</span><span class="w"> </span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="kt">char</span><span class="w"> </span><span class="o">*</span><span class="n">__restrict</span><span class="w"> </span><span class="n">__format</span><span class="p">,</span><span class="w"> </span><span class="p">...);</span>
+</code></pre>
+這只是<strong>宣告（declaration）</strong>——告訴編譯器「有一個叫 <code>printf</code> 的函式，參數長這樣」，
+<strong>沒有</strong>它的程式碼。程式碼在 libc 裡，要到連結時才會碰到。</li>
+<li><code>#define GREETING &quot;hello, world&quot;</code>：純文字取代。<code>hello.i</code> 的結尾變成：<pre><code class="language-c"><span class="n">printf</span><span class="p">(</span><span class="s">&quot;%s</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;hello, world&quot;</span><span class="p">);</span>
+</code></pre>
+</li>
+</ul>
+<p><strong>重點：真正的編譯器從來沒看過 <code>#include</code> 與 <code>#define</code></strong>，它看到的是已經展開好的一大份 C。所以巨集寫錯時，錯誤訊息常常很奇怪——編譯器在罵的是展開後的樣子。</p>
+<hr />
+<h2 id="三編譯c-變成組合語言以及一個意外">三、編譯：C 變成組合語言（以及一個意外）</h2>
+<pre><code class="language-sh">gcc<span class="w"> </span>-S<span class="w"> </span>-O0<span class="w"> </span>hello.c<span class="w"> </span>-o<span class="w"> </span>hello.s
+</code></pre>
+<p><code>hello.s</code> 的核心部分（去掉除錯用的 <code>.cfi_*</code> 指令）：</p>
+<pre><code class="language-asm"><span class="w">    </span><span class="na">.section</span><span class="w"> </span><span class="no">.rodata</span>
+<span class="nl">.LC0:</span>
+<span class="w">    </span><span class="na">.string</span><span class="w"> </span><span class="s">&quot;hello, world&quot;</span><span class="w">          </span><span class="err">←</span><span class="w"> </span><span class="err">字串常數放在唯讀資料區（</span><span class="no">read-only</span><span class="w"> </span><span class="no">data</span><span class="err">）</span>
+
+<span class="w">    </span><span class="na">.text</span><span class="w">                           </span><span class="err">←</span><span class="w"> </span><span class="err">以下是程式碼區</span>
+<span class="w">    </span><span class="na">.globl</span><span class="w"> </span><span class="no">main</span><span class="w">                     </span><span class="err">←</span><span class="w"> </span><span class="no">main</span><span class="w"> </span><span class="err">是全域符號，連結器看得到</span>
+<span class="nl">main:</span>
+<span class="w">    </span><span class="nf">endbr64</span><span class="w">                         </span><span class="err">←</span><span class="w"> </span><span class="no">CPU</span><span class="w"> </span><span class="err">的控制流程防護標記，先略過</span>
+<span class="w">    </span><span class="nf">pushq</span><span class="w"> </span><span class="nv">%rbp</span><span class="w">                      </span><span class="err">←</span><span class="w"> </span><span class="err">建立這個函式的堆疊框（</span><span class="no">stack</span><span class="w"> </span><span class="no">frame</span><span class="err">）</span>
+<span class="w">    </span><span class="nf">movq</span><span class="w">  </span><span class="nv">%rsp</span><span class="p">,</span><span class="w"> </span><span class="nv">%rbp</span>
+<span class="w">    </span><span class="nf">leaq</span><span class="w">  </span><span class="no">.LC0</span><span class="p">(</span><span class="nv">%rip</span><span class="p">),</span><span class="w"> </span><span class="nv">%rax</span><span class="w">          </span><span class="err">←</span><span class="w"> </span><span class="err">取字串的位址</span>
+<span class="w">    </span><span class="nf">movq</span><span class="w">  </span><span class="nv">%rax</span><span class="p">,</span><span class="w"> </span><span class="nv">%rdi</span><span class="w">                </span><span class="err">←</span><span class="w"> </span><span class="err">放進</span><span class="w"> </span><span class="nv">%rdi</span><span class="err">：第</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="err">個參數</span>
+<span class="w">    </span><span class="nf">call</span><span class="w">  </span><span class="no">puts@PLT</span><span class="w">                  </span><span class="err">←</span><span class="w"> </span><span class="err">呼叫</span><span class="w"> </span><span class="no">puts</span><span class="err">（！）</span>
+<span class="w">    </span><span class="nf">movl</span><span class="w">  </span><span class="no">$0</span><span class="p">,</span><span class="w"> </span><span class="nv">%eax</span><span class="w">                  </span><span class="err">←</span><span class="w"> </span><span class="err">回傳值</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="err">放進</span><span class="w"> </span><span class="nv">%eax</span>
+<span class="w">    </span><span class="nf">popq</span><span class="w">  </span><span class="nv">%rbp</span>
+<span class="w">    </span><span class="nf">ret</span>
+</code></pre>
+<p>兩個觀念：</p>
+<ol>
+<li><strong>參數怎麼傳、回傳值放哪，是約定好的。</strong> x86-64 Linux 遵循 System V AMD64 ABI
+（Application Binary Interface，應用程式二進位介面）：第 1 個整數／指標參數放 <code>%rdi</code>，回傳值放 <code>%eax</code>／<code>%rax</code>。所以 <code>return 0;</code> 變成 <code>movl $0, %eax</code>。第 ③ 站會細講堆疊框。</li>
+<li><strong>意外：程式寫的是 <code>printf</code>，組合語言卻是 <code>puts</code>。</strong> <code>printf(&quot;%s\n&quot;, 字串)</code> 的效果跟 <code>puts(字串)</code> 完全一樣（<code>puts</code> 本來就會補換行），而 <code>puts</code> 不用解析格式字串、比較快，
+gcc 就<strong>自動換掉了</strong>——即使是 <code>-O0</code>（不最佳化）。這是 gcc 對標準函式庫函式的內建知識（builtin）。加 <code>-fno-builtin</code> 就會老實地保留：<pre><code>$ gcc -O0 -fno-builtin -S hello.c -o nb.s &amp;&amp; grep call nb.s
+    call printf@PLT
+</code></pre>
+</li>
+</ol>
+<p><strong>教訓：編譯器只保證「行為相同」，不保證「照你寫的字面去做」。</strong> 之後讀 kernel、除錯效能問題時，要看的是編譯器實際產生的東西，而不是原始碼的字面。</p>
+<hr />
+<h2 id="四組譯機器碼裡的洞">四、組譯：機器碼裡的「洞」</h2>
+<pre><code class="language-sh">gcc<span class="w"> </span>-c<span class="w"> </span>hello.c<span class="w"> </span>-o<span class="w"> </span>hello.o
+file<span class="w"> </span>hello.o
+<span class="c1"># hello.o: ELF 64-bit LSB relocatable, x86-64, version 1 (SYSV), not stripped</span>
+</code></pre>
+<p><code>.o</code> 是 <strong>ELF</strong>（Executable and Linkable Format，可執行與可連結格式）的<strong>可重定位目的檔（relocatable object file）</strong>——已經是機器碼，但還不能執行。用 <code>objdump</code> 反組譯，並加 <code>-r</code> 顯示重定位資訊：</p>
+<pre><code>$ objdump -dr hello.o
+  12:	e8 00 00 00 00       	call   17 &lt;main+0x17&gt;
+			13: R_X86_64_PLT32	puts-0x4
+</code></pre>
+<p><code>e8</code> 是 call 指令，後面四個 byte 應該是「要跳去哪」——<strong>全是 0</strong>。組譯器不知道 <code>puts</code> 在哪裡（它根本不在這個檔案裡），所以留了一個洞，並記下一筆<strong>重定位項目（relocation entry）</strong>：「位移 <code>0x13</code> 的地方，將來要填上 <code>puts</code> 的位址」。字串 <code>.LC0</code> 的位址（<code>lea 0x0(%rip)</code>）也是同樣的洞。</p>
+<p><code>nm</code> 列出目的檔的<strong>符號表（symbol table）</strong>，看得更直接：</p>
+<pre><code>$ nm hello.o
+0000000000000000 T main      ← T：定義在程式碼區（text），這個檔案提供它
+                 U puts      ← U：未定義（undefined），這個檔案需要別人提供
+</code></pre>
+<hr />
+<h2 id="五連結把洞接上但-puts-還是沒接完">五、連結：把洞接上，但 <code>puts</code> 還是沒接完</h2>
+<pre><code class="language-sh">gcc<span class="w"> </span>hello.o<span class="w"> </span>-o<span class="w"> </span>hello
+file<span class="w"> </span>hello
+<span class="c1"># hello: ELF 64-bit LSB pie executable, x86-64, ..., dynamically linked,</span>
+<span class="c1">#        interpreter /lib64/ld-linux-x86-64.so.2, ...</span>
+</code></pre>
+<p>連結器（linker）做兩件事：</p>
+<ol>
+<li><strong>符號解析（symbol resolution）</strong>：每個 <code>U</code> 都要找到某個地方的定義。</li>
+<li><strong>重定位（relocation）</strong>：決定每段程式與資料最後放在哪個位址，把第四節的洞填上。</li>
+</ol>
+<p>它還會加入你沒寫的東西：C 執行期的啟動碼（startup code）。<strong>程式不是從 <code>main</code> 開始執行的</strong>——
+是啟動碼先設定好環境，再呼叫 <code>main</code>，<code>main</code> 回傳後再用它的回傳值結束行程。</p>
+<p>但看連結後的符號表：</p>
+<pre><code>$ nm hello | grep -E &quot; main| puts&quot;
+0000000000001149 T main
+                 U puts@GLIBC_2.2.5     ← 還是 U！
+</code></pre>
+<p><strong><code>puts</code> 在連結之後仍然未定義。</strong> 因為這是<strong>動態連結（dynamic linking）</strong>：<code>puts</code> 的程式碼在共享函式庫 <code>libc.so.6</code> 裡，連結器只記下「需要 glibc 2.2.5 版介面的 <code>puts</code>」，真正的位址要等<strong>執行時</strong>才填。<code>file</code> 輸出裡的 <code>interpreter /lib64/ld-linux-x86-64.so.2</code>
+就是負責這件事的<strong>動態載入器（dynamic loader）</strong>。<code>ldd</code> 列出執行時需要的函式庫：</p>
+<pre><code>$ ldd ./hello
+	linux-vdso.so.1 (0x00007b51555aa000)                   ← 核心直接映射進來的特殊區塊
+	libc.so.6 =&gt; /lib/x86_64-linux-gnu/libc.so.6 (...)
+	/lib64/ld-linux-x86-64.so.2 (...)                      ← 動態載入器本身
+</code></pre>
+<p>動態連結的好處是：每支程式不必各塞一份 libc，而且 libc 修了安全漏洞，所有程式重開就生效。代價是執行時要多做一次載入與解析。（<code>gcc -static</code> 可以做靜態連結，把 libc 整份放進去——第 ① 站之後的作業會比較兩者。）</p>
+<blockquote>
+<p>2026-09-29 補充：「執行時才填」填的<strong>不是</strong>第四節那 4 個 <code>00 00 00 00</code>。那個洞連結時就由 <code>ld</code> 填好了，填的是「跳到執行檔自己的 <code>puts@plt</code>」（本機實測：<code>hello.o</code> 裡是 <code>e8 00 00 00 00</code>，連結後的 <code>hello</code> 變成 <code>e8 f0 fe ff ff  call 1050 &lt;puts@plt&gt;</code>）。
+<code>puts@plt</code> 再去查一張表 <code>.got</code>，執行時 <code>ld.so</code> 把 <code>puts</code> 在 <code>libc.so.6</code> 裡的真正位址填進的是 <strong><code>.got</code></strong>。<br />
+所以分工是：<strong>程式碼裡的洞由 <code>ld</code> 填，函式庫的位址由 <code>ld.so</code> 填進另一張表</strong>。<code>.plt</code>／<code>.got</code> 怎麼運作，第 5 課（函式呼叫）讀組合語言時再看。</p>
+</blockquote>
+<hr />
+<h2 id="六執行從-execve-到-write">六、執行：從 <code>execve</code> 到 <code>write</code></h2>
+<p><code>strace</code> 記錄程式做的每一個<strong>系統呼叫（system call）</strong>——程式請核心幫忙做事的唯一入口。本機 <code>strace ./hello</code> 的輸出（節錄，去掉記憶體保護等細節）：</p>
+<pre><code>execve(&quot;./hello&quot;, [&quot;./hello&quot;], ...) = 0                         ① 核心載入 ELF，看到 interpreter，先把 ld.so 跑起來
+openat(AT_FDCWD, &quot;/etc/ld.so.cache&quot;, O_RDONLY|O_CLOEXEC) = 3   ② ld.so 查函式庫在哪
+openat(AT_FDCWD, &quot;/lib/x86_64-linux-gnu/libc.so.6&quot;, ...) = 3   ③ 打開 libc
+read(3, &quot;\177ELF\2\1\1\3...&quot;, 832) = 832                       ④ 讀它的 ELF 標頭（開頭就是 \177ELF）
+mmap(..., PROT_READ|PROT_EXEC, MAP_PRIVATE|MAP_FIXED|..., 3, 0x28000) = ...
+                                                                ⑤ 把 libc 的程式碼映射進記憶體
+close(3) = 0
+write(1, &quot;hello, world\n&quot;, 13) = 13                             ⑥ puts 最後做的事：寫 13 bytes 到 fd 1
+exit_group(0) = ?                                               ⑦ main 回傳 0 → 行程以 0 結束
+</code></pre>
+<p>串起三件你已經知道的事：</p>
+<ul>
+<li>① <code>execve</code> 就是 <a href="../linux/root%E5%9F%B7%E8%A1%8C%E8%85%B3%E6%9C%AC%E4%B9%9FPermission-denied-%E7%BC%BA%E5%9F%B7%E8%A1%8C%E4%BD%8D%E5%85%83.html">root 執行腳本那篇</a> 裡「需要 x 位元」的那個系統呼叫。腳本的 <code>#!/bin/sh</code> 和 ELF 的 interpreter 是同一個概念：核心讀開頭，決定要先啟動誰。</li>
+<li>⑥ <strong><code>printf</code>／<code>puts</code> 不是魔法，最後是 <code>write(1, ...)</code></strong>——對 fd 1（標準輸出）寫入。
+fd 1 接到終端機、檔案還是管線，<code>hello</code> 不知道也不在乎（見 <a href="../linux/fd%E6%98%AF%E4%BB%80%E9%BA%BC-%E8%A1%8C%E7%A8%8B%E7%9A%84%E6%AA%94%E6%A1%88%E6%8F%8F%E8%BF%B0%E7%AC%A6%E8%A1%A8.html">fd是什麼</a>）。</li>
+<li>⑦ <code>return 0</code> → <code>exit_group(0)</code> → shell 裡的 <code>$?</code> 是 0。</li>
+</ul>
+<p><code>strace -c</code> 統計了整個過程：<strong>34 次系統呼叫</strong>，其中真正「印字」的只有 1 次 <code>write</code>，其餘幾乎都是動態載入器在準備環境。這個數字第 ② 站會再用到。</p>
+<hr />
+<h2 id="七本課用到的工具與選項">七、本課用到的工具與選項</h2>
+<h3 id="gcc控制停在哪個階段"><code>gcc</code>：控制停在哪個階段</h3>
+<p><code>gcc</code> 的選項有上千個，<strong>這裡只列「控制編譯階段與觀察過程」這一類</strong>；完整清單見 <code>man gcc</code>（Overall Options 一節是這一類的來源）。</p>
+<table>
+<thead>
+<tr>
+<th>選項</th>
+<th>作用</th>
+<th>產出</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-E</code></td>
+<td>只做前處理，停下來</td>
+<td>C（預設印到 stdout，用 <code>-o</code> 存檔）</td>
+</tr>
+<tr>
+<td><code>-S</code></td>
+<td>做到編譯，停下來</td>
+<td>組合語言 <code>.s</code></td>
+</tr>
+<tr>
+<td><code>-c</code></td>
+<td>做到組譯，停下來，不連結</td>
+<td>目的檔 <code>.o</code></td>
+</tr>
+<tr>
+<td>（都不加）</td>
+<td>四個階段全做</td>
+<td>可執行檔（沒有 <code>-o</code> 時叫 <code>a.out</code>）</td>
+</tr>
+<tr>
+<td><code>-o &lt;檔名&gt;</code></td>
+<td>指定輸出檔名</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>-v</code></td>
+<td>印出實際呼叫的每個子程式與參數</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>-save-temps</code></td>
+<td>全部做完，但保留 <code>.i</code>、<code>.s</code>、<code>.o</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>-O0</code>／<code>-O1</code>／<code>-O2</code>／<code>-O3</code>／<code>-Os</code> 等</td>
+<td>最佳化等級，<code>-O0</code> 是不最佳化（預設）；全部等級與實驗見 <a href="gcc%E6%9C%80%E4%BD%B3%E5%8C%96%E7%AD%89%E7%B4%9A-O0%E5%88%B0O3%E5%B7%AE%E5%9C%A8%E5%93%AA.html">gcc最佳化等級</a></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>-fno-builtin</code></td>
+<td>不把標準函式庫函式當成內建知識處理（本課用來阻止 <code>printf</code>→<code>puts</code>）</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>-static</code></td>
+<td>靜態連結，把函式庫程式碼放進可執行檔</td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<h3 id="觀察工具">觀察工具</h3>
+<table>
+<thead>
+<tr>
+<th>工具</th>
+<th>本課的用法</th>
+<th>看什麼</th>
+<th>完整說明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>file</code></td>
+<td><code>file hello.o</code></td>
+<td>檔案類型：relocatable／executable、動態或靜態、interpreter</td>
+<td><code>man file</code></td>
+</tr>
+<tr>
+<td><code>nm</code></td>
+<td><code>nm hello.o</code></td>
+<td>符號表</td>
+<td><code>man nm</code></td>
+</tr>
+<tr>
+<td><code>objdump</code></td>
+<td><code>-d</code> 反組譯、<code>-r</code> 顯示重定位、<code>--no-show-raw-insn</code> 不印機器碼位元組</td>
+<td>機器碼與洞</td>
+<td><code>man objdump</code></td>
+</tr>
+<tr>
+<td><code>ldd</code></td>
+<td><code>ldd ./hello</code></td>
+<td>執行時需要哪些共享函式庫</td>
+<td><code>man ldd</code>（注意：<code>ldd</code> 可能真的執行程式，不要對不信任的檔案用）</td>
+</tr>
+<tr>
+<td><code>strace</code></td>
+<td><code>strace ./hello</code>；<code>-f</code> 連子行程一起追；<code>-c</code> 只印統計</td>
+<td>系統呼叫</td>
+<td><code>man strace</code></td>
+</tr>
+</tbody>
+</table>
+<p><code>nm</code> 的符號類型字母，<strong>這裡只列本課與下一課會遇到的</strong>（完整清單見 <code>man nm</code>）。大寫是全域、小寫是只在本檔可見（<code>static</code>），本機用一個小檔案實測（當初的檔案沒有保存，這是重建版，2026-09-24 重新實測）。<code>symbols.c</code> 完整原始碼：</p>
+<pre><code class="language-c"><span class="kt">int</span><span class="w"> </span><span class="n">counter</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">5</span><span class="p">;</span><span class="w">              </span><span class="cm">/* 有初始值的全域變數 */</span>
+<span class="k">static</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">hidden</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w">        </span><span class="cm">/* 有初始值，但加了 static：只在本檔可見 */</span>
+<span class="kt">int</span><span class="w"> </span><span class="n">zeroed</span><span class="p">;</span><span class="w">                   </span><span class="cm">/* 沒有初始值的全域變數 */</span>
+<span class="k">const</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">answer</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">42</span><span class="p">;</span><span class="w">        </span><span class="cm">/* 唯讀的全域常數 */</span>
+<span class="k">extern</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">elsewhere</span><span class="p">;</span><span class="w">         </span><span class="cm">/* 宣告：定義在別的檔案 */</span>
+
+<span class="k">static</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="nf">helper</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span><span class="w">      </span><span class="cm">/* 只在本檔可見的函式 */</span>
+<span class="p">{</span>
+<span class="p">}</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">use_all</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span><span class="w">             </span><span class="cm">/* 一般的函式 */</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">helper</span><span class="p">();</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">counter</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">hidden</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">zeroed</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">answer</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">elsewhere</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<pre><code>$ gcc -c symbols.c -o symbols.o &amp;&amp; nm symbols.o
+0000000000000000 R answer
+0000000000000000 D counter
+                 U elsewhere
+0000000000000000 t helper
+0000000000000004 d hidden
+000000000000000b T use_all
+0000000000000000 B zeroed
+</code></pre>
+<p><code>nm</code> 每行三欄：位址（在所屬區段裡的位置，<code>.o</code> 還沒連結，所以多半是 0）、類型字母、符號名稱。<code>U</code> 那一行沒有位址，因為它不在這個檔案裡。</p>
+<table>
+<thead>
+<tr>
+<th>字母</th>
+<th>意思</th>
+<th>對應的 C</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>T</code>／<code>t</code></td>
+<td>程式碼區（text）</td>
+<td>函式</td>
+</tr>
+<tr>
+<td><code>D</code>／<code>d</code></td>
+<td>已初始化的資料區（data）</td>
+<td><code>int counter = 5;</code>（<code>static int hidden = 1;</code> 是 <code>d</code>）</td>
+</tr>
+<tr>
+<td><code>B</code>／<code>b</code></td>
+<td>未初始化的資料區（BSS）</td>
+<td><code>int zeroed;</code></td>
+</tr>
+<tr>
+<td><code>R</code>／<code>r</code></td>
+<td>唯讀資料區（read-only）</td>
+<td><code>const int answer = 42;</code></td>
+</tr>
+<tr>
+<td><code>U</code></td>
+<td>未定義，需要別人提供</td>
+<td><code>extern int elsewhere;</code>、呼叫的外部函式</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="八動手作業">八、動手作業</h2>
+<p>在自己的機器上做一遍（不要只看本文的輸出）：</p>
+<ol>
+<li>寫出 <code>hello.c</code>，用 <code>-E</code>、<code>-S</code>、<code>-c</code> 各停一次，<code>ls -l</code> 比較四個檔案的大小。</li>
+<li>在 <code>hello.i</code> 裡找到 <code>printf</code> 的宣告；想一想：如果刪掉 <code>#include &lt;stdio.h&gt;</code>，會在哪個階段出錯？實際試試看，看錯誤訊息是什麼。</li>
+<li>把 <code>printf(&quot;%s\n&quot;, GREETING);</code> 改成 <code>printf(&quot;hi %d\n&quot;, 42);</code>，再看 <code>.s</code>——這次還會變成 <code>puts</code> 嗎？為什麼？</li>
+<li><code>gcc -static hello.c -o hello_static</code>，比較 <code>ls -l</code>、<code>file</code>、<code>ldd</code>、<code>strace -c</code> 的結果跟動態版有什麼不同。</li>
+<li>（有 CS:APP 的話）讀第 1 章 1.1～1.4 節。</li>
+</ol>
+<p>做完把觀察到的結果（尤其是第 2、3、4 題）貼回來，一起對答案。</p>
+<hr />
+<h2 id="九作業解說四題背後的原因">九、作業解說：四題背後的原因</h2>
+<blockquote>
+<p>補充日期：2026-09-22。第一次出作業時沒有標明「哪些原因本課教過、哪些是新觀念」，這一節把沒教過的部分補齊，並標出教過的部分在哪一節。輸出都是本機實測。</p>
+</blockquote>
+<h3 id="第-1-題o-15k連結後為什麼變成-16k新觀念elf-的區段與分頁對齊">第 1 題：<code>.o</code> 1.5K，連結後為什麼變成 16K？（新觀念：ELF 的區段與分頁對齊）</h3>
+<p><code>.i</code> 變大是第二節教過的：<code>stdio.h</code> 整份貼進來了。<code>hello</code> 變大則有兩個第五節沒講的原因：</p>
+<ol>
+<li><strong>連結器加了很多「讓程式能被載入、能動態連結」的東西。</strong> <code>size -A hello</code> 列出 27 個區段（section），真正的程式碼 <code>.text</code> 只有 263 bytes，其餘像 <code>.dynsym</code>／<code>.dynstr</code>（要向 libc 要哪些符號）、
+<code>.plt</code>／<code>.got</code>（呼叫 <code>puts</code> 時跳轉用的表格）、<code>.dynamic</code>（給動態載入器看的清單，496 bytes）、
+<code>.interp</code>（動態載入器的路徑，28 bytes），加起來也才約 2K。
+<code>nm hello</code> 也從 <code>.o</code> 的 2 個符號變成 30 個，多出 <code>_start</code>、<code>__libc_start_main</code> 等啟動碼的符號。</li>
+<li><strong>真正把檔案撐到 16K 的是「分頁對齊」。</strong> <code>readelf -l hello</code> 看到 4 個 <code>LOAD</code> 區塊，每個的 <code>Align</code> 都是 <code>0x1000</code>（4096 bytes，一個記憶體分頁）：<pre><code>LOAD  Offset 0x000000  ...  R      Align 0x1000
+LOAD  Offset 0x001000  ...  R E    ← 程式碼（可執行），從第 2 頁開始
+LOAD  Offset 0x002000  ...  R      ← 唯讀資料
+LOAD  Offset 0x002db8  ...  RW     ← 可寫資料
+</code></pre>
+權限不同的內容要放在不同的分頁，執行時核心才能給它們不同的保護（程式碼不可寫、資料不可執行），所以檔案裡每一段都從新的一頁開始，中間補空白。約 2K 的內容分散在 4 頁，檔案就是 16K 左右。分頁是第 ③ 站虛擬記憶體的主題，這裡先知道「檔案配置要跟記憶體分頁對齊」即可。</li>
+</ol>
+<h3 id="第-2-題刪掉-include-為什麼只是警告程式還能跑部分教過關鍵一句沒明講">第 2 題：刪掉 <code>#include</code> 為什麼只是警告，程式還能跑？（部分教過，關鍵一句沒明講）</h3>
+<ul>
+<li>
+<p><strong>出問題的階段是編譯（<code>cc1</code>），不是前處理。</strong> 少了 <code>#include</code> 只是少貼一段文字，前處理器沒有錯可報。編譯器看到 <code>printf(...)</code> 卻沒有宣告，才發出 <code>implicit declaration</code> 警告。</p>
+</li>
+<li>
+<p><strong>本課教過的部分</strong>：第二節說宣告只是告訴編譯器「參數長這樣」，程式碼在 libc；第四、五節說
+<code>.o</code> 裡記的是「要填上 <code>puts</code> 的位址」，連結器用<strong>名字</strong>去找定義。</p>
+</li>
+<li>
+<p><strong>本課沒明講、但這題的關鍵：連結器只看名字，不看型別。</strong> 宣告是<strong>給編譯器用的</strong>——
+編譯器要靠它決定參數放哪個暫存器、回傳值從哪裡拿。缺了宣告，編譯器沿用 C89 的舊規則（C99 起已從標準移除，但 gcc 13 仍以警告的方式容許）「猜」這是一個回傳 <code>int</code> 的函式；連結時再照名字 <code>printf</code> 找到 libc 裡的真函式。
+<code>printf</code> 剛好猜得夠接近，所以能跑。</p>
+</li>
+<li>
+<p><strong>猜錯時會怎樣</strong>（本機實測；原始檔當初沒有保存，這是重建版，2026-09-24 重新實測）：<code>half.c</code> 定義一個回傳 <code>double</code> 的函式，
+<code>main.c</code> 不宣告就呼叫它。</p>
+<p><code>half.c</code>：</p>
+<pre><code class="language-c"><span class="kt">double</span><span class="w"> </span><span class="nf">half</span><span class="p">(</span><span class="kt">double</span><span class="w"> </span><span class="n">x</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="mi">2</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<p><code>main.c</code>：</p>
+<pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;half(10) = %f</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">half</span><span class="p">(</span><span class="mi">10</span><span class="p">));</span><span class="w">   </span><span class="cm">/* 故意沒有宣告 half */</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<pre><code>$ gcc main.c half.c -o bad &amp;&amp; ./bad
+main.c:5:31: warning: implicit declaration of function ‘half’ [-Wimplicit-function-declaration]
+main.c:5:25: warning: format ‘%f’ expects argument of type ‘double’, but argument 2 has type ‘int’ [-Wformat=]
+half(10) = 0.000000        ← 錯的！編譯器把 10 當 int 放進整數暫存器、把回傳值當 int 讀
+</code></pre>
+<p>第二則警告也是同一個原因：編譯器以為 <code>half</code> 回傳 <code>int</code>，所以抱怨 <code>%f</code> 配上了 <code>int</code>。補上宣告的 <code>main_fixed.c</code>：</p>
+<pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+
+<span class="kt">double</span><span class="w"> </span><span class="nf">half</span><span class="p">(</span><span class="kt">double</span><span class="w"> </span><span class="n">x</span><span class="p">);</span><span class="w">        </span><span class="cm">/* 補上宣告 */</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;half(10) = %f</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">half</span><span class="p">(</span><span class="mi">10</span><span class="p">));</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<pre><code>$ gcc main_fixed.c half.c -o good &amp;&amp; ./good
+half(10) = 5.000000
+</code></pre>
+<p>連結器兩次都「成功」，因為它只比對名字 <code>half</code>。<strong>這就是為什麼一定要 <code>#include</code> 正確的標頭檔</strong>：型別錯了，沒有任何一個階段會擋下來，只會在執行時得到錯誤的結果。</p>
+</li>
+<li>
+<p>本機 gcc 13 預設 C17（<code>__STDC_VERSION__</code> 為 <code>201710L</code>），這種情況只是警告；據 gcc 14 的變更說明，新版已把隱式宣告改成預設錯誤（本機未實測 gcc 14）。</p>
+</li>
+</ul>
+<h3 id="第-3-題printfhi-dn-42-為什麼不會換成-puts新觀念puts-能做什麼">第 3 題：<code>printf(&quot;hi %d\n&quot;, 42)</code> 為什麼不會換成 <code>puts</code>？（新觀念：<code>puts</code> 能做什麼）</h3>
+<p>第三節只說了「<code>printf(&quot;%s\n&quot;, s)</code> 跟 <code>puts(s)</code> 效果一樣」，沒說 <code>puts</code> 的能力範圍：</p>
+<ul>
+<li><code>puts(s)</code> <strong>只能</strong>做一件事：把字串 <code>s</code> 原封不動寫出去，再補一個換行。它不認得任何 <code>%</code> 格式。</li>
+<li><code>%d</code> 的意思是「把一個整數轉成十進位文字」：<code>42</code> 這個數值要變成 <code>'4'</code>、<code>'2'</code> 兩個字元。這個轉換只有 <code>printf</code> 會做。</li>
+</ul>
+<p>所以 gcc 能換的條件是：<strong>格式字串的效果剛好等於「印一個現成字串加換行」</strong>——例如
+<code>printf(&quot;%s\n&quot;, s)</code>，或完全沒有 <code>%</code> 且以 <code>\n</code> 結尾的 <code>printf(&quot;hello\n&quot;)</code>。一旦需要轉換數值，就只能真的呼叫 <code>printf</code>。</p>
+<h3 id="第-4-題靜態版為什麼大-50-倍為什麼沒有-openat第五六節教過這裡把兩節接起來">第 4 題：靜態版為什麼大 50 倍、為什麼沒有 <code>openat</code>？（第五、六節教過，這裡把兩節接起來）</h3>
+<ul>
+<li><strong>大小</strong>：<code>-static</code> 把 libc 裡用到的程式碼<strong>複製進執行檔</strong>（第五節）。<code>size</code> 顯示程式碼區從 1375 bytes
+變成 668305 bytes；<code>nm hello_static</code> 找得到 <code>_IO_puts</code> 這個真正的實作，動態版裡只有 <code>U puts@GLIBC_2.2.5</code>。會這麼大，是因為 <code>puts</code> 牽動了 libc 的緩衝輸出、多語系、錯誤處理等一整串相依的程式碼。</li>
+<li><strong>沒有 <code>openat</code></strong>：動態版的 2 次 <code>openat</code> 是動態載入器打開 <code>/etc/ld.so.cache</code> 和 <code>libc.so.6</code>
+（第六節的 ②③），8 次 <code>mmap</code> 裡大多是把 libc 映射進記憶體。靜態版沒有 interpreter（<code>file</code> 輸出裡沒有），
+<code>execve</code> 之後直接從自己的啟動碼開始跑，libc 已經在自己身上，<strong>沒有東西需要打開</strong>，所以系統呼叫從 34 次降到 16 次。</li>
+<li><strong>兩者都只有 1 次 <code>write</code></strong>：不論怎麼連結，「印字」最終都是同一個系統呼叫。連結方式只影響「程式碼從哪裡來」，不影響程式請核心做的事。</li>
+</ul>
+<h3 id="自我測驗第-5-題延伸找不到版本符號是怎麼回事">自我測驗第 5 題延伸：「找不到版本符號」是怎麼回事</h3>
+<p>連結時，<code>ld</code> 會把「這支程式需要 libc 的哪些<strong>符號版本（symbol version）</strong>」寫進執行檔；執行時，動態載入器 <code>ld-linux-x86-64.so.2</code> 會逐一檢查目標機器的 <code>libc.so.6</code> 有沒有提供。本機實測：</p>
+<pre><code>$ objdump -T hello | grep GLIBC
+... (GLIBC_2.34)  __libc_start_main      ← 啟動碼要的
+... (GLIBC_2.2.5) puts
+... (GLIBC_2.2.5) __cxa_finalize
+
+$ readelf -V hello
+Version needs section '.gnu.version_r' contains 1 entry:
+  000000: Version: 1  File: libc.so.6  Cnt: 2
+  0x0010:   Name: GLIBC_2.2.5 ...
+  0x0020:   Name: GLIBC_2.34  ...
+
+$ ldd --version
+ldd (Ubuntu GLIBC 2.39-0ubuntu8.9) 2.39
+</code></pre>
+<ul>
+<li><code>GLIBC_2.2.5</code> 是 x86-64 版 glibc 最早的版本，幾乎任何機器都有，<strong>不是會出問題的那一個</strong>。</li>
+<li>真正的門檻是 <code>GLIBC_2.34</code>：在本機（glibc 2.39）編出來的程式，拿到 glibc 比 2.34 舊的機器上就會失敗，錯誤訊息的典型形式是 <code>version `GLIBC_2.34' not found (required by ./hello)</code>（本機未重現）。</li>
+<li>所以這個問題是<strong>連結時記下要求、執行時才被檢查</strong>。位址不同不是問題——把位址填好正是動態載入器的工作。</li>
+<li><code>-static</code> 版沒有這張需求表（<code>ldd</code> 回 <code>not a dynamic executable</code>），libc 的程式碼已經在執行檔裡，就不會有這種錯誤；代價是檔案大、libc 的安全修補要重新編譯才會帶進去。</li>
+<li>實務上的做法：在<strong>最舊</strong>的目標系統上編譯（或用它的容器），需求版本就不會超過目標機器。</li>
+</ul>
+<h2 id="十三個名字很像的檔案ldld-linux-x86-64so2libcso6">十、三個名字很像的檔案：<code>ld</code>、<code>ld-linux-x86-64.so.2</code>、<code>libc.so.6</code></h2>
+<blockquote>
+<p>補充日期：2026-09-23。自我測驗第 2 題複習了四次，錯誤從「只答 <code>ld</code>」變成「<code>puts</code> 的程式碼在 <code>ld-linux-x86-64.so.2</code>」——
+根因是<strong>把三個不同的檔案當成同一個</strong>。用提示讓人再想一次已經沒有效果，這一節換個方式，用實驗把三者分開。輸出都是本機實測。</p>
+</blockquote>
+<p><strong>一句話：<code>ld</code> 在編譯時寫一張「需求單」然後就結束了；執行時由 <code>ld-linux-x86-64.so.2</code> 照著需求單，去 <code>libc.so.6</code> 裡把 <code>puts</code> 找出來接上。<code>puts</code> 的程式碼從頭到尾都在 <code>libc.so.6</code>，不在另外兩個檔案裡。</strong></p>
+<h3 id="1-三個檔案三個角色">1. 三個檔案，三個角色</h3>
+<table>
+<thead>
+<tr>
+<th>檔案</th>
+<th>是什麼</th>
+<th>什麼時候跑</th>
+<th>做什麼</th>
+<th>裡面有 <code>puts</code> 的程式碼嗎</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>/usr/bin/ld</code></td>
+<td>連結器（linker）</td>
+<td><strong>編譯時</strong>（<code>gcc</code> 的最後一步）</td>
+<td>產生執行檔，並在裡面寫下兩件事：「需要 <code>libc.so.6</code>」和「請用 <code>/lib64/ld-linux-x86-64.so.2</code> 載入我」</td>
+<td>沒有</td>
+</tr>
+<tr>
+<td><code>/lib64/ld-linux-x86-64.so.2</code></td>
+<td>動態載入器（dynamic loader，又叫 <code>ld.so</code>）</td>
+<td><strong>執行時</strong>（<code>execve</code> 之後、<code>main</code> 之前）</td>
+<td>照執行檔裡的需求，打開 <code>libc.so.6</code>、<code>mmap</code> 進記憶體、把 <code>puts</code> 的位址填好</td>
+<td><strong>沒有</strong></td>
+</tr>
+<tr>
+<td><code>/lib/x86_64-linux-gnu/libc.so.6</code></td>
+<td>C 標準函式庫（共享函式庫）</td>
+<td>自己不「跑」，是被載入的</td>
+<td>提供 <code>puts</code>、<code>printf</code>、<code>malloc</code> 等函式的程式碼</td>
+<td><strong>有</strong></td>
+</tr>
+</tbody>
+</table>
+<p>比喻：<code>ld</code> 是寫施工單的設計師，交出施工單就下班了；<code>ld-linux-x86-64.so.2</code> 是現場工頭，開工那天才來，照單去倉庫搬材料；
+<code>libc.so.6</code> 是倉庫，<code>puts</code> 是倉庫裡的一件材料。<strong>工頭不是倉庫</strong>——這就是第 2 題的錯誤所在。</p>
+<p>名字會混，是因為前兩個都叫 <code>ld</code>：這個名字一般認為來自早期 Unix 的 loader／link editor（載入器／連結編輯器），
+<code>ld.so</code> 則是「給 <code>.so</code>（shared object，共享物件）用的 ld」。沿用同一個字根，卻是兩支完全不同的程式。</p>
+<h3 id="2-實驗一puts-的程式碼在哪個檔案">2. 實驗一：<code>puts</code> 的程式碼在哪個檔案</h3>
+<pre><code>$ nm -D /lib/x86_64-linux-gnu/libc.so.6 | grep -w puts
+0000000000087cc0 W puts@@GLIBC_2.2.5
+
+$ nm -D /lib64/ld-linux-x86-64.so.2 | grep -w puts
+（沒有任何輸出）
+</code></pre>
+<ul>
+<li><code>libc.so.6</code> 裡有 <code>puts</code>，而且有位址 <code>0x87cc0</code>（相對於函式庫開頭）——<strong>有位址就代表程式碼在這裡</strong>。對照 <code>hello</code> 裡的 <code>U puts@GLIBC_2.2.5</code>：<code>U</code> 是「未定義、沒有位址、要別人提供」。</li>
+<li><code>ld-linux-x86-64.so.2</code> 裡<strong>找不到</strong> <code>puts</code>。它是一支 23 萬 bytes 的小程式，只會載入和接線，不會印字。</li>
+<li>為什麼要加 <code>-D</code>：共享函式庫發行時把一般的符號表刪掉了（<code>nm libc.so.6</code> 會回 <code>no symbols</code>），只留下給動態連結用的<strong>動態符號表（dynamic symbol table）</strong>，<code>-D</code> 就是讀這一份。</li>
+<li><code>W</code> 是<strong>弱符號（weak symbol）</strong>：第七節的字母表沒列到。意思是「這裡有定義，但如果別處有同名的強符號，以別處為準」，
+glibc 用它讓同一個函式有多個名字（<code>puts</code> 其實就是 <code>_IO_puts</code>，第九節的 <code>-static</code> 實驗看得到）。對本題來說，當成 <code>T</code> 看就好。</li>
+</ul>
+<h3 id="3-實驗二ld-在執行檔裡寫了什麼">3. 實驗二：<code>ld</code> 在執行檔裡寫了什麼</h3>
+<pre><code>$ readelf -d hello | grep NEEDED
+ 0x0000000000000001 (NEEDED)             Shared library: [libc.so.6]
+
+$ readelf -l hello | grep interpreter
+      [Requesting program interpreter: /lib64/ld-linux-x86-64.so.2]
+</code></pre>
+<p>這兩行都是 <strong><code>ld</code> 在編譯時寫進 <code>hello</code> 的</strong>，也就是「需求單」：</p>
+<ul>
+<li><code>NEEDED libc.so.6</code>：「我需要 <code>libc.so.6</code>」——<strong>材料在哪個倉庫</strong>。</li>
+<li><code>interpreter /lib64/ld-linux-x86-64.so.2</code>：「請用這支程式來載入我」——<strong>找哪個工頭</strong>。</li>
+</ul>
+<p>你在 <code>gcc -v</code> 看到的 <code>-dynamic-linker /lib64/ld-linux-x86-64.so.2</code>，就是 <code>collect2</code> 告訴 <code>ld</code>「工頭請寫這一個」的參數。
+<strong><code>ld</code> 只是把這個路徑抄進檔案，並沒有執行它。</strong></p>
+<h3 id="4-實驗三編譯時跑了哪些程式執行時又跑了哪些">4. 實驗三：編譯時跑了哪些程式、執行時又跑了哪些</h3>
+<p><code>strace -f -e trace=execve</code> 只追蹤「啟動了哪些程式」（<code>-f</code> 連子行程一起追，<code>-e trace=execve</code> 只看 <code>execve</code>）：</p>
+<pre><code>$ strace -f -e trace=execve gcc hello.c -o hello2      （只留成功的，省略 as 在 PATH 裡逐一尋找失敗的那些行）
+execve(&quot;/usr/bin/gcc&quot;, ...)
+execve(&quot;/usr/libexec/gcc/x86_64-linux-gnu/13/cc1&quot;, ...)
+execve(&quot;/usr/bin/as&quot;, ...)
+execve(&quot;/usr/libexec/gcc/x86_64-linux-gnu/13/collect2&quot;, ...)
+execve(&quot;/usr/bin/ld&quot;, ...)                              ← ld 在這裡跑，然後結束
+
+$ strace -f -e trace=execve ./hello
+execve(&quot;./hello&quot;, [&quot;./hello&quot;], ...) = 0                 ← 執行時只有這一個，ld 完全沒出現
+hello, world
+</code></pre>
+<ul>
+<li><strong>執行時 <code>ld</code> 根本不存在</strong>。所以「執行時由 <code>ld</code> 接起來」或「<code>collect2</code> 的時候叫 <code>ld-linux</code>」都不可能。</li>
+<li>執行時也看不到 <code>execve(&quot;/lib64/ld-linux-x86-64.so.2&quot;)</code>：它不是被另外啟動的，而是<strong>核心在處理 <code>execve(&quot;./hello&quot;)</code> 時，讀到 interpreter 欄位，就把它一起載入、先從它開始跑</strong>（見 <a href="ELF%E7%9A%84interpreter%E6%98%AF%E4%BB%80%E9%BA%BC-%E5%8B%95%E6%85%8B%E8%BC%89%E5%85%A5%E5%99%A8%E8%88%87%E4%BA%95%E5%AD%97%E8%99%9F%E9%A9%9A%E5%98%86%E8%99%9F.html">ELF的interpreter是什麼</a> 第二節）。</li>
+</ul>
+<h3 id="5-實驗四看工頭實際接線">5. 實驗四：看工頭實際接線</h3>
+<p>動態載入器有一個除錯開關 <code>LD_DEBUG</code>，設了它，工頭會把自己做的事印出來：</p>
+<pre><code>$ LD_DEBUG=bindings ./hello 2&gt;&amp;1 | grep -w puts
+     40885:	binding file ./hello [0] to /lib/x86_64-linux-gnu/libc.so.6 [0]: normal symbol `puts' [GLIBC_2.2.5]
+</code></pre>
+<p>逐段讀：「<strong>binding</strong>（接線）：把 <code>./hello</code> 裡對 <code>puts</code>（版本 <code>GLIBC_2.2.5</code>）的需求，接到 <code>/lib/x86_64-linux-gnu/libc.so.6</code>」。印出這一行的，就是 <code>ld-linux-x86-64.so.2</code>——<strong>誰接線（載入器）和接到哪裡（libc）在同一行裡分得清清楚楚</strong>。</p>
+<p>再回頭看自己跑的 <code>strace ./hello</code>，<code>main</code> 還沒開始之前的那一段：</p>
+<pre><code>openat(AT_FDCWD, &quot;/lib/x86_64-linux-gnu/libc.so.6&quot;, O_RDONLY|O_CLOEXEC) = 3   ← 工頭去開倉庫
+read(3, &quot;\177ELF...&quot;, 832) = 832                                              ← 讀倉庫的 ELF 檔頭
+mmap(..., PROT_READ|PROT_EXEC, ..., 3, 0x28000) = 0x78eabae28000              ← 把 libc 的程式碼區映射進來
+</code></pre>
+<p>這些系統呼叫是<strong>載入器</strong>發出的（<code>hello</code> 自己的 <code>main</code> 還沒開始跑），它打開的是 <strong><code>libc.so.6</code></strong>——因為 <code>puts</code> 在那裡。</p>
+<p><code>LD_DEBUG</code> 的全部選項（<code>LD_DEBUG=help /bin/true</code> 實測，共 11 個，這裡全列）：</p>
+<table>
+<thead>
+<tr>
+<th>值</th>
+<th>印出什麼</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>libs</code></td>
+<td>搜尋共享函式庫時找了哪些路徑</td>
+</tr>
+<tr>
+<td><code>reloc</code></td>
+<td>重定位（把位址填進洞）的處理過程</td>
+</tr>
+<tr>
+<td><code>files</code></td>
+<td>每個輸入檔案的載入進度</td>
+</tr>
+<tr>
+<td><code>symbols</code></td>
+<td>查找每個符號時查了哪些函式庫的符號表</td>
+</tr>
+<tr>
+<td><code>bindings</code></td>
+<td>每個符號最後被接到哪個函式庫（本節用的）</td>
+</tr>
+<tr>
+<td><code>versions</code></td>
+<td>符號版本的需求（第 5 題「找不到 <code>GLIBC_2.34</code>」就是這一層在檢查）</td>
+</tr>
+<tr>
+<td><code>scopes</code></td>
+<td>符號搜尋的範圍（scope）資訊</td>
+</tr>
+<tr>
+<td><code>all</code></td>
+<td>上面七個全部</td>
+</tr>
+<tr>
+<td><code>statistics</code></td>
+<td>重定位的統計數字</td>
+</tr>
+<tr>
+<td><code>unused</code></td>
+<td>找出載入了卻沒用到的共享函式庫（DSO，Dynamic Shared Object，動態共享物件）</td>
+</tr>
+<tr>
+<td><code>help</code></td>
+<td>印出這份說明後結束</td>
+</tr>
+</tbody>
+</table>
+<p>可以用逗號同時開多個（<code>LD_DEBUG=libs,bindings</code>）；輸出預設寫到 stderr，設 <code>LD_DEBUG_OUTPUT=&lt;檔名&gt;</code> 可以改寫到檔案。
+<code>LD_DEBUG</code> 對 <code>-static</code> 的程式沒有作用——靜態執行檔沒有載入器。</p>
+<p><strong>本節用到的其他工具選項</strong>（都只列本節用到的，不是全部）：</p>
+<ul>
+<li><code>nm -D</code>：讀動態符號表。<code>nm --help</code> 共 36 個選項，完整清單見 <code>man nm</code>；符號類型字母的完整清單也在 <code>man nm</code>。</li>
+<li><code>readelf -d</code>（dynamic 區段）、<code>readelf -l</code>（程式標頭）：全部選項見 <a href="readelf%E5%AE%8C%E6%95%B4%E9%81%B8%E9%A0%85%E5%8F%83%E8%80%83.html">readelf完整選項參考</a>。</li>
+<li><code>strace -f</code>、<code>-e trace=execve</code>：<code>strace</code> 選項很多，完整清單見 <code>man strace</code> 或 <code>strace -h</code>，這裡只用到兩個。</li>
+</ul>
+<h3 id="附musl-不一樣載入器和函式庫是同一個檔案">附：musl 不一樣——載入器和函式庫是同一個檔案</h3>
+<p>上面三個檔案分開，是 <strong>glibc</strong>（你的 Ubuntu）的設計。OpenWrt 路由器用的 musl 不同（2026-09-23 在路由器上實測）：</p>
+<pre><code>root@OpenWrt:~# ls -l /lib/ld-musl-aarch64.so.1 /lib/libc.so
+lrwxrwxrwx  1 root root       7 ... /lib/ld-musl-aarch64.so.1 -&gt; libc.so     ← 載入器只是個符號連結
+-rwxr-xr-x  1 root root  590852 ... /lib/libc.so
+
+$ nm -D libc.so | grep -w puts          （把路由器的 libc.so 複製回本機看）
+000000000005aa98 T puts
+</code></pre>
+<p>musl 的載入器和 C 函式庫是<strong>同一個檔案</strong>，所以在 musl 上，「<code>puts</code> 在載入器那個檔案裡」反而是對的。但<strong>角色</strong>還是三個：連結時寫需求單的 <code>ld</code>、執行時接線的載入器、提供 <code>puts</code> 的函式庫——只是後兩個角色由同一個檔案扮演。在 glibc 上它們是兩個檔案，<strong>你本機的答案仍然是 <code>libc.so.6</code></strong>。詳見 <a href="../linux/GNU%E6%98%AF%E4%BB%80%E9%BA%BC-Linux%E6%A0%B8%E5%BF%83%E8%88%87GNU%E5%B7%A5%E5%85%B7%E7%9A%84%E5%88%86%E5%B7%A5.html">GNU是什麼</a> 第四節。</p>
+<h3 id="6-用這三個角色重答三題">6. 用這三個角色重答三題</h3>
+<ul>
+<li><strong>第 2 題</strong>：<code>puts</code> 的程式碼在 <code>libc.so.6</code>。連結時 <code>ld</code> 只寫需求單（<code>NEEDED libc.so.6</code>、interpreter 路徑、版本需求）；執行時 <code>ld-linux-x86-64.so.2</code> 打開 <code>libc.so.6</code>，把 <code>puts</code> 的位址接上。</li>
+<li><strong>第 3 題</strong>：組譯器只看 <code>hello.s</code>，<code>puts</code> 在 <code>libc.so.6</code>（另一個檔案），它沒打開過，所以不可能知道位址。</li>
+<li><strong>第 5 題</strong>：版本需求在<strong>連結時</strong>由 <code>ld</code> 寫進需求單，在<strong>執行時</strong>由 <code>ld-linux-x86-64.so.2</code> 檢查（<code>LD_DEBUG=versions</code> 就是這一步）。</li>
+</ul>
+<hr />
+<h2 id="自我測驗">自我測驗</h2>
+<blockquote>
+<p>參考答案寫在每題下面（2026-10-06 使用者指定）。作答時先遮住答案、自己想過再對照。</p>
+</blockquote>
+<ol>
+<li><code>gcc hello.c</code> 背後實際是哪幾個程式在接力？為什麼說 <code>gcc</code> 是「總指揮」？<details class="answer"><summary>參考答案</summary>
+<p>【<a href="#%E4%B8%80%E5%9B%9B%E5%80%8B%E9%9A%8E%E6%AE%B5%E7%B8%BD%E8%A6%BD">第一節</a>】本機實際接力的是 <code>cc1</code>（前處理＋編譯，C → 組合語言）→ <code>as</code>（組合語言 → 機器碼的 <code>.o</code>，還有洞、不能執行）→ <code>collect2</code> 呼叫 <code>ld</code>（連結成執行檔）。<code>gcc</code> 自己不做任何轉換，只負責依序呼叫它們、在中間傳遞暫存檔，所以叫總指揮（driver）；<code>gcc -v</code> 看得到它實際執行的每個命令。</p>
+</details>
+</li>
+<li><code>hello.i</code> 裡有 <code>printf</code> 的宣告，卻沒有它的程式碼。那它的程式碼在哪？是在哪個時間點、由誰把「呼叫 <code>printf</code>」和「<code>printf</code> 的程式碼」接起來的？<details class="answer"><summary>參考答案</summary>
+<p>【<a href="#%E4%BA%94%E9%80%A3%E7%B5%90%E6%8A%8A%E6%B4%9E%E6%8E%A5%E4%B8%8A%E4%BD%86-puts-%E9%82%84%E6%98%AF%E6%B2%92%E6%8E%A5%E5%AE%8C">第五節</a>〈2026-09-29 補充〉、<a href="#%E5%85%AD%E5%9F%B7%E8%A1%8C%E5%BE%9E-execve-%E5%88%B0-write">第六節</a>、<a href="#%E5%8D%81%E4%B8%89%E5%80%8B%E5%90%8D%E5%AD%97%E5%BE%88%E5%83%8F%E7%9A%84%E6%AA%94%E6%A1%88ldld-linux-x86-64so2libcso6">第十節</a>】<code>puts</code>（<code>printf</code> 在本課被換成 <code>puts</code>）的程式碼在 <strong><code>libc.so.6</code></strong>。<strong>最後把呼叫接到 <code>puts</code> 程式碼的，是執行時的動態載入器 <code>ld-linux-x86-64.so.2</code></strong>：<code>execve</code> 後它先跑，照需求單打開 <code>libc.so.6</code>、<code>mmap</code> 進來，再把 <code>puts</code> 的真正位址填進 <code>.got</code>（<code>LD_DEBUG=bindings ./hello</code> 看得到這一步）。但這一步要成立，<strong>連結時 <code>ld</code></strong> 得先做兩件事：把 <code>call</code> 後面的洞（<code>hello.o</code> 裡的 <code>00 00 00 00</code>）填成跳到 <code>puts@plt</code>，並在執行檔裡寫下需求單（<code>NEEDED libc.so.6</code>、interpreter 路徑、需要的符號版本）。CPU 執行 <code>call</code> 只是照那 4 個 byte 跳，不是「接」。<code>ld</code> 和 <code>ld-linux-x86-64.so.2</code> 是兩個不同的程式。（2026-10-07 複習時使用者爭論後修訂：原本寫成「接起來分兩個時間點」，改為以執行時為主、連結時為前提。）</p>
+</details>
+</li>
+<li><code>hello.o</code> 裡「呼叫 <code>puts</code>」的地方，要跳去的位址為什麼暫時是 0（空著）？什麼資訊讓連結器知道之後要把它填成什麼？（2026-09-23 改寫：原題要讀懂機器碼 <code>e8 00 00 00 00</code>，屬於第 ① 站第 4、5 課的組合語言範圍，改成不需要讀機器碼的問法。）<details class="answer"><summary>參考答案</summary>
+<p>【<a href="#%E5%9B%9B%E7%B5%84%E8%AD%AF%E6%A9%9F%E5%99%A8%E7%A2%BC%E8%A3%A1%E7%9A%84%E6%B4%9E">第四節</a>】（2026-10-10 改寫成核心關鍵格式）</p>
+<p>核心關鍵：</p>
+<ol>
+<li>組譯器一次只處理 <code>hello.s</code> 這一個檔案，<code>puts</code> 的程式碼在別的檔案（<code>libc.so.6</code>），組譯時不知道它的位址，只能先填 0 占位。</li>
+<li>組譯器同時記下一筆重定位項目 <code>13: R_X86_64_PLT32 puts-0x4</code>（「位移 0x13 的地方，將來填上 <code>puts</code> 的位址」）；連結器照這筆項目去找名叫 <code>puts</code> 的符號，把位址填進那 4 個 byte。</li>
+</ol>
+<p>詳細說明：<code>objdump -dr</code> 的 <code>-r</code> 會把重定位項目印在對應指令的下面。同一段裡的 <code>lea 0x0(%rip),%rax</code> 也是同樣情況：字串 <code>&quot;hello, world&quot;</code> 放在 <code>.rodata</code>，位址到連結時才決定，所以也有一筆 <code>R_X86_64_PC32 .rodata-0x4</code>。</p>
+</details>
+</li>
+<li>連結完成後 <code>nm hello</code> 仍然顯示 <code>U puts@GLIBC_2.2.5</code>，這是連結失敗嗎？為什麼？<details class="answer"><summary>參考答案</summary>
+<p>【<a href="#%E4%BA%94%E9%80%A3%E7%B5%90%E6%8A%8A%E6%B4%9E%E6%8E%A5%E4%B8%8A%E4%BD%86-puts-%E9%82%84%E6%98%AF%E6%B2%92%E6%8E%A5%E5%AE%8C">第五節</a>】不是連結失敗。這是動態連結：連結器只記下「需要 glibc 提供的 <code>puts</code>」，真正的位址要等執行時由動態載入器載入 <code>libc.so.6</code> 後才填上，所以連結後的執行檔裡 <code>puts</code> 仍是 <code>U</code>（未定義）。</p>
+</details>
+</li>
+<li>情境題：你把一支動態連結的程式複製到另一台機器，執行時出現找不到 <code>libc.so.6</code> 某個版本符號的錯誤。從本課的哪個階段可以解釋這件事？如果改用 <code>-static</code> 編譯，這個問題還會發生嗎？<details class="answer"><summary>參考答案</summary>
+<p>【<a href="#%E4%B9%9D%E4%BD%9C%E6%A5%AD%E8%A7%A3%E8%AA%AA%E5%9B%9B%E9%A1%8C%E8%83%8C%E5%BE%8C%E7%9A%84%E5%8E%9F%E5%9B%A0">第九節</a>〈自我測驗第 5 題延伸：「找不到版本符號」是怎麼回事〉】（2026-10-12 改寫成核心關鍵格式）</p>
+<p>核心關鍵：</p>
+<ol>
+<li><strong>連結時</strong>：<code>ld</code> 把需要的符號版本（例如 <code>GLIBC_2.34</code>）寫進執行檔。</li>
+<li><strong>執行時</strong>：動態載入器檢查目標機器的 <code>libc.so.6</code> 有沒有提供這個版本，沒有就報 <code>version `GLIBC_2.34' not found</code>。</li>
+<li><code>-static</code> 不會發生：libc 的程式碼已經整份複製進執行檔，不再找外部的 <code>libc.so.6</code>。</li>
+</ol>
+<p>詳細說明：一句話：「連結時記下要求、執行時才被檢查」。<code>readelf -V hello</code> 看得到版本需求；真正的門檻是 2.34（<code>__libc_start_main</code>），不是 <code>puts</code> 的 2.2.5。<code>-static</code> 的代價是檔案大，而且 libc 的安全修補要重新編譯才會帶進去。</p>
+</details>
+</li>
+</ol>
+
+</main>
+</div>
+</body>
+</html>

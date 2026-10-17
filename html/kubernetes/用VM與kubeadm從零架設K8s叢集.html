@@ -1,0 +1,435 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>用 VM 與 kubeadm 從零架設 K8s 叢集——每一步在為哪個組件鋪路？</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/app.js"></script>
+</head>
+<body>
+<button class="menu-btn" onclick="toggleMenu()">☰ 目錄</button>
+<div class="layout">
+<nav class="side">
+<div class="crumbs"><a href="../index.html">🏠 首頁</a> / <a href="README.html">kubernetes</a></div>
+<div class="tools"><button onclick="toggleTheme()">🌓 主題</button></div>
+<ul>
+<li class="l2"><a href="#%E4%B8%80%E5%8F%A5%E8%A9%B1%E7%B5%90%E8%AB%96">一句話結論</a></li>
+<li class="l2"><a href="#%E7%9B%AE%E9%8C%84">目錄</a></li>
+<li class="l2"><a href="#%E4%B8%80%E8%A6%8F%E5%8A%83%E6%A9%9F%E5%99%A8%E7%B6%B2%E6%AE%B5%E8%B3%87%E6%BA%90">一、規劃：機器、網段、資源</a></li>
+<li class="l3"><a href="#%E6%A9%9F%E5%99%A8">機器</a></li>
+<li class="l3"><a href="#%E7%B6%B2%E6%AE%B5%E9%80%99%E4%B8%80%E6%AD%A5%E6%9C%80%E5%AE%B9%E6%98%93%E5%9F%8B%E9%9B%B7">網段——這一步最容易埋雷</a></li>
+<li class="l2"><a href="#%E4%BA%8C%E9%96%8B-vm">二、開 VM</a></li>
+<li class="l3"><a href="#%E7%82%BA%E4%BB%80%E9%BA%BC%E4%B8%8D%E9%81%B8-vagrant--virtualbox%E7%B6%93%E5%85%B8%E5%A4%A7%E5%9D%91">為什麼不選 Vagrant + VirtualBox（經典大坑）</a></li>
+<li class="l3"><a href="#%E7%AF%80%E9%BB%9E-ip-%E5%BF%85%E9%A0%88%E7%A9%A9%E5%AE%9A">節點 IP 必須穩定</a></li>
+<li class="l3"><a href="#%E4%B8%8D%E8%A6%81%E7%94%A8%E8%A4%87%E8%A3%BD-vm%E7%9A%84%E6%96%B9%E5%BC%8F%E9%96%8B%E7%AF%80%E9%BB%9E">不要用「複製 VM」的方式開節點</a></li>
+<li class="l2"><a href="#%E4%B8%89%E6%AF%8F%E5%80%8B%E7%AF%80%E9%BB%9E%E9%83%BD%E8%A6%81%E5%81%9A%E7%9A%84%E6%BA%96%E5%82%99">三、每個節點都要做的準備</a></li>
+<li class="l3"><a href="#3-1-proxy%E6%9C%AC%E6%A9%9F%E7%92%B0%E5%A2%83%E7%89%B9%E6%9C%89">3-1 proxy（本機環境特有）</a></li>
+<li class="l3"><a href="#3-2-%E9%97%9C%E9%96%89-swap">3-2 關閉 swap</a></li>
+<li class="l3"><a href="#3-3-%E6%A0%B8%E5%BF%83%E6%A8%A1%E7%B5%84%E8%88%87-sysctl%E9%80%99%E6%98%AF%E7%B5%A6-kube-proxy-%E5%92%8C-cni-%E7%9A%84">3-3 核心模組與 sysctl——這是給 kube-proxy 和 CNI 的</a></li>
+<li class="l3"><a href="#3-4-containerd%E9%87%8D%E9%BB%9E%E6%98%AF-cgroup-driver-%E8%A6%81%E8%B7%9F-kubelet-%E5%B0%8D%E9%BD%8A">3-4 containerd——重點是 cgroup driver 要跟 kubelet 對齊</a></li>
+<li class="l3"><a href="#3-5-kubeadmkubeletkubectl">3-5 kubeadm、kubelet、kubectl</a></li>
+<li class="l2"><a href="#%E5%9B%9B%E6%8E%A7%E5%88%B6%E5%B9%B3%E9%9D%A2kubeadm-init">四、控制平面：kubeadm init</a></li>
+<li class="l2"><a href="#%E4%BA%94%E8%A3%9D-cni%E7%AF%80%E9%BB%9E%E5%BE%9E-notready-%E8%AE%8A-ready">五、裝 CNI：節點從 NotReady 變 Ready</a></li>
+<li class="l2"><a href="#%E5%85%AD%E5%8A%A0%E5%85%A5-worker-%E8%88%87%E9%A9%97%E6%94%B6">六、加入 worker 與驗收</a></li>
+<li class="l3"><a href="#%E9%A9%97%E6%94%B6%E6%B8%85%E5%96%AE">驗收清單</a></li>
+<li class="l2"><a href="#%E4%B8%83%E9%87%8D%E4%BE%86%E8%88%87%E5%BF%AB%E7%85%A7">七、重來與快照</a></li>
+<li class="l2"><a href="#%E5%85%AB%E6%AF%94-kubeadm-%E6%9B%B4%E5%AE%8C%E6%95%B4%E7%9A%84%E9%81%B8%E9%A0%85">八、比 kubeadm 更「完整」的選項</a></li>
+<li class="l2"><a href="#%E7%9B%B8%E9%97%9C%E7%AD%86%E8%A8%98">相關筆記</a></li>
+<li class="l2"><a href="#%E6%8C%87%E4%BB%A4%E9%81%B8%E9%A0%85%E7%9A%84%E6%B6%B5%E8%93%8B%E7%AF%84%E5%9C%8D%E8%AA%AA%E6%98%8E">指令選項的涵蓋範圍說明</a></li>
+<li class="l2"><a href="#%E8%87%AA%E6%88%91%E6%B8%AC%E9%A9%97">自我測驗</a></li>
+</ul>
+</nav>
+<main>
+<h1 id="用-vm-與-kubeadm-從零架設-k8s-叢集每一步在為哪個組件鋪路">用 VM 與 kubeadm 從零架設 K8s 叢集——每一步在為哪個組件鋪路？</h1>
+<blockquote>
+<p>日期：2026-09-19<br />
+情境：不想用 kind 這種「一鍵叢集」，想親手走一遍正式環境的架設流程：開機器、準備節點、<code>kubeadm init</code>、裝 CNI、<code>join</code> worker<br />
+適用範圍：主機 Ubuntu 24.04（KVM 可用、13 GB RAM）；VM 用 multipass 開 Ubuntu 24.04；Kubernetes v1.37（撰寫當下 <code>https://dl.k8s.io/release/stable.txt</code> 回傳的版本）、containerd、Calico<br />
+前置閱讀：<a href="%E6%9C%AC%E5%9C%B0%E7%8E%A9K8s%E8%A6%81%E5%85%88%E9%96%8B%E8%99%9B%E6%93%AC%E6%A9%9F%E5%97%8E-kind-k3s-minikube%E6%80%8E%E9%BA%BC%E9%81%B8.html">本地玩K8s要先開虛擬機嗎-kind-k3s-minikube怎麼選</a>（為什麼這個需求一定要 VM）</p>
+</blockquote>
+<hr />
+<h2 id="一句話結論">一句話結論</h2>
+<blockquote>
+<p><strong>kubeadm 架叢集的每一步，都是在滿足某個組件的前提條件：</strong>
+核心參數是給 kube-proxy 和 CNI 的，cgroup driver 是給 kubelet 和 containerd 對齊的，
+<code>init</code> 是把控制平面做成 static Pod，CNI 是讓節點從 <code>NotReady</code> 變 <code>Ready</code> 的最後一塊。
+<strong>照抄指令能架起來，但知道每一步在餵誰，壞掉時才知道去哪裡找。</strong></p>
+</blockquote>
+<hr />
+<h2 id="目錄">目錄</h2>
+<ol>
+<li><a href="#%E4%B8%80%E8%A6%8F%E5%8A%83%E6%A9%9F%E5%99%A8%E7%B6%B2%E6%AE%B5%E8%B3%87%E6%BA%90">規劃：機器、網段、資源</a></li>
+<li><a href="#%E4%BA%8C%E9%96%8B-vm">開 VM</a></li>
+<li><a href="#%E4%B8%89%E6%AF%8F%E5%80%8B%E7%AF%80%E9%BB%9E%E9%83%BD%E8%A6%81%E5%81%9A%E7%9A%84%E6%BA%96%E5%82%99">每個節點都要做的準備</a></li>
+<li><a href="#%E5%9B%9B%E6%8E%A7%E5%88%B6%E5%B9%B3%E9%9D%A2kubeadm-init">控制平面：kubeadm init</a></li>
+<li><a href="#%E4%BA%94%E8%A3%9D-cni%E7%AF%80%E9%BB%9E%E5%BE%9E-notready-%E8%AE%8A-ready">裝 CNI：節點從 NotReady 變 Ready</a></li>
+<li><a href="#%E5%85%AD%E5%8A%A0%E5%85%A5-worker-%E8%88%87%E9%A9%97%E6%94%B6">加入 worker 與驗收</a></li>
+<li><a href="#%E4%B8%83%E9%87%8D%E4%BE%86%E8%88%87%E5%BF%AB%E7%85%A7">重來與快照</a></li>
+<li><a href="#%E5%85%AB%E6%AF%94-kubeadm-%E6%9B%B4%E5%AE%8C%E6%95%B4%E7%9A%84%E9%81%B8%E9%A0%85">比 kubeadm 更「完整」的選項</a></li>
+</ol>
+<hr />
+<h2 id="一規劃機器網段資源">一、規劃：機器、網段、資源</h2>
+<h3 id="機器">機器</h3>
+<table>
+<thead>
+<tr>
+<th>名稱</th>
+<th>角色</th>
+<th>vCPU</th>
+<th>RAM</th>
+<th>磁碟</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>cp1</code></td>
+<td>控制平面（control plane）</td>
+<td>2</td>
+<td>2.5 GB</td>
+<td>20 GB</td>
+</tr>
+<tr>
+<td><code>w1</code></td>
+<td>worker</td>
+<td>2</td>
+<td>2 GB</td>
+<td>20 GB</td>
+</tr>
+<tr>
+<td><code>w2</code></td>
+<td>worker</td>
+<td>2</td>
+<td>2 GB</td>
+<td>20 GB</td>
+</tr>
+</tbody>
+</table>
+<p>控制平面至少 2 vCPU、約 1.7 GB RAM——這是 <code>kubeadm init</code> 的 preflight 檢查硬門檻，不夠會直接拒絕。</p>
+<p><strong>資源現實</strong>：主機 13 GB，平常可用約 5 GB，三台加起來設定了 6.5 GB。KVM 的記憶體是用到才真的配，實際佔用會比設定值低，但仍然偏緊。建議：先開 <code>cp1</code> + <code>w1</code>，確認一切正常再加 <code>w2</code>；跑實驗時關掉瀏覽器等大戶。</p>
+<h3 id="網段這一步最容易埋雷">網段——這一步最容易埋雷</h3>
+<p>叢集裡同時存在<strong>四個</strong>網段，彼此不能重疊：</p>
+<table>
+<thead>
+<tr>
+<th>網段</th>
+<th>本機的值</th>
+<th>誰在用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>家裡的區域網路（LAN，Local Area Network）</td>
+<td><code>192.168.1.0/24</code></td>
+<td>主機、proxy <code>192.168.1.1</code></td>
+</tr>
+<tr>
+<td>VM 網段</td>
+<td>multipass 自動分配（通常 <code>10.x.x.0/24</code>，開完後要確認）</td>
+<td>節點 IP</td>
+</tr>
+<tr>
+<td>Pod 網段（pod CIDR）</td>
+<td><strong><code>10.244.0.0/16</code></strong>（自己指定）</td>
+<td>CNI 分給每個 Pod</td>
+</tr>
+<tr>
+<td>Service 網段（service CIDR）</td>
+<td><code>10.96.0.0/12</code>（kubeadm 預設）</td>
+<td>ClusterIP</td>
+</tr>
+</tbody>
+</table>
+<p>CIDR 是 Classless Inter-Domain Routing（無類別域間路由）的縮寫，這裡指「一段 IP 範圍」。</p>
+<p><strong>為什麼要特別講</strong>：Calico 的預設 Pod 網段是 <code>192.168.0.0/16</code>，它<strong>包住了你家的 <code>192.168.1.0/24</code></strong>。照官方範例直接裝，Pod 要連 proxy <code>192.168.1.1</code> 時，路由表會以為那是「另一個 Pod」，封包送進叢集網路就消失了——
+症狀是「Pod 拉不到東西、連不到外網」，而且完全看不出跟網段有關。所以 pod CIDR 一律自己指定成 <code>10.244.0.0/16</code>。</p>
+<p>另外 multipass 的 VM 網段若剛好落在 <code>10.96.0.0/12</code>（即 <code>10.96.0.0</code>～<code>10.111.255.255</code>）或 <code>10.244.0.0/16</code> 裡，也要換掉 pod／service CIDR。</p>
+<hr />
+<h2 id="二開-vm">二、開 VM</h2>
+<p>選 multipass 的原因：它在 Linux 上直接用 KVM，一行開一台 Ubuntu，讓注意力留在 K8s 而不是裝作業系統。（想連 VM 層一起學，可以改用 libvirt + <code>virt-install</code>，概念相同。）</p>
+<pre><code class="language-bash">sudo<span class="w"> </span>snap<span class="w"> </span>install<span class="w"> </span>multipass
+multipass<span class="w"> </span>launch<span class="w"> </span><span class="m">24</span>.04<span class="w"> </span>-n<span class="w"> </span>cp1<span class="w"> </span>-c<span class="w"> </span><span class="m">2</span><span class="w"> </span>-m<span class="w"> </span><span class="m">2</span>.5G<span class="w"> </span>-d<span class="w"> </span>20G
+multipass<span class="w"> </span>launch<span class="w"> </span><span class="m">24</span>.04<span class="w"> </span>-n<span class="w"> </span>w1<span class="w">  </span>-c<span class="w"> </span><span class="m">2</span><span class="w"> </span>-m<span class="w"> </span>2G<span class="w">   </span>-d<span class="w"> </span>20G
+multipass<span class="w"> </span>launch<span class="w"> </span><span class="m">24</span>.04<span class="w"> </span>-n<span class="w"> </span>w2<span class="w">  </span>-c<span class="w"> </span><span class="m">2</span><span class="w"> </span>-m<span class="w"> </span>2G<span class="w">   </span>-d<span class="w"> </span>20G
+multipass<span class="w"> </span>list<span class="w">            </span><span class="c1"># 記下三台的 IP，確認不跟上面四個網段重疊</span>
+multipass<span class="w"> </span>shell<span class="w"> </span>cp1<span class="w">       </span><span class="c1"># 進入 VM</span>
+</code></pre>
+<h3 id="為什麼不選-vagrant--virtualbox經典大坑">為什麼不選 Vagrant + VirtualBox（經典大坑）</h3>
+<p>VirtualBox 預設給每台 VM 一張 NAT 網卡，<strong>每台的 IP 都是 <code>10.0.2.15</code></strong>，再另外加一張 host-only 網卡才互通。
+kubelet 預設挑「預設路由那張網卡」的 IP 當節點 IP，於是三個節點都宣稱自己是 <code>10.0.2.15</code>——
+症狀是 <code>kubectl logs</code>／<code>exec</code> 連錯機器、跨節點 Pod 不通。要手動設 <code>--node-ip</code> 才能解。
+multipass 每台只有一張網卡，天生沒這個問題。</p>
+<h3 id="節點-ip-必須穩定">節點 IP 必須穩定</h3>
+<p><code>kubeadm init</code> 會把控制平面的 IP <strong>簽進 API Server 的憑證</strong>。IP 一變，憑證就對不上，所有組件都連不上 API Server。
+multipass 通常會保留租約，但如果某天重開機後整個叢集掛掉，第一個要看的就是 <code>cp1</code> 的 IP 有沒有變。</p>
+<h3 id="不要用複製-vm的方式開節點">不要用「複製 VM」的方式開節點</h3>
+<p><code>kubeadm join</code> 的 preflight 會檢查每台節點的 MAC 位址和 <code>/sys/class/dmi/id/product_uuid</code> 必須唯一，複製來的 VM 還可能共用同一個 <code>/etc/machine-id</code>。每台都用 <code>launch</code> 從映像檔開，就不會踩到。</p>
+<hr />
+<h2 id="三每個節點都要做的準備">三、每個節點都要做的準備</h2>
+<p>以下在 <strong>cp1、w1、w2 三台都要執行</strong>。重點不是指令，而是每一步在餵哪個組件。</p>
+<h3 id="3-1-proxy本機環境特有">3-1 proxy（本機環境特有）</h3>
+<p>VM 在 multipass 的 NAT 後面，要出網就得走 <code>192.168.1.1:8880</code>。需要 proxy 的有三個角色，<strong>各自讀各自的設定</strong>：</p>
+<table>
+<thead>
+<tr>
+<th>誰</th>
+<th>在哪設</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>apt</code></td>
+<td><code>/etc/apt/apt.conf.d/95proxy</code></td>
+</tr>
+<tr>
+<td><code>curl</code>（下載 GPG key）</td>
+<td>shell 的 <code>https_proxy</code> 環境變數</td>
+</tr>
+<tr>
+<td><strong>containerd</strong>（拉 Pod 映像檔）</td>
+<td>systemd drop-in，見 3-4</td>
+</tr>
+</tbody>
+</table>
+<p><code>NO_PROXY</code> 一定要包含 <strong>VM 網段、pod CIDR、service CIDR、<code>.svc</code>、<code>.cluster.local</code></strong>——
+否則 kubelet 連 API Server、Pod 連 Service 的叢集內流量，會被送去 proxy 繞一圈然後失敗。這跟 <a href="../docker/Docker%E6%8B%89%E5%8F%96%E6%98%A0%E5%83%8F%E6%AA%94%E5%A4%B1%E6%95%97-daemon%E7%BC%BAproxy%E6%8E%92%E6%9F%A5.html">Docker拉取映像檔失敗-daemon缺proxy排查</a> 是同一個根因：
+<strong>daemon 是 systemd 啟動的，不會繼承你 shell 的環境變數。</strong></p>
+<pre><code class="language-bash"><span class="nv">VMNET</span><span class="o">=</span>&lt;multipass<span class="w"> </span>的<span class="w"> </span>VM<span class="w"> </span>網段，例如<span class="w"> </span><span class="m">10</span>.126.204.0/24&gt;
+<span class="nb">export</span><span class="w"> </span><span class="nv">https_proxy</span><span class="o">=</span>http://192.168.1.1:8880<span class="w"> </span><span class="nv">http_proxy</span><span class="o">=</span>http://192.168.1.1:8880
+<span class="nb">export</span><span class="w"> </span><span class="nv">NO_PROXY</span><span class="o">=</span>localhost,127.0.0.1,<span class="nv">$VMNET</span>,10.244.0.0/16,10.96.0.0/12,.svc,.cluster.local
+
+sudo<span class="w"> </span>tee<span class="w"> </span>/etc/apt/apt.conf.d/95proxy<span class="w"> </span><span class="s">&lt;&lt;&#39;EOF&#39;</span>
+<span class="s">Acquire::http::Proxy &quot;http://192.168.1.1:8880&quot;;</span>
+<span class="s">Acquire::https::Proxy &quot;http://192.168.1.1:8880&quot;;</span>
+<span class="s">EOF</span>
+</code></pre>
+<h3 id="3-2-關閉-swap">3-2 關閉 swap</h3>
+<pre><code class="language-bash">sudo<span class="w"> </span>swapoff<span class="w"> </span>-a<span class="w">        </span><span class="c1"># multipass 的雲端映像檔通常本來就沒 swap，確認一下即可</span>
+free<span class="w"> </span>-h
+</code></pre>
+<p><strong>為什麼</strong>：kubelet 的排程與驅逐（eviction）是建立在「記憶體用量 = 實體記憶體」的假設上；有 swap 時，Pod 超用記憶體會變成慢慢被換出去而不是被 OOM 殺掉，資源保證就失準了。
+kubelet 預設 <code>failSwapOn: true</code>，有 swap 會直接不啟動。</p>
+<h3 id="3-3-核心模組與-sysctl這是給-kube-proxy-和-cni-的">3-3 核心模組與 sysctl——這是給 kube-proxy 和 CNI 的</h3>
+<pre><code class="language-bash">cat<span class="w"> </span><span class="s">&lt;&lt;&#39;EOF&#39; | sudo tee /etc/modules-load.d/k8s.conf</span>
+<span class="s">overlay</span>
+<span class="s">br_netfilter</span>
+<span class="s">EOF</span>
+sudo<span class="w"> </span>modprobe<span class="w"> </span>overlay<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>sudo<span class="w"> </span>modprobe<span class="w"> </span>br_netfilter
+
+cat<span class="w"> </span><span class="s">&lt;&lt;&#39;EOF&#39; | sudo tee /etc/sysctl.d/k8s.conf</span>
+<span class="s">net.bridge.bridge-nf-call-iptables  = 1</span>
+<span class="s">net.bridge.bridge-nf-call-ip6tables = 1</span>
+<span class="s">net.ipv4.ip_forward                 = 1</span>
+<span class="s">EOF</span>
+sudo<span class="w"> </span>sysctl<span class="w"> </span>--system
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>設定</th>
+<th>沒有它會怎樣</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>overlay</code></td>
+<td>containerd 用 overlayfs 把映像檔的層疊成容器的根目錄，沒有它容器起不來</td>
+</tr>
+<tr>
+<td><code>ip_forward = 1</code></td>
+<td>節點要把封包在 Pod 的 veth 和實體網卡之間<strong>轉送</strong>；關著時節點只收發自己的封包，跨節點 Pod 流量全斷</td>
+</tr>
+<tr>
+<td><code>br_netfilter</code> + <code>bridge-nf-call-iptables = 1</code></td>
+<td>在用 Linux bridge 串 Pod 的 CNI（如 Flannel 的 <code>cni0</code>）上，同節點兩個 Pod 之間的封包走第二層 bridge，<strong>預設不會經過 iptables／conntrack</strong>。Pod A 連 Service，去程被 DNAT 成同節點的 Pod B；B 的回應直接在 bridge 上送回 A，沒經過 conntrack 做反向 NAT，A 收到的來源是 B 的 IP 而不是 ClusterIP，就把封包丟掉。這個參數強迫 bridge 上的封包也過 iptables。（Calico 預設是路由式、不用 bridge，受影響較小，但 kubeadm preflight 仍要求它存在）</td>
+</tr>
+</tbody>
+</table>
+<p>最後一條就是 <a href="Service%E8%88%87%E5%B0%81%E5%8C%85%E8%B7%AF%E5%BE%91-ClusterIP%E6%80%8E%E9%BA%BC%E8%B5%B0%E5%88%B0Pod.html">Service與封包路徑-ClusterIP怎麼走到Pod</a> 的 DNAT 能運作的前提。</p>
+<h3 id="3-4-containerd重點是-cgroup-driver-要跟-kubelet-對齊">3-4 containerd——重點是 cgroup driver 要跟 kubelet 對齊</h3>
+<pre><code class="language-bash">sudo<span class="w"> </span>apt-get<span class="w"> </span>update<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>sudo<span class="w"> </span>apt-get<span class="w"> </span>install<span class="w"> </span>-y<span class="w"> </span>containerd
+sudo<span class="w"> </span>mkdir<span class="w"> </span>-p<span class="w"> </span>/etc/containerd
+containerd<span class="w"> </span>config<span class="w"> </span>default<span class="w"> </span><span class="p">|</span><span class="w"> </span>sudo<span class="w"> </span>tee<span class="w"> </span>/etc/containerd/config.toml<span class="w"> </span>&gt;/dev/null
+sudo<span class="w"> </span>sed<span class="w"> </span>-i<span class="w"> </span><span class="s1">&#39;s/SystemdCgroup = false/SystemdCgroup = true/&#39;</span><span class="w"> </span>/etc/containerd/config.toml
+grep<span class="w"> </span>-n<span class="w"> </span>SystemdCgroup<span class="w"> </span>/etc/containerd/config.toml<span class="w">     </span><span class="c1"># 一定要確認真的改到了</span>
+
+<span class="c1"># containerd 的 proxy</span>
+sudo<span class="w"> </span>mkdir<span class="w"> </span>-p<span class="w"> </span>/etc/systemd/system/containerd.service.d
+cat<span class="w"> </span><span class="s">&lt;&lt;EOF | sudo tee /etc/systemd/system/containerd.service.d/proxy.conf</span>
+<span class="s">[Service]</span>
+<span class="s">Environment=&quot;HTTP_PROXY=http://192.168.1.1:8880&quot;</span>
+<span class="s">Environment=&quot;HTTPS_PROXY=http://192.168.1.1:8880&quot;</span>
+<span class="s">Environment=&quot;NO_PROXY=$NO_PROXY&quot;</span>
+<span class="s">EOF</span>
+sudo<span class="w"> </span>systemctl<span class="w"> </span>daemon-reload<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>sudo<span class="w"> </span>systemctl<span class="w"> </span>restart<span class="w"> </span>containerd
+</code></pre>
+<p><strong>為什麼要 <code>SystemdCgroup = true</code></strong>：cgroup 是一棵樹，同一台機器上應該只有<strong>一個管理者</strong>。
+Ubuntu 用 systemd 當 init，systemd 已經在管這棵樹；kubeadm 預設也讓 kubelet 用 <code>systemd</code> driver。若 containerd 用 <code>cgroupfs</code> 自己直接寫 cgroup，就變成兩個管理者對同一棵樹各有一份認知——
+平常看起來沒事，資源吃緊時 Pod 會莫名重啟、節點不穩。<strong>症狀和原因距離很遠，所以要在架設時就對齊。</strong></p>
+<p><code>sed</code> 之後一定要 <code>grep</code> 確認：不同版本 containerd 的預設設定檔格式不同，如果那一行根本不存在，<code>sed</code> 會安靜地什麼都不做。</p>
+<h3 id="3-5-kubeadmkubeletkubectl">3-5 kubeadm、kubelet、kubectl</h3>
+<pre><code class="language-bash">sudo<span class="w"> </span>apt-get<span class="w"> </span>install<span class="w"> </span>-y<span class="w"> </span>apt-transport-https<span class="w"> </span>ca-certificates<span class="w"> </span>curl<span class="w"> </span>gpg
+curl<span class="w"> </span>-fsSL<span class="w"> </span>https://pkgs.k8s.io/core:/stable:/v1.37/deb/Release.key<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span><span class="p">|</span><span class="w"> </span>sudo<span class="w"> </span>gpg<span class="w"> </span>--dearmor<span class="w"> </span>-o<span class="w"> </span>/etc/apt/keyrings/kubernetes-apt-keyring.gpg
+<span class="nb">echo</span><span class="w"> </span><span class="s1">&#39;deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.37/deb/ /&#39;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span><span class="p">|</span><span class="w"> </span>sudo<span class="w"> </span>tee<span class="w"> </span>/etc/apt/sources.list.d/kubernetes.list
+sudo<span class="w"> </span>apt-get<span class="w"> </span>update<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>sudo<span class="w"> </span>apt-get<span class="w"> </span>install<span class="w"> </span>-y<span class="w"> </span>kubelet<span class="w"> </span>kubeadm<span class="w"> </span>kubectl
+sudo<span class="w"> </span>apt-mark<span class="w"> </span>hold<span class="w"> </span>kubelet<span class="w"> </span>kubeadm<span class="w"> </span>kubectl
+</code></pre>
+<p><strong>為什麼要 <code>apt-mark hold</code></strong>：K8s 有版本偏差政策（version skew policy）——kubelet 不能比 API Server 新。如果某天 <code>apt upgrade</code> 把 worker 的 kubelet 升上去而控制平面還在舊版，節點就可能出問題。升級必須照 <code>kubeadm upgrade</code> 的順序：先控制平面，再逐台 worker。hold 住就是防止系統幫你亂升。</p>
+<p>安裝完 kubelet 會<strong>一直重啟</strong>（<code>systemctl status kubelet</code> 顯示 activating/auto-restart），這是正常的：它在等 <code>kubeadm init</code>／<code>join</code> 產生設定檔，還不知道自己屬於哪個叢集。</p>
+<hr />
+<h2 id="四控制平面kubeadm-init">四、控制平面：kubeadm init</h2>
+<p>只在 <strong>cp1</strong> 執行：</p>
+<pre><code class="language-bash">sudo<span class="w"> </span>kubeadm<span class="w"> </span>init<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--apiserver-advertise-address<span class="o">=</span>&lt;cp1<span class="w"> </span>的<span class="w"> </span>IP&gt;<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--pod-network-cidr<span class="o">=</span><span class="m">10</span>.244.0.0/16
+
+mkdir<span class="w"> </span>-p<span class="w"> </span><span class="nv">$HOME</span>/.kube
+sudo<span class="w"> </span>cp<span class="w"> </span>/etc/kubernetes/admin.conf<span class="w"> </span><span class="nv">$HOME</span>/.kube/config
+sudo<span class="w"> </span>chown<span class="w"> </span><span class="k">$(</span>id<span class="w"> </span>-u<span class="k">)</span>:<span class="k">$(</span>id<span class="w"> </span>-g<span class="k">)</span><span class="w"> </span><span class="nv">$HOME</span>/.kube/config
+</code></pre>
+<p><code>kubeadm init</code> 的輸出是分階段（phase）印出來的，每一段對應 <a href="k8s%E6%9E%B6%E6%A7%8B%E7%B8%BD%E8%A6%BD-%E6%8E%A7%E5%88%B6%E5%B9%B3%E9%9D%A2%E8%88%87%E7%AF%80%E9%BB%9E%E7%B5%84%E4%BB%B6.html">k8s架構總覽-控制平面與節點組件</a> 裡的一個概念：</p>
+<table>
+<thead>
+<tr>
+<th>階段</th>
+<th>做了什麼</th>
+<th>去哪裡看</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>preflight</code></td>
+<td>檢查 CPU／RAM、swap、port、<code>br_netfilter</code>、容器執行環境</td>
+<td>失敗訊息會直接指出哪一項</td>
+</tr>
+<tr>
+<td><code>certs</code></td>
+<td>自建一個 CA（Certificate Authority，憑證頒發機構），簽出 apiserver、etcd、kubelet 之間互相驗證用的憑證</td>
+<td><code>/etc/kubernetes/pki/</code></td>
+</tr>
+<tr>
+<td><code>kubeconfig</code></td>
+<td>產生 admin、controller-manager、scheduler、kubelet 連 API Server 用的憑證檔</td>
+<td><code>/etc/kubernetes/*.conf</code></td>
+</tr>
+<tr>
+<td><code>control-plane</code> / <code>etcd</code></td>
+<td>把 apiserver、controller-manager、scheduler、etcd 寫成 <strong>static Pod</strong> 定義檔</td>
+<td><code>/etc/kubernetes/manifests/</code></td>
+</tr>
+<tr>
+<td><code>wait-control-plane</code></td>
+<td>kubelet 看到 manifests 目錄裡的檔案，自己把它們跑起來——此時 API Server 還不存在，所以只能靠 static Pod</td>
+<td><code>sudo crictl ps</code></td>
+</tr>
+<tr>
+<td><code>upload-config</code> / <code>bootstrap-token</code></td>
+<td>把叢集設定存進 etcd，產生讓 worker 加入用的 token</td>
+<td><code>kubeadm token list</code></td>
+</tr>
+<tr>
+<td><code>addon</code></td>
+<td>部署 CoreDNS 和 kube-proxy</td>
+<td><code>kubectl -n kube-system get pod</code></td>
+</tr>
+</tbody>
+</table>
+<p>「控制平面是被 kubelet 用 static Pod 跑起來的」這件事，就是解開「雞生蛋問題」的方法：
+<strong>API Server 還不存在時，誰來排程 API Server？答案是沒人排程——kubelet 直接讀本機檔案。</strong></p>
+<p>最後會印出一行 <code>kubeadm join ... --token ... --discovery-token-ca-cert-hash sha256:...</code>，先存起來。</p>
+<hr />
+<h2 id="五裝-cni節點從-notready-變-ready">五、裝 CNI：節點從 NotReady 變 Ready</h2>
+<p><code>init</code> 完馬上看：</p>
+<pre><code class="language-bash">kubectl<span class="w"> </span>get<span class="w"> </span>nodes<span class="w">                  </span><span class="c1"># cp1   NotReady</span>
+kubectl<span class="w"> </span>-n<span class="w"> </span>kube-system<span class="w"> </span>get<span class="w"> </span>pod<span class="w">     </span><span class="c1"># coredns 兩個都 Pending</span>
+</code></pre>
+<p><strong>這不是壞掉，是 kubeadm 刻意留給你的一步。</strong> kubeadm 不幫你選 CNI（Container Network Interface，容器網路介面），
+kubelet 找不到 <code>/etc/cni/net.d/</code> 底下的設定檔，就回報 <code>NetworkReady=false</code>，節點就標記為 <code>NotReady</code>；
+CoreDNS 需要 Pod 網路才能運作，所以卡在 <code>Pending</code>。</p>
+<p>選 <strong>Calico</strong> 的原因：它支援 NetworkPolicy。Flannel 不支援，而且套用 NetworkPolicy 時<strong>不會報錯、只是不生效</strong>
+（見 <a href="Service%E8%88%87%E5%B0%81%E5%8C%85%E8%B7%AF%E5%BE%91-ClusterIP%E6%80%8E%E9%BA%BC%E8%B5%B0%E5%88%B0Pod.html">Service與封包路徑-ClusterIP怎麼走到Pod</a> 的自我測驗第 7 題）。</p>
+<pre><code class="language-bash"><span class="c1"># 版本號請到 Calico 官方文件確認最新版，以下用 &lt;VER&gt; 代稱</span>
+kubectl<span class="w"> </span>create<span class="w"> </span>-f<span class="w"> </span>https://raw.githubusercontent.com/projectcalico/calico/&lt;VER&gt;/manifests/tigera-operator.yaml
+curl<span class="w"> </span>-O<span class="w"> </span>https://raw.githubusercontent.com/projectcalico/calico/&lt;VER&gt;/manifests/custom-resources.yaml
+<span class="c1"># ⚠️ 把 cidr: 192.168.0.0/16 改成 10.244.0.0/16——理由見第一節，它會吃掉你家的 LAN</span>
+sed<span class="w"> </span>-i<span class="w"> </span><span class="s1">&#39;s#192.168.0.0/16#10.244.0.0/16#&#39;</span><span class="w"> </span>custom-resources.yaml
+grep<span class="w"> </span>cidr<span class="w"> </span>custom-resources.yaml
+kubectl<span class="w"> </span>create<span class="w"> </span>-f<span class="w"> </span>custom-resources.yaml
+
+watch<span class="w"> </span>kubectl<span class="w"> </span>get<span class="w"> </span>pods<span class="w"> </span>-A<span class="w">          </span><span class="c1"># 等 calico-system 全部 Running，coredns 也會跟著起來</span>
+kubectl<span class="w"> </span>get<span class="w"> </span>nodes<span class="w">                  </span><span class="c1"># cp1   Ready</span>
+</code></pre>
+<hr />
+<h2 id="六加入-worker-與驗收">六、加入 worker 與驗收</h2>
+<p>在 <strong>w1、w2</strong> 執行第四節存下來的 join 指令（前面要加 <code>sudo</code>）。
+token 預設 24 小時過期，過期了在 cp1 重新產生：</p>
+<pre><code class="language-bash">kubeadm<span class="w"> </span>token<span class="w"> </span>create<span class="w"> </span>--print-join-command
+</code></pre>
+<p><code>--discovery-token-ca-cert-hash</code> 的用途是讓 worker <strong>驗證它連到的是真的控制平面</strong>，而不是冒充的——
+token 證明「worker 有權加入」，hash 證明「控制平面是真的」，是雙向的。</p>
+<h3 id="驗收清單">驗收清單</h3>
+<pre><code class="language-bash">kubectl<span class="w"> </span>get<span class="w"> </span>nodes<span class="w"> </span>-o<span class="w"> </span>wide<span class="w">                            </span><span class="c1"># 三台 Ready，INTERNAL-IP 是各自的 VM IP（不是重複的）</span>
+kubectl<span class="w"> </span>create<span class="w"> </span>deploy<span class="w"> </span>web<span class="w"> </span>--image<span class="o">=</span>nginx<span class="w"> </span>--replicas<span class="o">=</span><span class="m">3</span>
+kubectl<span class="w"> </span>expose<span class="w"> </span>deploy<span class="w"> </span>web<span class="w"> </span>--port<span class="o">=</span><span class="m">80</span>
+kubectl<span class="w"> </span>get<span class="w"> </span>pod<span class="w"> </span>-o<span class="w"> </span>wide<span class="w">                              </span><span class="c1"># Pod 分散在 w1、w2，IP 在 10.244.x.x</span>
+kubectl<span class="w"> </span>run<span class="w"> </span>tmp<span class="w"> </span>--rm<span class="w"> </span>-it<span class="w"> </span>--image<span class="o">=</span>busybox<span class="w"> </span>--<span class="w"> </span>wget<span class="w"> </span>-qO-<span class="w"> </span>web<span class="w">   </span><span class="c1"># 用 Service 名稱連得到 = DNS + kube-proxy + CNI 全通</span>
+</code></pre>
+<p>到這一步，前面四篇筆記的所有內容都可以在自己的叢集上親手驗證了：進 w1 看 <code>sudo iptables-save -t nat | grep KUBE-SVC</code>、在 cp1 看 <code>/etc/kubernetes/manifests/</code>、把 w2 關機（<code>multipass stop w2</code>）觀察節點變 <code>NotReady</code>、約 5 分鐘後 Pod 被重建到 w1。</p>
+<hr />
+<h2 id="七重來與快照">七、重來與快照</h2>
+<p>架設過程一定會做錯，準備好後悔藥：</p>
+<pre><code class="language-bash"><span class="c1"># 做完第三節（節點準備）、還沒 init 之前，先存快照——這是最值錢的一個存檔點</span>
+multipass<span class="w"> </span>stop<span class="w"> </span>cp1<span class="w"> </span>w1<span class="w"> </span>w2
+multipass<span class="w"> </span>snapshot<span class="w"> </span>cp1<span class="w"> </span>-n<span class="w"> </span>prepared<span class="w">    </span><span class="c1"># w1、w2 同理</span>
+multipass<span class="w"> </span>restore<span class="w"> </span>cp1.prepared
+
+<span class="c1"># 不想整台還原，只想把 K8s 狀態清掉重跑 init/join</span>
+sudo<span class="w"> </span>kubeadm<span class="w"> </span>reset
+sudo<span class="w"> </span>rm<span class="w"> </span>-rf<span class="w"> </span>/etc/cni/net.d<span class="w"> </span><span class="nv">$HOME</span>/.kube<span class="w">    </span><span class="c1"># reset 不清 CNI 設定和 kubeconfig，要自己刪</span>
+</code></pre>
+<p><code>kubeadm reset</code> 不清 CNI 設定和 iptables 規則，這是「reset 之後重新 init，網路還是怪怪的」的常見原因。真的搞不定時，還原快照比逐項清乾淨更可靠。</p>
+<hr />
+<h2 id="八比-kubeadm-更完整的選項">八、比 kubeadm 更「完整」的選項</h2>
+<p>kubeadm 仍然幫你做了很多事：自動簽憑證、自動產生 static Pod 定義檔。如果你想連這些也親手做，下一步是 <strong>Kubernetes The Hard Way</strong>（Kelsey Hightower 的教學）：手動用 openssl 簽每一張憑證、把 etcd／apiserver 寫成 systemd 服務而不是 static Pod、手動設定跨節點 Pod 路由。</p>
+<p>建議順序：<strong>先用 kubeadm 架起來並玩熟 → 再走 Hard Way</strong>。先知道完整的樣子，
+Hard Way 裡每一步在補哪一塊才看得懂；直接從 Hard Way 開始，很容易迷失在憑證細節裡。</p>
+<hr />
+<h2 id="相關筆記">相關筆記</h2>
+<ul>
+<li><a href="%E6%9C%AC%E5%9C%B0%E7%8E%A9K8s%E8%A6%81%E5%85%88%E9%96%8B%E8%99%9B%E6%93%AC%E6%A9%9F%E5%97%8E-kind-k3s-minikube%E6%80%8E%E9%BA%BC%E9%81%B8.html">本地玩K8s要先開虛擬機嗎-kind-k3s-minikube怎麼選</a>——為什麼這個需求要 VM 而不是 kind</li>
+<li><a href="k8s%E6%9E%B6%E6%A7%8B%E7%B8%BD%E8%A6%BD-%E6%8E%A7%E5%88%B6%E5%B9%B3%E9%9D%A2%E8%88%87%E7%AF%80%E9%BB%9E%E7%B5%84%E4%BB%B6.html">k8s架構總覽-控制平面與節點組件</a>——<code>kubeadm init</code> 各階段生出來的組件</li>
+<li><a href="Service%E8%88%87%E5%B0%81%E5%8C%85%E8%B7%AF%E5%BE%91-ClusterIP%E6%80%8E%E9%BA%BC%E8%B5%B0%E5%88%B0Pod.html">Service與封包路徑-ClusterIP怎麼走到Pod</a>——<code>br_netfilter</code> 與 DNAT 的關係</li>
+<li><a href="../docker/Docker%E6%8B%89%E5%8F%96%E6%98%A0%E5%83%8F%E6%AA%94%E5%A4%B1%E6%95%97-daemon%E7%BC%BAproxy%E6%8E%92%E6%9F%A5.html">Docker拉取映像檔失敗-daemon缺proxy排查</a>——systemd 啟動的 daemon 不繼承 shell 的 proxy</li>
+</ul>
+<hr />
+<h2 id="指令選項的涵蓋範圍說明">指令選項的涵蓋範圍說明</h2>
+<blockquote>
+<p><strong>本篇只列這個主題用得到的指令與旗標，不是完整清單。</strong></p>
+<p><code>kubectl</code> 有數十個子命令、每個子命令各自又有十幾到數十個旗標，
+<code>kubeadm</code>／<code>multipass</code>／<code>kind</code>／<code>crictl</code> 也各自龐大。這類工具不適合在筆記裡全列。</p>
+<p><strong>查法（這才是該記住的）：</strong></p>
+<pre><code class="language-bash">kubectl<span class="w"> </span>--help<span class="w">                  </span><span class="c1"># 所有子命令，依用途分組</span>
+kubectl<span class="w"> </span>&lt;子命令&gt;<span class="w"> </span>--help<span class="w">          </span><span class="c1"># 該子命令的完整旗標</span>
+kubectl<span class="w"> </span>options<span class="w">                 </span><span class="c1"># 所有子命令共用的全域旗標</span>
+kubectl<span class="w"> </span>explain<span class="w"> </span>&lt;資源&gt;<span class="o">[</span>.欄位<span class="o">]</span><span class="w">    </span><span class="c1"># ★ 查資源的欄位定義，等同線上 API 文件</span>
+kubeadm<span class="w"> </span>--help<span class="w"> </span>/<span class="w"> </span>kubeadm<span class="w"> </span>&lt;子命令&gt;<span class="w"> </span>--help
+multipass<span class="w"> </span><span class="nb">help</span><span class="w"> </span><span class="o">[</span>&lt;命令&gt;<span class="o">]</span><span class="w"> </span>/<span class="w"> </span>kind<span class="w"> </span>--help<span class="w"> </span>/<span class="w"> </span>crictl<span class="w"> </span>--help
+</code></pre>
+<p><strong><code>kubectl explain</code> 特別值得記住</strong>——寫 YAML 時不確定某個欄位叫什麼、能填什麼，問它比翻文件快，而且回答的是<strong>你這個叢集版本</strong>的定義。</p>
+<p>附帶一提：撰寫本篇的這台機器上<strong>沒有安裝這些工具</strong>，所以上面的查法是給你在有叢集的環境上用的，不是從本機 <code>--help</code> 抄來的清單。</p>
+</blockquote>
+<h2 id="自我測驗">自我測驗</h2>
+<ol>
+<li><code>net.bridge.bridge-nf-call-iptables = 1</code> 沒設的話，什麼樣的流量會出問題、什麼樣的流量不受影響？為什麼？</li>
+<li><code>kubeadm init</code> 時 API Server 還不存在，那 API Server 自己的 Pod 是誰、靠什麼把它跑起來的？</li>
+<li>剛 <code>init</code> 完，<code>cp1</code> 是 <code>NotReady</code>、CoreDNS 是 <code>Pending</code>。這代表哪裡出錯了嗎？是哪個組件依據什麼判斷出 <code>NotReady</code> 的？</li>
+<li>（情境題）你照 Calico 官方範例、沒改任何設定就裝好了，叢集內一切正常，但所有 Pod 都連不到外網（包括拉取需要經過 proxy <code>192.168.1.1</code> 的東西）。請推測根因，並說明為什麼症狀看起來跟網段一點關係都沒有。</li>
+<li>（情境題）叢集用了兩週都正常，某天主機重開機後 <code>kubectl get nodes</code> 一直逾時。你發現 <code>cp1</code> 的 IP 從 <code>.5</code> 變成 <code>.9</code>，於是把 kubeconfig 裡的 server 改成新 IP，結果錯誤變成 <code>x509: certificate is valid for 10.x.x.5, not 10.x.x.9</code>。為什麼改了位址還是不行？只修 kubeconfig 夠嗎？還有哪些組件也會受影響？</li>
+</ol>
+
+</main>
+</div>
+</body>
+</html>

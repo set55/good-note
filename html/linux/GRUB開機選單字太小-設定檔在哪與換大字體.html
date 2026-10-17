@@ -1,0 +1,350 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GRUB 開機選單字太小 —— 高解析度螢幕配 16px 預設字型，要自己產生大字型並用 GRUB_FONT 指定</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/app.js"></script>
+</head>
+<body>
+<button class="menu-btn" onclick="toggleMenu()">☰ 目錄</button>
+<div class="layout">
+<nav class="side">
+<div class="crumbs"><a href="../index.html">🏠 首頁</a> / <a href="README.html">linux</a></div>
+<div class="tools"><button onclick="toggleTheme()">🌓 主題</button></div>
+<ul>
+<li class="l2"><a href="#%E4%B8%80grub-%E7%9A%84%E8%A8%AD%E5%AE%9A%E5%88%86%E4%B8%89%E5%B1%A4%E5%8F%AA%E6%9C%89%E4%B8%80%E5%B1%A4%E6%98%AF%E7%B5%A6%E4%BA%BA%E6%94%B9%E7%9A%84">一、GRUB 的設定分三層，只有一層是給人改的</a></li>
+<li class="l3"><a href="#%E8%A3%9C%E5%85%85uefi-%E5%88%86%E5%89%B2%E5%8D%80%E8%A3%A1%E9%82%84%E6%9C%89%E4%B8%80%E5%80%8B-grubcfg">補充：UEFI 分割區裡還有一個 grub.cfg</a></li>
+<li class="l2"><a href="#%E4%BA%8C%E7%82%BA%E4%BB%80%E9%BA%BC%E5%AD%97%E9%80%99%E9%BA%BC%E5%B0%8F">二、為什麼字這麼小</a></li>
+<li class="l2"><a href="#%E4%B8%89%E5%81%9A%E6%B3%95%E7%94%A2%E7%94%9F%E5%A4%A7%E5%AD%97%E5%9E%8B--%E8%A8%AD-grub_font--update-grub">三、做法：產生大字型 → 設 GRUB_FONT → update-grub</a></li>
+<li class="l3"><a href="#%E5%9C%A8-scratchpad-%E5%AF%A6%E6%B8%AC-grub-mkfont%E4%B8%8D%E9%9C%80%E8%A6%81-root">在 scratchpad 實測 grub-mkfont（不需要 root）</a></li>
+<li class="l2"><a href="#%E5%9B%9Bupdate-grub-%E6%8B%BF-grub_font-%E5%81%9A%E4%BA%86%E4%BB%80%E9%BA%BC%E8%AE%80-00_header-%E5%8E%9F%E5%A7%8B%E7%A2%BC">四、update-grub 拿 GRUB_FONT 做了什麼（讀 00_header 原始碼）</a></li>
+<li class="l2"><a href="#%E4%BA%94%E8%B7%9F%E5%AD%97%E5%9E%8B%E7%95%AB%E9%9D%A2%E6%9C%89%E9%97%9C%E7%9A%84-grub_-%E8%AE%8A%E6%95%B8">五、跟字型／畫面有關的 GRUB_* 變數</a></li>
+<li class="l3"><a href="#%E5%8F%A6%E4%B8%80%E6%A2%9D%E8%B7%AF%E9%99%8D%E4%BD%8E-grub_gfxmode">另一條路：降低 GRUB_GFXMODE</a></li>
+<li class="l2"><a href="#%E5%85%ADgrub-mkfont-%E5%85%A8%E9%83%A8%E9%81%B8%E9%A0%85">六、grub-mkfont 全部選項</a></li>
+<li class="l2"><a href="#%E4%B8%83%E5%B8%B8%E8%A6%8B%E9%8C%AF%E8%AA%A4%E5%B0%8D%E7%85%A7">七、常見錯誤對照</a></li>
+<li class="l2"><a href="#%E8%87%AA%E6%88%91%E6%B8%AC%E9%A9%97">自我測驗</a></li>
+</ul>
+</nav>
+<main>
+<h1 id="grub-開機選單字太小--高解析度螢幕配-16px-預設字型要自己產生大字型並用-grub_font-指定">GRUB 開機選單字太小 —— 高解析度螢幕配 16px 預設字型，要自己產生大字型並用 GRUB_FONT 指定</h1>
+<blockquote>
+<p>日期：2026-09-26<br />
+情境：想把 GRUB 開機選單的字放大，不知道 GRUB 的設定檔在哪裡。<br />
+對應檔案：<code>/etc/default/grub</code>（系統設定檔，root 擁有，不在本 repo）、<code>/boot/grub/grub.cfg</code>（自動產生，不要手改）、<code>/boot/grub/fonts/*.pf2</code>（字型檔）<br />
+適用範圍：本機 Ubuntu、GRUB 2.12-1ubuntu7.3、UEFI 開機、螢幕 2560x1600。檔案內容與 <code>grub-mkfont</code> 皆為實測；<strong>改完後重開機的畫面效果未實測</strong>（需要 root 與重開機）。</p>
+</blockquote>
+<p><strong>一句話結論：要改的是 <code>/etc/default/grub</code>，不是 <code>/boot/grub/grub.cfg</code>；字小是因為預設字型 <code>unicode.pf2</code> 只有 16 像素高、在 2560x1600 上顯得極小——用 <code>grub-mkfont -s 32</code> 把 TTF 轉成大號 <code>.pf2</code>，在 <code>GRUB_FONT=</code> 指定它，再 <code>sudo update-grub</code>。</strong></p>
+<hr />
+<h2 id="一grub-的設定分三層只有一層是給人改的">一、GRUB 的設定分三層，只有一層是給人改的</h2>
+<table>
+<thead>
+<tr>
+<th>層</th>
+<th>路徑</th>
+<th>誰寫的</th>
+<th>該不該手改</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1. 變數設定</td>
+<td><code>/etc/default/grub</code>（與 <code>/etc/default/grub.d/*.cfg</code>）</td>
+<td>你</td>
+<td><strong>改這裡</strong></td>
+</tr>
+<tr>
+<td>2. 產生器腳本</td>
+<td><code>/etc/grub.d/00_header</code>、<code>10_linux</code>、<code>40_custom</code>…</td>
+<td>套件（<code>40_custom</code> 例外，給你加自訂選單項）</td>
+<td>一般不改</td>
+</tr>
+<tr>
+<td>3. 最終設定</td>
+<td><code>/boot/grub/grub.cfg</code></td>
+<td><code>grub-mkconfig</code> 自動產生</td>
+<td><strong>不要改</strong></td>
+</tr>
+</tbody>
+</table>
+<p>GRUB 開機時真正讀的是第 3 層，但它是<strong>產生物</strong>：<code>update-grub</code> 會 source 第 1 層的變數、依序執行第 2 層的腳本，把各腳本的標準輸出串起來寫成 <code>grub.cfg</code>。每次核心升級，套件都會自動跑一次 <code>update-grub</code>——手改 <code>grub.cfg</code> 下次就被蓋掉。</p>
+<p>本機實測：</p>
+<pre><code class="language-console"><span class="gp">$ </span>ls<span class="w"> </span>-l<span class="w"> </span>/boot/grub/grub.cfg<span class="w"> </span>/etc/default/grub
+<span class="go">-rw------- 1 root root 14751 Sep 24 07:11 /boot/grub/grub.cfg</span>
+<span class="go">-rw-r--r-- 1 root root  1548 Nov 14  2025 /etc/default/grub</span>
+
+<span class="gp">$ </span>cat<span class="w"> </span>/usr/sbin/update-grub
+<span class="gp">#</span>!/bin/sh
+<span class="go">set -e</span>
+<span class="go">exec grub-mkconfig -o /boot/grub/grub.cfg &quot;$@&quot;</span>
+</code></pre>
+<ul>
+<li><code>grub.cfg</code> 是 <code>600</code>（只有 root 能讀），一般使用者 <code>grep</code> 它會得到 <code>Permission denied</code>。</li>
+<li><code>update-grub</code> 只是一行包裝：<code>grub-mkconfig -o /boot/grub/grub.cfg</code>。<code>grub-mkconfig</code> 本身只有 3 個選項（實測 <code>--help</code>）：<code>-o/--output=FILE</code> 輸出到檔案（不給就印到 stdout，可以拿來預覽）、<code>-h/--help</code>、<code>-V/--version</code>。</li>
+</ul>
+<p><code>/etc/default/grub</code> 開頭第一行自己就寫了：</p>
+<pre><code># If you change this file, run 'update-grub' afterwards to update
+# /boot/grub/grub.cfg.
+</code></pre>
+<h3 id="補充uefi-分割區裡還有一個-grubcfg">補充：UEFI 分割區裡還有一個 grub.cfg</h3>
+<p>本機是 UEFI 開機，EFI 系統分割區（ESP，EFI System Partition，EFI 系統分割區，掛在 <code>/boot/efi</code>，vfat 格式）裡也有一份：</p>
+<pre><code class="language-console"><span class="gp">$ </span>cat<span class="w"> </span>/boot/efi/EFI/ubuntu/grub.cfg
+<span class="go">search.fs_uuid 0fee32e6-9029-4724-b36d-2e2dbd256c09 root</span>
+<span class="go">set prefix=($root)&#39;/boot/grub&#39;</span>
+<span class="go">configfile $prefix/grub.cfg</span>
+</code></pre>
+<p>它只是跳板：用 UUID 找到根分割區、把 <code>prefix</code> 設成 <code>/boot/grub</code>，再載入真正的 <code>/boot/grub/grub.cfg</code>。也不用改它。之後 GRUB 裡說的 <code>$prefix/fonts/</code> 就是 <code>/boot/grub/fonts/</code>。</p>
+<h2 id="二為什麼字這麼小">二、為什麼字這麼小</h2>
+<p>GRUB 的圖形終端機（gfxterm）畫字用的是<strong>點陣字型</strong>，格式是 GRUB 自己的 PF2（<code>.pf2</code>），不是 TTF——開機時沒有字型光柵化引擎可以即時把向量字放大，每個字的像素大小在產生 <code>.pf2</code> 時就固定了。</p>
+<p>預設字型的檔頭（前 64 byte）：</p>
+<pre><code class="language-console"><span class="gp">$ </span>head<span class="w"> </span>-c<span class="w"> </span><span class="m">64</span><span class="w"> </span>/boot/grub/fonts/unicode.pf2<span class="w"> </span><span class="p">|</span><span class="w"> </span>xxd
+<span class="go">00000000: 4649 4c45 0000 0004 5046 4632 4e41 4d45  FILE....PFF2NAME</span>
+<span class="go">00000010: 0000 0017 474e 5520 556e 6966 6f6e 7420  ....GNU Unifont</span>
+<span class="go">00000020: 5265 6775 6c61 7220 3136 0046 414d 4900  Regular 16.FAMI.</span>
+<span class="go">00000030: 0000 0c47 4e55 2055 6e69 666f 6e74 0057  ...GNU Unifont.W</span>
+</code></pre>
+<p><code>NAME</code> 欄位寫著 <code>GNU Unifont Regular 16</code>——16 像素高。而 <code>GRUB_GFXMODE</code> 沒設時預設是 <code>auto</code>（<code>/etc/grub.d/00_header</code> 第 41 行：<code>if [ &quot;x${GRUB_GFXMODE}&quot; = &quot;x&quot; ] ; then GRUB_GFXMODE=auto ; fi</code>），在 UEFI 上通常會用到面板原生解析度。本機面板：</p>
+<pre><code class="language-console"><span class="gp">$ </span>cat<span class="w"> </span>/sys/class/drm/*/modes<span class="w"> </span><span class="p">|</span><span class="w"> </span>head<span class="w"> </span>-1
+<span class="go">2560x1600</span>
+</code></pre>
+<p>1600 ÷ 16 = 100 行字，字當然小。（這是推算；GRUB 實際選到的模式要在 GRUB 命令列打 <code>videoinfo</code> 才能確認，未實測。）</p>
+<p>所以放大有兩條路：</p>
+<ol>
+<li><strong>換一個像素更大的字型</strong>（本篇主要做法）：解析度維持清晰，只有字變大。</li>
+<li><strong>把 <code>GRUB_GFXMODE</code> 調低</strong>（例如 <code>1280x800</code>）：整個畫面的像素變少，字相對變大，但會變糊、而且必須是韌體支援的模式。見第五節。</li>
+</ol>
+<h2 id="三做法產生大字型--設-grub_font--update-grub">三、做法：產生大字型 → 設 GRUB_FONT → update-grub</h2>
+<pre><code class="language-bash"><span class="c1"># 1. 把 TTF 轉成 32 像素的 PF2，放進 /boot/grub/fonts/</span>
+sudo<span class="w"> </span>grub-mkfont<span class="w"> </span>-s<span class="w"> </span><span class="m">32</span><span class="w"> </span>-o<span class="w"> </span>/boot/grub/fonts/DejaVuSansMono32.pf2<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf
+
+<span class="c1"># 2. 編輯 /etc/default/grub，加一行：</span>
+<span class="c1">#    GRUB_FONT=/boot/grub/fonts/DejaVuSansMono32.pf2</span>
+sudoedit<span class="w"> </span>/etc/default/grub
+
+<span class="c1"># 3. 重新產生 grub.cfg</span>
+sudo<span class="w"> </span>update-grub
+
+<span class="c1"># 4. 重開機看效果</span>
+</code></pre>
+<p>幾個要點：</p>
+<ul>
+<li><strong>大小怎麼挑</strong>：<code>-s</code> 是像素高。2560x1600 上 32 → 約 50 行，太小就試 40、48。改大小只要重跑步驟 1（檔名建議帶數字，改了要同步改 <code>GRUB_FONT</code>）和步驟 3。</li>
+<li><strong>為什麼要放在 <code>/boot/grub/fonts/</code></strong>：GRUB 開機時還沒有 Linux，它只能讀自己有驅動程式的檔案系統（ext4、vfat 可以；LUKS 加密、某些 LVM／btrfs 設定可能不行）。<code>/boot</code> 所在的分割區 GRUB 一定讀得到（不然連 <code>grub.cfg</code> 都讀不到），放這裡最保險。本機 <code>/boot</code> 就在根分割區 <code>/dev/nvme0n1p6</code>（ext4）上。</li>
+<li><strong>為什麼選等寬字型（Mono）</strong>：GRUB 選單用字元格排版，比例字型會讓框線、對齊變亂。</li>
+<li><strong>中文</strong>：DejaVu 沒有中日韓字。本機 <code>LANG=en_US.UTF-8</code>，GRUB 的訊息是英文所以沒差；如果系統語言是 <code>zh_TW</code>，GRUB 的提示文字會變中文（<code>00_header</code> 把 <code>$LANG</code> 去掉 <code>.UTF-8</code> 當 GRUB 的 <code>lang</code>），就要改用含 CJK 的字型（例如 <code>/usr/share/fonts/truetype/noto</code> 底下的），檔案會大很多。</li>
+</ul>
+<h3 id="在-scratchpad-實測-grub-mkfont不需要-root">在 scratchpad 實測 grub-mkfont（不需要 root）</h3>
+<p><code>grub-mkfont</code> 本身不需要 root，可以先在自己的目錄試產生、看檔頭確認：</p>
+<pre><code class="language-console"><span class="gp">$ </span>grub-mkfont<span class="w"> </span>-s<span class="w"> </span><span class="m">32</span><span class="w"> </span>-o<span class="w"> </span>DejaVuSansMono32.pf2<span class="w"> </span>/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf
+<span class="gp">$ </span>ls<span class="w"> </span>-l<span class="w"> </span>DejaVuSansMono32.pf2<span class="w"> </span>/boot/grub/fonts/unicode.pf2
+<span class="go">-rw-r--r-- 1 root root 2411806 Jun  4  2025 /boot/grub/fonts/unicode.pf2</span>
+<span class="go">-rw-rw-r-- 1 set  set   209064 Sep 26 10:32 DejaVuSansMono32.pf2</span>
+<span class="gp">$ </span>head<span class="w"> </span>-c<span class="w"> </span><span class="m">64</span><span class="w"> </span>DejaVuSansMono32.pf2<span class="w"> </span><span class="p">|</span><span class="w"> </span>xxd
+<span class="go">00000000: 4649 4c45 0000 0004 5046 4632 4e41 4d45  FILE....PFF2NAME</span>
+<span class="go">00000010: 0000 001c 4465 6a61 5675 2053 616e 7320  ....DejaVu Sans</span>
+<span class="go">00000020: 4d6f 6e6f 2052 6567 756c 6172 2033 3200  Mono Regular 32.</span>
+<span class="go">00000030: 4641 4d49 0000 0011 4465 6a61 5675 2053  FAMI....DejaVu S</span>
+</code></pre>
+<p><code>NAME</code> 變成 <code>DejaVu Sans Mono Regular 32</code>。檔案比 unicode.pf2 小很多，是因為 Unifont 收了幾萬個 Unicode 字，DejaVu Sans Mono 只有幾千個。</p>
+<h2 id="四update-grub-拿-grub_font-做了什麼讀-00_header-原始碼">四、update-grub 拿 GRUB_FONT 做了什麼（讀 00_header 原始碼）</h2>
+<p><code>/etc/grub.d/00_header</code> 第 222～250 行的邏輯（節錄）：</p>
+<pre><code class="language-sh"><span class="k">if</span><span class="w"> </span><span class="o">[</span><span class="w"> </span><span class="s2">&quot;x</span><span class="nv">$gfxterm</span><span class="s2">&quot;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span>x1<span class="w"> </span><span class="o">]</span><span class="p">;</span><span class="w"> </span><span class="k">then</span><span class="w">          </span><span class="c1"># 輸出終端機是 gfxterm 才需要字型</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="o">[</span><span class="w"> </span>-n<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$GRUB_FONT</span><span class="s2">&quot;</span><span class="w"> </span><span class="o">]</span><span class="w"> </span><span class="p">;</span><span class="w"> </span><span class="k">then</span><span class="w">       </span><span class="c1"># 有設 GRUB_FONT</span>
+<span class="w">       </span>prepare_grub_to_access_device<span class="w"> </span><span class="sb">`</span><span class="si">${</span><span class="nv">grub_probe</span><span class="si">}</span><span class="w"> </span>--target<span class="o">=</span>device<span class="w"> </span><span class="s2">&quot;</span><span class="si">${</span><span class="nv">GRUB_FONT</span><span class="si">}</span><span class="s2">&quot;</span><span class="sb">`</span>
+<span class="w">    </span>cat<span class="w"> </span><span class="s">&lt;&lt; EOF</span>
+<span class="s">if loadfont `make_system_path_relative_to_its_root &quot;${GRUB_FONT}&quot;` ; then</span>
+<span class="s">EOF</span>
+<span class="w">    </span><span class="k">else</span><span class="w">                                 </span><span class="c1"># 沒設：依序找 unicode / unifont / ascii .pf2</span>
+<span class="w">    </span>...
+</code></pre>
+<p>逐段說明：</p>
+<ul>
+<li><code>gfxterm=1</code> 的條件：<code>GRUB_TERMINAL_OUTPUT</code> 裡有 <code>gfxterm</code>。你的 <code>/etc/default/grub</code> 沒設它，但 <code>grub-mkconfig</code> 第 187～188 行會在沒設時補成 <code>gfxterm</code>，所以預設就是圖形終端機。<strong>反過來，如果你把 <code>#GRUB_TERMINAL=console</code> 的註解拿掉，就改用韌體的文字終端機，<code>GRUB_FONT</code> 完全不會生效。</strong></li>
+<li><code>prepare_grub_to_access_device</code>：用 <code>grub-probe</code> 查出字型檔在哪個分割區，產生 <code>insmod part_gpt</code>、<code>insmod ext2</code>、<code>search --fs-uuid ...</code> 這類指令，讓 GRUB 開機時先找到那個分割區。</li>
+<li><code>make_system_path_relative_to_its_root</code>：把路徑改成「相對於該分割區根目錄」。本機 <code>/boot</code> 不是獨立分割區，所以還是 <code>/boot/grub/fonts/...</code>；如果 <code>/boot</code> 是獨立分割區，會變成 <code>/grub/fonts/...</code>。</li>
+<li>產生出來的 <code>if loadfont &lt;路徑&gt; ; then ... insmod gfxterm ... fi</code> 就是 <code>grub.cfg</code> 裡載入字型、切到圖形模式的那一段。</li>
+</ul>
+<p>實測沒設 <code>GRUB_FONT</code> 時，以一般使用者身分直接執行 <code>00_header</code>（設好 <code>grub-mkconfig</code> 平常會給的環境變數）產生的片段：</p>
+<pre><code class="language-console"><span class="gp">$ </span><span class="nb">export</span><span class="w"> </span><span class="nv">pkgdatadir</span><span class="o">=</span>/usr/share/grub<span class="w"> </span><span class="nv">grub_probe</span><span class="o">=</span>grub-probe<span class="w"> </span><span class="nv">GRUB_TERMINAL_OUTPUT</span><span class="o">=</span>gfxterm<span class="w"> </span><span class="nv">GRUB_GFXMODE</span><span class="o">=</span>auto<span class="w"> </span><span class="nv">LANG</span><span class="o">=</span>en_US.UTF-8
+<span class="gp">$ </span>sh<span class="w"> </span>/etc/grub.d/00_header<span class="w"> </span><span class="p">|</span><span class="w"> </span>sed<span class="w"> </span>-n<span class="w"> </span><span class="m">84</span>,92p
+<span class="go">if loadfont unicode ; then</span>
+<span class="go">  set gfxmode=auto</span>
+<span class="go">  load_video</span>
+<span class="go">  insmod gfxterm</span>
+<span class="go">  set locale_dir=$prefix/locale</span>
+<span class="go">  set lang=en_US</span>
+<span class="go">  insmod gettext</span>
+<span class="go">fi</span>
+<span class="go">terminal_output gfxterm</span>
+</code></pre>
+<p><code>loadfont unicode</code> 只給名字時，GRUB 會去 <code>$prefix/fonts/unicode.pf2</code> 找，也就是第二節那個 16px 的檔。設了 <code>GRUB_FONT</code> 再跑一次，一般使用者會卡在 <code>grub-probe: error: disk 'hostdisk//dev/nvme0n1p6' not found.</code>——<code>prepare_grub_to_access_device</code> 要讀原始磁碟裝置查 UUID，需要 root。<strong>所以設了 <code>GRUB_FONT</code> 之後的實際輸出未實測</strong>，上面是從原始碼推得；<code>sudo update-grub</code> 之後可以用 <code>sudo grep -n loadfont /boot/grub/grub.cfg</code> 確認。</p>
+<h2 id="五跟字型畫面有關的-grub_-變數">五、跟字型／畫面有關的 GRUB_* 變數</h2>
+<p><code>grub-mkconfig</code> 匯出給 <code>/etc/grub.d/</code> 腳本的 <code>GRUB_*</code> 變數共 60 個（實測數 <code>/usr/sbin/grub-mkconfig</code> 第 213 行起的兩個 <code>export</code> 清單：前 10 個如 <code>GRUB_DEVICE</code>、<code>GRUB_FS</code> 是 mkconfig 自己算的，註解寫 <em>These are defined in this script</em>；後 50 個是 <em>optional, user-defined variables</em>，<code>GRUB_FONT</code> 例外地列在前一組但仍可由你設定）。<strong>這裡只列跟顯示有關的 7 個</strong>，完整清單與說明見 <code>info -f grub -n 'Simple configuration'</code>（<code>/etc/default/grub</code> 開頭註解指的就是這一節）。</p>
+<table>
+<thead>
+<tr>
+<th>變數</th>
+<th>作用</th>
+<th>沒設時</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>GRUB_FONT</code></td>
+<td>圖形終端機用的 <code>.pf2</code> 字型路徑</td>
+<td>依序找 <code>unicode</code>／<code>unifont</code>／<code>ascii.pf2</code>，本機是 16px Unifont</td>
+</tr>
+<tr>
+<td><code>GRUB_GFXMODE</code></td>
+<td>GRUB 圖形畫面的解析度，可給多個用逗號分隔（<code>1920x1080,auto</code>），GRUB 依序試第一個支援的</td>
+<td><code>auto</code></td>
+</tr>
+<tr>
+<td><code>GRUB_GFXPAYLOAD_LINUX</code></td>
+<td>把 GRUB 的畫面模式交給 Linux 核心沿用（<code>keep</code>）或指定解析度；影響的是開機後核心的主控台，不是 GRUB 選單</td>
+<td>由 <code>10_linux</code> 決定</td>
+</tr>
+<tr>
+<td><code>GRUB_TERMINAL</code></td>
+<td>同時設定輸入與輸出終端機（<code>console</code> 就是關掉圖形）</td>
+<td>不設</td>
+</tr>
+<tr>
+<td><code>GRUB_TERMINAL_OUTPUT</code></td>
+<td>只設輸出終端機；有 <code>gfxterm</code> 時字型才有用</td>
+<td><code>gfxterm</code>（grub-mkconfig 補的）</td>
+</tr>
+<tr>
+<td><code>GRUB_THEME</code></td>
+<td>主題的 <code>theme.txt</code> 路徑；主題可以各自指定選單字型與大小</td>
+<td>不設</td>
+</tr>
+<tr>
+<td><code>GRUB_BACKGROUND</code></td>
+<td>背景圖片路徑</td>
+<td>不設</td>
+</tr>
+</tbody>
+</table>
+<h3 id="另一條路降低-grub_gfxmode">另一條路：降低 GRUB_GFXMODE</h3>
+<pre><code>GRUB_GFXMODE=1280x800
+</code></pre>
+<p>同樣的 16px 字，1280x800 只剩 800 ÷ 16 = 50 行，看起來字是兩倍大。代價：面板要把 1280x800 放大顯示，會糊；而且 UEFI 的 GOP（Graphics Output Protocol，圖形輸出協定）只提供韌體列出的模式，給了不支援的值會退回下一個。要知道有哪些模式，開機時在 GRUB 選單按 <code>c</code> 進命令列打 <code>videoinfo</code>。未實測。<strong>換字型比降解析度好</strong>：畫面仍然清晰。</p>
+<h2 id="六grub-mkfont-全部選項">六、grub-mkfont 全部選項</h2>
+<p><code>grub-mkfont [選項] 字型檔...</code>：輸入是 FreeType 讀得懂的字型（TTF、OTF 等），輸出是 GRUB 的 PF2。本機 <code>grub-mkfont --help</code>（GRUB 2.12）共 15 個選項，全部列出：</p>
+<table>
+<thead>
+<tr>
+<th>選項</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-o, --output=FILE</code></td>
+<td>輸出檔（<strong>必填</strong>）</td>
+</tr>
+<tr>
+<td><code>-s, --size=SIZE</code></td>
+<td>字的像素大小；放大字體就是調這個</td>
+</tr>
+<tr>
+<td><code>-n, --name=NAME</code></td>
+<td>寫進 PF2 檔頭的字型家族名稱（不給就用原字型的名稱）</td>
+</tr>
+<tr>
+<td><code>-b, --bold</code></td>
+<td>產生粗體（由原字型人工加粗）</td>
+</tr>
+<tr>
+<td><code>-i, --index=NUM</code></td>
+<td>字型檔裡有多個字面（face，例如 <code>.ttc</code> 集合檔）時選第幾個</td>
+</tr>
+<tr>
+<td><code>-r, --range=FROM-TO[,FROM-TO]</code></td>
+<td>只收指定 Unicode 範圍的字，例如 <code>0x20-0x7E</code> 只收 ASCII，用來縮小檔案或從 CJK 大字型裡只取部分</td>
+</tr>
+<tr>
+<td><code>-c, --asce=NUM</code></td>
+<td>手動設字型的上升高度（ascent，基線以上的高度）</td>
+</tr>
+<tr>
+<td><code>-d, --desc=NUM</code></td>
+<td>手動設下降高度（descent，基線以下的高度）；字被切掉或行距怪時才動</td>
+</tr>
+<tr>
+<td><code>-a, --force-autohint</code></td>
+<td>強制用 FreeType 的自動微調（autohint）來光柵化</td>
+</tr>
+<tr>
+<td><code>--no-hinting</code></td>
+<td>關閉微調（hinting）；小字時通常較糊</td>
+</tr>
+<tr>
+<td><code>--no-bitmap</code></td>
+<td>忽略字型檔內建的點陣圖（bitmap strike），一律從向量外框產生</td>
+</tr>
+<tr>
+<td><code>-v, --verbose</code></td>
+<td>印出詳細訊息</td>
+</tr>
+<tr>
+<td><code>-?, --help</code></td>
+<td>說明</td>
+</tr>
+<tr>
+<td><code>--usage</code></td>
+<td>簡短用法</td>
+</tr>
+<tr>
+<td><code>-V, --version</code></td>
+<td>版本</td>
+</tr>
+</tbody>
+</table>
+<h2 id="七常見錯誤對照">七、常見錯誤對照</h2>
+<table>
+<thead>
+<tr>
+<th>現象</th>
+<th>原因</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>改了 <code>/etc/default/grub</code> 重開機沒變</td>
+<td>忘了 <code>sudo update-grub</code></td>
+</tr>
+<tr>
+<td>直接改 <code>/boot/grub/grub.cfg</code>，過幾天又變回來</td>
+<td>核心升級時套件自動跑了 <code>update-grub</code> 覆蓋</td>
+</tr>
+<tr>
+<td>設了 <code>GRUB_FONT</code> 但字沒變</td>
+<td><code>GRUB_TERMINAL=console</code> 被打開了（第四節）；或字型檔放在 GRUB 讀不到的地方</td>
+</tr>
+<tr>
+<td>選單變成方塊</td>
+<td>字型缺那些字（例如 <code>zh_TW</code> 語系配 DejaVu）</td>
+</tr>
+<tr>
+<td><code>grep</code> <code>grub.cfg</code> 得到 Permission denied</td>
+<td>它是 <code>600</code>，要 <code>sudo</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="自我測驗">自我測驗</h2>
+<ol>
+<li><code>/etc/default/grub</code>、<code>/etc/grub.d/</code>、<code>/boot/grub/grub.cfg</code> 三者是什麼關係？為什麼直接改 <code>grub.cfg</code> 的修改「有時候過幾天就不見了」？</li>
+<li>為什麼 GRUB 不能像桌面環境一樣「把字型設大一點」就好，而要先用 <code>grub-mkfont</code> 產生一個新檔案？</li>
+<li>同一台電腦，把 <code>GRUB_FONT</code> 設成 32px 字型後字變大了。後來為了除錯，把 <code>#GRUB_TERMINAL=console</code> 的註解拿掉並 <code>update-grub</code>，結果字又變回小小的（或樣子全變了）。為什麼？</li>
+<li>朋友的電腦 <code>/boot</code> 是一個獨立分割區，另一台則是 <code>/</code> 放在 LUKS 加密的分割區上、沒有獨立 <code>/boot</code>。他們把自製字型放在 <code>/home/xxx/fonts/big.pf2</code> 並設 <code>GRUB_FONT</code> 指過去——分別可能會發生什麼事？字型檔應該放哪裡？</li>
+<li>想讓字變大，「產生大字型」和「把 <code>GRUB_GFXMODE</code> 調成 1280x800」兩種做法各有什麼代價？</li>
+</ol>
+
+</main>
+</div>
+</body>
+</html>

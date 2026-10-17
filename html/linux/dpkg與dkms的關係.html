@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>dpkg 與 dkms 的關係</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/app.js"></script>
+</head>
+<body>
+<button class="menu-btn" onclick="toggleMenu()">☰ 目錄</button>
+<div class="layout">
+<nav class="side">
+<div class="crumbs"><a href="../index.html">🏠 首頁</a> / <a href="README.html">linux</a></div>
+<div class="tools"><button onclick="toggleTheme()">🌓 主題</button></div>
+<ul>
+<li class="l2"><a href="#dpkg-%E6%98%AF%E4%BB%80%E9%BA%BC">dpkg 是什麼</a></li>
+<li class="l2"><a href="#dkms-%E6%98%AF%E4%BB%80%E9%BA%BC">dkms 是什麼</a></li>
+<li class="l2"><a href="#%E5%85%A9%E8%80%85%E7%9A%84%E9%97%9C%E4%BF%82">兩者的關係</a></li>
+<li class="l3"><a href="#%E5%AF%A6%E9%9A%9B%E6%83%85%E5%A2%83">實際情境</a></li>
+<li class="l2"><a href="#%E5%B8%B8%E7%94%A8%E8%A7%80%E5%AF%9F%E6%8C%87%E4%BB%A4">常用觀察指令</a></li>
+<li class="l2"><a href="#%E7%B8%BD%E7%B5%90">總結</a></li>
+</ul>
+</nav>
+<main>
+<h1 id="dpkg-與-dkms-的關係">dpkg 與 dkms 的關係</h1>
+<blockquote>
+<p>兩者<strong>沒有直接從屬關係</strong>,只是名字長得像容易混淆。一句話:<code>dkms</code> 本身是一個「靠 <code>dpkg</code> 安裝的普通套件」,而它負責解決的是一個 <code>dpkg</code> 管不到的問題——<strong>核心模組</strong>。</p>
+</blockquote>
+<hr />
+<h2 id="dpkg-是什麼">dpkg 是什麼</h2>
+<p>dpkg（Debian Package）是 Debian/Ubuntu 的<strong>底層套件管理工具</strong>,負責安裝、移除、查詢 <code>.deb</code> 檔案。</p>
+<p><code>apt</code> 其實是包在 <code>dpkg</code> 外面的高階工具,多幫你處理了「下載」和「相依性解析」:</p>
+<pre><code>apt  →  下載 + 解相依  →  最後還是呼叫  →  dpkg  →  真正把檔案裝進系統
+</code></pre>
+<hr />
+<h2 id="dkms-是什麼">dkms 是什麼</h2>
+<p><strong>DKMS（Dynamic Kernel Module Support，動態核心模組支援）</strong>,一個專門處理<strong>核心模組(kernel module / driver)</strong>的框架。</p>
+<p>它要解決的痛點:</p>
+<blockquote>
+<p>每次 Linux <strong>核心更新</strong>後,那些「不在官方核心裡」的第三方驅動(NVIDIA 顯卡驅動、VirtualBox、某些網卡/WiFi 驅動等)就會失效,因為模組是綁定特定核心版本編譯的。</p>
+</blockquote>
+<p>DKMS 的做法:把驅動的<strong>原始碼</strong>登記起來,每當偵測到新核心安裝,就<strong>自動重新編譯</strong>這個模組去適配新核心,不用手動重編。</p>
+<hr />
+<h2 id="兩者的關係">兩者的關係</h2>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>dpkg</th>
+<th>dkms</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>管理對象</td>
+<td>一般軟體檔案(binary、設定檔)</td>
+<td>核心模組原始碼</td>
+</tr>
+<tr>
+<td>何時運作</td>
+<td>你下 <code>dpkg -i</code> / <code>apt install</code> 時</td>
+<td>每次核心更新時自動觸發重編</td>
+</tr>
+<tr>
+<td>彼此關係</td>
+<td>dkms 這個工具本身是用 dpkg 裝的</td>
+<td>dkms 補足了 dpkg 對「核心相依」的無能為力</td>
+</tr>
+</tbody>
+</table>
+<h3 id="實際情境">實際情境</h3>
+<p>當你 <code>apt install</code> 一個含驅動的套件(例如 <code>sudo apt install virtualbox-dkms</code>):</p>
+<ol>
+<li><code>apt</code> / <code>dpkg</code> 負責把這個 <code>.deb</code> 裝進系統(dpkg 的工作)。</li>
+<li>這個套件的安裝腳本會呼叫 <code>dkms</code>,把驅動原始碼登記進 DKMS 系統。</li>
+<li>之後每次 <code>apt upgrade</code> 更新到新核心,DKMS 會<strong>自動幫你把那個驅動重新編譯</strong>一次,確保新核心開機後驅動還能用。</li>
+</ol>
+<hr />
+<h2 id="常用觀察指令">常用觀察指令</h2>
+<pre><code class="language-bash"><span class="c1"># 看目前 DKMS 管理了哪些模組、對應哪些核心版本</span>
+dkms<span class="w"> </span>status
+
+<span class="c1"># 看 dkms 這個套件本身(它就是被 dpkg 管理的一個普通套件)</span>
+dpkg<span class="w"> </span>-l<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>dkms
+</code></pre>
+<hr />
+<h2 id="總結">總結</h2>
+<p><strong>dpkg 管「軟體」,dkms 管「會隨核心變動的驅動」;而 dkms 自己只是眾多被 dpkg 安裝的軟體之一。</strong></p>
+<p>一般純桌面應用(像 Apifox)完全用不到 dkms,只有牽涉到硬體驅動時才會遇到它。</p>
+
+</main>
+</div>
+</body>
+</html>

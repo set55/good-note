@@ -277,9 +277,9 @@ GNU 寫了 **GPL**（GNU General Public License，GNU 通用公共授權）來�
 > 參考答案寫在每題下面（2026-10-06 使用者指定）。作答時先遮住答案、自己想過再對照。
 
 1. 「Linux」這個詞嚴格說指的是什麼？那 `gcc`、`bash`、glibc 屬於誰？為什麼 FSF 主張叫 GNU/Linux？
-   > **參考答案**【[第一節](#一名字與起源)、[第三節](#三gnu-缺的那一塊核心以及gnulinux之爭)】嚴格說「Linux」只指**核心**。`gcc`、`bash`、glibc 都是 GNU 計畫的成果，位在使用者空間。日常說的「Linux 系統」其實是 Linux 核心＋GNU 工具；FSF 認為只叫「Linux」抹去了 GNU 的貢獻，所以主張叫 GNU/Linux。
+   > **參考答案**【[第一節](../html/linux/GNU是什麼-Linux核心與GNU工具的分工.html#一名字與起源)、[第三節](../html/linux/GNU是什麼-Linux核心與GNU工具的分工.html#三gnu-缺的那一塊核心以及gnulinux之爭)】嚴格說「Linux」只指**核心**。`gcc`、`bash`、glibc 都是 GNU 計畫的成果，位在使用者空間。日常說的「Linux 系統」其實是 Linux 核心＋GNU 工具；FSF 認為只叫「Linux」抹去了 GNU 的貢獻，所以主張叫 GNU/Linux。
 2. 目標三元組 `x86_64-linux-gnu` 的三段各代表什麼？為什麼說它剛好說明了「核心」和「C 函式庫」是兩件事？
-   > **參考答案**【[第二節](#二gnu-做了什麼你這台機器上到處都是)〈那個到處出現的 `x86_64-linux-gnu` 是什麼〉】（2026-10-10 改寫成核心關鍵格式）
+   > **參考答案**【[第二節](../html/linux/GNU是什麼-Linux核心與GNU工具的分工.html#二gnu-做了什麼你這台機器上到處都是)〈那個到處出現的 `x86_64-linux-gnu` 是什麼〉】（2026-10-10 改寫成核心關鍵格式）
    >
    > 核心關鍵：
    > 1. `x86_64` 是 CPU 架構，`linux` 是核心，`gnu` 是 ABI／C 函式庫（glibc）。
@@ -287,9 +287,9 @@ GNU 寫了 **GPL**（GNU General Public License，GNU 通用公共授權）來�
    >
    > 詳細說明：OpenWrt 用的是 `aarch64-linux-musl` 這類三元組：核心一樣是 Linux，C 函式庫換成 musl。
 3. 情境題：一支 shell 腳本在你的 Ubuntu 上用 `bash` 測試完全正常，放到 OpenWrt 上卻出錯。從本篇的角度，最可能的原因是什麼？寫腳本時該怎麼預防？
-   > **參考答案**【[第四節](#四不是-gnu-的-linux你已經遇過了)】OpenWrt 不是 GNU 使用者空間，沒有 bash，`/bin/sh` 是 BusyBox 的 `ash`，只支援 POSIX 語法；腳本用了 bash 才有的擴充語法（陣列、`[[ ]]`、`[^...]` 等）就會出錯。預防：只用 POSIX 規定的語法與選項，並在本機用 `busybox sh 腳本` 或 `dash 腳本` 測試。特別注意本機 `/bin/sh -> bash`：第一行寫 `#!/bin/sh` 直接 `./腳本`，跑的仍是 bash，測不出問題。改第一行解決不了：`#!/bin/busybox` 會報 `applet not found`。
+   > **參考答案**【[第四節](../html/linux/GNU是什麼-Linux核心與GNU工具的分工.html#四不是-gnu-的-linux你已經遇過了)】OpenWrt 不是 GNU 使用者空間，沒有 bash，`/bin/sh` 是 BusyBox 的 `ash`，只支援 POSIX 語法；腳本用了 bash 才有的擴充語法（陣列、`[[ ]]`、`[^...]` 等）就會出錯。預防：只用 POSIX 規定的語法與選項，並在本機用 `busybox sh 腳本` 或 `dash 腳本` 測試。特別注意本機 `/bin/sh -> bash`：第一行寫 `#!/bin/sh` 直接 `./腳本`，跑的仍是 bash，測不出問題。改第一行解決不了：`#!/bin/busybox` 會報 `applet not found`。
 4. GPL 的 copyleft 要求什麼？glibc 用 LGPL 而不是 GPL，對「商業軟體能不能連結 libc」有什麼差別？
-   > **參考答案**【[第五節](#五gplgnu-最深遠的影響)】（2026-10-10 改寫成核心關鍵格式）
+   > **參考答案**【[第五節](../html/linux/GNU是什麼-Linux核心與GNU工具的分工.html#五gplgnu-最深遠的影響)】（2026-10-10 改寫成核心關鍵格式）
    >
    > 核心關鍵：
    > 1. copyleft：可以自由使用、修改、散布，但**散布**修改後（或以它為基礎）的版本時，必須用**同樣的授權（GPL）**並提供原始碼。
@@ -298,7 +298,7 @@ GNU 寫了 **GPL**（GNU General Public License，GNU 通用公共授權）來�
    >
    > 詳細說明：copyleft 的目的是讓「自由不能在傳遞途中被拿走」：拿到 GPL 軟體的人，也要拿得到原始碼、有同樣的權利。例子：公司內部改了 GPL 的工具自己用，不必公開；把改過的版本賣給客戶，就要給客戶原始碼，並讓客戶同樣能以 GPL 再散布。
 5. 你將來送 kernel patch 時要加的 `Signed-off-by:` 跟 GPL 有什麼關係？
-   > **參考答案**【[第五節](#五gplgnu-最深遠的影響)】（2026-10-11 改寫成核心關鍵格式）
+   > **參考答案**【[第五節](../html/linux/GNU是什麼-Linux核心與GNU工具的分工.html#五gplgnu-最深遠的影響)】（2026-10-11 改寫成核心關鍵格式）
    >
    > 核心關鍵：
    > 1. `Signed-off-by:` 是 DCO（Developer Certificate of Origin，開發者原創聲明）：貢獻者聲明這段程式碼是自己寫的，或自己有權以專案的授權（kernel 是 GPL-2.0）貢獻它。
@@ -306,7 +306,7 @@ GNU 寫了 **GPL**（GNU General Public License，GNU 通用公共授權）來�
    >
    > 詳細說明：DCO 是 kernel 社群的規定，不是 GPL 條文本身的要求，GPL 沒有規定發布時要署名。
 6. 情境題：同事說「我在這台機器上打 `uname -o` 看到 `GNU/Linux`，所以它一定用 glibc」。這個推論錯在哪？`uname` 的哪些欄位可以信、哪一欄不行，為什麼？你會改看什麼來判斷？
-   > **參考答案**【[第四節](#四不是-gnu-的-linux你已經遇過了)〈`uname -o` 印出 `GNU/Linux`，不代表它是 GNU〉】（2026-10-09 改寫成核心關鍵格式）
+   > **參考答案**【[第四節](../html/linux/GNU是什麼-Linux核心與GNU工具的分工.html#四不是-gnu-的-linux你已經遇過了)〈`uname -o` 印出 `GNU/Linux`，不代表它是 GNU〉】（2026-10-09 改寫成核心關鍵格式）
    >
    > 核心關鍵：
    > 1. 錯在把 `-o` 當證據：它是 `uname` 程式寫死的字串，不是問 kernel 來的（BusyBox 版也印 `GNU/Linux`，實測用 musl 的 OpenWrt 一樣印）。

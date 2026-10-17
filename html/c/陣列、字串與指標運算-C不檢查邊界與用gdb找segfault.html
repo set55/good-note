@@ -1,0 +1,1345 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>陣列、字串與指標運算 —— C 不檢查邊界：越界為什麼有時當掉、有時安靜出錯，怎麼用 gdb 找到它</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/app.js"></script>
+</head>
+<body>
+<button class="menu-btn" onclick="toggleMenu()">☰ 目錄</button>
+<div class="layout">
+<nav class="side">
+<div class="crumbs"><a href="../index.html">🏠 首頁</a> / <a href="README.html">c</a></div>
+<div class="tools"><button onclick="toggleTheme()">🌓 主題</button><button onclick="toggleAnswers(true)">展開答案</button><button onclick="toggleAnswers(false)">收起答案</button></div>
+<ul>
+<li class="l2"><a href="#%E7%9B%AE%E9%8C%84">目錄</a></li>
+<li class="l2"><a href="#%E9%9B%B6%E9%96%8B%E8%AA%B2%E8%A4%87%E7%BF%92%E7%AC%AC-2-%E8%AA%B2%E5%8D%A1%E4%BD%8F%E7%9A%84%E4%B8%89%E4%BB%B6%E4%BA%8B%E5%9C%A8%E6%9C%AC%E8%AA%B2%E6%9C%83%E5%86%8D%E5%87%BA%E7%8F%BE">零、開課複習：第 2 課卡住的三件事，在本課會再出現</a></li>
+<li class="l2"><a href="#%E4%B8%80%E9%99%A3%E5%88%97%E4%B8%80%E6%AE%B5%E9%80%A3%E7%BA%8C%E5%90%8C%E5%9E%8B%E5%88%A5%E7%9A%84%E6%A0%BC%E5%AD%90">一、陣列：一段連續、同型別的格子</a></li>
+<li class="l2"><a href="#%E4%BA%8C%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97p--1-%E8%B5%B0%E4%B8%80%E5%80%8B%E5%85%83%E7%B4%A0%E4%B8%8D%E6%98%AF%E4%B8%80%E5%80%8B-byte">二、指標運算：p + 1 走一個元素，不是一個 byte</a></li>
+<li class="l3"><a href="#pi-%E5%B0%B1%E6%98%AF-p--i">p[i] 就是 *(p + i)</a></li>
+<li class="l3"><a href="#%E5%85%A9%E5%80%8B%E6%8C%87%E6%A8%99%E7%9B%B8%E6%B8%9B%E5%BE%97%E5%88%B0%E5%B7%AE%E5%B9%BE%E5%80%8B%E5%85%83%E7%B4%A0%E5%9E%8B%E5%88%A5%E6%98%AF-ptrdiff_t">兩個指標相減：得到「差幾個元素」，型別是 ptrdiff_t</a></li>
+<li class="l2"><a href="#%E4%B8%89%E9%99%A3%E5%88%97%E5%90%8D%E7%A8%B1%E4%BB%80%E9%BA%BC%E6%99%82%E5%80%99%E8%AE%8A%E6%88%90%E6%8C%87%E6%A8%99%E4%BB%80%E9%BA%BC%E6%99%82%E5%80%99%E4%B8%8D%E6%9C%83">三、陣列名稱什麼時候變成指標、什麼時候不會</a></li>
+<li class="l3"><a href="#%E5%87%BD%E5%BC%8F%E5%8F%83%E6%95%B8%E5%AF%AB%E6%88%90-int-a%E5%85%B6%E5%AF%A6%E5%B0%B1%E6%98%AF-int-a">函式參數寫成 int a[]，其實就是 int *a</a></li>
+<li class="l3"><a href="#a-%E5%92%8C-a%E4%BD%8D%E5%9D%80%E4%B8%80%E6%A8%A3%E5%9E%8B%E5%88%A5%E4%B8%8D%E4%B8%80%E6%A8%A3">a 和 &amp;a：位址一樣，型別不一樣</a></li>
+<li class="l3"><a href="#%E7%AE%97%E5%85%83%E7%B4%A0%E5%80%8B%E6%95%B8%E5%86%8D%E8%B7%91%E8%BF%B4%E5%9C%88%E5%8F%88%E7%A2%B0%E5%88%B0%E6%9C%89%E8%99%9F%E7%84%A1%E8%99%9F%E7%AC%AC-2-%E8%AA%B2%E7%AC%AC%E4%B8%83%E7%AF%80">算元素個數再跑迴圈：又碰到有號無號（第 2 課第七節）</a></li>
+<li class="l2"><a href="#%E5%9B%9B%E5%AD%97%E4%B8%B2%E4%BB%A5-0-%E7%B5%90%E5%B0%BE%E7%9A%84-char-%E9%99%A3%E5%88%97">四、字串：以 \0 結尾的 char 陣列</a></li>
+<li class="l3"><a href="#%E9%99%A3%E5%88%97%E5%A4%A7%E5%B0%8F%E8%B7%9F%E5%AD%97%E4%B8%B2%E9%95%B7%E5%BA%A6%E4%B8%8D%E4%B8%80%E6%A8%A3%E6%99%82%E6%AF%94%E8%BC%83%E9%95%B7%E5%89%9B%E5%A5%BD%E6%AF%94%E8%BC%83%E7%9F%AD">陣列大小跟字串長度不一樣時：比較長、剛好、比較短</a></li>
+<li class="l2"><a href="#%E4%BA%94c-%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%B6%8A%E7%95%8C%E7%9A%84%E4%B8%89%E7%A8%AE%E4%B8%8B%E5%A0%B4">五、C 不檢查邊界：越界的三種下場</a></li>
+<li class="l3"><a href="#%E4%B8%8B%E5%A0%B4%E4%B8%80%E5%AE%89%E9%9D%9C%E5%9C%B0%E5%87%BA%E9%8C%AF">下場一：安靜地出錯</a></li>
+<li class="l3"><a href="#%E4%B8%8B%E5%A0%B4%E4%BA%8C%E8%A2%AB%E5%A0%86%E7%96%8A%E4%BF%9D%E8%AD%B7%E6%8A%93%E5%88%B0">下場二：被堆疊保護抓到</a></li>
+<li class="l3"><a href="#%E9%97%9C%E6%8E%89%E4%BF%9D%E8%AD%B7%E7%9C%8B%E7%9C%8B%E4%B8%8B%E9%9D%A2%E6%98%AF%E4%BB%80%E9%BA%BC%E8%BF%94%E5%9B%9E%E6%99%82-segfault">關掉保護，看看下面是什麼：返回時 segfault</a></li>
+<li class="l3"><a href="#%E7%B5%90%E6%9D%9F%E7%8B%80%E6%85%8B-139-%E5%92%8C-134-%E6%98%AF%E4%BB%80%E9%BA%BC">結束狀態 139 和 134 是什麼</a></li>
+<li class="l2"><a href="#%E5%85%AD%E7%94%A8-gdb-%E6%89%BE-segfault%E5%AF%A6%E9%9A%9B%E8%B5%B0%E4%B8%80%E6%AC%A1">六、用 gdb 找 segfault：實際走一次</a></li>
+<li class="l3"><a href="#%E7%95%B6%E6%8E%89%E7%9A%84%E9%82%A3%E4%B8%80%E8%A1%8C--%E7%8A%AF%E9%8C%AF%E7%9A%84%E9%82%A3%E4%B8%80%E8%A1%8C">當掉的那一行 ≠ 犯錯的那一行</a></li>
+<li class="l3"><a href="#%E4%BD%9C%E6%A5%AD%E7%AC%AC-45-%E9%A1%8C%E7%9A%84%E8%A3%9C%E6%95%99%E7%95%B6%E6%8E%89%E7%9A%84%E4%BD%8D%E7%BD%AE%E7%94%B1%E5%93%AA%E8%A3%A1%E6%B2%92%E6%9C%89%E5%B0%8D%E6%98%A0%E6%B1%BA%E5%AE%9A">作業第 4、5 題的補教：當掉的位置由「哪裡沒有對映」決定</a></li>
+<li class="l2"><a href="#%E4%B8%83addresssanitizer%E5%9C%A8%E7%AC%AC%E4%B8%80%E6%AC%A1%E8%B6%8A%E7%95%8C%E7%9A%84%E7%95%B6%E4%B8%8B%E6%8A%93%E5%88%B0%E5%AE%83">七、AddressSanitizer：在第一次越界的當下抓到它</a></li>
+<li class="l3"><a href="#96-101-%E6%80%8E%E9%BA%BC%E8%AE%80%E5%8D%8A%E9%96%8B%E5%8D%80%E9%96%93%E5%81%8F%E7%A7%BB%E8%88%87%E5%BD%B1%E5%AD%90-byte">[96, 101) 怎麼讀：半開區間、偏移與影子 byte</a></li>
+<li class="l2"><a href="#%E5%85%AB%E6%9C%AC%E8%AA%B2%E7%94%A8%E5%88%B0%E7%9A%84%E5%B7%A5%E5%85%B7%E8%88%87%E9%81%B8%E9%A0%85">八、本課用到的工具與選項</a></li>
+<li class="l3"><a href="#gcc%E6%9C%AC%E8%AA%B2%E6%96%B0%E7%94%A8%E5%88%B0%E7%9A%84%E9%81%B8%E9%A0%85">gcc：本課新用到的選項</a></li>
+<li class="l3"><a href="#gdb%E6%9C%AC%E8%AA%B2%E7%94%A8%E5%88%B0%E7%9A%84%E5%91%BD%E4%BB%A4">gdb：本課用到的命令</a></li>
+<li class="l3"><a href="#%E5%85%B6%E4%BB%96">其他</a></li>
+<li class="l2"><a href="#%E4%B9%9D%E5%8B%95%E6%89%8B%E4%BD%9C%E6%A5%AD">九、動手作業</a></li>
+<li class="l2"><a href="#%E8%87%AA%E6%88%91%E6%B8%AC%E9%A9%97">自我測驗</a></li>
+</ul>
+</nav>
+<main>
+<h1 id="陣列字串與指標運算--c-不檢查邊界越界為什麼有時當掉有時安靜出錯怎麼用-gdb-找到它">陣列、字串與指標運算 —— C 不檢查邊界：越界為什麼有時當掉、有時安靜出錯，怎麼用 gdb 找到它</h1>
+<blockquote>
+<p>日期：2026-09-27<br />
+情境：系統化學習路線第 ① 站第 3 課。對應 CS:APP 第 3.8 節（Array Allocation and Access）的 C 語意部分（該節的組合語言留到第 4、5 課），以及 3.10.3～3.10.4（越界存取與緩衝區溢位、堆疊保護）<br />
+適用範圍：實測本機 Ubuntu 24.04、x86-64、gcc 13.3.0、glibc 2.39、gdb 15.1；所有輸出都是本機實際執行結果（位址每次執行不同，因為 ASLR；在 gdb 裡跑的位址固定，因為 gdb 預設關掉 ASLR，見<a href="C%E7%9A%84%E8%B3%87%E6%96%99%E5%9C%A8%E8%A8%98%E6%86%B6%E9%AB%94%E8%A3%A1%E9%95%B7%E6%80%8E%E6%A8%A3-%E4%BD%8D%E5%85%83%E7%B5%84%E3%80%81%E6%8C%87%E6%A8%99%E3%80%81%E4%BD%8D%E5%85%83%E7%B5%84%E9%A0%86%E5%BA%8F%E8%88%87%E6%9C%89%E8%99%9F%E7%84%A1%E8%99%9F.html#%E4%BA%8C%E6%8C%87%E6%A8%99%E5%B0%B1%E6%98%AF%E4%BD%8D%E5%9D%80">第 2 課第二節</a>的〈每次執行位址都不一樣〉）<br />
+對應檔案：每個實驗程式的完整原始碼都寫在它出現的那一節，可以直接複製編譯；作業在 <a href="../../small-project/s1-03-arrays-pointers/"><code>small-project/s1-03-arrays-pointers/</code></a>（會進 git）<br />
+相關：<a href="C%E7%9A%84%E8%B3%87%E6%96%99%E5%9C%A8%E8%A8%98%E6%86%B6%E9%AB%94%E8%A3%A1%E9%95%B7%E6%80%8E%E6%A8%A3-%E4%BD%8D%E5%85%83%E7%B5%84%E3%80%81%E6%8C%87%E6%A8%99%E3%80%81%E4%BD%8D%E5%85%83%E7%B5%84%E9%A0%86%E5%BA%8F%E8%88%87%E6%9C%89%E8%99%9F%E7%84%A1%E8%99%9F.html">C的資料在記憶體裡長怎樣</a>（第 2 課：位元組、指標、有號無號）、
+<a href="gdb%E5%AE%8C%E6%95%B4%E5%91%BD%E4%BB%A4%E5%8F%83%E8%80%83.html">gdb完整命令參考</a>（本課用到的 gdb 命令都在那裡）、
+<a href="ELF%E6%98%AF%E4%BB%80%E9%BA%BC-%E5%8F%AF%E5%9F%B7%E8%A1%8C%E8%88%87%E5%8F%AF%E9%80%A3%E7%B5%90%E6%A0%BC%E5%BC%8F%E7%9A%84%E5%85%A9%E7%A8%AE%E8%A6%96%E8%A7%92.html">ELF是什麼</a>（<code>.rodata</code>、載入段與權限）</p>
+</blockquote>
+<p><strong>一句話結論：陣列是一段連續、同型別的格子；<code>p + 1</code> 走的是「一個元素」，不是一個 byte，<code>p[i]</code> 就是 <code>*(p + i)</code> 的縮寫。陣列名稱在大多數地方會變成「指向第 0 個元素的指標」，所以傳進函式後就不知道自己多長——長度要另外傳。字串只是「以 <code>\0</code> 結尾的 <code>char</code> 陣列」。C 完全不檢查邊界：越界存取是未定義行為，結果可能是<strong>安靜地讀到垃圾、改掉別的資料</strong>、被<strong>堆疊保護</strong>抓到、或<strong>碰到沒對映的分頁才 segfault</strong>——當掉的那一行通常不是犯錯的那一行。所以不能等它當掉：用 <code>gdb</code> 看「當在哪、當時的值」，用 AddressSanitizer 在<strong>第一次越界的當下</strong>抓到它。</strong></p>
+<hr />
+<h2 id="目錄">目錄</h2>
+<ul>
+<li><a href="#%E9%9B%B6%E9%96%8B%E8%AA%B2%E8%A4%87%E7%BF%92%E7%AC%AC-2-%E8%AA%B2%E5%8D%A1%E4%BD%8F%E7%9A%84%E4%B8%89%E4%BB%B6%E4%BA%8B%E5%9C%A8%E6%9C%AC%E8%AA%B2%E6%9C%83%E5%86%8D%E5%87%BA%E7%8F%BE">零、開課複習：第 2 課卡住的三件事，在本課會再出現</a></li>
+<li><a href="#%E4%B8%80%E9%99%A3%E5%88%97%E4%B8%80%E6%AE%B5%E9%80%A3%E7%BA%8C%E5%90%8C%E5%9E%8B%E5%88%A5%E7%9A%84%E6%A0%BC%E5%AD%90">一、陣列：一段連續、同型別的格子</a></li>
+<li><a href="#%E4%BA%8C%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97p--1-%E8%B5%B0%E4%B8%80%E5%80%8B%E5%85%83%E7%B4%A0%E4%B8%8D%E6%98%AF%E4%B8%80%E5%80%8B-byte">二、指標運算：<code>p + 1</code> 走一個元素，不是一個 byte</a></li>
+<li><a href="#%E4%B8%89%E9%99%A3%E5%88%97%E5%90%8D%E7%A8%B1%E4%BB%80%E9%BA%BC%E6%99%82%E5%80%99%E8%AE%8A%E6%88%90%E6%8C%87%E6%A8%99%E4%BB%80%E9%BA%BC%E6%99%82%E5%80%99%E4%B8%8D%E6%9C%83">三、陣列名稱什麼時候變成指標、什麼時候不會</a></li>
+<li><a href="#%E5%9B%9B%E5%AD%97%E4%B8%B2%E4%BB%A5-0-%E7%B5%90%E5%B0%BE%E7%9A%84-char-%E9%99%A3%E5%88%97">四、字串：以 <code>\0</code> 結尾的 <code>char</code> 陣列</a></li>
+<li><a href="#%E4%BA%94c-%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%B6%8A%E7%95%8C%E7%9A%84%E4%B8%89%E7%A8%AE%E4%B8%8B%E5%A0%B4">五、C 不檢查邊界：越界的三種下場</a></li>
+<li><a href="#%E5%85%AD%E7%94%A8-gdb-%E6%89%BE-segfault%E5%AF%A6%E9%9A%9B%E8%B5%B0%E4%B8%80%E6%AC%A1">六、用 gdb 找 segfault：實際走一次</a></li>
+<li><a href="#%E4%B8%83addresssanitizer%E5%9C%A8%E7%AC%AC%E4%B8%80%E6%AC%A1%E8%B6%8A%E7%95%8C%E7%9A%84%E7%95%B6%E4%B8%8B%E6%8A%93%E5%88%B0%E5%AE%83">七、AddressSanitizer：在第一次越界的當下抓到它</a></li>
+<li><a href="#%E5%85%AB%E6%9C%AC%E8%AA%B2%E7%94%A8%E5%88%B0%E7%9A%84%E5%B7%A5%E5%85%B7%E8%88%87%E9%81%B8%E9%A0%85">八、本課用到的工具與選項</a></li>
+<li><a href="#%E4%B9%9D%E5%8B%95%E6%89%8B%E4%BD%9C%E6%A5%AD">九、動手作業</a></li>
+</ul>
+<hr />
+<h2 id="零開課複習第-2-課卡住的三件事在本課會再出現">零、開課複習：第 2 課卡住的三件事，在本課會再出現</h2>
+<ol>
+<li><strong>截斷 vs. 同寬換讀法</strong>：同寬的有號↔無號轉換，位元一個都不動，只換讀法（<code>-1</code> ↔ <code>4294967295</code>）；
+<strong>寬變窄</strong>才是截斷（丟掉高位 byte）。「只換讀法」這句話只在同寬時成立。</li>
+<li><strong>常數也有型別</strong>：十進位常數沒有後綴時，依序試 <code>int</code>、<code>long</code>、<code>long long</code>，<strong>沒有無號型別</strong>；十六進位／八進位常數會試無號型別。所以 <code>2147483648</code> 是 <code>long</code>、<code>0x80000000</code> 是 <code>unsigned int</code>。比較時照「一般算術轉換」決定以誰為準（<a href="C%E7%9A%84%E8%B3%87%E6%96%99%E5%9C%A8%E8%A8%98%E6%86%B6%E9%AB%94%E8%A3%A1%E9%95%B7%E6%80%8E%E6%A8%A3-%E4%BD%8D%E5%85%83%E7%B5%84%E3%80%81%E6%8C%87%E6%A8%99%E3%80%81%E4%BD%8D%E5%85%83%E7%B5%84%E9%A0%86%E5%BA%8F%E8%88%87%E6%9C%89%E8%99%9F%E7%84%A1%E8%99%9F.html#%E5%9B%9B%E7%84%A1%E8%99%9F%E6%95%B4%E6%95%B8%E4%BA%8C%E9%80%B2%E4%BD%8D%E8%88%87%E5%9B%9E%E7%B9%9E">第 2 課第四節</a>〈怎麼確定一個常數的型別？比較時以誰為準？〉）。</li>
+<li><strong><code>char</code> 在 x86-64 上是有號的</strong>：讀到 UTF-8 的 <code>0xe5</code> 會變成 −27。<strong>把記憶體當一格一格的 byte 看時，用 <code>unsigned char</code></strong>。</li>
+</ol>
+<p>這三件事本課都會用到：第二節用 <code>unsigned char *</code> 一格一格走記憶體；<code>sizeof</code> 的結果是 <code>size_t</code>（無號），兩個指標相減的結果 <code>ptrdiff_t</code> 是<strong>有號</strong>的，兩者混在一起比較又會碰到<a href="C%E7%9A%84%E8%B3%87%E6%96%99%E5%9C%A8%E8%A8%98%E6%86%B6%E9%AB%94%E8%A3%A1%E9%95%B7%E6%80%8E%E6%A8%A3-%E4%BD%8D%E5%85%83%E7%B5%84%E3%80%81%E6%8C%87%E6%A8%99%E3%80%81%E4%BD%8D%E5%85%83%E7%B5%84%E9%A0%86%E5%BA%8F%E8%88%87%E6%9C%89%E8%99%9F%E7%84%A1%E8%99%9F.html#%E4%B8%83%E9%99%B7%E9%98%B1%E6%9C%89%E8%99%9F%E5%92%8C%E7%84%A1%E8%99%9F%E6%B7%B7%E5%9C%A8%E4%B8%80%E8%B5%B7%E6%AF%94%E8%BC%83">第 2 課第七節</a>的陷阱（本課第三節、作業第 5 題）。</p>
+<hr />
+<h2 id="一陣列一段連續同型別的格子">一、陣列：一段連續、同型別的格子</h2>
+<p><code>int a[5];</code> 宣告一個<strong>陣列（array）</strong>：5 個 <code>int</code> <strong>緊密相連</strong>地放在記憶體裡，中間沒有空隙。
+<code>a[i]</code> 是第 <code>i</code> 個元素，編號從 0 開始，最後一個是 <code>a[4]</code>。</p>
+<p><code>arr.c</code>：</p>
+<pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">a</span><span class="p">[</span><span class="mi">5</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="mi">10</span><span class="p">,</span><span class="w"> </span><span class="mi">20</span><span class="p">,</span><span class="w"> </span><span class="mi">30</span><span class="p">,</span><span class="w"> </span><span class="mi">40</span><span class="p">,</span><span class="w"> </span><span class="mi">50</span><span class="p">};</span>
+
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;sizeof a    = %zu</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="k">sizeof</span><span class="w"> </span><span class="n">a</span><span class="p">);</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;sizeof a[0] = %zu</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="k">sizeof</span><span class="w"> </span><span class="n">a</span><span class="p">[</span><span class="mi">0</span><span class="p">]);</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;元素個數    = %zu</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="k">sizeof</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="k">sizeof</span><span class="w"> </span><span class="n">a</span><span class="p">[</span><span class="mi">0</span><span class="p">]);</span>
+<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">5</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="o">++</span><span class="p">)</span>
+<span class="w">        </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;a[%d] = %d  位址 %p</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">i</span><span class="p">,</span><span class="w"> </span><span class="n">a</span><span class="p">[</span><span class="n">i</span><span class="p">],</span><span class="w"> </span><span class="p">(</span><span class="kt">void</span><span class="w"> </span><span class="o">*</span><span class="p">)</span><span class="o">&amp;</span><span class="n">a</span><span class="p">[</span><span class="n">i</span><span class="p">]);</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<pre><code>$ gcc -Wall -Wextra -g -O0 -o arr arr.c &amp;&amp; ./arr
+sizeof a    = 20
+sizeof a[0] = 4
+元素個數    = 5
+a[0] = 10  位址 0x7ffdbf471f30
+a[1] = 20  位址 0x7ffdbf471f34
+a[2] = 30  位址 0x7ffdbf471f38
+a[3] = 40  位址 0x7ffdbf471f3c
+a[4] = 50  位址 0x7ffdbf471f40
+</code></pre>
+<ul>
+<li><code>sizeof a</code> 是<strong>整個陣列</strong>的大小：5 × 4 = 20 byte。</li>
+<li>相鄰元素的位址差 4：正好是一個 <code>int</code> 的大小，證明它們緊密相連。</li>
+<li><code>sizeof a / sizeof a[0]</code> 是求元素個數的慣用寫法——<strong>只在 <code>a</code> 真的是陣列時有效</strong>（第三節會看到它什麼時候失效）。</li>
+<li>位址在 <code>0x7ff…</code> 開頭：區域變數放在<strong>堆疊（stack）</strong>上（<a href="C%E7%9A%84%E8%B3%87%E6%96%99%E5%9C%A8%E8%A8%98%E6%86%B6%E9%AB%94%E8%A3%A1%E9%95%B7%E6%80%8E%E6%A8%A3-%E4%BD%8D%E5%85%83%E7%B5%84%E3%80%81%E6%8C%87%E6%A8%99%E3%80%81%E4%BD%8D%E5%85%83%E7%B5%84%E9%A0%86%E5%BA%8F%E8%88%87%E6%9C%89%E8%99%9F%E7%84%A1%E8%99%9F.html#%E4%BA%8C%E6%8C%87%E6%A8%99%E5%B0%B1%E6%98%AF%E4%BD%8D%E5%9D%80">第 2 課第二節</a>的〈<code>0x7fffffffd254</code> 在哪裡？〉那一段：用 <code>info proc mappings</code> 看出位址落在 <code>[stack]</code>）。</li>
+</ul>
+<p>陣列有兩個性質是後面所有事情的根源：</p>
+<ol>
+<li><strong>長度在編譯時就固定</strong>，而且<strong>只存在於型別裡</strong>（<code>int [5]</code>），記憶體裡沒有任何一個 byte 記著「這個陣列長 5」。</li>
+<li><strong>C 不在執行時檢查 <code>i</code> 有沒有超出 0～4</strong>。<code>a[7]</code> 照樣會算出一個位址、照樣去讀寫（第五節）。</li>
+</ol>
+<hr />
+<h2 id="二指標運算p--1-走一個元素不是一個-byte">二、指標運算：<code>p + 1</code> 走一個元素，不是一個 byte</h2>
+<p>第 2 課講過：指標就是一個位址，<strong>指標的型別決定從那個位址讀幾個 byte、怎麼解讀</strong>。本課再加一條：<strong>指標的型別也決定 <code>+ 1</code> 要走幾個 byte</strong>。</p>
+<p><strong>指標運算（pointer arithmetic）</strong> 的規則：<code>p</code> 的型別是 <code>T *</code> 時，<code>p + n</code> 的位址是 <code>p</code> 的位址加上 <code>n × sizeof(T)</code> 個 byte。</p>
+<p><code>ptrarith.c</code>：</p>
+<pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stddef.h&gt;</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">a</span><span class="p">[</span><span class="mi">4</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="mi">10</span><span class="p">,</span><span class="w"> </span><span class="mi">20</span><span class="p">,</span><span class="w"> </span><span class="mi">30</span><span class="p">,</span><span class="w"> </span><span class="mi">40</span><span class="p">};</span>
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="o">*</span><span class="n">p</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">a</span><span class="p">;</span><span class="w">                 </span><span class="cm">/* 等於 &amp;a[0] */</span>
+<span class="w">    </span><span class="kt">unsigned</span><span class="w"> </span><span class="kt">char</span><span class="w"> </span><span class="o">*</span><span class="n">c</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="kt">unsigned</span><span class="w"> </span><span class="kt">char</span><span class="w"> </span><span class="o">*</span><span class="p">)</span><span class="n">a</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">double</span><span class="w"> </span><span class="n">d</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="mf">1.5</span><span class="p">,</span><span class="w"> </span><span class="mf">2.5</span><span class="p">};</span>
+<span class="w">    </span><span class="kt">double</span><span class="w"> </span><span class="o">*</span><span class="n">q</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">d</span><span class="p">;</span>
+
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;p     = %p   p + 1 = %p</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="kt">void</span><span class="w"> </span><span class="o">*</span><span class="p">)</span><span class="n">p</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="kt">void</span><span class="w"> </span><span class="o">*</span><span class="p">)(</span><span class="n">p</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="p">));</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;c     = %p   c + 1 = %p</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="kt">void</span><span class="w"> </span><span class="o">*</span><span class="p">)</span><span class="n">c</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="kt">void</span><span class="w"> </span><span class="o">*</span><span class="p">)(</span><span class="n">c</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="p">));</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;q     = %p   q + 1 = %p</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="kt">void</span><span class="w"> </span><span class="o">*</span><span class="p">)</span><span class="n">q</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="kt">void</span><span class="w"> </span><span class="o">*</span><span class="p">)(</span><span class="n">q</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="p">));</span>
+
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;*(p + 2) = %d   p[2] = %d   2[p] = %d</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="o">*</span><span class="p">(</span><span class="n">p</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">2</span><span class="p">),</span><span class="w"> </span><span class="n">p</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span><span class="w"> </span><span class="mi">2</span><span class="p">[</span><span class="n">p</span><span class="p">]);</span>
+
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="o">*</span><span class="n">first</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">&amp;</span><span class="n">a</span><span class="p">[</span><span class="mi">0</span><span class="p">];</span>
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="o">*</span><span class="n">last</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">&amp;</span><span class="n">a</span><span class="p">[</span><span class="mi">3</span><span class="p">];</span>
+<span class="w">    </span><span class="kt">ptrdiff_t</span><span class="w"> </span><span class="n">n</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">last</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">first</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">ptrdiff_t</span><span class="w"> </span><span class="n">back</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">first</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">last</span><span class="p">;</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;last - first = %td   first - last = %td</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">n</span><span class="p">,</span><span class="w"> </span><span class="n">back</span><span class="p">);</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;以 byte 算：%td</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="kt">unsigned</span><span class="w"> </span><span class="kt">char</span><span class="w"> </span><span class="o">*</span><span class="p">)</span><span class="n">last</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="p">(</span><span class="kt">unsigned</span><span class="w"> </span><span class="kt">char</span><span class="w"> </span><span class="o">*</span><span class="p">)</span><span class="n">first</span><span class="p">);</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;sizeof(ptrdiff_t) = %zu</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="k">sizeof</span><span class="p">(</span><span class="kt">ptrdiff_t</span><span class="p">));</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<pre><code>$ gcc -Wall -Wextra -g -O0 -o ptrarith ptrarith.c &amp;&amp; ./ptrarith
+p     = 0x7ffc40825f30   p + 1 = 0x7ffc40825f34
+c     = 0x7ffc40825f30   c + 1 = 0x7ffc40825f31
+q     = 0x7ffc40825f40   q + 1 = 0x7ffc40825f48
+*(p + 2) = 30   p[2] = 30   2[p] = 30
+last - first = 3   first - last = -3
+以 byte 算：12
+sizeof(ptrdiff_t) = 8
+</code></pre>
+<p>逐行看：</p>
+<ul>
+<li><strong><code>p</code> 和 <code>c</code> 存的是同一個位址</strong>（都是 <code>...5f30</code>），但 <code>p + 1</code> 多 4、<code>c + 1</code> 多 1、<code>q + 1</code> 多 8——各自是 <code>sizeof(int)</code>、<code>sizeof(unsigned char)</code>、<code>sizeof(double)</code>。位址本身沒有變，變的是「你用什麼型別看它」。這就是第 2 課「型別決定讀法」的延伸。</li>
+<li><strong>想一個 byte 一個 byte 地走記憶體，就轉成 <code>unsigned char *</code></strong>（開課複習第 3 點）：它的 <code>+ 1</code> 剛好是 1 byte，讀出來也不會變負數。</li>
+</ul>
+<h3 id="pi-就是-p--i"><code>p[i]</code> 就是 <code>*(p + i)</code></h3>
+<p>C 標準對下標運算的<strong>定義</strong>就是：<code>E1[E2]</code> 等於 <code>*((E1) + (E2))</code>。所以：</p>
+<ul>
+<li><code>p[2]</code> = <code>*(p + 2)</code> = 「從 <code>p</code> 往後走 2 個元素，讀那一格」。</li>
+<li>加法可以交換，<code>*(p + 2)</code> = <code>*(2 + p)</code>，所以 <code>2[p]</code> 也合法而且是同一個值（輸出第 4 行）。沒有人會這樣寫程式；它的價值是證明 <strong><code>[]</code> 不是陣列專屬的語法，只是指標加法再取值的縮寫</strong>。</li>
+<li>因此 <code>a[i]</code> 也是 <code>*(a + i)</code>——這裡 <code>a</code> 先變成指向 <code>a[0]</code> 的指標（第三節）。</li>
+</ul>
+<h3 id="兩個指標相減得到差幾個元素型別是-ptrdiff_t">兩個指標相減：得到「差幾個元素」，型別是 <code>ptrdiff_t</code></h3>
+<ul>
+<li>指向<strong>同一個陣列</strong>的兩個指標可以相減，結果是<strong>中間差幾個元素</strong>，不是差幾個 byte：<code>last - first</code> 是 3。轉成 <code>unsigned char *</code> 再減，才是 byte 數 12（= 3 × 4）。</li>
+<li>結果的型別是 <code>&lt;stddef.h&gt;</code> 裡的 <strong><code>ptrdiff_t</code></strong>（pointer difference type）：本機是 8 byte 的<strong>有號</strong>整數（<code>long</code>），因為相減可以是負的（<code>first - last</code> 是 −3）。<code>printf</code> 用 <strong><code>%td</code></strong> 印（<code>t</code> 是 <code>ptrdiff_t</code> 的長度修飾字，見<a href="C%E7%9A%84%E8%B3%87%E6%96%99%E5%9C%A8%E8%A8%98%E6%86%B6%E9%AB%94%E8%A3%A1%E9%95%B7%E6%80%8E%E6%A8%A3-%E4%BD%8D%E5%85%83%E7%B5%84%E3%80%81%E6%8C%87%E6%A8%99%E3%80%81%E4%BD%8D%E5%85%83%E7%B5%84%E9%A0%86%E5%BA%8F%E8%88%87%E6%9C%89%E8%99%9F%E7%84%A1%E8%99%9F.html#printf-%E7%9A%84%E6%A0%BC%E5%BC%8F%E5%AE%8C%E6%95%B4%E6%96%87%E6%B3%95">第 2 課第九節</a>〈<code>printf</code> 的格式：完整文法〉）。</li>
+<li>對照 <code>sizeof</code> 的結果 <code>size_t</code>：<strong>無號</strong>，用 <code>%zu</code>。一個有號一個無號，混在一起比較就會踩到<a href="C%E7%9A%84%E8%B3%87%E6%96%99%E5%9C%A8%E8%A8%98%E6%86%B6%E9%AB%94%E8%A3%A1%E9%95%B7%E6%80%8E%E6%A8%A3-%E4%BD%8D%E5%85%83%E7%B5%84%E3%80%81%E6%8C%87%E6%A8%99%E3%80%81%E4%BD%8D%E5%85%83%E7%B5%84%E9%A0%86%E5%BA%8F%E8%88%87%E6%9C%89%E8%99%9F%E7%84%A1%E8%99%9F.html#%E4%B8%83%E9%99%B7%E9%98%B1%E6%9C%89%E8%99%9F%E5%92%8C%E7%84%A1%E8%99%9F%E6%B7%B7%E5%9C%A8%E4%B8%80%E8%B5%B7%E6%AF%94%E8%BC%83">第 2 課第七節</a>的陷阱。</li>
+<li>兩個指標<strong>相加沒有意義</strong>，C 不允許（<code>p + q</code> 編譯錯誤）；指向<strong>不同陣列</strong>的指標相減是未定義行為。</li>
+</ul>
+<hr />
+<h2 id="三陣列名稱什麼時候變成指標什麼時候不會">三、陣列名稱什麼時候變成指標、什麼時候不會</h2>
+<p><code>int a[5];</code> 的 <code>a</code> 在<strong>大多數</strong>運算式裡，會自動轉成「指向 <code>a[0]</code> 的指標」（型別 <code>int *</code>）。這個轉換叫做<strong>陣列退化成指標（array-to-pointer decay）</strong>。例外只有幾個，最重要的是：</p>
+<ul>
+<li><code>sizeof a</code>：得到整個陣列的大小，不退化。</li>
+<li><code>&amp;a</code>：得到「指向整個陣列」的指標，型別是 <code>int (*)[5]</code>，不退化。</li>
+<li>用字串常數初始化 <code>char</code> 陣列（<code>char s[] = &quot;hi&quot;;</code>，第四節）。</li>
+</ul>
+<p><code>decay.c</code>：</p>
+<pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+
+<span class="kt">void</span><span class="w"> </span><span class="nf">show</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">a</span><span class="p">[])</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;函式裡 sizeof a = %zu</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="k">sizeof</span><span class="w"> </span><span class="n">a</span><span class="p">);</span>
+<span class="p">}</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">a</span><span class="p">[</span><span class="mi">5</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="mi">0</span><span class="p">};</span>
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="o">*</span><span class="n">p</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">a</span><span class="p">;</span>
+
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;main 裡 sizeof a = %zu, sizeof p = %zu</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="k">sizeof</span><span class="w"> </span><span class="n">a</span><span class="p">,</span><span class="w"> </span><span class="k">sizeof</span><span class="w"> </span><span class="n">p</span><span class="p">);</span>
+<span class="w">    </span><span class="n">show</span><span class="p">(</span><span class="n">a</span><span class="p">);</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;a      = %p   a + 1  = %p</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="kt">void</span><span class="w"> </span><span class="o">*</span><span class="p">)</span><span class="n">a</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="kt">void</span><span class="w"> </span><span class="o">*</span><span class="p">)(</span><span class="n">a</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="p">));</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;&amp;a     = %p   &amp;a + 1 = %p</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="kt">void</span><span class="w"> </span><span class="o">*</span><span class="p">)</span><span class="o">&amp;</span><span class="n">a</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="kt">void</span><span class="w"> </span><span class="o">*</span><span class="p">)(</span><span class="o">&amp;</span><span class="n">a</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="p">));</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<pre><code>$ gcc -Wall -Wextra -g -O0 -o decay decay.c
+decay.c: In function ‘show’:
+decay.c:5:46: warning: ‘sizeof’ on array function parameter ‘a’ will return size of ‘int *’ [-Wsizeof-array-argument]
+    5 |     printf(&quot;函式裡 sizeof a = %zu\n&quot;, sizeof a);
+      |                                              ^
+decay.c:3:15: note: declared here
+    3 | void show(int a[])
+      |           ~~~~^~~~~
+$ ./decay
+main 裡 sizeof a = 20, sizeof p = 8
+函式裡 sizeof a = 8
+a      = 0x7fffd4ec3200   a + 1  = 0x7fffd4ec3204
+&amp;a     = 0x7fffd4ec3200   &amp;a + 1 = 0x7fffd4ec3214
+</code></pre>
+<h3 id="函式參數寫成-int-a其實就是-int-a">函式參數寫成 <code>int a[]</code>，其實就是 <code>int *a</code></h3>
+<ul>
+<li><code>main</code> 裡 <code>sizeof a</code> 是 20（陣列），<code>sizeof p</code> 是 8（指標）。</li>
+<li>傳進 <code>show</code> 之後，<code>sizeof a</code> 變成 8：<strong>函式參數宣告成 <code>int a[]</code>（甚至 <code>int a[5]</code>），編譯器一律把它當成 <code>int *a</code></strong>。呼叫 <code>show(a)</code> 時，<code>a</code> 已經退化成指標，傳過去的只有一個 8 byte 的位址，<strong>陣列的長度沒有跟著傳過去</strong>。</li>
+<li>gcc 知道這很容易誤會，所以 <code>-Wsizeof-array-argument</code>（預設就開）直接警告「這會回傳 <code>int *</code> 的大小」。</li>
+</ul>
+<p><strong>結論：在 C 裡，把陣列交給函式時，長度一定要另外傳</strong>（例如 <code>long sum(int *p, int n)</code>，第五、六節）。
+C 標準函式庫也是這樣設計的：<code>memcpy(dst, src, n)</code>、<code>read(fd, buf, count)</code> 都帶長度。字串是唯一的例外——它靠結尾的 <code>\0</code> 知道自己在哪結束（第四節）。</p>
+<h3 id="a-和-a位址一樣型別不一樣"><code>a</code> 和 <code>&amp;a</code>：位址一樣，型別不一樣</h3>
+<p>輸出最後兩行：<code>a</code> 和 <code>&amp;a</code> 印出<strong>同一個位址</strong> <code>...3200</code>，但 <code>a + 1</code> 多 4、<code>&amp;a + 1</code> 多 <strong>20</strong>（<code>0x14</code>）。套用第二節的規則就懂了：<code>a</code> 退化成 <code>int *</code>，<code>+ 1</code> 走一個 <code>int</code>；<code>&amp;a</code> 的型別是 <code>int (*)[5]</code>（指向「5 個 <code>int</code> 的陣列」），
+<code>+ 1</code> 走一整個陣列 = 20 byte。<strong>又一次：位址相同，型別決定怎麼走。</strong></p>
+<h3 id="算元素個數再跑迴圈又碰到有號無號第-2-課第七節">算元素個數再跑迴圈：又碰到有號無號（<a href="C%E7%9A%84%E8%B3%87%E6%96%99%E5%9C%A8%E8%A8%98%E6%86%B6%E9%AB%94%E8%A3%A1%E9%95%B7%E6%80%8E%E6%A8%A3-%E4%BD%8D%E5%85%83%E7%B5%84%E3%80%81%E6%8C%87%E6%A8%99%E3%80%81%E4%BD%8D%E5%85%83%E7%B5%84%E9%A0%86%E5%BA%8F%E8%88%87%E6%9C%89%E8%99%9F%E7%84%A1%E8%99%9F.html#%E4%B8%83%E9%99%B7%E9%98%B1%E6%9C%89%E8%99%9F%E5%92%8C%E7%84%A1%E8%99%9F%E6%B7%B7%E5%9C%A8%E4%B8%80%E8%B5%B7%E6%AF%94%E8%BC%83">第 2 課第七節</a>）</h3>
+<p><code>count.c</code>：</p>
+<pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">a</span><span class="p">[</span><span class="mi">5</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="mi">3</span><span class="p">,</span><span class="w"> </span><span class="mi">4</span><span class="p">,</span><span class="w"> </span><span class="mi">5</span><span class="p">};</span>
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">total</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+
+<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="k">sizeof</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="k">sizeof</span><span class="w"> </span><span class="n">a</span><span class="p">[</span><span class="mi">0</span><span class="p">];</span><span class="w"> </span><span class="n">i</span><span class="o">++</span><span class="p">)</span><span class="w">   </span><span class="cm">/* 第 8 行 */</span>
+<span class="w">        </span><span class="n">total</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="n">a</span><span class="p">[</span><span class="n">i</span><span class="p">];</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;total = %d</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">total</span><span class="p">);</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<pre><code>$ gcc -Wall -o count count.c &amp;&amp; echo &quot;(-Wall 沒有警告)&quot;
+(-Wall 沒有警告)
+$ gcc -Wall -Wextra -o count count.c
+count.c: In function ‘main’:
+count.c:8:23: warning: comparison of integer expressions of different signedness: ‘int’ and ‘long unsigned int’ [-Wsign-compare]
+    8 |     for (int i = 0; i &lt; sizeof a / sizeof a[0]; i++)   /* 第 8 行 */
+      |                       ^
+$ ./count
+total = 15
+</code></pre>
+<p><code>sizeof a / sizeof a[0]</code> 的型別是 <code>size_t</code>（<code>unsigned long</code>），<code>i</code> 是 <code>int</code>，比較時 <code>i</code> 被轉成 <code>unsigned long</code>。這裡 <code>i</code> 從 0 開始、不會是負的，所以結果正確；但同樣的寫法只要 <code>i</code> 可能是負數就會出錯（<a href="C%E7%9A%84%E8%B3%87%E6%96%99%E5%9C%A8%E8%A8%98%E6%86%B6%E9%AB%94%E8%A3%A1%E9%95%B7%E6%80%8E%E6%A8%A3-%E4%BD%8D%E5%85%83%E7%B5%84%E3%80%81%E6%8C%87%E6%A8%99%E3%80%81%E4%BD%8D%E5%85%83%E7%B5%84%E9%A0%86%E5%BA%8F%E8%88%87%E6%9C%89%E8%99%9F%E7%84%A1%E8%99%9F.html#%E4%B8%83%E9%99%B7%E9%98%B1%E6%9C%89%E8%99%9F%E5%92%8C%E7%84%A1%E8%99%9F%E6%B7%B7%E5%9C%A8%E4%B8%80%E8%B5%B7%E6%AF%94%E8%BC%83">第 2 課第七節</a>）。常見的改法是把 <code>i</code> 宣告成 <code>size_t</code>——但往回數的迴圈改成 <code>size_t</code> 又有另一個陷阱（作業第 5 題）。</p>
+<hr />
+<h2 id="四字串以-0-結尾的-char-陣列">四、字串：以 <code>\0</code> 結尾的 <code>char</code> 陣列</h2>
+<p>C 沒有「字串型別」。<strong>字串（string）</strong> 是一串 <code>char</code>，最後接一個值為 0 的 byte（<code>'\0'</code>，稱為<strong>結尾空字元（null terminator）</strong>）。
+<code>&quot;hi&quot;</code> 在記憶體裡是 3 個 byte：<code>'h'</code>、<code>'i'</code>、<code>'\0'</code>（〈字元是什麼〉第三節的 <code>sizeof(&quot;A&quot;)</code> 是 2 就是這個原因）。
+<code>strlen</code> 從開頭一個一個數，數到 <code>\0</code> 停，<strong>不算 <code>\0</code> 本身</strong>。它沒有其他辦法知道字串多長。</p>
+<p>同樣寫 <code>&quot;hi&quot;</code>，放進陣列和交給指標是兩回事。<code>strings.c</code>：</p>
+<pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;string.h&gt;</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="kt">char</span><span class="w"> </span><span class="n">s1</span><span class="p">[]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;hi&quot;</span><span class="p">;</span><span class="w">       </span><span class="cm">/* 陣列：在堆疊上有自己的 3 個 byte */</span>
+<span class="w">    </span><span class="kt">char</span><span class="w"> </span><span class="o">*</span><span class="n">s2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;hi&quot;</span><span class="p">;</span><span class="w">        </span><span class="cm">/* 指標：指向字串常數 */</span>
+
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;sizeof s1 = %zu, strlen(s1) = %zu</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="k">sizeof</span><span class="w"> </span><span class="n">s1</span><span class="p">,</span><span class="w"> </span><span class="n">strlen</span><span class="p">(</span><span class="n">s1</span><span class="p">));</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;sizeof s2 = %zu, strlen(s2) = %zu</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="k">sizeof</span><span class="w"> </span><span class="n">s2</span><span class="p">,</span><span class="w"> </span><span class="n">strlen</span><span class="p">(</span><span class="n">s2</span><span class="p">));</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;s1 在 %p</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="kt">void</span><span class="w"> </span><span class="o">*</span><span class="p">)</span><span class="n">s1</span><span class="p">);</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;s2 指向 %p</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="kt">void</span><span class="w"> </span><span class="o">*</span><span class="p">)</span><span class="n">s2</span><span class="p">);</span>
+
+<span class="w">    </span><span class="n">s1</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="sc">&#39;H&#39;</span><span class="p">;</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;改完 s1 = %s</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">s1</span><span class="p">);</span>
+
+<span class="w">    </span><span class="n">s2</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="sc">&#39;H&#39;</span><span class="p">;</span><span class="w">            </span><span class="cm">/* 第 17 行：寫進唯讀記憶體 */</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;改完 s2 = %s</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">s2</span><span class="p">);</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<pre><code>$ gcc -Wall -Wextra -g -O0 -o strings strings.c
+$ ./strings; echo &quot;exit=$?&quot;
+sizeof s1 = 3, strlen(s1) = 2
+sizeof s2 = 8, strlen(s2) = 2
+s1 在 0x7ffd6d4f7645
+s2 指向 0x579d88111008
+改完 s1 = Hi
+exit=139
+</code></pre>
+<p>（互動式的 shell 還會另外印一行 segmentation fault 的訊息，字樣依 shell 而定；這裡用 <code>echo exit=$?</code> 看結束狀態，139 的意思見第五節。）</p>
+<ul>
+<li><strong><code>char s1[] = &quot;hi&quot;;</code></strong>：宣告一個 3 byte 的陣列，把 <code>h</code>、<code>i</code>、<code>\0</code> <strong>複製</strong>進去。<code>sizeof s1</code> 是 3（陣列大小，含 <code>\0</code>），位址在 <code>0x7ff…</code>（堆疊上）。它是你自己的記憶體，可以改。</li>
+<li><strong><code>char *s2 = &quot;hi&quot;;</code></strong>：<code>s2</code> 只是一個 8 byte 的指標，指向編譯器放在<strong>執行檔裡</strong>的字串常數（string literal）。
+<code>sizeof s2</code> 是 8（指標大小），位址在 <code>0x5…</code>（執行檔被載入的區域）。改它就當掉。</li>
+</ul>
+<p>字串常數放在哪裡？用 <code>readelf -p</code>（把一個區段當字串印出來，見 <a href="readelf%E5%AE%8C%E6%95%B4%E9%81%B8%E9%A0%85%E5%8F%83%E8%80%83.html">readelf完整選項參考</a>）看 <code>.rodata</code>（read-only data，唯讀資料）區段：</p>
+<pre><code>$ readelf -p .rodata strings
+
+String dump of section '.rodata':
+  [     8]  hi
+  [    10]  sizeof s1 = %zu, strlen(s1) = %zu\n
+  [    38]  sizeof s2 = %zu, strlen(s2) = %zu\n
+  ...
+</code></pre>
+<p>（後面幾行含中文的格式字串，<code>readelf</code> 把非 ASCII 的 byte 印成亂碼，省略。）<code>&quot;hi&quot;</code> 在 <code>.rodata</code> 的偏移 8——
+<code>s2</code> 指向的 <code>0x...008</code> 結尾正是它。<code>printf</code> 的格式字串也全都在這裡。</p>
+<p>在 gdb 裡跑，當掉時看它指向的那一頁的權限：</p>
+<pre><code>$ gdb -q ./strings
+(gdb) run
+Program received signal SIGSEGV, Segmentation fault.
+0x0000555555555262 in main () at strings.c:17
+17	    s2[0] = 'H';            /* 第 17 行：寫進唯讀記憶體 */
+(gdb) print s2
+$1 = 0x555555556008 &quot;hi&quot;
+(gdb) info proc mappings
+          Start Addr           End Addr       Size     Offset  Perms  objfile
+      0x555555554000     0x555555555000     0x1000        0x0  r--p   /…/strings
+      0x555555555000     0x555555556000     0x1000     0x1000  r-xp   /…/strings
+      0x555555556000     0x555555557000     0x1000     0x2000  r--p   /…/strings
+      ...
+      0x7ffffffdd000     0x7ffffffff000    0x22000        0x0  rw-p   [stack]
+</code></pre>
+<p><code>0x555555556008</code> 落在 <code>0x555555556000</code>～<code>0x555555557000</code> 這一頁，權限是 <strong><code>r--p</code>：可讀、不可寫、不可執行</strong>。這就是 <a href="ELF%E6%98%AF%E4%BB%80%E9%BA%BC-%E5%8F%AF%E5%9F%B7%E8%A1%8C%E8%88%87%E5%8F%AF%E9%80%A3%E7%B5%90%E6%A0%BC%E5%BC%8F%E7%9A%84%E5%85%A9%E7%A8%AE%E8%A6%96%E8%A7%92.html">ELF是什麼</a> 講的：連結器把權限相同的區段打包成載入段，核心<strong>以分頁為單位</strong>設定權限。對唯讀的分頁寫入，CPU 會拒絕，核心就送出 SIGSEGV（第五節）。<strong>C 標準本身只說「修改字串常數是未定義行為」；在 Linux／gcc 上，這個未定義行為的實際表現就是 segfault。</strong></p>
+<p><strong>所以：要修改的字串，用 <code>char s[] = &quot;...&quot;</code>（有自己的副本）；只讀不改的，用指標也可以。</strong></p>
+<h3 id="陣列大小跟字串長度不一樣時比較長剛好比較短">陣列大小跟字串長度不一樣時：比較長、剛好、比較短</h3>
+<blockquote>
+<p>2026-09-29 批改作業第 3 題時補教。</p>
+</blockquote>
+<p><code>char s[] = &quot;...&quot;</code> 不寫大小時，編譯器照字串長度＋1（<code>\0</code>）決定。<strong>自己寫了大小</strong>，就有三種情況：</p>
+<table>
+<thead>
+<tr>
+<th>宣告</th>
+<th>陣列大小 vs 字串</th>
+<th>結果</th>
+<th><code>-Wall -Wextra</code> 警告？</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>char name[16] = &quot;Linux&quot;;</code></td>
+<td>比較長（16 &gt; 5＋1）</td>
+<td>前 6 格是 <code>L i n u x \0</code>，<strong>剩下的格子全部補 0</strong></td>
+<td>沒有</td>
+</tr>
+<tr>
+<td><code>char t[5] = &quot;Linux&quot;;</code></td>
+<td><strong>剛好</strong>等於字元數（5）</td>
+<td>放得下 5 個字元，<strong>放不下 <code>\0</code></strong>——C 允許這樣寫，<code>t</code> 不是一個字串</td>
+<td><strong>沒有</strong>（本機 gcc 13.3）</td>
+</tr>
+<tr>
+<td><code>char u[4] = &quot;Linux&quot;;</code></td>
+<td>比較短（4 &lt; 5）</td>
+<td>只放得下 <code>Linu</code>，多的被丟掉，也沒有 <code>\0</code></td>
+<td>有：<code>initializer-string for array of 'char' is too long</code></td>
+</tr>
+</tbody>
+</table>
+<p>第一列「剩下補 0」是 C 的規則：陣列的初始值比陣列短時，沒給到的元素一律設成 0（<code>int a[10] = {1, 2};</code> 也是後 8 個為 0）。<code>fill.c</code>：</p>
+<pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="kt">char</span><span class="w"> </span><span class="n">name</span><span class="p">[</span><span class="mi">16</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;Linux&quot;</span><span class="p">;</span>
+<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">16</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="o">++</span><span class="p">)</span>
+<span class="w">        </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;%d &quot;</span><span class="p">,</span><span class="w"> </span><span class="n">name</span><span class="p">[</span><span class="n">i</span><span class="p">]);</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">);</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<pre><code>$ gcc -Wall -Wextra -g -O0 fill.c -o fill &amp;&amp; ./fill
+76 105 110 117 120 0 0 0 0 0 0 0 0 0 0 0
+</code></pre>
+<p>第二列最危險：<strong>只有太短（第三列）會被警告，剛好塞滿、少了 <code>\0</code> 的那一種不會</strong>。之後把 <code>t</code> 交給 <code>strlen</code>、<code>printf(&quot;%s&quot;)</code>，它們會一路讀過 <code>t</code> 的結尾，直到碰巧遇到一個 0 為止。讀到哪裡停，取決於 <code>t</code> 後面緊鄰的是什麼。<code>layout.c</code> 印出三個陣列的位址：</p>
+<pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="kt">char</span><span class="w"> </span><span class="n">li</span><span class="p">[]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;Linux&quot;</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">char</span><span class="w"> </span><span class="n">t</span><span class="p">[</span><span class="mi">5</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;Linux&quot;</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">char</span><span class="w"> </span><span class="n">u</span><span class="p">[</span><span class="mi">4</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;Linux&quot;</span><span class="p">;</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;u  在 %p</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="kt">void</span><span class="w"> </span><span class="o">*</span><span class="p">)</span><span class="n">u</span><span class="p">);</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;t  在 %p</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="kt">void</span><span class="w"> </span><span class="o">*</span><span class="p">)</span><span class="n">t</span><span class="p">);</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;li 在 %p</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="kt">void</span><span class="w"> </span><span class="o">*</span><span class="p">)</span><span class="n">li</span><span class="p">);</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<pre><code>$ gcc -Wall -Wextra -g -O0 layout.c -o layout &amp;&amp; ./layout      （編譯時只有 u 那一行的警告）
+u  在 0x7fff67120019
+t  在 0x7fff6712001d        ← u + 4
+li 在 0x7fff67120022        ← t + 5
+</code></pre>
+<p>三個陣列在堆疊上<strong>緊緊相連</strong>：<code>u</code>（4 byte）後面就是 <code>t</code>（5 byte），<code>t</code> 後面就是 <code>li</code> 的 <code>Linux\0</code>。所以對 <code>t</code> 算長度會讀過 <code>t</code>、一路讀完 <code>li</code> 才碰到 <code>\0</code>，得到 10（<code>LinuxLinux</code>）；對 <code>u</code> 則是 4＋5＋5 = 14（<code>LinuLinuxLinux</code>）。如果 <code>t</code> 後面剛好是一個 0 byte（例如對齊留下的空隙），就會得到「看起來正確」的 5——<strong>結果對，不代表程式對</strong>，這正是第五節「下場一：安靜地出錯」。堆疊上的排列是編譯器決定的，換最佳化等級、多一個變數都可能改變，不能依賴。</p>
+<blockquote>
+<p>補充一個 I/O 的陷阱（第 ⑤ 站會正式講）：上面的輸出是在終端機上跑的。如果把輸出導向檔案或管線（<code>./strings &gt; out.txt</code>），
+<code>printf</code> 會先把字存在程式自己的緩衝區裡，還沒寫出去程式就當掉，結果<strong>什麼都看不到</strong>。當掉的程式印得少，不代表它當在比較前面。</p>
+</blockquote>
+<hr />
+<h2 id="五c-不檢查邊界越界的三種下場">五、C 不檢查邊界：越界的三種下場</h2>
+<p><strong>越界存取（out-of-bounds access）</strong>：讀寫陣列範圍以外的位置，例如 <code>int a[4]</code> 的 <code>a[4]</code>、<code>a[-1]</code>。
+C 標準規定這是<strong>未定義行為（UB，Undefined Behavior）</strong>（<a href="C%E7%9A%84%E8%B3%87%E6%96%99%E5%9C%A8%E8%A8%98%E6%86%B6%E9%AB%94%E8%A3%A1%E9%95%B7%E6%80%8E%E6%A8%A3-%E4%BD%8D%E5%85%83%E7%B5%84%E3%80%81%E6%8C%87%E6%A8%99%E3%80%81%E4%BD%8D%E5%85%83%E7%B5%84%E9%A0%86%E5%BA%8F%E8%88%87%E6%9C%89%E8%99%9F%E7%84%A1%E8%99%9F.html#%E5%85%AB%E6%BA%A2%E4%BD%8D%E7%84%A1%E8%99%9F%E5%9B%9E%E7%B9%9E%E6%9C%89%E8%99%9F%E6%98%AF%E6%9C%AA%E5%AE%9A%E7%BE%A9%E8%A1%8C%E7%82%BA">第 2 課第八節</a>）：標準不規定會發生什麼，編譯器也不必檢查。實際上 <code>a[4]</code> 就是 <code>*(a + 4)</code>——算出一個位址，照樣去讀寫。會發生什麼事，取決於<strong>那個位址上剛好有什麼</strong>：</p>
+<table>
+<thead>
+<tr>
+<th>下場</th>
+<th>什麼時候</th>
+<th>本節的例子</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>安靜地出錯</strong></td>
+<td>那個位址還在程式可以存取的記憶體裡（例如堆疊上的其他資料）</td>
+<td><code>oob.c</code>：讀到垃圾、寫壞別的東西，程式照常結束</td>
+</tr>
+<tr>
+<td><strong>被保護機制抓到</strong></td>
+<td>剛好蓋到編譯器放的「檢查值」</td>
+<td><code>smash.c</code>：<code>*** stack smashing detected ***</code></td>
+</tr>
+<tr>
+<td><strong>segfault</strong></td>
+<td>那個位址所在的分頁<strong>沒有對映</strong>，或權限不允許這種存取</td>
+<td><code>segv.c</code>（第六節）、<code>strings.c</code>（第四節）</td>
+</tr>
+</tbody>
+</table>
+<h3 id="下場一安靜地出錯">下場一：安靜地出錯</h3>
+<p><code>oob.c</code>：</p>
+<pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">a</span><span class="p">[</span><span class="mi">4</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="mi">3</span><span class="p">,</span><span class="w"> </span><span class="mi">4</span><span class="p">};</span>
+
+<span class="w">    </span><span class="cm">/* 讀：a[4] 已經超出陣列 */</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;a[4] = %d</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">a</span><span class="p">[</span><span class="mi">4</span><span class="p">]);</span><span class="w">            </span><span class="cm">/* 第 8 行 */</span>
+
+<span class="w">    </span><span class="cm">/* 寫：i &lt;= 4 多寫了一格 */</span>
+<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&lt;=</span><span class="w"> </span><span class="mi">4</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="o">++</span><span class="p">)</span>
+<span class="w">        </span><span class="n">a</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">99</span><span class="p">;</span><span class="w">                          </span><span class="cm">/* 第 12 行 */</span>
+
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;寫完了，a[0] = %d</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">a</span><span class="p">[</span><span class="mi">0</span><span class="p">]);</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<pre><code>$ gcc -Wall -Wextra -g -O0 -o oob oob.c
+$ ./oob; echo &quot;exit=$?&quot;
+a[4] = -83499216
+寫完了，a[0] = 99
+exit=0
+</code></pre>
+<ul>
+<li><code>./oob; echo &quot;exit=$?&quot;</code> 是兩個命令：先跑 <code>oob</code>，不論成敗再用 <code>echo</code> 印出它的結束狀態 <code>$?</code>。這個寫法的逐段解說見 <a href="../linux/%E5%88%86%E8%99%9F%E8%88%87%E7%B5%90%E6%9D%9F%E7%8B%80%E6%85%8B-%E5%91%BD%E4%BB%A4%E4%B8%B2%E6%8E%A5%E8%88%87%E9%8C%A2%E5%AD%97%E8%99%9F%E5%95%8F%E8%99%9F.html">分號與結束狀態</a>（2026-09-28 課後提問）。</li>
+<li><code>-Wall -Wextra</code> 在 <code>-O0</code> <strong>一個警告都沒有</strong>。</li>
+<li><code>a[4]</code> 讀到一個垃圾值（每次執行都不同），多寫的那一格寫到了堆疊上 <code>a</code> 後面的某個東西，<strong>程式照常結束，結束狀態 0</strong>。</li>
+<li>這是最危險的一種：錯了卻沒有任何跡象。那個被蓋掉的東西如果是另一個變數，錯誤會在很久以後、很遠的地方才出現。</li>
+</ul>
+<p>改用 <code>-O2</code> 編譯，gcc 反而會警告：</p>
+<pre><code>$ gcc -Wall -Wextra -g -O2 -o oob2 oob.c
+oob.c: In function ‘main’:
+oob.c:12:14: warning: iteration 4 invokes undefined behavior [-Waggressive-loop-optimizations]
+   12 |         a[i] = 99;                          /* 第 12 行 */
+      |         ~~~~~^~~~
+oob.c:11:23: note: within this loop
+   11 |     for (int i = 0; i &lt;= 4; i++)
+      |                     ~~^~~~
+oob.c:8:5: warning: array subscript 4 is above array bounds of ‘int[4]’ [-Warray-bounds=]
+    8 |     printf(&quot;a[4] = %d\n&quot;, a[4]);            /* 第 8 行 */
+      |     ^~~~~~~~~~~~~~~~~~~~~~~~~~~
+oob.c:5:9: note: while referencing ‘a’
+    5 |     int a[4] = {1, 2, 3, 4};
+      |         ^
+oob.c:12:10: warning: array subscript 4 is above array bounds of ‘int[4]’ [-Warray-bounds=]
+   12 |         a[i] = 99;                          /* 第 12 行 */
+      |         ~^~~
+oob.c:5:9: note: while referencing ‘a’
+    5 |     int a[4] = {1, 2, 3, 4};
+      |         ^
+$ ./oob2; echo &quot;exit=$?&quot;
+a[4] = 1353146480
+寫完了，a[0] = 99
+exit=0
+</code></pre>
+<ul>
+<li><code>-Warray-bounds</code> 和 <code>-Waggressive-loop-optimizations</code> 是<strong>最佳化過程順便做的分析</strong>：<code>-O0</code> 不做這些分析，所以不會警告（<code>-Warray-bounds</code> 其實已經被 <code>-Wall</code> 打開了，只是沒有分析就沒有東西可報）。</li>
+<li>第一個警告直接說出第 2 課的觀念：「第 4 圈會觸發未定義行為」——gcc 知道 <code>a[4]</code> 是 UB，就可以假設迴圈跑不到第 4 圈，並依此最佳化。</li>
+<li><strong>這些警告只抓得到編譯時看得出來的越界</strong>（索引是常數或迴圈範圍固定）。索引來自使用者輸入、函式參數時，編譯器什麼都看不出來（第六節的 <code>segv.c</code> 就沒有任何警告）。</li>
+</ul>
+<h3 id="下場二被堆疊保護抓到">下場二：被堆疊保護抓到</h3>
+<p><code>smash.c</code>：往 8 byte 的 <code>char</code> 陣列寫 32 個 <code>'A'</code>：</p>
+<pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="kt">char</span><span class="w"> </span><span class="n">buf</span><span class="p">[</span><span class="mi">8</span><span class="p">];</span>
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">i</span><span class="p">;</span>
+
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;buf 在 %p，i 在 %p</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="kt">void</span><span class="w"> </span><span class="o">*</span><span class="p">)</span><span class="n">buf</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="kt">void</span><span class="w"> </span><span class="o">*</span><span class="p">)</span><span class="o">&amp;</span><span class="n">i</span><span class="p">);</span>
+
+<span class="w">    </span><span class="cm">/* 往 8 byte 的陣列寫 32 個 byte */</span>
+<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">32</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="o">++</span><span class="p">)</span>
+<span class="w">        </span><span class="n">buf</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="sc">&#39;A&#39;</span><span class="p">;</span><span class="w">                       </span><span class="cm">/* 第 12 行 */</span>
+
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;迴圈結束時 i = %d</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">i</span><span class="p">);</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w">                               </span><span class="cm">/* 第 15 行 */</span>
+<span class="p">}</span><span class="w">                                           </span><span class="cm">/* 第 16 行 */</span>
+</code></pre>
+<pre><code>$ gcc -Wall -Wextra -g -O0 -o smash smash.c
+$ ./smash; echo &quot;exit=$?&quot;
+buf 在 0x7fffc9f4b330，i 在 0x7fffc9f4b32c
+迴圈結束時 i = 32
+*** stack smashing detected ***: terminated
+exit=134
+</code></pre>
+<ul>
+<li>迴圈<strong>完整跑完</strong>、<code>printf</code> 也印了——越界寫入的當下沒有人發現。</li>
+<li>到 <code>main</code> 要<strong>結束時</strong>，才出現 <code>*** stack smashing detected ***</code>，程式被終止。</li>
+</ul>
+<p>這是 gcc 的<strong>堆疊保護（stack protector）</strong>：編譯器在函式的區域陣列<strong>後面</strong>（較高位址）放一個隨機的<strong>檢查值（canary，金絲雀值</strong>，取名自礦坑裡用來提早發現毒氣的金絲雀），函式<strong>返回前</strong>檢查它有沒有被改掉；被改了就呼叫 glibc 的 <code>__stack_chk_fail</code>，印出這行訊息並中止程式。
+Ubuntu 的 gcc <strong>預設</strong>就開了 <code>-fstack-protector-strong</code>（本機實測）：</p>
+<pre><code>$ gcc -Q --help=common | grep fstack-protector
+  -fstack-protector           		[disabled]
+  -fstack-protector-all       		[disabled]
+  -fstack-protector-explicit  		[disabled]
+  -fstack-protector-strong    		[enabled]
+</code></pre>
+<p>它只在<strong>函式返回時</strong>檢查一次，所以：抓到的時間點晚於犯錯的時間點；而且只抓得到「一路寫到檢查值」的越界——只多寫 1 格、剛好沒碰到檢查值（像 <code>oob.c</code>）就抓不到。</p>
+<p><strong>為什麼 <code>i</code> 沒被蓋掉？</strong> 輸出第一行：<code>i</code> 的位址比 <code>buf</code> <strong>低</strong> 4 byte，而越界是往高位址寫，所以沒碰到 <code>i</code>。這是 gcc 在這次編譯的排法，<strong>不是保證</strong>；換個編譯器或選項，被蓋掉的可能就是 <code>i</code>，迴圈就會出現莫名其妙的行為。</p>
+<h3 id="關掉保護看看下面是什麼返回時-segfault">關掉保護，看看下面是什麼：返回時 segfault</h3>
+<pre><code>$ gcc -Wall -Wextra -g -O0 -fno-stack-protector -o smash_np smash.c
+$ ./smash_np; echo &quot;exit=$?&quot;
+buf 在 0x7ffe2ea6f4e8，i 在 0x7ffe2ea6f4e4
+迴圈結束時 i = 32
+exit=139
+</code></pre>
+<p>一樣跑完迴圈、印完字，然後以 139 結束（segfault）。用 gdb 看當在哪：</p>
+<pre><code>$ gdb -q ./smash_np
+(gdb) run
+Program received signal SIGSEGV, Segmentation fault.
+0x00005555555551b7 in main () at smash.c:16
+16	}                                           /* 第 16 行 */
+</code></pre>
+<p><strong>當在第 16 行 <code>}</code>——函式結束的地方，不是寫壞東西的第 12 行。</strong> 在第 15 行停下來，看被蓋掉的是什麼：</p>
+<pre><code>(gdb) break 15
+(gdb) run
+Breakpoint 1, main () at smash.c:15
+15	    return 0;                               /* 第 15 行 */
+(gdb) print &amp;buf
+$1 = (char (*)[8]) 0x7fffffffd308
+(gdb) x/32xb buf
+0x7fffffffd308:	0x41	0x41	0x41	0x41	0x41	0x41	0x41	0x41
+0x7fffffffd310:	0x41	0x41	0x41	0x41	0x41	0x41	0x41	0x41
+0x7fffffffd318:	0x41	0x41	0x41	0x41	0x41	0x41	0x41	0x41
+0x7fffffffd320:	0x41	0x41	0x41	0x41	0x41	0x41	0x41	0x41
+(gdb) info frame
+Stack level 0, frame at 0x7fffffffd320:
+ rip = 0x5555555551b1 in main (smash.c:15); saved rip = 0x4141414141414141
+ ...
+ Saved registers:
+  rbp at 0x7fffffffd310, rip at 0x7fffffffd318
+</code></pre>
+<ul>
+<li><code>print &amp;buf</code> 的型別是 <code>char (*)[8]</code>——第三節的「指向整個陣列的指標」。</li>
+<li><code>x/32xb</code> 看到從 <code>buf</code> 開始 32 個 byte 全是 <code>0x41</code>（<code>'A'</code> 的 ASCII 碼）。</li>
+<li><code>info frame</code> 說：<strong>「<code>saved rip</code> 存在 <code>0x7fffffffd318</code>，值是 <code>0x4141414141414141</code>」</strong>。用中文說：一個函式結束時，要跳回「呼叫它的那個地方」繼續執行，<strong>那個返回位址就存在堆疊上</strong>，就在區域變數的上面（較高位址）。這裡它在 <code>buf</code> 往後 16 byte 的地方，被 <code>'A'</code> 蓋成了 <code>0x4141414141414141</code>。（<code>rip</code> 是 CPU 裡記錄「下一個要執行的指令在哪」的暫存器；<code>saved rip</code> 就是存起來、等返回時放回去的那個值。暫存器與堆疊框是第 4、5 課的內容，這裡只要知道「返回位址存在堆疊上」。）</li>
+<li><code>main</code> 在第 16 行返回，CPU 跳到 <code>0x4141414141414141</code>——這個位址連 canonical 都不是（<a href="C%E7%9A%84%E8%B3%87%E6%96%99%E5%9C%A8%E8%A8%98%E6%86%B6%E9%AB%94%E8%A3%A1%E9%95%B7%E6%80%8E%E6%A8%A3-%E4%BD%8D%E5%85%83%E7%B5%84%E3%80%81%E6%8C%87%E6%A8%99%E3%80%81%E4%BD%8D%E5%85%83%E7%B5%84%E9%A0%86%E5%BA%8F%E8%88%87%E6%9C%89%E8%99%9F%E7%84%A1%E8%99%9F.html#%E4%BA%8C%E6%8C%87%E6%A8%99%E5%B0%B1%E6%98%AF%E4%BD%8D%E5%9D%80">第 2 課第二節</a>〈位址看起來只有 6 byte？〉：最上面 16 bit 必須全 0 或全 1），更不可能有對映，於是 segfault。</li>
+</ul>
+<p>這就是<strong>緩衝區溢位（buffer overflow）</strong>：往陣列寫超過它的大小，蓋掉旁邊的資料。蓋到返回位址時，如果寫進去的不是 <code>'A'</code> 而是精心挑選的位址，程式就會跳去攻擊者想要的地方——這是歷史上最經典的漏洞類型，也是堆疊保護存在的原因。</p>
+<h3 id="結束狀態-139-和-134-是什麼">結束狀態 139 和 134 是什麼</h3>
+<p>程式被<strong>訊號（signal）</strong> 終止時，shell 把結束狀態設成 <strong>128 + 訊號編號</strong>：</p>
+<table>
+<thead>
+<tr>
+<th>結束狀態</th>
+<th>訊號</th>
+<th>誰送的、為什麼</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>139 = 128 + 11</td>
+<td><code>SIGSEGV</code>（segmentation violation，區段違規）</td>
+<td>核心：程式存取了沒對映、或權限不允許的位址</td>
+</tr>
+<tr>
+<td>134 = 128 + 6</td>
+<td><code>SIGABRT</code>（abort，中止）</td>
+<td>程式自己：<code>__stack_chk_fail</code> 發現檢查值被改，呼叫 <code>abort()</code></td>
+</tr>
+</tbody>
+</table>
+<p>用 <code>kill -l &lt;編號&gt;</code> 可以把編號換成名字（本機 zsh：<code>kill -l 11</code> 印 <code>SEGV</code>；<code>kill -l 6</code> 印 <code>IOT</code>，是 <code>ABRT</code> 的舊別名）。訊號是第 ② 站（行程）的主題，這裡只需要知道：<strong>segfault 不是 C 語言的機制，是 CPU 與核心的機制</strong>——
+CPU 查分頁表發現這個位址不能這樣存取，交給核心處理，核心對這個行程送出 <code>SIGSEGV</code>，預設動作是終止行程。</p>
+<hr />
+<h2 id="六用-gdb-找-segfault實際走一次">六、用 gdb 找 segfault：實際走一次</h2>
+<p>最常見的 segfault 情境：函式收到的長度是錯的。<code>segv.c</code>：</p>
+<pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+
+<span class="kt">long</span><span class="w"> </span><span class="nf">sum</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="o">*</span><span class="n">p</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">n</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="kt">long</span><span class="w"> </span><span class="n">s</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">n</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="o">++</span><span class="p">)</span>
+<span class="w">        </span><span class="n">s</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="n">p</span><span class="p">[</span><span class="n">i</span><span class="p">];</span><span class="w">              </span><span class="cm">/* 第 7 行 */</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">s</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">a</span><span class="p">[</span><span class="mi">10</span><span class="p">];</span>
+<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">10</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="o">++</span><span class="p">)</span>
+<span class="w">        </span><span class="n">a</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">i</span><span class="p">;</span>
+
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;sum(a, 10) = %ld</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">sum</span><span class="p">(</span><span class="n">a</span><span class="p">,</span><span class="w"> </span><span class="mi">10</span><span class="p">));</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;sum(a, 1000000) = %ld</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">sum</span><span class="p">(</span><span class="n">a</span><span class="p">,</span><span class="w"> </span><span class="mi">1000000</span><span class="p">));</span><span class="w">   </span><span class="cm">/* 第 18 行：長度傳錯 */</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<pre><code>$ gcc -Wall -Wextra -g -O0 -o segv segv.c        ← 沒有任何警告
+$ ./segv; echo &quot;exit=$?&quot;
+sum(a, 10) = 45
+exit=139
+</code></pre>
+<p>只知道「當了」，不知道當在哪。用 gdb 一步一步問：</p>
+<p><strong>第 1 步：跑起來，讓它當在 gdb 裡。</strong></p>
+<pre><code>$ gdb -q ./segv
+(gdb) run
+Program received signal SIGSEGV, Segmentation fault.
+0x000055555555519d in sum (p=0x7fffffffd2f0, n=1000000) at segv.c:7
+7	        s += p[i];              /* 第 7 行 */
+</code></pre>
+<p>gdb 攔下了 <code>SIGSEGV</code>，程式停在出事的那一刻：<code>sum</code> 函式、第 7 行，參數 <code>n=1000000</code>。</p>
+<p><strong>第 2 步：<code>backtrace</code>（<code>bt</code>）——誰呼叫了誰。</strong></p>
+<pre><code>(gdb) bt
+#0  0x000055555555519d in sum (p=0x7fffffffd2f0, n=1000000) at segv.c:7
+#1  0x000055555555522a in main () at segv.c:18
+</code></pre>
+<p><code>#0</code> 是當掉的那一層，<code>#1</code> 是呼叫它的：<code>main</code> 的第 18 行。<strong>錯誤的長度就是從那裡來的。</strong></p>
+<p><strong>第 3 步：看當時的值。</strong></p>
+<pre><code>(gdb) print i
+$1 = 1860
+(gdb) print &amp;p[i]
+$2 = (int *) 0x7ffffffff000
+(gdb) print &amp;p[i] - p
+$3 = 1860
+(gdb) x/4xb &amp;p[i]
+0x7ffffffff000:	Cannot access memory at address 0x7ffffffff000
+</code></pre>
+<ul>
+<li>已經讀到第 1860 個元素——陣列只有 10 個，<strong>前面 1850 次越界讀取都沒有當掉</strong>，只是安靜地讀了垃圾（下場一）。</li>
+<li>要讀的位址是 <code>0x7ffffffff000</code>，gdb 自己也讀不到（<code>Cannot access memory</code>）。</li>
+<li><code>print</code> 裡可以寫 C 的指標運算：<code>&amp;p[i] - p</code> 得到 1860，跟第二節「相減得到元素個數」一致。</li>
+</ul>
+<p><strong>第 4 步：這個位址在哪？</strong></p>
+<pre><code>(gdb) info proc mappings
+          Start Addr           End Addr       Size     Offset  Perms  objfile
+      ...
+      0x7ffffffdd000     0x7ffffffff000    0x22000        0x0  rw-p   [stack]
+  0xffffffffff600000 0xffffffffff601000     0x1000        0x0  --xp   [vsyscall]
+</code></pre>
+<p><code>[stack]</code> 的結尾（End Addr，不含）正好是 <code>0x7ffffffff000</code>。陣列 <code>a</code> 在堆疊上，一路往高位址讀，
+<strong>讀到堆疊區域的盡頭、踏進沒有對映的分頁的那一刻，才 segfault</strong>。驗算：<code>p</code> 是 <code>0x7fffffffd2f0</code>，1860 × 4 = 7440 = <code>0x1d10</code>，<code>0x7fffffffd2f0 + 0x1d10 = 0x7ffffffff000</code>。</p>
+<p><strong>第 5 步：切到呼叫者那一層看。</strong></p>
+<pre><code>(gdb) ptype p
+type = int *
+(gdb) print *p@10
+$4 = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9}
+(gdb) frame 1
+#1  0x000055555555522a in main () at segv.c:18
+18	    printf(&quot;sum(a, 1000000) = %ld\n&quot;, sum(a, 1000000));   /* 第 18 行：長度傳錯 */
+(gdb) ptype a
+type = int [10]
+(gdb) print a
+$5 = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9}
+(gdb) print sizeof a
+$6 = 40
+</code></pre>
+<ul>
+<li>在 <code>sum</code> 裡，<code>p</code> 的型別是 <code>int *</code>：<code>print p</code> 只會印出位址，<strong>gdb 也不知道它指向幾個元素</strong>（第三節：長度沒有跟著傳進來）。要看內容，用 gdb 的 <strong><code>@</code> 運算子</strong>：<code>*p@10</code> 的意思是「從 <code>*p</code> 開始，把連續 10 個同型別的東西當成陣列印出來」。
+<code>@</code> 是 gdb 自己的語法，不是 C（<code>help print</code> 有說明）。</li>
+<li><code>frame 1</code> 切到 <code>main</code> 那一層（程式本身沒有動），在那裡 <code>a</code> 還是 <code>int [10]</code>，<code>print a</code> 直接印出整個陣列，<code>sizeof a</code> 是 40。</li>
+</ul>
+<h3 id="當掉的那一行--犯錯的那一行">當掉的那一行 ≠ 犯錯的那一行</h3>
+<table>
+<thead>
+<tr>
+<th>例子</th>
+<th>當在</th>
+<th>犯錯在</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>segv.c</code></td>
+<td>第 7 行 <code>s += p[i]</code>（<code>sum</code> 裡）</td>
+<td>第 18 行：傳了錯的長度（<code>main</code> 裡）</td>
+</tr>
+<tr>
+<td><code>smash.c</code>（關掉保護）</td>
+<td>第 16 行 <code>}</code></td>
+<td>第 12 行：寫超過 8 byte</td>
+</tr>
+<tr>
+<td><code>smash.c</code>（有保護）</td>
+<td><code>main</code> 返回時</td>
+<td>第 12 行</td>
+</tr>
+</tbody>
+</table>
+<p>segfault 發生在<strong>第一次碰到不能碰的分頁</strong>的時候，那往往離真正的錯誤很遠。所以 gdb 的用法是：
+<code>bt</code> 找出當掉的位置<strong>和一路呼叫過來的路徑</strong>，在每一層用 <code>print</code> 看參數與變數，<strong>往回推「這個錯的值是從哪裡來的」</strong>。</p>
+<h3 id="作業第-45-題的補教當掉的位置由哪裡沒有對映決定">作業第 4、5 題的補教：當掉的位置由「哪裡沒有對映」決定</h3>
+<blockquote>
+<p>2026-09-30 批改作業第 4、5 題時補教。三件事：全域陣列為什麼讀進 <code>[heap]</code> 才當、倒著讀為什麼剛好約 8 MB 才當、十六進位的位址怎麼驗算。</p>
+</blockquote>
+<p><strong>第一件：全域陣列 <code>data</code> 讀出界，當在哪裡？</strong> 作業第 4 題的 <code>find.c</code>（完整原始碼）：</p>
+<pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="n">data</span><span class="p">[</span><span class="mi">8</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="mi">3</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">4</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">5</span><span class="p">,</span><span class="w"> </span><span class="mi">9</span><span class="p">,</span><span class="w"> </span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="mi">6</span><span class="p">};</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="o">*</span><span class="nf">find</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="o">*</span><span class="n">p</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">target</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="o">*</span><span class="n">start</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">p</span><span class="p">;</span><span class="w">             </span><span class="cm">/* 只是為了在 gdb 裡算「走了多遠」 */</span>
+<span class="w">    </span><span class="k">while</span><span class="w"> </span><span class="p">(</span><span class="o">*</span><span class="n">p</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="n">target</span><span class="p">)</span><span class="w">        </span><span class="cm">/* 第 8 行 */</span>
+<span class="w">        </span><span class="n">p</span><span class="o">++</span><span class="p">;</span>
+<span class="w">    </span><span class="p">(</span><span class="kt">void</span><span class="p">)</span><span class="n">start</span><span class="p">;</span><span class="w">                </span><span class="cm">/* 告訴編譯器「我知道 start 沒被用到」，避免 -Wextra 的警告 */</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">p</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;找 5：第 %td 個</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">find</span><span class="p">(</span><span class="n">data</span><span class="p">,</span><span class="w"> </span><span class="mi">5</span><span class="p">)</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">data</span><span class="p">);</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;找 7：第 %td 個</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">find</span><span class="p">(</span><span class="n">data</span><span class="p">,</span><span class="w"> </span><span class="mi">7</span><span class="p">)</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">data</span><span class="p">);</span><span class="w">   </span><span class="cm">/* 第 17 行 */</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<p>在 gdb 裡跑（<code>gcc -Wall -Wextra -g -O0 find.c -o find</code>，<code>gdb -q ./find</code>，<code>run</code>）：</p>
+<pre><code>Program received signal SIGSEGV, Segmentation fault.
+0x000055555555516b in find (p=0x55555557a000, target=7) at find.c:8
+(gdb) print &amp;data
+$2 = (int (*)[8]) 0x555555558020 &lt;data&gt;
+(gdb) print p - start
+$1 = 34808
+(gdb) info proc mappings                                    （節錄）
+      0x555555558000     0x555555559000     0x1000     0x3000  rw-p   /…/find      ← data 在這裡（.data）
+      0x555555559000     0x55555557a000    0x21000        0x0  rw-p   [heap]       ← 緊接在後
+</code></pre>
+<ul>
+<li><code>data</code> 在執行檔自己的 <code>rw-p</code> 那一段（可讀寫、有檔名 <code>find</code>，也就是 <code>.data</code> 區段所在的載入段，見 <a href="ELF%E6%98%AF%E4%BB%80%E9%BA%BC-%E5%8F%AF%E5%9F%B7%E8%A1%8C%E8%88%87%E5%8F%AF%E9%80%A3%E7%B5%90%E6%A0%BC%E5%BC%8F%E7%9A%84%E5%85%A9%E7%A8%AE%E8%A6%96%E8%A7%92.html">ELF是什麼</a>）。</li>
+<li>那一段結束在 <code>0x555555559000</code>，但 <strong><code>[heap]</code> 剛好從同一個位址開始</strong>，中間沒有空隙。<code>p</code> 走出 <code>.data</code> 時踏進的是<strong>有對映</strong>的 <code>[heap]</code>，所以不會當；一路讀到 <code>[heap]</code> 的結尾 <code>0x55555557a000</code>（End Addr，不含），下一格沒有對映，才 segfault。</li>
+<li>這跟堆疊保護的金絲雀無關：金絲雀只保護堆疊上的返回位址，而且只在函式返回時檢查；這裡是全域變數、只有讀取。</li>
+</ul>
+<p><strong>但這個 34808 只在 gdb 裡成立。</strong> gdb 預設會<strong>關掉位址隨機化</strong>（ASLR，見 <a href="ELF%E6%98%AF%E4%BB%80%E9%BA%BC-%E5%8F%AF%E5%9F%B7%E8%A1%8C%E8%88%87%E5%8F%AF%E9%80%A3%E7%B5%90%E6%A0%BC%E5%BC%8F%E7%9A%84%E5%85%A9%E7%A8%AE%E8%A6%96%E8%A7%92.html">ELF是什麼</a> 第三節），<code>[heap]</code> 才會緊貼在 <code>.data</code> 後面。
+gdb 的 <code>set disable-randomization off</code> 可以打開它（這是 gdb 上百個 <code>set</code> 子命令之一，說明見 <code>help set disable-randomization</code>；分類見 <a href="gdb%E5%AE%8C%E6%95%B4%E5%91%BD%E4%BB%A4%E5%8F%83%E8%80%83.html">gdb完整命令參考</a>）。本機實測三次：</p>
+<pre><code>$ gdb -q -batch -ex 'set disable-randomization off' -ex run -ex 'print p - start' -ex 'print p' -ex 'info proc mappings' ./find
+$1 = 1016
+$2 = (int *) 0x5c2bfcd70000
+      0x5c2bfcd6f000     0x5c2bfcd70000     0x1000     0x3000  rw-p   /…/find
+      0x5c2c38d59000     0x5c2c38d7a000    0x21000        0x0  rw-p   [heap]     ← 離得很遠
+（另外兩次也都是 1016，只有位址不同）
+</code></pre>
+<p>開著 ASLR 時，<code>[heap]</code> 被放到一段隨機距離之外，<code>.data</code> 後面就是沒有對映的空洞，所以一走出 <code>.data</code> 那一頁就當：
+<code>data</code> 在頁內偏移 <code>0x20</code>，那一頁還剩 <code>0x1000 − 0x20</code> = 4064 byte ＝ <strong>1016 個 <code>int</code></strong>。直接 <code>./find</code> 跑也是這種情況。
+<strong>同一個越界，在 gdb 裡和 gdb 外當在不同的地方</strong>——再次說明「當在哪裡」只看旁邊的記憶體有沒有對映，跟錯誤本身無關。</p>
+<p><strong>第二件：<code>back.c</code> 倒著讀，為什麼剛好約 209 萬行才當？</strong> 作業第 5 題的 <code>back.c</code>：</p>
+<pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">()</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">a</span><span class="p">[</span><span class="mi">5</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="mi">3</span><span class="p">,</span><span class="w"> </span><span class="mi">4</span><span class="p">,</span><span class="w"> </span><span class="mi">5</span><span class="p">};</span>
+<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kt">size_t</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">sizeof</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="k">sizeof</span><span class="w"> </span><span class="n">a</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="o">--</span><span class="p">)</span>
+<span class="w">        </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;%d</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">a</span><span class="p">[</span><span class="n">i</span><span class="p">]);</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<pre><code>$ gcc -Wall -Wextra -g -O0 -o back back.c        （-Wtype-limits 警告 i &gt;= 0 永遠成立）
+$ ./back | wc -l
+2093475
+$ ulimit -s
+8192
+</code></pre>
+<ul>
+<li><code>i</code> 從 0 再減 1，變成 <code>SIZE_MAX</code>（18446744073709551615）。<code>a[i]</code> 是 <code>*(a + i)</code>，位址是 <code>a + i × 4</code>。位址只有 64 bit，超過 2⁶⁴ 就回繞（跟第 2 課無號整數回繞同一件事）：
+<code>SIZE_MAX × 4</code> = 2⁶⁶ − 4，對 2⁶⁴ 取餘數是 2⁶⁴ − 4，加到 <code>a</code> 上等於 <strong><code>a − 4</code></strong>，也就是 <code>a[-1]</code>。再減一次是 <code>a[-2]</code>……
+所以迴圈實際上是<strong>從 <code>a</code> 往低位址、一格一格倒著讀</strong>，這就是 ASan 報 <code>stack-buffer-underflow</code>（在陣列<strong>前面</strong>）的原因。</li>
+<li><code>a</code> 在堆疊上。堆疊往<strong>低位址</strong>長，<code>info proc mappings</code> 看到的 <code>[stack]</code> 起初只有 <code>0x22000</code>（136 KB），但往下讀到還沒對映的地方時，
+<strong>核心會自動把堆疊往下延長</strong>，直到上限 <code>ulimit -s</code>（本機 8192 KB ＝ 8 MB）。</li>
+<li>209 萬行 × 4 byte ≈ 8.37 MB，差不多就是 8 MB 的堆疊上限（<code>a</code> 上面還有環境變數、命令列參數等，所以不是剛好 8 MB）。讀到上限以下，核心不再延長，才 segfault。</li>
+</ul>
+<p><strong>第三件：十六進位的位址怎麼驗算？</strong> 不必手算，交給工具：</p>
+<pre><code>$ printf '%#x\n' $((0x555555558020 + 4*34808))      # shell：$(( )) 做整數運算，printf %#x 印成 0x 開頭的十六進位
+0x55555557a000
+(gdb) print/x 0x555555558020 + 4*34808              # gdb：print/x 用十六進位印（見 gdb完整命令參考 的 x／print 格式字母）
+$3 = 0x55555557a000
+</code></pre>
+<ul>
+<li><code>$(( ))</code> 是 shell 的<strong>算術展開</strong>（arithmetic expansion），認得 <code>0x</code> 開頭的十六進位；這裡只用到 <code>+</code>、<code>*</code> 兩個運算子，完整運算子清單（<code>-</code>、<code>/</code>、<code>%</code>、<code>&lt;&lt;</code>、<code>&amp;</code>、比較、三元運算……）見 <code>man bash</code> 的 ARITHMETIC EVALUATION 一節。</li>
+<li><code>printf</code> 的 <code>%#x</code>：<code>x</code> 是十六進位、<code>#</code> 是「加上 <code>0x</code> 前綴」，跟 C 的 <code>printf</code> 同一套格式（<a href="C%E7%9A%84%E8%B3%87%E6%96%99%E5%9C%A8%E8%A8%98%E6%86%B6%E9%AB%94%E8%A3%A1%E9%95%B7%E6%80%8E%E6%A8%A3-%E4%BD%8D%E5%85%83%E7%B5%84%E3%80%81%E6%8C%87%E6%A8%99%E3%80%81%E4%BD%8D%E5%85%83%E7%B5%84%E9%A0%86%E5%BA%8F%E8%88%87%E6%9C%89%E8%99%9F%E7%84%A1%E8%99%9F.html#printf-%E7%9A%84%E6%A0%BC%E5%BC%8F%E5%AE%8C%E6%95%B4%E6%96%87%E6%B3%95">第 2 課第九節</a>）。</li>
+<li>gdb 的 <code>print/x</code>：<code>/x</code> 是輸出格式，完整的格式字母見 <a href="gdb%E5%AE%8C%E6%95%B4%E5%91%BD%E4%BB%A4%E5%8F%83%E8%80%83.html#%E4%B8%89gdb-%E5%85%A7%E9%83%A8%E5%91%BD%E4%BB%A4%E7%9A%84%E5%85%B1%E9%80%9A%E6%96%87%E6%B3%95">gdb完整命令參考第三節</a>〈輸出格式 <code>/FMT</code>：<code>print</code> 與 <code>x</code> 共用〉。</li>
+<li>驗算的意思：34808 × 4 = 139232 = <code>0x21fe0</code>，<code>0x555555558020 + 0x21fe0 = 0x55555557a000</code>，正好是 <code>[heap]</code> 的結尾。</li>
+</ul>
+<hr />
+<h2 id="七addresssanitizer在第一次越界的當下抓到它">七、AddressSanitizer：在第一次越界的當下抓到它</h2>
+<p>第五節的三種下場有個共同問題：<strong>越界的當下沒有人發現</strong>。
+<strong>AddressSanitizer（ASan，位址消毒器）</strong> 是 gcc／clang 內建的工具：加 <code>-fsanitize=address</code> 編譯，編譯器會在<strong>每一次</strong>讀寫記憶體前插入檢查，並在每個陣列的前後放一段<strong>禁區（redzone）</strong>。一碰到禁區就立刻停下來，報告<strong>哪一行、讀還是寫、幾個 byte、越過了哪個變數</strong>。</p>
+<p>它跟第 2 課的 UBSan（<code>-fsanitize=undefined</code>）是同一家族：UBSan 抓有號溢位這類 UB，ASan 抓記憶體存取錯誤。</p>
+<p>拿第五節的 <code>oob.c</code> 來試（原始碼同上，不用改）：</p>
+<pre><code>$ gcc -Wall -Wextra -g -O0 -fsanitize=address -o oob_asan oob.c
+$ ./oob_asan; echo &quot;exit=$?&quot;
+=================================================================
+==118093==ERROR: AddressSanitizer: stack-buffer-overflow on address 0x701fac900030 at pc 0x5660c03173f9 bp 0x7ffd5c286a00 sp 0x7ffd5c2869f0
+READ of size 4 at 0x701fac900030 thread T0
+    #0 0x5660c03173f8 in main /…/oob.c:8
+    #1 0x701faea2a1c9 in __libc_start_call_main ../sysdeps/nptl/libc_start_call_main.h:58
+    #2 0x701faea2a28a in __libc_start_main_impl ../csu/libc-start.c:360
+    #3 0x5660c0317184 in _start (/…/oob_asan+0x1184) (BuildId: 21d3ca8f73b8fb972ee2af64ced150aab2712db2)
+
+Address 0x701fac900030 is located in stack of thread T0 at offset 48 in frame
+    #0 0x5660c0317258 in main /…/oob.c:4
+
+  This frame has 1 object(s):
+    [32, 48) 'a' (line 5) &lt;== Memory access at offset 48 overflows this variable
+HINT: this may be a false positive if your program uses some custom stack unwind mechanism, swapcontext or vfork
+      (longjmp and C++ exceptions *are* supported)
+SUMMARY: AddressSanitizer: stack-buffer-overflow /…/oob.c:8 in main
+Shadow bytes around the buggy address:
+  ...
+=&gt;0x701fac900000: f1 f1 f1 f1 00 00[f3]f3 00 00 00 00 00 00 00 00
+  ...
+Shadow byte legend (one shadow byte represents 8 application bytes):
+  Addressable:           00
+  Partially addressable: 01 02 03 04 05 06 07 
+  Heap left redzone:       fa
+  Freed heap region:       fd
+  Stack left redzone:      f1
+  Stack mid redzone:       f2
+  Stack right redzone:     f3
+  ...（共 18 種標記，省略其餘）
+==118093==ABORTING
+exit=1
+</code></pre>
+<p>（路徑以 <code>/…/</code> 省略，<code>Shadow bytes</code> 上下各 5 行全 <code>00</code> 的列省略。）逐段讀：</p>
+<table>
+<thead>
+<tr>
+<th>報告的哪裡</th>
+<th>意思</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>stack-buffer-overflow</code></td>
+<td>錯誤種類：堆疊上的陣列溢位（其他種類如 <code>heap-buffer-overflow</code>、<code>stack-buffer-underflow</code>）</td>
+</tr>
+<tr>
+<td><code>READ of size 4</code></td>
+<td><strong>讀</strong>了 <strong>4 byte</strong>（一個 <code>int</code>）；寫入會是 <code>WRITE</code></td>
+</tr>
+<tr>
+<td><code>#0 ... in main /…/oob.c:8</code></td>
+<td>發生在 <code>oob.c</code> <strong>第 8 行</strong>——就是 <code>a[4]</code> 那一行，不是之後某個地方</td>
+</tr>
+<tr>
+<td><code>[32, 48) 'a' (line 5) &lt;== Memory access at offset 48 overflows this variable</code></td>
+<td>這個堆疊框裡有一個變數 <code>a</code>（第 5 行宣告），佔偏移 32～47；存取的是偏移 48——<strong>剛好超出 <code>a</code> 的結尾</strong></td>
+</tr>
+<tr>
+<td><code>Shadow bytes</code> 那一列</td>
+<td>ASan 用 1 個「影子 byte」記錄每 8 個 byte 能不能碰：<code>00</code> 可以、<code>f1</code>／<code>f3</code> 是陣列左右的禁區；<code>[f3]</code> 是這次碰到的那一格</td>
+</tr>
+<tr>
+<td><code>ABORTING</code>、<code>exit=1</code></td>
+<td><strong>第一個錯誤就停</strong>，後面第 12 行的越界寫入沒有機會報告</td>
+</tr>
+</tbody>
+</table>
+<h3 id="96-101-怎麼讀半開區間偏移與影子-byte"><code>[96, 101)</code> 怎麼讀：半開區間、偏移與影子 byte</h3>
+<blockquote>
+<p>2026-09-30 補：批改作業第 3-3 題時使用者問「<code>[96,101)</code> 是什麼意思」。</p>
+</blockquote>
+<p><strong><code>[a, b)</code> 是數學的「半開區間」（half-open interval）寫法</strong>：方括號 <code>[</code> 表示<strong>包含</strong>這一端，圓括號 <code>)</code> 表示<strong>不包含</strong>。所以 <code>[96, 101)</code> 是 96 ≤ 偏移 &lt; 101，也就是 96、97、98、99、100 這 <strong>5 個 byte</strong>。記法：</p>
+<ul>
+<li>長度 = 右端 − 左端：101 − 96 = 5，剛好是 <code>char t[5]</code> 的大小，不用 ±1。</li>
+<li>右端那個數字<strong>就是「剛好超出結尾」的第一個 byte</strong>。報告說存取的是 <code>offset 101</code>，一看就知道是 <code>t</code> 後面緊接的那一格（<code>t[5]</code>）。</li>
+<li>C 的習慣本來就是這樣：陣列索引 0～n−1、迴圈寫 <code>i &lt; n</code>，<code>n</code> 本身不在範圍內——<code>[0, n)</code>。</li>
+</ul>
+<p><strong>偏移（offset）從哪裡算？</strong> 從這個函式的「區域變數區塊」起點算起，以 byte 為單位。報告的位址減掉偏移就是起點。下面是作業第 3 題 <code>strlen.c</code>（使用者的作業程式）的 ASan 輸出，完整原始碼：</p>
+<pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+
+<span class="kt">size_t</span><span class="w"> </span><span class="nf">my_strlen</span><span class="p">(</span><span class="kt">char</span><span class="w"> </span><span class="o">*</span><span class="n">s</span><span class="p">){</span>
+<span class="w">    </span><span class="kt">char</span><span class="w"> </span><span class="o">*</span><span class="n">start</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">s</span><span class="p">;</span>
+<span class="w">    </span><span class="k">while</span><span class="w"> </span><span class="p">(</span><span class="o">*</span><span class="n">s</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="sc">&#39;\0&#39;</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">                                        </span><span class="cm">/* 第 5 行：越界讀取發生在這裡 */</span>
+<span class="w">        </span><span class="n">s</span><span class="o">++</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">s</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">start</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kt">char</span><span class="w"> </span><span class="n">li</span><span class="p">[]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;Linux&quot;</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">char</span><span class="w"> </span><span class="n">empty</span><span class="p">[]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;&quot;</span><span class="p">;</span><span class="w"> </span>
+<span class="w">    </span><span class="kt">char</span><span class="w"> </span><span class="n">word</span><span class="p">[]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;字&quot;</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">char</span><span class="w"> </span><span class="n">t</span><span class="p">[</span><span class="mi">5</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;Linux&quot;</span><span class="p">;</span><span class="w">                                        </span><span class="cm">/* 第 15 行：剛好 5 格，沒有 &#39;\0&#39; */</span>
+<span class="w">    </span><span class="kt">char</span><span class="w"> </span><span class="n">u</span><span class="p">[</span><span class="mi">4</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;Linux&quot;</span><span class="p">;</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;Length of &#39;%s&#39; is %zu</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">li</span><span class="p">,</span><span class="w"> </span><span class="n">my_strlen</span><span class="p">(</span><span class="n">li</span><span class="p">));</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;Length of &#39;%s&#39; is %zu</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">empty</span><span class="p">,</span><span class="w"> </span><span class="n">my_strlen</span><span class="p">(</span><span class="n">empty</span><span class="p">));</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;Length of &#39;%s&#39; is %zu</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">word</span><span class="p">,</span><span class="w"> </span><span class="n">my_strlen</span><span class="p">(</span><span class="n">word</span><span class="p">));</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;Length of &#39;%s&#39; is %zu</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">t</span><span class="p">,</span><span class="w"> </span><span class="n">my_strlen</span><span class="p">(</span><span class="n">t</span><span class="p">));</span><span class="w">        </span><span class="cm">/* 第 20 行 */</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;Length of &#39;%s&#39; is %zu</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">u</span><span class="p">,</span><span class="w"> </span><span class="n">my_strlen</span><span class="p">(</span><span class="n">u</span><span class="p">));</span>
+
+<span class="w">    </span><span class="kt">char</span><span class="w"> </span><span class="n">name</span><span class="p">[</span><span class="mi">16</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;Linux&quot;</span><span class="p">;</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;Length of &#39;%s&#39; is %zu</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">name</span><span class="p">,</span><span class="w"> </span><span class="k">sizeof</span><span class="w"> </span><span class="n">name</span><span class="p">);</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;Length of &#39;%s&#39; is %zu</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">name</span><span class="p">,</span><span class="w"> </span><span class="n">my_strlen</span><span class="p">(</span><span class="n">name</span><span class="p">));</span>
+<span class="w">    </span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<pre><code>$ gcc -Wall -Wextra -g -O0 -fsanitize=address strlen.c -o strlen_asan    （u 那一行的警告省略）
+$ ./strlen_asan                                                              （節錄）
+==17658==ERROR: AddressSanitizer: stack-buffer-overflow on address 0x700862d00065 ...
+READ of size 1 at 0x700862d00065 thread T0
+    #0 0x5f45c56ac2fb in my_strlen strlen.c:5
+Address 0x700862d00065 is located in stack of thread T0 at offset 101 in frame
+  This frame has 6 object(s):
+    [48, 49) 'empty' (line 13)
+    [64, 68) 'word' (line 14)
+    [80, 84) 'u' (line 16)
+    [96, 101) 't' (line 15) &lt;== Memory access at offset 101 overflows this variable
+    [128, 134) 'li' (line 12)
+    [160, 176) 'name' (line 23)
+Shadow bytes around the buggy address:
+=&gt;0x700862d00000: f1 f1 f1 f1 f1 f1 01 f2 04 f2 04 f2[05]f2 f2 f2
+  0x700862d00080: 06 f2 f2 f2 00 00 f3 f3 00 00 00 00 00 00 00 00
+</code></pre>
+<ul>
+<li>位址 <code>0x700862d00065</code> − 偏移 101（<code>0x65</code>）= <code>0x700862d00000</code>，正是 <code>=&gt;</code> 那一列的開頭：區域變數區塊從這裡開始。</li>
+<li>每個變數的區間長度都等於它的大小：<code>empty</code> 1（<code>&quot;&quot;</code> 只有 <code>\0</code>）、<code>word</code> 4（<code>字</code> 的 3 byte ＋ <code>\0</code>）、<code>u</code> 4、<code>t</code> 5、<code>li</code> 6、<code>name</code> 16。</li>
+<li>區間之間<strong>有空隙</strong>（例如 <code>[84, 96)</code>、<code>[101, 128)</code>）：那就是 ASan 塞進去的<strong>禁區</strong>。沒有 ASan 時，同一支程式的 <code>u</code>、<code>t</code>、<code>li</code> 是緊緊相連的（第四節〈陣列大小跟字串長度不一樣時〉的實測）——
+所以一般編譯讀過 <code>t</code> 會安靜地讀進 <code>li</code>，ASan 版讀過 <code>t</code> 則立刻踩進禁區。</li>
+</ul>
+<p><strong>影子 byte 那一列跟區間是同一件事的另一種寫法</strong>：1 個影子 byte 代表 8 個真正的 byte，<code>=&gt;</code> 那一列的 16 個影子 byte 就是偏移 0～127：</p>
+<pre><code>影子 byte：  f1 f1 f1 f1 f1 f1 | 01    | f2    | 04    | f2    | 04    | f2    |[05]    | f2 f2 f2
+代表偏移：   0 ～ 47           | 48～55 | 56～63 | 64～71 | 72～79 | 80～87 | 88～95 | 96～103 | 104～127
+對應變數：   左禁區             | empty  | 禁區   | word   | 禁區   | u      | 禁區   | t       | 禁區
+</code></pre>
+<ul>
+<li><code>00</code> 表示這 8 個 byte 全部可以碰；<code>01</code>～<code>07</code> 表示<strong>只有前 N 個</strong>可以碰。<code>[05]</code> 就是「偏移 96～103 這 8 個 byte 裡，只有前 5 個（96～100）屬於 <code>t</code>」——跟 <code>[96, 101)</code> 說的完全一樣。</li>
+<li>方括號 <code>[05]</code> 標出這次存取落在哪一組；偏移 101 是這組的第 6 個 byte，超出前 5 個，所以報錯。</li>
+<li>下一列開頭的 <code>06</code> 是 <code>li</code>（偏移 128～133，6 個 byte），<code>00 00</code> 是 <code>name</code> 的 16 個 byte。</li>
+</ul>
+<hr />
+<p><strong>上圖的 <code>01</code>：影子 byte 的值是「個數」，不是資料</strong></p>
+<blockquote>
+<p>2026-10-11 提問：「這裏01到底是什麼意思?」（指上圖 <code>empty</code> 那一格的 <code>01</code>）</p>
+</blockquote>
+<p>影子 byte 存的<strong>不是記憶體裡的內容</strong>，而是 ASan 記的一個<strong>計數</strong>：「這一組 8 個 byte 裡，從開頭算起有幾個可以碰」。所以 <code>01</code> 的意思是：<strong>偏移 48～55 這 8 個 byte 裡，只有第 1 個（偏移 48）可以碰</strong>，49～55 都是禁區。為什麼只有 1 個？因為這一組裡只放了 <code>empty</code>，而 <code>char empty[] = &quot;&quot;;</code> 只有一個 <code>'\0'</code>，大小是 1 byte——報告裡的 <code>[48, 49) 'empty'</code> 說的是同一件事。</p>
+<p>影子 byte 的值整理成表。這裡只列堆疊陣列會遇到的 5 列；報告最後的 <code>Shadow byte legend</code> 一共列 18 種（<code>00</code> 算一種、<code>01</code>～<code>07</code> 合算一種，其餘是 heap、全域變數、已釋放記憶體等用的禁區標記），每次 ASan 報錯都會印出完整清單：</p>
+<table>
+<thead>
+<tr>
+<th>影子 byte</th>
+<th>意思</th>
+<th>本節的例子</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>00</code></td>
+<td>8 個 byte 全部可以碰</td>
+<td><code>name</code> 的 16 byte → <code>00 00</code></td>
+</tr>
+<tr>
+<td><code>01</code>～<code>07</code></td>
+<td>只有前 N 個可以碰，後面 8 − N 個不行</td>
+<td><code>empty</code> 1 byte → <code>01</code>；<code>word</code>、<code>u</code> 4 byte → <code>04</code>；<code>t</code> 5 byte → <code>05</code></td>
+</tr>
+<tr>
+<td><code>f1</code></td>
+<td>堆疊左禁區（第一個變數前面）</td>
+<td>偏移 0～47</td>
+</tr>
+<tr>
+<td><code>f2</code></td>
+<td>堆疊中間禁區（變數之間）</td>
+<td><code>01</code> 後面的 <code>f2</code></td>
+</tr>
+<tr>
+<td><code>f3</code></td>
+<td>堆疊右禁區（最後一個變數後面）</td>
+<td>本節第一份輸出的 <code>[f3]</code></td>
+</tr>
+</tbody>
+</table>
+<p>沒有 <code>08</code>：8 個全可以碰就寫 <code>00</code>。也沒有「中間幾個可以、前面不行」的寫法，因為 ASan 會把每個變數的起點對齊到 8 的倍數（上面區間的左端 48、64、80、96、128、160 都是 8 的倍數），可以碰的部分一定從一組的開頭算起。</p>
+<p><strong>一個變數比 8 byte 大時</strong>，前面完整的幾組寫 <code>00</code>，最後不滿 8 個的那一組寫剩下的個數。用一個實際的程式看 <code>01</code> 和「<code>00</code> ＋ 餘數」。</p>
+<p><code>shadow.c</code>（檔案：<a href="../../small-project/s1-03-arrays-pointers/note-sample/shadow.c"><code>shadow.c</code></a>）完整原始碼：</p>
+<pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">argc</span><span class="p">,</span><span class="w"> </span><span class="kt">char</span><span class="w"> </span><span class="o">*</span><span class="n">argv</span><span class="p">[])</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="kt">char</span><span class="w"> </span><span class="n">empty</span><span class="p">[]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;&quot;</span><span class="p">;</span><span class="w">            </span><span class="cm">/* 1 byte：只有 &#39;\0&#39; */</span>
+<span class="w">    </span><span class="kt">char</span><span class="w"> </span><span class="n">c11</span><span class="p">[</span><span class="mi">11</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;0123456789&quot;</span><span class="p">;</span><span class="w">  </span><span class="cm">/* 11 byte：10 個字元 + &#39;\0&#39; */</span>
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">argc</span><span class="p">;</span><span class="w">                 </span><span class="cm">/* 不帶參數執行時 argc = 1 */</span>
+
+<span class="w">    </span><span class="p">(</span><span class="kt">void</span><span class="p">)</span><span class="n">argv</span><span class="p">;</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;%d</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">c11</span><span class="p">[</span><span class="mi">0</span><span class="p">]);</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;%d</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">empty</span><span class="p">[</span><span class="n">i</span><span class="p">]);</span><span class="w">     </span><span class="cm">/* 第 11 行：empty[1]，越界 1 格 */</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<p>（<code>i</code> 從 <code>argc</code> 來，是為了讓 gcc 在編譯時看不出是 <code>empty[1]</code>，不會先警告。）</p>
+<pre><code>$ gcc -Wall -Wextra -g -O0 -fsanitize=address shadow.c -o shadow
+$ ./shadow                                                       （節錄）
+==14028==ERROR: AddressSanitizer: stack-buffer-overflow on address 0x753511800031 ...
+READ of size 1 at 0x753511800031 thread T0
+    #0 0x56aefe72c3a4 in main /…/shadow.c:11
+Address 0x753511800031 is located in stack of thread T0 at offset 49 in frame
+  This frame has 2 object(s):
+    [48, 49) 'empty' (line 5) &lt;== Memory access at offset 49 overflows this variable
+    [64, 75) 'c11' (line 6)
+Shadow bytes around the buggy address:
+=&gt;0x753511800000: f1 f1 f1 f1 f1 f1[01]f2 00 03 f3 f3 00 00 00 00
+</code></pre>
+<p>逐格對照：</p>
+<pre><code>影子 byte：  f1 f1 f1 f1 f1 f1 | [01]   | f2     | 00     | 03     | f3 f3
+代表偏移：   0 ～ 47           | 48～55 | 56～63 | 64～71 | 72～79 | 80～95
+對應變數：   左禁區             | empty  | 中間禁區 | c11 前 8 byte | c11 後 3 byte | 右禁區
+</code></pre>
+<ul>
+<li><code>[01]</code>：<code>empty</code> 佔 <code>[48, 49)</code>，1 byte → 這組只有前 1 個可以碰。這次讀的是偏移 49（<code>empty[1]</code>），是這組的第 2 個 byte，超出前 1 個，所以報錯；方括號標出的就是這一組。</li>
+<li><code>00 03</code>：<code>c11</code> 佔 <code>[64, 75)</code>，11 byte ＝ 8 ＋ 3，所以是一組全可碰的 <code>00</code>，加上一組只有前 3 個可碰的 <code>03</code>。</li>
+<li>反過來讀也可以：看到 <code>00 03</code>，就知道那個變數是 8 × 1 ＋ 3 ＝ 11 byte。</li>
+</ul>
+<p><em>（追問補充結束，以下回到主線）</em></p>
+<hr />
+<p><strong>附帶一提：這個位址為什麼不像 <code>[stack]</code> 的 <code>0x7ff…</code>？</strong> ASan 預設開著 <code>detect_stack_use_after_return</code>（<code>ASAN_OPTIONS=help=1 ./strlen_asan</code> 可以看到 <code>Current Value: true</code>），它會把區域變數放在自己另外配置的一塊記憶體（「假的堆疊」），才能抓「函式返回後還在用它的區域變數」這種錯。關掉它，位址就回到真正的堆疊，偏移不變：</p>
+<pre><code>$ ASAN_OPTIONS=detect_stack_use_after_return=0 ./strlen_asan     （節錄）
+READ of size 1 at 0x7ffd5b033245 thread T0
+Address 0x7ffd5b033245 is located in stack of thread T0 at offset 101 in frame
+    [96, 101) 't' (line 15) &lt;== Memory access at offset 101 overflows this variable
+</code></pre>
+<p>再拿 <code>smash.c</code> 試——剛才堆疊保護要等到返回時才抓到，ASan 在第一次越界時就抓到：</p>
+<pre><code>$ gcc -g -O0 -fsanitize=address -o smash_asan smash.c
+$ ./smash_asan
+...
+WRITE of size 1 at 0x7236a2a00048 thread T0
+    #0 0x576bbeb843c6 in main smash.c:12
+  ...
+  This frame has 2 object(s):
+    [48, 52) 'i' (line 6)
+    [64, 72) 'buf' (line 5) &lt;== Memory access at offset 72 overflows this variable
+SUMMARY: AddressSanitizer: stack-buffer-overflow smash.c:12 in main
+</code></pre>
+<p><code>WRITE of size 1</code>（寫 1 個 <code>char</code>）、<strong>第 12 行</strong>、越過 <code>buf</code> 的結尾——正是犯錯的那一行。</p>
+<p><strong>ASan 的限制與用法：</strong></p>
+<ul>
+<li>要<strong>重新編譯</strong>才有效，而且要加 <code>-g</code> 才有行號。報告是在執行時產生的：<strong>沒被執行到的程式碼路徑，它抓不到</strong>。</li>
+<li>會讓程式變慢、用更多記憶體（官方文件說典型的減速約 2 倍，本機未量測），所以<strong>用在開發與測試，不用在正式版</strong>。</li>
+<li>它的執行時行為可以用環境變數 <code>ASAN_OPTIONS</code> 調整。本機 gcc 13.3 的 ASan 用 <code>ASAN_OPTIONS=help=1 ./程式</code> 列出 <strong>132 個</strong>選項；本課<strong>全部用預設值，一個都沒用到</strong>，所以不逐項列，需要時用那個指令查。</li>
+<li>kernel 也有同樣的東西：<strong>KASAN（Kernel Address Sanitizer）</strong>，是 kernel 開發時找記憶體錯誤的主要工具（第二段 K0 以後會用到）。</li>
+</ul>
+<hr />
+<h2 id="八本課用到的工具與選項">八、本課用到的工具與選項</h2>
+<h3 id="gcc本課新用到的選項"><code>gcc</code>：本課新用到的選項</h3>
+<p><code>gcc</code> 的選項有上千個，<strong>這裡只列本課新用到的 7 個</strong>（<code>-Wall</code>、<code>-Wextra</code>、<code>-g</code>、<code>-O0</code>、<code>-O2</code>、<code>-Wsign-compare</code> 見前兩課），完整清單見 <code>man gcc</code>（警告在 Warning Options、<code>-fsanitize</code> 與 <code>-fstack-protector*</code> 在 Instrumentation Options）。警告全部 427 個的查法見 <a href="C%E7%9A%84%E8%B3%87%E6%96%99%E5%9C%A8%E8%A8%98%E6%86%B6%E9%AB%94%E8%A3%A1%E9%95%B7%E6%80%8E%E6%A8%A3-%E4%BD%8D%E5%85%83%E7%B5%84%E3%80%81%E6%8C%87%E6%A8%99%E3%80%81%E4%BD%8D%E5%85%83%E7%B5%84%E9%A0%86%E5%BA%8F%E8%88%87%E6%9C%89%E8%99%9F%E7%84%A1%E8%99%9F.html#%E4%B9%9D%E6%9C%AC%E8%AA%B2%E7%94%A8%E5%88%B0%E7%9A%84%E5%B7%A5%E5%85%B7%E8%88%87%E9%81%B8%E9%A0%85">第 2 課第九節</a>。</p>
+<table>
+<thead>
+<tr>
+<th>選項</th>
+<th>作用</th>
+<th>本機狀態</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-Wsizeof-array-argument</code></td>
+<td>對「宣告成陣列的函式參數」用 <code>sizeof</code> 時警告</td>
+<td>預設開</td>
+</tr>
+<tr>
+<td><code>-Warray-bounds</code></td>
+<td>編譯時看得出來的越界警告；<strong>需要最佳化分析（<code>-O2</code>）才報得出來</strong></td>
+<td><code>-Wall</code> 開（等級 1）</td>
+</tr>
+<tr>
+<td><code>-Waggressive-loop-optimizations</code></td>
+<td>迴圈某一圈確定會觸發 UB 時警告（同樣要 <code>-O2</code>）</td>
+<td>預設開</td>
+</tr>
+<tr>
+<td><code>-fstack-protector-strong</code></td>
+<td>對含陣列等的函式插入檢查值，返回時檢查</td>
+<td><strong>Ubuntu 預設開</strong></td>
+</tr>
+<tr>
+<td><code>-fno-stack-protector</code></td>
+<td>關掉堆疊保護（本課只為了示範）</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>-fsanitize=address</code></td>
+<td>AddressSanitizer：每次記憶體存取都檢查，越界立刻報告</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>-Q --help=common</code></td>
+<td>列出通用選項與目前狀態（本課用來確認 <code>-fstack-protector-strong</code> 預設開啟）</td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<h3 id="gdb本課用到的命令"><code>gdb</code>：本課用到的命令</h3>
+<p><strong>這是全部 173 個頂層命令裡的 9 個</strong>（加上 <code>info</code> 的 65 個子命令裡的 2 個），完整清單與每個命令的說明見
+<a href="gdb%E5%AE%8C%E6%95%B4%E5%91%BD%E4%BB%A4%E5%8F%83%E8%80%83.html">gdb完整命令參考</a> 第四、五節。</p>
+<table>
+<thead>
+<tr>
+<th>命令</th>
+<th>本課怎麼用</th>
+<th>參考</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>run</code></td>
+<td>開始執行，當掉時 gdb 會攔下訊號、停在那一行</td>
+<td>4.1 running</td>
+</tr>
+<tr>
+<td><code>break 15</code></td>
+<td>在第 15 行設中斷點</td>
+<td>4.2 breakpoints</td>
+</tr>
+<tr>
+<td><code>backtrace</code>（<code>bt</code>）</td>
+<td>列出呼叫路徑：<code>#0</code> 是目前這層，<code>#1</code> 是呼叫它的</td>
+<td>4.4 stack</td>
+</tr>
+<tr>
+<td><code>frame 1</code></td>
+<td>切換到 <code>#1</code> 那一層，才看得到那層的區域變數</td>
+<td>4.4 stack</td>
+</tr>
+<tr>
+<td><code>print</code>（<code>p</code>）</td>
+<td>印出 C 表達式的值，可以寫 <code>&amp;p[i] - p</code>、<code>sizeof a</code>；<code>*p@10</code> 是 gdb 的「連續 10 個」語法</td>
+<td>4.3 data、第三節〈表達式〉</td>
+</tr>
+<tr>
+<td><code>ptype</code></td>
+<td>印出型別：<code>int *</code> vs <code>int [10]</code></td>
+<td>4.3 data</td>
+</tr>
+<tr>
+<td><code>x/32xb 位址</code></td>
+<td>從位址開始看 32 個 byte、十六進位</td>
+<td>4.3 data、第三節〈<code>/FMT</code>〉</td>
+</tr>
+<tr>
+<td><code>info proc mappings</code></td>
+<td>行程的記憶體對映：每一段的位址範圍與權限（<code>r</code>／<code>w</code>／<code>x</code>）</td>
+<td>第五節 <code>info</code></td>
+</tr>
+<tr>
+<td><code>info frame</code></td>
+<td>目前堆疊框的詳細資訊，本課只看 <code>saved rip</code>（返回位址存在哪、值是多少）</td>
+<td>第五節 <code>info</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="其他">其他</h3>
+<table>
+<thead>
+<tr>
+<th>工具</th>
+<th>本課用法</th>
+<th>完整參考</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>readelf -p .rodata</code></td>
+<td>把 <code>.rodata</code> 區段當字串印出來，看字串常數在哪</td>
+<td><a href="readelf%E5%AE%8C%E6%95%B4%E9%81%B8%E9%A0%85%E5%8F%83%E8%80%83.html">readelf完整選項參考</a></td>
+</tr>
+<tr>
+<td><code>printf</code> 的 <code>%td</code></td>
+<td>印 <code>ptrdiff_t</code></td>
+<td><a href="C%E7%9A%84%E8%B3%87%E6%96%99%E5%9C%A8%E8%A8%98%E6%86%B6%E9%AB%94%E8%A3%A1%E9%95%B7%E6%80%8E%E6%A8%A3-%E4%BD%8D%E5%85%83%E7%B5%84%E3%80%81%E6%8C%87%E6%A8%99%E3%80%81%E4%BD%8D%E5%85%83%E7%B5%84%E9%A0%86%E5%BA%8F%E8%88%87%E6%9C%89%E8%99%9F%E7%84%A1%E8%99%9F.html#printf-%E7%9A%84%E6%A0%BC%E5%BC%8F%E5%AE%8C%E6%95%B4%E6%96%87%E6%B3%95">第 2 課第九節 <code>printf</code> 完整文法</a></td>
+</tr>
+<tr>
+<td><code>ASAN_OPTIONS=help=1 ./程式</code></td>
+<td>列出 ASan 全部 132 個執行時選項（本課沒用任何一個）</td>
+<td>同左</td>
+</tr>
+<tr>
+<td><code>kill -l 11</code></td>
+<td>把訊號編號換成名字</td>
+<td><code>man 7 signal</code>（第 ② 站）</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="九動手作業">九、動手作業</h2>
+<p>作業在 <a href="../../small-project/s1-03-arrays-pointers/README.md"><code>small-project/s1-03-arrays-pointers/</code></a>，自我測驗作答在同資料夾的 <a href="../../small-project/s1-03-arrays-pointers/quiz.md"><code>quiz.md</code></a>。</p>
+<hr />
+<h2 id="自我測驗">自我測驗</h2>
+<blockquote>
+<p>參考答案寫在每題下面（2026-10-06 使用者指定）。作答時先遮住答案、自己想過再對照。</p>
+</blockquote>
+<ol>
+<li><code>int *p</code> 和 <code>unsigned char *c</code> 存著同一個位址，為什麼 <code>p + 1</code> 和 <code>c + 1</code> 不一樣？<code>p[3]</code> 在 C 標準裡是怎麼定義的？為什麼 <code>3[p]</code> 也能編譯，而且值一樣？<details class="answer"><summary>參考答案</summary>
+<p>【<a href="#%E4%BA%8C%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97p--1-%E8%B5%B0%E4%B8%80%E5%80%8B%E5%85%83%E7%B4%A0%E4%B8%8D%E6%98%AF%E4%B8%80%E5%80%8B-byte">第二節</a>〈<code>p[i]</code> 就是 <code>*(p + i)</code>〉】（2026-10-12 改寫成核心關鍵格式）</p>
+<p>核心關鍵：</p>
+<ol>
+<li><code>T *p</code> 的 <code>p + n</code> 走 <code>n × sizeof(T)</code> byte：<code>int *</code> 走 4，<code>unsigned char *</code> 走 1。</li>
+<li><code>p[3]</code> 的定義是 <strong><code>*(p + 3)</code></strong>（往後走 3 個元素，再取值）。</li>
+<li><code>3[p]</code> ＝ <code>*(3 + p)</code>，加法可以交換，所以等於 <code>*(p + 3)</code> ＝ <code>p[3]</code>。</li>
+</ol>
+<p>詳細說明：位址本身一樣，差在用什麼型別看它。C 標準把下標定義成 <code>E1[E2]</code> ≡ <code>*((E1) + (E2))</code>；<code>p + 3</code> 只是位址，要加 <code>*</code> 才是值。<code>3[p]</code> 能編譯，證明 <code>[]</code> 只是「指標加法再取值」的縮寫。</p>
+</details>
+</li>
+<li><code>int a[10];</code> 在 <code>main</code> 裡 <code>sizeof a</code> 是 40，傳進 <code>void f(int a[])</code> 之後 <code>sizeof a</code> 變成 8。為什麼？這件事對「怎麼設計接收陣列的函式」有什麼影響？另外，<code>a</code> 和 <code>&amp;a</code> 印出來的位址一樣，它們差在哪裡？<details class="answer"><summary>參考答案</summary>
+<p>【<a href="#%E4%B8%89%E9%99%A3%E5%88%97%E5%90%8D%E7%A8%B1%E4%BB%80%E9%BA%BC%E6%99%82%E5%80%99%E8%AE%8A%E6%88%90%E6%8C%87%E6%A8%99%E4%BB%80%E9%BA%BC%E6%99%82%E5%80%99%E4%B8%8D%E6%9C%83">第三節</a>〈函式參數寫成 <code>int a[]</code>，其實就是 <code>int *a</code>〉、〈<code>a</code> 和 <code>&amp;a</code>：位址一樣，型別不一樣〉】（2026-10-09 改寫成核心關鍵格式）</p>
+<p>核心關鍵：</p>
+<ul>
+<li><code>sizeof</code> 為什麼變 8：
+<ol>
+<li>在 <code>main</code> 裡，<code>sizeof a</code> 是「陣列名稱不退化」的例外，量的是整個陣列：10 × 4 = 40 byte。</li>
+<li>參數寫成 <code>int a[]</code> 其實就是 <code>int *a</code>，<code>f(a)</code> 傳過去的只是 <code>a[0]</code> 的位址，所以 <code>f</code> 裡的 <code>sizeof a</code> 是指標的 8 byte。</li>
+</ol>
+</li>
+<li>對函式設計的影響：
+<ol>
+<li>函式不知道陣列多長，<strong>長度一定要另外當參數傳</strong>（例如 <code>long sum(int *p, int n)</code>）。</li>
+</ol>
+</li>
+<li><code>a</code> 和 <code>&amp;a</code>：
+<ol>
+<li>位址相同，但指的東西不同：<code>a</code> 退化成指向第一個元素（<code>int</code>）的指標，<code>&amp;a</code> 是指向<strong>整個陣列</strong>的指標。</li>
+<li>所以 <code>a + 1</code> 走 4 byte（一個 <code>int</code>），<code>&amp;a + 1</code> 走 40 byte（一整個陣列）。</li>
+</ol>
+</li>
+</ul>
+<p>詳細說明：gcc 對這種寫法有 <code>-Wsizeof-array-argument</code> 警告。呼叫端用 <code>sizeof a / sizeof a[0]</code> 算長度，標準函式庫的 <code>memcpy</code>、<code>read</code> 也是這樣設計的；字串是例外，靠結尾的 <code>\0</code>。用型別的話說，<code>a</code> 是 <code>int *</code>，<code>&amp;a</code> 是 <code>int (*)[10]</code>（2026-10-16 改判後從核心關鍵移到這裡：題目沒要求寫出型別）；括號讓 <code>*</code> 先跟名字結合，宣告變數時寫成 <code>int (*p)[10] = &amp;a;</code>；沒有括號的 <code>int *[10]</code> 是「10 個 <code>int *</code> 組成的陣列」。</p>
+</details>
+</li>
+<li><code>char s1[] = &quot;hi&quot;;</code> 可以改 <code>s1[0]</code>，<code>char *s2 = &quot;hi&quot;;</code> 改 <code>s2[0]</code> 卻 segfault。兩者的 <code>&quot;hi&quot;</code> 分別在記憶體的哪裡？為什麼寫入一個會當、一個不會？你會怎麼在 gdb 裡確認？<details class="answer"><summary>參考答案</summary>
+<p>【<a href="#%E5%9B%9B%E5%AD%97%E4%B8%B2%E4%BB%A5-0-%E7%B5%90%E5%B0%BE%E7%9A%84-char-%E9%99%A3%E5%88%97">第四節</a>、<a href="#%E4%BA%94c-%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%B6%8A%E7%95%8C%E7%9A%84%E4%B8%89%E7%A8%AE%E4%B8%8B%E5%A0%B4">第五節</a>開頭的表格】（2026-10-09 改寫成核心關鍵格式）</p>
+<p>核心關鍵：</p>
+<ul>
+<li><code>&quot;hi&quot;</code> 在哪裡：
+<ol>
+<li><code>char s1[] = &quot;hi&quot;;</code>：<code>&quot;hi&quot;</code> 在<strong>堆疊</strong>上（<code>s1</code> 是一個 3 byte 的區域陣列）。</li>
+<li><code>char *s2 = &quot;hi&quot;;</code>：<code>&quot;hi&quot;</code> 是字串常數，在 <strong><code>.rodata</code></strong>；<code>s2</code> 只是指向它的指標。</li>
+</ol>
+</li>
+<li>為什麼一個會當、一個不會：
+<ol>
+<li><code>s1</code> 的副本在堆疊上，那一頁是 <code>rw-p</code>，可以寫。</li>
+<li><code>s2</code> 指向 <code>.rodata</code>，分頁權限是 <code>r--p</code>：<strong>有對映</strong>但<strong>不允許寫</strong>，CPU 拒絕，核心送出 <code>SIGSEGV</code>。</li>
+</ol>
+</li>
+<li>gdb 確認：
+<ol>
+<li>讓程式當在 <code>s2[0] = 'H';</code>，用 <code>print s2</code> 拿到位址。</li>
+<li>用 <code>info proc mappings</code> 找到那個位址所在的那一段，看它的<strong>權限是 <code>r--p</code></strong>。</li>
+</ol>
+</li>
+</ul>
+<p>詳細說明：<code>s1</code> 的 3 個 byte（<code>h</code>、<code>i</code>、<code>\0</code>）是<strong>複製</strong>進陣列的，是 <code>s1</code> 自己的一份，所以能改；<code>s2</code> 本身是 8 byte 的指標（2026-10-16 改判後，「複製」從核心關鍵移到這裡）。堆疊不是 <code>.data</code>。<code>.data</code> 是放有初始值的全域變數與 <code>static</code> 變數的區段，堆疊是 <code>info proc mappings</code> 裡的 <code>[stack]</code>，兩者權限剛好都是 <code>rw-p</code>。C 標準只說修改字串常數是未定義行為；本機會 segfault，是因為 gcc 把字串常數放進唯讀分頁。拿來對照的話，<code>print &amp;s1</code> 落在 <code>[stack]</code>（<code>rw-p</code>）。<code>x s2</code> 是去看 <code>s2</code> 指向的內容，要拿位址用 <code>print s2</code> 比較直接。</p>
+</details>
+</li>
+<li>本課看到越界存取有三種下場：安靜出錯、<code>stack smashing detected</code>、segfault。分別是什麼決定會落到哪一種？為什麼「程式沒當掉」不能證明沒有越界？<details class="answer"><summary>參考答案</summary>
+<p>【<a href="#%E4%BA%94c-%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%B6%8A%E7%95%8C%E7%9A%84%E4%B8%89%E7%A8%AE%E4%B8%8B%E5%A0%B4">第五節</a>開頭的表格、〈下場一：安靜地出錯〉、〈下場二：被堆疊保護抓到〉】（2026-10-12 改寫成核心關鍵格式）</p>
+<p>核心關鍵：</p>
+<ol>
+<li>位址還在可存取的記憶體 → <strong>安靜出錯</strong>；越界<strong>寫入</strong>改掉金絲雀、函式返回前檢查 → <strong><code>stack smashing detected</code></strong>；分頁<strong>沒有對映或權限不允許</strong> → <strong>segfault</strong>。</li>
+<li>「沒當掉」不能證明沒越界：C 不檢查邊界（越界是未定義行為），落在還能存取的記憶體時沒有任何機制會報錯。</li>
+</ol>
+<p>詳細說明：金絲雀是 gcc 放在區域陣列後面的檢查值，返回前才檢查，所以發現得比犯錯晚；只讀不寫不會改到它。檢查失敗時由 <code>__stack_chk_fail</code> 中止程式，不會執行 <code>ret</code>——所以被蓋掉的返回位址不會被用到，這正是金絲雀要擋的事。segfault 是核心送出的 <code>SIGSEGV</code>。「沒當掉」的時候可能讀到垃圾、寫壞別人的資料，程式照常結束（<code>oob.c</code> 結束狀態 0），錯誤很久以後才在別處出現。</p>
+</details>
+</li>
+<li>情境題：同事的程式偶爾 segfault，gdb 的 <code>bt</code> 顯示當在 <code>parse()</code> 裡 <code>x = buf[k];</code> 這一行，<code>k</code> 的值是 523871，而 <code>buf</code> 只有 256 個元素。你接下來要怎麼查出真正的錯誤在哪裡？為什麼不能直接修改這一行就算解決？如果想在「第一次越界的當下」就抓到它，要怎麼做？<details class="answer"><summary>參考答案</summary>
+<p>【<a href="#%E5%85%AD%E7%94%A8-gdb-%E6%89%BE-segfault%E5%AF%A6%E9%9A%9B%E8%B5%B0%E4%B8%80%E6%AC%A1">第六節</a>〈當掉的那一行 ≠ 犯錯的那一行〉、<a href="#%E4%B8%83addresssanitizer%E5%9C%A8%E7%AC%AC%E4%B8%80%E6%AC%A1%E8%B6%8A%E7%95%8C%E7%9A%84%E7%95%B6%E4%B8%8B%E6%8A%93%E5%88%B0%E5%AE%83">第七節</a>】（2026-10-09 改寫成核心關鍵格式）</p>
+<p>核心關鍵：</p>
+<ul>
+<li>怎麼查：
+<ol>
+<li>當掉的那一行只是錯的 <code>k</code> <strong>第一次碰到不能碰的分頁</strong>的地方，不是 <code>k</code> 變錯的地方。</li>
+<li>用 <code>bt</code> 看呼叫路徑，<code>frame N</code> 切到每一層、<code>print</code> 看 <code>k</code> 和決定 <code>k</code> 的變數，往回推 523871 是在哪裡算出來的。</li>
+</ol>
+</li>
+<li>為什麼不能只改這一行：
+<ol>
+<li>加檢查或把 <code>k</code> 夾在範圍內，只是把<strong>症狀</strong>藏起來，算錯 <code>k</code> 的程式還在。</li>
+<li>錯的 <code>k</code> 可能已經寫壞其他資料，之後會在別處以更難查的方式出現。</li>
+</ol>
+</li>
+<li>第一次越界就抓到：
+<ol>
+<li>用 <code>gcc -g -fsanitize=address</code>（ASan）重新編譯再重現，第一次越界讀寫時就停下報告。</li>
+</ol>
+</li>
+</ul>
+<p>詳細說明：順便檢查 <code>parse</code> 有沒有拿到 <code>buf</code> 的長度、有沒有檢查 <code>k</code>。ASan 的報告會寫出是讀還是寫、幾個 byte、哪一行、越過了哪個變數。限制：要重新編譯、沒執行到的程式路徑抓不到、程式會變慢，所以用在開發與測試。</p>
+</details>
+</li>
+<li>情境題：ASan 報告裡有一行 <code>[16, 40) 'buf' (line 7) &lt;== Memory access at offset 40 overflows this variable</code>，上面寫著 <code>WRITE of size 4</code>。<code>buf</code> 佔幾個 byte？如果它是 <code>int</code> 陣列，有幾個元素？這次寫到的是 <code>buf</code> 的第幾格（索引多少）？影子 byte 那一列裡，<code>buf</code> 會是幾個什麼樣的影子 byte？<details class="answer"><summary>參考答案</summary>
+<p>【<a href="#%E4%B8%83addresssanitizer%E5%9C%A8%E7%AC%AC%E4%B8%80%E6%AC%A1%E8%B6%8A%E7%95%8C%E7%9A%84%E7%95%B6%E4%B8%8B%E6%8A%93%E5%88%B0%E5%AE%83">第七節</a>〈<code>[96, 101)</code> 怎麼讀：半開區間、偏移與影子 byte〉】（2026-10-11 改寫成核心關鍵格式）</p>
+<p>核心關鍵（6-1～6-4）：</p>
+<ol>
+<li>6-1：區間以 byte 為單位、半開，長度 ＝ 40 − 16 ＝ <strong>24 byte</strong>。</li>
+<li>6-2：24 ÷ 4 ＝ <strong>6 個</strong> <code>int</code>。</li>
+<li>6-3：(40 − 16) ÷ 4 ＝ <strong>索引 6</strong>（<code>buf[6]</code>，剛好超出結尾一格）。</li>
+<li>6-4：1 個影子 byte 代表 8 個 byte；24 byte ＝ 3 組，全部可以碰 → <strong>3 個 <code>00</code></strong>。</li>
+</ol>
+<p>詳細說明：影子 byte 的值 <code>00</code> 是「這 8 個 byte 都能碰」，<code>f1</code>、<code>f3</code> 是陣列左右的禁區（本筆記表格〈<code>Shadow bytes</code> 那一列〉）。本機實測那一列是 <code>f1 f1 f1 f1 f1 f1 04 f2 00 00 00[f3]f3 f3 f3 f3</code>：<code>buf</code> 的 3 個 <code>00</code> 後面緊接右禁區 <code>f3</code>，<code>[f3]</code> 就是這次寫到的偏移 40。索引 6 是典型的 <code>i &lt;= n</code> 錯誤：迴圈多跑了一圈。</p>
+</details>
+</li>
+<li>情境題：ASan 報告的影子 byte 那一列裡，某個堆疊上的 <code>char</code> 陣列對應到 <code>00 00 06</code>，前後都是 <code>f2</code>。這個陣列佔幾個 byte？<code>06</code> 的 6 是什麼意思？如果它是 <code>char s[] = &quot;…&quot;;</code> 這樣用字串初始化的，字串本身（不含 <code>'\0'</code>）有幾個字元？為什麼影子 byte 裡不會出現 <code>08</code>？（2026-10-11 追問新增）<details class="answer"><summary>參考答案</summary>
+<p>【<a href="#%E4%B8%83addresssanitizer%E5%9C%A8%E7%AC%AC%E4%B8%80%E6%AC%A1%E8%B6%8A%E7%95%8C%E7%9A%84%E7%95%B6%E4%B8%8B%E6%8A%93%E5%88%B0%E5%AE%83">第七節</a>〈上圖的 <code>01</code>：影子 byte 的值是「個數」，不是資料〉】</p>
+<p>核心關鍵：</p>
+<ol>
+<li>7-1：<code>00 00 06</code> ＝ 8 ＋ 8 ＋ 6 ＝ <strong>22 byte</strong>。</li>
+<li>7-2：最後那一組 8 個 byte 裡，<strong>只有前 6 個</strong>可以碰，後 2 個是禁區。</li>
+<li>7-3：<code>char s[] = &quot;…&quot;</code> 的大小是字串長度 ＋ 1（<code>'\0'</code>），所以字串有 <strong>21 個字元</strong>。</li>
+<li>7-4：8 個 byte 全部可以碰已經寫成 <code>00</code>；<code>01</code>～<code>07</code> 只用來表示「不滿 8 個」，所以不需要 <code>08</code>。</li>
+</ol>
+<p>詳細說明：影子 byte 存的是計數，不是記憶體內容。前後的 <code>f2</code> 是變數之間的中間禁區。反過來，宣告 <code>char s[22]</code> 就能預測影子 byte 是 <code>00 00 06</code>。可以碰的部分一定從一組的開頭算起，因為 ASan 把每個變數的起點對齊到 8 的倍數。</p>
+</details>
+</li>
+</ol>
+
+</main>
+</div>
+</body>
+</html>

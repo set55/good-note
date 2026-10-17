@@ -1,0 +1,696 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Shell 條件測試：[ ]、test、[[ ]]、(( ))</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/app.js"></script>
+</head>
+<body>
+<button class="menu-btn" onclick="toggleMenu()">☰ 目錄</button>
+<div class="layout">
+<nav class="side">
+<div class="crumbs"><a href="../index.html">🏠 首頁</a> / <a href="README.html">linux</a></div>
+<div class="tools"><button onclick="toggleTheme()">🌓 主題</button></div>
+<ul>
+<li class="l2"><a href="#%E7%9B%AE%E9%8C%84">目錄</a></li>
+<li class="l2"><a href="#%E4%B8%80-%E6%98%AF%E4%B8%80%E5%80%8B%E5%91%BD%E4%BB%A4%E4%B8%8D%E6%98%AF%E8%AA%9E%E6%B3%95">一、[ 是一個命令，不是語法</a></li>
+<li class="l3"><a href="#%E9%80%99%E8%A7%A3%E9%87%8B%E4%BA%86%E6%96%B0%E6%89%8B%E6%9C%80%E5%B8%B8%E8%A6%8B%E7%9A%84%E9%8C%AF%E8%AA%A4">這解釋了新手最常見的錯誤</a></li>
+<li class="l3"><a href="#-%E8%88%87-test-%E5%AE%8C%E5%85%A8%E7%AD%89%E5%83%B9">[ 與 test 完全等價</a></li>
+<li class="l2"><a href="#%E4%BA%8C%E5%9B%9E%E5%82%B3%E5%80%BC%E9%9B%A2%E9%96%8B%E7%8B%80%E6%85%8B%E7%A2%BC">二、回傳值：離開狀態碼</a></li>
+<li class="l2"><a href="#%E4%B8%89----%E4%B8%89%E5%85%83%E5%BC%8F%E8%88%87%E5%AE%83%E7%9A%84%E9%99%B7%E9%98%B1">三、&amp;&amp; ... || ... 三元式與它的陷阱</a></li>
+<li class="l3"><a href="#%E9%99%B7%E9%98%B1-%E5%BE%8C%E9%9D%A2%E9%82%A3%E6%AE%B5%E8%87%AA%E5%B7%B1%E5%A4%B1%E6%95%97%E6%99%82-%E4%B9%9F%E6%9C%83%E8%B7%91">陷阱：&amp;&amp; 後面那段自己失敗時，|| 也會跑</a></li>
+<li class="l3"><a href="#%E5%88%A4%E6%BA%96">判準</a></li>
+<li class="l2"><a href="#%E5%9B%9B%E5%B8%B8%E7%94%A8%E6%B8%AC%E8%A9%A6%E9%81%8B%E7%AE%97%E5%AD%90">四、常用測試運算子</a></li>
+<li class="l3"><a href="#%E6%9C%80%E5%AE%B9%E6%98%93%E6%90%9E%E6%B7%B7%E5%AD%97%E4%B8%B2%E7%94%A8-%E6%95%B8%E5%AD%97%E7%94%A8--eq">最容易搞混：字串用 =，數字用 -eq</a></li>
+<li class="l2"><a href="#%E4%BA%94%E5%BC%95%E8%99%9F--%E6%9C%80%E5%A4%A7%E7%9A%84%E5%9D%91">五、引號：[ ] 最大的坑</a></li>
+<li class="l3"><a href="#%E5%8D%B1%E9%9A%AA%E6%A1%88%E4%BE%8B%E7%A9%BA%E8%AE%8A%E6%95%B8%E6%9C%83%E9%9D%9C%E9%BB%98%E5%9B%9E%E5%82%B3%E7%9C%9F">危險案例：空變數會靜默回傳「真」</a></li>
+<li class="l3"><a href="#%E5%90%AB%E7%A9%BA%E6%A0%BC%E7%9A%84%E8%B7%AF%E5%BE%91">含空格的路徑</a></li>
+<li class="l2"><a href="#%E5%85%AD--vs--">六、[ ] vs [[ ]]</a></li>
+<li class="l3"><a href="#%E5%B0%8D%E7%85%A7%E8%A1%A8">對照表</a></li>
+<li class="l3"><a href="#%E7%B4%94%E6%95%B8%E5%80%BC%E7%94%A8---%E6%9B%B4%E8%87%AA%E7%84%B6">純數值用 (( )) 更自然</a></li>
+<li class="l2"><a href="#%E4%B8%83%E5%8F%AF%E6%94%9C%E6%80%A7%E9%99%B7%E9%98%B1%E6%9C%AC%E6%A9%9F%E8%83%BD%E8%B7%91%E4%B8%8D%E4%BB%A3%E8%A1%A8%E5%88%A5%E5%8F%B0%E8%83%BD%E8%B7%91">七、可攜性陷阱：本機能跑不代表別台能跑</a></li>
+<li class="l2"><a href="#%E5%85%AB%E5%AF%A6%E5%8B%99%E5%BB%BA%E8%AD%B0">八、實務建議</a></li>
+<li class="l3"><a href="#%E6%9F%A5%E6%96%87%E4%BB%B6">查文件</a></li>
+<li class="l2"><a href="#%E4%B9%9D%E5%AF%A6%E4%BE%8B%E6%8B%86%E8%A7%A3---eq-0-%E6%9C%89%E6%B2%92%E6%9C%89%E7%B5%A6%E5%8F%83%E6%95%B8">九、實例拆解：[ $# -eq 0 ]——「有沒有給參數」</a></li>
+<li class="l3"><a href="#%E9%80%90%E5%AD%97%E6%8B%86%E9%96%8B">逐字拆開</a></li>
+<li class="l3"><a href="#if-%E7%9C%8B%E7%9A%84%E6%98%AF%E5%91%BD%E4%BB%A4%E7%9A%84%E7%8B%80%E6%85%8B%E7%A2%BC">if 看的是命令的狀態碼</a></li>
+<li class="l3"><a href="#%E7%82%BA%E4%BB%80%E9%BA%BC--%E5%8F%AF%E4%BB%A5%E4%B8%8D%E5%8A%A0%E5%BC%95%E8%99%9F">為什麼 $# 可以不加引號</a></li>
+<li class="l3"><a href="#%E7%82%BA%E4%BB%80%E9%BA%BC%E7%94%A8-%E4%B8%8D%E7%94%A8---z-1-">為什麼用 $#，不用 [ -z &quot;$1&quot; ]</a></li>
+<li class="l3"><a href="#%E5%AF%AB%E9%8C%AF%E6%99%82%E7%9A%84%E9%8C%AF%E8%AA%A4%E8%A8%8A%E6%81%AF">寫錯時的錯誤訊息</a></li>
+<li class="l3"><a href="#%E5%85%B6%E4%BB%96%E7%AD%89%E5%83%B9%E5%AF%AB%E6%B3%95">其他等價寫法</a></li>
+<li class="l2"><a href="#%E9%80%9F%E6%9F%A5">速查</a></li>
+<li class="l2"><a href="#test----%E7%9A%84%E5%AE%8C%E6%95%B4%E9%81%8B%E7%AE%97%E5%AD%90%E4%BE%9D-help-testbash-52">test / [ ] 的完整運算子（依 help test，bash 5.2）</a></li>
+<li class="l2"><a href="#%E8%87%AA%E6%88%91%E6%B8%AC%E9%A9%97">自我測驗</a></li>
+</ul>
+</nav>
+<main>
+<h1 id="shell-條件測試-test--">Shell 條件測試：<code>[ ]</code>、<code>test</code>、<code>[[ ]]</code>、<code>(( ))</code></h1>
+<blockquote>
+<p>日期：2026-07-25<br />
+起因：看到 <code>[ -d /sys/module/$m/parameters ]</code> 這行，追究 <code>[</code> 到底是什麼<br />
+一句話：<strong><code>[</code> 不是語法，它是一個真正的命令</strong>——理解這點，所有怪異行為都說得通了</p>
+</blockquote>
+<hr />
+<h2 id="目錄">目錄</h2>
+<ol>
+<li><a href="#%E4%B8%80-%E6%98%AF%E4%B8%80%E5%80%8B%E5%91%BD%E4%BB%A4%E4%B8%8D%E6%98%AF%E8%AA%9E%E6%B3%95"><code>[</code> 是一個命令，不是語法</a></li>
+<li><a href="#%E4%BA%8C%E5%9B%9E%E5%82%B3%E5%80%BC%E9%9B%A2%E9%96%8B%E7%8B%80%E6%85%8B%E7%A2%BC">回傳值：離開狀態碼</a></li>
+<li><a href="#%E4%B8%89----%E4%B8%89%E5%85%83%E5%BC%8F%E8%88%87%E5%AE%83%E7%9A%84%E9%99%B7%E9%98%B1"><code>&amp;&amp; ... || ...</code> 三元式與它的陷阱</a></li>
+<li><a href="#%E5%9B%9B%E5%B8%B8%E7%94%A8%E6%B8%AC%E8%A9%A6%E9%81%8B%E7%AE%97%E5%AD%90">常用測試運算子</a></li>
+<li><a href="#%E4%BA%94%E5%BC%95%E8%99%9F--%E6%9C%80%E5%A4%A7%E7%9A%84%E5%9D%91">引號：<code>[ ]</code> 最大的坑</a></li>
+<li><a href="#%E5%85%AD--vs--"><code>[ ]</code> vs <code>[[ ]]</code></a></li>
+<li><a href="#%E4%B8%83%E5%8F%AF%E6%94%9C%E6%80%A7%E9%99%B7%E9%98%B1%E6%9C%AC%E6%A9%9F%E8%83%BD%E8%B7%91%E4%B8%8D%E4%BB%A3%E8%A1%A8%E5%88%A5%E5%8F%B0%E8%83%BD%E8%B7%91">可攜性陷阱：本機能跑不代表別台能跑</a></li>
+<li><a href="#%E5%85%AB%E5%AF%A6%E5%8B%99%E5%BB%BA%E8%AD%B0">實務建議</a></li>
+<li><a href="#%E4%B9%9D%E5%AF%A6%E4%BE%8B%E6%8B%86%E8%A7%A3---eq-0-%E6%9C%89%E6%B2%92%E6%9C%89%E7%B5%A6%E5%8F%83%E6%95%B8">實例拆解：<code>[ $# -eq 0 ]</code>——「有沒有給參數」</a></li>
+<li><a href="#%E8%87%AA%E6%88%91%E6%B8%AC%E9%A9%97">自我測驗</a></li>
+</ol>
+<hr />
+<h2 id="一-是一個命令不是語法">一、<code>[</code> 是一個命令，不是語法</h2>
+<pre><code class="language-bash">$<span class="w"> </span><span class="nb">type</span><span class="w"> </span><span class="o">[</span>
+<span class="o">[</span><span class="w"> </span>is<span class="w"> </span>a<span class="w"> </span>shell<span class="w"> </span><span class="nb">builtin</span>
+
+$<span class="w"> </span>ls<span class="w"> </span>-l<span class="w"> </span>/usr/bin/<span class="o">[</span>
+-rwxr-xr-x<span class="w"> </span><span class="m">1</span><span class="w"> </span>root<span class="w"> </span>root<span class="w"> </span><span class="m">55744</span><span class="w"> </span>Jan<span class="w"> </span><span class="m">23</span><span class="w"> </span><span class="m">21</span>:30<span class="w"> </span>/usr/bin/<span class="o">[</span>
+</code></pre>
+<p><strong><code>/usr/bin/[</code> 是一個真實存在的 55KB 執行檔。</strong> 所以這行的結構是：</p>
+<pre><code class="language-bash"><span class="o">[</span><span class="w"> </span>-d<span class="w"> </span>/sys/module/nvidia/parameters<span class="w"> </span><span class="o">]</span>
+│<span class="w">  </span>│<span class="w">                                </span>└─<span class="w"> </span>這是「參數」，不是語法收尾
+│<span class="w">  </span>└─<span class="w"> </span>傳給命令的第一個參數
+└─<span class="w"> </span>命令名稱
+</code></pre>
+<h3 id="這解釋了新手最常見的錯誤">這解釋了新手最常見的錯誤</h3>
+<pre><code class="language-bash"><span class="o">[</span>-d<span class="w"> </span>/foo<span class="o">]</span><span class="w">     </span><span class="c1"># ✗ shell 會去找名叫「[-d」的命令 → command not found</span>
+<span class="o">[</span><span class="w"> </span>-d<span class="w"> </span>/foo<span class="w"> </span><span class="o">]</span><span class="w">   </span><span class="c1"># ✓ 空格是分隔「命令」與「參數」用的，不能省</span>
+</code></pre>
+<h3 id="-與-test-完全等價"><code>[</code> 與 <code>test</code> 完全等價</h3>
+<pre><code class="language-bash"><span class="nb">test</span><span class="w"> </span>-d<span class="w"> </span>/foo<span class="w">        </span><span class="c1"># 跟 [ -d /foo ] 一模一樣</span>
+</code></pre>
+<p><code>]</code> 純粹是為了視覺對稱而設計的<strong>必填參數</strong>，<code>test</code> 版本不需要它。</p>
+<blockquote>
+<p><strong>心法：</strong> 一旦接受「<code>[</code> 是命令」，後面所有規則（空格必要、引號必要、參數個數會影響語意）就都是自然推論，不必死背。</p>
+</blockquote>
+<hr />
+<h2 id="二回傳值離開狀態碼">二、回傳值：離開狀態碼</h2>
+<p><code>[</code> 不印任何東西，只設定<strong>離開狀態碼</strong>（exit status）：</p>
+<p><strong>0 = 真，非 0 = 假</strong>——跟 C 語言相反，因為 0 代表「成功、無錯誤」。</p>
+<pre><code class="language-bash">$<span class="w"> </span><span class="o">[</span><span class="w"> </span>-d<span class="w"> </span>/sys/module/nvidia_drm/parameters<span class="w"> </span><span class="o">]</span><span class="p">;</span><span class="w"> </span><span class="nb">echo</span><span class="w"> </span><span class="nv">$?</span>
+<span class="m">0</span><span class="w">                    </span><span class="c1"># 存在 → 真</span>
+
+$<span class="w"> </span><span class="o">[</span><span class="w"> </span>-d<span class="w"> </span>/sys/module/nvidia/parameters<span class="w"> </span><span class="o">]</span><span class="p">;</span><span class="w"> </span><span class="nb">echo</span><span class="w"> </span><span class="nv">$?</span>
+<span class="m">1</span><span class="w">                    </span><span class="c1"># 不存在 → 假</span>
+</code></pre>
+<p><code>$?</code> 是「上一個命令的離開狀態碼」，是所有 shell 條件判斷的基礎。</p>
+<hr />
+<h2 id="三----三元式與它的陷阱">三、<code>&amp;&amp; ... || ...</code> 三元式與它的陷阱</h2>
+<pre><code class="language-bash"><span class="o">[</span><span class="w"> </span>-d<span class="w"> </span>/sys/module/<span class="nv">$m</span>/parameters<span class="w"> </span><span class="o">]</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;有&quot;</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;無&quot;</span>
+</code></pre>
+<ul>
+<li><code>A &amp;&amp; B</code> —— A 成功（狀態碼 0）才執行 B</li>
+<li><code>A || B</code> —— A 失敗（非 0）才執行 B</li>
+</ul>
+<p>串起來近似其他語言的 <code>cond ? x : y</code>。</p>
+<h3 id="陷阱-後面那段自己失敗時-也會跑">陷阱：<code>&amp;&amp;</code> 後面那段自己失敗時，<code>||</code> 也會跑</h3>
+<pre><code class="language-bash">$<span class="w"> </span><span class="o">[</span><span class="w"> </span>-d<span class="w"> </span>/tmp<span class="w"> </span><span class="o">]</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nb">false</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;「假」的分支也跑了！&quot;</span>
+「假」的分支也跑了！
+</code></pre>
+<p><strong>怎麼看：</strong> <code>[ -d /tmp ]</code> 是真 → 執行 <code>false</code> → <code>false</code> 回傳 1 → <code>||</code> 判定「左邊失敗」→ 連 <code>else</code> 分支一起執行。<strong>兩邊都跑了。</strong></p>
+<p>正規 <code>if</code> 就不會：</p>
+<pre><code class="language-bash">$<span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="o">[</span><span class="w"> </span>-d<span class="w"> </span>/tmp<span class="w"> </span><span class="o">]</span><span class="p">;</span><span class="w"> </span><span class="k">then</span><span class="w"> </span>false<span class="p">;</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;這行不會出現&quot;</span><span class="p">;</span><span class="w"> </span><span class="k">fi</span>
+<span class="w">                     </span><span class="c1"># (無輸出，如預期)</span>
+</code></pre>
+<h3 id="判準">判準</h3>
+<table>
+<thead>
+<tr>
+<th>情況</th>
+<th>寫法</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>&amp;&amp;</code> 後面是 <code>echo</code>（幾乎不會失敗）</td>
+<td>`&amp;&amp;</td>
+</tr>
+<tr>
+<td><code>&amp;&amp;</code> 後面是 <code>grep</code> / <code>cp</code> / <code>mkdir</code> / 任何可能失敗的命令</td>
+<td><strong>一律用 <code>if</code></strong></td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="四常用測試運算子">四、常用測試運算子</h2>
+<table>
+<thead>
+<tr>
+<th>運算子</th>
+<th>意思</th>
+<th>記法</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-e</code></td>
+<td>存在（任何類型）</td>
+<td><strong>e</strong>xists</td>
+</tr>
+<tr>
+<td><code>-f</code></td>
+<td>存在<strong>且</strong>是普通檔案</td>
+<td><strong>f</strong>ile</td>
+</tr>
+<tr>
+<td><code>-d</code></td>
+<td>存在<strong>且</strong>是目錄</td>
+<td><strong>d</strong>irectory</td>
+</tr>
+<tr>
+<td><code>-L</code></td>
+<td>是符號連結</td>
+<td><strong>L</strong>ink</td>
+</tr>
+<tr>
+<td><code>-s</code></td>
+<td>存在且<strong>非空</strong></td>
+<td><strong>s</strong>ize &gt; 0</td>
+</tr>
+<tr>
+<td><code>-r</code> / <code>-w</code> / <code>-x</code></td>
+<td>可讀／可寫／可執行</td>
+<td></td>
+</tr>
+<tr>
+<td><code>-z</code> / <code>-n</code></td>
+<td>字串為空／非空</td>
+<td><strong>z</strong>ero / <strong>n</strong>on-zero</td>
+</tr>
+<tr>
+<td><code>=</code> / <code>!=</code></td>
+<td><strong>字串</strong>相等／不等</td>
+<td></td>
+</tr>
+<tr>
+<td><code>-eq</code> <code>-ne</code> <code>-lt</code> <code>-gt</code> <code>-le</code> <code>-ge</code></td>
+<td><strong>數值</strong>比較</td>
+<td>equal / not-equal / less-than / greater-than / less-equal / greater-equal</td>
+</tr>
+<tr>
+<td><code>!</code></td>
+<td>反相</td>
+<td><code>[ ! -d /foo ]</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="最容易搞混字串用-數字用--eq">最容易搞混：字串用 <code>=</code>，數字用 <code>-eq</code></h3>
+<pre><code class="language-bash"><span class="o">[</span><span class="w"> </span><span class="s2">&quot;10&quot;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;10.0&quot;</span><span class="w"> </span><span class="o">]</span><span class="w">    </span><span class="c1"># 假（字串內容不同）</span>
+<span class="o">[</span><span class="w"> </span><span class="m">10</span><span class="w"> </span>-eq<span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="o">]</span><span class="w">        </span><span class="c1"># 真</span>
+<span class="o">[</span><span class="w"> </span><span class="s2">&quot;007&quot;</span><span class="w"> </span>-eq<span class="w"> </span><span class="m">7</span><span class="w"> </span><span class="o">]</span><span class="w">      </span><span class="c1"># 真（數值比較會轉型）</span>
+<span class="o">[</span><span class="w"> </span><span class="s2">&quot;007&quot;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="m">7</span><span class="w"> </span><span class="o">]</span><span class="w">        </span><span class="c1"># 假（字串比較不轉型）</span>
+</code></pre>
+<hr />
+<h2 id="五引號--最大的坑">五、引號：<code>[ ]</code> 最大的坑</h2>
+<p>因為 <code>[</code> 是命令，參數會先經過 shell 展開。<strong>變數為空或含空格時，參數個數會變，語意整個跑掉。</strong></p>
+<h3 id="危險案例空變數會靜默回傳真">危險案例：空變數會靜默回傳「真」</h3>
+<pre><code class="language-bash">$<span class="w"> </span><span class="nv">m</span><span class="o">=</span><span class="s2">&quot;&quot;</span>
+$<span class="w"> </span><span class="o">[</span><span class="w"> </span>-d<span class="w"> </span><span class="nv">$m</span><span class="w"> </span><span class="o">]</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;真&quot;</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;假&quot;</span>
+真<span class="w">                          </span><span class="c1"># ← 錯誤答案，而且不報錯</span>
+</code></pre>
+<p><strong>怎麼看：</strong> 展開後變成 <code>[ -d ]</code>，只剩一個參數。<code>test</code> 的<strong>單參數形式</strong>語意是「這個字串非空嗎」——字串 <code>-d</code> 當然非空，所以回傳真。</p>
+<p><strong>它不再是在測目錄，而是在測字串 <code>-d</code>，但完全不會報錯。</strong> 這是靜默的錯誤答案，最難抓。</p>
+<p>加引號就正確：</p>
+<pre><code class="language-bash">$<span class="w"> </span><span class="o">[</span><span class="w"> </span>-d<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$m</span><span class="s2">&quot;</span><span class="w"> </span><span class="o">]</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;真&quot;</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;假&quot;</span>
+假<span class="w">                          </span><span class="c1"># ← [ -d &quot;&quot; ]，兩個參數，正確判定</span>
+</code></pre>
+<h3 id="含空格的路徑">含空格的路徑</h3>
+<pre><code class="language-bash">$<span class="w"> </span><span class="nv">n</span><span class="o">=</span><span class="s2">&quot;/tmp/a b&quot;</span>
+$<span class="w"> </span><span class="o">[</span><span class="w"> </span>-d<span class="w"> </span><span class="nv">$n</span><span class="w"> </span><span class="o">]</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;真&quot;</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;假&quot;</span>
+假<span class="w">                          </span><span class="c1"># 展開成 [ -d /tmp/a b ]，三個參數，超出語法</span>
+</code></pre>
+<blockquote>
+<p><strong>鐵則：<code>[ ]</code> 裡的變數一律加引號 <code>&quot;$var&quot;</code>。</strong> 沒有例外值得省這兩個字元。</p>
+</blockquote>
+<hr />
+<h2 id="六--vs--">六、<code>[ ]</code> vs <code>[[ ]]</code></h2>
+<p><code>[[ ]]</code> 是 bash / zsh / ksh 的<strong>語法關鍵字</strong>（不是命令），shell 不會對裡面做分詞與萬用字元展開，所以變數不加引號也安全。</p>
+<pre><code class="language-bash">$<span class="w"> </span><span class="nv">m</span><span class="o">=</span><span class="s2">&quot;&quot;</span><span class="p">;</span><span class="w"> </span><span class="o">[[</span><span class="w"> </span>-d<span class="w"> </span><span class="nv">$m</span><span class="w"> </span><span class="o">]]</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;真&quot;</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;假&quot;</span>
+假<span class="w">                          </span><span class="c1"># ← 不加引號也正確</span>
+
+$<span class="w"> </span><span class="nv">n</span><span class="o">=</span><span class="s2">&quot;/tmp/a b&quot;</span><span class="p">;</span><span class="w"> </span><span class="o">[[</span><span class="w"> </span>-d<span class="w"> </span><span class="nv">$n</span><span class="w"> </span><span class="o">]]</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;真&quot;</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;假&quot;</span>
+假<span class="w">                          </span><span class="c1"># ← 含空格也正確</span>
+
+$<span class="w"> </span><span class="o">[[</span><span class="w"> </span>-d<span class="w"> </span>/tmp<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>-r<span class="w"> </span>/tmp<span class="w"> </span><span class="o">]]</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;兩者皆是&quot;</span>
+兩者皆是<span class="w">                     </span><span class="c1"># ← 直接用 &amp;&amp; ，不用 -a</span>
+
+$<span class="w"> </span><span class="o">[[</span><span class="w"> </span><span class="s2">&quot;nvidia_drm&quot;</span><span class="w"> </span><span class="o">==</span><span class="w"> </span>nvidia*<span class="w"> </span><span class="o">]]</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;萬用字元比對成功&quot;</span>
+萬用字元比對成功<span class="w">              </span><span class="c1"># ← 支援 pattern matching</span>
+</code></pre>
+<h3 id="對照表">對照表</h3>
+<table>
+<thead>
+<tr>
+<th></th>
+<th><code>[ ]</code> / <code>test</code></th>
+<th><code>[[ ]]</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>本質</td>
+<td><strong>命令</strong>（builtin + <code>/usr/bin/[</code>）</td>
+<td><strong>語法關鍵字</strong></td>
+</tr>
+<tr>
+<td>可攜性</td>
+<td>POSIX（Portable Operating System Interface，可攜式作業系統介面標準），所有 shell 都有</td>
+<td>bash / zsh / ksh，<strong>dash 沒有</strong></td>
+</tr>
+<tr>
+<td>變數要加引號</td>
+<td><strong>必須</strong></td>
+<td>不必</td>
+</tr>
+<tr>
+<td>邏輯運算</td>
+<td><code>-a</code> / <code>-o</code>（易出錯，已不建議）</td>
+<td><code>&amp;&amp;</code> / <code>||</code></td>
+</tr>
+<tr>
+<td>萬用字元比對</td>
+<td>不支援</td>
+<td><code>[[ $x == nvidia* ]]</code></td>
+</tr>
+<tr>
+<td>正規表達式</td>
+<td>不支援</td>
+<td><code>[[ $x =~ ^nv ]]</code></td>
+</tr>
+<tr>
+<td>數值比較</td>
+<td><code>-eq</code> <code>-lt</code></td>
+<td><code>-eq</code>，或改用 <code>(( ))</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="純數值用---更自然">純數值用 <code>(( ))</code> 更自然</h3>
+<pre><code class="language-bash"><span class="o">((</span><span class="w"> </span>i<span class="w"> </span>&lt;<span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="o">))</span><span class="w">          </span><span class="c1"># 可直接用 &lt; &gt; &lt;= &gt;= == !=</span>
+<span class="o">((</span><span class="w"> </span>i++<span class="w"> </span><span class="o">))</span>
+<span class="o">((</span><span class="w"> </span><span class="nv">sum</span><span class="w"> </span><span class="o">=</span><span class="w"> </span>a<span class="w"> </span>+<span class="w"> </span>b<span class="w"> </span><span class="o">))</span>
+<span class="k">if</span><span class="w"> </span><span class="o">((</span><span class="w"> </span>count<span class="w"> </span>&gt;<span class="w"> </span><span class="m">0</span><span class="w"> </span><span class="o">))</span><span class="p">;</span><span class="w"> </span><span class="k">then</span><span class="w"> </span>...<span class="p">;</span><span class="w"> </span><span class="k">fi</span>
+</code></pre>
+<p>注意 <code>(( ))</code> 的真假規則跟 C 一樣（<strong>非 0 為真</strong>），但它會把結果轉成 shell 慣例的離開狀態碼，所以在 <code>if</code> 裡用起來符合直覺。</p>
+<hr />
+<h2 id="七可攜性陷阱本機能跑不代表別台能跑">七、可攜性陷阱：本機能跑不代表別台能跑</h2>
+<p><strong>本機實測（2026-07-25）：</strong></p>
+<pre><code class="language-bash">$<span class="w"> </span>ls<span class="w"> </span>-l<span class="w"> </span>/bin/sh
+lrwxrwxrwx<span class="w"> </span><span class="m">1</span><span class="w"> </span>root<span class="w"> </span>root<span class="w"> </span><span class="m">4</span><span class="w"> </span>May<span class="w"> </span><span class="m">24</span><span class="w"> </span><span class="m">2025</span><span class="w"> </span>/bin/sh<span class="w"> </span>-&gt;<span class="w"> </span>bash<span class="w">      </span><span class="c1"># ← 本機指向 bash</span>
+
+$<span class="w"> </span>dash<span class="w"> </span>-c<span class="w"> </span><span class="s1">&#39;[[ -d /tmp ]] &amp;&amp; echo 有&#39;</span>
+dash:<span class="w"> </span><span class="m">1</span>:<span class="w"> </span><span class="o">[[</span>:<span class="w"> </span>not<span class="w"> </span>found<span class="w">                                     </span><span class="c1"># ← dash 確實沒有</span>
+
+$<span class="w"> </span>dash<span class="w"> </span>-c<span class="w"> </span><span class="s1">&#39;[ -d /tmp ] &amp;&amp; echo 有&#39;</span>
+有<span class="w">                                                          </span><span class="c1"># ← [ 則正常</span>
+</code></pre>
+<p><strong>這裡有個雙重陷阱：</strong></p>
+<ol>
+<li>標準 Debian/Ubuntu 的 <code>/bin/sh</code> 指向 <strong>dash</strong>（為了開機速度），但<strong>本機被改成 bash</strong>。</li>
+<li>因此本機 <code>#!/bin/sh</code> 的腳本用 <code>[[</code> <strong>會正常跑</strong>，搬到標準環境（或 Docker 官方 debian/ubuntu 映像）就會爆 <code>[[: not found</code>。</li>
+</ol>
+<p><strong>檢查方法：</strong> 寫 <code>#!/bin/sh</code> 的腳本時，用 <code>dash script.sh</code> 實測，不要只靠 <code>sh script.sh</code>。</p>
+<p>順帶一提，<code>dash: [[: not found</code> 這個錯誤訊息本身就是證據——dash 把 <code>[[</code> 當成<strong>命令名稱</strong>去找，找不到。這反證了 <code>[[</code> 在支援的 shell 裡是<strong>語法關鍵字</strong>而非命令，跟 <code>[</code> 的本質不同。</p>
+<hr />
+<h2 id="八實務建議">八、實務建議</h2>
+<table>
+<thead>
+<tr>
+<th>腳本開頭</th>
+<th>用什麼</th>
+<th>理由</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>#!/bin/bash</code> / <code>#!/bin/zsh</code></td>
+<td><strong><code>[[ ]]</code></strong></td>
+<td>更安全、功能多，不必煩惱引號</td>
+</tr>
+<tr>
+<td><code>#!/bin/sh</code></td>
+<td><strong>只能 <code>[ ]</code></strong></td>
+<td>dash 沒有 <code>[[</code>；且變數務必加 <code>&quot;$var&quot;</code></td>
+</tr>
+<tr>
+<td>純數值運算</td>
+<td><strong><code>(( ))</code></strong></td>
+<td>可直接寫 <code>&lt;</code> <code>&gt;</code> <code>++</code>，最自然</td>
+</tr>
+<tr>
+<td>互動 shell 隨手敲</td>
+<td>都可</td>
+<td>確定變數無空格時 <code>[ ]</code> 不加引號也行</td>
+</tr>
+</tbody>
+</table>
+<h3 id="查文件">查文件</h3>
+<pre><code class="language-bash">man<span class="w"> </span><span class="nb">test</span><span class="w">                 </span><span class="c1"># [ ] 的完整運算子清單</span>
+man<span class="w"> </span>bash<span class="w">                 </span><span class="c1"># [[ ]] 是 bash 語法，搜 CONDITIONAL EXPRESSIONS</span>
+<span class="w">                         </span><span class="c1"># （man 內按 /CONDITIONAL 再 Enter）</span>
+<span class="nb">help</span><span class="w"> </span><span class="nb">test</span><span class="w">                </span><span class="c1"># bash builtin 的快速說明</span>
+</code></pre>
+<hr />
+<h2 id="九實例拆解---eq-0-有沒有給參數">九、實例拆解：<code>[ $# -eq 0 ]</code>——「有沒有給參數」</h2>
+<blockquote>
+<p>補充日期：2026-09-22，出自 <a href="../openwrt/TPROXY%E8%A8%AD%E5%AE%9A%E8%85%B3%E6%9C%AC%E5%8F%83%E6%95%B8%E5%8C%96%E8%88%87%E5%8F%AF%E9%87%8D%E8%A4%87%E5%9F%B7%E8%A1%8C.html">TPROXY設定腳本參數化與可重複執行</a>
+的 <code>if [ $# -eq 0 ]; then 印用法; exit 1; fi</code>。以下輸出皆在 dash 與 bash 實測。</p>
+</blockquote>
+<h3 id="逐字拆開">逐字拆開</h3>
+<p>shell 先做展開，再執行命令。腳本沒收到任何參數時，這一行在執行前會先變成：</p>
+<pre><code>原文：    [   $#   -eq   0   ]
+展開後：  [   0    -eq   0   ]
+          │   │     │    │   │
+          │   │     │    │   └─ ⑤ 第 4 個參數：必填的結尾標記，只是讓 [ 知道「到這裡結束」
+          │   │     │    └───── ④ 第 3 個參數：右運算元，字面的 0
+          │   │     └────────── ③ 第 2 個參數：數值「等於」運算子（equal）
+          │   └──────────────── ② 第 1 個參數：$# 展開後的值——「位置參數有幾個」
+          └──────────────────── ① 命令名稱：[（跟 test 是同一個命令）
+</code></pre>
+<ul>
+<li><code>$#</code> 是 shell 的特殊參數，值是<strong>位置參數的個數</strong>，不含 <code>$0</code>（完整清單見
+<a href="../openwrt/TPROXY%E8%A8%AD%E5%AE%9A%E8%85%B3%E6%9C%AC%E5%8F%83%E6%95%B8%E5%8C%96%E8%88%87%E5%8F%AF%E9%87%8D%E8%A4%87%E5%9F%B7%E8%A1%8C.html#%E4%B8%89shell-%E6%80%8E%E9%BA%BC%E6%8A%8A%E5%8F%83%E6%95%B8%E4%BA%A4%E7%B5%A6%E8%85%B3%E6%9C%AC">TPROXY 腳本那篇的特殊參數表</a>）。</li>
+<li><code>-eq</code> 是<strong>整數</strong>比較，不是字串比較（見第四節〈字串用 <code>=</code>，數字用 <code>-eq</code>〉）。</li>
+<li><code>[</code> 什麼都不印，只回傳狀態碼：成立回 0（真），不成立回 1（假）。</li>
+</ul>
+<pre><code>$ dash -c '[ $# -eq 0 ]; echo $?' x          # 沒有參數
+0
+$ dash -c '[ $# -eq 0 ]; echo $?' x a b      # 兩個參數
+1
+</code></pre>
+<p>（<code>dash -c '腳本' x a b</code> 裡，<code>x</code> 會成為 <code>$0</code>，<code>a b</code> 才是 <code>$1 $2</code>。）</p>
+<h3 id="if-看的是命令的狀態碼"><code>if</code> 看的是命令的狀態碼</h3>
+<pre><code class="language-sh"><span class="k">if</span><span class="w"> </span><span class="o">[</span><span class="w"> </span><span class="nv">$#</span><span class="w"> </span>-eq<span class="w"> </span><span class="m">0</span><span class="w"> </span><span class="o">]</span><span class="p">;</span><span class="w"> </span><span class="k">then</span>
+<span class="w">    </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;用法: ...&quot;</span><span class="w"> </span>&gt;<span class="p">&amp;</span><span class="m">2</span>
+<span class="w">    </span><span class="nb">exit</span><span class="w"> </span><span class="m">1</span>
+<span class="k">fi</span>
+</code></pre>
+<p><code>if</code> 後面接的是<strong>任何命令</strong>，不是只能接 <code>[ ]</code>。它執行那個命令，狀態碼是 0 就跑 <code>then</code> 那段。所以 <code>if [ $# -eq 0 ]</code> 和 <code>if test $# -eq 0</code> 完全一樣，<code>if grep -q foo file</code> 也是同一個機制。
+<strong><code>if</code> 和 <code>[</code> 是兩個獨立的東西</strong>：<code>[</code> 只是剛好常被放在 <code>if</code> 後面。</p>
+<h3 id="為什麼--可以不加引號">為什麼 <code>$#</code> 可以不加引號</h3>
+<p>第五節說過「<code>[ ]</code> 裡的變數要加引號」，這裡卻沒加。原因是 <code>$#</code> <strong>一定是一個不含空白的非負整數</strong>
+（0、1、2…），不會是空字串、也不會被切成兩個字，不會發生第五節那種「參數少一個」的狀況。這是少數「不加也不會出事」的情況（<code>$?</code>、<code>$$</code> 同理，都是 shell 保證的整數）；但第五節的鐵則仍然成立——寫成 <code>[ &quot;$#&quot; -eq 0 ]</code> 一樣正確，習慣一律加引號就不必每次判斷這是不是例外。</p>
+<h3 id="為什麼用-不用---z-1-">為什麼用 <code>$#</code>，不用 <code>[ -z &quot;$1&quot; ]</code></h3>
+<p>兩者看起來都在問「有沒有給參數」，但實際上判斷的是不同的事：</p>
+<table>
+<thead>
+<tr>
+<th>寫法</th>
+<th>問的是</th>
+<th>呼叫時給了一個空字串 <code>''</code></th>
+<th>開了 <code>set -u</code> 又沒給參數</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>[ $# -eq 0 ]</code></td>
+<td>參數<strong>個數</strong>是不是 0</td>
+<td><code>$#</code> 是 1 → 判定「有給」</td>
+<td>正常運作（<code>$#</code> 永遠有值）</td>
+</tr>
+<tr>
+<td><code>[ -z &quot;$1&quot; ]</code></td>
+<td>第一個參數的<strong>內容</strong>是不是空的</td>
+<td>判定「沒給」</td>
+<td><strong>腳本直接中止</strong>：<code>1: parameter not set</code></td>
+</tr>
+</tbody>
+</table>
+<pre><code>$ dash -c 'set -u; [ -z &quot;$1&quot; ] &amp;&amp; echo 空' x
+x: 1: 1: parameter not set
+</code></pre>
+<p>TPROXY 那支腳本開了 <code>set -eu</code>，如果用 <code>[ -z &quot;$1&quot; ]</code>，沒給參數時使用者看不到用法說明，只會看到一行看不懂的 <code>parameter not set</code>。<strong>要問「有幾個參數」就用 <code>$#</code>。</strong></p>
+<h3 id="寫錯時的錯誤訊息">寫錯時的錯誤訊息</h3>
+<table>
+<thead>
+<tr>
+<th>寫法</th>
+<th>dash 的錯誤</th>
+<th>bash 的錯誤</th>
+<th>錯在哪</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>[$# -eq 0 ]</code></td>
+<td><code>[0: not found</code></td>
+<td><code>[0: command not found</code></td>
+<td><code>[</code> 後面少了空白，<code>[</code> 和展開後的 <code>0</code> 黏成一個字，被當成叫 <code>[0</code> 的命令</td>
+</tr>
+<tr>
+<td><code>[ $# -eq 0]</code></td>
+<td><code>[: missing ]</code></td>
+<td><code>[: missing `]'</code></td>
+<td><code>0]</code> 黏在一起，<code>[</code> 找不到獨立的結尾參數 <code>]</code></td>
+</tr>
+<tr>
+<td><code>[ abc -eq 0 ]</code></td>
+<td><code>[: Illegal number: abc</code></td>
+<td><code>[: abc: integer expression expected</code></td>
+<td><code>-eq</code> 兩邊都必須是整數</td>
+</tr>
+</tbody>
+</table>
+<p>前兩種錯誤正好證明了第一節的結論：<code>[</code> 是命令，<code>]</code> 是它的<strong>最後一個參數</strong>，所以兩邊都一定要用空白隔開。</p>
+<h3 id="其他等價寫法">其他等價寫法</h3>
+<table>
+<thead>
+<tr>
+<th>寫法</th>
+<th>可在 <code>#!/bin/sh</code> 用</th>
+<th>備註</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>[ $# -eq 0 ]</code></td>
+<td>是</td>
+<td>最常見</td>
+</tr>
+<tr>
+<td><code>[ $# = 0 ]</code></td>
+<td>是</td>
+<td>改成字串比較；因為 <code>$#</code> 不會出現 <code>00</code> 這種寫法，結果相同</td>
+</tr>
+<tr>
+<td><code>test $# -eq 0</code></td>
+<td>是</td>
+<td>和 <code>[</code> 是同一個命令</td>
+</tr>
+<tr>
+<td><code>[[ $# -eq 0 ]]</code></td>
+<td><strong>否</strong></td>
+<td>bash／zsh 語法，dash 會報 <code>[[: not found</code>（第七節）</td>
+</tr>
+<tr>
+<td><code>(( $# == 0 ))</code></td>
+<td><strong>否</strong></td>
+<td>bash／zsh 的算術測試，dash 不支援</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="速查">速查</h2>
+<pre><code class="language-bash"><span class="c1"># 本質</span>
+<span class="o">[</span><span class="w"> </span>是命令（<span class="o">=</span><span class="w"> </span>test），<span class="o">]</span><span class="w"> </span>是必填參數<span class="w"> </span>→<span class="w"> </span>空格不可省、變數要加引號
+<span class="o">[[</span><span class="w"> </span>是語法關鍵字<span class="w"> </span>→<span class="w"> </span>不分詞、不展開、不必加引號
+
+<span class="c1"># 狀態碼</span>
+<span class="nv">0</span><span class="w"> </span><span class="o">=</span><span class="w"> </span>真，非<span class="w"> </span><span class="nv">0</span><span class="w"> </span><span class="o">=</span><span class="w"> </span>假<span class="w">        </span><span class="c1"># 跟 C 相反</span>
+<span class="nb">echo</span><span class="w"> </span><span class="nv">$?</span><span class="w">                  </span><span class="c1"># 看上一個命令的狀態碼</span>
+
+<span class="c1"># 常用測試</span>
+<span class="o">[</span><span class="w"> </span>-e<span class="w"> </span>f<span class="w"> </span><span class="o">]</span><span class="w"> </span><span class="o">[</span><span class="w"> </span>-f<span class="w"> </span>f<span class="w"> </span><span class="o">]</span><span class="w"> </span><span class="o">[</span><span class="w"> </span>-d<span class="w"> </span>d<span class="w"> </span><span class="o">]</span><span class="w"> </span><span class="o">[</span><span class="w"> </span>-L<span class="w"> </span>l<span class="w"> </span><span class="o">]</span><span class="w"> </span><span class="o">[</span><span class="w"> </span>-s<span class="w"> </span>f<span class="w"> </span><span class="o">]</span><span class="w">     </span><span class="c1"># 存在/檔案/目錄/連結/非空</span>
+<span class="o">[</span><span class="w"> </span>-r<span class="w"> </span>f<span class="w"> </span><span class="o">]</span><span class="w"> </span><span class="o">[</span><span class="w"> </span>-w<span class="w"> </span>f<span class="w"> </span><span class="o">]</span><span class="w"> </span><span class="o">[</span><span class="w"> </span>-x<span class="w"> </span>f<span class="w"> </span><span class="o">]</span><span class="w">                        </span><span class="c1"># 權限</span>
+<span class="o">[</span><span class="w"> </span>-z<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$s</span><span class="s2">&quot;</span><span class="w"> </span><span class="o">]</span><span class="w"> </span><span class="o">[</span><span class="w"> </span>-n<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$s</span><span class="s2">&quot;</span><span class="w"> </span><span class="o">]</span><span class="w">                           </span><span class="c1"># 字串空/非空</span>
+<span class="o">[</span><span class="w"> </span><span class="s2">&quot;</span><span class="nv">$a</span><span class="s2">&quot;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;</span><span class="nv">$b</span><span class="s2">&quot;</span><span class="w"> </span><span class="o">]</span><span class="w">                                   </span><span class="c1"># 字串比較</span>
+<span class="o">[</span><span class="w"> </span><span class="s2">&quot;</span><span class="nv">$a</span><span class="s2">&quot;</span><span class="w"> </span>-eq<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$b</span><span class="s2">&quot;</span><span class="w"> </span><span class="o">]</span><span class="w">                                 </span><span class="c1"># 數值比較</span>
+
+<span class="c1"># 三元式（僅限 &amp;&amp; 後面不會失敗時）</span>
+<span class="o">[</span><span class="w"> </span>-d<span class="w"> </span>/foo<span class="w"> </span><span class="o">]</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nb">echo</span><span class="w"> </span>有<span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="nb">echo</span><span class="w"> </span>無
+
+<span class="c1"># 進階（bash/zsh）</span>
+<span class="o">[[</span><span class="w"> </span><span class="nv">$x</span><span class="w"> </span><span class="o">==</span><span class="w"> </span>nvidia*<span class="w"> </span><span class="o">]]</span><span class="w">      </span><span class="c1"># 萬用字元</span>
+<span class="o">[[</span><span class="w"> </span><span class="nv">$x</span><span class="w"> </span><span class="o">=</span>~<span class="w"> </span>^nv<span class="w"> </span><span class="o">]]</span><span class="w">          </span><span class="c1"># 正規表達式</span>
+<span class="o">[[</span><span class="w"> </span>-d<span class="w"> </span>/a<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>-r<span class="w"> </span>/a<span class="w"> </span><span class="o">]]</span><span class="w">     </span><span class="c1"># 直接用 &amp;&amp;</span>
+<span class="o">((</span><span class="w"> </span>i<span class="w"> </span>&lt;<span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="o">))</span><span class="w">             </span><span class="c1"># 數值</span>
+
+<span class="c1"># 可攜性驗證</span>
+dash<span class="w"> </span>script.sh<span class="w">           </span><span class="c1"># #!/bin/sh 的腳本要用 dash 實測（本機 sh 是 bash，測不出問題）</span>
+</code></pre>
+<h2 id="test----的完整運算子依-help-testbash-52"><code>test</code> / <code>[ ]</code> 的完整運算子（依 <code>help test</code>，bash 5.2）</h2>
+<p><strong>檔案運算子</strong></p>
+<table>
+<thead>
+<tr>
+<th>運算子</th>
+<th>為真的條件</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-e FILE</code></td>
+<td>檔案存在</td>
+</tr>
+<tr>
+<td><code>-a FILE</code></td>
+<td>檔案存在（<code>-e</code> 的舊寫法，<strong>和 AND 的 <code>-a</code> 撞名，別用</strong>）</td>
+</tr>
+<tr>
+<td><code>-f FILE</code></td>
+<td>存在且是<strong>一般檔案</strong></td>
+</tr>
+<tr>
+<td><code>-d FILE</code></td>
+<td>是目錄</td>
+</tr>
+<tr>
+<td><code>-h</code> / <code>-L FILE</code></td>
+<td>是符號連結</td>
+</tr>
+<tr>
+<td><code>-b FILE</code></td>
+<td>是區塊裝置</td>
+</tr>
+<tr>
+<td><code>-c FILE</code></td>
+<td>是字元裝置</td>
+</tr>
+<tr>
+<td><code>-p FILE</code></td>
+<td>是具名管線（FIFO）</td>
+</tr>
+<tr>
+<td><code>-S FILE</code></td>
+<td>是 socket</td>
+</tr>
+<tr>
+<td><code>-s FILE</code></td>
+<td>存在且<strong>不是空的</strong></td>
+</tr>
+<tr>
+<td><code>-r</code> / <code>-w</code> / <code>-x FILE</code></td>
+<td>你可讀／可寫／可執行</td>
+</tr>
+<tr>
+<td><code>-u</code> / <code>-g</code> / <code>-k FILE</code></td>
+<td>有 setuid／setgid／sticky bit</td>
+</tr>
+<tr>
+<td><code>-O</code> / <code>-G FILE</code></td>
+<td>有效擁有者是你／你的群組</td>
+</tr>
+<tr>
+<td><code>-N FILE</code></td>
+<td>上次讀取之後被修改過</td>
+</tr>
+<tr>
+<td><code>-t FD</code></td>
+<td><strong>該 fd 連著終端機</strong>（判斷「有沒有在 pipe 裡」用這個）</td>
+</tr>
+<tr>
+<td><code>F1 -nt F2</code> / <code>-ot F2</code></td>
+<td>F1 比 F2 新／舊</td>
+</tr>
+<tr>
+<td><code>F1 -ef F2</code></td>
+<td>兩者是同一個 inode（硬連結或同檔）</td>
+</tr>
+</tbody>
+</table>
+<p><strong>字串運算子</strong></p>
+<table>
+<thead>
+<tr>
+<th>運算子</th>
+<th>為真的條件</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-z STR</code></td>
+<td>長度為 0</td>
+</tr>
+<tr>
+<td><code>-n STR</code> / <code>STR</code></td>
+<td>長度不為 0</td>
+</tr>
+<tr>
+<td><code>S1 = S2</code> / <code>S1 == S2</code></td>
+<td>相等（<code>==</code> 是 bash 擴充）</td>
+</tr>
+<tr>
+<td><code>S1 != S2</code></td>
+<td>不等</td>
+</tr>
+<tr>
+<td><code>S1 &lt; S2</code> / <code>S1 &gt; S2</code></td>
+<td>字典序比較（<strong>在 <code>[ ]</code> 裡要跳脫成 <code>\&lt;</code>，否則被當重新導向</strong>）</td>
+</tr>
+</tbody>
+</table>
+<p><strong>數值運算子</strong>（只能比整數）</p>
+<p><code>-eq</code>（等於）、<code>-ne</code>（不等）、<code>-lt</code>（小於）、<code>-le</code>、<code>-gt</code>、<code>-ge</code>。</p>
+<p><strong>其他</strong></p>
+<table>
+<thead>
+<tr>
+<th>運算子</th>
+<th>意思</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-o OPTION</code></td>
+<td>shell 選項有開啟</td>
+</tr>
+<tr>
+<td><code>-v VAR</code></td>
+<td>變數有設定</td>
+</tr>
+<tr>
+<td><code>-R VAR</code></td>
+<td>變數是 nameref</td>
+</tr>
+<tr>
+<td><code>! EXPR</code></td>
+<td>反向</td>
+</tr>
+<tr>
+<td><code>EXPR1 -a EXPR2</code></td>
+<td>AND（<strong>POSIX 已標示過時，建議改用 <code>[ A ] &amp;&amp; [ B ]</code></strong>）</td>
+</tr>
+<tr>
+<td><code>EXPR1 -o EXPR2</code></td>
+<td>OR（同上）</td>
+</tr>
+<tr>
+<td><code>( EXPR )</code></td>
+<td>分組（<code>[ ]</code> 裡要跳脫成 <code>\(</code> <code>\)</code>）</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong><code>[[ ]]</code> 多出來的</strong>：<code>=~</code>（正規式比對）、<code>&amp;&amp;</code>／<code>||</code>（不用跳脫）、右側不會做分詞與路徑展開、<code>&lt;</code>／<code>&gt;</code> 不用跳脫。完整差異見 <code>man bash</code> 的 CONDITIONAL EXPRESSIONS 段落。</p>
+</blockquote>
+<hr />
+<h2 id="自我測驗">自我測驗</h2>
+<ol>
+<li>為什麼 <code>[$# -eq 0 ]</code> 報的是「找不到命令」，而 <code>[ $# -eq 0]</code> 報的是「少了 <code>]</code>」？這兩個錯誤合起來證明了 <code>[</code> 的什麼本質？</li>
+<li><code>if [ $# -eq 0 ]</code> 裡，<code>if</code> 和 <code>[</code> 各自負責什麼？如果把 <code>[ $# -eq 0 ]</code> 換成 <code>grep -q foo file</code>，<code>if</code> 的運作方式有什麼不同？</li>
+<li>第五節說 <code>[ ]</code> 裡的變數一定要加引號，為什麼 <code>[ $# -eq 0 ]</code> 不加也安全？換成 <code>[ $1 = start ]</code> 呢？</li>
+<li>情境題：一支開了 <code>set -eu</code> 的腳本用 <code>[ -z &quot;$1&quot; ]</code> 檢查有沒有給參數。使用者 (a) 什麼都沒給、(b) 執行 <code>./x.sh ''</code>，各會看到什麼？改成 <code>[ $# -eq 0 ]</code> 之後呢？</li>
+<li>一支 <code>#!/bin/sh</code> 的腳本在你的 Ubuntu 上用 <code>bash x.sh</code> 測過沒問題，裡面用了 <code>[[ $# -eq 0 ]]</code>，放到 OpenWrt 上會怎樣？為什麼在本機測不出來？</li>
+</ol>
+
+</main>
+</div>
+</body>
+</html>

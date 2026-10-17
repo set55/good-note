@@ -1,0 +1,354 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>scp 怎麼用？—— 以及 OpenSSH 9 之後那個會讓你連不上的變動</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/app.js"></script>
+</head>
+<body>
+<button class="menu-btn" onclick="toggleMenu()">☰ 目錄</button>
+<div class="layout">
+<nav class="side">
+<div class="crumbs"><a href="../index.html">🏠 首頁</a> / <a href="README.html">linux</a></div>
+<div class="tools"><button onclick="toggleTheme()">🌓 主題</button></div>
+<ul>
+<li class="l2"><a href="#%E4%B8%80%E6%96%87%E6%B3%95%E9%AA%A8%E6%9E%B6">一、文法骨架</a></li>
+<li class="l2"><a href="#%E4%BA%8C%EF%B8%8F-openssh-9-%E7%9A%84%E5%8D%94%E5%AE%9A%E8%AE%8A%E5%8B%95%E6%9C%80%E9%87%8D%E8%A6%81%E7%9A%84%E4%B8%80%E7%AF%80">二、⚠️ OpenSSH 9 的協定變動（最重要的一節）</a></li>
+<li class="l2"><a href="#%E4%B8%89%E5%AE%8C%E6%95%B4%E9%81%B8%E9%A0%85%E4%BE%9D%E6%9C%AC%E6%A9%9F-man-scpopenssh-96">三、完整選項（依本機 man scp，OpenSSH 9.6）</a></li>
+<li class="l2"><a href="#%E5%9B%9B%E5%B8%B8%E7%94%A8%E5%AF%AB%E6%B3%95">四、常用寫法</a></li>
+<li class="l2"><a href="#%E4%BA%94sshconfig-%E8%AE%93%E6%8C%87%E4%BB%A4%E8%AE%8A%E7%9F%AD">五、~/.ssh/config 讓指令變短</a></li>
+<li class="l2"><a href="#%E5%85%AD%E4%BB%80%E9%BA%BC%E6%99%82%E5%80%99%E4%B8%8D%E8%A9%B2%E7%94%A8-scp">六、什麼時候不該用 scp</a></li>
+<li class="l2"><a href="#%E4%B8%83%E5%B8%B8%E8%A6%8B%E9%8C%AF%E8%AA%A4%E5%B0%8D%E7%85%A7">七、常見錯誤對照</a></li>
+<li class="l2"><a href="#%E8%87%AA%E6%88%91%E6%B8%AC%E9%A9%97">自我測驗</a></li>
+</ul>
+</nav>
+<main>
+<h1 id="scp-怎麼用-以及-openssh-9-之後那個會讓你連不上的變動"><code>scp</code> 怎麼用？—— 以及 OpenSSH 9 之後那個會讓你連不上的變動</h1>
+<blockquote>
+<p>日期：2026-09-21<br />
+情境：想把檔案傳到路由器／伺服器，順便搞懂 scp 的完整用法<br />
+適用範圍：實測本機 OpenSSH_9.6p1（Ubuntu 24.04）與 OpenWrt 24.10.2（dropbear 2024.86）<br />
+相關：<a href="SSH%E8%B5%B0%E4%BB%A3%E7%90%86%E8%A8%AD%E5%AE%9A.html">SSH走代理設定</a>、
+<a href="../openwrt/OpenWrt%E7%9A%84%E6%9C%8D%E5%8B%99%E7%AE%A1%E7%90%86-service%E8%88%87procd.html">OpenWrt的服務管理-service與procd</a></p>
+</blockquote>
+<p><strong>一句話結論：<code>scp 來源 目的地</code>，其中任一邊可以寫成 <code>使用者@主機:路徑</code>。但從 OpenSSH 9 開始，
+<code>scp</code> <strong>底層改用 SFTP 協定</strong>了——對方沒有 sftp-server 就會失敗（OpenWrt 的 dropbear 正是如此），這時要加 <strong><code>-O</code></strong> 退回舊版 SCP 協定。這是現在最常見的「scp 突然不能用了」。</strong></p>
+<hr />
+<h2 id="一文法骨架">一、文法骨架</h2>
+<pre><code>scp [選項] 來源... 目的地
+</code></pre>
+<p><strong>來源與目的地各自可以是本機路徑或遠端路徑</strong>，遠端路徑的形式是：</p>
+<pre><code>[使用者@]主機:[路徑]
+ └─┬──┘ └┬─┘ └┬──┘
+   │     │    └ 省略＝遠端的家目錄
+   │     └ 主機名或 IP（也可以是 ~/.ssh/config 裡的別名）
+   └ 省略＝用本機的使用者名
+</code></pre>
+<p><strong>冒號是關鍵</strong>——有冒號就是遠端，沒有就是本機路徑：</p>
+<pre><code class="language-bash">scp<span class="w"> </span>file.txt<span class="w"> </span>root@192.168.1.1:/tmp/<span class="w">      </span><span class="c1"># 本機 → 遠端</span>
+scp<span class="w"> </span>root@192.168.1.1:/tmp/file.txt<span class="w"> </span>.<span class="w">     </span><span class="c1"># 遠端 → 本機</span>
+scp<span class="w"> </span>a.txt<span class="w"> </span>b.txt<span class="w"> </span>root@host:/tmp/<span class="w">          </span><span class="c1"># 多個來源 → 一個目的地（目的地必須是目錄）</span>
+scp<span class="w"> </span>root@h1:/f<span class="w"> </span>root@h2:/tmp/<span class="w">             </span><span class="c1"># 遠端 → 遠端</span>
+</code></pre>
+<p><strong>忘記冒號是最常見的低級錯誤</strong>：<code>scp file.txt root@192.168.1.1/tmp/</code>
+會被當成「把 <code>file.txt</code> 複製成一個叫 <code>root@192.168.1.1/tmp/</code> 的本機檔案」。</p>
+<hr />
+<h2 id="二️-openssh-9-的協定變動最重要的一節">二、⚠️ OpenSSH 9 的協定變動（最重要的一節）</h2>
+<p><strong>OpenSSH 8.8 起 <code>scp</code> 的底層改用 SFTP 協定，9.0 起成為預設。</strong> 原因是舊的 SCP 協定把檔名交給遠端 shell 展開，存在安全問題（CVE-2020-15778 等）。</p>
+<p><strong>後果：對方必須提供 <code>sftp-server</code>。</strong> 而很多嵌入式系統沒有——</p>
+<pre><code class="language-bash"><span class="c1"># 本機是 OpenSSH_9.6p1，路由器是 dropbear</span>
+$<span class="w"> </span>ssh<span class="w"> </span>-V
+OpenSSH_9.6p1<span class="w"> </span>Ubuntu-3ubuntu13.19
+
+$<span class="w"> </span>opkg<span class="w"> </span>list-installed<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-E<span class="w"> </span><span class="s1">&#39;dropbear|sftp&#39;</span><span class="w">      </span><span class="c1"># 在路由器上</span>
+dropbear<span class="w"> </span>-<span class="w"> </span><span class="m">2024</span>.86-r1<span class="w">          </span><span class="c1"># ← 只有 dropbear，沒有 openssh-sftp-server</span>
+</code></pre>
+<p><strong>實測（預設 SFTP 模式）：</strong></p>
+<pre><code>$ scp root@192.168.1.1:/etc/openwrt_release /tmp/
+ash: /usr/libexec/sftp-server: not found
+scp: Connection closed                              ❌ 失敗
+</code></pre>
+<p><strong>加上 <code>-O</code> 退回舊版 SCP 協定：</strong></p>
+<pre><code>$ scp -O root@192.168.1.1:/etc/openwrt_release /tmp/
+$ ls -l /tmp/openwrt_release
+-rw-r--r-- 1 set set 226 ...                        ✅ 成功
+</code></pre>
+<p><strong>所以對 OpenWrt（dropbear）傳檔，一律加 <code>-O</code>。</strong> 三種解法：</p>
+<table>
+<thead>
+<tr>
+<th>做法</th>
+<th>說明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong><code>scp -O ...</code></strong></td>
+<td>每次加，最直接</td>
+</tr>
+<tr>
+<td>在路由器裝 <code>openssh-sftp-server</code></td>
+<td><code>opkg install openssh-sftp-server</code>，之後就不用 <code>-O</code>（要花 flash 空間）</td>
+</tr>
+<tr>
+<td><strong>改用 <code>ssh</code> + 管線</strong>（見第六節）</td>
+<td>不依賴任何額外套件</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="三完整選項依本機-man-scpopenssh-96">三、完整選項（依本機 <code>man scp</code>，OpenSSH 9.6）</h2>
+<p><strong>旗標型（不帶參數）</strong></p>
+<table>
+<thead>
+<tr>
+<th>選項</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-3</code></td>
+<td>兩個遠端之間複製時，<strong>資料經由本機中轉</strong>（預設行為）</td>
+</tr>
+<tr>
+<td><code>-4</code> / <code>-6</code></td>
+<td>只用 IPv4／IPv6</td>
+</tr>
+<tr>
+<td><code>-A</code></td>
+<td>允許轉發 ssh-agent 到遠端（<strong>預設不轉發</strong>）</td>
+</tr>
+<tr>
+<td><code>-B</code></td>
+<td><strong>批次模式</strong>：不詢問密碼或通行碼（腳本用，失敗就直接失敗）</td>
+</tr>
+<tr>
+<td><code>-C</code></td>
+<td><strong>啟用壓縮</strong>（傳大量文字檔有感，傳已壓縮檔反而變慢）</td>
+</tr>
+<tr>
+<td><strong><code>-O</code></strong></td>
+<td><strong>改用舊版 SCP 協定</strong> ← 見第二節</td>
+</tr>
+<tr>
+<td><code>-p</code></td>
+<td><strong>保留修改時間、存取時間與權限位元</strong>（小寫 p）</td>
+</tr>
+<tr>
+<td><code>-q</code></td>
+<td>安靜模式：關掉進度條與警告訊息</td>
+</tr>
+<tr>
+<td><code>-R</code></td>
+<td>兩個遠端之間複製時，<strong>直接在來源主機上執行 scp</strong>（需要來源能免密碼連到目的地）</td>
+</tr>
+<tr>
+<td><code>-r</code></td>
+<td><strong>遞迴複製整個目錄</strong>（會跟隨符號連結）</td>
+</tr>
+<tr>
+<td><code>-s</code></td>
+<td>使用 SFTP 協定（9.x 的預設，寫出來只是為了明確）</td>
+</tr>
+<tr>
+<td><code>-T</code></td>
+<td><strong>關閉嚴格檔名檢查</strong>（預設會檢查收到的檔名是否符合你要求的，防止遠端塞額外檔案）</td>
+</tr>
+<tr>
+<td><code>-v</code></td>
+<td>囉嗦模式（<strong>連不上時第一個該加的</strong>，<code>-vvv</code> 更詳細）</td>
+</tr>
+</tbody>
+</table>
+<p><strong>帶參數型</strong></p>
+<table>
+<thead>
+<tr>
+<th>選項</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-c &lt;cipher&gt;</code></td>
+<td>指定加密演算法（直接傳給 ssh）</td>
+</tr>
+<tr>
+<td><code>-D &lt;sftp_server路徑&gt;</code></td>
+<td>直接連到<strong>本機</strong>的 SFTP server 程式（除錯用）</td>
+</tr>
+<tr>
+<td><code>-F &lt;ssh_config&gt;</code></td>
+<td>指定替代的 ssh 設定檔</td>
+</tr>
+<tr>
+<td><code>-i &lt;金鑰檔&gt;</code></td>
+<td><strong>指定私鑰</strong></td>
+</tr>
+<tr>
+<td><code>-J &lt;目的地&gt;</code></td>
+<td><strong>經由跳板機</strong>（等同 <code>ProxyJump</code>，可用逗號串多層）</td>
+</tr>
+<tr>
+<td><code>-l &lt;限速&gt;</code></td>
+<td><strong>限制頻寬，單位 Kbit/s</strong></td>
+</tr>
+<tr>
+<td><code>-o &lt;ssh 選項&gt;</code></td>
+<td><strong>傳任意 ssh_config 格式的選項</strong>（沒有專屬旗標的都靠它）</td>
+</tr>
+<tr>
+<td><code>-P &lt;埠&gt;</code></td>
+<td><strong>指定埠</strong>（大寫 P，因為小寫 p 已被「保留屬性」佔用）</td>
+</tr>
+<tr>
+<td><code>-S &lt;程式&gt;</code></td>
+<td>指定用哪個程式建立加密連線</td>
+</tr>
+<tr>
+<td><code>-X &lt;sftp選項&gt;</code></td>
+<td>調整 SFTP 行為：<code>nrequests=&lt;值&gt;</code>（並行請求數，預設 64）、<code>buffer=&lt;值&gt;</code>（緩衝區大小）</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong><code>-P</code> 與 <code>-p</code> 大小寫意義完全不同</strong>，而且和 <code>ssh</code> 的 <code>-p</code>（小寫是埠）<strong>相反</strong>——
+這是 scp 最容易打錯的地方。</p>
+</blockquote>
+<hr />
+<h2 id="四常用寫法">四、常用寫法</h2>
+<pre><code class="language-bash"><span class="c1"># 基本</span>
+scp<span class="w"> </span>file.txt<span class="w"> </span>root@192.168.1.1:/tmp/<span class="w">              </span><span class="c1"># 上傳</span>
+scp<span class="w"> </span>root@192.168.1.1:/tmp/file.txt<span class="w"> </span>./<span class="w">            </span><span class="c1"># 下載</span>
+scp<span class="w"> </span>-O<span class="w"> </span>root@192.168.1.1:/etc/config/network<span class="w"> </span>./<span class="w">   </span><span class="c1"># 對 OpenWrt 記得加 -O</span>
+
+<span class="c1"># 目錄</span>
+scp<span class="w"> </span>-r<span class="w"> </span>./mydir<span class="w"> </span>root@host:/opt/<span class="w">                   </span><span class="c1"># 遞迴上傳整個目錄</span>
+scp<span class="w"> </span>-rp<span class="w"> </span>./mydir<span class="w"> </span>root@host:/opt/<span class="w">                  </span><span class="c1"># 連時間戳與權限一起保留</span>
+
+<span class="c1"># 非標準埠 / 指定金鑰 / 跳板</span>
+scp<span class="w"> </span>-P<span class="w"> </span><span class="m">2222</span><span class="w"> </span>file.txt<span class="w"> </span>root@host:/tmp/
+scp<span class="w"> </span>-i<span class="w"> </span>~/.ssh/id_ed25519<span class="w"> </span>file.txt<span class="w"> </span>root@host:/tmp/
+scp<span class="w"> </span>-J<span class="w"> </span>jump@gateway<span class="w"> </span>file.txt<span class="w"> </span>root@internal:/tmp/
+
+<span class="c1"># 限速與壓縮（傳大檔時不要塞爆線路）</span>
+scp<span class="w"> </span>-l<span class="w"> </span><span class="m">8000</span><span class="w"> </span>-C<span class="w"> </span>bigfile.tar<span class="w"> </span>root@host:/tmp/<span class="w">       </span><span class="c1"># 限 8000 Kbit/s ≈ 1 MB/s</span>
+
+<span class="c1"># 腳本裡用</span>
+scp<span class="w"> </span>-B<span class="w"> </span>-q<span class="w"> </span>-O<span class="w"> </span>file.txt<span class="w"> </span>root@host:/tmp/<span class="w">            </span><span class="c1"># 不問密碼、不印進度</span>
+
+<span class="c1"># 連不上時</span>
+scp<span class="w"> </span>-v<span class="w"> </span>file.txt<span class="w"> </span>root@host:/tmp/<span class="w">                  </span><span class="c1"># 看它卡在哪一步</span>
+</code></pre>
+<p><strong>路徑含空白時要跳脫兩次</strong>——一次給本機 shell，一次給遠端 shell：</p>
+<pre><code class="language-bash">scp<span class="w"> </span><span class="s1">&#39;root@host:/tmp/my\ file.txt&#39;</span><span class="w"> </span>./<span class="w">             </span><span class="c1"># 遠端路徑的空白要用 \ 跳脫</span>
+</code></pre>
+<hr />
+<h2 id="五sshconfig-讓指令變短">五、<code>~/.ssh/config</code> 讓指令變短</h2>
+<p>scp 會讀 ssh 的設定檔，所以定義好別名之後：</p>
+<pre><code># ~/.ssh/config
+Host router
+    HostName 192.168.1.1
+    User root
+</code></pre>
+<pre><code class="language-bash">scp<span class="w"> </span>-O<span class="w"> </span>file.txt<span class="w"> </span>router:/tmp/<span class="w">        </span><span class="c1"># 不用再打 IP 與使用者</span>
+</code></pre>
+<p>（代理與跳板的設定見 <a href="SSH%E8%B5%B0%E4%BB%A3%E7%90%86%E8%A8%AD%E5%AE%9A.html">SSH走代理設定</a>。）</p>
+<hr />
+<h2 id="六什麼時候不該用-scp">六、什麼時候不該用 scp</h2>
+<p>OpenSSH 官方在 man page 裡直接寫了：scp 的協定「已過時、不夠彈性、不易修正」，建議改用 <code>sftp</code> 或 <code>rsync</code>。</p>
+<table>
+<thead>
+<tr>
+<th>需求</th>
+<th>建議工具</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>單一檔案、一次性</td>
+<td><strong>scp</strong> 就好，最短</td>
+</tr>
+<tr>
+<td>大量檔案、要續傳／增量同步</td>
+<td><strong><code>rsync -avz --partial</code></strong></td>
+</tr>
+<tr>
+<td>互動式瀏覽遠端目錄</td>
+<td><strong><code>sftp</code></strong></td>
+</tr>
+<tr>
+<td><strong>遠端沒有 sftp-server 也沒有 rsync</strong>（嵌入式）</td>
+<td><strong><code>ssh</code> + 管線</strong>（見下）</td>
+</tr>
+</tbody>
+</table>
+<p><strong><code>ssh</code> + 管線的萬用解法</strong>——只要對方有 shell 就能用，不依賴任何額外套件：</p>
+<pre><code class="language-bash"><span class="c1"># 上傳</span>
+cat<span class="w"> </span>local.txt<span class="w"> </span><span class="p">|</span><span class="w"> </span>ssh<span class="w"> </span>root@192.168.1.1<span class="w"> </span><span class="s1">&#39;cat &gt; /tmp/remote.txt&#39;</span>
+
+<span class="c1"># 下載</span>
+ssh<span class="w"> </span>root@192.168.1.1<span class="w"> </span><span class="s1">&#39;cat /etc/config/network&#39;</span><span class="w"> </span>&gt;<span class="w"> </span>./network
+
+<span class="c1"># 整個目錄（用 tar 打包串流）</span>
+tar<span class="w"> </span>czf<span class="w"> </span>-<span class="w"> </span>./mydir<span class="w"> </span><span class="p">|</span><span class="w"> </span>ssh<span class="w"> </span>root@host<span class="w"> </span><span class="s1">&#39;tar xzf - -C /opt/&#39;</span>
+ssh<span class="w"> </span>root@host<span class="w"> </span><span class="s1">&#39;tar czf - -C /etc config&#39;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>tar<span class="w"> </span>xzf<span class="w"> </span>-
+</code></pre>
+<p><strong>這招對 OpenWrt 特別實用</strong>——dropbear 沒有 sftp-server，但一定有 shell 與 tar。</p>
+<hr />
+<h2 id="七常見錯誤對照">七、常見錯誤對照</h2>
+<table>
+<thead>
+<tr>
+<th>症狀</th>
+<th>原因</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>sftp-server: not found</code> / <code>Connection closed</code></td>
+<td><strong>遠端沒有 SFTP server</strong> → 加 <code>-O</code></td>
+</tr>
+<tr>
+<td>檔案被複製成本機的怪檔名</td>
+<td><strong>忘記打冒號</strong></td>
+</tr>
+<tr>
+<td><code>Permission denied</code></td>
+<td>遠端路徑沒有寫入權限，或金鑰／使用者不對</td>
+</tr>
+<tr>
+<td>用了 <code>-p</code> 卻連不上非標準埠</td>
+<td><strong>埠要用大寫 <code>-P</code></strong></td>
+</tr>
+<tr>
+<td>目錄沒複製過去</td>
+<td>忘記 <code>-r</code></td>
+</tr>
+<tr>
+<td>腳本卡住不動</td>
+<td>它在等密碼輸入 → 加 <code>-B</code>，並確認金鑰認證可用</td>
+</tr>
+<tr>
+<td>傳完時間戳全變成現在</td>
+<td>沒加 <code>-p</code></td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="自我測驗">自我測驗</h2>
+<ol>
+<li><code>scp file.txt root@192.168.1.1/tmp/</code>（少了冒號）會發生什麼事？為什麼不會報錯？</li>
+<li>OpenSSH 9 之後 <code>scp</code> 的底層協定改成什麼？為什麼要改？對 OpenWrt 這類系統造成什麼後果、怎麼解決（說出三種）？</li>
+<li><code>-p</code> 和 <code>-P</code> 分別是什麼？為什麼 scp 的埠號旗標和 <code>ssh</code> 不一樣？</li>
+<li>你要從遠端下載一個目錄，但遠端既沒有 sftp-server 也沒有 rsync，只有 shell 和 tar。要怎麼做？</li>
+<li>情境題：你寫了一個備份腳本，每晚用 scp 把檔案傳到伺服器。它偶爾會卡住不動，而且傳完的檔案時間戳都變成當下。請說出該加哪三個選項、各自解決什麼問題。</li>
+</ol>
+
+</main>
+</div>
+</body>
+</html>

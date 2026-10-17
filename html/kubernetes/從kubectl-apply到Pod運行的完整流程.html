@@ -1,0 +1,494 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>從 kubectl apply 到 Pod 真的在跑：完整流程逐步拆解</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/app.js"></script>
+</head>
+<body>
+<button class="menu-btn" onclick="toggleMenu()">☰ 目錄</button>
+<div class="layout">
+<nav class="side">
+<div class="crumbs"><a href="../index.html">🏠 首頁</a> / <a href="README.html">kubernetes</a></div>
+<div class="tools"><button onclick="toggleTheme()">🌓 主題</button></div>
+<ul>
+<li class="l2"><a href="#%E4%B8%80%E5%8F%A5%E8%A9%B1%E7%B5%90%E8%AB%96">一句話結論</a></li>
+<li class="l2"><a href="#%E7%9B%AE%E9%8C%84">目錄</a></li>
+<li class="l2"><a href="#%E5%85%A8%E6%99%AF%E5%9C%96">全景圖</a></li>
+<li class="l2"><a href="#%E7%AC%AC-0-%E6%AD%A5kubectl-%E5%9C%A8%E6%9C%AC%E6%A9%9F%E5%81%9A%E7%9A%84%E4%BA%8B">第 0 步：kubectl 在本機做的事</a></li>
+<li class="l2"><a href="#%E7%AC%AC-16-%E6%AD%A5api-server-%E5%85%A7%E9%83%A8%E7%9A%84%E8%AB%8B%E6%B1%82%E7%AE%A1%E7%B7%9A">第 1～6 步：API Server 內部的請求管線</a></li>
+<li class="l2"><a href="#%E7%AC%AC-7-%E6%AD%A5deployment-%E6%8E%A7%E5%88%B6%E5%99%A8--replicaset">第 7 步：Deployment 控制器 → ReplicaSet</a></li>
+<li class="l2"><a href="#%E7%AC%AC-8-%E6%AD%A5replicaset-%E6%8E%A7%E5%88%B6%E5%99%A8--pod-%E7%89%A9%E4%BB%B6">第 8 步：ReplicaSet 控制器 → Pod 物件</a></li>
+<li class="l2"><a href="#%E7%AC%AC-9-%E6%AD%A5scheduler-%E6%8C%91%E7%AF%80%E9%BB%9E">第 9 步：Scheduler 挑節點</a></li>
+<li class="l3"><a href="#%E9%81%8E%E6%BF%BEfiltering">過濾（Filtering）</a></li>
+<li class="l3"><a href="#%E8%A9%95%E5%88%86scoring">評分（Scoring）</a></li>
+<li class="l3"><a href="#%E7%B6%81%E5%AE%9Abinding">綁定（Binding）</a></li>
+<li class="l2"><a href="#%E7%AC%AC-10-%E6%AD%A5kubelet-%E7%9C%9F%E7%9A%84%E6%8A%8A%E5%AE%B9%E5%99%A8%E8%B7%91%E8%B5%B7%E4%BE%86">第 10 步：kubelet 真的把容器跑起來</a></li>
+<li class="l3"><a href="#101-%E5%87%86%E5%85%A5%E8%88%87%E8%B3%87%E6%BA%90%E6%BA%96%E5%82%99">10.1 准入與資源準備</a></li>
+<li class="l3"><a href="#102-%E5%BB%BA%E7%AB%8B-pod-sandbox%E9%80%99%E4%B8%80%E6%AD%A5%E6%9C%80%E5%AE%B9%E6%98%93%E8%A2%AB%E5%BF%BD%E7%95%A5">10.2 建立 Pod sandbox（這一步最容易被忽略）</a></li>
+<li class="l3"><a href="#103-%E6%8B%89%E5%8F%96%E6%98%A0%E5%83%8F%E6%AA%94">10.3 拉取映像檔</a></li>
+<li class="l3"><a href="#104-%E5%95%9F%E5%8B%95%E5%AE%B9%E5%99%A8">10.4 啟動容器</a></li>
+<li class="l2"><a href="#%E7%AC%AC-11-%E6%AD%A5%E6%8E%A2%E9%87%9D%E8%88%87-status-%E5%9B%9E%E5%AF%AB">第 11 步：探針與 status 回寫</a></li>
+<li class="l2"><a href="#%E7%AC%AC-12-%E6%AD%A5%E5%8A%A0%E5%85%A5-service-%E7%9A%84%E6%B5%81%E9%87%8F%E6%B1%A0">第 12 步：加入 Service 的流量池</a></li>
+<li class="l2"><a href="#%E5%8F%8D%E5%90%91%E6%B5%81%E7%A8%8B%E5%88%AA%E9%99%A4%E4%B8%80%E5%80%8B-pod-%E6%99%82%E7%99%BC%E7%94%9F%E4%BB%80%E9%BA%BC">反向流程：刪除一個 Pod 時發生什麼</a></li>
+<li class="l2"><a href="#%E6%BB%BE%E5%8B%95%E6%9B%B4%E6%96%B0%E6%98%AF%E6%80%8E%E9%BA%BC%E8%B7%91%E7%9A%84">滾動更新是怎麼跑的</a></li>
+<li class="l2"><a href="#%E6%8E%92%E6%9F%A5%E5%B0%8D%E7%85%A7%E8%A1%A8%E5%8D%A1%E4%BD%8F%E7%9A%84%E9%9A%8E%E6%AE%B5--%E8%A9%B2%E7%9C%8B%E7%9A%84%E5%9C%B0%E6%96%B9">排查對照表：卡住的階段 → 該看的地方</a></li>
+<li class="l2"><a href="#%E7%9B%B8%E9%97%9C%E7%AD%86%E8%A8%98">相關筆記</a></li>
+<li class="l2"><a href="#%E6%8C%87%E4%BB%A4%E9%81%B8%E9%A0%85%E7%9A%84%E6%B6%B5%E8%93%8B%E7%AF%84%E5%9C%8D%E8%AA%AA%E6%98%8E">指令選項的涵蓋範圍說明</a></li>
+<li class="l2"><a href="#%E8%87%AA%E6%88%91%E6%B8%AC%E9%A9%97">自我測驗</a></li>
+</ul>
+</nav>
+<main>
+<h1 id="從-kubectl-apply-到-pod-真的在跑完整流程逐步拆解">從 <code>kubectl apply</code> 到 Pod 真的在跑：完整流程逐步拆解</h1>
+<blockquote>
+<p>日期：2026-09-12<br />
+情境：知道 K8s 有哪些組件之後，把它們串成一條完整的時間軸——一個 Deployment 從送出到能被連上，中間到底發生了幾件事<br />
+適用範圍：Kubernetes v1.28+，containerd + 任一 CNI 的標準叢集</p>
+</blockquote>
+<hr />
+<h2 id="一句話結論">一句話結論</h2>
+<blockquote>
+<p><strong>這條鏈上沒有任何一步是「呼叫下一步」，每一步都只是「改一個欄位，然後就沒它的事了」。</strong>
+所以排查時的正確問法不是「卡在哪一行程式」，而是「<strong>資料接力到哪一棒斷掉</strong>」——
+每一棒的產出物都是你 <code>kubectl get</code> 看得到的東西。</p>
+</blockquote>
+<hr />
+<h2 id="目錄">目錄</h2>
+<ul>
+<li><a href="#%E5%85%A8%E6%99%AF%E5%9C%96">全景圖</a></li>
+<li><a href="#%E7%AC%AC-0-%E6%AD%A5kubectl-%E5%9C%A8%E6%9C%AC%E6%A9%9F%E5%81%9A%E7%9A%84%E4%BA%8B">第 0 步：kubectl 在本機做的事</a></li>
+<li><a href="#%E7%AC%AC-16-%E6%AD%A5api-server-%E5%85%A7%E9%83%A8%E7%9A%84%E8%AB%8B%E6%B1%82%E7%AE%A1%E7%B7%9A">第 1～6 步：API Server 內部的請求管線</a></li>
+<li><a href="#%E7%AC%AC-7-%E6%AD%A5deployment-%E6%8E%A7%E5%88%B6%E5%99%A8--replicaset">第 7 步：Deployment 控制器 → ReplicaSet</a></li>
+<li><a href="#%E7%AC%AC-8-%E6%AD%A5replicaset-%E6%8E%A7%E5%88%B6%E5%99%A8--pod-%E7%89%A9%E4%BB%B6">第 8 步：ReplicaSet 控制器 → Pod 物件</a></li>
+<li><a href="#%E7%AC%AC-9-%E6%AD%A5scheduler-%E6%8C%91%E7%AF%80%E9%BB%9E">第 9 步：Scheduler 挑節點</a></li>
+<li><a href="#%E7%AC%AC-10-%E6%AD%A5kubelet-%E7%9C%9F%E7%9A%84%E6%8A%8A%E5%AE%B9%E5%99%A8%E8%B7%91%E8%B5%B7%E4%BE%86">第 10 步：kubelet 真的把容器跑起來</a></li>
+<li><a href="#%E7%AC%AC-11-%E6%AD%A5%E6%8E%A2%E9%87%9D%E8%88%87-status-%E5%9B%9E%E5%AF%AB">第 11 步：探針與 status 回寫</a></li>
+<li><a href="#%E7%AC%AC-12-%E6%AD%A5%E5%8A%A0%E5%85%A5-service-%E7%9A%84%E6%B5%81%E9%87%8F%E6%B1%A0">第 12 步：加入 Service 的流量池</a></li>
+<li><a href="#%E5%8F%8D%E5%90%91%E6%B5%81%E7%A8%8B%E5%88%AA%E9%99%A4%E4%B8%80%E5%80%8B-pod-%E6%99%82%E7%99%BC%E7%94%9F%E4%BB%80%E9%BA%BC">反向流程：刪除一個 Pod 時發生什麼</a></li>
+<li><a href="#%E6%BB%BE%E5%8B%95%E6%9B%B4%E6%96%B0%E6%98%AF%E6%80%8E%E9%BA%BC%E8%B7%91%E7%9A%84">滾動更新是怎麼跑的</a></li>
+<li><a href="#%E6%8E%92%E6%9F%A5%E5%B0%8D%E7%85%A7%E8%A1%A8%E5%8D%A1%E4%BD%8F%E7%9A%84%E9%9A%8E%E6%AE%B5--%E8%A9%B2%E7%9C%8B%E7%9A%84%E5%9C%B0%E6%96%B9">排查對照表：卡住的階段 → 該看的地方</a></li>
+<li><a href="#%E8%87%AA%E6%88%91%E6%B8%AC%E9%A9%97">自我測驗</a></li>
+</ul>
+<hr />
+<h2 id="全景圖">全景圖</h2>
+<pre><code>  你                 API Server            控制器們              Scheduler           kubelet
+  │                      │                    │                    │                  │
+  │─ apply YAML ────────▶│                    │                    │                  │
+  │                 認證/授權                  │                    │                  │
+  │                 mutating admission        │                    │                  │
+  │                 schema validation         │                    │                  │
+  │                 validating admission      │                    │                  │
+  │                 寫入 etcd ✔                │                    │                  │
+  │◀── 201 Created ──────│                    │                    │                  │
+  │  （到這裡 kubectl 就回來了，容器一個都還沒起）  │                    │                  │
+  │                      │── watch 事件 ─────▶│                    │                  │
+  │                      │◀─ 建立 ReplicaSet ─│ Deployment Ctrl    │                  │
+  │                      │── watch ──────────▶│                    │                  │
+  │                      │◀─ 建立 N 個 Pod ───│ ReplicaSet Ctrl    │                  │
+  │                      │      （spec.nodeName = &quot;&quot;）              │                  │
+  │                      │── watch 未排程 Pod ─────────────────────▶│                  │
+  │                      │◀── Binding: nodeName=node2 ─────────────│                  │
+  │                      │── watch (nodeName==我) ────────────────────────────────────▶│
+  │                      │                                                      拉鏡像  │
+  │                      │                                              建 sandbox+CNI │
+  │                      │                                                掛 volume    │
+  │                      │                                              起 init/主容器  │
+  │                      │◀── PATCH pod.status (Ready) ───────────────────────────────│
+  │                      │── watch ──────────▶│ EndpointSlice Ctrl                     │
+  │                      │◀─ 加入 EndpointSlice│                                       │
+  │                      │── watch ─────────────────────────────────────────▶ kube-proxy
+  │                                                                      改 iptables/IPVS
+  │                                                              ✔ 這時流量才進得來
+</code></pre>
+<hr />
+<h2 id="第-0-步kubectl-在本機做的事">第 0 步：kubectl 在本機做的事</h2>
+<p>在任何網路請求發生之前，<code>kubectl</code> 已經做了不少事：</p>
+<ol>
+<li><strong>讀 kubeconfig</strong>（<code>~/.kube/config</code> 或 <code>$KUBECONFIG</code>）——找出要連哪個叢集（<code>current-context</code>）、用什麼身分。</li>
+<li><strong>解析 YAML → 決定要打哪個 API 端點</strong>：<code>apiVersion: apps/v1</code> + <code>kind: Deployment</code> → <code>POST /apis/apps/v1/namespaces/default/deployments</code>。核心資源（Pod、Service）在 <code>/api/v1</code>，其他都在 <code>/apis/&lt;group&gt;/&lt;version&gt;</code>。</li>
+<li><strong><code>apply</code> 特有的一步</strong>：先 <code>GET</code> 現有物件，做三方合併（three-way merge）算出差異，送 <code>PATCH</code> 而不是 <code>POST</code>。（原理見 <a href="%E5%AE%A3%E5%91%8A%E5%BC%8FAPI%E8%88%87%E6%8E%A7%E5%88%B6%E5%99%A8%E8%AA%BF%E8%AB%A7%E8%BF%B4%E5%9C%88.html">宣告式API與控制器調諧迴圈</a> 第八節）</li>
+<li><strong>建立 TLS 連線並帶上憑證</strong>。</li>
+</ol>
+<pre><code class="language-bash">kubectl<span class="w"> </span>apply<span class="w"> </span>-f<span class="w"> </span>deploy.yaml<span class="w"> </span>-v<span class="o">=</span><span class="m">8</span><span class="w">   </span><span class="c1"># 把實際的 HTTP 請求、回應全部印出來，學習期強烈建議跑一次</span>
+</code></pre>
+<blockquote>
+<p><strong>心法</strong>：<code>kubectl</code> 只是一個 HTTP 客戶端，沒有任何特權。你用 <code>curl</code> 帶上同樣的憑證能做到一模一樣的事。</p>
+</blockquote>
+<hr />
+<h2 id="第-16-步api-server-內部的請求管線">第 1～6 步：API Server 內部的請求管線</h2>
+<p>請求進來後<strong>依序</strong>通過這幾關，任何一關拒絕就直接回錯誤：</p>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>關卡</th>
+<th>在做什麼</th>
+<th>失敗時的訊息長相</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td><strong>認證 Authentication</strong></td>
+<td>你是誰？驗憑證 / token</td>
+<td><code>Unauthorized</code>（401）</td>
+</tr>
+<tr>
+<td>2</td>
+<td><strong>授權 Authorization</strong></td>
+<td>你能對這個資源做這個動作嗎？查 RBAC</td>
+<td><code>forbidden: User &quot;x&quot; cannot create ...</code>（403）</td>
+</tr>
+<tr>
+<td>3</td>
+<td><strong>Mutating Admission</strong></td>
+<td><strong>改寫</strong>你的物件：注入 sidecar、補預設值、加標籤</td>
+<td>webhook 掛掉時 <code>failed calling webhook</code></td>
+</tr>
+<tr>
+<td>4</td>
+<td><strong>Schema Validation</strong></td>
+<td>欄位型別、必填、格式對不對</td>
+<td><code>unknown field &quot;replica&quot;</code>、<code>invalid value</code></td>
+</tr>
+<tr>
+<td>5</td>
+<td><strong>Validating Admission</strong></td>
+<td>最後審查（可拒不可改）：ResourceQuota、Pod Security、自訂政策</td>
+<td><code>exceeded quota</code>、<code>violates PodSecurity</code></td>
+</tr>
+<tr>
+<td>6</td>
+<td><strong>寫入 etcd</strong></td>
+<td>存檔，<code>resourceVersion</code> 更新</td>
+<td><code>etcdserver: request timed out</code></td>
+</tr>
+</tbody>
+</table>
+<p><strong>兩個要記住的重點</strong>：</p>
+<ul>
+<li><strong>順序不能顛倒</strong>：mutating 一定在 validating 之前——不然驗過的東西又被改掉就沒意義了。</li>
+<li><strong>這是 K8s 最重要的擴充點</strong>：Istio 的 sidecar 自動注入、cert-manager、各種安全政策，全都是掛在第 3 / 第 5 關的 webhook。也因此 <strong>admission webhook 掛掉會癱瘓整個叢集的寫入</strong>（如果它的 <code>failurePolicy: Fail</code>）——這是很常見的重大事故成因。</li>
+</ul>
+<p>到第 6 步結束，<code>kubectl</code> 就收到 <code>201 Created</code> 並印出 <code>deployment.apps/web created</code>。</p>
+<blockquote>
+<p><strong>關鍵認知</strong>：<strong>指令回來 ≠ 東西跑起來了</strong>。此刻 etcd 裡多了一筆資料，如此而已。一個容器都還沒有。</p>
+</blockquote>
+<hr />
+<h2 id="第-7-步deployment-控制器--replicaset">第 7 步：Deployment 控制器 → ReplicaSet</h2>
+<p>Deployment 控制器透過 watch 收到「有新 Deployment」的通知，開始調諧：</p>
+<ol>
+<li>把 <code>spec.template</code>（Pod 範本）做雜湊（hash），得到 <code>pod-template-hash</code>，例如 <code>7d4b9c</code>。</li>
+<li>找有沒有標籤帶著這個 hash 的 ReplicaSet。沒有就建一個 <code>web-7d4b9c</code>，<code>spec.replicas: 3</code>。</li>
+<li>在 ReplicaSet 的 <code>ownerReferences</code> 蓋上「我是 Deployment web 生的」。</li>
+</ol>
+<blockquote>
+<p><strong>為什麼要多一層 ReplicaSet？</strong> 因為要做<strong>版本管理</strong>。每改一次 Pod 範本就產生一個新 hash → 新的 ReplicaSet。滾動更新就是「新 RS 加副本、舊 RS 減副本」；回滾（rollback）就是把舊 RS 的副本數加回去。舊 RS 留著（預設保留 10 個，<code>revisionHistoryLimit</code>）就是為了能回滾。</p>
+<p>Deployment = 版本管理器，ReplicaSet = 數量維持器。<strong>職責分離，兩個控制器各做各的。</strong></p>
+</blockquote>
+<hr />
+<h2 id="第-8-步replicaset-控制器--pod-物件">第 8 步：ReplicaSet 控制器 → Pod 物件</h2>
+<p>ReplicaSet 控制器 watch 到新的 RS：</p>
+<ol>
+<li>用 <code>spec.selector</code> 撈目前屬於自己的 Pod → 0 個。</li>
+<li>差 3 個 → 呼叫 API Server 建立 3 個 Pod 物件。</li>
+<li>Pod 的內容 = RS 的 <code>spec.template</code> + 生成的名字（<code>web-7d4b9c-xk2p9</code>）+ <code>ownerReferences</code> 指向 RS。</li>
+<li><strong><code>spec.nodeName</code> 是空的</strong>，<code>status.phase: Pending</code>。</li>
+</ol>
+<p>此時 <code>kubectl get pods</code> 看得到 Pod，狀態是 <strong><code>Pending</code></strong>。</p>
+<blockquote>
+<p><strong>注意</strong>：ReplicaSet 控制器建立 Pod 時有一個<strong>批次限制（batch size）</strong>：一次先建 1 個，成功了下次建 2 個、4 個、8 個……指數成長。這是為了在 admission webhook 或配額會拒絕時不要一口氣製造上千個失敗請求。</p>
+</blockquote>
+<hr />
+<h2 id="第-9-步scheduler-挑節點">第 9 步：Scheduler 挑節點</h2>
+<p>Scheduler watch 到「<code>spec.nodeName</code> 為空」的 Pod，放進自己的排程佇列（依優先級 priority 排序），逐一處理：</p>
+<h3 id="過濾filtering">過濾（Filtering）</h3>
+<p>跑一串外掛（plugin），把不合格的節點淘汰：</p>
+<table>
+<thead>
+<tr>
+<th>檢查</th>
+<th>淘汰條件</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>NodeResourcesFit</code></td>
+<td>節點<strong>可配置量 - 已被 requests 佔用</strong>不夠這個 Pod 的 requests</td>
+</tr>
+<tr>
+<td><code>NodeAffinity</code> / <code>NodeSelector</code></td>
+<td>標籤不符</td>
+</tr>
+<tr>
+<td><code>TaintToleration</code></td>
+<td>節點有污點（taint）而 Pod 沒有對應的容忍（toleration）</td>
+</tr>
+<tr>
+<td><code>PodTopologySpread</code></td>
+<td>違反拓撲分散限制（例如同一可用區已經太多）</td>
+</tr>
+<tr>
+<td><code>InterPodAffinity</code></td>
+<td>反親和性（anti-affinity）衝突</td>
+</tr>
+<tr>
+<td><code>NodePorts</code></td>
+<td>主機 port 已被佔用</td>
+</tr>
+<tr>
+<td><code>VolumeBinding</code></td>
+<td>PV（PersistentVolume，持久卷）的可用區跟節點對不上</td>
+</tr>
+</tbody>
+</table>
+<p><strong>注意 <code>NodeResourcesFit</code> 看的是 <code>requests</code> 的總和，不是節點的實際使用率。</strong> 一個節點就算 CPU 實際只用 5%，只要上面的 Pod requests 加起來已經滿了，新 Pod 就排不進去。這是「明明看起來很閒卻說資源不足」的標準原因。</p>
+<h3 id="評分scoring">評分（Scoring）</h3>
+<p>存活的節點各打 0～100 分再加權：資源使用越平衡越高分、鏡像已在本機加分、拓撲分散得越開加分……</p>
+<h3 id="綁定binding">綁定（Binding）</h3>
+<p>挑最高分（同分隨機），送出一個 <code>Binding</code> 請求把 <code>spec.nodeName</code> 填上。</p>
+<p><strong>同時它會做「假設性快取（assume cache）」</strong>：在 API Server 確認之前，先在自己記憶體裡當作這個 Pod 已經佔了那台節點的資源，避免連續排程時把同一份資源重複分配出去。</p>
+<blockquote>
+<p>排不上去時，Pod 停在 <code>Pending</code>，並且會產生一筆 Event：
+<code>0/5 nodes are available: 3 Insufficient cpu, 2 node(s) had untolerated taint</code>。
+<strong>這行訊息是最直接的答案</strong>，<code>kubectl describe pod</code> 一定要先看它。</p>
+</blockquote>
+<hr />
+<h2 id="第-10-步kubelet-真的把容器跑起來">第 10 步：kubelet 真的把容器跑起來</h2>
+<p>節點上的 kubelet watch 到「<code>spec.nodeName == 我</code>」的新 Pod，這才是容器真正誕生的地方。順序很重要：</p>
+<h3 id="101-准入與資源準備">10.1 准入與資源準備</h3>
+<ol>
+<li><strong>本機准入檢查</strong>：這台真的還有資源嗎？（排程器的判斷可能已經過時）不行就拒絕，Pod 變 <code>OutOfcpu</code>，等著被重新排程。</li>
+<li><strong>建立 cgroup</strong>：依 requests / limits 設定 CPU 與記憶體的控制群組。</li>
+<li><strong>掛載儲存卷（volume）</strong>：ConfigMap、Secret 變成本機檔案；PVC 透過 <strong>CSI</strong> 呼叫驅動去 attach + mount 雲端磁碟。
+<strong>這一步會卡最久</strong>（雲端磁碟 attach 可能幾十秒），失敗訊息是 <code>FailedMount</code> / <code>FailedAttachVolume</code>。</li>
+</ol>
+<h3 id="102-建立-pod-sandbox這一步最容易被忽略">10.2 建立 Pod sandbox（這一步最容易被忽略）</h3>
+<p><strong>在任何應用容器啟動之前，kubelet 先透過 CRI 建立一個「sandbox」</strong>：</p>
+<ul>
+<li>實際上是啟動一個幾乎什麼都不做的 <strong>pause 容器</strong>（映像檔約 700KB，程式只是 <code>pause()</code> 系統呼叫睡著）。</li>
+<li>它的用途：<strong>持有整個 Pod 的 Linux 命名空間（network / IPC / UTS namespace）</strong>。</li>
+<li>然後 kubelet 呼叫 <strong>CNI 外掛</strong>，對這個 sandbox 的網路命名空間做事：建 veth pair、分配 IP、設路由、寫進 IPAM 記錄。</li>
+</ul>
+<p><strong>這就是「同一個 Pod 裡的容器共用 IP、可以用 <code>localhost</code> 互連」的物理原因</strong>——它們全部加入 pause 容器已經建好的網路命名空間。</p>
+<p>也因為 IP 綁在 pause 容器上，<strong>應用容器崩潰重啟時 Pod IP 不會變</strong>（sandbox 沒被砍）。反過來，sandbox 被重建 = Pod IP 改變。</p>
+<blockquote>
+<p>卡在 <code>ContainerCreating</code> 時，八成是這一步：CNI 沒裝、CNI 設定檔錯、IP 位址池（IP pool）用完。
+<code>kubectl describe pod</code> 會看到 <code>failed to setup network for sandbox</code>。</p>
+</blockquote>
+<h3 id="103-拉取映像檔">10.3 拉取映像檔</h3>
+<p>依 <code>imagePullPolicy</code>（<code>IfNotPresent</code> / <code>Always</code> / <code>Never</code>）決定要不要拉。需要認證就用 <code>imagePullSecrets</code>。</p>
+<p>失敗會進入退避重試，狀態顯示 <code>ErrImagePull</code> → <code>ImagePullBackOff</code>。（如果是 registry 連不上，排查方式跟 <a href="../docker/Docker%E6%8B%89%E5%8F%96%E6%98%A0%E5%83%8F%E6%AA%94%E5%A4%B1%E6%95%97-daemon%E7%BC%BAproxy%E6%8E%92%E6%9F%A5.html">Docker拉取映像檔失敗-daemon缺proxy排查</a> 同一套邏輯：<strong>拉映像檔的是節點上的 containerd，不是你的 shell</strong>，proxy 要設在 containerd 上。）</p>
+<h3 id="104-啟動容器">10.4 啟動容器</h3>
+<ol>
+<li><strong>init 容器（initContainers）</strong>：<strong>一個一個依序跑，每個都要跑完並成功退出</strong>，下一個才開始。全部完成後才輪到主容器。任何一個失敗就重來，Pod 卡在 <code>Init:0/2</code>。</li>
+<li><strong>主容器</strong>：可以有多個，<strong>並行啟動</strong>（沒有順序保證，<code>depends_on</code> 那種東西在 Pod 裡不存在）。</li>
+<li>若定義了 <code>postStart</code> 鉤子（hook），跟容器主行程並行執行。</li>
+</ol>
+<hr />
+<h2 id="第-11-步探針與-status-回寫">第 11 步：探針與 status 回寫</h2>
+<p>kubelet 對每個容器持續執行三種探針（probe）：</p>
+<table>
+<thead>
+<tr>
+<th>探針</th>
+<th>問題</th>
+<th>失敗的後果</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>startupProbe</strong></td>
+<td>啟動完了嗎？</td>
+<td>還沒完就<strong>暫停另外兩個探針</strong>（給慢啟動的應用寬限期）</td>
+</tr>
+<tr>
+<td><strong>livenessProbe</strong></td>
+<td>還活著嗎？</td>
+<td><strong>重啟容器</strong></td>
+</tr>
+<tr>
+<td><strong>readinessProbe</strong></td>
+<td>能接流量了嗎？</td>
+<td><strong>從 Service 的後端移除</strong>（容器不重啟，繼續跑）</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>最常見的誤用</strong>：把 livenessProbe 設得太嚴（例如檢查資料庫連線）。資料庫短暫抖動 → liveness 失敗 → 容器被重啟 → 重啟也連不上 → 進入 <code>CrashLoopBackOff</code> → <strong>把一個「暫時降級」放大成「全面故障」</strong>。</p>
+<p><strong>原則</strong>：liveness 只該檢查「這個行程是不是卡死了、只能靠重啟救」；任何<strong>外部依賴</strong>都應該放 readiness。</p>
+</blockquote>
+<p>kubelet 把觀察到的一切 <code>PATCH</code> 回 <code>pod.status</code>：<code>phase: Running</code>、每個容器的 <code>ready</code>、<code>restartCount</code>、<code>podIP</code>、各種 condition。</p>
+<hr />
+<h2 id="第-12-步加入-service-的流量池">第 12 步：加入 Service 的流量池</h2>
+<p>Pod 變成 Ready 之後，<strong>還有兩步才會真的收到流量</strong>：</p>
+<ol>
+<li><strong>EndpointSlice 控制器</strong> watch 到「有個新的 Ready Pod 符合某個 Service 的 selector」→ 把它的 IP 寫進該 Service 的 EndpointSlice。</li>
+<li><strong>每個節點的 kube-proxy</strong> watch 到 EndpointSlice 變了 → 更新本機的 iptables / IPVS 規則。</li>
+</ol>
+<p><strong>這兩步是非同步的</strong>，在大叢集上可能要幾百毫秒到幾秒。這個延遲正是滾動更新時出現零星 502 的根源（詳見下一節）。</p>
+<p>封包實際怎麼走見 <a href="Service%E8%88%87%E5%B0%81%E5%8C%85%E8%B7%AF%E5%BE%91-ClusterIP%E6%80%8E%E9%BA%BC%E8%B5%B0%E5%88%B0Pod.html">Service與封包路徑-ClusterIP怎麼走到Pod</a>。</p>
+<hr />
+<h2 id="反向流程刪除一個-pod-時發生什麼">反向流程：刪除一個 Pod 時發生什麼</h2>
+<p>刪除比建立更需要理解，因為<strong>它有一個先天的競態（race condition）</strong>：</p>
+<pre><code>kubectl delete pod
+   │
+   ▼
+API Server 蓋上 deletionTimestamp，並設定 gracePeriod（預設 30 秒）
+   │                                （物件還在 etcd，只是被標記）
+   ├──────────────────────┬─────────────────────────────┐
+   ▼                      ▼                             ▼
+EndpointSlice 控制器     kubelet 收到通知              （這兩條是「同時」開始的）
+移除這個 IP              1. 執行 preStop 鉤子
+   │                     2. 送 SIGTERM 給主行程
+   ▼                     3. 等 terminationGracePeriodSeconds
+各節點 kube-proxy        4. 還沒死就送 SIGKILL
+更新 iptables            5. 拆容器 → 拆 sandbox（CNI 回收 IP）→ 卸載 volume
+   │                     6. 回報 API Server
+   ▼                              │
+規則生效                           ▼
+                        API Server 真正從 etcd 移除物件
+</code></pre>
+<p><strong>競態在哪</strong>：「應用開始關閉」與「流量停止導向它」是<strong>兩條平行的路</strong>，沒有先後保證。而且移除路徑更長（要繞過控制器 + 每台節點的 kube-proxy），<strong>通常比 SIGTERM 慢</strong>。</p>
+<p>結果就是：<strong>應用已經開始關閉了，還有新連線被送進來</strong> → 客戶端看到連線被拒或 502。</p>
+<p><strong>標準解法</strong>（幾乎所有生產環境都需要）：</p>
+<pre><code class="language-yaml"><span class="nt">lifecycle</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">preStop</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">exec</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">command</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&quot;sh&quot;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&quot;-c&quot;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&quot;sleep</span><span class="nv"> </span><span class="s">5&quot;</span><span class="p p-Indicator">]</span><span class="w">     </span><span class="c1"># 什麼都不做，只是拖時間</span>
+<span class="nt">terminationGracePeriodSeconds</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">60</span>
+</code></pre>
+<p><code>preStop</code> 執行期間 <strong>SIGTERM 還不會發出</strong>，但 EndpointSlice 的移除已經在跑了。這 5 秒就是留給流量規則收斂的緩衝。應用本身則要正確處理 SIGTERM：停止接受新連線、把手上的請求做完再退出（graceful shutdown，優雅關閉）。</p>
+<blockquote>
+<p><strong>教訓</strong>：K8s <strong>沒有辦法</strong>保證「先斷流量、再關程式」。你只能用 <code>preStop</code> 買時間。不理解這一點，就會在滾動更新時一直看到零星錯誤卻找不到原因。</p>
+</blockquote>
+<hr />
+<h2 id="滾動更新是怎麼跑的">滾動更新是怎麼跑的</h2>
+<p>改了 Deployment 的 <code>spec.template</code>（例如換映像檔版本）：</p>
+<ol>
+<li>新的 <code>pod-template-hash</code> → Deployment 控制器建立<strong>新的 ReplicaSet</strong>（初始 0 副本）。</li>
+<li>依 <code>maxSurge</code>（可以超出幾個）與 <code>maxUnavailable</code>（可以少幾個）兩個參數，<strong>交替</strong>調整新舊兩個 RS 的副本數：
+<ul>
+<li>新 RS +1 → 等新 Pod <strong>Ready</strong> → 舊 RS -1 → 重複</li>
+</ul>
+</li>
+<li>舊 RS 歸零，更新完成。舊 RS 物件保留著（可回滾）。</li>
+</ol>
+<p>三個實務重點：</p>
+<ul>
+<li><strong><code>maxUnavailable: 0</code> + <code>maxSurge: 1</code></strong> 是最安全的組合（永遠不會低於期望副本數），代價是需要多一份資源、更新較慢。</li>
+<li><strong>滾動更新的推進完全靠 readinessProbe</strong>。<strong>沒設 readinessProbe 的話，容器一啟動就被當成 Ready</strong>，K8s 會立刻砍下一個舊 Pod——如果應用要 30 秒暖機，你會在更新期間全線 502。</li>
+<li><strong>回滾（<code>kubectl rollout undo</code>）不是「重新部署舊版」</strong>，而是把舊 ReplicaSet 的副本數加回去。所以它很快，而且用的一定是當初那份一模一樣的設定。</li>
+</ul>
+<hr />
+<h2 id="排查對照表卡住的階段--該看的地方">排查對照表：卡住的階段 → 該看的地方</h2>
+<table>
+<thead>
+<tr>
+<th>Pod 狀態</th>
+<th>卡在哪一棒</th>
+<th>先看什麼</th>
+<th>常見根因</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>連 Pod 都沒有</td>
+<td>第 7～8 棒（控制器）</td>
+<td><code>kubectl describe deploy</code>、<code>kubectl get rs</code></td>
+<td>RBAC 不足、配額（quota）擋住、selector 與 template labels 不符</td>
+</tr>
+<tr>
+<td><code>Pending</code></td>
+<td>第 9 棒（Scheduler）</td>
+<td><code>kubectl describe pod</code> 的 Events</td>
+<td>資源不足（看的是 requests）、污點、affinity 太嚴、PVC 未綁定</td>
+</tr>
+<tr>
+<td><code>ContainerCreating</code></td>
+<td>第 10 棒（kubelet）</td>
+<td><code>kubectl describe pod</code>、節點上 <code>journalctl -u kubelet</code></td>
+<td><strong>CNI 問題</strong>、volume 掛不上、Secret/ConfigMap 不存在</td>
+</tr>
+<tr>
+<td><code>ImagePullBackOff</code></td>
+<td>第 10.3 步</td>
+<td><code>describe</code> 的 Events</td>
+<td>名稱打錯、私有 registry 沒憑證、節點連不到 registry</td>
+</tr>
+<tr>
+<td><code>Init:0/1</code></td>
+<td>第 10.4 步</td>
+<td><code>kubectl logs &lt;pod&gt; -c &lt;init容器名&gt;</code></td>
+<td>init 容器在等的東西沒好</td>
+</tr>
+<tr>
+<td><code>CrashLoopBackOff</code></td>
+<td>應用自己</td>
+<td><code>kubectl logs &lt;pod&gt; --previous</code></td>
+<td>設定錯、缺環境變數、<strong>或 liveness 探針太嚴</strong></td>
+</tr>
+<tr>
+<td><code>Running</code> 但 <code>0/1 READY</code></td>
+<td>第 11 步</td>
+<td><code>describe</code> 的 Readiness 失敗訊息</td>
+<td>readinessProbe 路徑/port 錯、應用還沒暖機完</td>
+</tr>
+<tr>
+<td>Ready 但連不上</td>
+<td>第 12 步</td>
+<td><code>kubectl get endpointslice</code>、<code>kubectl get svc</code></td>
+<td>Service selector 與 Pod labels 不符、targetPort 錯、NetworkPolicy 擋住</td>
+</tr>
+</tbody>
+</table>
+<p><strong>通用三連招</strong>（順序不要換）：</p>
+<pre><code class="language-bash">kubectl<span class="w"> </span>describe<span class="w"> </span>pod<span class="w"> </span>&lt;name&gt;<span class="w">          </span><span class="c1"># ① Events 在最下面，九成的答案在這裡</span>
+kubectl<span class="w"> </span>logs<span class="w"> </span>&lt;name&gt;<span class="w"> </span>--previous<span class="w">       </span><span class="c1"># ② 上一次崩潰的 log，才是真正的錯誤原因</span>
+kubectl<span class="w"> </span>get<span class="w"> </span>events<span class="w"> </span>-n<span class="w"> </span>&lt;ns&gt;<span class="w"> </span>--sort-by<span class="o">=</span>.lastTimestamp<span class="w"> </span><span class="p">|</span><span class="w"> </span>tail<span class="w"> </span>-30<span class="w">   </span><span class="c1"># ③ 全域時間軸</span>
+</code></pre>
+<blockquote>
+<p><strong>心法</strong>（延伸自 <a href="../linux/%E6%8E%92%E6%9F%A5%E6%96%B9%E6%B3%95%E8%AB%96.html">排查方法論</a>）：<strong>先用「狀態」定位是哪一棒斷掉，再去看那一棒負責人的 log。</strong> 不要在 Pod 還是 <code>Pending</code> 的時候去看應用程式 log——那時候容器根本還不存在。</p>
+</blockquote>
+<hr />
+<h2 id="相關筆記">相關筆記</h2>
+<ul>
+<li><a href="k8s%E6%9E%B6%E6%A7%8B%E7%B8%BD%E8%A6%BD-%E6%8E%A7%E5%88%B6%E5%B9%B3%E9%9D%A2%E8%88%87%E7%AF%80%E9%BB%9E%E7%B5%84%E4%BB%B6.html">k8s架構總覽-控制平面與節點組件</a>——每一棒的負責人是誰</li>
+<li><a href="%E5%AE%A3%E5%91%8A%E5%BC%8FAPI%E8%88%87%E6%8E%A7%E5%88%B6%E5%99%A8%E8%AA%BF%E8%AB%A7%E8%BF%B4%E5%9C%88.html">宣告式API與控制器調諧迴圈</a>——為什麼是「接力寫資料」而不是互相呼叫</li>
+<li><a href="Service%E8%88%87%E5%B0%81%E5%8C%85%E8%B7%AF%E5%BE%91-ClusterIP%E6%80%8E%E9%BA%BC%E8%B5%B0%E5%88%B0Pod.html">Service與封包路徑-ClusterIP怎麼走到Pod</a>——第 12 步之後的世界</li>
+</ul>
+<hr />
+<h2 id="指令選項的涵蓋範圍說明">指令選項的涵蓋範圍說明</h2>
+<blockquote>
+<p><strong>本篇只列這個主題用得到的指令與旗標，不是完整清單。</strong></p>
+<p><code>kubectl</code> 有數十個子命令、每個子命令各自又有十幾到數十個旗標，
+<code>kubeadm</code>／<code>multipass</code>／<code>kind</code>／<code>crictl</code> 也各自龐大。這類工具不適合在筆記裡全列。</p>
+<p><strong>查法（這才是該記住的）：</strong></p>
+<pre><code class="language-bash">kubectl<span class="w"> </span>--help<span class="w">                  </span><span class="c1"># 所有子命令，依用途分組</span>
+kubectl<span class="w"> </span>&lt;子命令&gt;<span class="w"> </span>--help<span class="w">          </span><span class="c1"># 該子命令的完整旗標</span>
+kubectl<span class="w"> </span>options<span class="w">                 </span><span class="c1"># 所有子命令共用的全域旗標</span>
+kubectl<span class="w"> </span>explain<span class="w"> </span>&lt;資源&gt;<span class="o">[</span>.欄位<span class="o">]</span><span class="w">    </span><span class="c1"># ★ 查資源的欄位定義，等同線上 API 文件</span>
+kubeadm<span class="w"> </span>--help<span class="w"> </span>/<span class="w"> </span>kubeadm<span class="w"> </span>&lt;子命令&gt;<span class="w"> </span>--help
+multipass<span class="w"> </span><span class="nb">help</span><span class="w"> </span><span class="o">[</span>&lt;命令&gt;<span class="o">]</span><span class="w"> </span>/<span class="w"> </span>kind<span class="w"> </span>--help<span class="w"> </span>/<span class="w"> </span>crictl<span class="w"> </span>--help
+</code></pre>
+<p><strong><code>kubectl explain</code> 特別值得記住</strong>——寫 YAML 時不確定某個欄位叫什麼、能填什麼，問它比翻文件快，而且回答的是<strong>你這個叢集版本</strong>的定義。</p>
+<p>附帶一提：撰寫本篇的這台機器上<strong>沒有安裝這些工具</strong>，所以上面的查法是給你在有叢集的環境上用的，不是從本機 <code>--help</code> 抄來的清單。</p>
+</blockquote>
+<h2 id="自我測驗">自我測驗</h2>
+<ol>
+<li><code>kubectl apply</code> 回傳 <code>deployment.apps/web created</code> 的那一刻，叢集裡實際已經發生了什麼、還沒發生什麼？</li>
+<li>為什麼 mutating admission 一定要排在 validating admission 前面？如果順序反過來會出什麼問題？</li>
+<li>pause 容器存在的意義是什麼？由它的職責推論：為什麼應用容器 crash 重啟後 Pod IP 不變，但 Pod 被重新排程到另一台之後 IP 就變了？</li>
+<li>為什麼 Deployment 不直接管 Pod，中間要插一層 ReplicaSet？拿掉這一層會失去什麼能力？</li>
+<li>livenessProbe 與 readinessProbe 失敗時的後果分別是什麼？為什麼「把資料庫連線檢查放進 livenessProbe」是危險的做法？</li>
+<li>刪除 Pod 時，「把 Pod 移出 Service 後端」與「送 SIGTERM 給應用」哪個先發生？為什麼這會造成錯誤，<code>preStop: sleep 5</code> 又是怎麼緩解的？</li>
+<li>（情境題）你的服務在滾動更新期間有大約 3% 的請求回 502，更新完成後就恢復正常。應用本身有正確處理 SIGTERM。請列出至少三個可能的原因，並說明你會依什麼順序驗證。</li>
+<li>（情境題）某個 Pod 卡在 <code>Pending</code>，<code>kubectl describe node</code> 顯示該節點 CPU 實際使用率只有 8%，但 Event 寫 <code>Insufficient cpu</code>。這兩件事矛盾嗎？根因是什麼？你要看哪個指令的哪一段輸出來證實？</li>
+</ol>
+
+</main>
+</div>
+</body>
+</html>

@@ -1,0 +1,952 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ip rule 與 ip route 完整指南 —— 路由決策的兩層結構</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/app.js"></script>
+</head>
+<body>
+<button class="menu-btn" onclick="toggleMenu()">☰ 目錄</button>
+<div class="layout">
+<nav class="side">
+<div class="crumbs"><a href="../index.html">🏠 首頁</a> / <a href="README.html">linux</a></div>
+<div class="tools"><button onclick="toggleTheme()">🌓 主題</button></div>
+<ul>
+<li class="l2"><a href="#%E7%9B%AE%E9%8C%84">目錄</a></li>
+<li class="l2"><a href="#%E4%B8%80%E5%BF%83%E6%99%BA%E6%A8%A1%E5%9E%8B%E5%85%A9%E5%B1%A4%E6%B1%BA%E7%AD%96">一、心智模型：兩層決策</a></li>
+<li class="l2"><a href="#%E4%BA%8C%E5%91%BD%E4%BB%A4%E7%9A%84%E7%B5%B1%E4%B8%80%E6%96%87%E6%B3%95">二、命令的統一文法</a></li>
+<li class="l3"><a href="#ip-route-%E7%9A%84%E5%8B%95%E8%A9%9E">ip route 的動詞</a></li>
+<li class="l3"><a href="#ip-route-%E7%9A%84%E5%8F%83%E6%95%B8%E6%80%8E%E9%BA%BC%E7%B5%84">ip route 的參數怎麼組</a></li>
+<li class="l3"><a href="#ip-route-%E7%9A%84%E5%AE%8C%E6%95%B4%E5%8F%83%E6%95%B8%E4%BE%9D%E6%9C%AC%E6%A9%9F-ip-route-helpiproute2">ip route 的完整參數（依本機 ip route help，iproute2）</a></li>
+<li class="l3"><a href="#ip-rule-%E7%9A%84%E5%8B%95%E8%A9%9E%E8%88%87%E7%B5%84%E6%88%90">ip rule 的動詞與組成</a></li>
+<li class="l3"><a href="#%E5%85%A8%E5%9F%9F%E9%81%B8%E9%A0%85">全域選項</a></li>
+<li class="l2"><a href="#%E4%B8%89ip-rule%E6%B1%BA%E5%AE%9A%E6%9F%A5%E5%93%AA%E5%BC%B5%E8%A1%A8">三、ip rule：決定查哪張表</a></li>
+<li class="l3"><a href="#%E9%A0%90%E8%A8%AD%E7%9A%84%E4%B8%89%E6%A2%9D">預設的三條</a></li>
+<li class="l3"><a href="#%E4%B8%80%E6%A2%9D%E8%A6%8F%E5%89%87%E7%9A%84%E4%B8%89%E5%80%8B%E9%83%A8%E5%88%86">一條規則的三個部分</a></li>
+<li class="l3"><a href="#%E4%B8%80%E5%80%8B%E5%BE%88%E5%A4%9A%E4%BA%BA%E4%B8%8D%E7%9F%A5%E9%81%93%E7%9A%84%E7%B4%B0%E7%AF%80">一個很多人不知道的細節</a></li>
+<li class="l3"><a href="#%E6%93%8D%E4%BD%9C">操作</a></li>
+<li class="l2"><a href="#%E5%9B%9B%E8%B7%AF%E7%94%B1%E8%A1%A8%E4%B8%8D%E5%8F%AA%E6%9C%89%E4%B8%80%E5%BC%B5">四、路由表不只有一張</a></li>
+<li class="l3"><a href="#%E8%A1%A8%E7%9A%84%E7%B7%A8%E8%99%9F%E8%88%87%E5%90%8D%E5%AD%97">表的編號與名字</a></li>
+<li class="l3"><a href="#local-%E8%A1%A8%E6%9C%80%E7%89%B9%E5%88%A5%E7%9A%84%E4%B8%80%E5%BC%B5">local 表：最特別的一張</a></li>
+<li class="l2"><a href="#%E4%BA%94ip-route%E8%A1%A8%E8%A3%A1%E7%9A%84%E6%AF%8F%E4%B8%80%E6%A2%9D%E8%B7%AF">五、ip route：表裡的每一條路</a></li>
+<li class="l3"><a href="#%E8%B7%AF%E7%94%B1%E5%9E%8B%E5%88%A5">路由型別</a></li>
+<li class="l3"><a href="#%E6%93%8D%E4%BD%9C-1">操作</a></li>
+<li class="l2"><a href="#%E5%85%ADip-route-get%E6%9C%80%E9%87%8D%E8%A6%81%E7%9A%84%E6%8E%92%E6%9F%A5%E5%B7%A5%E5%85%B7">六、ip route get：最重要的排查工具</a></li>
+<li class="l2"><a href="#%E4%B8%83%E5%9B%9E%E9%A0%AD%E7%9C%8B-tproxy-%E7%9A%84%E9%82%A3%E5%85%A9%E8%A1%8C">七、回頭看 TPROXY 的那兩行</a></li>
+<li class="l3"><a href="#%E7%AC%AC%E4%B8%80%E8%A1%8C">第一行</a></li>
+<li class="l3"><a href="#%E7%AC%AC%E4%BA%8C%E8%A1%8C">第二行</a></li>
+<li class="l3"><a href="#%E5%85%A9%E8%A1%8C%E5%90%88%E8%B5%B7%E4%BE%86%E7%9A%84%E6%95%88%E6%9E%9C">兩行合起來的效果</a></li>
+<li class="l3"><a href="#%E9%A9%97%E8%AD%89%E6%96%B9%E5%BC%8F">驗證方式</a></li>
+<li class="l2"><a href="#%E5%85%AB%E5%B8%B8%E7%94%A8%E6%83%85%E5%A2%83%E4%BE%8B%E5%AD%90">八、常用情境例子</a></li>
+<li class="l3"><a href="#%E6%9C%80%E5%9F%BA%E6%9C%AC%E7%9A%84%E5%A2%9E%E5%88%AA%E6%94%B9">最基本的增刪改</a></li>
+<li class="l3"><a href="#add-%E9%87%8D%E8%B7%91%E6%9C%83%E5%A4%B1%E6%95%97%E8%85%B3%E6%9C%AC%E8%A6%81%E7%94%A8-replace">add 重跑會失敗，腳本要用 replace</a></li>
+<li class="l3"><a href="#%E6%8C%87%E5%AE%9A%E4%BE%86%E6%BA%90%E4%BD%8D%E5%9D%80">指定來源位址</a></li>
+<li class="l3"><a href="#%E5%A4%9A%E8%B7%AF%E5%BE%91%E8%B2%A0%E8%BC%89%E5%B9%B3%E8%A1%A1">多路徑（負載平衡）</a></li>
+<li class="l3"><a href="#%E6%93%8B%E6%8E%89%E6%9F%90%E5%80%8B%E7%B6%B2%E6%AE%B5">擋掉某個網段</a></li>
+<li class="l3"><a href="#%E9%9B%99-isp%E5%A4%9A%E5%87%BA%E5%8F%A3">雙 ISP／多出口</a></li>
+<li class="l3"><a href="#%E7%89%B9%E5%AE%9A%E4%BE%86%E6%BA%90%E4%BD%BF%E7%94%A8%E8%80%85%E8%B5%B0-vpn">特定來源／使用者走 VPN</a></li>
+<li class="l3"><a href="#%E8%AE%93%E6%9F%90%E5%80%8B%E7%B6%B2%E6%AE%B5%E4%B8%8D%E8%A6%81%E8%B5%B0%E9%82%A3%E5%BC%B5%E8%A1%A8throw">讓某個網段不要走那張表（throw）</a></li>
+<li class="l3"><a href="#%E5%82%99%E4%BB%BD%E8%88%87%E9%82%84%E5%8E%9F">備份與還原</a></li>
+<li class="l3"><a href="#%E5%9C%A8%E5%AE%B9%E5%99%A8netns-%E8%A3%A1%E6%93%8D%E4%BD%9C">在容器／netns 裡操作</a></li>
+<li class="l3"><a href="#%E7%B5%A6%E8%85%B3%E6%9C%AC%E7%94%A8%E7%9A%84%E8%BC%B8%E5%87%BA">給腳本用的輸出</a></li>
+<li class="l2"><a href="#%E4%B9%9D%E4%B8%83%E5%80%8B%E9%99%B7%E9%98%B1">九、七個陷阱</a></li>
+<li class="l2"><a href="#%E5%8D%81%E9%80%9F%E6%9F%A5">十、速查</a></li>
+<li class="l2"><a href="#%E8%87%AA%E6%88%91%E6%B8%AC%E9%A9%97">自我測驗</a></li>
+</ul>
+</nav>
+<main>
+<h1 id="ip-rule-與-ip-route-完整指南--路由決策的兩層結構"><code>ip rule</code> 與 <code>ip route</code> 完整指南 —— 路由決策的兩層結構</h1>
+<blockquote>
+<p>日期：2026-09-21<br />
+情境：要在 OpenWrt 上做 TPROXY，那兩行 <code>ip rule add fwmark 1 lookup 100</code> 與
+<code>ip route add local 0.0.0.0/0 dev lo table 100</code> 看不懂，決定先把路由整套搞清楚<br />
+適用範圍：實測 Ubuntu 24.04（kernel 7.0）與 OpenWrt 24.10.2；iproute2 通用<br />
+相關：<a href="%E6%9F%A5%E8%A9%A2%E8%BD%89%E7%99%BC%E8%A1%A8%E8%88%87%E8%B7%AF%E7%94%B1%E8%A1%A8.html">查詢轉發表與路由表</a>（<code>ip route show</code> 的欄位在那篇）、
+<a href="../openwrt/%E7%94%A8dokodemo-door%E5%81%9ATPROXY%E9%80%8F%E6%98%8E%E4%BB%A3%E7%90%86.html">用dokodemo-door做TPROXY透明代理</a></p>
+</blockquote>
+<p><strong>一句話結論：Linux 的路由決策是<strong>兩層</strong>，不是一層。第一層 <code>ip rule</code> 決定「這個封包要查<strong>哪一張</strong>
+路由表」，第二層才在那張表裡做最長前綴匹配。平常感覺不到第一層，是因為預設規則永遠把你送去
+<code>main</code> 表。一旦你要做「同一個目的地、不同封包走不同路」（fwmark、來源位址、不同介面），就一定得動第一層。</strong></p>
+<hr />
+<h2 id="目錄">目錄</h2>
+<ul>
+<li><a href="#%E4%B8%80%E5%BF%83%E6%99%BA%E6%A8%A1%E5%9E%8B%E5%85%A9%E5%B1%A4%E6%B1%BA%E7%AD%96">一、心智模型：兩層決策</a></li>
+<li><a href="#%E4%BA%8C%E5%91%BD%E4%BB%A4%E7%9A%84%E7%B5%B1%E4%B8%80%E6%96%87%E6%B3%95">二、命令的統一文法</a></li>
+<li><a href="#%E4%B8%89ip-rule%E6%B1%BA%E5%AE%9A%E6%9F%A5%E5%93%AA%E5%BC%B5%E8%A1%A8">三、<code>ip rule</code>：決定查哪張表</a></li>
+<li><a href="#%E5%9B%9B%E8%B7%AF%E7%94%B1%E8%A1%A8%E4%B8%8D%E5%8F%AA%E6%9C%89%E4%B8%80%E5%BC%B5">四、路由表不只有一張</a></li>
+<li><a href="#%E4%BA%94ip-route%E8%A1%A8%E8%A3%A1%E7%9A%84%E6%AF%8F%E4%B8%80%E6%A2%9D%E8%B7%AF">五、<code>ip route</code>：表裡的每一條路</a></li>
+<li><a href="#%E5%85%ADip-route-get%E6%9C%80%E9%87%8D%E8%A6%81%E7%9A%84%E6%8E%92%E6%9F%A5%E5%B7%A5%E5%85%B7">六、<code>ip route get</code>：最重要的排查工具</a></li>
+<li><a href="#%E4%B8%83%E5%9B%9E%E9%A0%AD%E7%9C%8B-tproxy-%E7%9A%84%E9%82%A3%E5%85%A9%E8%A1%8C">七、回頭看 TPROXY 的那兩行</a></li>
+<li><a href="#%E5%85%AB%E5%B8%B8%E7%94%A8%E6%83%85%E5%A2%83%E4%BE%8B%E5%AD%90">八、常用情境例子</a></li>
+<li><a href="#%E4%B9%9D%E4%B8%83%E5%80%8B%E9%99%B7%E9%98%B1">九、七個陷阱</a></li>
+<li><a href="#%E5%8D%81%E9%80%9F%E6%9F%A5">十、速查</a></li>
+<li><a href="#%E8%87%AA%E6%88%91%E6%B8%AC%E9%A9%97">自我測驗</a></li>
+</ul>
+<hr />
+<h2 id="一心智模型兩層決策">一、心智模型：兩層決策</h2>
+<pre><code>封包要送出去
+     │
+     ▼
+┌─────────────────────────────────────────────┐
+│ 第一層：RPDB（Routing Policy DataBase）      │  ← ip rule
+│  由上而下比對規則，看封包符合哪一條           │
+│  命中 → 得到「要查哪一張表」                  │
+└─────────────────────────────────────────────┘
+     │
+     ▼
+┌─────────────────────────────────────────────┐
+│ 第二層：在那張表裡做最長前綴匹配              │  ← ip route
+│  多條都符合時，前綴最長的贏；同長比 metric     │
+└─────────────────────────────────────────────┘
+     │
+     ▼
+決定出口網卡、下一跳、來源位址
+</code></pre>
+<p><strong>為什麼平常感覺不到第一層</strong>：預設只有三條規則，而且沒有任何條件限制（<code>from all</code>），所以任何封包都會走到 <code>main</code> 表。<strong>第一層等於不存在</strong>——直到你自己加規則。</p>
+<hr />
+<h2 id="二命令的統一文法">二、命令的統一文法</h2>
+<p><code>ip</code> 底下所有子命令都是同一個形狀：</p>
+<pre><code>ip [ 全域選項 ] &lt;物件&gt; { &lt;動詞&gt; [ 參數... ] | help }
+        -4        route      add    default via 192.168.1.1
+        -br       rule       del    pref 100
+        -j        addr       show
+</code></pre>
+<p><strong>最該記住的一件事：文法本身可以問工具。</strong></p>
+<pre><code class="language-bash">ip<span class="w"> </span>route<span class="w"> </span><span class="nb">help</span><span class="w">        </span><span class="c1"># 印出 ROUTE 的完整文法</span>
+ip<span class="w"> </span>rule<span class="w"> </span><span class="nb">help</span><span class="w">         </span><span class="c1"># 印出 SELECTOR 與 ACTION 的完整清單</span>
+ip<span class="w"> </span><span class="nb">help</span><span class="w">              </span><span class="c1"># 有哪些物件、有哪些全域選項</span>
+</code></pre>
+<p>背不起來時問它，比翻網頁快——下面幾張表就是從這三個指令的輸出整理出來的。</p>
+<h3 id="ip-route-的動詞"><code>ip route</code> 的動詞</h3>
+<pre><code>ip route { add | del | change | append | replace } ROUTE
+ip route { list | flush } SELECTOR
+ip route get [FLAGS] ADDRESS
+ip route { save | restore }
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>動詞</th>
+<th>行為</th>
+<th>什麼時候用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>add</code></td>
+<td>新增；<strong>已存在會報 <code>File exists</code> 而失敗</strong></td>
+<td>確定是新的</td>
+</tr>
+<tr>
+<td><code>change</code></td>
+<td>修改<strong>已存在</strong>的；不存在會失敗</td>
+<td>確定要改既有的</td>
+</tr>
+<tr>
+<td><strong><code>replace</code></strong></td>
+<td><strong>有就改、沒有就加</strong></td>
+<td><strong>寫腳本用這個</strong>，重跑不會失敗</td>
+</tr>
+<tr>
+<td><code>append</code></td>
+<td>加在同 prefix 的既有路由<strong>後面</strong>（做多路徑）</td>
+<td>負載平衡</td>
+</tr>
+<tr>
+<td><code>del</code></td>
+<td>刪除</td>
+<td></td>
+</tr>
+<tr>
+<td><code>list</code>／<code>show</code></td>
+<td>列出</td>
+<td></td>
+</tr>
+<tr>
+<td><code>flush</code></td>
+<td>依條件批次刪除</td>
+<td></td>
+</tr>
+<tr>
+<td><code>get</code></td>
+<td><strong>問核心實際會怎麼走</strong>（見第六節〈<code>ip route get</code>〉）</td>
+<td>排查</td>
+</tr>
+<tr>
+<td><code>save</code>／<code>restore</code></td>
+<td>二進位備份／還原</td>
+<td>大改之前先備份</td>
+</tr>
+</tbody>
+</table>
+<h3 id="ip-route-的參數怎麼組"><code>ip route</code> 的參數怎麼組</h3>
+<pre><code>ip route add [型別] &lt;前綴&gt; [via &lt;下一跳&gt;] [dev &lt;介面&gt;] [src &lt;來源位址&gt;]
+             [table &lt;表&gt;] [metric &lt;數字&gt;] [scope &lt;範圍&gt;] [proto &lt;來源&gt;]
+             [mtu &lt;數字&gt;] ...
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>參數</th>
+<th>意思</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>型別</td>
+<td><code>unicast</code>(預設)／<code>local</code>／<code>blackhole</code>／<code>unreachable</code>／<code>prohibit</code>／<code>throw</code></td>
+</tr>
+<tr>
+<td>前綴</td>
+<td><code>default</code>、<code>10.0.0.0/8</code>、單一 IP</td>
+</tr>
+<tr>
+<td><code>via</code></td>
+<td>下一跳的 IP（<strong>不同網段</strong>時必須）</td>
+</tr>
+<tr>
+<td><code>dev</code></td>
+<td>從哪張網卡送出（<strong>同網段</strong>時只要這個）</td>
+</tr>
+<tr>
+<td><code>src</code></td>
+<td>本機發起時<strong>用哪個位址當來源</strong>（不影響轉發的封包）</td>
+</tr>
+<tr>
+<td><code>table</code></td>
+<td>加到哪張表，不寫就是 <code>main</code></td>
+</tr>
+<tr>
+<td><code>metric</code></td>
+<td>同前綴時的優先順序，<strong>數字小的贏</strong></td>
+</tr>
+<tr>
+<td><code>scope</code></td>
+<td><code>global</code>（要經過閘道）／<code>link</code>（同網段可直達）／<code>host</code>（本機）</td>
+</tr>
+<tr>
+<td><code>proto</code></td>
+<td>誰加的（<code>static</code>／<code>kernel</code>／<code>dhcp</code>／<code>boot</code>），只是標記，不影響行為</td>
+</tr>
+</tbody>
+</table>
+<h3 id="ip-route-的完整參數依本機-ip-route-helpiproute2"><code>ip route</code> 的完整參數（依本機 <code>ip route help</code>，iproute2）</h3>
+<p>上面那張表是日常會用到的；<strong>以下是 <code>ROUTE</code> 的完整文法</strong>，免得你以為只有那幾個。</p>
+<pre><code>ROUTE      := NODE_SPEC [ INFO_SPEC ]
+NODE_SPEC  := [TYPE] 前綴 [tos TOS] [table 表] [proto RTPROTO] [scope SCOPE] [metric 數字]
+              [ttl-propagate {enabled|disabled}]
+INFO_SPEC  := {下一跳 | nhid ID} OPTIONS FLAGS [nexthop 下一跳]...
+下一跳      := [encap 封裝] [via [FAMILY] 位址] [dev 介面] [weight 數字] NHFLAGS
+</code></pre>
+<p><strong>列舉型參數的</strong>全部<strong>可用值：</strong></p>
+<table>
+<thead>
+<tr>
+<th>參數</th>
+<th>全部可能的值</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>TYPE</code></td>
+<td><code>unicast</code>（預設）／<code>local</code>／<code>broadcast</code>／<code>multicast</code>／<code>throw</code>／<code>unreachable</code>／<code>prohibit</code>／<code>blackhole</code>／<code>nat</code></td>
+</tr>
+<tr>
+<td><code>TABLE_ID</code></td>
+<td><code>local</code>／<code>main</code>／<code>default</code>／<code>all</code>／任意數字</td>
+</tr>
+<tr>
+<td><code>SCOPE</code></td>
+<td><code>host</code>／<code>link</code>／<code>global</code>／數字</td>
+</tr>
+<tr>
+<td><code>RTPROTO</code></td>
+<td><code>kernel</code>／<code>boot</code>／<code>static</code>／數字（還可用 <code>/etc/iproute2/rt_protos</code> 的別名，如 <code>dhcp</code>）</td>
+</tr>
+<tr>
+<td><code>NHFLAGS</code></td>
+<td><code>onlink</code>（<strong>即使下一跳不在同網段也照設</strong>）／<code>pervasive</code></td>
+</tr>
+<tr>
+<td><code>PREF</code></td>
+<td><code>low</code>／<code>medium</code>／<code>high</code>（IPv6 RA 用）</td>
+</tr>
+<tr>
+<td><code>FEATURES</code></td>
+<td><code>ecn</code></td>
+</tr>
+<tr>
+<td><code>TIME</code></td>
+<td>數字加 <code>s</code> 或 <code>ms</code></td>
+</tr>
+<tr>
+<td><code>ENCAPTYPE</code></td>
+<td><code>mpls</code>／<code>ip</code>／<code>ip6</code>／<code>seg6</code>／<code>seg6local</code>／<code>rpl</code>／<code>ioam6</code>／<code>xfrm</code></td>
+</tr>
+</tbody>
+</table>
+<p><strong><code>OPTIONS</code>：每條路由可以附帶的核心參數（全部）</strong></p>
+<table>
+<thead>
+<tr>
+<th>參數</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>mtu &lt;數字&gt;</code></td>
+<td><strong>這條路由的 MTU</strong>（<code>mtu lock 1400</code> 可鎖住不讓 PMTU 探測改它）</td>
+</tr>
+<tr>
+<td><code>advmss &lt;數字&gt;</code></td>
+<td>對外宣告的 MSS</td>
+</tr>
+<tr>
+<td><code>src &lt;位址&gt;</code></td>
+<td>本機發起時用哪個來源位址</td>
+</tr>
+<tr>
+<td><code>window &lt;數字&gt;</code></td>
+<td>TCP 接收視窗上限</td>
+</tr>
+<tr>
+<td><code>cwnd &lt;數字&gt;</code> / <code>initcwnd &lt;數字&gt;</code></td>
+<td>壅塞視窗／<strong>初始壅塞視窗</strong>（調 TCP 起步速度）</td>
+</tr>
+<tr>
+<td><code>initrwnd &lt;數字&gt;</code></td>
+<td>初始接收視窗</td>
+</tr>
+<tr>
+<td><code>ssthresh &lt;數字&gt;</code></td>
+<td>慢啟動門檻</td>
+</tr>
+<tr>
+<td><code>rtt &lt;時間&gt;</code> / <code>rttvar &lt;時間&gt;</code></td>
+<td>初始 RTT 估計值／變異量</td>
+</tr>
+<tr>
+<td><code>rto_min &lt;時間&gt;</code></td>
+<td>最小重傳逾時</td>
+</tr>
+<tr>
+<td><code>reordering &lt;數字&gt;</code></td>
+<td>容許的亂序程度</td>
+</tr>
+<tr>
+<td><code>hoplimit &lt;數字&gt;</code></td>
+<td>IPv6 的 hop limit（等同 IPv4 TTL）</td>
+</tr>
+<tr>
+<td><code>congctl &lt;名稱&gt;</code></td>
+<td><strong>這條路由用哪個壅塞控制演算法</strong></td>
+</tr>
+<tr>
+<td><code>quickack &lt;0|1&gt;</code></td>
+<td>是否啟用 quick ACK</td>
+</tr>
+<tr>
+<td><code>fastopen_no_cookie &lt;0|1&gt;</code></td>
+<td>TCP Fast Open 不用 cookie</td>
+</tr>
+<tr>
+<td><code>features ecn</code></td>
+<td>啟用 ECN</td>
+</tr>
+<tr>
+<td><code>expires &lt;時間&gt;</code></td>
+<td>路由的存活時間</td>
+</tr>
+<tr>
+<td><code>pref &lt;low|medium|high&gt;</code></td>
+<td>優先度</td>
+</tr>
+<tr>
+<td><code>realms &lt;REALM&gt;</code> / <code>as [to] &lt;位址&gt;</code></td>
+<td>realm 分類／位址轉換（少用）</td>
+</tr>
+</tbody>
+</table>
+<p><strong><code>FLAGS</code></strong>：<code>onlink</code>（無視下一跳是否可達）、<code>nexthop</code>（多路徑，可重複）、
+<code>dead</code>／<code>linkdown</code>（唯讀，核心標記）。</p>
+<blockquote>
+<p>其中 <code>mtu</code>、<code>initcwnd</code>、<code>congctl</code> 是<strong>調效能時真的會用到</strong>的三個；其餘多數情況用不到，但知道它們存在，遇到別人的設定就不會卡住。</p>
+</blockquote>
+<h3 id="ip-rule-的動詞與組成"><code>ip rule</code> 的動詞與組成</h3>
+<pre><code>ip rule { add | del } SELECTOR ACTION
+ip rule { flush | save | restore }
+ip rule [ list [ SELECTOR ] ]
+</code></pre>
+<p><strong>一條規則 = 選擇器（挑哪些封包）+ 動作（挑到了要做什麼）</strong>：</p>
+<pre><code>SELECTOR := [not] [from 前綴] [to 前綴] [tos TOS] [fwmark 值[/遮罩]]
+            [iif 介面] [oif 介面] [pref 數字] [uidrange A-B]
+            [ipproto 協定] [sport 埠[-埠]] [dport 埠[-埠]]
+
+ACTION   := [table 表] | [goto 數字] | [nat 位址]
+            | blackhole | unreachable | prohibit
+            | [suppress_prefixlength 數字]
+</code></pre>
+<p>幾個少見但好用的：</p>
+<table>
+<thead>
+<tr>
+<th>寫法</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>not from 192.168.1.0/24</code></td>
+<td><strong>反向</strong>條件（<code>not</code> 可以套在任何選擇器前）</td>
+</tr>
+<tr>
+<td><code>fwmark 1/0xff</code></td>
+<td>只比對 mark 的<strong>某幾個位元</strong>（多個功能共用 mark 時必備）</td>
+</tr>
+<tr>
+<td><code>uidrange 1001-1001</code></td>
+<td>依<strong>執行使用者</strong>分流</td>
+</tr>
+<tr>
+<td><code>goto 200</code></td>
+<td>跳到 priority 200 的規則繼續比對</td>
+</tr>
+<tr>
+<td><code>suppress_prefixlength 0</code></td>
+<td>「<strong>忽略這張表裡的預設路由</strong>」，常用來讓 VPN 表不吃掉 default</td>
+</tr>
+</tbody>
+</table>
+<h3 id="全域選項">全域選項</h3>
+<table>
+<thead>
+<tr>
+<th>選項</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-4</code> / <code>-6</code></td>
+<td>只看 IPv4／IPv6</td>
+</tr>
+<tr>
+<td><strong><code>-br</code></strong></td>
+<td><strong>每行一筆的精簡輸出</strong>（<code>ip -br addr</code> 特別好用）</td>
+</tr>
+<tr>
+<td><code>-j</code> / <code>-p</code></td>
+<td>JSON／格式化 JSON（<strong>給腳本用</strong>）</td>
+</tr>
+<tr>
+<td><code>-s</code></td>
+<td>附統計數字</td>
+</tr>
+<tr>
+<td><code>-d</code></td>
+<td>更詳細</td>
+</tr>
+<tr>
+<td><code>-n &lt;netns&gt;</code></td>
+<td>在指定的 network namespace 裡執行</td>
+</tr>
+<tr>
+<td><code>-c</code></td>
+<td>彩色輸出</td>
+</tr>
+</tbody>
+</table>
+<p>實測：</p>
+<pre><code class="language-bash">$<span class="w"> </span>ip<span class="w"> </span>-br<span class="w"> </span>-4<span class="w"> </span>addr<span class="w"> </span>show
+lo<span class="w">          </span>UNKNOWN<span class="w">  </span><span class="m">127</span>.0.0.1/8
+wlp59s0f0<span class="w">   </span>UP<span class="w">       </span><span class="m">192</span>.168.1.171/24
+docker0<span class="w">     </span>DOWN<span class="w">     </span><span class="m">172</span>.17.0.1/16
+
+$<span class="w"> </span>ip<span class="w"> </span>-j<span class="w"> </span>route<span class="w"> </span>show<span class="w"> </span><span class="p">|</span><span class="w"> </span>head<span class="w"> </span>-c<span class="w"> </span><span class="m">120</span>
+<span class="o">[{</span><span class="s2">&quot;dst&quot;</span>:<span class="s2">&quot;default&quot;</span>,<span class="s2">&quot;gateway&quot;</span>:<span class="s2">&quot;192.168.1.1&quot;</span>,<span class="s2">&quot;dev&quot;</span>:<span class="s2">&quot;wlp59s0f0&quot;</span>,<span class="s2">&quot;protocol&quot;</span>:<span class="s2">&quot;dhcp&quot;</span>,<span class="s2">&quot;prefsrc&quot;</span>:<span class="s2">&quot;192.168.1.171&quot;</span>,...
+</code></pre>
+<hr />
+<h2 id="三ip-rule決定查哪張表">三、<code>ip rule</code>：決定查哪張表</h2>
+<h3 id="預設的三條">預設的三條</h3>
+<pre><code class="language-bash">$<span class="w"> </span>ip<span class="w"> </span>rule<span class="w"> </span>show
+<span class="m">0</span>:<span class="w">      </span>from<span class="w"> </span>all<span class="w"> </span>lookup<span class="w"> </span><span class="nb">local</span><span class="w">        </span>←<span class="w"> </span>最先，且不該動
+<span class="m">32766</span>:<span class="w">  </span>from<span class="w"> </span>all<span class="w"> </span>lookup<span class="w"> </span>main<span class="w">         </span>←<span class="w"> </span>你平常看的那張表
+<span class="m">32767</span>:<span class="w">  </span>from<span class="w"> </span>all<span class="w"> </span>lookup<span class="w"> </span>default<span class="w">      </span>←<span class="w"> </span>幾乎永遠是空的
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>優先權</th>
+<th>表</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>0</code></td>
+<td><code>local</code></td>
+<td>「<strong>這個位址是不是我自己</strong>」——核心自動維護，見第四節〈路由表不只有一張〉</td>
+</tr>
+<tr>
+<td><code>32766</code></td>
+<td><code>main</code></td>
+<td>一般路由，<code>ip route show</code> 預設顯示的就是它</td>
+</tr>
+<tr>
+<td><code>32767</code></td>
+<td><code>default</code></td>
+<td>歷史遺留，通常空的</td>
+</tr>
+</tbody>
+</table>
+<p><strong>數字小的先比對</strong>，所以自訂規則放在 0 到 32765 之間就會<strong>早於 main</strong> 被評估——
+這正是「讓特定封包走特別的路」的實作方式。</p>
+<h3 id="一條規則的三個部分">一條規則的三個部分</h3>
+<pre><code>ip rule add  fwmark 1   lookup 100
+             └─選擇器─┘ └──動作──┘
+         （priority 不寫的話自動指派）
+</code></pre>
+<p><strong>選擇器（selector）</strong>——用什麼條件挑封包：</p>
+<table>
+<thead>
+<tr>
+<th>選擇器</th>
+<th>意思</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>from &lt;網段&gt;</code></td>
+<td>來源位址</td>
+</tr>
+<tr>
+<td><code>to &lt;網段&gt;</code></td>
+<td>目的位址</td>
+</tr>
+<tr>
+<td><code>fwmark &lt;值&gt;</code></td>
+<td><strong>防火牆打的標記</strong>（nftables 的 <code>meta mark set</code>）</td>
+</tr>
+<tr>
+<td><code>iif &lt;介面&gt;</code></td>
+<td>從哪張網卡進來</td>
+</tr>
+<tr>
+<td><code>oif &lt;介面&gt;</code></td>
+<td>要從哪張網卡出去</td>
+</tr>
+<tr>
+<td><code>uidrange &lt;a&gt;-&lt;b&gt;</code></td>
+<td>發送它的行程 uid（可做「某使用者走 VPN」）</td>
+</tr>
+<tr>
+<td><code>ipproto</code> / <code>sport</code> / <code>dport</code></td>
+<td>協定與埠（較新的核心支援）</td>
+</tr>
+</tbody>
+</table>
+<p><strong>動作（action）</strong>：</p>
+<table>
+<thead>
+<tr>
+<th>動作</th>
+<th>效果</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>lookup &lt;表&gt;</code> / <code>table &lt;表&gt;</code></td>
+<td><strong>查這張表</strong>（最常用）</td>
+</tr>
+<tr>
+<td><code>blackhole</code></td>
+<td>直接丟棄，不回應</td>
+</tr>
+<tr>
+<td><code>unreachable</code></td>
+<td>回 ICMP「目的地不可達」</td>
+</tr>
+<tr>
+<td><code>prohibit</code></td>
+<td>回 ICMP「管理上禁止」</td>
+</tr>
+</tbody>
+</table>
+<h3 id="一個很多人不知道的細節">一個很多人不知道的細節</h3>
+<p><strong>規則命中、但那張表裡查不到符合的路由時，核心會繼續評估下一條規則</strong>，而不是宣告失敗。</p>
+<pre><code>規則 A (pref 100, fwmark 1 → table 100)   ← 命中，但 table 100 裡沒有對應路由
+規則 B (pref 32766, from all → main)      ← 繼續，在 main 裡找到了
+</code></pre>
+<p>所以策略路由「沒生效」時，常常不是規則沒命中，而是<strong>命中了但那張表是空的</strong>，於是悄悄掉回 main。
+<strong>驗證方式是 <code>ip route get</code>（第六節〈<code>ip route get</code>〉），不是看規則有沒有列出來。</strong></p>
+<h3 id="操作">操作</h3>
+<pre><code class="language-bash">ip<span class="w"> </span>rule<span class="w"> </span>show<span class="w">                                  </span><span class="c1"># 列出</span>
+ip<span class="w"> </span>rule<span class="w"> </span>add<span class="w"> </span>fwmark<span class="w"> </span><span class="m">1</span><span class="w"> </span>lookup<span class="w"> </span><span class="m">100</span><span class="w">               </span><span class="c1"># 新增（自動配 priority）</span>
+ip<span class="w"> </span>rule<span class="w"> </span>add<span class="w"> </span>from<span class="w"> </span><span class="m">192</span>.168.1.50<span class="w"> </span>lookup<span class="w"> </span><span class="m">100</span><span class="w"> </span>pref<span class="w"> </span><span class="m">100</span><span class="w">   </span><span class="c1"># 指定 priority</span>
+ip<span class="w"> </span>rule<span class="w"> </span>del<span class="w"> </span>fwmark<span class="w"> </span><span class="m">1</span><span class="w"> </span>lookup<span class="w"> </span><span class="m">100</span><span class="w">               </span><span class="c1"># 刪除（條件要寫得跟當初一樣）</span>
+ip<span class="w"> </span>rule<span class="w"> </span>del<span class="w"> </span>pref<span class="w"> </span><span class="m">100</span><span class="w">                          </span><span class="c1"># 或用 priority 刪，較保險</span>
+</code></pre>
+<blockquote>
+<p>⚠️ <strong><code>ip rule flush</code> 會連那三條預設規則一起刪掉</strong>，機器立刻失去所有路由能力。遠端操作時這是一鍵斷線。見第九節〈七個陷阱〉。</p>
+</blockquote>
+<hr />
+<h2 id="四路由表不只有一張">四、路由表不只有一張</h2>
+<h3 id="表的編號與名字">表的編號與名字</h3>
+<pre><code class="language-bash">$<span class="w"> </span>cat<span class="w"> </span>/etc/iproute2/rt_tables
+<span class="m">255</span><span class="w">  </span><span class="nb">local</span>
+<span class="m">254</span><span class="w">  </span>main
+<span class="m">253</span><span class="w">  </span>default
+<span class="m">0</span><span class="w">    </span>unspec
+</code></pre>
+<p><strong>這個檔案只是「編號 ↔ 名字」的對照表</strong>，方便你寫 <code>lookup mytable</code> 而不是 <code>lookup 100</code>。
+<strong>表本身存在核心裡，不在這個檔案</strong>——你 <code>ip route add ... table 100</code> 的當下，核心就有了 table 100，不需要先在這裡登記。登記只是為了可讀性。</p>
+<p>表的編號範圍是 1–252（加上保留的 253/254/255），所以自訂表隨便挑一個沒用過的即可。</p>
+<h3 id="local-表最特別的一張"><code>local</code> 表：最特別的一張</h3>
+<pre><code class="language-bash">$<span class="w"> </span>ip<span class="w"> </span>route<span class="w"> </span>show<span class="w"> </span>table<span class="w"> </span><span class="nb">local</span>
+<span class="nb">local</span><span class="w">     </span><span class="m">127</span>.0.0.0/8<span class="w">     </span>dev<span class="w"> </span>lo<span class="w">        </span>proto<span class="w"> </span>kernel<span class="w"> </span>scope<span class="w"> </span>host<span class="w"> </span>src<span class="w"> </span><span class="m">127</span>.0.0.1
+<span class="nb">local</span><span class="w">     </span><span class="m">127</span>.0.0.1<span class="w">       </span>dev<span class="w"> </span>lo<span class="w">        </span>proto<span class="w"> </span>kernel<span class="w"> </span>scope<span class="w"> </span>host<span class="w"> </span>src<span class="w"> </span><span class="m">127</span>.0.0.1
+broadcast<span class="w"> </span><span class="m">127</span>.255.255.255<span class="w"> </span>dev<span class="w"> </span>lo<span class="w">        </span>proto<span class="w"> </span>kernel<span class="w"> </span>scope<span class="w"> </span>link<span class="w"> </span>src<span class="w"> </span><span class="m">127</span>.0.0.1
+<span class="nb">local</span><span class="w">     </span><span class="m">192</span>.168.1.171<span class="w">   </span>dev<span class="w"> </span>wlp59s0f0<span class="w"> </span>proto<span class="w"> </span>kernel<span class="w"> </span>scope<span class="w"> </span>host<span class="w"> </span>src<span class="w"> </span><span class="m">192</span>.168.1.171
+<span class="nb">local</span><span class="w">     </span><span class="m">172</span>.17.0.1<span class="w">      </span>dev<span class="w"> </span>docker0<span class="w">   </span>proto<span class="w"> </span>kernel<span class="w"> </span>scope<span class="w"> </span>host<span class="w"> </span>src<span class="w"> </span><span class="m">172</span>.17.0.1
+broadcast<span class="w"> </span><span class="m">172</span>.17.255.255<span class="w">  </span>dev<span class="w"> </span>docker0<span class="w">   </span>...
+</code></pre>
+<p><strong>它回答的問題是「哪些位址算是我自己的」。</strong> 每次你給介面設位址，核心<strong>自動</strong>在這張表加一條
+<code>local</code>；<code>proto kernel</code> 就是「核心自己加的」的標記。</p>
+<p><strong>實測證據</strong>——查自己的位址會得到 <code>local ... dev lo</code>：</p>
+<pre><code class="language-bash">$<span class="w"> </span>ip<span class="w"> </span>route<span class="w"> </span>get<span class="w"> </span><span class="m">192</span>.168.1.171
+<span class="nb">local</span><span class="w"> </span><span class="m">192</span>.168.1.171<span class="w"> </span>dev<span class="w"> </span>lo<span class="w"> </span>src<span class="w"> </span><span class="m">192</span>.168.1.171
+</code></pre>
+<p>送往自己位址的封包，核心直接從 <code>lo</code> 繞回來，不會真的送上網卡。
+<strong>記住這個行為，第七節〈回頭看 TPROXY 的那兩行〉 就是靠它。</strong></p>
+<blockquote>
+<p><strong>不要手動改 local 表</strong>。改壞了會讓核心搞不清楚哪些位址是自己的，症狀非常詭異（服務綁得起來卻收不到封包）。</p>
+</blockquote>
+<hr />
+<h2 id="五ip-route表裡的每一條路">五、<code>ip route</code>：表裡的每一條路</h2>
+<p>（<code>via</code>／<code>dev</code>／<code>src</code>／<code>metric</code> 這些欄位的完整解讀見
+<a href="%E6%9F%A5%E8%A9%A2%E8%BD%89%E7%99%BC%E8%A1%A8%E8%88%87%E8%B7%AF%E7%94%B1%E8%A1%A8.html">查詢轉發表與路由表</a>，這裡只補那篇沒講的<strong>型別</strong>與<strong>操作</strong>。）</p>
+<h3 id="路由型別">路由型別</h3>
+<p>每條路由都有型別，<strong>不寫就是 <code>unicast</code></strong>：</p>
+<table>
+<thead>
+<tr>
+<th>型別</th>
+<th>意思</th>
+<th>典型用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>unicast</code>（預設）</td>
+<td>正常轉送到某個下一跳／介面</td>
+<td>一般路由</td>
+</tr>
+<tr>
+<td><strong><code>local</code></strong></td>
+<td><strong>這個位址是本機的</strong>，交給本機處理</td>
+<td>local 表；<strong>TPROXY</strong></td>
+</tr>
+<tr>
+<td><code>broadcast</code></td>
+<td>廣播位址</td>
+<td>local 表</td>
+</tr>
+<tr>
+<td><code>blackhole</code></td>
+<td>丟棄，不回應</td>
+<td>擋掉某網段</td>
+</tr>
+<tr>
+<td><code>unreachable</code></td>
+<td>丟棄並回 ICMP 不可達</td>
+<td>明確告知</td>
+</tr>
+<tr>
+<td><code>prohibit</code></td>
+<td>丟棄並回 ICMP 管理禁止</td>
+<td></td>
+</tr>
+<tr>
+<td><code>throw</code></td>
+<td><strong>在這張表裡當作查不到</strong>，繼續評估後面的規則</td>
+<td>策略路由的「例外」</td>
+</tr>
+</tbody>
+</table>
+<p><code>throw</code> 很實用：在自訂表裡放一條 <code>throw 192.168.0.0/16</code>，就等於「這個網段不要用這張表的規則，回去走正常流程」。</p>
+<h3 id="操作-1">操作</h3>
+<pre><code class="language-bash">ip<span class="w"> </span>route<span class="w"> </span>show<span class="w">                       </span><span class="c1"># 顯示 main</span>
+ip<span class="w"> </span>route<span class="w"> </span>show<span class="w"> </span>table<span class="w"> </span><span class="m">100</span><span class="w">             </span><span class="c1"># 顯示指定表</span>
+ip<span class="w"> </span>route<span class="w"> </span>show<span class="w"> </span>table<span class="w"> </span>all<span class="w">             </span><span class="c1"># 所有表（會很長）</span>
+
+ip<span class="w"> </span>route<span class="w"> </span>add<span class="w"> </span><span class="m">10</span>.0.0.0/8<span class="w"> </span>via<span class="w"> </span><span class="m">192</span>.168.1.254<span class="w">           </span><span class="c1"># 新增</span>
+ip<span class="w"> </span>route<span class="w"> </span>add<span class="w"> </span>default<span class="w"> </span>via<span class="w"> </span><span class="m">192</span>.168.1.1<span class="w"> </span>table<span class="w"> </span><span class="m">100</span><span class="w">      </span><span class="c1"># 在自訂表裡加預設路由</span>
+ip<span class="w"> </span>route<span class="w"> </span>add<span class="w"> </span><span class="nb">local</span><span class="w"> </span><span class="m">0</span>.0.0.0/0<span class="w"> </span>dev<span class="w"> </span>lo<span class="w"> </span>table<span class="w"> </span><span class="m">100</span><span class="w">       </span><span class="c1"># 加一條 local 型別的路由</span>
+ip<span class="w"> </span>route<span class="w"> </span>del<span class="w"> </span><span class="m">10</span>.0.0.0/8<span class="w">                             </span><span class="c1"># 刪除</span>
+ip<span class="w"> </span>route<span class="w"> </span>replace<span class="w"> </span>default<span class="w"> </span>via<span class="w"> </span><span class="m">192</span>.168.1.2<span class="w">            </span><span class="c1"># 有就換、沒有就加（比 del+add 安全）</span>
+ip<span class="w"> </span>route<span class="w"> </span>flush<span class="w"> </span>table<span class="w"> </span><span class="m">100</span><span class="w">                            </span><span class="c1"># 清空某張表</span>
+</code></pre>
+<p><strong><code>add</code> 與 <code>replace</code> 的差別</strong>：<code>add</code> 遇到已存在的路由會報 <code>File exists</code> 而失敗；
+<code>replace</code> 直接覆蓋。<strong>寫腳本時用 <code>replace</code> 比較不會因為重跑而失敗。</strong></p>
+<hr />
+<h2 id="六ip-route-get最重要的排查工具">六、<code>ip route get</code>：最重要的排查工具</h2>
+<p><strong>它不是「查表」，而是叫核心真的跑一次完整的路由決策</strong>（兩層都跑），然後告訴你結果。這是唯一能回答「這個封包到底會怎麼走」的方法。</p>
+<p>本機實測：</p>
+<pre><code class="language-bash">$<span class="w"> </span>ip<span class="w"> </span>route<span class="w"> </span>get<span class="w"> </span><span class="m">8</span>.8.8.8
+<span class="m">8</span>.8.8.8<span class="w"> </span>via<span class="w"> </span><span class="m">192</span>.168.1.1<span class="w"> </span>dev<span class="w"> </span>wlp59s0f0<span class="w"> </span>src<span class="w"> </span><span class="m">192</span>.168.1.171<span class="w">      </span>←<span class="w"> </span>走預設閘道
+
+$<span class="w"> </span>ip<span class="w"> </span>route<span class="w"> </span>get<span class="w"> </span><span class="m">192</span>.168.1.50
+<span class="m">192</span>.168.1.50<span class="w"> </span>dev<span class="w"> </span>wlp59s0f0<span class="w"> </span>src<span class="w"> </span><span class="m">192</span>.168.1.171<span class="w">                  </span>←<span class="w"> </span>同網段，直送
+
+$<span class="w"> </span>ip<span class="w"> </span>route<span class="w"> </span>get<span class="w"> </span><span class="m">192</span>.168.1.171
+<span class="nb">local</span><span class="w"> </span><span class="m">192</span>.168.1.171<span class="w"> </span>dev<span class="w"> </span>lo<span class="w"> </span>src<span class="w"> </span><span class="m">192</span>.168.1.171<span class="w">                  </span>←<span class="w"> </span>自己的位址<span class="w"> </span>→<span class="w"> </span>lo
+
+$<span class="w"> </span>ip<span class="w"> </span>route<span class="w"> </span>get<span class="w"> </span><span class="m">172</span>.17.0.5
+<span class="m">172</span>.17.0.5<span class="w"> </span>dev<span class="w"> </span>docker0<span class="w"> </span>src<span class="w"> </span><span class="m">172</span>.17.0.1<span class="w">                         </span>←<span class="w"> </span>走<span class="w"> </span>docker<span class="w"> </span>橋接
+</code></pre>
+<p><strong>它可以模擬各種條件</strong>，這才是它真正強大的地方：</p>
+<pre><code class="language-bash">ip<span class="w"> </span>route<span class="w"> </span>get<span class="w"> </span><span class="m">8</span>.8.8.8<span class="w"> </span>mark<span class="w"> </span><span class="m">1</span><span class="w">              </span><span class="c1"># 假裝這個封包帶著 fwmark 1</span>
+ip<span class="w"> </span>route<span class="w"> </span>get<span class="w"> </span><span class="m">8</span>.8.8.8<span class="w"> </span>from<span class="w"> </span><span class="m">172</span>.17.0.1<span class="w">     </span><span class="c1"># 假裝來源是這個位址</span>
+ip<span class="w"> </span>route<span class="w"> </span>get<span class="w"> </span><span class="m">8</span>.8.8.8<span class="w"> </span>oif<span class="w"> </span>eth1<span class="w">            </span><span class="c1"># 假裝要從 eth1 出去</span>
+ip<span class="w"> </span>route<span class="w"> </span>get<span class="w"> </span><span class="m">8</span>.8.8.8<span class="w"> </span>iif<span class="w"> </span>br-lan<span class="w">          </span><span class="c1"># 假裝從 br-lan 進來（測轉發）</span>
+</code></pre>
+<p><strong>加了 <code>mark</code> 就能在寫規則前後做對照</strong>：</p>
+<pre><code class="language-bash">$<span class="w"> </span>ip<span class="w"> </span>route<span class="w"> </span>get<span class="w"> </span><span class="m">8</span>.8.8.8<span class="w"> </span>mark<span class="w"> </span><span class="m">1</span>
+<span class="m">8</span>.8.8.8<span class="w"> </span>via<span class="w"> </span><span class="m">192</span>.168.1.1<span class="w"> </span>dev<span class="w"> </span>wlp59s0f0<span class="w"> </span>src<span class="w"> </span><span class="m">192</span>.168.1.171<span class="w"> </span>mark<span class="w"> </span><span class="m">1</span>
+<span class="w">                                          </span>↑<span class="w"> </span>目前沒有<span class="w"> </span>fwmark<span class="w"> </span>規則，所以跟沒加一樣
+</code></pre>
+<p><strong>心法：改完 <code>ip rule</code>／<code>ip route</code> 之後，不要用「看起來有列出來」當作驗證，要用 <code>ip route get</code> 問核心。</strong> 這正是
+<a href="%E6%8E%92%E6%9F%A5%E6%96%B9%E6%B3%95%E8%AB%96.html">排查方法論</a> 說的「不要相信自己以為的狀態」。</p>
+<hr />
+<h2 id="七回頭看-tproxy-的那兩行">七、回頭看 TPROXY 的那兩行</h2>
+<pre><code class="language-bash">ip<span class="w"> </span>route<span class="w"> </span>add<span class="w"> </span><span class="nb">local</span><span class="w"> </span><span class="m">0</span>.0.0.0/0<span class="w"> </span>dev<span class="w"> </span>lo<span class="w"> </span>table<span class="w"> </span><span class="m">100</span>
+ip<span class="w"> </span>rule<span class="w"> </span>add<span class="w"> </span>fwmark<span class="w"> </span><span class="m">1</span><span class="w"> </span>lookup<span class="w"> </span><span class="m">100</span>
+</code></pre>
+<p>現在可以逐字讀懂了：</p>
+<h3 id="第一行">第一行</h3>
+<table>
+<thead>
+<tr>
+<th>片段</th>
+<th>意思</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ip route add</code></td>
+<td>新增一條路由</td>
+</tr>
+<tr>
+<td><strong><code>local</code></strong></td>
+<td><strong>型別是 local</strong>——「這個位址屬於本機」</td>
+</tr>
+<tr>
+<td><code>0.0.0.0/0</code></td>
+<td>範圍是<strong>所有位址</strong></td>
+</tr>
+<tr>
+<td><code>dev lo</code></td>
+<td>從迴路介面處理</td>
+</tr>
+<tr>
+<td><code>table 100</code></td>
+<td>加在編號 100 的表裡（不是 main）</td>
+</tr>
+</tbody>
+</table>
+<p>合起來：<strong>「在 table 100 裡，宣告全世界所有位址都是我自己的位址」</strong>。</p>
+<p>這為什麼有用？回想第四節〈路由表不只有一張〉的實測——查自己的位址會得到 <code>local ... dev lo</code>，核心會把封包交給本機處理而不是轉送出去。現在整個 <code>0.0.0.0/0</code> 都是「自己的位址」，<strong>任何目的地的封包只要查到這張表，都會被當成給本機的。</strong></p>
+<h3 id="第二行">第二行</h3>
+<p>「<strong>帶有 fwmark 1 的封包，改查 table 100</strong>」。priority 沒指定，會自動配一個小於 32766 的值，所以<strong>早於 main 被評估</strong>。</p>
+<h3 id="兩行合起來的效果">兩行合起來的效果</h3>
+<pre><code>LAN 電腦 → 1.1.1.1:443 的封包
+   ↓
+nftables 在 prerouting 打上 mark 1
+   ↓
+第一層：ip rule 比對 → fwmark 1 命中 → 查 table 100
+   ↓
+第二層：table 100 說「0.0.0.0/0 都是 local」→ 這封包是給本機的
+   ↓
+核心不轉發，交給本機的 socket（IP_TRANSPARENT 的那個）
+</code></pre>
+<p><strong>沒有這兩行，第一層會走到 main 表，main 說「1.1.1.1 要從 eth1 轉出去」，封包就直接出去了，你的 12345 socket 永遠等不到。</strong></p>
+<h3 id="驗證方式">驗證方式</h3>
+<pre><code class="language-bash"><span class="c1"># 設定之後，模擬一個帶 mark 的封包</span>
+ip<span class="w"> </span>route<span class="w"> </span>get<span class="w"> </span><span class="m">1</span>.1.1.1<span class="w"> </span>mark<span class="w"> </span><span class="m">1</span>
+<span class="c1"># 期待看到：local 1.1.1.1 dev lo ...   ← 有 local 就對了</span>
+</code></pre>
+<hr />
+<h2 id="八常用情境例子">八、常用情境例子</h2>
+<h3 id="最基本的增刪改">最基本的增刪改</h3>
+<pre><code class="language-bash"><span class="c1"># 加一條靜態路由：10.0.0.0/8 走 192.168.1.254</span>
+ip<span class="w"> </span>route<span class="w"> </span>add<span class="w"> </span><span class="m">10</span>.0.0.0/8<span class="w"> </span>via<span class="w"> </span><span class="m">192</span>.168.1.254
+
+<span class="c1"># 同網段、不需要閘道時只要指定網卡</span>
+ip<span class="w"> </span>route<span class="w"> </span>add<span class="w"> </span><span class="m">192</span>.168.5.0/24<span class="w"> </span>dev<span class="w"> </span>eth1
+
+<span class="c1"># 換掉預設閘道（replace：有就改、沒有就加）</span>
+ip<span class="w"> </span>route<span class="w"> </span>replace<span class="w"> </span>default<span class="w"> </span>via<span class="w"> </span><span class="m">192</span>.168.1.2
+
+<span class="c1"># 刪除</span>
+ip<span class="w"> </span>route<span class="w"> </span>del<span class="w"> </span><span class="m">10</span>.0.0.0/8
+
+<span class="c1"># 批次刪除：清掉所有由 dhcp 加的路由</span>
+ip<span class="w"> </span>route<span class="w"> </span>flush<span class="w"> </span>proto<span class="w"> </span>dhcp
+</code></pre>
+<h3 id="add-重跑會失敗腳本要用-replace"><code>add</code> 重跑會失敗，腳本要用 <code>replace</code></h3>
+<pre><code class="language-bash">$<span class="w"> </span>ip<span class="w"> </span>route<span class="w"> </span>add<span class="w"> </span><span class="m">10</span>.0.0.0/8<span class="w"> </span>via<span class="w"> </span><span class="m">192</span>.168.1.254
+$<span class="w"> </span>ip<span class="w"> </span>route<span class="w"> </span>add<span class="w"> </span><span class="m">10</span>.0.0.0/8<span class="w"> </span>via<span class="w"> </span><span class="m">192</span>.168.1.254
+RTNETLINK<span class="w"> </span>answers:<span class="w"> </span>File<span class="w"> </span>exists<span class="w">          </span><span class="c1"># ← 腳本重跑就在這裡死掉</span>
+
+$<span class="w"> </span>ip<span class="w"> </span>route<span class="w"> </span>replace<span class="w"> </span><span class="m">10</span>.0.0.0/8<span class="w"> </span>via<span class="w"> </span><span class="m">192</span>.168.1.254<span class="w">   </span><span class="c1"># 冪等，重跑幾次都一樣</span>
+</code></pre>
+<p><code>ip rule add</code> 更麻煩——<strong>它不會擋重複，會真的加第二條一模一樣的規則</strong>：</p>
+<pre><code class="language-bash">ip<span class="w"> </span>rule<span class="w"> </span>add<span class="w"> </span>fwmark<span class="w"> </span><span class="m">1</span><span class="w"> </span>lookup<span class="w"> </span><span class="m">100</span><span class="w">      </span><span class="c1"># 跑兩次就有兩條</span>
+ip<span class="w"> </span>rule<span class="w"> </span>show<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span><span class="s1">&#39;fwmark 0x1&#39;</span><span class="w">     </span><span class="c1"># 確認</span>
+<span class="c1"># 安全寫法：先刪再加，或用固定 pref 方便刪</span>
+ip<span class="w"> </span>rule<span class="w"> </span>del<span class="w"> </span>pref<span class="w"> </span><span class="m">100</span><span class="w"> </span><span class="m">2</span>&gt;/dev/null
+ip<span class="w"> </span>rule<span class="w"> </span>add<span class="w"> </span>fwmark<span class="w"> </span><span class="m">1</span><span class="w"> </span>lookup<span class="w"> </span><span class="m">100</span><span class="w"> </span>pref<span class="w"> </span><span class="m">100</span>
+</code></pre>
+<h3 id="指定來源位址">指定來源位址</h3>
+<pre><code class="language-bash"><span class="c1"># 本機連 10.x 時，用 192.168.1.171 當來源（多網卡機器常需要）</span>
+ip<span class="w"> </span>route<span class="w"> </span>add<span class="w"> </span><span class="m">10</span>.0.0.0/8<span class="w"> </span>via<span class="w"> </span><span class="m">192</span>.168.1.254<span class="w"> </span>src<span class="w"> </span><span class="m">192</span>.168.1.171
+ip<span class="w"> </span>route<span class="w"> </span>get<span class="w"> </span><span class="m">10</span>.0.0.1<span class="w">                      </span><span class="c1"># 驗證 src 是否如預期</span>
+</code></pre>
+<h3 id="多路徑負載平衡">多路徑（負載平衡）</h3>
+<pre><code class="language-bash">ip<span class="w"> </span>route<span class="w"> </span>add<span class="w"> </span>default<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>nexthop<span class="w"> </span>via<span class="w"> </span><span class="m">10</span>.0.0.1<span class="w"> </span>dev<span class="w"> </span>eth0<span class="w"> </span>weight<span class="w"> </span><span class="m">1</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>nexthop<span class="w"> </span>via<span class="w"> </span><span class="m">10</span>.0.1.1<span class="w"> </span>dev<span class="w"> </span>eth1<span class="w"> </span>weight<span class="w"> </span><span class="m">1</span>
+</code></pre>
+<h3 id="擋掉某個網段">擋掉某個網段</h3>
+<pre><code class="language-bash">ip<span class="w"> </span>route<span class="w"> </span>add<span class="w"> </span>blackhole<span class="w"> </span><span class="m">203</span>.0.113.0/24<span class="w">       </span><span class="c1"># 安靜丟棄</span>
+ip<span class="w"> </span>route<span class="w"> </span>add<span class="w"> </span>unreachable<span class="w"> </span><span class="m">198</span>.51.100.0/24<span class="w">    </span><span class="c1"># 丟棄並回 ICMP 不可達</span>
+</code></pre>
+<h3 id="雙-isp多出口">雙 ISP／多出口</h3>
+<pre><code class="language-bash"><span class="c1"># 每個 ISP 一張表</span>
+ip<span class="w"> </span>route<span class="w"> </span>add<span class="w"> </span>default<span class="w"> </span>via<span class="w"> </span><span class="m">10</span>.0.0.1<span class="w"> </span>dev<span class="w"> </span>eth0<span class="w"> </span>table<span class="w"> </span><span class="m">101</span>
+ip<span class="w"> </span>route<span class="w"> </span>add<span class="w"> </span>default<span class="w"> </span>via<span class="w"> </span><span class="m">10</span>.0.1.1<span class="w"> </span>dev<span class="w"> </span>eth1<span class="w"> </span>table<span class="w"> </span><span class="m">102</span>
+
+<span class="c1"># 從哪個位址出去就走對應的表（否則回程走錯網卡會被丟掉）</span>
+ip<span class="w"> </span>rule<span class="w"> </span>add<span class="w"> </span>from<span class="w"> </span><span class="m">10</span>.0.0.2<span class="w"> </span>lookup<span class="w"> </span><span class="m">101</span><span class="w"> </span>pref<span class="w"> </span><span class="m">101</span>
+ip<span class="w"> </span>rule<span class="w"> </span>add<span class="w"> </span>from<span class="w"> </span><span class="m">10</span>.0.1.2<span class="w"> </span>lookup<span class="w"> </span><span class="m">102</span><span class="w"> </span>pref<span class="w"> </span><span class="m">102</span>
+</code></pre>
+<h3 id="特定來源使用者走-vpn">特定來源／使用者走 VPN</h3>
+<pre><code class="language-bash">ip<span class="w"> </span>route<span class="w"> </span>add<span class="w"> </span>default<span class="w"> </span>dev<span class="w"> </span>tun0<span class="w"> </span>table<span class="w"> </span><span class="m">200</span>
+ip<span class="w"> </span>rule<span class="w"> </span>add<span class="w"> </span>from<span class="w"> </span><span class="m">192</span>.168.1.50<span class="w"> </span>lookup<span class="w"> </span><span class="m">200</span><span class="w"> </span>pref<span class="w"> </span><span class="m">200</span><span class="w">     </span><span class="c1"># 只有這台</span>
+ip<span class="w"> </span>rule<span class="w"> </span>add<span class="w"> </span>uidrange<span class="w"> </span><span class="m">1001</span>-1001<span class="w"> </span>lookup<span class="w"> </span><span class="m">200</span><span class="w"> </span>pref<span class="w"> </span><span class="m">201</span><span class="w">    </span><span class="c1"># 只有這個 uid</span>
+</code></pre>
+<h3 id="讓某個網段不要走那張表throw">讓某個網段不要走那張表（<code>throw</code>）</h3>
+<pre><code class="language-bash">ip<span class="w"> </span>route<span class="w"> </span>add<span class="w"> </span>throw<span class="w"> </span><span class="m">192</span>.168.0.0/16<span class="w"> </span>table<span class="w"> </span><span class="m">200</span>
+<span class="c1"># table 200 遇到內網位址 → 當作查不到 → 繼續評估後面的規則 → 回到 main</span>
+</code></pre>
+<h3 id="備份與還原">備份與還原</h3>
+<pre><code class="language-bash">ip<span class="w"> </span>route<span class="w"> </span>save<span class="w"> </span>&gt;<span class="w"> </span>routes.bin<span class="w">        </span><span class="c1"># 二進位備份</span>
+ip<span class="w"> </span>route<span class="w"> </span>restore<span class="w"> </span>&lt;<span class="w"> </span>routes.bin<span class="w">     </span><span class="c1"># 還原</span>
+ip<span class="w"> </span>rule<span class="w"> </span>save<span class="w">  </span>&gt;<span class="w"> </span>rules.bin
+ip<span class="w"> </span>rule<span class="w"> </span>restore<span class="w"> </span>&lt;<span class="w"> </span>rules.bin
+</code></pre>
+<p><strong>大改之前先備份</strong>，比事後回想自己改了什麼可靠。</p>
+<h3 id="在容器netns-裡操作">在容器／netns 裡操作</h3>
+<pre><code class="language-bash">ip<span class="w"> </span>netns<span class="w"> </span>list
+ip<span class="w"> </span>-n<span class="w"> </span>&lt;netns名&gt;<span class="w"> </span>route<span class="w"> </span>show<span class="w">        </span><span class="c1"># 不用 nsenter，直接指定命名空間</span>
+ip<span class="w"> </span>-n<span class="w"> </span>&lt;netns名&gt;<span class="w"> </span>route<span class="w"> </span>get<span class="w"> </span><span class="m">8</span>.8.8.8
+</code></pre>
+<h3 id="給腳本用的輸出">給腳本用的輸出</h3>
+<pre><code class="language-bash">ip<span class="w"> </span>-j<span class="w"> </span>route<span class="w"> </span>show<span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>-r<span class="w"> </span><span class="s1">&#39;.[] | select(.dst==&quot;default&quot;) | .gateway&#39;</span><span class="w">   </span><span class="c1"># 取出預設閘道</span>
+ip<span class="w"> </span>-br<span class="w"> </span>-4<span class="w"> </span>addr<span class="w"> </span>show<span class="w">                                                    </span><span class="c1"># 一行一介面</span>
+</code></pre>
+<h2 id="九七個陷阱">九、七個陷阱</h2>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>陷阱</th>
+<th>說明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td><strong><code>ip rule flush</code> 會刪掉預設三條</strong></td>
+<td>機器立刻失去所有路由能力，遠端操作等於自殺。要清自訂規則請用 <code>ip rule del pref &lt;N&gt;</code> 逐條刪</td>
+</tr>
+<tr>
+<td>2</td>
+<td><strong>改了 <code>ip route</code> 但已建立的連線沒變</strong></td>
+<td>conntrack 已記住那條連線的路徑。要讓新路由對現有連線生效得清 conntrack</td>
+</tr>
+<tr>
+<td>3</td>
+<td><strong>規則命中但表是空的</strong></td>
+<td>會悄悄掉回下一條規則，看起來像「規則沒作用」。用 <code>ip route get</code> 驗證</td>
+</tr>
+<tr>
+<td>4</td>
+<td><strong>全部都是非持久化的</strong></td>
+<td><code>ip rule</code>／<code>ip route</code> 的改動重開機就消失。這在測試時是優點，正式用要寫進 init script 或 hotplug</td>
+</tr>
+<tr>
+<td>5</td>
+<td><strong>手改 <code>local</code> 表</strong></td>
+<td>核心會搞不清楚哪些位址是自己的，症狀極詭異。除非你很清楚在做什麼（例如 TPROXY 那條加在<strong>自訂表</strong>裡，不是 local 表）</td>
+</tr>
+<tr>
+<td>6</td>
+<td><strong>priority 撞號</strong></td>
+<td>同一個 priority 可以塞多條規則，比對順序變得不確定。自訂時明確指定 <code>pref</code></td>
+</tr>
+<tr>
+<td>7</td>
+<td><strong><code>ip route add</code> 重跑會失敗</strong></td>
+<td>腳本裡用 <code>replace</code>，或加 <code>2&gt;/dev/null</code> 容錯</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="十速查">十、速查</h2>
+<pre><code class="language-bash"><span class="c1"># === 看 ===</span>
+ip<span class="w"> </span>rule<span class="w"> </span>show<span class="w">                       </span><span class="c1"># 第一層：規則</span>
+ip<span class="w"> </span>route<span class="w"> </span>show<span class="w">                      </span><span class="c1"># 第二層：main 表</span>
+ip<span class="w"> </span>route<span class="w"> </span>show<span class="w"> </span>table<span class="w"> </span><span class="nb">local</span><span class="w">          </span><span class="c1"># 本機位址（核心維護）</span>
+ip<span class="w"> </span>route<span class="w"> </span>show<span class="w"> </span>table<span class="w"> </span>all<span class="w">            </span><span class="c1"># 全部表</span>
+ip<span class="w"> </span>route<span class="w"> </span>get<span class="w"> </span>&lt;IP&gt;<span class="w">                  </span><span class="c1"># ★ 問核心「實際會怎麼走」</span>
+ip<span class="w"> </span>route<span class="w"> </span>get<span class="w"> </span>&lt;IP&gt;<span class="w"> </span>mark<span class="w"> </span><span class="m">1</span><span class="w">           </span><span class="c1">#   模擬帶標記的封包</span>
+ip<span class="w"> </span>route<span class="w"> </span>get<span class="w"> </span>&lt;IP&gt;<span class="w"> </span>from<span class="w"> </span>&lt;IP&gt;<span class="w">        </span><span class="c1">#   模擬指定來源</span>
+
+<span class="c1"># === 改（都是暫時的，重開機消失）===</span>
+ip<span class="w"> </span>rule<span class="w"> </span>add<span class="w"> </span>fwmark<span class="w"> </span><span class="m">1</span><span class="w"> </span>lookup<span class="w"> </span><span class="m">100</span><span class="w"> </span>pref<span class="w"> </span><span class="m">100</span>
+ip<span class="w"> </span>rule<span class="w"> </span>del<span class="w"> </span>pref<span class="w"> </span><span class="m">100</span>
+ip<span class="w"> </span>route<span class="w"> </span>add<span class="w"> </span>default<span class="w"> </span>via<span class="w"> </span><span class="m">192</span>.168.1.1<span class="w"> </span>table<span class="w"> </span><span class="m">100</span>
+ip<span class="w"> </span>route<span class="w"> </span>add<span class="w"> </span><span class="nb">local</span><span class="w"> </span><span class="m">0</span>.0.0.0/0<span class="w"> </span>dev<span class="w"> </span>lo<span class="w"> </span>table<span class="w"> </span><span class="m">100</span>
+ip<span class="w"> </span>route<span class="w"> </span>replace<span class="w"> </span>default<span class="w"> </span>via<span class="w"> </span><span class="m">192</span>.168.1.1<span class="w">        </span><span class="c1"># 冪等，腳本用這個</span>
+ip<span class="w"> </span>route<span class="w"> </span>flush<span class="w"> </span>table<span class="w"> </span><span class="m">100</span>
+
+<span class="c1"># === 文法忘了就問工具 ===</span>
+ip<span class="w"> </span>route<span class="w"> </span><span class="nb">help</span><span class="w"> </span><span class="p">;</span><span class="w"> </span>ip<span class="w"> </span>rule<span class="w"> </span><span class="nb">help</span><span class="w"> </span><span class="p">;</span><span class="w"> </span>ip<span class="w"> </span><span class="nb">help</span>
+
+<span class="c1"># === 備份 ===</span>
+ip<span class="w"> </span>route<span class="w"> </span>save<span class="w"> </span>&gt;<span class="w"> </span>routes.bin<span class="w"> </span><span class="p">;</span><span class="w"> </span>ip<span class="w"> </span>route<span class="w"> </span>restore<span class="w"> </span>&lt;<span class="w"> </span>routes.bin
+ip<span class="w"> </span>rule<span class="w">  </span>save<span class="w"> </span>&gt;<span class="w"> </span>rules.bin<span class="w">  </span><span class="p">;</span><span class="w"> </span>ip<span class="w"> </span>rule<span class="w">  </span>restore<span class="w"> </span>&lt;<span class="w"> </span>rules.bin
+
+<span class="c1"># === 救援 ===</span>
+ip<span class="w"> </span>rule<span class="w"> </span>show<span class="w">                       </span><span class="c1"># 先確認預設三條還在</span>
+ip<span class="w"> </span>route<span class="w"> </span>show<span class="w"> </span>table<span class="w"> </span><span class="nb">local</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>head<span class="w">   </span><span class="c1"># 確認本機位址還在</span>
+<span class="c1">#（最壞情況：reboot 會還原所有非持久化的改動）</span>
+</code></pre>
+<hr />
+<h2 id="自我測驗">自我測驗</h2>
+<ol>
+<li>Linux 的路由決策分成哪兩層？平常為什麼幾乎感覺不到第一層的存在？</li>
+<li>你加了 <code>ip rule add fwmark 1 lookup 100</code>，<code>ip rule show</code> 也確實列出來了，但封包行為完全沒變。除了「規則沒命中」之外，還有一個很常見的原因是什麼？要用哪個指令才能分辨這兩種情況？</li>
+<li><code>ip route add local 0.0.0.0/0 dev lo table 100</code> 這條路由，<code>local</code> 這個字讓核心做了什麼判斷？為什麼這正好是 TPROXY 需要的？</li>
+<li>你要寫一個開機腳本來建立策略路由。<code>ip route add</code> 與 <code>ip route replace</code> 該選哪個、為什麼？另外 <code>ip rule add</code> 重複執行會發生什麼事（和 <code>ip route add</code> 不一樣），該怎麼寫才安全？</li>
+<li>情境題：你在遠端主機上想清掉自己剛加的策略路由規則，打了 <code>ip rule flush</code>。會發生什麼事？正確的做法應該是什麼？</li>
+</ol>
+
+</main>
+</div>
+</body>
+</html>

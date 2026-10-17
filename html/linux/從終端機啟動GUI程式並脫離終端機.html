@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>從終端機開 GUI 程式，關掉終端機程式也跟著死 —— 行程還掛在終端機的 session 上</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/app.js"></script>
+</head>
+<body>
+<button class="menu-btn" onclick="toggleMenu()">☰ 目錄</button>
+<div class="layout">
+<nav class="side">
+<div class="crumbs"><a href="../index.html">🏠 首頁</a> / <a href="README.html">linux</a></div>
+<div class="tools"><button onclick="toggleTheme()">🌓 主題</button></div>
+<ul>
+<li class="l2"><a href="#%E4%B8%80%E5%85%88%E7%9C%8B%E6%9C%80%E5%B8%B8%E7%94%A8%E7%9A%84%E8%A7%A3%E6%B3%95">一、先看最常用的解法</a></li>
+<li class="l2"><a href="#%E4%BA%8C%E7%82%BA%E4%BB%80%E9%BA%BC%E9%97%9C%E7%B5%82%E7%AB%AF%E6%A9%9F%E7%A8%8B%E5%BC%8F%E6%9C%83%E6%AD%BBsighup-%E7%9A%84%E5%82%B3%E9%81%9E%E9%8F%88">二、為什麼關終端機程式會死：SIGHUP 的傳遞鏈</a></li>
+<li class="l2"><a href="#%E4%B8%89%E7%82%BA%E4%BB%80%E9%BA%BC%E7%B5%82%E7%AB%AF%E6%A9%9F%E6%9C%83%E4%B8%80%E7%9B%B4%E5%8D%B0%E8%BC%B8%E5%87%BA%E6%AA%94%E6%A1%88%E6%8F%8F%E8%BF%B0%E7%AC%A6%E6%98%AF%E7%B9%BC%E6%89%BF%E4%BE%86%E7%9A%84">三、為什麼終端機會一直印輸出：檔案描述符是繼承來的</a></li>
+<li class="l2"><a href="#%E5%9B%9Bcode-%E5%85%B6%E5%AF%A6%E6%98%AF%E7%89%B9%E4%BE%8B">四、code 其實是特例</a></li>
+<li class="l3"><a href="#%E6%89%BE%E5%87%BA-vs-code-%E7%9A%84%E4%B8%BB%E8%A1%8C%E7%A8%8B-pidprocess-id%E8%A1%8C%E7%A8%8B%E8%AD%98%E5%88%A5%E7%A2%BC">找出 VS Code 的主行程 PID（Process ID，行程識別碼）</a></li>
+<li class="l2"><a href="#%E4%BA%94%E6%83%B3%E5%B8%B8%E7%94%A8%E7%9A%84%E8%A9%B1%E5%AF%AB%E6%88%90%E5%87%BD%E5%BC%8F">五、想常用的話：寫成函式</a></li>
+<li class="l2"><a href="#%E7%9B%B8%E9%97%9C%E6%8C%87%E4%BB%A4%E7%9A%84%E5%AE%8C%E6%95%B4%E9%81%B8%E9%A0%85">相關指令的完整選項</a></li>
+<li class="l3"><a href="#setsidutil-linux">setsid（util-linux）</a></li>
+<li class="l3"><a href="#nohupcoreutils">nohup（coreutils）</a></li>
+<li class="l3"><a href="#disownshell-%E5%85%A7%E5%BB%BA%E9%9D%9E%E5%A4%96%E9%83%A8%E6%8C%87%E4%BB%A4">disown（shell 內建，非外部指令）</a></li>
+<li class="l2"><a href="#%E8%87%AA%E6%88%91%E6%B8%AC%E9%A9%97">自我測驗</a></li>
+</ul>
+</nav>
+<main>
+<h1 id="從終端機開-gui-程式關掉終端機程式也跟著死--行程還掛在終端機的-session-上">從終端機開 GUI 程式，關掉終端機程式也跟著死 —— 行程還掛在終端機的 session 上</h1>
+<blockquote>
+<p>日期：2026-09-19<br />
+情境：想在終端機打程式名稱（例如 <code>code</code>）開 GUI 程式，但終端機會一直印出程式的輸出；而且一關終端機，程式也跟著被關掉<br />
+適用範圍：Linux 桌面環境，bash / zsh（zsh 是本機預設 shell）</p>
+</blockquote>
+<p><strong>一句話結論：程式會「跟著終端機死」，是因為關終端機時 shell 會把 SIGHUP 轉發給它的工作（job）；會「一直印東西」，是因為程式的 stdout/stderr 還接在終端機上。解法就是把這兩條線都剪斷——<code>setsid -f prog &gt;/dev/null 2&gt;&amp;1</code>，或 zsh 下的 <code>prog &amp;&gt;/dev/null &amp;!</code>。</strong></p>
+<hr />
+<h2 id="一先看最常用的解法">一、先看最常用的解法</h2>
+<pre><code class="language-bash"><span class="c1"># 1. 最推薦：開一個全新 session，完全脫離這個終端機</span>
+setsid<span class="w"> </span>-f<span class="w"> </span>firefox<span class="w"> </span>&gt;/dev/null<span class="w"> </span><span class="m">2</span>&gt;<span class="p">&amp;</span><span class="m">1</span>
+
+<span class="c1"># 2. zsh 專屬簡寫：&amp;! （或 &amp;|）= 背景執行 + 立刻 disown</span>
+firefox<span class="w"> </span><span class="p">&amp;</span>&gt;/dev/null<span class="w"> </span><span class="p">&amp;</span>!
+
+<span class="c1"># 3. bash / zsh 通用：背景執行後，把它從 job 表移除</span>
+firefox<span class="w"> </span><span class="p">&amp;</span>&gt;/dev/null<span class="w"> </span><span class="p">&amp;</span><span class="w"> </span><span class="nb">disown</span>
+
+<span class="c1"># 4. 老牌寫法：讓程式忽略 SIGHUP</span>
+nohup<span class="w"> </span>firefox<span class="w"> </span>&gt;/dev/null<span class="w"> </span><span class="m">2</span>&gt;<span class="p">&amp;</span><span class="m">1</span><span class="w"> </span><span class="p">&amp;</span>
+
+<span class="c1"># 5. 用檔案類型 / .desktop 開啟，跟從選單點開幾乎一樣</span>
+xdg-open<span class="w"> </span>~/some.pdf<span class="w">            </span><span class="c1"># 用預設程式開某個檔案</span>
+gtk-launch<span class="w"> </span>code<span class="w">                </span><span class="c1"># 依 .desktop 檔（/usr/share/applications/code.desktop）啟動</span>
+</code></pre>
+<p><code>&gt;/dev/null 2&gt;&amp;1</code> 負責「不要再印東西」（語法細節見 <a href="%E8%BC%B8%E5%87%BA%E9%87%8D%E6%96%B0%E5%B0%8E%E5%90%91%E8%88%87dev-null.html">輸出重新導向與dev-null</a>）；<code>setsid</code> / <code>&amp;!</code> / <code>disown</code> / <code>nohup</code> 負責「關終端機不會死」。兩件事是<strong>分開的</strong>，下面分別解釋。</p>
+<hr />
+<h2 id="二為什麼關終端機程式會死sighup-的傳遞鏈">二、為什麼關終端機程式會死：SIGHUP 的傳遞鏈</h2>
+<p>從終端機打 <code>firefox &amp;</code>，行程的關係長這樣：</p>
+<pre><code>終端機模擬器（gnome-terminal 等）
+  └─ 虛擬終端（pty, pseudo-terminal；詳見 PTY是什麼-終端機模擬器與虛擬終端.md）
+       └─ zsh           ← 這個 session 的 session leader
+            └─ firefox  ← zsh 的 job，同一個 session，控制終端機（controlling terminal）是這個 pty
+</code></pre>
+<p>關掉終端機視窗時（pty 的 master／slave 結構見 <a href="PTY%E6%98%AF%E4%BB%80%E9%BA%BC-%E7%B5%82%E7%AB%AF%E6%A9%9F%E6%A8%A1%E6%93%AC%E5%99%A8%E8%88%87%E8%99%9B%E6%93%AC%E7%B5%82%E7%AB%AF.html">PTY是什麼-終端機模擬器與虛擬終端</a>）：</p>
+<ol>
+<li>終端機模擬器關閉 pty 的 master 端。</li>
+<li>核心對 session leader（zsh）送出 <strong>SIGHUP（Signal Hang Up，掛斷信號）</strong>——這名稱來自早期撥接數據機「電話掛斷了」。</li>
+<li><strong>zsh 收到 SIGHUP 後，會把 SIGHUP 轉送給自己 job 表裡的每一個工作</strong>（zsh 預設開著 <code>HUP</code> 選項；bash 則是 <code>huponexit</code> 等相關行為加上收到 SIGHUP 時轉發給 job）。</li>
+<li>大部分程式對 SIGHUP 的預設處理是「結束行程」→ firefox 死掉。</li>
+</ol>
+<p>所以各解法對應剪斷的是鏈上的不同環節：</p>
+<table>
+<thead>
+<tr>
+<th>解法</th>
+<th>剪斷哪一環</th>
+<th>原理</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>disown</code> / <code>&amp;!</code></td>
+<td>第 3 步</td>
+<td>把程式從 shell 的 job 表拿掉，shell 就不會轉發 SIGHUP 給它</td>
+</tr>
+<tr>
+<td><code>nohup</code></td>
+<td>第 4 步</td>
+<td>把 SIGHUP 設成忽略（ignore），信號送到也沒事</td>
+</tr>
+<tr>
+<td><code>setsid</code></td>
+<td>整條鏈</td>
+<td>程式變成<strong>新 session 的 leader</strong>，沒有控制終端機，根本不在這條鏈上</td>
+</tr>
+</tbody>
+</table>
+<p><code>setsid -f</code> 最乾淨：不只躲過 SIGHUP，也不會被終端機的 Ctrl+C（SIGINT 只送給前景行程群組）或其他作業控制（job control）影響。<code>-f</code>（fork）確保即使從前景行程群組呼叫，也一定會 fork 出新行程再 <code>setsid()</code>。</p>
+<hr />
+<h2 id="三為什麼終端機會一直印輸出檔案描述符是繼承來的">三、為什麼終端機會一直印輸出：檔案描述符是繼承來的</h2>
+<p>子行程會<strong>繼承</strong>父行程的檔案描述符（file descriptor）。從 zsh 啟動的程式，fd 1（stdout）與 fd 2（stderr）都指向同一個 pty，所以程式的 log、警告全部印在你的終端機上。</p>
+<ul>
+<li><code>&amp;</code> 只是讓 shell 不等它結束（不佔用提示字元），<strong>不會</strong>改變 fd——所以 <code>firefox &amp;</code> 還是會把輸出噴在畫面上。</li>
+<li><code>&gt;/dev/null 2&gt;&amp;1</code>（zsh / bash 可簡寫 <code>&amp;&gt;/dev/null</code>）才是把 fd 1、2 重新導向到黑洞。</li>
+<li><code>nohup</code> 若發現 stdout 是終端機，會自動改寫到 <code>nohup.out</code>——這就是為什麼用 <code>nohup</code> 常會在目錄裡多一個 <code>nohup.out</code>；自己導向 <code>/dev/null</code> 就不會產生。</li>
+</ul>
+<p><strong><code>setsid</code> 也不會幫你處理輸出。</strong> 常見的誤解是「開了新 session 就跟終端機完全無關了」。其實 <code>setsid</code> 只改變 session 與控制終端機（controlling terminal），<strong>不會動任何已開啟的 fd</strong>。這兩件事互相獨立：</p>
+<ul>
+<li>控制終端機是 session 層級的屬性，決定誰會收到 SIGHUP、SIGINT 這類終端機信號。</li>
+<li>fd 是行程手上握著的檔案參照，只要沒被關掉或重新導向，就一直指向原本那個 pty。</li>
+</ul>
+<p>實測 <code>setsid -f sleep 30</code>：<code>ps</code> 的 <code>TT</code> 欄顯示 <code>?</code>（沒有控制終端機），但 <code>ls -l /proc/&lt;pid&gt;/fd</code> 裡的 1、2 仍然指向 <code>/dev/pts/N</code>。所以只用 <code>setsid</code>，程式照樣會在你的終端機上印東西。</p>
+<p><strong>只做 <code>disown</code> 或 <code>setsid</code>、不導向輸出</strong>的話：終端機關掉之後，程式再寫 stdout 會拿到錯誤（寫入已關閉的 pty 可能收到 SIGPIPE 或 <code>EIO</code>），有些程式會因此崩潰。所以兩件事要一起做。</p>
+<hr />
+<h2 id="四code-其實是特例">四、<code>code</code> 其實是特例</h2>
+<p>VS Code 的 <code>code</code> 指令（<code>/usr/bin/code</code>）是個 shell script，最後呼叫 VS Code 內建的 CLI，而那個 CLI <strong>本來就會把 Electron 主程式以 detached 方式啟動、自己立刻退出</strong>。所以正常情況下 <code>code .</code> 會馬上回到提示字元，關終端機也不會關到 VS Code。</p>
+<p>如果你看到 <code>code</code> 卡住並持續印輸出，通常是以下之一：</p>
+<ul>
+<li>加了 <code>--verbose</code> 或 <code>--wait</code>（<code>-w</code>）——這兩個參數會讓 CLI 刻意留在前景。</li>
+<li>你打的其實不是 <code>/usr/bin/code</code>（用 <code>which -a code</code> / <code>type code</code> 確認；例如 alias、snap/flatpak 版本、直接執行 Electron 二進位檔）。</li>
+<li>你遇到的其實是別的程式（firefox、nautilus、自己寫的 GUI 程式……），它們沒有自己 detach 的機制，就需要上面的解法。</li>
+</ul>
+<p>判斷方法：啟動後看提示字元有沒有立刻回來；或用 <code>ps -o pid,sid,tty,cmd -C code</code> 看它的 <code>SID</code>（session ID）與 <code>TTY</code>——<code>TTY</code> 是 <code>?</code> 就代表它沒有控制終端機，關終端機不會影響它。</p>
+<h3 id="找出-vs-code-的主行程-pidprocess-id行程識別碼">找出 VS Code 的主行程 PID（Process ID，行程識別碼）</h3>
+<p>VS Code 是 Electron（Chromium）應用程式（Electron 是什麼見 <a href="../electron/Electron%E6%98%AF%E4%BB%80%E9%BA%BC-%E7%82%BA%E4%BB%80%E9%BA%BCVSCode%E6%9C%89%E5%8D%81%E5%B9%BE%E5%80%8B%E8%A1%8C%E7%A8%8B.html">Electron是什麼-為什麼VSCode有十幾個行程</a>），採多行程架構（multi-process architecture）：一個主行程（main process），底下有 zygote、GPU、renderer、extension host 等子行程。所以 <code>pgrep code</code> 會列出十幾個 PID，要挑的是<strong>主行程</strong>——也就是「父行程不是 <code>code</code>」的那一個。</p>
+<pre><code class="language-bash">pgrep<span class="w"> </span>-a<span class="w"> </span>-x<span class="w"> </span>code<span class="w">                  </span><span class="c1"># 列出所有叫 code 的行程（含命令列）</span>
+pstree<span class="w"> </span>-p<span class="w"> </span><span class="k">$(</span>pgrep<span class="w"> </span>-o<span class="w"> </span>-x<span class="w"> </span>code<span class="k">)</span><span class="w">     </span><span class="c1"># -o = 最舊的那個，通常就是主行程；pstree 看整棵樹</span>
+ps<span class="w"> </span>-o<span class="w"> </span>pid,ppid,sid,tty,etime,cmd<span class="w"> </span>-p<span class="w"> </span><span class="k">$(</span>pgrep<span class="w"> </span>-o<span class="w"> </span>-x<span class="w"> </span>code<span class="k">)</span>
+</code></pre>
+<p>實測結果（2026-09-19，本機）：</p>
+<pre><code>    PID    PPID     SID TT   ELAPSED CMD
+  13767    1997   13767 ?      12:54 /usr/share/code/code
+</code></pre>
+<p>這一行剛好驗證了本篇前面的說法：</p>
+<ul>
+<li><code>PPID 1997</code> 是 <code>systemd --user</code>，不是 zsh——啟動它的 CLI 已經退出，主行程被收養（reparent）了。</li>
+<li><code>SID == PID</code>——它自己就是一個新 session 的 leader，等於 VS Code 自己做了 <code>setsid</code>。</li>
+<li><code>TT ?</code>——沒有控制終端機，所以關終端機收不到 SIGHUP。</li>
+</ul>
+<p>注意：<code>pgrep -o</code> 挑最舊的，只在你沒有同時開別的 <code>code</code> 實例（例如不同 <code>--user-data-dir</code>）時才準；有疑慮就用 <code>pstree</code> 看誰是樹根。</p>
+<hr />
+<h2 id="五想常用的話寫成函式">五、想常用的話：寫成函式</h2>
+<p>放進 <code>~/.zshrc</code>：</p>
+<pre><code class="language-zsh"><span class="c1"># 用法：run firefox ~/file.html</span>
+run<span class="o">()</span><span class="w"> </span><span class="o">{</span><span class="w"> </span>setsid<span class="w"> </span>-f<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$@</span><span class="s2">&quot;</span><span class="w"> </span>&gt;/dev/null<span class="w"> </span><span class="m">2</span>&gt;<span class="p">&amp;</span><span class="m">1</span><span class="w"> </span><span class="o">}</span>
+</code></pre>
+<hr />
+<h2 id="相關指令的完整選項">相關指令的完整選項</h2>
+<h3 id="setsidutil-linux"><code>setsid</code>（util-linux）</h3>
+<table>
+<thead>
+<tr>
+<th>選項</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-c</code> <code>--ctty</code></td>
+<td><strong>把控制終端機設成目前這個</strong>（少用，通常正好相反）</td>
+</tr>
+<tr>
+<td><code>-f</code> <code>--fork</code></td>
+<td><strong>一定要 fork</strong>（本文用的就是它；不加的話若已是 group leader 會直接執行而不脫離）</td>
+</tr>
+<tr>
+<td><code>-w</code> <code>--wait</code></td>
+<td>等程式結束並回傳相同的離開碼</td>
+</tr>
+<tr>
+<td><code>-h</code> / <code>-V</code></td>
+<td>說明／版本</td>
+</tr>
+</tbody>
+</table>
+<p><strong>只有四個選項，<code>-f</code> 是關鍵那個。</strong></p>
+<h3 id="nohupcoreutils"><code>nohup</code>（coreutils）</h3>
+<p><strong>它沒有功能性選項</strong>——只有 <code>--help</code> 與 <code>--version</code>。</p>
+<p>它做的事是固定的三件：忽略 <code>SIGHUP</code>、若 stdout 是終端機就導向 <code>nohup.out</code>、若 stdin 是終端機就從不可讀的檔案導入。<strong>要客製只能自己接重新導向。</strong></p>
+<h3 id="disownshell-內建非外部指令"><code>disown</code>（shell 內建，非外部指令）</h3>
+<table>
+<thead>
+<tr>
+<th>選項</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-h</code></td>
+<td><strong>不移出 job 表，只標記不接收 SIGHUP</strong></td>
+</tr>
+<tr>
+<td><code>-a</code></td>
+<td>對所有 job 生效</td>
+</tr>
+<tr>
+<td><code>-r</code></td>
+<td>只對執行中的 job 生效</td>
+</tr>
+<tr>
+<td>（不給選項）</td>
+<td>把 job 從 shell 的 job 表移除</td>
+</tr>
+</tbody>
+</table>
+<p>因為是內建指令，<strong>查法是 <code>help disown</code>（bash）或 <code>man zshbuiltins</code>（zsh），不是 <code>disown --help</code></strong>。</p>
+<h2 id="自我測驗">自我測驗</h2>
+<ol>
+<li>關掉終端機視窗時，程式被關掉的整條因果鏈是什麼？SIGHUP 是誰送給誰的？</li>
+<li><code>disown</code>、<code>nohup</code>、<code>setsid</code> 都能讓程式在關終端機後存活，它們分別切斷了鏈上的哪一環？為什麼說 <code>setsid</code> 最徹底？</li>
+<li>同事說「我已經用 <code>firefox &amp;</code> 放背景了，為什麼終端機還一直跳 log？」——他搞混了哪兩件事？</li>
+<li>情境題：某人用 <code>myapp &amp; disown</code> 啟動程式，關掉終端機後程式沒有立刻死，但過一陣子在某個時間點突然崩潰。你會先懷疑什麼原因？怎麼改？</li>
+<li>有人說「<code>setsid</code> 已經讓程式脫離終端機了，所以不用再加 <code>&gt;/dev/null 2&gt;&amp;1</code>」。這句話錯在哪？脫離控制終端機跟 fd 指向哪裡為什麼是兩回事？</li>
+<li>情境題：你在終端機打 <code>code .</code> 後提示字元立刻回來，關掉終端機 VS Code 也沒被關；但同樣打 <code>firefox</code> 就會卡住終端機。為什麼兩者行為不同？</li>
+</ol>
+
+</main>
+</div>
+</body>
+</html>

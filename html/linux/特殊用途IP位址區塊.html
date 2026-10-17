@@ -1,0 +1,305 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>特殊用途的 IP 位址區塊 —— 那份「排除清單」是怎麼來的</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/app.js"></script>
+</head>
+<body>
+<button class="menu-btn" onclick="toggleMenu()">☰ 目錄</button>
+<div class="layout">
+<nav class="side">
+<div class="crumbs"><a href="../index.html">🏠 首頁</a> / <a href="README.html">linux</a></div>
+<div class="tools"><button onclick="toggleTheme()">🌓 主題</button></div>
+<ul>
+<li class="l2"><a href="#%E4%B8%80%E9%82%A3%E4%BB%BD%E6%B8%85%E5%96%AE%E9%80%90%E9%A0%85%E6%98%AF%E4%BB%80%E9%BA%BC">一、那份清單逐項是什麼</a></li>
+<li class="l2"><a href="#%E4%BA%8C%E9%80%99%E4%BB%BD%E6%B8%85%E5%96%AE%E6%BC%8F%E4%BA%86%E4%BB%80%E9%BA%BC">二、這份清單漏了什麼</a></li>
+<li class="l2"><a href="#%E4%B8%89%E5%B0%8D%E7%85%A7%E4%BD%A0%E8%87%AA%E5%B7%B1%E7%9A%84%E6%A9%9F%E5%99%A8">三、對照你自己的機器</a></li>
+<li class="l2"><a href="#%E5%9B%9B%E6%AF%94%E8%BC%83%E5%AE%8C%E6%95%B4%E7%9A%84%E4%B8%80%E4%BB%BD">四、比較完整的一份</a></li>
+<li class="l2"><a href="#%E4%BA%94%E6%80%8E%E9%BA%BC%E6%9F%A5%E4%B8%80%E5%80%8B%E4%BD%8D%E5%9D%80%E5%B1%AC%E6%96%BC%E5%93%AA%E4%B8%80%E9%A1%9E">五、怎麼查一個位址屬於哪一類</a></li>
+<li class="l2"><a href="#%E5%85%AD%E5%85%B6%E4%BB%96%E6%9C%83%E7%94%A8%E5%88%B0%E5%90%8C%E4%B8%80%E4%BB%BD%E6%B8%85%E5%96%AE%E7%9A%84%E5%9C%B0%E6%96%B9">六、其他會用到同一份清單的地方</a></li>
+<li class="l2"><a href="#%E8%87%AA%E6%88%91%E6%B8%AC%E9%A9%97">自我測驗</a></li>
+</ul>
+</nav>
+<main>
+<h1 id="特殊用途的-ip-位址區塊--那份排除清單是怎麼來的">特殊用途的 IP 位址區塊 —— 那份「排除清單」是怎麼來的</h1>
+<blockquote>
+<p>日期：2026-09-21<br />
+情境：寫透明代理的 nft 規則時有一份 <code>bypass</code> 網段清單，想知道那些 CIDR 是什麼、從哪來、有沒有漏掉<br />
+適用範圍：IPv4；依據是 IANA 的 Special-Purpose Address Registry 與各自的 RFC<br />
+相關：<a href="../openwrt/%E7%94%A8dokodemo-door%E5%81%9ATPROXY%E9%80%8F%E6%98%8E%E4%BB%A3%E7%90%86.html">用dokodemo-door做TPROXY透明代理</a>、
+<a href="RIR%E6%98%AF%E4%BB%80%E9%BA%BC-IANA%E8%88%87ARIN-APNIC%E7%9A%84%E5%88%86%E5%B7%A5.html">RIR是什麼-IANA與ARIN-APNIC的分工</a>、
+<a href="%E6%9F%A5%E8%A9%A2%E8%BD%89%E7%99%BC%E8%A1%A8%E8%88%87%E8%B7%AF%E7%94%B1%E8%A1%A8.html">查詢轉發表與路由表</a></p>
+</blockquote>
+<p><strong>一句話結論：那些 CIDR 不是誰憑感覺挑的，是 <strong>IANA 的「特殊用途位址註冊表」</strong>
+（背後是一系列 RFC）明文保留的區塊——它們<strong>不是網際網路上可路由的目的地</strong>，所以任何「把流量送出去」的機制（代理、VPN、隧道）都必須先把它們排除。實務上常見的清單其實<strong>不完整</strong>，最容易漏掉的是 CGNAT 的 <code>100.64.0.0/10</code>。</strong></p>
+<hr />
+<h2 id="一那份清單逐項是什麼">一、那份清單逐項是什麼</h2>
+<pre><code>0.0.0.0/8, 10.0.0.0/8, 127.0.0.0/8, 169.254.0.0/16,
+172.16.0.0/12, 192.168.0.0/16, 224.0.0.0/4, 240.0.0.0/4
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>CIDR</th>
+<th>名稱</th>
+<th>出處</th>
+<th>是什麼</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>0.0.0.0/8</code></td>
+<td>This network</td>
+<td>RFC 1122</td>
+<td>「本網路」；<code>0.0.0.0</code> 是「未指定位址」，當來源用（例如 DHCP 還沒拿到 IP 時）。<strong>不是合法的目的地</strong></td>
+</tr>
+<tr>
+<td><code>10.0.0.0/8</code></td>
+<td>Private-Use</td>
+<td><strong>RFC 1918</strong></td>
+<td>私有網段（最大的一塊，16777216 個位址）</td>
+</tr>
+<tr>
+<td><code>127.0.0.0/8</code></td>
+<td>Loopback</td>
+<td>RFC 1122</td>
+<td>迴路。<strong>注意是整個 /8，不只 127.0.0.1</strong></td>
+</tr>
+<tr>
+<td><code>169.254.0.0/16</code></td>
+<td>Link Local</td>
+<td>RFC 3927</td>
+<td>拿不到 DHCP 時自動配的位址（Windows 叫 APIPA）。只在同一條線上有意義</td>
+</tr>
+<tr>
+<td><code>172.16.0.0/12</code></td>
+<td>Private-Use</td>
+<td><strong>RFC 1918</strong></td>
+<td>私有網段（172.16–172.31，<strong>不是 172.16–172.255</strong>）</td>
+</tr>
+<tr>
+<td><code>192.168.0.0/16</code></td>
+<td>Private-Use</td>
+<td><strong>RFC 1918</strong></td>
+<td>私有網段</td>
+</tr>
+<tr>
+<td><code>224.0.0.0/4</code></td>
+<td>Multicast</td>
+<td>RFC 1112 / 5771</td>
+<td>多播。mDNS（224.0.0.251）、SSDP（239.255.255.250）、IGMP 都在這裡</td>
+</tr>
+<tr>
+<td><code>240.0.0.0/4</code></td>
+<td>Reserved</td>
+<td>RFC 1112 §4</td>
+<td>保留區。<strong>含 <code>255.255.255.255</code> 受限廣播</strong>（DHCP Discover 就送這裡）</td>
+</tr>
+</tbody>
+</table>
+<p><strong>為什麼要排除</strong>：這些位址在公網上沒有意義。把它們送進代理有兩種後果——
+要嘛遠端伺服器連不到（浪費一次往返再失敗），要嘛更糟：
+<strong>內網流量繞了一圈出國，內網結構就洩漏給了代理伺服器</strong>。</p>
+<hr />
+<h2 id="二這份清單漏了什麼">二、這份清單漏了什麼</h2>
+<p><strong>常見的清單多半只抄 RFC 1918 那三個加迴路</strong>，但 IANA 的註冊表還有不少。以下是實務上真的會咬人的：</p>
+<table>
+<thead>
+<tr>
+<th>CIDR</th>
+<th>名稱</th>
+<th>出處</th>
+<th>什麼時候會咬你</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong><code>100.64.0.0/10</code></strong></td>
+<td><strong>Shared Address Space（CGNAT）</strong></td>
+<td><strong>RFC 6598</strong></td>
+<td><strong>ISP 用 CGNAT 時，你的 WAN 位址就在這裡</strong>。沒排除的話，連上游閘道的流量會被送進代理</td>
+</tr>
+<tr>
+<td><code>198.18.0.0/15</code></td>
+<td>Benchmarking</td>
+<td>RFC 2544</td>
+<td><strong>clash／mihomo 的 fake-ip 預設就用 <code>198.18.0.0/16</code></strong>（你桌機的 clash 正是）</td>
+</tr>
+<tr>
+<td><code>192.0.0.0/24</code></td>
+<td>IETF Protocol Assignments</td>
+<td>RFC 6890</td>
+<td>含 DS-Lite 的 <code>192.0.0.0/29</code></td>
+</tr>
+<tr>
+<td><code>192.0.2.0/24</code></td>
+<td>TEST-NET-1</td>
+<td>RFC 5737</td>
+<td>文件範例用</td>
+</tr>
+<tr>
+<td><code>198.51.100.0/24</code></td>
+<td>TEST-NET-2</td>
+<td>RFC 5737</td>
+<td>文件範例用</td>
+</tr>
+<tr>
+<td><code>203.0.113.0/24</code></td>
+<td>TEST-NET-3</td>
+<td>RFC 5737</td>
+<td>文件範例用</td>
+</tr>
+<tr>
+<td><code>192.88.99.0/24</code></td>
+<td>6to4 Relay Anycast</td>
+<td>RFC 7526（已廢止）</td>
+<td>舊的 6to4 中繼</td>
+</tr>
+<tr>
+<td><code>233.252.0.0/24</code></td>
+<td>MCAST-TEST-NET</td>
+<td>RFC 5771</td>
+<td>多播測試（已含在 224/4 裡）</td>
+</tr>
+</tbody>
+</table>
+<p><strong>最該補的是 <code>100.64.0.0/10</code>。</strong> 台灣不少 ISP（尤其行動網路與部分固網）用 CGNAT，這時路由器的 WAN 位址會是 <code>100.x.x.x</code>——<strong>沒排除的話，連上游閘道都會走代理</strong>。</p>
+<hr />
+<h2 id="三對照你自己的機器">三、對照你自己的機器</h2>
+<p>實測兩台機器的位址落在哪：</p>
+<table>
+<thead>
+<tr>
+<th>位址</th>
+<th>介面</th>
+<th>落在</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>192.168.1.1</code></td>
+<td>路由器 br-lan</td>
+<td>RFC 1918 私有</td>
+</tr>
+<tr>
+<td><strong><code>192.168.0.103</code></strong></td>
+<td><strong>路由器 phy1-sta0（WAN）</strong></td>
+<td><strong>RFC 1918 私有</strong></td>
+</tr>
+<tr>
+<td><code>127.0.0.1</code></td>
+<td>lo</td>
+<td>RFC 1122 迴路</td>
+</tr>
+<tr>
+<td><code>192.168.1.171</code></td>
+<td>桌機 wlp59s0f0</td>
+<td>RFC 1918 私有</td>
+</tr>
+<tr>
+<td><code>172.17.0.1</code></td>
+<td>桌機 docker0</td>
+<td>RFC 1918 私有</td>
+</tr>
+<tr>
+<td><code>172.18.0.1</code></td>
+<td>桌機 emqx bridge</td>
+<td>RFC 1918 私有</td>
+</tr>
+</tbody>
+</table>
+<p><strong>兩個值得注意的地方：</strong></p>
+<ol>
+<li><strong>你路由器的 WAN 側是 <code>192.168.0.103</code>，也在 <code>192.168.0.0/16</code> 裡</strong>——
+代表它是掛在另一台路由器後面（雙層 NAT）。好消息是那份 bypass 清單<strong>已經涵蓋了它</strong>，所以 LAN 裝置連上游路由器的管理頁不會被送進代理。</li>
+<li><strong>你的 ISP 目前不是 CGNAT</strong>（WAN 是私有位址而非 <code>100.64.x.x</code>）。但如果哪天上游改成直接撥接且 ISP 用 CGNAT，就必須補上 <code>100.64.0.0/10</code>。</li>
+</ol>
+<hr />
+<h2 id="四比較完整的一份">四、比較完整的一份</h2>
+<p>給透明代理用的 bypass 集合，建議至少涵蓋：</p>
+<pre><code>elements = {
+    0.0.0.0/8,          # this network
+    10.0.0.0/8,         # RFC1918
+    100.64.0.0/10,      # CGNAT ← 常被漏掉
+    127.0.0.0/8,        # loopback
+    169.254.0.0/16,     # link-local
+    172.16.0.0/12,      # RFC1918
+    192.0.0.0/24,       # IETF protocol assignments
+    192.0.2.0/24,       # TEST-NET-1
+    192.88.99.0/24,     # 6to4 relay（已廢止）
+    192.168.0.0/16,     # RFC1918
+    198.18.0.0/15,      # benchmarking ← clash fake-ip 用這裡
+    198.51.100.0/24,    # TEST-NET-2
+    203.0.113.0/24,     # TEST-NET-3
+    224.0.0.0/4,        # multicast
+    240.0.0.0/4         # reserved（含 255.255.255.255）
+}
+</code></pre>
+<p><strong>但不要無腦全抄</strong>——<code>198.18.0.0/15</code> 只有在你<strong>同時</strong>用 fake-ip 方案時才需要；排除太多不會壞事，但清單越長越難維護。<strong>判斷原則：這個網段的流量送進代理有意義嗎？沒有就排除。</strong></p>
+<blockquote>
+<p><strong>nftables 的寫法提醒</strong>：集合要放網段必須加 <code>flags interval</code>，否則只能放單一位址。（見 <a href="nft%E5%AE%8C%E6%95%B4%E7%94%A8%E6%B3%95-%E5%BE%9E%E5%91%BD%E4%BB%A4%E5%88%B0%E8%A6%8F%E5%89%87%E8%AA%9E%E6%B3%95.html">nft完整用法</a>。）</p>
+</blockquote>
+<hr />
+<h2 id="五怎麼查一個位址屬於哪一類">五、怎麼查一個位址屬於哪一類</h2>
+<pre><code class="language-bash"><span class="c1"># 最快：查 IANA</span>
+whois<span class="w"> </span>-h<span class="w"> </span>whois.iana.org<span class="w"> </span><span class="m">100</span>.64.1.1<span class="w">        </span><span class="c1"># 特殊區塊會直接說明用途</span>
+
+<span class="c1"># 本機判斷（不需連外）</span>
+python3<span class="w"> </span>-c<span class="w"> </span><span class="s2">&quot;import ipaddress as i; a=i.ip_address(&#39;100.64.1.1&#39;); \</span>
+<span class="s2">print(a.is_private, a.is_loopback, a.is_link_local, a.is_multicast, a.is_reserved)&quot;</span>
+
+<span class="c1"># 看核心怎麼路由它（會不會走預設閘道）</span>
+ip<span class="w"> </span>route<span class="w"> </span>get<span class="w"> </span><span class="m">100</span>.64.1.1
+</code></pre>
+<p><strong>權威來源</strong>是 IANA 的 <em>IANA IPv4 Special-Purpose Address Registry</em>，它列出每個區塊的 RFC、是否可轉發（Forwardable）、是否為全球可達（Globally Reachable）。
+<strong>「Globally Reachable: False」的就是該排除的。</strong></p>
+<hr />
+<h2 id="六其他會用到同一份清單的地方">六、其他會用到同一份清單的地方</h2>
+<table>
+<thead>
+<tr>
+<th>情境</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>透明代理 bypass</td>
+<td>本文主題</td>
+</tr>
+<tr>
+<td><strong>DNS rebinding 防護</strong></td>
+<td>拒絕外部域名解析成私有位址（dnsmasq 的 <code>rebind-protection</code>）</td>
+</tr>
+<tr>
+<td>防火牆的<strong>反欺騙</strong>（anti-spoofing）</td>
+<td>從 WAN 進來卻宣稱來源是私有位址 → 丟棄</td>
+</tr>
+<tr>
+<td>VPN 的 split-tunnel 設定</td>
+<td>哪些不走隧道</td>
+</tr>
+<tr>
+<td>日誌／監控過濾</td>
+<td>把內網流量排除在對外流量統計之外</td>
+</tr>
+</tbody>
+</table>
+<p><strong>同一份知識在很多地方重複用到</strong>，值得記起來而不是每次上網抄。</p>
+<hr />
+<h2 id="自我測驗">自我測驗</h2>
+<ol>
+<li>那份 bypass 清單裡的 CIDR 不是隨便挑的，它們的共同特徵是什麼？把它們送進代理會有哪兩種後果？</li>
+<li><code>172.16.0.0/12</code> 涵蓋的範圍是 <code>172.16.x.x</code> 到哪裡？很多人會答錯成什麼？</li>
+<li>最容易被漏掉的是 <code>100.64.0.0/10</code>。它是什麼用途？什麼情況下漏掉它會直接出問題？</li>
+<li>你的路由器 WAN 側位址是 <code>192.168.0.103</code>。這代表什麼架構？為什麼現有的 bypass 清單剛好已經涵蓋它？</li>
+<li>情境題：你在桌機上同時跑 clash 的 fake-ip（<code>198.18.0.0/16</code>）與一套自己寫的透明代理規則，結果某些連線莫名其妙失敗。可能是什麼原因？bypass 清單該怎麼改？</li>
+</ol>
+
+</main>
+</div>
+</body>
+</html>

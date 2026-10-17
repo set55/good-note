@@ -1,0 +1,552 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OpenWrt 上沒有 readelf、file、nm，怎麼觀察 ELF 檔？—— BusyBox 與 /proc 的替代方法</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/app.js"></script>
+</head>
+<body>
+<button class="menu-btn" onclick="toggleMenu()">☰ 目錄</button>
+<div class="layout">
+<nav class="side">
+<div class="crumbs"><a href="../index.html">🏠 首頁</a> / <a href="README.html">openwrt</a></div>
+<div class="tools"><button onclick="toggleTheme()">🌓 主題</button></div>
+<ul>
+<li class="l2"><a href="#%E4%B8%80%E5%85%88%E6%90%9E%E6%B8%85%E6%A5%9A%E8%B7%AF%E7%94%B1%E5%99%A8%E4%B8%8A%E6%9C%89%E4%BB%80%E9%BA%BC">一、先搞清楚路由器上有什麼</a></li>
+<li class="l2"><a href="#%E4%BA%8Cldd-%E5%85%B6%E5%AF%A6%E5%AD%98%E5%9C%A8musl-%E7%9A%84%E5%87%BD%E5%BC%8F%E5%BA%AB%E5%85%BC%E4%BB%BB">二、ldd 其實存在：musl 的函式庫兼任</a></li>
+<li class="l2"><a href="#%E4%B8%89hexdump--c-%E7%9B%B4%E6%8E%A5%E8%AE%80-elf-%E6%AA%94%E9%A0%AD">三、hexdump -C 直接讀 ELF 檔頭</a></li>
+<li class="l2"><a href="#%E5%9B%9Bstrings-%E6%89%BE-interpreter-%E8%B7%AF%E5%BE%91%E7%B2%97%E7%95%A5">四、strings 找 interpreter 路徑（粗略）</a></li>
+<li class="l2"><a href="#%E4%BA%94procpidmaps%E7%9C%8B%E5%9F%B7%E8%A1%8C%E6%99%82%E5%AF%A6%E9%9A%9B%E8%BC%89%E5%85%A5%E4%BA%86%E4%BB%80%E9%BA%BC">五、/proc/&lt;PID&gt;/maps：看執行時實際載入了什麼</a></li>
+<li class="l2"><a href="#%E5%85%AD%E9%9C%80%E8%A6%81%E5%AE%8C%E6%95%B4%E5%B7%A5%E5%85%B7%E6%99%82opkg-%E5%AE%89%E8%A3%9D%E6%88%96%E8%A4%87%E8%A3%BD%E5%9B%9E-ubuntu">六、需要完整工具時：opkg 安裝，或複製回 Ubuntu</a></li>
+<li class="l3"><a href="#opkg-%E7%9A%84%E5%AD%90%E5%91%BD%E4%BB%A4%E6%9C%AC%E7%AF%87%E7%94%A8%E5%88%B0-listinfosearch%E5%85%B1-26-%E5%80%8B%E4%B8%AD%E7%9A%84-3-%E5%80%8B">opkg 的子命令（本篇用到 list、info、search，共 26 個中的 3 個）</a></li>
+<li class="l2"><a href="#%E8%87%AA%E6%88%91%E6%B8%AC%E9%A9%97">自我測驗</a></li>
+</ul>
+</nav>
+<main>
+<h1 id="openwrt-上沒有-readelffilenm怎麼觀察-elf-檔-busybox-與-proc-的替代方法">OpenWrt 上沒有 <code>readelf</code>、<code>file</code>、<code>nm</code>，怎麼觀察 ELF 檔？—— BusyBox 與 <code>/proc</code> 的替代方法</h1>
+<blockquote>
+<p>日期：2026-09-24<br />
+情境：學完第 ① 站第 1 課的 ELF 相關筆記後，想在 OpenWrt 路由器上用同樣的方法觀察檔案，卻發現 <code>readelf</code>、<code>file</code>、<code>nm</code> 都不存在<br />
+適用範圍：OpenWrt 24.10.2（<code>mediatek/filogic</code>，aarch64），BusyBox 1.36.1，musl 1.2.5；全部經 <code>ssh root@192.168.1.1</code> 實測，<strong>沒有安裝任何套件</strong><br />
+相關：<a href="../c/ELF%E6%98%AF%E4%BB%80%E9%BA%BC-%E5%8F%AF%E5%9F%B7%E8%A1%8C%E8%88%87%E5%8F%AF%E9%80%A3%E7%B5%90%E6%A0%BC%E5%BC%8F%E7%9A%84%E5%85%A9%E7%A8%AE%E8%A6%96%E8%A7%92.html">ELF是什麼</a>、<a href="../c/ELF%E7%9A%84interpreter%E6%98%AF%E4%BB%80%E9%BA%BC-%E5%8B%95%E6%85%8B%E8%BC%89%E5%85%A5%E5%99%A8%E8%88%87%E4%BA%95%E5%AD%97%E8%99%9F%E9%A9%9A%E5%98%86%E8%99%9F.html">ELF的interpreter是什麼</a>、
+<a href="../c/objdump%E8%83%BD%E4%B8%8D%E8%83%BD%E4%BB%A3%E6%9B%BFldd%E6%89%BE%E4%BE%9D%E8%B3%B4%E5%BA%AB-%E9%9C%80%E6%B1%82%E5%96%AE%E8%88%87%E5%AF%A6%E9%9A%9B%E8%BC%89%E5%85%A5.html">objdump能不能代替ldd</a>、<a href="../linux/GNU%E6%98%AF%E4%BB%80%E9%BA%BC-Linux%E6%A0%B8%E5%BF%83%E8%88%87GNU%E5%B7%A5%E5%85%B7%E7%9A%84%E5%88%86%E5%B7%A5.html">GNU是什麼</a></p>
+</blockquote>
+<p><strong>一句話結論：路由器為了省空間，只放了 BusyBox 的精簡工具，沒有 binutils。但不裝任何東西也能觀察四件事：
+<code>ldd</code> 其實存在（musl 的 C 函式庫兼任）、<code>hexdump -C</code> 可以直接讀 ELF 檔頭、<code>strings</code> 找得到 interpreter 路徑、
+<code>/proc/&lt;PID&gt;/maps</code> 看得到</strong>執行時實際載入<strong>了什麼。要完整的 <code>readelf</code>／<code>file</code>／<code>strace</code>，可以用 <code>opkg</code> 安裝，或把檔案複製回 Ubuntu 再看。</strong></p>
+<hr />
+<h2 id="一先搞清楚路由器上有什麼">一、先搞清楚路由器上有什麼</h2>
+<p>OpenWrt 的 BusyBox 編譯時關掉了說明與 <code>--list</code> 功能：</p>
+<pre><code>root@OpenWrt:~# busybox
+busybox: applet not found
+root@OpenWrt:~# busybox --list
+-list: applet not found
+</code></pre>
+<p>所以要反過來查：BusyBox 的每個工具（applet）都是一個指向 <code>busybox</code> 的符號連結，把它們找出來就是完整清單：</p>
+<pre><code>root@OpenWrt:~# for d in /bin /sbin /usr/bin /usr/sbin; do ls -l $d | grep -- '-&gt; .*busybox'; done
+</code></pre>
+<p>實測共 119 個（加 <code>| wc -l</code> 計數），跟「觀察檔案」有關的只有這些：<code>hexdump</code>、<code>strings</code>、<code>cmp</code>、<code>md5sum</code>、<code>sha256sum</code>、<code>dd</code>、<code>head</code>、<code>readlink</code>、<code>which</code>、<code>ls</code>。
+<strong>沒有</strong> <code>od</code>、<code>xxd</code>、<code>file</code>、<code>readelf</code>、<code>objdump</code>、<code>nm</code>、<code>strace</code>、<code>gdb</code>。</p>
+<p>跟 Ubuntu 的對照：</p>
+<table>
+<thead>
+<tr>
+<th>Ubuntu 上用的</th>
+<th>路由器上的替代</th>
+<th>能看到什麼</th>
+<th>本篇</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ldd</code></td>
+<td><code>ldd</code>（<strong>存在</strong>，是 musl 兼任的）</td>
+<td>依賴哪些函式庫、解析到哪個路徑</td>
+<td>第二節</td>
+</tr>
+<tr>
+<td><code>readelf -h</code>、<code>file</code></td>
+<td><code>hexdump -C -n 64</code></td>
+<td>ELF 檔頭：位元數、位元組順序、型別、CPU、進入點</td>
+<td>第三節</td>
+</tr>
+<tr>
+<td><code>readelf -l | grep interpreter</code></td>
+<td><code>strings | grep ld-</code></td>
+<td>interpreter 路徑（粗略）</td>
+<td>第四節</td>
+</tr>
+<tr>
+<td><code>ldd</code>（看執行時）</td>
+<td><code>cat /proc/&lt;PID&gt;/maps</code></td>
+<td><strong>執行中的程式實際載入了哪些檔案、權限是什麼</strong></td>
+<td>第五節</td>
+</tr>
+<tr>
+<td><code>readelf</code>、<code>nm</code>、<code>objdump</code>、<code>file</code>、<code>strace</code>、<code>gdb</code></td>
+<td><code>opkg install ...</code>，或複製回 Ubuntu</td>
+<td>全部</td>
+<td>第六節</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="二ldd-其實存在musl-的函式庫兼任">二、<code>ldd</code> 其實存在：musl 的函式庫兼任</h2>
+<pre><code>root@OpenWrt:~# ls -l /usr/bin/ldd
+lrwxrwxrwx  1 root root  17 Jun 23  2025 /usr/bin/ldd -&gt; ../../lib/libc.so
+
+root@OpenWrt:~# ldd /bin/busybox
+	/lib/ld-musl-aarch64.so.1 (0x7f8a980000)
+	libgcc_s.so.1 =&gt; /lib/libgcc_s.so.1 (0x7f8a94f000)
+	libc.so =&gt; /lib/ld-musl-aarch64.so.1 (0x7f8a980000)
+</code></pre>
+<p><code>ldd</code> 是指向 <code>libc.so</code> 的符號連結，而 <code>ld-musl-aarch64.so.1</code> 也指向 <code>libc.so</code>（見 <a href="../linux/GNU%E6%98%AF%E4%BB%80%E9%BA%BC-Linux%E6%A0%B8%E5%BF%83%E8%88%87GNU%E5%B7%A5%E5%85%B7%E7%9A%84%E5%88%86%E5%B7%A5.html">GNU是什麼</a> 第四節）。
+<strong>同一個檔案同時是 C 函式庫、動態載入器、<code>ldd</code></strong>。它看自己被用什麼名字叫起來（<code>argv[0]</code>）決定扮演哪個角色，跟 BusyBox「一支程式、看名字決定當哪個工具」是同一招。</p>
+<p>輸出也印證了這一點：<code>libc.so =&gt; /lib/ld-musl-aarch64.so.1</code>，函式庫和載入器在同一個位址 <code>0x7f8a980000</code>，因為它們就是同一個檔案。</p>
+<p>跟 Ubuntu 的差別：glibc 的 <code>ldd</code> 是 bash 腳本，要設定 <code>LD_TRACE_LOADED_OBJECTS=1</code> 再請載入器處理（見 <a href="../c/objdump%E8%83%BD%E4%B8%8D%E8%83%BD%E4%BB%A3%E6%9B%BFldd%E6%89%BE%E4%BE%9D%E8%B3%B4%E5%BA%AB-%E9%9C%80%E6%B1%82%E5%96%AE%E8%88%87%E5%AF%A6%E9%9A%9B%E8%BC%89%E5%85%A5.html">objdump能不能代替ldd</a> 第二節）；musl 則是載入器本身直接認得 <code>ldd</code> 這個名字。兩者的共同點是：<strong>都要讓載入器實際處理一次目標檔案</strong>，所以對來路不明的檔案，一樣不建議用 <code>ldd</code>。（musl 版 <code>ldd</code> 的安全性本機未實測。）</p>
+<p>musl 的 <code>ldd</code> 沒有任何選項，只接受檔案路徑；不加參數時會印出版本（<code>musl libc (aarch64) / Version 1.2.5</code>）。</p>
+<hr />
+<h2 id="三hexdump--c-直接讀-elf-檔頭">三、<code>hexdump -C</code> 直接讀 ELF 檔頭</h2>
+<p>沒有 <code>readelf -h</code>，但 ELF 檔頭的格式是固定的，前 64 個 byte 直接讀就好：</p>
+<pre><code>root@OpenWrt:~# hexdump -C -n 64 /bin/busybox
+00000000  7f 45 4c 46 02 01 01 00  00 00 00 00 00 00 00 00  |.ELF............|
+00000010  02 00 b7 00 01 00 00 00  00 65 40 00 00 00 00 00  |.........e@.....|
+00000020  40 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |@...............|
+00000030  00 00 00 00 40 00 38 00  08 00 40 00 00 00 00 00  |....@.8...@.....|
+</code></pre>
+<p><code>hexdump -C</code> 每行：最左邊是<strong>位移</strong>（從檔案開頭算第幾個 byte，十六進位），中間 16 個 byte，右邊是對應的 ASCII（不可印的顯示成 <code>.</code>）。逐欄對照（位移都是十六進位）：</p>
+<table>
+<thead>
+<tr>
+<th>位移</th>
+<th>byte</th>
+<th>欄位</th>
+<th>意思</th>
+<th><code>readelf -h</code> 的寫法</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>0x00</code>～<code>0x03</code></td>
+<td><code>7f 45 4c 46</code></td>
+<td>魔術數字</td>
+<td><code>\x7f</code> + <code>E</code> <code>L</code> <code>F</code>，右邊 ASCII 欄看得到 <code>.ELF</code></td>
+<td><code>Magic: 7f 45 4c 46 ...</code></td>
+</tr>
+<tr>
+<td><code>0x04</code></td>
+<td><code>02</code></td>
+<td>Class</td>
+<td><code>1</code> = 32 位元，<code>2</code> = <strong>64 位元</strong></td>
+<td><code>ELF64</code></td>
+</tr>
+<tr>
+<td><code>0x05</code></td>
+<td><code>01</code></td>
+<td>Data</td>
+<td><code>1</code> = <strong>little endian</strong>，<code>2</code> = big endian</td>
+<td><code>little endian</code></td>
+</tr>
+<tr>
+<td><code>0x10</code>～<code>0x11</code></td>
+<td><code>02 00</code></td>
+<td>Type</td>
+<td>數值 2 = <strong>EXEC</strong>（1 = REL、3 = DYN、4 = CORE）</td>
+<td><code>EXEC (Executable file)</code></td>
+</tr>
+<tr>
+<td><code>0x12</code>～<code>0x13</code></td>
+<td><code>b7 00</code></td>
+<td>Machine</td>
+<td><code>0xb7</code> = <strong>AArch64</strong>（x86-64 是 <code>0x3e</code>）</td>
+<td><code>AArch64</code></td>
+</tr>
+<tr>
+<td><code>0x18</code>～<code>0x1f</code></td>
+<td><code>00 65 40 00 00 00 00 00</code></td>
+<td>Entry point</td>
+<td>進入點位址 <code>0x406500</code></td>
+<td><code>0x406500</code></td>
+</tr>
+</tbody>
+</table>
+<p><strong>多 byte 的欄位要倒過來讀</strong>：<code>Type</code> 的兩個 byte 是 <code>02 00</code>，數值是 <code>0x0002</code>；進入點的 8 個 byte 是 <code>00 65 40 00 …</code>，數值是 <code>0x0000000000406500</code>。這就是位移 <code>0x05</code> 那個 <code>01</code> 說的 <strong>little endian：數字的低位 byte 放在前面</strong>。這是第 2 課的主題，這裡先知道「要倒過來讀」就好。</p>
+<p>驗證：把同一支 <code>busybox</code> 複製回 Ubuntu，用 <code>readelf -h</code> 讀，結果完全一致：</p>
+<pre><code>$ readelf -h busybox
+  Class:                             ELF64
+  Data:                              2's complement, little endian
+  Type:                              EXEC (Executable file)
+  Machine:                           AArch64
+  Entry point address:               0x406500
+</code></pre>
+<p>順帶一個發現：路由器的 <code>busybox</code> 是 <strong>EXEC</strong>（固定位址），不是 Ubuntu 上一般程式的 DYN（PIE）。這支程式沒有編成 PIE（OpenWrt 為什麼這樣編，本篇沒有查證），所以程式本身不享有 ASLR 的位址隨機化，第五節 <code>maps</code> 裡它固定在 <code>0x400000</code>
+（PIE 與 ASLR 見 <a href="../c/ELF%E6%98%AF%E4%BB%80%E9%BA%BC-%E5%8F%AF%E5%9F%B7%E8%A1%8C%E8%88%87%E5%8F%AF%E9%80%A3%E7%B5%90%E6%A0%BC%E5%BC%8F%E7%9A%84%E5%85%A9%E7%A8%AE%E8%A6%96%E8%A7%92.html">ELF是什麼</a> 第三節）。</p>
+<p>BusyBox <code>hexdump</code> 的全部選項（<code>hexdump --help</code> 實測，共 11 個，全列）：</p>
+<pre><code>hexdump [-bcdoxCv] [-e FMT] [-f FMT_FILE] [-n LEN] [-s OFS] [FILE]...
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>選項</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-b</code></td>
+<td>每個 byte 用八進位顯示</td>
+</tr>
+<tr>
+<td><code>-c</code></td>
+<td>每個 byte 用字元顯示</td>
+</tr>
+<tr>
+<td><code>-d</code></td>
+<td>每 2 個 byte 當一個數字，用十進位顯示</td>
+</tr>
+<tr>
+<td><code>-o</code></td>
+<td>每 2 個 byte 當一個數字，用八進位顯示</td>
+</tr>
+<tr>
+<td><code>-x</code></td>
+<td>每 2 個 byte 當一個數字，用十六進位顯示</td>
+</tr>
+<tr>
+<td><code>-C</code></td>
+<td>標準格式：十六進位＋ASCII，每行 16 個 byte（<strong>本篇用的</strong>，最直觀）</td>
+</tr>
+<tr>
+<td><code>-v</code></td>
+<td>全部顯示；預設會把重複的行折成一個 <code>*</code></td>
+</tr>
+<tr>
+<td><code>-e FORMAT_STR</code></td>
+<td>自訂輸出格式，例如 `'16/1 &quot;%02x</td>
+</tr>
+<tr>
+<td><code>-f FORMAT_FILE</code></td>
+<td>從檔案讀自訂格式</td>
+</tr>
+<tr>
+<td><code>-n LENGTH</code></td>
+<td>只顯示前 LENGTH 個 byte（本篇用 <code>-n 64</code> 只看檔頭）</td>
+</tr>
+<tr>
+<td><code>-s OFFSET</code></td>
+<td>跳過前 OFFSET 個 byte 再開始，例如 <code>-s 18 -n 2</code> 只看 Machine 欄</td>
+</tr>
+</tbody>
+</table>
+<p>注意：<code>-d</code>、<code>-o</code>、<code>-x</code> 把 2 個 byte 合成一個數字時，<strong>會照本機的位元組順序組合</strong>，所以看到的數字跟 <code>-C</code> 的 byte 順序是反的。讀檔頭建議用 <code>-C</code>。實測：</p>
+<pre><code>root@OpenWrt:~# hexdump -C -n 4 /bin/busybox
+00000000  7f 45 4c 46                                       |.ELF|
+root@OpenWrt:~# hexdump -x -n 4 /bin/busybox
+0000000    457f    464c                  ← 7f 45 變成 457f：低位 byte 在前，組成數字時放到後面
+</code></pre>
+<hr />
+<h2 id="四strings-找-interpreter-路徑粗略">四、<code>strings</code> 找 interpreter 路徑（粗略）</h2>
+<p>interpreter 的路徑以文字形式存在 <code>.interp</code> 區段裡，所以 <code>strings</code> 挖得出來：</p>
+<pre><code>root@OpenWrt:~# strings /bin/busybox | grep ld-musl
+/lib/ld-musl-aarch64.so.1
+</code></pre>
+<p><strong>這只是粗略的方法</strong>：<code>strings</code> 印出檔案裡所有「連續 4 個以上可印字元」的片段，不知道哪一段是 interpreter。如果程式裡剛好有別的字串也含 <code>ld-musl</code>，就分不出來。要精確看，就用 <code>readelf -l</code>（第六節）。另一個方法是 <code>ldd</code> 第一行，它就是 interpreter（第二節輸出的 <code>/lib/ld-musl-aarch64.so.1</code>）。</p>
+<p>BusyBox <code>strings</code> 的全部選項（<code>strings --help</code> 實測，共 4 個，全列）：</p>
+<table>
+<thead>
+<tr>
+<th>選項</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-f</code></td>
+<td>每行前面加上檔名（一次看多個檔案時用）</td>
+</tr>
+<tr>
+<td><code>-o</code></td>
+<td>每行前面加上八進位的位移</td>
+</tr>
+<tr>
+<td><code>-t o|d|x</code></td>
+<td>每行前面加上位移，進位制可選八、十、十六進位</td>
+</tr>
+<tr>
+<td><code>-n LEN</code></td>
+<td>至少 LEN 個連續可印字元才算一個字串（預設 4）</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="五procpidmaps看執行時實際載入了什麼">五、<code>/proc/&lt;PID&gt;/maps</code>：看執行時實際載入了什麼</h2>
+<p>前面三種都是讀<strong>檔案</strong>。想知道一支程式<strong>正在執行時</strong>實際載入了哪些檔案，不需要任何工具，核心就提供了：</p>
+<pre><code>root@OpenWrt:~# cat /proc/self/maps
+00400000-00466000 r-xp 00000000 b3:07 4       /bin/busybox       ← 程式碼
+0047f000-00480000 r--p 0006f000 b3:07 4       /bin/busybox       ← 唯讀資料
+00480000-00481000 rw-p 00070000 b3:07 4       /bin/busybox       ← 可寫資料
+35849000-3584a000 ---p 00000000 00:00 0       [heap]
+3584a000-3584b000 rw-p 00000000 00:00 0       [heap]
+7fb0b2d000-7fb0b5c000 r-xp 00000000 b3:07 353 /lib/libgcc_s.so.1
+7fb0b5c000-7fb0b5d000 r--p 0001f000 b3:07 353 /lib/libgcc_s.so.1
+7fb0b5d000-7fb0b5e000 rw-p 00020000 b3:07 353 /lib/libgcc_s.so.1
+7fb0b5e000-7fb0be8000 r-xp 00000000 b3:07 351 /lib/libc.so       ← musl：函式庫＝載入器，只出現一個檔案
+7fb0bf9000-7fb0bfb000 r--p 00000000 00:00 0   [vvar]
+7fb0bfb000-7fb0bfc000 r-xp 00000000 00:00 0   [vdso]
+7fb0bfc000-7fb0bff000 rw-p 0008e000 b3:07 351 /lib/libc.so
+7fcbab7000-7fcbad8000 rw-p 00000000 00:00 0   [stack]
+</code></pre>
+<p><code>self</code> 代表「讀這個檔案的行程自己」，這裡就是 <code>cat</code>（<code>cat</code> 是 BusyBox，所以第一個檔案是 <code>/bin/busybox</code>）。要看別的程式，換成它的 PID，例如 <code>cat /proc/$(pidof dnsmasq)/maps</code>。</p>
+<p>每一行的欄位：</p>
+<table>
+<thead>
+<tr>
+<th>欄位</th>
+<th>例子</th>
+<th>意思</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>位址範圍</td>
+<td><code>00400000-00466000</code></td>
+<td>這一塊在行程記憶體裡的起訖位址</td>
+</tr>
+<tr>
+<td>權限</td>
+<td><code>r-xp</code></td>
+<td>讀（<code>r</code>）、寫（<code>w</code>）、執行（<code>x</code>），沒有的寫 <code>-</code>；最後一個字母 <code>p</code> 是 private（私有），<code>s</code> 是 shared（共享）</td>
+</tr>
+<tr>
+<td>檔案位移</td>
+<td><code>0006f000</code></td>
+<td>這一塊對應檔案裡從第幾個 byte 開始</td>
+</tr>
+<tr>
+<td>裝置</td>
+<td><code>b3:07</code></td>
+<td>檔案所在裝置的主、次編號</td>
+</tr>
+<tr>
+<td>inode</td>
+<td><code>4</code></td>
+<td>檔案在該檔案系統的 inode 編號</td>
+</tr>
+<tr>
+<td>路徑</td>
+<td><code>/bin/busybox</code></td>
+<td>對應的檔案；方括號是核心自己產生的區域（<code>[heap]</code>、<code>[stack]</code>、<code>[vdso]</code>）</td>
+</tr>
+</tbody>
+</table>
+<p>這張表可以跟兩篇筆記對起來：</p>
+<ul>
+<li><strong>權限一塊一塊分開</strong>：<code>busybox</code> 分成 <code>r-xp</code>、<code>r--p</code>、<code>rw-p</code> 三塊，正是 <a href="../c/ELF%E6%98%AF%E4%BB%80%E9%BA%BC-%E5%8F%AF%E5%9F%B7%E8%A1%8C%E8%88%87%E5%8F%AF%E9%80%A3%E7%B5%90%E6%A0%BC%E5%BC%8F%E7%9A%84%E5%85%A9%E7%A8%AE%E8%A6%96%E8%A7%92.html">ELF是什麼</a> 第四節說的「連結器把權限相同的區段打包成載入段，核心照著一塊塊放進記憶體」。</li>
+<li><strong><code>ldd</code> 說的是「會載入什麼」，<code>maps</code> 說的是「已經載入了什麼」</strong>。<code>ldd</code> 請載入器模擬一次；<code>maps</code> 是核心記錄的實際結果，而且不需要另外執行目標程式（程式本來就在跑）。</li>
+</ul>
+<hr />
+<h2 id="六需要完整工具時opkg-安裝或複製回-ubuntu">六、需要完整工具時：<code>opkg</code> 安裝，或複製回 Ubuntu</h2>
+<p>路由器的套件庫裡有完整的工具，<code>opkg info</code> 查得到（<strong>以下只查詢、沒有實際安裝</strong>，裝完後的內容未實測）：</p>
+<table>
+<thead>
+<tr>
+<th>套件</th>
+<th>提供</th>
+<th>依賴</th>
+<th>套件大小</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>binutils</code></td>
+<td>連結器、組譯器等 binutils 工具（本機 Ubuntu 的 <code>readelf</code>、<code>nm</code> 都屬於 binutils；OpenWrt 版實際含哪些檔案未實測，裝完可用 <code>opkg files binutils</code> 確認）</td>
+<td><code>libc</code>、<code>objdump</code>、<code>ar</code></td>
+<td>約 1.1 MB</td>
+</tr>
+<tr>
+<td><code>objdump</code></td>
+<td><code>objdump</code></td>
+<td><code>libc</code>、<code>libopcodes</code>、<code>libctf</code></td>
+<td>約 149 KB</td>
+</tr>
+<tr>
+<td><code>file</code></td>
+<td><code>file</code></td>
+<td><code>libc</code>、<code>libmagic</code></td>
+<td>約 8.7 KB（另加 <code>libmagic</code>）</td>
+</tr>
+<tr>
+<td><code>xxd</code></td>
+<td><code>xxd</code> 十六進位傾印</td>
+<td><code>libc</code></td>
+<td>約 8.6 KB</td>
+</tr>
+<tr>
+<td><code>strace</code></td>
+<td><code>strace</code></td>
+<td><code>libc</code></td>
+<td>約 395 KB</td>
+</tr>
+<tr>
+<td><code>gdb</code></td>
+<td><code>gdb</code></td>
+<td><code>libc</code>、<code>libreadline8</code>、<code>libncurses6</code>、<code>zlib</code>、<code>libgmp10</code>、<code>libmpfr6</code></td>
+<td>約 3.1 MB</td>
+</tr>
+</tbody>
+</table>
+<p>本機路由器的 <code>/overlay</code> 還有 6.8 GB 可用，空間不是問題；一般的小型路由器（快閃記憶體只有 16～32 MB）就要斟酌。安裝：<code>opkg update</code> 之後 <code>opkg install binutils file strace</code>（會改變路由器上的軟體，需要時再做）。</p>
+<p><strong>不想在路由器上裝東西</strong>：把檔案複製回 Ubuntu 用完整的工具看。本機實測，OpenWrt 沒有 <code>sftp-server</code>，新版 <code>scp</code> 預設走 SFTP 協定會失敗：</p>
+<pre><code>$ scp root@192.168.1.1:/bin/busybox .
+ash: /usr/libexec/sftp-server: not found
+scp: Connection closed
+
+$ scp -O root@192.168.1.1:/bin/busybox .     ← -O 改用舊的 SCP 協定
+</code></pre>
+<p>（原因見 <a href="../linux/scp%E7%94%A8%E6%B3%95%E8%88%87OpenSSH9%E7%9A%84%E5%8D%94%E5%AE%9A%E8%AE%8A%E5%8B%95.html">scp用法與OpenSSH9的協定變動</a>。）複製回來後 <code>readelf</code>、<code>nm -D</code>、<code>objdump</code> 都能讀 aarch64 的檔案，但要注意兩點（見 <a href="../c/objdump%E8%83%BD%E4%B8%8D%E8%83%BD%E4%BB%A3%E6%9B%BFldd%E6%89%BE%E4%BE%9D%E8%B3%B4%E5%BA%AB-%E9%9C%80%E6%B1%82%E5%96%AE%E8%88%87%E5%AF%A6%E9%9A%9B%E8%BC%89%E5%85%A5.html">objdump能不能代替ldd</a> 第三節）：
+<code>ldd</code> 會誤報 <code>not a dynamic executable</code>；OpenWrt 的檔案剝掉了區段標頭，<code>objdump -p</code> 看不到 <code>NEEDED</code>，要用 <code>readelf -d</code>。</p>
+<h3 id="opkg-的子命令本篇用到-listinfosearch共-26-個中的-3-個"><code>opkg</code> 的子命令（本篇用到 <code>list</code>、<code>info</code>、<code>search</code>，共 26 個中的 3 個）</h3>
+<p><code>opkg</code> 不帶參數執行就會印出完整說明。子命令依它自己的分組全部列出：</p>
+<p><strong>套件操作（6 個）</strong></p>
+<table>
+<thead>
+<tr>
+<th>子命令</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>update</code></td>
+<td>更新可安裝套件的清單（從網路下載）</td>
+</tr>
+<tr>
+<td><code>upgrade &lt;pkgs&gt;</code></td>
+<td>升級套件</td>
+</tr>
+<tr>
+<td><code>install &lt;pkgs&gt;</code></td>
+<td>安裝套件</td>
+</tr>
+<tr>
+<td><code>configure &lt;pkgs&gt;</code></td>
+<td>設定已解開、尚未設定的套件</td>
+</tr>
+<tr>
+<td><code>remove &lt;pkgs|regexp&gt;</code></td>
+<td>移除套件</td>
+</tr>
+<tr>
+<td><code>flag &lt;flag&gt; &lt;pkgs&gt;</code></td>
+<td>設定套件旗標（<code>hold</code>、<code>noprune</code>、<code>user</code>、<code>ok</code>、<code>installed</code>、<code>unpacked</code>，一次一個）</td>
+</tr>
+</tbody>
+</table>
+<p><strong>查詢（20 個）</strong></p>
+<table>
+<thead>
+<tr>
+<th>子命令</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>list</code></td>
+<td>列出可安裝的套件（本篇用來找 <code>binutils</code> 等）</td>
+</tr>
+<tr>
+<td><code>list-installed</code></td>
+<td>列出已安裝的套件</td>
+</tr>
+<tr>
+<td><code>list-upgradable</code></td>
+<td>列出已安裝且可升級的套件</td>
+</tr>
+<tr>
+<td><code>list-changed-conffiles</code></td>
+<td>列出使用者改過的設定檔</td>
+</tr>
+<tr>
+<td><code>files &lt;pkg&gt;</code></td>
+<td>列出某個<strong>已安裝</strong>套件的所有檔案</td>
+</tr>
+<tr>
+<td><code>search &lt;file|regexp&gt;</code></td>
+<td>查某個檔案屬於哪個套件（本篇用來確認 <code>strings</code>、<code>hexdump</code> 屬於 <code>busybox</code>）</td>
+</tr>
+<tr>
+<td><code>find &lt;regexp&gt;</code></td>
+<td>用名稱或說明搜尋套件</td>
+</tr>
+<tr>
+<td><code>info [pkg|regexp]</code></td>
+<td>顯示套件的完整資訊（本篇用來看依賴與大小）</td>
+</tr>
+<tr>
+<td><code>status [pkg|regexp]</code></td>
+<td>顯示套件的安裝狀態</td>
+</tr>
+<tr>
+<td><code>download &lt;pkg&gt;</code></td>
+<td>只下載套件到目前目錄，不安裝</td>
+</tr>
+<tr>
+<td><code>compare-versions &lt;v1&gt; &lt;op&gt; &lt;v2&gt;</code></td>
+<td>比較兩個版本號（<code>&lt;=</code>、<code>&lt;</code>、<code>&gt;</code>、<code>&gt;=</code>、<code>=</code>、<code>&lt;&lt;</code>、<code>&gt;&gt;</code>）</td>
+</tr>
+<tr>
+<td><code>print-architecture</code></td>
+<td>列出可安裝的套件架構</td>
+</tr>
+<tr>
+<td><code>depends</code></td>
+<td>列出套件依賴哪些套件</td>
+</tr>
+<tr>
+<td><code>whatdepends</code></td>
+<td>列出哪些套件依賴它</td>
+</tr>
+<tr>
+<td><code>whatdependsrec</code></td>
+<td>同上，遞迴往上找</td>
+</tr>
+<tr>
+<td><code>whatrecommends</code></td>
+<td>列出哪些套件推薦它</td>
+</tr>
+<tr>
+<td><code>whatsuggests</code></td>
+<td>列出哪些套件建議它</td>
+</tr>
+<tr>
+<td><code>whatprovides</code></td>
+<td>列出哪些套件提供它</td>
+</tr>
+<tr>
+<td><code>whatconflicts</code></td>
+<td>列出哪些套件跟它衝突</td>
+</tr>
+<tr>
+<td><code>whatreplaces</code></td>
+<td>列出哪些套件取代它</td>
+</tr>
+</tbody>
+</table>
+<p><code>depends</code> 以下 8 個都可以加 <code>-A</code>：查<strong>所有</strong>套件，而不只已安裝的。</p>
+<p>選項（<code>-V</code> 詳細程度、<code>-f</code> 設定檔、<code>-d</code> 安裝目的地、<code>--force-*</code> 一系列強制選項、<code>--noaction</code> 只模擬不執行等）約 40 個，這裡<strong>不列</strong>，完整清單見路由器上直接執行 <code>opkg</code>（不加參數）的輸出。</p>
+<hr />
+<h2 id="自我測驗">自我測驗</h2>
+<ol>
+<li>路由器上的 <code>ldd</code>、<code>ld-musl-aarch64.so.1</code>、<code>libc.so</code> 是什麼關係？同一個檔案怎麼知道自己該當哪個角色？這跟 BusyBox 有什麼相同之處？</li>
+<li><code>hexdump -C</code> 讀到 <code>Type</code> 欄是 <code>02 00</code>、進入點是 <code>00 65 40 00 00 00 00 00</code>，為什麼數值分別是 2 和 <code>0x406500</code>，而不是 <code>0x0200</code> 和 <code>0x00654000…</code>？檔頭的哪一個 byte 告訴你要這樣讀？</li>
+<li><code>ldd /bin/busybox</code> 和 <code>cat /proc/&lt;PID&gt;/maps</code> 都能看到函式庫，兩者看到的東西差在哪個時間點？哪一個不需要讓載入器另外處理一次目標檔案？</li>
+<li>情境題：你在路由器上發現一支來路不明的程式 <code>/tmp/x</code>，想知道它是哪種 CPU 的、需要哪個 interpreter，但不想執行它，也不想在路由器上安裝套件。你會用本篇的哪些方法？為什麼不用 <code>ldd</code>？</li>
+</ol>
+
+</main>
+</div>
+</body>
+</html>

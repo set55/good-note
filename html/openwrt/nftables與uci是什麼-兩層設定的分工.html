@@ -1,0 +1,410 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>nftables 與 uci 分別是什麼？—— 核心的封包規則 vs OpenWrt 的設定抽象層</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/app.js"></script>
+</head>
+<body>
+<button class="menu-btn" onclick="toggleMenu()">☰ 目錄</button>
+<div class="layout">
+<nav class="side">
+<div class="crumbs"><a href="../index.html">🏠 首頁</a> / <a href="README.html">openwrt</a></div>
+<div class="tools"><button onclick="toggleTheme()">🌓 主題</button></div>
+<ul>
+<li class="l2"><a href="#%E4%B8%80nftables%E6%A0%B8%E5%BF%83%E6%80%8E%E9%BA%BC%E8%99%95%E7%90%86%E5%B0%81%E5%8C%85">一、nftables：核心怎麼處理封包</a></li>
+<li class="l3"><a href="#%E5%AE%83%E5%9C%A8%E5%93%AA%E4%B8%80%E5%B1%A4">它在哪一層</a></li>
+<li class="l3"><a href="#%E4%B8%89%E5%B1%A4%E7%B5%90%E6%A7%8B">三層結構</a></li>
+<li class="l3"><a href="#%E6%AF%94-iptables-%E5%A5%BD%E5%9C%A8%E5%93%AA">比 iptables 好在哪</a></li>
+<li class="l2"><a href="#%E4%BA%8Cuciopenwrt-%E6%80%8E%E9%BA%BC%E6%8F%8F%E8%BF%B0%E8%A8%AD%E5%AE%9A">二、uci：OpenWrt 怎麼描述「設定」</a></li>
+<li class="l3"><a href="#%E7%B5%B1%E4%B8%80%E7%9A%84%E6%AA%94%E6%A1%88%E6%A0%BC%E5%BC%8F">統一的檔案格式</a></li>
+<li class="l3"><a href="#%E7%B5%B1%E4%B8%80%E7%9A%84%E5%AD%98%E5%8F%96%E4%BB%8B%E9%9D%A2">統一的存取介面</a></li>
+<li class="l3"><a href="#%E8%AA%B0%E5%9C%A8%E8%AE%80-uci">誰在讀 uci</a></li>
+<li class="l2"><a href="#%E4%B8%89%E5%85%A9%E8%80%85%E6%80%8E%E9%BA%BC%E4%B8%B2%E8%B5%B7%E4%BE%86">三、兩者怎麼串起來</a></li>
+<li class="l2"><a href="#%E5%9B%9B%E6%9C%80%E9%87%8D%E8%A6%81%E7%9A%84%E6%8E%A8%E8%AB%96%E4%B8%8D%E8%A6%81%E6%89%8B%E6%94%B9%E7%94%A2%E7%94%9F%E7%89%A9">四、最重要的推論：不要手改產生物</a></li>
+<li class="l2"><a href="#%E4%BA%94%E4%BB%80%E9%BA%BC%E6%99%82%E5%80%99%E7%94%A8%E5%93%AA%E4%B8%80%E5%B1%A4">五、什麼時候用哪一層</a></li>
+<li class="l2"><a href="#%E5%85%AD%E9%80%9F%E6%9F%A5">六、速查</a></li>
+<li class="l2"><a href="#uci-%E5%AE%8C%E6%95%B4%E5%91%BD%E4%BB%A4%E8%88%87%E9%81%B8%E9%A0%85">uci 完整命令與選項</a></li>
+<li class="l3"><a href="#%E5%91%BD%E4%BB%A4%E5%85%A8%E9%83%A8-15-%E5%80%8B">命令（全部 15 個）</a></li>
+<li class="l3"><a href="#%E9%81%B8%E9%A0%85%E5%85%A8%E9%83%A8-13-%E5%80%8B">選項（全部 13 個）</a></li>
+<li class="l2"><a href="#%E8%87%AA%E6%88%91%E6%B8%AC%E9%A9%97">自我測驗</a></li>
+</ul>
+</nav>
+<main>
+<h1 id="nftables-與-uci-分別是什麼-核心的封包規則-vs-openwrt-的設定抽象層">nftables 與 uci 分別是什麼？—— 核心的封包規則 vs OpenWrt 的設定抽象層</h1>
+<blockquote>
+<p>日期：2026-09-20<br />
+情境：研究 OpenWrt 透明代理時一直碰到這兩個詞，想搞清楚它們各自是什麼、又是什麼關係<br />
+對應檔案：<code>/etc/config/*</code>（uci 設定，路由器上的正式設定）、<code>/etc/nftables.d/*.nft</code><br />
+適用範圍：OpenWrt 24.10.2、nftables 1.1.1、firewall4；nftables 的部分適用於任何 Linux<br />
+相關：<a href="LuCI%E8%83%BD%E8%A8%AD%E5%AE%9ATPROXY%E5%97%8E-fw4%E7%9A%84uci%E6%8A%BD%E8%B1%A1%E9%82%8A%E7%95%8C.html">LuCI能設定TPROXY嗎-fw4的uci抽象邊界</a>、
+<a href="%E8%B7%AF%E7%94%B1%E5%99%A8%E4%B8%8A%E7%9A%84%E9%80%8F%E6%98%8E%E4%BB%A3%E7%90%86-%E7%82%BA%E4%BB%80%E9%BA%BC%E4%B8%8D%E6%98%AFTUN%E6%A8%A1%E5%BC%8F.html">路由器上的透明代理-為什麼不是TUN模式</a></p>
+</blockquote>
+<p><strong>一句話結論：兩者根本不是同類東西。nftables 是 Linux <strong>核心</strong>的封包過濾框架，任何 Linux 都有，跟 OpenWrt 無關；uci 是 <strong>OpenWrt 自己</strong>發明的設定抽象層，管的是全系統所有服務，跟封包無關。它們在 OpenWrt 上是上下游關係：你編輯 uci，fw4 把它</strong>編譯<strong>成 nftables 規則餵給核心——
+uci 是「來源碼」，nft 規則是「產生物」。</strong></p>
+<hr />
+<h2 id="一nftables核心怎麼處理封包">一、nftables：核心怎麼處理封包</h2>
+<h3 id="它在哪一層">它在哪一層</h3>
+<pre><code>使用者空間    nft 指令 / fw4 / 你寫的 .nft 檔
+                 │ netlink
+核心          nf_tables 子系統 ── 規則被編譯成 bytecode，在核心的小型虛擬機（VM）裡執行
+                 │
+              netfilter hooks ── 封包經過網路堆疊時的五個攔截點
+</code></pre>
+<p><strong>nftables 是 iptables 的後繼者</strong>。以前要用四套工具（<code>iptables</code>、<code>ip6tables</code>、<code>arptables</code>、
+<code>ebtables</code>）分別處理 IPv4／IPv6／ARP／bridge，現在統一成一個 <code>nft</code>。</p>
+<h3 id="三層結構">三層結構</h3>
+<pre><code>table  &lt;family&gt; &lt;name&gt;          家族：ip / ip6 / inet（雙棧）/ arp / bridge / netdev
+  └─ chain &lt;name&gt;               掛在哪個 hook、什麼 type、什麼 priority
+       └─ rule                  比對條件（expression）+ 動作（statement）
+</code></pre>
+<p>本機路由器只有一個 table：</p>
+<pre><code class="language-bash">$<span class="w"> </span>nft<span class="w"> </span>list<span class="w"> </span>tables
+table<span class="w"> </span>inet<span class="w"> </span>fw4<span class="w">              </span><span class="c1"># inet = IPv4 與 IPv6 共用一套規則</span>
+</code></pre>
+<p>chain 的宣告決定了它<strong>什麼時候被呼叫</strong>：</p>
+<pre><code>chain input {
+    type filter hook input priority filter; policy drop;
+    ...
+}
+</code></pre>
+<ul>
+<li><code>hook</code>：五個攔截點之一——<code>prerouting</code>、<code>input</code>、<code>forward</code>、<code>output</code>、<code>postrouting</code>。這正好對應<a href="%E8%B7%AF%E7%94%B1%E5%99%A8%E4%B8%8A%E7%9A%84%E9%80%8F%E6%98%8E%E4%BB%A3%E7%90%86-%E7%82%BA%E4%BB%80%E9%BA%BC%E4%B8%8D%E6%98%AFTUN%E6%A8%A1%E5%BC%8F.html">上一篇</a>講的封包路徑：轉發流量走 <code>prerouting → forward → postrouting</code>，本機流量走 <code>input</code> 或 <code>output</code>。</li>
+<li><code>type</code>：<code>filter</code>（過濾）、<code>nat</code>（位址轉換）、<code>route</code>（改了封包後重新查路由）。</li>
+<li><code>priority</code>：同一個 hook 上多條 chain 的執行順序，數字小的先跑。<code>mangle</code>(-150)、
+<code>dstnat</code>(-100)、<code>filter</code>(0)、<code>srcnat</code>(100) 都是有名字的常數。</li>
+</ul>
+<p><strong>TPROXY 之所以要寫 <code>priority mangle</code>，就是因為它必須在路由判定「這封包不是給我的」之前動手。</strong></p>
+<h3 id="比-iptables-好在哪">比 iptables 好在哪</h3>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>iptables</th>
+<th>nftables</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>工具數量</td>
+<td>4 套（v4/v6/arp/bridge）</td>
+<td>1 套 <code>nft</code></td>
+</tr>
+<tr>
+<td>更新方式</td>
+<td>一條一條加，中途可能是半套狀態</td>
+<td><strong>整份規則集原子更新</strong>（要嘛全生效、要嘛全不變）</td>
+</tr>
+<tr>
+<td>集合</td>
+<td>需要 ipset 這個外掛</td>
+<td>內建具名 set／map／vmap</td>
+</tr>
+<tr>
+<td>鏈與優先權</td>
+<td>表與鏈固定（filter/nat/mangle…）</td>
+<td><strong>自己宣告</strong>要哪個 hook、什麼優先權</td>
+</tr>
+</tbody>
+</table>
+<p>本機規則裡就能看到 vmap（verdict map，判決對應表）這種 iptables 做不到的寫法：</p>
+<pre><code>ct state vmap { established : accept, related : accept }
+</code></pre>
+<p><code>tproxy</code>、<code>redirect</code>、<code>masquerade</code> 這些都是 <strong>statement</strong>（動作），各自需要對應的核心模組
+——這就是為什麼<a href="%E8%B7%AF%E7%94%B1%E5%99%A8%E4%B8%8A%E7%9A%84%E9%80%8F%E6%98%8E%E4%BB%A3%E7%90%86-%E7%82%BA%E4%BB%80%E9%BA%BC%E4%B8%8D%E6%98%AFTUN%E6%A8%A1%E5%BC%8F.html">前一篇</a>查到「沒有 <code>nft_tproxy.ko</code>
+就不能用 tproxy」。</p>
+<hr />
+<h2 id="二uciopenwrt-怎麼描述設定">二、uci：OpenWrt 怎麼描述「設定」</h2>
+<p><strong>UCI（Unified Configuration Interface，統一設定介面）</strong> 是 OpenWrt 特有的東西，其他 Linux 發行版沒有。它解決的問題是：一台路由器上有 dnsmasq、防火牆、網路介面、無線、DHCP……<strong>每個服務的設定檔格式都不一樣</strong>，沒辦法用同一套 GUI 或腳本管理。</p>
+<p>uci 的作法是：<strong>所有設定都先寫成同一種格式，再由各服務的啟動腳本翻譯成該服務看得懂的格式。</strong></p>
+<h3 id="統一的檔案格式">統一的檔案格式</h3>
+<p><code>/etc/config/firewall</code> 實際內容：</p>
+<pre><code>config defaults
+	option input 'REJECT'
+	option output 'ACCEPT'
+	option forward 'REJECT'
+
+config zone
+	option name 'lan'
+	option input 'ACCEPT'
+	list network 'lan'
+</code></pre>
+<ul>
+<li><code>config &lt;type&gt; ['&lt;name&gt;']</code>：一個區段（section）。沒給名字的叫<strong>匿名區段</strong>。</li>
+<li><code>option</code>：單一值；<code>list</code>：可重複的多值。</li>
+</ul>
+<h3 id="統一的存取介面">統一的存取介面</h3>
+<p>同一份設定用 <code>uci</code> 指令看到的樣子：</p>
+<pre><code class="language-bash">$<span class="w"> </span>uci<span class="w"> </span>show<span class="w"> </span>firewall
+firewall.@defaults<span class="o">[</span><span class="m">0</span><span class="o">]</span>.input<span class="o">=</span><span class="s1">&#39;REJECT&#39;</span>
+firewall.@zone<span class="o">[</span><span class="m">0</span><span class="o">]=</span>zone
+firewall.@zone<span class="o">[</span><span class="m">0</span><span class="o">]</span>.name<span class="o">=</span><span class="s1">&#39;lan&#39;</span>
+firewall.@zone<span class="o">[</span><span class="m">0</span><span class="o">]</span>.input<span class="o">=</span><span class="s1">&#39;ACCEPT&#39;</span>
+</code></pre>
+<p><code>@zone[0]</code> 就是「firewall 這個設定檔裡第 0 個匿名的 zone 區段」——匿名區段靠<strong>索引</strong>定位，所以<strong>插入或刪除區段會讓後面的索引全部位移</strong>，寫腳本時要小心。</p>
+<p>常用操作：</p>
+<pre><code class="language-bash">uci<span class="w"> </span>show<span class="w"> </span>firewall<span class="w">                      </span><span class="c1"># 看全部</span>
+uci<span class="w"> </span>get<span class="w"> </span>firewall.@zone<span class="o">[</span><span class="m">0</span><span class="o">]</span>.input<span class="w">        </span><span class="c1"># 取單一值</span>
+uci<span class="w"> </span><span class="nb">set</span><span class="w"> </span>firewall.@zone<span class="o">[</span><span class="m">0</span><span class="o">]</span>.input<span class="o">=</span><span class="s1">&#39;DROP&#39;</span><span class="w"> </span><span class="c1"># 改（只寫進暫存，尚未生效）</span>
+uci<span class="w"> </span>add_list<span class="w"> </span>firewall.@zone<span class="o">[</span><span class="m">0</span><span class="o">]</span>.network<span class="o">=</span><span class="s1">&#39;vpn&#39;</span>
+uci<span class="w"> </span>commit<span class="w"> </span>firewall<span class="w">                    </span><span class="c1"># 寫回 /etc/config/firewall</span>
+/etc/init.d/firewall<span class="w"> </span>restart<span class="w">           </span><span class="c1"># 讓服務重新讀取</span>
+</code></pre>
+<p><strong><code>uci set</code> 之後不 <code>commit</code>，改動只存在 <code>/tmp/.uci/</code> 的暫存檔裡。</strong> 這是 uci 的交易機制：可以改一堆再一次套用，但也常見「改了沒生效」其實是忘了 commit。</p>
+<h3 id="誰在讀-uci">誰在讀 uci</h3>
+<p>LuCI（Lua Configuration Interface，就是那個 Web GUI）、<code>uci</code> 命令列、以及各服務的 init script，三者讀的是同一份資料——<strong>這就是為什麼 GUI 改的東西命令列看得到、反之亦然</strong>。</p>
+<hr />
+<h2 id="三兩者怎麼串起來">三、兩者怎麼串起來</h2>
+<p>本機實測，同一份設定的兩個樣貌：</p>
+<pre><code class="language-bash">$<span class="w"> </span>wc<span class="w"> </span>-l<span class="w"> </span>/etc/config/firewall<span class="w">          </span><span class="c1"># uci 來源</span>
+（約<span class="w"> </span><span class="m">30</span><span class="w"> </span>行人看的設定）
+
+$<span class="w"> </span>nft<span class="w"> </span>list<span class="w"> </span>ruleset<span class="w"> </span><span class="p">|</span><span class="w"> </span>wc<span class="w"> </span>-l<span class="w">            </span><span class="c1"># fw4 產生的結果</span>
+<span class="m">180</span>
+</code></pre>
+<p>對照著看，uci 的 <code>zone</code> 概念在 nft 裡被展開成<strong>一整組 chain</strong>：</p>
+<pre><code>uci:  config zone / option name 'lan' / option input 'ACCEPT'
+        ↓ fw4 編譯
+nft:  chain input {
+          iifname &quot;br-lan&quot; jump input_lan   comment &quot;!fw4: Handle lan IPv4/IPv6 input traffic&quot;
+      }
+      chain input_lan { ... }
+      chain forward_lan { ... }
+      chain output_lan { ... }
+      chain accept_from_lan { ... }
+</code></pre>
+<p>那句 <code>comment &quot;!fw4: ...&quot;</code> 就是產生物的標記——<strong>看到 <code>!fw4:</code> 就知道這條規則是 fw4 從 uci 生出來的，不是人手寫的。</strong></p>
+<p>完整的資料流：</p>
+<pre><code>LuCI (Web GUI) ─┐
+uci 命令        ─┼──→ /etc/config/firewall ──fw4──→ nft 規則 ──netlink──→ 核心 nf_tables
+init script     ─┘        （uci 格式）              （nft 語法）
+</code></pre>
+<hr />
+<h2 id="四最重要的推論不要手改產生物">四、最重要的推論：不要手改產生物</h2>
+<p><code>nft add rule ...</code> 當場下的規則，或直接改 fw4 生出來的東西，<strong>下一次 <code>/etc/init.d/firewall restart</code>
+或任何人在 LuCI 上按儲存，就會被整份覆蓋</strong>——因為 fw4 是從 uci 重新編譯整個 ruleset。</p>
+<p>這和<a href="../linux/clash-verge%E6%80%8E%E9%BA%BC%E7%94%A8-%E6%B5%81%E9%87%8F%E8%A6%81%E5%85%88%E9%80%B2%E5%BE%97%E5%8E%BB%E6%A0%B8%E5%BF%83.html">桌機那邊的教訓</a>是同一回事：
+clash-verge 的 <code>clash-verge.yaml</code> 也是產生物，要改得去改 Merge 設定。</p>
+<p><strong>通用心法：拿到一個設定檔，先問「這是人寫的還是程式生的」。是產生物就往上游找來源，在產生物上動手的修改都活不過下一次重新產生。</strong></p>
+<p>所以在 OpenWrt 上要持久化自訂 nft 規則，正確位置是 <code>/etc/nftables.d/*.nft</code>——fw4 每次產生
+ruleset 時都會把它 include 進去，等於「參與編譯」而不是「事後修改」。</p>
+<hr />
+<h2 id="五什麼時候用哪一層">五、什麼時候用哪一層</h2>
+<table>
+<thead>
+<tr>
+<th>你要做的事</th>
+<th>該用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>開放某個埠、設 port forward、改 zone 策略</td>
+<td><strong>uci / LuCI</strong>（schema 涵蓋的範圍）</td>
+</tr>
+<tr>
+<td>TPROXY、自訂 hook 與 priority、fwmark</td>
+<td><strong>直接寫 nft</strong>，放 <code>/etc/nftables.d/*.nft</code></td>
+</tr>
+<tr>
+<td>改 DHCP、無線、網路介面</td>
+<td><strong>uci</strong>（這些沒有「另一層」可繞）</td>
+</tr>
+<tr>
+<td>臨時測試規則（不想持久化）</td>
+<td><code>nft add ...</code>，重開機或 firewall restart 就消失</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="六速查">六、速查</h2>
+<pre><code class="language-bash"><span class="c1"># --- nftables ---</span>
+nft<span class="w"> </span>list<span class="w"> </span>ruleset<span class="w">                 </span><span class="c1"># 全部規則（fw4 產生的會帶 &quot;!fw4:&quot; 註解）</span>
+nft<span class="w"> </span>list<span class="w"> </span>tables<span class="w">                  </span><span class="c1"># 有哪些 table</span>
+nft<span class="w"> </span>list<span class="w"> </span>table<span class="w"> </span>inet<span class="w"> </span>fw4<span class="w">          </span><span class="c1"># 單一 table</span>
+nft<span class="w"> </span>-a<span class="w"> </span>list<span class="w"> </span>ruleset<span class="w">              </span><span class="c1"># 加上 handle 編號（刪除規則時要用）</span>
+nft<span class="w"> </span>add<span class="w"> </span>rule<span class="w"> </span>inet<span class="w"> </span>fw4<span class="w"> </span>&lt;chain&gt;<span class="w"> </span>&lt;rule&gt;<span class="w">       </span><span class="c1"># 臨時加（不持久）</span>
+nft<span class="w"> </span>delete<span class="w"> </span>rule<span class="w"> </span>inet<span class="w"> </span>fw4<span class="w"> </span>&lt;chain&gt;<span class="w"> </span>handle<span class="w"> </span>N
+
+<span class="c1"># --- uci ---</span>
+uci<span class="w"> </span>show<span class="w">                         </span><span class="c1"># 全部設定</span>
+uci<span class="w"> </span>show<span class="w"> </span>firewall<span class="w">                </span><span class="c1"># 單一設定檔</span>
+uci<span class="w"> </span>get<span class="w"> </span>firewall.@zone<span class="o">[</span><span class="m">0</span><span class="o">]</span>.name
+uci<span class="w"> </span><span class="nb">set</span><span class="w"> </span>...<span class="w"> </span><span class="p">;</span><span class="w"> </span>uci<span class="w"> </span>commit<span class="w"> </span>firewall<span class="w"> </span><span class="p">;</span><span class="w"> </span>/etc/init.d/firewall<span class="w"> </span>restart
+uci<span class="w"> </span>changes<span class="w">                      </span><span class="c1"># 看有哪些改動還沒 commit</span>
+uci<span class="w"> </span>revert<span class="w"> </span>firewall<span class="w">              </span><span class="c1"># 丟棄未 commit 的改動</span>
+</code></pre>
+<hr />
+<h2 id="uci-完整命令與選項">uci 完整命令與選項</h2>
+<pre><code>uci [&lt;選項&gt;] &lt;命令&gt; [&lt;參數&gt;]
+</code></pre>
+<h3 id="命令全部-15-個">命令（全部 15 個）</h3>
+<p><strong>讀</strong></p>
+<table>
+<thead>
+<tr>
+<th>命令</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>show [&lt;config&gt;[.&lt;section&gt;[.&lt;option&gt;]]]</code></td>
+<td><strong>顯示設定</strong>（可逐層縮小範圍）</td>
+</tr>
+<tr>
+<td><code>get &lt;config&gt;.&lt;section&gt;[.&lt;option&gt;]</code></td>
+<td>取單一值</td>
+</tr>
+<tr>
+<td><code>export [&lt;config&gt;]</code></td>
+<td>匯出成 uci 檔案格式</td>
+</tr>
+<tr>
+<td><code>changes [&lt;config&gt;]</code></td>
+<td><strong>顯示尚未 commit 的改動</strong> ← 最該記住的一個</td>
+</tr>
+</tbody>
+</table>
+<p><strong>寫（都只寫進暫存，要 commit 才生效）</strong></p>
+<table>
+<thead>
+<tr>
+<th>命令</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>set &lt;config&gt;.&lt;section&gt;[.&lt;option&gt;]=&lt;值&gt;</code></td>
+<td>設定值</td>
+</tr>
+<tr>
+<td><code>add &lt;config&gt; &lt;section-type&gt;</code></td>
+<td><strong>新增一個匿名 section</strong>（回傳它的名字）</td>
+</tr>
+<tr>
+<td><code>add_list &lt;config&gt;.&lt;section&gt;.&lt;option&gt;=&lt;字串&gt;</code></td>
+<td>往 list 加一項</td>
+</tr>
+<tr>
+<td><code>del_list &lt;config&gt;.&lt;section&gt;.&lt;option&gt;=&lt;字串&gt;</code></td>
+<td>從 list 移除一項</td>
+</tr>
+<tr>
+<td><code>delete &lt;config&gt;[.&lt;section&gt;[[.&lt;option&gt;][=&lt;id&gt;]]]</code></td>
+<td>刪除</td>
+</tr>
+<tr>
+<td><code>rename &lt;config&gt;.&lt;section&gt;[.&lt;option&gt;]=&lt;名稱&gt;</code></td>
+<td><strong>把匿名 section 命名</strong>（之後就能用名字取代索引）</td>
+</tr>
+<tr>
+<td><code>reorder &lt;config&gt;.&lt;section&gt;=&lt;位置&gt;</code></td>
+<td>改變 section 的順序</td>
+</tr>
+</tbody>
+</table>
+<p><strong>交易</strong></p>
+<table>
+<thead>
+<tr>
+<th>命令</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>commit [&lt;config&gt;]</code></td>
+<td><strong>寫回 <code>/etc/config/</code></strong></td>
+</tr>
+<tr>
+<td><code>revert &lt;config&gt;[.&lt;section&gt;[.&lt;option&gt;]]</code></td>
+<td><strong>丟棄未 commit 的改動</strong></td>
+</tr>
+<tr>
+<td><code>batch</code></td>
+<td>從 stdin 讀多個命令一次執行</td>
+</tr>
+<tr>
+<td><code>import [&lt;config&gt;]</code></td>
+<td>從 uci 格式匯入</td>
+</tr>
+</tbody>
+</table>
+<p><code>rename</code> 特別值得知道：<strong>把匿名 section 命名之後就能寫 <code>firewall.myzone.input='ACCEPT'</code>，不必再用會位移的 <code>@zone[1]</code></strong>——腳本可靠度差很多。</p>
+<h3 id="選項全部-13-個">選項（全部 13 個）</h3>
+<table>
+<thead>
+<tr>
+<th>選項</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-c &lt;路徑&gt;</code></td>
+<td>設定檔搜尋路徑（預設 <code>/etc/config</code>）</td>
+</tr>
+<tr>
+<td><code>-C &lt;路徑&gt;</code></td>
+<td>覆寫檔搜尋路徑（預設 <code>/var/run/uci</code>）</td>
+</tr>
+<tr>
+<td><code>-d &lt;字串&gt;</code></td>
+<td><code>uci show</code> 時 list 值的分隔符</td>
+</tr>
+<tr>
+<td><code>-f &lt;檔案&gt;</code></td>
+<td>用檔案取代 stdin</td>
+</tr>
+<tr>
+<td><code>-m</code></td>
+<td>import 時<strong>合併</strong>進既有套件</td>
+</tr>
+<tr>
+<td><code>-n</code></td>
+<td>export 時替匿名 section 命名（預設）</td>
+</tr>
+<tr>
+<td><code>-N</code></td>
+<td>export 時不替匿名 section 命名</td>
+</tr>
+<tr>
+<td><code>-p &lt;路徑&gt;</code> / <code>-P &lt;路徑&gt;</code></td>
+<td>追加改動檔搜尋路徑（<code>-P</code> 並設為預設）</td>
+</tr>
+<tr>
+<td><code>-t &lt;路徑&gt;</code></td>
+<td>改動檔的儲存路徑</td>
+</tr>
+<tr>
+<td><code>-q</code></td>
+<td>安靜模式（不印錯誤）</td>
+</tr>
+<tr>
+<td><code>-s</code> / <code>-S</code></td>
+<td>強制／關閉嚴格模式（遇到解析錯誤是否停止；預設 <code>-s</code>）</td>
+</tr>
+<tr>
+<td><code>-X</code></td>
+<td><code>show</code> 時不使用延伸語法</td>
+</tr>
+</tbody>
+</table>
+<h2 id="自我測驗">自我測驗</h2>
+<ol>
+<li>nftables 和 uci 為什麼不能拿來比較「哪個比較好」？各自屬於哪一層、管的是什麼？</li>
+<li>你在 LuCI 上按了儲存，結果先前用 <code>nft add rule</code> 加的規則不見了。為什麼？要怎麼加才不會被洗掉？</li>
+<li>chain 宣告裡的 <code>hook</code> 和 <code>priority</code> 各自決定什麼？為什麼 TPROXY 的 chain 一定要用
+<code>priority mangle</code> 而不能用 <code>filter</code>？</li>
+<li><code>uci set</code> 改完之後為什麼可能「看起來沒生效」？uci 的交易機制是怎麼運作的？</li>
+<li>情境題：你在別人的 OpenWrt 上看到一條你沒印象的 nft 規則，想知道它從哪來、該去哪裡改。有哪兩個線索可以判斷它是人手寫的還是某個程式產生的？</li>
+</ol>
+
+</main>
+</div>
+</body>
+</html>

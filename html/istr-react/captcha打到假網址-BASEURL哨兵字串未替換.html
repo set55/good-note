@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>istr-react captcha 打到假網址 —— BASEURL 哨兵字串沒被替換</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/app.js"></script>
+</head>
+<body>
+<button class="menu-btn" onclick="toggleMenu()">☰ 目錄</button>
+<div class="layout">
+<nav class="side">
+<div class="crumbs"><a href="../index.html">🏠 首頁</a> / <a href="README.html">istr-react</a></div>
+<div class="tools"><button onclick="toggleTheme()">🌓 主題</button></div>
+<ul>
+<li class="l2"><a href="#%E4%B8%80%E7%8F%BE%E8%B1%A1">一、現象</a></li>
+<li class="l2"><a href="#%E4%BA%8C%E8%AB%8B%E6%B1%82-url-%E6%80%8E%E9%BA%BC%E7%B5%84%E5%87%BA%E4%BE%86%E7%9A%84">二、請求 URL 怎麼組出來的</a></li>
+<li class="l2"><a href="#%E4%B8%89%E6%A0%B9%E5%9B%A0%E9%87%8D%E9%BB%9E%E5%AE%B9%E6%98%93%E8%AA%A4%E5%88%A4%E7%9A%84%E5%9C%B0%E6%96%B9">三、根因（重點，容易誤判的地方）</a></li>
+<li class="l2"><a href="#%E5%9B%9B%E4%BF%AE%E6%B3%95%E6%8E%A1%E5%93%A8%E5%85%B5%E6%9B%BF%E6%8F%9B%E6%96%B9%E6%A1%88%E4%B8%8D%E5%8B%95-git-%E8%BF%BD%E8%B9%A4%E7%9A%84%E6%AA%94">四、修法（採哨兵替換方案，不動 git 追蹤的檔）</a></li>
+<li class="l2"><a href="#%E4%BA%94%E9%87%8D%E5%BB%BA%E8%88%87%E9%A9%97%E8%AD%89">五、重建與驗證</a></li>
+<li class="l2"><a href="#%E5%85%AD%E7%B5%A6%E6%9C%AA%E4%BE%86%E7%9A%84%E6%8F%90%E9%86%92">六、給未來的提醒</a></li>
+<li class="l2"><a href="#%E6%9C%AC%E7%AF%87%E7%94%A8%E5%88%B0%E7%9A%84%E6%8C%87%E4%BB%A4%E6%B6%B5%E8%93%8B%E7%AF%84%E5%9C%8D%E8%AA%AA%E6%98%8E">本篇用到的指令，涵蓋範圍說明</a></li>
+</ul>
+</nav>
+<main>
+<h1 id="istr-react-captcha-打到假網址--baseurl-哨兵字串沒被替換">istr-react captcha 打到假網址 —— BASEURL 哨兵字串沒被替換</h1>
+<blockquote>
+<p>建立日期：2026-07-11<br />
+症狀：打開 localhost:7081，captcha（及所有 API）不是打本機 istr 後端，而是打到 <code>https://replace-api-url.arpha-tech.com/api/v1/system/user/captcha</code><br />
+對應檔案：</p>
+<ul>
+<li><code>istr-react/config/config.prod.ts</code>（會進 git，<strong>不要動</strong>）</li>
+<li><code>istr-react/.set/docker/Dockerfile</code>（個人開發用，已被 .gitignore 忽略 → 修在這）</li>
+<li><code>istr-react/.set/docker/nginx.local.conf</code>（反代 /api → apisvr:7777）</li>
+</ul>
+</blockquote>
+<hr />
+<h2 id="一現象">一、現象</h2>
+<p>localhost:7081 由容器 <code>istr-react-web</code>（nginx，image <code>istr-react:local</code>）服務。瀏覽器對 captcha 的請求 URL 是 <code>https://replace-api-url.arpha-tech.com/api/v1/...</code>，這是一個佔位（哨兵）網址，根本不是本機後端 → 請求當然打不到 istr docker。</p>
+<hr />
+<h2 id="二請求-url-怎麼組出來的">二、請求 URL 怎麼組出來的</h2>
+<p><code>src/utils/request.ts</code> 裡：</p>
+<pre><code class="language-ts"><span class="nx">url</span><span class="o">:</span><span class="w"> </span><span class="p">(</span><span class="nx">process</span><span class="p">.</span><span class="nx">env</span><span class="p">.</span><span class="nx">BASEURL</span><span class="w"> </span><span class="o">??</span><span class="w"> </span><span class="s1">&#39;&#39;</span><span class="p">)</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nx">url</span><span class="p">,</span>
+</code></pre>
+<p><code>process.env.BASEURL</code> 是<strong>編譯期常數</strong>（umi 的 <code>define</code> 在 build 時直接把它替換成字面字串塞進打包後的 JS），執行期無法再改。captcha URL = <code>BASEURL</code> + <code>/api/v1/system/user/captcha</code>。</p>
+<p><code>config/config.prod.ts</code> 把它 define 成哨兵字串：</p>
+<pre><code class="language-ts"><span class="nx">define</span><span class="o">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="s1">&#39;process.env.BASEURL&#39;</span><span class="o">:</span><span class="w"> </span><span class="s1">&#39;https://replace-api-url.arpha-tech.com&#39;</span><span class="w"> </span><span class="p">}</span>
+</code></pre>
+<p>打包後在 dist 裡長這樣：<code>{url:((Ge=&quot;https://replace-api-url.arpha-tech.com&quot;)!==null&amp;...</code></p>
+<hr />
+<h2 id="三根因重點容易誤判的地方">三、根因（重點，容易誤判的地方）</h2>
+<p><code>.set/docker/Dockerfile</code> 原本的假設是：「跑純 <code>yarn build</code>（不帶 <code>UMI_ENV=prod</code>）只會吃 <code>config/config.ts</code>，不會定義 BASEURL，於是 <code>(BASEURL ?? '')</code> 取空 → 相對路徑 → nginx 反代」。</p>
+<p><strong>這個假設是錯的。</strong> umi 會依 <code>NODE_ENV</code> 自動疊上對應的環境設定檔，跟 <code>UMI_ENV</code> 無關：</p>
+<ul>
+<li><code>node_modules/@umijs/core/dist/constants.js</code>：<code>SHORT_ENV = { production: &quot;prod&quot; }</code></li>
+<li><code>node_modules/@umijs/core/dist/config/config.js</code> 的 <code>getConfigFiles()</code>：除了主檔 <code>config.ts</code>，還會載入 <code>config.${SHORT_ENV[env]}.ts</code>。</li>
+</ul>
+<p><code>max build</code> 會設 <code>NODE_ENV=production</code> → <code>env=production</code> → <code>SHORT_ENV.production=&quot;prod&quot;</code>
+→ <strong>自動載入 <code>config/config.prod.ts</code></strong>。所以就算沒帶 <code>UMI_ENV=prod</code>，
+<code>config.prod.ts</code> 的哨兵字串照樣被烤進 dist。這就是 captcha 打到假網址的完整鏈路。</p>
+<p>（對照：<code>config.develop.ts</code> 要 <code>UMI_ENV=develop</code> 才會載入；<code>config.dev.ts</code> 根本不存在，所以 <code>UMI_ENV=dev</code> 也不會載到 develop —— 但 prod 是靠 NODE_ENV 自動生效的，這點不一樣。）</p>
+<hr />
+<h2 id="四修法採哨兵替換方案不動-git-追蹤的檔">四、修法（採哨兵替換方案，不動 git 追蹤的檔）</h2>
+<p><code>config.prod.ts</code> 會進 git，不去改它。改在 gitignored 的 <code>.set/docker/Dockerfile</code>：
+<code>yarn build</code> 之後，把 dist 裡的哨兵字串就地 <code>sed</code> 替換成<strong>空字串</strong>
+→ <code>BASEURL</code> 變空 → 請求走相對路徑 <code>/api/xxx</code> → nginx <code>location /api/</code> 反代到本機 apisvr
+（same-origin，免後端 CORS）。</p>
+<pre><code class="language-dockerfile"><span class="k">ARG</span><span class="w"> </span><span class="nv">API_BASEURL</span><span class="o">=</span>
+<span class="k">RUN</span><span class="w"> </span>yarn<span class="w"> </span>build<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>grep<span class="w"> </span>-rl<span class="w"> </span><span class="s1">&#39;https://replace-api-url.arpha-tech.com&#39;</span><span class="w"> </span>dist<span class="w"> </span><span class="se">\</span>
+<span class="w">      </span><span class="p">|</span><span class="w"> </span>xargs<span class="w"> </span>-r<span class="w"> </span>sed<span class="w"> </span>-i<span class="w"> </span><span class="s2">&quot;s#https://replace-api-url.arpha-tech.com#</span><span class="si">${</span><span class="nv">API_BASEURL</span><span class="si">}</span><span class="s2">#g&quot;</span>
+</code></pre>
+<ul>
+<li>預設 <code>API_BASEURL=</code> 空 → 同源，靠 nginx 反代。</li>
+<li>想改打別的後端（例如遠端 dev），build 時 <code>--build-arg API_BASEURL=https://dev-istr.arpha-tech.cn</code>
+（這種跨網域情況還要配合 nginx.local.conf 的 proxy_pass / SNI 註解一起改，或直接讓前端打過去）。</li>
+</ul>
+<hr />
+<h2 id="五重建與驗證">五、重建與驗證</h2>
+<pre><code class="language-bash"><span class="nb">cd</span><span class="w"> </span>istr-react/.set/docker
+docker<span class="w"> </span>compose<span class="w"> </span>-f<span class="w"> </span>docker-compose.yml<span class="w"> </span>build<span class="w">      </span><span class="c1"># 重編 image</span>
+docker<span class="w"> </span>compose<span class="w"> </span>-f<span class="w"> </span>docker-compose.yml<span class="w"> </span>up<span class="w"> </span>-d<span class="w">       </span><span class="c1"># 用新 image 重建容器</span>
+
+<span class="c1"># 驗證 1：served dist 不再含哨兵字串</span>
+docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>istr-react-web<span class="w"> </span>sh<span class="w"> </span>-c<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span><span class="s2">&quot;grep -ro &#39;replace-api-url.arpha-tech.com&#39; /usr/share/nginx/html | wc -l&quot;</span><span class="w">   </span><span class="c1"># → 0</span>
+
+<span class="c1"># 驗證 2：BASEURL 已編成空字串</span>
+docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>istr-react-web<span class="w"> </span>sh<span class="w"> </span>-c<span class="w"> </span><span class="s2">&quot;grep -o &#39;Ge=\&quot;[^\&quot;]*\&quot;&#39; /usr/share/nginx/html/umi*.js | head&quot;</span><span class="w">  </span><span class="c1"># → Ge=&quot;&quot;</span>
+
+<span class="c1"># 驗證 3：captcha 走同源 → nginx → apisvr，拿到真實後端回應</span>
+curl<span class="w"> </span>-s<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span>-H<span class="w"> </span><span class="s1">&#39;Content-Type: application/json&#39;</span><span class="w"> </span>-d<span class="w"> </span><span class="s1">&#39;{}&#39;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>http://localhost:7081/api/v1/system/user/captcha
+<span class="c1"># → {&quot;code&quot;:100006,&quot;msg&quot;:&quot;参数错误:field \&quot;type\&quot; is not set&quot;}   （apisvr 的業務回應，代表已通到後端）</span>
+</code></pre>
+<p>GET 打 captcha 會回 405（Method Not Allowed）—— captcha 是 POST，405 本身就證明 nginx
+已成功反代到 apisvr（路由存在、只是方法不符），不是連不上。</p>
+<hr />
+<h2 id="六給未來的提醒">六、給未來的提醒</h2>
+<ul>
+<li><strong>BASEURL 是編譯期烤死的，不是執行期環境變數</strong>：改後端位址一定要重 build，不能只改容器環境或 nginx。</li>
+<li><strong>umi 的 prod 環境檔靠 NODE_ENV 自動載入</strong>：任何 production build 都會疊上 <code>config.prod.ts</code>，別再假設「不帶 UMI_ENV 就不會載 prod 設定」。</li>
+<li>這類「部署時才該替換的哨兵字串」若沒有替換步驟，就會原封不動被前端當成真網址送出去，查的時候先 <code>grep 'replace-api-url' dist/</code> 確認是不是佔位字串沒替換。</li>
+</ul>
+<h2 id="本篇用到的指令涵蓋範圍說明">本篇用到的指令，涵蓋範圍說明</h2>
+<blockquote>
+<p>這是一篇排查紀錄，用到的 <code>docker</code>（53 個頂層命令）、<code>grep</code>（40+ 選項）、
+<code>curl</code>（200+ 選項）都不適合在此全列。<strong>以下只列本文流程用到的</strong>，完整清單見 <code>docker --help</code>、<code>man grep</code>、<code>man curl</code>。</p>
+</blockquote>
+<table>
+<thead>
+<tr>
+<th>指令</th>
+<th>本文用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>docker exec &lt;容器&gt; &lt;指令&gt;</code></td>
+<td>進容器內檢查實際檔案內容</td>
+</tr>
+<tr>
+<td><code>docker logs &lt;容器&gt;</code></td>
+<td>看容器輸出</td>
+</tr>
+<tr>
+<td><code>docker compose up --build</code></td>
+<td>重建並啟動</td>
+</tr>
+<tr>
+<td><code>grep -r &lt;樣式&gt; &lt;目錄&gt;</code></td>
+<td>遞迴搜尋哨兵字串</td>
+</tr>
+<tr>
+<td><code>grep -n</code> / <code>-o</code> / <code>-c</code></td>
+<td>顯示行號／只印匹配部分／只計數</td>
+</tr>
+<tr>
+<td><code>curl -s &lt;網址&gt;</code></td>
+<td>安靜模式取得回應</td>
+</tr>
+<tr>
+<td><code>curl -I</code></td>
+<td>只取 HTTP 標頭</td>
+</tr>
+<tr>
+<td><code>curl -v</code></td>
+<td>顯示完整往返（<strong>看實際打到哪個網址</strong>）</td>
+</tr>
+</tbody>
+</table>
+<p><strong><code>curl -v</code> 是這類「打到錯網址」問題的關鍵</strong>——它會印出實際連線的主機與完整請求行，而不是你以為的那個。</p>
+
+</main>
+</div>
+</body>
+</html>

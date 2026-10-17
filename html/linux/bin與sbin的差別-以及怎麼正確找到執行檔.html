@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>/bin、/sbin、/usr/bin、/usr/sbin 差在哪？—— 以及怎麼正確找到一個執行檔</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/app.js"></script>
+</head>
+<body>
+<button class="menu-btn" onclick="toggleMenu()">☰ 目錄</button>
+<div class="layout">
+<nav class="side">
+<div class="crumbs"><a href="../index.html">🏠 首頁</a> / <a href="README.html">linux</a></div>
+<div class="tools"><button onclick="toggleTheme()">🌓 主題</button></div>
+<ul>
+<li class="l2"><a href="#%E4%B8%80%E5%85%88%E8%AC%9B%E6%96%B9%E6%B3%95%E7%8C%9C%E5%B0%8D%E4%B8%8D%E7%AD%89%E6%96%BC%E6%96%B9%E6%B3%95%E5%B0%8D">一、先講方法：猜對不等於方法對</a></li>
+<li class="l2"><a href="#%E4%BA%8C%E5%9B%9B%E5%80%8B%E7%9B%AE%E9%8C%84%E7%9A%84%E5%88%86%E6%B3%95">二、四個目錄的分法</a></li>
+<li class="l3"><a href="#%E5%AF%A6%E4%BE%8Biptables-%E5%A5%97%E4%BB%B6%E5%90%8C%E6%99%82%E8%A3%9D%E5%88%B0%E5%85%A9%E9%82%8A">實例：iptables 套件同時裝到兩邊</a></li>
+<li class="l2"><a href="#%E4%B8%89usrmerge%E7%AC%AC%E4%BA%8C%E5%80%8B%E7%B6%AD%E5%BA%A6%E5%B7%B2%E7%B6%93%E6%B6%88%E5%A4%B1">三、usrmerge：第二個維度已經消失</a></li>
+<li class="l2"><a href="#%E5%9B%9Bpath%E8%AA%B0%E5%85%88%E8%A2%AB%E6%89%BE%E5%88%B0">四、PATH：誰先被找到</a></li>
+<li class="l2"><a href="#%E4%BA%94%E5%AE%8C%E6%95%B4%E7%9A%84%E9%80%99%E5%80%8B%E5%9F%B7%E8%A1%8C%E6%AA%94%E5%9C%A8%E5%93%AA%E6%98%AF%E4%BB%80%E9%BA%BC%E6%9F%A5%E6%B3%95">五、完整的「這個執行檔在哪／是什麼」查法</a></li>
+<li class="l2"><a href="#%E8%87%AA%E6%88%91%E6%B8%AC%E9%A9%97">自我測驗</a></li>
+</ul>
+</nav>
+<main>
+<h1 id="binsbinusrbinusrsbin-差在哪-以及怎麼正確找到一個執行檔"><code>/bin</code>、<code>/sbin</code>、<code>/usr/bin</code>、<code>/usr/sbin</code> 差在哪？—— 以及怎麼正確找到一個執行檔</h1>
+<blockquote>
+<p>日期：2026-09-20<br />
+情境：追問「為什麼查 iptables 直接去 <code>/usr/sbin</code> 找，而不是 <code>/usr/bin</code>」——
+答案是「依慣例猜的」，而猜對不等於方法對<br />
+適用範圍：實測 Ubuntu 24.04（已 usrmerge）；FHS 規範適用於所有 Linux 發行版<br />
+相關：<a href="%E6%8E%92%E6%9F%A5%E6%96%B9%E6%B3%95%E8%AB%96.html">排查方法論</a>、<a href="dpkg%E5%AE%8C%E6%95%B4%E4%BD%BF%E7%94%A8%E6%8C%87%E5%8D%97.html">dpkg完整使用指南</a>、
+<a href="%E5%BE%9Edpkg%E5%8F%8D%E6%8E%A8%E5%A5%97%E4%BB%B6%E7%9A%84%E5%95%9F%E5%8B%95%E5%91%BD%E4%BB%A4.html">從dpkg反推套件的啟動命令</a></p>
+</blockquote>
+<p><strong>一句話結論：四個目錄的分法是兩個維度的交叉——<code>bin</code> vs <code>sbin</code> 看「一般使用者執行它有沒有意義」，
+<code>/</code> vs <code>/usr</code> 看「開機早期就需不需要」。但在已 usrmerge 的現代系統上，第二個維度已經消失（<code>/bin</code>
+只是指向 <code>usr/bin</code> 的符號連結）。而最重要的一點是：這些都只是<strong>慣例</strong>——要知道某個指令在哪，應該問系統（<code>command -v</code>／<code>type -a</code>／<code>dpkg -S</code>），不是憑慣例猜路徑。</strong></p>
+<hr />
+<h2 id="一先講方法猜對不等於方法對">一、先講方法：猜對不等於方法對</h2>
+<p>查 iptables 的執行檔時直接打了 <code>ls -l /usr/sbin/iptables*</code>——這是根據 FHS 慣例推測的路徑。
+<strong>它猜對了，但如果猜錯，回來的會是 <code>No such file or directory</code>，然後就要重猜第二次、第三次。</strong></p>
+<p>正確的順序是先問系統：</p>
+<pre><code class="language-bash">$<span class="w"> </span><span class="nb">command</span><span class="w"> </span>-v<span class="w"> </span>iptables
+/usr/sbin/iptables
+
+$<span class="w"> </span><span class="nb">type</span><span class="w"> </span>-a<span class="w"> </span>iptables
+iptables<span class="w"> </span>is<span class="w"> </span>/usr/sbin/iptables
+iptables<span class="w"> </span>is<span class="w"> </span>/sbin/iptables<span class="w">          </span><span class="c1"># ← 同一個檔案，見第三節</span>
+</code></pre>
+<p>這正是 <a href="%E6%8E%92%E6%9F%A5%E6%96%B9%E6%B3%95%E8%AB%96.html">排查方法論</a> 講的「先推翻前提」：<strong>「它應該在 <code>/usr/sbin</code>」是一個假設，不是事實。</strong> 用 <code>command -v</code> 只要一步就能把假設換成事實，沒有理由省這一步。</p>
+<p>三個查法的差別：</p>
+<table>
+<thead>
+<tr>
+<th>指令</th>
+<th>特性</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>command -v &lt;cmd&gt;</code></td>
+<td><strong>POSIX 標準、shell 內建</strong>，最可靠；會考慮 alias／function／builtin</td>
+</tr>
+<tr>
+<td><code>type -a &lt;cmd&gt;</code></td>
+<td>bash／zsh 內建，<strong>列出所有</strong>符合的（包含被 PATH 順序蓋掉的）</td>
+</tr>
+<tr>
+<td><code>which &lt;cmd&gt;</code></td>
+<td>外部程式，不知道 alias／function，行為在各發行版間不一致——<strong>最不建議</strong></td>
+</tr>
+<tr>
+<td><code>whereis &lt;cmd&gt;</code></td>
+<td>連 man page、原始碼一起找，但只搜固定目錄清單</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="二四個目錄的分法">二、四個目錄的分法</h2>
+<p>FHS（Filesystem Hierarchy Standard，檔案系統階層標準）的原始設計是<strong>兩個維度</strong>：</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>一般使用者會用的</th>
+<th>只有系統管理才有意義的</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>開機／單人模式就必須有</strong></td>
+<td><code>/bin</code></td>
+<td><code>/sbin</code></td>
+</tr>
+<tr>
+<td><strong>可以晚點才掛載</strong></td>
+<td><code>/usr/bin</code></td>
+<td><code>/usr/sbin</code></td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li><strong><code>bin</code> vs <code>sbin</code></strong>：判準是「<strong>一般使用者執行它有沒有意義</strong>」，不完全等於「需不需要 root」——
+雖然兩者高度相關。像 <code>ip</code>、<code>fdisk</code> 放在 sbin，一般使用者其實也能跑 <code>ip addr</code> 來看資訊，但它們的主要用途是管理系統。</li>
+<li><strong><code>/</code> vs <code>/usr</code></strong>：歷史原因。早期 <code>/usr</code> 可能掛在另一顆磁碟甚至網路上，開機初期還沒掛載，所以「開機救援必備」的東西必須放在根目錄底下。</li>
+</ul>
+<h3 id="實例iptables-套件同時裝到兩邊">實例：iptables 套件同時裝到兩邊</h3>
+<p>這是 FHS 判準最好的示範：</p>
+<pre><code class="language-bash">$<span class="w"> </span>dpkg<span class="w"> </span>-L<span class="w"> </span>iptables<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-E<span class="w"> </span><span class="s1">&#39;^/usr/s?bin/&#39;</span>
+/usr/sbin/iptables-apply
+/usr/sbin/xtables-nft-multi<span class="w">        </span><span class="c1"># iptables/ip6tables/arptables/ebtables 都是它的連結</span>
+/usr/sbin/xtables-legacy-multi
+/usr/sbin/arptables-nft
+/usr/sbin/ebtables-nft
+...
+/usr/bin/iptables-xml<span class="w">              </span><span class="c1"># ← 只有這一個在 /usr/bin</span>
+</code></pre>
+<p><strong>為什麼只有 <code>iptables-xml</code> 不一樣？</strong> 因為它只是把 <code>iptables-save</code> 的輸出轉成 XML 格式——
+純粹的文字處理，不碰核心、不需要權限，一般使用者拿它來分析規則檔完全合理。其他每一個都會去讀寫核心的規則集，非 root 執行沒有意義。</p>
+<p><strong>同一個套件、同一組工具，僅僅因為「一般使用者跑它有沒有意義」就被分到不同目錄。</strong></p>
+<hr />
+<h2 id="三usrmerge第二個維度已經消失">三、usrmerge：第二個維度已經消失</h2>
+<p>現代發行版（Ubuntu 20.04+、Debian 12+、Fedora 更早）都做了 <strong>usrmerge</strong>：</p>
+<pre><code class="language-bash">$<span class="w"> </span>ls<span class="w"> </span>-ld<span class="w"> </span>/bin<span class="w"> </span>/sbin<span class="w"> </span>/lib<span class="w"> </span>/usr/bin<span class="w"> </span>/usr/sbin
+lrwxrwxrwx<span class="w">  </span>/bin<span class="w">  </span>-&gt;<span class="w"> </span>usr/bin<span class="w">        </span><span class="c1"># ← 符號連結</span>
+lrwxrwxrwx<span class="w">  </span>/sbin<span class="w"> </span>-&gt;<span class="w"> </span>usr/sbin<span class="w">       </span><span class="c1"># ← 符號連結</span>
+lrwxrwxrwx<span class="w">  </span>/lib<span class="w">  </span>-&gt;<span class="w"> </span>usr/lib<span class="w">        </span><span class="c1"># ← 符號連結</span>
+drwxr-xr-x<span class="w">  </span>/usr/bin<span class="w">                </span><span class="c1"># ← 真正的目錄</span>
+drwxr-xr-x<span class="w">  </span>/usr/sbin<span class="w">               </span><span class="c1"># ← 真正的目錄</span>
+</code></pre>
+<p>所以：</p>
+<ul>
+<li><code>/sbin/iptables</code> 和 <code>/usr/sbin/iptables</code> <strong>是同一個檔案</strong>，不是兩份。</li>
+<li><code>type -a iptables</code> 列出兩行，不是因為有兩個 iptables，而是因為 PATH 裡同時有 <code>/usr/sbin</code>
+和 <code>/sbin</code> 這兩個路徑名，而它們指向同一處。</li>
+<li>「開機早期 <code>/usr</code> 還沒掛載」的前提早就不成立了——現在 initramfs 會先把 <code>/usr</code> 準備好。</li>
+</ul>
+<p><strong>維度剩下一個：只剩 <code>bin</code> vs <code>sbin</code> 還有意義。</strong> 而 Debian 也正在推進把 <code>/usr/sbin</code> 併進
+<code>/usr/bin</code>（DEP17），未來連這個區分都可能消失。本機目前仍是兩個獨立目錄。</p>
+<hr />
+<h2 id="四path誰先被找到">四、PATH：誰先被找到</h2>
+<pre><code class="language-bash">$<span class="w"> </span><span class="nb">echo</span><span class="w"> </span><span class="nv">$PATH</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>tr<span class="w"> </span><span class="s1">&#39;:&#39;</span><span class="w"> </span><span class="s1">&#39;\n&#39;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>nl
+<span class="w">  </span>...
+<span class="w">   </span><span class="m">7</span><span class="w">  </span>/usr/local/sbin
+<span class="w">   </span><span class="m">8</span><span class="w">  </span>/usr/local/bin
+<span class="w">   </span><span class="m">9</span><span class="w">  </span>/usr/sbin<span class="w">        </span>←<span class="w"> </span>sbin<span class="w"> </span>在前
+<span class="w">  </span><span class="m">10</span><span class="w">  </span>/usr/bin
+<span class="w">  </span><span class="m">11</span><span class="w">  </span>/sbin
+<span class="w">  </span><span class="m">12</span><span class="w">  </span>/bin
+</code></pre>
+<p>兩個觀察：</p>
+<ol>
+<li><strong>一般使用者的 PATH 現在也包含 sbin。</strong> 早期只有 root 的 PATH 有 sbin，所以一般使用者打
+<code>ifconfig</code> 會得到 <code>command not found</code>——那是 PATH 的問題，不是沒裝。現代 Ubuntu 在
+<code>/etc/environment</code> 裡就把 sbin 放進所有人的 PATH。</li>
+<li><strong><code>/usr/local/*</code> 排在系統目錄前面</strong>，這是刻意的：讓你自己編譯安裝的版本蓋過套件版本。這也是「明明 <code>apt install</code> 了新版，跑起來還是舊版」的常見原因——用 <code>type -a</code> 一看就知道有兩個同名執行檔。</li>
+</ol>
+<blockquote>
+<p>順帶一提，本機 PATH 有 30 個項目，其中 <code>/home/set/bin</code>、<code>/usr/local/go/bin</code>、<code>/home/set/go/bin</code>
+各重複出現 4 次——通常是 shell 設定檔裡的 <code>export PATH=...:$PATH</code> 被重複執行（例如 <code>.zshrc</code>
+與 <code>.zprofile</code> 都加了一次）。不影響正確性，但會讓每次查指令多掃幾個目錄。</p>
+</blockquote>
+<hr />
+<h2 id="五完整的這個執行檔在哪是什麼查法">五、完整的「這個執行檔在哪／是什麼」查法</h2>
+<pre><code class="language-bash"><span class="c1"># 1. 現在會執行哪一個</span>
+<span class="nb">command</span><span class="w"> </span>-v<span class="w"> </span>&lt;cmd&gt;
+<span class="nb">type</span><span class="w"> </span>-a<span class="w"> </span>&lt;cmd&gt;<span class="w">                       </span><span class="c1"># 列出全部，看有沒有被別的版本蓋掉</span>
+
+<span class="c1"># 2. 它是不是連結、真身在哪</span>
+readlink<span class="w"> </span>-f<span class="w"> </span><span class="s2">&quot;</span><span class="k">$(</span><span class="nb">command</span><span class="w"> </span>-v<span class="w"> </span>&lt;cmd&gt;<span class="k">)</span><span class="s2">&quot;</span>
+ls<span class="w"> </span>-l<span class="w"> </span><span class="s2">&quot;</span><span class="k">$(</span><span class="nb">command</span><span class="w"> </span>-v<span class="w"> </span>&lt;cmd&gt;<span class="k">)</span><span class="s2">&quot;</span>
+
+<span class="c1"># 3. 它屬於哪個套件</span>
+dpkg<span class="w"> </span>-S<span class="w"> </span><span class="s2">&quot;</span><span class="k">$(</span>readlink<span class="w"> </span>-f<span class="w"> </span><span class="s2">&quot;</span><span class="k">$(</span><span class="nb">command</span><span class="w"> </span>-v<span class="w"> </span>&lt;cmd&gt;<span class="k">)</span><span class="s2">&quot;</span><span class="k">)</span><span class="s2">&quot;</span>
+
+<span class="c1"># 4. 那個套件還裝了哪些執行檔（找出同系列工具）</span>
+dpkg<span class="w"> </span>-L<span class="w"> </span>&lt;pkg&gt;<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-E<span class="w"> </span><span class="s1">&#39;^/usr/s?bin/&#39;</span>
+
+<span class="c1"># 5. 如果根本不在 PATH 上（例如裝在 /opt）</span>
+dpkg<span class="w"> </span>-L<span class="w"> </span>&lt;pkg&gt;<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-E<span class="w"> </span><span class="s1">&#39;\.desktop$&#39;</span><span class="w">   </span><span class="c1"># GUI 程式的入口在這裡</span>
+</code></pre>
+<p><strong>心法：問「這個指令在哪」永遠不要用 <code>ls</code> 去猜目錄——<code>command -v</code> 一步到位，而且會告訴你
+shell 實際會執行哪一個，這跟「檔案存在於某處」是兩回事。</strong></p>
+<hr />
+<h2 id="自我測驗">自我測驗</h2>
+<ol>
+<li><code>bin</code> 與 <code>sbin</code> 的分野是「需不需要 root」嗎？用 iptables 套件裡 <code>iptables-xml</code> 被放在
+<code>/usr/bin</code> 的例子說明真正的判準。</li>
+<li><code>type -a iptables</code> 顯示 <code>/usr/sbin/iptables</code> 和 <code>/sbin/iptables</code> 兩行，代表系統上有兩個
+iptables 嗎？為什麼？</li>
+<li><code>/</code> 與 <code>/usr</code> 的區分原本是為了解決什麼問題？為什麼這個理由在現代系統上已經不成立？</li>
+<li>你 <code>apt install</code> 升級了某個工具，但執行起來還是舊版本。用 PATH 的順序解釋，並說出哪一個指令能一眼看出問題。</li>
+<li>情境題：同事說「這台機器沒裝 <code>ip</code> 指令，因為我打 <code>ip addr</code> 說 command not found」。你要怎麼在兩步之內判斷他是真的沒裝、還是 PATH 的問題？</li>
+</ol>
+
+</main>
+</div>
+</body>
+</html>

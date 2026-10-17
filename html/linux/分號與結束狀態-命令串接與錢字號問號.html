@@ -1,0 +1,583 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>./oob; echo &quot;exit=$?&quot; 在做什麼？—— 命令串接、結束狀態與 $?</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/app.js"></script>
+</head>
+<body>
+<button class="menu-btn" onclick="toggleMenu()">☰ 目錄</button>
+<div class="layout">
+<nav class="side">
+<div class="crumbs"><a href="../index.html">🏠 首頁</a> / <a href="README.html">linux</a></div>
+<div class="tools"><button onclick="toggleTheme()">🌓 主題</button></div>
+<ul>
+<li class="l2"><a href="#%E7%9B%AE%E9%8C%84">目錄</a></li>
+<li class="l2"><a href="#%E4%B8%80%E9%80%90%E6%AE%B5%E6%8B%86%E8%A7%A3">一、逐段拆解</a></li>
+<li class="l2"><a href="#%E4%BA%8C%E7%82%BA%E4%BB%80%E9%BA%BC%E4%B8%8D%E8%83%BD%E5%8F%AA%E6%89%93-oob">二、./：為什麼不能只打 oob</a></li>
+<li class="l2"><a href="#%E4%B8%89%E7%B5%90%E6%9D%9F%E7%8B%80%E6%85%8B0255-%E9%80%99%E5%80%8B%E6%95%B8%E5%AD%97%E5%BE%9E%E5%93%AA%E4%BE%86">三、結束狀態：0～255 這個數字從哪來</a></li>
+<li class="l3"><a href="#%E7%A8%8B%E5%BC%8F%E8%87%AA%E5%B7%B1%E6%B1%BA%E5%AE%9Areturn-%E6%88%96-exit-%E7%9A%84%E5%80%BC">程式自己決定：return 或 exit() 的值</a></li>
+<li class="l3"><a href="#%E8%A2%AB%E8%A8%8A%E8%99%9F%E6%AE%BA%E6%8E%89shell-%E8%A8%AD%E6%88%90-128--%E8%A8%8A%E8%99%9F%E7%B7%A8%E8%99%9F">被訊號殺掉：shell 設成 128 + 訊號編號</a></li>
+<li class="l2"><a href="#%E5%9B%9B-%E8%88%87%E5%85%B6%E4%BB%96%E4%B8%B2%E6%8E%A5%E5%91%BD%E4%BB%A4%E7%9A%84%E6%96%B9%E5%BC%8F%E5%AE%8C%E6%95%B4%E6%B8%85%E5%96%AE">四、; 與其他串接命令的方式（完整清單）</a></li>
+<li class="l3"><a href="#%E7%AE%A1%E7%B7%9A--%E4%B8%8D%E6%98%AF%E4%B8%B2%E6%8E%A5%E4%BD%86--%E6%9C%83%E5%8F%97%E5%AE%83%E5%BD%B1%E9%9F%BF">管線 | 不是串接，但 $? 會受它影響</a></li>
+<li class="l2"><a href="#%E4%BA%94%E5%8F%AA%E8%A8%98%E5%BE%97%E4%B8%8A%E4%B8%80%E5%80%8B%E5%91%BD%E4%BB%A4">五、$?：只記得上一個命令</a></li>
+<li class="l3"><a href="#%E6%AF%8F%E8%B7%91%E4%B8%80%E5%80%8B%E5%91%BD%E4%BB%A4%E5%B0%B1%E8%A2%AB%E8%A6%86%E8%93%8B">每跑一個命令就被覆蓋</a></li>
+<li class="l3"><a href="#%E8%83%8C%E6%99%AF%E5%91%BD%E4%BB%A4-%E6%98%AF-0%E8%A6%81%E7%94%A8-wait-%E6%8B%BF">背景命令：$? 是 0，要用 wait 拿</a></li>
+<li class="l3"><a href="#%E7%AE%A1%E7%B7%9A%E5%8F%AA%E7%9C%8B%E6%9C%80%E5%BE%8C%E4%B8%80%E5%80%8B%E5%91%BD%E4%BB%A4">管線：只看最後一個命令</a></li>
+<li class="l3"><a href="#zsh-%E7%9A%84-status">zsh 的 $status</a></li>
+<li class="l3"><a href="#-%E6%98%AF-shell-%E7%9A%84%E7%89%B9%E6%AE%8A%E5%8F%83%E6%95%B8%E4%B9%8B%E4%B8%80%E5%AE%8C%E6%95%B4%E6%B8%85%E5%96%AE">$? 是 shell 的「特殊參數」之一：完整清單</a></li>
+<li class="l2"><a href="#%E5%85%AD%E9%9B%99%E5%BC%95%E8%99%9F%E7%82%BA%E4%BB%80%E9%BA%BC%E5%AF%AB%E6%88%90-exit">六、雙引號：為什麼寫成 &quot;exit=$?&quot;</a></li>
+<li class="l2"><a href="#%E4%B8%83echo%E5%AE%8C%E6%95%B4%E9%81%B8%E9%A0%85%E4%BB%A5%E5%8F%8A-bash-%E8%88%87-zsh-%E7%9A%84%E5%B7%AE%E5%88%A5">七、echo：完整選項，以及 bash 與 zsh 的差別</a></li>
+<li class="l2"><a href="#%E5%85%AB%E9%8C%AF%E8%AA%A4%E8%88%87%E7%B5%90%E6%9D%9F%E7%8B%80%E6%85%8B%E5%B0%8D%E7%85%A7">八、錯誤與結束狀態對照</a></li>
+<li class="l2"><a href="#%E8%87%AA%E6%88%91%E6%B8%AC%E9%A9%97">自我測驗</a></li>
+</ul>
+</nav>
+<main>
+<h1 id="oob-echo-exit-在做什麼-命令串接結束狀態與-"><code>./oob; echo &quot;exit=$?&quot;</code> 在做什麼？—— 命令串接、結束狀態與 <code>$?</code></h1>
+<blockquote>
+<p>日期：2026-09-28<br />
+情境：第 ① 站第 3 課的延伸提問。<a href="../c/%E9%99%A3%E5%88%97%E3%80%81%E5%AD%97%E4%B8%B2%E8%88%87%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97-C%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%88%87%E7%94%A8gdb%E6%89%BEsegfault.html">陣列、字串與指標運算</a>
+<a href="../c/%E9%99%A3%E5%88%97%E3%80%81%E5%AD%97%E4%B8%B2%E8%88%87%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97-C%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%88%87%E7%94%A8gdb%E6%89%BEsegfault.html#%E4%BA%94c-%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%B6%8A%E7%95%8C%E7%9A%84%E4%B8%89%E7%A8%AE%E4%B8%8B%E5%A0%B4">第五節</a>每個實驗都用 <code>./oob; echo &quot;exit=$?&quot;</code> 執行，使用者問這個語法是什麼意思。<br />
+適用範圍：本機 Ubuntu 24.04，bash 5.2.21、zsh 5.9（使用者的登入 shell 是 zsh）。以下輸出都是本機實測，兩個 shell 結果不同的地方會分開列。<br />
+實驗檔案：放在 Claude 的 scratchpad，完整原始碼都附在下面，不入 git。</p>
+</blockquote>
+<p><strong>一句話結論：這是兩個命令。<code>;</code> 讓第二個命令不管第一個成功或失敗都會執行；<code>$?</code> 是「上一個命令」的結束狀態（exit status），每跑一個命令就被覆蓋一次，所以 <code>echo</code> 必須緊接在要觀察的程式後面。</strong></p>
+<hr />
+<h2 id="目錄">目錄</h2>
+<ul>
+<li><a href="#%E4%B8%80%E9%80%90%E6%AE%B5%E6%8B%86%E8%A7%A3">一、逐段拆解</a></li>
+<li><a href="#%E4%BA%8C%E7%82%BA%E4%BB%80%E9%BA%BC%E4%B8%8D%E8%83%BD%E5%8F%AA%E6%89%93-oob">二、<code>./</code>：為什麼不能只打 <code>oob</code></a></li>
+<li><a href="#%E4%B8%89%E7%B5%90%E6%9D%9F%E7%8B%80%E6%85%8B0255-%E9%80%99%E5%80%8B%E6%95%B8%E5%AD%97%E5%BE%9E%E5%93%AA%E4%BE%86">三、結束狀態：0～255 這個數字從哪來</a></li>
+<li><a href="#%E5%9B%9B-%E8%88%87%E5%85%B6%E4%BB%96%E4%B8%B2%E6%8E%A5%E5%91%BD%E4%BB%A4%E7%9A%84%E6%96%B9%E5%BC%8F%E5%AE%8C%E6%95%B4%E6%B8%85%E5%96%AE">四、<code>;</code> 與其他串接命令的方式（完整清單）</a></li>
+<li><a href="#%E4%BA%94%E5%8F%AA%E8%A8%98%E5%BE%97%E4%B8%8A%E4%B8%80%E5%80%8B%E5%91%BD%E4%BB%A4">五、<code>$?</code>：只記得上一個命令</a></li>
+<li><a href="#%E5%85%AD%E9%9B%99%E5%BC%95%E8%99%9F%E7%82%BA%E4%BB%80%E9%BA%BC%E5%AF%AB%E6%88%90-exit">六、雙引號：為什麼寫成 <code>&quot;exit=$?&quot;</code></a></li>
+<li><a href="#%E4%B8%83echo%E5%AE%8C%E6%95%B4%E9%81%B8%E9%A0%85%E4%BB%A5%E5%8F%8A-bash-%E8%88%87-zsh-%E7%9A%84%E5%B7%AE%E5%88%A5">七、<code>echo</code>：完整選項，以及 bash 與 zsh 的差別</a></li>
+<li><a href="#%E5%85%AB%E9%8C%AF%E8%AA%A4%E8%88%87%E7%B5%90%E6%9D%9F%E7%8B%80%E6%85%8B%E5%B0%8D%E7%85%A7">八、錯誤與結束狀態對照</a></li>
+</ul>
+<hr />
+<h2 id="一逐段拆解">一、逐段拆解</h2>
+<pre><code>./oob   ;   echo   &quot;exit=$?&quot;
+└─┬─┘   │   └─┬┘   └───┬───┘
+命令 1  串接  命令 2   命令 2 的參數（一個字串）
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>片段</th>
+<th>是什麼</th>
+<th>誰處理</th>
+<th>詳見</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>./oob</code></td>
+<td>執行<strong>目前目錄</strong>裡叫 <code>oob</code> 的檔案</td>
+<td>shell 找檔案，核心 <code>execve</code> 執行</td>
+<td>第二節</td>
+</tr>
+<tr>
+<td><code>;</code></td>
+<td>命令分隔符號：前一個跑完，<strong>不論成敗</strong>都接著跑下一個</td>
+<td>shell</td>
+<td>第四節</td>
+</tr>
+<tr>
+<td><code>echo</code></td>
+<td>shell 內建命令，把參數印出來、最後加換行</td>
+<td>shell 本身（不是外部程式）</td>
+<td>第七節</td>
+</tr>
+<tr>
+<td><code>&quot;...&quot;</code></td>
+<td>雙引號：裡面的 <code>$</code> 仍會展開，但整段算<strong>一個</strong>參數</td>
+<td>shell</td>
+<td>第六節</td>
+</tr>
+<tr>
+<td><code>$?</code></td>
+<td>特殊參數：<strong>上一個</strong>前景命令的結束狀態</td>
+<td>shell 在執行 <code>echo</code> <strong>之前</strong>就換成數字</td>
+<td>第三、五節</td>
+</tr>
+</tbody>
+</table>
+<p>shell 讀到這一行時的順序：</p>
+<ol>
+<li>看到 <code>;</code>，知道這是兩個命令，先執行 <code>./oob</code>，等它結束，記下它的結束狀態。</li>
+<li>準備執行 <code>echo</code> 時先做展開：<code>&quot;exit=$?&quot;</code> 裡的 <code>$?</code> 換成剛剛記下的數字，例如 <code>exit=0</code>。</li>
+<li>執行 <code>echo exit=0</code>，印出來。</li>
+</ol>
+<p>所以 <code>echo</code> 看到的從來不是 <code>$?</code> 這兩個字元，而是已經換好的數字。</p>
+<hr />
+<h2 id="二為什麼不能只打-oob">二、<code>./</code>：為什麼不能只打 <code>oob</code></h2>
+<p>只打一個名字（不含 <code>/</code>）時，shell 會依序到 <code>PATH</code> 這個環境變數列出的目錄去找，<strong>不會找目前目錄</strong>。本機的 <code>PATH</code>（節錄）：</p>
+<pre><code>$ echo &quot;$PATH&quot; | tr ':' '\n'
+/home/set/.nvm/versions/node/v24.14.0/bin
+...
+/usr/local/bin
+/usr/sbin
+/usr/bin
+/sbin
+/bin
+...
+</code></pre>
+<p>裡面沒有 <code>.</code>（目前目錄）。所以要執行剛編出來的程式，就得寫出路徑。<code>./oob</code> 的 <code>.</code> 是「目前目錄」，<code>/</code> 是路徑分隔，名字裡只要有 <code>/</code>，shell 就不查 <code>PATH</code>，直接拿這個路徑去執行。</p>
+<p>不把 <code>.</code> 放進 <code>PATH</code> 是刻意的安全設計：否則別人在某個目錄放一個叫 <code>ls</code> 的惡意程式，你一 <code>cd</code> 進去打 <code>ls</code> 就中招。</p>
+<p>少打 <code>./</code> 的下場（實測，<code>ret</code> 是第三節的程式，在目前目錄裡）：</p>
+<pre><code>$ ret 1; echo &quot;exit=$?&quot;
+bash: ret: command not found                   ← bash（互動）的訊息
+zsh: command not found: ret                    ← zsh（互動）的訊息
+exit=127                                       ← 兩個 shell 都是 127
+</code></pre>
+<p>127 是 shell 保留的值，代表「找不到命令」（第八節）。</p>
+<hr />
+<h2 id="三結束狀態0255-這個數字從哪來">三、結束狀態：0～255 這個數字從哪來</h2>
+<h3 id="程式自己決定return-或-exit-的值">程式自己決定：<code>return</code> 或 <code>exit()</code> 的值</h3>
+<p><code>main</code> 的 <code>return n</code>（或呼叫 <code>exit(n)</code>）就是把 <code>n</code> 交給核心，父行程（這裡是 shell）用 <code>waitpid</code> 系統呼叫拿回來。慣例是 <strong>0 代表成功，非 0 代表失敗</strong>——跟 C 的「0 是假」剛好相反，因為成功只有一種、失敗可以有很多種原因要分辨。</p>
+<p>用一個「把第一個參數當結束狀態」的小程式實測。<code>ret.c</code> 完整原始碼：</p>
+<pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdlib.h&gt;</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">argc</span><span class="p">,</span><span class="w"> </span><span class="kt">char</span><span class="w"> </span><span class="o">*</span><span class="n">argv</span><span class="p">[])</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">argc</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">2</span><span class="p">)</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">atoi</span><span class="p">(</span><span class="n">argv</span><span class="p">[</span><span class="mi">1</span><span class="p">]);</span><span class="w">      </span><span class="cm">/* 用第一個參數當結束狀態 */</span>
+<span class="p">}</span>
+</code></pre>
+<pre><code>$ gcc -Wall -Wextra -o ret ret.c
+$ ./ret 3;   echo &quot;exit=$?&quot;
+exit=3
+$ ./ret 256; echo &quot;exit=$?&quot;
+exit=0          ← 不是 256
+$ ./ret 300; echo &quot;exit=$?&quot;
+exit=44         ← 不是 300
+$ ./ret -1;  echo &quot;exit=$?&quot;
+exit=255        ← 不是 -1
+</code></pre>
+<p>（bash、zsh 結果完全相同。）</p>
+<p>結束狀態只有 <strong>8 bit</strong>：<code>main</code> 回傳的 <code>int</code> 被<strong>截斷</strong>成最低的 1 個 byte，再當成<strong>無號</strong>數讀——
+正是<a href="../c/C%E7%9A%84%E8%B3%87%E6%96%99%E5%9C%A8%E8%A8%98%E6%86%B6%E9%AB%94%E8%A3%A1%E9%95%B7%E6%80%8E%E6%A8%A3-%E4%BD%8D%E5%85%83%E7%B5%84%E3%80%81%E6%8C%87%E6%A8%99%E3%80%81%E4%BD%8D%E5%85%83%E7%B5%84%E9%A0%86%E5%BA%8F%E8%88%87%E6%9C%89%E8%99%9F%E7%84%A1%E8%99%9F.html#%E5%85%AD%E6%9C%89%E8%99%9F%E8%88%87%E7%84%A1%E8%99%9F%E4%B9%8B%E9%96%93%E7%9A%84%E8%BD%89%E6%8F%9B%E4%BD%8D%E5%85%83%E4%B8%8D%E8%AE%8A%E6%8F%9B%E5%80%8B%E8%AE%80%E6%B3%95">第 2 課第六節</a>〈變窄（截斷，truncation）〉的規則：</p>
+<table>
+<thead>
+<tr>
+<th>回傳值</th>
+<th>十六進位</th>
+<th>留下最低 1 byte</th>
+<th>用無號讀</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>256</td>
+<td><code>0x00000100</code></td>
+<td><code>0x00</code></td>
+<td>0</td>
+</tr>
+<tr>
+<td>300</td>
+<td><code>0x0000012c</code></td>
+<td><code>0x2c</code></td>
+<td>44</td>
+</tr>
+<tr>
+<td>−1</td>
+<td><code>0xffffffff</code></td>
+<td><code>0xff</code></td>
+<td>255</td>
+</tr>
+</tbody>
+</table>
+<p>所以 <code>return 256;</code> 會被當成「成功」——程式要回報錯誤，一律用 1～125 之間的值。</p>
+<h3 id="被訊號殺掉shell-設成-128--訊號編號">被訊號殺掉：shell 設成 128 + 訊號編號</h3>
+<p>程式如果被訊號（signal）終止，它根本沒有執行到 <code>return</code>，也就沒有自己的結束狀態。這時 shell 用 <strong>128 + 訊號編號</strong> 代替（第 3 課〈<a href="../c/%E9%99%A3%E5%88%97%E3%80%81%E5%AD%97%E4%B8%B2%E8%88%87%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97-C%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%88%87%E7%94%A8gdb%E6%89%BEsegfault.html#%E7%B5%90%E6%9D%9F%E7%8B%80%E6%85%8B-139-%E5%92%8C-134-%E6%98%AF%E4%BB%80%E9%BA%BC">結束狀態 139 和 134 是什麼</a>〉）。
+<code>crash.c</code> 完整原始碼：</p>
+<pre><code class="language-c"><span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="o">*</span><span class="n">p</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="o">*</span><span class="n">p</span><span class="p">;</span><span class="w">                 </span><span class="cm">/* 讀位址 0：segfault */</span>
+<span class="p">}</span>
+</code></pre>
+<pre><code>$ gcc -o crash crash.c
+$ ./crash; echo &quot;exit=$?&quot;
+exit=139                       ← 128 + 11（SIGSEGV）
+</code></pre>
+<p>那行 <code>Segmentation fault (core dumped)</code> 是<strong>誰印的</strong>？不是程式（它已經死了），是 <strong>shell</strong> 發現子行程被訊號殺掉後自己印的，兩個 shell 的措辭不同：</p>
+<pre><code>bash（互動）：Segmentation fault (core dumped)
+zsh （互動）：zsh: segmentation fault (core dumped)  ./crash
+</code></pre>
+<p>實測發現：zsh 以非互動方式執行（<code>zsh -c '...'</code>、腳本）時<strong>不印</strong>這一行，只剩 <code>exit=139</code>；bash 在 <code>bash -c</code> 下仍然會印。所以看不到錯誤訊息不代表程式沒當掉——<strong><code>$?</code> 才是可靠的判斷依據</strong>，這也是第 3 課每個實驗都要 <code>echo &quot;exit=$?&quot;</code> 的原因。</p>
+<hr />
+<h2 id="四-與其他串接命令的方式完整清單">四、<code>;</code> 與其他串接命令的方式（完整清單）</h2>
+<p><code>man bash</code> 的〈Lists〉一節：串接用的運算子<strong>只有</strong> <code>;</code>、<code>&amp;</code>、<code>&amp;&amp;</code>、<code>||</code> 四個，外加換行（等同 <code>;</code>）。</p>
+<table>
+<thead>
+<tr>
+<th>寫法</th>
+<th>名稱</th>
+<th>意思</th>
+<th>整串的結束狀態</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>A ; B</code></td>
+<td>循序（sequential）</td>
+<td>等 A 結束，<strong>不論成敗</strong>都跑 B</td>
+<td>最後跑的那個（B）</td>
+</tr>
+<tr>
+<td><code>A</code>（換行）<code>B</code></td>
+<td>同上</td>
+<td>換行和 <code>;</code> 完全一樣</td>
+<td>同上</td>
+</tr>
+<tr>
+<td><code>A &amp;&amp; B</code></td>
+<td>AND 串列</td>
+<td>A <strong>成功</strong>（狀態 0）才跑 B</td>
+<td>最後實際跑的那個</td>
+</tr>
+<tr>
+<td><code>A || B</code></td>
+<td>OR 串列</td>
+<td>A <strong>失敗</strong>（狀態非 0）才跑 B</td>
+<td>最後實際跑的那個</td>
+</tr>
+<tr>
+<td><code>A &amp; B</code></td>
+<td>非同步（asynchronous）</td>
+<td>A 丟到背景，<strong>不等它</strong>就跑 B</td>
+<td><code>A &amp;</code> 本身永遠是 0</td>
+</tr>
+</tbody>
+</table>
+<p>zsh 另外多兩個：<code>A &amp;|</code> 和 <code>A &amp;!</code>，都是「丟到背景，而且立刻跟 shell 脫鉤（disown）」（<code>man zshmisc</code> 的〈SIMPLE COMMANDS &amp; PIPELINES〉）。</p>
+<p>實測（<code>ret</code> 見第三節；bash、zsh 輸出相同）：</p>
+<pre><code>$ ./ret 1 ; echo &quot;分號：上一個是 $?&quot;
+分號：上一個是 1
+$ ./ret 1 &amp;&amp; echo &quot;&amp;&amp;：不會印&quot;                   ← 沒有輸出
+$ ./ret 0 &amp;&amp; echo &quot;&amp;&amp;：上一個成功才印&quot;
+&amp;&amp;：上一個成功才印
+$ ./ret 1 || echo &quot;||：上一個失敗才印&quot;
+||：上一個失敗才印
+$ ./ret 0 || echo &quot;||：不會印&quot;                   ← 沒有輸出
+</code></pre>
+<p><strong>第 3 課為什麼用 <code>;</code>，不用 <code>&amp;&amp;</code>？</strong> 實驗的目的就是看程式<strong>失敗</strong>時的結束狀態。寫成 <code>./oob &amp;&amp; echo &quot;exit=$?&quot;</code>，只要 <code>oob</code> 當掉（139），<code>echo</code> 根本不會執行，什麼都看不到。</p>
+<p><strong>優先順序</strong>：<code>&amp;&amp;</code> 和 <code>||</code> 同級、由左往右結合；<code>;</code> 和 <code>&amp;</code> 同級、比它們低。所以 <code>A &amp;&amp; B || C</code> 是 <code>(A &amp;&amp; B) || C</code>——
+B 失敗時 C 也會跑，不是「A 成功跑 B、否則跑 C」的三元式：</p>
+<pre><code>$ ./ret 0 &amp;&amp; ./ret 1 || echo &quot;C 被執行了&quot;
+C 被執行了                                         ← A 成功，但 B 失敗，所以 C 也跑了
+</code></pre>
+<p>這個陷阱在 <a href="shell%E6%A2%9D%E4%BB%B6%E5%88%A4%E6%96%B7%E6%B8%AC%E8%A9%A6.html#%E4%B8%89----%E4%B8%89%E5%85%83%E5%BC%8F%E8%88%87%E5%AE%83%E7%9A%84%E9%99%B7%E9%98%B1">shell條件判斷測試</a>〈陷阱：<code>&amp;&amp;</code> 後面那段自己失敗時，<code>||</code> 也會跑〉有完整說明。</p>
+<h3 id="管線--不是串接但--會受它影響">管線 <code>|</code> 不是串接，但 <code>$?</code> 會受它影響</h3>
+<p><code>A | B</code> 把 A 的輸出接到 B 的輸入，兩個<strong>同時</strong>執行（見 <a href="%E8%BC%B8%E5%87%BA%E9%87%8D%E6%96%B0%E5%B0%8E%E5%90%91%E8%88%87dev-null.html">輸出重新導向與dev-null</a>）。它不屬於上面的串列運算子，而是更小的單位「管線（pipeline）」：串列是由管線串成的。相關符號也全部列出：</p>
+<table>
+<thead>
+<tr>
+<th>寫法</th>
+<th>意思</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>A | B</code></td>
+<td>A 的 stdout 接到 B 的 stdin</td>
+</tr>
+<tr>
+<td><code>A |&amp; B</code></td>
+<td>等於 <code>A 2&gt;&amp;1 | B</code>，stdout 和 stderr 都接過去（bash、zsh 都有）</td>
+</tr>
+<tr>
+<td><code>! A</code></td>
+<td>把管線的結束狀態反轉：0 變 1，非 0 變 0</td>
+</tr>
+</tbody>
+</table>
+<p>管線的結束狀態是<strong>最後一個命令</strong>的，見第五節。</p>
+<hr />
+<h2 id="五只記得上一個命令">五、<code>$?</code>：只記得上一個命令</h2>
+<h3 id="每跑一個命令就被覆蓋">每跑一個命令就被覆蓋</h3>
+<pre><code>$ ./ret 7; echo hi; echo &quot;看到的是 $?&quot;
+hi
+看到的是 0                     ← 是 echo hi 的狀態，不是 ret 的 7
+$ ./ret 7; rc=$?; echo hi; echo &quot;存起來的 rc=$rc&quot;
+hi
+存起來的 rc=7                  ← 先存進變數，之後怎麼跑都不會變
+</code></pre>
+<p><code>echo</code> 本身也是命令，它成功執行完，<code>$?</code> 就變成 0。要在好幾個命令之後還用得到，就要<strong>立刻</strong>存起來：<code>rc=$?</code>。</p>
+<h3 id="背景命令-是-0要用-wait-拿">背景命令：<code>$?</code> 是 0，要用 <code>wait</code> 拿</h3>
+<pre><code>$ ./ret 3 &amp; echo &quot;背景：\$? 立刻是 $?&quot;; wait $!; echo &quot;wait 之後 $?&quot;
+背景：$? 立刻是 0              ← 「成功把它丟到背景」的狀態
+wait 之後 3                    ← wait 等它結束，把它的狀態當成自己的
+</code></pre>
+<p>（<code>$!</code> 是最近一個背景工作的行程 ID，見下表。）</p>
+<h3 id="管線只看最後一個命令">管線：只看最後一個命令</h3>
+<pre><code>$ ./crash | tee log.txt; echo &quot;exit=$?&quot;
+exit=0                         ← crash 明明 segfault 了，但 tee 成功
+</code></pre>
+<p>管線中間的程式當掉，<code>$?</code> 看不出來。三種補救（本機實測）：</p>
+<table>
+<thead>
+<tr>
+<th>方法</th>
+<th>bash</th>
+<th>zsh</th>
+<th>輸出</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>看每一段的狀態</td>
+<td><code>${PIPESTATUS[*]}</code></td>
+<td><code>${pipestatus[*]}</code>（小寫）</td>
+<td><code>139 0</code></td>
+</tr>
+<tr>
+<td>讓管線「有一段失敗就算失敗」</td>
+<td><code>set -o pipefail</code></td>
+<td><code>setopt pipefail</code></td>
+<td><code>$?</code> 變成 3（用 <code>./ret 3 | ./ret 0</code> 實測）</td>
+</tr>
+</tbody>
+</table>
+<p><code>PIPESTATUS</code>／<code>pipestatus</code> 一樣會被下一個命令覆蓋，要馬上讀。</p>
+<h3 id="zsh-的-status">zsh 的 <code>$status</code></h3>
+<p>zsh 另有 <code>$status</code>，跟 <code>$?</code> 完全一樣（<code>./ret 9; echo $status</code> 印 9）；bash 沒有這個變數（印出空字串）。可攜的寫法一律用 <code>$?</code>，因為所有 POSIX shell（含 dash、BusyBox ash）都有。</p>
+<h3 id="-是-shell-的特殊參數之一完整清單"><code>$?</code> 是 shell 的「特殊參數」之一：完整清單</h3>
+<p><code>man bash</code> 的〈Special Parameters〉一共 <strong>8 個</strong>，只能讀、不能賦值：</p>
+<table>
+<thead>
+<tr>
+<th>參數</th>
+<th>展開成</th>
+<th>例子</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>$?</code></td>
+<td>最近一個<strong>前景管線</strong>的結束狀態</td>
+<td>本篇主角</td>
+</tr>
+<tr>
+<td><code>$#</code></td>
+<td>位置參數（腳本或函式收到的參數）個數</td>
+<td>見 <a href="shell%E6%A2%9D%E4%BB%B6%E5%88%A4%E6%96%B7%E6%B8%AC%E8%A9%A6.html#%E4%B9%9D%E5%AF%A6%E4%BE%8B%E6%8B%86%E8%A7%A3---eq-0-%E6%9C%89%E6%B2%92%E6%9C%89%E7%B5%A6%E5%8F%83%E6%95%B8">shell條件判斷測試</a> 第九節〈九、實例拆解：<code>[ $# -eq 0 ]</code>——「有沒有給參數」〉</td>
+</tr>
+<tr>
+<td><code>$*</code></td>
+<td>全部位置參數；在雙引號裡合成<strong>一個</strong>字串（用 <code>IFS</code> 第一個字元隔開）</td>
+<td><code>&quot;$*&quot;</code> → <code>&quot;a b c&quot;</code></td>
+</tr>
+<tr>
+<td><code>$@</code></td>
+<td>全部位置參數；在雙引號裡<strong>每個參數各自一個</strong>字串</td>
+<td><code>&quot;$@&quot;</code> → <code>&quot;a&quot; &quot;b&quot; &quot;c&quot;</code>，傳遞參數時用這個</td>
+</tr>
+<tr>
+<td><code>$-</code></td>
+<td>目前開啟的 shell 選項旗標</td>
+<td>互動 shell 會含 <code>i</code></td>
+</tr>
+<tr>
+<td><code>$$</code></td>
+<td>這個 shell 的行程 ID（在子 shell 裡仍是原本 shell 的）</td>
+<td>產生暫存檔名</td>
+</tr>
+<tr>
+<td><code>$!</code></td>
+<td>最近一個丟到背景的工作的行程 ID</td>
+<td>上面的 <code>wait $!</code></td>
+</tr>
+<tr>
+<td><code>$0</code></td>
+<td>shell 或腳本的名字</td>
+<td>腳本裡印出自己的檔名</td>
+</tr>
+</tbody>
+</table>
+<p>（<code>$1</code>、<code>$2</code>… 是<strong>位置參數</strong>，不在這 8 個裡。bash 5.2 把 <code>$_</code> 歸在〈Shell Variables〉而不是特殊參數。
+zsh 有同樣這 8 個，另外還有 <code>$status</code>、<code>$pipestatus</code> 等數十個 shell 自動設定的參數，完整清單見 <code>man zshparam</code> 的〈PARAMETERS SET BY THE SHELL〉。）</p>
+<hr />
+<h2 id="六雙引號為什麼寫成-exit">六、雙引號：為什麼寫成 <code>&quot;exit=$?&quot;</code></h2>
+<p>三種寫法實測（前一個命令是 <code>./ret 5</code>；bash、zsh 輸出相同）：</p>
+<pre><code>$ ./ret 5; echo &quot;exit=$?&quot;
+exit=5            ← 雙引號：$ 照樣展開
+$ ./ret 5; echo 'exit=$?'
+exit=$?           ← 單引號：什麼都不展開，原樣印出
+$ ./ret 5; echo exit=$?
+exit=5            ← 不加引號：這裡也對，因為展開結果沒有空白
+</code></pre>
+<ul>
+<li><strong>單引號</strong>裡的東西一律是字面，<code>$?</code> 不會被換掉，所以要用雙引號。</li>
+<li>不加引號這裡也能跑，但<strong>養成加雙引號的習慣</strong>：展開結果如果含空白或 <code>*</code>，不加引號時會被拆成多個參數、或被當成檔名樣式展開。原因與實例見 <a href="%E9%8C%A2%E5%AD%97%E8%99%9F%E5%B1%95%E9%96%8B%E7%9A%84%E5%9B%9B%E7%A8%AE%E5%BD%A2%E5%BC%8F-bad-substitution%E7%9A%84%E6%A0%B9%E5%9B%A0.html#%E5%85%AD%E7%82%BA%E4%BB%80%E9%BA%BC%E7%B5%90%E6%9E%9C%E8%A6%81%E5%8A%A0%E9%9B%99%E5%BC%95%E8%99%9F">錢字號展開的四種形式</a> 第六節；雙引號擋不住哪些展開見同篇<a href="%E9%8C%A2%E5%AD%97%E8%99%9F%E5%B1%95%E9%96%8B%E7%9A%84%E5%9B%9B%E7%A8%AE%E5%BD%A2%E5%BC%8F-bad-substitution%E7%9A%84%E6%A0%B9%E5%9B%A0.html#%E5%9B%9B%E5%AF%A6%E6%B8%AC%E6%8F%92%E6%9B%B2%E9%9B%99%E5%BC%95%E8%99%9F%E6%93%8B%E4%B8%8D%E4%BD%8F-">第四節</a>。</li>
+<li><code>exit=</code> 只是給人看的標籤，沒有任何特殊意義，寫成 <code>&quot;狀態：$?&quot;</code> 也一樣。</li>
+</ul>
+<hr />
+<h2 id="七echo完整選項以及-bash-與-zsh-的差別">七、<code>echo</code>：完整選項，以及 bash 與 zsh 的差別</h2>
+<p><code>echo</code> 有兩個：shell <strong>內建</strong>的，和 coreutils 的外部程式 <code>/usr/bin/echo</code>。打 <code>echo</code> 時用的是<strong>內建</strong>的：</p>
+<pre><code>$ type -a echo          （bash）
+echo is a shell builtin
+echo is /usr/bin/echo
+echo is /bin/echo
+</code></pre>
+<p>文法：<code>echo [-neE] [參數 ...]</code>——把所有參數用<strong>一個空白</strong>隔開印出，最後加換行。</p>
+<p><strong>選項（bash 的 <code>help echo</code>，全部 3 個）</strong>：</p>
+<table>
+<thead>
+<tr>
+<th>選項</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-n</code></td>
+<td>最後<strong>不加</strong>換行</td>
+</tr>
+<tr>
+<td><code>-e</code></td>
+<td><strong>解讀</strong>反斜線跳脫序列（<code>\t</code>、<code>\n</code>…）</td>
+</tr>
+<tr>
+<td><code>-E</code></td>
+<td><strong>不解讀</strong>反斜線跳脫序列</td>
+</tr>
+</tbody>
+</table>
+<p>zsh 內建 <code>echo</code> 的選項也是這 3 個（<code>man zshbuiltins</code>）；<code>/usr/bin/echo</code> 多了 <code>--help</code>、<code>--version</code>。</p>
+<p><strong>bash 與 zsh 最大的差別：預設要不要解讀 <code>\t</code></strong>（實測）：</p>
+<pre><code>bash:  echo &quot;a\tb&quot;     →  a\tb        （預設 -E，不解讀；要 -e）
+zsh:   echo &quot;a\tb&quot;     →  a&lt;Tab&gt;b     （預設就解讀；要 -E 才不解讀）
+/usr/bin/echo &quot;a\tb&quot;   →  a\tb        （預設 -E）
+</code></pre>
+<p>同一行在兩個 shell 印出不同結果，這就是<strong>寫腳本時建議改用 <code>printf</code></strong> 的原因（<code>/usr/bin/echo --help</code> 自己也寫 <code>printf(1) is a preferred alternative</code>）。
+<code>printf</code> 的用法見 <a href="%E5%9C%A8%E7%B5%82%E7%AB%AF%E6%A9%9F%E6%80%8E%E9%BA%BC%E8%A8%88%E7%AE%97-shell%E7%AE%97%E8%A1%93bc%E8%88%87printf.html">在終端機怎麼計算</a>。只是印一行固定字串或 <code>&quot;exit=$?&quot;</code> 這種沒有反斜線的內容，<code>echo</code> 在哪裡都一樣，放心用。</p>
+<p><strong>跳脫序列（bash <code>help echo</code> 全部列出，需 <code>-e</code>）</strong>：</p>
+<table>
+<thead>
+<tr>
+<th>序列</th>
+<th>意思</th>
+<th>序列</th>
+<th>意思</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>\a</code></td>
+<td>響鈴</td>
+<td><code>\r</code></td>
+<td>歸位（carriage return）</td>
+</tr>
+<tr>
+<td><code>\b</code></td>
+<td>退格</td>
+<td><code>\t</code></td>
+<td>水平定位（Tab）</td>
+</tr>
+<tr>
+<td><code>\c</code></td>
+<td>之後的輸出全部不印（含換行）</td>
+<td><code>\v</code></td>
+<td>垂直定位</td>
+</tr>
+<tr>
+<td><code>\e</code>、<code>\E</code></td>
+<td>ESC 字元</td>
+<td><code>\\</code></td>
+<td>反斜線本身</td>
+</tr>
+<tr>
+<td><code>\f</code></td>
+<td>換頁（form feed）</td>
+<td><code>\0nnn</code></td>
+<td>八進位 0～3 位數代表的字元</td>
+</tr>
+<tr>
+<td><code>\n</code></td>
+<td>換行</td>
+<td><code>\xHH</code></td>
+<td>十六進位 1～2 位數代表的字元</td>
+</tr>
+<tr>
+<td><code>\uHHHH</code></td>
+<td>Unicode 字元（1～4 位十六進位）</td>
+<td><code>\UHHHHHHHH</code></td>
+<td>Unicode 字元（1～8 位十六進位）</td>
+</tr>
+</tbody>
+</table>
+<p>zsh 的清單相同，只是不必加 <code>-e</code>。<code>/usr/bin/echo</code> 沒有 <code>\E</code>、<code>\u</code>、<code>\U</code>。</p>
+<hr />
+<h2 id="八錯誤與結束狀態對照">八、錯誤與結束狀態對照</h2>
+<p>看到某個結束狀態時，可以這樣反推（bash 的值來自 <code>man bash</code>〈EXIT STATUS〉，本機實測 zsh 相同）：</p>
+<table>
+<thead>
+<tr>
+<th>結束狀態</th>
+<th>意思</th>
+<th>本篇的實例</th>
+<th>典型訊息（bash／zsh）</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0</td>
+<td>成功</td>
+<td><code>./oob</code>（越界但沒當掉）</td>
+<td>—</td>
+</tr>
+<tr>
+<td>1～125</td>
+<td>程式自己回報的失敗</td>
+<td><code>./ret 3</code></td>
+<td>程式自己印的</td>
+</tr>
+<tr>
+<td>2</td>
+<td>shell 內建命令用法錯誤（選項或參數不對）</td>
+<td>—</td>
+<td>—</td>
+</tr>
+<tr>
+<td>126</td>
+<td>找到了但<strong>不能執行</strong>（例如沒有 x 權限）</td>
+<td><code>./noexec.c</code>（權限 <code>644</code>）</td>
+<td><code>bash: ./noexec.c: Permission denied</code>／<code>zsh: permission denied: ./noexec.c</code></td>
+</tr>
+<tr>
+<td>127</td>
+<td><strong>找不到命令</strong></td>
+<td><code>ret</code>（忘了 <code>./</code>）</td>
+<td><code>bash: ret: command not found</code>／<code>zsh: command not found: ret</code></td>
+</tr>
+<tr>
+<td>128 + N</td>
+<td>被訊號 N 終止</td>
+<td><code>./crash</code> → 139（SIGSEGV 11）；第 3 課的 <code>smash</code> → 134（SIGABRT 6）</td>
+<td><code>Segmentation fault (core dumped)</code>／<code>zsh: segmentation fault</code></td>
+</tr>
+</tbody>
+</table>
+<p>126 的更多成因（<code>noexec</code> 掛載、<code>#!</code> 直譯器不存在等）見 <a href="root%E5%9F%B7%E8%A1%8C%E8%85%B3%E6%9C%AC%E4%B9%9FPermission-denied-%E7%BC%BA%E5%9F%B7%E8%A1%8C%E4%BD%8D%E5%85%83.html#%E5%85%AD%E9%95%B7%E5%BE%97%E5%83%8F%E4%BD%86%E5%8E%9F%E5%9B%A0%E4%B8%8D%E5%90%8C%E7%9A%84%E9%8C%AF%E8%AA%A4">root執行腳本也Permission denied</a> 第六節。</p>
+<hr />
+<h2 id="自我測驗">自我測驗</h2>
+<blockquote>
+<p>參考答案寫在每題下面（2026-10-06 使用者指定）。本篇的題目還沒作答，等第一次作答、批改完再補上。</p>
+</blockquote>
+<ol>
+<li>把第 3 課的寫法改成 <code>./crash &amp;&amp; echo &quot;exit=$?&quot;</code>，會印出什麼？為什麼第 3 課要用 <code>;</code>？</li>
+<li><code>./ret 7; echo hi; echo &quot;exit=$?&quot;</code> 印出的是 <code>exit=0</code> 還是 <code>exit=7</code>？為什麼？如果中間一定要先印 <code>hi</code>，要怎麼改才看得到 7？</li>
+<li>某個 C 程式最後寫 <code>return 300;</code>，shell 看到的結束狀態是 44。為什麼？這跟第 2 課的哪一個觀念一樣？如果寫 <code>return 256;</code>，呼叫它的腳本會以為成功還是失敗？</li>
+<li>情境題：你執行 <code>./oob | tee log.txt; echo &quot;exit=$?&quot;</code>，<code>oob</code> 明明 segfault 了，卻印出 <code>exit=0</code>。為什麼？在 zsh 裡要怎麼看出 <code>oob</code> 的真正狀態？</li>
+<li>情境題：你用 <code>zsh</code> 跑一個腳本，腳本裡的程式 segfault 了，但畫面上沒有任何 <code>segmentation fault</code> 字樣。這代表程式沒有當掉嗎？你要怎麼確認？</li>
+</ol>
+
+</main>
+</div>
+</body>
+</html>

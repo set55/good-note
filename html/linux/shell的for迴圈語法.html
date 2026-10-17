@@ -1,0 +1,514 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>shell 的 for 迴圈語法</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/app.js"></script>
+</head>
+<body>
+<button class="menu-btn" onclick="toggleMenu()">☰ 目錄</button>
+<div class="layout">
+<nav class="side">
+<div class="crumbs"><a href="../index.html">🏠 首頁</a> / <a href="README.html">linux</a></div>
+<div class="tools"><button onclick="toggleTheme()">🌓 主題</button></div>
+<ul>
+<li class="l2"><a href="#%E7%9B%AE%E9%8C%84">目錄</a></li>
+<li class="l2"><a href="#%E4%B8%80%E4%B8%89%E7%A8%AE%E5%BD%A2%E5%BC%8F">一、三種形式</a></li>
+<li class="l3"><a href="#%E5%BD%A2%E5%BC%8F-1for-var-in-%E6%B8%85%E5%96%AEposix%E5%88%B0%E8%99%95%E9%83%BD%E8%83%BD%E7%94%A8">形式 1：for VAR in 清單（POSIX，到處都能用）</a></li>
+<li class="l3"><a href="#%E5%BD%A2%E5%BC%8F-2for-var-do%E7%9C%81%E7%95%A5-in%E9%9A%B1%E5%90%AB-">形式 2：for VAR; do（省略 in，隱含 &quot;$@&quot;）</a></li>
+<li class="l3"><a href="#%E5%BD%A2%E5%BC%8F-3c-%E9%A2%A8%E6%A0%BC-for-%E5%88%9D%E5%A7%8B-%E6%A2%9D%E4%BB%B6-%E9%81%9E%E5%A2%9E">形式 3：C 風格 for ((初始; 條件; 遞增))</a></li>
+<li class="l2"><a href="#%E4%BA%8C%E6%B8%85%E5%96%AE%E5%8F%AF%E4%BB%A5%E5%BE%9E%E5%93%AA%E8%A3%A1%E4%BE%86">二、清單可以從哪裡來</a></li>
+<li class="l2"><a href="#%E4%B8%89do--done-%E8%88%87%E5%88%86%E8%99%9F%E8%A6%8F%E5%89%87">三、do / done 與分號規則</a></li>
+<li class="l2"><a href="#%E5%9B%9Bbreak-%E8%88%87-continue">四、break 與 continue</a></li>
+<li class="l2"><a href="#%E4%BA%94%E8%BF%B4%E5%9C%88%E7%9A%84%E9%87%8D%E6%96%B0%E5%B0%8E%E5%90%91">五、迴圈的重新導向</a></li>
+<li class="l2"><a href="#%E5%85%AD%E4%B8%83%E5%80%8B%E9%99%B7%E9%98%B1%E5%85%A8%E9%83%A8%E5%AF%A6%E6%B8%AC">六、七個陷阱（全部實測）</a></li>
+<li class="l3"><a href="#%E9%99%B7%E9%98%B1-1for-f-in-ls--%E6%AA%94%E5%90%8D%E5%90%AB%E7%A9%BA%E7%99%BD%E5%B0%B1%E7%88%86%E7%82%B8">陷阱 1：for f in $(ls) —— 檔名含空白就爆炸</a></li>
+<li class="l3"><a href="#%E9%99%B7%E9%98%B1-21n-%E5%9C%A8-bash-%E4%B8%8D%E6%9C%83%E5%B1%95%E9%96%8B">陷阱 2：{1..$n} 在 bash 不會展開</a></li>
+<li class="l3"><a href="#%E9%99%B7%E9%98%B1-3glob-%E6%B2%92%E9%85%8D%E5%B0%8D%E5%88%B0%E6%AA%94%E6%A1%88%E6%99%82bash-%E8%88%87-zsh-%E8%A1%8C%E7%82%BA%E5%AE%8C%E5%85%A8%E4%B8%8D%E5%90%8C">陷阱 3：glob 沒配對到檔案時，bash 與 zsh 行為完全不同</a></li>
+<li class="l3"><a href="#%E9%99%B7%E9%98%B1-4%E8%BF%B4%E5%9C%88%E8%AE%8A%E6%95%B8%E6%B2%92%E5%8A%A0%E5%BC%95%E8%99%9F">陷阱 4：迴圈變數沒加引號</a></li>
+<li class="l3"><a href="#%E9%99%B7%E9%98%B1-5%E7%AE%A1%E7%B7%9A%E8%AE%93%E8%BF%B4%E5%9C%88%E8%B7%91%E5%9C%A8%E5%AD%90-shellbash-%E6%89%8D%E6%9C%89">陷阱 5：管線讓迴圈跑在子 shell（bash 才有）</a></li>
+<li class="l3"><a href="#%E9%99%B7%E9%98%B1-6%E5%9C%A8%E8%BF%B4%E5%9C%88%E8%A3%A1%E4%BF%AE%E6%94%B9%E6%AD%A3%E5%9C%A8%E8%BF%AD%E4%BB%A3%E7%9A%84%E6%B8%85%E5%96%AE">陷阱 6：在迴圈裡修改正在迭代的清單</a></li>
+<li class="l3"><a href="#%E9%99%B7%E9%98%B1-7%E7%94%A8-for-%E8%AE%80%E6%AA%94%E6%A1%88%E7%9A%84%E6%AF%8F%E4%B8%80%E8%A1%8C">陷阱 7：用 for 讀檔案的每一行</a></li>
+<li class="l2"><a href="#%E4%B8%83bash-%E8%88%87-zsh-%E7%9A%84%E5%B7%AE%E7%95%B0">七、bash 與 zsh 的差異</a></li>
+<li class="l2"><a href="#%E5%85%AB%E8%BF%B4%E5%9C%88%E8%AE%8A%E6%95%B8%E8%A3%9D%E7%9A%84%E6%98%AF%E5%90%8D%E5%AD%97%E6%99%82%E9%96%93%E6%8E%A5%E5%8F%83%E7%85%A7">八、迴圈變數裝的是「名字」時：間接參照</a></li>
+<li class="l3"><a href="#%E6%93%8D%E4%BD%9C-1unset--%E6%9C%80%E7%B0%A1%E5%96%AE%E5%9B%A0%E7%82%BA%E5%AE%83%E6%9C%AC%E4%BE%86%E5%B0%B1%E5%90%83%E5%90%8D%E5%AD%97">操作 1：unset —— 最簡單，因為它本來就吃名字</a></li>
+<li class="l3"><a href="#%E6%93%8D%E4%BD%9C-2%E8%AE%80%E5%87%BA%E5%AE%83%E7%9A%84%E5%80%BC">操作 2：讀出它的值</a></li>
+<li class="l3"><a href="#%E6%93%8D%E4%BD%9C-3%E8%A8%AD%E5%AE%9A%E5%AE%83%E7%9A%84%E5%80%BC">操作 3：設定它的值</a></li>
+<li class="l3"><a href="#%E6%93%8D%E4%BD%9C-4%E5%88%A4%E6%96%B7%E9%80%99%E5%80%8B%E5%90%8D%E5%AD%97%E7%9A%84%E8%AE%8A%E6%95%B8%E6%9C%89%E6%B2%92%E6%9C%89%E8%A8%AD%E5%AE%9A">操作 4：判斷「這個名字的變數有沒有設定」</a></li>
+<li class="l3"><a href="#%E5%AE%8C%E6%95%B4%E5%AF%A6%E4%BE%8B%E5%8D%B0%E5%87%BA%E7%9B%AE%E5%89%8D%E5%80%BC%E5%86%8D%E6%B8%85%E6%8E%89">完整實例：印出目前值再清掉</a></li>
+<li class="l3"><a href="#%E4%BD%86%E5%A4%9A%E6%95%B8%E6%83%85%E6%B3%81%E4%BD%A0%E8%A9%B2%E7%94%A8%E9%97%9C%E8%81%AF%E9%99%A3%E5%88%97">但多數情況你該用關聯陣列</a></li>
+<li class="l2"><a href="#%E4%B9%9D%E4%BB%80%E9%BA%BC%E6%99%82%E5%80%99%E4%B8%8D%E8%A9%B2%E7%94%A8-for">九、什麼時候不該用 for</a></li>
+<li class="l2"><a href="#%E5%8D%81%E9%80%9F%E6%9F%A5">十、速查</a></li>
+<li class="l2"><a href="#%E8%87%AA%E6%88%91%E6%B8%AC%E9%A9%97">自我測驗</a></li>
+</ul>
+</nav>
+<main>
+<h1 id="shell-的-for-迴圈語法">shell 的 <code>for</code> 迴圈語法</h1>
+<blockquote>
+<p>日期：2026-09-21<br />
+情境：想完整搞懂 <code>for</code> 的所有寫法，而不是只會 <code>for i in 1 2 3</code><br />
+適用範圍：實測 bash 5.2、zsh 5.9、dash（POSIX sh）on Ubuntu 24.04<br />
+相關：<a href="shell%E6%A2%9D%E4%BB%B6%E5%88%A4%E6%96%B7%E6%B8%AC%E8%A9%A6.html">shell條件判斷測試</a>、
+<a href="%E9%8C%A2%E5%AD%97%E8%99%9F%E5%B1%95%E9%96%8B%E7%9A%84%E5%9B%9B%E7%A8%AE%E5%BD%A2%E5%BC%8F-bad-substitution%E7%9A%84%E6%A0%B9%E5%9B%A0.html">錢字號展開的四種形式-bad-substitution的根因</a>、
+<a href="%E8%BC%B8%E5%87%BA%E9%87%8D%E6%96%B0%E5%B0%8E%E5%90%91%E8%88%87dev-null.html">輸出重新導向與dev-null</a></p>
+</blockquote>
+<p><strong>一句話結論：<code>for</code> 只有三種形式，而且第一種（<code>for VAR in 清單</code>）的本質是「<strong>把一串已經展開好的字詞逐一指派給變數</strong>」——所以九成的 bug 不在 <code>for</code> 本身，而在「那串字詞是怎麼被切出來的」。記住這件事，<code>for f in $(ls)</code> 為什麼會壞、為什麼該用 <code>for f in *</code> 就一目了然。</strong></p>
+<hr />
+<h2 id="目錄">目錄</h2>
+<ul>
+<li><a href="#%E4%B8%80%E4%B8%89%E7%A8%AE%E5%BD%A2%E5%BC%8F">一、三種形式</a></li>
+<li><a href="#%E4%BA%8C%E6%B8%85%E5%96%AE%E5%8F%AF%E4%BB%A5%E5%BE%9E%E5%93%AA%E8%A3%A1%E4%BE%86">二、清單可以從哪裡來</a></li>
+<li><a href="#%E4%B8%89do--done-%E8%88%87%E5%88%86%E8%99%9F%E8%A6%8F%E5%89%87">三、<code>do</code> / <code>done</code> 與分號規則</a></li>
+<li><a href="#%E5%9B%9Bbreak-%E8%88%87-continue">四、<code>break</code> 與 <code>continue</code></a></li>
+<li><a href="#%E4%BA%94%E8%BF%B4%E5%9C%88%E7%9A%84%E9%87%8D%E6%96%B0%E5%B0%8E%E5%90%91">五、迴圈的重新導向</a></li>
+<li><a href="#%E5%85%AD%E4%B8%83%E5%80%8B%E9%99%B7%E9%98%B1%E5%85%A8%E9%83%A8%E5%AF%A6%E6%B8%AC">六、七個陷阱（全部實測）</a></li>
+<li><a href="#%E4%B8%83bash-%E8%88%87-zsh-%E7%9A%84%E5%B7%AE%E7%95%B0">七、bash 與 zsh 的差異</a></li>
+<li><a href="#%E5%85%AB%E8%BF%B4%E5%9C%88%E8%AE%8A%E6%95%B8%E8%A3%9D%E7%9A%84%E6%98%AF%E5%90%8D%E5%AD%97%E6%99%82%E9%96%93%E6%8E%A5%E5%8F%83%E7%85%A7">八、迴圈變數裝的是「名字」時：間接參照</a></li>
+<li><a href="#%E4%B9%9D%E4%BB%80%E9%BA%BC%E6%99%82%E5%80%99%E4%B8%8D%E8%A9%B2%E7%94%A8-for">九、什麼時候不該用 <code>for</code></a></li>
+<li><a href="#%E5%8D%81%E9%80%9F%E6%9F%A5">十、速查</a></li>
+<li><a href="#%E8%87%AA%E6%88%91%E6%B8%AC%E9%A9%97">自我測驗</a></li>
+</ul>
+<hr />
+<h2 id="一三種形式">一、三種形式</h2>
+<h3 id="形式-1for-var-in-清單posix到處都能用">形式 1：<code>for VAR in 清單</code>（POSIX，到處都能用）</h3>
+<pre><code class="language-sh"><span class="k">for</span><span class="w"> </span>i<span class="w"> </span><span class="k">in</span><span class="w"> </span>a<span class="w"> </span>b<span class="w"> </span>c<span class="p">;</span><span class="w"> </span><span class="k">do</span>
+<span class="w">    </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;</span><span class="nv">$i</span><span class="s2">&quot;</span>
+<span class="k">done</span>
+</code></pre>
+<p><strong>語意：把 <code>in</code> 後面展開出來的每一個字詞，依序指派給 <code>i</code>，each 跑一次迴圈本體。</strong></p>
+<h3 id="形式-2for-var-do省略-in隱含-">形式 2：<code>for VAR; do</code>（省略 <code>in</code>，隱含 <code>&quot;$@&quot;</code>）</h3>
+<pre><code class="language-sh">f<span class="o">()</span><span class="w"> </span><span class="o">{</span>
+<span class="w">    </span><span class="k">for</span><span class="w"> </span>x<span class="p">;</span><span class="w"> </span><span class="k">do</span><span class="w">          </span><span class="c1"># 等同 for x in &quot;$@&quot;; do</span>
+<span class="w">        </span><span class="nb">printf</span><span class="w"> </span><span class="s1">&#39;[%s] &#39;</span><span class="w"> </span><span class="s2">&quot;</span><span class="nv">$x</span><span class="s2">&quot;</span>
+<span class="w">    </span><span class="k">done</span>
+<span class="o">}</span>
+f<span class="w"> </span>a<span class="w"> </span><span class="s2">&quot;b c&quot;</span><span class="w"> </span>d<span class="w">            </span><span class="c1"># → [a] [b c] [d]</span>
+</code></pre>
+<p><strong>實測確認它保留了 <code>&quot;b c&quot;</code> 的完整性</strong>——因為隱含的是 <code>&quot;$@&quot;</code>（有引號），不是 <code>$*</code>。寫函式處理參數時這是最短也最安全的寫法。</p>
+<h3 id="形式-3c-風格-for-初始-條件-遞增">形式 3：C 風格 <code>for ((初始; 條件; 遞增))</code></h3>
+<pre><code class="language-bash"><span class="k">for</span><span class="w"> </span><span class="o">((</span><span class="nv">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="m">0</span><span class="p">;</span><span class="w"> </span>i<span class="w"> </span>&lt;<span class="w"> </span><span class="m">3</span><span class="p">;</span><span class="w"> </span>i++<span class="o">))</span><span class="p">;</span><span class="w"> </span><span class="k">do</span>
+<span class="w">    </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;</span><span class="nv">$i</span><span class="s2">&quot;</span>
+<span class="k">done</span>
+</code></pre>
+<p><strong>這不是 POSIX</strong>，實測：</p>
+<pre><code>bash  → 0 1 2      ✅
+zsh   → 0 1 2      ✅
+dash  → Syntax error: Bad for loop variable    ❌
+</code></pre>
+<p><strong>所以腳本開頭寫 <code>#!/bin/sh</code> 就不能用它</strong>（<code>/bin/sh</code> 在 Ubuntu 上是 dash）。要用就明確寫 <code>#!/bin/bash</code>。</p>
+<p>裡面是<strong>算術環境</strong>（等同 <code>(( ))</code>），所以變數不用加 <code>$</code>、可以用 <code>&lt;</code>／<code>++</code>／<code>+=</code>。</p>
+<hr />
+<h2 id="二清單可以從哪裡來">二、清單可以從哪裡來</h2>
+<p>這是 <code>for</code> 真正的重點——<strong>清單的來源決定了它會不會出錯</strong>。</p>
+<table>
+<thead>
+<tr>
+<th>來源</th>
+<th>寫法</th>
+<th>注意</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>字面值</td>
+<td><code>for i in a b c</code></td>
+<td>最安全</td>
+</tr>
+<tr>
+<td><strong>萬用字元（glob）</strong></td>
+<td><code>for f in *.txt</code></td>
+<td><strong>處理檔名的正確做法</strong></td>
+</tr>
+<tr>
+<td>大括號展開</td>
+<td><code>for i in {1..10}</code></td>
+<td><strong>不能用變數</strong>，見陷阱 2</td>
+</tr>
+<tr>
+<td>命令替換</td>
+<td><code>for i in $(cmd)</code></td>
+<td><strong>會被分詞</strong>，見陷阱 1</td>
+</tr>
+<tr>
+<td>變數</td>
+<td><code>for i in $list</code></td>
+<td>同上，會被分詞</td>
+</tr>
+<tr>
+<td>位置參數</td>
+<td><code>for i in &quot;$@&quot;</code></td>
+<td><strong>引號不能省</strong></td>
+</tr>
+<tr>
+<td>陣列（bash/zsh）</td>
+<td><code>for i in &quot;${arr[@]}&quot;</code></td>
+<td>引號不能省</td>
+</tr>
+<tr>
+<td><code>seq</code></td>
+<td><code>for i in $(seq 1 10)</code></td>
+<td>外部程式，比大括號慢；但<strong>可以用變數</strong></td>
+</tr>
+<tr>
+<td>算術</td>
+<td><code>for ((i=1; i&lt;=n; i++))</code></td>
+<td>最適合數字範圍</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="三do--done-與分號規則">三、<code>do</code> / <code>done</code> 與分號規則</h2>
+<pre><code class="language-sh"><span class="k">for</span><span class="w"> </span>i<span class="w"> </span><span class="k">in</span><span class="w"> </span>a<span class="w"> </span>b<span class="p">;</span><span class="w"> </span><span class="k">do</span><span class="w"> </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;</span><span class="nv">$i</span><span class="s2">&quot;</span><span class="p">;</span><span class="w"> </span><span class="k">done</span><span class="w">        </span><span class="c1"># 單行：兩個分號</span>
+<span class="k">for</span><span class="w"> </span>i<span class="w"> </span><span class="k">in</span><span class="w"> </span>a<span class="w"> </span>b
+<span class="k">do</span>
+<span class="w">    </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;</span><span class="nv">$i</span><span class="s2">&quot;</span>
+<span class="k">done</span><span class="w">                                     </span><span class="c1"># 多行：不用分號</span>
+</code></pre>
+<p><strong>為什麼單行時 <code>do</code> 前面要分號</strong>：<code>do</code> 是一個<strong>關鍵字</strong>，shell 需要知道前面的清單已經結束。換行本身就是分隔符，所以多行寫法不需要分號。</p>
+<p>這和 <code>if ...; then</code> 是同一條規則——
+<code>[</code> 其實是命令、<code>then</code>／<code>do</code> 是關鍵字，前面必須有命令結束符。（完整推導見 <a href="shell%E6%A2%9D%E4%BB%B6%E5%88%A4%E6%96%B7%E6%B8%AC%E8%A9%A6.html">shell條件判斷測試</a>。）</p>
+<p><strong>迴圈的離開碼 = 最後一次執行的那個命令的離開碼</strong>；清單是空的時候迴圈本體一次都不跑，離開碼是 0。</p>
+<hr />
+<h2 id="四break-與-continue">四、<code>break</code> 與 <code>continue</code></h2>
+<table>
+<thead>
+<tr>
+<th>寫法</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>break</code></td>
+<td>跳出<strong>當前</strong>迴圈</td>
+</tr>
+<tr>
+<td><code>break N</code></td>
+<td><strong>跳出 N 層</strong></td>
+</tr>
+<tr>
+<td><code>continue</code></td>
+<td>跳過本次，進入下一輪</td>
+</tr>
+<tr>
+<td><code>continue N</code></td>
+<td>跳到第 N 層外的下一輪</td>
+</tr>
+</tbody>
+</table>
+<p>實測 <code>break 2</code>：</p>
+<pre><code class="language-bash"><span class="k">for</span><span class="w"> </span>i<span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="m">1</span><span class="w"> </span><span class="m">2</span><span class="p">;</span><span class="w"> </span><span class="k">do</span>
+<span class="w">  </span><span class="k">for</span><span class="w"> </span>j<span class="w"> </span><span class="k">in</span><span class="w"> </span>a<span class="w"> </span>b<span class="p">;</span><span class="w"> </span><span class="k">do</span>
+<span class="w">    </span><span class="nb">printf</span><span class="w"> </span><span class="s1">&#39;%s%s &#39;</span><span class="w"> </span><span class="s2">&quot;</span><span class="nv">$i</span><span class="s2">&quot;</span><span class="w"> </span><span class="s2">&quot;</span><span class="nv">$j</span><span class="s2">&quot;</span>
+<span class="w">    </span><span class="o">[</span><span class="w"> </span><span class="s2">&quot;</span><span class="nv">$j</span><span class="s2">&quot;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span>a<span class="w"> </span><span class="o">]</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="k">break</span><span class="w"> </span><span class="m">2</span>
+<span class="w">  </span><span class="k">done</span>
+<span class="k">done</span>
+<span class="c1"># 輸出：1a        ← 兩層一起跳出，只印了一次</span>
+</code></pre>
+<p><strong><code>break N</code> 是很多人不知道的寫法</strong>，比用旗標變數再逐層 break 乾淨得多。</p>
+<hr />
+<h2 id="五迴圈的重新導向">五、迴圈的重新導向</h2>
+<p><code>do ... done</code> 是一個複合命令，<strong>可以整個接重新導向或管線</strong>：</p>
+<pre><code class="language-sh"><span class="k">while</span><span class="w"> </span><span class="nb">read</span><span class="w"> </span>-r<span class="w"> </span>line<span class="p">;</span><span class="w"> </span><span class="k">do</span><span class="w"> </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;</span><span class="nv">$line</span><span class="s2">&quot;</span><span class="p">;</span><span class="w"> </span><span class="k">done</span><span class="w"> </span>&lt;<span class="w"> </span>input.txt<span class="w">     </span><span class="c1"># 整個迴圈讀檔</span>
+<span class="k">for</span><span class="w"> </span>i<span class="w"> </span><span class="k">in</span><span class="w"> </span>a<span class="w"> </span>b<span class="p">;</span><span class="w"> </span><span class="k">do</span><span class="w"> </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;</span><span class="nv">$i</span><span class="s2">&quot;</span><span class="p">;</span><span class="w"> </span><span class="k">done</span><span class="w"> </span>&gt;<span class="w"> </span>out.txt<span class="w">                </span><span class="c1"># 整個迴圈的輸出</span>
+<span class="k">for</span><span class="w"> </span>i<span class="w"> </span><span class="k">in</span><span class="w"> </span>a<span class="w"> </span>b<span class="p">;</span><span class="w"> </span><span class="k">do</span><span class="w"> </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;</span><span class="nv">$i</span><span class="s2">&quot;</span><span class="p">;</span><span class="w"> </span><span class="k">done</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>sort<span class="w">                   </span><span class="c1"># 接管線</span>
+</code></pre>
+<p><strong>把 <code>&lt; file</code> 放在 <code>done</code> 後面，比在迴圈裡每次 <code>cat</code> 有效率得多</strong>，而且 <code>read</code> 才能正確地一行一行讀。</p>
+<hr />
+<h2 id="六七個陷阱全部實測">六、七個陷阱（全部實測）</h2>
+<h3 id="陷阱-1for-f-in-ls--檔名含空白就爆炸">陷阱 1：<code>for f in $(ls)</code> —— 檔名含空白就爆炸</h3>
+<pre><code class="language-bash">$<span class="w"> </span>touch<span class="w"> </span><span class="s2">&quot;my file.txt&quot;</span><span class="w"> </span>other.txt
+
+$<span class="w"> </span><span class="k">for</span><span class="w"> </span>f<span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="k">$(</span>ls<span class="k">)</span><span class="p">;</span><span class="w"> </span><span class="k">do</span><span class="w"> </span><span class="nb">printf</span><span class="w"> </span><span class="s1">&#39;[%s] &#39;</span><span class="w"> </span><span class="s2">&quot;</span><span class="nv">$f</span><span class="s2">&quot;</span><span class="p">;</span><span class="w"> </span><span class="k">done</span>
+<span class="o">[</span>my<span class="o">]</span><span class="w"> </span><span class="o">[</span>file.txt<span class="o">]</span><span class="w"> </span><span class="o">[</span>other.txt<span class="o">]</span><span class="w">        </span><span class="c1"># ❌ 被空白切成三個</span>
+
+$<span class="w"> </span><span class="k">for</span><span class="w"> </span>f<span class="w"> </span><span class="k">in</span><span class="w"> </span>*<span class="p">;</span><span class="w"> </span><span class="k">do</span><span class="w"> </span><span class="nb">printf</span><span class="w"> </span><span class="s1">&#39;[%s] &#39;</span><span class="w"> </span><span class="s2">&quot;</span><span class="nv">$f</span><span class="s2">&quot;</span><span class="p">;</span><span class="w"> </span><span class="k">done</span>
+<span class="o">[</span>my<span class="w"> </span>file.txt<span class="o">]</span><span class="w"> </span><span class="o">[</span>other.txt<span class="o">]</span><span class="w">          </span><span class="c1"># ✅ glob 不會分詞</span>
+</code></pre>
+<p><strong>根因</strong>：命令替換的輸出會經過<strong>分詞（word splitting）</strong>，依 <code>IFS</code>（預設空白、tab、換行）切開。
+<strong>glob 展開的結果不會分詞</strong>，所以檔名含空白也安全。</p>
+<p><strong>規則：處理檔案一律用 glob，不要用 <code>$(ls)</code>。</strong></p>
+<h3 id="陷阱-21n-在-bash-不會展開">陷阱 2：<code>{1..$n}</code> 在 bash 不會展開</h3>
+<pre><code class="language-bash">$<span class="w"> </span>bash<span class="w"> </span>-c<span class="w"> </span><span class="s1">&#39;n=3; for i in {1..$n}; do printf &quot;%s &quot; &quot;$i&quot;; done&#39;</span>
+<span class="o">{</span><span class="m">1</span>..3<span class="o">}</span><span class="w">                             </span><span class="c1"># ❌ 印出字面值</span>
+
+$<span class="w"> </span>zsh<span class="w"> </span>-c<span class="w"> </span><span class="s1">&#39;n=3; for i in {1..$n}; do printf &quot;%s &quot; &quot;$i&quot;; done&#39;</span>
+<span class="m">1</span><span class="w"> </span><span class="m">2</span><span class="w"> </span><span class="m">3</span><span class="w">                              </span><span class="c1"># ✅ zsh 可以</span>
+</code></pre>
+<p><strong>根因</strong>：bash 的<strong>大括號展開發生在變數展開之前</strong>，所以看到 <code>{1..$n}</code> 時 <code>$n</code> 還沒被換掉，不構成合法的數字範圍，於是原樣輸出。</p>
+<p><strong>可攜的解法：</strong></p>
+<pre><code class="language-bash"><span class="k">for</span><span class="w"> </span><span class="o">((</span><span class="nv">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="m">1</span><span class="p">;</span><span class="w"> </span>i<span class="w"> </span>&lt;<span class="o">=</span><span class="w"> </span>n<span class="p">;</span><span class="w"> </span>i++<span class="o">))</span><span class="p">;</span><span class="w"> </span><span class="k">do</span><span class="w"> </span>...<span class="w"> </span><span class="k">done</span><span class="w">      </span><span class="c1"># 最推薦</span>
+<span class="k">for</span><span class="w"> </span>i<span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="k">$(</span>seq<span class="w"> </span><span class="m">1</span><span class="w"> </span><span class="s2">&quot;</span><span class="nv">$n</span><span class="s2">&quot;</span><span class="k">)</span><span class="p">;</span><span class="w"> </span><span class="k">do</span><span class="w"> </span>...<span class="w"> </span><span class="k">done</span><span class="w">          </span><span class="c1"># 需要外部 seq</span>
+</code></pre>
+<h3 id="陷阱-3glob-沒配對到檔案時bash-與-zsh-行為完全不同">陷阱 3：glob 沒配對到檔案時，bash 與 zsh 行為完全不同</h3>
+<pre><code class="language-bash">$<span class="w"> </span>bash<span class="w"> </span>-c<span class="w"> </span><span class="s1">&#39;for f in *.nope; do echo &quot;[$f]&quot;; done&#39;</span>
+<span class="o">[</span>*.nope<span class="o">]</span><span class="w">                           </span><span class="c1"># ❌ 把樣式本身當成檔名跑了一輪</span>
+
+$<span class="w"> </span>zsh<span class="w"> </span>-c<span class="w"> </span><span class="s1">&#39;for f in *.nope; do echo &quot;[$f]&quot;; done&#39;</span>
+zsh:<span class="w"> </span>no<span class="w"> </span>matches<span class="w"> </span>found:<span class="w"> </span>*.nope<span class="w">      </span><span class="c1"># ❌ 整個指令直接失敗，迴圈一次都沒跑</span>
+</code></pre>
+<p><strong>兩個都不是你要的</strong>。解法：</p>
+<pre><code class="language-bash"><span class="nb">shopt</span><span class="w"> </span>-s<span class="w"> </span>nullglob<span class="w">      </span><span class="c1"># bash：沒配對到就展開成空清單（迴圈不跑）</span>
+setopt<span class="w"> </span>null_glob<span class="w">       </span><span class="c1"># zsh 對應寫法</span>
+<span class="c1"># 或在迴圈裡防禦</span>
+<span class="k">for</span><span class="w"> </span>f<span class="w"> </span><span class="k">in</span><span class="w"> </span>*.nope<span class="p">;</span><span class="w"> </span><span class="k">do</span><span class="w"> </span><span class="o">[</span><span class="w"> </span>-e<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$f</span><span class="s2">&quot;</span><span class="w"> </span><span class="o">]</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="k">continue</span><span class="p">;</span><span class="w"> </span>...<span class="p">;</span><span class="w"> </span><span class="k">done</span>
+</code></pre>
+<h3 id="陷阱-4迴圈變數沒加引號">陷阱 4：迴圈變數沒加引號</h3>
+<pre><code class="language-bash"><span class="k">for</span><span class="w"> </span>f<span class="w"> </span><span class="k">in</span><span class="w"> </span>*<span class="p">;</span><span class="w"> </span><span class="k">do</span>
+<span class="w">    </span>cp<span class="w"> </span><span class="nv">$f</span><span class="w"> </span>/tmp/<span class="w">      </span><span class="c1"># ❌ 檔名含空白就拆開了</span>
+<span class="w">    </span>cp<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$f</span><span class="s2">&quot;</span><span class="w"> </span>/tmp/<span class="w">    </span><span class="c1"># ✅</span>
+<span class="k">done</span>
+</code></pre>
+<p><code>for f in *</code> 本身安全，但<strong>用的時候忘記引號一樣會壞</strong>。</p>
+<h3 id="陷阱-5管線讓迴圈跑在子-shellbash-才有">陷阱 5：管線讓迴圈跑在子 shell（bash 才有）</h3>
+<pre><code class="language-bash">$<span class="w"> </span>bash<span class="w"> </span>-c<span class="w"> </span><span class="s1">&#39;n=0; printf &quot;a\nb\n&quot; | while read -r l; do n=$((n+1)); done; echo &quot;n=$n&quot;&#39;</span>
+<span class="nv">n</span><span class="o">=</span><span class="m">0</span><span class="w">                                </span><span class="c1"># ❌ 變數改了卻沒帶回來</span>
+
+$<span class="w"> </span>bash<span class="w"> </span>-c<span class="w"> </span><span class="s1">&#39;n=0; while read -r l; do n=$((n+1)); done &lt; &lt;(printf &quot;a\nb\n&quot;); echo &quot;n=$n&quot;&#39;</span>
+<span class="nv">n</span><span class="o">=</span><span class="m">2</span><span class="w">                                </span><span class="c1"># ✅ 改用行程替換</span>
+
+$<span class="w"> </span>zsh<span class="w"> </span>-c<span class="w"> </span><span class="s1">&#39;n=0; printf &quot;a\nb\n&quot; | while read -r l; do n=$((n+1)); done; echo &quot;n=$n&quot;&#39;</span>
+<span class="nv">n</span><span class="o">=</span><span class="m">2</span><span class="w">                                </span><span class="c1"># ✅ zsh 不一樣！</span>
+</code></pre>
+<p><strong>根因</strong>：bash 預設讓管線的<strong>每一段都在子 shell 執行</strong>，子 shell 的變數改動不會傳回父行程。
+<strong>zsh 讓最後一段在當前 shell 執行</strong>，所以沒這個問題。</p>
+<p>bash 的解法：<code>&lt; &lt;(...)</code>（行程替換）、<code>shopt -s lastpipe</code>、或把結果用其他方式帶出來。</p>
+<h3 id="陷阱-6在迴圈裡修改正在迭代的清單">陷阱 6：在迴圈裡修改正在迭代的清單</h3>
+<pre><code class="language-bash"><span class="k">for</span><span class="w"> </span>f<span class="w"> </span><span class="k">in</span><span class="w"> </span>*.txt<span class="p">;</span><span class="w"> </span><span class="k">do</span>
+<span class="w">    </span>mv<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$f</span><span class="s2">&quot;</span><span class="w"> </span><span class="s2">&quot;</span><span class="nv">$f</span><span class="s2">.bak&quot;</span><span class="w">      </span><span class="c1"># 危險：glob 在迴圈開始前就展開完了，</span>
+<span class="k">done</span><span class="w">                      </span><span class="c1"># 所以不會無限迴圈；但如果是 *.bak 就會出事</span>
+</code></pre>
+<p><strong>glob 是在迴圈開始前一次展開完的</strong>，所以上面這個其實安全。但若樣式會配對到新產生的檔案（例如 <code>for f in *; do cp &quot;$f&quot; &quot;$f.copy&quot;; done</code>），就要先把清單存進陣列再跑。</p>
+<h3 id="陷阱-7用-for-讀檔案的每一行">陷阱 7：用 <code>for</code> 讀檔案的每一行</h3>
+<pre><code class="language-bash"><span class="k">for</span><span class="w"> </span>line<span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="k">$(</span>cat<span class="w"> </span>file<span class="k">)</span><span class="p">;</span><span class="w"> </span><span class="k">do</span><span class="w"> </span>...<span class="w"> </span><span class="k">done</span><span class="w">        </span><span class="c1"># ❌ 依空白切，不是依行切</span>
+<span class="k">while</span><span class="w"> </span><span class="nb">read</span><span class="w"> </span>-r<span class="w"> </span>line<span class="p">;</span><span class="w"> </span><span class="k">do</span><span class="w"> </span>...<span class="w"> </span><span class="k">done</span><span class="w"> </span>&lt;<span class="w"> </span>file<span class="w">      </span><span class="c1"># ✅</span>
+</code></pre>
+<p>見第八節。</p>
+<hr />
+<h2 id="七bash-與-zsh-的差異">七、bash 與 zsh 的差異</h2>
+<p><strong>你的互動 shell 是 zsh、但腳本常以 bash 執行</strong>，這幾個差異會咬人：</p>
+<table>
+<thead>
+<tr>
+<th>情況</th>
+<th>bash</th>
+<th>zsh</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>{1..$n}</code></td>
+<td>❌ 字面值</td>
+<td>✅ 展開</td>
+</tr>
+<tr>
+<td>glob 無配對</td>
+<td>傳回樣式字面值</td>
+<td><strong>整個指令失敗</strong></td>
+</tr>
+<tr>
+<td><code>$var</code> 未加引號</td>
+<td><strong>分詞</strong></td>
+<td><strong>不分詞</strong></td>
+</tr>
+<tr>
+<td><code>$(cmd)</code> 未加引號</td>
+<td>分詞</td>
+<td><strong>一樣分詞</strong></td>
+</tr>
+<tr>
+<td>管線最後一段</td>
+<td>子 shell</td>
+<td><strong>當前 shell</strong></td>
+</tr>
+<tr>
+<td>C 風格 <code>for (( ))</code></td>
+<td>✅</td>
+<td>✅</td>
+</tr>
+</tbody>
+</table>
+<p><strong>所以在 zsh 互動下測通的迴圈，貼進 <code>#!/bin/bash</code> 腳本可能行為不同。</strong>
+測試腳本要用它實際會跑的那個 shell 測。</p>
+<hr />
+<h2 id="八迴圈變數裝的是名字時間接參照">八、迴圈變數裝的是「名字」時：間接參照</h2>
+<p>這是 <code>for</code> 最常見的進階需求：<strong>清單裡放的是一串變數名，你要對「那個名字所指的變數」動手。</strong></p>
+<pre><code class="language-sh"><span class="k">for</span><span class="w"> </span>i<span class="w"> </span><span class="k">in</span><span class="w"> </span>http_proxy<span class="w"> </span>all_proxy<span class="p">;</span><span class="w"> </span><span class="k">do</span>
+<span class="w">    </span><span class="c1">#  $i 是 &quot;http_proxy&quot; 這個名字</span>
+<span class="w">    </span><span class="c1">#  但你想要的往往是它的「值」或想「改」它</span>
+<span class="k">done</span>
+</code></pre>
+<p>shell 把這件事叫做<strong>間接參照（indirect expansion）</strong>，<strong>bash 與 zsh 的語法完全不同</strong>。以下四種操作全部在兩個 shell 實測過。</p>
+<h3 id="操作-1unset--最簡單因為它本來就吃名字">操作 1：<code>unset</code> —— 最簡單，因為它本來就吃名字</h3>
+<pre><code class="language-sh"><span class="k">for</span><span class="w"> </span>i<span class="w"> </span><span class="k">in</span><span class="w"> </span>A<span class="w"> </span>B<span class="p">;</span><span class="w"> </span><span class="k">do</span><span class="w"> </span><span class="nb">unset</span><span class="w"> </span><span class="s2">&quot;</span><span class="nv">$i</span><span class="s2">&quot;</span><span class="p">;</span><span class="w"> </span><span class="k">done</span><span class="w">      </span><span class="c1"># bash ✅ zsh ✅</span>
+</code></pre>
+<p><strong><code>unset</code>／<code>export</code>／<code>readonly</code> 這類指令的參數本來就是「變數名」</strong>，所以直接傳 <code>&quot;$i&quot;</code> 就對了，不需要任何間接參照語法。<strong>這也是為什麼 <code>unset &quot;$i&quot;</code> 能動，而 <code>unset $A</code> 不能</strong>——
+前者傳的是名字，後者傳的是值。</p>
+<h3 id="操作-2讀出它的值">操作 2：讀出它的值</h3>
+<table>
+<thead>
+<tr>
+<th>shell</th>
+<th>寫法</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>bash</td>
+<td><code>${!i}</code></td>
+</tr>
+<tr>
+<td>zsh</td>
+<td><code>${(P)i}</code></td>
+</tr>
+<tr>
+<td>POSIX sh</td>
+<td><code>eval &quot;v=\$$i&quot;</code></td>
+</tr>
+</tbody>
+</table>
+<p><strong>兩邊互不相容</strong>，實測：</p>
+<pre><code>bash  ${!i}   → hello          ✅
+zsh   ${!i}   → bad substitution   ❌
+zsh   ${(P)i} → hello          ✅
+bash  ${(P)i} → bad substitution   ❌
+</code></pre>
+<p>（又是 <code>bad substitution</code>——理由見
+<a href="%E9%8C%A2%E5%AD%97%E8%99%9F%E5%B1%95%E9%96%8B%E7%9A%84%E5%9B%9B%E7%A8%AE%E5%BD%A2%E5%BC%8F-bad-substitution%E7%9A%84%E6%A0%B9%E5%9B%A0.html">錢字號展開的四種形式</a>：
+<code>${...}</code> 裡只能放該 shell 認得的參數表達式。）</p>
+<h3 id="操作-3設定它的值">操作 3：設定它的值</h3>
+<table>
+<thead>
+<tr>
+<th>shell</th>
+<th>寫法</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>bash</td>
+<td><code>printf -v &quot;$i&quot; '%s' &quot;新值&quot;</code> 或 <code>declare -g &quot;$i=新值&quot;</code></td>
+</tr>
+<tr>
+<td>zsh</td>
+<td><code>typeset -g &quot;$i=新值&quot;</code> 或 <code>: ${(P)i::=新值}</code></td>
+</tr>
+<tr>
+<td>兩邊皆可</td>
+<td><code>eval &quot;$i=\&quot;新值\&quot;&quot;</code></td>
+</tr>
+</tbody>
+</table>
+<p><code>-g</code> 是「global」——在函式裡沒加它，設出來的變數只有函式內看得到。</p>
+<p><strong><code>eval</code> 能跨 shell，但它會把字串當程式碼執行</strong>：值裡若含 <code>;</code>、<code>$(...)</code>、反引號就會被執行。
+<strong>只在值完全由你掌控時才用</strong>，處理外部輸入一律改用 <code>printf -v</code>／<code>typeset -g</code>。</p>
+<h3 id="操作-4判斷這個名字的變數有沒有設定">操作 4：判斷「這個名字的變數有沒有設定」</h3>
+<pre><code class="language-sh"><span class="o">[[</span><span class="w"> </span>-v<span class="w"> </span><span class="nv">$i</span><span class="w"> </span><span class="o">]]</span><span class="w">        </span><span class="c1"># bash ✅ zsh ✅  ← 難得兩邊一樣</span>
+</code></pre>
+<p>實測兩個 shell 都正確分辨出「有設」與「沒設」。（POSIX sh 沒有 <code>-v</code>，要用
+<code>eval &quot;[ -n \&quot;\${$i+x}\&quot; ]&quot;</code>。）</p>
+<h3 id="完整實例印出目前值再清掉">完整實例：印出目前值再清掉</h3>
+<pre><code class="language-sh"><span class="k">for</span><span class="w"> </span>i<span class="w"> </span><span class="k">in</span><span class="w"> </span>http_proxy<span class="w"> </span>https_proxy<span class="w"> </span>all_proxy<span class="w"> </span>no_proxy<span class="p">;</span><span class="w"> </span><span class="k">do</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="o">[[</span><span class="w"> </span>-v<span class="w"> </span><span class="nv">$i</span><span class="w"> </span><span class="o">]]</span><span class="p">;</span><span class="w"> </span><span class="k">then</span>
+<span class="w">        </span><span class="nb">printf</span><span class="w"> </span><span class="s1">&#39;清掉 %-12s（原值 %s）\n&#39;</span><span class="w"> </span><span class="s2">&quot;</span><span class="nv">$i</span><span class="s2">&quot;</span><span class="w"> </span><span class="s2">&quot;</span><span class="si">${</span><span class="p">(P)i</span><span class="si">}</span><span class="s2">&quot;</span><span class="w">    </span><span class="c1"># zsh；bash 用 ${!i}</span>
+<span class="w">        </span><span class="nb">unset</span><span class="w"> </span><span class="s2">&quot;</span><span class="nv">$i</span><span class="s2">&quot;</span>
+<span class="w">    </span><span class="k">else</span>
+<span class="w">        </span><span class="nb">printf</span><span class="w"> </span><span class="s1">&#39;%-12s 本來就沒設\n&#39;</span><span class="w"> </span><span class="s2">&quot;</span><span class="nv">$i</span><span class="s2">&quot;</span>
+<span class="w">    </span><span class="k">fi</span>
+<span class="k">done</span>
+</code></pre>
+<p>實測輸出：</p>
+<pre><code>清掉 http_proxy  （原值 http://192.168.1.1:8880）
+清掉 all_proxy   （原值 socks5://192.168.1.1:1080）
+結果：http_proxy=空 all_proxy=空
+</code></pre>
+<h3 id="但多數情況你該用關聯陣列">但多數情況你該用關聯陣列</h3>
+<p><strong>需要間接參照，通常代表資料結構選錯了。</strong> 如果你本來就要管理「名字 → 值」的對應，直接用關聯陣列（associative array）比一堆散裝變數清楚得多：</p>
+<pre><code class="language-bash"><span class="c1"># bash</span>
+<span class="nb">declare</span><span class="w"> </span>-A<span class="w"> </span><span class="nv">m</span><span class="o">=([</span>http_proxy<span class="o">]=</span>http://a:8880<span class="w"> </span><span class="o">[</span>all_proxy<span class="o">]=</span>socks5h://a:1080<span class="o">)</span>
+<span class="k">for</span><span class="w"> </span>k<span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="s2">&quot;</span><span class="si">${</span><span class="p">!m[@]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">;</span><span class="w"> </span><span class="k">do</span><span class="w"> </span><span class="nb">printf</span><span class="w"> </span><span class="s1">&#39;%s = %s\n&#39;</span><span class="w"> </span><span class="s2">&quot;</span><span class="nv">$k</span><span class="s2">&quot;</span><span class="w"> </span><span class="s2">&quot;</span><span class="si">${</span><span class="nv">m</span><span class="p">[</span><span class="nv">$k</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">;</span><span class="w"> </span><span class="k">done</span>
+</code></pre>
+<pre><code class="language-zsh"><span class="c1"># zsh</span>
+<span class="nb">typeset</span><span class="w"> </span>-A<span class="w"> </span><span class="nv">m</span><span class="o">=(</span>http_proxy<span class="w"> </span>http://a:8880<span class="w"> </span>all_proxy<span class="w"> </span>socks5h://a:1080<span class="o">)</span>
+<span class="k">for</span><span class="w"> </span>k<span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="s2">&quot;</span><span class="si">${</span><span class="p">(@k)m</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">;</span><span class="w"> </span><span class="k">do</span><span class="w"> </span><span class="nb">printf</span><span class="w"> </span><span class="s1">&#39;%s = %s\n&#39;</span><span class="w"> </span><span class="s2">&quot;</span><span class="nv">$k</span><span class="s2">&quot;</span><span class="w"> </span><span class="s2">&quot;</span><span class="si">${</span><span class="nv">m</span><span class="p">[</span><span class="nv">$k</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">;</span><span class="w"> </span><span class="k">done</span>
+</code></pre>
+<p><strong>注意取鍵的語法也不同</strong>（bash <code>${!m[@]}</code>、zsh <code>${(@k)m}</code>），而且<strong>兩者都不保證順序</strong>——
+實測 zsh 就把 <code>all_proxy</code> 排在 <code>http_proxy</code> 前面。需要固定順序就自己另外給一個名字清單。</p>
+<p><strong>判斷原則：要「讀寫別人名下的變數」才用間接參照；只是要一組成對資料，用關聯陣列。</strong></p>
+<hr />
+<h2 id="九什麼時候不該用-for">九、什麼時候不該用 <code>for</code></h2>
+<p><strong>要逐行處理文字時，用 <code>while read</code> 而不是 <code>for</code>：</strong></p>
+<pre><code class="language-bash"><span class="k">while</span><span class="w"> </span><span class="nv">IFS</span><span class="o">=</span><span class="w"> </span><span class="nb">read</span><span class="w"> </span>-r<span class="w"> </span>line<span class="p">;</span><span class="w"> </span><span class="k">do</span>
+<span class="w">    </span><span class="nb">printf</span><span class="w"> </span><span class="s1">&#39;[%s]\n&#39;</span><span class="w"> </span><span class="s2">&quot;</span><span class="nv">$line</span><span class="s2">&quot;</span>
+<span class="k">done</span><span class="w"> </span>&lt;<span class="w"> </span>file
+</code></pre>
+<p>三個部分各有用途：</p>
+<table>
+<thead>
+<tr>
+<th>部分</th>
+<th>為什麼</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>IFS=</code></td>
+<td><strong>不要去掉行首行尾的空白</strong></td>
+</tr>
+<tr>
+<td><code>-r</code></td>
+<td><strong>不要把反斜線當跳脫字元</strong></td>
+</tr>
+<tr>
+<td><code>&lt; file</code> 放在 <code>done</code> 後</td>
+<td>一次開檔，而且不會有子 shell 問題</td>
+</tr>
+</tbody>
+</table>
+<p><strong>處理檔名清單、而且可能含換行時</strong>，用 <code>find -print0</code> 配 <code>read -d ''</code>：</p>
+<pre><code class="language-bash"><span class="k">while</span><span class="w"> </span><span class="nv">IFS</span><span class="o">=</span><span class="w"> </span><span class="nb">read</span><span class="w"> </span>-r<span class="w"> </span>-d<span class="w"> </span><span class="s1">&#39;&#39;</span><span class="w"> </span>f<span class="p">;</span><span class="w"> </span><span class="k">do</span>
+<span class="w">    </span><span class="nb">printf</span><span class="w"> </span><span class="s1">&#39;[%s]\n&#39;</span><span class="w"> </span><span class="s2">&quot;</span><span class="nv">$f</span><span class="s2">&quot;</span>
+<span class="k">done</span><span class="w"> </span>&lt;<span class="w"> </span>&lt;<span class="o">(</span>find<span class="w"> </span>.<span class="w"> </span>-name<span class="w"> </span><span class="s1">&#39;*.txt&#39;</span><span class="w"> </span>-print0<span class="o">)</span>
+</code></pre>
+<hr />
+<h2 id="十速查">十、速查</h2>
+<pre><code class="language-bash"><span class="c1"># 三種形式</span>
+<span class="k">for</span><span class="w"> </span>i<span class="w"> </span><span class="k">in</span><span class="w"> </span>a<span class="w"> </span>b<span class="w"> </span>c<span class="p">;</span><span class="w">        </span><span class="k">do</span><span class="w"> </span>...<span class="p">;</span><span class="w"> </span><span class="k">done</span><span class="w">      </span><span class="c1"># POSIX，清單</span>
+<span class="k">for</span><span class="w"> </span>i<span class="p">;</span><span class="w">                 </span><span class="k">do</span><span class="w"> </span>...<span class="p">;</span><span class="w"> </span><span class="k">done</span><span class="w">      </span><span class="c1"># 隱含 &quot;$@&quot;</span>
+<span class="k">for</span><span class="w"> </span><span class="o">((</span><span class="nv">i</span><span class="o">=</span><span class="m">0</span><span class="p">;</span><span class="w"> </span>i&lt;n<span class="p">;</span><span class="w"> </span>i++<span class="o">))</span><span class="p">;</span><span class="w"> </span><span class="k">do</span><span class="w"> </span>...<span class="p">;</span><span class="w"> </span><span class="k">done</span><span class="w">      </span><span class="c1"># C 風格（bash/zsh，非 POSIX）</span>
+
+<span class="c1"># 常見清單來源</span>
+<span class="k">for</span><span class="w"> </span>f<span class="w"> </span><span class="k">in</span><span class="w"> </span>*.txt<span class="w">                  </span><span class="c1"># glob ← 處理檔案用這個</span>
+<span class="k">for</span><span class="w"> </span>i<span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="o">{</span><span class="m">1</span>..10<span class="o">}</span><span class="w">                </span><span class="c1"># 大括號（不能用變數）</span>
+<span class="k">for</span><span class="w"> </span>i<span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="k">$(</span>seq<span class="w"> </span><span class="m">1</span><span class="w"> </span><span class="s2">&quot;</span><span class="nv">$n</span><span class="s2">&quot;</span><span class="k">)</span><span class="w">          </span><span class="c1"># 可以用變數</span>
+<span class="k">for</span><span class="w"> </span>x<span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="s2">&quot;</span><span class="nv">$@</span><span class="s2">&quot;</span><span class="w">                   </span><span class="c1"># 位置參數（引號不能省）</span>
+<span class="k">for</span><span class="w"> </span>x<span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="s2">&quot;</span><span class="si">${</span><span class="nv">arr</span><span class="p">[@]</span><span class="si">}</span><span class="s2">&quot;</span><span class="w">            </span><span class="c1"># 陣列（引號不能省）</span>
+
+<span class="c1"># 流程控制</span>
+<span class="k">break</span><span class="w"> </span>/<span class="w"> </span><span class="k">break</span><span class="w"> </span>N<span class="w"> </span>/<span class="w"> </span><span class="k">continue</span><span class="w"> </span>/<span class="w"> </span><span class="k">continue</span><span class="w"> </span>N
+
+<span class="c1"># 重新導向</span>
+<span class="k">for</span><span class="w"> </span>...<span class="p">;</span><span class="w"> </span><span class="k">do</span><span class="w"> </span>...<span class="p">;</span><span class="w"> </span><span class="k">done</span><span class="w"> </span>&lt;<span class="w"> </span><span class="k">in</span>.txt<span class="w"> </span>&gt;<span class="w"> </span>out.txt
+<span class="k">while</span><span class="w"> </span><span class="nv">IFS</span><span class="o">=</span><span class="w"> </span><span class="nb">read</span><span class="w"> </span>-r<span class="w"> </span>line<span class="p">;</span><span class="w"> </span><span class="k">do</span><span class="w"> </span>...<span class="p">;</span><span class="w"> </span><span class="k">done</span><span class="w"> </span>&lt;<span class="w"> </span>file<span class="w">        </span><span class="c1"># 逐行讀</span>
+<span class="k">while</span><span class="w"> </span><span class="nv">IFS</span><span class="o">=</span><span class="w"> </span><span class="nb">read</span><span class="w"> </span>-r<span class="w"> </span>-d<span class="w"> </span><span class="s1">&#39;&#39;</span><span class="w"> </span>f<span class="p">;</span><span class="w"> </span><span class="k">do</span><span class="w"> </span>...<span class="p">;</span><span class="w"> </span><span class="k">done</span><span class="w"> </span>&lt;<span class="w"> </span>&lt;<span class="o">(</span>find<span class="w"> </span>.<span class="w"> </span>-print0<span class="o">)</span><span class="w">   </span><span class="c1"># 檔名含換行</span>
+
+<span class="c1"># 防禦</span>
+<span class="nb">shopt</span><span class="w"> </span>-s<span class="w"> </span>nullglob<span class="w">     </span><span class="c1"># bash：glob 無配對時展開成空</span>
+setopt<span class="w"> </span>null_glob<span class="w">      </span><span class="c1"># zsh</span>
+</code></pre>
+<hr />
+<h2 id="自我測驗">自我測驗</h2>
+<ol>
+<li><code>for f in $(ls)</code> 和 <code>for f in *</code> 在檔名含空白時結果不同。用「分詞」解釋為什麼，並說出哪一個才是對的。</li>
+<li><code>n=3; for i in {1..$n}</code> 在 bash 裡印出 <code>{1..3}</code>。為什麼？從「展開的先後順序」回答，並給出兩個可攜的替代寫法。</li>
+<li><code>for f in *.nope</code>（沒有任何檔案符合）時，bash 與 zsh 的行為分別是什麼？兩者都不理想，該怎麼處理？</li>
+<li><code>printf 'a\nb\n' | while read -r l; do n=$((n+1)); done; echo &quot;$n&quot;</code> 在 bash 印 0、在 zsh 印 2。為什麼？bash 有哪兩種解法？</li>
+<li>情境題：你要對某個目錄下所有 <code>.log</code> 檔案逐一處理，檔名可能含空白甚至換行，而且要統計處理了幾個檔案、迴圈結束後印出來。請寫出這段程式碼，並說明你為什麼不用 <code>for f in $(find ...)</code>。</li>
+</ol>
+
+</main>
+</div>
+</body>
+</html>

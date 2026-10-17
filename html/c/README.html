@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C 筆記索引</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/app.js"></script>
+</head>
+<body>
+<button class="menu-btn" onclick="toggleMenu()">☰ 目錄</button>
+<div class="layout">
+<nav class="side">
+<div class="crumbs"><a href="../index.html">🏠 首頁</a> / c</div>
+<div class="tools"><button onclick="toggleTheme()">🌓 主題</button></div>
+<ul>
+<li class="l2"><a href="#%E7%AD%86%E8%A8%98%E5%88%97%E8%A1%A8">筆記列表</a></li>
+</ul>
+</nav>
+<main>
+<h1 id="c-筆記索引">C 筆記索引</h1>
+<p>這個目錄收錄 C 語言、編譯與連結工具鏈（gcc、binutils）、ELF 與程式執行前後的機制——
+也就是「一支 C 程式怎麼變成行程」這一層。系統呼叫本身（行程、記憶體、I/O、網路）的筆記仍放在 <code>linux/</code>。</p>
+<h2 id="筆記列表">筆記列表</h2>
+<table>
+<thead>
+<tr>
+<th>筆記</th>
+<th>主題</th>
+<th>關鍵字</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="hello.c%E6%80%8E%E9%BA%BC%E8%AE%8A%E6%88%90%E8%83%BD%E8%B7%91%E7%9A%84%E7%A8%8B%E5%BC%8F-%E7%B7%A8%E8%AD%AF%E7%9A%84%E5%9B%9B%E5%80%8B%E9%9A%8E%E6%AE%B5.html">hello.c怎麼變成能跑的程式-編譯的四個階段</a></td>
+<td><code>gcc</code> 是總指揮，依序呼叫 cc1（前處理＋編譯）、as、collect2／ld；<code>.i</code> 仍是 C、<code>.s</code> 是組合語言、<code>.o</code> 是機器碼但外部呼叫留下全 0 的洞與重定位項目；連結後 <code>puts</code> 仍是 <code>U</code>，因為動態連結要到執行時由 <code>ld-linux-x86-64.so.2</code> 填上；gcc 在 <code>-O0</code> 也會把 <code>printf(&quot;%s\n&quot;)</code> 換成 <code>puts</code>；<code>strace</code> 顯示印字最後只是一次 <code>write(1, ...)</code>，34 次系統呼叫大多是動態載入器</td>
+<td><code>gcc -E/-S/-c/-v/-save-temps</code> <code>-fno-builtin</code> <code>-static</code> <code>cc1</code> <code>as</code> <code>collect2</code> <code>ELF</code> <code>relocatable</code> <code>R_X86_64_PLT32</code> <code>nm</code> <code>objdump -dr</code> <code>ldd</code> <code>file</code> <code>strace -c</code> <code>System V ABI</code> <code>%rdi</code> <code>%eax</code> <code>PLT</code> <code>execve</code> <code>write</code> <code>exit_group</code></td>
+</tr>
+<tr>
+<td><a href="gcc%E6%9C%80%E4%BD%B3%E5%8C%96%E7%AD%89%E7%B4%9A-O0%E5%88%B0O3%E5%B7%AE%E5%9C%A8%E5%93%AA.html">gcc最佳化等級-O0到O3差在哪</a></td>
+<td><code>-O0</code> 是大寫 O 加數字 0＝不最佳化，且是預設值；全部等級（<code>-O0/1/2/3/s/z/g/fast</code>）的意義、「最後一個 <code>-O</code> 為準」、<code>-Q --help=optimizers</code> 自查；實測 <code>-O0</code> 每圈讀寫記憶體、<code>-O2</code> 把 <code>sum_to(100)</code> 內嵌並在編譯時算成 5050；最佳化不等於變小（<code>-O3</code> 234 bytes 最大）；除錯用 <code>-O0</code>／<code>-Og</code>；kernel 預設 <code>-O2</code>、不能用 <code>-O0</code>，所以要習慣 <code>&lt;optimized out&gt;</code></td>
+<td><code>-O0</code> <code>-O1</code> <code>-O2</code> <code>-O3</code> <code>-Os</code> <code>-Oz</code> <code>-Og</code> <code>-Ofast</code> <code>-Q --help=optimizers</code> <code>-g</code> <code>inline</code> <code>constant folding</code> <code>size -A</code> <code>gdb</code> <code>&lt;optimized out&gt;</code></td>
+</tr>
+<tr>
+<td><a href="gdb%E5%AE%8C%E6%95%B4%E5%91%BD%E4%BB%A4%E5%8F%83%E8%80%83.html">gdb完整命令參考</a></td>
+<td>本機 gdb 15.1 的完整參考：<code>gdb --help</code> 全部啟動選項（依其 7 組）、命令共通文法（縮寫與別名、Enter 重複、LOCATION 三種寫法、C 表達式、<code>$N</code> 值歷史、<code>/FMT</code> 格式與大小字母）、依 <code>help all</code> 的 13 類<strong>全部 173 個頂層命令</strong>與別名、<code>info</code> 全部 65 個子命令；<code>set</code>／<code>show</code>／<code>maintenance</code>（456／463／197 個）明講不逐項列的原因與查法；<code>next</code>/<code>step</code>/<code>finish</code>/<code>until</code>/<code>advance</code>、<code>break</code>/<code>tbreak</code>/<code>watch</code>/<code>catch</code>、<code>delete</code>/<code>clear</code>、<code>info</code> vs <code>show</code> 的差別與錯誤訊息對照</td>
+<td><code>gdb</code> <code>-g</code> <code>break</code> <code>tbreak</code> <code>watch</code> <code>catch</code> <code>run</code> <code>start</code> <code>starti</code> <code>next</code> <code>step</code> <code>finish</code> <code>until</code> <code>print/FMT</code> <code>x/FMT</code> <code>display</code> <code>ptype</code> <code>backtrace</code> <code>frame</code> <code>info locals</code> <code>info registers</code> <code>disassemble</code> <code>help all</code> <code>apropos</code> <code>-batch -ex</code></td>
+</tr>
+<tr>
+<td><a href="ELF%E7%9A%84interpreter%E6%98%AF%E4%BB%80%E9%BA%BC-%E5%8B%95%E6%85%8B%E8%BC%89%E5%85%A5%E5%99%A8%E8%88%87%E4%BA%95%E5%AD%97%E8%99%9F%E9%A9%9A%E5%98%86%E8%99%9F.html">ELF的interpreter是什麼-動態載入器與井字號驚嘆號</a></td>
+<td>interpreter 是執行檔自己指定的「請先幫我跑這個程式」：程式標頭的 <code>INTERP</code>（<code>.interp</code> 區段）寫著 <code>/lib64/ld-linux-x86-64.so.2</code>，核心 <code>execve</code> 時先跑它，由它載入 libc、檢查符號版本、填好位址，再交給程式；跟腳本 <code>#!</code> 同一機制（<code>#!/bin/cat</code> 實驗：核心把腳本路徑交給直譯器）；<code>ldd</code> 其實是呼叫 <code>ld.so --list</code> 的 bash 腳本、<code>ld.so</code> 自己是 static-pie；interpreter 不存在時「檔案明明在卻 not found」（glibc 程式搬到 Alpine／OpenWrt）；含 <code>ld.so</code> 全部 14 個選項</td>
+<td><code>INTERP</code> <code>.interp</code> <code>program interpreter</code> <code>ld.so</code> <code>ld-linux-x86-64.so.2</code> <code>dynamic linker</code> <code>execve</code> <code>#!</code> <code>shebang</code> <code>ldd</code> <code>--list</code> <code>static-pie</code> <code>-Wl,--dynamic-linker</code> <code>not found</code> <code>musl</code></td>
+</tr>
+<tr>
+<td><a href="readelf%E5%AE%8C%E6%95%B4%E9%81%B8%E9%A0%85%E5%8F%83%E8%80%83.html">readelf完整選項參考</a></td>
+<td><code>readelf</code> 只讀 ELF 結構、不反組譯（反組譯用 <code>objdump</code>）；<code>--help</code> 全部 52 行選項依用途分 8 組列出（綜合、標頭與區段、符號、動態連結／版本／重定位、傾印、DWARF、CTF／SFrame、輸出）；課程常用 <code>-h</code>／<code>-l</code>／<code>-S</code>／<code>-s</code>／<code>-d</code>／<code>-V</code>／<code>-r</code>／<code>-p</code>／<code>-W</code> 與對應用途；錯誤訊息實測對照</td>
+<td><code>readelf</code> <code>-h</code> <code>-l</code> <code>-S</code> <code>-s</code> <code>-d</code> <code>-V</code> <code>-r</code> <code>-p</code> <code>-W</code> <code>--dyn-syms</code> <code>-w</code> <code>DWARF</code> <code>program header</code> <code>section header</code> <code>NEEDED</code> <code>objdump</code></td>
+</tr>
+<tr>
+<td><a href="ELF%E6%98%AF%E4%BB%80%E9%BA%BC-%E5%8F%AF%E5%9F%B7%E8%A1%8C%E8%88%87%E5%8F%AF%E9%80%A3%E7%B5%90%E6%A0%BC%E5%BC%8F%E7%9A%84%E5%85%A9%E7%A8%AE%E8%A6%96%E8%A7%92.html">ELF是什麼-可執行與可連結格式的兩種視角</a></td>
+<td>ELF＝Executable and Linkable Format，Linux 上 <code>.o</code>／執行檔／<code>.so</code>／core 檔的統一格式，開頭魔術數字 <code>7f 45 4c 46</code>；四種 Type（REL／EXEC／DYN／CORE，PIE 執行檔為何跟 <code>.so</code> 同屬 DYN）；名字對應兩種視角：連結器看區段（<code>-S</code>），核心看載入段（<code>-l</code>），<code>.o</code> 沒有程式標頭；檔頭欄位（Class、little endian、Machine、Entry point＝<code>_start</code>）；改 <code>Machine</code> 實測得到 <code>ENOEXEC (Exec format error)</code>，與 interpreter 不存在的 not found 區分</td>
+<td><code>ELF</code> <code>magic number</code> <code>\177ELF</code> <code>REL</code> <code>EXEC</code> <code>DYN</code> <code>CORE</code> <code>PIE</code> <code>ASLR</code> <code>section</code> <code>segment</code> <code>program header</code> <code>section header</code> <code>readelf -h</code> <code>Entry point</code> <code>_start</code> <code>ENOEXEC</code> <code>Exec format error</code> <code>a.out</code> <code>SVR4</code></td>
+</tr>
+<tr>
+<td><a href="objdump%E8%83%BD%E4%B8%8D%E8%83%BD%E4%BB%A3%E6%9B%BFldd%E6%89%BE%E4%BE%9D%E8%B3%B4%E5%BA%AB-%E9%9C%80%E6%B1%82%E5%96%AE%E8%88%87%E5%AF%A6%E9%9A%9B%E8%BC%89%E5%85%A5.html">objdump能不能代替ldd找依賴庫-需求單與實際載入</a></td>
+<td>只能取代一半：<code>objdump -p</code>／<code>readelf -d</code> 讀的是 <code>ld</code> 寫下的需求單（<code>NEEDED</code>），只有直接依賴、只有名字；<code>ldd</code> 是 shell 腳本，設 <code>LD_TRACE_LOADED_OBJECTS=1</code> 請動態載入器模擬載入，得到完整依賴樹、實際路徑與 <code>not found</code>（<code>curl</code> 實測 3 vs 33 行）；<code>-L</code> 只給 <code>ld</code> 看所以連結成功、執行找不到；對不信任或別架構的檔案只能用 <code>objdump</code>／<code>readelf</code>（OpenWrt aarch64 實測：<code>ldd</code> 誤報 <code>not a dynamic executable</code>；區段標頭被剝掉時 <code>objdump -p</code> 看不到 <code>NEEDED</code>，<code>readelf -d</code> 靠程式標頭仍讀得到）；含 <code>ldd</code> 全部 6 個選項與 <code>objdump</code> 「顯示什麼」組全部 31 項</td>
+<td><code>objdump -p</code> <code>NEEDED</code> <code>ldd</code> <code>LD_TRACE_LOADED_OBJECTS</code> <code>ld.so --list</code> <code>readelf -d</code> <code>not found</code> <code>error while loading shared libraries</code> <code>LD_LIBRARY_PATH</code> <code>-L</code> <code>linux-vdso.so.1</code> <code>ldd -u</code> <code>objdump -x</code> <code>no section header</code> <code>aarch64</code></td>
+</tr>
+<tr>
+<td><a href="C%E7%9A%84%E8%B3%87%E6%96%99%E5%9C%A8%E8%A8%98%E6%86%B6%E9%AB%94%E8%A3%A1%E9%95%B7%E6%80%8E%E6%A8%A3-%E4%BD%8D%E5%85%83%E7%B5%84%E3%80%81%E6%8C%87%E6%A8%99%E3%80%81%E4%BD%8D%E5%85%83%E7%B5%84%E9%A0%86%E5%BA%8F%E8%88%87%E6%9C%89%E8%99%9F%E7%84%A1%E8%99%9F.html">C的資料在記憶體裡長怎樣-位元組、指標、位元組順序與有號無號</a></td>
+<td>記憶體只有位元組、沒有型別，型別決定讀幾個 byte、怎麼解讀；指標就是 8 byte 的位址（ASLR 讓它每次不同，gdb 預設關掉）；x86-64 是小端序（<code>x/4xb</code> 看到 <code>78 56 34 12</code>，即 <code>readelf -h</code> 的 <code>little endian</code>）；無號溢位回繞有定義；有號用二補數（<code>2's complement</code>），與無號互轉位元不變、截斷留低位、符號擴展 vs 零擴展；<code>int</code> 遇上 <code>unsigned</code> 會被轉成無號，<code>-1 &lt; 0u</code> 為假，<code>-Wall</code> 不警告、要 <code>-Wextra</code>；有號溢位是 UB，<code>bigger(INT_MAX)</code> 在 <code>-O0</code> 回 0、<code>-O2</code> 回 1，一行版連 <code>-O0</code> 都被化簡；<code>-fwrapv</code>、UBSan（要配 <code>-O0</code>／<code>-Og</code>）、kernel 用 <code>-fno-strict-overflow</code>；含 <code>printf</code> 格式完整文法（22 個轉換字元、10 個長度修飾、7 個旗標）</td>
+<td><code>sizeof</code> <code>LP64</code> <code>limits.h</code> <code>&amp;</code> <code>*</code> <code>%p</code> <code>void *</code> <code>ASLR</code> <code>endianness</code> <code>little endian</code> <code>big endian</code> <code>x/4xb</code> <code>two's complement</code> <code>sign extension</code> <code>truncation</code> <code>-Wsign-compare</code> <code>-Wtype-limits</code> <code>-Wextra</code> <code>undefined behavior</code> <code>-fwrapv</code> <code>-fsanitize=undefined</code> <code>-fno-strict-overflow</code> <code>-fdump-tree-original</code> <code>printf</code></td>
+</tr>
+<tr>
+<td><a href="%E5%AD%97%E5%85%83%E6%98%AF%E4%BB%80%E9%BA%BC-char%E5%B0%B1%E6%98%AF1byte%E7%9A%84%E6%95%B4%E6%95%B8%E8%88%87ASCII%E5%92%8CUTF-8.html">字元是什麼-char就是1byte的整數與ASCII和UTF-8</a></td>
+<td>字元是符號，靠編碼表對應成數字：<code>char</code> 就是 1 byte 整數，<code>'A'</code> 是 65、<code>'0'</code> 是 48（<code>'7' - '0'</code> 得 7），<code>%c</code>／<code>%d</code> 只是兩種印法；ASCII 128 個的分段（完整表 <code>man ascii</code>）；C 的字元常數型別是 <code>int</code>（<code>sizeof('A')</code> 是 4）、跳脫序列全表；中文用 UTF-8 編成 3 byte（「字」＝<code>e5 ad 97</code>，<code>sizeof(&quot;字&quot;)</code> 是 4），所以 <code>char</code> 不等於一個字；<code>char</code> 有號，讀到 <code>0xe5</code> 是 −27，處理位元組要用 <code>unsigned char</code></td>
+<td><code>char</code> <code>'A'</code> <code>%c</code> <code>ASCII</code> <code>man ascii</code> <code>character constant</code> <code>escape sequence</code> <code>\n</code> <code>\0</code> <code>\x41</code> <code>\u5b57</code> <code>Unicode</code> <code>UTF-8</code> <code>man utf-8</code> <code>unsigned char</code> <code>sign extension</code></td>
+</tr>
+<tr>
+<td><a href="%E9%99%A3%E5%88%97%E3%80%81%E5%AD%97%E4%B8%B2%E8%88%87%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97-C%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%88%87%E7%94%A8gdb%E6%89%BEsegfault.html">陣列、字串與指標運算-C不檢查邊界與用gdb找segfault</a></td>
+<td>陣列是連續同型別的格子，長度只存在型別裡；<code>p + 1</code> 走 <code>sizeof(*p)</code> 個 byte，<code>p[i]</code> 定義上就是 <code>*(p + i)</code>（<code>2[p]</code> 也合法），指標相減得元素個數、型別 <code>ptrdiff_t</code>（有號，<code>%td</code>）；陣列名稱退化成指標，函式參數 <code>int a[]</code> 就是 <code>int *</code>（<code>-Wsizeof-array-argument</code>），長度要另外傳，<code>&amp;a + 1</code> 走整個陣列；字串是 <code>\0</code> 結尾的 <code>char</code> 陣列，<code>char s[]</code> 是副本、<code>char *s</code> 指向 <code>.rodata</code>（<code>r--p</code> 分頁，寫入 segfault）；越界是 UB，三種下場：安靜出錯（<code>-O0</code> 無警告，<code>-Warray-bounds</code> 要 <code>-O2</code>）、<code>stack smashing detected</code>（Ubuntu 預設 <code>-fstack-protector-strong</code>，返回時才檢查；關掉後蓋到返回位址 <code>saved rip = 0x4141414141414141</code>）、碰到沒對映的分頁才 segfault（讀到 <code>[stack]</code> 盡頭）；gdb 找 segfault 的步驟（<code>run</code>／<code>bt</code>／<code>frame</code>／<code>print *p@10</code>／<code>info proc mappings</code>），當掉的那一行 ≠ 犯錯的那一行；ASan（<code>-fsanitize=address</code>）在第一次越界當下報告行號與讀寫；結束狀態 139／134＝128＋訊號編號</td>
+<td><code>array</code> <code>pointer arithmetic</code> <code>p[i]</code> <code>*(p + i)</code> <code>ptrdiff_t</code> <code>%td</code> <code>array decay</code> <code>-Wsizeof-array-argument</code> <code>&amp;a</code> <code>string literal</code> <code>.rodata</code> <code>\0</code> <code>strlen</code> <code>out-of-bounds</code> <code>undefined behavior</code> <code>-Warray-bounds</code> <code>-fstack-protector-strong</code> <code>stack smashing detected</code> <code>canary</code> <code>buffer overflow</code> <code>saved rip</code> <code>SIGSEGV</code> <code>SIGABRT</code> <code>bt</code> <code>frame</code> <code>@</code> <code>info proc mappings</code> <code>info frame</code> <code>-fsanitize=address</code> <code>ASan</code> <code>KASAN</code></td>
+</tr>
+<tr>
+<td><a href="x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80-%E6%9A%AB%E5%AD%98%E5%99%A8%E3%80%81mov%E8%88%87lea%E3%80%81cmp%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D.html">x86-64組合語言入門-暫存器、mov與lea、cmp與條件跳躍</a></td>
+<td>組合語言是機器碼的文字版（<code>objdump -d</code> 對照，跳躍距離是有號的相對位移）；AT&amp;T vs Intel 語法（<code>-masm=intel</code>，順序相反）；16 個通用暫存器與 64／32／16／8 位元名字，寫 32 位元自動清高位所以 <code>movl</code> 就是零擴展、符號擴展要 <code>movslq</code>（<code>movs*</code>／<code>movz*</code> 命名）；指令文法 <code>助憶符[b/w/l/q] 來源, 目的</code>、記憶體運算元 <code>D(B,I,S)</code>＝<code>D+B+I×S</code>（S 只能 1/2/4/8＝<code>a[i]</code> 的硬體支援）；<code>mov</code> 讀記憶體、<code>lea</code> 只算位址（拿來做 <code>x*3</code>）；<code>cmp</code> 只設 ZF/SF/CF/OF，有號無號由條件碼決定（<code>l</code>/<code>g</code> 有號、<code>b</code>/<code>a</code> 無號，全部 16 種），gdb 實測 <code>lt_s</code>／<code>lt_u</code> 旗標相同 <code>[ SF IF ]</code> 結果相反；<code>mov</code> 不改旗標；逐行讀 <code>sum_to</code>：<code>-O0</code> 變數住 <code>-N(%rbp)</code>、先 <code>jmp</code> 到底部檢查，<code>-O2</code> 變數住暫存器、一圈加兩個數、指令反而變多；<code>.s</code> 的標籤／指示詞（<code>.cfi_*</code>、<code>.p2align</code>…）／指令；<code>endbr64</code></td>
+<td><code>AT&amp;T</code> <code>-masm=intel</code> <code>objdump -d</code> <code>-M intel</code> <code>%rax</code> <code>%eax</code> <code>%rdi</code> <code>%rsi</code> <code>%rsp</code> <code>%rbp</code> <code>%rip</code> <code>rflags</code> <code>movl</code> <code>movq</code> <code>movslq</code> <code>movzbl</code> <code>movswl</code> <code>lea</code> <code>D(B,I,S)</code> <code>add</code> <code>sub</code> <code>xor</code> <code>and</code> <code>cmp</code> <code>test</code> <code>jmp</code> <code>jle</code> <code>jb</code> <code>jne</code> <code>setl</code> <code>setb</code> <code>ZF</code> <code>SF</code> <code>CF</code> <code>OF</code> <code>-fverbose-asm</code> <code>-fno-asynchronous-unwind-tables</code> <code>.cfi</code> <code>.p2align</code> <code>endbr64</code> <code>CET</code> <code>info registers eflags</code></td>
+</tr>
+<tr>
+<td><a href="x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80%E4%BA%8C-call%E8%88%87ret%E3%80%81%E5%A0%86%E7%96%8A%E6%A1%86%E3%80%81%E5%8F%83%E6%95%B8%E8%88%87%E5%91%BC%E5%8F%AB%E6%85%A3%E4%BE%8B.html">x86-64組合語言入門二-call與ret、堆疊框、參數與呼叫慣例</a></td>
+<td>函式呼叫只是堆疊加四個指令：<code>call</code> ＝ 推返回位址＋跳、<code>ret</code> ＝ 從堆疊頂取位址跳回（gdb <code>stepi</code> 實測 <code>%rsp</code> 每步 ±8）；<code>push %rbp; mov %rsp,%rbp</code> 建堆疊框、<code>leave</code> 拆掉、<code>%rbp</code> 串成鏈；葉函式用紅區；參數 <code>%rdi</code>…<code>%r9</code>、第 7 個起推堆疊（<code>0x10(%rbp)</code>）、呼叫者清；callee-saved <code>%rbx</code>/<code>%rbp</code>/<code>%r12</code>～<code>%r15</code>；<code>call</code> 時 <code>%rsp</code> 16 byte 對齊（<code>sub $0x8</code>）；可變參數函式的 <code>%al</code> ＝ 用了幾個 <code>%xmm</code></td>
+<td><code>call</code> <code>ret</code> <code>push</code> <code>pop</code> <code>leave</code> <code>%rsp</code> <code>%rbp</code> <code>stack frame</code> <code>red zone</code> <code>System V AMD64 ABI</code> <code>caller-saved</code> <code>callee-saved</code> <code>16-byte alignment</code> <code>%al</code> <code>varargs</code> <code>stepi</code> <code>info symbol</code> <code>objdump -r</code></td>
+</tr>
+</tbody>
+</table>
+<hr />
+<blockquote>
+<p>新增筆記時，記得把它加進上面的「筆記列表」表格。</p>
+</blockquote>
+
+</main>
+</div>
+</body>
+</html>

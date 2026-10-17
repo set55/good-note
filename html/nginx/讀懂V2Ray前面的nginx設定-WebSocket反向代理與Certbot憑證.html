@@ -1,0 +1,833 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>讀懂 V2Ray 前面的 nginx 設定 —— WebSocket 反向代理與 Certbot 憑證</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/app.js"></script>
+</head>
+<body>
+<button class="menu-btn" onclick="toggleMenu()">☰ 目錄</button>
+<div class="layout">
+<nav class="side">
+<div class="crumbs"><a href="../index.html">🏠 首頁</a> / <a href="README.html">nginx</a></div>
+<div class="tools"><button onclick="toggleTheme()">🌓 主題</button></div>
+<ul>
+<li class="l2"><a href="#%E7%9B%AE%E9%8C%84">目錄</a></li>
+<li class="l2"><a href="#%E4%B8%80%E9%80%99%E4%BB%BD%E8%A8%AD%E5%AE%9A%E5%9C%A8%E5%81%9A%E4%BB%80%E9%BA%BC">一、這份設定在做什麼</a></li>
+<li class="l2"><a href="#%E4%BA%8Cnginx-%E8%A8%AD%E5%AE%9A%E6%AA%94%E7%9A%84%E6%96%87%E6%B3%95%E6%8C%87%E4%BB%A4%E5%8D%80%E5%A1%8A%E7%B9%BC%E6%89%BFinclude">二、nginx 設定檔的文法：指令、區塊、繼承、include</a></li>
+<li class="l3"><a href="#1-%E5%8F%AA%E6%9C%89%E5%85%A9%E7%A8%AE%E6%9D%B1%E8%A5%BF">1. 只有兩種東西</a></li>
+<li class="l3"><a href="#2-%E6%83%85%E5%A2%83%E7%9A%84%E9%9A%8E%E5%B1%A4">2. 情境的階層</a></li>
+<li class="l3"><a href="#3-%E7%B9%BC%E6%89%BF%E8%88%87%E8%A6%86%E5%AF%AB%E5%85%A7%E5%B1%A4%E5%AF%AB%E4%BA%86%E5%B0%B1%E8%93%8B%E6%8E%89%E5%A4%96%E5%B1%A4">3. 繼承與覆寫：內層寫了就蓋掉外層</a></li>
+<li class="l3"><a href="#4-include%E6%8A%8A%E5%88%A5%E7%9A%84%E6%AA%94%E8%B2%BC%E9%80%B2%E4%BE%86">4. include：把別的檔「貼」進來</a></li>
+<li class="l2"><a href="#%E4%B8%89%E4%B8%BB%E6%AA%94-nginxconf-%E9%80%90%E6%AE%B5">三、主檔 nginx.conf 逐段</a></li>
+<li class="l2"><a href="#%E5%9B%9Bsites-enableddefault-%E7%9A%84%E4%BA%94%E5%80%8B-server">四、sites-enabled/default 的五個 server</a></li>
+<li class="l2"><a href="#%E4%BA%94nginx-%E6%80%8E%E9%BA%BC%E6%B1%BA%E5%AE%9A%E7%94%B1%E5%93%AA%E5%80%8B-server-%E8%99%95%E7%90%86%E5%AF%A6%E6%B8%AC">五、nginx 怎麼決定由哪個 server 處理（實測）</a></li>
+<li class="l2"><a href="#%E5%85%ADlocation-kvwebsocket-%E5%8F%8D%E5%90%91%E4%BB%A3%E7%90%86%E9%80%90%E8%A1%8C">六、location /kv：WebSocket 反向代理逐行</a></li>
+<li class="l3"><a href="#1-location-kv-%E6%98%AF%E5%89%8D%E7%B6%B4%E5%8C%B9%E9%85%8D">1. location /kv 是前綴匹配</a></li>
+<li class="l3"><a href="#2-if---return-401-">2. if (...) { return 401; }</a></li>
+<li class="l3"><a href="#3-proxy_-%E9%80%90%E8%A1%8C">3. proxy_* 逐行</a></li>
+<li class="l2"><a href="#%E4%B8%83ssl-%E6%86%91%E8%AD%89%E6%98%AF%E6%80%8E%E9%BA%BC%E4%BE%86%E7%9A%84certbot--lets-encrypt">七、SSL 憑證是怎麼來的：Certbot + Let&#x27;s Encrypt</a></li>
+<li class="l3"><a href="#1-%E8%AD%89%E6%93%9A">1. 證據</a></li>
+<li class="l3"><a href="#2-lets-encrypt-%E8%88%87-acmeca-%E6%80%8E%E9%BA%BC%E7%A2%BA%E5%AE%9A%E7%B6%B2%E5%9F%9F%E6%98%AF%E4%BD%A0%E7%9A%84">2. Let&#x27;s Encrypt 與 ACME：CA 怎麼確定網域是你的</a></li>
+<li class="l3"><a href="#3-certbot-%E5%B0%8D%E8%A8%AD%E5%AE%9A%E6%AA%94%E5%81%9A%E4%BA%86%E4%BB%80%E9%BA%BC">3. Certbot 對設定檔做了什麼</a></li>
+<li class="l3"><a href="#4-etcletsencrypt-%E8%A3%A1%E7%9A%84%E6%AA%94%E6%A1%88">4. /etc/letsencrypt/ 裡的檔案</a></li>
+<li class="l3"><a href="#5-options-ssl-nginxconf-%E8%88%87-ssl-dhparamspem">5. options-ssl-nginx.conf 與 ssl-dhparams.pem</a></li>
+<li class="l3"><a href="#6-%E7%BA%8C%E6%9C%9F%E6%86%91%E8%AD%89%E5%8F%AA%E6%9C%89-90-%E5%A4%A9">6. 續期（憑證只有 90 天）</a></li>
+<li class="l3"><a href="#7-%E5%9C%A8-vps-%E4%B8%8A%E7%A2%BA%E8%AA%8D%E6%9C%AA%E5%AF%A6%E6%B8%AC%E8%AB%8B%E8%87%AA%E5%B7%B1%E8%B7%91">7. 在 VPS 上確認（未實測，請自己跑）</a></li>
+<li class="l2"><a href="#%E5%85%AB%E9%80%99%E4%BB%BD%E8%A8%AD%E5%AE%9A%E7%9A%84%E5%95%8F%E9%A1%8C%E8%88%87%E5%BB%BA%E8%AD%B0">八、這份設定的問題與建議</a></li>
+<li class="l3"><a href="#1-http-%E5%B1%A4%E7%9A%84-tlsv1-tlsv11-%E6%B2%92%E4%BD%9C%E7%94%A8%E4%BD%86%E6%9C%83%E8%AA%A4%E5%B0%8E%E4%BA%BA">1. http 層的 TLSv1 TLSv1.1 沒作用，但會誤導人</a></li>
+<li class="l3"><a href="#2-443-%E6%B2%92%E6%9C%89-default_serverplayer-%E7%AD%89%E6%96%BC%E6%B2%92%E4%B8%8A%E9%8E%96%E7%9A%84%E5%85%A5%E5%8F%A3">2. 443 沒有 default_server，/player 等於沒上鎖的入口</a></li>
+<li class="l3"><a href="#3-%E9%80%9A%E9%97%9C%E5%AD%97%E4%B8%B2%E8%A2%AB%E5%AF%AB%E9%80%B2-accesslog">3. 通關字串被寫進 access.log</a></li>
+<li class="l3"><a href="#4-%E5%85%B6%E4%BB%96%E5%B0%8F%E5%9C%B0%E6%96%B9">4. 其他小地方</a></li>
+<li class="l2"><a href="#%E4%B9%9D%E6%9C%AC%E7%AF%87%E7%94%A8%E5%88%B0%E7%9A%84%E5%91%BD%E4%BB%A4%E5%AE%8C%E6%95%B4%E9%81%B8%E9%A0%85">九、本篇用到的命令（完整選項）</a></li>
+<li class="l3"><a href="#1-nginx%E5%85%A8%E9%83%A8%E9%81%B8%E9%A0%85%E6%9C%AC%E6%A9%9F-1240-nginx--h">1. nginx（全部選項，本機 1.24.0 nginx -h）</a></li>
+<li class="l3"><a href="#2-certbot15-%E5%80%8B%E5%AD%90%E5%91%BD%E4%BB%A4%E5%85%A8%E5%88%97%E9%81%B8%E9%A0%85%E5%8F%AA%E5%88%97%E6%9C%AC%E7%AF%87%E7%94%A8%E5%88%B0%E7%9A%84">2. certbot（15 個子命令全列；選項只列本篇用到的）</a></li>
+<li class="l3"><a href="#3-opensslcurl%E5%8F%AA%E5%88%97%E6%9C%AC%E7%AF%87%E7%94%A8%E5%88%B0%E7%9A%84">3. openssl、curl（只列本篇用到的）</a></li>
+<li class="l2"><a href="#%E5%8D%81%E5%AF%A6%E9%A9%97%E7%9A%84%E5%AE%8C%E6%95%B4%E5%8E%9F%E5%A7%8B%E7%A2%BC">十、實驗的完整原始碼</a></li>
+<li class="l3"><a href="#1-%E6%BA%96%E5%82%99%E8%87%AA%E7%B0%BD%E6%86%91%E8%AD%89certbot-%E7%9A%84-tls-%E6%AA%94%E5%81%87%E5%BE%8C%E7%AB%AF">1. 準備：自簽憑證、Certbot 的 TLS 檔、假後端</a></li>
+<li class="l3"><a href="#2-%E6%B8%AC%E8%A9%A6%E7%94%A8%E7%9A%84-nginx-%E8%A8%AD%E5%AE%9A">2. 測試用的 nginx 設定</a></li>
+<li class="l3"><a href="#3-%E6%B8%AC%E8%A9%A6%E8%85%B3%E6%9C%AC-testsh%E7%94%A2%E7%94%9F%E7%AC%AC%E4%BA%94%E5%85%AD%E4%B8%83%E7%AF%80%E7%9A%84-ag-%E8%BC%B8%E5%87%BA">3. 測試腳本 test.sh（產生第五、六、七節的 A～G 輸出）</a></li>
+<li class="l3"><a href="#4-%E7%9C%8B%E6%86%91%E8%AD%89%E8%88%87-tls-%E7%89%88%E6%9C%AC">4. 看憑證與 TLS 版本</a></li>
+<li class="l2"><a href="#%E8%87%AA%E6%88%91%E6%B8%AC%E9%A9%97">自我測驗</a></li>
+</ul>
+</nav>
+<main>
+<h1 id="讀懂-v2ray-前面的-nginx-設定--websocket-反向代理與-certbot-憑證">讀懂 V2Ray 前面的 nginx 設定 —— WebSocket 反向代理與 Certbot 憑證</h1>
+<blockquote>
+<p>建立日期：2026-10-03<br />
+情境：VPS 上跑 V2Ray（WebSocket 傳輸，監聽 <code>127.0.0.1:10000</code>），前面擋一層 nginx 負責 TLS 與轉發。拿到 <code>/etc/nginx/nginx.conf</code> 與 <code>/etc/nginx/sites-enabled/default</code> 兩個檔，想看懂每一段在做什麼，以及 SSL 憑證是怎麼產生的。<br />
+對應檔案：VPS 上的 <code>/etc/nginx/nginx.conf</code>、<code>/etc/nginx/sites-enabled/default</code>（系統設定檔，不在本 repo）。<strong>本 repo 是公開的</strong>，所以筆記裡把兩個真實網域換成 <code>site.example.com</code>（原本的網站）與 <code>proxy.example.com</code>（給 V2Ray 用的），把 <code>/kv</code> 的通關字串換成 <code>MY-SECRET-TOKEN</code>。<br />
+實測環境：本機 Ubuntu 24.04、nginx 1.24.0、curl 8.5.0、OpenSSL 3.0.15；用非 root 的第二個 nginx 實例、改用 8080／8443 埠、自簽憑證重現整份設定（完整原始碼見<a href="#%E5%8D%81%E5%AF%A6%E9%A9%97%E7%9A%84%E5%AE%8C%E6%95%B4%E5%8E%9F%E5%A7%8B%E7%A2%BC">第十節</a>）。VPS 本身與 Let's Encrypt 簽發流程<strong>未實測</strong>（本機沒有公開網域）。</p>
+</blockquote>
+<p><strong>一句話結論：nginx 先用「連到哪個 IP:埠」挑出候選 server，再用 TLS 的 SNI 選憑證、用 HTTP 的 <code>Host</code> 選 server、用 URL 路徑選 location；你的 V2Ray 只是被某個 location <code>proxy_pass</code> 過去的後端。憑證是 Certbot 用 <code>--nginx</code> 外掛向 Let's Encrypt 申請、並且「直接改寫你的 nginx 設定檔」裝上去的——所有 <code># managed by Certbot</code> 的行都是它寫的。</strong></p>
+<hr />
+<h2 id="目錄">目錄</h2>
+<ul>
+<li><a href="#%E4%B8%80%E9%80%99%E4%BB%BD%E8%A8%AD%E5%AE%9A%E5%9C%A8%E5%81%9A%E4%BB%80%E9%BA%BC">一、這份設定在做什麼</a></li>
+<li><a href="#%E4%BA%8Cnginx-%E8%A8%AD%E5%AE%9A%E6%AA%94%E7%9A%84%E6%96%87%E6%B3%95%E6%8C%87%E4%BB%A4%E5%8D%80%E5%A1%8A%E7%B9%BC%E6%89%BFinclude">二、nginx 設定檔的文法：指令、區塊、繼承、include</a></li>
+<li><a href="#%E4%B8%89%E4%B8%BB%E6%AA%94-nginxconf-%E9%80%90%E6%AE%B5">三、主檔 nginx.conf 逐段</a></li>
+<li><a href="#%E5%9B%9Bsites-enableddefault-%E7%9A%84%E4%BA%94%E5%80%8B-server">四、sites-enabled/default 的五個 server</a></li>
+<li><a href="#%E4%BA%94nginx-%E6%80%8E%E9%BA%BC%E6%B1%BA%E5%AE%9A%E7%94%B1%E5%93%AA%E5%80%8B-server-%E8%99%95%E7%90%86%E5%AF%A6%E6%B8%AC">五、nginx 怎麼決定由哪個 server 處理（實測）</a></li>
+<li><a href="#%E5%85%ADlocation-kvwebsocket-%E5%8F%8D%E5%90%91%E4%BB%A3%E7%90%86%E9%80%90%E8%A1%8C">六、location /kv：WebSocket 反向代理逐行</a></li>
+<li><a href="#%E4%B8%83ssl-%E6%86%91%E8%AD%89%E6%98%AF%E6%80%8E%E9%BA%BC%E4%BE%86%E7%9A%84certbot--lets-encrypt">七、SSL 憑證是怎麼來的：Certbot + Let's Encrypt</a></li>
+<li><a href="#%E5%85%AB%E9%80%99%E4%BB%BD%E8%A8%AD%E5%AE%9A%E7%9A%84%E5%95%8F%E9%A1%8C%E8%88%87%E5%BB%BA%E8%AD%B0">八、這份設定的問題與建議</a></li>
+<li><a href="#%E4%B9%9D%E6%9C%AC%E7%AF%87%E7%94%A8%E5%88%B0%E7%9A%84%E5%91%BD%E4%BB%A4%E5%AE%8C%E6%95%B4%E9%81%B8%E9%A0%85">九、本篇用到的命令（完整選項）</a></li>
+<li><a href="#%E5%8D%81%E5%AF%A6%E9%A9%97%E7%9A%84%E5%AE%8C%E6%95%B4%E5%8E%9F%E5%A7%8B%E7%A2%BC">十、實驗的完整原始碼</a></li>
+<li><a href="#%E8%87%AA%E6%88%91%E6%B8%AC%E9%A9%97">自我測驗</a></li>
+</ul>
+<hr />
+<h2 id="一這份設定在做什麼">一、這份設定在做什麼</h2>
+<pre><code>客戶端（v2rayN 等）
+   │  TCP 連 443，TLS 握手時 SNI = proxy.example.com
+   ▼
+nginx（root 身分監聽 80/443，worker 以 www-data 執行）
+   │  1. 用 SNI 選憑證 → 解開 TLS
+   │  2. 用 Host 選 server { server_name proxy.example.com; }
+   │  3. 用路徑選 location /kv
+   │  4. 檢查 Sec-WebSocket-Protocol 是不是通關字串，不是就 401
+   ▼  proxy_pass，明文 HTTP/1.1 + Upgrade: websocket
+V2Ray（127.0.0.1:10000，WebSocket inbound）
+   │  解 VMess/VLESS，用 UUID 認證
+   ▼
+真正的目的地網站
+</code></pre>
+<p>從外面看，這台機器就是一個普通的 HTTPS 網站（<code>location /</code> 回靜態頁），只有路徑剛好對、header 剛好對的請求才會被轉給 V2Ray。這是「WebSocket + TLS + 網站偽裝」的典型架構：nginx 負責 TLS 與偽裝，V2Ray 只處理已經解密的 WebSocket 流量，所以 V2Ray 自己不用碰憑證。</p>
+<h2 id="二nginx-設定檔的文法指令區塊繼承include">二、nginx 設定檔的文法：指令、區塊、繼承、include</h2>
+<h3 id="1-只有兩種東西">1. 只有兩種東西</h3>
+<table>
+<thead>
+<tr>
+<th>種類</th>
+<th>長相</th>
+<th>例子</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>簡單指令（simple directive）</td>
+<td><code>名稱 參數1 參數2 ... ;</code>（<strong>分號結尾</strong>）</td>
+<td><code>worker_processes auto;</code></td>
+</tr>
+<tr>
+<td>區塊指令（block directive）＝情境（context）</td>
+<td><code>名稱 [參數] { ... }</code>（大括號，不加分號）</td>
+<td><code>server { ... }</code>、<code>location /kv { ... }</code></td>
+</tr>
+</tbody>
+</table>
+<p><code>#</code> 到行尾是註解。字串可以不加引號；含空白或特殊字元（<code>{</code>、<code>;</code>）時才需要引號。<code>$</code> 開頭的是變數，在<strong>每個請求</strong>處理時才求值（例如 <code>$host</code>、<code>$http_upgrade</code>）。</p>
+<h3 id="2-情境的階層">2. 情境的階層</h3>
+<pre><code>main（檔案最外層，沒有大括號）
+├── events { }        ← 連線處理機制
+└── http { }          ← 所有 HTTP 相關
+    └── server { }    ← 一個虛擬主機（virtual host）
+        └── location &lt;匹配&gt; { }  ← 某一類 URL
+            └── if (...) { }     ← 條件（能放的指令很少）
+</code></pre>
+<p>每個指令只能放在特定情境裡（官方文件每個指令都標有 <code>Context:</code>），放錯位置 <code>nginx -t</code> 會報 <code>&quot;xxx&quot; directive is not allowed here</code>。</p>
+<h3 id="3-繼承與覆寫內層寫了就蓋掉外層">3. 繼承與覆寫：內層寫了就蓋掉外層</h3>
+<p>大部分指令「外層寫的值是內層的預設，內層自己寫就完全取代」。你的設定裡就有現成例子：</p>
+<ul>
+<li><code>http</code> 層：<code>ssl_protocols TLSv1 TLSv1.1 TLSv1.2 TLSv1.3;</code>、<code>ssl_prefer_server_ciphers on;</code></li>
+<li>每個 HTTPS <code>server</code> 裡 <code>include /etc/letsencrypt/options-ssl-nginx.conf;</code>，這個檔又寫了 <code>ssl_protocols TLSv1.2 TLSv1.3;</code>、<code>ssl_prefer_server_ciphers off;</code></li>
+</ul>
+<p>所以兩個 HTTPS 網站實際生效的是 server 層的值。<a href="#%E5%85%AB%E9%80%99%E4%BB%BD%E8%A8%AD%E5%AE%9A%E7%9A%84%E5%95%8F%E9%A1%8C%E8%88%87%E5%BB%BA%E8%AD%B0">第八節第 1 點</a>有實測。</p>
+<p>有一個常踩的例外：<strong><code>proxy_set_header</code>、<code>add_header</code> 這類可以寫很多次的指令，只要當層寫了任何一個，外層的就全部不繼承</strong>（不是合併）。所以要加 header 時，請一次在同一層寫齊。</p>
+<h3 id="4-include把別的檔貼進來">4. include：把別的檔「貼」進來</h3>
+<p><code>include &lt;路徑或萬用字元&gt;;</code> 在解析時把那些檔的內容原地展開，就像 C 的 <code>#include</code>。你的設定的載入順序：</p>
+<pre><code>/etc/nginx/nginx.conf
+├── /etc/nginx/modules-enabled/*.conf     （動態模組，main 層）
+└── http {
+    ├── /etc/nginx/mime.types             （副檔名 → Content-Type 對照）
+    ├── /etc/nginx/conf.d/*.conf          （套件或手動加的設定）
+    └── /etc/nginx/sites-enabled/*        （← 你貼的第二個檔就在這）
+        └── server { include /etc/letsencrypt/options-ssl-nginx.conf; }
+</code></pre>
+<p>Debian／Ubuntu 的慣例：檔案實際放在 <code>sites-available/</code>，要啟用就在 <code>sites-enabled/</code> 放一個符號連結（symlink）指過去，停用就刪連結。想看「全部 include 展開後」的最終設定，用 <code>sudo nginx -T</code>（見<a href="#%E4%B9%9D%E6%9C%AC%E7%AF%87%E7%94%A8%E5%88%B0%E7%9A%84%E5%91%BD%E4%BB%A4%E5%AE%8C%E6%95%B4%E9%81%B8%E9%A0%85">第九節</a>）。</p>
+<h2 id="三主檔-nginxconf-逐段">三、主檔 nginx.conf 逐段</h2>
+<pre><code class="language-nginx"><span class="k">user</span><span class="w"> </span><span class="s">www-data</span><span class="p">;</span><span class="w">                 </span><span class="c1"># worker 行程以 www-data 執行（master 仍是 root，才能綁 80/443）</span>
+<span class="k">worker_processes</span><span class="w"> </span><span class="s">auto</span><span class="p">;</span><span class="w">         </span><span class="c1"># worker 數量 = CPU 核心數</span>
+<span class="k">pid</span><span class="w"> </span><span class="s">/run/nginx.pid</span><span class="p">;</span><span class="w">            </span><span class="c1"># master 的 PID 寫在這，nginx -s reload 就是讀它來送訊號</span>
+<span class="k">error_log</span><span class="w"> </span><span class="s">/var/log/nginx/error.log</span><span class="p">;</span>
+<span class="k">include</span><span class="w"> </span><span class="n">/etc/nginx/modules-enabled/*.conf</span>;
+
+<span class="k">events</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kn">worker_connections</span><span class="w"> </span><span class="mi">768</span><span class="p">;</span><span class="w">    </span><span class="c1"># 每個 worker 最多同時 768 條連線</span>
+<span class="p">}</span>
+</code></pre>
+<p><code>user</code> 為什麼要分兩個身分：綁定 1024 以下的埠需要 root，所以 master 用 root 綁好 socket 後，再 fork 出降權成 <code>www-data</code> 的 worker 來處理請求——就算 worker 被打穿，攻擊者拿到的也只是 <code>www-data</code>。本機以一般使用者跑時，nginx 會警告 <code>the &quot;user&quot; directive makes sense only if the master process runs with super-user privileges, ignored</code>，就是這個原因。</p>
+<p><code>worker_connections 768</code> 要注意：<strong>它算的是所有連線，包括 nginx 往後端開的那一條</strong>。每個 V2Ray 客戶端的 WebSocket 會佔兩條（客戶端 ↔ nginx、nginx ↔ V2Ray），所以一個 worker 大約只撐 384 個同時代理的連線。</p>
+<p><code>http</code> 區塊：</p>
+<table>
+<thead>
+<tr>
+<th>指令</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>sendfile on;</code></td>
+<td>送靜態檔時用 <code>sendfile()</code> 系統呼叫，由核心直接從檔案搬到 socket，不經過使用者空間緩衝</td>
+</tr>
+<tr>
+<td><code>tcp_nopush on;</code></td>
+<td>搭配 sendfile，讓回應的 header 與檔案開頭湊成完整封包再送（Linux 的 <code>TCP_CORK</code>）</td>
+</tr>
+<tr>
+<td><code>types_hash_max_size 2048;</code></td>
+<td><code>mime.types</code> 那張雜湊表的大小上限，型別多時不夠會在啟動時報錯</td>
+</tr>
+<tr>
+<td><code>include mime.types; default_type application/octet-stream;</code></td>
+<td>依副檔名決定 <code>Content-Type</code>，查不到就當二進位檔</td>
+</tr>
+<tr>
+<td><code>ssl_protocols ...; ssl_prefer_server_ciphers on;</code></td>
+<td>TLS 版本與加密套件偏好的 http 層預設——但被每個 server 的 include 蓋掉（見上節）</td>
+</tr>
+<tr>
+<td><code>log_format custom '...';</code></td>
+<td>定義名為 <code>custom</code> 的日誌格式；比預設多記了 <code>$http_sec_websocket_protocol</code>（客戶端送的 <code>Sec-WebSocket-Protocol</code> header）</td>
+</tr>
+<tr>
+<td><code>access_log /var/log/nginx/access.log custom;</code></td>
+<td>用 <code>custom</code> 格式寫存取日誌</td>
+</tr>
+<tr>
+<td><code>gzip on;</code></td>
+<td>壓縮回應（只壓 <code>text/html</code>，因為 <code>gzip_types</code> 沒打開）；與 V2Ray 流量無關</td>
+</tr>
+<tr>
+<td>兩個 <code>include</code></td>
+<td>載入 <code>conf.d/</code> 與 <code>sites-enabled/</code></td>
+</tr>
+</tbody>
+</table>
+<p><code>$http_&lt;名稱&gt;</code> 是 nginx 的通用規則：任何請求 header 都能用 <code>$http_</code> 加上「轉小寫、<code>-</code> 換成 <code>_</code>」的名字讀到，所以 <code>Sec-WebSocket-Protocol</code> → <code>$http_sec_websocket_protocol</code>、<code>Upgrade</code> → <code>$http_upgrade</code>。</p>
+<p>最後那段被註解掉的 <code>mail { }</code> 是 nginx 當郵件代理（POP3／IMAP）的範例，沒有作用。</p>
+<h2 id="四sites-enableddefault-的五個-server">四、sites-enabled/default 的五個 server</h2>
+<p>把註解拿掉之後，這個檔其實只有五個 <code>server</code>：</p>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>listen</th>
+<th>server_name</th>
+<th>做什麼</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td><code>80 default_server</code>、<code>[::]:80 default_server</code></td>
+<td><code>_</code></td>
+<td>套件附的預設網站，回 <code>/var/www/html</code> 的靜態檔</td>
+</tr>
+<tr>
+<td>2</td>
+<td><code>443 ssl</code>、<code>[::]:443 ssl ipv6only=on</code></td>
+<td><code>site.example.com</code></td>
+<td>網站的 HTTPS；<code>/player</code> 轉給 <code>127.0.0.1:10000</code>（<strong>沒有</strong> token 檢查）</td>
+</tr>
+<tr>
+<td>3</td>
+<td><code>80</code>、<code>[::]:80</code></td>
+<td><code>site.example.com</code></td>
+<td>把 HTTP 轉址（301）到 HTTPS</td>
+</tr>
+<tr>
+<td>4</td>
+<td><code>443 ssl</code>、<code>[::]:443 ssl</code></td>
+<td><code>proxy.example.com</code></td>
+<td>V2Ray 用的 HTTPS；<code>/kv</code> 檢查 token 後轉給 <code>127.0.0.1:10000</code></td>
+</tr>
+<tr>
+<td>5</td>
+<td><code>80</code>、<code>[::]:80</code></td>
+<td><code>proxy.example.com</code></td>
+<td>把 HTTP 轉址到 HTTPS</td>
+</tr>
+</tbody>
+</table>
+<p>第 2～5 個都是「先手寫一個 <code>listen 80</code> 的 server，再跑 <code>certbot --nginx</code>」後的產物：Certbot 把原 server 的 <code>listen 80</code> 換成 <code>listen 443 ssl</code> 並加上憑證，再另外生出一個專門轉址的 <code>listen 80</code> server（詳見<a href="#%E4%B8%83ssl-%E6%86%91%E8%AD%89%E6%98%AF%E6%80%8E%E9%BA%BC%E4%BE%86%E7%9A%84certbot--lets-encrypt">第七節</a>）。</p>
+<p>各指令：</p>
+<ul>
+<li><code>listen &lt;位址:埠&gt; [參數]</code>：這個 server 接哪個 socket 的連線。只寫埠＝所有 IPv4 位址；<code>[::]:443</code> 是所有 IPv6 位址。Linux 上 nginx 對 <code>[::]</code> 預設就是 <code>ipv6only=on</code>（IPv4、IPv6 各開一個 socket），所以第 2 個 server 明寫的 <code>ipv6only=on</code> 其實是預設值。這類 socket 參數（<code>ipv6only</code>、<code>default_server</code>、<code>backlog</code>…）<strong>對同一個位址:埠只能寫一次</strong>，所以 Certbot 只在第一個寫，第 4 個沒有。
+<ul>
+<li><code>ssl</code>：這個 socket 上的連線要先做 TLS 握手。</li>
+<li><code>default_server</code>：見下一節。</li>
+</ul>
+</li>
+<li><code>server_name</code>：用來跟請求的 <code>Host</code>（以及 TLS 的 SNI）比對。<code>_</code> 不是特殊語法，只是一個「不可能是真網域」的名字，慣例用來表示「我不打算被名字匹配到」。</li>
+<li><code>root</code>：靜態檔根目錄，URL <code>/a/b.html</code> 會對到 <code>&lt;root&gt;/a/b.html</code>。</li>
+<li><code>index</code>：請求是目錄時依序嘗試的檔名。</li>
+<li><code>try_files $uri $uri/ =404;</code>：依序試「這個路徑是檔案嗎」→「是目錄嗎」，都不是就回 404。</li>
+</ul>
+<h2 id="五nginx-怎麼決定由哪個-server-處理實測">五、nginx 怎麼決定由哪個 server 處理（實測）</h2>
+<p>順序是三層篩選：</p>
+<ol>
+<li><strong>連線進來的 IP:埠</strong> 決定候選名單：連 443 的只會在「有 <code>listen 443</code>」的 server 裡挑。</li>
+<li><strong>TLS 握手時的 SNI（Server Name Indication，伺服器名稱指示）</strong> 決定給哪張憑證。SNI 是客戶端在 TLS ClientHello 裡用明文寫的「我要連哪個網域」，因為這時候還沒有 HTTP、nginx 看不到 <code>Host</code>。</li>
+<li><strong>HTTP 的 <code>Host</code> header</strong> 決定由哪個 server 區塊處理請求。</li>
+</ol>
+<p>任何一層「名字都對不上」時，就交給那個 IP:埠的<strong>預設 server</strong>：有寫 <code>default_server</code> 的那個；沒寫的話，就是設定檔裡<strong>第一個</strong>出現的 listen 該 IP:埠的 server。</p>
+<p>在你的設定裡：80 埠的預設是第 1 個（有寫 <code>default_server</code>）；443 埠<strong>沒有人寫 <code>default_server</code></strong>，所以預設是第一個出現的 443 server——第 2 個（<code>site.example.com</code>）。</p>
+<p>實測（測試腳本 <code>test.sh</code> 與 <code>openssl</code> 指令見<a href="#%E5%8D%81%E5%AF%A6%E9%A9%97%E7%9A%84%E5%AE%8C%E6%95%B4%E5%8E%9F%E5%A7%8B%E7%A2%BC">第十節</a>；8080／8443 對應真實的 80／443）：</p>
+<pre><code>### 沒給 SNI（用 IP 連）
+subject=CN = site.example.com
+### SNI=proxy.example.com
+subject=CN = proxy.example.com
+### SNI=亂寫.example.com
+subject=CN = site.example.com
+</code></pre>
+<pre><code>### E 用 IP 連 HTTP
+HTTP/1.1 200 OK
+...
+site                        ← 第 1 個 server 的 /var/www/html/index.html
+
+### F 用 IP 連 HTTPS 的 /player（沒有 token 檢查）
+HTTP/1.1 200 OK
+...
+GET /player HTTP/1.1        ← 後端收到了：沒帶任何 token 也被轉進去
+Upgrade: websocket
+Connection: upgrade
+Host: 127.0.0.1
+</code></pre>
+<p>也就是說：<strong>任何人掃描你的 IP 連 443，都會拿到 <code>site.example.com</code> 的憑證（網域因此曝光），並落到第 2 個 server——它的 <code>/player</code> 沒有 token 檢查，直接轉給 V2Ray 的同一個埠。</strong> 這件事後果有多大，取決於 V2Ray 設定的 path，見<a href="#%E5%85%AB%E9%80%99%E4%BB%BD%E8%A8%AD%E5%AE%9A%E7%9A%84%E5%95%8F%E9%A1%8C%E8%88%87%E5%BB%BA%E8%AD%B0">第八節第 2 點</a>。</p>
+<p>另一個實測：SNI 給 <code>site.example.com</code>、<code>Host</code> 卻寫 <code>proxy.example.com</code> 去打 <code>/kv</code>，結果是 <code>401</code>——代表處理請求的是第 4 個 server。<strong>憑證跟著 SNI、處理跟著 Host，兩者可以不一致</strong>（nginx 1.24 預設不檢查它們是否相同）。</p>
+<h2 id="六location-kvwebsocket-反向代理逐行">六、location /kv：WebSocket 反向代理逐行</h2>
+<pre><code class="language-nginx"><span class="k">location</span><span class="w"> </span><span class="s">/kv</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kn">if</span><span class="w"> </span><span class="s">(</span><span class="nv">$http_sec_websocket_protocol</span><span class="w"> </span><span class="s">!=</span><span class="w"> </span><span class="s">&quot;MY-SECRET-TOKEN&quot;)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="kn">return</span><span class="w"> </span><span class="mi">401</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="kn">proxy_redirect</span><span class="w"> </span><span class="no">off</span><span class="p">;</span>
+<span class="w">    </span><span class="kn">proxy_pass</span><span class="w"> </span><span class="s">http://127.0.0.1:10000</span><span class="p">;</span>
+<span class="w">    </span><span class="kn">proxy_http_version</span><span class="w"> </span><span class="mi">1</span><span class="s">.1</span><span class="p">;</span>
+<span class="w">    </span><span class="kn">proxy_set_header</span><span class="w"> </span><span class="s">Upgrade</span><span class="w"> </span><span class="nv">$http_upgrade</span><span class="p">;</span>
+<span class="w">    </span><span class="kn">proxy_set_header</span><span class="w"> </span><span class="s">Connection</span><span class="w"> </span><span class="s">&quot;upgrade&quot;</span><span class="p">;</span>
+<span class="w">    </span><span class="kn">proxy_set_header</span><span class="w"> </span><span class="s">Host</span><span class="w"> </span><span class="nv">$host</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<h3 id="1-location-kv-是前綴匹配">1. <code>location /kv</code> 是前綴匹配</h3>
+<p><code>location</code> 的匹配寫法（全部 5 種）：</p>
+<table>
+<thead>
+<tr>
+<th>寫法</th>
+<th>意思</th>
+<th>優先順序</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>location = /kv</code></td>
+<td>完全相等</td>
+<td>最高，命中就停</td>
+</tr>
+<tr>
+<td><code>location ^~ /kv</code></td>
+<td>前綴，命中後不再看正規表示式</td>
+<td>前綴裡最長的若是 <code>^~</code> 就直接用</td>
+</tr>
+<tr>
+<td><code>location ~ 正規式</code></td>
+<td>正規表示式（區分大小寫）</td>
+<td>依設定檔順序，第一個命中的勝出</td>
+</tr>
+<tr>
+<td><code>location ~* 正規式</code></td>
+<td>正規表示式（不分大小寫）</td>
+<td>同上</td>
+</tr>
+<tr>
+<td><code>location /kv</code></td>
+<td>前綴</td>
+<td>先記住「最長的前綴」，正規式都沒命中才用它</td>
+</tr>
+</tbody>
+</table>
+<p>所以 <code>/kv</code> 跟 <code>/</code> 都是前綴，<code>/kv/...</code> 會選比較長的 <code>/kv</code>。但前綴的意思是<strong>字串開頭相同就算</strong>，連 <code>/kvabc/x</code> 也會進來：</p>
+<pre><code>### C /kvabc 前綴也吃到
+HTTP/1.1 200 OK
+...
+GET /kvabc/x HTTP/1.1
+</code></pre>
+<p>想只接 <code>/kv</code> 一個路徑，要寫 <code>location = /kv</code>。</p>
+<h3 id="2-if---return-401-">2. <code>if (...) { return 401; }</code></h3>
+<p><code>if</code> 裡的條件：<code>$變數 = 字串</code>、<code>!=</code>、<code>~</code> 正規式、<code>-f</code> 檔案存在等。nginx 的 <code>if</code> 很有名的「if is evil」，指的是在 <code>location</code> 裡的 <code>if</code> 放其他指令時行為難以預期；<strong>只放 <code>return</code> 是官方認可的安全用法</strong>。</p>
+<p>實測：</p>
+<pre><code>### A /kv 沒帶 token
+HTTP/1.1 401 Unauthorized
+
+### B /kv 帶 token（模擬 WebSocket 握手）
+HTTP/1.1 200 OK
+...
+GET /kv HTTP/1.1
+Upgrade: websocket
+Connection: upgrade
+Host: proxy.example.com
+User-Agent: curl/8.5.0
+Accept: */*
+Sec-WebSocket-Protocol: MY-SECRET-TOKEN    ← 原本的請求 header 預設會照轉
+</code></pre>
+<p>為什麼用 <code>Sec-WebSocket-Protocol</code> 當通關字串？這個 header 原本是 WebSocket 用來協商「子協定」的，瀏覽器的 <code>new WebSocket(url, protocols)</code> 可以設它，而且在 TLS 裡面，路上的人看不到。V2Ray 的客戶端可以在 <code>wsSettings.headers</code> 自訂它。</p>
+<h3 id="3-proxy_-逐行">3. proxy_* 逐行</h3>
+<ul>
+<li><code>proxy_pass http://127.0.0.1:10000;</code>：把請求轉給這個後端。網址後面<strong>沒有路徑</strong>時，原本的 URI 原封不動送過去（<code>/kv</code> 就是 <code>/kv</code>）；如果寫成 <code>http://127.0.0.1:10000/</code>（有結尾斜線），nginx 會把匹配到的 <code>/kv</code> 那段換成 <code>/</code>——這是最常見的路徑錯誤來源。</li>
+<li><code>proxy_http_version 1.1;</code>：nginx 往後端<strong>預設用 HTTP/1.0</strong>，而 WebSocket 的升級機制（<code>Upgrade</code>）是 HTTP/1.1 才有的。</li>
+<li><code>proxy_set_header Upgrade $http_upgrade;</code>、<code>proxy_set_header Connection &quot;upgrade&quot;;</code>：這兩行是 WebSocket 能不能通的關鍵。<code>Upgrade</code> 和 <code>Connection</code> 是<strong>逐跳（hop-by-hop）header</strong>——HTTP 規定它們只對「這一段連線」有意義，代理<strong>不可以</strong>往下一段轉送。所以客戶端送給 nginx 的 <code>Upgrade: websocket</code> 預設會被丟掉，nginx 還會自己對後端送 <code>Connection: close</code>（nginx 預設只改寫兩個 header：<code>Host $proxy_host</code> 與 <code>Connection close</code>）。要讓 nginx ↔ V2Ray 這一段也升級成 WebSocket，就得手動把它們加回去。
+<ul>
+<li>實測細節：值是空字串的 <code>proxy_set_header</code> <strong>整行不送</strong>。上面 C 那次 curl 沒帶 <code>Upgrade</code>，後端收到的就只有 <code>Connection: upgrade</code>、沒有 <code>Upgrade</code> 行。</li>
+</ul>
+</li>
+<li><code>proxy_set_header Host $host;</code>：把客戶端的網域傳給後端；不寫的話後端會收到 <code>Host: 127.0.0.1:10000</code>（<code>$proxy_host</code>）。<code>$host</code> 是 <code>Host</code> header 去掉埠號、轉小寫的值。</li>
+<li><code>proxy_redirect off;</code>：不改寫後端回應裡的 <code>Location</code>／<code>Refresh</code> header。V2Ray 不會回轉址，這行可有可無。</li>
+</ul>
+<p>nginx 看到後端回 <code>101 Switching Protocols</code> 之後，就不再解析 HTTP，變成兩條 TCP 之間單純搬位元組，直到任一邊關閉（或 <code>proxy_read_timeout</code> 預設 60 秒沒資料）。</p>
+<h2 id="七ssl-憑證是怎麼來的certbot--lets-encrypt">七、SSL 憑證是怎麼來的：Certbot + Let's Encrypt</h2>
+<h3 id="1-證據">1. 證據</h3>
+<p>設定裡每一行 <code># managed by Certbot</code> 都指向同一件事：有人在 VPS 上執行過類似</p>
+<pre><code class="language-bash">sudo<span class="w"> </span>certbot<span class="w"> </span>--nginx<span class="w"> </span>-d<span class="w"> </span>site.example.com
+sudo<span class="w"> </span>certbot<span class="w"> </span>--nginx<span class="w"> </span>-d<span class="w"> </span>proxy.example.com
+</code></pre>
+<p><code>--nginx</code> 代表 Certbot 用 nginx 外掛（plugin）同時做兩件事：<strong>驗證（authenticator）</strong>——向 CA 證明你擁有這個網域；<strong>安裝（installer）</strong>——把憑證寫進 nginx 設定並 reload。</p>
+<p>（也可能是 <code>certbot --nginx</code> 不帶 <code>-d</code>，互動式選網域；結果一樣。兩個網域各自有 <code>/etc/letsencrypt/live/&lt;網域&gt;/</code>，表示是<strong>兩張獨立的憑證</strong>，不是一張含兩個網域的憑證。）</p>
+<h3 id="2-lets-encrypt-與-acmeca-怎麼確定網域是你的">2. Let's Encrypt 與 ACME：CA 怎麼確定網域是你的</h3>
+<p>Let's Encrypt 是免費的憑證機構（CA，Certificate Authority，憑證授權單位），只用自動化的 ACME（Automatic Certificate Management Environment，自動憑證管理環境）協定發證。nginx 外掛用的是 HTTP-01 驗證：</p>
+<pre><code>certbot                         Let's Encrypt
+  │ 1. 我要 site.example.com 的憑證  ──►
+  │ ◄── 2. 請把字串 X 放在 http://site.example.com/.well-known/acme-challenge/&lt;token&gt;
+  │ 3. 暫時改 nginx 設定，讓這個路徑回傳 X，reload
+  │ 4. 好了  ──►
+  │                              5. 從網際網路連你的 80 埠取那個 URL，內容對就通過
+  │ 6. 送出 CSR（用本機產生的私鑰簽的憑證請求） ──►
+  │ ◄── 7. 簽好的憑證 + 中繼憑證
+  │ 8. 還原暫時設定，寫入永久的 ssl_* 設定，reload
+</code></pre>
+<p>所以有兩個前提：網域的 DNS 要先指到這台 VPS，而且 <strong>80 埠要能從外面連到</strong>（防火牆擋 80，續期就會失敗）。私鑰從頭到尾在你的機器上產生，不會送出去。</p>
+<h3 id="3-certbot-對設定檔做了什麼">3. Certbot 對設定檔做了什麼</h3>
+<p>對照原本的 server（像第 1 個那樣只有 <code>listen 80</code>），Certbot 做了：</p>
+<ol>
+<li>在原 server 裡移除 <code>listen 80</code>，加上：<pre><code class="language-nginx"><span class="k">listen</span><span class="w"> </span><span class="s">[::]:443</span><span class="w"> </span><span class="s">ssl</span><span class="w"> </span><span class="s">ipv6only=on</span><span class="p">;</span>
+<span class="k">listen</span><span class="w"> </span><span class="mi">443</span><span class="w"> </span><span class="s">ssl</span><span class="p">;</span>
+<span class="k">ssl_certificate</span><span class="w">     </span><span class="s">/etc/letsencrypt/live/&lt;網域&gt;/fullchain.pem</span><span class="p">;</span>
+<span class="k">ssl_certificate_key</span><span class="w"> </span><span class="s">/etc/letsencrypt/live/&lt;網域&gt;/privkey.pem</span><span class="p">;</span>
+<span class="k">include</span><span class="w"> </span><span class="n">/etc/letsencrypt/options-ssl-nginx.conf</span>;
+<span class="k">ssl_dhparam</span><span class="w"> </span><span class="s">/etc/letsencrypt/ssl-dhparams.pem</span><span class="p">;</span>
+</code></pre>
+</li>
+<li>另外產生一個轉址用的 server（你的第 3、5 個）：<pre><code class="language-nginx"><span class="k">server</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kn">if</span><span class="w"> </span><span class="s">(</span><span class="nv">$host</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">&lt;網域&gt;)</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="kn">return</span><span class="w"> </span><span class="mi">301</span><span class="w"> </span><span class="s">https://</span><span class="nv">$host$request_uri</span><span class="p">;</span><span class="w"> </span><span class="p">}</span>
+<span class="w">    </span><span class="kn">listen</span><span class="w"> </span><span class="mi">80</span><span class="p">;</span><span class="w"> </span><span class="kn">listen</span><span class="w"> </span><span class="s">[::]:80</span><span class="p">;</span>
+<span class="w">    </span><span class="kn">server_name</span><span class="w"> </span><span class="s">&lt;網域&gt;</span><span class="p">;</span>
+<span class="w">    </span><span class="kn">return</span><span class="w"> </span><span class="mi">404</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<code>$request_uri</code> 是原始的路徑加查詢字串，所以轉址會保留它（實測 <code>http://proxy.example.com:8080/kv?a=1</code> → <code>Location: https://proxy.example.com/kv?a=1</code>）。最後那個 <code>return 404</code> 幾乎走不到：能進這個 server 的請求，<code>Host</code> 本來就等於 <code>server_name</code>。它是 Certbot 的通用模板——一個 server 可能有多個 <code>server_name</code>，只有拿到憑證的那幾個名字才轉址，其他名字回 404。</li>
+</ol>
+<p>（較舊的 Certbot 會互動詢問要不要轉址，選「轉址」才會產生第 3、5 個 server；較新的版本預設就轉址，可用 <code>--no-redirect</code> 關掉。）</p>
+<h3 id="4-etcletsencrypt-裡的檔案">4. <code>/etc/letsencrypt/</code> 裡的檔案</h3>
+<pre><code>/etc/letsencrypt/
+├── live/&lt;網域&gt;/                 ← nginx 指向這裡；裡面全是符號連結
+│   ├── cert.pem       → ../../archive/&lt;網域&gt;/cert3.pem      只有你的憑證
+│   ├── chain.pem      → ../../archive/&lt;網域&gt;/chain3.pem     只有中繼憑證
+│   ├── fullchain.pem  → ../../archive/&lt;網域&gt;/fullchain3.pem cert + chain，nginx 要用這個
+│   └── privkey.pem    → ../../archive/&lt;網域&gt;/privkey3.pem   私鑰（權限只有 root 能讀）
+├── archive/&lt;網域&gt;/              ← 每次續期多一組 cert4、cert5…，live 的連結跟著換
+├── renewal/&lt;網域&gt;.conf          ← 續期時要用的參數（authenticator = nginx 等）
+├── options-ssl-nginx.conf       ← Certbot 維護的 TLS 參數（下面）
+└── ssl-dhparams.pem             ← DH 參數
+</code></pre>
+<p><code>ssl_certificate</code> 要用 <code>fullchain.pem</code> 而不是 <code>cert.pem</code>：瀏覽器只內建根憑證，伺服器必須把「你的憑證 + 中繼憑證」一起送，客戶端才串得回根憑證；只送 <code>cert.pem</code> 時，有些客戶端（特別是非瀏覽器的程式）會驗證失敗。</p>
+<p>nginx 指向 <code>live/</code> 的固定路徑，續期後連結換了新檔，只要 reload nginx 就生效——這就是 nginx 外掛續期時會自動做的事。</p>
+<h3 id="5-options-ssl-nginxconf-與-ssl-dhparamspem">5. <code>options-ssl-nginx.conf</code> 與 <code>ssl-dhparams.pem</code></h3>
+<p>Certbot GitHub 上目前版本的 <code>options-ssl-nginx.conf</code>（<strong>你 VPS 上的版本可能較舊，請 <code>cat</code> 確認</strong>）：</p>
+<pre><code class="language-nginx"><span class="k">ssl_session_cache</span><span class="w"> </span><span class="s">shared:le_nginx_SSL:10m</span><span class="p">;</span><span class="w">   </span><span class="c1"># 各 worker 共用 10MB 的 TLS session 快取，重連可省掉完整握手</span>
+<span class="k">ssl_session_timeout</span><span class="w"> </span><span class="mi">1440m</span><span class="p">;</span><span class="w">                   </span><span class="c1"># session 保留一天</span>
+<span class="k">ssl_session_tickets</span><span class="w"> </span><span class="no">off</span><span class="p">;</span><span class="w">                     </span><span class="c1"># 不用 session ticket（ticket 金鑰不輪替會削弱前向保密）</span>
+
+<span class="k">ssl_protocols</span><span class="w"> </span><span class="s">TLSv1.2</span><span class="w"> </span><span class="s">TLSv1.3</span><span class="p">;</span><span class="w">               </span><span class="c1"># 只允許 TLS 1.2、1.3</span>
+<span class="k">ssl_prefer_server_ciphers</span><span class="w"> </span><span class="no">off</span><span class="p">;</span><span class="w">               </span><span class="c1"># 讓客戶端挑加密套件（套件清單本身都夠強，客戶端知道自己有沒有 AES 硬體加速）</span>
+
+<span class="k">ssl_ciphers</span><span class="w"> </span><span class="s">&quot;ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:...:DHE-RSA-AES256-GCM-SHA384&quot;</span><span class="p">;</span>
+</code></pre>
+<p>內容來自 Mozilla 的 SSL Configuration Generator「intermediate」等級。檔頭寫著：<strong>手動改這個檔，Certbot 以後就不會自動更新它</strong>——要調整 TLS 參數，應該在 server 裡另外寫指令覆蓋，而不是改這個檔。</p>
+<p><code>ssl-dhparams.pem</code> 是 2048 位元的 DH（Diffie-Hellman）參數，實際檢查是 RFC 7919 的標準群組 <code>ffdhe2048</code>（每台機器都一樣，不是現場產生的）：</p>
+<pre><code>$ openssl dhparam -in ssl-dhparams.pem -noout -text | head -2
+    DH Parameters: (2048 bit)
+    GROUP: ffdhe2048
+</code></pre>
+<p>它只對 <code>DHE-RSA-*</code> 套件有用；TLS 1.3 與 <code>ECDHE-*</code> 套件用的是橢圓曲線，跟這個檔無關。</p>
+<h3 id="6-續期憑證只有-90-天">6. 續期（憑證只有 90 天）</h3>
+<p>Let's Encrypt 憑證效期 90 天。Certbot 安裝時會建立定時任務：apt 安裝的通常是 systemd 的 <code>certbot.timer</code>（一天跑兩次 <code>certbot -q renew</code>），snap 安裝的是 <code>snap.certbot.renew.timer</code>。<code>renew</code> 只會續「剩不到 30 天」的憑證，所以天天跑也無害。續期時讀 <code>renewal/&lt;網域&gt;.conf</code> 記下的參數，用同一個 nginx 外掛重做 HTTP-01 驗證。</p>
+<h3 id="7-在-vps-上確認未實測請自己跑">7. 在 VPS 上確認（未實測，請自己跑）</h3>
+<pre><code class="language-bash">sudo<span class="w"> </span>certbot<span class="w"> </span>certificates<span class="w">                       </span><span class="c1"># 列出所有憑證：網域、到期日、檔案路徑</span>
+sudo<span class="w"> </span>cat<span class="w"> </span>/etc/letsencrypt/renewal/*.conf<span class="w">        </span><span class="c1"># 看 authenticator / installer 是不是 nginx</span>
+systemctl<span class="w"> </span>list-timers<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-i<span class="w"> </span>certbot<span class="w">         </span><span class="c1"># 自動續期的定時任務在不在</span>
+sudo<span class="w"> </span>certbot<span class="w"> </span>renew<span class="w"> </span>--dry-run<span class="w">                    </span><span class="c1"># 對測試伺服器模擬續期，不會真的換憑證</span>
+ls<span class="w"> </span>-l<span class="w"> </span>/etc/letsencrypt/live/*/<span class="w">                  </span><span class="c1"># 看符號連結指到第幾版</span>
+sudo<span class="w"> </span>openssl<span class="w"> </span>x509<span class="w"> </span>-in<span class="w"> </span>/etc/letsencrypt/live/&lt;網域&gt;/cert.pem<span class="w"> </span>-noout<span class="w"> </span>-subject<span class="w"> </span>-issuer<span class="w"> </span>-dates
+<span class="nb">echo</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>openssl<span class="w"> </span>s_client<span class="w"> </span>-connect<span class="w"> </span>&lt;網域&gt;:443<span class="w"> </span>-servername<span class="w"> </span>&lt;網域&gt;<span class="w"> </span><span class="m">2</span>&gt;/dev/null<span class="w"> </span><span class="p">|</span><span class="w"> </span>openssl<span class="w"> </span>x509<span class="w"> </span>-noout<span class="w"> </span>-subject<span class="w"> </span>-issuer<span class="w"> </span>-dates
+<span class="w">                                                </span><span class="c1"># 從外面看實際送出的是哪張、何時到期</span>
+</code></pre>
+<h2 id="八這份設定的問題與建議">八、這份設定的問題與建議</h2>
+<h3 id="1-http-層的-tlsv1-tlsv11-沒作用但會誤導人">1. http 層的 <code>TLSv1 TLSv1.1</code> 沒作用，但會誤導人</h3>
+<p>實測：照原設定，強制用 TLS 1.1 連，被拒絕：</p>
+<pre><code>### TLS1.1 強制
+...tlsv1 alert protocol version...
+New, (NONE), Cipher is (NONE)
+</code></pre>
+<p>原因有兩層：(1) server 層 include 的 <code>ssl_protocols TLSv1.2 TLSv1.3;</code> 蓋掉了 http 層；(2) 就算把 server 層那行拿掉再試一次，<strong>仍然被拒</strong>——因為 Ubuntu 的 OpenSSL 3 預設安全等級（SECLEVEL 2）本身就不允許 TLS 1.0／1.1。要把加密套件改成 <code>DEFAULT@SECLEVEL=0</code> 才真的連得上（<code>New, TLSv1.0, Cipher is ECDHE-RSA-AES256-SHA</code>，這裡的 TLSv1.0 是該套件所屬的版本）。</p>
+<p>建議把 http 層改成 <code>ssl_protocols TLSv1.2 TLSv1.3;</code>，跟實際行為一致。</p>
+<h3 id="2-443-沒有-default_serverplayer-等於沒上鎖的入口">2. 443 沒有 default_server，<code>/player</code> 等於沒上鎖的入口</h3>
+<p>如<a href="#%E4%BA%94nginx-%E6%80%8E%E9%BA%BC%E6%B1%BA%E5%AE%9A%E7%94%B1%E5%93%AA%E5%80%8B-server-%E8%99%95%E7%90%86%E5%AF%A6%E6%B8%AC">第五節</a>實測，用 IP 或亂寫 SNI 連 443 都會落到 <code>site.example.com</code> 的 server，而它的 <code>/player</code> 沒有 token 檢查，跟 <code>/kv</code> 轉到<strong>同一個</strong> <code>127.0.0.1:10000</code>。</p>
+<p>這有多嚴重，取決於 V2Ray 的 <code>streamSettings.wsSettings.path</code>。V2Ray（v2fly/v2ray-core）的 WebSocket 伺服端會比對路徑，不符就回 404（<code>transport/internet/websocket/hub.go</code>：<code>if request.URL.Path != h.path { writer.WriteHeader(http.StatusNotFound) }</code>）。一個 V2Ray inbound 只有一個 path，所以：</p>
+<ul>
+<li>path 是 <code>/kv</code>：<code>/player</code> 進去只會拿到 404，<code>/player</code> 這段是<strong>死設定</strong>，可以刪。</li>
+<li>path 是 <code>/player</code>：那 <code>/kv</code> 才是死的，而且真正在用的入口<strong>沒有 token 檢查</strong>。</li>
+</ul>
+<p>請到 VPS 看 V2Ray 的 config 確認。另外 V2Ray 本身還有 UUID 認證，token 只是額外一道門。</p>
+<p>順便建議加一個「拒絕所有不認識名字」的 443 預設 server，掃 IP 的人就拿不到真網域的憑證（nginx 1.19.4 以上支援 <code>ssl_reject_handshake</code>）：</p>
+<pre><code class="language-nginx"><span class="k">server</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kn">listen</span><span class="w"> </span><span class="mi">443</span><span class="w"> </span><span class="s">ssl</span><span class="w"> </span><span class="s">default_server</span><span class="p">;</span>
+<span class="w">    </span><span class="kn">listen</span><span class="w"> </span><span class="s">[::]:443</span><span class="w"> </span><span class="s">ssl</span><span class="w"> </span><span class="s">default_server</span><span class="p">;</span>
+<span class="w">    </span><span class="kn">ssl_reject_handshake</span><span class="w"> </span><span class="no">on</span><span class="p">;</span><span class="w">     </span><span class="c1"># SNI 對不上任何 server_name 就直接中止 TLS 握手</span>
+<span class="p">}</span>
+</code></pre>
+<p>（<code>default_server</code> 與 <code>ipv6only</code> 對同一個位址:埠只能寫一次，加這段要把第 2 個 server 的 <code>ipv6only=on</code> 移過來或刪掉。）</p>
+<h3 id="3-通關字串被寫進-accesslog">3. 通關字串被寫進 access.log</h3>
+<p><code>log_format custom</code> 記了 <code>$http_sec_websocket_protocol</code>，於是每次成功連線，token 都以明文出現在 <code>/var/log/nginx/access.log</code>：</p>
+<pre><code>127.0.0.1 - - [03/Oct/2026:18:33:26 +0800] &quot;GET /kv HTTP/1.1&quot; 200 155 &quot;-&quot; &quot;curl/8.5.0&quot; &quot;MY-SECRET-TOKEN&quot;
+</code></pre>
+<p>TLS 擋得住路上的人，擋不住讀得到日誌的人（日誌備份、上傳到監控系統、<code>adm</code> 群組的使用者都讀得到）。如果記這個欄位只是當初為了除錯，建議拿掉。</p>
+<h3 id="4-其他小地方">4. 其他小地方</h3>
+<ul>
+<li><code>location /kv</code> 是前綴，<code>/kvxxx</code> 也會進來（<a href="#%E5%85%ADlocation-kvwebsocket-%E5%8F%8D%E5%90%91%E4%BB%A3%E7%90%86%E9%80%90%E8%A1%8C">第六節</a>實測 C）。改成 <code>location = /kv</code> 比較精確。</li>
+<li>沒有傳 <code>X-Forwarded-For</code>，V2Ray 看到的來源 IP 全是 <code>127.0.0.1</code>。需要的話加 <code>proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;</code>（V2Ray 原始碼 <code>hub.go</code> 有解析 <code>X-Forwarded-For</code> 的分支，但受設定開關控制，是否採用要看你的 V2Ray 版本與設定）。</li>
+<li><code>Connection &quot;upgrade&quot;</code> 寫死：連一般 HTTP 請求也會對後端宣稱要升級。官方文件建議的寫法是用 <code>map</code> 依 <code>$http_upgrade</code> 有沒有值來決定：<pre><code class="language-nginx"><span class="c1"># 放在 http 層</span>
+<span class="k">map</span><span class="w"> </span><span class="nv">$http_upgrade</span><span class="w"> </span><span class="nv">$connection_upgrade</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kn">default</span><span class="w"> </span><span class="s">upgrade</span><span class="p">;</span>
+<span class="w">    </span><span class="kn">&#39;&#39;</span><span class="w">      </span><span class="s">close</span><span class="p">;</span>
+<span class="p">}</span>
+<span class="c1"># location 裡改成</span>
+<span class="k">proxy_set_header</span><span class="w"> </span><span class="s">Connection</span><span class="w"> </span><span class="nv">$connection_upgrade</span><span class="p">;</span>
+</code></pre>
+只接 V2Ray 的話寫死也能用。</li>
+<li><code>worker_connections 768</code> 對代理用途偏小（見<a href="#%E4%B8%89%E4%B8%BB%E6%AA%94-nginxconf-%E9%80%90%E6%AE%B5">第三節</a>），人多時可以調大。</li>
+</ul>
+<h2 id="九本篇用到的命令完整選項">九、本篇用到的命令（完整選項）</h2>
+<h3 id="1-nginx全部選項本機-1240-nginx--h">1. <code>nginx</code>（全部選項，本機 1.24.0 <code>nginx -h</code>）</h3>
+<p>文法：<code>nginx [選項]</code>。沒有子命令；不加選項就是「啟動 master」。</p>
+<table>
+<thead>
+<tr>
+<th>選項</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-?</code>、<code>-h</code></td>
+<td>顯示說明</td>
+</tr>
+<tr>
+<td><code>-v</code></td>
+<td>顯示版本</td>
+</tr>
+<tr>
+<td><code>-V</code></td>
+<td>顯示版本、編譯器與 <code>configure</code> 參數（看編了哪些模組，例如有沒有 <code>--with-http_ssl_module</code>）</td>
+</tr>
+<tr>
+<td><code>-t</code></td>
+<td>測試設定檔語法並嘗試開啟其中的檔案，然後結束。<strong>改完設定一定先跑這個</strong></td>
+</tr>
+<tr>
+<td><code>-T</code></td>
+<td>同 <code>-t</code>，並把<strong>所有 include 展開後</strong>的完整設定印出來</td>
+</tr>
+<tr>
+<td><code>-q</code></td>
+<td>測試設定時只顯示錯誤</td>
+</tr>
+<tr>
+<td><code>-s &lt;訊號&gt;</code></td>
+<td>讀 pid 檔，對執行中的 master 送訊號：<code>stop</code>（立刻停）、<code>quit</code>（處理完現有請求再停）、<code>reopen</code>（重開日誌檔，給 logrotate 用）、<code>reload</code>（重讀設定，不中斷服務）</td>
+</tr>
+<tr>
+<td><code>-p &lt;前綴&gt;</code></td>
+<td>設定前綴路徑，設定檔裡的相對路徑以它為基準（預設 <code>/usr/share/nginx/</code>）</td>
+</tr>
+<tr>
+<td><code>-e &lt;檔案&gt;</code></td>
+<td>啟動階段的錯誤日誌位置（預設 stderr）</td>
+</tr>
+<tr>
+<td><code>-c &lt;檔案&gt;</code></td>
+<td>指定設定檔（預設 <code>/etc/nginx/nginx.conf</code>）</td>
+</tr>
+<tr>
+<td><code>-g &lt;指令&gt;</code></td>
+<td>從命令列補 main 層指令，例如 <code>-g 'daemon off;'</code></td>
+</tr>
+</tbody>
+</table>
+<p><code>-s reload</code> 時新設定有錯，nginx 會保留舊設定繼續跑；但 <code>systemctl restart nginx</code> 遇到錯誤設定就起不來了。所以流程是 <code>sudo nginx -t &amp;&amp; sudo systemctl reload nginx</code>。</p>
+<h3 id="2-certbot15-個子命令全列選項只列本篇用到的">2. <code>certbot</code>（15 個子命令全列；選項只列本篇用到的）</h3>
+<p>文法：<code>certbot [子命令] [選項] [-d 網域] ...</code>，省略子命令＝<code>run</code>。本機在 venv 安裝 certbot 5.8.0 跑 <code>certbot --help commands</code> 取得：</p>
+<table>
+<thead>
+<tr>
+<th>子命令</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>run</code>（預設）</td>
+<td>取得／續期憑證<strong>並安裝</strong>到網頁伺服器（你的情況：<code>certbot --nginx</code>）</td>
+</tr>
+<tr>
+<td><code>certonly</code></td>
+<td>只取得／續期，不改網頁伺服器設定（要自己寫 <code>ssl_certificate</code>）</td>
+</tr>
+<tr>
+<td><code>renew</code></td>
+<td>續期所有快到期的憑證（或 <code>--cert-name</code> 指定一張）</td>
+</tr>
+<tr>
+<td><code>certificates</code></td>
+<td>列出 Certbot 管理的憑證</td>
+</tr>
+<tr>
+<td><code>delete</code></td>
+<td>刪除某張憑證的所有相關檔案</td>
+</tr>
+<tr>
+<td><code>revoke</code></td>
+<td>撤銷憑證（私鑰外洩時用）</td>
+</tr>
+<tr>
+<td><code>reconfigure</code></td>
+<td>修改某張憑證的續期設定（<code>renewal/*.conf</code>）</td>
+</tr>
+<tr>
+<td><code>install</code></td>
+<td>把已有的憑證安裝到網頁伺服器</td>
+</tr>
+<tr>
+<td><code>enhance</code></td>
+<td>對已有設定加強化項目（例如 HTTP 轉 HTTPS）</td>
+</tr>
+<tr>
+<td><code>rollback</code></td>
+<td>還原安裝憑證時對伺服器設定做的修改</td>
+</tr>
+<tr>
+<td><code>plugins</code></td>
+<td>列出已安裝的外掛</td>
+</tr>
+<tr>
+<td><code>register</code></td>
+<td>註冊 ACME 帳號</td>
+</tr>
+<tr>
+<td><code>unregister</code></td>
+<td>停用 ACME 帳號（不可逆）</td>
+</tr>
+<tr>
+<td><code>update_account</code></td>
+<td>更新帳號資料（例如 email）</td>
+</tr>
+<tr>
+<td><code>show_account</code></td>
+<td>顯示帳號資料</td>
+</tr>
+</tbody>
+</table>
+<p>驗證外掛的差別：<code>--nginx</code>（透過 nginx 驗證並安裝）、<code>--webroot</code>（把驗證檔放進已存在網站的根目錄，不動設定）、<code>--standalone</code>（Certbot 自己臨時開一個伺服器佔 80 埠——nginx 在跑時會衝突）、<code>--manual</code>（手動或用腳本，DNS-01 驗證、萬用字元憑證要用這個）。</p>
+<p>本篇用到的選項：<code>-d &lt;網域&gt;</code>、<code>--nginx</code>、<code>--dry-run</code>（對測試伺服器模擬，不存任何憑證）、<code>-q</code>（安靜）。certbot 的選項有一百多個，<strong>這裡只列 4 個</strong>，完整清單用 <code>certbot --help all</code>，或 <code>certbot --help &lt;子命令/外掛&gt;</code>（例如 <code>certbot --help nginx</code>）。</p>
+<h3 id="3-opensslcurl只列本篇用到的">3. <code>openssl</code>、<code>curl</code>（只列本篇用到的）</h3>
+<ul>
+<li><code>openssl s_client</code>（本機 OpenSSL 3.0.15 共 181 個選項，這裡只列 6 個，完整見 <code>openssl s_client -help</code> 或 <code>man openssl-s_client</code>）：<code>-connect &lt;主機:埠&gt;</code>、<code>-servername &lt;名字&gt;</code>（設定 SNI）、<code>-noservername</code>（不送 SNI，模擬用 IP 連）、<code>-tls1_1</code>／<code>-tls1_2</code>（只用指定版本）、<code>-cipher &lt;清單&gt;</code>（TLS 1.2 以下的加密套件；<code>@SECLEVEL=0</code> 降低安全等級）。</li>
+<li><code>openssl x509</code>（共 74 個，這裡只列 5 個，完整見 <code>man openssl-x509</code>）：<code>-in &lt;檔&gt;</code>、<code>-noout</code>（不印 PEM 本體）、<code>-subject</code>、<code>-issuer</code>、<code>-dates</code>（效期起訖）。</li>
+<li><code>openssl req</code>（共 51 個，這裡只列 7 個，完整見 <code>man openssl-req</code>）：<code>-x509</code>（直接產自簽憑證而非 CSR）、<code>-newkey rsa:2048</code>（同時產新私鑰）、<code>-nodes</code>（私鑰不加密碼）、<code>-days</code>、<code>-subj</code>（直接給主體，不互動詢問）、<code>-keyout</code>、<code>-out</code>。</li>
+<li><code>openssl dhparam</code>：<code>-in</code>、<code>-noout</code>、<code>-text</code>（完整見 <code>man openssl-dhparam</code>）。</li>
+<li><code>curl</code>（8.5.0 的 <code>curl --help all</code> 約 258 個選項，這裡只列 8 個，完整見 <code>man curl</code>）：<code>-s</code>（不顯示進度）、<code>-k</code>（不驗證憑證，因為是自簽）、<code>-i</code>（輸出含回應 header）、<code>-H</code>（加請求 header）、<code>--resolve 主機:埠:IP</code>（把網域固定解析到某 IP，等於不改 <code>/etc/hosts</code> 就能送對的 SNI 與 Host）、<code>--noproxy '*'</code>（忽略環境變數的代理）、<code>-o</code>（輸出到檔案）、<code>-w '%{http_code}'</code>（只印狀態碼）。</li>
+</ul>
+<h2 id="十實驗的完整原始碼">十、實驗的完整原始碼</h2>
+<p>全部放在同一個工作目錄（下面用 <code>$S</code> 代表它的絕對路徑），以一般使用者執行。</p>
+<h3 id="1-準備自簽憑證certbot-的-tls-檔假後端">1. 準備：自簽憑證、Certbot 的 TLS 檔、假後端</h3>
+<pre><code class="language-bash"><span class="nv">S</span><span class="o">=</span><span class="nv">$PWD</span>
+mkdir<span class="w"> </span>-p<span class="w"> </span>logs<span class="w"> </span>certs<span class="w"> </span>html/solid<span class="w"> </span>conf
+<span class="nb">echo</span><span class="w"> </span>site<span class="w"> </span>&gt;<span class="w"> </span>html/index.html
+<span class="nb">echo</span><span class="w"> </span>proxy-site<span class="w"> </span>&gt;<span class="w"> </span>html/solid/index.html
+
+<span class="c1"># 兩張自簽憑證，代替 Let&#39;s Encrypt 的</span>
+<span class="k">for</span><span class="w"> </span>d<span class="w"> </span><span class="k">in</span><span class="w"> </span>site.example.com<span class="w"> </span>proxy.example.com<span class="p">;</span><span class="w"> </span><span class="k">do</span>
+<span class="w">  </span>openssl<span class="w"> </span>req<span class="w"> </span>-x509<span class="w"> </span>-newkey<span class="w"> </span>rsa:2048<span class="w"> </span>-nodes<span class="w"> </span>-days<span class="w"> </span><span class="m">1</span><span class="w"> </span>-subj<span class="w"> </span><span class="s2">&quot;/CN=</span><span class="nv">$d</span><span class="s2">&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>-keyout<span class="w"> </span>certs/<span class="nv">$d</span>.key<span class="w"> </span>-out<span class="w"> </span>certs/<span class="nv">$d</span>.crt
+<span class="k">done</span>
+
+<span class="c1"># Certbot 官方的兩個檔</span>
+<span class="nv">B</span><span class="o">=</span>https://raw.githubusercontent.com/certbot/certbot/main/certbot/src/certbot
+curl<span class="w"> </span>-sf<span class="w"> </span><span class="nv">$B</span>/_internal/plugins/nginx/tls_configs/options-ssl-nginx.conf<span class="w"> </span>&gt;<span class="w"> </span>conf/options-ssl-nginx.conf
+curl<span class="w"> </span>-sf<span class="w"> </span><span class="nv">$B</span>/ssl-dhparams.pem<span class="w"> </span>&gt;<span class="w"> </span>conf/ssl-dhparams.pem
+</code></pre>
+<p><code>backend.py</code>：假裝是 V2Ray，把 nginx 轉過來的請求 header 原封不動印回去，用來看 nginx 實際送了什麼：</p>
+<pre><code class="language-python"><span class="c1"># 假的後端：把 nginx 轉過來的請求原封不動印回去</span>
+<span class="kn">import</span> <span class="nn">socketserver</span>
+<span class="k">class</span> <span class="nc">H</span><span class="p">(</span><span class="n">socketserver</span><span class="o">.</span><span class="n">StreamRequestHandler</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">handle</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">lines</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+            <span class="n">l</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rfile</span><span class="o">.</span><span class="n">readline</span><span class="p">()</span><span class="o">.</span><span class="n">decode</span><span class="p">()</span>
+            <span class="k">if</span> <span class="n">l</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">&quot;</span><span class="se">\r\n</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">):</span> <span class="k">break</span>
+            <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">l</span><span class="o">.</span><span class="n">rstrip</span><span class="p">())</span>
+        <span class="n">body</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">lines</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">wfile</span><span class="o">.</span><span class="n">write</span><span class="p">((</span><span class="s2">&quot;HTTP/1.1 200 OK</span><span class="se">\r\n</span><span class="s2">Content-Length: </span><span class="si">%d</span><span class="se">\r\n</span><span class="s2">Connection: close</span><span class="se">\r\n\r\n</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="nb">len</span><span class="p">(</span><span class="n">body</span><span class="p">))</span><span class="o">.</span><span class="n">encode</span><span class="p">()</span> <span class="o">+</span> <span class="n">body</span><span class="o">.</span><span class="n">encode</span><span class="p">())</span>
+<span class="n">socketserver</span><span class="o">.</span><span class="n">ThreadingTCPServer</span><span class="o">.</span><span class="n">allow_reuse_address</span> <span class="o">=</span> <span class="kc">True</span>
+<span class="n">socketserver</span><span class="o">.</span><span class="n">ThreadingTCPServer</span><span class="p">((</span><span class="s2">&quot;127.0.0.1&quot;</span><span class="p">,</span> <span class="mi">10000</span><span class="p">),</span> <span class="n">H</span><span class="p">)</span><span class="o">.</span><span class="n">serve_forever</span><span class="p">()</span>
+</code></pre>
+<h3 id="2-測試用的-nginx-設定">2. 測試用的 nginx 設定</h3>
+<p>和原設定的差別只有：埠 80→8080、443→8443；路徑改到 <code>$S</code>；加上 <code>*_temp_path</code>（一般使用者沒權限寫 <code>/var/lib/nginx</code>）；註解刪掉。用 here-document 產生，<code>$S</code> 會被 shell 展開，nginx 自己的變數前面加 <code>\</code> 避免被展開：</p>
+<pre><code class="language-bash">cat<span class="w"> </span>&gt;<span class="w"> </span>conf/nginx.conf<span class="w"> </span><span class="s">&lt;&lt;EOF</span>
+<span class="s">user www-data;</span>
+<span class="s">worker_processes 2;</span>
+<span class="s">pid $S/logs/nginx.pid;</span>
+<span class="s">error_log $S/logs/error.log;</span>
+<span class="s">include /etc/nginx/modules-enabled/*.conf;</span>
+<span class="s">events { worker_connections 768; }</span>
+<span class="s">http {</span>
+<span class="s">    sendfile on; tcp_nopush on; types_hash_max_size 2048;</span>
+<span class="s">    include /etc/nginx/mime.types;</span>
+<span class="s">    default_type application/octet-stream;</span>
+<span class="s">    ssl_protocols TLSv1 TLSv1.1 TLSv1.2 TLSv1.3;</span>
+<span class="s">    ssl_prefer_server_ciphers on;</span>
+<span class="s">    log_format custom &#39;\$remote_addr - \$remote_user [\$time_local] &#39;</span>
+<span class="s">                &#39;&quot;\$request&quot; \$status \$body_bytes_sent &#39;</span>
+<span class="s">                &#39;&quot;\$http_referer&quot; &quot;\$http_user_agent&quot; &#39;</span>
+<span class="s">                &#39;&quot;\$http_sec_websocket_protocol&quot;&#39;;</span>
+<span class="s">    access_log $S/logs/access.log custom;</span>
+<span class="s">    gzip on;</span>
+<span class="s">    client_body_temp_path $S/logs/body; proxy_temp_path $S/logs/proxy;</span>
+<span class="s">    fastcgi_temp_path $S/logs/fcgi; uwsgi_temp_path $S/logs/uwsgi; scgi_temp_path $S/logs/scgi;</span>
+
+<span class="s">    # 1) 預設網站</span>
+<span class="s">    server {</span>
+<span class="s">        listen 8080 default_server;</span>
+<span class="s">        listen [::]:8080 default_server;</span>
+<span class="s">        root $S/html;</span>
+<span class="s">        index index.html;</span>
+<span class="s">        server_name _;</span>
+<span class="s">        location / { try_files \$uri \$uri/ =404; }</span>
+<span class="s">    }</span>
+<span class="s">    # 2) site.example.com 的 HTTPS</span>
+<span class="s">    server {</span>
+<span class="s">        root $S/html;</span>
+<span class="s">        index index.html;</span>
+<span class="s">        server_name site.example.com;</span>
+<span class="s">        location /player {</span>
+<span class="s">            proxy_redirect off;</span>
+<span class="s">            proxy_pass http://127.0.0.1:10000;</span>
+<span class="s">            proxy_http_version 1.1;</span>
+<span class="s">            proxy_set_header Upgrade \$http_upgrade;</span>
+<span class="s">            proxy_set_header Connection &quot;upgrade&quot;;</span>
+<span class="s">            proxy_set_header Host \$host;</span>
+<span class="s">        }</span>
+<span class="s">        location / { try_files \$uri \$uri/ =404; }</span>
+<span class="s">        listen [::]:8443 ssl ipv6only=on;</span>
+<span class="s">        listen 8443 ssl;</span>
+<span class="s">        ssl_certificate $S/certs/site.example.com.crt;</span>
+<span class="s">        ssl_certificate_key $S/certs/site.example.com.key;</span>
+<span class="s">        include $S/conf/options-ssl-nginx.conf;</span>
+<span class="s">        ssl_dhparam $S/conf/ssl-dhparams.pem;</span>
+<span class="s">    }</span>
+<span class="s">    # 3) site.example.com 的 HTTP -&gt; HTTPS</span>
+<span class="s">    server {</span>
+<span class="s">        if (\$host = site.example.com) { return 301 https://\$host\$request_uri; }</span>
+<span class="s">        listen 8080; listen [::]:8080;</span>
+<span class="s">        server_name site.example.com;</span>
+<span class="s">        return 404;</span>
+<span class="s">    }</span>
+<span class="s">    # 4) proxy.example.com 的 HTTPS</span>
+<span class="s">    server {</span>
+<span class="s">        root $S/html/solid;</span>
+<span class="s">        index index.html;</span>
+<span class="s">        server_name proxy.example.com;</span>
+<span class="s">        location / { try_files \$uri \$uri/ =404; }</span>
+<span class="s">        location /kv {</span>
+<span class="s">            if (\$http_sec_websocket_protocol != &quot;MY-SECRET-TOKEN&quot;) { return 401; }</span>
+<span class="s">            proxy_redirect off;</span>
+<span class="s">            proxy_pass http://127.0.0.1:10000;</span>
+<span class="s">            proxy_http_version 1.1;</span>
+<span class="s">            proxy_set_header Upgrade \$http_upgrade;</span>
+<span class="s">            proxy_set_header Connection &quot;upgrade&quot;;</span>
+<span class="s">            proxy_set_header Host \$host;</span>
+<span class="s">        }</span>
+<span class="s">        listen [::]:8443 ssl;</span>
+<span class="s">        listen 8443 ssl;</span>
+<span class="s">        ssl_certificate $S/certs/proxy.example.com.crt;</span>
+<span class="s">        ssl_certificate_key $S/certs/proxy.example.com.key;</span>
+<span class="s">        include $S/conf/options-ssl-nginx.conf;</span>
+<span class="s">        ssl_dhparam $S/conf/ssl-dhparams.pem;</span>
+<span class="s">    }</span>
+<span class="s">    # 5) proxy.example.com 的 HTTP -&gt; HTTPS</span>
+<span class="s">    server {</span>
+<span class="s">        if (\$host = proxy.example.com) { return 301 https://\$host\$request_uri; }</span>
+<span class="s">        listen 8080; listen [::]:8080;</span>
+<span class="s">        server_name proxy.example.com;</span>
+<span class="s">        return 404;</span>
+<span class="s">    }</span>
+<span class="s">}</span>
+<span class="s">EOF</span>
+
+nginx<span class="w"> </span>-t<span class="w"> </span>-p<span class="w"> </span><span class="nv">$S</span><span class="w"> </span>-c<span class="w"> </span><span class="nv">$S</span>/conf/nginx.conf<span class="w">      </span><span class="c1"># 測語法</span>
+python3<span class="w"> </span>backend.py<span class="w"> </span><span class="p">&amp;</span><span class="w">                      </span><span class="c1"># 啟動假後端</span>
+nginx<span class="w"> </span>-p<span class="w"> </span><span class="nv">$S</span><span class="w"> </span>-c<span class="w"> </span><span class="nv">$S</span>/conf/nginx.conf<span class="w">         </span><span class="c1"># 啟動測試用 nginx</span>
+<span class="c1"># 結束時：nginx -p $S -c $S/conf/nginx.conf -s stop; kill %1</span>
+</code></pre>
+<h3 id="3-測試腳本-testsh產生第五六七節的-ag-輸出">3. 測試腳本 <code>test.sh</code>（產生第五、六、七節的 A～G 輸出）</h3>
+<pre><code class="language-bash"><span class="ch">#!/bin/bash</span>
+<span class="nv">R</span><span class="o">=</span><span class="s2">&quot;--resolve site.example.com:8443:127.0.0.1 --resolve proxy.example.com:8443:127.0.0.1 --resolve site.example.com:8080:127.0.0.1 --resolve proxy.example.com:8080:127.0.0.1&quot;</span>
+t<span class="o">(){</span><span class="w"> </span>echo<span class="p">;</span><span class="w"> </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;### </span><span class="nv">$1</span><span class="s2">&quot;</span><span class="p">;</span><span class="w"> </span>shift<span class="p">;</span><span class="w"> </span>curl<span class="w"> </span>--noproxy<span class="w"> </span><span class="s2">&quot;*&quot;</span><span class="w"> </span>-sk<span class="w"> </span>-i<span class="w"> </span><span class="nv">$R</span><span class="w"> </span><span class="s2">&quot;</span><span class="nv">$@</span><span class="s2">&quot;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>sed<span class="w"> </span><span class="s1">&#39;s/\r$//&#39;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-vE<span class="w"> </span><span class="s1">&#39;^(Date|Server|Content-Type|ETag|Last-Modified|Accept-Ranges):&#39;</span><span class="w"> </span><span class="p">;</span><span class="w"> </span><span class="o">}</span>
+t<span class="w"> </span><span class="s2">&quot;A /kv 沒帶 token&quot;</span><span class="w"> </span>https://proxy.example.com:8443/kv
+t<span class="w"> </span><span class="s2">&quot;B /kv 帶 token（模擬 WebSocket 握手）&quot;</span><span class="w"> </span>-H<span class="w"> </span><span class="s1">&#39;Upgrade: websocket&#39;</span><span class="w"> </span>-H<span class="w"> </span><span class="s1">&#39;Connection: Upgrade&#39;</span><span class="w"> </span>-H<span class="w"> </span><span class="s1">&#39;Sec-WebSocket-Protocol: MY-SECRET-TOKEN&#39;</span><span class="w"> </span>https://proxy.example.com:8443/kv
+t<span class="w"> </span><span class="s2">&quot;C /kvabc 前綴也吃到&quot;</span><span class="w"> </span>-H<span class="w"> </span><span class="s1">&#39;Sec-WebSocket-Protocol: MY-SECRET-TOKEN&#39;</span><span class="w"> </span>https://proxy.example.com:8443/kvabc/x
+t<span class="w"> </span><span class="s2">&quot;D HTTP 轉 HTTPS&quot;</span><span class="w"> </span><span class="s1">&#39;http://proxy.example.com:8080/kv?a=1&#39;</span>
+t<span class="w"> </span><span class="s2">&quot;E 用 IP 連 HTTP&quot;</span><span class="w"> </span>http://127.0.0.1:8080/
+t<span class="w"> </span><span class="s2">&quot;F 用 IP 連 HTTPS 的 /player（沒有 token 檢查）&quot;</span><span class="w"> </span>-H<span class="w"> </span><span class="s1">&#39;Upgrade: websocket&#39;</span><span class="w"> </span>-H<span class="w"> </span><span class="s1">&#39;Connection: Upgrade&#39;</span><span class="w"> </span>https://127.0.0.1:8443/player
+t<span class="w"> </span><span class="s2">&quot;G 用 proxy 的 SNI 但走 /player&quot;</span><span class="w"> </span>https://proxy.example.com:8443/player
+</code></pre>
+<p>（<code>$R</code> 故意不加引號，讓 bash 把它拆成多個參數；在 zsh 裡不會拆，所以要用 <code>bash test.sh</code> 執行。<code>--noproxy</code> 是因為本機設了 <code>https_proxy</code> 環境變數，不加的話 curl 會把請求送去代理。）</p>
+<p>G 的結果是 404：SNI 與 Host 都是 <code>proxy.example.com</code>，由第 4 個 server 處理，它沒有 <code>/player</code>，落到 <code>location /</code> 找不到檔案。</p>
+<h3 id="4-看憑證與-tls-版本">4. 看憑證與 TLS 版本</h3>
+<pre><code class="language-bash">c<span class="o">(){</span><span class="w"> </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;### </span><span class="nv">$1</span><span class="s2">&quot;</span><span class="p">;</span><span class="w"> </span>shift<span class="p">;</span><span class="w"> </span><span class="nb">echo</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>openssl<span class="w"> </span>s_client<span class="w"> </span>-connect<span class="w"> </span><span class="m">127</span>.0.0.1:8443<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$@</span><span class="s2">&quot;</span><span class="w"> </span><span class="m">2</span>&gt;<span class="p">&amp;</span><span class="m">1</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-E<span class="w"> </span><span class="s1">&#39;^(subject=|Protocol|New,|.*error|.*alert)&#39;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>head<span class="w"> </span>-4<span class="p">;</span><span class="w"> </span><span class="o">}</span>
+c<span class="w"> </span><span class="s2">&quot;沒給 SNI（用 IP 連）&quot;</span><span class="w"> </span>-noservername
+c<span class="w"> </span><span class="s2">&quot;SNI=proxy.example.com&quot;</span><span class="w"> </span>-servername<span class="w"> </span>proxy.example.com
+c<span class="w"> </span><span class="s2">&quot;SNI=亂寫.example.com&quot;</span><span class="w"> </span>-servername<span class="w"> </span>nobody.example.com
+c<span class="w"> </span><span class="s2">&quot;TLS1.1 強制&quot;</span><span class="w"> </span>-servername<span class="w"> </span>proxy.example.com<span class="w"> </span>-tls1_1<span class="w"> </span>-cipher<span class="w"> </span><span class="s1">&#39;DEFAULT@SECLEVEL=0&#39;</span>
+c<span class="w"> </span><span class="s2">&quot;TLS1.2&quot;</span><span class="w"> </span>-servername<span class="w"> </span>proxy.example.com<span class="w"> </span>-tls1_2
+
+<span class="c1"># SNI 與 Host 不一致</span>
+curl<span class="w"> </span>--noproxy<span class="w"> </span><span class="s1">&#39;*&#39;</span><span class="w"> </span>-sk<span class="w"> </span>-o<span class="w"> </span>/dev/null<span class="w"> </span>-w<span class="w"> </span><span class="s1">&#39;%{http_code}\n&#39;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--resolve<span class="w"> </span>site.example.com:8443:127.0.0.1<span class="w"> </span>-H<span class="w"> </span><span class="s1">&#39;Host: proxy.example.com&#39;</span><span class="w"> </span>https://site.example.com:8443/kv
+</code></pre>
+<p><a href="#%E5%85%AB%E9%80%99%E4%BB%BD%E8%A8%AD%E5%AE%9A%E7%9A%84%E5%95%8F%E9%A1%8C%E8%88%87%E5%BB%BA%E8%AD%B0">第八節第 1 點</a>的對照實驗：把 <code>conf/options-ssl-nginx.conf</code> 的 <code>ssl_protocols</code> 那行註解掉、<code>nginx -s reload</code> 後再測 TLS 1.1（仍被拒）；再把 <code>ssl_ciphers &quot;</code> 改成 <code>ssl_ciphers &quot;DEFAULT@SECLEVEL=0:</code> 並 reload，TLS 1.1 才連得上。做完把檔案還原。</p>
+<hr />
+<h2 id="自我測驗">自我測驗</h2>
+<ol>
+<li>有人直接拿你 VPS 的 IP 連 <code>https://&lt;IP&gt;/player</code>。他會拿到哪張憑證、由哪個 <code>server</code> 處理、會不會被 token 擋下？每一步是根據什麼決定的？</li>
+<li>把 <code>location /kv</code> 裡的 <code>proxy_set_header Upgrade ...</code> 和 <code>proxy_set_header Connection &quot;upgrade&quot;</code> 兩行刪掉，WebSocket 就連不上。明明客戶端送給 nginx 的請求本來就帶著這兩個 header，為什麼還要自己再設一次？</li>
+<li><code>nginx.conf</code> 的 http 層寫了 <code>ssl_protocols TLSv1 TLSv1.1 TLSv1.2 TLSv1.3;</code>，為什麼實測 TLS 1.1 還是連不上？如果之後你新增一個<strong>沒有</strong> include <code>options-ssl-nginx.conf</code> 的 HTTPS server，它的 <code>ssl_protocols</code> 會是什麼？</li>
+<li>情境：三個多月後，客戶端突然全部連不上，錯誤是憑證過期。你會依序檢查哪幾件事來找出 Certbot 自動續期壞在哪一環？（提示：想想續期需要哪些條件同時成立。）</li>
+<li><code>/kv</code> 的 token 檢查，能擋下哪些人、擋不下哪些人？為什麼把 <code>$http_sec_websocket_protocol</code> 寫進 <code>access_log</code> 會削弱它？</li>
+</ol>
+
+</main>
+</div>
+</body>
+</html>

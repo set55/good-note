@@ -1,0 +1,457 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>readelf 怎麼用？—— 看懂 ELF 檔案內部的全部選項</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/app.js"></script>
+</head>
+<body>
+<button class="menu-btn" onclick="toggleMenu()">☰ 目錄</button>
+<div class="layout">
+<nav class="side">
+<div class="crumbs"><a href="../index.html">🏠 首頁</a> / <a href="README.html">c</a></div>
+<div class="tools"><button onclick="toggleTheme()">🌓 主題</button><button onclick="toggleAnswers(true)">展開答案</button><button onclick="toggleAnswers(false)">收起答案</button></div>
+<ul>
+<li class="l2"><a href="#%E4%B8%80%E6%96%87%E6%B3%95">一、文法</a></li>
+<li class="l2"><a href="#%E4%BA%8C%E5%85%A8%E9%83%A8%E9%81%B8%E9%A0%85">二、全部選項</a></li>
+<li class="l3"><a href="#21-%E7%B6%9C%E5%90%88">2.1 綜合</a></li>
+<li class="l3"><a href="#22-%E6%A8%99%E9%A0%AD%E8%88%87%E5%8D%80%E6%AE%B5">2.2 標頭與區段</a></li>
+<li class="l3"><a href="#23-%E7%AC%A6%E8%99%9F">2.3 符號</a></li>
+<li class="l3"><a href="#24-%E5%8B%95%E6%85%8B%E9%80%A3%E7%B5%90%E7%89%88%E6%9C%AC%E9%87%8D%E5%AE%9A%E4%BD%8D">2.4 動態連結、版本、重定位</a></li>
+<li class="l3"><a href="#25-%E5%82%BE%E5%8D%B0%E5%8D%80%E6%AE%B5%E5%85%A7%E5%AE%B9">2.5 傾印區段內容</a></li>
+<li class="l3"><a href="#26-%E9%99%A4%E9%8C%AF%E8%B3%87%E8%A8%8Adwarf">2.6 除錯資訊（DWARF）</a></li>
+<li class="l3"><a href="#27-%E5%85%B6%E4%BB%96%E6%A0%BC%E5%BC%8F%E7%9A%84%E5%9E%8B%E5%88%A5%E8%88%87%E5%A0%86%E7%96%8A%E8%B3%87%E8%A8%8A">2.7 其他格式的型別與堆疊資訊</a></li>
+<li class="l3"><a href="#28-%E8%BC%B8%E5%87%BA%E8%88%87%E4%B8%80%E8%88%AC">2.8 輸出與一般</a></li>
+<li class="l2"><a href="#%E4%B8%89%E6%9C%AC%E8%AA%B2%E7%A8%8B%E6%9C%83%E6%80%8E%E9%BA%BC%E7%94%A8%E5%AE%83">三、本課程會怎麼用它</a></li>
+<li class="l2"><a href="#%E8%87%AA%E6%88%91%E6%B8%AC%E9%A9%97">自我測驗</a></li>
+</ul>
+</nav>
+<main>
+<h1 id="readelf-怎麼用-看懂-elf-檔案內部的全部選項">readelf 怎麼用？—— 看懂 ELF 檔案內部的全部選項</h1>
+<blockquote>
+<p>日期：2026-09-23<br />
+情境：<a href="ELF%E7%9A%84interpreter%E6%98%AF%E4%BB%80%E9%BA%BC-%E5%8B%95%E6%85%8B%E8%BC%89%E5%85%A5%E5%99%A8%E8%88%87%E4%BA%95%E5%AD%97%E8%99%9F%E9%A9%9A%E5%98%86%E8%99%9F.html">ELF的interpreter是什麼</a> 用到 <code>readelf -l</code>、<code>-p</code>；依課程規則，介紹工具時要附完整選項參考。之後讀 ELF、連結、動態載入的課都會用到它<br />
+適用範圍：本機 GNU readelf 2.42（binutils，Ubuntu 24.04）；選項清單取自本機 <code>readelf --help</code>，逐項對照<br />
+相關：<a href="hello.c%E6%80%8E%E9%BA%BC%E8%AE%8A%E6%88%90%E8%83%BD%E8%B7%91%E7%9A%84%E7%A8%8B%E5%BC%8F-%E7%B7%A8%E8%AD%AF%E7%9A%84%E5%9B%9B%E5%80%8B%E9%9A%8E%E6%AE%B5.html">hello.c怎麼變成能跑的程式-編譯的四個階段</a>（ELF、區段、符號表）</p>
+</blockquote>
+<blockquote>
+<p><strong>這是「參考型」筆記，不是拿來背的。</strong> 用法是：需要時打開來查，或在 <code>readelf</code> 裡打 <code>--help</code> 問它自己。<br />
+要記住的只有一件事：<strong>遇到什麼問題，該找哪一類命令</strong>——這也是文末自我測驗唯一會考的東西（測驗不考選項字面，可以翻著這份筆記作答）。</p>
+</blockquote>
+<p><strong>一句話結論：<code>readelf</code> 專門「讀」ELF 檔案的結構，不執行它、也不反組譯。最常用的是四個：<code>-h</code> 看檔頭、
+<code>-l</code> 看程式標頭（載入時怎麼放進記憶體、有沒有 interpreter）、<code>-S</code> 看區段、<code>-s</code> 看符號表；
+<code>-d</code>、<code>-V</code>、<code>-r</code> 看動態連結的需求、符號版本與重定位。要看機器碼改用 <code>objdump -d</code>。</strong></p>
+<hr />
+<h2 id="一文法">一、文法</h2>
+<pre><code>readelf &lt;選項...&gt; &lt;ELF 檔案...&gt;
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>位置</th>
+<th>意思</th>
+<th>省略時</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>&lt;選項...&gt;</code></td>
+<td>要顯示哪些部分；<strong>至少要一個</strong>，可以多個一起用（<code>-h -l</code> 或合寫 <code>-hl</code>）</td>
+<td>不給任何選項會印出用法並結束</td>
+</tr>
+<tr>
+<td><code>&lt;ELF 檔案...&gt;</code></td>
+<td>一或多個 ELF 檔：可執行檔、<code>.o</code>、<code>.so</code>、core 檔</td>
+<td>必填</td>
+</tr>
+</tbody>
+</table>
+<p><code>readelf</code> 跟 <code>objdump</code> 都在 binutils 裡，差別是：<code>readelf</code> <strong>只懂 ELF</strong>、直接照 ELF 規格列出結構；
+<code>objdump</code> 透過 BFD 函式庫支援多種格式，並且能<strong>反組譯</strong>（第 1 課用的 <code>objdump -dr</code>）。</p>
+<hr />
+<h2 id="二全部選項">二、全部選項</h2>
+<p><code>readelf --help</code> 本身<strong>沒有分組</strong>，是一整串清單；以下的分組是本筆記依用途整理的，選項一個不漏（<code>--help</code> 共 52 行選項，其中 <code>--segments</code>、<code>--sections</code>、<code>--symbols</code> 是別名行，本篇併入主選項同一列）。★ 為本課程會常用的。</p>
+<h3 id="21-綜合">2.1 綜合</h3>
+<table>
+<thead>
+<tr>
+<th>選項</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-a</code>、<code>--all</code></td>
+<td>等於 <code>-h -l -S -s -r -d -V -A -I</code> 全部一起</td>
+</tr>
+<tr>
+<td><code>-e</code>、<code>--headers</code></td>
+<td>等於 <code>-h -l -S</code>：三種標頭一起</td>
+</tr>
+</tbody>
+</table>
+<h3 id="22-標頭與區段">2.2 標頭與區段</h3>
+<table>
+<thead>
+<tr>
+<th>選項</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>★ <code>-h</code>、<code>--file-header</code></td>
+<td>ELF 檔頭：檔案類型（EXEC／DYN／REL）、CPU 架構、進入點位址</td>
+</tr>
+<tr>
+<td>★ <code>-l</code>、<code>--program-headers</code>、<code>--segments</code></td>
+<td>程式標頭：載入時分成哪幾段放進記憶體、權限、<code>INTERP</code>（interpreter）</td>
+</tr>
+<tr>
+<td>★ <code>-S</code>、<code>--section-headers</code>、<code>--sections</code></td>
+<td>區段標頭：<code>.text</code>、<code>.data</code>、<code>.rodata</code>、<code>.bss</code> 等所有區段的位置與大小</td>
+</tr>
+<tr>
+<td><code>-g</code>、<code>--section-groups</code></td>
+<td>區段群組</td>
+</tr>
+<tr>
+<td><code>-t</code>、<code>--section-details</code></td>
+<td>區段的詳細資訊（比 <code>-S</code> 多印旗標說明）</td>
+</tr>
+</tbody>
+</table>
+<h3 id="23-符號">2.3 符號</h3>
+<table>
+<thead>
+<tr>
+<th>選項</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>★ <code>-s</code>、<code>--syms</code>、<code>--symbols</code></td>
+<td>符號表（跟 <code>nm</code> 看的是同一份資料，格式較詳細）</td>
+</tr>
+<tr>
+<td><code>--dyn-syms</code></td>
+<td>只看動態符號表（執行時要跟共享函式庫對接的那些符號）</td>
+</tr>
+<tr>
+<td><code>--lto-syms</code></td>
+<td>顯示 LTO（Link Time Optimization，連結時最佳化）符號表</td>
+</tr>
+<tr>
+<td><code>--sym-base=[0|8|10|16]</code></td>
+<td>符號大小用什麼進位印：混合（預設）、八、十、十六進位</td>
+</tr>
+<tr>
+<td><code>-C</code>、<code>--demangle[=STYLE]</code></td>
+<td>還原被編碼的符號名稱（C++、Rust 等）；STYLE 可選 <code>none</code>、<code>auto</code>、<code>gnu-v3</code>、<code>java</code>、<code>gnat</code>、<code>dlang</code>、<code>rust</code></td>
+</tr>
+<tr>
+<td><code>--no-demangle</code></td>
+<td>不還原符號名稱（預設）</td>
+</tr>
+<tr>
+<td><code>--recurse-limit</code></td>
+<td>還原名稱時限制遞迴深度（預設）</td>
+</tr>
+<tr>
+<td><code>--no-recurse-limit</code></td>
+<td>不限制還原名稱的遞迴深度</td>
+</tr>
+<tr>
+<td><code>-U[dlexhi]</code>、<code>--unicode=[default|locale|escape|hex|highlight|invalid]</code></td>
+<td>符號名稱裡的 Unicode 字元怎麼顯示：依 locale（預設）、跳脫序列、十六進位、反白、或當成無效字元</td>
+</tr>
+<tr>
+<td><code>-X</code>、<code>--extra-sym-info</code></td>
+<td>顯示符號時多印額外資訊</td>
+</tr>
+<tr>
+<td><code>--no-extra-sym-info</code></td>
+<td>不印額外資訊（預設）</td>
+</tr>
+<tr>
+<td><code>-D</code>、<code>--use-dynamic</code></td>
+<td>顯示符號時改用動態區段裡的資訊</td>
+</tr>
+<tr>
+<td><code>-I</code>、<code>--histogram</code></td>
+<td>符號雜湊表各桶子長度的直方圖</td>
+</tr>
+<tr>
+<td><code>-T</code>、<code>--silent-truncation</code></td>
+<td>符號名稱被截斷時不加 <code>[...]</code> 標記</td>
+</tr>
+</tbody>
+</table>
+<h3 id="24-動態連結版本重定位">2.4 動態連結、版本、重定位</h3>
+<table>
+<thead>
+<tr>
+<th>選項</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>★ <code>-d</code>、<code>--dynamic</code></td>
+<td>動態區段：需要哪些共享函式庫（<code>NEEDED</code>）、搜尋路徑等——<code>ld.so</code> 讀的就是這裡</td>
+</tr>
+<tr>
+<td>★ <code>-V</code>、<code>--version-info</code></td>
+<td>符號版本：需要 libc 的哪些版本（第 1 課的 <code>GLIBC_2.34</code>）</td>
+</tr>
+<tr>
+<td>★ <code>-r</code>、<code>--relocs</code></td>
+<td>重定位項目：將來要填的「洞」（第 1 課的 <code>R_X86_64_PLT32 puts</code>）</td>
+</tr>
+<tr>
+<td><code>-n</code>、<code>--notes</code></td>
+<td>註記區段：Build ID、ABI 標籤、GNU 屬性</td>
+</tr>
+<tr>
+<td><code>-u</code>、<code>--unwind</code></td>
+<td>堆疊展開資訊（例外處理與 <code>backtrace</code> 用）</td>
+</tr>
+<tr>
+<td><code>-A</code>、<code>--arch-specific</code></td>
+<td>CPU 架構專屬資訊</td>
+</tr>
+<tr>
+<td><code>-c</code>、<code>--archive-index</code></td>
+<td>靜態函式庫（<code>.a</code>）的符號／檔案索引</td>
+</tr>
+</tbody>
+</table>
+<h3 id="25-傾印區段內容">2.5 傾印區段內容</h3>
+<table>
+<thead>
+<tr>
+<th>選項</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-x</code>、<code>--hex-dump=&lt;編號|名稱&gt;</code></td>
+<td>以十六進位位元組傾印某個區段</td>
+</tr>
+<tr>
+<td>★ <code>-p</code>、<code>--string-dump=&lt;編號|名稱&gt;</code></td>
+<td>以字串傾印某個區段（例如 <code>-p .interp</code>、<code>-p .rodata</code>、<code>-p .comment</code>）</td>
+</tr>
+<tr>
+<td><code>-R</code>、<code>--relocated-dump=&lt;編號|名稱&gt;</code></td>
+<td>套用重定位之後再傾印某個區段</td>
+</tr>
+<tr>
+<td><code>-z</code>、<code>--decompress</code></td>
+<td>區段有壓縮時先解壓再傾印</td>
+</tr>
+</tbody>
+</table>
+<h3 id="26-除錯資訊dwarf">2.6 除錯資訊（DWARF）</h3>
+<p><code>-g</code> 產生的除錯資訊用的格式叫 DWARF。這組是看它的內部內容，<code>gdb</code> 平常幫你讀；需要知道「除錯資訊裡到底存了什麼」時才用。</p>
+<table>
+<thead>
+<tr>
+<th>選項</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-w</code>、<code>--debug-dump[=子項]</code></td>
+<td>傾印 DWARF 除錯區段；子項可指定只看某一種：<code>a</code>＝abbrev、<code>A</code>＝addr、<code>r</code>＝aranges、<code>c</code>＝cu_index、<code>L</code>＝decodedline（行號表，解碼後）、<code>f</code>＝frames、<code>F</code>＝frames-interp、<code>g</code>＝gdb_index、<code>i</code>＝info（變數、型別、函式）、<code>o</code>＝loc、<code>m</code>＝macro、<code>p</code>＝pubnames、<code>t</code>＝pubtypes、<code>R</code>＝Ranges、<code>l</code>＝rawline（行號表原始形式）、<code>s</code>＝str、<code>O</code>＝str-offsets、<code>u</code>＝trace_abbrev、<code>T</code>＝trace_aranges、<code>U</code>＝trace_info</td>
+</tr>
+<tr>
+<td><code>-wk</code>、<code>--debug-dump=links</code></td>
+<td>顯示「連到另外的除錯資訊檔」的區段內容</td>
+</tr>
+<tr>
+<td><code>-P</code>、<code>--process-links</code></td>
+<td>顯示另外的除錯資訊檔裡的非除錯區段（隱含 <code>-wK</code>）</td>
+</tr>
+<tr>
+<td><code>-wK</code>、<code>--debug-dump=follow-links</code></td>
+<td>跟著連結去讀另外的除錯資訊檔（預設）</td>
+</tr>
+<tr>
+<td><code>-wN</code>、<code>--debug-dump=no-follow-links</code></td>
+<td>不跟著連結去讀</td>
+</tr>
+<tr>
+<td><code>--dwarf-depth=N</code></td>
+<td>不顯示深度 N 以上的 DIE（除錯資訊的樹狀節點）</td>
+</tr>
+<tr>
+<td><code>--dwarf-start=N</code></td>
+<td>從偏移量 N 的 DIE 開始顯示</td>
+</tr>
+</tbody>
+</table>
+<h3 id="27-其他格式的型別與堆疊資訊">2.7 其他格式的型別與堆疊資訊</h3>
+<table>
+<thead>
+<tr>
+<th>選項</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--ctf=&lt;編號|名稱&gt;</code></td>
+<td>顯示 CTF（Compact Type Format，精簡型別格式）資訊</td>
+</tr>
+<tr>
+<td><code>--ctf-parent=&lt;名稱&gt;</code></td>
+<td>指定 CTF 封存檔的父成員</td>
+</tr>
+<tr>
+<td><code>--ctf-symbols=&lt;編號|名稱&gt;</code></td>
+<td>指定某區段當 CTF 的外部符號表</td>
+</tr>
+<tr>
+<td><code>--ctf-strings=&lt;編號|名稱&gt;</code></td>
+<td>指定某區段當 CTF 的外部字串表</td>
+</tr>
+<tr>
+<td><code>--sframe[=名稱]</code></td>
+<td>顯示 SFrame（簡易堆疊框格式）資訊，預設區段 <code>.sframe</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="28-輸出與一般">2.8 輸出與一般</h3>
+<table>
+<thead>
+<tr>
+<th>選項</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>★ <code>-W</code>、<code>--wide</code></td>
+<td>允許一行超過 80 字元（不加的話 64 位元位址會被折成兩行，很難讀）</td>
+</tr>
+<tr>
+<td><code>-L</code>、<code>--lint</code>、<code>--enable-checks</code></td>
+<td>顯示可能有問題的警告</td>
+</tr>
+<tr>
+<td><code>@&lt;檔案&gt;</code></td>
+<td>從檔案讀入選項</td>
+</tr>
+<tr>
+<td><code>-H</code>、<code>--help</code></td>
+<td>顯示說明</td>
+</tr>
+<tr>
+<td><code>-v</code>、<code>--version</code></td>
+<td>顯示版本</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="三本課程會怎麼用它">三、本課程會怎麼用它</h2>
+<table>
+<thead>
+<tr>
+<th>想知道</th>
+<th>命令</th>
+<th>出現在哪篇</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>這是可執行檔、<code>.o</code> 還是 <code>.so</code>？進入點在哪？</td>
+<td><code>readelf -h 檔案</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td>有沒有 interpreter、是哪一個？</td>
+<td><code>readelf -lW 檔案</code>（找 <code>INTERP</code>）</td>
+<td><a href="ELF%E7%9A%84interpreter%E6%98%AF%E4%BB%80%E9%BA%BC-%E5%8B%95%E6%85%8B%E8%BC%89%E5%85%A5%E5%99%A8%E8%88%87%E4%BA%95%E5%AD%97%E8%99%9F%E9%A9%9A%E5%98%86%E8%99%9F.html">ELF的interpreter</a></td>
+</tr>
+<tr>
+<td><code>.interp</code>、<code>.rodata</code>、<code>.comment</code> 裡的字串</td>
+<td><code>readelf -p .interp 檔案</code></td>
+<td>同上</td>
+</tr>
+<tr>
+<td>各區段多大？</td>
+<td><code>readelf -SW 檔案</code>（或 <code>size -A</code>）</td>
+<td><a href="hello.c%E6%80%8E%E9%BA%BC%E8%AE%8A%E6%88%90%E8%83%BD%E8%B7%91%E7%9A%84%E7%A8%8B%E5%BC%8F-%E7%B7%A8%E8%AD%AF%E7%9A%84%E5%9B%9B%E5%80%8B%E9%9A%8E%E6%AE%B5.html">第 1 課</a> 第九節</td>
+</tr>
+<tr>
+<td>需要 libc 的哪些版本？</td>
+<td><code>readelf -V 檔案</code></td>
+<td><a href="hello.c%E6%80%8E%E9%BA%BC%E8%AE%8A%E6%88%90%E8%83%BD%E8%B7%91%E7%9A%84%E7%A8%8B%E5%BC%8F-%E7%B7%A8%E8%AD%AF%E7%9A%84%E5%9B%9B%E5%80%8B%E9%9A%8E%E6%AE%B5.html#%E8%87%AA%E6%88%91%E6%B8%AC%E9%A9%97%E7%AC%AC-5-%E9%A1%8C%E5%BB%B6%E4%BC%B8%E6%89%BE%E4%B8%8D%E5%88%B0%E7%89%88%E6%9C%AC%E7%AC%A6%E8%99%9F%E6%98%AF%E6%80%8E%E9%BA%BC%E5%9B%9E%E4%BA%8B">第 1 課第九節</a>〈自我測驗第 5 題延伸〉</td>
+</tr>
+<tr>
+<td>還有哪些洞要填？</td>
+<td><code>readelf -r 檔案.o</code></td>
+<td><a href="hello.c%E6%80%8E%E9%BA%BC%E8%AE%8A%E6%88%90%E8%83%BD%E8%B7%91%E7%9A%84%E7%A8%8B%E5%BC%8F-%E7%B7%A8%E8%AD%AF%E7%9A%84%E5%9B%9B%E5%80%8B%E9%9A%8E%E6%AE%B5.html#%E5%9B%9B%E7%B5%84%E8%AD%AF%E6%A9%9F%E5%99%A8%E7%A2%BC%E8%A3%A1%E7%9A%84%E6%B4%9E">第 1 課第四節</a>（當時用 <code>objdump -dr</code>）</td>
+</tr>
+<tr>
+<td>執行時需要哪些共享函式庫？</td>
+<td><code>readelf -d 檔案</code>（找 <code>NEEDED</code>）</td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<p><strong>錯誤訊息對照</strong>：</p>
+<table>
+<thead>
+<tr>
+<th>情況</th>
+<th>訊息</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>不是 ELF 檔（例如對 <code>.c</code> 或腳本下命令）</td>
+<td><code>readelf: Error: Not an ELF file - it has the wrong magic bytes at the start</code></td>
+</tr>
+<tr>
+<td>要傾印的區段不存在（例如對靜態版下 <code>-p .interp</code>）</td>
+<td><code>readelf: Warning: Section '.interp' was not dumped because it does not exist</code></td>
+</tr>
+</tbody>
+</table>
+<p>（兩則都是本機實測：對 <code>hello.c</code> 下 <code>readelf -h</code>、對靜態版下 <code>readelf -p .interp</code>。）</p>
+<hr />
+<h2 id="自我測驗">自我測驗</h2>
+<blockquote>
+<p>參考答案寫在每題下面（2026-10-06 使用者指定）。作答時先遮住答案、自己想過再對照。</p>
+</blockquote>
+<p>（<strong>可以翻筆記作答</strong>：本篇是參考型筆記。題目考的是「差別」與「該用哪個」，不考選項字面。）</p>
+<ol>
+<li><code>readelf</code> 和 <code>objdump</code> 都能看 ELF，差在哪？什麼情況一定要用 <code>objdump</code>？<details class="answer"><summary>參考答案</summary>
+<p>【<a href="#%E4%B8%89%E6%9C%AC%E8%AA%B2%E7%A8%8B%E6%9C%83%E6%80%8E%E9%BA%BC%E7%94%A8%E5%AE%83">第三節</a>】<code>readelf</code> 只懂 ELF，直接照 ELF 規格列出結構；<code>objdump</code> 透過 BFD 支援多種格式，而且能反組譯。一定要用 <code>objdump</code> 的情況：要看機器碼／反組譯（<code>objdump -d</code>），或檔案不是 ELF。反過來，檔案被剝掉區段標頭時（路由器韌體），<code>readelf -d</code> 讀得到 <code>NEEDED</code>、<code>objdump -p</code> 讀不到（見 <a href="objdump%E8%83%BD%E4%B8%8D%E8%83%BD%E4%BB%A3%E6%9B%BFldd%E6%89%BE%E4%BE%9D%E8%B3%B4%E5%BA%AB-%E9%9C%80%E6%B1%82%E5%96%AE%E8%88%87%E5%AF%A6%E9%9A%9B%E8%BC%89%E5%85%A5.html#%E4%B8%89ldd-%E6%9C%83%E5%9F%B7%E8%A1%8C%E6%9D%B1%E8%A5%BF%E9%80%99%E6%98%AF%E5%AE%83%E7%9A%84%E4%BB%A3%E5%83%B9">objdump能不能代替ldd第三節</a>）。</p>
+</details>
+</li>
+<li><code>-l</code>（程式標頭）和 <code>-S</code>（區段標頭）描述的是同一個檔案的兩種切法。從 <a href="ELF%E7%9A%84interpreter%E6%98%AF%E4%BB%80%E9%BA%BC-%E5%8B%95%E6%85%8B%E8%BC%89%E5%85%A5%E5%99%A8%E8%88%87%E4%BA%95%E5%AD%97%E8%99%9F%E9%A9%9A%E5%98%86%E8%99%9F.html">ELF的interpreter</a> 的例子說明：<code>INTERP</code> 和 <code>.interp</code> 各屬於哪一種、關係是什麼？<details class="answer"><summary>參考答案</summary>
+<p>【<a href="#%E4%BA%8C%E5%85%A8%E9%83%A8%E9%81%B8%E9%A0%85">第二節</a>〈2.2 標頭與區段〉】<code>INTERP</code> 是程式標頭（<code>-l</code>）的一項，<code>.interp</code> 是區段（<code>-S</code>），兩者指的是<strong>同一段位元組</strong>：<code>INTERP</code> 指向的檔案範圍就是 <code>.interp</code> 區段，內容是動態載入器的路徑字串；<code>readelf -l</code> 最下面的 Section to Segment mapping 會顯示這個 segment 只裝了 <code>.interp</code>。執行時核心讀的是 <code>INTERP</code>；<code>.interp</code> 這個區段名稱只有連結器與分析工具會用到，剝掉區段標頭也不影響執行。</p>
+</details>
+</li>
+<li>想知道一支程式在別台機器上會不會因為 glibc 版本太舊而跑不起來，要用哪個選項看、看什麼？<details class="answer"><summary>參考答案</summary>
+<p>【<a href="#%E4%BA%8C%E5%85%A8%E9%83%A8%E9%81%B8%E9%A0%85">第二節</a>〈2.4 動態連結、版本、重定位〉】用 <code>readelf -V</code>（或 <code>objdump -p</code> 的 <code>Version References</code>）。看 <code>.gnu.version_r</code>（Version needs）裡 <code>libc.so.6</code> 列出的 <code>GLIBC_2.x</code>，取最大的一個（第 1 課的 hello 是 <code>GLIBC_2.34</code>）。目標機器的 glibc 比它舊，就會在載入時失敗（<code>version `GLIBC_2.34' not found</code>），見 <a href="hello.c%E6%80%8E%E9%BA%BC%E8%AE%8A%E6%88%90%E8%83%BD%E8%B7%91%E7%9A%84%E7%A8%8B%E5%BC%8F-%E7%B7%A8%E8%AD%AF%E7%9A%84%E5%9B%9B%E5%80%8B%E9%9A%8E%E6%AE%B5.html#%E4%B9%9D%E4%BD%9C%E6%A5%AD%E8%A7%A3%E8%AA%AA%E5%9B%9B%E9%A1%8C%E8%83%8C%E5%BE%8C%E7%9A%84%E5%8E%9F%E5%9B%A0">第 1 課第九節</a>。</p>
+</details>
+</li>
+<li>情境題：你拿到一個來路不明的執行檔，想在<strong>不執行它</strong>的前提下知道它是動態還是靜態連結、會去載入哪些函式庫。為什麼 <code>readelf</code> 比 <code>ldd</code> 更適合？（提示：<a href="hello.c%E6%80%8E%E9%BA%BC%E8%AE%8A%E6%88%90%E8%83%BD%E8%B7%91%E7%9A%84%E7%A8%8B%E5%BC%8F-%E7%B7%A8%E8%AD%AF%E7%9A%84%E5%9B%9B%E5%80%8B%E9%9A%8E%E6%AE%B5.html">第 1 課</a> 第七節對 <code>ldd</code> 的警告。）<details class="answer"><summary>參考答案</summary>
+<p>【<a href="#%E4%B8%89%E6%9C%AC%E8%AA%B2%E7%A8%8B%E6%9C%83%E6%80%8E%E9%BA%BC%E7%94%A8%E5%AE%83">第三節</a>】<code>readelf -l</code> 看有沒有 <code>INTERP</code>（有＝動態連結），<code>readelf -d</code> 看 <code>NEEDED</code> 列出哪些函式庫；全程只讀檔案，不執行任何東西。<code>ldd</code> 則要啟動 interpreter，而 interpreter 是檔案自己指定的，來路不明的檔案可能指定惡意程式（<code>man ldd</code> 的 Security 一節）。</p>
+</details>
+</li>
+</ol>
+
+</main>
+</div>
+</body>
+</html>

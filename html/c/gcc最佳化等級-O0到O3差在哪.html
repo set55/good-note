@@ -1,0 +1,485 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>-O0 是什麼意思？—— gcc 最佳化等級，以及為什麼除錯要用 -O0</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/app.js"></script>
+</head>
+<body>
+<button class="menu-btn" onclick="toggleMenu()">☰ 目錄</button>
+<div class="layout">
+<nav class="side">
+<div class="crumbs"><a href="../index.html">🏠 首頁</a> / <a href="README.html">c</a></div>
+<div class="tools"><button onclick="toggleTheme()">🌓 主題</button><button onclick="toggleAnswers(true)">展開答案</button><button onclick="toggleAnswers(false)">收起答案</button></div>
+<ul>
+<li class="l2"><a href="#%E4%B8%80%E6%96%87%E6%B3%95-o%E7%AD%89%E7%B4%9A">一、文法：-O&lt;等級&gt;</a></li>
+<li class="l2"><a href="#%E4%BA%8C%E5%AF%A6%E9%A9%97%E5%90%8C%E4%B8%80%E6%AE%B5%E7%A8%8B%E5%BC%8F%E4%B8%8D%E5%90%8C%E7%AD%89%E7%B4%9A%E7%B7%A8%E5%87%BA%E4%BB%80%E9%BA%BC">二、實驗：同一段程式，不同等級編出什麼</a></li>
+<li class="l3"><a href="#-o0%E7%85%A7%E5%AD%97%E9%9D%A2%E4%B8%80%E6%AD%A5%E4%B8%80%E6%AD%A5%E4%BE%86">-O0：照字面，一步一步來</a></li>
+<li class="l3"><a href="#-o2%E7%AD%94%E6%A1%88%E5%9C%A8%E7%B7%A8%E8%AD%AF%E6%99%82%E5%B0%B1%E7%AE%97%E5%A5%BD%E4%BA%86">-O2：答案在編譯時就算好了</a></li>
+<li class="l3"><a href="#%E5%A4%A7%E5%B0%8Ftext-%E5%8D%80%E6%AE%B5size--a-%E5%AF%A6%E6%B8%AC">大小（.text 區段，size -A 實測）</a></li>
+<li class="l2"><a href="#%E4%B8%89%E7%82%BA%E4%BB%80%E9%BA%BC%E9%99%A4%E9%8C%AF%E8%A6%81%E7%94%A8--o0">三、為什麼除錯要用 -O0</a></li>
+<li class="l3"><a href="#gdb-%E6%98%AF%E4%BB%80%E9%BA%BC%E8%A3%9C%E6%95%992026-09-22">gdb 是什麼（補教，2026-09-22）</a></li>
+<li class="l2"><a href="#%E5%9B%9B%E8%B7%9F-kernel-%E7%9A%84%E9%97%9C%E4%BF%82">四、跟 kernel 的關係</a></li>
+<li class="l2"><a href="#%E8%87%AA%E6%88%91%E6%B8%AC%E9%A9%97">自我測驗</a></li>
+</ul>
+</nav>
+<main>
+<h1 id="-o0-是什麼意思-gcc-最佳化等級以及為什麼除錯要用--o0"><code>-O0</code> 是什麼意思？—— gcc 最佳化等級，以及為什麼除錯要用 <code>-O0</code></h1>
+<blockquote>
+<p>日期：2026-09-22<br />
+情境：第 ① 站第 1 課（<a href="hello.c%E6%80%8E%E9%BA%BC%E8%AE%8A%E6%88%90%E8%83%BD%E8%B7%91%E7%9A%84%E7%A8%8B%E5%BC%8F-%E7%B7%A8%E8%AD%AF%E7%9A%84%E5%9B%9B%E5%80%8B%E9%9A%8E%E6%AE%B5.html">hello.c怎麼變成能跑的程式</a>）用了 <code>gcc -S -O0</code>，追問 <code>-O0</code> 是什麼<br />
+適用範圍：實測本機 gcc 13.3.0（x86-64）；選項說明依本機 <code>man gcc</code> 的 Optimize Options 一節<br />
+相關：<a href="hello.c%E6%80%8E%E9%BA%BC%E8%AE%8A%E6%88%90%E8%83%BD%E8%B7%91%E7%9A%84%E7%A8%8B%E5%BC%8F-%E7%B7%A8%E8%AD%AF%E7%9A%84%E5%9B%9B%E5%80%8B%E9%9A%8E%E6%AE%B5.html">hello.c怎麼變成能跑的程式-編譯的四個階段</a></p>
+</blockquote>
+<p><strong>一句話結論：<code>-O0</code> 是大寫字母 O 加數字 0，意思是「最佳化等級 0」，也就是不最佳化，而且是 gcc 的預設值。不最佳化時，C 的每個變數都老實放在記憶體、每一行都照順序執行，所以 <code>gdb</code> 看到的就是原始碼的樣子；
+<code>-O2</code> 會重排、合併、刪除、甚至在編譯時就把答案算好，程式快很多，但除錯時變數會「不見」。開發除錯用 <code>-O0</code>（或 <code>-Og</code>），正式發行用 <code>-O2</code>，Linux kernel 本身也是用 <code>-O2</code> 編的。</strong></p>
+<hr />
+<h2 id="一文法-o等級">一、文法：<code>-O&lt;等級&gt;</code></h2>
+<pre><code>gcc -O&lt;等級&gt; ...
+     │  └─ 0、1、2、3、s、z、g、fast，或什麼都不寫
+     └─ 大寫字母 O（Optimize），不是數字 0
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>寫法</th>
+<th>意思（依 <code>man gcc</code>）</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-O0</code></td>
+<td>減少編譯時間，讓除錯結果符合預期（<em>make debugging produce the expected results</em>）。<strong>這是預設值</strong></td>
+</tr>
+<tr>
+<td><code>-O</code>、<code>-O1</code></td>
+<td>最佳化。不做太花編譯時間的最佳化</td>
+</tr>
+<tr>
+<td><code>-O2</code></td>
+<td>再多一些：幾乎所有「不以程式大小換速度」的最佳化都開。發行版套件、kernel 的標準等級</td>
+</tr>
+<tr>
+<td><code>-O3</code></td>
+<td>在 <code>-O2</code> 之上再開更激進的迴圈最佳化（展開、向量化等），程式常會變大</td>
+</tr>
+<tr>
+<td><code>-Os</code></td>
+<td>以<strong>大小</strong>為目標：<code>-O2</code> 裡會讓程式變大的那幾項不開</td>
+</tr>
+<tr>
+<td><code>-Oz</code></td>
+<td>比 <code>-Os</code> 更積極地縮小，可能犧牲速度</td>
+</tr>
+<tr>
+<td><code>-Og</code></td>
+<td>以<strong>除錯體驗</strong>為目標：只開不妨礙除錯的最佳化。<code>man gcc</code> 建議「編輯－編譯－除錯」循環用它</td>
+</tr>
+<tr>
+<td><code>-Ofast</code></td>
+<td><code>-O3</code> 加上<strong>不嚴格遵守標準</strong>的最佳化（例如浮點數運算的精確度），要確定程式能接受才用</td>
+</tr>
+</tbody>
+</table>
+<p>規則：</p>
+<ul>
+<li><strong>同一行出現好幾個 <code>-O</code>，以最後一個為準</strong>（<code>man gcc</code>：<em>the last such option is the one that is effective</em>）。</li>
+<li>單獨開某一個最佳化旗標（<code>-f...</code>）在 <code>-O0</code> 下多半沒用：<code>man gcc</code> 寫明 <em>Most optimizations are completely
+disabled at -O0 ... even if individual optimization flags are specified</em>。</li>
+</ul>
+<p>每個等級實際開了哪些旗標，可以直接問 gcc：</p>
+<pre><code class="language-sh">gcc<span class="w"> </span>-O2<span class="w"> </span>-Q<span class="w"> </span>--help<span class="o">=</span>optimizers<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>enabled
+</code></pre>
+<p>本機數出來的 <code>[enabled]</code> 數量：<code>-O0</code> 52、<code>-Og</code> 80、<code>-O1</code> 92、<code>-Os</code>／<code>-Oz</code> 129、<code>-O2</code> 137、<code>-O3</code> 150。（<code>-O0</code> 的 52 個大多是預設開著、但在 <code>-O0</code> 下實際不起作用的旗標，見上面那條規則。）</p>
+<hr />
+<h2 id="二實驗同一段程式不同等級編出什麼">二、實驗：同一段程式，不同等級編出什麼</h2>
+<pre><code class="language-c"><span class="kt">int</span><span class="w"> </span><span class="nf">sum_to</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">n</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">total</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&lt;=</span><span class="w"> </span><span class="n">n</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="o">++</span><span class="p">)</span>
+<span class="w">        </span><span class="n">total</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="n">i</span><span class="p">;</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">total</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">answer</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">sum_to</span><span class="p">(</span><span class="mi">100</span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre>
+<h3 id="-o0照字面一步一步來"><code>-O0</code>：照字面，一步一步來</h3>
+<pre><code class="language-asm"><span class="nl">sum_to:</span>
+<span class="w">    </span><span class="nf">pushq</span><span class="w"> </span><span class="nv">%rbp</span>
+<span class="w">    </span><span class="nf">movq</span><span class="w">  </span><span class="nv">%rsp</span><span class="p">,</span><span class="w"> </span><span class="nv">%rbp</span>
+<span class="w">    </span><span class="nf">movl</span><span class="w">  </span><span class="nv">%edi</span><span class="p">,</span><span class="w"> </span><span class="mi">-20</span><span class="p">(</span><span class="nv">%rbp</span><span class="p">)</span><span class="w">      </span><span class="err">←</span><span class="w"> </span><span class="err">參數</span><span class="w"> </span><span class="no">n</span><span class="w"> </span><span class="err">從暫存器存回堆疊（記憶體）</span>
+<span class="w">    </span><span class="nf">movl</span><span class="w">  </span><span class="no">$0</span><span class="p">,</span><span class="w"> </span><span class="mi">-8</span><span class="p">(</span><span class="nv">%rbp</span><span class="p">)</span><span class="w">         </span><span class="err">←</span><span class="w"> </span><span class="no">total</span><span class="w"> </span><span class="err">=</span><span class="w"> </span><span class="mi">0</span><span class="err">，放在記憶體</span>
+<span class="w">    </span><span class="nf">movl</span><span class="w">  </span><span class="no">$1</span><span class="p">,</span><span class="w"> </span><span class="mi">-4</span><span class="p">(</span><span class="nv">%rbp</span><span class="p">)</span><span class="w">         </span><span class="err">←</span><span class="w"> </span><span class="no">i</span><span class="w"> </span><span class="err">=</span><span class="w"> </span><span class="mi">1</span><span class="err">，放在記憶體</span>
+<span class="w">    </span><span class="na">...</span>
+<span class="w">    </span><span class="nf">movl</span><span class="w">  </span><span class="mi">-4</span><span class="p">(</span><span class="nv">%rbp</span><span class="p">),</span><span class="w"> </span><span class="nv">%eax</span><span class="w">       </span><span class="err">←</span><span class="w"> </span><span class="err">每一圈：從記憶體讀</span><span class="w"> </span><span class="no">i</span>
+<span class="w">    </span><span class="nf">addl</span><span class="w">  </span><span class="nv">%eax</span><span class="p">,</span><span class="w"> </span><span class="mi">-8</span><span class="p">(</span><span class="nv">%rbp</span><span class="p">)</span><span class="w">       </span><span class="err">←</span><span class="w">         </span><span class="no">total</span><span class="w"> </span><span class="err">+=</span><span class="w"> </span><span class="no">i</span><span class="err">，寫回記憶體</span>
+<span class="w">    </span><span class="nf">addl</span><span class="w">  </span><span class="no">$1</span><span class="p">,</span><span class="w"> </span><span class="mi">-4</span><span class="p">(</span><span class="nv">%rbp</span><span class="p">)</span><span class="w">         </span><span class="err">←</span><span class="w">         </span><span class="no">i</span><span class="err">++，寫回記憶體</span>
+<span class="w">    </span><span class="na">...</span>
+<span class="nl">answer:</span>
+<span class="w">    </span><span class="nf">movl</span><span class="w">  </span><span class="no">$100</span><span class="p">,</span><span class="w"> </span><span class="nv">%edi</span>
+<span class="w">    </span><span class="nf">call</span><span class="w">  </span><span class="no">sum_to</span><span class="w">               </span><span class="err">←</span><span class="w"> </span><span class="err">真的去呼叫</span><span class="w"> </span><span class="no">sum_to</span>
+</code></pre>
+<p>每個變數都有固定的記憶體位置（<code>-4(%rbp)</code> 是 <code>i</code>、<code>-8(%rbp)</code> 是 <code>total</code>），每一圈都讀寫記憶體。慢，但<strong>原始碼的每一行都對得到一段組合語言</strong>。</p>
+<h3 id="-o2答案在編譯時就算好了"><code>-O2</code>：答案在編譯時就算好了</h3>
+<pre><code class="language-asm"><span class="nl">answer:</span>
+<span class="w">    </span><span class="nf">movl</span><span class="w">  </span><span class="no">$5050</span><span class="p">,</span><span class="w"> </span><span class="nv">%eax</span><span class="w">          </span><span class="err">←</span><span class="w"> </span><span class="mi">1</span><span class="err">+</span><span class="mi">2</span><span class="err">+…+</span><span class="mi">100</span><span class="w"> </span><span class="err">=</span><span class="w"> </span><span class="mi">5050</span><span class="err">，編譯器自己算完了</span>
+<span class="w">    </span><span class="nf">ret</span>
+</code></pre>
+<p><code>answer()</code> 裡的 <code>sum_to(100)</code> 被<strong>內嵌（inline）</strong>進來，參數是常數，整個迴圈就在編譯時算掉，連呼叫都不見了。</p>
+<p><strong>「內嵌」是什麼</strong>（2026-09-22 補充，原本沒有定義這個詞）：把<strong>被呼叫的函式本體整段複製</strong>到呼叫它的地方，取代「呼叫」這個動作。內嵌的對象是<strong>函式</strong>，不是數字。用 C 的樣子表示編譯器做的兩步（實際改寫發生在編譯器內部）：</p>
+<pre><code class="language-c"><span class="cm">/* 原本 */</span>
+<span class="kt">int</span><span class="w"> </span><span class="nf">answer</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="n">sum_to</span><span class="p">(</span><span class="mi">100</span><span class="p">);</span><span class="w"> </span><span class="p">}</span>
+
+<span class="cm">/* 第 1 步：內嵌——把 sum_to 的本體搬進來，n 換成呼叫時給的 100 */</span>
+<span class="kt">int</span><span class="w"> </span><span class="nf">answer</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">total</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&lt;=</span><span class="w"> </span><span class="mi">100</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="o">++</span><span class="p">)</span>
+<span class="w">        </span><span class="n">total</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="n">i</span><span class="p">;</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">total</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="cm">/* 第 2 步：常數摺疊（constant folding）——所有數字編譯時都已知，直接算出結果 */</span>
+<span class="kt">int</span><span class="w"> </span><span class="nf">answer</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="mi">5050</span><span class="p">;</span><span class="w"> </span><span class="p">}</span>
+</code></pre>
+<p>第 2 步能做，是因為第 1 步之後迴圈的次數（100）在編譯時就知道了；如果只看 <code>sum_to(int n)</code> 本身，
+<code>n</code> 是呼叫的人才知道的值，編譯器沒辦法事先算。<strong>兩步缺一不可</strong>。<code>sum_to</code> 本身（給其他人呼叫的版本）也被改寫：變數都留在暫存器裡，迴圈一次處理兩個數。</p>
+<h3 id="大小text-區段size--a-實測">大小（<code>.text</code> 區段，<code>size -A</code> 實測）</h3>
+<table>
+<thead>
+<tr>
+<th>等級</th>
+<th>bytes</th>
+<th>說明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-Oz</code></td>
+<td>30</td>
+<td>最小</td>
+</tr>
+<tr>
+<td><code>-Os</code></td>
+<td>35</td>
+<td></td>
+</tr>
+<tr>
+<td><code>-Og</code></td>
+<td>43</td>
+<td></td>
+</tr>
+<tr>
+<td><code>-O1</code></td>
+<td>55</td>
+<td></td>
+</tr>
+<tr>
+<td><code>-O0</code></td>
+<td>70</td>
+<td>沒最佳化，冗長</td>
+</tr>
+<tr>
+<td><code>-O2</code></td>
+<td>90</td>
+<td>為了速度把迴圈改寫得比較長</td>
+</tr>
+<tr>
+<td><code>-O3</code></td>
+<td>234</td>
+<td>迴圈展開、向量化，換來最大的程式</td>
+</tr>
+</tbody>
+</table>
+<p>「最佳化」不等於「變小」：<code>-O2</code>、<code>-O3</code> 是用空間換時間。</p>
+<hr />
+<h2 id="三為什麼除錯要用--o0">三、為什麼除錯要用 <code>-O0</code></h2>
+<p>同一個程式用 <code>-g</code>（加入除錯資訊）編兩次，在 <code>gdb</code> 裡停在 <code>sum_to</code>、往下走兩行、看區域變數。</p>
+<blockquote>
+<p>2026-09-24 補充：原始的 <code>sum.c</code> 當初只放在暫存目錄，沒有保存，筆記也沒附原始碼。下面是重建版，輸出全部換成重建版的實測結果（<code>-O0</code> 與原本的輸出一致；<code>-O2</code> 的細節跟原本不同，但呈現的現象相同，而且更明顯）。</p>
+</blockquote>
+<p><code>sum.c</code> 完整原始碼（<code>sum_to</code> 跟第二節一樣；<code>main</code> 用 <code>argc</code> 算出 10，讓編譯器在編譯時不知道 <code>n</code> 是多少，
+<code>-O2</code> 才不會直接把整個計算做完、根本不呼叫 <code>sum_to</code>）：</p>
+<pre><code class="language-c"><span class="kt">int</span><span class="w"> </span><span class="nf">sum_to</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">n</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">total</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&lt;=</span><span class="w"> </span><span class="n">n</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="o">++</span><span class="p">)</span>
+<span class="w">        </span><span class="n">total</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="n">i</span><span class="p">;</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">total</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">argc</span><span class="p">,</span><span class="w"> </span><span class="kt">char</span><span class="w"> </span><span class="o">*</span><span class="n">argv</span><span class="p">[])</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="p">(</span><span class="kt">void</span><span class="p">)</span><span class="n">argv</span><span class="p">;</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">sum_to</span><span class="p">(</span><span class="n">argc</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">9</span><span class="p">)</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">55</span><span class="w"> </span><span class="o">?</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w">      </span><span class="cm">/* 不帶參數執行時 argc 是 1，所以 n = 10 */</span>
+<span class="p">}</span>
+</code></pre>
+<pre><code>$ gcc -g -O0 sum.c -o sum_O0
+$ gcc -g -O2 sum.c -o sum_O2
+$ gdb -q ./sum_O0          （sum_O2 同樣的命令）
+(gdb) break sum_to
+(gdb) run
+(gdb) next
+(gdb) next
+(gdb) info locals
+</code></pre>
+<pre><code>=== -O0
+Breakpoint 1, sum_to (n=10) at sum.c:3
+3	    int total = 0;           ← 停在函式第一行，逐行往下
+4	    for (int i = 1; i &lt;= n; i++)
+5	        total += i;
+i = 1
+total = 0                         ← 跟原始碼的進度一致：total += i 還沒執行
+
+=== -O2
+Breakpoint 1 at 0x1044: sum_to. (2 locations)
+Breakpoint 1.1, sum_to (n=10) at sum.c:4
+4	    for (int i = 1; i &lt;= n; i++)      ← 停的位置就不一樣了：跳過了第 3 行
+5	        total += i;
+4	    for (int i = 1; i &lt;= n; i++)
+i = 2
+total = 3                         ← 只走了兩行，total 卻已經是 1 + 2：指令被重排過
+total = &lt;optimized out&gt;
+i = &lt;optimized out&gt;
+</code></pre>
+<p><code>-O2</code> 多出來的幾個現象：</p>
+<ul>
+<li><strong><code>(2 locations)</code></strong>：<code>sum_to</code> 在執行檔裡有兩份。一份是獨立的函式，另一份被內嵌進 <code>main</code>，所以中斷點要下在兩個地方。</li>
+<li><strong><code>info locals</code> 印了兩組</strong>：後面那組 <code>&lt;optimized out&gt;</code> 是內嵌進 <code>main</code> 的那一份，它的變數已經被最佳化掉了。</li>
+</ul>
+<p><code>-O2</code> 下，原始碼的「一行」已經不對應一段連續的指令，變數可能只活在暫存器裡、甚至被整個刪掉（上面的 <code>&lt;optimized out&gt;</code> 就是一例）。所以：</p>
+<table>
+<thead>
+<tr>
+<th>情境</th>
+<th>用什麼</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>學習、看組合語言對照原始碼、用 <code>gdb</code> 單步</td>
+<td><code>-O0 -g</code></td>
+</tr>
+<tr>
+<td>日常開發，想除錯又不想太慢</td>
+<td><code>-Og -g</code></td>
+</tr>
+<tr>
+<td>正式發行</td>
+<td><code>-O2</code>（需要時加 <code>-g</code> 另外保存除錯資訊）</td>
+</tr>
+<tr>
+<td>嵌入式、空間很緊（例如路由器韌體）</td>
+<td><code>-Os</code>／<code>-Oz</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="gdb-是什麼補教2026-09-22"><code>gdb</code> 是什麼（補教，2026-09-22）</h3>
+<blockquote>
+<p>本節是批改自我測驗時補上的：上面第三節直接給了 <code>gdb</code> 的輸出，卻沒有先介紹 <code>gdb</code>。完整的 <code>gdb</code> 用法排在第 ① 站第 3 課，這裡只講看懂本篇需要的部分。</p>
+</blockquote>
+<p><code>gdb</code>（GNU Debugger，GNU 除錯器）讓你<strong>把程式停在某一行、一行一行往下走、隨時看變數的值</strong>。它能把「機器碼的位址」對回「原始碼的第幾行、哪個變數」，靠的是編譯時加的 <strong><code>-g</code></strong>：
+<code>-g</code> 會把<strong>除錯資訊（debug information）</strong>——每段機器碼對應哪一行、每個變數放在哪裡——寫進執行檔。
+<strong><code>-g</code> 跟 <code>-O</code> 是兩回事</strong>：<code>-g</code> 決定「有沒有對照表」，<code>-O</code> 決定「程式被改寫了多少」。</p>
+<p>本篇用到的 <code>gdb</code> 命令如下。<strong>這只是本機 gdb 173 個頂層命令中的 7 個</strong>；全部命令、啟動選項與文法見
+<a href="gdb%E5%AE%8C%E6%95%B4%E5%91%BD%E4%BB%A4%E5%8F%83%E8%80%83.html">gdb完整命令參考</a>。</p>
+<table>
+<thead>
+<tr>
+<th>命令</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>break &lt;函式或行號&gt;</code></td>
+<td>設中斷點：程式跑到這裡就停下來</td>
+</tr>
+<tr>
+<td><code>run</code></td>
+<td>開始執行程式（跑到第一個中斷點停住）</td>
+</tr>
+<tr>
+<td><code>next</code></td>
+<td>執行目前這一行，停在下一行（遇到函式呼叫不會進去）</td>
+</tr>
+<tr>
+<td><code>print &lt;變數&gt;</code></td>
+<td>印出變數目前的值</td>
+</tr>
+<tr>
+<td><code>info locals</code></td>
+<td>印出目前函式所有區域變數</td>
+</tr>
+<tr>
+<td><code>bt</code>（backtrace）</td>
+<td>印出「誰呼叫了誰」的呼叫鏈</td>
+</tr>
+<tr>
+<td><code>continue</code></td>
+<td>繼續跑，直到下一個中斷點或程式結束</td>
+</tr>
+</tbody>
+</table>
+<p>本機實測一個算平均的小程式 <code>average(int *a, int n)</code>，三種編法的差別。</p>
+<blockquote>
+<p>補充（2026-09-23）：原始的 <code>avg.c</code>、<code>avg2.c</code> 當初只放在實驗用的暫存目錄，沒有保存，筆記也沒附原始碼。下面是依輸出重建、並重新實測過的版本：<code>avg.c</code> 的行號、呼叫位置、結果都與下方輸出一致；
+<code>avg2.c</code> 重建版的中斷點停在第 5 行（原輸出是第 6 行，原檔大概多了一行），其餘一致。輸出裡的堆疊位址（例如 <code>a=0x7fffffffd1cc</code>）每次執行、每種環境都可能不同，不用在意。</p>
+</blockquote>
+<p><code>avg.c</code>（<code>average</code> 會被內嵌、資料是常數）：</p>
+<pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">average</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="o">*</span><span class="n">a</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">n</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">sum</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w">                          </span><span class="cm">/* 第 5 行 */</span>
+<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">n</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="o">++</span><span class="p">)</span>
+<span class="w">        </span><span class="n">sum</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="n">a</span><span class="p">[</span><span class="n">i</span><span class="p">];</span>
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">avg</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">sum</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">n</span><span class="p">;</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">avg</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">a</span><span class="p">[]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="mi">3</span><span class="p">,</span><span class="w"> </span><span class="mi">6</span><span class="p">,</span><span class="w"> </span><span class="mi">9</span><span class="p">};</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;%d</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">average</span><span class="p">(</span><span class="n">a</span><span class="p">,</span><span class="w"> </span><span class="mi">3</span><span class="p">));</span><span class="w">        </span><span class="cm">/* 第 15 行 */</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<p><code>avg2.c</code>（跟 <code>avg.c</code> 只差兩處：<code>average</code> 加上 <code>__attribute__((noinline))</code> 禁止內嵌；陣列內容改用 <code>argc</code> 計算，讓編譯器在編譯時不知道資料，沒辦法事先算好）：</p>
+<pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+
+<span class="n">__attribute__</span><span class="p">((</span><span class="n">noinline</span><span class="p">))</span>
+<span class="kt">int</span><span class="w"> </span><span class="n">average</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="o">*</span><span class="n">a</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">n</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">sum</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">n</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="o">++</span><span class="p">)</span>
+<span class="w">        </span><span class="n">sum</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="n">a</span><span class="p">[</span><span class="n">i</span><span class="p">];</span>
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">avg</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">sum</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">n</span><span class="p">;</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">avg</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="n">main</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">argc</span><span class="p">,</span><span class="w"> </span><span class="kt">char</span><span class="w"> </span><span class="o">**</span><span class="n">argv</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">a</span><span class="p">[]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="n">argc</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mi">3</span><span class="p">,</span><span class="w"> </span><span class="n">argc</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mi">6</span><span class="p">,</span><span class="w"> </span><span class="n">argc</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mi">9</span><span class="p">};</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;%d</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">average</span><span class="p">(</span><span class="n">a</span><span class="p">,</span><span class="w"> </span><span class="mi">3</span><span class="p">));</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<ul>
+<li><code>__attribute__((noinline))</code>：gcc 的擴充語法，意思是「這個函式不准內嵌」，放在函式定義前面。</li>
+<li><code>argc</code>：執行時命令列參數的個數（不加參數執行時是 1），編譯時無法得知，所以 <code>a[]</code> 的內容要到執行時才確定。</li>
+</ul>
+<p>自己重現的指令（<code>gdb -q -batch -ex '&lt;命令&gt;' ...</code> 是「不進互動模式，依序執行 <code>-ex</code> 給的命令」，見 <a href="gdb%E5%AE%8C%E6%95%B4%E5%91%BD%E4%BB%A4%E5%8F%83%E8%80%83.html">gdb完整命令參考</a>）：</p>
+<pre><code>$ gcc -g -O0 avg.c  -o avg_O0          # 情況一
+$ gcc -g -O2 avg.c  -o avg_O2          # 情況二
+$ gcc -g -O2 avg2.c -o avg2_O2         # 情況三
+$ gcc    -O0 avg.c  -o avg_nog         # 情況四：沒有 -g
+$ gdb ./avg_O0                          # 進入 gdb 後依序打 break average、run、bt、next……
+</code></pre>
+<p><strong><code>-g -O0</code>：一切都看得到</strong></p>
+<pre><code>Breakpoint 1, average (a=0x7fffffffd1cc, n=3) at avg.c:5
+5	    int sum = 0;
+#1  0x00005555555551fd in main () at avg.c:15      ← bt：是 main 的第 15 行呼叫進來的
+...（next 三次）
+i = 0
+sum = 3
+avg = 0                                             ← 還沒執行到 avg = sum / n，所以是記憶體裡原本的值
+</code></pre>
+<p>因為 <code>-O0</code> 讓每個變數都有固定的記憶體位置（第二節），<code>gdb</code> 隨時都能去那個位置讀值。</p>
+<p><strong><code>-g -O2</code>，而且函式被內嵌：中斷點根本停不下來</strong></p>
+<pre><code>Breakpoint 1 at 0x1180: file avg.c, line 4.
+6                                ← 程式直接印出答案結束了，沒有停在 average
+</code></pre>
+<p><code>average</code> 被內嵌進 <code>main</code>、參數又是常數，整個計算在編譯時就做完了（跟第二節的 <code>answer()</code> 一樣），執行時根本沒有「呼叫 <code>average</code>」這件事。</p>
+<p><strong><code>-g -O2</code>，強制不內嵌（<code>__attribute__((noinline))</code>）、資料也改成執行時才知道：看到 <code>&lt;optimized out&gt;</code></strong></p>
+<pre><code>Breakpoint 1, average (a=a@entry=0x7fffffffd1b8, n=n@entry=3) at avg2.c:6
+sum = &lt;optimized out&gt;
+avg = &lt;optimized out&gt;
+$3 = 3                          ← n 還看得到
+（重建版 avg2.c 重新實測：停在 avg2.c:5，print sum／avg 同樣是 &lt;optimized out&gt;，print n 是 3）
+</code></pre>
+<p><code>sum</code>、<code>avg</code> 在 <code>-O2</code> 下只活在暫存器裡、而且那個暫存器馬上被拿去做別的事，除錯資訊沒辦法告訴 <code>gdb</code>「此刻它的值在哪」，於是顯示 <code>&lt;optimized out&gt;</code>。<strong>變數在原始碼裡存在，不代表它在執行時有一個可以讀的地方。</strong></p>
+<p><strong>沒有 <code>-g</code>：<code>gdb</code> 還能停，但對不回原始碼</strong></p>
+<pre><code>Breakpoint 1, 0x0000555555555171 in average ()     ← 只有位址，沒有行號、沒有參數
+No symbol &quot;sum&quot; in current context.                ← 不知道有 sum 這個變數
+</code></pre>
+<p>遇到 <code>&lt;optimized out&gt;</code> 的處理順序：</p>
+<ol>
+<li>能重新編譯的話，改用 <code>-O0 -g</code>（或 <code>-Og -g</code>）重編，再重現一次問題。</li>
+<li>不能改編譯方式時：看 <code>info locals</code> 哪些變數還在、在變數被使用的那一行停下來看、或直接讀組合語言看值在哪個暫存器（<code>gdb</code> 的 <code>info registers</code>，第 3 課再講）。</li>
+<li>最後手段：在程式裡加 <code>printf</code> 印出來。</li>
+</ol>
+<hr />
+<h2 id="四跟-kernel-的關係">四、跟 kernel 的關係</h2>
+<p>Linux kernel 預設用 <code>-O2</code> 編譯（組態裡也可以改選以大小為目標），<strong>不能</strong>用 <code>-O0</code> 編——kernel
+有些程式碼依賴編譯器一定會做的內嵌與刪除死碼（dead code）才能編過。這代表：之後在 kernel 裡除錯，
+<strong>看到的永遠是最佳化過的程式碼</strong>，變數 <code>&lt;optimized out&gt;</code> 是常態，要學會讀最佳化後的組合語言，並改用 <code>printk</code>、tracing 等方法觀察。（這一點會在第二段 K0 實際打開 kernel 的 Makefile 時驗證；本篇沒有實測。）</p>
+<p>也因此第 1 課那個「<code>-O0</code> 也會把 <code>printf</code> 換成 <code>puts</code>」的例子值得記住：<strong>即使是最不最佳化的等級，編譯器也不保證照字面做</strong>。</p>
+<hr />
+<h2 id="自我測驗">自我測驗</h2>
+<blockquote>
+<p>參考答案寫在每題下面（2026-10-06 使用者指定）。作答時先遮住答案、自己想過再對照。</p>
+</blockquote>
+<ol>
+<li><code>-O0</code> 的 <code>O</code> 和 <code>0</code> 各是什麼？為什麼說它是「預設值」——不加任何 <code>-O</code> 時會發生什麼？<details class="answer"><summary>參考答案</summary>
+<p>【<a href="#%E4%B8%80%E6%96%87%E6%B3%95-o%E7%AD%89%E7%B4%9A">第一節</a>】（2026-10-10 改寫成核心關鍵格式）</p>
+<p>核心關鍵：</p>
+<ol>
+<li><code>O</code> 是大寫字母 O，代表 Optimize（最佳化）；<code>0</code> 是等級 0，即不最佳化。</li>
+<li>不加任何 <code>-O</code> 時 gcc 就用 <code>-O0</code>，所以它是預設值。</li>
+</ol>
+<p>詳細說明：<code>man gcc</code> 在 <code>-O0</code> 底下寫著 <em>This is the default</em>。注意 <code>-O0</code> 是字母 O 加數字 0，不是兩個零。</p>
+</details>
+</li>
+<li>為什麼 <code>-O0</code> 的組合語言每一圈都在讀寫記憶體（<code>-4(%rbp)</code>），而 <code>-O2</code> 不會？這個差別對 <code>gdb</code> 有什麼影響？<details class="answer"><summary>參考答案</summary>
+<p>【<a href="#%E4%BA%8C%E5%AF%A6%E9%A9%97%E5%90%8C%E4%B8%80%E6%AE%B5%E7%A8%8B%E5%BC%8F%E4%B8%8D%E5%90%8C%E7%AD%89%E7%B4%9A%E7%B7%A8%E5%87%BA%E4%BB%80%E9%BA%BC">第二節</a>、<a href="#%E4%B8%89%E7%82%BA%E4%BB%80%E9%BA%BC%E9%99%A4%E9%8C%AF%E8%A6%81%E7%94%A8--o0">第三節</a>；組合語言逐行見<a href="x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80-%E6%9A%AB%E5%AD%98%E5%99%A8%E3%80%81mov%E8%88%87lea%E3%80%81cmp%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D.html#%E5%85%AD%E9%80%90%E8%A1%8C%E8%AE%80-sum_to-%E7%9A%84--o0-%E7%89%88">第 4 課第六節</a>、<a href="x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80-%E6%9A%AB%E5%AD%98%E5%99%A8%E3%80%81mov%E8%88%87lea%E3%80%81cmp%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D.html#%E4%B8%83%E9%80%90%E8%A1%8C%E8%AE%80-sum_to-%E7%9A%84--o2-%E7%89%88">第七節</a>】（2026-10-09 第一次作答後補上）</p>
+<p>核心關鍵：</p>
+<ol>
+<li><code>-O0</code> 不最佳化、照字面翻譯：每個變數都有<strong>固定的記憶體位置</strong>（<code>i</code> 是 <code>-4(%rbp)</code>、<code>total</code> 是 <code>-8(%rbp)</code>），每條語句都從記憶體讀、再寫回記憶體。</li>
+<li><code>-O2</code> 把變數留在<strong>暫存器</strong>（<code>i</code> 在 <code>%eax</code>、<code>total</code> 在 <code>%edx</code>），迴圈裡完全不碰記憶體。</li>
+<li>對 gdb 的影響：<code>-O0</code> 原始碼的每一行都對得到一段指令，變數隨時印得出來；<code>-O2</code> 行號會跳、指令被重排，變數可能顯示 <code>&lt;optimized out&gt;</code>。</li>
+</ol>
+<p>詳細說明：<code>-O0</code> 的下一條語句也不假設暫存器裡還留著上一次的值，所以每一圈都重新讀寫 <code>-4(%rbp)</code>。<code>-O2</code> 版裡的 <code>andl $1, %edi</code> 不是計數，是在進迴圈前判斷 <code>n</code> 的奇偶，好讓迴圈一圈加兩個數。第三節的實測：<code>-O2</code> 停下來時跳過了第 3 行；只走兩行，<code>total</code> 就已經是 3；被內嵌進 <code>main</code> 的那一份變數全是 <code>&lt;optimized out&gt;</code>；中斷點顯示 <code>(2 locations)</code>。所以學習、單步除錯用 <code>-O0 -g</code>，日常開發用 <code>-Og -g</code>。</p>
+</details>
+</li>
+<li>在 <code>-O2</code> 下，<code>answer()</code> 連呼叫 <code>sum_to</code> 這件事都不見了，直接回傳 5050。編譯器做了哪兩件事才能做到？<details class="answer"><summary>參考答案</summary>
+<p>【<a href="#%E4%BA%8C%E5%AF%A6%E9%A9%97%E5%90%8C%E4%B8%80%E6%AE%B5%E7%A8%8B%E5%BC%8F%E4%B8%8D%E5%90%8C%E7%AD%89%E7%B4%9A%E7%B7%A8%E5%87%BA%E4%BB%80%E9%BA%BC">第二節</a>〈「內嵌」是什麼〉】（2026-10-09 改寫成核心關鍵格式）</p>
+<p>核心關鍵：</p>
+<ol>
+<li><strong>內嵌（inline）</strong>：把 <code>sum_to</code> 的函式本體整段複製進 <code>answer()</code>，取代「呼叫」，參數 <code>n</code> 換成常數 100。</li>
+<li><strong>常數摺疊（constant folding）</strong>：內嵌後所有數字在編譯時都已知，編譯器在<strong>編譯時</strong>就把迴圈算完，得到 5050。</li>
+</ol>
+<p>詳細說明：兩步缺一不可。單看 <code>sum_to(int n)</code>，<code>n</code> 要到執行時才知道，沒辦法事先算；是內嵌把 100 帶進來，才算得出來。給別人呼叫的那份 <code>sum_to</code> 仍然保留迴圈。</p>
+</details>
+</li>
+<li>「最佳化等級越高，程式越小」對嗎？<code>-O2</code>／<code>-O3</code> 和 <code>-Os</code>／<code>-Oz</code> 的目標各是什麼？為什麼追求速度反而可能讓程式變大？（2026-10-09 改寫題目：原題「用本篇的數字說明」要求背數字，闔上筆記作答時無從引用）<details class="answer"><summary>參考答案</summary>
+<p>【<a href="#%E4%BA%8C%E5%AF%A6%E9%A9%97%E5%90%8C%E4%B8%80%E6%AE%B5%E7%A8%8B%E5%BC%8F%E4%B8%8D%E5%90%8C%E7%AD%89%E7%B4%9A%E7%B7%A8%E5%87%BA%E4%BB%80%E9%BA%BC">第二節</a>〈大小（<code>.text</code> 區段，<code>size -A</code> 實測）〉、〈<code>-O2</code>：答案在編譯時就算好了〉】（2026-10-09 改寫題目，參考答案隨之改寫）</p>
+<p>核心關鍵：</p>
+<ol>
+<li>不對：<code>-O2</code>／<code>-O3</code> 編出來的程式可能比 <code>-O0</code> 還大。</li>
+<li><code>-O2</code>／<code>-O3</code> 的目標是<strong>速度</strong>；<code>-Os</code>／<code>-Oz</code> 的目標才是<strong>大小</strong>。決定大小的是最佳化的目標，不是等級的數字。</li>
+<li>為了跑得快，編譯器會改寫迴圈（展開、一次處理好幾個元素、向量化）、內嵌函式，用更多指令換來更少的迴圈判斷與呼叫，也就是用空間換時間。</li>
+</ol>
+<p>詳細說明：本機 <code>sumto.c</code> 的 <code>.text</code> 大小：<code>-Oz</code> 30、<code>-Os</code> 35、<code>-O0</code> 70、<code>-O2</code> 90、<code>-O3</code> 234 byte。<code>-O2</code> 版的 <code>sum_to</code> 一圈加兩個數，進迴圈前還要先處理奇偶，所以比 <code>-O0</code> 長。量的是 <code>.text</code> 區段（機器碼），不是整個檔案。</p>
+</details>
+</li>
+<li>情境題：你在自己的程式裡用 <code>-O2</code> 編譯，<code>gdb</code> 印某個變數時顯示 <code>&lt;optimized out&gt;</code>。你會怎麼處理？如果是在 kernel 裡遇到同樣的狀況，處理方式又有什麼不同？<details class="answer"><summary>參考答案</summary>
+<p>【<a href="#%E4%B8%89%E7%82%BA%E4%BB%80%E9%BA%BC%E9%99%A4%E9%8C%AF%E8%A6%81%E7%94%A8--o0">第三節</a>、<a href="#%E5%9B%9B%E8%B7%9F-kernel-%E7%9A%84%E9%97%9C%E4%BF%82">第四節</a>】（2026-10-16 改寫成核心關鍵格式）</p>
+<p>核心關鍵：</p>
+<ol>
+<li>自己的程式：用 <code>-O0 -g</code>（或 <code>-Og -g</code>）重編，變數有固定位置，gdb 就印得出來；不能重編時，加 <code>printf</code> 把值印出來。</li>
+<li>kernel：<strong>不能用 <code>-O0</code> 編</strong>（kernel 依賴編譯器一定會做的內嵌與刪除死碼才編得過），<code>&lt;optimized out&gt;</code> 是常態；只能改用 <code>printk</code>、tracing 這類方法觀察，並學會讀最佳化後的組合語言。</li>
+</ol>
+<p>詳細說明：kernel 不連結 libc，沒有 <code>printf</code>，也沒有 stdout；<code>printk</code> 的訊息寫進 kernel 的紀錄緩衝區，用 <code>dmesg</code> 看。一句話：自己的程式可以「改編譯方式」，kernel 只能「改觀察方式」。</p>
+</details>
+</li>
+</ol>
+
+</main>
+</div>
+</body>
+</html>

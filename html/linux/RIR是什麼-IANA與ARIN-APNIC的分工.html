@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ARIN、APNIC 這些是什麼？——IP 與 ASN 的發放階層：IANA → RIR → LIR</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/app.js"></script>
+</head>
+<body>
+<button class="menu-btn" onclick="toggleMenu()">☰ 目錄</button>
+<div class="layout">
+<nav class="side">
+<div class="crumbs"><a href="../index.html">🏠 首頁</a> / <a href="README.html">linux</a></div>
+<div class="tools"><button onclick="toggleTheme()">🌓 主題</button></div>
+<ul>
+<li class="l2"><a href="#%E7%9B%AE%E9%8C%84">目錄</a></li>
+<li class="l2"><a href="#%E4%B8%80%E4%BA%94%E5%80%8B-rir-%E8%88%87%E5%AE%83%E5%80%91%E7%9A%84%E7%AE%A1%E5%8D%80">一、五個 RIR 與它們的管區</a></li>
+<li class="l2"><a href="#%E4%BA%8C%E7%99%BC%E6%94%BE%E9%9A%8E%E5%B1%A4%E8%AA%B0%E6%8A%8A%E8%99%9F%E7%A2%BC%E7%B5%A6%E8%AA%B0">二、發放階層：誰把號碼給誰</a></li>
+<li class="l2"><a href="#%E4%B8%89%E7%82%BA%E4%BB%80%E9%BA%BC%E5%AF%A6%E5%8B%99%E4%B8%8A%E9%9D%9E%E7%9F%A5%E9%81%93%E4%B8%8D%E5%8F%AF">三、為什麼實務上非知道不可</a></li>
+<li class="l2"><a href="#%E5%9B%9B%E5%AF%A6%E6%B8%AC%E4%B8%80%E8%99%9F%E7%A2%BC%E5%8D%80%E5%A1%8A%E7%9A%84%E7%AE%A1%E7%90%86%E8%80%85--%E6%8C%81%E6%9C%89%E8%80%85%E7%9A%84-rir">四、實測一：號碼區塊的管理者 ≠ 持有者的 RIR</a></li>
+<li class="l2"><a href="#%E4%BA%94%E5%AF%A6%E6%B8%AC%E4%BA%8Clegacy-%E9%85%8D%E7%99%BC%E6%AF%94-rir-%E9%82%84%E8%80%81%E7%9A%84%E4%BD%8D%E5%9D%80">五、實測二：legacy 配發，比 RIR 還老的位址</a></li>
+<li class="l2"><a href="#%E5%85%AD%E7%82%BA%E4%BB%80%E9%BA%BC%E8%99%9F%E7%A2%BC%E6%9C%83%E4%B8%8D%E5%A4%A0%E7%94%A8ipv4-%E8%80%97%E7%9B%A1%E8%88%87-4-byte-asn">六、為什麼號碼會「不夠用」：IPv4 耗盡與 4-byte ASN</a></li>
+<li class="l2"><a href="#%E5%8F%83%E8%80%83">參考</a></li>
+<li class="l2"><a href="#%E4%B8%83%E8%87%AA%E6%88%91%E6%B8%AC%E9%A9%97">七、自我測驗</a></li>
+</ul>
+</nav>
+<main>
+<h1 id="arinapnic-這些是什麼ip-與-asn-的發放階層iana--rir--lir">ARIN、APNIC 這些是什麼？——IP 與 ASN 的發放階層：IANA → RIR → LIR</h1>
+<blockquote>
+<p>日期：2026-09-10<br />
+情境：查 ASN 時看到 <code>registry: apnic</code>、<code>whois -h whois.arin.net</code>，想知道這些機構是什麼、為什麼有五個<br />
+對應檔案：無（純指令操作）<br />
+適用範圍：概念說明 + Linux 查詢實測；實測對象 AS4134、AS13335、<code>140.112.0.0/16</code></p>
+</blockquote>
+<blockquote>
+<p><strong>一句話結論：ARIN、APNIC 這些是 RIR（Regional Internet Registry，區域網際網路註冊管理機構），全球五個，各自負責一個大區域的 IP 位址與 ASN 發放與登記；它們不是網路營運者，而是「號碼的戶政事務所」——所以 whois／RDAP 查到的是登記資料，不是線路狀態。</strong></p>
+</blockquote>
+<hr />
+<h2 id="目錄">目錄</h2>
+<ol>
+<li><a href="#%E4%B8%80%E4%BA%94%E5%80%8B-rir-%E8%88%87%E5%AE%83%E5%80%91%E7%9A%84%E7%AE%A1%E5%8D%80">五個 RIR 與它們的管區</a></li>
+<li><a href="#%E4%BA%8C%E7%99%BC%E6%94%BE%E9%9A%8E%E5%B1%A4%E8%AA%B0%E6%8A%8A%E8%99%9F%E7%A2%BC%E7%B5%A6%E8%AA%B0">發放階層：誰把號碼給誰</a></li>
+<li><a href="#%E4%B8%89%E7%82%BA%E4%BB%80%E9%BA%BC%E5%AF%A6%E5%8B%99%E4%B8%8A%E9%9D%9E%E7%9F%A5%E9%81%93%E4%B8%8D%E5%8F%AF">為什麼實務上非知道不可</a></li>
+<li><a href="#%E5%9B%9B%E5%AF%A6%E6%B8%AC%E4%B8%80%E8%99%9F%E7%A2%BC%E5%8D%80%E5%A1%8A%E7%9A%84%E7%AE%A1%E7%90%86%E8%80%85--%E6%8C%81%E6%9C%89%E8%80%85%E7%9A%84-rir">實測一：號碼區塊的管理者 ≠ 持有者的 RIR</a></li>
+<li><a href="#%E4%BA%94%E5%AF%A6%E6%B8%AC%E4%BA%8Clegacy-%E9%85%8D%E7%99%BC%E6%AF%94-rir-%E9%82%84%E8%80%81%E7%9A%84%E4%BD%8D%E5%9D%80">實測二：legacy 配發，比 RIR 還老的位址</a></li>
+<li><a href="#%E5%85%AD%E7%82%BA%E4%BB%80%E9%BA%BC%E8%99%9F%E7%A2%BC%E6%9C%83%E4%B8%8D%E5%A4%A0%E7%94%A8ipv4-%E8%80%97%E7%9B%A1%E8%88%87-4-byte-asn">為什麼號碼會「不夠用」：IPv4 耗盡與 4-byte ASN</a></li>
+<li><a href="#%E4%B8%83%E8%87%AA%E6%88%91%E6%B8%AC%E9%A9%97">自我測驗</a></li>
+</ol>
+<hr />
+<h2 id="一五個-rir-與它們的管區">一、五個 RIR 與它們的管區</h2>
+<table>
+<thead>
+<tr>
+<th>RIR</th>
+<th>全名</th>
+<th>管區</th>
+<th>whois 主機</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>ARIN</strong></td>
+<td>American Registry for Internet Numbers</td>
+<td>北美、部分加勒比海</td>
+<td><code>whois.arin.net</code></td>
+</tr>
+<tr>
+<td><strong>RIPE NCC</strong></td>
+<td>Réseaux IP Européens Network Coordination Centre</td>
+<td>歐洲、中東、中亞</td>
+<td><code>whois.ripe.net</code></td>
+</tr>
+<tr>
+<td><strong>APNIC</strong></td>
+<td>Asia Pacific Network Information Centre</td>
+<td>亞太（含台灣、中國、日本）</td>
+<td><code>whois.apnic.net</code></td>
+</tr>
+<tr>
+<td><strong>LACNIC</strong></td>
+<td>Latin America and Caribbean Network Information Centre</td>
+<td>拉丁美洲、加勒比海</td>
+<td><code>whois.lacnic.net</code></td>
+</tr>
+<tr>
+<td><strong>AFRINIC</strong></td>
+<td>African Network Information Centre</td>
+<td>非洲</td>
+<td><code>whois.afrinic.net</code></td>
+</tr>
+</tbody>
+</table>
+<p>成立年代大致是 RIPE NCC（1992）、APNIC（1993）、ARIN（1997）、LACNIC（2002）、AFRINIC（2005）。
+<strong>這個順序很重要</strong>：網路在 1980 年代就存在了，RIR 是後來才建立的制度，所以有一批位址的登記紀錄是「制度成立前就發出去的」——這就是第五節要講的 legacy。</p>
+<hr />
+<h2 id="二發放階層誰把號碼給誰">二、發放階層：誰把號碼給誰</h2>
+<pre><code>IANA（Internet Assigned Numbers Authority，網際網路號碼分配機構，隸屬 ICANN）
+  └─ 大區塊 →  RIR（五個，上表）
+        ├─ NIR（National Internet Registry，國家級註冊管理機構）
+        │     例如台灣 TWNIC、中國 CNNIC、日本 JPNIC、韓國 KRNIC——只存在於 APNIC 與 LACNIC 區
+        │     └─ LIR（見下）
+        └─ LIR（Local Internet Registry，本地註冊管理機構）
+              通常就是 ISP 或大型組織；向 RIR 繳年費成為會員，取得位址後再分配給客戶
+                 └─ 終端使用者（你家的寬頻、公司的機房）
+</code></pre>
+<p>三個觀念：</p>
+<ul>
+<li><strong>IANA 管「整批」，RIR 管「個案」。</strong> IANA 不受理個別申請，你看不到 IANA 發給某家公司的紀錄。</li>
+<li><strong>ASN 和 IP 位址走同一套階層</strong>，所以 <code>aut-num</code> 和 IP 前綴的登記資料在同一個 RIR 裡。</li>
+<li><strong>LIR 才是你的窗口。</strong> 個人與中小企業拿不到 RIR 直接配發的位址，你用的 IP 是 ISP 從它的池子裡分給你的。這解釋了為什麼查你家的公網 IP，查到的 whois 是 ISP 的名字，不是你的。</li>
+</ul>
+<hr />
+<h2 id="三為什麼實務上非知道不可">三、為什麼實務上非知道不可</h2>
+<ol>
+<li>
+<p><strong>whois 要問對主機。</strong> <code>whois -h whois.apnic.net AS4134</code> 有完整資料，問到 ARIN 就只會拿到轉介或查無。不確定該問誰時，先問 IANA：</p>
+<pre><code class="language-bash">whois<span class="w"> </span>-h<span class="w"> </span>whois.iana.org<span class="w"> </span><span class="m">140</span>.112.1.1
+<span class="c1"># refer:  whois.arin.net          ← IANA 告訴你該去哪裡問</span>
+</code></pre>
+</li>
+<li>
+<p><strong>RDAP 可以完全不必記。</strong> RDAP（Registration Data Access Protocol）有一份公開的啟動（bootstrap）對照檔，<code>rdap.org</code> 幫你查表後轉送：</p>
+<pre><code class="language-bash">curl<span class="w"> </span>-sL<span class="w"> </span>https://rdap.org/autnum/4134<span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span><span class="s1">&#39;{handle, name, country}&#39;</span>
+curl<span class="w"> </span>-s<span class="w"> </span>https://data.iana.org/rdap/asn.json<span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>-r<span class="w"> </span>.publication<span class="w">   </span><span class="c1"># 對照檔本身可以下載檢查</span>
+</code></pre>
+</li>
+<li>
+<p><strong>讀得懂 <code>registry</code> 欄位。</strong> Team Cymru 輸出裡的 <code>apnic</code>／<code>arin</code> 就是「這筆登記由哪個 RIR 維護」，它是一個行政事實，跟封包實際走哪裡無關。</p>
+</li>
+</ol>
+<hr />
+<h2 id="四實測一號碼區塊的管理者--持有者的-rir">四、實測一：號碼區塊的管理者 ≠ 持有者的 RIR</h2>
+<p>下載 IANA 的 ASN 對照檔，查 AS4134（中國電信骨幹）由誰管：</p>
+<pre><code class="language-bash">curl<span class="w"> </span>-s<span class="w"> </span>https://data.iana.org/rdap/asn.json<span class="w"> </span>&gt;<span class="w"> </span>/tmp/asn.json
+<span class="c1"># 找出 4134 落在哪個區段</span>
+</code></pre>
+<p>結果是 <code>3354-4607 → https://rdap.arin.net/registry/</code>。但第三節查 Cymru 時，
+AS4134 的 <code>Registry</code> 欄位明明寫 <code>apnic</code>，<code>whois -h whois.apnic.net AS4134</code> 也確實有完整資料。</p>
+<p>這不矛盾，是兩件不同的事：</p>
+<table>
+<thead>
+<tr>
+<th>問題</th>
+<th>答案</th>
+<th>來源</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>這段<strong>號碼區塊</strong>由哪個 RIR 管理</td>
+<td>ARIN（<code>3354-4607</code>）</td>
+<td>IANA 的 bootstrap 對照檔</td>
+</tr>
+<tr>
+<td>這個 ASN <strong>登記</strong>在哪個 RIR</td>
+<td>APNIC</td>
+<td><code>aut-num</code> 物件本身</td>
+</tr>
+</tbody>
+</table>
+<p>16-bit 時代的 ASN 區塊是早年整批劃給 ARIN 的，後來個別號碼再透過轉移或委任由其他 RIR 維護。
+<strong>所以「AS 號碼落在 ARIN 的區段」不代表持有者在北美。</strong></p>
+<hr />
+<h2 id="五實測二legacy-配發比-rir-還老的位址">五、實測二：legacy 配發，比 RIR 還老的位址</h2>
+<p>台灣大學的 <code>140.112.0.0/16</code>：</p>
+<pre><code class="language-bash">whois<span class="w"> </span>-h<span class="w"> </span>whois.iana.org<span class="w"> </span><span class="m">140</span>.112.1.1
+<span class="c1"># refer:        whois.arin.net</span>
+<span class="c1"># organisation: Administered by ARIN</span>
+<span class="c1"># status:       LEGACY          ← 關鍵字</span>
+
+curl<span class="w"> </span>-sL<span class="w"> </span>https://rdap.org/ip/140.112.1.1<span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span><span class="s1">&#39;{handle, name, country, port43}&#39;</span>
+<span class="c1"># { &quot;handle&quot;: &quot;140.112.0.0 - 140.112.255.255&quot;,</span>
+<span class="c1">#   &quot;name&quot;: &quot;T-NTU.EDU.TW-NET&quot;, &quot;country&quot;: &quot;TW&quot;,</span>
+<span class="c1">#   &quot;port43&quot;: &quot;whois.apnic.net&quot; }          ← 實際由 APNIC 服務</span>
+
+whois<span class="w"> </span>-h<span class="w"> </span>whois.cymru.com<span class="w"> </span><span class="s2">&quot; -v 140.112.1.1&quot;</span>
+<span class="c1"># 17716 | 140.112.0.0/17 | TW | apnic | 1990-03-24 | NTU-TW - National Taiwan University, TW</span>
+</code></pre>
+<p>配發日期 <strong>1990-03-24</strong>：那時 APNIC 還不存在（1993 才成立）。這段位址是舊制度下由 InterNIC 體系發出的，
+ARIN 繼承了那批紀錄，所以 IANA 的轉介仍指向 ARIN 並標成 <code>LEGACY</code>，而實際的維護已經交給地理上對應的 APNIC。</p>
+<p><strong>教訓：查到的 RIR 反映的是「紀錄的歷史」，不是「機構的地理管區」。</strong> 遇到對不上的情況，先懷疑這是 legacy 配發，而不是自己查錯。</p>
+<hr />
+<h2 id="六為什麼號碼會不夠用ipv4-耗盡與-4-byte-asn">六、為什麼號碼會「不夠用」：IPv4 耗盡與 4-byte ASN</h2>
+<p>RIR 制度存在的根本理由是<strong>號碼是有限的公共資源</strong>，需要有人記帳與分配。兩個已經撞到上限的例子：</p>
+<ul>
+<li><strong>IPv4</strong>：2011 年 IANA 手上的 IPv4 位址池發完，各 RIR 隨後陸續進入「最後一個 /8」的嚴格配發政策。這就是 CGNAT（Carrier-Grade NAT，電信級網路位址轉換）普及的原因——你家拿不到真正的公網 IP，拿到的是 <code>100.64.0.0/10</code> 這種共用空間（參見
+<a href="mtr%E6%94%B9%E7%94%A8TCP%E6%88%96UDP%E6%8E%A2%E6%B8%AC.html">mtr改用TCP或UDP探測</a> 裡實測到的 <code>100.76.3.1</code>）。</li>
+<li><strong>ASN</strong>：原本是 16-bit，上限 65535，早就不夠。現在是 32-bit（4-byte ASN），上限約 42.9 億，所以你會看到 <code>AS394536</code> 這種六位數編號。過渡期為了讓不支援 4-byte 的舊路由器能運作，保留了 <code>AS23456</code>（AS_TRANS）作為代表，看到它不是故障。</li>
+</ul>
+<hr />
+<h2 id="參考">參考</h2>
+<ul>
+<li>從 ASN 查公司名與各欄位的可信度：<a href="%E6%9F%A5ASN%E5%B1%AC%E6%96%BC%E5%93%AA%E5%AE%B6%E5%85%AC%E5%8F%B8.html">查ASN屬於哪家公司</a></li>
+<li>怎麼從封包路徑得到這些 ASN：<a href="%E6%9F%A5%E8%A9%A2%E8%AB%8B%E6%B1%82%E7%B6%93%E9%81%8E%E5%93%AA%E4%BA%9BAS%E8%88%87ISP.html">查詢請求經過哪些AS與ISP</a></li>
+</ul>
+<hr />
+<h2 id="七自我測驗">七、自我測驗</h2>
+<ol>
+<li>IANA 和 RIR 的分工是什麼？為什麼你查不到「IANA 發給某家公司」的紀錄？</li>
+<li>你家的公網 IP 用 whois 查出來是 ISP 的名字而不是你的名字。用本筆記的階層解釋為什麼，並說出你在這個階層裡的位置。</li>
+<li>AS4134 的號碼區塊在 IANA 對照檔裡屬於 ARIN，但它的 <code>aut-num</code> 登記在 APNIC。這兩件事為什麼不矛盾？各自回答的是什麼問題？</li>
+<li>情境題：你查某個 IP，IANA 說 <code>refer: whois.arin.net</code> 且 <code>status: LEGACY</code>，但真正的持有者在亞洲、資料由 APNIC 提供。請解釋這個組合，並說出你從「配發日期」這個欄位可以驗證什麼。</li>
+<li>情境題：同事說「看到六位數的 ASN 一定是假的，ASN 最大只有 65535」。請指出他錯在哪，並說明 <code>AS23456</code> 在這段歷史裡扮演什麼角色。</li>
+</ol>
+
+</main>
+</div>
+</body>
+</html>

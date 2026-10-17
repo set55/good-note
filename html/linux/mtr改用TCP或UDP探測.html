@@ -1,0 +1,713 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>mtr 可以不走 ICMP 嗎？——-T／-u 換掉的只有「去程探測封包」，回話的永遠是 ICMP</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/app.js"></script>
+</head>
+<body>
+<button class="menu-btn" onclick="toggleMenu()">☰ 目錄</button>
+<div class="layout">
+<nav class="side">
+<div class="crumbs"><a href="../index.html">🏠 首頁</a> / <a href="README.html">linux</a></div>
+<div class="tools"><button onclick="toggleTheme()">🌓 主題</button></div>
+<ul>
+<li class="l2"><a href="#%E7%9B%AE%E9%8C%84">目錄</a></li>
+<li class="l2"><a href="#%E4%B8%80%E5%8F%AF%E4%BB%A5%E6%8C%87%E4%BB%A4%E9%95%B7%E9%80%99%E6%A8%A3">一、可以，指令長這樣</a></li>
+<li class="l2"><a href="#%E4%BA%8C%E7%82%BA%E4%BB%80%E9%BA%BC%E6%8F%9B%E5%8D%94%E5%AE%9A%E6%9C%89%E6%99%82%E6%9C%89%E6%95%88%E6%9C%89%E6%99%82%E5%AE%8C%E5%85%A8%E6%B2%92%E7%94%A8">二、為什麼換協定有時有效、有時完全沒用</a></li>
+<li class="l2"><a href="#%E4%B8%89%E5%AF%A6%E6%B8%AC%E4%B8%89%E7%A8%AE%E6%A8%A1%E5%BC%8F%E7%9A%84%E5%B7%AE%E7%95%B0">三、實測三種模式的差異</a></li>
+<li class="l2"><a href="#%E5%9B%9B%E7%B5%82%E9%BB%9E%E7%9A%84%E5%88%A4%E5%AE%9A%E6%96%B9%E5%BC%8F%E5%90%84%E8%87%AA%E4%B8%8D%E5%90%8C">四、終點的判定方式各自不同</a></li>
+<li class="l2"><a href="#%E4%BA%94%E6%AC%8A%E9%99%90%E7%82%BA%E4%BB%80%E9%BA%BC%E4%B8%8D%E7%94%A8-sudo-%E4%B9%9F%E8%83%BD%E8%B7%91">五、權限：為什麼不用 sudo 也能跑</a></li>
+<li class="l2"><a href="#%E5%85%AD%E5%85%A9%E5%80%8B%E5%AE%B9%E6%98%93%E6%90%9E%E6%B7%B7%E7%9A%84%E6%97%97%E6%A8%99">六、兩個容易搞混的旗標</a></li>
+<li class="l2"><a href="#%E4%B8%83%E4%B8%AD%E9%96%93%E8%B7%B3%E9%BB%9E%E7%9A%84-loss-%E5%92%8C-rtt-%E4%B8%8D%E8%A6%81%E7%95%B6%E7%9C%9F">七、中間跳點的 Loss% 和 RTT 不要當真</a></li>
+<li class="l2"><a href="#%E5%85%AB%E8%A9%B2%E9%81%B8%E5%93%AA%E5%80%8B%E6%A8%A1%E5%BC%8F">八、該選哪個模式</a></li>
+<li class="l2"><a href="#%E5%8F%83%E8%80%83">參考</a></li>
+<li class="l2"><a href="#%E4%B9%9D%E8%87%AA%E6%88%91%E6%B8%AC%E9%A9%97">九、自我測驗</a></li>
+<li class="l2"><a href="#mtr-%E5%AE%8C%E6%95%B4%E9%81%B8%E9%A0%85%E4%BE%9D%E6%9C%AC%E6%A9%9F-mtr---help">mtr 完整選項（依本機 mtr --help）</a></li>
+<li class="l3"><a href="#%E4%BA%92%E5%8B%95%E6%A8%A1%E5%BC%8F%E7%9A%84%E6%8C%89%E9%8D%B5%E5%85%A8%E9%83%A8-19-%E5%80%8B%E4%BE%9D%E6%9C%AC%E6%A9%9F-man-mtr">互動模式的按鍵（全部 19 個，依本機 man mtr）</a></li>
+</ul>
+</nav>
+<main>
+<h1 id="mtr-可以不走-icmp-嗎-t-u-換掉的只有去程探測封包回話的永遠是-icmp">mtr 可以不走 ICMP 嗎？——<code>-T</code>／<code>-u</code> 換掉的只有「去程探測封包」，回話的永遠是 ICMP</h1>
+<blockquote>
+<p>日期：2026-09-10<br />
+情境：用 mtr 追路徑時中段一片 <code>???</code>，懷疑是 ICMP 被濾掉，想知道能不能改走 TCP<br />
+對應檔案：無（純指令操作）<br />
+適用範圍：mtr 0.95（Linux）；實測目標 <code>1.1.1.1</code>，實測網路為本機家用寬頻</p>
+</blockquote>
+<blockquote>
+<p><strong>一句話結論：mtr 預設送 ICMP ECHO，<code>-T</code> 可以改送 TCP SYN、<code>-u</code> 改送 UDP；但中途每一跳回給你的訊息</strong>永遠<strong>是 ICMP <code>time exceeded</code>——換協定改變的是「封包能不能出得去」，不是「路由器願不願意回話」。</strong></p>
+</blockquote>
+<hr />
+<h2 id="目錄">目錄</h2>
+<ol>
+<li><a href="#%E4%B8%80%E5%8F%AF%E4%BB%A5%E6%8C%87%E4%BB%A4%E9%95%B7%E9%80%99%E6%A8%A3">可以，指令長這樣</a></li>
+<li><a href="#%E4%BA%8C%E7%82%BA%E4%BB%80%E9%BA%BC%E6%8F%9B%E5%8D%94%E5%AE%9A%E6%9C%89%E6%99%82%E6%9C%89%E6%95%88%E6%9C%89%E6%99%82%E5%AE%8C%E5%85%A8%E6%B2%92%E7%94%A8">為什麼換協定有時有效、有時完全沒用</a></li>
+<li><a href="#%E4%B8%89%E5%AF%A6%E6%B8%AC%E4%B8%89%E7%A8%AE%E6%A8%A1%E5%BC%8F%E7%9A%84%E5%B7%AE%E7%95%B0">實測三種模式的差異</a></li>
+<li><a href="#%E5%9B%9B%E7%B5%82%E9%BB%9E%E7%9A%84%E5%88%A4%E5%AE%9A%E6%96%B9%E5%BC%8F%E5%90%84%E8%87%AA%E4%B8%8D%E5%90%8C">終點的判定方式各自不同</a></li>
+<li><a href="#%E4%BA%94%E6%AC%8A%E9%99%90%E7%82%BA%E4%BB%80%E9%BA%BC%E4%B8%8D%E7%94%A8-sudo-%E4%B9%9F%E8%83%BD%E8%B7%91">權限：為什麼不用 sudo 也能跑</a></li>
+<li><a href="#%E5%85%AD%E5%85%A9%E5%80%8B%E5%AE%B9%E6%98%93%E6%90%9E%E6%B7%B7%E7%9A%84%E6%97%97%E6%A8%99">兩個容易搞混的旗標</a></li>
+<li><a href="#%E4%B8%83%E4%B8%AD%E9%96%93%E8%B7%B3%E9%BB%9E%E7%9A%84-loss-%E5%92%8C-rtt-%E4%B8%8D%E8%A6%81%E7%95%B6%E7%9C%9F">中間跳點的 Loss% 和 RTT 不要當真</a></li>
+<li><a href="#%E5%85%AB%E8%A9%B2%E9%81%B8%E5%93%AA%E5%80%8B%E6%A8%A1%E5%BC%8F">該選哪個模式</a></li>
+<li><a href="#%E4%B9%9D%E8%87%AA%E6%88%91%E6%B8%AC%E9%A9%97">自我測驗</a></li>
+</ol>
+<hr />
+<h2 id="一可以指令長這樣">一、可以，指令長這樣</h2>
+<pre><code class="language-bash">mtr<span class="w"> </span><span class="m">1</span>.1.1.1<span class="w">                     </span><span class="c1"># 預設：ICMP ECHO request（type 8）</span>
+mtr<span class="w"> </span>-T<span class="w"> </span>-P<span class="w"> </span><span class="m">443</span><span class="w"> </span><span class="m">1</span>.1.1.1<span class="w">           </span><span class="c1"># TCP SYN 打 443</span>
+mtr<span class="w"> </span>-u<span class="w"> </span>-P<span class="w"> </span><span class="m">33434</span><span class="w"> </span><span class="m">1</span>.1.1.1<span class="w">         </span><span class="c1"># UDP datagram</span>
+mtr<span class="w"> </span>-S<span class="w"> </span>-P<span class="w"> </span><span class="m">80</span><span class="w"> </span><span class="m">1</span>.1.1.1<span class="w">            </span><span class="c1"># SCTP（少用，但 mtr 0.95 有）</span>
+</code></pre>
+<p><code>-T</code> 是 <code>--tcp</code>，<code>-P</code> 是目標埠（target port）。TCP 模式下 <code>-s</code>（封包大小）會被忽略，因為 SYN 封包不帶資料。</p>
+<p><strong>最基本的用法：文法骨架、兩種執行方式、輸出每一欄在講什麼</strong></p>
+<blockquote>
+<p>2026-10-09 提問：「請問mtr怎麼用?」（上面四行指令都是在換協定，這段補上「mtr 本身怎麼跑、輸出怎麼讀」）</p>
+</blockquote>
+<p>文法骨架（<code>mtr --help</code> 第一行就是 <code>mtr [options] hostname</code>）：</p>
+<pre><code>mtr [選項] &lt;主機名或 IP&gt;
+</code></pre>
+<ul>
+<li><code>[選項]</code>：可以全部省略，省略時就是「ICMP 探測、互動畫面、每秒送一輪、做反向 DNS」。全部選項見文末
+<a href="#mtr-%E5%AE%8C%E6%95%B4%E9%81%B8%E9%A0%85%E4%BE%9D%E6%9C%AC%E6%A9%9F-mtr---help">mtr 完整選項</a>。</li>
+<li><code>&lt;主機名或 IP&gt;</code>：必填，就是你要追的目標；給主機名時 mtr 先自己做 DNS 解析。唯一的例外是用 <code>-F &lt;檔&gt;</code> 從檔案讀目標清單。</li>
+</ul>
+<p>mtr 有兩種執行方式，差在「什麼時候結束、輸出到哪裡」：</p>
+<table>
+<thead>
+<tr>
+<th>方式</th>
+<th>指令</th>
+<th>行為</th>
+<th>什麼時候用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>互動模式（預設）</td>
+<td><code>mtr 1.1.1.1</code></td>
+<td>全螢幕畫面，<strong>一直送、一直更新統計</strong>，按 <code>q</code> 離開；跑的時候可以按鍵切換（按鍵見文末<a href="#%E4%BA%92%E5%8B%95%E6%A8%A1%E5%BC%8F%E7%9A%84%E6%8C%89%E9%8D%B5%E5%85%A8%E9%83%A8-19-%E5%80%8B%E4%BE%9D%E6%9C%AC%E6%A9%9F-man-mtr">互動模式的按鍵</a>）</td>
+<td>自己盯著看、等偶發丟包出現</td>
+</tr>
+<tr>
+<td>報表模式</td>
+<td><code>mtr -r -c 5 1.1.1.1</code></td>
+<td>不開畫面，送滿 <code>-c</code> 輪後<strong>印一次結果就結束</strong></td>
+<td>貼給別人、寫進筆記、放進腳本</td>
+</tr>
+</tbody>
+</table>
+<p>報表模式最常用的組合是 <code>-rwn -c &lt;次數&gt;</code>：<code>-r</code> 報表、<code>-w</code> 寬版（主機名不截斷）、<code>-n</code> 不做反向 DNS（快很多，也不會因為
+DNS 卡住）。本機實測（2026-10-09，家用寬頻 → <code>1.1.1.1</code>）：</p>
+<pre><code>$ mtr -rwn -c 5 1.1.1.1
+Start: 2026-10-09T08:52:47+0800
+HOST: set-Vector-17-HX-A14VFG Loss%   Snt   Last   Avg  Best  Wrst StDev
+  1.|-- 192.168.1.1              0.0%     5    1.7   2.2   1.5   4.9   1.5
+  2.|-- 192.168.0.1              0.0%     5    3.4   3.4   2.9   3.5   0.2
+  3.|-- ???                     100.0     5    0.0   0.0   0.0   0.0   0.0
+  4.|-- 100.74.127.1             0.0%     5    8.4   6.9   5.6   8.4   1.2
+  5.|-- 14.147.203.18            0.0%     5    5.7   6.0   5.5   7.2   0.7
+        14.147.203.22
+  6.|-- ???                     100.0     5    0.0   0.0   0.0   0.0   0.0
+  7.|-- ???                     100.0     5    0.0   0.0   0.0   0.0   0.0
+  8.|-- 202.97.94.142           80.0%     5    9.6   9.6   9.6   9.6   0.0
+  9.|-- ???                     100.0     5    0.0   0.0   0.0   0.0   0.0
+ 10.|-- 202.97.35.110           80.0%     5   52.9  52.9  52.9  52.9   0.0
+ 11.|-- 183.91.56.198           40.0%     5   50.8  56.6  50.8  67.4   9.4
+ 12.|-- 172.69.117.39            0.0%     5   52.9  53.2  52.7  53.9   0.5
+ 13.|-- 172.69.117.91           20.0%     5   63.1  55.3  52.4  63.1   5.2
+ 14.|-- 1.1.1.1                  0.0%     5   51.4  50.8  49.9  51.4   0.6
+</code></pre>
+<p>每一列是一跳（hop）：最左邊的數字是 TTL 第幾跳，<code>???</code> 代表這跳 5 次都沒回話。每一欄的意思：</p>
+<table>
+<thead>
+<tr>
+<th>欄位</th>
+<th>意思</th>
+<th>本機實測的例子</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Loss%</code></td>
+<td>遺失率 = 沒收到回應的次數 ÷ 送出次數</td>
+<td>hop 11 是 <code>40.0%</code>：送 5 次、2 次沒回；hop 14 是 <code>0.0%</code>：5 次全回</td>
+</tr>
+<tr>
+<td><code>Snt</code></td>
+<td>送出（Sent）幾次探測，報表模式等於 <code>-c</code></td>
+<td>每一跳都是 <code>5</code>，因為 <code>-c 5</code></td>
+</tr>
+<tr>
+<td><code>Last</code></td>
+<td>最近一次的來回時間 RTT（Round-Trip Time），單位 ms</td>
+<td>hop 13 最後一次是 <code>63.1</code>，剛好也是它最慢的那次</td>
+</tr>
+<tr>
+<td><code>Avg</code></td>
+<td>所有<strong>有回應</strong>那幾次的 RTT 平均</td>
+<td>hop 14 是 <code>50.8</code>：這才是「我到 1.1.1.1 大約 51ms」的答案</td>
+</tr>
+<tr>
+<td><code>Best</code></td>
+<td>最快的一次</td>
+<td>hop 11 是 <code>50.8</code></td>
+</tr>
+<tr>
+<td><code>Wrst</code></td>
+<td>最慢（Worst）的一次</td>
+<td>hop 11 是 <code>67.4</code></td>
+</tr>
+<tr>
+<td><code>StDev</code></td>
+<td>RTT 的標準差（Standard Deviation），數字越大代表每次快慢差越多、越不穩</td>
+<td>hop 11 <code>Best 50.8</code>／<code>Wrst 67.4</code> 差了 17ms，<code>StDev 9.4</code>；hop 14 <code>49.9</code>～<code>51.4</code>，<code>StDev 0.6</code>，很穩</td>
+</tr>
+</tbody>
+</table>
+<p>逐列讀這份報告：</p>
+<ul>
+<li><strong>hop 1 <code>192.168.1.1</code></strong>：自己家的路由器，1～5ms，正常。</li>
+<li><strong>hop 3 <code>???</code> 100%，但 hop 4 之後有回應</strong>：封包明明有通過第 3 跳（不然後面不可能有回應），只是那台設備不回 ICMP。
+<code>???</code> 那幾列的 RTT 顯示 <code>0.0</code> 不是「0ms」，而是<strong>沒有任何資料可算</strong>。</li>
+<li><strong>hop 5 底下多一行 <code>14.147.203.22</code></strong>：同一跳在 5 次探測裡出現了兩個 IP，就是<a href="#%E4%B8%89%E5%AF%A6%E6%B8%AC%E4%B8%89%E7%A8%AE%E6%A8%A1%E5%BC%8F%E7%9A%84%E5%B7%AE%E7%95%B0">第三節</a>講的等價多路徑（ECMP）。</li>
+<li><strong>hop 8、10 遺失 80%，但最後一跳 0%</strong>：中間跳點限速回 ICMP，不是真的丟包，判讀原則見<a href="#%E4%B8%83%E4%B8%AD%E9%96%93%E8%B7%B3%E9%BB%9E%E7%9A%84-loss-%E5%92%8C-rtt-%E4%B8%8D%E8%A6%81%E7%95%B6%E7%9C%9F">第七節</a>。</li>
+<li><strong>hop 14 <code>1.1.1.1</code></strong>：終點。<code>0.0%</code>、平均 <code>50.8ms</code>、<code>StDev 0.6</code>——到目標沒丟包、延遲穩定，這一列才是結論。</li>
+</ul>
+<p>欄位可以用 <code>-o</code> 自己挑（字母對照見文末），例如把 <code>Snt</code> 後面加上 <code>D</code>（Dropped，掉了幾個）：</p>
+<pre><code>$ mtr -rwn -c 5 -o &quot;LSD NBAW&quot; 1.1.1.1
+HOST: set-Vector-17-HX-A14VFG Loss%   Snt Drop   Last  Best   Avg  Wrst
+  1.|-- 192.168.1.1              0.0%     5    0    1.3   1.3   1.6   2.0
+  2.|-- 192.168.0.1              0.0%     5    0    3.9   3.0   4.1   5.4
+</code></pre>
+<p>預設欄位是 <code>LS NABWV</code>（<code>Loss%</code>／<code>Snt</code>／空格／<code>Last</code>／<code>Avg</code>／<code>Best</code>／<code>Wrst</code>／<code>StDev</code>），跟上面的報表一一對應。</p>
+<hr />
+<h2 id="二為什麼換協定有時有效有時完全沒用">二、為什麼換協定有時有效、有時完全沒用</h2>
+<p>traceroute 家族（含 mtr）的原理只有一句話：<strong>送出 TTL（Time To Live，存活跳數）刻意設小的封包，讓它在第 N 跳「死掉」，逼那台路由器回報錯誤。</strong> 路由器回報用的是
+ICMP（Internet Control Message Protocol）的 <code>time exceeded</code>（type 11）。</p>
+<p>關鍵在於這個流程有兩個方向、而只有一個方向是你能換的：</p>
+<table>
+<thead>
+<tr>
+<th>方向</th>
+<th>內容</th>
+<th>能不能換協定</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>去程探測</td>
+<td>ICMP echo／TCP SYN／UDP datagram，由 <code>-T</code>／<code>-u</code> 決定</td>
+<td><strong>可以</strong></td>
+</tr>
+<tr>
+<td>中途跳點的回覆</td>
+<td>一律是 ICMP <code>time exceeded</code>（type 11）</td>
+<td><strong>不行，沒有替代品</strong></td>
+</tr>
+</tbody>
+</table>
+<p>由此推出兩個重要結論：</p>
+<ul>
+<li><strong><code>-T</code> 有效的情境</strong>：防火牆／ACL 是按「去程封包長什麼樣」決定丟不丟。很多網路會丟棄 ICMP echo 與
+UDP 高位埠，卻放行往 443 的 TCP SYN（因為那看起來就是一般的 HTTPS 連線）。換成 TCP，封包走得更遠，就能逼出更多跳點。</li>
+<li><strong><code>-T</code> 救不了的情境</strong>：若對方是「不產生 ICMP 錯誤訊息」或「入向 ICMP 全擋」，那不論你送什麼協定都看不到那一跳。這時 <code>???</code> 是物理上無解的，不是指令下錯。</li>
+</ul>
+<hr />
+<h2 id="三實測三種模式的差異">三、實測三種模式的差異</h2>
+<p>同一條路徑（家用寬頻 → <code>1.1.1.1</code>）、同一時間、<code>-c 2 -m 12</code>，三種模式抓到的跳點差很多：</p>
+<table>
+<thead>
+<tr>
+<th>Hop</th>
+<th>TCP <code>-T -P 443</code></th>
+<th>ICMP（預設）</th>
+<th>UDP <code>-u</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>4</td>
+<td><code>100.76.3.1</code></td>
+<td><code>100.76.3.1</code></td>
+<td><code>100.76.3.1</code></td>
+</tr>
+<tr>
+<td>5</td>
+<td><code>14.147.203.26</code></td>
+<td><code>14.147.203.26</code></td>
+<td><code>???</code></td>
+</tr>
+<tr>
+<td>6</td>
+<td><code>14.147.203.25</code></td>
+<td><code>???</code></td>
+<td><code>???</code></td>
+</tr>
+<tr>
+<td>7</td>
+<td><code>14.147.127.29</code></td>
+<td><code>???</code></td>
+<td><code>???</code></td>
+</tr>
+<tr>
+<td>9</td>
+<td><code>202.97.12.45</code></td>
+<td><code>202.97.66.25</code></td>
+<td><code>???</code></td>
+</tr>
+<tr>
+<td>10</td>
+<td><code>110.94.123.118</code></td>
+<td><code>???</code></td>
+<td><code>110.94.123.118</code></td>
+</tr>
+<tr>
+<td>12</td>
+<td><code>172.69.117.60</code></td>
+<td><code>172.69.117.60</code></td>
+<td><code>172.69.117.39</code></td>
+</tr>
+</tbody>
+</table>
+<p>三件事值得注意：</p>
+<ol>
+<li><strong>TCP 模式抓到最多跳點</strong>，UDP 最少。這就是上一節說的「按去程長相過濾」。</li>
+<li><strong>hop 9 在 TCP 和 ICMP 模式下是不同的 IP</strong>（<code>202.97.12.45</code> vs <code>202.97.66.25</code>）。不是哪個錯，而是骨幹有多條等價路徑（ECMP，Equal-Cost Multi-Path），不同的五元組（5-tuple）會被雜湊到不同鏈路。<strong>換了協定就換了路徑</strong>，所以跨模式比較「同一跳」本身要很小心。</li>
+<li>hop 12 在同一次報告裡出現兩個 IP（<code>172.69.117.60</code> 與 <code>.39</code>），那是同一跳有並行鏈路。</li>
+</ol>
+<p>把這些 IP 再丟去做 ASN 對照（方法見
+<a href="%E6%9F%A5%E8%A9%A2%E8%AB%8B%E6%B1%82%E7%B6%93%E9%81%8E%E5%93%AA%E4%BA%9BAS%E8%88%87ISP.html">查詢請求經過哪些AS與ISP</a>），路徑的真實面貌才出來：</p>
+<pre><code>100.76.3.1        NA                  ← CGNAT 共用位址空間 100.64.0.0/10，不在全球路由表裡，沒有 ASN
+14.147.x / 202.97.x  AS4134 CHINANET  ← 同一家電信商的骨幹，連續好幾跳
+110.94.123.118    NA                  ← 有註冊紀錄但查不到 BGP 前綴，典型的互連網段／未公告位址
+172.69.117.60     AS13335 CLOUDFLARENET
+</code></pre>
+<hr />
+<h2 id="四終點的判定方式各自不同">四、終點的判定方式各自不同</h2>
+<p>中途跳點的判定三種模式都一樣（等 ICMP type 11），但「到了沒有」的判定不同：</p>
+<table>
+<thead>
+<tr>
+<th>模式</th>
+<th>抵達終點的證據</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>ICMP</td>
+<td>目標回 ICMP echo reply（type 0）</td>
+</tr>
+<tr>
+<td>UDP</td>
+<td>目標回 ICMP port unreachable（type 3 code 3）——因為故意打一個沒人聽的高位埠</td>
+</tr>
+<tr>
+<td>TCP</td>
+<td>目標回 SYN/ACK（埠開著）或 RST（埠關著）</td>
+</tr>
+</tbody>
+</table>
+<p>所以 TCP 模式有個附帶好處：<strong>它同時在測「這個服務埠到底通不通」</strong>。
+<code>mtr -T -P 443</code> 最後一跳有回應，等於 TCP 層握得起來；而 ICMP 模式只證明主機活著，不代表你的 HTTPS 連得上。反過來說，TCP 模式不會完成三向交握——mtr 收到 SYN/ACK 就算完成量測，核心隨後送 RST 把半開連線收掉，所以<strong>對端的應用層通常不會留下存取紀錄</strong>。</p>
+<hr />
+<h2 id="五權限為什麼不用-sudo-也能跑">五、權限：為什麼不用 sudo 也能跑</h2>
+<p>這些模式都要自己組封包、自己收 ICMP，需要 raw socket（原始通訊端），一般要 root。
+mtr 的做法是把這件事切出去給一個小程式 <code>mtr-packet</code>，只對它授予能力（capability）：</p>
+<pre><code class="language-bash">$<span class="w"> </span>getcap<span class="w"> </span>/usr/bin/mtr-packet
+/usr/bin/mtr-packet<span class="w"> </span><span class="nv">cap_net_raw</span><span class="o">=</span>ep
+</code></pre>
+<p><code>cap_net_raw</code> 就是「可以開 raw socket」這一項權限，<code>ep</code> 表示 effective + permitted。所以一般使用者直接跑 <code>mtr -T</code> 就行。若你在某台機器上發現非 root 跑不動，先查這個能力是不是掉了（例如從原始碼自行編譯安裝、或檔案被 <code>cp</code> 過導致 capability 沒跟著複製）。</p>
+<hr />
+<h2 id="六兩個容易搞混的旗標">六、兩個容易搞混的旗標</h2>
+<p><strong><code>-I</code> 在 mtr 和 traceroute 裡意思完全不同</strong>，這個坑踩過一次就會記得：</p>
+<table>
+<thead>
+<tr>
+<th>旗標</th>
+<th>traceroute</th>
+<th>mtr</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-I</code></td>
+<td>用 ICMP echo 探測</td>
+<td><strong>指定網路介面</strong>（<code>--interface</code>）</td>
+</tr>
+<tr>
+<td><code>-T</code></td>
+<td>用 TCP SYN 探測</td>
+<td>用 TCP SYN 探測（一致）</td>
+</tr>
+<tr>
+<td><code>-P</code></td>
+<td>搭 <code>-T</code> 時是目標埠</td>
+<td>目標埠（<code>--port</code>）</td>
+</tr>
+</tbody>
+</table>
+<p>mtr 不需要「指定用 ICMP」的旗標，因為那本來就是預設值。另外 <code>-L</code> 是 UDP 的<strong>來源</strong>埠，跟 <code>-P</code> 不要弄反——想固定來源埠以繞過某些負載平衡雜湊時才會用到。</p>
+<hr />
+<h2 id="七中間跳點的-loss-和-rtt-不要當真">七、中間跳點的 Loss% 和 RTT 不要當真</h2>
+<p>同一份 TCP 模式實測報告裡：</p>
+<pre><code>  6.|-- 14.147.203.25   50.0%   2   3078.  ← 50% 遺失、RTT 3 秒
+ 12.|-- 172.69.117.60    0.0%   2     57.1 ← 終點 0% 遺失、57ms
+</code></pre>
+<p>如果中間真的丟掉一半封包、延遲三秒，終點不可能是 0% 和 57ms。原因是路由器轉送封包靠硬體（資料層 data plane），而「產生一則 ICMP 錯誤訊息」是交給 CPU 做的（控制層 control plane），且依規範會被速率限制（rate limit）。<strong>所以中間跳點的數字反映的是那台設備回應探測的意願，不是轉送品質。</strong></p>
+<p>判讀原則：</p>
+<ul>
+<li><strong>只有最後一跳的 Loss% 和 RTT 有意義。</strong></li>
+<li>中間某跳 Loss 高、<strong>後面每一跳都正常</strong> → 那跳只是懶得回你，沒問題。</li>
+<li>從某跳開始、<strong>之後每一跳 Loss 都維持高檔</strong> → 這才是真的在丟包，問題出在那一跳前後。</li>
+</ul>
+<hr />
+<h2 id="八該選哪個模式">八、該選哪個模式</h2>
+<table>
+<thead>
+<tr>
+<th>想做的事</th>
+<th>用法</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>一般看路徑、延遲</td>
+<td>預設 ICMP，通過率通常最好</td>
+</tr>
+<tr>
+<td>中段一片 <code>???</code>，想多挖出幾跳</td>
+<td><code>mtr -T -P 443</code>（或 80）</td>
+</tr>
+<tr>
+<td>確認某個服務埠真的通</td>
+<td><code>mtr -T -P &lt;該服務的埠&gt;</code></td>
+</tr>
+<tr>
+<td>懷疑 ICMP 被特別對待（例如被降速）</td>
+<td>用 TCP 對照一次，兩者差很多就是證據</td>
+</tr>
+<tr>
+<td>古早 traceroute 的相容行為</td>
+<td><code>-u</code>，但現代網路常被擋，最沒用</td>
+</tr>
+</tbody>
+</table>
+<p>務實做法：<strong>同一個目標跑兩種模式對照</strong>。差異本身就是資訊——它告訴你路上的設備是按協定在做政策。</p>
+<hr />
+<h2 id="參考">參考</h2>
+<ul>
+<li>把跳點 IP 對照成 AS／ISP 的方法與限制：<a href="%E6%9F%A5%E8%A9%A2%E8%AB%8B%E6%B1%82%E7%B6%93%E9%81%8E%E5%93%AA%E4%BA%9BAS%E8%88%87ISP.html">查詢請求經過哪些AS與ISP</a></li>
+<li>「先確認你量到的是不是你以為的東西」：<a href="%E6%8E%92%E6%9F%A5%E6%96%B9%E6%B3%95%E8%AB%96.html">排查方法論</a></li>
+</ul>
+<hr />
+<h2 id="九自我測驗">九、自我測驗</h2>
+<ol>
+<li><code>-T</code> 換掉的是整個量測流程中的哪一半？另一半是什麼、為什麼換不掉？從這個區分推論出「<code>-T</code> 在什麼情況下一定救不了 <code>???</code>」。</li>
+<li>同一條路徑用 TCP 模式和 ICMP 模式，第 9 跳顯示出兩個不同的 IP。這是工具的 bug 嗎？說明背後的機制。</li>
+<li>某跳顯示 <code>50% Loss</code>、RTT 3000ms，但最後一跳是 <code>0% Loss</code>、57ms。為什麼這不矛盾？換成什麼樣的輸出形態才代表「真的在丟包」？</li>
+<li>情境題：你用 <code>mtr -T -P 443</code> 追一台伺服器，最後一跳完全沒回應，但改用預設 ICMP 模式最後一跳正常。這組結果能推論出什麼？對「服務掛了還是網路斷了」這個問題有什麼幫助？</li>
+<li>情境題：你自己編譯安裝了新版 mtr 到 <code>/usr/local/bin</code>，結果非 root 使用者一跑就失敗，換 sudo 就正常。最可能的原因是什麼，你會怎麼驗證與修正？</li>
+<li>情境題（2026-10-09 追加）：同事貼來一份 <code>mtr -rwn -c 10</code> 報告：第 4 跳 <code>???</code> <code>100.0</code>、RTT 全是 <code>0.0</code>；第 7 跳 <code>Loss% 30.0%</code>、<code>Avg 12.0</code>、<code>StDev 0.4</code>；終點 <code>Loss% 0.0%</code>、<code>Avg 180.0</code>、<code>Best 40.0</code>、<code>Wrst 900.0</code>、<code>StDev 270.0</code>。他說「第 4 跳 RTT 是 0、第 7 跳在丟包，所以問題在第 4 到第 7 跳」。逐一指出這三列各代表什麼，以及這份報告真正值得追的異常是哪個數字。</li>
+</ol>
+<h2 id="mtr-完整選項依本機-mtr---help">mtr 完整選項（依本機 <code>mtr --help</code>）</h2>
+<p>前面只用到 <code>-T</code>／<code>-u</code>／<code>-P</code> 等幾個，以下是<strong>全部</strong>。</p>
+<p><strong>探測方式</strong></p>
+<table>
+<thead>
+<tr>
+<th>選項</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-4</code> / <code>-6</code></td>
+<td>只用 IPv4／IPv6</td>
+</tr>
+<tr>
+<td><code>-u</code> <code>--udp</code></td>
+<td>改送 UDP</td>
+</tr>
+<tr>
+<td><code>-T</code> <code>--tcp</code></td>
+<td>改送 TCP SYN</td>
+</tr>
+<tr>
+<td><code>-P &lt;埠&gt;</code> <code>--port</code></td>
+<td>目標埠（TCP／SCTP／UDP 用）</td>
+</tr>
+<tr>
+<td><code>-L &lt;埠&gt;</code> <code>--localport</code></td>
+<td>來源埠（UDP 用）</td>
+</tr>
+<tr>
+<td><code>-I &lt;介面&gt;</code> <code>--interface</code></td>
+<td>指定網卡</td>
+</tr>
+<tr>
+<td><code>-a &lt;位址&gt;</code> <code>--address</code></td>
+<td>綁定來源位址</td>
+</tr>
+<tr>
+<td><code>-f &lt;n&gt;</code> <code>--first-ttl</code></td>
+<td>從第幾跳開始</td>
+</tr>
+<tr>
+<td><code>-m &lt;n&gt;</code> <code>--max-ttl</code></td>
+<td>最多幾跳</td>
+</tr>
+<tr>
+<td><code>-U &lt;n&gt;</code> <code>--max-unknown</code></td>
+<td>容許幾個無回應的跳點</td>
+</tr>
+<tr>
+<td><code>-s &lt;大小&gt;</code> <code>--psize</code></td>
+<td>封包大小</td>
+</tr>
+<tr>
+<td><code>-B &lt;n&gt;</code> <code>--bitpattern</code></td>
+<td>payload 的位元樣式</td>
+</tr>
+<tr>
+<td><code>-i &lt;秒&gt;</code> <code>--interval</code></td>
+<td>每次探測的間隔</td>
+</tr>
+<tr>
+<td><code>-G &lt;秒&gt;</code> <code>--gracetime</code></td>
+<td>等待回應的秒數</td>
+</tr>
+<tr>
+<td><code>-Z &lt;秒&gt;</code> <code>--timeout</code></td>
+<td>探測 socket 保持開啟的秒數</td>
+</tr>
+<tr>
+<td><code>-Q &lt;n&gt;</code> <code>--tos</code></td>
+<td>IP 標頭的 TOS 欄位</td>
+</tr>
+<tr>
+<td><code>-M &lt;mark&gt;</code> <code>--mark</code></td>
+<td><strong>給送出的封包打 fwmark</strong>（配合策略路由測特定路徑）</td>
+</tr>
+<tr>
+<td><code>-F &lt;檔&gt;</code> <code>--filename</code></td>
+<td>從檔案讀取多個主機名</td>
+</tr>
+</tbody>
+</table>
+<p><strong>輸出格式</strong></p>
+<table>
+<thead>
+<tr>
+<th>選項</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-r</code> <code>--report</code></td>
+<td>報表模式（跑完印一次，適合貼給別人）</td>
+</tr>
+<tr>
+<td><code>-w</code> <code>--report-wide</code></td>
+<td>寬版報表（<strong>主機名不截斷</strong>）</td>
+</tr>
+<tr>
+<td><code>-c &lt;n&gt;</code> <code>--report-cycles</code></td>
+<td>送幾次 ping</td>
+</tr>
+<tr>
+<td><code>-j</code> / <code>-x</code> / <code>-C</code> / <code>-l</code></td>
+<td>JSON／XML／CSV／raw 格式（<strong><code>-j</code> 給腳本用</strong>）</td>
+</tr>
+<tr>
+<td><code>-p</code> <code>--split</code></td>
+<td>分割輸出</td>
+</tr>
+<tr>
+<td><code>-t</code> <code>--curses</code></td>
+<td>文字介面（預設）</td>
+</tr>
+<tr>
+<td><code>--displaymode &lt;模式&gt;</code></td>
+<td>初始顯示模式</td>
+</tr>
+<tr>
+<td><code>-n</code> <code>--no-dns</code></td>
+<td><strong>不做反向 DNS</strong>（同 netstat 的理由，會快很多）</td>
+</tr>
+<tr>
+<td><code>-b</code> <code>--show-ips</code></td>
+<td><strong>同時顯示 IP 與主機名</strong></td>
+</tr>
+<tr>
+<td><code>-o &lt;欄位&gt;</code> <code>--order</code></td>
+<td>自選要顯示哪些欄位</td>
+</tr>
+<tr>
+<td><code>-y &lt;n&gt;</code> <code>--ipinfo</code></td>
+<td>顯示 IP 的額外資訊</td>
+</tr>
+<tr>
+<td><code>-z</code> <code>--aslookup</code></td>
+<td><strong>顯示 AS 號碼</strong></td>
+</tr>
+<tr>
+<td><code>-h</code> / <code>-v</code></td>
+<td>說明／版本</td>
+</tr>
+</tbody>
+</table>
+<h3 id="互動模式的按鍵全部-19-個依本機-man-mtr">互動模式的按鍵（全部 19 個，依本機 <code>man mtr</code>）</h3>
+<blockquote>
+<p>2026-10-09 提問：「請問mtr怎麼用?」（不加 <code>-r</code> 跑起來的全螢幕畫面裡能按什麼）</p>
+</blockquote>
+<p>互動模式（不加 <code>-r</code>）跑著的時候可以直接按鍵，下面是 <code>man mtr</code> 〈INTERACTIVE CONTROL〉的<strong>全部</strong>按鍵。帶 <code>&lt;n&gt;</code> 的按鍵按下去後會提示你輸入數字再按 Enter。</p>
+<table>
+<thead>
+<tr>
+<th>按鍵</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>?</code> 或 <code>h</code></td>
+<td>顯示說明</td>
+</tr>
+<tr>
+<td><code>p</code></td>
+<td>暫停（按空白鍵繼續）</td>
+</tr>
+<tr>
+<td><code>d</code></td>
+<td>切換顯示模式（統計表 ↔ 用字元畫出每次探測的歷史圖）</td>
+</tr>
+<tr>
+<td><code>e</code></td>
+<td>開關 MPLS（Multi-Protocol Label Switching，多協定標籤交換）資訊</td>
+</tr>
+<tr>
+<td><code>n</code></td>
+<td>開關反向 DNS（等同即時切換 <code>-n</code>）</td>
+</tr>
+<tr>
+<td><code>r</code></td>
+<td><strong>把所有計數歸零</strong>（改完網路設定後想重新統計時用）</td>
+</tr>
+<tr>
+<td><code>o &lt;欄位&gt;</code></td>
+<td>設定要顯示的欄位，預設 <code>LRS N BAWV</code>（字母見下表）</td>
+</tr>
+<tr>
+<td><code>j</code></td>
+<td>在延遲統計（<code>LS NABWV</code>）與抖動統計（<code>DR AGJMXI</code>）兩組欄位之間切換</td>
+</tr>
+<tr>
+<td><code>c &lt;n&gt;</code></td>
+<td>跑滿 n 輪就停，預設無限</td>
+</tr>
+<tr>
+<td><code>i &lt;n&gt;</code></td>
+<td>探測間隔改成 n 秒，預設 1</td>
+</tr>
+<tr>
+<td><code>f &lt;n&gt;</code></td>
+<td>從第 n 跳開始（初始 TTL），預設 1</td>
+</tr>
+<tr>
+<td><code>m &lt;n&gt;</code></td>
+<td>最多追到第 n 跳（最大 TTL）</td>
+</tr>
+<tr>
+<td><code>s &lt;n&gt;</code></td>
+<td>封包大小改成 n；n 為負數表示隨機大小</td>
+</tr>
+<tr>
+<td><code>b &lt;c&gt;</code></td>
+<td>payload 的位元樣式改成 c（0～255）；負數表示隨機</td>
+</tr>
+<tr>
+<td><code>Q &lt;t&gt;</code></td>
+<td>IP 標頭的 TOS（Type of Service，服務類型）欄位改成 t</td>
+</tr>
+<tr>
+<td><code>u</code></td>
+<td>在 ICMP ECHO 與 UDP 之間切換</td>
+</tr>
+<tr>
+<td><code>y</code></td>
+<td>切換顯示的 IP 額外資訊（同 <code>-y</code>）</td>
+</tr>
+<tr>
+<td><code>z</code></td>
+<td>開關 ASN 顯示（同 <code>-z</code>）</td>
+</tr>
+<tr>
+<td><code>q</code></td>
+<td>離開</td>
+</tr>
+</tbody>
+</table>
+<p><code>-o</code> 與互動鍵 <code>o</code> 用的欄位字母（全部 14 個，依 <code>man mtr</code> 的 <code>--order</code> 一節）：</p>
+<table>
+<thead>
+<tr>
+<th>字母</th>
+<th>欄位</th>
+<th>字母</th>
+<th>欄位</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>L</code></td>
+<td>遺失率（Loss%）</td>
+<td><code>W</code></td>
+<td>最慢 RTT（Wrst）</td>
+</tr>
+<tr>
+<td><code>D</code></td>
+<td>掉了幾個（Drop）</td>
+<td><code>V</code></td>
+<td>標準差（StDev）</td>
+</tr>
+<tr>
+<td><code>R</code></td>
+<td>收到幾個（Rcv）</td>
+<td><code>G</code></td>
+<td>幾何平均（Gmean）</td>
+</tr>
+<tr>
+<td><code>S</code></td>
+<td>送出幾個（Snt）</td>
+<td><code>J</code></td>
+<td>目前抖動（Jttr，最近兩次 RTT 的差）</td>
+</tr>
+<tr>
+<td><code>N</code></td>
+<td>最新一次 RTT（Last）</td>
+<td><code>M</code></td>
+<td>平均抖動（Javg）</td>
+</tr>
+<tr>
+<td><code>B</code></td>
+<td>最快 RTT（Best）</td>
+<td><code>X</code></td>
+<td>最大抖動（Jmax）</td>
+</tr>
+<tr>
+<td><code>A</code></td>
+<td>平均 RTT（Avg）</td>
+<td><code>I</code></td>
+<td>到達間隔抖動（Jint）</td>
+</tr>
+</tbody>
+</table>
+<p>欄位字串裡的空白也會照樣顯示成欄與欄之間的空隙，所以 <code>&quot;LSD NBAW&quot;</code> 會在 <code>Drop</code> 與 <code>Last</code> 中間多一個空欄。</p>
+
+</main>
+</div>
+</body>
+</html>

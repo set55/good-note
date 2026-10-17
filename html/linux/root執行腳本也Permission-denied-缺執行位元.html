@@ -1,0 +1,259 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>root 執行腳本也 Permission denied —— 檔案沒有執行位元（x bit）</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/app.js"></script>
+</head>
+<body>
+<button class="menu-btn" onclick="toggleMenu()">☰ 目錄</button>
+<div class="layout">
+<nav class="side">
+<div class="crumbs"><a href="../index.html">🏠 首頁</a> / <a href="README.html">linux</a></div>
+<div class="tools"><button onclick="toggleTheme()">🌓 主題</button></div>
+<ul>
+<li class="l2"><a href="#%E4%B8%80%E4%BF%AE%E6%B3%95">一、修法</a></li>
+<li class="l2"><a href="#%E4%BA%8C%E7%82%BA%E4%BB%80%E9%BA%BC-sh-%E6%AA%94%E5%90%8D-%E5%8F%AF%E4%BB%A5%E6%AA%94%E5%90%8D-%E4%B8%8D%E8%A1%8C">二、為什麼 sh 檔名 可以、./檔名 不行</a></li>
+<li class="l2"><a href="#%E4%B8%89%E7%82%BA%E4%BB%80%E9%BA%BC%E9%80%A3-root-%E9%83%BD%E8%A2%AB%E6%93%8B">三、為什麼連 root 都被擋</a></li>
+<li class="l2"><a href="#%E5%9B%9B%E6%96%B0%E6%AA%94%E6%A1%88%E7%82%BA%E4%BB%80%E9%BA%BC%E9%A0%90%E8%A8%AD%E6%B2%92%E6%9C%89-x">四、新檔案為什麼預設沒有 x</a></li>
+<li class="l2"><a href="#%E4%BA%94chmod-%E7%9A%84%E6%96%87%E6%B3%95">五、chmod 的文法</a></li>
+<li class="l3"><a href="#%E7%AC%A6%E8%99%9F%E6%A8%A1%E5%BC%8F%E8%AA%B0%E5%8B%95%E4%BD%9C%E6%AC%8A%E9%99%90">符號模式：[誰][動作][權限]</a></li>
+<li class="l3"><a href="#%E5%85%AB%E9%80%B2%E4%BD%8D%E6%A8%A1%E5%BC%8F">八進位模式</a></li>
+<li class="l3"><a href="#%E9%81%B8%E9%A0%85%E5%AE%8C%E6%95%B4%E4%BE%9D%E6%9C%AC%E6%A9%9F---help">選項（完整，依本機 --help）</a></li>
+<li class="l2"><a href="#%E5%85%AD%E9%95%B7%E5%BE%97%E5%83%8F%E4%BD%86%E5%8E%9F%E5%9B%A0%E4%B8%8D%E5%90%8C%E7%9A%84%E9%8C%AF%E8%AA%A4">六、長得像但原因不同的錯誤</a></li>
+<li class="l2"><a href="#%E8%87%AA%E6%88%91%E6%B8%AC%E9%A9%97">自我測驗</a></li>
+</ul>
+</nav>
+<main>
+<h1 id="root-執行腳本也-permission-denied--檔案沒有執行位元x-bit">root 執行腳本也 <code>Permission denied</code> —— 檔案沒有執行位元（x bit）</h1>
+<blockquote>
+<p>日期：2026-09-22<br />
+症狀：在 OpenWrt 上以 root 執行剛傳上去的腳本：</p>
+<pre><code>root@OpenWrt:~/v2ray# ./tproxy_configuire.sh 192.168.1.171
+-ash: ./tproxy_configuire.sh: Permission denied
+</code></pre>
+<p>對應檔案：<a href="../openwrt/TPROXY%E8%A8%AD%E5%AE%9A%E8%85%B3%E6%9C%AC%E5%8F%83%E6%95%B8%E5%8C%96%E8%88%87%E5%8F%AF%E9%87%8D%E8%A4%87%E5%9F%B7%E8%A1%8C.html">TPROXY設定腳本參數化與可重複執行</a> 的腳本（路由器上的個人檔案，不入 git）<br />
+適用範圍：Linux 通用；錯誤訊息與 <code>chmod</code> 選項在本機 dash 與 GNU coreutils 9.4 實測，OpenWrt 的 BusyBox 版本未實測</p>
+</blockquote>
+<p><strong>一句話結論：用 <code>scp</code> 或編輯器新建的檔案預設沒有執行權限（<code>-rw-r--r--</code>），<code>./檔名</code> 是請核心「執行這個檔案」，核心看到一個 x 都沒有就拒絕——連 root 也一樣，因為 root 的「無視權限」對執行有一個例外：至少要有一個 x 位元。修法是 <code>chmod +x 檔名</code>，或不經核心直接 <code>sh 檔名</code>。</strong></p>
+<hr />
+<h2 id="一修法">一、修法</h2>
+<pre><code class="language-sh">chmod<span class="w"> </span>+x<span class="w"> </span>./tproxy_configuire.sh<span class="w">      </span><span class="c1"># 加上執行權限，之後就能 ./ 執行</span>
+./tproxy_configuire.sh<span class="w"> </span><span class="m">192</span>.168.1.171
+</code></pre>
+<p>或者不改權限，直接叫 shell 去讀它：</p>
+<pre><code class="language-sh">sh<span class="w"> </span>./tproxy_configuire.sh<span class="w"> </span><span class="m">192</span>.168.1.171
+</code></pre>
+<p>本機重現（一般使用者，原理相同）：</p>
+<pre><code>$ ls -l t1.sh
+-rw-rw-r-- 1 set set 18 Sep 22 11:36 t1.sh     ← 沒有任何 x
+$ ./t1.sh
+dash: 1: ./t1.sh: Permission denied
+$ sh ./t1.sh
+ok                                            ← 同一個檔案，這樣就能跑
+$ chmod +x t1.sh; ls -l t1.sh
+-rwxrwxr-x 1 set set 18 Sep 22 11:36 t1.sh
+$ ./t1.sh
+ok
+</code></pre>
+<hr />
+<h2 id="二為什麼-sh-檔名-可以檔名-不行">二、為什麼 <code>sh 檔名</code> 可以、<code>./檔名</code> 不行</h2>
+<p>兩種寫法是<strong>不同的人</strong>在打開這個檔案：</p>
+<table>
+<thead>
+<tr>
+<th>寫法</th>
+<th>被「執行」的是誰</th>
+<th>對腳本檔需要的權限</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>./tproxy.sh</code></td>
+<td><strong>腳本檔本身</strong>：shell 呼叫 <code>execve(&quot;./tproxy.sh&quot;)</code>，核心讀第一行的 <code>#!/bin/sh</code>，再去啟動 <code>/bin/sh</code></td>
+<td><strong>執行（x）</strong></td>
+</tr>
+<tr>
+<td><code>sh ./tproxy.sh</code></td>
+<td><strong><code>/bin/sh</code></strong>：腳本檔只是 <code>sh</code> 的一個參數，<code>sh</code> 把它當普通文字檔打開來讀</td>
+<td>只要<strong>讀取（r）</strong></td>
+</tr>
+</tbody>
+</table>
+<p>所以 <code>sh 檔名</code> 永遠繞得過缺 x 的問題。但要注意兩個差別：</p>
+<ul>
+<li>第一行的 <code>#!</code> 會被<strong>忽略</strong>。腳本寫 <code>#!/bin/bash</code> 而你用 <code>sh</code> 跑，就會用錯 shell。本腳本本來就是 <code>#!/bin/sh</code>，所以沒有差別。</li>
+<li>要長期使用、或讓 init script／cron 呼叫的腳本，還是 <code>chmod +x</code> 比較正確。</li>
+</ul>
+<hr />
+<h2 id="三為什麼連-root-都被擋">三、為什麼連 root 都被擋</h2>
+<p>直覺是「root 無視所有權限」。實際上 root 靠的是一項能力（capability）<code>CAP_DAC_OVERRIDE</code>，它讓 root 繞過讀、寫的權限檢查。但<strong>執行有一個例外</strong>：一般檔案至少要有<strong>一個</strong> x 位元（擁有者、群組、其他人任一個都行），root 才能執行它。</p>
+<pre><code>-rw-r--r--   root 執行 → Permission denied   （一個 x 都沒有）
+-rwx------   root 執行 → OK
+-rw-r--r-x   root 執行 → OK                  （只有「其他人」有 x 也夠）
+</code></pre>
+<p>這個例外的理由是：沒有任何 x 的檔案，幾乎可以確定它<strong>本來就不是要拿來執行的</strong>（設定檔、文字檔、資料）。核心寧可擋下來，也不要讓 root 手滑把一份設定檔當成程式跑。</p>
+<p>（目錄的 x 代表「能不能進入」，規則不同：root 對目錄不受這個例外限制。）</p>
+<hr />
+<h2 id="四新檔案為什麼預設沒有-x">四、新檔案為什麼預設沒有 x</h2>
+<p>建立檔案的程式（<code>scp</code>、<code>vi</code>、<code>cat &gt; file</code>）通常請求 <code>0666</code>（rw-rw-rw-），再被 umask 遮掉一部分，結果是 <code>0644</code>（rw-r--r--）或 <code>0664</code>。<strong>沒有任何程式會主動幫文字檔加 x</strong>——這是刻意的安全預設。</p>
+<p><code>scp</code> 從本機複製時，只有本機那份原本就有 x、而且加了 <code>-p</code>（保留模式與時間）才會把 x 帶過去：</p>
+<pre><code class="language-sh">chmod<span class="w"> </span>+x<span class="w"> </span>tproxy.sh
+scp<span class="w"> </span>-O<span class="w"> </span>-p<span class="w"> </span>tproxy.sh<span class="w"> </span>root@192.168.1.1:/root/v2ray/<span class="w">   </span><span class="c1"># -p：保留權限，路由器上直接可執行；-O：dropbear 沒有 sftp-server</span>
+</code></pre>
+<p>（<code>scp</code> 的其他選項與 OpenWrt dropbear 需要 <code>-O</code> 的原因見
+<a href="scp%E7%94%A8%E6%B3%95%E8%88%87OpenSSH9%E7%9A%84%E5%8D%94%E5%AE%9A%E8%AE%8A%E5%8B%95.html">scp用法與OpenSSH9的協定變動</a>。）</p>
+<hr />
+<h2 id="五chmod-的文法">五、<code>chmod</code> 的文法</h2>
+<p>本機 <code>chmod --help</code>（GNU coreutils 9.4）列出三種形式：</p>
+<pre><code>chmod [選項]... &lt;模式&gt;[,&lt;模式&gt;]... &lt;檔案&gt;...
+chmod [選項]... &lt;八進位模式&gt; &lt;檔案&gt;...
+chmod [選項]... --reference=&lt;參考檔&gt; &lt;檔案&gt;...
+</code></pre>
+<h3 id="符號模式誰動作權限">符號模式：<code>[誰][動作][權限]</code></h3>
+<p><code>--help</code> 給的正式格式是 <code>[ugoa]*([-+=]([rwxXst]*|[ugo]))+|[-+=][0-7]+</code>，拆成三段：</p>
+<table>
+<thead>
+<tr>
+<th>段</th>
+<th>可以填</th>
+<th>意思</th>
+<th>省略時</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>誰</td>
+<td><code>u</code> 擁有者、<code>g</code> 群組、<code>o</code> 其他人、<code>a</code> 全部（可組合，如 <code>ug</code>）</td>
+<td>要改哪一組</td>
+<td><strong>視為 <code>a</code>，但會被 umask 遮掉</strong>：<code>chmod +w</code> 不會把 umask 禁止的位元打開</td>
+</tr>
+<tr>
+<td>動作</td>
+<td><code>+</code> 加上、<code>-</code> 拿掉、<code>=</code> 設成剛好這些（其餘清掉）</td>
+<td>怎麼改</td>
+<td>不能省</td>
+</tr>
+<tr>
+<td>權限</td>
+<td><code>r</code> 讀、<code>w</code> 寫、<code>x</code> 執行、<code>X</code>（只對目錄或已有某個 x 的檔案加 x）、<code>s</code> setuid／setgid、<code>t</code> sticky；或寫 <code>u</code>／<code>g</code>／<code>o</code> 表示「複製那一組目前的權限」</td>
+<td>改什麼</td>
+<td>可以是空的（<code>u=</code> 表示清空擁有者的權限）</td>
+</tr>
+</tbody>
+</table>
+<pre><code class="language-sh">chmod<span class="w"> </span>+x<span class="w"> </span>f<span class="w">          </span><span class="c1"># 誰省略 → 全部加 x（受 umask 影響，通常結果是 rwxr-xr-x）</span>
+chmod<span class="w"> </span>u+x<span class="w"> </span>f<span class="w">         </span><span class="c1"># 只有擁有者加 x</span>
+chmod<span class="w"> </span>go-w<span class="w"> </span>f<span class="w">        </span><span class="c1"># 群組與其他人拿掉 w</span>
+chmod<span class="w"> </span><span class="nv">u</span><span class="o">=</span>rwx,go<span class="o">=</span>rx<span class="w"> </span>f<span class="w"> </span><span class="c1"># 多組用逗號分隔</span>
+chmod<span class="w"> </span><span class="nv">g</span><span class="o">=</span>u<span class="w"> </span>f<span class="w">         </span><span class="c1"># 群組的權限設成跟擁有者一樣</span>
+</code></pre>
+<h3 id="八進位模式">八進位模式</h3>
+<p>每一組三個位元：r=4、w=2、x=1，相加後由左到右是擁有者、群組、其他人：</p>
+<pre><code>chmod 755 f    → rwxr-xr-x   （腳本、程式的常見值）
+chmod 644 f    → rw-r--r--   （一般檔案，也就是你遇到的預設狀態）
+chmod 700 f    → rwx------   （只有自己能用）
+</code></pre>
+<p>八進位是「整組覆蓋」，不像 <code>+x</code> 只動一個位元。</p>
+<h3 id="選項完整依本機---help">選項（完整，依本機 <code>--help</code>）</h3>
+<table>
+<thead>
+<tr>
+<th>選項</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-c</code>, <code>--changes</code></td>
+<td>像 <code>-v</code>，但只在真的有改變時才報告</td>
+</tr>
+<tr>
+<td><code>-f</code>, <code>--silent</code>, <code>--quiet</code></td>
+<td>不印大部分錯誤訊息</td>
+</tr>
+<tr>
+<td><code>-v</code>, <code>--verbose</code></td>
+<td>每處理一個檔案就印一行</td>
+</tr>
+<tr>
+<td><code>--no-preserve-root</code></td>
+<td>不特別對待 <code>/</code>（預設就是這樣）</td>
+</tr>
+<tr>
+<td><code>--preserve-root</code></td>
+<td>遞迴時拒絕對 <code>/</code> 動手</td>
+</tr>
+<tr>
+<td><code>--reference=RFILE</code></td>
+<td>直接用 RFILE 的權限，不必寫模式</td>
+</tr>
+<tr>
+<td><code>-R</code>, <code>--recursive</code></td>
+<td>遞迴處理目錄底下所有東西</td>
+</tr>
+<tr>
+<td><code>--help</code>／<code>--version</code></td>
+<td>說明／版本</td>
+</tr>
+</tbody>
+</table>
+<p>OpenWrt 的 <code>chmod</code> 是 BusyBox 版，選項比較少（沒有實測，以路由器上 <code>chmod --help</code> 的輸出為準）；
+<code>+x</code>、<code>755</code> 這些模式寫法兩邊相同。</p>
+<hr />
+<h2 id="六長得像但原因不同的錯誤">六、長得像但原因不同的錯誤</h2>
+<p>同樣是「腳本跑不起來」，錯誤訊息不同代表原因不同：</p>
+<table>
+<thead>
+<tr>
+<th>錯誤</th>
+<th>原因</th>
+<th>怎麼確認</th>
+<th>修法</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Permission denied</code></td>
+<td><strong>沒有 x 位元</strong>（本篇）</td>
+<td><code>ls -l 檔名</code>，看有沒有 <code>x</code></td>
+<td><code>chmod +x</code></td>
+</tr>
+<tr>
+<td><code>Permission denied</code>（明明有 x）</td>
+<td>檔案所在的檔案系統以 <code>noexec</code> 掛載（常見於 <code>/tmp</code>、USB 隨身碟）</td>
+<td><code>mount | grep noexec</code>，或 <code>findmnt -T 檔名</code></td>
+<td>換到別的目錄，或用 <code>sh 檔名</code></td>
+</tr>
+<tr>
+<td><code>not found</code>（檔案明明在）</td>
+<td>第一行 <code>#!</code> 指的直譯器不存在：例如寫了 <code>#!/bin/bash</code>，但 OpenWrt 預設沒裝 bash；或檔案是 Windows 換行（CRLF），核心去找名叫 <code>/bin/sh\r</code> 的程式</td>
+<td><code>head -1 檔名 | od -c</code>，看結尾有沒有 <code>\r</code></td>
+<td>改成 <code>#!/bin/sh</code>；CRLF 用 <code>sed -i 's/\r$//' 檔名</code> 轉掉</td>
+</tr>
+<tr>
+<td><code>not found</code>（沒寫 <code>./</code>）</td>
+<td>目前目錄不在 <code>PATH</code> 裡，shell 不會在這裡找命令</td>
+<td>—</td>
+<td>寫成 <code>./檔名</code> 或完整路徑</td>
+</tr>
+</tbody>
+</table>
+<p>CRLF 那一種在本機實測：dash 回的是 <code>./t2.sh: not found</code>，而不是 <code>Permission denied</code>。
+<strong>看到 <code>not found</code> 時不要去 chmod，看到 <code>Permission denied</code> 時不要去找直譯器。</strong></p>
+<hr />
+<h2 id="自我測驗">自我測驗</h2>
+<ol>
+<li>你是 root，為什麼還會被 <code>Permission denied</code>？root 的權限例外具體是什麼，核心為什麼要這樣設計？</li>
+<li><code>sh ./tproxy.sh</code> 能跑、<code>./tproxy.sh</code> 不能跑，這兩種寫法分別是誰在「執行」、誰在「讀取」這個檔案？如果腳本第一行是 <code>#!/bin/bash</code>，用 <code>sh</code> 跑會有什麼隱憂？</li>
+<li><code>chmod +x f</code> 和 <code>chmod 755 f</code> 在什麼情況下結果會不一樣？</li>
+<li>情境題：你已經 <code>chmod +x</code> 了，<code>ls -l</code> 也看到 <code>rwx</code>，把檔案放到 <code>/tmp</code> 底下執行還是 <code>Permission denied</code>。可能是什麼原因？怎麼確認？</li>
+<li>情境題：另一支腳本報的是 <code>./x.sh: not found</code>，但 <code>ls</code> 明明看得到它、權限也有 x。你會先查哪兩件事？</li>
+</ol>
+
+</main>
+</div>
+</body>
+</html>

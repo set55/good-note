@@ -1,0 +1,362 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>查詢目前實際使用的 DNS 伺服器</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/app.js"></script>
+</head>
+<body>
+<button class="menu-btn" onclick="toggleMenu()">☰ 目錄</button>
+<div class="layout">
+<nav class="side">
+<div class="crumbs"><a href="../index.html">🏠 首頁</a> / <a href="README.html">linux</a></div>
+<div class="tools"><button onclick="toggleTheme()">🌓 主題</button></div>
+<ul>
+<li class="l2"><a href="#%E4%B8%80%E5%8F%A5%E8%A9%B1%E7%B5%90%E8%AB%96">一句話結論</a></li>
+<li class="l2"><a href="#%E4%B8%80%E6%9C%80%E6%8E%A8%E8%96%A6resolvectl-status">一、最推薦：resolvectl status</a></li>
+<li class="l2"><a href="#%E4%BA%8Cresolvectl-status-%E5%AE%8C%E6%95%B4%E8%BC%B8%E5%87%BA%E9%80%90%E6%AC%84%E8%A7%A3%E8%AE%80">二、resolvectl status 完整輸出逐欄解讀</a></li>
+<li class="l3"><a href="#global-%E5%8D%80%E5%A1%8A%E5%85%A8%E5%9F%9F%E8%A8%AD%E5%AE%9A">Global 區塊：全域設定</a></li>
+<li class="l3"><a href="#%E6%AF%8F%E5%80%8B-link-%E5%8D%80%E5%A1%8A--%E4%B8%80%E5%BC%B5%E7%B6%B2%E8%B7%AF%E4%BB%8B%E9%9D%A2">每個 Link 區塊 = 一張網路介面</a></li>
+<li class="l2"><a href="#%E4%B8%89%E5%B8%B8%E8%A6%8B%E8%AA%A4%E5%8D%80etcresolvconf-%E9%A1%AF%E7%A4%BA%E7%9A%84%E5%B8%B8%E5%B8%B8%E4%B8%8D%E6%98%AF%E7%9C%9F%E6%AD%A3%E7%9A%84-dns">三、常見誤區：/etc/resolv.conf 顯示的常常不是真正的 DNS</a></li>
+<li class="l3"><a href="#%E5%90%8D%E8%A9%9E%E8%A7%A3%E9%87%8Bstub-resolver-%E5%88%B0%E5%BA%95%E6%98%AF%E4%BB%80%E9%BA%BC">名詞解釋：stub resolver 到底是什麼</a></li>
+<li class="l2"><a href="#%E5%9B%9B%E7%94%A8-networkmanager-%E6%9F%A5%E5%A6%82%E6%9E%9C%E6%9C%89%E8%A3%9D-nmcli">四、用 NetworkManager 查（如果有裝 nmcli）</a></li>
+<li class="l2"><a href="#%E4%BA%94%E9%A0%86%E5%B8%B6%E9%A9%97%E8%AD%89%E6%9F%A5%E8%A9%A2%E6%99%82%E7%9C%9F%E7%9A%84%E6%89%93%E5%8E%BB%E5%93%AA">五、順帶驗證：查詢時真的打去哪</a></li>
+<li class="l2"><a href="#%E9%80%9F%E6%9F%A5">速查</a></li>
+<li class="l2"><a href="#resolvectl-%E5%AE%8C%E6%95%B4%E5%91%BD%E4%BB%A4%E8%88%87%E9%81%B8%E9%A0%85">resolvectl 完整命令與選項</a></li>
+<li class="l3"><a href="#%E5%91%BD%E4%BB%A4%E5%85%A8%E9%83%A8">命令（全部）</a></li>
+<li class="l3"><a href="#%E5%B8%B8%E7%94%A8%E9%81%B8%E9%A0%85">常用選項</a></li>
+</ul>
+</nav>
+<main>
+<h1 id="查詢目前實際使用的-dns-伺服器">查詢目前實際使用的 DNS 伺服器</h1>
+<blockquote>
+<p>日期：2026-08-28<br />
+情境：想知道系統實際查詢名稱解析時打去哪台 DNS（Domain Name System，網域名稱系統）伺服器</p>
+</blockquote>
+<hr />
+<h2 id="一句話結論">一句話結論</h2>
+<blockquote>
+<p><strong>用 <code>resolvectl status</code> 看真正的上游 DNS；不要只看 <code>cat /etc/resolv.conf</code>——現代多數發行版預設走
+systemd-resolved，<code>/etc/resolv.conf</code> 常只會顯示本機的 stub resolver（<code>127.0.0.53</code>），不是真正的伺服器。</strong></p>
+</blockquote>
+<hr />
+<h2 id="一最推薦resolvectl-status">一、最推薦：<code>resolvectl status</code></h2>
+<pre><code class="language-bash">resolvectl<span class="w"> </span>status
+</code></pre>
+<p>看 <code>Current DNS Server:</code> 那行。實測輸出（節錄）：</p>
+<pre><code>Global
+  resolv.conf mode: stub
+
+Link 3 (wlo1):
+    Current Scopes: DNS
+Current DNS Server: 192.168.1.1
+       DNS Servers: 192.168.1.1
+        DNS Domain: lan
+</code></pre>
+<p>只想看精簡結果，不要一堆 <code>Protocols</code> 雜訊：</p>
+<pre><code class="language-bash">resolvectl<span class="w"> </span>dns
+</code></pre>
+<pre><code>Global:
+Link 3 (wlo1): 192.168.1.1
+</code></pre>
+<p><code>resolvectl</code> 是 systemd 提供的工具（舊系統上可能叫 <code>systemd-resolve --status</code>，是同一套機制的舊名），會依網卡（link）分別列出各自在用的 DNS，比 <code>/etc/resolv.conf</code> 更準確，因為它反映的是
+<strong>systemd-resolved 實際會拿去查詢的上游伺服器</strong>。</p>
+<hr />
+<h2 id="二resolvectl-status-完整輸出逐欄解讀">二、<code>resolvectl status</code> 完整輸出逐欄解讀</h2>
+<p>實測完整輸出（含多張介面）：</p>
+<pre><code>Global
+         Protocols: -LLMNR -mDNS -DNSOverTLS DNSSEC=no/unsupported
+  resolv.conf mode: stub
+
+Link 2 (enp3s0)
+    Current Scopes: none
+         Protocols: -DefaultRoute -LLMNR -mDNS -DNSOverTLS DNSSEC=no/unsupported
+
+Link 3 (wlo1)
+    Current Scopes: DNS
+         Protocols: +DefaultRoute -LLMNR -mDNS -DNSOverTLS DNSSEC=no/unsupported
+Current DNS Server: 192.168.1.1
+       DNS Servers: 192.168.1.1
+        DNS Domain: lan
+
+Link 7 (docker0)
+    Current Scopes: none
+         Protocols: -DefaultRoute -LLMNR -mDNS -DNSOverTLS DNSSEC=no/unsupported
+</code></pre>
+<h3 id="global-區塊全域設定">Global 區塊：全域設定</h3>
+<ul>
+<li><code>Protocols:</code> 每個名字前的 <code>+</code>/<code>-</code> 代表<strong>啟用／停用</strong>：
+<ul>
+<li><code>LLMNR</code>（Link-Local Multicast Name Resolution）：區網內不查 DNS 伺服器，改用多播直接問「這個主機名是誰」（Windows 網芳常用），這裡是關閉的</li>
+<li><code>mDNS</code>（Multicast DNS）：類似 Bonjour/Avahi，讓印表機、Chromecast 這類裝置在區網內被自動發現，關閉</li>
+<li><code>DNSOverTLS</code>：DNS 查詢是否加密走 TLS；關閉 = 查詢是明文 UDP/TCP 53</li>
+<li><code>DNSSEC=no/unsupported</code>：DNS 安全擴充（DNS Security Extensions，用簽章驗證 DNS 回應沒被竄改），沒開，且上游目前也不支援</li>
+</ul>
+</li>
+<li><code>resolv.conf mode: stub</code>：印證 <code>/etc/resolv.conf</code> 走 stub resolver 模式——這正是第二節那個
+<code>127.0.0.53</code> 的來源。</li>
+</ul>
+<h3 id="每個-link-區塊--一張網路介面">每個 <code>Link</code> 區塊 = 一張網路介面</h3>
+<p>編號是核心的 ifindex，括號內是介面名稱。<strong>只有同時滿足 <code>+DefaultRoute</code> 且
+<code>Current Scopes: DNS</code> 的那張卡，才是系統實際拿去查外部網域的介面</strong>——其餘卡即使有 IP，
+<code>Scopes</code> 是 <code>none</code> 就完全不參與名稱解析：</p>
+<table>
+<thead>
+<tr>
+<th>介面</th>
+<th>狀態</th>
+<th>原因</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>wlo1</code>（Wi-Fi）</td>
+<td><code>+DefaultRoute</code>、<code>Scopes: DNS</code></td>
+<td>目前對外連線走這張卡，所以底下才有 <code>Current DNS Server</code></td>
+</tr>
+<tr>
+<td><code>enp3s0</code>（有線網卡）</td>
+<td><code>Scopes: none</code></td>
+<td>沒接網路線／沒拿到 IP，不參與解析</td>
+</tr>
+<tr>
+<td><code>docker0</code> / <code>br-xxxxxxxx</code></td>
+<td><code>Scopes: none</code></td>
+<td>Docker 的 bridge 網路（<code>docker network create</code> 或 docker compose 專案各建一個），是容器間的內部虛擬網段，不對外查 DNS</td>
+</tr>
+</tbody>
+</table>
+<p><code>Link 3 (wlo1)</code> 底下三行的意思：</p>
+<ul>
+<li><code>Current DNS Server:</code> 目前選定使用的伺服器，通常是路由器 IP，由 DHCP 派發</li>
+<li><code>DNS Servers:</code> 這張卡拿到的所有候選伺服器清單（本例只有一個）</li>
+<li><code>DNS Domain:</code> 搜尋網域（search domain）——查一個不含 <code>.</code> 的短主機名時，會自動補上這個尾綴再查一次</li>
+</ul>
+<hr />
+<h2 id="三常見誤區etcresolvconf-顯示的常常不是真正的-dns">三、常見誤區：<code>/etc/resolv.conf</code> 顯示的常常不是真正的 DNS</h2>
+<h3 id="名詞解釋stub-resolver-到底是什麼">名詞解釋：stub resolver 到底是什麼</h3>
+<p><strong>resolver（解析器）</strong> 泛指「幫程式把網域名稱換成 IP」的那個角色。DNS 的解析器分兩種，差別在
+<strong>要不要自己完整跑一輪 DNS 查詢流程</strong>：</p>
+<table>
+<thead>
+<tr>
+<th>種類</th>
+<th>做的事</th>
+<th>例子</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>full / recursive resolver</strong>（完整／遞迴解析器）</td>
+<td>自己從根伺服器（root）一路問到頂級網域（TLD）、再問到該網域的authoritative 伺服器，湊出最終答案，通常還會快取</td>
+<td>你的路由器、ISP 的 DNS、<code>8.8.8.8</code>（Google）、<code>1.1.1.1</code>（Cloudflare）</td>
+</tr>
+<tr>
+<td><strong>stub resolver</strong>（樁解析器／簡化解析器）</td>
+<td><strong>不做遞迴查詢</strong>，只是把查詢原封不動轉發給某個 full resolver，等對方把完整答案交回來</td>
+<td>libc 內建的 DNS 用戶端、systemd-resolved 監聽的 <code>127.0.0.53</code></td>
+</tr>
+</tbody>
+</table>
+<p><code>stub</code>（樁）這個字取的就是「只是個簡化的替身，真正幹活的另有其人」的意思——它不知道怎麼查根伺服器、也不打算知道，它唯一的工作是<strong>轉發</strong>。這個概念其實比 systemd-resolved 更早：早在 <code>/etc/resolv.conf</code>
+只有 <code>nameserver</code> 這一種寫法的年代，每支程式透過 glibc 的 <code>gethostbyname()</code> / <code>getaddrinfo()</code>
+發出查詢時，glibc 內建的那套邏輯本身就是一個 stub resolver——它只會把查詢丟給 <code>nameserver</code>
+指定的那台伺服器，自己完全不做遞迴。</p>
+<p><strong>systemd-resolved 的 <code>127.0.0.53</code> 是這個概念的本機版本</strong>，多了一層轉發：</p>
+<pre><code>應用程式（curl / browser / ...）
+   │  呼叫 glibc 的 getaddrinfo()（這是傳統意義上的 stub resolver）
+   ▼
+讀 /etc/resolv.conf → nameserver 127.0.0.53
+   │
+   ▼
+systemd-resolved（監聽 127.0.0.53:53，這是它的「DNS stub listener」）
+   │  查快取有沒有 → 沒有的話，依 Current Scopes: DNS 且 +DefaultRoute 的介面，
+   │  選出 resolvectl status 顯示的真正上游（本例 192.168.1.1）
+   ▼
+192.168.1.1（路由器，通常再轉給 ISP 或 8.8.8.8 這類 full resolver）
+   │
+   ▼
+答案沿原路快取、回傳給應用程式
+</code></pre>
+<p><strong>這樣設計的好處</strong>：所有程式仍用最傳統、最相容的方式查 DNS（讀 <code>/etc/resolv.conf</code>、打 <code>127.0.0.53</code>），但實際的智慧——依網卡選對的伺服器、本機快取、支援 DNS-over-TLS——都集中在 systemd-resolved 一個地方處理，程式完全不用知道背後在發生什麼事。代價就是 <code>cat /etc/resolv.conf</code> 再也看不到真正的伺服器，只看得到這個本機轉發點。</p>
+<pre><code class="language-bash">cat<span class="w"> </span>/etc/resolv.conf
+</code></pre>
+<p>在跑 systemd-resolved 的系統上，這個檔案幾乎都長這樣：</p>
+<pre><code>nameserver 127.0.0.53
+options edns0 trust-ad
+search lan
+</code></pre>
+<p><code>127.0.0.53</code> 不是路由器、不是任何真實的 DNS 服務——它是 <strong>systemd-resolved 自己在本機監聽的
+stub resolver（本地轉發代理）</strong>。所有程式的查詢先打到這個本機位址，systemd-resolved 再轉發給
+<code>resolvectl status</code> 顯示的真正上游伺服器（本例是 <code>192.168.1.1</code>，通常是路由器或 DHCP 派發的 DNS）。</p>
+<p>驗證這個檔案本身也說明了這件事：</p>
+<pre><code class="language-bash">ls<span class="w"> </span>-la<span class="w"> </span>/etc/resolv.conf
+<span class="c1"># lrwxrwxrwx ... /etc/resolv.conf -&gt; ../run/systemd/resolve/stub-resolv.conf</span>
+</code></pre>
+<p>它是個 symlink，指向 systemd-resolved 動態產生的 stub 設定檔，檔案開頭的註解也明講「Run <code>resolvectl status</code> to see details about the uplink DNS servers currently in use.」。</p>
+<p><strong>判斷自己是不是這種情況：</strong></p>
+<pre><code class="language-bash">systemctl<span class="w"> </span>is-active<span class="w"> </span>systemd-resolved
+<span class="c1"># active → 走 stub resolver，要看 resolvectl status 才是真的</span>
+<span class="c1"># inactive/找不到這個服務 → /etc/resolv.conf 裡的 nameserver 就是真正在用的伺服器，直接看沒問題</span>
+</code></pre>
+<hr />
+<h2 id="四用-networkmanager-查如果有裝-nmcli">四、用 NetworkManager 查（如果有裝 nmcli）</h2>
+<pre><code class="language-bash">nmcli<span class="w"> </span>dev<span class="w"> </span>show<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-i<span class="w"> </span>dns
+</code></pre>
+<p>實測：</p>
+<pre><code>IP4.DNS[1]:                             192.168.1.1
+IP6.DNS[1]:                             fde1:c46e:b437::1
+</code></pre>
+<p>適合已經在用 NetworkManager 管網路的環境，一次看到 IPv4／IPv6 兩邊的 DNS。</p>
+<hr />
+<h2 id="五順帶驗證查詢時真的打去哪">五、順帶驗證：查詢時真的打去哪</h2>
+<pre><code class="language-bash">dig<span class="w"> </span>google.com<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>SERVER
+<span class="c1"># ;; SERVER: 127.0.0.53#53(127.0.0.53)   ← 本機發出的查詢打到 stub</span>
+
+dig<span class="w"> </span>@192.168.1.1<span class="w"> </span>google.com<span class="w">   </span><span class="c1"># 指定直接打去真正的上游，繞過 stub</span>
+</code></pre>
+<p><code>dig</code> 輸出裡的 <code>SERVER:</code> 只代表「這次查詢實際發送到哪個位址」，走 stub resolver 時一律顯示
+<code>127.0.0.53</code>，不能拿它當作「真正的 DNS 伺服器」。</p>
+<hr />
+<h2 id="速查">速查</h2>
+<pre><code class="language-bash">resolvectl<span class="w"> </span>status<span class="w">              </span><span class="c1"># 最準：依網卡列出真正的上游 DNS</span>
+resolvectl<span class="w"> </span>dns<span class="w">                 </span><span class="c1"># 精簡版，只列伺服器位址</span>
+systemctl<span class="w"> </span>is-active<span class="w"> </span>systemd-resolved<span class="w">   </span><span class="c1"># 判斷要不要繞過 /etc/resolv.conf 去看 resolvectl</span>
+cat<span class="w"> </span>/etc/resolv.conf<span class="w">           </span><span class="c1"># 沒有 systemd-resolved 時可直接信；有的話只會看到 127.0.0.53</span>
+nmcli<span class="w"> </span>dev<span class="w"> </span>show<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-i<span class="w"> </span>dns<span class="w">   </span><span class="c1"># NetworkManager 環境的替代查法</span>
+dig<span class="w"> </span>google.com<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>SERVER<span class="w">   </span><span class="c1"># 驗證查詢實際打去哪個位址</span>
+</code></pre>
+<h2 id="resolvectl-完整命令與選項">resolvectl 完整命令與選項</h2>
+<h3 id="命令全部">命令（全部）</h3>
+<p><strong>查詢類</strong></p>
+<table>
+<thead>
+<tr>
+<th>命令</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>query &lt;主機|位址&gt;</code></td>
+<td>解析域名或反查（走 systemd-resolved，<strong>不是直接送 DNS</strong>）</td>
+</tr>
+<tr>
+<td><code>service [[名稱] 類型] &lt;網域&gt;</code></td>
+<td>解析 SRV 服務記錄</td>
+</tr>
+<tr>
+<td><code>openpgp &lt;email&gt;</code></td>
+<td>查 OpenPGP 公鑰</td>
+</tr>
+<tr>
+<td><code>tlsa &lt;網域&gt;[:埠]</code></td>
+<td>查 TLSA（DANE）記錄</td>
+</tr>
+<tr>
+<td><code>status [LINK...]</code></td>
+<td><strong>顯示各介面的 DNS 設定與狀態</strong> ← 本篇主角</td>
+</tr>
+<tr>
+<td><code>statistics</code> / <code>reset-statistics</code></td>
+<td>顯示／歸零解析器統計</td>
+</tr>
+<tr>
+<td><code>show-cache</code></td>
+<td><strong>顯示快取內容</strong></td>
+</tr>
+<tr>
+<td><code>show-server-state</code></td>
+<td>顯示各上游伺服器的狀態</td>
+</tr>
+<tr>
+<td><code>monitor</code></td>
+<td><strong>即時監看 DNS 查詢</strong>（排查「誰在查什麼」很好用）</td>
+</tr>
+</tbody>
+</table>
+<p><strong>設定類（每個介面各自設定）</strong></p>
+<table>
+<thead>
+<tr>
+<th>命令</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>dns [LINK [伺服器...]]</code></td>
+<td>取得／設定該介面的 DNS 伺服器</td>
+</tr>
+<tr>
+<td><code>domain [LINK [網域...]]</code></td>
+<td>取得／設定搜尋網域</td>
+</tr>
+<tr>
+<td><code>default-route [LINK [BOOL]]</code></td>
+<td>取得／設定 <code>+DefaultRoute</code> 旗標</td>
+</tr>
+<tr>
+<td><code>llmnr [LINK [模式]]</code></td>
+<td>LLMNR 模式</td>
+</tr>
+<tr>
+<td><code>mdns [LINK [模式]]</code></td>
+<td>MulticastDNS 模式</td>
+</tr>
+<tr>
+<td><code>dnsovertls [LINK [模式]]</code></td>
+<td><strong>DNS-over-TLS 模式</strong></td>
+</tr>
+<tr>
+<td><code>dnssec [LINK [模式]]</code></td>
+<td>DNSSEC 模式</td>
+</tr>
+<tr>
+<td><code>nta [LINK [網域...]]</code></td>
+<td>DNSSEC 的 negative trust anchor</td>
+</tr>
+<tr>
+<td><code>revert &lt;LINK&gt;</code></td>
+<td><strong>還原該介面的所有設定</strong></td>
+</tr>
+</tbody>
+</table>
+<p><strong>維護類</strong></p>
+<table>
+<thead>
+<tr>
+<th>命令</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>flush-caches</code></td>
+<td><strong>清空所有本地 DNS 快取</strong></td>
+</tr>
+<tr>
+<td><code>reset-server-features</code></td>
+<td>忘掉學到的伺服器功能等級（伺服器換設定後用）</td>
+</tr>
+<tr>
+<td><code>log-level [等級]</code></td>
+<td>取得／設定 systemd-resolved 的日誌等級</td>
+</tr>
+</tbody>
+</table>
+<h3 id="常用選項">常用選項</h3>
+<p><code>-4</code> / <code>-6</code>（只查 v4／v6）、<code>-i &lt;介面&gt;</code> <code>--interface</code>（指定介面）、
+<code>-p &lt;協定&gt;</code> <code>--protocol</code>（<code>dns</code>／<code>llmnr</code>／<code>mdns</code>）、<code>-t &lt;type&gt;</code> <code>--type</code>、<code>-c &lt;class&gt;</code> <code>--class</code>、
+<code>--service-address=&lt;bool&gt;</code>、<code>--service-txt=&lt;bool&gt;</code>、<code>--cname=&lt;bool&gt;</code>、<code>--validate=&lt;bool&gt;</code>、
+<code>--synthesize=&lt;bool&gt;</code>、<code>--cache=&lt;bool&gt;</code>、<code>--zone=&lt;bool&gt;</code>、<code>--trust-anchor=&lt;bool&gt;</code>、
+<code>--network=&lt;bool&gt;</code>、<code>--search=&lt;bool&gt;</code>、<code>--raw[=payload|packet]</code>、<code>--legend=&lt;bool&gt;</code>、
+<code>--json=&lt;模式&gt;</code>（<strong>給腳本用</strong>）、<code>--no-pager</code>、<code>-h</code>、<code>--version</code>。</p>
+<p><strong><code>--json</code> 與 <code>monitor</code> 是這個工具比 <code>dig</code> 強的地方</strong>——它看得到 systemd-resolved 的內部狀態（快取、每介面設定、驗證結果），而 <code>dig</code> 只是直接送封包。</p>
+
+</main>
+</div>
+</body>
+</html>

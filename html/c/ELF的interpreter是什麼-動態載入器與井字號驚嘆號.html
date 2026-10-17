@@ -1,0 +1,417 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ELF 的 interpreter 是什麼？—— 動態載入器，以及它跟腳本 #! 是同一個機制</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/app.js"></script>
+</head>
+<body>
+<button class="menu-btn" onclick="toggleMenu()">☰ 目錄</button>
+<div class="layout">
+<nav class="side">
+<div class="crumbs"><a href="../index.html">🏠 首頁</a> / <a href="README.html">c</a></div>
+<div class="tools"><button onclick="toggleTheme()">🌓 主題</button><button onclick="toggleAnswers(true)">展開答案</button><button onclick="toggleAnswers(false)">收起答案</button></div>
+<ul>
+<li class="l2"><a href="#%E4%B8%80%E5%AE%83%E5%AF%AB%E5%9C%A8%E5%9F%B7%E8%A1%8C%E6%AA%94%E7%9A%84%E5%93%AA%E8%A3%A1">一、它寫在執行檔的哪裡</a></li>
+<li class="l2"><a href="#%E4%BA%8C%E5%9F%B7%E8%A1%8C%E6%99%82%E7%99%BC%E7%94%9F%E4%BB%80%E9%BA%BC%E4%BA%8B">二、執行時發生什麼事</a></li>
+<li class="l3"><a href="#%E8%B7%B3%E9%80%B2%E7%A8%8B%E5%BC%8F%E6%98%AF%E4%BB%80%E9%BA%BC%E6%84%8F%E6%80%9D%E9%80%B2%E5%85%A5%E9%BB%9Eentry-point">「跳進程式」是什麼意思：進入點（entry point）</a></li>
+<li class="l3"><a href="#%E5%90%8D%E5%AD%97%E5%BE%88%E5%A4%9A%E9%83%BD%E6%98%AF%E5%90%8C%E4%B8%80%E5%80%8B%E6%9D%B1%E8%A5%BF">名字很多，都是同一個東西</a></li>
+<li class="l2"><a href="#%E4%B8%89%E5%AE%83%E8%87%AA%E5%B7%B1%E4%B9%9F%E6%98%AF%E4%B8%80%E6%94%AF%E7%A8%8B%E5%BC%8F%E5%8F%AF%E4%BB%A5%E7%9B%B4%E6%8E%A5%E5%9F%B7%E8%A1%8C">三、它自己也是一支程式：可以直接執行</a></li>
+<li class="l3"><a href="#ldso-%E7%9A%84%E5%85%A8%E9%83%A8%E9%81%B8%E9%A0%85%E4%BE%9D%E6%9C%AC%E6%A9%9F---helpglibc-239">ld.so 的全部選項（依本機 --help，glibc 2.39）</a></li>
+<li class="l2"><a href="#%E5%9B%9B%E8%B7%9F%E8%85%B3%E6%9C%AC%E7%9A%84--%E6%98%AF%E5%90%8C%E4%B8%80%E5%80%8B%E6%A9%9F%E5%88%B6">四、跟腳本的 #! 是同一個機制</a></li>
+<li class="l3"><a href="#%E4%BA%A4%E7%B5%A6%E7%9B%B4%E8%AD%AF%E5%99%A8%E7%9A%84%E6%98%AF%E8%B7%AF%E5%BE%91%E4%B8%8D%E6%98%AF%E5%85%A7%E5%AE%B9%E4%B8%89%E5%80%8B%E5%AF%A6%E9%A9%97">交給直譯器的是「路徑」，不是內容：三個實驗</a></li>
+<li class="l2"><a href="#%E4%BA%94%E7%9B%B4%E8%AD%AF%E5%99%A8%E4%B8%8D%E5%AD%98%E5%9C%A8%E6%99%82%E6%98%8E%E6%98%8E%E6%9C%89%E6%AA%94%E6%A1%88%E5%8D%BB%E8%AA%AA%E6%89%BE%E4%B8%8D%E5%88%B0">五、直譯器不存在時：明明有檔案，卻說找不到</a></li>
+<li class="l2"><a href="#%E8%87%AA%E6%88%91%E6%B8%AC%E9%A9%97">自我測驗</a></li>
+</ul>
+</nav>
+<main>
+<h1 id="elf-的-interpreter-是什麼-動態載入器以及它跟腳本--是同一個機制">ELF 的 interpreter 是什麼？—— 動態載入器，以及它跟腳本 <code>#!</code> 是同一個機制</h1>
+<blockquote>
+<p>日期：2026-09-23<br />
+情境：第 ① 站第 1 課的延伸提問。筆記裡 <code>file</code> 的輸出一直出現 <code>interpreter /lib64/ld-linux-x86-64.so.2</code>，追問那是什麼<br />
+適用範圍：本機 Ubuntu 24.04、x86-64、glibc 2.39；所有輸出都是本機實測。本篇<strong>不需要組合語言</strong><br />
+相關：<a href="hello.c%E6%80%8E%E9%BA%BC%E8%AE%8A%E6%88%90%E8%83%BD%E8%B7%91%E7%9A%84%E7%A8%8B%E5%BC%8F-%E7%B7%A8%E8%AD%AF%E7%9A%84%E5%9B%9B%E5%80%8B%E9%9A%8E%E6%AE%B5.html">hello.c怎麼變成能跑的程式-編譯的四個階段</a>（第五、六節）、
+<a href="readelf%E5%AE%8C%E6%95%B4%E9%81%B8%E9%A0%85%E5%8F%83%E8%80%83.html">readelf完整選項參考</a>、
+<a href="../linux/root%E5%9F%B7%E8%A1%8C%E8%85%B3%E6%9C%AC%E4%B9%9FPermission-denied-%E7%BC%BA%E5%9F%B7%E8%A1%8C%E4%BD%8D%E5%85%83.html">root執行腳本也Permission-denied-缺執行位元</a>（<code>#!</code> 與 <code>not found</code>）</p>
+</blockquote>
+<p><strong>一句話結論：interpreter（直譯器，這裡指「程式直譯器」）是<strong>執行檔自己指定的「請先幫我跑這個程式」</strong>。動態連結的 ELF 執行檔裡寫著一行 <code>/lib64/ld-linux-x86-64.so.2</code>，核心在 <code>execve</code> 時看到它，就<strong>先把動態載入器載進來、讓它先跑</strong>，由它去載入 <code>libc.so.6</code>、把 <code>puts</code> 的位址填好，最後才跳進你的程式。這跟腳本第一行的
+<code>#!/bin/sh</code> 是<strong>同一個概念</strong>：核心讀檔案開頭，決定真正要啟動的是誰。靜態連結的程式沒有這一行，核心就直接跑它。</strong></p>
+<hr />
+<h2 id="一它寫在執行檔的哪裡">一、它寫在執行檔的哪裡</h2>
+<p>ELF 執行檔的開頭有一張<strong>程式標頭表（program header table）</strong>，告訴核心「載入這個檔案時要做哪些事」。用 <code>readelf -l</code> 看（<code>-l</code> 是 program headers，完整選項見 <a href="readelf%E5%AE%8C%E6%95%B4%E9%81%B8%E9%A0%85%E5%8F%83%E8%80%83.html">readelf完整選項參考</a>）：</p>
+<pre><code>$ readelf -lW hello
+Elf file type is DYN (Position-Independent Executable file)
+...
+  Type           Offset   ...
+  PHDR           0x000040 ...
+  INTERP         0x000318 ...
+      [Requesting program interpreter: /lib64/ld-linux-x86-64.so.2]   ← 就是這一項
+  LOAD           0x000000 ...
+  LOAD           0x001000 ...
+  ...
+</code></pre>
+<p><code>INTERP</code> 這一項指向檔案裡一個叫 <code>.interp</code> 的區段，內容只是一串路徑字串：</p>
+<pre><code>$ readelf -p .interp hello
+String dump of section '.interp':
+  [     0]  /lib64/ld-linux-x86-64.so.2
+</code></pre>
+<p>第 1 課作業第 1 題解說裡，<code>.interp</code> 佔 28 bytes——就是這串路徑（27 個字元加上結尾的 <code>\0</code>）。</p>
+<p>靜態連結的版本<strong>沒有</strong> <code>INTERP</code> 這一項：</p>
+<pre><code>$ readelf -lW hello_static | grep -i interp
+（沒有輸出）
+</code></pre>
+<hr />
+<h2 id="二執行時發生什麼事">二、執行時發生什麼事</h2>
+<p><code>./hello</code> 按下 Enter 之後：</p>
+<pre><code>① shell 呼叫 execve(&quot;./hello&quot;)
+② 核心讀 hello 的程式標頭，看到 INTERP：/lib64/ld-linux-x86-64.so.2
+③ 核心把 hello「和」ld-linux-x86-64.so.2 都載入記憶體，
+   但先執行的是 ld-linux-x86-64.so.2，不是 hello
+④ ld-linux-x86-64.so.2（動態載入器）開始工作：
+     - 讀 hello 需要哪些函式庫 → libc.so.6
+     - 查 /etc/ld.so.cache 找到它在哪 → 打開、映射進記憶體
+     - 檢查版本需求（GLIBC_2.34 等）
+     - 把 puts 等符號的真實位址填好
+⑤ 動態載入器把控制權交給 hello 的啟動碼 → main → puts → write
+</code></pre>
+<p>這就是第 1 課 <code>strace ./hello</code> 看到的那一串：<code>execve</code> 之後的 <code>openat(&quot;/etc/ld.so.cache&quot;)</code>、
+<code>openat(&quot;libc.so.6&quot;)</code>、<code>mmap</code>，都是<strong>動態載入器在做事</strong>，還沒輪到你的程式。</p>
+<h3 id="跳進程式是什麼意思進入點entry-point">「跳進程式」是什麼意思：進入點（entry point）</h3>
+<blockquote>
+<p>2026-09-24 補教：複習時使用者問「跳進程式本身代表什麼？」——第 ⑤ 步之前只說了「交給」，沒說交到哪裡。</p>
+</blockquote>
+<p>CPU（Central Processing Unit，中央處理器）隨時都記著「下一條要執行的指令在哪個位址」。「跳進程式」就是載入器把這個位址改成<strong>你的程式的第一條指令</strong>，從那一刻起 CPU 執行的就是 <code>hello</code> 的程式碼，載入器的工作結束。這個「第一條指令的位址」寫在 ELF 檔頭裡，叫<strong>進入點（entry point）</strong>：</p>
+<pre><code>$ readelf -h hello | grep Entry
+  Entry point address:               0x1060
+
+$ readelf -sW hello | grep -E ' _start| main$|__libc_start_main'
+     1: 0000000000000000     0 FUNC    GLOBAL DEFAULT  UND __libc_start_main@GLIBC_2.34 (2)
+    29: 0000000000001060    38 FUNC    GLOBAL DEFAULT   16 _start
+    31: 0000000000001149    30 FUNC    GLOBAL DEFAULT   16 main
+</code></pre>
+<p>注意進入點 <code>0x1060</code> 是 <strong><code>_start</code></strong>，<strong>不是 <code>main</code></strong>（<code>main</code> 在 <code>0x1149</code>）。<code>_start</code> 是 <code>gcc</code> 連結時自動加進來的啟動碼，它做的事是呼叫 libc 的 <code>__libc_start_main</code>（表裡 <code>UND</code> 代表這個符號不在 <code>hello</code> 裡，要執行時由載入器接到 <code>libc.so.6</code>；就是<a href="hello.c%E6%80%8E%E9%BA%BC%E8%AE%8A%E6%88%90%E8%83%BD%E8%B7%91%E7%9A%84%E7%A8%8B%E5%BC%8F-%E7%B7%A8%E8%AD%AF%E7%9A%84%E5%9B%9B%E5%80%8B%E9%9A%8E%E6%AE%B5.html#%E8%87%AA%E6%88%91%E6%B8%AC%E9%A9%97%E7%AC%AC-5-%E9%A1%8C%E5%BB%B6%E4%BC%B8%E6%89%BE%E4%B8%8D%E5%88%B0%E7%89%88%E6%9C%AC%E7%AC%A6%E8%99%9F%E6%98%AF%E6%80%8E%E9%BA%BC%E5%9B%9E%E4%BA%8B">第 1 課第九節</a>〈自我測驗第 5 題延伸〉那個 <code>GLIBC_2.34</code>），再由 <code>__libc_start_main</code> 呼叫你的 <code>main</code>。所以完整的順序是：</p>
+<pre><code>核心 → 載入器（載入 libc、填位址）→ 跳到進入點 _start → __libc_start_main（在 libc 裡）→ main → puts
+</code></pre>
+<p>（這裡的 <code>0x1060</code> 是檔案裡的相對位址。本機的執行檔是 PIE，執行時整支程式會被放到一個隨機的基底位址，真正跳去的是「基底＋<code>0x1060</code>」，見 <a href="ELF%E6%98%AF%E4%BB%80%E9%BA%BC-%E5%8F%AF%E5%9F%B7%E8%A1%8C%E8%88%87%E5%8F%AF%E9%80%A3%E7%B5%90%E6%A0%BC%E5%BC%8F%E7%9A%84%E5%85%A9%E7%A8%AE%E8%A6%96%E8%A7%92.html">ELF 是什麼</a> 的 <code>Type: DYN</code>。）</p>
+<p>載入器自己也會告訴你它在什麼時候交出控制權。<code>LD_DEBUG=files</code> 的最後幾行（<code>LD_DEBUG</code> 的全部選項見
+<a href="hello.c%E6%80%8E%E9%BA%BC%E8%AE%8A%E6%88%90%E8%83%BD%E8%B7%91%E7%9A%84%E7%A8%8B%E5%BC%8F-%E7%B7%A8%E8%AD%AF%E7%9A%84%E5%9B%9B%E5%80%8B%E9%9A%8E%E6%AE%B5.html#%E5%8D%81%E4%B8%89%E5%80%8B%E5%90%8D%E5%AD%97%E5%BE%88%E5%83%8F%E7%9A%84%E6%AA%94%E6%A1%88ldld-linux-x86-64so2libcso6">第 1 課筆記第十節</a>）：</p>
+<pre><code>$ LD_DEBUG=files ./hello
+     55130:	calling init: /lib64/ld-linux-x86-64.so.2
+     55130:	calling init: /lib/x86_64-linux-gnu/libc.so.6
+     55130:	transferring control: ./hello        ← 就是這一步：跳到 hello 的進入點
+hello
+</code></pre>
+<p>釐清一個常見誤會：跳進去之後，程式的指令是 <strong>CPU 執行的</strong>，不是核心在執行。核心只在程式發出系統呼叫（例如 <code>puts</code> 最後呼叫的 <code>write</code>）時才介入。「跳」在指令層級長什麼樣子，第 4、5 課讀組合語言時會實際看到。
+<code>readelf</code> 的 <code>-h</code>、<code>-s</code> 等全部選項見 <a href="readelf%E5%AE%8C%E6%95%B4%E9%81%B8%E9%A0%85%E5%8F%83%E8%80%83.html">readelf完整選項參考</a>。</p>
+<h3 id="名字很多都是同一個東西">名字很多，都是同一個東西</h3>
+<table>
+<thead>
+<tr>
+<th>稱呼</th>
+<th>出處</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>program interpreter（程式直譯器）</td>
+<td>ELF 規格與 <code>readelf</code> 的用詞</td>
+</tr>
+<tr>
+<td>interpreter</td>
+<td><code>file</code> 的輸出</td>
+</tr>
+<tr>
+<td>dynamic linker／dynamic loader（動態連結器／動態載入器）</td>
+<td>一般文件；<code>gcc</code> 的選項叫 <code>--dynamic-linker</code></td>
+</tr>
+<tr>
+<td><code>ld.so</code></td>
+<td>手冊頁名稱（<code>man ld.so</code>）與它自己的 <code>--help</code></td>
+</tr>
+<tr>
+<td><code>ld-linux-x86-64.so.2</code></td>
+<td>本機實際的檔名</td>
+</tr>
+</tbody>
+</table>
+<p>注意跟<strong>連結器 <code>ld</code></strong> 區分：<code>ld</code> 在<strong>編譯時</strong>產生執行檔；<code>ld.so</code> 在<strong>執行時</strong>載入函式庫。名字像，工作完全不同。</p>
+<p>這裡的「interpreter」跟 Python「直譯器」不是同一個意思：它不逐行翻譯程式，只負責<strong>把程式準備好再交出去</strong>。</p>
+<hr />
+<h2 id="三它自己也是一支程式可以直接執行">三、它自己也是一支程式：可以直接執行</h2>
+<p><code>ld-linux-x86-64.so.2</code> 本身可以當命令用，它的 <code>--help</code> 第一段就說明了自己的角色：</p>
+<pre><code>$ /lib64/ld-linux-x86-64.so.2 --help
+Usage: /lib64/ld-linux-x86-64.so.2 [OPTION]... EXECUTABLE-FILE [ARGS-FOR-PROGRAM...]
+You have invoked 'ld.so', the program interpreter for dynamically-linked
+ELF programs.  Usually, the program interpreter is invoked automatically
+when a dynamically-linked executable is started.
+</code></pre>
+<p>所以可以手動做核心平常做的事：</p>
+<pre><code>$ /lib64/ld-linux-x86-64.so.2 ./hello
+hello, world
+</code></pre>
+<p><strong><code>ldd</code> 其實就是在叫它</strong>：本機的 <code>ldd</code> 是一支 bash 腳本（第一行 <code>#!/bin/bash</code>），裡面列出候選的載入器（<code>RTLDLIST=&quot;/lib/ld-linux.so.2 /lib64/ld-linux-x86-64.so.2 ...&quot;</code>），再用 <code>--list</code> 請它列出相依的函式庫：</p>
+<pre><code>$ /lib64/ld-linux-x86-64.so.2 --list ./hello
+	linux-vdso.so.1 (0x...)
+	libc.so.6 =&gt; /lib/x86_64-linux-gnu/libc.so.6 (0x...)
+	/lib64/ld-linux-x86-64.so.2 (0x...)
+</code></pre>
+<p>跟 <code>ldd ./hello</code> 的輸出一模一樣。</p>
+<p>它自己怎麼啟動？<code>file</code> 顯示它是 <code>static-pie linked</code>——<strong>它自己不需要 interpreter</strong>，否則就會無限循環（誰來載入「載入器」？）。</p>
+<h3 id="ldso-的全部選項依本機---helpglibc-239"><code>ld.so</code> 的全部選項（依本機 <code>--help</code>，glibc 2.39）</h3>
+<table>
+<thead>
+<tr>
+<th>選項</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--list</code></td>
+<td>列出所有相依的函式庫與解析結果（<code>ldd</code> 用的就是這個）</td>
+</tr>
+<tr>
+<td><code>--verify</code></td>
+<td>檢查給定的檔案是不是它能處理的動態連結物件</td>
+</tr>
+<tr>
+<td><code>--inhibit-cache</code></td>
+<td>不使用 <code>/etc/ld.so.cache</code></td>
+</tr>
+<tr>
+<td><code>--library-path PATH</code></td>
+<td>用 PATH 取代環境變數 <code>LD_LIBRARY_PATH</code> 的內容</td>
+</tr>
+<tr>
+<td><code>--glibc-hwcaps-prepend LIST</code></td>
+<td>搜尋 LIST 裡的 glibc-hwcaps 子目錄</td>
+</tr>
+<tr>
+<td><code>--glibc-hwcaps-mask LIST</code></td>
+<td>只搜尋 LIST 裡的內建子目錄</td>
+</tr>
+<tr>
+<td><code>--inhibit-rpath LIST</code></td>
+<td>對 LIST 裡的物件忽略 RUNPATH 與 RPATH 資訊</td>
+</tr>
+<tr>
+<td><code>--audit LIST</code></td>
+<td>以 LIST 裡的物件做為稽核器（auditor）</td>
+</tr>
+<tr>
+<td><code>--preload LIST</code></td>
+<td>預先載入 LIST 裡的物件</td>
+</tr>
+<tr>
+<td><code>--argv0 STRING</code></td>
+<td>執行前把 <code>argv[0]</code> 設成 STRING</td>
+</tr>
+<tr>
+<td><code>--list-tunables</code></td>
+<td>列出所有可調參數（tunables）與其最小、最大值</td>
+</tr>
+<tr>
+<td><code>--list-diagnostics</code></td>
+<td>列出診斷資訊</td>
+</tr>
+<tr>
+<td><code>--help</code></td>
+<td>顯示說明後結束</td>
+</tr>
+<tr>
+<td><code>--version</code></td>
+<td>顯示版本後結束</td>
+</tr>
+</tbody>
+</table>
+<p><code>--help</code> 最後還印出本機的函式庫搜尋路徑：先查 <code>/etc/ld.so.cache</code>，再依序找
+<code>/lib/x86_64-linux-gnu</code>、<code>/usr/lib/x86_64-linux-gnu</code>、<code>/lib</code>、<code>/usr/lib</code>。</p>
+<hr />
+<h2 id="四跟腳本的--是同一個機制">四、跟腳本的 <code>#!</code> 是同一個機制</h2>
+<p>腳本第一行的 <code>#!</code>（shebang）也是在告訴核心「請先啟動這個程式」。用一個故意選的直譯器看得最清楚：</p>
+<pre><code>$ cat catscript
+#!/bin/cat
+這一行會被 cat 印出來
+
+$ chmod +x catscript &amp;&amp; ./catscript
+#!/bin/cat
+這一行會被 cat 印出來
+</code></pre>
+<p>核心看到 <code>#!/bin/cat</code>，實際執行的是 <code>/bin/cat ./catscript</code>——<strong>把腳本的路徑當成參數交給直譯器</strong>（<code>#!</code> 後面寫的那支程式，這裡就是 <code>cat</code>），所以 <code>cat</code> 自己打開這個路徑，把整個檔案（連第一行）印出來。</p>
+<blockquote>
+<p>2026-09-27 使用者問：「這個參數不是交給 <code>cat</code> 了嗎？」——是的，<strong>直譯器就是 <code>cat</code></strong>。「直譯器」是一個<strong>角色</strong>，不是某一類程式：
+<code>#!</code> 後面寫哪支程式，那支程式就是這個腳本的直譯器，核心不管它懂不懂語法，只負責執行它並把腳本路徑當參數交過去。
+ELF 那邊的「interpreter」同理，指的是 <code>INTERP</code> 寫的那支 <code>ld-linux-x86-64.so.2</code>。</p>
+</blockquote>
+<p><code>#!/bin/sh</code> 也是一樣：真正跑起來的是 <code>/bin/sh ./腳本</code>。</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>腳本</th>
+<th>動態連結的 ELF</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>指定直譯器的地方</td>
+<td>第一行 <code>#!路徑</code></td>
+<td>程式標頭的 <code>INTERP</code>（<code>.interp</code> 區段）</td>
+</tr>
+<tr>
+<td>誰讀這個資訊</td>
+<td>核心（<code>execve</code> 時）</td>
+<td>核心（<code>execve</code> 時）</td>
+</tr>
+<tr>
+<td>實際先跑的程式</td>
+<td><code>/bin/sh</code>、<code>/bin/bash</code>…</td>
+<td><code>/lib64/ld-linux-x86-64.so.2</code></td>
+</tr>
+<tr>
+<td>直譯器拿到檔案之後</td>
+<td>逐行讀文字、執行命令</td>
+<td>載入函式庫、填好位址，再跳進程式本身</td>
+</tr>
+<tr>
+<td>沒有直譯器時</td>
+<td>沒寫 <code>#!</code> 的文字檔無法用 <code>./</code> 直接執行</td>
+<td>靜態連結：核心直接跑程式</td>
+</tr>
+</tbody>
+</table>
+<h3 id="交給直譯器的是路徑不是內容三個實驗">交給直譯器的是「路徑」，不是內容：三個實驗</h3>
+<blockquote>
+<p>2026-09-27 補教：「核心把腳本交給直譯器」這句話，交的<strong>形式</strong>是什麼，連續幾次複習都沒答出來。下面用實驗直接看。</p>
+</blockquote>
+<p><strong>實驗一：讓直譯器把自己拿到的參數印出來。</strong> <code>echo</code> 不讀任何檔案，只把自己拿到的參數印出來；拿它當直譯器，印出來的就是核心交給直譯器的東西。建檔與執行：</p>
+<pre><code>$ printf '#!/usr/bin/echo\n這一行 echo 不會讀\n' &gt; echoscript.sh
+$ chmod +x echoscript.sh
+$ ./echoscript.sh
+./echoscript.sh
+$ ./echoscript.sh aaa bbb
+./echoscript.sh aaa bbb
+</code></pre>
+<p>印出來的是 <code>./echoscript.sh</code>——<strong>你在命令列打的那個路徑</strong>；你在命令列多給的參數 <code>aaa bbb</code> 接在後面。第二行的內容完全沒出現。所以核心實際執行的命令列是：</p>
+<pre><code>/usr/bin/echo  ./echoscript.sh  aaa bbb
+└ #! 後面的路徑  └ 腳本路徑        └ 你原本給的參數
+</code></pre>
+<p><strong>實驗二：看是誰打開了腳本檔。</strong></p>
+<pre><code>$ printf '#!/usr/bin/cat\necho &quot;12345&quot;\n' &gt; catscript.sh
+$ chmod +x catscript.sh
+$ strace -e trace=execve,openat ./catscript.sh
+execve(&quot;./catscript.sh&quot;, [&quot;./catscript.sh&quot;], 0x7ffc023285f0 /* 94 vars */) = 0
+openat(AT_FDCWD, &quot;/etc/ld.so.cache&quot;, O_RDONLY|O_CLOEXEC) = 3              ← cat 自己的動態載入
+openat(AT_FDCWD, &quot;/lib/x86_64-linux-gnu/libc.so.6&quot;, O_RDONLY|O_CLOEXEC) = 3
+openat(AT_FDCWD, &quot;/usr/lib/locale/locale-archive&quot;, O_RDONLY|O_CLOEXEC) = 3
+openat(AT_FDCWD, &quot;./catscript.sh&quot;, O_RDONLY) = 3                            ← cat 自己打開腳本
+#!/usr/bin/cat
+echo &quot;12345&quot;
++++ exited with 0 +++
+</code></pre>
+<ul>
+<li>只有<strong>一個</strong> <code>execve</code>：<code>#!</code> 是核心在同一次 <code>execve</code> 裡處理掉的，不會多一次系統呼叫，所以用 <code>trace=execve</code> 看不到「第二次執行」。</li>
+<li><code>execve</code> 之後的 <code>openat</code> 全是 <code>cat</code> 這個行程做的，其中 <code>openat(..., &quot;./catscript.sh&quot;, ...)</code> 就是 <code>cat</code> 用拿到的路徑<strong>自己打開</strong>腳本。內容是 <code>cat</code> 讀出來的，不是核心交給它的。</li>
+</ul>
+<p><strong>實驗三：只給執行權限，不給讀取權限。</strong> 接著實驗二的 <code>catscript.sh</code>：</p>
+<pre><code>$ chmod 111 catscript.sh
+$ ls -l catscript.sh
+---x--x--x 1 set set 28 Sep 27 15:39 catscript.sh
+$ ./catscript.sh
+/usr/bin/cat: ./catscript.sh: Permission denied
+</code></pre>
+<p>錯誤訊息是 <strong><code>cat</code> 印的</strong>（開頭是 <code>/usr/bin/cat:</code>）。核心讀得到 <code>#!</code> 那一行（核心自己讀檔，不受這個權限位元限制），也成功啟動了 <code>cat</code>；但 <code>cat</code> 是普通行程，用你的身分去打開 <code>./catscript.sh</code>，沒有讀取權限就被擋下。<strong>如果核心交的是內容，<code>cat</code> 根本不必打開檔案，這個錯誤就不會發生。</strong></p>
+<p>對照：只有執行權限的 ELF 執行檔可以正常跑——程式本身是<strong>核心</strong>直接映射進記憶體的，不需要哪個使用者行程去打開它：</p>
+<pre><code>$ cp /usr/bin/true mytrue
+$ chmod 111 mytrue
+$ ./mytrue; echo &quot;exit=$?&quot;
+exit=0
+</code></pre>
+<p>所以<strong>腳本要同時有 <code>r</code> 和 <code>x</code> 才跑得起來</strong>：<code>x</code> 給核心看（允許執行），<code>r</code> 給直譯器用（它要自己打開、讀取腳本）。</p>
+<hr />
+<h2 id="五直譯器不存在時明明有檔案卻說找不到">五、直譯器不存在時：明明有檔案，卻說找不到</h2>
+<p>故意把 interpreter 路徑改成不存在的檔案（<code>-Wl,</code> 把後面的選項轉交給連結器 <code>ld</code>，
+<code>--dynamic-linker</code> 就是設定 <code>INTERP</code> 的選項）：</p>
+<pre><code>$ gcc hello.c -o hello_badinterp -Wl,--dynamic-linker=/lib64/nope.so.2
+$ ls -l hello_badinterp
+-rwxrwxr-x 1 set set 15960 Sep 23 00:32 hello_badinterp        ← 檔案明明在，也有 x
+$ ./hello_badinterp
+zsh: no such file or directory: ./hello_badinterp               ← zsh 的訊息
+$ dash -c ./hello_badinterp
+dash: 1: ./hello_badinterp: not found                           ← dash 的訊息
+</code></pre>
+<p><strong>「找不到」的不是你的程式，是它指定的 interpreter。</strong> 核心回報的錯誤碼是「檔案不存在」，shell 只知道「執行 <code>./hello_badinterp</code> 失敗、原因是檔案不存在」，就把它當成你的程式不存在。</p>
+<p>這跟 <a href="../linux/root%E5%9F%B7%E8%A1%8C%E8%85%B3%E6%9C%AC%E4%B9%9FPermission-denied-%E7%BC%BA%E5%9F%B7%E8%A1%8C%E4%BD%8D%E5%85%83.html">root執行腳本也Permission-denied</a> 第六節的「腳本 <code>#!/bin/bash</code> 但機器上沒有 bash」、「CRLF 讓直譯器變成 <code>/bin/sh\r</code>」是<strong>同一個錯誤、同一個原因</strong>。</p>
+<p>實務上會遇到的情況：</p>
+<ul>
+<li>把在 Ubuntu（glibc）編好的程式複製到 <strong>Alpine 或 OpenWrt</strong>（musl，見
+<a href="../linux/GNU%E6%98%AF%E4%BB%80%E9%BA%BC-Linux%E6%A0%B8%E5%BF%83%E8%88%87GNU%E5%B7%A5%E5%85%B7%E7%9A%84%E5%88%86%E5%B7%A5.html">GNU是什麼</a>）：那邊沒有 <code>/lib64/ld-linux-x86-64.so.2</code>，就會出現這種「檔案明明在卻 not found」。</li>
+<li>32 位元的程式放到沒裝 32 位元函式庫的 64 位元系統：它的 interpreter 是 <code>/lib/ld-linux.so.2</code>，不存在。</li>
+</ul>
+<p>排查方法：<code>file 程式</code> 或 <code>readelf -l 程式 | grep interpreter</code> 看它要的是哪一個，再 <code>ls -l</code> 那個路徑確認存不存在。</p>
+<hr />
+<h2 id="自我測驗">自我測驗</h2>
+<blockquote>
+<p>參考答案寫在每題下面（2026-10-06 使用者指定）。作答時先遮住答案、自己想過再對照。</p>
+</blockquote>
+<p>本篇的題目都<strong>不需要組合語言</strong>，答案都在上面的文字裡。</p>
+<ol>
+<li>動態連結的執行檔裡，interpreter 的路徑寫在哪裡？<code>execve</code> 之後，核心先執行的是你的程式還是它？為什麼要這樣安排？<details class="answer"><summary>參考答案</summary>
+<p>【<a href="#%E4%B8%80%E5%AE%83%E5%AF%AB%E5%9C%A8%E5%9F%B7%E8%A1%8C%E6%AA%94%E7%9A%84%E5%93%AA%E8%A3%A1">第一節</a>、<a href="#%E4%BA%8C%E5%9F%B7%E8%A1%8C%E6%99%82%E7%99%BC%E7%94%9F%E4%BB%80%E9%BA%BC%E4%BA%8B">第二節</a>】路徑寫在<strong>程式標頭表</strong>的 <code>INTERP</code> 項（指向 <code>.interp</code> 區段，內容是 <code>/lib64/ld-linux-x86-64.so.2</code>；<code>readelf -l</code> 顯示 <code>Requesting program interpreter</code>）。<code>execve</code> 時核心把程式和載入器都映射進記憶體，<strong>先執行載入器</strong>：載入器依 <code>NEEDED</code> 找到並映射 <code>libc.so.6</code>、檢查版本、填好 <code>puts</code> 等符號的位址，最後跳到程式的進入點。這樣安排是因為程式一開始就要呼叫函式庫裡的函式，函式庫必須在程式的第一條指令之前就接好。</p>
+</details>
+</li>
+<li><code>ld</code> 和 <code>ld.so</code>（<code>ld-linux-x86-64.so.2</code>）各在什麼時間點、做什麼事？<details class="answer"><summary>參考答案</summary>
+<p>【<a href="#%E4%BA%8C%E5%9F%B7%E8%A1%8C%E6%99%82%E7%99%BC%E7%94%9F%E4%BB%80%E9%BA%BC%E4%BA%8B">第二節</a>〈「跳進程式」是什麼意思：進入點（entry point）〉、<a href="hello.c%E6%80%8E%E9%BA%BC%E8%AE%8A%E6%88%90%E8%83%BD%E8%B7%91%E7%9A%84%E7%A8%8B%E5%BC%8F-%E7%B7%A8%E8%AD%AF%E7%9A%84%E5%9B%9B%E5%80%8B%E9%9A%8E%E6%AE%B5.html#%E4%BA%94%E9%80%A3%E7%B5%90%E6%8A%8A%E6%B4%9E%E6%8E%A5%E4%B8%8A%E4%BD%86-puts-%E9%82%84%E6%98%AF%E6%B2%92%E6%8E%A5%E5%AE%8C">第 1 課第五節</a>】（2026-10-10 改寫成核心關鍵格式）</p>
+<p>核心關鍵：</p>
+<ol>
+<li><code>ld</code>：<strong>連結時</strong>（<code>gcc</code> 的最後一步，只做一次）合併各 <code>.o</code> 的區段、決定每個符號的位址、把 <code>call</code> 的洞填上。</li>
+<li>位址在共享函式庫裡的符號（例如 <code>puts</code>），<code>ld</code> 填不了真實位址，只寫需求單：<code>NEEDED libc.so.6</code>、<code>INTERP</code> 路徑。連結完 <code>ld</code> 就結束，執行時不會出現。</li>
+<li><code>ld.so</code>：<strong>執行時</strong>（每次執行都做）由核心先啟動，依 <code>NEEDED</code> 找到函式庫（含間接依賴）映射進記憶體。</li>
+<li><code>ld.so</code> 把 <code>puts</code> 等符號的真實位址填進 <code>.got</code>（接線），最後跳到程式的進入點 <code>_start</code>（不是 <code>main</code>）。</li>
+</ol>
+<p>詳細說明：<code>ld</code> 也會產生程式標頭表，把同權限的區段打包成載入段；<code>ld.so</code> 載入時會檢查函式庫版本（<code>GLIBC_2.34</code> 這種需求）。「填入程式碼」的誤會：<code>ld.so</code> 不搬程式碼，函式庫的程式碼映射進記憶體就在那裡了；它填的是「去哪裡找那段程式碼」的位址。</p>
+</details>
+</li>
+<li>腳本的 <code>#!/bin/sh</code> 和 ELF 的 interpreter，哪裡相同、哪裡不同？用 <code>#!/bin/cat</code> 的實驗說明「核心把什麼交給直譯器」。<details class="answer"><summary>參考答案</summary>
+<p>【<a href="#%E5%9B%9B%E8%B7%9F%E8%85%B3%E6%9C%AC%E7%9A%84--%E6%98%AF%E5%90%8C%E4%B8%80%E5%80%8B%E6%A9%9F%E5%88%B6">第四節</a>、〈交給直譯器的是「路徑」，不是內容：三個實驗〉】（2026-10-10 改寫成核心關鍵格式）</p>
+<p>核心關鍵：</p>
+<ol>
+<li>相同：核心在 <code>execve</code> 時讀到「請先執行這支程式」，先啟動直譯器，而不是檔案本身。</li>
+<li>不同：寫的地方（文字檔第一行的 <code>#!</code> vs 程式標頭的 <code>INTERP</code>）；直譯器拿到檔案後做的事（<code>sh</code> 逐行讀文字、執行命令 vs <code>ld.so</code> 載入函式庫、接線後跳進程式本身，之後由 CPU 執行程式的指令）。</li>
+<li>核心交給直譯器的是<strong>腳本的路徑（當作命令列參數）</strong>：實際執行的是 <code>/bin/cat ./catscript</code>，<code>cat</code> 用這個路徑自己打開檔案，才把整個檔案（含第一行）印出來。</li>
+</ol>
+<p>詳細說明：兩個實驗可以證明交的是路徑、不是內容：<code>#!/usr/bin/echo</code> 的腳本印出的是 <code>./echoscript.sh</code> 這個路徑（<code>echo</code> 只印參數，不讀檔）；把腳本改成 <code>chmod 111</code>（只能執行、不能讀），錯誤訊息是 <code>/usr/bin/cat: ./catscript.sh: Permission denied</code>——<code>cat</code> 自己開檔被擋。如果核心交的是內容，<code>cat</code> 根本不必開檔，這個錯誤就不會發生。</p>
+</details>
+</li>
+<li>為什麼靜態連結的程式沒有 interpreter 也能跑？<code>ld-linux-x86-64.so.2</code> 自己又為什麼不需要 interpreter？<details class="answer"><summary>參考答案</summary>
+<p>【<a href="#%E4%B8%89%E5%AE%83%E8%87%AA%E5%B7%B1%E4%B9%9F%E6%98%AF%E4%B8%80%E6%94%AF%E7%A8%8B%E5%BC%8F%E5%8F%AF%E4%BB%A5%E7%9B%B4%E6%8E%A5%E5%9F%B7%E8%A1%8C">第三節</a>】（2026-10-09 改寫成核心關鍵格式）</p>
+<p>核心關鍵：</p>
+<ol>
+<li>靜態連結時，<code>ld</code> 已經把需要的函式庫程式碼複製進執行檔，執行時沒有東西要載入，kernel 直接從程式的進入點開始執行。</li>
+<li><code>ld-linux-x86-64.so.2</code> 自己是靜態的（<code>file</code> 顯示 <code>static-pie linked</code>），不需要別人載入；它要是也需要 interpreter，就會變成「誰來載入載入器」的無限循環。</li>
+</ol>
+</details>
+</li>
+<li>情境題：你把 Ubuntu 上編好的程式複製到一台 Alpine Linux，<code>ls -l</code> 看得到檔案、也有 x 權限，執行卻說 <code>not found</code>。最可能的原因是什麼？你會用哪兩個步驟確認？用第 1 課學過的哪一種編譯方式可以避開這個問題？<details class="answer"><summary>參考答案</summary>
+<p>【<a href="#%E4%BA%94%E7%9B%B4%E8%AD%AF%E5%99%A8%E4%B8%8D%E5%AD%98%E5%9C%A8%E6%99%82%E6%98%8E%E6%98%8E%E6%9C%89%E6%AA%94%E6%A1%88%E5%8D%BB%E8%AA%AA%E6%89%BE%E4%B8%8D%E5%88%B0">第五節</a>】程式在 Ubuntu（glibc）上編譯，interpreter 是 <code>/lib64/ld-linux-x86-64.so.2</code>；Alpine 用 musl，<strong>沒有這個檔案</strong>（它的載入器是 <code>ld-musl-*</code>）。核心找不到 interpreter，回報「檔案不存在」（<code>ENOENT</code>），shell 把它說成你的程式 <code>not found</code>。確認：① <code>readelf -l 程式 | grep interpreter</code>（或 <code>file 程式</code>）看它要求哪個 interpreter；② 在 Alpine 上 <code>ls -l</code> 那個路徑，確認不存在。避開：用 <code>-static</code> 靜態連結，沒有 interpreter、也不依賴外部的 libc。</p>
+</details>
+</li>
+<li>情境題：一支腳本權限是 <code>---x--x--x</code>（只有執行權限），第一行是 <code>#!/bin/sh</code>，執行時出現 <code>/bin/sh: ./x.sh: Permission denied</code>。這個錯誤是誰印的？為什麼核心讀得到 <code>#!</code> 那一行，直譯器卻讀不到腳本？同樣只有執行權限的 ELF 執行檔為什麼就能跑？<details class="answer"><summary>參考答案</summary>
+<p>【<a href="#%E5%9B%9B%E8%B7%9F%E8%85%B3%E6%9C%AC%E7%9A%84--%E6%98%AF%E5%90%8C%E4%B8%80%E5%80%8B%E6%A9%9F%E5%88%B6">第四節</a>〈交給直譯器的是「路徑」，不是內容：三個實驗〉的實驗三】（2026-10-16 改寫成核心關鍵格式）</p>
+<p>核心關鍵：</p>
+<ol>
+<li>錯誤是 <strong><code>/bin/sh</code></strong> 印的（訊息開頭就是它的名字），不是核心印的。</li>
+<li>核心在 <code>execve</code> 裡自己讀 <code>#!</code> 那一行，只檢查 <code>x</code>、不受 <code>r</code> 限制；核心交給 <code>sh</code> 的是<strong>腳本路徑</strong>，<code>sh</code> 是以你的身分執行的普通行程，要自己 <code>open</code> 腳本，沒有 <code>r</code> 就被擋下。</li>
+<li>只有 <code>x</code> 的 ELF 能跑，是因為程式檔由<strong>核心直接映射進記憶體</strong>，不需要任何使用者行程打開它。</li>
+</ol>
+<p>詳細說明：所以腳本要 <code>r</code>＋<code>x</code>，ELF 只要 <code>x</code>。實驗三用 <code>#!/bin/cat</code> 做同一件事：<code>chmod 111 catscript.sh</code> 之後執行，錯誤開頭是 <code>/usr/bin/cat:</code>；<code>cp /usr/bin/true mytrue; chmod 111 mytrue</code> 則可以正常跑。靜態連結的 ELF 沒有 interpreter，一樣只要 <code>x</code>。</p>
+</details>
+</li>
+</ol>
+
+</main>
+</div>
+</body>
+</html>

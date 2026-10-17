@@ -1,0 +1,763 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>netstat 怎麼用？—— 讀懂每一欄，以及該改用 ss 的理由</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/app.js"></script>
+</head>
+<body>
+<button class="menu-btn" onclick="toggleMenu()">☰ 目錄</button>
+<div class="layout">
+<nav class="side">
+<div class="crumbs"><a href="../index.html">🏠 首頁</a> / <a href="README.html">linux</a></div>
+<div class="tools"><button onclick="toggleTheme()">🌓 主題</button></div>
+<ul>
+<li class="l2"><a href="#%E7%9B%AE%E9%8C%84">目錄</a></li>
+<li class="l2"><a href="#%E4%B8%80%E5%85%88%E8%AC%9B%E5%AE%9A%E4%BD%8Dnetstat-%E5%B7%B2%E7%B6%93%E6%98%AF%E8%88%8A%E5%B7%A5%E5%85%B7">一、先講定位：netstat 已經是舊工具</a></li>
+<li class="l2"><a href="#%E4%BA%8C%E5%9B%9B%E5%80%8B%E6%9C%80%E5%B8%B8%E7%94%A8%E7%9A%84%E4%BB%BB%E5%8B%99">二、四個最常用的任務</a></li>
+<li class="l3"><a href="#%E5%9F%A0%E8%99%9F%E6%B2%92%E8%A2%AB%E6%8F%9B%E6%88%90%E5%90%8D%E5%AD%97%E5%9B%A0%E7%82%BA-etcservices-%E6%9F%A5%E4%B8%8D%E5%88%B0%E5%AE%83">埠號沒被換成名字？因為 /etc/services 查不到它</a></li>
+<li class="l2"><a href="#%E4%B8%89%E8%AE%80%E6%87%82%E8%BC%B8%E5%87%BA%E7%9A%84%E6%AF%8F%E4%B8%80%E6%AC%84">三、讀懂輸出的每一欄</a></li>
+<li class="l3"><a href="#recv-qsend-q-%E5%9C%A8%E5%85%A9%E7%A8%AE%E7%8B%80%E6%85%8B%E4%B8%8B%E6%84%8F%E7%BE%A9%E5%AE%8C%E5%85%A8%E4%B8%8D%E5%90%8C">Recv-Q／Send-Q 在兩種狀態下意義完全不同</a></li>
+<li class="l2"><a href="#%E5%9B%9Blocal-address-%E6%B1%BA%E5%AE%9A%E8%AA%B0%E9%80%A3%E5%BE%97%E5%88%B0">四、Local Address 決定誰連得到</a></li>
+<li class="l2"><a href="#%E4%BA%94tcp-%E7%8B%80%E6%85%8B%E5%93%AA%E4%BA%9B%E6%AD%A3%E5%B8%B8%E5%93%AA%E4%BA%9B%E6%98%AF%E8%AD%A6%E8%A8%8A">五、TCP 狀態：哪些正常、哪些是警訊</a></li>
+<li class="l2"><a href="#%E5%85%ADnetstat--ss-%E5%B0%8D%E7%85%A7">六、netstat → ss 對照</a></li>
+<li class="l2"><a href="#%E4%B8%83%E5%AF%A6%E6%88%B0%E9%85%8D%E6%96%B9">七、實戰配方</a></li>
+<li class="l2"><a href="#%E5%85%AB%E4%BA%94%E5%80%8B%E9%99%B7%E9%98%B1">八、五個陷阱</a></li>
+<li class="l2"><a href="#%E8%87%AA%E6%88%91%E6%B8%AC%E9%A9%97">自我測驗</a></li>
+</ul>
+</nav>
+<main>
+<h1 id="netstat-怎麼用-讀懂每一欄以及該改用-ss-的理由">netstat 怎麼用？—— 讀懂每一欄，以及該改用 ss 的理由</h1>
+<blockquote>
+<p>日期：2026-09-20<br />
+情境：想完整搞懂 netstat 的用法，而不只是背 <code>netstat -tulnp</code><br />
+適用範圍：實測 Ubuntu 24.04（net-tools 2.10、iproute2 的 ss）與 OpenWrt 24.10（BusyBox 1.36 的 netstat）<br />
+相關：<a href="%E6%9F%A5%E8%A9%A2%E8%BD%89%E7%99%BC%E8%A1%A8%E8%88%87%E8%B7%AF%E7%94%B1%E8%A1%A8.html">查詢轉發表與路由表</a>、
+<a href="clash-verge%E6%80%8E%E9%BA%BC%E7%94%A8-%E6%B5%81%E9%87%8F%E8%A6%81%E5%85%88%E9%80%B2%E5%BE%97%E5%8E%BB%E6%A0%B8%E5%BF%83.html">clash-verge怎麼用-流量要先進得去核心</a>、
+<a href="%E6%8E%92%E6%9F%A5%E6%96%B9%E6%B3%95%E8%AB%96.html">排查方法論</a></p>
+</blockquote>
+<p><strong>一句話結論：netstat 回答的永遠是同一個問題——「這台機器上有哪些 socket、各自是什麼狀態」。把 <code>Local Address</code>（綁在哪，決定誰連得到）、<code>State</code>（連線走到哪一步）、<code>Recv-Q/Send-Q</code>
+（有沒有積壓）這三欄讀懂，八成的網路排查就有方向了。但它屬於已停止維護的 net-tools，新系統該用 <code>ss</code>——只是 netstat 在 BusyBox、舊系統、容器裡到處都有，所以仍要看得懂。</strong></p>
+<hr />
+<h2 id="目錄">目錄</h2>
+<ul>
+<li><a href="#%E4%B8%80%E5%85%88%E8%AC%9B%E5%AE%9A%E4%BD%8Dnetstat-%E5%B7%B2%E7%B6%93%E6%98%AF%E8%88%8A%E5%B7%A5%E5%85%B7">一、先講定位：netstat 已經是舊工具</a></li>
+<li><a href="#%E4%BA%8C%E5%9B%9B%E5%80%8B%E6%9C%80%E5%B8%B8%E7%94%A8%E7%9A%84%E4%BB%BB%E5%8B%99">二、四個最常用的任務</a></li>
+<li><a href="#%E4%B8%89%E8%AE%80%E6%87%82%E8%BC%B8%E5%87%BA%E7%9A%84%E6%AF%8F%E4%B8%80%E6%AC%84">三、讀懂輸出的每一欄</a></li>
+<li><a href="#%E5%9B%9Blocal-address-%E6%B1%BA%E5%AE%9A%E8%AA%B0%E9%80%A3%E5%BE%97%E5%88%B0">四、<code>Local Address</code> 決定誰連得到</a></li>
+<li><a href="#%E4%BA%94tcp-%E7%8B%80%E6%85%8B%E5%93%AA%E4%BA%9B%E6%AD%A3%E5%B8%B8%E5%93%AA%E4%BA%9B%E6%98%AF%E8%AD%A6%E8%A8%8A">五、TCP 狀態：哪些正常、哪些是警訊</a></li>
+<li><a href="#%E5%85%ADnetstat--ss-%E5%B0%8D%E7%85%A7">六、netstat → ss 對照</a></li>
+<li><a href="#%E4%B8%83%E5%AF%A6%E6%88%B0%E9%85%8D%E6%96%B9">七、實戰配方</a></li>
+<li><a href="#%E5%85%AB%E4%BA%94%E5%80%8B%E9%99%B7%E9%98%B1">八、五個陷阱</a></li>
+<li><a href="#%E8%87%AA%E6%88%91%E6%B8%AC%E9%A9%97">自我測驗</a></li>
+</ul>
+<hr />
+<h2 id="一先講定位netstat-已經是舊工具">一、先講定位：netstat 已經是舊工具</h2>
+<p>netstat 屬於 <strong>net-tools</strong> 這套工具集（還包括 <code>ifconfig</code>、<code>route</code>、<code>arp</code>），<strong>已經停止維護</strong>。取代它的是 iproute2 的 <code>ss</code>（socket statistics）與 <code>ip</code>。</p>
+<pre><code class="language-bash"><span class="c1"># 本機實測</span>
+$<span class="w"> </span><span class="nb">command</span><span class="w"> </span>-v<span class="w"> </span>netstat<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>dpkg<span class="w"> </span>-l<span class="w"> </span>net-tools<span class="w"> </span><span class="p">|</span><span class="w"> </span>tail<span class="w"> </span>-1
+/usr/bin/netstat
+ii<span class="w">  </span>net-tools<span class="w">  </span><span class="m">2</span>.10-0.1ubuntu4.4<span class="w">          </span><span class="c1"># ← 有裝，但 Ubuntu 24.04 預設不裝</span>
+
+$<span class="w"> </span><span class="nb">command</span><span class="w"> </span>-v<span class="w"> </span>ss
+/usr/bin/ss<span class="w">                               </span><span class="c1"># ← 預設就有</span>
+
+<span class="c1"># 路由器上</span>
+$<span class="w"> </span>ls<span class="w"> </span>-l<span class="w"> </span><span class="k">$(</span>which<span class="w"> </span>netstat<span class="k">)</span>
+/bin/netstat<span class="w"> </span>-&gt;<span class="w"> </span>busybox<span class="w">                   </span><span class="c1"># ← BusyBox 的精簡版，旗標比較少</span>
+</code></pre>
+<blockquote>
+<p>順帶一個小觀察：netstat 在 <code>/usr/bin</code> 而不是 <code>/usr/sbin</code>——因為它只是<strong>讀取</strong>資訊，一般使用者執行有意義（見 <a href="bin%E8%88%87sbin%E7%9A%84%E5%B7%AE%E5%88%A5-%E4%BB%A5%E5%8F%8A%E6%80%8E%E9%BA%BC%E6%AD%A3%E7%A2%BA%E6%89%BE%E5%88%B0%E5%9F%B7%E8%A1%8C%E6%AA%94.html">bin與sbin的差別</a>）。</p>
+</blockquote>
+<p><strong>為什麼 ss 更快</strong>：netstat 是逐行讀 <code>/proc/net/tcp</code> 這類文字檔再解析，socket 一多就慢；
+ss 走 netlink 的 <code>sock_diag</code> 介面，直接跟核心要結構化資料，而且能做核心端過濾。</p>
+<p><strong>但還是要會 netstat</strong>：BusyBox、Alpine 容器、老舊伺服器、別人寫好的腳本裡到處都是它。</p>
+<hr />
+<h2 id="二四個最常用的任務">二、四個最常用的任務</h2>
+<pre><code class="language-bash">netstat<span class="w"> </span>-tulnp<span class="w">        </span><span class="c1"># 1. 有哪些服務在監聽（最常用）</span>
+netstat<span class="w"> </span>-tnp<span class="w">          </span><span class="c1"># 2. 目前有哪些連線</span>
+netstat<span class="w"> </span>-rn<span class="w">           </span><span class="c1"># 3. 路由表（等同 route -n、ip route）</span>
+netstat<span class="w"> </span>-s<span class="w">            </span><span class="c1"># 4. 協定層的累計統計</span>
+</code></pre>
+<p>旗標逐一拆解：</p>
+<p><strong>netstat 的完整選項</strong>（依本機 <code>netstat --help</code>，net-tools 2.10）：</p>
+<p><strong>選什麼來看（模式，互斥）</strong></p>
+<table>
+<thead>
+<tr>
+<th>選項</th>
+<th>長選項</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>（不給）</td>
+<td>—</td>
+<td>顯示<strong>連線</strong>（預設只顯示已連線的）</td>
+</tr>
+<tr>
+<td><code>-r</code></td>
+<td><code>--route</code></td>
+<td>路由表</td>
+</tr>
+<tr>
+<td><code>-i</code></td>
+<td><code>--interfaces</code></td>
+<td>網卡統計表</td>
+</tr>
+<tr>
+<td><code>-g</code></td>
+<td><code>--groups</code></td>
+<td>多播群組成員</td>
+</tr>
+<tr>
+<td><code>-s</code></td>
+<td><code>--statistics</code></td>
+<td>協定層累計統計（類似 SNMP）</td>
+</tr>
+<tr>
+<td><code>-M</code></td>
+<td><code>--masquerade</code></td>
+<td>偽裝（NAT）連線</td>
+</tr>
+</tbody>
+</table>
+<p><strong>選哪種 socket</strong></p>
+<table>
+<thead>
+<tr>
+<th>選項</th>
+<th>長選項</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-t</code></td>
+<td><code>--tcp</code></td>
+<td>TCP</td>
+</tr>
+<tr>
+<td><code>-u</code></td>
+<td><code>--udp</code></td>
+<td>UDP</td>
+</tr>
+<tr>
+<td><code>-U</code></td>
+<td><code>--udplite</code></td>
+<td>UDP-Lite</td>
+</tr>
+<tr>
+<td><code>-S</code></td>
+<td><code>--sctp</code></td>
+<td>SCTP</td>
+</tr>
+<tr>
+<td><code>-w</code></td>
+<td><code>--raw</code></td>
+<td>RAW socket</td>
+</tr>
+<tr>
+<td><code>-x</code></td>
+<td><code>--unix</code></td>
+<td>Unix domain socket（本機行程間通訊，不走網路）</td>
+</tr>
+<tr>
+<td>—</td>
+<td><code>--ax25</code> / <code>--ipx</code> / <code>--netrom</code></td>
+<td>舊式網路協定</td>
+</tr>
+<tr>
+<td><code>-4</code> / <code>-6</code></td>
+<td>—</td>
+<td>只看 IPv4／IPv6</td>
+</tr>
+<tr>
+<td><code>-A &lt;af&gt;</code></td>
+<td>—</td>
+<td>指定位址家族</td>
+</tr>
+</tbody>
+</table>
+<p><strong>過濾與顯示</strong></p>
+<table>
+<thead>
+<tr>
+<th>選項</th>
+<th>長選項</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-a</code></td>
+<td><code>--all</code></td>
+<td><strong>全部</strong>（監聽 + 已連線）</td>
+</tr>
+<tr>
+<td><code>-l</code></td>
+<td><code>--listening</code></td>
+<td><strong>只看 LISTEN</strong></td>
+</tr>
+<tr>
+<td><code>-n</code></td>
+<td><code>--numeric</code></td>
+<td><strong>數字形式，不做名稱解析</strong> ← 見下</td>
+</tr>
+<tr>
+<td>—</td>
+<td><code>--numeric-hosts</code></td>
+<td>只有主機名不解析</td>
+</tr>
+<tr>
+<td>—</td>
+<td><code>--numeric-ports</code></td>
+<td>只有埠號不解析</td>
+</tr>
+<tr>
+<td>—</td>
+<td><code>--numeric-users</code></td>
+<td>只有使用者名不解析</td>
+</tr>
+<tr>
+<td><code>-N</code></td>
+<td><code>--symbolic</code></td>
+<td>解析硬體（介面）名稱</td>
+</tr>
+<tr>
+<td><code>-e</code></td>
+<td><code>--extend</code></td>
+<td>顯示更多欄位（加兩次 <code>-ee</code> 更多）</td>
+</tr>
+<tr>
+<td><code>-p</code></td>
+<td><code>--programs</code></td>
+<td><strong>顯示 PID／程式名</strong>（要 root 才看得到別人的）</td>
+</tr>
+<tr>
+<td><code>-o</code></td>
+<td><code>--timers</code></td>
+<td>顯示計時器資訊</td>
+</tr>
+<tr>
+<td><code>-c</code></td>
+<td><code>--continuous</code></td>
+<td><strong>持續每秒更新</strong></td>
+</tr>
+<tr>
+<td><code>-v</code></td>
+<td><code>--verbose</code></td>
+<td>囉嗦模式</td>
+</tr>
+<tr>
+<td><code>-W</code></td>
+<td><code>--wide</code></td>
+<td><strong>不截斷 IP 位址</strong>（IPv6 必備）</td>
+</tr>
+<tr>
+<td><code>-Z</code></td>
+<td><code>--context</code></td>
+<td>顯示 SELinux 安全脈絡</td>
+</tr>
+<tr>
+<td><code>-F</code></td>
+<td><code>--fib</code></td>
+<td>顯示轉發表（預設）</td>
+</tr>
+<tr>
+<td><code>-C</code></td>
+<td><code>--cache</code></td>
+<td>顯示路由快取而非 FIB</td>
+</tr>
+<tr>
+<td><code>-V</code> / <code>-h</code></td>
+<td><code>--version</code> / <code>--help</code></td>
+<td>版本／說明</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>BusyBox 版（你的 OpenWrt）只有 <code>[-ral] [-tuwx] [-enWp]</code></strong>，沒有長選項、也沒有
+<code>-s</code>／<code>-g</code>／<code>-M</code>／<code>-Z</code> 等。跨平台腳本只用最基本的旗標。</p>
+</blockquote>
+<p>記法：<strong><code>tulnp</code> = TCP、UDP、Listening、Numeric、Process</strong>。</p>
+<p><strong><code>-n</code> 為什麼一定要加</strong>：不加 <code>-n</code> 時 netstat 會做<strong>兩種完全不同的名稱查詢</strong>，而代價天差地遠：</p>
+<table>
+<thead>
+<tr>
+<th>查什麼</th>
+<th>查哪裡</th>
+<th>慢不慢</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>埠號 → 服務名（<code>:80</code> → <code>http</code>）</td>
+<td><code>/etc/services</code>，<strong>純本機檔案</strong></td>
+<td>很快</td>
+</tr>
+<tr>
+<td>IP → 主機名（<code>192.168.1.1</code> → <code>OpenWrt.lan</code>）</td>
+<td>NSS → <code>/etc/hosts</code> → <strong>DNS 反查</strong></td>
+<td><strong>可能卡到逾時</strong></td>
+</tr>
+</tbody>
+</table>
+<p>本機實測，同一批連線：</p>
+<pre><code>netstat -tan （有 -n）：     15 ms
+netstat -ta  （沒 -n）：  30082 ms      ← 兩千倍
+ss -tan      （對照）：       7 ms
+</code></pre>
+<p>那 30 秒全花在一個外部 IP 的反查上——<code>resolvectl query 208.103.161.2</code> 也一樣等到逾時，因為它根本沒有 PTR 記錄。<strong>「netstat 卡住不動」就是這樣來的。</strong></p>
+<h3 id="埠號沒被換成名字因為-etcservices-查不到它">埠號沒被換成名字？因為 <code>/etc/services</code> 查不到它</h3>
+<p>把 <code>-n</code> 拿掉卻覺得「沒變」，多半是因為你看的埠不在那份清單裡。本機 <code>/etc/services</code>
+（由 <code>netbase</code> 套件提供）只有 <strong>318 個服務名</strong>，而 IANA 正式清單有數千筆：</p>
+<pre><code>53   → domain        2049 → nfs          6379 → redis
+80   → http          111  → sunrpc       5432 → postgresql
+8080 → http-alt
+
+2080 / 7897 / 39685 / 52221 / 60339  → 查無，原樣保留數字
+3000 / 6443 / 9090 / 27017           → 也查無
+</code></pre>
+<p>所以像 clash 的 <code>7897</code> 這種埠，不管加不加 <code>-n</code> 都是數字；但同一行的 IP 仍然會被反查成
+<code>localhost</code>——<strong>「沒變」往往只是剛好看了不會變的那一欄。</strong></p>
+<blockquote>
+<p>另一個容易誤會的例子：<code>127.0.0.54</code> 會顯示成 <code>_localdnsproxy</code>。它不在 <code>/etc/hosts</code> 裡，是 systemd-resolved 替 <code>127.0.0.53</code>／<code>127.0.0.54</code> <strong>合成的 PTR 記錄</strong>
+（實測 <code>resolvectl query 127.0.0.54</code> 1.3 ms 就回答了）。</p>
+</blockquote>
+<p>記法：<strong><code>tulnp</code> = TCP、UDP、Listening、Numeric、Process</strong>。</p>
+<hr />
+<h2 id="三讀懂輸出的每一欄">三、讀懂輸出的每一欄</h2>
+<p>本機實測：</p>
+<pre><code>Proto Recv-Q Send-Q Local Address       Foreign Address   State    PID/Program name
+tcp        0      0 127.0.0.54:53       0.0.0.0:*         LISTEN   -
+tcp        0      0 0.0.0.0:80          0.0.0.0:*         LISTEN   -
+tcp        0      0 127.0.0.1:7897      0.0.0.0:*         LISTEN   -
+tcp        0      0 127.0.0.1:39685     0.0.0.0:*         LISTEN   10058/Code --standa
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>欄位</th>
+<th>意義</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Proto</code></td>
+<td>tcp／tcp6／udp／unix</td>
+</tr>
+<tr>
+<td><code>Recv-Q</code></td>
+<td><strong>接收佇列</strong>：已經到了本機但程式還沒讀走的資料量</td>
+</tr>
+<tr>
+<td><code>Send-Q</code></td>
+<td><strong>傳送佇列</strong>：已送出但對方還沒確認（ACK）的資料量</td>
+</tr>
+<tr>
+<td><code>Local Address</code></td>
+<td>本機綁定的「位址:埠」</td>
+</tr>
+<tr>
+<td><code>Foreign Address</code></td>
+<td>對端；LISTEN 時是 <code>0.0.0.0:*</code>（還沒有對象）</td>
+</tr>
+<tr>
+<td><code>State</code></td>
+<td>TCP 狀態；UDP 沒有狀態所以是空的</td>
+</tr>
+<tr>
+<td><code>PID/Program name</code></td>
+<td>哪個行程持有這個 socket</td>
+</tr>
+</tbody>
+</table>
+<h3 id="recv-qsend-q-在兩種狀態下意義完全不同"><code>Recv-Q</code>／<code>Send-Q</code> 在兩種狀態下意義完全不同</h3>
+<p>這是最有價值、也最少人知道的一點：</p>
+<p><strong>已連線（ESTABLISHED）時</strong>——就是字面意思的佇列：</p>
+<ul>
+<li><code>Recv-Q</code> 持續不為 0 → <strong>程式讀不贏</strong>（卡住、處理太慢、忘了 read）。</li>
+<li><code>Send-Q</code> 持續不為 0 → <strong>對方收不贏或網路塞住</strong>（封包送出去沒被 ACK）。</li>
+</ul>
+<p><strong>監聽（LISTEN）時——意義換成了連線佇列</strong>：</p>
+<pre><code>$ ss -ltn
+State  Recv-Q Send-Q Local Address:Port
+LISTEN 0      4096      127.0.0.54:53      # Send-Q = backlog 上限
+LISTEN 0      511          0.0.0.0:2080
+LISTEN 0      64           0.0.0.0:2049     # NFS 的 backlog 只有 64
+</code></pre>
+<ul>
+<li><code>Recv-Q</code> = <strong>已完成三向交握、等著程式 <code>accept()</code> 的連線數</strong>。</li>
+<li><code>Send-Q</code> = <strong>backlog 上限</strong>（<code>listen()</code> 的第二個參數，受 <code>net.core.somaxconn</code> 限制）。</li>
+</ul>
+<p><strong>所以「LISTEN 的 Recv-Q 一直逼近 Send-Q」就是明確的警訊</strong>：連線進得來，但程式 accept 不贏——
+新連線會被丟棄或重傳。這是排查「服務偶爾連不上」最直接的證據，比看 CPU 有用得多。</p>
+<hr />
+<h2 id="四local-address-決定誰連得到">四、<code>Local Address</code> 決定誰連得到</h2>
+<p>同樣在監聽 80 埠，綁定位址不同，結果天差地遠：</p>
+<table>
+<thead>
+<tr>
+<th>Local Address</th>
+<th>誰連得到</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>0.0.0.0:80</code></td>
+<td><strong>所有網卡</strong>，包含區網與外網</td>
+</tr>
+<tr>
+<td><code>127.0.0.1:80</code></td>
+<td><strong>只有本機</strong>，別台機器完全連不到</td>
+</tr>
+<tr>
+<td><code>192.168.1.171:80</code></td>
+<td>只有從那張網卡進來的</td>
+</tr>
+<tr>
+<td><code>:::80</code>（IPv6 的 <code>::</code>）</td>
+<td>所有 IPv6 位址；Linux 預設也會一併收 IPv4</td>
+</tr>
+</tbody>
+</table>
+<p>本機實測的兩行正好是對照組：</p>
+<pre><code>0.0.0.0:80        ← 對外服務，區網任何裝置都連得到
+127.0.0.1:7897    ← clash 的 mixed-port，只綁 localhost
+</code></pre>
+<p><strong>這正是 clash 設定裡 <code>allow-lan: false</code> 的實際效果</strong>：開關的作用就是決定它綁 <code>127.0.0.1</code>
+還是 <code>0.0.0.0</code>。所以「同事說連不到你的 clash」不是防火牆問題，是<strong>它根本沒有綁在對外的位址上</strong>
+——看 <code>Local Address</code> 一眼就能排除一半的可能。</p>
+<p><strong>心法：服務連不上時，先看它綁在哪、再查防火牆。</strong> 綁在 <code>127.0.0.1</code> 的服務，防火牆開再多都沒用。</p>
+<hr />
+<h2 id="五tcp-狀態哪些正常哪些是警訊">五、TCP 狀態：哪些正常、哪些是警訊</h2>
+<p>本機當下的分布：</p>
+<pre><code class="language-bash">$<span class="w"> </span>netstat<span class="w"> </span>-tn<span class="w"> </span><span class="p">|</span><span class="w"> </span>awk<span class="w"> </span><span class="s1">&#39;NR&gt;2 {print $6}&#39;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>sort<span class="w"> </span><span class="p">|</span><span class="w"> </span>uniq<span class="w"> </span>-c<span class="w"> </span><span class="p">|</span><span class="w"> </span>sort<span class="w"> </span>-rn
+<span class="w">     </span><span class="m">38</span><span class="w"> </span>ESTABLISHED
+<span class="w">      </span><span class="m">4</span><span class="w"> </span>TIME_WAIT
+<span class="w">      </span><span class="m">4</span><span class="w"> </span>SYN_SENT
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>狀態</th>
+<th>意義</th>
+<th>大量出現代表什麼</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>LISTEN</code></td>
+<td>等著被連</td>
+<td>正常</td>
+</tr>
+<tr>
+<td><code>ESTABLISHED</code></td>
+<td>連線中</td>
+<td>正常</td>
+</tr>
+<tr>
+<td><code>SYN_SENT</code></td>
+<td>送出 SYN 在等回應</td>
+<td><strong>對方沒回</strong>——防火牆擋掉、埠沒開、或路由不通</td>
+</tr>
+<tr>
+<td><code>SYN_RECV</code></td>
+<td>收到 SYN 在等最後一步</td>
+<td>大量堆積可能是 SYN flood</td>
+</tr>
+<tr>
+<td><code>TIME_WAIT</code></td>
+<td><strong>主動關閉方</strong>關完後的等待期（2×MSL，約 60 秒）</td>
+<td><strong>正常現象</strong>，高併發短連線必然一堆</td>
+</tr>
+<tr>
+<td><code>CLOSE_WAIT</code></td>
+<td><strong>對方已關閉，等我方 <code>close()</code></strong></td>
+<td><strong>你的程式有 bug</strong>——沒關 socket</td>
+</tr>
+<tr>
+<td><code>FIN_WAIT_2</code></td>
+<td>我方關了，等對方關</td>
+<td>大量堆積代表對方不關</td>
+</tr>
+</tbody>
+</table>
+<p><strong><code>TIME_WAIT</code> 與 <code>CLOSE_WAIT</code> 是最常被搞混的一對，但責任歸屬完全相反：</strong></p>
+<ul>
+<li><code>TIME_WAIT</code> 出現在<strong>主動關閉的那一方</strong>，是 TCP 協定要求的（確保最後的 ACK 送達、避免舊封包污染新連線）。多不是病，真的困擾時該調的是連線複用（keep-alive），不是去調核心參數硬清。</li>
+<li><code>CLOSE_WAIT</code> 出現在<strong>被動關閉的那一方</strong>，代表對方已經說「我說完了」，而<strong>你的程式沒有呼叫
+<code>close()</code></strong>。數量只增不減 = 檔案描述符洩漏，最後會撞上 <code>too many open files</code>。
+<strong>這是程式的錯，不是網路的錯。</strong></li>
+</ul>
+<p><strong>排查口訣：<code>TIME_WAIT</code> 多 → 看架構（連線沒複用）；<code>CLOSE_WAIT</code> 多 → 看程式碼（socket 沒關）。</strong></p>
+<hr />
+<h2 id="六netstat--ss-對照">六、netstat → ss 對照</h2>
+<table>
+<thead>
+<tr>
+<th>netstat</th>
+<th>ss</th>
+<th>說明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>netstat -tulnp</code></td>
+<td><code>ss -tulnp</code></td>
+<td>旗標幾乎一樣</td>
+</tr>
+<tr>
+<td><code>netstat -tnp</code></td>
+<td><code>ss -tnp</code></td>
+<td></td>
+</tr>
+<tr>
+<td><code>netstat -an</code></td>
+<td><code>ss -an</code></td>
+<td></td>
+</tr>
+<tr>
+<td><code>netstat -rn</code></td>
+<td><code>ip route</code></td>
+<td>ss 不管路由</td>
+</tr>
+<tr>
+<td><code>netstat -i</code></td>
+<td><code>ip -s link</code></td>
+<td></td>
+</tr>
+<tr>
+<td><code>netstat -s</code></td>
+<td><code>ss -s</code>（摘要）／<code>nstat</code></td>
+<td></td>
+</tr>
+<tr>
+<td><code>netstat -tn | grep :443</code></td>
+<td><code>ss -tn 'dport = :443'</code></td>
+<td><strong>ss 能在核心端過濾，快很多</strong></td>
+</tr>
+</tbody>
+</table>
+<p><strong><code>ss</code> 的完整選項</strong>（依本機 <code>ss --help</code>，iproute2）：</p>
+<p><strong>選哪種 socket</strong></p>
+<table>
+<thead>
+<tr>
+<th>選項</th>
+<th>長選項</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-t</code> <code>-u</code> <code>-w</code> <code>-x</code></td>
+<td><code>--tcp</code> <code>--udp</code> <code>--raw</code> <code>--unix</code></td>
+<td>同 netstat</td>
+</tr>
+<tr>
+<td><code>-S</code> <code>-d</code></td>
+<td><code>--sctp</code> <code>--dccp</code></td>
+<td>SCTP／DCCP</td>
+</tr>
+<tr>
+<td><code>-M</code></td>
+<td><code>--mptcp</code></td>
+<td>MPTCP</td>
+</tr>
+<tr>
+<td><code>-0</code></td>
+<td><code>--packet</code></td>
+<td>PACKET socket</td>
+</tr>
+<tr>
+<td>—</td>
+<td><code>--tipc</code> / <code>--vsock</code> / <code>--xdp</code></td>
+<td>TIPC／vsock／XDP</td>
+</tr>
+<tr>
+<td><code>-4</code> <code>-6</code></td>
+<td><code>--ipv4</code> <code>--ipv6</code></td>
+<td>只看 v4／v6</td>
+</tr>
+<tr>
+<td><code>-f &lt;family&gt;</code></td>
+<td><code>--family</code></td>
+<td>指定家族（<code>inet</code>/<code>inet6</code>/<code>link</code>/<code>unix</code>/<code>netlink</code>/<code>vsock</code>/<code>tipc</code>/<code>xdp</code>）</td>
+</tr>
+<tr>
+<td><code>-A &lt;query&gt;</code></td>
+<td><code>--query</code></td>
+<td>一次指定多類，逗號分隔（<code>-A tcp,udp</code>）</td>
+</tr>
+</tbody>
+</table>
+<p><strong>過濾與顯示</strong></p>
+<table>
+<thead>
+<tr>
+<th>選項</th>
+<th>長選項</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-a</code> <code>-l</code></td>
+<td><code>--all</code> <code>--listening</code></td>
+<td>全部／只看監聽</td>
+</tr>
+<tr>
+<td><code>-n</code> <code>-r</code></td>
+<td><code>--numeric</code> <code>--resolve</code></td>
+<td>不解析名稱／解析主機名</td>
+</tr>
+<tr>
+<td><code>-p</code></td>
+<td><code>--processes</code></td>
+<td>顯示持有 socket 的行程</td>
+</tr>
+<tr>
+<td><code>-T</code></td>
+<td><code>--threads</code></td>
+<td>顯示執行緒</td>
+</tr>
+<tr>
+<td><code>-e</code></td>
+<td><code>--extended</code></td>
+<td>詳細 socket 資訊（含 inode、uid）</td>
+</tr>
+<tr>
+<td><code>-m</code></td>
+<td><code>--memory</code></td>
+<td><strong>socket 記憶體用量</strong></td>
+</tr>
+<tr>
+<td><code>-i</code></td>
+<td><code>--info</code></td>
+<td><strong>TCP 內部狀態：RTT、cwnd、重傳次數</strong> ← 判斷慢在哪</td>
+</tr>
+<tr>
+<td><code>-o</code></td>
+<td><code>--options</code></td>
+<td>計時器資訊</td>
+</tr>
+<tr>
+<td><code>-s</code></td>
+<td><code>--summary</code></td>
+<td><strong>各協定的 socket 數量摘要</strong></td>
+</tr>
+<tr>
+<td><code>-b</code></td>
+<td><code>--bpf</code></td>
+<td>BPF 過濾器資訊</td>
+</tr>
+<tr>
+<td><code>-E</code></td>
+<td><code>--events</code></td>
+<td>持續顯示<strong>被關閉</strong>的 socket</td>
+</tr>
+<tr>
+<td><code>-Z</code> <code>-z</code></td>
+<td><code>--context</code> <code>--contexts</code></td>
+<td>SELinux 脈絡</td>
+</tr>
+<tr>
+<td>—</td>
+<td><code>--tos</code> / <code>--cgroup</code> / <code>--inet-sockopt</code></td>
+<td>TOS／cgroup／inet socket 選項</td>
+</tr>
+<tr>
+<td><code>-H</code></td>
+<td><code>--no-header</code></td>
+<td>不印標題列（腳本用）</td>
+</tr>
+<tr>
+<td><code>-O</code></td>
+<td><code>--oneline</code></td>
+<td>每個 socket 印成一行</td>
+</tr>
+<tr>
+<td><code>-N &lt;netns&gt;</code></td>
+<td><code>--net</code></td>
+<td><strong>切換到指定的 network namespace</strong></td>
+</tr>
+<tr>
+<td><code>-K</code></td>
+<td><code>--kill</code></td>
+<td><strong>強制關閉</strong>符合條件的 socket（需 root）</td>
+</tr>
+<tr>
+<td><code>-D &lt;檔&gt;</code></td>
+<td><code>--diag</code></td>
+<td>把原始資訊倒進檔案</td>
+</tr>
+<tr>
+<td><code>-F &lt;檔&gt;</code></td>
+<td><code>--filter</code></td>
+<td>從檔案讀取過濾條件</td>
+</tr>
+<tr>
+<td><code>-V</code> <code>-h</code></td>
+<td><code>--version</code> <code>--help</code></td>
+<td>版本／說明</td>
+</tr>
+</tbody>
+</table>
+<p>ss 獨有、netstat 做不到的：</p>
+<pre><code class="language-bash">ss<span class="w"> </span>-tn<span class="w"> </span>state<span class="w"> </span>established<span class="w"> </span><span class="s1">&#39;( dport = :443 or sport = :443 )&#39;</span><span class="w">   </span><span class="c1"># 條件式過濾</span>
+ss<span class="w"> </span>-tni<span class="w">                       </span><span class="c1"># 顯示 RTT、cwnd、重傳次數等 TCP 內部狀態</span>
+ss<span class="w"> </span>-tp<span class="w"> </span>state<span class="w"> </span>close-wait<span class="w">       </span><span class="c1"># 直接抓出有問題的連線與它的程式</span>
+ss<span class="w"> </span>-K<span class="w"> </span>dst<span class="w"> </span><span class="m">1</span>.2.3.4<span class="w">             </span><span class="c1"># 強制關閉符合條件的連線（需 root）</span>
+</code></pre>
+<p><code>ss -tni</code> 那個特別值得知道——它能看到每條連線的 RTT（Round-Trip Time，往返時間）與重傳次數，是判斷「慢是網路還是程式」的直接證據。</p>
+<hr />
+<h2 id="七實戰配方">七、實戰配方</h2>
+<pre><code class="language-bash"><span class="c1"># 80 埠被誰佔了（服務起不來時的第一個問題）</span>
+sudo<span class="w"> </span>netstat<span class="w"> </span>-tulnp<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span><span class="s1">&#39;:80 &#39;</span>
+sudo<span class="w"> </span>ss<span class="w"> </span>-tulnp<span class="w"> </span><span class="s1">&#39;sport = :80&#39;</span>
+sudo<span class="w"> </span>lsof<span class="w"> </span>-i<span class="w"> </span>:80<span class="w">                       </span><span class="c1"># 第三種查法，資訊最全</span>
+
+<span class="c1"># 某個程式開了哪些連線</span>
+sudo<span class="w"> </span>netstat<span class="w"> </span>-tnp<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>nginx
+sudo<span class="w"> </span>ss<span class="w"> </span>-tnp<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>nginx
+
+<span class="c1"># 連線狀態統計（排查的起手式）</span>
+netstat<span class="w"> </span>-tn<span class="w"> </span><span class="p">|</span><span class="w"> </span>awk<span class="w"> </span><span class="s1">&#39;NR&gt;2 {print $6}&#39;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>sort<span class="w"> </span><span class="p">|</span><span class="w"> </span>uniq<span class="w"> </span>-c<span class="w"> </span><span class="p">|</span><span class="w"> </span>sort<span class="w"> </span>-rn
+
+<span class="c1"># 誰連我最多（找異常來源）</span>
+netstat<span class="w"> </span>-tn<span class="w"> </span><span class="p">|</span><span class="w"> </span>awk<span class="w"> </span><span class="s1">&#39;NR&gt;2 {split($5,a,&quot;:&quot;); print a[1]}&#39;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>sort<span class="w"> </span><span class="p">|</span><span class="w"> </span>uniq<span class="w"> </span>-c<span class="w"> </span><span class="p">|</span><span class="w"> </span>sort<span class="w"> </span>-rn<span class="w"> </span><span class="p">|</span><span class="w"> </span>head
+
+<span class="c1"># 找出 CLOSE_WAIT 堆積的兇手</span>
+sudo<span class="w"> </span>ss<span class="w"> </span>-tp<span class="w"> </span>state<span class="w"> </span>close-wait<span class="w"> </span><span class="p">|</span><span class="w"> </span>head
+
+<span class="c1"># 確認服務綁在哪（連不上時先看這個）</span>
+sudo<span class="w"> </span>ss<span class="w"> </span>-ltn<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span><span class="m">8080</span>
+</code></pre>
+<hr />
+<h2 id="八五個陷阱">八、五個陷阱</h2>
+<ol>
+<li><strong>不加 <code>-n</code> 會卡住</strong>：DNS 反查逾時讓你以為程式壞了。永遠加 <code>-n</code>。</li>
+<li><strong><code>-p</code> 沒 root 只看得到自己的</strong>：實測非 root 執行時，別人的行程全部顯示 <code>-</code>。看到一整排 <code>-</code> 不是沒程式，是你權限不夠。</li>
+<li><strong>BusyBox 版的旗標不一樣</strong>：路由器上 <code>netstat --help</code> 只列出 <code>[-ral] [-tuwx] [-enWp]</code>，沒有 GNU 版的長選項。腳本要跨平台就只用最基本的旗標。</li>
+<li><strong>UDP 沒有「連線」</strong>：UDP 那幾行的 State 是空的，看到 UDP 不要找 ESTABLISHED。</li>
+<li><strong>容器裡看到的是容器的 netns</strong>：在容器內跑 netstat，看到的是容器自己的網路命名空間（network namespace），不是主機的。要看主機的得在主機上跑，或 <code>nsenter</code> 進去。</li>
+</ol>
+<hr />
+<h2 id="自我測驗">自我測驗</h2>
+<ol>
+<li><code>Recv-Q</code> 與 <code>Send-Q</code> 這兩欄，在 <code>ESTABLISHED</code> 與 <code>LISTEN</code> 兩種狀態下的意義完全不同。分別是什麼？「LISTEN 的 Recv-Q 一直很大」代表系統出了什麼問題？</li>
+<li>大量 <code>TIME_WAIT</code> 和大量 <code>CLOSE_WAIT</code>，哪一個是程式的 bug？為什麼？兩者分別出現在連線的哪一方？</li>
+<li>有人回報「連不到你機器上的服務」。你用 netstat 看到它在 LISTEN。接下來要看哪一欄、為什麼它比查防火牆更該先看？</li>
+<li>為什麼 <code>ss</code> 比 <code>netstat</code> 快？從兩者取得資料的方式說明，並說出一個 ss 做得到而 netstat 做不到的事。</li>
+<li>情境題：某服務平常正常，但流量一大就偶爾連不上，CPU 與記憶體都不高。你要看哪個數字來驗證「不是機器不夠力，而是程式 accept 不贏」？看到什麼樣的數值可以確認？</li>
+</ol>
+
+</main>
+</div>
+</body>
+</html>

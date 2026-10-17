@@ -715,6 +715,63 @@ $ objdump -dr --no-show-raw-insn noret.o
 
 為什麼要 16：有些指令（例如一次搬 16 byte 的 SSE 指令 `movaps`）要求記憶體位址是 16 的倍數，否則會當掉。ABI 規定進函式時的對齊狀態是固定的，函式裡的區域變數就能直接排成 16 byte 對齊。
 
+### 補教：被呼叫的函式就在同一個檔案時，`sub $0x8,%rsp` 為什麼不見了
+
+（2026-10-16 批改作業 2-5 時補教。）上面的對齊是**為了被呼叫的函式**：讓它可以放心用 `movaps` 這類要求 16 byte 對齊的指令。所以如果 gcc **看得到**被呼叫的函式、確定它不需要對齊，這一次呼叫就可以不補。
+
+`align9.c`（檔案：[`align9.c`](../small-project/s1-05-asm-calls/align9.c)）完整原始碼，`sum9` 有 9 個參數、第 7～9 個要放堆疊（3 × 8 ＝ 24 byte，單靠它們湊不成 16 的倍數）：
+
+```c
+/* align9.c：sum9 和 call9 放在同一個檔案（作業 2-5 的情境） */
+int sum9(int a, int b, int c, int d, int e, int f, int g, int h, int i)
+{
+    return a + b + c + d + e + f + g + h + i;
+}
+
+int call9(void)
+{
+    return sum9(10, 20, 30, 40, 50, 60, 70, 80, 90);
+}
+```
+
+```
+gcc -O0 -c -fno-asynchronous-unwind-tables align9.c
+objdump -dr --no-show-raw-insn align9.o
+gcc -O0 -c -fno-asynchronous-unwind-tables -fno-ipa-stack-alignment align9.c -o align9-noipa.o
+objdump -dr --no-show-raw-insn align9-noipa.o
+```
+
+兩次的 `call9` 並排（本機 gcc 13.3 實測；左邊是預設，右邊加了 `-fno-ipa-stack-alignment`）：
+
+```
+預設                                    -fno-ipa-stack-alignment
+  49: endbr64                             49: endbr64
+  4d: push   %rbp                         4d: push   %rbp
+  4e: mov    %rsp,%rbp                    4e: mov    %rsp,%rbp
+                                          51: sub    $0x8,%rsp      # 對齊用的 8 byte 回來了
+  51: push   $0x5a     # i = 90           55: push   $0x5a
+  53: push   $0x50     # h = 80           57: push   $0x50
+  55: push   $0x46     # g = 70           59: push   $0x46
+  57: mov    $0x3c,%r9d                   5b: mov    $0x3c,%r9d
+  ...（%r8d、%ecx、%edx、%esi、%edi 同上）
+  77: call   7c <call9+0x33>              7b: call   80 <call9+0x37>
+  7c: add    $0x18,%rsp  # 只丟 24 byte    80: add    $0x20,%rsp  # 丟 32 byte
+  80: leave                               84: leave
+  81: ret                                 85: ret
+```
+
+如果 `sum9` 只有**宣告**、本體在另一個檔案（作業 2 的 `nine.c`），結果跟右邊一樣，有 `sub $0x8,%rsp`。
+
+為什麼：
+
+1. **只有宣告時**，gcc 不知道 `sum9` 裡面做什麼，只能照 ABI 假設它需要 16 byte 對齊，補上 `sub $0x8,%rsp`。用上一小節的算法：進 `call9` 餘 8 → `push %rbp` 餘 0 → `sub` 餘 8 → 推 24 byte 餘 0 → `call` 時對齊。
+2. **本體在同一個檔案時**，gcc 先分析 `sum9`：它不再 `call` 別人、沒有要求對齊的指令，只需要 8 byte 對齊。於是這一次 `call sum9` 不補，`call` 時餘 8 也沒關係；`add` 也從 `0x20` 變成剛好 3 個參數的 `0x18`。
+3. 這個分析是 gcc 的 `-fipa-stack-alignment`（IPA，Interprocedural Analysis，跨函式分析：看別的函式的本體來決定這個函式怎麼編）。`man gcc` 的說明是 "Reduce stack alignment on call sites if possible. Enabled by default."，`gcc -Q --help=optimizers -O0 | grep ipa-stack` 實測在 `-O0` 也是 `[enabled]`。加 `-fno-ipa-stack-alignment` 就關掉，`sub` 回來。
+
+注意這只影響**看得到本體的那一次呼叫**。`sum9` 是一般的全域函式，別的檔案呼叫它時，那邊的 gcc 只看得到宣告，照樣會補對齊；`sum9` 自己的程式碼也不變。
+
+gcc 的最佳化選項很多（本機 gcc 13.3 的 `gcc -Q --help=optimizers -O0` 列出 260 個 `-f` 選項），這裡只用到 `-fipa-stack-alignment` 這一個；完整清單用 `gcc --help=optimizers`（加 `-Q` 和 `-O0`／`-O2` 會顯示在那個等級是否開啟）或 `man gcc` 的 "Options That Control Optimization" 一節查。
+
 ---
 
 ## 七、`printf` 前的 `movl $0, %eax`：可變參數函式的 `%al`
@@ -812,7 +869,7 @@ gdb 的頂層命令共 173 個，本課用到其中 9 個（`info registers`、`
 
 ### `gcc`、`objdump`：本課新用到的選項
 
-- `gcc`：沒有新選項，用的都是第 4 課[第八節](./x86-64組合語言入門-暫存器、mov與lea、cmp與條件跳躍.md#八本課用到的工具選項與完整清單在哪)列過的 `-O0`、`-O2`、`-c`、`-g`、`-fno-asynchronous-unwind-tables`。
+- `gcc`：主線沒有新選項（2026-10-16 批改作業時的補教用到 `-fno-ipa-stack-alignment`，見第六節〈補教：被呼叫的函式就在同一個檔案時，`sub $0x8,%rsp` 為什麼不見了〉），用的都是第 4 課[第八節](./x86-64組合語言入門-暫存器、mov與lea、cmp與條件跳躍.md#八本課用到的工具選項與完整清單在哪)列過的 `-O0`、`-O2`、`-c`、`-g`、`-fno-asynchronous-unwind-tables`。
 - `objdump`：新用到 `-r`（`--reloc`）：顯示重定位項目，和 `-d` 一起用時印在相關的指令下面。`-d`、`--no-show-raw-insn` 第 4 課教過；「顯示什麼」一組的全部 31 項在 [objdump能不能代替ldd第六節](./objdump能不能代替ldd找依賴庫-需求單與實際載入.md#六本篇用到的工具選項)。
 
 ### 本課的指令

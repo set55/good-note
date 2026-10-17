@@ -1,0 +1,256 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>學 C、系統程式、kernel，對寫 Go 後端有沒有用？能幫到系統設計嗎？</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/app.js"></script>
+</head>
+<body>
+<button class="menu-btn" onclick="toggleMenu()">☰ 目錄</button>
+<div class="layout">
+<nav class="side">
+<div class="crumbs"><a href="../index.html">🏠 首頁</a> / <a href="README.html">learning</a></div>
+<div class="tools"><button onclick="toggleTheme()">🌓 主題</button></div>
+<ul>
+<li class="l2"><a href="#%E7%9B%AE%E9%8C%84">目錄</a></li>
+<li class="l2"><a href="#%E4%B8%80%E5%85%88%E5%9B%9E%E7%AD%94%E6%9C%89%E7%94%A8%E4%BD%86%E6%9C%89%E5%85%A9%E5%80%8B%E5%89%8D%E6%8F%90">一、先回答：有用，但有兩個前提</a></li>
+<li class="l2"><a href="#%E4%BA%8Cgo-%E6%9B%BF%E4%BD%A0%E8%97%8F%E4%BA%86%E4%BB%80%E9%BA%BC%E5%85%A9%E5%80%8B%E5%AF%A6%E9%A9%97">二、Go 替你藏了什麼：兩個實驗</a></li>
+<li class="l3"><a href="#%E5%AF%A6%E9%A9%97-1go-%E5%9F%B7%E8%A1%8C%E6%AA%94%E4%B9%9F%E6%9C%89-interpreter%E7%AC%AC-%E2%91%A0-%E7%AB%99%E7%9A%84%E6%9D%B1%E8%A5%BF%E7%9B%B4%E6%8E%A5%E5%87%BA%E7%8F%BE%E5%9C%A8-docker-%E6%98%A0%E5%83%8F%E6%AA%94%E8%A3%A1">實驗 1：Go 執行檔也有 interpreter——第 ① 站的東西直接出現在 Docker 映像檔裡</a></li>
+<li class="l3"><a href="#%E5%AF%A6%E9%A9%97-2goroutine-%E4%B8%8D%E7%AD%89%E6%96%BC%E5%9F%B7%E8%A1%8C%E7%B7%92%E4%BD%86%E5%8D%A1%E5%9C%A8%E7%B3%BB%E7%B5%B1%E5%91%BC%E5%8F%AB%E8%A3%A1%E7%9A%84-goroutine-%E6%9C%83%E5%90%84%E4%BD%94%E4%B8%80%E6%A2%9D">實驗 2：goroutine 不等於執行緒——但卡在系統呼叫裡的 goroutine 會各佔一條</a></li>
+<li class="l2"><a href="#%E4%B8%89%E6%AF%8F%E4%B8%80%E7%AB%99%E5%B0%8D%E6%87%89%E5%88%B0%E5%BE%8C%E7%AB%AF%E7%9A%84%E5%93%AA%E4%BA%9B%E7%9C%9F%E5%AF%A6%E5%95%8F%E9%A1%8C">三、每一站對應到後端的哪些真實問題</a></li>
+<li class="l2"><a href="#%E5%9B%9B%E5%B0%8D%E7%B3%BB%E7%B5%B1%E8%A8%AD%E8%A8%88%E5%85%A9%E5%B1%A4%E9%80%99%E6%A2%9D%E8%B7%AF%E7%B7%9A%E5%8F%AA%E7%AE%A1%E4%B8%8B%E9%9D%A2%E9%82%A3%E5%B1%A4">四、對系統設計：兩層，這條路線只管下面那層</a></li>
+<li class="l2"><a href="#%E4%BA%94kernel-%E6%AE%B5%E7%9A%84%E5%83%B9%E5%80%BC%E8%A6%81%E5%88%86%E9%96%8B%E7%9C%8B">五、kernel 段的價值要分開看</a></li>
+<li class="l2"><a href="#%E5%85%AD%E6%80%8E%E9%BA%BC%E8%AE%93%E5%AE%83%E7%9C%9F%E7%9A%84%E8%9E%8D%E6%9C%83%E8%B2%AB%E9%80%9A">六、怎麼讓它真的融會貫通</a></li>
+<li class="l2"><a href="#%E8%87%AA%E6%88%91%E6%B8%AC%E9%A9%97">自我測驗</a></li>
+</ul>
+</nav>
+<main>
+<h1 id="學-c系統程式kernel對寫-go-後端有沒有用能幫到系統設計嗎">學 C、系統程式、kernel，對寫 Go 後端有沒有用？能幫到系統設計嗎？</h1>
+<blockquote>
+<p>日期：2026-09-27<br />
+情境：正在上 <a href="Linux%E8%88%87%E7%B3%BB%E7%B5%B1%E7%A8%8B%E5%BC%8F%E7%9A%84%E7%B3%BB%E7%B5%B1%E5%8C%96%E5%AD%B8%E7%BF%92%E8%B7%AF%E7%B7%9A.html">系統化學習路線</a>（C → Rust → kernel）；本職是用 Go 寫後台服務，擔心自己「學得太上層」，想知道這條底層路線能不能跟工作融會貫通、對系統設計（system design）有沒有幫助<br />
+對應檔案：本篇為學習方法論筆記，不對應任何設定檔；第二節兩個 Go 實驗的完整原始碼就寫在筆記裡，沒有另存到 repo<br />
+適用範圍：本機 Ubuntu 24.04、x86-64、Go 1.24.2 實測；提到 Go 1.25 行為的地方未實測（本機沒有 1.25）</p>
+</blockquote>
+<p><strong>一句話結論：有用，而且 Go 後端正是最需要它的地方——Go 的 runtime 把行程、執行緒、記憶體、網路都藏起來了，出事時看起來很玄，底層知識就是把「玄」變成「可以解釋」的東西。但它只覆蓋系統設計的「單機那一層」；分散式那一層（複製、一致性、分割）這條路線沒教，要另外補。而且融會貫通不會自動發生，要每一課刻意「接回 Go」。</strong></p>
+<hr />
+<h2 id="目錄">目錄</h2>
+<ul>
+<li><a href="#%E4%B8%80%E5%85%88%E5%9B%9E%E7%AD%94%E6%9C%89%E7%94%A8%E4%BD%86%E6%9C%89%E5%85%A9%E5%80%8B%E5%89%8D%E6%8F%90">一、先回答：有用，但有兩個前提</a></li>
+<li><a href="#%E4%BA%8Cgo-%E6%9B%BF%E4%BD%A0%E8%97%8F%E4%BA%86%E4%BB%80%E9%BA%BC%E5%85%A9%E5%80%8B%E5%AF%A6%E9%A9%97">二、Go 替你藏了什麼：兩個實驗</a></li>
+<li><a href="#%E4%B8%89%E6%AF%8F%E4%B8%80%E7%AB%99%E5%B0%8D%E6%87%89%E5%88%B0%E5%BE%8C%E7%AB%AF%E7%9A%84%E5%93%AA%E4%BA%9B%E7%9C%9F%E5%AF%A6%E5%95%8F%E9%A1%8C">三、每一站對應到後端的哪些真實問題</a></li>
+<li><a href="#%E5%9B%9B%E5%B0%8D%E7%B3%BB%E7%B5%B1%E8%A8%AD%E8%A8%88%E5%85%A9%E5%B1%A4%E9%80%99%E6%A2%9D%E8%B7%AF%E7%B7%9A%E5%8F%AA%E7%AE%A1%E4%B8%8B%E9%9D%A2%E9%82%A3%E5%B1%A4">四、對系統設計：兩層，這條路線只管下面那層</a></li>
+<li><a href="#%E4%BA%94kernel-%E6%AE%B5%E7%9A%84%E5%83%B9%E5%80%BC%E8%A6%81%E5%88%86%E9%96%8B%E7%9C%8B">五、kernel 段的價值要分開看</a></li>
+<li><a href="#%E5%85%AD%E6%80%8E%E9%BA%BC%E8%AE%93%E5%AE%83%E7%9C%9F%E7%9A%84%E8%9E%8D%E6%9C%83%E8%B2%AB%E9%80%9A">六、怎麼讓它真的融會貫通</a></li>
+</ul>
+<hr />
+<h2 id="一先回答有用但有兩個前提">一、先回答：有用，但有兩個前提</h2>
+<p>「學得太上層」的感覺，通常來自這種經驗：服務出事了——延遲尖峰、被 OOM（Out Of Memory，記憶體不足）殺掉、
+<code>too many open files</code>、連線打不出去——你能照網路上的做法調參數把它壓下去，但說不出<strong>為什麼</strong>。會調參數的人很多；能從現象一路推到根因、而且預先知道設計會在哪裡出事的人很少。後者就是一般說的「大神」。</p>
+<p>底層知識給的正是這個「為什麼」。但有兩個前提：</p>
+<ol>
+<li><strong>它不會自動接上。</strong> 學完虛擬記憶體，不會自己想到「所以容器被 OOMKilled 時，Go 的 heap 明明才 200 MB」該怎麼查。每學一個機制，要刻意問一次「這在我的 Go 服務裡長什麼樣子」（第六節）。</li>
+<li><strong>它只覆蓋一部分。</strong> 後端工程師的深度有兩條軸：往下（作業系統、硬體）和往外（資料庫、分散式系統）。這條路線只走往下那條。系統設計面試與實務裡的大半內容在往外那條（第四節）。</li>
+</ol>
+<hr />
+<h2 id="二go-替你藏了什麼兩個實驗">二、Go 替你藏了什麼：兩個實驗</h2>
+<p>Go 跟 C 最大的不同，是你的程式和核心之間多了一層 <strong>Go runtime（執行期系統）</strong>：goroutine 排程器（scheduler）、垃圾回收（GC，Garbage Collection）、網路輪詢器（netpoller）。你寫的是 goroutine，核心看到的是執行緒（thread）；你寫的是 <code>conn.Read</code>，核心看到的是 <code>epoll</code>。平常這層很好用，出事時它就是你看不懂的那一層。</p>
+<h3 id="實驗-1go-執行檔也有-interpreter第-①-站的東西直接出現在-docker-映像檔裡">實驗 1：Go 執行檔也有 interpreter——第 ① 站的東西直接出現在 Docker 映像檔裡</h3>
+<p><code>main.go</code>：</p>
+<pre><code class="language-go"><span class="kn">package</span><span class="w"> </span><span class="nx">main</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="p">(</span>
+<span class="w">	</span><span class="s">&quot;fmt&quot;</span>
+<span class="w">	</span><span class="s">&quot;net&quot;</span>
+<span class="p">)</span>
+
+<span class="kd">func</span><span class="w"> </span><span class="nx">main</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">	</span><span class="nx">addrs</span><span class="p">,</span><span class="w"> </span><span class="nx">err</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">net</span><span class="p">.</span><span class="nx">LookupHost</span><span class="p">(</span><span class="s">&quot;localhost&quot;</span><span class="p">)</span>
+<span class="w">	</span><span class="nx">fmt</span><span class="p">.</span><span class="nx">Println</span><span class="p">(</span><span class="nx">addrs</span><span class="p">,</span><span class="w"> </span><span class="nx">err</span><span class="p">)</span>
+<span class="p">}</span>
+</code></pre>
+<p>編譯兩次，一次用預設值，一次關掉 cgo（讓 Go 呼叫 C 函式庫的機制）：</p>
+<pre><code class="language-bash">go<span class="w"> </span>mod<span class="w"> </span>init<span class="w"> </span>gonet
+go<span class="w"> </span>build<span class="w"> </span>-o<span class="w"> </span>net_cgo<span class="w"> </span>.
+<span class="nv">CGO_ENABLED</span><span class="o">=</span><span class="m">0</span><span class="w"> </span>go<span class="w"> </span>build<span class="w"> </span>-o<span class="w"> </span>net_static<span class="w"> </span>.
+file<span class="w"> </span>net_cgo<span class="w"> </span>net_static
+readelf<span class="w"> </span>-l<span class="w"> </span>net_cgo<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-A1<span class="w"> </span>INTERP
+readelf<span class="w"> </span>-d<span class="w"> </span>net_cgo<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>NEEDED
+readelf<span class="w"> </span>-l<span class="w"> </span>net_static<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>INTERP<span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;net_static: no INTERP&quot;</span>
+</code></pre>
+<p>實際輸出（<code>file</code> 的 BuildID 已刪掉）：</p>
+<pre><code>net_cgo:    ELF 64-bit LSB executable, x86-64, version 1 (SYSV), dynamically linked, interpreter /lib64/ld-linux-x86-64.so.2, with debug_info, not stripped
+net_static: ELF 64-bit LSB executable, x86-64, version 1 (SYSV), statically linked, with debug_info, not stripped
+  INTERP         0x0000000000000fe4 0x0000000000400fe4 0x0000000000400fe4
+                 0x000000000000001c 0x000000000000001c  R      0x1
+ 0x0000000000000001 (NEEDED)             Shared library: [libc.so.6]
+---
+net_static: no INTERP
+</code></pre>
+<p>很多人以為「Go 編出來一定是靜態連結」。其實只要用到 <code>net</code>（或 <code>os/user</code>）且本機有 C 編譯器，預設會走 cgo，產出的執行檔就有 <code>INTERP</code> 段，需要 <code>/lib64/ld-linux-x86-64.so.2</code> 和 glibc 的 <code>libc.so.6</code>。</p>
+<p>後端日常會撞到的情境：把 <code>net_cgo</code> 放進 <code>FROM scratch</code>、<code>distroless/static</code> 或 Alpine（用 musl，載入器路徑是
+<code>/lib/ld-musl-x86_64.so.1</code>，沒有 glibc 那個）的映像檔，啟動時得到 <code>no such file or directory</code>——檔案明明在。這正是 <a href="../c/ELF%E7%9A%84interpreter%E6%98%AF%E4%BB%80%E9%BA%BC-%E5%8B%95%E6%85%8B%E8%BC%89%E5%85%A5%E5%99%A8%E8%88%87%E4%BA%95%E5%AD%97%E8%99%9F%E9%A9%9A%E5%98%86%E8%99%9F.html">ELF的interpreter是什麼</a> 第五節〈直譯器不存在時：明明有檔案，卻說找不到〉那個現象；網路上的「解法」是加 <code>CGO_ENABLED=0</code>，但懂第 ① 站的人知道<strong>為什麼</strong>加了就好：<code>INTERP</code> 沒了，核心不必去找載入器。（未實測：在容器裡實際跑一次。機制與筆記第五節的本機實驗相同。）</p>
+<h3 id="實驗-2goroutine-不等於執行緒但卡在系統呼叫裡的-goroutine-會各佔一條">實驗 2：goroutine 不等於執行緒——但卡在系統呼叫裡的 goroutine 會各佔一條</h3>
+<p><code>main.go</code>：</p>
+<pre><code class="language-go"><span class="kn">package</span><span class="w"> </span><span class="nx">main</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="p">(</span>
+<span class="w">	</span><span class="s">&quot;fmt&quot;</span>
+<span class="w">	</span><span class="s">&quot;os&quot;</span>
+<span class="w">	</span><span class="s">&quot;runtime&quot;</span>
+<span class="w">	</span><span class="s">&quot;strings&quot;</span>
+<span class="w">	</span><span class="s">&quot;syscall&quot;</span>
+<span class="w">	</span><span class="s">&quot;time&quot;</span>
+<span class="p">)</span>
+
+<span class="c1">// 讀 /proc/self/status 的 Threads: 欄位 = 這個行程目前有幾條 OS 執行緒</span>
+<span class="kd">func</span><span class="w"> </span><span class="nx">osThreads</span><span class="p">()</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="p">{</span>
+<span class="w">	</span><span class="nx">b</span><span class="p">,</span><span class="w"> </span><span class="nx">_</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">os</span><span class="p">.</span><span class="nx">ReadFile</span><span class="p">(</span><span class="s">&quot;/proc/self/status&quot;</span><span class="p">)</span>
+<span class="w">	</span><span class="k">for</span><span class="w"> </span><span class="nx">_</span><span class="p">,</span><span class="w"> </span><span class="nx">line</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="k">range</span><span class="w"> </span><span class="nx">strings</span><span class="p">.</span><span class="nx">Split</span><span class="p">(</span><span class="nb">string</span><span class="p">(</span><span class="nx">b</span><span class="p">),</span><span class="w"> </span><span class="s">&quot;\n&quot;</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">		</span><span class="k">if</span><span class="w"> </span><span class="nx">strings</span><span class="p">.</span><span class="nx">HasPrefix</span><span class="p">(</span><span class="nx">line</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;Threads:&quot;</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">			</span><span class="k">return</span><span class="w"> </span><span class="nx">strings</span><span class="p">.</span><span class="nx">TrimSpace</span><span class="p">(</span><span class="nx">strings</span><span class="p">.</span><span class="nx">TrimPrefix</span><span class="p">(</span><span class="nx">line</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;Threads:&quot;</span><span class="p">))</span>
+<span class="w">		</span><span class="p">}</span>
+<span class="w">	</span><span class="p">}</span>
+<span class="w">	</span><span class="k">return</span><span class="w"> </span><span class="s">&quot;?&quot;</span>
+<span class="p">}</span>
+
+<span class="kd">func</span><span class="w"> </span><span class="nx">main</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">	</span><span class="nx">fmt</span><span class="p">.</span><span class="nx">Println</span><span class="p">(</span><span class="s">&quot;GOMAXPROCS =&quot;</span><span class="p">,</span><span class="w"> </span><span class="nx">runtime</span><span class="p">.</span><span class="nx">GOMAXPROCS</span><span class="p">(</span><span class="mi">0</span><span class="p">))</span>
+<span class="w">	</span><span class="nx">fmt</span><span class="p">.</span><span class="nx">Println</span><span class="p">(</span><span class="s">&quot;開始：goroutine&quot;</span><span class="p">,</span><span class="w"> </span><span class="nx">runtime</span><span class="p">.</span><span class="nx">NumGoroutine</span><span class="p">(),</span><span class="w"> </span><span class="s">&quot;OS 執行緒&quot;</span><span class="p">,</span><span class="w"> </span><span class="nx">osThreads</span><span class="p">())</span>
+
+<span class="w">	</span><span class="c1">// 情況一：10000 個 goroutine 都在 time.Sleep（由 Go runtime 管，不佔 OS 執行緒）</span>
+<span class="w">	</span><span class="k">for</span><span class="w"> </span><span class="nx">i</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="nx">i</span><span class="w"> </span><span class="p">&lt;</span><span class="w"> </span><span class="mi">10000</span><span class="p">;</span><span class="w"> </span><span class="nx">i</span><span class="o">++</span><span class="w"> </span><span class="p">{</span>
+<span class="w">		</span><span class="k">go</span><span class="w"> </span><span class="kd">func</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">time</span><span class="p">.</span><span class="nx">Sleep</span><span class="p">(</span><span class="nx">time</span><span class="p">.</span><span class="nx">Hour</span><span class="p">)</span><span class="w"> </span><span class="p">}()</span>
+<span class="w">	</span><span class="p">}</span>
+<span class="w">	</span><span class="nx">time</span><span class="p">.</span><span class="nx">Sleep</span><span class="p">(</span><span class="mi">200</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="nx">time</span><span class="p">.</span><span class="nx">Millisecond</span><span class="p">)</span>
+<span class="w">	</span><span class="nx">fmt</span><span class="p">.</span><span class="nx">Println</span><span class="p">(</span><span class="s">&quot;10000 個 Sleep 後：goroutine&quot;</span><span class="p">,</span><span class="w"> </span><span class="nx">runtime</span><span class="p">.</span><span class="nx">NumGoroutine</span><span class="p">(),</span><span class="w"> </span><span class="s">&quot;OS 執行緒&quot;</span><span class="p">,</span><span class="w"> </span><span class="nx">osThreads</span><span class="p">())</span>
+
+<span class="w">	</span><span class="c1">// 情況二：50 個 goroutine 卡在「阻塞的系統呼叫」裡（nanosleep 直接進核心睡）</span>
+<span class="w">	</span><span class="k">for</span><span class="w"> </span><span class="nx">i</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="nx">i</span><span class="w"> </span><span class="p">&lt;</span><span class="w"> </span><span class="mi">50</span><span class="p">;</span><span class="w"> </span><span class="nx">i</span><span class="o">++</span><span class="w"> </span><span class="p">{</span>
+<span class="w">		</span><span class="k">go</span><span class="w"> </span><span class="kd">func</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">			</span><span class="nx">ts</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">syscall</span><span class="p">.</span><span class="nx">Timespec</span><span class="p">{</span><span class="nx">Sec</span><span class="p">:</span><span class="w"> </span><span class="mi">3600</span><span class="p">}</span>
+<span class="w">			</span><span class="nx">syscall</span><span class="p">.</span><span class="nx">Nanosleep</span><span class="p">(</span><span class="o">&amp;</span><span class="nx">ts</span><span class="p">,</span><span class="w"> </span><span class="kc">nil</span><span class="p">)</span>
+<span class="w">		</span><span class="p">}()</span>
+<span class="w">	</span><span class="p">}</span>
+<span class="w">	</span><span class="nx">time</span><span class="p">.</span><span class="nx">Sleep</span><span class="p">(</span><span class="mi">500</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="nx">time</span><span class="p">.</span><span class="nx">Millisecond</span><span class="p">)</span>
+<span class="w">	</span><span class="nx">fmt</span><span class="p">.</span><span class="nx">Println</span><span class="p">(</span><span class="s">&quot;再加 50 個阻塞 syscall 後：goroutine&quot;</span><span class="p">,</span><span class="w"> </span><span class="nx">runtime</span><span class="p">.</span><span class="nx">NumGoroutine</span><span class="p">(),</span><span class="w"> </span><span class="s">&quot;OS 執行緒&quot;</span><span class="p">,</span><span class="w"> </span><span class="nx">osThreads</span><span class="p">())</span>
+<span class="p">}</span>
+</code></pre>
+<pre><code class="language-bash">go<span class="w"> </span>mod<span class="w"> </span>init<span class="w"> </span>gothr
+go<span class="w"> </span>run<span class="w"> </span>.
+</code></pre>
+<p>實際輸出：</p>
+<pre><code>GOMAXPROCS = 32
+開始：goroutine 1 OS 執行緒 5
+10000 個 Sleep 後：goroutine 10001 OS 執行緒 23
+再加 50 個阻塞 syscall 後：goroutine 10051 OS 執行緒 53
+</code></pre>
+<ul>
+<li>一萬個 <code>time.Sleep</code> 的 goroutine 只用了 23 條執行緒：睡著的 goroutine 由 runtime 自己記在計時器裡，
+<strong>不佔</strong>執行緒。23 條是建立它們時 runtime 為了平行執行而開的（上限跟 <code>GOMAXPROCS</code> 有關）。</li>
+<li>50 個卡在 <code>nanosleep</code> 系統呼叫裡的 goroutine，讓執行緒跳到 53：一個 goroutine 進了核心睡覺，
+<strong>它所在的那條執行緒也一起被核心停住</strong>，runtime 只能再拿（或新開）一條執行緒繼續跑其他 goroutine。所以大約是「每個卡在系統呼叫裡的 goroutine 佔一條」，加上 runtime 自己的幾條。</li>
+</ul>
+<p>這解釋了幾個後端常見現象：</p>
+<ul>
+<li><strong>網路 I/O 不會這樣爆</strong>：<code>net.Conn</code> 的讀寫不是直接阻塞在 <code>read</code> 上，而是交給 netpoller，底下是 <code>epoll</code>
+（第 ⑥ 站的內容）。所以一萬條閒置的 HTTP 連線不會變成一萬條執行緒。</li>
+<li><strong>磁碟 I/O、cgo 呼叫會</strong>：大量 goroutine 同時做慢的檔案操作或 cgo 呼叫，執行緒數會衝上去，超過 runtime 的預設上限 10000 條時程式直接崩潰（<code>debug.SetMaxThreads</code> 可調）。</li>
+<li><strong><code>GOMAXPROCS = 32</code> 是本機的 CPU 數</strong>。放進 CPU 限制為 2 的容器裡，Go 1.24 以前仍會設成主機的 CPU 數，
+32 條執行緒搶 2 顆 CPU 的配額，被 cgroup（control group，核心的資源限制機制）的 CFS（Completely Fair Scheduler，完全公平排程器）配額節流（throttling），表現是 p99 延遲（最慢那 1% 請求的延遲）莫名尖峰。
+Go 1.25 起 runtime 會讀 cgroup 的 CPU 限制來設預設值（未實測：本機是 1.24.2）。這一條要第 ② 站（行程）＋第 ④ 站（執行緒）＋ kernel 的 cgroup 才能完整講清楚。</li>
+</ul>
+<hr />
+<h2 id="三每一站對應到後端的哪些真實問題">三、每一站對應到後端的哪些真實問題</h2>
+<table>
+<thead>
+<tr>
+<th>站</th>
+<th>學的是什麼</th>
+<th>在 Go 後端裡的樣子</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>① 程式怎麼變成能跑的東西</td>
+<td>編譯、連結、ELF、載入器、資料表示</td>
+<td>實驗 1 的映像檔問題；<code>encoding/binary</code> 為什麼要指定 <code>BigEndian</code>／<code>LittleEndian</code>（網路協定的位元組順序）；struct 欄位順序影響記憶體對齊與大小（<code>unsafe.Sizeof</code>）；Go 整數溢位是定義好的回繞、不是 UB（Undefined Behavior，未定義行為）——跟第 2 課的 C 對照</td>
+</tr>
+<tr>
+<td>① 陣列、指標、組合語言</td>
+<td>指標運算、堆疊框</td>
+<td>slice 其實是（指標, len, cap）三欄的小 struct，<code>append</code> 後兩個 slice 共用底層陣列的 bug；逃逸分析（escape analysis，<code>go build -gcflags=-m</code>）決定變數放堆疊還是 heap；讀 <code>pprof</code> 與 <code>go tool objdump</code> 找熱點</td>
+</tr>
+<tr>
+<td>② 行程</td>
+<td><code>fork</code>／<code>exec</code>、訊號、行程狀態</td>
+<td>優雅關機（graceful shutdown）：K8s 送 <code>SIGTERM</code>，沒處理就等到 <code>SIGKILL</code>；容器裡 PID 1 的特殊性與殭屍行程（zombie）；<code>os/exec</code> 底下發生什麼</td>
+</tr>
+<tr>
+<td>③ 虛擬記憶體</td>
+<td>分頁、<code>mmap</code>、heap、page cache</td>
+<td>被 OOMKilled 但 Go heap 不大：RSS（Resident Set Size，常駐記憶體）、GC 還沒還給核心的記憶體、page cache 怎麼算進 cgroup；<code>GOMEMLIMIT</code> 在限制什麼</td>
+</tr>
+<tr>
+<td>④ 執行緒</td>
+<td>執行緒、鎖、原子操作、記憶體模型</td>
+<td>實驗 2；<code>sync.Mutex</code> 在競爭激烈時會去睡（<code>futex</code>）；data race 為什麼不是「偶爾算錯」而是未定義；false sharing（兩個 CPU 搶同一條快取線）</td>
+</tr>
+<tr>
+<td>⑤ 檔案與 I/O</td>
+<td>檔案描述符、緩衝、<code>fsync</code></td>
+<td><code>too many open files</code>（fd 上限）；寫檔後當機資料還在不在（<code>fsync</code>）——資料庫的 WAL（Write-Ahead Log，預寫日誌）為什麼要這樣設計</td>
+</tr>
+<tr>
+<td>⑥ 網路</td>
+<td>socket、TCP 狀態、<code>epoll</code></td>
+<td>Go netpoller 就是 <code>epoll</code>；<code>TIME_WAIT</code> 太多、連線池（<code>http.Transport</code> 的 <code>MaxIdleConnsPerHost</code>）設錯導致每個請求都重新握手；listen backlog 滿了；conntrack 表滿了丟封包（你 <code>linux/</code> 裡的 netfilter 筆記直接接得上）</td>
+</tr>
+<tr>
+<td>Rust</td>
+<td>所有權、借用、<code>Send</code>／<code>Sync</code></td>
+<td>Go 不強制，但 Rust 會逼你想清楚「這份資料誰擁有、誰能同時改」——回頭寫 Go 的並行程式會少很多 race</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="四對系統設計兩層這條路線只管下面那層">四、對系統設計：兩層，這條路線只管下面那層</h2>
+<p>系統設計可以粗分成兩層：</p>
+<p><strong>下層：單機的物理限制。</strong> 一台機器一秒能處理多少請求、延遲從哪裡來、瓶頸是 CPU、記憶體、磁碟還是網路。估算（back-of-the-envelope estimation）時說「一台機器撐一萬條連線沒問題」「這個查詢每次多一次 <code>fsync</code> 就會慢一個數量級」，靠的就是這一層。p99 延遲尖峰的來源——GC 暫停、page fault、CPU 節流、context switch（上下文切換）——全都在這一層。
+<strong>這條路線幾乎完整覆蓋這層</strong>，而且這層是很多只會畫方塊圖的人最弱的地方：他們畫得出「加一層快取」，說不出快取放同機還是跨網路差多少、為什麼。</p>
+<p><strong>上層：分散式系統。</strong> 資料怎麼複製（replication）、怎麼分割（partitioning／sharding）、一致性（consistency）要到哪個程度、網路斷掉時選什麼、共識（consensus，例如 Raft）、冪等（idempotency）、訊息佇列的「至少一次」語意、交易（transaction）與隔離等級（isolation level）。<strong>這條路線完全沒教</strong>，而系統設計的討論大半在這層。</p>
+<p>所以直接的答案是：<strong>對系統設計有幫助，但不夠。</strong> 要補上層，最有效率的教材是
+DDIA（<em>Designing Data-Intensive Applications</em>，Martin Kleppmann 著）——它剛好是從單機儲存講到分散式，而你走完第 ③、⑤ 站後讀它的前半（儲存引擎、B-tree 與 LSM-tree、<code>fsync</code>）會有「原來是這樣」的感覺，這就是融會貫通發生的地方。資料庫內部可以再加 CMU 15-445（公開課程）。</p>
+<hr />
+<h2 id="五kernel-段的價值要分開看">五、kernel 段的價值要分開看</h2>
+<p>第二段的 K0～K4 要誠實分開看：</p>
+<ul>
+<li><strong>K0～K1（自己編 kernel、懂 cgroup／namespace、會讀核心原始碼）</strong>：對後端很有用。容器就是 cgroup＋namespace，
+eBPF（extended Berkeley Packet Filter，在核心裡安全執行小程式的機制）與 <code>perf</code> 是現代線上排查的主力工具。</li>
+<li><strong>K2～K4（送 patch、深耕子系統、成為維護者）</strong>：對「寫後台服務」這份工作的邊際效益會明顯下降。它的價值在別處：開源履歷、跟頂尖工程師共事的機會、以及一種很難從其他地方得到的嚴謹（每行程式都會被逐字審查）。這是<strong>職涯選擇</strong>，不是成為好的後端工程師的必要條件。走到 K2 時值得重新問自己一次要不要繼續。</li>
+</ul>
+<hr />
+<h2 id="六怎麼讓它真的融會貫通">六、怎麼讓它真的融會貫通</h2>
+<p>「融會貫通」的意思是：看到一個現象，腦中能自動跑出底層機制。這要靠<strong>刻意建立連結</strong>，不是等它自己發生：</p>
+<ol>
+<li><strong>每學完一站，寫下一個「這在我的 Go 服務裡長什麼樣子」的例子</strong>，最好能寫成可以跑的 Go 程式（像第二節的兩個實驗）。這是 <a href="%E5%AD%B8%E4%BA%86%E5%B0%B1%E5%BF%98-%E5%A6%82%E4%BD%95%E6%8A%8A%E7%9F%A5%E8%AD%98%E8%BD%89%E6%88%90%E9%95%B7%E6%9C%9F%E8%A8%98%E6%86%B6.html">學了就忘</a> 裡的精緻化提問（elaborative interrogation）——把新知識掛到已有的知識上。</li>
+<li><strong>把工作上遇到的線上問題帶進課堂問。</strong> 真實事故是最好的教材：它逼你把兩三站的知識串起來（實驗 2 的 CPU 節流就橫跨三站）。</li>
+<li><strong>每站專案做完 C 版與 Rust 版後，可以再用 Go 寫一次比較</strong>（例如第 ⑥ 站的 echo 伺服器：C 用 <code>epoll</code> 手寫事件迴圈，
+Go 一條連線一個 goroutine——然後用 <code>strace</code> 看 Go 版底下其實也是 <code>epoll_wait</code>）。</li>
+<li><strong>在系統設計的題目裡強迫自己估數字</strong>：每一個方塊（快取、佇列、資料庫）旁邊寫出延遲與容量的數量級，並說出是哪一站的機制決定的。</li>
+</ol>
+<hr />
+<h2 id="自我測驗">自我測驗</h2>
+<ol>
+<li>同事說「Go 編出來的都是靜態執行檔，丟進 <code>FROM scratch</code> 一定能跑」。這句話在什麼情況下是錯的？錯的時候會看到什麼錯誤訊息，為什麼那個訊息看起來跟事實矛盾？</li>
+<li>一個 Go 服務同時有一萬個 goroutine 在等 HTTP 請求，另一個服務同時有一千個 goroutine 在讀一個很慢的 NFS 磁碟。哪一個比較可能把 OS 執行緒數衝高？為什麼兩者不一樣？</li>
+<li>情境題：一個 Go 服務部署在 CPU 限制為 1 的 K8s Pod 裡（Go 1.23，主機有 64 顆 CPU），平均延遲正常，但 p99 每隔一段時間就尖峰。依這篇筆記，你會先懷疑什麼？它牽涉到哪幾站的知識？</li>
+<li>為什麼說這條學習路線「對系統設計有幫助，但不夠」？分別舉一個它能幫你回答、和它完全幫不上的系統設計問題。</li>
+</ol>
+
+</main>
+</div>
+</body>
+</html>

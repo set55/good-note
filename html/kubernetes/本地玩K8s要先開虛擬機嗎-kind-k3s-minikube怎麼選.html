@@ -1,0 +1,253 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>本地想玩 K8s，是不是應該先開虛擬機？</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/app.js"></script>
+</head>
+<body>
+<button class="menu-btn" onclick="toggleMenu()">☰ 目錄</button>
+<div class="layout">
+<nav class="side">
+<div class="crumbs"><a href="../index.html">🏠 首頁</a> / <a href="README.html">kubernetes</a></div>
+<div class="tools"><button onclick="toggleTheme()">🌓 主題</button></div>
+<ul>
+<li class="l2"><a href="#%E4%B8%80%E5%8F%A5%E8%A9%B1%E7%B5%90%E8%AB%96">一句話結論</a></li>
+<li class="l2"><a href="#%E4%B8%80%E5%85%88%E5%95%8F%E5%B0%8D%E5%95%8F%E9%A1%8Ck8s-%E7%AF%80%E9%BB%9E%E5%88%B0%E5%BA%95%E9%9C%80%E8%A6%81%E4%BB%80%E9%BA%BC">一、先問對問題：K8s 節點到底需要什麼？</a></li>
+<li class="l2"><a href="#%E4%BA%8C%E4%B8%89%E7%A8%AE%E4%B8%BB%E6%B5%81%E6%96%B9%E6%A1%88%E7%9A%84%E6%9C%AC%E8%B3%AA%E5%B7%AE%E7%95%B0">二、三種主流方案的本質差異</a></li>
+<li class="l3"><a href="#%E7%82%BA%E4%BB%80%E9%BA%BC%E6%8E%A8%E8%96%A6-kind-%E7%B5%A6%E6%AD%A3%E5%9C%A8%E5%AD%B8%E5%8E%9F%E7%90%86%E7%9A%84%E4%BD%A0">為什麼推薦 kind 給「正在學原理」的你</a></li>
+<li class="l2"><a href="#%E4%B8%89macoswindowsvm-%E5%85%B6%E5%AF%A6%E4%B8%80%E7%9B%B4%E9%83%BD%E5%9C%A8%E5%8F%AA%E6%98%AF%E8%A2%AB%E8%97%8F%E8%B5%B7%E4%BE%86">三、macOS／Windows：VM 其實一直都在，只是被藏起來</a></li>
+<li class="l2"><a href="#%E5%9B%9B%E4%BB%80%E9%BA%BC%E6%99%82%E5%80%99%E7%9C%9F%E7%9A%84%E8%A9%B2%E9%96%8B-vm">四、什麼時候「真的」該開 VM</a></li>
+<li class="l2"><a href="#%E4%BA%94kind-%E5%AF%A6%E9%9A%9B%E6%9C%83%E8%B8%A9%E7%9A%84%E5%9D%91%E9%83%BD%E8%B7%9F%E7%AF%80%E9%BB%9E%E6%98%AF%E5%AE%B9%E5%99%A8%E6%9C%89%E9%97%9C">五、kind 實際會踩的坑（都跟「節點是容器」有關）</a></li>
+<li class="l2"><a href="#%E5%85%AD%E6%B1%BA%E7%AD%96%E6%B5%81%E7%A8%8B">六、決策流程</a></li>
+<li class="l2"><a href="#%E7%9B%B8%E9%97%9C%E7%AD%86%E8%A8%98">相關筆記</a></li>
+<li class="l2"><a href="#%E6%8C%87%E4%BB%A4%E9%81%B8%E9%A0%85%E7%9A%84%E6%B6%B5%E8%93%8B%E7%AF%84%E5%9C%8D%E8%AA%AA%E6%98%8E">指令選項的涵蓋範圍說明</a></li>
+<li class="l2"><a href="#%E8%87%AA%E6%88%91%E6%B8%AC%E9%A9%97">自我測驗</a></li>
+</ul>
+</nav>
+<main>
+<h1 id="本地想玩-k8s是不是應該先開虛擬機">本地想玩 K8s，是不是應該先開虛擬機？</h1>
+<blockquote>
+<p>日期：2026-09-19<br />
+情境：讀完 K8s 架構、部署流程、Service 封包路徑後，想在自己的 Linux 桌機上建一個叢集實際動手<br />
+適用範圍：Linux 主機（本機環境：Docker 29.8、cgroup v2、32 核／13 GB RAM）；macOS／Windows 的差異在第三節另外說明</p>
+</blockquote>
+<hr />
+<h2 id="一句話結論">一句話結論</h2>
+<blockquote>
+<p><strong>在 Linux 上不需要先開虛擬機（VM，Virtual Machine）。</strong>
+K8s 節點真正需要的是「一顆 Linux 核心的功能」（cgroup、namespace、netfilter），不是「一台機器」——
+你的主機本來就有這顆核心，用 kind 把每個節點做成一個容器就夠了。
+<strong>只有當你要實驗的東西「跟核心本身有關」時，才需要 VM。</strong></p>
+</blockquote>
+<hr />
+<h2 id="一先問對問題k8s-節點到底需要什麼">一、先問對問題：K8s 節點到底需要什麼？</h2>
+<p>回想 <a href="k8s%E6%9E%B6%E6%A7%8B%E7%B8%BD%E8%A6%BD-%E6%8E%A7%E5%88%B6%E5%B9%B3%E9%9D%A2%E8%88%87%E7%AF%80%E9%BB%9E%E7%B5%84%E4%BB%B6.html">k8s架構總覽-控制平面與節點組件</a>：一個節點上跑的是
+kubelet、containerd、kube-proxy，控制平面則是 etcd、apiserver 等幾個程序。它們全都只是<strong>普通的 Linux 程序</strong>，依賴的是核心提供的三樣東西：</p>
+<table>
+<thead>
+<tr>
+<th>核心功能</th>
+<th>誰要用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>控制群組（cgroup）</td>
+<td>containerd／kubelet 限制 Pod 的 CPU、記憶體</td>
+</tr>
+<tr>
+<td>命名空間（namespace）</td>
+<td>每個 Pod 有自己的 network／pid／mount namespace</td>
+</tr>
+<tr>
+<td>netfilter（iptables／nftables）、conntrack</td>
+<td>kube-proxy 寫 Service 的 DNAT 規則（見 <a href="Service%E8%88%87%E5%B0%81%E5%8C%85%E8%B7%AF%E5%BE%91-ClusterIP%E6%80%8E%E9%BA%BC%E8%B5%B0%E5%88%B0Pod.html">Service與封包路徑-ClusterIP怎麼走到Pod</a>）</td>
+</tr>
+</tbody>
+</table>
+<p>所以「要不要開 VM」的真正問題是：<strong>我需要一顆獨立的核心，還是一個隔離好的程序環境就夠了？</strong></p>
+<ul>
+<li>VM 給你的是<strong>一顆獨立核心</strong>（hypervisor 模擬一整台機器）。</li>
+<li>容器給你的是<strong>共用主機核心、但隔離了 namespace 和 cgroup 的程序環境</strong>。</li>
+</ul>
+<p>K8s 節點需要的只是後者。這就是為什麼「把節點本身做成容器」行得通。</p>
+<hr />
+<h2 id="二三種主流方案的本質差異">二、三種主流方案的本質差異</h2>
+<table>
+<thead>
+<tr>
+<th>方案</th>
+<th>節點是什麼</th>
+<th>在 Linux 上要 VM 嗎</th>
+<th>特點</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>kind</strong>（Kubernetes IN Docker）</td>
+<td>每個節點是一個 Docker 容器，容器裡跑 systemd + containerd + kubelet</td>
+<td>不用</td>
+<td>用 kubeadm 建叢集，結構跟正式環境最像；多節點只是多開幾個容器；K8s 官方自己拿它跑 CI（Continuous Integration，持續整合）</td>
+</tr>
+<tr>
+<td><strong>k3s</strong>（Rancher 的輕量發行版）</td>
+<td>直接裝在主機上的一個 binary，主機本身就是節點</td>
+<td>不用</td>
+<td>最省資源；但它<strong>直接改你主機的 iptables、裝 CNI、起 systemd 服務</strong>，玩壞了要清的是你的主機</td>
+</tr>
+<tr>
+<td><strong>minikube</strong></td>
+<td>看 driver：<code>--driver=docker</code> 時跟 kind 類似是容器；<code>--driver=kvm2</code> 時是真的 VM</td>
+<td>可選</td>
+<td>附帶很多 addon（dashboard、ingress），對新手友善；driver 切換就是「要不要 VM」的開關</td>
+</tr>
+</tbody>
+</table>
+<p>（k3d 是「用 Docker 容器跑 k3s」，定位介於 kind 和 k3s 之間，不另外展開。）</p>
+<h3 id="為什麼推薦-kind-給正在學原理的你">為什麼推薦 kind 給「正在學原理」的你</h3>
+<p>前面幾篇筆記的排查招數，在 kind 裡<strong>幾乎都能原樣用</strong>，因為 kind 的節點就是一台用 kubeadm 裝起來的「迷你 Linux 機器」：</p>
+<pre><code class="language-bash">kind<span class="w"> </span>create<span class="w"> </span>cluster<span class="w">                             </span><span class="c1"># 單節點叢集，約 1 分鐘</span>
+docker<span class="w"> </span>ps<span class="w">                                       </span><span class="c1"># 看得到一個 kind-control-plane 容器 = 你的節點</span>
+docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>-it<span class="w"> </span>kind-control-plane<span class="w"> </span>bash<span class="w">         </span><span class="c1"># 「SSH 進節點」</span>
+<span class="w">  </span>ls<span class="w"> </span>/etc/kubernetes/manifests/<span class="w">                 </span><span class="c1"># 控制平面的 static Pod 定義檔都在</span>
+<span class="w">  </span>crictl<span class="w"> </span>ps<span class="w">                                     </span><span class="c1"># 直接問 containerd，繞過 API Server</span>
+<span class="w">  </span>iptables-save<span class="w"> </span>-t<span class="w"> </span>nat<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>KUBE-SVC<span class="w">          </span><span class="c1"># kube-proxy 寫的 Service 規則</span>
+<span class="w">  </span>systemctl<span class="w"> </span>status<span class="w"> </span>kubelet
+</code></pre>
+<p><strong>注意一個容易搞錯的點</strong>：Service 的 iptables 規則在<strong>節點容器的 network namespace 裡</strong>，不在主機上。你在主機直接打 <code>iptables -t nat -L</code> 看不到 <code>KUBE-SERVICES</code>——這不是 kube-proxy 壞了，是你站錯了 namespace。這正好是「容器 = 隔離的 namespace」的活教材。</p>
+<p>多節點也只是一份設定檔：</p>
+<pre><code class="language-yaml"><span class="c1"># kind-multi.yaml</span>
+<span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Cluster</span>
+<span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">kind.x-k8s.io/v1alpha4</span>
+<span class="nt">nodes</span><span class="p">:</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">role</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">control-plane</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">role</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">worker</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">role</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">worker</span>
+</code></pre>
+<pre><code class="language-bash">kind<span class="w"> </span>create<span class="w"> </span>cluster<span class="w"> </span>--config<span class="w"> </span>kind-multi.yaml
+</code></pre>
+<hr />
+<h2 id="三macoswindowsvm-其實一直都在只是被藏起來">三、macOS／Windows：VM 其實一直都在，只是被藏起來</h2>
+<p>在 macOS 或 Windows 上，「容器」無法原生存在，因為那兩個系統<strong>沒有 Linux 核心</strong>，也就沒有 cgroup 和 namespace。
+Docker Desktop 的做法是偷偷開一台輕量 Linux VM，所有容器都跑在那台 VM 裡。</p>
+<p>所以：</p>
+<ul>
+<li><strong>Linux 上跑 kind</strong>：主機核心 → 節點容器 → Pod 容器（兩層容器，零層 VM）</li>
+<li><strong>macOS 上跑 kind</strong>：macOS → Docker Desktop 的 Linux VM → 節點容器 → Pod 容器</li>
+</ul>
+<p>這解釋了一個常見現象：<strong>在 macOS 上連不到 kind 節點容器的 IP，Linux 上卻可以</strong>。
+Linux 上節點容器掛在主機的 docker bridge 上，主機路由表直接可達；macOS 上那個 bridge 在 VM 裡面，主機根本看不到。</p>
+<p><strong>心法：問「要不要開 VM」之前，先問「我的主機有沒有 Linux 核心」。沒有的話，VM 無論如何都會存在。</strong></p>
+<hr />
+<h2 id="四什麼時候真的該開-vm">四、什麼時候「真的」該開 VM</h2>
+<p>判斷準則只有一條：<strong>你要實驗的東西，會不會因為「所有節點共用同一顆核心」而失真？</strong></p>
+<table>
+<thead>
+<tr>
+<th>想做的事</th>
+<th>用 kind 行不行</th>
+<th>原因</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>學 Deployment、Service、探針、滾動更新、RBAC</td>
+<td>✅</td>
+<td>全在 K8s 層，與核心無關</td>
+</tr>
+<tr>
+<td>看 kube-proxy 的 iptables 規則、追 DNAT</td>
+<td>✅</td>
+<td>每個節點容器有自己的 netns，規則各自獨立</td>
+</tr>
+<tr>
+<td>練 kubeadm 從零裝叢集（<code>kubeadm init</code>／<code>join</code>）</td>
+<td>⚠️ 不理想</td>
+<td>kind 幫你把 kubeadm 做完了；想親手做，要準備「乾淨的機器」→ VM</td>
+</tr>
+<tr>
+<td>模擬節點斷電、kubelet 失聯、<code>NotReady</code></td>
+<td>⚠️ 部分</td>
+<td><code>docker stop</code> 節點容器可以模擬；但模擬不了「核心 panic」這種真正的整機故障</td>
+</tr>
+<tr>
+<td>測核心模組、全域 sysctl、換 CNI 用 eBPF（如 Cilium 某些模式）</td>
+<td>❌</td>
+<td>所有節點共用主機核心：載入／卸載一個模組（如 <code>br_netfilter</code>）、改一個全域 sysctl（<code>vm.*</code>、<code>kernel.*</code>），等於同時改了全部節點<strong>以及你的主機</strong>。例外是 <code>net.*</code> 底下多數 sysctl 是<strong>每個 network namespace 各一份</strong>的，這類在單一節點容器裡改不會外溢</td>
+</tr>
+<tr>
+<td>測核心升級、不同發行版的節點混搭</td>
+<td>❌</td>
+<td>節點容器不可能有自己的核心版本</td>
+</tr>
+<tr>
+<td>模擬真實的資源不足（記憶體耗盡、OOM Killer）</td>
+<td>⚠️ 失真</td>
+<td>所有節點搶同一份主機記憶體，OOM 可能殺到主機上的其他程序</td>
+</tr>
+</tbody>
+</table>
+<p>另外，如果你想用 <strong>k3s 但不想弄髒主機</strong>，那也是開 VM 的好理由——k3s 會直接改主機的網路設定，
+VM 可以整台砍掉重來（<code>multipass</code> 或 <code>virt-manager</code> 開一台 Ubuntu 即可）。</p>
+<hr />
+<h2 id="五kind-實際會踩的坑都跟節點是容器有關">五、kind 實際會踩的坑（都跟「節點是容器」有關）</h2>
+<ol>
+<li><strong>映像檔拉不到 → 節點裡的 containerd 不讀主機 Docker 的 proxy 設定</strong>
+節點容器裡另有一套 containerd 在拉 Pod 映像檔。主機 Docker daemon 設好 proxy
+（見 <a href="../docker/Docker%E6%8B%89%E5%8F%96%E6%98%A0%E5%83%8F%E6%AA%94%E5%A4%B1%E6%95%97-daemon%E7%BC%BAproxy%E6%8E%92%E6%9F%A5.html">Docker拉取映像檔失敗-daemon缺proxy排查</a>）只保證 <code>kindest/node</code> 這個節點映像檔拉得下來，<strong>不保證 Pod 的映像檔拉得下來</strong>。
+kind 會在 <code>create cluster</code> 當下把 shell 的 <code>HTTP_PROXY</code>／<code>HTTPS_PROXY</code>／<code>NO_PROXY</code> 帶進節點——
+建叢集之後才設的環境變數不會生效，要重建。</li>
+<li><strong>本地 build 的映像檔，Pod 說找不到</strong>：主機 Docker 的映像檔和節點 containerd 的映像檔是兩個獨立的儲存區。要用 <code>kind load docker-image &lt;image&gt;</code> 搬進去，並把 <code>imagePullPolicy</code> 設成 <code>IfNotPresent</code>（tag 為 <code>latest</code> 時預設是 <code>Always</code>，會繞去 registry 拉）。</li>
+<li><strong><code>LoadBalancer</code> 型 Service 永遠 <code>&lt;pending&gt;</code></strong>：沒有雲端，就沒有 cloud-controller-manager 幫你配外部 IP。要另裝 <code>cloud-provider-kind</code> 或 MetalLB。這正好印證「Service 類型只是向某個控制器提出需求」。</li>
+<li><strong>多節點時出現 <code>too many open files</code></strong>：多個節點的 kubelet／systemd 共用主機的 inotify 配額。調高 <code>fs.inotify.max_user_watches</code>／<code>max_user_instances</code>（本機目前是 1048576／2048，已足夠）。</li>
+</ol>
+<hr />
+<h2 id="六決策流程">六、決策流程</h2>
+<pre><code>主機是 macOS / Windows？
+ ├─ 是 → 裝 Docker Desktop（它自帶 VM）→ 上面跑 kind
+ └─ 否（Linux）
+     ├─ 想學 K8s 物件與原理、看 iptables/crictl  → kind（不開 VM）
+     ├─ 想要最省資源、長期開著當 homelab       → k3s（建議裝在 VM 裡，不弄髒主機）
+     └─ 要親手 kubeadm 裝、測核心/CNI/sysctl   → 開 2～3 台 VM
+</code></pre>
+<hr />
+<h2 id="相關筆記">相關筆記</h2>
+<ul>
+<li><a href="k8s%E6%9E%B6%E6%A7%8B%E7%B8%BD%E8%A6%BD-%E6%8E%A7%E5%88%B6%E5%B9%B3%E9%9D%A2%E8%88%87%E7%AF%80%E9%BB%9E%E7%B5%84%E4%BB%B6.html">k8s架構總覽-控制平面與節點組件</a>——節點上有哪些程序、static Pod 是什麼</li>
+<li><a href="Service%E8%88%87%E5%B0%81%E5%8C%85%E8%B7%AF%E5%BE%91-ClusterIP%E6%80%8E%E9%BA%BC%E8%B5%B0%E5%88%B0Pod.html">Service與封包路徑-ClusterIP怎麼走到Pod</a>——在 kind 裡最值得親手追的一條路徑</li>
+<li><a href="../docker/Docker%E6%8B%89%E5%8F%96%E6%98%A0%E5%83%8F%E6%AA%94%E5%A4%B1%E6%95%97-daemon%E7%BC%BAproxy%E6%8E%92%E6%9F%A5.html">Docker拉取映像檔失敗-daemon缺proxy排查</a>——proxy 設定在哪一層生效</li>
+<li><a href="%E7%94%A8VM%E8%88%87kubeadm%E5%BE%9E%E9%9B%B6%E6%9E%B6%E8%A8%ADK8s%E5%8F%A2%E9%9B%86.html">用VM與kubeadm從零架設K8s叢集</a>——決定開 VM 之後的完整架設流程</li>
+</ul>
+<hr />
+<h2 id="指令選項的涵蓋範圍說明">指令選項的涵蓋範圍說明</h2>
+<blockquote>
+<p><strong>本篇只列這個主題用得到的指令與旗標，不是完整清單。</strong></p>
+<p><code>kubectl</code> 有數十個子命令、每個子命令各自又有十幾到數十個旗標，
+<code>kubeadm</code>／<code>multipass</code>／<code>kind</code>／<code>crictl</code> 也各自龐大。這類工具不適合在筆記裡全列。</p>
+<p><strong>查法（這才是該記住的）：</strong></p>
+<pre><code class="language-bash">kubectl<span class="w"> </span>--help<span class="w">                  </span><span class="c1"># 所有子命令，依用途分組</span>
+kubectl<span class="w"> </span>&lt;子命令&gt;<span class="w"> </span>--help<span class="w">          </span><span class="c1"># 該子命令的完整旗標</span>
+kubectl<span class="w"> </span>options<span class="w">                 </span><span class="c1"># 所有子命令共用的全域旗標</span>
+kubectl<span class="w"> </span>explain<span class="w"> </span>&lt;資源&gt;<span class="o">[</span>.欄位<span class="o">]</span><span class="w">    </span><span class="c1"># ★ 查資源的欄位定義，等同線上 API 文件</span>
+kubeadm<span class="w"> </span>--help<span class="w"> </span>/<span class="w"> </span>kubeadm<span class="w"> </span>&lt;子命令&gt;<span class="w"> </span>--help
+multipass<span class="w"> </span><span class="nb">help</span><span class="w"> </span><span class="o">[</span>&lt;命令&gt;<span class="o">]</span><span class="w"> </span>/<span class="w"> </span>kind<span class="w"> </span>--help<span class="w"> </span>/<span class="w"> </span>crictl<span class="w"> </span>--help
+</code></pre>
+<p><strong><code>kubectl explain</code> 特別值得記住</strong>——寫 YAML 時不確定某個欄位叫什麼、能填什麼，問它比翻文件快，而且回答的是<strong>你這個叢集版本</strong>的定義。</p>
+<p>附帶一提：撰寫本篇的這台機器上<strong>沒有安裝這些工具</strong>，所以上面的查法是給你在有叢集的環境上用的，不是從本機 <code>--help</code> 抄來的清單。</p>
+</blockquote>
+<h2 id="自我測驗">自我測驗</h2>
+<ol>
+<li>為什麼在 Linux 上「把 K8s 節點做成容器」是可行的？VM 和容器分別提供了什麼，K8s 節點真正需要的是哪一個？</li>
+<li>你在 kind 叢集建好一個 Service，然後在主機上執行 <code>iptables -t nat -L KUBE-SERVICES</code>，結果說這條鏈不存在。kube-proxy 壞了嗎？該怎麼解釋、去哪裡看？</li>
+<li>同樣用 kind，為什麼在 Linux 上可以直接 <code>curl &lt;節點容器IP&gt;:&lt;NodePort&gt;</code>，在 macOS 上卻不行？</li>
+<li>（情境題）你想驗證「某個 worker 節點缺了 <code>br_netfilter</code> 核心模組時，同節點 Pod 之間經過 Service 的流量會出什麼問題」，於是在 kind 的 worker 容器裡卸載這個模組。這個實驗結果可信嗎？會影響到哪些東西？如果改成在節點容器裡調 <code>net.ipv4.ip_forward</code>，結論會不一樣嗎？為什麼？</li>
+<li>（情境題）主機 Docker daemon 的 proxy 已經設好，<code>kind create cluster</code> 也成功了，但 Pod 一直 <code>ImagePullBackOff</code>。請推測最可能的根因，並說明為什麼「daemon 的 proxy 設好了」不代表問題已解決。</li>
+</ol>
+
+</main>
+</div>
+</body>
+</html>

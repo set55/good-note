@@ -1,0 +1,1524 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C 的資料在記憶體裡長怎樣？—— 位元組、指標、位元組順序與有號／無號</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/app.js"></script>
+</head>
+<body>
+<button class="menu-btn" onclick="toggleMenu()">☰ 目錄</button>
+<div class="layout">
+<nav class="side">
+<div class="crumbs"><a href="../index.html">🏠 首頁</a> / <a href="README.html">c</a></div>
+<div class="tools"><button onclick="toggleTheme()">🌓 主題</button><button onclick="toggleAnswers(true)">展開答案</button><button onclick="toggleAnswers(false)">收起答案</button></div>
+<ul>
+<li class="l2"><a href="#%E7%9B%AE%E9%8C%84">目錄</a></li>
+<li class="l2"><a href="#%E4%B8%80%E4%BD%8D%E5%85%83%E7%B5%84%E8%88%87%E5%9E%8B%E5%88%A5%E5%A4%A7%E5%B0%8F">一、位元組與型別大小</a></li>
+<li class="l3"><a href="#unsigned-%E5%96%AE%E7%8D%A8%E5%AF%AB%E5%B0%B1%E6%98%AF-unsigned-int%E6%95%B4%E6%95%B8%E5%9E%8B%E5%88%A5%E7%9A%84%E6%89%80%E6%9C%89%E5%AF%AB%E6%B3%95">unsigned 單獨寫就是 unsigned int：整數型別的所有寫法</a></li>
+<li class="l2"><a href="#%E4%BA%8C%E6%8C%87%E6%A8%99%E5%B0%B1%E6%98%AF%E4%BD%8D%E5%9D%80">二、指標就是位址</a></li>
+<li class="l3"><a href="#%E4%BD%8D%E5%9D%80%E7%9C%8B%E8%B5%B7%E4%BE%86%E5%8F%AA%E6%9C%89-6-bytep-%E4%B8%8D%E8%A3%9C%E9%9B%B6%E8%80%8C%E4%B8%94%E6%9C%80%E4%B8%8A%E9%9D%A2-2-byte-%E4%B8%80%E5%AE%9A%E6%98%AF-0">位址看起來只有 6 byte？——%p 不補零，而且最上面 2 byte 一定是 0</a></li>
+<li class="l2"><a href="#%E4%B8%89%E4%BD%8D%E5%85%83%E7%B5%84%E9%A0%86%E5%BA%8Fendianness">三、位元組順序（endianness）</a></li>
+<li class="l2"><a href="#%E5%9B%9B%E7%84%A1%E8%99%9F%E6%95%B4%E6%95%B8%E4%BA%8C%E9%80%B2%E4%BD%8D%E8%88%87%E5%9B%9E%E7%B9%9E">四、無號整數：二進位與回繞</a></li>
+<li class="l3"><a href="#%E5%B8%B8%E6%95%B8%E4%B9%9F%E6%9C%89%E5%9E%8B%E5%88%A50u-%E7%9A%84-u-%E6%98%AF%E4%BB%80%E9%BA%BC">常數也有型別：0u 的 u 是什麼</a></li>
+<li class="l3"><a href="#%E6%80%8E%E9%BA%BC%E7%A2%BA%E5%AE%9A%E4%B8%80%E5%80%8B%E5%B8%B8%E6%95%B8%E7%9A%84%E5%9E%8B%E5%88%A5%E6%AF%94%E8%BC%83%E6%99%82%E4%BB%A5%E8%AA%B0%E7%82%BA%E6%BA%96">怎麼確定一個常數的型別？比較時以誰為準？</a></li>
+<li class="l2"><a href="#%E4%BA%94%E6%9C%89%E8%99%9F%E6%95%B4%E6%95%B8%E4%BA%8C%E8%A3%9C%E6%95%B8">五、有號整數：二補數</a></li>
+<li class="l2"><a href="#%E5%85%AD%E6%9C%89%E8%99%9F%E8%88%87%E7%84%A1%E8%99%9F%E4%B9%8B%E9%96%93%E7%9A%84%E8%BD%89%E6%8F%9B%E4%BD%8D%E5%85%83%E4%B8%8D%E8%AE%8A%E6%8F%9B%E5%80%8B%E8%AE%80%E6%B3%95">六、有號與無號之間的轉換：位元不變，換個讀法</a></li>
+<li class="l2"><a href="#%E4%B8%83%E9%99%B7%E9%98%B1%E6%9C%89%E8%99%9F%E5%92%8C%E7%84%A1%E8%99%9F%E6%B7%B7%E5%9C%A8%E4%B8%80%E8%B5%B7%E6%AF%94%E8%BC%83">七、陷阱：有號和無號混在一起比較</a></li>
+<li class="l3"><a href="#-wtype-limits-%E5%8F%AA%E6%8A%93%E6%B0%B8%E9%81%A0%E6%88%90%E7%AB%8B%E6%B0%B8%E9%81%A0%E4%B8%8D%E6%88%90%E7%AB%8B%E7%9A%84%E6%AF%94%E8%BC%83">-Wtype-limits 只抓「永遠成立／永遠不成立」的比較</a></li>
+<li class="l2"><a href="#%E5%85%AB%E6%BA%A2%E4%BD%8D%E7%84%A1%E8%99%9F%E5%9B%9E%E7%B9%9E%E6%9C%89%E8%99%9F%E6%98%AF%E6%9C%AA%E5%AE%9A%E7%BE%A9%E8%A1%8C%E7%82%BA">八、溢位：無號回繞，有號是未定義行為</a></li>
+<li class="l3"><a href="#%E6%9C%89%E8%99%9F%E6%BA%A2%E4%BD%8D%E5%9C%A8-c-%E6%A8%99%E6%BA%96%E8%A3%A1%E6%98%AF%E6%9C%AA%E5%AE%9A%E7%BE%A9%E8%A1%8C%E7%82%BA">有號溢位在 C 標準裡是「未定義行為」</a></li>
+<li class="l3"><a href="#%E4%B8%89%E7%A8%AE%E6%87%89%E5%B0%8D%E6%96%B9%E5%BC%8F">三種應對方式</a></li>
+<li class="l3"><a href="#%E5%8F%A6%E4%B8%80%E7%A8%AE%E5%AF%AB%E6%B3%95x--y--x-%E8%A2%AB%E6%94%B9%E5%AF%AB%E6%88%90-y--0">另一種寫法：x + y &lt; x 被改寫成 y &lt; 0</a></li>
+<li class="l3"><a href="#kernel-%E6%80%8E%E9%BA%BC%E8%99%95%E7%90%86-fno-strict-overflow">kernel 怎麼處理：-fno-strict-overflow</a></li>
+<li class="l2"><a href="#%E4%B9%9D%E6%9C%AC%E8%AA%B2%E7%94%A8%E5%88%B0%E7%9A%84%E5%B7%A5%E5%85%B7%E8%88%87%E9%81%B8%E9%A0%85">九、本課用到的工具與選項</a></li>
+<li class="l3"><a href="#gcc%E6%9C%AC%E8%AA%B2%E7%94%A8%E5%88%B0%E7%9A%84%E9%81%B8%E9%A0%85">gcc：本課用到的選項</a></li>
+<li class="l3"><a href="#printf-%E7%9A%84%E6%A0%BC%E5%BC%8F%E5%AE%8C%E6%95%B4%E6%96%87%E6%B3%95">printf 的格式：完整文法</a></li>
+<li class="l3"><a href="#limitsh%E6%9C%AC%E8%AA%B2%E7%94%A8%E5%88%B0%E7%9A%84%E5%B8%B8%E6%95%B8">&lt;limits.h&gt;：本課用到的常數</a></li>
+<li class="l3"><a href="#%E8%A7%80%E5%AF%9F%E5%B7%A5%E5%85%B7">觀察工具</a></li>
+<li class="l2"><a href="#%E5%8D%81%E5%8B%95%E6%89%8B%E4%BD%9C%E6%A5%AD">十、動手作業</a></li>
+<li class="l2"><a href="#%E8%87%AA%E6%88%91%E6%B8%AC%E9%A9%97">自我測驗</a></li>
+</ul>
+</nav>
+<main>
+<h1 id="c-的資料在記憶體裡長怎樣-位元組指標位元組順序與有號無號">C 的資料在記憶體裡長怎樣？—— 位元組、指標、位元組順序與有號／無號</h1>
+<blockquote>
+<p>日期：2026-09-24<br />
+情境：系統化學習路線第 ① 站第 2 課，對應 CS:APP 第 2 章 2.1～2.3 節（資訊的儲存、整數的表示、整數運算）。第 1 課 <a href="ELF%E6%98%AF%E4%BB%80%E9%BA%BC-%E5%8F%AF%E5%9F%B7%E8%A1%8C%E8%88%87%E5%8F%AF%E9%80%A3%E7%B5%90%E6%A0%BC%E5%BC%8F%E7%9A%84%E5%85%A9%E7%A8%AE%E8%A6%96%E8%A7%92.html#%E4%BA%94%E6%AA%94%E9%A0%AD%E8%A3%A1%E7%9A%84%E5%85%B6%E4%BB%96%E6%AC%84%E4%BD%8D">ELF 是什麼</a> 裡 <code>readelf -h</code> 的
+<code>Data: 2's complement, little endian</code> 這一行，兩個詞都在這一課講<br />
+適用範圍：實測本機 Ubuntu 24.04、x86-64、gcc 13.3.0、glibc 2.39、gdb 15.1；所有輸出都是本機實際執行結果<br />
+對應檔案：每個實驗程式的完整原始碼都寫在它出現的那一節，可以直接複製編譯；作業在 <a href="../../small-project/s1-02-data-repr/"><code>small-project/s1-02-data-repr/</code></a>（會進 git）<br />
+相關：<a href="gcc%E6%9C%80%E4%BD%B3%E5%8C%96%E7%AD%89%E7%B4%9A-O0%E5%88%B0O3%E5%B7%AE%E5%9C%A8%E5%93%AA.html">gcc最佳化等級</a>（第九節的 <code>-O0</code>／<code>-O2</code> 差異）、
+<a href="gdb%E5%AE%8C%E6%95%B4%E5%91%BD%E4%BB%A4%E5%8F%83%E8%80%83.html">gdb完整命令參考</a>（本課用 <code>x</code> 看記憶體）</p>
+</blockquote>
+<p><strong>一句話結論：記憶體裡只有一格一格的位元組（byte），本身沒有「型別」。同一串位元組是 <code>-1</code> 還是 <code>4294967295</code>、要讀 1 個還是 4 個 byte，全由 C 程式碼裡的<strong>型別</strong>決定。指標就是一個位址（x86-64 上 8 個 byte 的數字），指標的型別決定從那個位址讀幾個 byte、怎麼解讀。x86-64 是<strong>小端序</strong>：多位元組數字的<strong>低位 byte 放在低位址</strong>。有號整數用<strong>二補數</strong>表示；有號與無號混在一起比較時，有號的會被轉成無號，<code>-1</code> 就變成最大的數。無號溢位會回繞（有定義），<strong>有號溢位是未定義行為</strong>，<code>-O2</code> 會利用這一點改掉你的程式——所以 kernel 加了 <code>-fno-strict-overflow</code>。</strong></p>
+<hr />
+<h2 id="目錄">目錄</h2>
+<ul>
+<li><a href="#%E4%B8%80%E4%BD%8D%E5%85%83%E7%B5%84%E8%88%87%E5%9E%8B%E5%88%A5%E5%A4%A7%E5%B0%8F">一、位元組與型別大小</a></li>
+<li><a href="#%E4%BA%8C%E6%8C%87%E6%A8%99%E5%B0%B1%E6%98%AF%E4%BD%8D%E5%9D%80">二、指標就是位址</a></li>
+<li><a href="#%E4%B8%89%E4%BD%8D%E5%85%83%E7%B5%84%E9%A0%86%E5%BA%8Fendianness">三、位元組順序（endianness）</a></li>
+<li><a href="#%E5%9B%9B%E7%84%A1%E8%99%9F%E6%95%B4%E6%95%B8%E4%BA%8C%E9%80%B2%E4%BD%8D%E8%88%87%E5%9B%9E%E7%B9%9E">四、無號整數：二進位與回繞</a></li>
+<li><a href="#%E4%BA%94%E6%9C%89%E8%99%9F%E6%95%B4%E6%95%B8%E4%BA%8C%E8%A3%9C%E6%95%B8">五、有號整數：二補數</a></li>
+<li><a href="#%E5%85%AD%E6%9C%89%E8%99%9F%E8%88%87%E7%84%A1%E8%99%9F%E4%B9%8B%E9%96%93%E7%9A%84%E8%BD%89%E6%8F%9B%E4%BD%8D%E5%85%83%E4%B8%8D%E8%AE%8A%E6%8F%9B%E5%80%8B%E8%AE%80%E6%B3%95">六、有號與無號之間的轉換：位元不變，換個讀法</a></li>
+<li><a href="#%E4%B8%83%E9%99%B7%E9%98%B1%E6%9C%89%E8%99%9F%E5%92%8C%E7%84%A1%E8%99%9F%E6%B7%B7%E5%9C%A8%E4%B8%80%E8%B5%B7%E6%AF%94%E8%BC%83">七、陷阱：有號和無號混在一起比較</a></li>
+<li><a href="#%E5%85%AB%E6%BA%A2%E4%BD%8D%E7%84%A1%E8%99%9F%E5%9B%9E%E7%B9%9E%E6%9C%89%E8%99%9F%E6%98%AF%E6%9C%AA%E5%AE%9A%E7%BE%A9%E8%A1%8C%E7%82%BA">八、溢位：無號回繞，有號是未定義行為</a></li>
+<li><a href="#%E4%B9%9D%E6%9C%AC%E8%AA%B2%E7%94%A8%E5%88%B0%E7%9A%84%E5%B7%A5%E5%85%B7%E8%88%87%E9%81%B8%E9%A0%85">九、本課用到的工具與選項</a></li>
+<li><a href="#%E5%8D%81%E5%8B%95%E6%89%8B%E4%BD%9C%E6%A5%AD">十、動手作業</a></li>
+</ul>
+<hr />
+<h2 id="一位元組與型別大小">一、位元組與型別大小</h2>
+<p><strong>位元（bit）</strong> 是一個 0 或 1。<strong>位元組（byte）</strong> 是 8 個位元，是記憶體<strong>最小的定址單位</strong>：每一個 byte 都有自己的位址，沒辦法只取「某個位址的第 3 個 bit」，要先把整個 byte 讀出來。</p>
+<p>一個 byte 可以寫成兩位<strong>十六進位（hexadecimal）</strong>：一位十六進位剛好是 4 個 bit（<code>0</code>～<code>f</code> 對應 <code>0000</code>～<code>1111</code>），所以 <code>0x12345678</code> 一眼就看得出是 4 個 byte：<code>12</code>、<code>34</code>、<code>56</code>、<code>78</code>。這是整課一直用十六進位的原因。</p>
+<p>各型別佔幾個 byte，用 <code>sizeof</code> 問編譯器（<code>%zu</code> 是印 <code>size_t</code> 的格式，見第九節）。<code>sizes.c</code> 完整原始碼：</p>
+<pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;limits.h&gt;</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;char        %zu</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="k">sizeof</span><span class="p">(</span><span class="kt">char</span><span class="p">));</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;short       %zu</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="k">sizeof</span><span class="p">(</span><span class="kt">short</span><span class="p">));</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;int         %zu</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="k">sizeof</span><span class="p">(</span><span class="kt">int</span><span class="p">));</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;long        %zu</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="k">sizeof</span><span class="p">(</span><span class="kt">long</span><span class="p">));</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;long long   %zu</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="k">sizeof</span><span class="p">(</span><span class="kt">long</span><span class="w"> </span><span class="kt">long</span><span class="p">));</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;float       %zu</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="k">sizeof</span><span class="p">(</span><span class="kt">float</span><span class="p">));</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;double      %zu</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="k">sizeof</span><span class="p">(</span><span class="kt">double</span><span class="p">));</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;int *       %zu</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="k">sizeof</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="o">*</span><span class="p">));</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;char *      %zu</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="k">sizeof</span><span class="p">(</span><span class="kt">char</span><span class="w"> </span><span class="o">*</span><span class="p">));</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;size_t      %zu</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="k">sizeof</span><span class="p">(</span><span class="kt">size_t</span><span class="p">));</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;CHAR_MIN %d  CHAR_MAX %d</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">CHAR_MIN</span><span class="p">,</span><span class="w"> </span><span class="n">CHAR_MAX</span><span class="p">);</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;INT_MIN %d  INT_MAX %d</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">INT_MIN</span><span class="p">,</span><span class="w"> </span><span class="n">INT_MAX</span><span class="p">);</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;UINT_MAX %u</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">UINT_MAX</span><span class="p">);</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;LONG_MAX %ld</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">LONG_MAX</span><span class="p">);</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<pre><code>$ gcc -Wall -Wextra sizes.c -o sizes &amp;&amp; ./sizes
+char        1
+short       2
+int         4
+long        8
+long long   8
+float       4
+double      8
+int *       8
+char *      8
+size_t      8
+CHAR_MIN -128  CHAR_MAX 127
+INT_MIN -2147483648  INT_MAX 2147483647
+UINT_MAX 4294967295
+LONG_MAX 9223372036854775807
+</code></pre>
+<p>要注意的三件事：</p>
+<ul>
+<li><strong>C 標準沒有規定 <code>int</code>、<code>long</code> 的確切大小</strong>，只規定最小範圍。這裡的數字是 <strong>x86-64 Linux</strong> 的慣例，叫 <strong>LP64</strong>
+（Long and Pointer are 64-bit，<code>long</code> 和指標是 64 位元）。64 位元 Windows 的 <code>long</code> 是 4 byte，同一份程式碼換平台可能就不一樣。
+kernel 大量用 <code>u32</code>、<code>u64</code> 這種寫明大小的型別，就是為了不受這個影響（使用者空間對應的是 <code>&lt;stdint.h&gt;</code> 的 <code>uint32_t</code> 等）。</li>
+<li><strong>所有指標都是 8 byte</strong>，不管指向 <code>char</code> 還是 <code>int</code>。指標存的是位址，而 x86-64 的位址是 64 位元（第二節）。</li>
+<li><strong><code>char</code> 在這台機器上是有號的</strong>（<code>CHAR_MIN</code> 是 -128）。C 標準讓平台自己決定 <code>char</code> 有號還是無號（ARM 上通常是無號），所以要處理「原始位元組」時，一律寫 <code>unsigned char</code>。</li>
+</ul>
+<p><code>CHAR_MIN</code>、<code>INT_MAX</code> 這些常數來自 <code>&lt;limits.h&gt;</code>（第九節）。</p>
+<hr />
+<h3 id="unsigned-單獨寫就是-unsigned-int整數型別的所有寫法"><code>unsigned</code> 單獨寫就是 <code>unsigned int</code>：整數型別的所有寫法</h3>
+<blockquote>
+<p>2026-10-06 補教：使用者讀第 4 課的 <code>long widen_u(unsigned x)</code> 時問「<code>unsigned</code> 是什麼類型」。本課的表只寫了 <code>int</code>、<code>long</code> 這些名字，沒說明 C 的整數型別可以有好幾種寫法，是教學上的漏洞。</p>
+</blockquote>
+<p><strong>結論：單獨寫 <code>unsigned</code>，就是 <code>unsigned int</code></strong>（本機 4 byte，0～4294967295）。C 的整數型別名字是由幾個<strong>型別指定字（type specifier）</strong>
+組合起來的：<code>signed</code>／<code>unsigned</code>（有號／無號）、<code>short</code>／<code>long</code>／<code>long long</code>（大小）、<code>int</code>、<code>char</code>。C 標準（C11 6.7.2）規定了三件事：</p>
+<ul>
+<li><strong>有了其他指定字時，<code>int</code> 可以省略</strong>：<code>unsigned</code> ＝ <code>unsigned int</code>、<code>short</code> ＝ <code>short int</code>、<code>long</code> ＝ <code>long int</code>。</li>
+<li><strong>沒寫 <code>signed</code>／<code>unsigned</code> 時，預設有號</strong>：<code>int</code> ＝ <code>signed int</code> ＝ <code>signed</code>、<code>long</code> ＝ <code>signed long</code>。<strong>唯一的例外是 <code>char</code></strong>（見下面）。</li>
+<li>指定字的<strong>順序不重要</strong>：<code>long unsigned int</code>、<code>int unsigned long</code>、<code>unsigned long</code> 都是同一個型別（但沒人這樣亂寫，慣例是 <code>unsigned long</code>）。</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>型別</th>
+<th>所有合法寫法（同一列都是同一個型別）</th>
+<th>本機大小</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>char</code></td>
+<td><code>char</code></td>
+<td>1</td>
+</tr>
+<tr>
+<td><code>signed char</code></td>
+<td><code>signed char</code></td>
+<td>1</td>
+</tr>
+<tr>
+<td><code>unsigned char</code></td>
+<td><code>unsigned char</code></td>
+<td>1</td>
+</tr>
+<tr>
+<td><code>short</code></td>
+<td><code>short</code>、<code>signed short</code>、<code>short int</code>、<code>signed short int</code></td>
+<td>2</td>
+</tr>
+<tr>
+<td><code>unsigned short</code></td>
+<td><code>unsigned short</code>、<code>unsigned short int</code></td>
+<td>2</td>
+</tr>
+<tr>
+<td><code>int</code></td>
+<td><code>int</code>、<code>signed</code>、<code>signed int</code></td>
+<td>4</td>
+</tr>
+<tr>
+<td><code>unsigned int</code></td>
+<td><code>unsigned</code>、<code>unsigned int</code></td>
+<td>4</td>
+</tr>
+<tr>
+<td><code>long</code></td>
+<td><code>long</code>、<code>signed long</code>、<code>long int</code>、<code>signed long int</code></td>
+<td>8</td>
+</tr>
+<tr>
+<td><code>unsigned long</code></td>
+<td><code>unsigned long</code>、<code>unsigned long int</code></td>
+<td>8</td>
+</tr>
+<tr>
+<td><code>long long</code></td>
+<td><code>long long</code>、<code>signed long long</code>、<code>long long int</code>、<code>signed long long int</code></td>
+<td>8</td>
+</tr>
+<tr>
+<td><code>unsigned long long</code></td>
+<td><code>unsigned long long</code>、<code>unsigned long long int</code></td>
+<td>8</td>
+</tr>
+</tbody>
+</table>
+<p>（這張表是 C 的<strong>全部</strong>標準整數型別。另外還有 <code>_Bool</code>（C23 改叫 <code>bool</code>），以及浮點的 <code>float</code>、<code>double</code>、<code>long double</code>；
+<code>&lt;stdint.h&gt;</code> 的 <code>uint32_t</code> 這些不是新型別，而是上表某一個型別的<strong>別名</strong>（<code>typedef</code>），例如本機 <code>uint32_t</code> 就是 <code>unsigned int</code>。）</p>
+<p><strong><code>char</code> 是例外：<code>char</code>、<code>signed char</code>、<code>unsigned char</code> 是三個不同的型別。</strong> 本機的 <code>char</code> 雖然是有號的（上面 <code>CHAR_MIN</code> 是 -128），值的範圍跟 <code>signed char</code> 一樣，但在型別系統裡它們<strong>不是同一個型別</strong>。這是因為 C 標準讓平台決定 <code>char</code> 有號還是無號，所以 <code>char</code> 不能被定義成兩者之一。</p>
+<p><strong>怎麼驗證「同一個型別」：讓 gcc 告訴你。</strong> 同一個函式宣告兩次時，型別完全相同就不報錯，不同就報 <code>conflicting types</code>，而且錯誤訊息會用 gcc 自己的寫法印出型別。<code>same.c</code> 完整原始碼（只編譯不連結，所以不需要 <code>main</code>）：</p>
+<pre><code class="language-c"><span class="kt">unsigned</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="nf">f</span><span class="p">(</span><span class="kt">unsigned</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">x</span><span class="p">);</span>
+<span class="kt">unsigned</span><span class="w">     </span><span class="nf">f</span><span class="p">(</span><span class="kt">unsigned</span><span class="w"> </span><span class="n">x</span><span class="p">);</span><span class="w">          </span><span class="cm">/* 第 2 行：跟第 1 行同一個型別，不報錯 */</span>
+<span class="kt">long</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="kt">unsigned</span><span class="w"> </span><span class="nf">f2</span><span class="p">(</span><span class="kt">void</span><span class="p">);</span>
+<span class="kt">unsigned</span><span class="w"> </span><span class="kt">long</span><span class="w">     </span><span class="nf">f2</span><span class="p">(</span><span class="kt">void</span><span class="p">);</span><span class="w">          </span><span class="cm">/* 第 4 行：順序不同、省略 int，仍是同一個型別 */</span>
+<span class="kt">int</span><span class="w">          </span><span class="nf">f</span><span class="p">(</span><span class="kt">unsigned</span><span class="w"> </span><span class="n">x</span><span class="p">);</span><span class="w">          </span><span class="cm">/* 第 5 行：回傳型別改成 int，跟第 1 行衝突 */</span>
+<span class="kt">signed</span><span class="w"> </span><span class="kt">char</span><span class="w">  </span><span class="nf">h</span><span class="p">(</span><span class="kt">void</span><span class="p">);</span>
+<span class="kt">char</span><span class="w">         </span><span class="nf">h</span><span class="p">(</span><span class="kt">void</span><span class="p">);</span><span class="w">                </span><span class="cm">/* 第 7 行：本機 char 有號，但 char 和 signed char 是不同型別 */</span>
+</code></pre>
+<pre><code>$ gcc -c same.c -o same.o
+same.c:5:14: error: conflicting types for ‘f’; have ‘int(unsigned int)’
+    5 | int          f(unsigned x);          /* 第 5 行：回傳型別改成 int，跟第 1 行衝突 */
+      |              ^
+same.c:2:14: note: previous declaration of ‘f’ with type ‘unsigned int(unsigned int)’
+    2 | unsigned     f(unsigned x);          /* 第 2 行：跟第 1 行同一個型別，不報錯 */
+      |              ^
+same.c:7:14: error: conflicting types for ‘h’; have ‘char(void)’
+    7 | char         h(void);                /* 第 7 行：本機 char 有號，但 char 和 signed char 是不同型別 */
+      |              ^
+same.c:6:14: note: previous declaration of ‘h’ with type ‘signed char(void)’
+    6 | signed char  h(void);
+      |              ^
+</code></pre>
+<p>逐行看：</p>
+<ul>
+<li>第 2 行沒有報錯，代表 <code>unsigned f(unsigned x)</code> 跟第 1 行的 <code>unsigned int f(unsigned int x)</code> 是同一個型別。而且 gcc 在 note 裡<strong>把第 2 行印成</strong>
+<code>unsigned int(unsigned int)</code>：你寫的是 <code>unsigned</code>，gcc 心裡的名字是 <code>unsigned int</code>。（<code>unsigned int(unsigned int)</code> 是 gcc 印函式型別的寫法：括號外是回傳型別，括號內是參數型別。）</li>
+<li>第 4 行沒有報錯：<code>long int unsigned</code> 和 <code>unsigned long</code> 是同一個型別。</li>
+<li>第 5 行報錯：回傳型別從 <code>unsigned int</code> 改成 <code>int</code>，有號無號不同就是不同型別。</li>
+<li>第 7 行報錯：<code>char</code> 和 <code>signed char</code> 在本機範圍一樣，型別卻不同。</li>
+</ul>
+<p>gcc 自己偏好的寫法會把 <code>int</code> 放在最後、大小放在有號無號之前，例如 <code>unsigned long</code> 會被印成 <code>long unsigned int</code>、
+<code>unsigned long long</code> 印成 <code>long long unsigned int</code>。之後在錯誤訊息或 <code>gdb</code> 的 <code>ptype</code> 裡看到這種寫法，它跟你寫的 <code>unsigned long</code> 是同一個型別。</p>
+<p>所以第 4 課的 <code>long widen_u(unsigned x)</code> 就是「參數是 <code>unsigned int</code>（4 byte 無號）、回傳 <code>long</code>（8 byte 有號）」：從 4 byte 變成 8 byte 要擴展，來源是無號的所以做零擴展（第六節），編出來就是一個 <code>movl %edi, %eax</code>。把參數改寫成 <code>unsigned int x</code>，編出來的組合語言一模一樣。</p>
+<p><em>（追問補充結束，以下回到主線）</em></p>
+<hr />
+<h2 id="二指標就是位址">二、指標就是位址</h2>
+<p>變數放在記憶體的某個位址上。<code>&amp;x</code> 取得 <code>x</code> 的<strong>位址</strong>；存位址的變數叫<strong>指標（pointer）</strong>；<code>*p</code> 是「到 <code>p</code> 存的那個位址去讀寫」，叫<strong>解參考（dereference）</strong>。實驗程式 <code>addr.c</code> 完整原始碼：</p>
+<pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mh">0x12345678</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="o">*</span><span class="n">p</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">&amp;</span><span class="n">x</span><span class="p">;</span><span class="w">                              </span><span class="cm">/* p 存著 x 的位址 */</span>
+<span class="w">    </span><span class="kt">unsigned</span><span class="w"> </span><span class="kt">char</span><span class="w"> </span><span class="o">*</span><span class="n">b</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="kt">unsigned</span><span class="w"> </span><span class="kt">char</span><span class="w"> </span><span class="o">*</span><span class="p">)</span><span class="o">&amp;</span><span class="n">x</span><span class="p">;</span><span class="w">   </span><span class="cm">/* 同一個位址，但宣告成指向 1 個 byte */</span>
+
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;x        = 0x%x (%d)</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">x</span><span class="p">,</span><span class="w"> </span><span class="n">x</span><span class="p">);</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;&amp;x       = %p</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="kt">void</span><span class="w"> </span><span class="o">*</span><span class="p">)</span><span class="o">&amp;</span><span class="n">x</span><span class="p">);</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;p        = %p</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="kt">void</span><span class="w"> </span><span class="o">*</span><span class="p">)</span><span class="n">p</span><span class="p">);</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;*p       = 0x%x</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="o">*</span><span class="n">p</span><span class="p">);</span><span class="w">              </span><span class="cm">/* 從那個位址讀 4 個 byte，當成 int */</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;b        = %p</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="kt">void</span><span class="w"> </span><span class="o">*</span><span class="p">)</span><span class="n">b</span><span class="p">);</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;*b       = 0x%02x</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="o">*</span><span class="n">b</span><span class="p">);</span><span class="w">            </span><span class="cm">/* 從同一個位址只讀 1 個 byte */</span>
+<span class="w">    </span><span class="o">*</span><span class="n">p</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mh">0x11223344</span><span class="p">;</span><span class="w">                              </span><span class="cm">/* 第 15 行：透過指標寫回去 */</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;after *p = 0x11223344, x = 0x%x</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">x</span><span class="p">);</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<pre><code>$ gcc -Wall -Wextra -g -O0 addr.c -o addr &amp;&amp; ./addr
+x        = 0x12345678 (305419896)
+&amp;x       = 0x7fffbc2b1274
+p        = 0x7fffbc2b1274
+*p       = 0x12345678
+b        = 0x7fffbc2b1274
+*b       = 0x78
+after *p = 0x11223344, x = 0x11223344
+</code></pre>
+<p>逐項看：</p>
+<ul>
+<li>
+<p><strong><code>&amp;x</code>、<code>p</code>、<code>b</code> 印出來是同一個數字</strong>：指標的值就是一個位址，一個 8 byte 的整數，沒有別的東西。</p>
+</li>
+<li>
+<p><strong><code>p</code> 和 <code>b</code> 指向同一個位址，讀出來卻不一樣</strong>：<code>*p</code> 讀到 <code>0x12345678</code>，<code>*b</code> 只讀到 <code>0x78</code>。差別只在宣告的型別：<code>int *</code> 代表「從這裡讀 4 個 byte、當成 <code>int</code>」，<code>unsigned char *</code> 代表「從這裡讀 1 個 byte」。
+<strong>記憶體本身不知道那裡放的是 <code>int</code>，是程式碼的型別決定怎麼讀。</strong> 這是整課最重要的一句話。</p>
+</li>
+<li>
+<p><code>(unsigned char *)&amp;x</code> 的括號叫<strong>強制轉型（cast）</strong>：告訴編譯器「我知道型別不一樣，把這個位址當成 <code>unsigned char *</code> 用」。不寫 cast 的話，gcc 不加任何選項就會警告。對照實驗 <code>nocast.c</code> 完整原始碼：</p>
+<pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">unsigned</span><span class="w"> </span><span class="kt">char</span><span class="w"> </span><span class="o">*</span><span class="n">b</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">&amp;</span><span class="n">x</span><span class="p">;</span><span class="w">      </span><span class="cm">/* 故意不寫 (unsigned char *) */</span>
+
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;%d</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="o">*</span><span class="n">b</span><span class="p">);</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<pre><code>$ gcc nocast.c -o nocast
+nocast.c:6:24: warning: initialization of ‘unsigned char *’ from incompatible pointer type ‘int *’ [-Wincompatible-pointer-types]
+</code></pre>
+</li>
+<li>
+<p><code>%p</code> 規定要配 <code>void *</code>，所以印之前轉成 <code>(void *)</code>。<code>void *</code> 是「只有位址、不說指向什麼型別」的指標。</p>
+</li>
+<li>
+<p>寫入 <code>*p</code> 就改到了 <code>x</code>：<code>p</code> 和 <code>x</code> 是同一塊記憶體的兩個名字。</p>
+</li>
+</ul>
+<p><strong>每次執行位址都不一樣</strong>：</p>
+<pre><code>$ ./addr | grep '&amp;x'
+&amp;x       = 0x7ffe50b23624          ← 上一次是 0x7fffbc2b1274
+</code></pre>
+<p>這是 ASLR（Address Space Layout Randomization，位址空間配置隨機化）：核心每次都把堆疊放在隨機的位置，讓攻擊者猜不到位址。在 <code>gdb</code> 裡跑，位址每次都一樣（<code>0x7fffffffd254</code>），因為 <code>gdb</code> 預設<strong>關掉</strong> ASLR 方便除錯（<code>gdb</code> 的 <code>set disable-randomization</code>，見 <a href="gdb%E5%AE%8C%E6%95%B4%E5%91%BD%E4%BB%A4%E5%8F%83%E8%80%83.html">gdb完整命令參考</a>）。行程的位址空間是第 ③ 站的主題，這裡只要知道：位址就是一個數字，而那個數字每次執行可能不同。</p>
+<hr />
+<p><strong><code>0x7fffffffd254</code> 在哪裡？</strong>（2026-09-24 課後提問）它是在 <code>gdb</code> 裡 <code>print &amp;x</code> 得到的 <code>x</code> 的位址，跑幾次都一樣。用 <code>gdb</code> 的 <code>info proc mappings</code> 看這個行程的記憶體分成哪幾塊（<a href="gdb%E5%AE%8C%E6%95%B4%E5%91%BD%E4%BB%A4%E5%8F%83%E8%80%83.html">gdb完整命令參考</a> 的 <code>info proc</code>）：</p>
+<pre><code>(gdb) info proc mappings
+          Start Addr           End Addr       Size     Offset  Perms  objfile
+      0x7ffffffdd000     0x7ffffffff000    0x22000        0x0  rw-p   [stack]
+      （其他列省略：程式本身、libc、載入器各佔幾塊）
+</code></pre>
+<p>六個欄位：這一塊的起點、終點（不含）、大小、對應到檔案的哪個位置（<code>[stack]</code> 不是檔案，所以是 0）、權限（<code>r</code> 可讀、<code>w</code> 可寫、第三格 <code>-</code> 代表不可執行、<code>p</code> 代表 private，自己的私有副本）、這一塊是什麼（檔案路徑，或 <code>[stack]</code> 這種特殊名稱）。</p>
+<p><code>0x7fffffffd254</code> 落在 <code>[stack]</code>（<strong>堆疊</strong>，函式的區域變數放在這裡）那一塊。關掉 ASLR 時，堆疊的頂端就在 <code>0x7ffffffff000</code>，幾乎是使用者位址空間的最頂端（<code>0x00007fffffffffff</code>，下一小節〈位址看起來只有 6 byte？〉會解釋這個上限）。<code>x</code> 在頂端往下 <code>0x1dac</code>（7596）byte 的地方：堆疊從高位址往低位址長，<code>x</code> 上面還放著環境變數、命令列參數等資料（第 ② 站）。開著 ASLR 時，核心會把堆疊頂端往下移一段隨機的距離，所以直接執行時看到的是 <code>0x7fffbc2b1274</code>、<code>0x7ffe50b23624</code> 這種每次不同的數字。</p>
+<p><em>（追問補充結束，以下回到主線）</em></p>
+<hr />
+<h3 id="位址看起來只有-6-bytep-不補零而且最上面-2-byte-一定是-0">位址看起來只有 6 byte？——<code>%p</code> 不補零，而且最上面 2 byte 一定是 0</h3>
+<blockquote>
+<p>2026-09-24 課後提問：「<code>0x7fffbc2b1274</code> 只有 12 位十六進位，也就是 6 byte，為什麼說指標是 8 byte？」</p>
+</blockquote>
+<p>指標<strong>確實佔 8 byte</strong>，只是 <code>%p</code> 跟 <code>%x</code> 一樣不印開頭的 0。強制補滿 16 位就看得出來。<code>ptr8.c</code> 完整原始碼：</p>
+<pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">42</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="o">*</span><span class="n">p</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">&amp;</span><span class="n">x</span><span class="p">;</span>
+
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;%%p      : %p</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="kt">void</span><span class="w"> </span><span class="o">*</span><span class="p">)</span><span class="n">p</span><span class="p">);</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;%%#018lx : %#018lx</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="kt">unsigned</span><span class="w"> </span><span class="kt">long</span><span class="p">)</span><span class="n">p</span><span class="p">);</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;sizeof(p) = %zu</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="k">sizeof</span><span class="p">(</span><span class="n">p</span><span class="p">));</span><span class="w">       </span><span class="cm">/* 第 10 行 */</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<pre><code>$ gcc -Wall -Wextra -g -O0 ptr8.c -o ptr8 &amp;&amp; ./ptr8
+%p      : 0x7fff6a6d956c
+%#018lx : 0x00007fff6a6d956c      ← 補滿 16 位十六進位＝8 byte，最上面是 00 00
+sizeof(p) = 8
+</code></pre>
+<p>（<code>%#018lx</code>：旗標 <code>#</code> 加 <code>0x</code>、旗標 <code>0</code> 補零、寬度 18＝<code>0x</code> 兩個字元加 16 位數、<code>l</code> 表示參數是 <code>long</code>；完整文法見第九節。）</p>
+<p>用 <code>gdb</code> 直接看<strong>指標變數 <code>p</code> 自己</strong>佔的那 8 個 byte（停在 <code>ptr8.c</code> 標註的第 10 行）：</p>
+<pre><code>$ gdb -q ./ptr8
+(gdb) break 10
+(gdb) run
+(gdb) print p
+$1 = (int *) 0x7fffffffd25c
+(gdb) x/8xb &amp;p
+0x7fffffffd260:	0x5c	0xd2	0xff	0xff	0xff	0x7f	0x00	0x00
+(gdb) x/1xg &amp;p          ← g＝giant，8 byte 一個單位
+0x7fffffffd260:	0x00007fffffffd25c
+</code></pre>
+<p>記憶體裡確實有 8 個 byte，而且是小端序（第三節）：最低位的 <code>5c</code> 在最前面，<strong>最高位的兩個 <code>00</code> 在最後面</strong>。</p>
+<p><strong>為什麼最上面兩個 byte 總是 0？</strong>（補教，這部分是第 ③ 站虛擬記憶體的內容，這裡先講結論）
+x86-64 的指標雖然有 64 bit，CPU 實際只用低 48 bit 當虛擬位址（virtual address）：</p>
+<pre><code>$ grep -m1 'address sizes' /proc/cpuinfo
+address sizes	: 39 bits physical, 48 bits virtual
+</code></pre>
+<p>另外 16 bit 規定要跟第 47 bit 一樣，全 0 或全 1，這種位址叫 <strong>canonical address（標準形式位址）</strong>。
+Linux 把位址空間切成兩半：</p>
+<table>
+<thead>
+<tr>
+<th>範圍</th>
+<th>給誰用</th>
+<th>開頭長相</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>0x0000000000000000</code> ～ <code>0x00007fffffffffff</code></td>
+<td>使用者程式</td>
+<td>最上面 2 byte 是 <code>00 00</code>，<code>%p</code> 省略後看起來像 6 byte</td>
+</tr>
+<tr>
+<td><code>0xffff800000000000</code> ～ <code>0xffffffffffffffff</code></td>
+<td>核心</td>
+<td>最上面是 <code>ff ff</code>，印出來是完整的 16 位</td>
+</tr>
+</tbody>
+</table>
+<p>所以<strong>使用者程式裡印出的位址最多只有 12 位十六進位</strong>；堆疊放在使用者區的最頂端附近，所以開頭是 <code>0x7ff...</code>。將來在 kernel 的錯誤訊息裡看到 <code>ffff8881...</code> 這種完整 16 位的位址，那就是核心那一半。（較新的 CPU 支援 5 層分頁，虛擬位址可以到 57 bit；本機 <code>/proc/cpuinfo</code> 的 flags 裡沒有 <code>la57</code>，所以是 48 bit。）</p>
+<p><em>（追問補充結束，以下回到主線）</em></p>
+<hr />
+<p><code>p + 1</code> 是什麼、陣列和指標的關係，是第 3 課的內容。</p>
+<hr />
+<h2 id="三位元組順序endianness">三、位元組順序（endianness）</h2>
+<p>上一節 <code>*b</code> 讀到 <code>0x78</code>：<code>x</code> 的<strong>第一個 byte</strong>（位址最低的那個）是 <code>0x78</code>，也就是數字的<strong>最低位</strong>。用 <code>gdb</code> 的 <code>x</code>（examine，檢查記憶體）看全部 4 個 byte：</p>
+<pre><code>$ gdb -q ./addr
+(gdb) break 15
+(gdb) run
+(gdb) print &amp;x
+$1 = (int *) 0x7fffffffd254
+(gdb) x/4xb &amp;x          ← 從 &amp;x 開始，印 4 個單位，十六進位（x），每單位 1 byte（b）
+0x7fffffffd254:	0x78	0x56	0x34	0x12
+(gdb) x/1xw &amp;x          ← 印 1 個單位，每單位 4 byte（w＝word）
+0x7fffffffd254:	0x12345678
+</code></pre>
+<hr />
+<p><strong>怎麼讀 <code>x</code> 的輸出</strong>（2026-09-24 課後提問：「都是印 <code>&amp;x</code>，為什麼位址不同？」）：冒號<strong>左邊</strong>是位址，而且只印這一行<strong>第一個</strong>單位的位址；冒號<strong>右邊</strong>是記憶體裡存的<strong>內容</strong>，<code>0x78</code> 這些是值，不是位址。每個 byte 其實都有自己的位址，<code>x</code> 只是沒逐個印出來：</p>
+<table>
+<thead>
+<tr>
+<th>位址</th>
+<th>內容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>0x7fffffffd254</code></td>
+<td><code>0x78</code></td>
+</tr>
+<tr>
+<td><code>0x7fffffffd255</code></td>
+<td><code>0x56</code></td>
+</tr>
+<tr>
+<td><code>0x7fffffffd256</code></td>
+<td><code>0x34</code></td>
+</tr>
+<tr>
+<td><code>0x7fffffffd257</code></td>
+<td><code>0x12</code></td>
+</tr>
+</tbody>
+</table>
+<p>所以 <code>print &amp;x</code> 和 <code>x/4xb &amp;x</code> 冒號左邊是同一個位址。另外要分清楚 <code>print p</code> 和 <code>x/8xb &amp;p</code>（上一節）：
+<code>p</code> 是指標<strong>存的值</strong>（<code>x</code> 的位址），<code>&amp;p</code> 是指標變數<strong>自己</strong>的位址，那兩個數字本來就不同。</p>
+<p><em>（追問補充結束，以下回到主線）</em></p>
+<hr />
+<p><code>break 15</code> 的第 15 行是 <code>addr.c</code> 裡標註的 <code>*p = 0x11223344;</code>：<code>gdb</code> 停在這一行<strong>執行之前</strong>，所以 <code>x</code> 還是 <code>0x12345678</code>。</p>
+<p><code>x/4xb</code> 的 <code>4</code>、<code>x</code>、<code>b</code> 分別是「數量、格式、單位大小」，完整的格式字母與大小字母見
+<a href="gdb%E5%AE%8C%E6%95%B4%E5%91%BD%E4%BB%A4%E5%8F%83%E8%80%83.html#%E8%BC%B8%E5%87%BA%E6%A0%BC%E5%BC%8F-fmtprint-%E8%88%87-x-%E5%85%B1%E7%94%A8">gdb完整命令參考〈輸出格式 <code>/FMT</code>〉</a>。</p>
+<p>記憶體裡從低位址到高位址是 <code>78 56 34 12</code>，<strong>倒過來</strong>。多位元組的數字在記憶體裡有兩種放法：</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>低位址 → 高位址</th>
+<th>誰用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>小端序（little endian）</strong></td>
+<td><code>78 56 34 12</code>（最低位的 byte 放最前面）</td>
+<td>x86、x86-64；ARM 與 RISC-V 通常也設定成小端</td>
+</tr>
+<tr>
+<td><strong>大端序（big endian）</strong></td>
+<td><code>12 34 56 78</code>（跟我們寫數字的順序一樣）</td>
+<td>網路協定（所以又叫<strong>網路位元組順序</strong>，network byte order）、一些舊的 CPU（SPARC、PowerPC 的某些設定）</td>
+</tr>
+</tbody>
+</table>
+<p>這就是 <code>readelf -h</code> 那一行的後半：</p>
+<pre><code>$ readelf -h addr | grep -E 'Class|Data'
+  Class:                             ELF64
+  Data:                              2's complement, little endian
+</code></pre>
+<p>ELF 檔頭寫明這個檔案裡的多位元組數字用哪種順序，讀檔的工具才知道要怎麼拼回來。</p>
+<p><strong>什麼時候要在意位元組順序？</strong> 只要程式<strong>用正確的型別讀寫自己的變數</strong>，就永遠不會看到順序問題：上面 <code>*p</code> 在大端和小端的機器上都讀到 <code>0x12345678</code>，CPU 自己知道怎麼拼。
+<strong>會出事的是「把原始位元組當成數字讀」的時候</strong>：</p>
+<ul>
+<li>用 <code>unsigned char *</code> 一個一個 byte 看（像 <code>*b</code> 在小端機器是 <code>0x78</code>，在大端機器會是 <code>0x12</code>）。</li>
+<li>讀別的機器寫的檔案或網路封包。封包裡的數字是大端序，直接用 <code>int *</code> 讀進小端的 x86-64，四個 byte 的順序就反了。所以網路程式要用 <code>ntohl</code>／<code>htons</code> 之類的函式轉換（第 ⑥ 站）。</li>
+</ul>
+<hr />
+<h2 id="四無號整數二進位與回繞">四、無號整數：二進位與回繞</h2>
+<p><code>unsigned int</code> 是 32 個 bit，每個 bit 代表一個 2 的次方，從最低位起是 1、2、4、8……、2³¹。數值就是「是 1 的那些位加起來」：</p>
+<pre><code>0x0000000b = ... 0000 1011 = 8 + 2 + 1 = 11
+0xffffffff = 32 個 1       = 2³² − 1 = 4294967295 = UINT_MAX
+</code></pre>
+<p>範圍是 0 到 2³²−1。<strong>超出範圍時，C 標準規定結果是對 2³² 取餘數</strong>，也就是<strong>回繞（wrap around）</strong>，像里程表跑過 99999 回到 00000。
+<code>overflow.c</code> 完整原始碼：</p>
+<pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;limits.h&gt;</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">bigger</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">x</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="n">x</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="kt">unsigned</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">u</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">UINT_MAX</span><span class="p">;</span>
+<span class="w">    </span><span class="n">u</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">u</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;UINT_MAX + 1 = %u</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">u</span><span class="p">);</span>
+
+<span class="w">    </span><span class="kt">unsigned</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">z</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="w">    </span><span class="n">z</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">z</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;0u - 1 = %u</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">z</span><span class="p">);</span>
+
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">s</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">INT_MAX</span><span class="p">;</span>
+<span class="w">    </span><span class="n">s</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">s</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;INT_MAX + 1 = %d</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">s</span><span class="p">);</span>
+
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;bigger(INT_MAX) = %d</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">bigger</span><span class="p">(</span><span class="n">INT_MAX</span><span class="p">));</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<pre><code>$ gcc overflow.c -o overflow &amp;&amp; ./overflow
+UINT_MAX + 1 = 0                  ← 無號回繞
+0u - 1 = 4294967295               ← 無號回繞
+INT_MAX + 1 = -2147483648         ← 有號溢位：第八節
+bigger(INT_MAX) = 1               ← 有號溢位：第八節
+</code></pre>
+<p>前兩行是無號回繞，這是<strong>有定義的行為</strong>，任何最佳化等級、任何平台結果都一樣。後兩行是有號的溢位，情況完全不同，留到第八節。</p>
+<hr />
+<h3 id="常數也有型別0u-的-u-是什麼">常數也有型別：<code>0u</code> 的 <code>u</code> 是什麼</h3>
+<blockquote>
+<p>2026-09-24 課後提問：「<code>0u</code> 是什麼？」</p>
+</blockquote>
+<p><code>0u</code> 是<strong>型別為 <code>unsigned int</code> 的 0</strong>。程式裡直接寫的數字叫<strong>整數常數（integer constant）</strong>，它跟變數一樣有型別，尾巴的字母叫<strong>後綴（suffix）</strong>，用來指定型別。用 C11 的 <code>_Generic</code>（依運算式的型別選一個結果）讓 gcc 回報型別。
+<code>TYPE</code> 和 <code>SHOW</code> 是前處理器的巨集（<a href="hello.c%E6%80%8E%E9%BA%BC%E8%AE%8A%E6%88%90%E8%83%BD%E8%B7%91%E7%9A%84%E7%A8%8B%E5%BC%8F-%E7%B7%A8%E8%AD%AF%E7%9A%84%E5%9B%9B%E5%80%8B%E9%9A%8E%E6%AE%B5.html#%E4%BA%8C%E5%89%8D%E8%99%95%E7%90%86include-%E5%8F%AA%E6%98%AF%E8%A4%87%E8%A3%BD%E8%B2%BC%E4%B8%8A">第 1 課第二節</a>：前處理就是文字替換），<code>#e</code> 把參數原封不動變成字串，所以能印出原始寫法。<code>suffix.c</code> 完整原始碼：</p>
+<pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+
+<span class="cp">#define TYPE(e) _Generic((e), \</span>
+<span class="cp">    int: &quot;int&quot;, unsigned int: &quot;unsigned int&quot;, \</span>
+<span class="cp">    long: &quot;long&quot;, unsigned long: &quot;unsigned long&quot;, \</span>
+<span class="cp">    long long: &quot;long long&quot;, unsigned long long: &quot;unsigned long long&quot;, \</span>
+<span class="cp">    default: &quot;other&quot;)</span>
+
+<span class="cp">#define SHOW(e) printf(&quot;%-14s -&gt; %s\n&quot;, #e, TYPE(e))</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">SHOW</span><span class="p">(</span><span class="mi">0</span><span class="p">);</span>
+<span class="w">    </span><span class="n">SHOW</span><span class="p">(</span><span class="mi">0u</span><span class="p">);</span>
+<span class="w">    </span><span class="n">SHOW</span><span class="p">(</span><span class="mi">0U</span><span class="p">);</span>
+<span class="w">    </span><span class="n">SHOW</span><span class="p">(</span><span class="mf">0l</span><span class="p">);</span>
+<span class="w">    </span><span class="n">SHOW</span><span class="p">(</span><span class="mi">0ul</span><span class="p">);</span>
+<span class="w">    </span><span class="n">SHOW</span><span class="p">(</span><span class="mf">0l</span><span class="n">u</span><span class="p">);</span>
+<span class="w">    </span><span class="n">SHOW</span><span class="p">(</span><span class="mf">0l</span><span class="n">l</span><span class="p">);</span>
+<span class="w">    </span><span class="n">SHOW</span><span class="p">(</span><span class="mi">0ull</span><span class="p">);</span>
+<span class="w">    </span><span class="n">SHOW</span><span class="p">(</span><span class="mi">2147483647</span><span class="p">);</span>
+<span class="w">    </span><span class="n">SHOW</span><span class="p">(</span><span class="mi">2147483648</span><span class="p">);</span>
+<span class="w">    </span><span class="n">SHOW</span><span class="p">(</span><span class="mi">3000000000</span><span class="p">);</span>
+<span class="w">    </span><span class="n">SHOW</span><span class="p">(</span><span class="mi">3000000000u</span><span class="p">);</span>
+<span class="w">    </span><span class="n">SHOW</span><span class="p">(</span><span class="mh">0x7fffffff</span><span class="p">);</span>
+<span class="w">    </span><span class="n">SHOW</span><span class="p">(</span><span class="mh">0x80000000</span><span class="p">);</span>
+<span class="w">    </span><span class="n">SHOW</span><span class="p">(</span><span class="mh">0xffffffff</span><span class="p">);</span>
+<span class="w">    </span><span class="n">SHOW</span><span class="p">(</span><span class="mh">0x100000000</span><span class="p">);</span>
+<span class="w">    </span><span class="n">SHOW</span><span class="p">(</span><span class="mi">-1</span><span class="p">);</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<pre><code>$ gcc -Wall -Wextra suffix.c -o suffix &amp;&amp; ./suffix     （先看前 8 行）
+0              -&gt; int
+0u             -&gt; unsigned int
+0U             -&gt; unsigned int
+0l             -&gt; long
+0ul            -&gt; unsigned long
+0lu            -&gt; unsigned long
+0ll            -&gt; long long
+0ull           -&gt; unsigned long long
+</code></pre>
+<p><strong>整數常數的後綴，全部列出</strong>（C 標準）：</p>
+<table>
+<thead>
+<tr>
+<th>後綴</th>
+<th>意思</th>
+<th>寫法規則</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>（沒有）</td>
+<td>依下面的規則，自動選第一個裝得下的型別</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>u</code>、<code>U</code></td>
+<td>無號（unsigned）</td>
+<td>大小寫都可以</td>
+</tr>
+<tr>
+<td><code>l</code>、<code>L</code></td>
+<td>至少是 <code>long</code></td>
+<td>小寫 <code>l</code> 很像數字 <code>1</code>，建議寫大寫 <code>L</code></td>
+</tr>
+<tr>
+<td><code>ll</code>、<code>LL</code></td>
+<td>至少是 <code>long long</code></td>
+<td>兩個字母要同樣大小寫：<code>lL</code> 會報錯 <code>invalid suffix &quot;lL&quot; on integer constant</code></td>
+</tr>
+<tr>
+<td><code>u</code> 與 <code>l</code>／<code>ll</code> 組合</td>
+<td>無號的 <code>long</code>／<code>long long</code></td>
+<td>順序隨意：<code>ul</code>、<code>lu</code>、<code>ULL</code>、<code>LLU</code>、<code>0Lu</code> 都合法</td>
+</tr>
+<tr>
+<td><code>wb</code>、<code>WB</code>、<code>uwb</code>、<code>UWB</code></td>
+<td>C23 新增，<code>_BitInt(N)</code> 型別（指定位元數的整數）</td>
+<td><strong>本機 gcc 13.3 不支援</strong>，連 <code>-std=c2x</code> 都報 <code>invalid suffix &quot;wb&quot;</code>（gcc 14 起才有）</td>
+</tr>
+</tbody>
+</table>
+<p>浮點數常數的後綴（<code>1.0f</code>、<code>1.0L</code>）是另一套，本課不用。</p>
+<p><strong>沒有後綴時，十進位和十六進位的規則不一樣</strong>，這是容易踩的地方：</p>
+<table>
+<thead>
+<tr>
+<th>寫法</th>
+<th>依序嘗試的型別（選第一個裝得下的）</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>十進位（<code>2147483648</code>）</td>
+<td><code>int</code> → <code>long</code> → <code>long long</code>（<strong>永遠不會變成無號</strong>）</td>
+</tr>
+<tr>
+<td>十六進位、八進位（<code>0x80000000</code>）</td>
+<td><code>int</code> → <code>unsigned int</code> → <code>long</code> → <code>unsigned long</code> → <code>long long</code> → <code>unsigned long long</code></td>
+</tr>
+</tbody>
+</table>
+<p>同一支 <code>suffix.c</code> 的後 9 行輸出：</p>
+<pre><code>2147483647     -&gt; int             ← INT_MAX，int 裝得下
+2147483648     -&gt; long            ← 超過 INT_MAX，十進位跳過無號，直接變 long
+3000000000     -&gt; long
+3000000000u    -&gt; unsigned int    ← 有 u，而且 unsigned int 裝得下
+0x7fffffff     -&gt; int
+0x80000000     -&gt; unsigned int    ← 同樣是 2³¹，十六進位會先試 unsigned int
+0xffffffff     -&gt; unsigned int
+0x100000000    -&gt; long            ← 超過 32 bit
+-1             -&gt; int
+</code></pre>
+<p>最後一列要注意：C <strong>沒有負數常數</strong>。<code>-1</code> 是「對常數 <code>1</code> 做負號運算」，<code>1</code> 是 <code>int</code>，結果也是 <code>int</code>。</p>
+<p>這會影響第七節的陷阱。同樣是 2³¹，只因為寫法不同，比較結果就相反。<code>cmp.c</code> 完整原始碼：</p>
+<pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;-1 &lt; 0x80000000 -&gt; %d</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="mi">-1</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mh">0x80000000</span><span class="p">);</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;-1 &lt; 2147483648 -&gt; %d</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="mi">-1</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">2147483648</span><span class="p">);</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<pre><code>$ gcc -Wall -Wextra cmp.c -o cmp &amp;&amp; ./cmp
+cmp.c:5:42: warning: comparison of integer expressions of different signedness: ‘int’ and ‘unsigned int’ [-Wsign-compare]
+-1 &lt; 0x80000000 -&gt; 0      ← 0x80000000 是 unsigned int，-1 被轉成 4294967295
+-1 &lt; 2147483648 -&gt; 1      ← 2147483648 是 long，-1 轉成 long 還是 -1
+</code></pre>
+<p>（<code>-Wall -Wextra</code> 對前者有 <code>-Wsign-compare</code> 警告；但第七節的 <code>-1 &lt; 0u</code> 卻沒有警告，常數之間的比較不一定抓得到。）第七節的 <code>-1 &lt; 0u</code>、第六節的 <code>int big = 3000000000u</code> 用 <code>u</code>，就是為了<strong>刻意製造一個無號常數</strong>來示範轉換。</p>
+<p><em>（追問補充結束，以下回到主線）</em></p>
+<hr />
+<h3 id="怎麼確定一個常數的型別比較時以誰為準">怎麼確定一個常數的型別？比較時以誰為準？</h3>
+<blockquote>
+<p>2026-09-27 自我測驗第 7 題追問：「這種常數比較到底要怎麼比？我要怎麼確定常數的型別，是要以誰的為準？」</p>
+</blockquote>
+<p>分成兩步：<strong>先決定每一邊各自是什麼型別，再決定兩邊要轉成哪個共同型別</strong>。</p>
+<p><strong>第一步：常數自己的型別</strong>，照上一小節的規則，順序是：</p>
+<ol>
+<li>有後綴就照後綴（<code>u</code>、<code>l</code>、<code>ul</code>……）。後綴只規定「至少」，裝不下時一樣往更大的型別走。</li>
+<li>沒有後綴時，照上面那張「依序嘗試」的表，選<strong>第一個裝得下</strong>的型別：十進位只試有號型別（<code>int</code> → <code>long</code> → <code>long long</code>），十六進位／八進位會穿插試無號型別（<code>int</code> → <code>unsigned int</code> → <code>long</code> → …）。</li>
+<li>負號不屬於常數：<code>-1</code> 是 <code>int</code> 的 <code>1</code> 取負號，型別還是 <code>int</code>。</li>
+<li>不確定時<strong>讓 gcc 告訴你</strong>：用上一小節的 <code>_Generic</code>（<code>suffix.c</code>）印出型別，或看 <code>-Wsign-compare</code> 警告裡寫的型別名稱。</li>
+</ol>
+<p>所以第 7 題的兩個常數：<code>2147483648</code> 十進位，<code>int</code> 裝不下（<code>INT_MAX</code> 是 2147483647），下一個試 <code>long</code>，本機 <code>long</code> 是 8 byte、最大 9223372036854775807，裝得下 → <code>long</code>。
+<code>0x80000000</code> 十六進位，<code>int</code> 裝不下，下一個試 <code>unsigned int</code>（最大 4294967295），裝得下 → <code>unsigned int</code>。兩者差在<strong>嘗試清單不同</strong>，不是差在誰比較大。</p>
+<p><strong>第二步：兩邊型別不同時，轉成哪一個</strong>——這是 C 標準的一般算術轉換（usual arithmetic conversions），整數的部分依序套用，套到第一條成立的就停：</p>
+<table>
+<thead>
+<tr>
+<th>順序</th>
+<th>條件</th>
+<th>結果</th>
+<th>例子（本機）</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0</td>
+<td>先做<strong>整數提升</strong>（integer promotion）：比 <code>int</code> 小的 <code>char</code>、<code>short</code> 先變成 <code>int</code></td>
+<td>—</td>
+<td><code>char</code> 與 <code>char</code> 相比，其實是兩個 <code>int</code> 在比</td>
+</tr>
+<tr>
+<td>1</td>
+<td>兩邊型別相同</td>
+<td>不用轉</td>
+<td><code>int</code> 與 <code>int</code></td>
+</tr>
+<tr>
+<td>2</td>
+<td>兩邊都有號，或都無號</td>
+<td>轉成<strong>等級（rank）較高</strong>的那個（<code>long long</code> &gt; <code>long</code> &gt; <code>int</code>）</td>
+<td><code>int</code> 與 <code>long</code> → <code>long</code></td>
+</tr>
+<tr>
+<td>3</td>
+<td>無號那邊的等級 <strong>≥</strong> 有號那邊</td>
+<td>轉成那個<strong>無號</strong>型別</td>
+<td><code>int</code> 與 <code>unsigned int</code> → <code>unsigned int</code>；<code>int</code> 與 <code>unsigned long</code> → <code>unsigned long</code>；<code>long</code> 與 <code>unsigned long</code> → <code>unsigned long</code></td>
+</tr>
+<tr>
+<td>4</td>
+<td>有號那邊<strong>裝得下無號那邊的所有值</strong></td>
+<td>轉成那個<strong>有號</strong>型別</td>
+<td><code>long</code>（8 byte）與 <code>unsigned int</code>（4 byte）→ <code>long</code></td>
+</tr>
+<tr>
+<td>5</td>
+<td>以上都不成立</td>
+<td>轉成<strong>有號那邊對應的無號型別</strong></td>
+<td>本機沒有這種組合（<code>long</code> 與 <code>long long</code> 都是 8 byte 時才會遇到，例如 <code>long long</code> 與 <code>unsigned long</code>）</td>
+</tr>
+</tbody>
+</table>
+<p>口訣：<strong>同號取大；無號不比較小就聽無號的；有號裝得下無號就聽有號的</strong>。一旦結果是無號，負數就會被換成很大的正數（第六節），比較就可能反過來。</p>
+<p>實測。<code>TYPE((a) + (b))</code> 用加法問 gcc「兩邊轉完的共同型別」（比較和加法用的是同一套轉換）。<code>common.c</code> 完整原始碼：</p>
+<pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+
+<span class="cp">#define TYPE(e) _Generic((e), \</span>
+<span class="cp">    int: &quot;int&quot;, unsigned int: &quot;unsigned int&quot;, \</span>
+<span class="cp">    long: &quot;long&quot;, unsigned long: &quot;unsigned long&quot;, \</span>
+<span class="cp">    default: &quot;other&quot;)</span>
+
+<span class="cp">#define SHOW(a, b) printf(&quot;%-24s -&gt; %-14s  %s &lt; %s = %d\n&quot;, \</span>
+<span class="cp">    #a &quot; 與 &quot; #b, TYPE((a) + (b)), #a, #b, (a) &lt; (b))</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">SHOW</span><span class="p">(</span><span class="mi">-1</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">);</span><span class="w">             </span><span class="cm">/* int           與 int           */</span>
+<span class="w">    </span><span class="n">SHOW</span><span class="p">(</span><span class="mi">-1</span><span class="p">,</span><span class="w"> </span><span class="mi">1u</span><span class="p">);</span><span class="w">            </span><span class="cm">/* int           與 unsigned int  */</span>
+<span class="w">    </span><span class="n">SHOW</span><span class="p">(</span><span class="mi">-1</span><span class="p">,</span><span class="w"> </span><span class="mf">1L</span><span class="p">);</span><span class="w">            </span><span class="cm">/* int           與 long          */</span>
+<span class="w">    </span><span class="n">SHOW</span><span class="p">(</span><span class="mi">-1L</span><span class="p">,</span><span class="w"> </span><span class="mi">1u</span><span class="p">);</span><span class="w">           </span><span class="cm">/* long          與 unsigned int  */</span>
+<span class="w">    </span><span class="n">SHOW</span><span class="p">(</span><span class="mi">-1</span><span class="p">,</span><span class="w"> </span><span class="mi">1UL</span><span class="p">);</span><span class="w">           </span><span class="cm">/* int           與 unsigned long */</span>
+<span class="w">    </span><span class="n">SHOW</span><span class="p">(</span><span class="mi">-1L</span><span class="p">,</span><span class="w"> </span><span class="mi">1UL</span><span class="p">);</span><span class="w">          </span><span class="cm">/* long          與 unsigned long */</span>
+<span class="w">    </span><span class="n">SHOW</span><span class="p">(</span><span class="mi">-1</span><span class="p">,</span><span class="w"> </span><span class="mh">0x80000000</span><span class="p">);</span><span class="w">    </span><span class="cm">/* int           與 unsigned int（十六進位常數）*/</span>
+<span class="w">    </span><span class="n">SHOW</span><span class="p">(</span><span class="mi">-1</span><span class="p">,</span><span class="w"> </span><span class="mi">2147483648</span><span class="p">);</span><span class="w">    </span><span class="cm">/* int           與 long（十進位常數）*/</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<pre><code>$ gcc -Wall -Wextra common.c -o common &amp;&amp; ./common
+common.c:9:48: warning: comparison of integer expressions of different signedness: ‘int’ and ‘unsigned int’ [-Wsign-compare]
+common.c:9:48: warning: comparison of integer expressions of different signedness: ‘int’ and ‘long unsigned int’ [-Wsign-compare]
+common.c:9:48: warning: comparison of integer expressions of different signedness: ‘long int’ and ‘long unsigned int’ [-Wsign-compare]
+common.c:9:48: warning: comparison of integer expressions of different signedness: ‘int’ and ‘unsigned int’ [-Wsign-compare]
+-1 與 1                 -&gt; int             -1 &lt; 1 = 1       ← 規則 1
+-1 與 1u                -&gt; unsigned int    -1 &lt; 1u = 0      ← 規則 3：-1 變 4294967295
+-1 與 1L                -&gt; long            -1 &lt; 1L = 1      ← 規則 2
+-1L 與 1u               -&gt; long            -1L &lt; 1u = 1     ← 規則 4：long 裝得下所有 unsigned int，不會出事，也沒有警告
+-1 與 1UL               -&gt; unsigned long   -1 &lt; 1UL = 0     ← 規則 3：-1 變 18446744073709551615
+-1L 與 1UL              -&gt; unsigned long   -1L &lt; 1UL = 0    ← 規則 3
+-1 與 0x80000000        -&gt; unsigned int    -1 &lt; 0x80000000 = 0   ← 第一步決定是 unsigned int，第二步套規則 3
+-1 與 2147483648        -&gt; long            -1 &lt; 2147483648 = 1   ← 第一步決定是 long，第二步套規則 2
+</code></pre>
+<p>（警告的行號都是 9，因為每個 <code>SHOW</code> 展開後的比較都寫在巨集定義那一行。）
+4 則警告剛好對應結果變成無號的 4 列；<code>-1L</code> 與 <code>1u</code> 轉成 <code>long</code>，值不會變，gcc 也就不警告。實務上的結論：<strong>不要讓有號和無號混在一起比較</strong>；非比不可時，自己先轉型（例如 <code>(long)i &lt; (long)len</code>），並固定用 <code>-Wall -Wextra</code> 讓 <code>-Wsign-compare</code> 提醒你。</p>
+<p><em>（追問補充結束，以下回到主線）</em></p>
+<hr />
+<h2 id="五有號整數二補數">五、有號整數：二補數</h2>
+<p><code>int</code> 也是 32 個 bit，但要能表示負數。現代所有 CPU 都用<strong>二補數（two's complement）</strong>，規則只改一個地方：
+<strong>最高位（第 31 位）的權重是 −2³¹，不是 +2³¹</strong>，其他位不變。</p>
+<pre><code>0x7fffffff = 0111 1111 ... 1111 = 2³¹ − 1          = 2147483647  = INT_MAX
+0x80000000 = 1000 0000 ... 0000 = −2³¹              = −2147483648 = INT_MIN
+0xffffffff = 1111 1111 ... 1111 = −2³¹ + (2³¹ − 1) = −1
+</code></pre>
+<p>實測。這支 <code>signs.c</code> 第五、六、七節共用，每一段輸出對應哪幾行，在各節裡說明。<code>signs.c</code> 完整原始碼：</p>
+<pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;limits.h&gt;</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">m</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">-1</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">unsigned</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">u</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">m</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">unsigned</span><span class="w"> </span><span class="kt">char</span><span class="w"> </span><span class="o">*</span><span class="n">b</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="kt">unsigned</span><span class="w"> </span><span class="kt">char</span><span class="w"> </span><span class="o">*</span><span class="p">)</span><span class="o">&amp;</span><span class="n">m</span><span class="p">;</span>
+
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;m = %d, as %%u = %u, as %%x = 0x%x, first byte = 0x%02x</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">m</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="kt">unsigned</span><span class="p">)</span><span class="n">m</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="kt">unsigned</span><span class="p">)</span><span class="n">m</span><span class="p">,</span><span class="w"> </span><span class="o">*</span><span class="n">b</span><span class="p">);</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;u = %u</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">u</span><span class="p">);</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;INT_MIN = %d = 0x%x</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">INT_MIN</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="kt">unsigned</span><span class="p">)</span><span class="n">INT_MIN</span><span class="p">);</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;INT_MAX = %d = 0x%x</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">INT_MAX</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="kt">unsigned</span><span class="p">)</span><span class="n">INT_MAX</span><span class="p">);</span>
+
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">big</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">3000000000u</span><span class="p">;</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;int big = 3000000000u -&gt; %d</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">big</span><span class="p">);</span>
+
+<span class="w">    </span><span class="kt">unsigned</span><span class="w"> </span><span class="kt">char</span><span class="w"> </span><span class="n">c</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">300</span><span class="p">;</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;unsigned char c = 300 -&gt; %d</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">c</span><span class="p">);</span>
+
+<span class="w">    </span><span class="kt">signed</span><span class="w"> </span><span class="kt">char</span><span class="w"> </span><span class="n">sc</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">-1</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">unsigned</span><span class="w"> </span><span class="kt">char</span><span class="w"> </span><span class="n">uc</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mh">0xff</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">a1</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">sc</span><span class="p">,</span><span class="w"> </span><span class="n">a2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">uc</span><span class="p">;</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;(int)(signed char)-1 = %d = 0x%x ; (int)(unsigned char)0xff = %d = 0x%x</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">a1</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="kt">unsigned</span><span class="p">)</span><span class="n">a1</span><span class="p">,</span><span class="w"> </span><span class="n">a2</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="kt">unsigned</span><span class="p">)</span><span class="n">a2</span><span class="p">);</span>
+
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="mi">-1</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">0u</span><span class="p">)</span>
+<span class="w">        </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;-1 &lt; 0u is true</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">);</span>
+<span class="w">    </span><span class="k">else</span>
+<span class="w">        </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;-1 &lt; 0u is FALSE</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">);</span>
+
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">n</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">-1</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">unsigned</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">len</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">5</span><span class="p">;</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">n</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">len</span><span class="p">)</span>
+<span class="w">        </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;n &lt; len</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">);</span>
+<span class="w">    </span><span class="k">else</span>
+<span class="w">        </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;n &lt; len is FALSE (n=%d, len=%u)</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">n</span><span class="p">,</span><span class="w"> </span><span class="n">len</span><span class="p">);</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<pre><code>$ gcc signs.c -o signs &amp;&amp; ./signs
+m = -1, as %u = 4294967295, as %x = 0xffffffff, first byte = 0xff      ← 第 10 行（本節）
+u = 4294967295                                                         ← 第 11 行（第六節）
+INT_MIN = -2147483648 = 0x80000000                                     ← 第 12 行（本節）
+INT_MAX = 2147483647 = 0x7fffffff                                      ← 第 13 行（本節）
+int big = 3000000000u -&gt; -1294967296                                   ← 第 16 行（第六節）
+unsigned char c = 300 -&gt; 44                                            ← 第 19 行（第六節）
+(int)(signed char)-1 = -1 = 0xffffffff ; (int)(unsigned char)0xff = 255 = 0xff   ← 第 24 行（第六節）
+-1 &lt; 0u is FALSE                                                       ← 第 26～29 行（第七節）
+n &lt; len is FALSE (n=-1, len=5)                                         ← 第 33～36 行（第七節）
+</code></pre>
+<p>（行號是從 <code>#include &lt;stdio.h&gt;</code> 那一行算第 1 行。）</p>
+<p>由規則推出的幾個性質：</p>
+<ul>
+<li><strong>最高位是 1 就是負數</strong>，所以最高位又叫<strong>符號位（sign bit）</strong>。</li>
+<li><strong>範圍不對稱</strong>：−2147483648 到 2147483647，負數多一個。<code>INT_MIN</code> 取負號沒有對應的正數。</li>
+<li><strong>取負數的算法：每個 bit 反過來，再加 1</strong>。例：<code>1</code> 是 <code>0x00000001</code>，反過來是 <code>0xfffffffe</code>，加 1 得 <code>0xffffffff</code>，就是 −1。</li>
+<li>加法電路<strong>跟無號完全一樣</strong>：<code>0xffffffff + 1</code> 的位元結果是 <code>0x00000000</code>，當無號看是「回繞到 0」，當有號看是「−1 + 1 = 0」。這是二補數勝出的原因——CPU 不需要兩套加法器。</li>
+</ul>
+<p>這就是 <code>readelf -h</code> 那一行的前半 <code>2's complement</code>：這個檔案裡的有號數用二補數表示。</p>
+<hr />
+<h2 id="六有號與無號之間的轉換位元不變換個讀法">六、有號與無號之間的轉換：位元不變，換個讀法</h2>
+<p>同樣寬度的有號、無號互相轉換時，<strong>位元一個都沒變，只是換了解讀方式</strong>（第五節 <code>signs.c</code> 的第 7、15 行）：</p>
+<pre><code>unsigned int u = -1;           → u = 4294967295         （0xffffffff 當無號讀）
+int big = 3000000000u;         → big = -1294967296      （3000000000 = 0xb2d05e00，最高位是 1，當有號讀是負數）
+</code></pre>
+<p><strong>變窄（截斷，truncation）</strong>：只留下低位的 byte，高位直接丟掉。</p>
+<pre><code>unsigned char c = 300;         → c = 44
+</code></pre>
+<p>300 是 <code>0x12c</code>，<code>unsigned char</code> 只有 8 bit，留下 <code>0x2c</code> = 44（<code>signs.c</code> 第 18 行）。gcc 連 <code>-Wall</code> 都不用就會警告：</p>
+<pre><code>signs.c:18:23: warning: unsigned conversion from ‘int’ to ‘unsigned char’ changes value from ‘300’ to ‘44’ [-Woverflow]
+</code></pre>
+<p><strong>變寬（擴展，extension）</strong>：要補上新的高位，補什麼取決於<strong>原本的型別</strong>，也就是<strong>轉換之前、比較窄的那個型別</strong>，不是轉換之後的型別：原本是有號就補符號位，原本是無號就補 0。</p>
+<hr />
+<blockquote>
+<p>2026-09-24 課後提問：「擴展裡說的原本的型別是指哪個型別？」——下面用實驗把轉換前後的每個 byte 印出來。</p>
+</blockquote>
+<p><code>extend.c</code> 完整原始碼：</p>
+<pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="kt">signed</span><span class="w"> </span><span class="kt">char</span><span class="w"> </span><span class="n">sc</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">-1</span><span class="p">;</span><span class="w">        </span><span class="cm">/* 1 byte：0xff */</span>
+<span class="w">    </span><span class="kt">unsigned</span><span class="w"> </span><span class="kt">char</span><span class="w"> </span><span class="n">uc</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mh">0xff</span><span class="p">;</span><span class="w">    </span><span class="cm">/* 1 byte：0xff，跟 sc 一模一樣 */</span>
+
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">a1</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">sc</span><span class="p">;</span><span class="w">                </span><span class="cm">/* 原本的型別：signed char   → 轉成 int */</span>
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">a2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">uc</span><span class="p">;</span><span class="w">                </span><span class="cm">/* 原本的型別：unsigned char → 轉成 int */</span>
+<span class="w">    </span><span class="kt">unsigned</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">a3</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">sc</span><span class="p">;</span><span class="w">       </span><span class="cm">/* 原本的型別：signed char   → 轉成 unsigned int */</span>
+
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;a1 = %d, a2 = %d, a3 = %u</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">a1</span><span class="p">,</span><span class="w"> </span><span class="n">a2</span><span class="p">,</span><span class="w"> </span><span class="n">a3</span><span class="p">);</span><span class="w">    </span><span class="cm">/* 第 12 行 */</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<pre><code>$ gcc -Wall -Wextra -g -O0 extend.c -o extend &amp;&amp; ./extend
+a1 = -1, a2 = 255, a3 = 4294967295
+
+$ gdb -q ./extend
+(gdb) break 12          ← 標註的第 12 行，這時三個轉換都做完了
+(gdb) run
+(gdb) x/1xb &amp;sc
+0x7fffffffd262:	0xff
+(gdb) x/1xb &amp;uc
+0x7fffffffd263:	0xff
+(gdb) x/4xb &amp;a1
+0x7fffffffd264:	0xff	0xff	0xff	0xff     ← 原本 0xff，新補的 3 個 byte 是 ff
+(gdb) x/4xb &amp;a2
+0x7fffffffd268:	0xff	0x00	0x00	0x00     ← 原本 0xff，新補的 3 個 byte 是 00
+(gdb) x/4xb &amp;a3
+0x7fffffffd26c:	0xff	0xff	0xff	0xff     ← 轉成無號型別，補的還是 ff
+</code></pre>
+<p>（小端序：第一個 byte 是原本那個 <code>0xff</code>，後面三個是新補的高位。）</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>原本的型別</th>
+<th>轉成</th>
+<th>補的高位</th>
+<th>名稱</th>
+<th>結果</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>a1</code></td>
+<td><code>signed char</code>（有號）</td>
+<td><code>int</code></td>
+<td>符號位是 1 → 補 <code>ff ff ff</code></td>
+<td><strong>符號擴展（sign extension）</strong></td>
+<td>−1</td>
+</tr>
+<tr>
+<td><code>a2</code></td>
+<td><code>unsigned char</code>（無號）</td>
+<td><code>int</code></td>
+<td>一律補 <code>00 00 00</code></td>
+<td><strong>零擴展（zero extension）</strong></td>
+<td>255</td>
+</tr>
+<tr>
+<td><code>a3</code></td>
+<td><code>signed char</code>（有號）</td>
+<td><code>unsigned int</code></td>
+<td>還是補 <code>ff ff ff</code></td>
+<td>符號擴展</td>
+<td>4294967295</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li><strong><code>a1</code> 與 <code>a2</code></strong>：轉成的型別都是 <code>int</code>，只有原本的型別不同，補的東西就不同。所以決定補什麼的是原本的型別。</li>
+<li><strong><code>a3</code></strong>：轉成的是<strong>無號</strong>型別，補的卻還是 1。這證明轉換後的型別不影響補什麼。實際上是分兩步：先照原本的 <code>signed char</code> 做符號擴展，把 −1 保持成 −1；再依第六節開頭的規則，位元不變、換成無號的讀法，變成 4294967295。</li>
+<li><strong>為什麼要這樣設計</strong>：擴展的目的是<strong>保持數值不變</strong>。<code>signed char</code> 的 <code>0xff</code> 代表 −1，補 1 之後 <code>0xffffffff</code> 在 <code>int</code> 裡還是 −1；
+<code>unsigned char</code> 的 <code>0xff</code> 代表 255，補 0 之後 <code>0x000000ff</code> 還是 255。要保持原本的值，就只能看原本的型別。</li>
+</ul>
+<p><em>（追問補充結束，以下回到主線）</em></p>
+<hr />
+<p>兩者原本都是同一個 byte <code>0xff</code>，擴展成 <code>int</code> 後一個是 −1、一個是 255。這就是第一節說「處理原始位元組用 <code>unsigned char</code>」的理由：用 <code>char</code> 讀到 <code>0xff</code>，擴展後變成 −1，拿去當陣列索引或跟 255 比較都會出錯。</p>
+<hr />
+<h2 id="七陷阱有號和無號混在一起比較">七、陷阱：有號和無號混在一起比較</h2>
+<p>第五節 <code>signs.c</code> 的最後兩段（第 26～36 行）：</p>
+<pre><code class="language-c"><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="mi">-1</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">0u</span><span class="p">)</span>
+<span class="w">        </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;-1 &lt; 0u is true</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">);</span>
+<span class="w">    </span><span class="k">else</span>
+<span class="w">        </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;-1 &lt; 0u is FALSE</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">);</span>
+
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">n</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">-1</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">unsigned</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">len</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">5</span><span class="p">;</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">n</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">len</span><span class="p">)</span>
+<span class="w">        </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;n &lt; len</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">);</span>
+<span class="w">    </span><span class="k">else</span>
+<span class="w">        </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;n &lt; len is FALSE (n=%d, len=%u)</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">n</span><span class="p">,</span><span class="w"> </span><span class="n">len</span><span class="p">);</span>
+</code></pre>
+<pre><code>-1 &lt; 0u is FALSE
+n &lt; len is FALSE (n=-1, len=5)
+</code></pre>
+<p>C 的規則（usual arithmetic conversions，一般算術轉換）：<strong><code>int</code> 和 <code>unsigned int</code> 放在同一個運算裡，<code>int</code> 會先被轉成 <code>unsigned int</code></strong>。（完整的規則表見第四節〈怎麼確定一個常數的型別？比較時以誰為準？〉。）轉換照第六節是「位元不變、換讀法」，於是 <code>-1</code> 變成 4294967295，比 5 大。</p>
+<p>這在真實程式裡很常見，因為 <code>sizeof</code> 與 <code>strlen</code> 回傳的都是無號的 <code>size_t</code>：<code>if (i &lt; strlen(s))</code> 裡的 <code>i</code> 如果是負的 <code>int</code>，就會踩到。</p>
+<p><strong>編譯器能幫你抓多少？</strong></p>
+<table>
+<thead>
+<tr>
+<th>編譯方式</th>
+<th><code>if (n &lt; len)</code>（變數）</th>
+<th><code>if (-1 &lt; 0u)</code>（常數）</th>
+<th><code>for (unsigned i = 3; i &gt;= 0; i--)</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>不加警告選項</td>
+<td>沒警告</td>
+<td>沒警告</td>
+<td>沒警告</td>
+</tr>
+<tr>
+<td><code>-Wall</code></td>
+<td><strong>沒警告</strong></td>
+<td>沒警告</td>
+<td><strong>沒警告</strong></td>
+</tr>
+<tr>
+<td><code>-Wall -Wextra</code></td>
+<td><code>-Wsign-compare</code> 警告</td>
+<td>沒警告</td>
+<td><code>-Wtype-limits</code> 警告</td>
+</tr>
+</tbody>
+</table>
+<p>實測的兩則警告：</p>
+<pre><code>signs.c:33:11: warning: comparison of integer expressions of different signedness: ‘int’ and ‘unsigned int’ [-Wsign-compare]
+loop.c:6:32: warning: comparison of unsigned expression in ‘&gt;= 0’ is always true [-Wtype-limits]
+</code></pre>
+<p><strong><code>-Wall</code> 不是「全部警告」</strong>，只是一組常用的。C 程式請固定加 <code>-Wall -Wextra</code>（名稱的由來與數量見第九節）。最後一欄那個迴圈是無號回繞的經典 bug：<code>i</code> 從 0 再減 1 變成 4294967295，<code>i &gt;= 0</code> 永遠成立，迴圈停不下來。為了讓示範能結束，加了一個印 6 次就 <code>break</code> 的計數器。<code>loop.c</code> 完整原始碼：</p>
+<pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">count</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kt">unsigned</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">3</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="o">--</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;%u</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">i</span><span class="p">);</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">++</span><span class="n">count</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">6</span><span class="p">)</span>
+<span class="w">            </span><span class="k">break</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<pre><code>$ gcc loop.c -o loop &amp;&amp; ./loop
+3
+2
+1
+0
+4294967295          ← 0 減 1 回繞成最大值，i &gt;= 0 還是成立
+4294967294
+</code></pre>
+<h3 id="-wtype-limits-只抓永遠成立永遠不成立的比較"><code>-Wtype-limits</code> 只抓「永遠成立／永遠不成立」的比較</h3>
+<blockquote>
+<p>2026-09-27 作業第 4 題補教：<code>unsigned int a = 3, b = 5;</code> 用 <code>if (a - b &gt; 0)</code> 判斷 a 是否比 b 大，<code>-Wall -Wextra</code> 完全沒警告，但改成 <code>a - b &lt; 0</code> 就有警告。</p>
+</blockquote>
+<p>同一個無號運算式跟 0 做五種比較，<code>tl.c</code> 完整原始碼：</p>
+<pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="kt">unsigned</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">3</span><span class="p">,</span><span class="w"> </span><span class="n">b</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">5</span><span class="p">;</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">a</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">b</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span><span class="w">  </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;&gt; 0</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">);</span><span class="w">     </span><span class="cm">/* 第 6 行 */</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">a</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">b</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span><span class="w">  </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;&lt; 0</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">);</span><span class="w">     </span><span class="cm">/* 第 7 行 */</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">a</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">b</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span><span class="w"> </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;&gt;= 0</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">);</span><span class="w">    </span><span class="cm">/* 第 8 行 */</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">a</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">b</span><span class="w"> </span><span class="o">&lt;=</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span><span class="w"> </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;&lt;= 0</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">);</span><span class="w">    </span><span class="cm">/* 第 9 行 */</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">a</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">b</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span><span class="w"> </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;!= 0</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">);</span><span class="w">    </span><span class="cm">/* 第 10 行 */</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<pre><code>$ gcc -Wall -Wextra tl.c -o tl &amp;&amp; ./tl
+tl.c:7:15: warning: comparison of unsigned expression in ‘&lt; 0’ is always false [-Wtype-limits]
+tl.c:8:15: warning: comparison of unsigned expression in ‘&gt;= 0’ is always true [-Wtype-limits]
+&gt; 0
+&gt;= 0
+!= 0
+</code></pre>
+<p>只有第 7、8 行被警告。<code>man gcc</code> 對 <code>-Wtype-limits</code> 的說明是：比較的結果<strong>因為型別的範圍有限而永遠成立或永遠不成立</strong>時才警告（例子正是「無號變數用 <code>&lt;</code> 或 <code>&gt;=</code> 跟 0 比」），這個警告包含在 <code>-Wextra</code> 裡。</p>
+<table>
+<thead>
+<tr>
+<th>比較</th>
+<th>對無號數來說等於</th>
+<th>結果固定嗎</th>
+<th>警告</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>u &lt; 0</code></td>
+<td>永遠假</td>
+<td>固定</td>
+<td>有</td>
+</tr>
+<tr>
+<td><code>u &gt;= 0</code></td>
+<td>永遠真</td>
+<td>固定</td>
+<td>有</td>
+</tr>
+<tr>
+<td><code>u &gt; 0</code></td>
+<td><code>u != 0</code></td>
+<td><strong>不固定</strong>（<code>u</code> 是 0 時為假）</td>
+<td>沒有</td>
+</tr>
+<tr>
+<td><code>u &lt;= 0</code></td>
+<td><code>u == 0</code></td>
+<td><strong>不固定</strong></td>
+<td>沒有</td>
+</tr>
+</tbody>
+</table>
+<p><code>a - b &gt; 0</code> 在語法上是完全正常的程式碼（「<code>u</code> 不是 0 嗎？」），gcc 無從知道你<strong>心裡想的</strong>是「a 比 b 大」。所以編譯器抓得到「寫出來就一定錯」的比較，抓不到「寫出來合法、但意思跟你想的不一樣」的比較。無號數比大小的正確寫法是直接比 <code>a &gt; b</code>，不要相減再跟 0 比。</p>
+<hr />
+<h2 id="八溢位無號回繞有號是未定義行為">八、溢位：無號回繞，有號是未定義行為</h2>
+<h3 id="有號溢位在-c-標準裡是未定義行為">有號溢位在 C 標準裡是「未定義行為」</h3>
+<p>無號溢位有規定（回繞）；<strong>有號溢位，C 標準沒有規定結果</strong>，叫<strong>未定義行為（undefined behavior，UB）</strong>。意思不是「結果不確定」，而是<strong>標準對這支程式完全沒有要求</strong>：編譯器可以<strong>假設它永遠不會發生</strong>，並依這個假設改寫程式。</p>
+<p>實驗（<code>bigger</code> 故意分成兩行寫，原因見本節後面）。<code>ub.c</code> 完整原始碼：</p>
+<pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;limits.h&gt;</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">bigger</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">x</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">y</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">y</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="n">x</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;bigger(INT_MAX) = %d</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">bigger</span><span class="p">(</span><span class="n">INT_MAX</span><span class="p">));</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<pre><code>$ gcc -O0 ub.c -o ub &amp;&amp; ./ub
+bigger(INT_MAX) = 0
+$ gcc -O2 ub.c -o ub &amp;&amp; ./ub
+bigger(INT_MAX) = 1
+</code></pre>
+<p>同一份程式碼，兩種答案：</p>
+<ul>
+<li><strong><code>-O0</code></strong>：照字面算。CPU 的加法照二補數回繞，<code>INT_MAX + 1</code> 得到 <code>INT_MIN</code>，<code>INT_MIN &gt; INT_MAX</code> 是假，回傳 0。</li>
+<li><strong><code>-O2</code></strong>：編譯器推理「有號溢位不會發生，所以 <code>x + 1 &gt; x</code> 永遠成立」，直接把函式換成回傳 1，根本不做加法。</li>
+</ul>
+<p>這<strong>不是 gcc 的 bug</strong>。按照標準，程式一發生有號溢位就沒有「正確答案」，兩種結果都合法。（<code>-O2</code> 把函式內嵌並在編譯時算出結果，就是 <a href="gcc%E6%9C%80%E4%BD%B3%E5%8C%96%E7%AD%89%E7%B4%9A-O0%E5%88%B0O3%E5%B7%AE%E5%9C%A8%E5%93%AA.html">gcc最佳化等級</a> 講的內嵌加常數計算。）</p>
+<p><strong>連 <code>-O0</code> 也不保證照字面算。</strong> 第四節的 <code>overflow.c</code> 把同一件事寫成一行 <code>return x + 1 &gt; x;</code>（它的第 6 行），<code>-O0</code> 也回傳 1（第四節輸出的最後一行）。用 <code>-fdump-tree-original</code> 把 gcc 內部剛讀完原始碼時的樣子印出來（gcc 內部的中間表示，長得像 C，不是組合語言）：</p>
+<pre><code>$ gcc -O0 -fdump-tree-original -c overflow.c -o /dev/null
+$ cat overflow.c.005t.original       （檔名中間的數字依 gcc 版本而定）
+;; Function bigger (null)
+{
+  return 1;
+}
+</code></pre>
+<p>gcc 在<strong>任何最佳化開始之前</strong>，就已經把 <code>x + 1 &gt; x</code> 化簡成 <code>1</code>。所以「用 <code>-O0</code> 就安全」是錯的，UB 就是 UB。</p>
+<h3 id="三種應對方式">三種應對方式</h3>
+<table>
+<thead>
+<tr>
+<th>做法</th>
+<th><code>bigger(INT_MAX)</code></th>
+<th>說明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-fwrapv</code></td>
+<td><code>-O2</code> 也回傳 <strong>0</strong></td>
+<td>告訴 gcc「有號溢位照二補數回繞」，把 UB 變成有定義的行為，gcc 就不能再做上面的推理</td>
+</tr>
+<tr>
+<td><code>-fsanitize=undefined</code>（UBSan，Undefined Behavior Sanitizer，未定義行為檢查器）</td>
+<td>回傳 0，<strong>並在執行時報錯</strong></td>
+<td>在每個可能溢位的運算旁插入檢查，發生時印出位置</td>
+</tr>
+<tr>
+<td>改寫程式碼</td>
+<td>—</td>
+<td>在運算前先檢查會不會溢位，例如 <code>if (x == INT_MAX)</code>；或改用無號型別</td>
+</tr>
+</tbody>
+</table>
+<p>UBSan 的實測輸出（<code>ub.c:6:9</code> 是「第 6 行第 9 欄」，第 6 行就是 <code>int y = x + 1;</code>）：</p>
+<pre><code>$ gcc -O0 -fsanitize=undefined ub.c -o ub &amp;&amp; ./ub
+ub.c:6:9: runtime error: signed integer overflow: 2147483647 + 1 cannot be represented in type 'int'
+bigger(INT_MAX) = 0
+</code></pre>
+<p><strong>UBSan 請搭配 <code>-O0</code> 或 <code>-Og</code> 用。</strong> 實測 <code>-Og</code> 有報錯，但 <code>-O1</code>、<code>-O2</code> <strong>沒有報錯</strong>：<code>-fdump-tree-optimized</code> 顯示
+<code>bigger</code> 裡確實有檢查（<code>.UBSAN_CHECK_ADD</code>），但 <code>main</code> 裡的呼叫已經被內嵌、在編譯時算成 <code>printf(..., 0)</code>，檢查根本沒機會執行。</p>
+<h3 id="另一種寫法x--y--x-被改寫成-y--0">另一種寫法：<code>x + y &lt; x</code> 被改寫成 <code>y &lt; 0</code></h3>
+<blockquote>
+<p>2026-09-27 作業第 5 題補教：「加了正數反而變小就是溢位」這種檢查，<code>-O2</code> 下會失效。</p>
+</blockquote>
+<p><code>overflow_check.c</code> 完整原始碼：</p>
+<pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;limits.h&gt;</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">will_overflow</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">x</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">y</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">sum</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">y</span><span class="p">;</span><span class="w">          </span><span class="cm">/* 第 6 行 */</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">sum</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">x</span><span class="p">;</span><span class="w">           </span><span class="cm">/* 加了正數反而變小，就代表溢位了？ */</span>
+<span class="p">}</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;will_overflow(INT_MAX, 1): %d</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">will_overflow</span><span class="p">(</span><span class="n">INT_MAX</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">));</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<pre><code>$ gcc -O0 overflow_check.c -o oc &amp;&amp; ./oc
+will_overflow(INT_MAX, 1): 1
+$ gcc -O2 overflow_check.c -o oc &amp;&amp; ./oc
+will_overflow(INT_MAX, 1): 0
+$ gcc -O2 -fwrapv overflow_check.c -o oc &amp;&amp; ./oc
+will_overflow(INT_MAX, 1): 1
+</code></pre>
+<p><code>-O2</code> 下 gcc 把函式改成什麼樣子（<code>-fdump-tree-optimized</code> 印出最佳化後的中間表示，只節錄 <code>will_overflow</code> 與 <code>main</code>）：</p>
+<pre><code>$ gcc -O2 -fdump-tree-optimized -c overflow_check.c -o /dev/null
+$ cat overflow_check.c.*.optimized
+int will_overflow (int x, int y)
+{
+  _1 = y_3(D) &lt; 0;            ← 加法不見了，整個函式變成「y 是不是負的」
+  _4 = (int) _1;
+  return _4;
+}
+
+int main ()
+{
+  __printf_chk (2, &quot;will_overflow(INT_MAX, 1): %d\n&quot;, 0);   ← 內嵌後直接算成 0
+  return 0;
+}
+</code></pre>
+<p>（<code>y_3(D)</code> 就是參數 <code>y</code>，後面的 <code>_3</code>、<code>(D)</code> 是 gcc 內部的編號，不用管。）</p>
+<p>推理過程：<strong>假設有號溢位不會發生</strong>，<code>x + y</code> 就是數學上的加法，那麼 <code>x + y &lt; x</code> 兩邊同減 <code>x</code> 就等於 <code>y &lt; 0</code>。在數學上這完全正確，可是這個檢查<strong>本來就是要抓溢位</strong>——編譯器用「溢位不會發生」當前提，檢查就被改寫成一個永遠抓不到溢位的式子。結論：<strong>溢位檢查要在做運算之前、用不會溢位的式子判斷</strong>，例如 <code>y &gt; 0 &amp;&amp; x &gt; INT_MAX - y</code>。寫這種檢查時，還要注意<strong>檢查式本身</strong>會不會溢位：<code>INT_MAX - y</code> 在 <code>y</code> 是正數時安全，但 <code>INT_MAX - x</code> 在 <code>x</code> 是負數時就溢位了。</p>
+<p><strong>UBSan 在 <code>-O1</code>、<code>-O2</code> 下報不報錯，不能預測。</strong> 上一段的 <code>ub.c</code> 在 <code>-O2 -fsanitize=undefined</code> 下沒有報錯，這支 <code>overflow_check.c</code> 卻在 <code>-O0</code>、<code>-O1</code>、<code>-O2</code> 都有報錯（輸出都是 <code>overflow_check.c:6:9: runtime error: signed integer overflow: 2147483647 + 1 cannot be represented in type 'int'</code>，而且 <code>-O2</code> 印出的結果是 1，不是沒加 UBSan 時的 0）。<code>-fdump-tree-optimized</code> 顯示差別在 <code>main</code>：<code>ub.c</code> 的 <code>main</code> 已經被算成 <code>printf(..., 0)</code>，這支的 <code>main</code> 還保留著 <code>.UBSAN_CHECK_ADD (2147483647, 1)</code>，檢查會真的執行。兩支程式都是 <code>INT_MAX + 1</code>，最佳化器有沒有把檢查一起算掉，要看程式的寫法，使用者無法預先判斷。所以結論不變：<strong>用 UBSan 找錯時固定用 <code>-O0</code> 或 <code>-Og</code></strong>，高最佳化等級沒報錯不代表沒有 UB。</p>
+<h3 id="kernel-怎麼處理-fno-strict-overflow">kernel 怎麼處理：<code>-fno-strict-overflow</code></h3>
+<p>本機裝的 kernel 標頭裡就有 kernel 的頂層 <code>Makefile</code>：</p>
+<pre><code>$ grep -n -B1 strict-overflow /usr/src/linux-headers-7.0.0-34-generic/Makefile
+1106-# disable invalid &quot;can't wrap&quot; optimizations for signed / pointers
+1107:KBUILD_CFLAGS	+= -fno-strict-overflow
+</code></pre>
+<p><code>man gcc</code> 對它的說明：<code>-fstrict-overflow</code> 的反面<strong>等於 <code>-fwrapv -fwrapv-pointer</code></strong>，也就是有號整數<strong>和指標</strong>的運算都照回繞處理。
+kernel 選擇「整個專案關掉這種推理」，而不是靠每個開發者自己記得避開 UB：kernel 有幾千萬行程式碼，一個被最佳化掉的溢位檢查就可能是安全漏洞。
+<strong>代價是少了一部分最佳化</strong>：編譯器不能再假設「有號數加 1 一定變大」，某些靠這個假設才能化簡的運算與迴圈就得照字面做，程式可能稍慢。
+kernel 的取捨是：寧可慢一點，也要行為可預期。這也是為什麼要讀 kernel 程式碼，得先知道它是用哪些 gcc 選項編出來的。</p>
+<hr />
+<h2 id="九本課用到的工具與選項">九、本課用到的工具與選項</h2>
+<h3 id="gcc本課用到的選項"><code>gcc</code>：本課用到的選項</h3>
+<p><code>gcc</code> 的選項有上千個，<strong>這裡只列本課新用到的 10 個</strong>（<code>-g</code>、<code>-O0</code>、<code>-O2</code> 等見前兩篇），完整清單見 <code>man gcc</code>（警告在 Warning Options、<code>-fsanitize</code> 在
+Instrumentation Options、<code>-fwrapv</code> 在 Code Gen Options、<code>-fdump-tree-*</code> 在 Developer Options）。第 1 課的階段控制選項見 <a href="hello.c%E6%80%8E%E9%BA%BC%E8%AE%8A%E6%88%90%E8%83%BD%E8%B7%91%E7%9A%84%E7%A8%8B%E5%BC%8F-%E7%B7%A8%E8%AD%AF%E7%9A%84%E5%9B%9B%E5%80%8B%E9%9A%8E%E6%AE%B5.html#%E4%B8%83%E6%9C%AC%E8%AA%B2%E7%94%A8%E5%88%B0%E7%9A%84%E5%B7%A5%E5%85%B7%E8%88%87%E9%81%B8%E9%A0%85">第 1 課筆記第七節</a>。</p>
+<table>
+<thead>
+<tr>
+<th>選項</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-Wall</code></td>
+<td>開啟一組常用警告（<strong>不是</strong>全部）</td>
+</tr>
+<tr>
+<td><code>-Wextra</code></td>
+<td>在 <code>-Wall</code> 之外再開一組，包括本課的 <code>-Wsign-compare</code>、<code>-Wtype-limits</code></td>
+</tr>
+<tr>
+<td><code>-Wsign-compare</code></td>
+<td>有號與無號比較時警告（C 語言中由 <code>-Wextra</code> 開啟）</td>
+</tr>
+<tr>
+<td><code>-Wtype-limits</code></td>
+<td>比較結果因型別範圍永遠成立或永遠不成立時警告（由 <code>-Wextra</code> 開啟）</td>
+</tr>
+<tr>
+<td><code>-Woverflow</code></td>
+<td>常數轉型後值改變時警告（預設就開）</td>
+</tr>
+<tr>
+<td><code>-fwrapv</code></td>
+<td>有號整數溢位照二補數回繞，變成有定義的行為</td>
+</tr>
+<tr>
+<td><code>-fno-strict-overflow</code></td>
+<td>等於 <code>-fwrapv -fwrapv-pointer</code>，kernel 用這個</td>
+</tr>
+<tr>
+<td><code>-fsanitize=undefined</code></td>
+<td>插入執行時的 UB 檢查（UBSan）；搭配 <code>-O0</code>／<code>-Og</code></td>
+</tr>
+<tr>
+<td><code>-fdump-tree-original</code>／<code>-fdump-tree-optimized</code></td>
+<td>把 gcc 內部的中間表示在「剛讀完原始碼」／「最佳化做完」時存成檔案</td>
+</tr>
+</tbody>
+</table>
+<p><strong>警告到底有幾個？可以問 gcc</strong>：<code>gcc -Q --help=warnings</code> 列出每個警告選項與目前狀態。本機 gcc 13.3 共列出 427 個；數標成 <code>[enabled]</code> 的：</p>
+<pre><code>$ gcc -Q --help=warnings | grep -c '\[enabled\]'              → 103   （什麼都不加）
+$ gcc -Q --help=warnings -Wall | grep -c '\[enabled\]'        → 156
+$ gcc -Q --help=warnings -Wall -Wextra | grep -c '\[enabled\]' → 172
+</code></pre>
+<p>所以 <code>-Wall</code> 只多開了 53 個，還有一半以上的警告沒開。想知道某個警告有沒有開，就把它 <code>grep</code> 出來看。</p>
+<h3 id="printf-的格式完整文法"><code>printf</code> 的格式：完整文法</h3>
+<pre><code>%[旗標][寬度][.精度][長度修飾]轉換字元
+</code></pre>
+<p>只有<strong>轉換字元</strong>是必要的，其他四個位置都可以省略。以本課的 <code>%02x</code> 為例：旗標 <code>0</code>（補零）、寬度 <code>2</code>、沒有精度、沒有長度修飾、轉換字元 <code>x</code>。以下依 <code>man 3 printf</code>（本機有安裝）<strong>全部列出</strong>。</p>
+<p><strong>轉換字元（22 個）</strong>：</p>
+<table>
+<thead>
+<tr>
+<th>字元</th>
+<th>參數型別 → 輸出</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>d</code>、<code>i</code></td>
+<td><code>int</code> → 有號十進位</td>
+</tr>
+<tr>
+<td><code>o</code>、<code>u</code>、<code>x</code>、<code>X</code></td>
+<td><code>unsigned int</code> → 無號的八進位、十進位、十六進位（小寫／大寫）</td>
+</tr>
+<tr>
+<td><code>e</code>、<code>E</code></td>
+<td><code>double</code> → 科學記號 <code>1.5e+03</code></td>
+</tr>
+<tr>
+<td><code>f</code>、<code>F</code></td>
+<td><code>double</code> → 小數 <code>1500.000000</code></td>
+</tr>
+<tr>
+<td><code>g</code>、<code>G</code></td>
+<td><code>double</code> → 依數值大小自動選 <code>f</code> 或 <code>e</code> 格式，並去掉尾端的 0</td>
+</tr>
+<tr>
+<td><code>a</code>、<code>A</code></td>
+<td><code>double</code> → 十六進位浮點數</td>
+</tr>
+<tr>
+<td><code>c</code></td>
+<td><code>int</code> → 一個字元</td>
+</tr>
+<tr>
+<td><code>s</code></td>
+<td><code>const char *</code> → 字串</td>
+</tr>
+<tr>
+<td><code>C</code>、<code>S</code></td>
+<td>分別等於 <code>lc</code>、<code>ls</code>（寬字元），不是 C 標準，不建議用</td>
+</tr>
+<tr>
+<td><code>p</code></td>
+<td><code>void *</code> → 位址（十六進位）</td>
+</tr>
+<tr>
+<td><code>n</code></td>
+<td>不輸出；把「到目前為止印了幾個字元」寫進參數指向的 <code>int</code></td>
+</tr>
+<tr>
+<td><code>m</code></td>
+<td>glibc 擴充：印出 <code>strerror(errno)</code>，不需要參數</td>
+</tr>
+<tr>
+<td><code>%</code></td>
+<td>印出 <code>%</code> 本身</td>
+</tr>
+</tbody>
+</table>
+<p><strong>長度修飾（10 個）</strong>：放在轉換字元前面，說明參數實際的型別。</p>
+<table>
+<thead>
+<tr>
+<th>修飾</th>
+<th>搭配整數轉換時，參數是</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>hh</code></td>
+<td><code>signed char</code>／<code>unsigned char</code></td>
+</tr>
+<tr>
+<td><code>h</code></td>
+<td><code>short</code>／<code>unsigned short</code></td>
+</tr>
+<tr>
+<td><code>l</code></td>
+<td><code>long</code>／<code>unsigned long</code>（本課 <code>%ld</code> 印 <code>LONG_MAX</code>）</td>
+</tr>
+<tr>
+<td><code>ll</code></td>
+<td><code>long long</code>／<code>unsigned long long</code></td>
+</tr>
+<tr>
+<td><code>q</code></td>
+<td>等於 <code>ll</code>，BSD 的舊寫法</td>
+</tr>
+<tr>
+<td><code>L</code></td>
+<td>搭配浮點轉換時是 <code>long double</code></td>
+</tr>
+<tr>
+<td><code>j</code></td>
+<td><code>intmax_t</code>／<code>uintmax_t</code></td>
+</tr>
+<tr>
+<td><code>z</code></td>
+<td><code>size_t</code>（本課 <code>%zu</code> 印 <code>sizeof</code> 的結果）</td>
+</tr>
+<tr>
+<td><code>Z</code></td>
+<td>等於 <code>z</code>，比 <code>z</code> 更早的舊寫法</td>
+</tr>
+<tr>
+<td><code>t</code></td>
+<td><code>ptrdiff_t</code>（兩個指標相減的型別，第 3 課）</td>
+</tr>
+</tbody>
+</table>
+<p><strong>旗標（7 個）</strong>：<code>#</code>（替代格式，例如 <code>%#x</code> 印出 <code>0x</code> 前綴）、<code>0</code>（用 0 補滿寬度）、<code>-</code>（靠左對齊）、空白（正數前面留一個空白）、<code>+</code>（正數也印 <code>+</code>）、<code>'</code>（依 locale 加千分位）、<code>I</code>（依 locale 用替代的數字字形）。</p>
+<p><strong>寬度</strong>是最少印幾個字元；<strong>精度</strong>對整數是最少幾位數、對浮點數是小數點後幾位、對字串是最多印幾個字元。兩者都可以寫 <code>*</code>，改從參數取值。</p>
+<p>格式與參數型別不合（例如用 <code>%d</code> 印 <code>unsigned int</code> 的 4294967295）是未定義行為；本課把 <code>-1</code> 轉成 <code>(unsigned)</code> 再用 <code>%u</code>／<code>%x</code> 印，就是為了避免這個。
+<code>-Wall</code> 裡的 <code>-Wformat</code> 會抓大部分這類錯誤。</p>
+<h3 id="limitsh本課用到的常數"><code>&lt;limits.h&gt;</code>：本課用到的常數</h3>
+<p>本課用了 <code>CHAR_MIN</code>、<code>CHAR_MAX</code>、<code>INT_MIN</code>、<code>INT_MAX</code>、<code>UINT_MAX</code>、<code>LONG_MAX</code>。每個整數型別都有對應的
+<code>_MIN</code>／<code>_MAX</code>（無號型別只有 <code>_MAX</code>），另有 <code>CHAR_BIT</code>（一個 byte 幾個 bit，Linux 上是 8）。本機<strong>沒有</strong>安裝這個標頭檔的 man page（<code>man limits.h</code> 回 <code>No manual entry</code>），完整清單直接看標頭檔：<code>/usr/include/limits.h</code>。</p>
+<h3 id="觀察工具">觀察工具</h3>
+<table>
+<thead>
+<tr>
+<th>工具</th>
+<th>本課的用法</th>
+<th>完整說明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>gdb</code></td>
+<td><code>print &amp;x</code>、<code>print sizeof(p)</code>、<code>x/4xb &amp;x</code>、<code>x/1xw &amp;x</code></td>
+<td><a href="gdb%E5%AE%8C%E6%95%B4%E5%91%BD%E4%BB%A4%E5%8F%83%E8%80%83.html">gdb完整命令參考</a>（<code>x</code> 的格式字母見〈輸出格式 <code>/FMT</code>〉）</td>
+</tr>
+<tr>
+<td><code>readelf</code></td>
+<td><code>readelf -h</code> 看 <code>Data:</code> 那一行</td>
+<td><a href="readelf%E5%AE%8C%E6%95%B4%E9%81%B8%E9%A0%85%E5%8F%83%E8%80%83.html">readelf完整選項參考</a></td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="十動手作業">十、動手作業</h2>
+<p>作業在 <a href="../../small-project/s1-02-data-repr/README.md"><code>small-project/s1-02-data-repr/</code></a>：比 <code>int</code> 小的型別的範圍、<code>long</code> 的 8 byte 位元組順序、一組轉換的先預測後驗證、另外兩種有號無號比較陷阱、一個錯誤的溢位檢查。題目刻意跟本篇範例不同，要用本篇的觀念推理，照抄範例答不出來。</p>
+<hr />
+<h2 id="自我測驗">自我測驗</h2>
+<blockquote>
+<p>參考答案寫在每題下面（2026-10-06 使用者指定）。作答時先遮住答案、自己想過再對照。</p>
+</blockquote>
+<ol>
+<li>一個 <code>int</code> 變數存著 <code>-1</code>，用 <code>%d</code> 印出 <code>-1</code>，轉成 <code>unsigned</code> 再用 <code>%u</code> 印出 <code>4294967295</code>。記憶體裡的內容有沒有變？為什麼同一個東西會印出兩個不同的數？<details class="answer"><summary>參考答案</summary>
+<p>【<a href="#%E4%BA%94%E6%9C%89%E8%99%9F%E6%95%B4%E6%95%B8%E4%BA%8C%E8%A3%9C%E6%95%B8">第五節</a>、<a href="#%E5%85%AD%E6%9C%89%E8%99%9F%E8%88%87%E7%84%A1%E8%99%9F%E4%B9%8B%E9%96%93%E7%9A%84%E8%BD%89%E6%8F%9B%E4%BD%8D%E5%85%83%E4%B8%8D%E8%AE%8A%E6%8F%9B%E5%80%8B%E8%AE%80%E6%B3%95">第六節</a>】（2026-10-10 改寫成核心關鍵格式）</p>
+<p>核心關鍵：</p>
+<ol>
+<li>沒有變：記憶體裡始終是 <code>ff ff ff ff</code>。同樣寬度的有號、無號轉換只換讀法、不動位元。</li>
+<li><code>%d</code> 用二補數讀（最高位權重是 −2³¹），得到 −1；<code>%u</code> 把每一位都當正的權重，得到 2³² − 1 = 4294967295。</li>
+</ol>
+<p>詳細說明：是 <code>printf</code> 的 <code>%d</code>／<code>%u</code> 決定用哪一種讀法解讀那 32 個 bit；變數的型別決定 C 在運算、比較時用哪一種讀法。</p>
+</details>
+</li>
+<li><code>int x = 0x12345678; unsigned char *b = (unsigned char *)&amp;x;</code> 在本機 <code>*b</code> 是多少？換到大端序的機器上是多少？為什麼 <code>int *p = &amp;x;</code> 的 <code>*p</code> 在兩種機器上都是 <code>0x12345678</code>？<details class="answer"><summary>參考答案</summary>
+<p>【<a href="#%E4%B8%89%E4%BD%8D%E5%85%83%E7%B5%84%E9%A0%86%E5%BA%8Fendianness">第三節</a>〈什麼時候要在意位元組順序？〉】（2026-10-16 改寫成核心關鍵格式）</p>
+<p>核心關鍵：</p>
+<ol>
+<li>本機（小端序）<code>*b</code> 是 <code>0x78</code>，大端序機器是 <code>0x12</code>。</li>
+<li><code>*p</code> 兩邊都一樣，是因為每台機器都用<strong>自己那一套順序寫、再用同一套順序讀</strong>（小端把第一個 byte 當最低位，也就是從後往前拼；大端把第一個 byte 當最高位，從前往後拼），一來一回抵消。</li>
+</ol>
+<p>詳細說明：小端機器寫成 <code>78 56 34 12</code>，大端機器寫成 <code>12 34 56 78</code>。<code>*p</code> 讀 4 byte 是因為 <code>p</code> 指向 <code>int</code>；<code>p</code> 本身在 x86-64 上是 8 byte。看得出順序的只有兩種情況：用 <code>unsigned char *</code> 一個 byte 一個 byte 看，或者一台機器寫、另一種順序的機器讀（網路封包、檔案，第 5 題）。</p>
+</details>
+</li>
+<li><code>int n = -1; unsigned int len = 5;</code>，<code>n &lt; len</code> 為什麼是假？只加 <code>-Wall</code> 編譯，gcc 會不會提醒你？<details class="answer"><summary>參考答案</summary>
+<p>【<a href="#%E5%9B%9B%E7%84%A1%E8%99%9F%E6%95%B4%E6%95%B8%E4%BA%8C%E9%80%B2%E4%BD%8D%E8%88%87%E5%9B%9E%E7%B9%9E">第四節</a>〈怎麼確定一個常數的型別？比較時以誰為準？〉、<a href="#%E5%85%AD%E6%9C%89%E8%99%9F%E8%88%87%E7%84%A1%E8%99%9F%E4%B9%8B%E9%96%93%E7%9A%84%E8%BD%89%E6%8F%9B%E4%BD%8D%E5%85%83%E4%B8%8D%E8%AE%8A%E6%8F%9B%E5%80%8B%E8%AE%80%E6%B3%95">第六節</a>、<a href="#%E4%B8%83%E9%99%B7%E9%98%B1%E6%9C%89%E8%99%9F%E5%92%8C%E7%84%A1%E8%99%9F%E6%B7%B7%E5%9C%A8%E4%B8%80%E8%B5%B7%E6%AF%94%E8%BC%83">第七節</a>】（2026-10-16 改寫成核心關鍵格式）</p>
+<p>核心關鍵：</p>
+<ol>
+<li>比較之前做一般算術轉換：<code>int</code> 和 <code>unsigned int</code> 等級相同，無號贏，<code>n</code> 被轉成 <code>unsigned int</code>。</li>
+<li>轉換時位元不變、換成無號讀法：<code>-1</code>（<code>0xffffffff</code>）變成 4294967295 &gt; 5，所以 <code>n &lt; len</code> 為假。</li>
+<li>只加 <code>-Wall</code> <strong>不會</strong>提醒（C 的 <code>-Wall</code> 不含 <code>-Wsign-compare</code>），要加 <code>-Wextra</code>。</li>
+</ol>
+<p>詳細說明：這個轉換是定義好的，不是溢位，也不是未定義行為；未定義行為的是有號整數<strong>運算</strong>溢位（第八節，例如 <code>INT_MAX + 1</code>）。2026-10-16 實測：<code>gcc -Wall</code> 沒有輸出，加 <code>-Wextra</code> 印出 <code>comparison of integer expressions of different signedness: ‘int’ and ‘unsigned int’ [-Wsign-compare]</code>。</p>
+</details>
+</li>
+<li><code>int y = x + 1; return y &gt; x;</code> 在 <code>x = INT_MAX</code> 時，<code>-O0</code> 回傳 0、<code>-O2</code> 回傳 1。為什麼會這樣？這算不算 gcc 的 bug？
+kernel 用哪個選項避免這種情況，代價是什麼？<details class="answer"><summary>參考答案</summary>
+<p>【<a href="#%E5%85%AB%E6%BA%A2%E4%BD%8D%E7%84%A1%E8%99%9F%E5%9B%9E%E7%B9%9E%E6%9C%89%E8%99%9F%E6%98%AF%E6%9C%AA%E5%AE%9A%E7%BE%A9%E8%A1%8C%E7%82%BA">第八節</a>】（2026-10-11 改寫成核心關鍵格式）</p>
+<p>核心關鍵：</p>
+<ol>
+<li>有號溢位是未定義行為（UB），C 標準允許編譯器<strong>假設它不會發生</strong>。</li>
+<li><code>-O0</code> 照字面算，<code>INT_MAX + 1</code> 回繞成 <code>INT_MIN</code>，<code>y &gt; x</code> 為假 → 0；<code>-O2</code> 依這個假設推論 <code>x + 1</code> 一定大於 <code>x</code>，直接回傳 1。</li>
+<li>不是 gcc 的 bug：標準對發生 UB 的程式沒有任何要求，兩種結果都合法。</li>
+<li>kernel 用 <code>-fno-strict-overflow</code>（等於 <code>-fwrapv -fwrapv-pointer</code>），讓溢位照二補數回繞、變成有定義的行為；代價是少了依賴「不會溢位」的最佳化，程式可能稍慢。</li>
+</ol>
+<p>詳細說明：連 <code>-O0</code> 也不保證照字面算：第四節的 <code>overflow.c</code> 把同一件事寫成一行 <code>return x + 1 &gt; x;</code>，<code>-O0</code> 也回傳 1，因為 gcc 在最佳化之前的化簡階段就把它改掉了（筆記第八節用 <code>-fdump-tree-original</code> 看到）。所以本題的 <code>bigger</code> 才故意拆成兩行。</p>
+</details>
+</li>
+<li>情境題：你從網路封包裡讀到 4 個 byte，依序是 <code>00 00 01 00</code>。協定規定數字用大端序，所以它代表 256。如果直接用 <code>int *</code> 把這 4 個 byte 讀進本機（x86-64），會得到多少？為什麼？<details class="answer"><summary>參考答案</summary>
+<p>【<a href="#%E4%B8%89%E4%BD%8D%E5%85%83%E7%B5%84%E9%A0%86%E5%BA%8Fendianness">第三節</a>】（2026-10-10 改寫成核心關鍵格式）</p>
+<p>核心關鍵：</p>
+<ol>
+<li>會得到 65536（<code>0x00010000</code>），不是協定要的 256。</li>
+<li>x86-64 是小端序：位址最低的 byte 當最低位，記憶體從低到高的 <code>00 00 01 00</code> 拼回來是 <code>0x00010000</code>。</li>
+</ol>
+<p>詳細說明：網路上的位元組順序（network byte order）是大端序，所以讀網路資料要用 <code>ntohl</code>（network to host long）之類的函式轉換。在大端序的機器上這個函式什麼都不做，在 x86-64 上會把 4 個 byte 反過來。</p>
+</details>
+</li>
+<li><code>printf(&quot;%p&quot;)</code> 印出 <code>0x7ffe50b23624</code>，只有 12 位十六進位。指標到底佔幾個 byte？印出來為什麼比較短？如果在 kernel 的錯誤訊息裡看到 <code>0xffff888102a4c000</code>，從位址的長相你能判斷什麼？<details class="answer"><summary>參考答案</summary>
+<p>【<a href="#%E4%BA%8C%E6%8C%87%E6%A8%99%E5%B0%B1%E6%98%AF%E4%BD%8D%E5%9D%80">第二節</a>〈位址看起來只有 6 byte？——<code>%p</code> 不補零，而且最上面 2 byte 一定是 0〉】（2026-10-11 改寫成核心關鍵格式）</p>
+<p>核心關鍵：</p>
+<ol>
+<li>指標佔 8 byte。</li>
+<li>x86-64 虛擬位址只用 48 bit，使用者空間的位址上面 2 byte 一定是 <code>00 00</code>，<code>%p</code> 不補前導零，所以只印出 12 位。</li>
+<li><code>0xffff888102a4c000</code> 整個是一個位址；上面 16 bit 全是 1，表示它在位址空間的核心那一半，所以是 kernel 的位址。</li>
+</ol>
+<p>詳細說明：canonical address 規定上面 16 bit 必須跟第 47 bit 相同，所以合法的位址只有兩段：<code>0x0000000000000000</code>～<code>0x00007fffffffffff</code>（使用者空間，第 47 bit 是 0，上面全 0）與 <code>0xffff800000000000</code>～<code>0xffffffffffffffff</code>（核心，第 47 bit 是 1，上面全 1），中間那一大段不合法。「看起來像符號擴展」沒錯，形式上就是把第 47 bit 往上複製；但這是 CPU 對位址格式的規定，跟 C 的有號、無號型別無關。</p>
+</details>
+</li>
+<li><code>2147483648</code> 和 <code>0x80000000</code> 是同一個數，為什麼一個的型別是 <code>long</code>、一個是 <code>unsigned int</code>？
+<code>-1 &lt; 0x80000000</code> 和 <code>-1 &lt; 2147483648</code> 的結果各是什麼？為什麼？<details class="answer"><summary>參考答案</summary>
+<p>【<a href="#%E5%9B%9B%E7%84%A1%E8%99%9F%E6%95%B4%E6%95%B8%E4%BA%8C%E9%80%B2%E4%BD%8D%E8%88%87%E5%9B%9E%E7%B9%9E">第四節</a>〈常數也有型別：<code>0u</code> 的 <code>u</code> 是什麼〉、〈怎麼確定一個常數的型別？比較時以誰為準？〉】（2026-10-10 改寫成核心關鍵格式）</p>
+<p>核心關鍵：</p>
+<ol>
+<li>沒有後綴的常數，依序嘗試、選第一個裝得下的型別。十進位的清單是 <code>int</code> → <code>long</code> → <code>long long</code>（永遠不變成無號），<code>2147483648</code> 超過 <code>INT_MAX</code>，所以是 <code>long</code>。</li>
+<li>十六進位的清單是 <code>int</code> → <code>unsigned int</code> → <code>long</code> → …，<code>0x80000000</code> 裝得進 <code>unsigned int</code>，所以是 <code>unsigned int</code>。</li>
+<li><code>-1 &lt; 0x80000000</code> 為<strong>假</strong>：<code>int</code> 與 <code>unsigned int</code> 比，<code>-1</code> 轉成 4294967295。</li>
+<li><code>-1 &lt; 2147483648</code> 為<strong>真</strong>：<code>int</code> 與 <code>long</code> 比，<code>-1</code> 轉成 <code>long</code> 還是 −1。</li>
+</ol>
+<p>詳細說明：十六進位清單多放無號型別，是因為寫十六進位的人通常在寫位元樣式（例如遮罩 <code>0x80000000</code>），要的是那個 bit 樣式，不是負數。</p>
+</details>
+</li>
+<li><code>signed char c = -1; unsigned int u = c;</code> 之後 <code>u</code> 是多少？擴展時新補的高位是 0 還是 1，由哪個型別決定？如果把 <code>c</code> 改宣告成 <code>unsigned char c = 0xff;</code>，<code>u</code> 又是多少？<details class="answer"><summary>參考答案</summary>
+<p>【<a href="#%E5%85%AD%E6%9C%89%E8%99%9F%E8%88%87%E7%84%A1%E8%99%9F%E4%B9%8B%E9%96%93%E7%9A%84%E8%BD%89%E6%8F%9B%E4%BD%8D%E5%85%83%E4%B8%8D%E8%AE%8A%E6%8F%9B%E5%80%8B%E8%AE%80%E6%B3%95">第六節</a>】<code>u</code> = 4294967295。擴展時補的高位由<strong>原本的型別</strong>決定：<code>signed char</code> 有號、符號位是 1，符號擴展補 1 → <code>0xffffffff</code>，再以無號讀。改成 <code>unsigned char c = 0xff</code>，原本的型別無號 → 零擴展補 0 → <code>0x000000ff</code> = 255。</p>
+</details>
+</li>
+<li>情境題：有人寫了 <code>if (len - used &gt; 0)</code> 判斷「緩衝區還有沒有剩餘空間」，<code>len</code>、<code>used</code> 都是 <code>size_t</code>，用 <code>-Wall -Wextra</code> 編譯沒有任何警告。這個判斷在什麼情況下會出錯？為什麼 gcc 對 <code>len - used &lt; 0</code> 會警告、對 <code>&gt; 0</code> 卻不會？另外，為什麼 <code>int sum = x + y; if (sum &lt; x)</code> 這種溢位檢查在 <code>-O2</code> 下可能完全失效？<details class="answer"><summary>參考答案</summary>
+<p>【<a href="#%E4%B8%83%E9%99%B7%E9%98%B1%E6%9C%89%E8%99%9F%E5%92%8C%E7%84%A1%E8%99%9F%E6%B7%B7%E5%9C%A8%E4%B8%80%E8%B5%B7%E6%AF%94%E8%BC%83">第七節</a>〈<code>-Wtype-limits</code> 只抓「永遠成立／永遠不成立」的比較〉、<a href="#%E5%85%AB%E6%BA%A2%E4%BD%8D%E7%84%A1%E8%99%9F%E5%9B%9E%E7%B9%9E%E6%9C%89%E8%99%9F%E6%98%AF%E6%9C%AA%E5%AE%9A%E7%BE%A9%E8%A1%8C%E7%82%BA">第八節</a>〈另一種寫法：<code>x + y &lt; x</code> 被改寫成 <code>y &lt; 0</code>〉】（2026-10-11 改寫成核心關鍵格式）</p>
+<p>核心關鍵：</p>
+<ol>
+<li><code>len &lt; used</code> 時，<code>len - used</code> 回繞成很大的正數，判斷誤以為「還有空間」。</li>
+<li>無號數 <code>&lt; 0</code> 永遠為假，所以 gcc 警告；<code>&gt; 0</code> 等於 <code>!= 0</code>，結果不固定，是合法寫法，所以不警告。</li>
+<li>有號溢位是 UB，gcc 假設它不會發生，把 <code>x + y &lt; x</code> 改寫成 <strong><code>y &lt; 0</code></strong>；真的溢位時（<code>y</code> 是正的），這個檢查抓不到。</li>
+</ol>
+<p>詳細說明：<code>len == used</code> 時結果是 0，<code>&gt; 0</code> 為假，所以不是「永遠為真」，只有 <code>len &lt; used</code> 會出錯。警告來自 <code>-Wtype-limits</code>（<code>-Wextra</code> 會開啟）。溢位那一問的記法：「<code>x + y &lt; x</code>」在數學上（沒有溢位）跟「<code>y &lt; 0</code>」完全等價，gcc 只是做了這個代數化簡，而這個化簡只在「不會溢位」時才成立。正確的溢位檢查要在運算<strong>之前</strong>，用不會溢位的式子判斷，例如 <code>y &gt; 0 &amp;&amp; x &gt; INT_MAX - y</code>。</p>
+</details>
+</li>
+<li><code>long a = -1; unsigned int b = 1;</code> 與 <code>int c = -1; unsigned long d = 1;</code>，<code>a &lt; b</code> 和 <code>c &lt; d</code> 各是真還是假？兩邊各被轉成什麼型別，依據的是哪一條規則？為什麼 gcc 只對其中一個發出 <code>-Wsign-compare</code> 警告？<details class="answer"><summary>參考答案</summary>
+<p>【<a href="#%E5%9B%9B%E7%84%A1%E8%99%9F%E6%95%B4%E6%95%B8%E4%BA%8C%E9%80%B2%E4%BD%8D%E8%88%87%E5%9B%9E%E7%B9%9E">第四節</a>〈怎麼確定一個常數的型別？比較時以誰為準？〉】（2026-10-09 改寫成核心關鍵格式）</p>
+<p>核心關鍵：</p>
+<ol>
+<li><code>a &lt; b</code> 為<strong>真</strong>：<code>long</code> 裝得下所有 <code>unsigned int</code> 的值 → 兩邊轉成 <code>long</code>，值不變，−1 &lt; 1。</li>
+<li><code>c &lt; d</code> 為<strong>假</strong>：無號那邊（<code>unsigned long</code>）的等級 ≥ 有號那邊（<code>int</code>）→ 兩邊轉成 <code>unsigned long</code>，−1 變成 18446744073709551615。</li>
+<li>只對 <code>c &lt; d</code> 警告：只有它<strong>把有號的值轉成無號</strong>，負數的值會變；<code>a &lt; b</code> 轉成 <code>long</code>，值不變。</li>
+</ol>
+<p>詳細說明：要看的是<strong>轉換的方向</strong>，不是「<code>&lt;</code> 兩邊有一邊是 signed」（<code>a &lt; b</code> 的 <code>a</code> 也是 signed，卻沒有警告）：<code>c &lt; d</code> 的轉換來源是有號的 <code>int</code>、目標是無號，<code>a &lt; b</code> 的轉換來源是無號的 <code>unsigned int</code>、目標是有號的 <code>long</code>。<code>a &lt; b</code> 的規則也不只是「<code>long</code> 等級比較高」：在 <code>long</code> 只有 4 byte 的 32 位元平台，<code>long</code> 裝不下所有 <code>unsigned int</code> 的值，兩邊會改成轉 <code>unsigned long</code>（C 標準的規則，本機未實測）。有號轉無號不是 UB，C 標準規定得很清楚：位元不變，換成無號的讀法（<a href="#%E5%85%AD%E6%9C%89%E8%99%9F%E8%88%87%E7%84%A1%E8%99%9F%E4%B9%8B%E9%96%93%E7%9A%84%E8%BD%89%E6%8F%9B%E4%BD%8D%E5%85%83%E4%B8%8D%E8%AE%8A%E6%8F%9B%E5%80%8B%E8%AE%80%E6%B3%95">第六節</a>）；UB 是有號溢位。</p>
+</details>
+</li>
+<li><code>unsigned x</code>、<code>unsigned int x</code>、<code>signed x</code> 各是什麼型別？為什麼 <code>char</code> 和 <code>signed char</code> 在本機的範圍完全一樣，gcc 卻說它們是不同型別、宣告衝突？情境題：同事在錯誤訊息裡看到 <code>long unsigned int</code>，說「我明明寫的是 <code>unsigned long</code>，gcc 是不是把型別搞錯了？」你怎麼回答？<details class="answer"><summary>參考答案</summary>
+<p>【<a href="#%E4%B8%80%E4%BD%8D%E5%85%83%E7%B5%84%E8%88%87%E5%9E%8B%E5%88%A5%E5%A4%A7%E5%B0%8F">第一節</a>〈<code>unsigned</code> 單獨寫就是 <code>unsigned int</code>：整數型別的所有寫法〉】（2026-10-10 改寫成核心關鍵格式）</p>
+<p>核心關鍵：</p>
+<ol>
+<li><code>unsigned x</code>、<code>unsigned int x</code> 都是 <code>unsigned int</code>；<code>signed x</code> 是 <code>int</code>（＝ <code>signed int</code>）。</li>
+<li><code>char</code> 有號還是無號，C 標準交給平台決定（x86-64 有號、ARM 通常無號），標準沒辦法把它定成 <code>signed char</code> 或 <code>unsigned char</code> 其中之一，所以 <code>char</code> 是<strong>第三個獨立的型別</strong>。型別相不相同看標準的規定，不看範圍。</li>
+<li>gcc 沒搞錯：<code>unsigned long</code> 和 <code>long unsigned int</code> 是同一個型別。指定字的順序不重要、有其他指定字時 <code>int</code> 可以省略，gcc 印型別時用它自己的固定寫法（大小在前、有號無號居中、<code>int</code> 放最後）。</li>
+</ol>
+<p>詳細說明：如果把 <code>char</code> 定義成 <code>signed char</code>，換到 ARM 這種 <code>char</code> 無號的平台就錯了，定成 <code>unsigned char</code> 則在 x86-64 錯，所以標準只好讓它自成一個型別。同一個函式先宣告成吃 <code>char</code>、再定義成吃 <code>signed char</code>，gcc 會報 <code>conflicting types</code>。<code>same.c</code> 實驗裡 <code>unsigned f(unsigned x)</code> 也被 gcc 印成 <code>unsigned int(unsigned int)</code>。</p>
+</details>
+</li>
+</ol>
+
+</main>
+</div>
+</body>
+</html>

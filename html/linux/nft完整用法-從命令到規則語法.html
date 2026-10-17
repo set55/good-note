@@ -1,0 +1,1166 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>nft 完整用法 —— 從命令文法到規則語法</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/app.js"></script>
+</head>
+<body>
+<button class="menu-btn" onclick="toggleMenu()">☰ 目錄</button>
+<div class="layout">
+<nav class="side">
+<div class="crumbs"><a href="../index.html">🏠 首頁</a> / <a href="README.html">linux</a></div>
+<div class="tools"><button onclick="toggleTheme()">🌓 主題</button></div>
+<ul>
+<li class="l2"><a href="#%E4%B8%80%E5%91%BD%E4%BB%A4%E7%9A%84%E7%B5%B1%E4%B8%80%E6%96%87%E6%B3%95">一、命令的統一文法</a></li>
+<li class="l3"><a href="#%E8%AD%98%E5%88%A5%E4%B8%80%E4%B8%B2%E7%94%B1%E5%A4%96%E8%80%8C%E5%85%A7%E7%9A%84%E4%BD%8D%E7%BD%AE%E5%8F%83%E6%95%B8">&lt;識別&gt;：一串由外而內的位置參數</a></li>
+<li class="l3"><a href="#%E7%82%BA%E4%BB%80%E9%BA%BC-family-%E4%B8%80%E5%AE%9A%E8%A6%81%E5%AF%AB">為什麼 family 一定要寫</a></li>
+<li class="l3"><a href="#%E5%85%A9%E7%A8%AE%E9%8C%AF%E8%AA%A4%E8%A8%8A%E6%81%AF%E4%BB%A3%E8%A1%A8%E4%B8%8D%E5%90%8C%E7%9A%84%E5%95%8F%E9%A1%8C">兩種錯誤訊息代表不同的問題</a></li>
+<li class="l3"><a href="#%E8%AD%98%E5%88%A5%E6%80%8E%E9%BA%BC%E6%9F%A5">識別怎麼查</a></li>
+<li class="l3"><a href="#%E8%A6%8F%E6%A0%BC%E6%AF%8F%E7%A8%AE%E7%89%A9%E4%BB%B6%E4%B8%8D%E4%B8%80%E6%A8%A3">規格：每種物件不一樣</a></li>
+<li class="l3"><a href="#%E5%8B%95%E8%A9%9E%E5%81%9A%E4%BB%80%E9%BA%BC%E5%AE%8C%E6%95%B4-15-%E5%80%8B">動詞：做什麼（完整 15 個）</a></li>
+<li class="l3"><a href="#%E7%89%A9%E4%BB%B6%E5%9E%8B%E5%88%A5%E5%B0%8D%E4%BB%80%E9%BA%BC%E5%81%9A%E5%AE%8C%E6%95%B4">物件型別：對什麼做（完整）</a></li>
+<li class="l3"><a href="#%E9%81%B8%E9%A0%85%E5%AE%8C%E6%95%B4%E6%B8%85%E5%96%AE">選項：完整清單</a></li>
+<li class="l3"><a href="#family%E5%8F%AA%E6%9C%89%E9%80%99%E5%85%AD%E5%80%8B">family：只有這六個</a></li>
+<li class="l2"><a href="#%E4%BA%8C%E8%A6%8F%E5%89%87%E7%9A%84%E5%A2%9E%E5%88%AA%E6%94%B9%E6%9F%A5">二、規則的增刪改查</a></li>
+<li class="l2"><a href="#%E4%B8%89%E8%A1%A8%E8%88%87%E9%8F%88%E7%9A%84%E6%93%8D%E4%BD%9C">三、表與鏈的操作</a></li>
+<li class="l2"><a href="#%E5%9B%9B%E6%9F%A5%E8%A9%A2listdescribemonitor">四、查詢：list、describe、monitor</a></li>
+<li class="l3"><a href="#describe%E6%9F%A5%E9%80%99%E5%80%8B%E6%AC%84%E4%BD%8D%E8%83%BD%E5%A1%AB%E4%BB%80%E9%BA%BC">describe：查「這個欄位能填什麼」</a></li>
+<li class="l3"><a href="#monitor%E5%8D%B3%E6%99%82%E7%9C%8B%E7%99%BC%E7%94%9F%E4%BB%80%E9%BA%BC%E4%BA%8B">monitor：即時看發生什麼事</a></li>
+<li class="l2"><a href="#%E4%BA%94%E9%9B%86%E5%90%88%E5%B0%8D%E6%87%89%E8%88%87%E5%88%A4%E6%B1%BA%E8%A1%A8">五、集合、對應與判決表</a></li>
+<li class="l2"><a href="#%E5%85%AD%E6%AA%94%E6%A1%88%E6%A8%A1%E5%BC%8Fnft--f%E5%BC%B7%E7%83%88%E5%BB%BA%E8%AD%B0">六、檔案模式：nft -f（強烈建議）</a></li>
+<li class="l2"><a href="#%E4%B8%83%E6%95%B4%E4%BB%BD%E6%AA%94%E6%A1%88%E7%9A%84%E4%B8%89%E5%B1%A4%E7%B5%90%E6%A7%8B">七、整份檔案的三層結構</a></li>
+<li class="l2"><a href="#%E5%85%ABtable-inet-fw4--%E9%80%90%E5%AD%97">八、table inet fw4 { 逐字</a></li>
+<li class="l2"><a href="#%E4%B9%9Dchain-%E5%AE%A3%E5%91%8A%E9%82%A3%E4%B8%80%E8%A1%8C%E9%80%90%E5%AD%97">九、chain 宣告那一行逐字</a></li>
+<li class="l3"><a href="#%E5%90%8C%E4%B8%80%E5%80%8B%E9%99%B7%E9%98%B1%E7%9A%84%E5%8F%A6%E4%B8%80%E5%8D%8A%E9%8F%88%E5%90%8D-vs-hook">同一個陷阱的另一半：鏈名 vs hook</a></li>
+<li class="l3"><a href="#type-%E7%9A%84%E4%B8%89%E7%A8%AE%E5%80%BC">type 的三種值</a></li>
+<li class="l3"><a href="#priority-%E7%9A%84%E5%90%8D%E5%AD%97%E8%88%87%E6%95%B8%E5%AD%97">priority 的名字與數字</a></li>
+<li class="l3"><a href="#policy-%E4%BB%80%E9%BA%BC%E6%99%82%E5%80%99%E6%89%8D%E6%9C%83%E7%94%A8%E5%88%B0">policy 什麼時候才會用到</a></li>
+<li class="l2"><a href="#%E5%8D%81%E4%B8%80%E6%A2%9D%E8%A6%8F%E5%89%87%E7%9A%84%E7%B5%84%E6%88%90">十、一條規則的組成</a></li>
+<li class="l2"><a href="#%E5%8D%81%E4%B8%80%E6%AF%94%E5%B0%8Dexpression%E9%80%90%E5%80%8B%E6%8B%86">十一、比對（expression）逐個拆</a></li>
+<li class="l3"><a href="#iifname-br-lan--oifname--eth1-phy1-sta0-">iifname &quot;br-lan&quot; / oifname { &quot;eth1&quot;, &quot;phy1-sta0&quot; }</a></li>
+<li class="l3"><a href="#meta-nfproto-ipv4">meta nfproto ipv4</a></li>
+<li class="l3"><a href="#meta-l4proto-igmp">meta l4proto igmp</a></li>
+<li class="l3"><a href="#ct-state-establishedrelated">ct state established,related</a></li>
+<li class="l3"><a href="#tcp-flags--fin--syn--rst--ack--syn">tcp flags &amp; (fin | syn | rst | ack) == syn</a></li>
+<li class="l3"><a href="#icmpv6-type--icmpv6-code--packet-too-big--0-parameter-problem--1-">icmpv6 type . icmpv6 code { packet-too-big . 0, parameter-problem . 1 }</a></li>
+<li class="l3"><a href="#ip6-saddr-fe8010">ip6 saddr fe80::/10</a></li>
+<li class="l3"><a href="#udp-dport-68--tcp-dport-22">udp dport 68 / tcp dport 22</a></li>
+<li class="l2"><a href="#%E5%8D%81%E4%BA%8C%E5%8B%95%E4%BD%9Cstatement%E9%80%90%E5%80%8B%E6%8B%86">十二、動作（statement）逐個拆</a></li>
+<li class="l3"><a href="#%E7%B5%82%E7%B5%90%E9%A1%9Eaccept--drop--reject">終結類：accept / drop / reject</a></li>
+<li class="l3"><a href="#%E6%B5%81%E7%A8%8B%E9%A1%9Ejump--goto--return">流程類：jump / goto / return</a></li>
+<li class="l3"><a href="#counter">counter</a></li>
+<li class="l3"><a href="#limit">limit</a></li>
+<li class="l3"><a href="#masquerade">masquerade</a></li>
+<li class="l3"><a href="#tcp-option-maxseg-size-set-rt-mtu%E4%BD%A0%E8%A6%8F%E5%89%87%E8%A3%A1%E6%9C%80%E9%80%B2%E9%9A%8E%E7%9A%84%E4%B8%80%E6%A2%9D">tcp option maxseg size set rt mtu（你規則裡最進階的一條）</a></li>
+<li class="l3"><a href="#comment-">comment &quot;...&quot;</a></li>
+<li class="l2"><a href="#%E5%8D%81%E4%B8%89%E6%A8%99%E9%BB%9E%E7%AC%A6%E8%99%9F%E7%B8%BD%E8%A1%A8">十三、標點符號總表</a></li>
+<li class="l2"><a href="#%E5%8D%81%E5%9B%9B%E5%AF%A6%E6%88%B0%E8%AE%80%E6%87%82%E6%9C%80%E8%A4%87%E9%9B%9C%E7%9A%84%E4%B8%89%E6%A2%9D">十四、實戰：讀懂最複雜的三條</a></li>
+<li class="l3"><a href="#%E2%91%A0">①</a></li>
+<li class="l3"><a href="#%E2%91%A1">②</a></li>
+<li class="l3"><a href="#%E2%91%A2">③</a></li>
+<li class="l2"><a href="#%E8%87%AA%E6%88%91%E6%B8%AC%E9%A9%97">自我測驗</a></li>
+</ul>
+</nav>
+<main>
+<h1 id="nft-完整用法--從命令文法到規則語法">nft 完整用法 —— 從命令文法到規則語法</h1>
+<blockquote>
+<p>日期：2026-09-21<br />
+情境：要能自己寫 nft 規則——既要知道 <code>add</code>／<code>delete</code>／<code>list</code> 這些命令怎麼下，也要看懂
+<code>type filter hook forward priority filter; policy drop;</code> 裡每個字與標點的角色<br />
+對應檔案：路由器上的 <code>inet fw4</code> 規則集（fw4 從 <code>/etc/config/firewall</code> 編譯產生）<br />
+適用範圍：nftables 語法本身適用於任何 Linux；文中範例取自 OpenWrt 24.10.2 的 fw4 規則集（nftables 1.1.1）<br />
+相關：<a href="iptables%E8%88%87nftables%E6%80%8E%E9%BA%BC%E7%94%A8.html">iptables與nftables怎麼用</a>（兩代工具的對照與 iptables 用法）、
+<a href="../openwrt/%E8%AE%80%E6%87%82fw4%E7%9A%84nft%E8%A6%8F%E5%89%87.html">讀懂fw4的nft規則</a>（範例規則集的整體骨架在那篇）</p>
+</blockquote>
+<p><strong>一句話結論：nft 分成兩層——<strong>命令層</strong>（<code>nft &lt;動詞&gt; &lt;物件&gt; &lt;識別&gt; [規格]</code>，所有操作都是這個形狀）與<strong>規則層</strong>（一串「比對」後面接一串「動作」）。把這兩層的文法各記一次，就不必再靠背例子。規則層只有兩種東西——<strong>宣告</strong>（table／chain，用 <code>{}</code> 包住內容、用 <code>;</code> 結束每個子句）和<strong>規則</strong>（由左到右：一串「比對」後面接一串「動作」，沒有 <code>-j</code> 這種旗標）。看不懂的時候，先問「這個 token 是在描述封包長什麼樣，還是在描述要對它做什麼」，答案只有這兩類。</strong></p>
+<hr />
+<h2 id="一命令的統一文法">一、命令的統一文法</h2>
+<p><strong>所有 nft 操作都是同一個形狀</strong>，記住這個骨架就不必背個別指令：</p>
+<pre><code>nft [選項] &lt;動詞&gt; &lt;物件型別&gt; &lt;識別&gt; [規格]
+</code></pre>
+<p>先用一個完整例子把四個位置標出來：</p>
+<pre><code>nft delete rule inet myfilter input handle 7
+    └──┬─┘ └┬─┘ └───────┬──────┘ └───┬───┘
+     動詞  物件型別       識別         規格
+                     ┌────┴─────┐
+                  inet myfilter input
+                    ①     ②       ③
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>位置</th>
+<th>這個例子裡是</th>
+<th>說明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>動詞</td>
+<td><code>delete</code></td>
+<td>要做什麼</td>
+</tr>
+<tr>
+<td>物件型別</td>
+<td><code>rule</code></td>
+<td>對什麼東西做</td>
+</tr>
+<tr>
+<td>識別</td>
+<td><code>inet myfilter input</code></td>
+<td><strong>指到哪一個</strong>——見下</td>
+</tr>
+<tr>
+<td>規格</td>
+<td><code>handle 7</code></td>
+<td>細節（哪一條規則／規則內容／鏈的屬性）</td>
+</tr>
+</tbody>
+</table>
+<h3 id="識別一串由外而內的位置參數"><code>&lt;識別&gt;</code>：一串由外而內的位置參數</h3>
+<p>識別<strong>不是一個值，是一串</strong>，從最外層一路指到目標：</p>
+<pre><code>①  inet       ← family（協定家族）：固定關鍵字，只能是 ip / ip6 / inet / arp / bridge / netdev
+②  myfilter   ← table 的名字：你自己取的
+③  input      ← chain 的名字：你自己取的（不是 hook，見〈鏈名 vs hook〉）
+</code></pre>
+<p><strong>要寫幾段，取決於物件型別：</strong></p>
+<table>
+<thead>
+<tr>
+<th>物件型別</th>
+<th>識別的組成</th>
+<th>例子</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>table</code></td>
+<td>family + 表名（<strong>2 段</strong>）</td>
+<td><code>nft list table inet myfilter</code></td>
+</tr>
+<tr>
+<td><code>chain</code></td>
+<td>family + 表名 + 鏈名（<strong>3 段</strong>）</td>
+<td><code>nft list chain inet myfilter input</code></td>
+</tr>
+<tr>
+<td><code>rule</code></td>
+<td>family + 表名 + 鏈名（<strong>3 段</strong>）＋規格</td>
+<td><code>nft delete rule inet myfilter input handle 7</code></td>
+</tr>
+<tr>
+<td><code>set</code> / <code>map</code></td>
+<td>family + 表名 + 集合名（<strong>3 段</strong>）</td>
+<td><code>nft list set inet myfilter blacklist</code></td>
+</tr>
+<tr>
+<td><code>element</code></td>
+<td>同 set，再加 <code>{ 元素 }</code></td>
+<td><code>nft add element inet myfilter blacklist '{ 1.2.3.4 }'</code></td>
+</tr>
+<tr>
+<td><code>ruleset</code></td>
+<td><strong>不需要識別</strong></td>
+<td><code>nft list ruleset</code></td>
+</tr>
+</tbody>
+</table>
+<p><strong>規律：識別就是「這個物件的完整路徑」</strong>——rule 住在 chain 裡、chain 住在 table 裡、table 屬於某個
+family，所以要從 family 開始一路寫下來。就像檔案路徑 <code>/家族/表/鏈</code>。</p>
+<h3 id="為什麼-family-一定要寫">為什麼 family 一定要寫</h3>
+<p><strong>表是用「family + 名字」共同識別的</strong>，不是只有名字。man page 寫得很直接：</p>
+<blockquote>
+<p>Tables are ... identified by their address family and their name.</p>
+</blockquote>
+<p>所以同一個名字可以在不同 family 各存在一張表，互不衝突。</p>
+<p><strong>省略 family 不是「自動幫你找」，而是預設成 <code>ip</code>：</strong></p>
+<blockquote>
+<p>When no address family is specified, ip is used by default.</p>
+</blockquote>
+<p>實測（你的 fw4 表在 <code>inet</code> family）：</p>
+<pre><code class="language-bash">$<span class="w"> </span>nft<span class="w"> </span>list<span class="w"> </span>table<span class="w"> </span>fw4
+Error:<span class="w"> </span>No<span class="w"> </span>such<span class="w"> </span>file<span class="w"> </span>or<span class="w"> </span>directory<span class="w">          </span><span class="c1"># ← 被當成 ip fw4 去找</span>
+
+$<span class="w"> </span>nft<span class="w"> </span>list<span class="w"> </span>table<span class="w"> </span>ip<span class="w"> </span>fw4
+Error:<span class="w"> </span>No<span class="w"> </span>such<span class="w"> </span>file<span class="w"> </span>or<span class="w"> </span>directory<span class="w">          </span><span class="c1"># ← 一模一樣的錯誤，證明上一行就是這個意思</span>
+
+$<span class="w"> </span>nft<span class="w"> </span>list<span class="w"> </span>table<span class="w"> </span>inet<span class="w"> </span>fw4
+table<span class="w"> </span>inet<span class="w"> </span>fw4<span class="w"> </span><span class="o">{</span><span class="w"> </span>...<span class="w"> </span><span class="o">}</span><span class="w">                    </span><span class="c1"># ✅</span>
+</code></pre>
+<h3 id="兩種錯誤訊息代表不同的問題">兩種錯誤訊息代表不同的問題</h3>
+<pre><code class="language-bash">$<span class="w"> </span>nft<span class="w"> </span>list<span class="w"> </span>table<span class="w"> </span>ip<span class="w"> </span>fw4
+Error:<span class="w"> </span>No<span class="w"> </span>such<span class="w"> </span>file<span class="w"> </span>or<span class="w"> </span>directory<span class="w">          </span><span class="c1"># ← 語意錯誤：段數對，但指到不存在的東西</span>
+
+$<span class="w"> </span>nft<span class="w"> </span>list<span class="w"> </span>chain<span class="w"> </span>inet<span class="w"> </span>input
+Error:<span class="w"> </span>syntax<span class="w"> </span>error,<span class="w"> </span>unexpected<span class="w"> </span>newline,<span class="w"> </span>expecting<span class="w"> </span>string
+<span class="w">                                          </span><span class="c1"># ← 語法錯誤：少寫一段（漏了 table 名）</span>
+</code></pre>
+<p><strong>看到 <code>No such file or directory</code> → 檢查 family／名字有沒有打錯；看到 <code>syntax error</code> → 檢查段數夠不夠。</strong></p>
+<h3 id="識別怎麼查">識別怎麼查</h3>
+<pre><code class="language-bash">$<span class="w"> </span>nft<span class="w"> </span>list<span class="w"> </span>tables
+table<span class="w"> </span>inet<span class="w"> </span>fw4<span class="w">          </span><span class="c1"># ← 直接給你「family + 表名」兩段，照抄即可</span>
+
+$<span class="w"> </span>nft<span class="w"> </span>list<span class="w"> </span>table<span class="w"> </span>inet<span class="w"> </span>fw4<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span><span class="s1">&#39;chain &#39;</span>
+<span class="w">        </span>chain<span class="w"> </span>input<span class="w"> </span><span class="o">{</span><span class="w">   </span><span class="c1"># ← 第三段（鏈名）在這裡</span>
+<span class="w">        </span>chain<span class="w"> </span>forward<span class="w"> </span><span class="o">{</span>
+</code></pre>
+<h3 id="規格每種物件不一樣">規格：每種物件不一樣</h3>
+<table>
+<thead>
+<tr>
+<th>情況</th>
+<th>規格是什麼</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>建 base chain</td>
+<td><code>'{ type filter hook input priority 0; policy drop; }'</code>（<strong>要單引號</strong>，因為含 <code>{};</code>）</td>
+</tr>
+<tr>
+<td>建 regular chain</td>
+<td>不給規格</td>
+</tr>
+<tr>
+<td>加 rule</td>
+<td>規則本身：<code>tcp dport 22 accept</code></td>
+</tr>
+<tr>
+<td>刪 rule</td>
+<td><code>handle &lt;N&gt;</code></td>
+</tr>
+<tr>
+<td>插 rule 到指定位置</td>
+<td><code>position &lt;handle&gt;</code> 或 <code>index &lt;N&gt;</code> + 規則內容</td>
+</tr>
+<tr>
+<td>建 set</td>
+<td><code>'{ type ipv4_addr; flags interval; }'</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="動詞做什麼完整-15-個">動詞：做什麼（完整 15 個）</h3>
+<table>
+<thead>
+<tr>
+<th>動詞</th>
+<th>意思</th>
+<th>適用物件</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>add</code></td>
+<td>新增；<strong>已存在也不報錯</strong></td>
+<td>幾乎全部</td>
+</tr>
+<tr>
+<td><code>create</code></td>
+<td>新增；<strong>已存在就報錯</strong></td>
+<td>table／chain／set／map／element／flowtable</td>
+</tr>
+<tr>
+<td><code>insert</code></td>
+<td>加 rule 到<strong>最前面</strong>或指定位置</td>
+<td><strong>只有 rule</strong></td>
+</tr>
+<tr>
+<td><code>replace</code></td>
+<td><strong>取代</strong>指定 handle 的 rule</td>
+<td><strong>只有 rule</strong></td>
+</tr>
+<tr>
+<td><code>delete</code></td>
+<td>刪除</td>
+<td>幾乎全部</td>
+</tr>
+<tr>
+<td><code>destroy</code></td>
+<td>刪除；<strong>不存在也不報錯</strong></td>
+<td>幾乎全部（較新版本才有）</td>
+</tr>
+<tr>
+<td><code>get</code></td>
+<td><strong>取出集合裡的元素</strong></td>
+<td><strong>只有 element</strong></td>
+</tr>
+<tr>
+<td><code>list</code></td>
+<td>列出</td>
+<td>幾乎全部</td>
+</tr>
+<tr>
+<td><code>flush</code></td>
+<td><strong>清空內容但保留物件</strong></td>
+<td>ruleset／table／chain／set／map</td>
+</tr>
+<tr>
+<td><code>reset</code></td>
+<td><strong>把狀態值歸零</strong></td>
+<td>counter／quota／rule／rules／set／map</td>
+</tr>
+<tr>
+<td><code>rename</code></td>
+<td>改名</td>
+<td><strong>只有 chain</strong></td>
+</tr>
+<tr>
+<td><code>import</code></td>
+<td>從 JSON／二進位匯入</td>
+<td>ruleset</td>
+</tr>
+<tr>
+<td><code>export</code></td>
+<td>匯出成 JSON／二進位</td>
+<td>ruleset</td>
+</tr>
+<tr>
+<td><code>monitor</code></td>
+<td>即時顯示規則變動／封包追蹤</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>describe</code></td>
+<td><strong>查詢某欄位有哪些可用值</strong></td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<p>前一版我只列了 12 個，漏掉 <code>get</code>／<code>import</code>／<code>export</code>，而且把 <code>reset</code> 講得太窄——
+<strong><code>reset rule</code>／<code>reset rules</code> 可以把規則的 counter 歸零而不用重建規則</strong>，排查時很實用。</p>
+<p><strong><code>add</code> / <code>create</code> / <code>insert</code> 最常被搞混：</strong></p>
+<pre><code class="language-bash">nft<span class="w"> </span>add<span class="w">    </span>table<span class="w"> </span>inet<span class="w"> </span>t<span class="w">            </span><span class="c1"># 已存在 → 安靜成功（冪等，腳本愛用）</span>
+nft<span class="w"> </span>create<span class="w"> </span>table<span class="w"> </span>inet<span class="w"> </span>t<span class="w">            </span><span class="c1"># 已存在 → 報錯 File exists</span>
+nft<span class="w"> </span>add<span class="w">    </span>rule<span class="w"> </span>inet<span class="w"> </span>t<span class="w"> </span>c<span class="w"> </span>accept<span class="w">    </span><span class="c1"># 接到鏈的最後</span>
+nft<span class="w"> </span>insert<span class="w"> </span>rule<span class="w"> </span>inet<span class="w"> </span>t<span class="w"> </span>c<span class="w"> </span>accept<span class="w">    </span><span class="c1"># 插到鏈的最前</span>
+</code></pre>
+<p><strong><code>delete</code> / <code>destroy</code> / <code>flush</code> 的差別也要分清楚：</strong></p>
+<pre><code class="language-bash">nft<span class="w"> </span>delete<span class="w">  </span>chain<span class="w"> </span>inet<span class="w"> </span>t<span class="w"> </span>c<span class="w">    </span><span class="c1"># 刪掉這條鏈；不存在 → 報錯</span>
+nft<span class="w"> </span>destroy<span class="w"> </span>chain<span class="w"> </span>inet<span class="w"> </span>t<span class="w"> </span>c<span class="w">    </span><span class="c1"># 刪掉這條鏈；不存在 → 安靜成功（腳本用）</span>
+nft<span class="w"> </span>flush<span class="w">   </span>chain<span class="w"> </span>inet<span class="w"> </span>t<span class="w"> </span>c<span class="w">    </span><span class="c1"># 鏈留著，只把裡面的規則清空</span>
+</code></pre>
+<h3 id="物件型別對什麼做完整">物件型別：對什麼做（完整）</h3>
+<table>
+<thead>
+<tr>
+<th>分類</th>
+<th>物件型別</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>三層結構</strong></td>
+<td><code>table</code>、<code>chain</code>、<code>rule</code></td>
+</tr>
+<tr>
+<td><strong>集合類</strong></td>
+<td><code>set</code>、<code>map</code>、<code>element</code>（集合裡的成員）</td>
+</tr>
+<tr>
+<td><strong>具名狀態物件</strong></td>
+<td><code>counter</code>、<code>quota</code>、<code>limit</code>、<code>secmark</code>、<code>synproxy</code></td>
+</tr>
+<tr>
+<td><strong>conntrack 物件</strong></td>
+<td><code>ct helper</code>、<code>ct timeout</code>、<code>ct expectation</code></td>
+</tr>
+<tr>
+<td><strong>其他</strong></td>
+<td><code>flowtable</code>（硬體／軟體加速）、<code>meter</code>、<code>ruleset</code>（整份）</td>
+</tr>
+</tbody>
+</table>
+<p><strong>複數形只能配 <code>list</code></strong>，用來「列出這一類的全部」：</p>
+<pre><code class="language-bash">nft<span class="w"> </span>list<span class="w"> </span>tables<span class="w">          </span><span class="c1"># 所有表（只列名字，不列內容）</span>
+nft<span class="w"> </span>list<span class="w"> </span>chains
+nft<span class="w"> </span>list<span class="w"> </span>sets
+nft<span class="w"> </span>list<span class="w"> </span>maps
+nft<span class="w"> </span>list<span class="w"> </span>counters
+nft<span class="w"> </span>list<span class="w"> </span>flowtables
+nft<span class="w"> </span>list<span class="w"> </span>hooks<span class="w">           </span><span class="c1"># 目前有哪些 hook 被註冊（含其他子系統的）</span>
+nft<span class="w"> </span>list<span class="w"> </span>ct<span class="w"> </span>helpers
+</code></pre>
+<p><code>nft list tables</code> 特別常用——<strong>它直接給你「family + 表名」，就是下一個指令要填的前兩段識別</strong>。</p>
+<h3 id="選項完整清單">選項：完整清單</h3>
+<p><code>nft --help</code> 把選項分成四組：</p>
+<p><strong>輸入處理</strong></p>
+<table>
+<thead>
+<tr>
+<th>選項</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong><code>-f &lt;檔&gt;</code></strong></td>
+<td>從檔案載入，<strong>整份原子套用</strong></td>
+</tr>
+<tr>
+<td><strong><code>-c</code></strong></td>
+<td><strong>只檢查語法，不套用</strong>（dry run），遠端改規則的保命符</td>
+</tr>
+<tr>
+<td><code>-i</code></td>
+<td>互動式 CLI（有自動補齊）</td>
+</tr>
+<tr>
+<td><code>-D name=value</code></td>
+<td>定義變數，例如 <code>--define wan=eth0</code>，檔案裡用 <code>$wan</code></td>
+</tr>
+<tr>
+<td><code>-I &lt;目錄&gt;</code></td>
+<td><code>include</code> 的搜尋路徑</td>
+</tr>
+<tr>
+<td><code>-o</code></td>
+<td>自動最佳化規則集</td>
+</tr>
+</tbody>
+</table>
+<p><strong>列出時的格式</strong></p>
+<table>
+<thead>
+<tr>
+<th>選項</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong><code>-a</code></strong></td>
+<td><strong>顯示 handle</strong>——刪 rule 前一定要先用它</td>
+</tr>
+<tr>
+<td><code>-s</code></td>
+<td>不印 counter 等狀態值（<strong>適合存成設定檔</strong>）</td>
+</tr>
+<tr>
+<td><code>-t</code></td>
+<td>不展開集合內容（輸出較短）</td>
+</tr>
+<tr>
+<td><code>-n</code></td>
+<td>全部用數字，不做名稱轉換</td>
+</tr>
+<tr>
+<td><code>-y</code></td>
+<td>priority 印成數字而非名字（<code>0</code> 而非 <code>filter</code>）</td>
+</tr>
+<tr>
+<td><code>-S</code></td>
+<td>埠號翻成 <code>/etc/services</code> 的服務名</td>
+</tr>
+<tr>
+<td><code>-N</code></td>
+<td>IP 做反向 DNS 查詢（<strong>會很慢，理由同 netstat</strong>）</td>
+</tr>
+<tr>
+<td><code>-u</code></td>
+<td>UID／GID 翻成使用者名稱</td>
+</tr>
+<tr>
+<td><code>-p</code></td>
+<td>第四層協定印成數字</td>
+</tr>
+<tr>
+<td><code>-T</code></td>
+<td>時間值印成數字</td>
+</tr>
+</tbody>
+</table>
+<p><strong>輸出格式</strong></p>
+<table>
+<thead>
+<tr>
+<th>選項</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-e</code></td>
+<td>執行後把剛加的東西印出來（確認用）</td>
+</tr>
+<tr>
+<td><code>-j</code></td>
+<td>JSON 輸出（給腳本用）</td>
+</tr>
+<tr>
+<td><code>-d &lt;level&gt;</code></td>
+<td>除錯輸出（<code>scanner</code>／<code>parser</code>／<code>netlink</code>／<code>all</code>…）</td>
+</tr>
+</tbody>
+</table>
+<p><strong>一般</strong>：<code>-h</code> 說明、<code>-v</code> 版本、<code>-V</code> 詳細版本。</p>
+<h3 id="family只有這六個">family：只有這六個</h3>
+<p><code>ip</code>、<code>ip6</code>、<strong><code>inet</code></strong>、<code>arp</code>、<code>bridge</code>、<code>netdev</code>。</p>
+<hr />
+<hr />
+<h2 id="二規則的增刪改查">二、規則的增刪改查</h2>
+<p>實務上最常做、也最容易卡住的地方——<strong>因為刪 rule 不能用行號，只能用 handle</strong>。</p>
+<pre><code class="language-bash"><span class="c1"># 查：先拿到 handle（沒有 -a 就看不到）</span>
+nft<span class="w"> </span>-a<span class="w"> </span>list<span class="w"> </span>chain<span class="w"> </span>inet<span class="w"> </span>myfilter<span class="w"> </span>input
+<span class="c1">#   chain input { # handle 2</span>
+<span class="c1">#       tcp dport 22 accept # handle 5     ← 這個 5 就是 handle</span>
+<span class="c1">#   }</span>
+
+<span class="c1"># 增：接到最後</span>
+nft<span class="w"> </span>add<span class="w"> </span>rule<span class="w"> </span>inet<span class="w"> </span>myfilter<span class="w"> </span>input<span class="w"> </span>tcp<span class="w"> </span>dport<span class="w"> </span><span class="m">80</span><span class="w"> </span>accept
+
+<span class="c1"># 增：插到最前面</span>
+nft<span class="w"> </span>insert<span class="w"> </span>rule<span class="w"> </span>inet<span class="w"> </span>myfilter<span class="w"> </span>input<span class="w"> </span>iif<span class="w"> </span>lo<span class="w"> </span>accept
+
+<span class="c1"># 增：插在某條規則之前（position = 那條的 handle）</span>
+nft<span class="w"> </span>insert<span class="w"> </span>rule<span class="w"> </span>inet<span class="w"> </span>myfilter<span class="w"> </span>input<span class="w"> </span>position<span class="w"> </span><span class="m">5</span><span class="w"> </span>tcp<span class="w"> </span>dport<span class="w"> </span><span class="m">443</span><span class="w"> </span>accept
+
+<span class="c1"># 改：取代 handle 5 那條</span>
+nft<span class="w"> </span>replace<span class="w"> </span>rule<span class="w"> </span>inet<span class="w"> </span>myfilter<span class="w"> </span>input<span class="w"> </span>handle<span class="w"> </span><span class="m">5</span><span class="w"> </span>tcp<span class="w"> </span>dport<span class="w"> </span><span class="m">22</span><span class="w"> </span>counter<span class="w"> </span>accept
+
+<span class="c1"># 刪：只能用 handle</span>
+nft<span class="w"> </span>delete<span class="w"> </span>rule<span class="w"> </span>inet<span class="w"> </span>myfilter<span class="w"> </span>input<span class="w"> </span>handle<span class="w"> </span><span class="m">5</span>
+
+<span class="c1"># 清空整條鏈的規則（鏈還在）</span>
+nft<span class="w"> </span>flush<span class="w"> </span>chain<span class="w"> </span>inet<span class="w"> </span>myfilter<span class="w"> </span>input
+</code></pre>
+<p><strong>handle 是核心配發的、不會重排</strong>——刪掉中間某條，其他規則的 handle 不變。這比 iptables 的行號可靠：iptables 刪掉第 3 條之後，原本第 4 條就變成第 3 條了。</p>
+<blockquote>
+<p><code>position &lt;handle&gt;</code> 是「插在<strong>這個 handle 的規則</strong>之前」；<code>index &lt;N&gt;</code> 是「插在<strong>第 N 條</strong>之前」（從 0 算）。前者穩定，後者直覺。</p>
+</blockquote>
+<hr />
+<h2 id="三表與鏈的操作">三、表與鏈的操作</h2>
+<pre><code class="language-bash">nft<span class="w"> </span>add<span class="w"> </span>table<span class="w"> </span>inet<span class="w"> </span>myfilter<span class="w">                    </span><span class="c1"># 建表</span>
+nft<span class="w"> </span>list<span class="w"> </span>tables<span class="w">                                </span><span class="c1"># 有哪些表</span>
+
+nft<span class="w"> </span>add<span class="w"> </span>chain<span class="w"> </span>inet<span class="w"> </span>myfilter<span class="w"> </span>input<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span><span class="s1">&#39;{ type filter hook input priority 0; policy drop; }&#39;</span><span class="w">   </span><span class="c1"># base chain（規格要用單引號）</span>
+nft<span class="w"> </span>add<span class="w"> </span>chain<span class="w"> </span>inet<span class="w"> </span>myfilter<span class="w"> </span>mysub<span class="w">               </span><span class="c1"># regular chain（不給規格）</span>
+nft<span class="w"> </span>rename<span class="w"> </span>chain<span class="w"> </span>inet<span class="w"> </span>myfilter<span class="w"> </span>mysub<span class="w"> </span>newname
+nft<span class="w"> </span>list<span class="w"> </span>chain<span class="w"> </span>inet<span class="w"> </span>myfilter<span class="w"> </span>input<span class="w">              </span><span class="c1"># ★ 只看一條鏈，不用捲整份</span>
+
+nft<span class="w"> </span>flush<span class="w"> </span>chain<span class="w"> </span>inet<span class="w"> </span>myfilter<span class="w"> </span>input<span class="w">             </span><span class="c1"># 清規則，留鏈</span>
+nft<span class="w"> </span>delete<span class="w"> </span>chain<span class="w"> </span>inet<span class="w"> </span>myfilter<span class="w"> </span>mysub<span class="w">            </span><span class="c1"># 刪鏈（要先沒規則、也沒人 jump 它）</span>
+nft<span class="w"> </span>delete<span class="w"> </span>table<span class="w"> </span>inet<span class="w"> </span>myfilter<span class="w">                  </span><span class="c1"># 刪整張表（連同裡面全部）</span>
+nft<span class="w"> </span>flush<span class="w"> </span>ruleset<span class="w">                               </span><span class="c1"># ☠ 清空整台機器的所有規則</span>
+</code></pre>
+<blockquote>
+<p><code>flush ruleset</code> 會把<strong>別的程式建立的規則一起清掉</strong>（Docker、fw4、libvirt）。在有 Docker 的機器上執行 = 容器網路立刻壞掉。</p>
+</blockquote>
+<hr />
+<h2 id="四查詢listdescribemonitor">四、查詢：<code>list</code>、<code>describe</code>、<code>monitor</code></h2>
+<pre><code class="language-bash">nft<span class="w"> </span>list<span class="w"> </span>ruleset<span class="w">                   </span><span class="c1"># 全部</span>
+nft<span class="w"> </span>list<span class="w"> </span>tables<span class="w">                    </span><span class="c1"># 只列表名</span>
+nft<span class="w"> </span>list<span class="w"> </span>table<span class="w"> </span>inet<span class="w"> </span>fw4<span class="w">            </span><span class="c1"># 單一表</span>
+nft<span class="w"> </span>list<span class="w"> </span>chain<span class="w"> </span>inet<span class="w"> </span>fw4<span class="w"> </span>input<span class="w">      </span><span class="c1"># ★ 單一鏈，最常用</span>
+nft<span class="w"> </span>-a<span class="w"> </span>list<span class="w"> </span>ruleset<span class="w">                </span><span class="c1"># 帶 handle</span>
+nft<span class="w"> </span>-s<span class="w"> </span>list<span class="w"> </span>ruleset<span class="w"> </span>&gt;<span class="w"> </span>backup.nft<span class="w">   </span><span class="c1"># 不含 counter，適合存檔</span>
+</code></pre>
+<h3 id="describe查這個欄位能填什麼"><code>describe</code>：查「這個欄位能填什麼」</h3>
+<p><strong>nft 唯一的線上查詢工具，而且不需要 root</strong>，背不起來時最快的救援：</p>
+<pre><code class="language-bash">$<span class="w"> </span>nft<span class="w"> </span>describe<span class="w"> </span>ct<span class="w"> </span>state
+ct<span class="w"> </span>expression,<span class="w"> </span>datatype<span class="w"> </span>ct_state<span class="w"> </span><span class="o">(</span>conntrack<span class="w"> </span>state<span class="o">)</span><span class="w"> </span><span class="o">(</span>basetype<span class="w"> </span>bitmask,<span class="w"> </span>integer<span class="o">)</span>,<span class="w"> </span><span class="m">32</span><span class="w"> </span>bits
+pre-defined<span class="w"> </span>symbolic<span class="w"> </span>constants<span class="w"> </span><span class="o">(</span><span class="k">in</span><span class="w"> </span>hexadecimal<span class="o">)</span>:
+<span class="w">        </span>invalid<span class="w">        </span>0x00000001
+<span class="w">        </span>new<span class="w">            </span>0x00000008
+<span class="w">        </span>established<span class="w">    </span>0x00000002
+<span class="w">        </span>...
+
+$<span class="w"> </span>nft<span class="w"> </span>describe<span class="w"> </span>tcp<span class="w"> </span>flags
+payload<span class="w"> </span>expression,<span class="w"> </span>datatype<span class="w"> </span>tcp_flag<span class="w"> </span><span class="o">(</span>TCP<span class="w"> </span>flag<span class="o">)</span><span class="w"> </span><span class="o">(</span>basetype<span class="w"> </span>bitmask,<span class="w"> </span>integer<span class="o">)</span>,<span class="w"> </span><span class="m">8</span><span class="w"> </span>bits
+<span class="w">        </span>fin<span class="w">            </span>0x01
+<span class="w">        </span>...
+</code></pre>
+<p>不確定 <code>ct state</code> 有哪些值、<code>icmp type</code> 能寫什麼時，問它比翻文件快。</p>
+<h3 id="monitor即時看發生什麼事"><code>monitor</code>：即時看發生什麼事</h3>
+<pre><code class="language-bash">nft<span class="w"> </span>monitor<span class="w">                        </span><span class="c1"># 有人改規則就印出來（看誰在動你的規則）</span>
+nft<span class="w"> </span>monitor<span class="w"> </span>trace<span class="w">                  </span><span class="c1"># 封包追蹤（要先加一條 meta nftrace set 1 的規則）</span>
+</code></pre>
+<hr />
+<h2 id="五集合對應與判決表">五、集合、對應與判決表</h2>
+<pre><code class="language-bash"><span class="c1"># 匿名集合：寫在規則裡，不能事後修改</span>
+nft<span class="w"> </span>add<span class="w"> </span>rule<span class="w"> </span>inet<span class="w"> </span>t<span class="w"> </span>c<span class="w"> </span>tcp<span class="w"> </span>dport<span class="w"> </span><span class="o">{</span><span class="w"> </span><span class="m">22</span>,<span class="w"> </span><span class="m">80</span>,<span class="w"> </span><span class="m">443</span><span class="w"> </span><span class="o">}</span><span class="w"> </span>accept
+
+<span class="c1"># 具名集合：可動態增刪，規則不用改</span>
+nft<span class="w"> </span>add<span class="w"> </span><span class="nb">set</span><span class="w"> </span>inet<span class="w"> </span>t<span class="w"> </span>blacklist<span class="w"> </span><span class="s1">&#39;{ type ipv4_addr; flags timeout; }&#39;</span>
+nft<span class="w"> </span>add<span class="w"> </span>element<span class="w"> </span>inet<span class="w"> </span>t<span class="w"> </span>blacklist<span class="w"> </span><span class="s1">&#39;{ 1.2.3.4 timeout 1h }&#39;</span>
+nft<span class="w"> </span>add<span class="w"> </span>rule<span class="w"> </span>inet<span class="w"> </span>t<span class="w"> </span>c<span class="w"> </span>ip<span class="w"> </span>saddr<span class="w"> </span>@blacklist<span class="w"> </span>drop
+nft<span class="w"> </span>delete<span class="w"> </span>element<span class="w"> </span>inet<span class="w"> </span>t<span class="w"> </span>blacklist<span class="w"> </span><span class="s1">&#39;{ 1.2.3.4 }&#39;</span>
+nft<span class="w"> </span>list<span class="w"> </span><span class="nb">set</span><span class="w"> </span>inet<span class="w"> </span>t<span class="w"> </span>blacklist
+
+<span class="c1"># 要放網段就加 flags interval</span>
+nft<span class="w"> </span>add<span class="w"> </span><span class="nb">set</span><span class="w"> </span>inet<span class="w"> </span>t<span class="w"> </span>nets<span class="w"> </span><span class="s1">&#39;{ type ipv4_addr; flags interval; }&#39;</span>
+nft<span class="w"> </span>add<span class="w"> </span>element<span class="w"> </span>inet<span class="w"> </span>t<span class="w"> </span>nets<span class="w"> </span><span class="s1">&#39;{ 10.0.0.0/8, 192.168.0.0/16 }&#39;</span>
+
+<span class="c1"># vmap：查表決定動作</span>
+nft<span class="w"> </span>add<span class="w"> </span>rule<span class="w"> </span>inet<span class="w"> </span>t<span class="w"> </span>c<span class="w"> </span>ct<span class="w"> </span>state<span class="w"> </span>vmap<span class="w"> </span><span class="o">{</span><span class="w"> </span>established<span class="w"> </span>:<span class="w"> </span>accept,<span class="w"> </span>invalid<span class="w"> </span>:<span class="w"> </span>drop<span class="w"> </span><span class="o">}</span>
+</code></pre>
+<p><strong>具名集合的價值在於「改內容不用改規則」</strong>——動態封鎖 IP、白名單管理都靠它，而且比對是雜湊／區間查找，比一堆規則線性比對快得多。</p>
+<hr />
+<h2 id="六檔案模式nft--f強烈建議">六、檔案模式：<code>nft -f</code>（強烈建議）</h2>
+<pre><code>#!/usr/sbin/nft -f
+flush ruleset                      # 先清空，確保結果可重現
+
+table inet myfilter {
+    chain input {
+        type filter hook input priority 0; policy drop;
+        iif lo accept
+        ct state established,related accept
+        tcp dport { 22, 80, 443 } accept
+    }
+}
+</code></pre>
+<pre><code class="language-bash">nft<span class="w"> </span>-c<span class="w"> </span>-f<span class="w"> </span>rules.nft<span class="w">                </span><span class="c1"># ★ 先檢查語法</span>
+nft<span class="w"> </span>-f<span class="w"> </span>rules.nft<span class="w">                   </span><span class="c1"># 套用（原子操作）</span>
+</code></pre>
+<p><strong><code>nft -f</code> 是原子的</strong>：整份檔案要嘛全部生效、要嘛全部不變，不會出現「改到一半」的半套狀態。遠端改防火牆時這是保命符——逐條下指令的話，中間出錯就可能把自己鎖在門外。</p>
+<p><strong>建議工作流程</strong>：命令列用 <code>nft add</code> 試 → 通了寫進 <code>.nft</code> 檔 → <code>nft -c -f</code> 檢查 →
+<code>nft -f</code> 套用 → 存進版本控制。</p>
+<hr />
+<h2 id="七整份檔案的三層結構">七、整份檔案的三層結構</h2>
+<pre><code>table inet fw4 {                ← 第 1 層：表
+        chain input {           ← 第 2 層：鏈
+                type filter hook input priority filter; policy drop;   ← 鏈的「規格」
+                iif &quot;lo&quot; accept                                        ← 第 3 層：規則
+                iifname &quot;br-lan&quot; jump input_lan
+        }
+        chain forward {
+                ...
+        }
+}
+</code></pre>
+<p><strong><code>{}</code> 在這裡是「內容的範圍」</strong>，跟程式語言的大括號一樣。整份 180 行就是「一個 table 包著 35 條 chain，每條 chain 包著若干 rule」。</p>
+<hr />
+<h2 id="八table-inet-fw4--逐字">八、<code>table inet fw4 {</code> 逐字</h2>
+<table>
+<thead>
+<tr>
+<th>token</th>
+<th>是什麼</th>
+<th>說明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>table</code></td>
+<td><strong>關鍵字</strong></td>
+<td>宣告一張表</td>
+</tr>
+<tr>
+<td><code>inet</code></td>
+<td><strong>family（協定家族）</strong></td>
+<td>這張表處理哪種封包</td>
+</tr>
+<tr>
+<td><code>fw4</code></td>
+<td><strong>名字</strong></td>
+<td>自己取的，fw4 用這個名字</td>
+</tr>
+<tr>
+<td><code>{</code></td>
+<td>開始</td>
+<td>表的內容從這裡開始</td>
+</tr>
+</tbody>
+</table>
+<p><strong>family 有五種</strong>，決定這張表能看到什麼封包：</p>
+<table>
+<thead>
+<tr>
+<th>family</th>
+<th>處理什麼</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ip</code></td>
+<td>只有 IPv4</td>
+</tr>
+<tr>
+<td><code>ip6</code></td>
+<td>只有 IPv6</td>
+</tr>
+<tr>
+<td><strong><code>inet</code></strong></td>
+<td><strong>IPv4 與 IPv6 共用一套規則</strong>（現代寫法，fw4 用這個）</td>
+</tr>
+<tr>
+<td><code>arp</code></td>
+<td>ARP 封包</td>
+</tr>
+<tr>
+<td><code>bridge</code></td>
+<td>橋接的封包</td>
+</tr>
+<tr>
+<td><code>netdev</code></td>
+<td>網卡驅動層，比 prerouting 更早</td>
+</tr>
+</tbody>
+</table>
+<p><strong>因為 <code>inet</code> 同時處理 v4 和 v6</strong>，所以規則裡才會常看到 <code>meta nfproto ipv4</code> 這種「先篩掉另一種」的寫法——這在 <code>ip</code> family 的表裡是不需要的。</p>
+<blockquote>
+<p>對照 iptables：iptables 的「表」是固定的四張（filter/nat/mangle/raw），<strong>你不能自己建</strong>；
+nft 的 table 是你自己建、自己命名、自己決定 family 的。</p>
+</blockquote>
+<hr />
+<h2 id="九chain-宣告那一行逐字">九、chain 宣告那一行逐字</h2>
+<pre><code>type filter hook forward priority filter; policy drop;
+└─┬┘ └─┬──┘ └┬─┘ └─┬───┘ └──┬───┘ └─┬──┘│ └─┬──┘ └┬─┘│
+  1    2     3     4        5      6   7   8    9  10
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>token</th>
+<th>是什麼</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td><code>type</code></td>
+<td>關鍵字：接下來要說這條鏈的<strong>種類</strong></td>
+</tr>
+<tr>
+<td>2</td>
+<td><code>filter</code></td>
+<td><strong>種類的值</strong>（見下表）</td>
+</tr>
+<tr>
+<td>3</td>
+<td><code>hook</code></td>
+<td>關鍵字：接下來要說掛在哪個<strong>攔截點</strong></td>
+</tr>
+<tr>
+<td>4</td>
+<td><code>forward</code></td>
+<td><strong>攔截點的值</strong>（prerouting／input／forward／output／postrouting）</td>
+</tr>
+<tr>
+<td>5</td>
+<td><code>priority</code></td>
+<td>關鍵字：接下來是<strong>優先權</strong></td>
+</tr>
+<tr>
+<td>6</td>
+<td><code>filter</code></td>
+<td><strong>優先權的值</strong>——這裡的 <code>filter</code> 是一個<strong>有名字的數字常數</strong>，等於 <code>0</code></td>
+</tr>
+<tr>
+<td>7</td>
+<td><code>;</code></td>
+<td><strong>子句結束</strong>——「鏈的規格」這句講完了</td>
+</tr>
+<tr>
+<td>8</td>
+<td><code>policy</code></td>
+<td>關鍵字：接下來是<strong>預設處置</strong></td>
+</tr>
+<tr>
+<td>9</td>
+<td><code>drop</code></td>
+<td>預設處置的值（<code>accept</code> 或 <code>drop</code>）</td>
+</tr>
+<tr>
+<td>10</td>
+<td><code>;</code></td>
+<td>子句結束</td>
+</tr>
+</tbody>
+</table>
+<p><strong>注意第 2 個和第 6 個都是 <code>filter</code>，但意思完全不同</strong>——一個是「種類」，一個是「優先權數字的別名」。這是最容易看糊塗的地方。</p>
+<h3 id="同一個陷阱的另一半鏈名-vs-hook">同一個陷阱的另一半：鏈名 vs hook</h3>
+<pre><code class="language-bash">nft<span class="w"> </span>add<span class="w"> </span>chain<span class="w"> </span>inet<span class="w"> </span>myfilter<span class="w"> </span>input<span class="w"> </span><span class="s1">&#39;{ type filter hook input priority 0; policy drop; }&#39;</span>
+<span class="w">                                </span>↑<span class="w">                      </span>↑
+<span class="w">                          </span>①鏈的「名字」<span class="w">            </span>②hook<span class="w"> </span>的名稱
+</code></pre>
+<p><strong>這兩個 <code>input</code> 也是完全不同的東西：</strong></p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>是什麼</th>
+<th>可以自己取嗎</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>① <code>nft add chain &lt;family&gt; &lt;table&gt; **input**</code></td>
+<td><strong>你要建立的鏈叫什麼名字</strong></td>
+<td>✅ <strong>完全自由</strong>，叫 <code>foo</code> 也行</td>
+</tr>
+<tr>
+<td>② <code>hook **input**</code></td>
+<td><strong>掛在哪個 netfilter 攔截點</strong></td>
+<td>❌ 只能是那五個固定關鍵字</td>
+</tr>
+</tbody>
+</table>
+<p>它們長一樣，純粹是因為<strong>大家習慣拿 hook 的名字來當鏈名</strong>——看到鏈名就知道它掛在哪。但這只是慣例，不是語法要求。</p>
+<p><strong>你路由器上就有現成的反例</strong>：13 條 base chain 裡有 9 條的名字和 hook 不一樣。</p>
+<pre><code>鏈名 input                hook input           ← 同名（慣例）
+鏈名 forward              hook forward         ← 同名
+鏈名 dstnat               hook prerouting      ← 不一樣！
+鏈名 srcnat               hook postrouting     ← 不一樣！
+鏈名 mangle_input         hook input           ← 不一樣
+鏈名 mangle_forward       hook forward         ← 不一樣
+鏈名 raw_prerouting       hook prerouting      ← 不一樣
+</code></pre>
+<p><code>dstnat</code> 是最好的例子：<strong>它叫 <code>dstnat</code>，但掛的是 <code>prerouting</code> 這個 hook</strong>。fw4 選擇用「用途」而不是「hook」來命名，因為同一個 hook 上掛了好幾條鏈（<code>raw_prerouting</code>、<code>mangle_prerouting</code>、
+<code>dstnat</code>、<code>prerouting</code>），全叫 <code>prerouting</code> 會撞名。</p>
+<p><strong>判斷方法：位置。</strong> <code>add chain &lt;family&gt; &lt;table&gt; &lt;名字&gt;</code> 的第四個位置永遠是名字；
+<code>hook</code> 這個關鍵字後面跟的永遠是 hook。<strong>名字是你取的，hook 是核心定義的。</strong></p>
+<h3 id="type-的三種值"><code>type</code> 的三種值</h3>
+<table>
+<thead>
+<tr>
+<th>type</th>
+<th>能做什麼</th>
+<th>你的規則裡誰用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>filter</code></td>
+<td>一般過濾：accept／drop／reject</td>
+<td><code>input</code>、<code>forward</code>、<code>output</code>、<code>mangle_*</code></td>
+</tr>
+<tr>
+<td><code>nat</code></td>
+<td><strong>只有這種能做位址轉換</strong>（<code>masquerade</code>／<code>dnat</code>／<code>snat</code>）。而且<strong>只有每條連線的第一個封包會進來</strong></td>
+<td><code>dstnat</code>、<code>srcnat</code></td>
+</tr>
+<tr>
+<td><code>route</code></td>
+<td>封包被改動後<strong>重新查路由</strong>（改了 mark 或目的位址時需要）</td>
+<td><code>mangle_output</code></td>
+</tr>
+</tbody>
+</table>
+<p>你機器上 <code>mangle_output</code> 是 <code>type route hook output</code> 而不是 <code>type filter</code>，就是因為在 output
+改了封包之後必須重新做路由判定——否則路由已經選好了不會變（見
+<a href="iptables%E8%88%87nftables%E6%80%8E%E9%BA%BC%E7%94%A8.html#%E4%BA%8C%E5%85%A9%E8%80%85%E5%85%B1%E7%94%A8%E7%9A%84%E5%BF%83%E6%99%BA%E6%A8%A1%E5%9E%8B">iptables與nftables 的心智模型</a>）。</p>
+<h3 id="priority-的名字與數字"><code>priority</code> 的名字與數字</h3>
+<p>同一個 hook 上可以掛多條鏈，<strong>數字小的先執行</strong>：</p>
+<table>
+<thead>
+<tr>
+<th>名字</th>
+<th>數字</th>
+<th>你的規則裡</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>raw</code></td>
+<td>-300</td>
+<td><code>raw_prerouting</code>、<code>raw_output</code></td>
+</tr>
+<tr>
+<td><code>mangle</code></td>
+<td>-150</td>
+<td><code>mangle_prerouting</code>、<code>mangle_forward</code>…</td>
+</tr>
+<tr>
+<td><code>dstnat</code></td>
+<td>-100</td>
+<td><code>dstnat</code></td>
+</tr>
+<tr>
+<td><code>filter</code></td>
+<td>0</td>
+<td><code>input</code>、<code>forward</code>、<code>output</code></td>
+</tr>
+<tr>
+<td><code>srcnat</code></td>
+<td>100</td>
+<td><code>srcnat</code></td>
+</tr>
+</tbody>
+</table>
+<p><strong>可以直接寫數字</strong>：<code>priority 0</code> 和 <code>priority filter</code>完全等價。這些名字正好對應 iptables 的四張表——fw4 等於把 iptables 的表模擬成了不同優先權的鏈。</p>
+<h3 id="policy-什麼時候才會用到"><code>policy</code> 什麼時候才會用到</h3>
+<p><strong>只有「整條鏈從頭跑到尾，沒有任何規則做出結論」時才會套用。</strong></p>
+<p>你的 <code>chain forward</code> 是 <code>policy drop</code>，但最後一行是 <code>jump handle_reject</code>——所以實務上
+policy 永遠輪不到，因為 <code>handle_reject</code> 會先把封包 reject 掉。
+<strong>policy 是最後一道保險，不是主要機制。</strong> 省略不寫的話預設是 <code>accept</code>。</p>
+<blockquote>
+<p><strong>實務提醒</strong>：在命令列建鏈時，這串規格裡有 <code>{</code>、<code>}</code>、<code>;</code>，全都是 shell 的特殊字元，
+<strong>必須用單引號包起來</strong>：</p>
+<pre><code class="language-bash">nft<span class="w"> </span>add<span class="w"> </span>chain<span class="w"> </span>inet<span class="w"> </span>fw4<span class="w"> </span>mychain<span class="w"> </span><span class="s1">&#39;{ type filter hook input priority 0; policy drop; }&#39;</span>
+</code></pre>
+</blockquote>
+<hr />
+<h2 id="十一條規則的組成">十、一條規則的組成</h2>
+<pre><code>iifname &quot;br-lan&quot; jump input_lan comment &quot;!fw4: Handle lan input traffic&quot;
+└──── 比對 ────┘ └── 動作 ───┘ └────────── 註解 ──────────┘
+   expression       statement
+</code></pre>
+<p>規則的文法很單純：</p>
+<pre><code>[比對1] [比對2] ... [動作1] [動作2] ...
+</code></pre>
+<ul>
+<li><strong>比對（expression）</strong>：描述「什麼樣的封包」。多個比對之間是 <strong>AND</strong>（全部成立才算命中）。</li>
+<li><strong>動作（statement）</strong>：描述「要做什麼」。可以有多個，<strong>由左到右依序執行</strong>。</li>
+<li><strong>沒有 <code>-j</code></strong>：iptables 用 <code>-j ACCEPT</code> 指定目標，nft 直接把動作寫在最後。</li>
+</ul>
+<p>這就是為什麼 <code>counter packets 274619 bytes 16200896 accept</code> 讀起來像兩件事——它<strong>真的</strong>是兩個動作：先計數，再放行。</p>
+<p><strong>「AND」與「OR」怎麼表達</strong>：</p>
+<pre><code>iifname &quot;br-lan&quot; tcp dport 22 accept          # AND：從 br-lan 進來 而且 目的埠是 22
+tcp dport { 22, 80, 443 } accept              # OR：用集合表達「其中之一」
+</code></pre>
+<hr />
+<h2 id="十一比對expression逐個拆">十一、比對（expression）逐個拆</h2>
+<p>以下全部來自你的規則。</p>
+<h3 id="iifname-br-lan--oifname--eth1-phy1-sta0-"><code>iifname &quot;br-lan&quot;</code> / <code>oifname { &quot;eth1&quot;, &quot;phy1-sta0&quot; }</code></h3>
+<p>進入／送出的介面名稱。<strong>引號是因為它是字串</strong>；大括號是「集合」（見第七節）。
+<code>iif</code>／<code>oif</code> 是用介面索引編號的版本。</p>
+<h3 id="meta-nfproto-ipv4"><code>meta nfproto ipv4</code></h3>
+<p><strong><code>meta</code> 表示「封包的中繼資料」</strong>——不是封包內容本身，而是核心附加的資訊（哪張網卡進來、是 v4 還是 v6、mark 值、送出它的行程 uid 等）。</p>
+<p><code>nfproto</code> 是「netfilter 協定」，值為 <code>ipv4</code> 或 <code>ipv6</code>。在 <code>inet</code> family 裡用來分流。</p>
+<h3 id="meta-l4proto-igmp"><code>meta l4proto igmp</code></h3>
+<p><code>l4proto</code> 是第四層協定（tcp／udp／icmp／igmp…）。
+<strong>為什麼不寫 <code>ip protocol igmp</code>？</strong> 因為在 <code>inet</code> 表裡要同時支援 v4／v6，
+<code>meta l4proto</code> 兩邊通用，而 <code>ip protocol</code> 只適用 IPv4。</p>
+<h3 id="ct-state-establishedrelated"><code>ct state established,related</code></h3>
+<p><code>ct</code> = <strong>conntrack（連線追蹤）</strong>。<code>state</code> 的值有 <code>new</code>／<code>established</code>／<code>related</code>／<code>invalid</code>／<code>untracked</code>。逗號分隔表示「其中之一」。</p>
+<h3 id="tcp-flags--fin--syn--rst--ack--syn"><code>tcp flags &amp; (fin | syn | rst | ack) == syn</code></h3>
+<p>這是<strong>位元遮罩運算</strong>，整行的意思是「<strong>只有 SYN 被設定、其他三個都沒設</strong>」＝ 新連線的第一個封包。</p>
+<pre><code>tcp flags              取出 TCP 的旗標位元
+&amp; (fin|syn|rst|ack)    只保留這四個位元（AND 遮罩），其餘清掉
+== syn                 遮罩後的結果必須剛好等於「只有 syn」
+</code></pre>
+<p><strong>為什麼不能直接寫 <code>tcp flags syn</code>？</strong> 那樣只要 SYN 有設就算命中，連
+<code>SYN+ACK</code>（第二次握手）也會被抓到。加上遮罩比對，才能精確抓出「第一個封包」。</p>
+<h3 id="icmpv6-type--icmpv6-code--packet-too-big--0-parameter-problem--1-"><code>icmpv6 type . icmpv6 code { packet-too-big . 0, parameter-problem . 1 }</code></h3>
+<p><strong>點號 <code>.</code> 是「串接（concatenation）」</strong>，把多個欄位綁成一個複合值來比對。</p>
+<p>意思是：「<strong>(type, code) 這一對組合</strong>，必須落在右邊那個配對清單裡」——
+<code>packet-too-big</code> 且 code 為 0、或 <code>parameter-problem</code> 且 code 為 1。</p>
+<p>不用串接的話，你得寫成一堆 <code>(type==A and code==0) or (type==B and code==1)</code>，又長又慢。</p>
+<h3 id="ip6-saddr-fe8010"><code>ip6 saddr fe80::/10</code></h3>
+<p>IPv6 來源位址落在 <code>fe80::/10</code>（link-local 連線本地位址）範圍內。
+<code>ip saddr</code>／<code>ip daddr</code> 是 IPv4 的來源／目的位址。</p>
+<h3 id="udp-dport-68--tcp-dport-22"><code>udp dport 68</code> / <code>tcp dport 22</code></h3>
+<p>目的埠；<code>sport</code> 是來源埠。<code>th dport</code> 則是「不管 tcp 還 udp 的傳輸層目的埠」。</p>
+<hr />
+<h2 id="十二動作statement逐個拆">十二、動作（statement）逐個拆</h2>
+<h3 id="終結類accept--drop--reject">終結類：<code>accept</code> / <code>drop</code> / <code>reject</code></h3>
+<table>
+<thead>
+<tr>
+<th>動作</th>
+<th>效果</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>accept</code></td>
+<td>結束<strong>當前 base chain</strong> 的處理，封包繼續走後面的 hook</td>
+</tr>
+<tr>
+<td><code>drop</code></td>
+<td><strong>立刻丟棄</strong>，不回應對方，後面所有 hook 都不執行</td>
+</tr>
+<tr>
+<td><code>reject</code></td>
+<td>丟棄並<strong>回一個錯誤</strong>給對方</td>
+</tr>
+</tbody>
+</table>
+<p><code>reject</code> 可以指定回什麼，你的 <code>handle_reject</code> 示範了兩種：</p>
+<pre><code>meta l4proto tcp reject with tcp reset    ← TCP 回 RST，對方立刻知道被拒
+reject                                     ← 其他協定回 ICMP port-unreachable（預設）
+</code></pre>
+<p><strong><code>drop</code> vs <code>reject</code> 的取捨</strong>：drop 讓掃描者等到逾時（對外通常用這個），
+reject 讓正常使用者立刻得到明確錯誤（對內比較友善）。</p>
+<h3 id="流程類jump--goto--return">流程類：<code>jump</code> / <code>goto</code> / <code>return</code></h3>
+<table>
+<thead>
+<tr>
+<th>動作</th>
+<th>效果</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>jump &lt;鏈&gt;</code></td>
+<td>進入子鏈；<strong>子鏈跑完會回到原處繼續</strong></td>
+</tr>
+<tr>
+<td><code>goto &lt;鏈&gt;</code></td>
+<td>進入子鏈；<strong>跑完不回來</strong>，直接結束</td>
+</tr>
+<tr>
+<td><code>return</code></td>
+<td>從子鏈<strong>返回呼叫點</strong>；在 base chain 裡等於套用 policy</td>
+</tr>
+</tbody>
+</table>
+<p>你的 <code>syn_flood</code> 用了 <code>return</code>：</p>
+<pre><code>chain syn_flood {
+    limit rate 25/second burst 50 packets return    ← 沒超速 → 返回 input 鏈繼續往下
+    drop                                             ← 超速的才會走到這行
+}
+</code></pre>
+<h3 id="counter"><code>counter</code></h3>
+<pre><code>counter packets 274619 bytes 16200896 accept
+</code></pre>
+<p><strong>重點：寫規則時只要打 <code>counter</code></strong>，後面的 <code>packets N bytes N</code> 是 nft <strong>列印時</strong>顯示的當前計數值，不是你要填的參數。</p>
+<pre><code class="language-bash">nft<span class="w"> </span>add<span class="w"> </span>rule<span class="w"> </span>inet<span class="w"> </span>fw4<span class="w"> </span>input<span class="w"> </span>tcp<span class="w"> </span>dport<span class="w"> </span><span class="m">22</span><span class="w"> </span>counter<span class="w"> </span>accept<span class="w">    </span><span class="c1"># 這樣寫就好</span>
+</code></pre>
+<h3 id="limit"><code>limit</code></h3>
+<pre><code>limit rate 25/second burst 50 packets
+limit rate 1000/second burst 5 packets
+</code></pre>
+<p><strong>它的語意是「<strong>通過</strong>速率限制的封包才繼續執行後面的動作」</strong>——所以它既像比對又像動作。</p>
+<ul>
+<li><code>rate 25/second</code>：平均每秒 25 個</li>
+<li><code>burst 50 packets</code>：允許瞬間爆量 50 個（令牌桶，token bucket）</li>
+</ul>
+<p>所以 <code>limit rate 25/second burst 50 packets return</code> 讀作：「沒超速的就 return（放行），超速的繼續往下走到 <code>drop</code>」。</p>
+<h3 id="masquerade"><code>masquerade</code></h3>
+<pre><code>chain srcnat_wan {
+    meta nfproto ipv4 masquerade
+}
+</code></pre>
+<p>把來源位址改寫成<strong>出口網卡當下的位址</strong>。和 <code>snat to 1.2.3.4</code> 的差別是：masquerade 不用寫死 IP，適合浮動 IP（撥接、DHCP），代價是每個封包都要查一次出口位址，稍慢。</p>
+<h3 id="tcp-option-maxseg-size-set-rt-mtu你規則裡最進階的一條"><code>tcp option maxseg size set rt mtu</code>（你規則裡最進階的一條）</h3>
+<pre><code>oifname { &quot;eth1&quot;, &quot;phy1-sta0&quot; } tcp flags &amp; (fin|syn|rst) == syn \
+    tcp option maxseg size set rt mtu    « Zone wan IPv4/IPv6 egress MTU fixing »
+</code></pre>
+<p>這是 <strong>MSS clamping（最大區段大小箝制）</strong>：</p>
+<ul>
+<li><code>tcp option maxseg size</code> = TCP SYN 封包裡的 MSS（Maximum Segment Size）選項</li>
+<li><code>set rt mtu</code> = 把它<strong>改成「這條路由的 MTU 推算出來的值」</strong></li>
+<li>前面的 <code>tcp flags</code> 遮罩確保<strong>只改 SYN 封包</strong>（MSS 只在握手時協商）</li>
+</ul>
+<p><strong>為什麼需要它</strong>：PPPoE、VPN 這類封裝會讓實際可用的 MTU 小於 1500。對方若照 1500 發送、中間又有人擋掉 ICMP「需要分片」訊息，就會出現「網頁開得開但大檔案卡住」的經典症狀。改寫 MSS 是最直接的解法。</p>
+<h3 id="comment-"><code>comment &quot;...&quot;</code></h3>
+<p>純註解，不影響比對。fw4 產生的都帶 <code>!fw4:</code> 前綴——<strong>看到它就知道這條規則是產生物，手改會被覆蓋</strong>。</p>
+<hr />
+<h2 id="十三標點符號總表">十三、標點符號總表</h2>
+<table>
+<thead>
+<tr>
+<th>符號</th>
+<th>在哪裡</th>
+<th>意思</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>{ }</code></td>
+<td><code>table x {</code> / <code>chain y {</code></td>
+<td><strong>區塊</strong>：內容的範圍</td>
+</tr>
+<tr>
+<td><code>{ }</code></td>
+<td><code>{ type filter hook input priority 0; policy drop; }</code></td>
+<td><strong>鏈的規格</strong>（命令列建鏈時要用引號包）</td>
+</tr>
+<tr>
+<td><code>{ }</code></td>
+<td><code>{ &quot;eth1&quot;, &quot;phy1-sta0&quot; }</code>、<code>{ 80, 443 }</code></td>
+<td><strong>匿名集合</strong>：其中之一（OR）</td>
+</tr>
+<tr>
+<td><code>{ }</code></td>
+<td><code>vmap { established : accept, related : accept }</code></td>
+<td><strong>判決對應表</strong>：查表決定動作</td>
+</tr>
+<tr>
+<td><code>;</code></td>
+<td>鏈規格裡</td>
+<td><strong>子句結束</strong>（規格一句、policy 一句）</td>
+</tr>
+<tr>
+<td><code>,</code></td>
+<td>集合裡、<code>ct state established,related</code></td>
+<td>分隔多個值</td>
+</tr>
+<tr>
+<td><code>.</code></td>
+<td><code>icmpv6 type . icmpv6 code</code></td>
+<td><strong>串接</strong>：把多欄位綁成複合值</td>
+</tr>
+<tr>
+<td><code>:</code></td>
+<td><code>established : accept</code></td>
+<td>vmap 的「鍵 : 值」</td>
+</tr>
+<tr>
+<td><code>&quot;</code></td>
+<td><code>&quot;br-lan&quot;</code>、<code>comment &quot;...&quot;</code></td>
+<td>字串（數字與關鍵字不用引號）</td>
+</tr>
+<tr>
+<td><code>&amp;</code></td>
+<td><code>tcp flags &amp; (fin|syn)</code></td>
+<td>位元 AND（遮罩）</td>
+</tr>
+<tr>
+<td><code>|</code></td>
+<td><code>(fin | syn | rst)</code></td>
+<td>位元 OR（組合旗標）</td>
+</tr>
+<tr>
+<td><code>==</code></td>
+<td><code>== syn</code></td>
+<td>相等比較（多數情況可省略）</td>
+</tr>
+<tr>
+<td><code>!=</code></td>
+<td><code>iifname != &quot;lo&quot;</code></td>
+<td>不等於</td>
+</tr>
+<tr>
+<td><code>@</code></td>
+<td><code>ip saddr @blacklist</code></td>
+<td><strong>引用具名集合</strong>（你的規則裡沒有）</td>
+</tr>
+</tbody>
+</table>
+<p><strong><code>{}</code> 有四種用途是最容易混淆的一點</strong>——判斷方法：看它前面是什麼。前面是 <code>table</code>／<code>chain</code> 就是區塊；前面是欄位名（<code>oifname</code>、<code>dport</code>）就是集合；前面是 <code>vmap</code> 就是判決表。</p>
+<hr />
+<h2 id="十四實戰讀懂最複雜的三條">十四、實戰：讀懂最複雜的三條</h2>
+<h3 id="①">①</h3>
+<pre><code>ct state vmap { established : accept, related : accept }
+</code></pre>
+<blockquote>
+<p>取出這個封包的 conntrack 狀態（<code>ct state</code>），拿它去查右邊這張表（<code>vmap</code>）：是 <code>established</code> 就執行 <code>accept</code>，是 <code>related</code> 也執行 <code>accept</code>，其他狀態查不到 → 不做任何事、繼續往下一條規則。</p>
+</blockquote>
+<p>比起寫兩條 <code>ct state established accept</code> / <code>ct state related accept</code>，vmap 是<strong>一次查表</strong>，規則多時快得多。</p>
+<h3 id="②">②</h3>
+<pre><code>meta nfproto ipv4 oifname { &quot;eth1&quot;, &quot;phy1-sta0&quot; } ct state invalid counter packets 212 drop
+</code></pre>
+<blockquote>
+<p>三個比對（AND）：<strong>是 IPv4</strong>、<strong>而且</strong>要從 eth1 或 phy1-sta0 出去、<strong>而且</strong> conntrack 狀態是
+invalid。三個都成立 → 兩個動作：計數（已累積 212 個）、丟棄。</p>
+</blockquote>
+<h3 id="③">③</h3>
+<pre><code>ip6 saddr fe80::/10 icmpv6 type . icmpv6 code { mld-listener-query . 0, mld-listener-report . 0 } \
+    counter packets 0 bytes 0 accept
+</code></pre>
+<blockquote>
+<p>比對：來源是 IPv6 link-local 位址，<strong>而且</strong> (type, code) 這個組合是「mld-listener-query 配 0」或「mld-listener-report 配 0」。<br />
+動作：計數後放行。（MLD 是 IPv6 的多播管理協定，等同 IPv4 的 IGMP。）</p>
+</blockquote>
+<hr />
+<h2 id="自我測驗">自我測驗</h2>
+<ol>
+<li><code>type filter hook forward priority filter;</code> 這行裡出現了兩次 <code>filter</code>，各自是什麼意思？為什麼它們可以同名而不衝突？</li>
+<li>那行結尾和 <code>policy drop</code> 結尾各有一個 <code>;</code>。分號在這裡的作用是什麼？為什麼在命令列建鏈時整串規格要用單引號包起來？</li>
+<li><code>{ }</code> 在 nft 裡有四種用途，你要怎麼一眼判斷某個 <code>{ }</code> 是哪一種？</li>
+<li><code>tcp flags &amp; (fin | syn | rst | ack) == syn</code> 為什麼要寫這麼長？直接寫 <code>tcp flags syn</code>
+會多抓到什麼封包、造成什麼後果？</li>
+<li>情境題：你想加一條規則——「從 br-lan 進來、目的埠是 22 或 443 的 TCP 封包，計數後放行」。請寫出完整的 <code>nft add rule</code> 指令，並指出你用到了哪幾種標點、各自的作用。</li>
+</ol>
+
+</main>
+</div>
+</body>
+</html>

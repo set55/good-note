@@ -1,0 +1,404 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OpenWrt 的服務管理 —— service、/etc/init.d、procd 與 systemd 的對照</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/app.js"></script>
+</head>
+<body>
+<button class="menu-btn" onclick="toggleMenu()">☰ 目錄</button>
+<div class="layout">
+<nav class="side">
+<div class="crumbs"><a href="../index.html">🏠 首頁</a> / <a href="README.html">openwrt</a></div>
+<div class="tools"><button onclick="toggleTheme()">🌓 主題</button></div>
+<ul>
+<li class="l2"><a href="#%E4%B8%80%E6%9C%80%E7%9B%B4%E6%8E%A5%E7%9A%84%E7%AD%94%E6%A1%88">一、最直接的答案</a></li>
+<li class="l2"><a href="#%E4%BA%8Cservice-%E5%85%B6%E5%AF%A6%E5%8F%AA%E6%98%AF%E4%B8%80%E5%80%8B-wrapper">二、service 其實只是一個 wrapper</a></li>
+<li class="l2"><a href="#%E4%B8%89%E5%AE%8C%E6%95%B4%E5%8B%95%E4%BD%9C%E6%B8%85%E5%96%AE">三、完整動作清單</a></li>
+<li class="l2"><a href="#%E5%9B%9Benable-%E5%88%B0%E5%BA%95%E5%81%9A%E4%BA%86%E4%BB%80%E9%BA%BCetcrcd-%E7%9A%84%E7%AC%A6%E8%99%9F%E9%80%A3%E7%B5%90">四、enable 到底做了什麼：/etc/rc.d 的符號連結</a></li>
+<li class="l2"><a href="#%E4%BA%94%E7%9C%8B%E6%97%A5%E8%AA%8Clogreadjournalctl-%E7%9A%84%E5%B0%8D%E6%87%89">五、看日誌：logread（journalctl 的對應）</a></li>
+<li class="l3"><a href="#%E6%9C%8D%E5%8B%99%E7%9A%84%E8%BC%B8%E5%87%BA%E6%80%8E%E9%BA%BC%E9%80%B2%E5%88%B0-syslog">服務的輸出怎麼進到 syslog</a></li>
+<li class="l3"><a href="#%E5%AF%A6%E5%8B%99%E9%85%8D%E6%96%B9">實務配方</a></li>
+<li class="l2"><a href="#%E5%85%AD%E6%83%B3%E7%9C%8B-systemd-%E9%82%A3%E7%A8%AE%E8%A9%B3%E7%B4%B0%E7%8B%80%E6%85%8Bubus">六、想看 systemd 那種詳細狀態：ubus</a></li>
+<li class="l2"><a href="#%E4%B8%83systemd--openwrt-%E5%B0%8D%E7%85%A7%E8%A1%A8">七、systemd ↔ OpenWrt 對照表</a></li>
+<li class="l2"><a href="#%E5%85%ABinit-script-%E7%9A%84%E9%AA%A8%E6%9E%B6">八、init script 的骨架</a></li>
+<li class="l2"><a href="#%E8%87%AA%E6%88%91%E6%B8%AC%E9%A9%97">自我測驗</a></li>
+</ul>
+</nav>
+<main>
+<h1 id="openwrt-的服務管理--serviceetcinitdprocd-與-systemd-的對照">OpenWrt 的服務管理 —— <code>service</code>、<code>/etc/init.d</code>、procd 與 systemd 的對照</h1>
+<blockquote>
+<p>日期：2026-09-21<br />
+情境：習慣 <code>systemctl start/stop/status</code> 之後，想知道 OpenWrt 上對應的指令是什麼<br />
+對應檔案：<code>/sbin/service</code>、<code>/etc/init.d/*</code>、<code>/etc/rc.d/*</code>（皆為路由器上的正式檔案）<br />
+適用範圍：OpenWrt 24.10.2、procd、BusyBox 1.36.1<br />
+相關：<a href="nftables%E8%88%87uci%E6%98%AF%E4%BB%80%E9%BA%BC-%E5%85%A9%E5%B1%A4%E8%A8%AD%E5%AE%9A%E7%9A%84%E5%88%86%E5%B7%A5.html">nftables與uci是什麼-兩層設定的分工</a>、
+<a href="%E7%94%A8dokodemo-door%E5%81%9ATPROXY%E9%80%8F%E6%98%8E%E4%BB%A3%E7%90%86.html">用dokodemo-door做TPROXY透明代理</a></p>
+</blockquote>
+<p><strong>一句話結論：OpenWrt 沒有 systemd，用的是 <strong>procd</strong>。對應指令是
+<code>service &lt;名稱&gt; &lt;動作&gt;</code>（或直接 <code>/etc/init.d/&lt;名稱&gt; &lt;動作&gt;</code>），動作名稱幾乎和 systemctl 一樣。最接近 <code>systemctl list-units</code> 的是</strong>不給任何參數的 <code>service</code><strong>——它會列出所有服務與
+enabled／running 狀態。想看 systemd 那種詳細資訊，得用 procd 原生的 <code>ubus</code>。</strong></p>
+<hr />
+<h2 id="一最直接的答案">一、最直接的答案</h2>
+<pre><code class="language-sh">service<span class="w"> </span>&lt;名稱&gt;<span class="w"> </span>start<span class="p">|</span>stop<span class="p">|</span>restart<span class="p">|</span>reload<span class="p">|</span>enable<span class="p">|</span>disable<span class="p">|</span>status<span class="w"> </span>...
+</code></pre>
+<p>實測：</p>
+<pre><code># service v2ray status
+running
+
+# service v2ray running &amp;&amp; echo 是
+是
+</code></pre>
+<p><strong>而不給任何參數時，它會列出全部服務</strong>——這就是你在找的「類似 systemctl 的總覽」：</p>
+<pre><code># service
+Usage: service &lt;service&gt; [command]
+/etc/init.d/boot                 enabled    stopped
+/etc/init.d/cron                 enabled    stopped
+/etc/init.d/dnsmasq              enabled    running
+/etc/init.d/dropbear             enabled    running
+/etc/init.d/firewall             enabled    stopped
+/etc/init.d/network              enabled    running
+...
+</code></pre>
+<p><strong>兩欄分別是「開機會不會自動啟動」與「現在跑不跑」</strong>，語意等同
+<code>systemctl is-enabled</code> 與 <code>is-active</code> 合併成一張表。</p>
+<hr />
+<h2 id="二service-其實只是一個-wrapper">二、<code>service</code> 其實只是一個 wrapper</h2>
+<p>看它的原始碼就懂了（<code>/sbin/service</code>，全檔 716 bytes）：</p>
+<pre><code class="language-sh">main<span class="o">()</span><span class="w"> </span><span class="o">{</span>
+<span class="w">    </span><span class="nb">local</span><span class="w"> </span><span class="nv">service</span><span class="o">=</span><span class="s2">&quot;</span><span class="nv">$1</span><span class="s2">&quot;</span>
+<span class="w">    </span><span class="nb">shift</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="o">[</span><span class="w"> </span>-f<span class="w"> </span><span class="s2">&quot;/etc/init.d/</span><span class="si">${</span><span class="nv">service</span><span class="si">}</span><span class="s2">&quot;</span><span class="w"> </span><span class="o">]</span><span class="p">;</span><span class="w"> </span><span class="k">then</span>
+<span class="w">        </span>/etc/init.d/<span class="s2">&quot;</span><span class="si">${</span><span class="nv">service</span><span class="si">}</span><span class="s2">&quot;</span><span class="w"> </span><span class="s2">&quot;</span><span class="nv">$@</span><span class="s2">&quot;</span><span class="w">      </span><span class="c1"># ← 就是轉呼叫</span>
+<span class="w">        </span><span class="nb">exit</span><span class="w"> </span><span class="s2">&quot;</span><span class="nv">$?</span><span class="s2">&quot;</span>
+<span class="w">    </span><span class="k">fi</span>
+<span class="w">    </span>...
+<span class="w">    </span><span class="c1"># 沒給參數 → 走訪 /etc/init.d/* 印出狀態</span>
+<span class="o">}</span>
+</code></pre>
+<p><strong>所以 <code>service v2ray restart</code> 和 <code>/etc/init.d/v2ray restart</code> 完全等價</strong>，沒有任何額外邏輯。知道這件事就不會糾結該用哪個——<code>service</code> 只是打起來順手，而且多了「不給參數列出全部」這個功能。</p>
+<hr />
+<h2 id="三完整動作清單">三、完整動作清單</h2>
+<p>這些動作由 <code>/etc/rc.common</code> 提供，<strong>所有 init script 都有</strong>（即使腳本本身只實作了 start/stop）：</p>
+<table>
+<thead>
+<tr>
+<th>動作</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>start</code> / <code>stop</code> / <code>restart</code></td>
+<td>啟動／停止／重啟</td>
+</tr>
+<tr>
+<td><code>reload</code></td>
+<td><strong>重新載入設定</strong>；服務沒實作就退回 <code>restart</code></td>
+</tr>
+<tr>
+<td><code>enable</code> / <code>disable</code></td>
+<td><strong>開機自動啟動的開關</strong></td>
+</tr>
+<tr>
+<td><code>enabled</code></td>
+<td><strong>查詢</strong>是否設為開機啟動（用離開碼回答）</td>
+</tr>
+<tr>
+<td><code>running</code></td>
+<td><strong>查詢</strong>是否正在執行（用離開碼回答）</td>
+</tr>
+<tr>
+<td><code>status</code></td>
+<td>印出 <code>running</code> 或 <code>inactive</code></td>
+</tr>
+<tr>
+<td><code>trace</code></td>
+<td><strong>用 syscall trace 啟動</strong>（服務起不來時很有用）</td>
+</tr>
+<tr>
+<td><code>info</code></td>
+<td>倒出 procd 的服務資訊（JSON）</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong><code>enable</code> 與 <code>enabled</code> 只差一個字母，意思完全相反</strong>：前者是「設定成開機啟動」（會改東西），後者是「查詢是不是開機啟動」（唯讀）。寫腳本時很容易打錯。</p>
+</blockquote>
+<p><code>enabled</code> 與 <code>running</code> 是<strong>用離開碼回答</strong>的，所以適合寫在條件式裡：</p>
+<pre><code class="language-sh">service<span class="w"> </span>v2ray<span class="w"> </span>running<span class="w"> </span><span class="o">||</span><span class="w"> </span>service<span class="w"> </span>v2ray<span class="w"> </span>start
+</code></pre>
+<hr />
+<h2 id="四enable-到底做了什麼etcrcd-的符號連結">四、<code>enable</code> 到底做了什麼：<code>/etc/rc.d</code> 的符號連結</h2>
+<p>OpenWrt 沒有 systemd 的 <code>wants/</code> 目錄，用的是傳統 SysV 風格的編號符號連結：</p>
+<pre><code># ls -l /etc/rc.d/ | grep v2ray
+K15v2ray -&gt; ../init.d/v2ray
+S99v2ray -&gt; ../init.d/v2ray
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>前綴</th>
+<th>意思</th>
+<th>數字從哪來</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>S&lt;NN&gt;</code></td>
+<td><strong>開機時啟動</strong>，數字小的先</td>
+<td>init script 裡的 <code>START=</code></td>
+</tr>
+<tr>
+<td><code>K&lt;NN&gt;</code></td>
+<td><strong>關機時停止</strong>，數字小的先</td>
+<td>init script 裡的 <code>STOP=</code></td>
+</tr>
+</tbody>
+</table>
+<p>實測對照：</p>
+<pre><code>/etc/init.d/v2ray:START=99      → S99v2ray
+/etc/init.d/v2ray:STOP=15       → K15v2ray
+/etc/init.d/firewall:START=19   → 防火牆比 v2ray 早很多啟動
+</code></pre>
+<p><strong>所以 <code>enable</code>／<code>disable</code> 就是建立／刪除這兩個連結</strong>，不神秘。而<strong>啟動順序完全由 <code>START=</code> 的數字決定</strong>——這在寫依賴其他服務的 init script 時很關鍵（例如 TPROXY 規則必須晚於 v2ray，就要把 <code>START</code> 設得比 99 大或相等）。</p>
+<hr />
+<h2 id="五看日誌logreadjournalctl-的對應">五、看日誌：<code>logread</code>（journalctl 的對應）</h2>
+<p>OpenWrt 的日誌在<strong>記憶體的環狀緩衝區</strong>（不是檔案），用 <code>logread</code> 讀：</p>
+<pre><code class="language-sh">logread<span class="w">                      </span><span class="c1"># 全部</span>
+logread<span class="w"> </span>-f<span class="w">                   </span><span class="c1"># 持續跟隨（等同 journalctl -f）</span>
+logread<span class="w"> </span>-e<span class="w"> </span>v2ray<span class="w">             </span><span class="c1"># 用正規式過濾（等同 journalctl -u）</span>
+logread<span class="w"> </span>-l<span class="w"> </span><span class="m">50</span><span class="w">                </span><span class="c1"># 只看最後 50 筆</span>
+</code></pre>
+<p><strong>完整選項</strong>（依 <code>logread</code> 自己的 usage）：</p>
+<table>
+<thead>
+<tr>
+<th>選項</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-l &lt;筆數&gt;</code></td>
+<td>只取最後 N 筆</td>
+</tr>
+<tr>
+<td><code>-e &lt;正規式&gt;</code></td>
+<td><strong>過濾訊息</strong></td>
+</tr>
+<tr>
+<td><code>-f</code></td>
+<td>持續跟隨</td>
+</tr>
+<tr>
+<td><code>-s &lt;路徑&gt;</code></td>
+<td>ubus socket 路徑</td>
+</tr>
+<tr>
+<td><code>-r &lt;伺服器&gt; &lt;埠&gt;</code></td>
+<td><strong>把日誌串流到遠端</strong></td>
+</tr>
+<tr>
+<td><code>-F &lt;檔案&gt;</code></td>
+<td>寫入檔案</td>
+</tr>
+<tr>
+<td><code>-S &lt;位元組&gt;</code></td>
+<td>日誌大小上限</td>
+</tr>
+<tr>
+<td><code>-p &lt;檔案&gt;</code></td>
+<td>PID 檔</td>
+</tr>
+<tr>
+<td><code>-h &lt;主機名&gt;</code></td>
+<td>訊息附上主機名</td>
+</tr>
+<tr>
+<td><code>-P &lt;前綴&gt;</code></td>
+<td>串流時加前綴</td>
+</tr>
+<tr>
+<td><code>-z &lt;facility&gt;</code> / <code>-Z &lt;facility&gt;</code></td>
+<td>只處理／忽略指定 facility（0–23，可重複）</td>
+</tr>
+</tbody>
+</table>
+<h3 id="服務的輸出怎麼進到-syslog">服務的輸出怎麼進到 syslog</h3>
+<p><strong>不是自動的</strong>——init script 要明確把 stdout／stderr 交給 procd。你的 v2ray 就有設：</p>
+<pre><code class="language-sh"><span class="c1"># /etc/init.d/v2ray</span>
+procd_set_param<span class="w"> </span>stdout<span class="w"> </span><span class="m">1</span>
+procd_set_param<span class="w"> </span>stderr<span class="w"> </span><span class="m">1</span>
+</code></pre>
+<p><strong>沒設這兩行的服務，它印的東西就不會出現在 <code>logread</code> 裡</strong>（會直接被丟掉）。這等同 systemd unit 的 <code>StandardOutput=journal</code>，差別是 systemd <strong>預設就開</strong>，procd 要自己寫。</p>
+<p>實測效果：</p>
+<pre><code># logread -e v2ray | tail -3
+Mon Sep 21 13:32:19 2026 daemon.info v2ray[25283]: [Info] [2270844649] proxy/socks: TCP Connect request to tcp:mtalk.google.com:5228
+Mon Sep 21 13:32:19 2026 daemon.info v2ray[25283]: [Info] app/dispatcher: taking detour [vmess-out-s02] for [tcp:mtalk.google.com:5228]
+Mon Sep 21 13:32:19 2026 daemon.info v2ray[25283]: tcp:192.168.1.171:58496 accepted tcp:mtalk.google.com:5228 [vmess-out-s02]
+</code></pre>
+<h3 id="實務配方">實務配方</h3>
+<pre><code class="language-sh">logread<span class="w"> </span>-e<span class="w"> </span>v2ray<span class="w"> </span><span class="p">|</span><span class="w"> </span>tail<span class="w"> </span>-30<span class="w">       </span><span class="c1"># 最近 30 筆</span>
+logread<span class="w"> </span>-f<span class="w"> </span>-e<span class="w"> </span>v2ray<span class="w">               </span><span class="c1"># ★ 即時盯著（改設定後重啟服務，馬上看反應）</span>
+logread<span class="w"> </span>-e<span class="w"> </span><span class="s1">&#39;v2ray.*error&#39;</span><span class="w">         </span><span class="c1"># 只看錯誤（-e 是正規式）</span>
+logread<span class="w"> </span><span class="p">|</span><span class="w"> </span>wc<span class="w"> </span>-l<span class="w">                   </span><span class="c1"># 目前緩衝區有幾筆</span>
+uci<span class="w"> </span>show<span class="w"> </span>system<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>log_size<span class="w">   </span><span class="c1"># 緩衝區大小（本機 128 KB）</span>
+</code></pre>
+<p><strong>排查流程建議</strong>：開一個終端機跑 <code>logread -f -e v2ray</code>，另一個終端機做操作，這樣因果關係一目了然。</p>
+<blockquote>
+<p><strong>對照 systemd</strong>：<code>logread</code> 只有純文字，<strong>沒有 <code>--since</code>、沒有 <code>-u</code>、沒有等級過濾</strong>。差異見 <a href="../linux/journalctl%E7%9C%8B%E6%9C%8D%E5%8B%99%E6%97%A5%E8%AA%8C.html">journalctl看服務日誌</a> 的對照表。</p>
+</blockquote>
+<blockquote>
+<p><strong>重開機日誌就沒了</strong>（在 RAM 裡）。要保留得用 <code>-F</code> 寫檔或 <code>-r</code> 送到遠端 syslog——
+但寫進 flash 會耗損壽命，一般只在除錯時暫時開。</p>
+</blockquote>
+<hr />
+<h2 id="六想看-systemd-那種詳細狀態ubus">六、想看 systemd 那種詳細狀態：<code>ubus</code></h2>
+<p><code>service &lt;名稱&gt; status</code> <strong>只會印 <code>running</code> 或 <code>inactive</code></strong>，沒有 systemd 那種「主行程 PID、記憶體、最近幾行日誌」的摘要。要更多資訊得問 procd 本人：</p>
+<pre><code class="language-sh"><span class="c1"># ubus call service list &#39;{&quot;name&quot;:&quot;v2ray&quot;}&#39;</span>
+<span class="o">{</span>
+<span class="w">    </span><span class="s2">&quot;v2ray&quot;</span>:<span class="w"> </span><span class="o">{</span>
+<span class="w">        </span><span class="s2">&quot;instances&quot;</span>:<span class="w"> </span><span class="o">{</span>
+<span class="w">            </span><span class="s2">&quot;instance1&quot;</span>:<span class="w"> </span><span class="o">{</span>
+<span class="w">                </span><span class="s2">&quot;running&quot;</span>:<span class="w"> </span>true,
+<span class="w">                </span><span class="s2">&quot;pid&quot;</span>:<span class="w"> </span><span class="m">4914</span>,
+<span class="w">                </span><span class="s2">&quot;command&quot;</span>:<span class="w"> </span><span class="o">[</span><span class="w"> </span><span class="s2">&quot;/root/v2ray/v2ray&quot;</span>,<span class="w"> </span><span class="s2">&quot;run&quot;</span>,<span class="w"> </span><span class="s2">&quot;-config&quot;</span>,<span class="w"> </span><span class="s2">&quot;/root/v2ray/config_openwrt.json&quot;</span><span class="w"> </span><span class="o">]</span>,
+<span class="w">                </span><span class="s2">&quot;term_timeout&quot;</span>:<span class="w"> </span><span class="m">5</span>,
+<span class="w">                </span><span class="s2">&quot;respawn&quot;</span>:<span class="w"> </span><span class="o">{</span><span class="w"> </span><span class="s2">&quot;threshold&quot;</span>:<span class="w"> </span><span class="m">3600</span>,<span class="w"> </span><span class="s2">&quot;timeout&quot;</span>:<span class="w"> </span><span class="m">5</span>,<span class="w"> </span><span class="s2">&quot;retry&quot;</span>:<span class="w"> </span><span class="m">5</span><span class="w"> </span><span class="o">}</span>
+<span class="w">            </span><span class="o">}</span>
+<span class="w">        </span><span class="o">}</span>
+<span class="w">    </span><span class="o">}</span>
+<span class="o">}</span>
+</code></pre>
+<p><strong>這比 <code>status</code> 有用得多</strong>——PID、完整命令列、重啟策略全都在。</p>
+<p><code>ubus</code> 是 OpenWrt 的行程間通訊匯流排，服務管理只是它的一小部分：</p>
+<pre><code class="language-sh">ubus<span class="w"> </span>list<span class="w">                            </span><span class="c1"># 有哪些物件可以問</span>
+ubus<span class="w"> </span>call<span class="w"> </span>service<span class="w"> </span>list<span class="w">               </span><span class="c1"># 全部服務</span>
+ubus<span class="w"> </span>call<span class="w"> </span>service<span class="w"> </span>list<span class="w"> </span><span class="s1">&#39;{&quot;name&quot;:&quot;X&quot;}&#39;</span><span class="w">  </span><span class="c1"># 單一服務</span>
+ubus<span class="w"> </span>-v<span class="w"> </span>list<span class="w"> </span>service<span class="w">                 </span><span class="c1"># service 物件支援哪些方法與參數</span>
+</code></pre>
+<hr />
+<h2 id="七systemd--openwrt-對照表">七、systemd ↔ OpenWrt 對照表</h2>
+<table>
+<thead>
+<tr>
+<th>systemd</th>
+<th>OpenWrt</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>systemctl start X</code></td>
+<td><code>service X start</code></td>
+</tr>
+<tr>
+<td><code>systemctl stop X</code></td>
+<td><code>service X stop</code></td>
+</tr>
+<tr>
+<td><code>systemctl restart X</code></td>
+<td><code>service X restart</code></td>
+</tr>
+<tr>
+<td><code>systemctl reload X</code></td>
+<td><code>service X reload</code></td>
+</tr>
+<tr>
+<td><code>systemctl enable X</code></td>
+<td><code>service X enable</code></td>
+</tr>
+<tr>
+<td><code>systemctl disable X</code></td>
+<td><code>service X disable</code></td>
+</tr>
+<tr>
+<td><code>systemctl is-enabled X</code></td>
+<td><code>service X enabled</code></td>
+</tr>
+<tr>
+<td><code>systemctl is-active X</code></td>
+<td><code>service X running</code></td>
+</tr>
+<tr>
+<td><code>systemctl status X</code></td>
+<td><code>service X status</code>（<strong>資訊少很多</strong>）＋ <code>ubus call service list</code></td>
+</tr>
+<tr>
+<td><code>systemctl list-units</code></td>
+<td><strong><code>service</code>（不給參數）</strong></td>
+</tr>
+<tr>
+<td><code>systemctl cat X</code></td>
+<td><code>cat /etc/init.d/X</code></td>
+</tr>
+<tr>
+<td><code>systemctl daemon-reload</code></td>
+<td><strong>不需要</strong>（init script 是 shell，每次執行才讀）</td>
+</tr>
+<tr>
+<td><code>journalctl -u X</code></td>
+<td><code>logread -e X</code></td>
+</tr>
+<tr>
+<td><code>journalctl -f</code></td>
+<td><code>logread -f</code></td>
+</tr>
+<tr>
+<td>unit 檔 <code>/etc/systemd/system/</code></td>
+<td>init script <code>/etc/init.d/</code></td>
+</tr>
+<tr>
+<td><code>Wants</code>／<code>After</code> 依賴</td>
+<td><strong><code>START=</code>／<code>STOP=</code> 的數字順序</strong></td>
+</tr>
+<tr>
+<td><code>/etc/systemd/system/*.wants/</code></td>
+<td><code>/etc/rc.d/S&lt;NN&gt;</code>、<code>K&lt;NN&gt;</code> 符號連結</td>
+</tr>
+</tbody>
+</table>
+<p><strong>最大的觀念差異：systemd 是「宣告依賴關係」，procd 是「排數字順序」。</strong>
+沒有 <code>After=network-online.target</code> 這種東西，只有「我的 START 比它大」。</p>
+<hr />
+<h2 id="八init-script-的骨架">八、init script 的骨架</h2>
+<p>OpenWrt 的 init script 是 shell，開頭固定引入 <code>/etc/rc.common</code>：</p>
+<pre><code class="language-sh"><span class="ch">#!/bin/sh /etc/rc.common</span>
+
+<span class="nv">START</span><span class="o">=</span><span class="m">99</span><span class="w">          </span><span class="c1"># 開機啟動順序</span>
+<span class="nv">STOP</span><span class="o">=</span><span class="m">15</span><span class="w">           </span><span class="c1"># 關機停止順序</span>
+<span class="nv">USE_PROCD</span><span class="o">=</span><span class="m">1</span><span class="w">       </span><span class="c1"># 使用 procd 管理（現代寫法）</span>
+
+start_service<span class="o">()</span><span class="w"> </span><span class="o">{</span>
+<span class="w">    </span>procd_open_instance
+<span class="w">    </span>procd_set_param<span class="w"> </span><span class="nb">command</span><span class="w"> </span>/path/to/binary<span class="w"> </span>--flag
+<span class="w">    </span>procd_set_param<span class="w"> </span>respawn<span class="w">          </span><span class="c1"># 掛掉自動重啟</span>
+<span class="w">    </span>procd_set_param<span class="w"> </span>stdout<span class="w"> </span><span class="m">1</span><span class="w">         </span><span class="c1"># stdout 導進 syslog</span>
+<span class="w">    </span>procd_set_param<span class="w"> </span>stderr<span class="w"> </span><span class="m">1</span>
+<span class="w">    </span>procd_close_instance
+<span class="o">}</span>
+
+<span class="c1"># 可選</span>
+stop_service<span class="o">()</span><span class="w">   </span><span class="o">{</span><span class="w"> </span>...<span class="w"> </span><span class="o">}</span>
+reload_service<span class="o">()</span><span class="w"> </span><span class="o">{</span><span class="w"> </span>...<span class="w"> </span><span class="o">}</span>
+service_triggers<span class="o">()</span><span class="w"> </span><span class="o">{</span><span class="w"> </span>...<span class="w"> </span><span class="o">}</span><span class="w">           </span><span class="c1"># 監看 uci 設定變化自動 reload</span>
+</code></pre>
+<p><strong><code>USE_PROCD=1</code> 的意義</strong>：由 procd 負責監看行程、自動重啟、收集輸出——
+等同 systemd unit 的 <code>Restart=</code>、<code>StandardOutput=journal</code>。你的 <code>/etc/init.d/v2ray</code> 就是這個形式。</p>
+<hr />
+<h2 id="自我測驗">自我測驗</h2>
+<ol>
+<li><code>service X restart</code> 和 <code>/etc/init.d/X restart</code> 有什麼差別？從 <code>/sbin/service</code> 的實作回答。</li>
+<li>要怎麼在 OpenWrt 上得到「所有服務＋是否開機啟動＋是否執行中」的總覽？這對應到 systemd 的哪個指令？</li>
+<li><code>service X enable</code> 實際上改了什麼？<code>START=99</code> 這個數字決定了什麼？
+systemd 用什麼機制取代它？</li>
+<li><code>service X status</code> 印出的資訊比 <code>systemctl status X</code> 少很多。要拿到 PID、完整命令列與重啟策略，該問誰、用什麼指令？</li>
+<li>情境題：你寫了一個 init script 來套用 nftables 規則，它必須在 v2ray（<code>START=99</code>）之後才執行。你會怎麼設定？另外，為什麼 OpenWrt 沒有 <code>systemctl daemon-reload</code> 這個步驟？</li>
+</ol>
+
+</main>
+</div>
+</body>
+</html>

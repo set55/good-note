@@ -1,0 +1,1058 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>dpkg 完整使用指南 —— 從安裝、查詢到壞掉時的修復</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/app.js"></script>
+</head>
+<body>
+<button class="menu-btn" onclick="toggleMenu()">☰ 目錄</button>
+<div class="layout">
+<nav class="side">
+<div class="crumbs"><a href="../index.html">🏠 首頁</a> / <a href="README.html">linux</a></div>
+<div class="tools"><button onclick="toggleTheme()">🌓 主題</button></div>
+<ul>
+<li class="l2"><a href="#%E7%9B%AE%E9%8C%84">目錄</a></li>
+<li class="l2"><a href="#%E4%B8%80dpkg-%E5%9C%A8%E5%A5%97%E4%BB%B6%E7%B3%BB%E7%B5%B1%E8%A3%A1%E7%9A%84%E4%BD%8D%E7%BD%AE">一、dpkg 在套件系統裡的位置</a></li>
+<li class="l2"><a href="#%E4%BA%8Cdeb-%E6%AA%94%E6%A1%88%E7%9A%84%E8%A7%A3%E5%89%96">二、.deb 檔案的解剖</a></li>
+<li class="l2"><a href="#%E4%B8%89%E5%AE%89%E8%A3%9D%E8%88%87%E7%A7%BB%E9%99%A4%E7%8B%80%E6%85%8B%E6%A9%9F%E8%80%8C%E4%B8%8D%E6%98%AF%E5%96%AE%E4%B8%80%E5%8B%95%E4%BD%9C">三、安裝與移除：狀態機而不是單一動作</a></li>
+<li class="l2"><a href="#%E5%9B%9B%E6%9F%A5%E8%A9%A2%E4%BA%94%E5%80%8B%E6%9C%80%E5%B8%B8%E7%94%A8%E7%9A%84%E5%95%8F%E9%A1%8C">四、查詢：五個最常用的問題</a></li>
+<li class="l2"><a href="#%E4%BA%94%E8%AE%80%E6%87%82-dpkg--l-%E9%96%8B%E9%A0%AD%E9%82%A3%E5%85%A9%E5%80%8B%E5%AD%97%E6%AF%8D">五、讀懂 dpkg -l 開頭那兩個字母</a></li>
+<li class="l2"><a href="#%E5%85%AD%E7%B6%AD%E8%AD%B7%E8%85%B3%E6%9C%AC%E8%88%87%E8%A7%B8%E7%99%BC%E5%99%A8%E5%AE%89%E8%A3%9D%E9%81%8E%E7%A8%8B%E4%B8%AD%E7%9C%9F%E6%AD%A3%E5%9C%A8%E8%B7%91%E4%BB%80%E9%BA%BC">六、維護腳本與觸發器：安裝過程中真正在跑什麼</a></li>
+<li class="l2"><a href="#%E4%B8%83%E8%A8%AD%E5%AE%9A%E6%AA%94conffiles%E7%82%BA%E4%BB%80%E9%BA%BC%E6%9C%83%E5%95%8F%E4%BD%A0%E8%A6%81%E4%B8%8D%E8%A6%81%E8%A6%86%E8%93%8B">七、設定檔（conffiles）為什麼會問你要不要覆蓋</a></li>
+<li class="l2"><a href="#%E5%85%ABdpkg-%E7%9A%84%E8%B3%87%E6%96%99%E5%BA%ABvarlibdpkg">八、dpkg 的資料庫：/var/lib/dpkg</a></li>
+<li class="l2"><a href="#%E4%B9%9D%E5%A3%9E%E6%8E%89%E6%99%82%E7%9A%84%E4%BF%AE%E5%BE%A9%E6%B5%81%E7%A8%8B">九、壞掉時的修復流程</a></li>
+<li class="l2"><a href="#%E5%8D%81%E9%80%B2%E9%9A%8E%E5%8A%9F%E8%83%BD">十、進階功能</a></li>
+<li class="l2"><a href="#%E5%AE%8C%E6%95%B4%E6%8C%87%E4%BB%A4%E8%88%87%E9%81%B8%E9%A0%85%E6%B8%85%E5%96%AE">完整指令與選項清單</a></li>
+<li class="l3"><a href="#dpkg-%E7%9A%84%E5%8B%95%E4%BD%9Ccommands">dpkg 的動作（Commands）</a></li>
+<li class="l3"><a href="#dpkg-%E7%9A%84%E9%81%B8%E9%A0%85options">dpkg 的選項（Options）</a></li>
+<li class="l3"><a href="#--force-thing-%E5%AE%8C%E6%95%B4%E6%B8%85%E5%96%AE">--force-&lt;thing&gt; 完整清單</a></li>
+<li class="l3"><a href="#dpkg-deb-%E5%AE%8C%E6%95%B4%E5%8B%95%E4%BD%9C%E8%88%87%E9%81%B8%E9%A0%85">dpkg-deb 完整動作與選項</a></li>
+<li class="l3"><a href="#dpkg-query-%E5%AE%8C%E6%95%B4%E5%8B%95%E4%BD%9C%E8%88%87%E9%81%B8%E9%A0%85">dpkg-query 完整動作與選項</a></li>
+<li class="l2"><a href="#%E5%8D%81%E4%B8%80%E9%80%9F%E6%9F%A5%E8%A1%A8">十一、速查表</a></li>
+<li class="l2"><a href="#%E8%87%AA%E6%88%91%E6%B8%AC%E9%A9%97">自我測驗</a></li>
+</ul>
+</nav>
+<main>
+<h1 id="dpkg-完整使用指南--從安裝查詢到壞掉時的修復">dpkg 完整使用指南 —— 從安裝、查詢到壞掉時的修復</h1>
+<blockquote>
+<p>日期：2026-09-20<br />
+情境：想完整搞懂 dpkg 的用法，而不只是背 <code>dpkg -i xxx.deb</code><br />
+適用範圍：Debian／Ubuntu 系統；實測環境 Ubuntu 24.04、dpkg 1.22.6<br />
+延伸自：<a href="dpkg%E8%88%87dkms%E7%9A%84%E9%97%9C%E4%BF%82.html">dpkg與dkms的關係</a>、<a href="NVIDIA-DKMS%E6%A0%B8%E5%BF%83%E5%8D%87%E7%B4%9A%E5%A4%B1%E6%95%97%E6%8E%92%E6%9F%A5.html">NVIDIA-DKMS核心升級失敗排查</a></p>
+</blockquote>
+<p><strong>一句話結論：dpkg 只做「把這個 <code>.deb</code> 的檔案裝進系統、把狀態記進資料庫」這一件事——它不下載、不解相依、不管版本升級策略；那些是 apt 的工作。所以 dpkg 的所有指令與故障，都可以回到兩個問題：檔案現在在哪裡？資料庫裡這個套件處於哪個狀態？</strong></p>
+<hr />
+<h2 id="目錄">目錄</h2>
+<ul>
+<li><a href="#%E4%B8%80dpkg-%E5%9C%A8%E5%A5%97%E4%BB%B6%E7%B3%BB%E7%B5%B1%E8%A3%A1%E7%9A%84%E4%BD%8D%E7%BD%AE">一、dpkg 在套件系統裡的位置</a></li>
+<li><a href="#%E4%BA%8Cdeb-%E6%AA%94%E6%A1%88%E7%9A%84%E8%A7%A3%E5%89%96">二、<code>.deb</code> 檔案的解剖</a></li>
+<li><a href="#%E4%B8%89%E5%AE%89%E8%A3%9D%E8%88%87%E7%A7%BB%E9%99%A4%E7%8B%80%E6%85%8B%E6%A9%9F%E8%80%8C%E4%B8%8D%E6%98%AF%E5%96%AE%E4%B8%80%E5%8B%95%E4%BD%9C">三、安裝與移除：狀態機而不是單一動作</a></li>
+<li><a href="#%E5%9B%9B%E6%9F%A5%E8%A9%A2%E4%BA%94%E5%80%8B%E6%9C%80%E5%B8%B8%E7%94%A8%E7%9A%84%E5%95%8F%E9%A1%8C">四、查詢：五個最常用的問題</a></li>
+<li><a href="#%E4%BA%94%E8%AE%80%E6%87%82-dpkg--l-%E9%96%8B%E9%A0%AD%E9%82%A3%E5%85%A9%E5%80%8B%E5%AD%97%E6%AF%8D">五、讀懂 <code>dpkg -l</code> 開頭那兩個字母</a></li>
+<li><a href="#%E5%85%AD%E7%B6%AD%E8%AD%B7%E8%85%B3%E6%9C%AC%E8%88%87%E8%A7%B8%E7%99%BC%E5%99%A8%E5%AE%89%E8%A3%9D%E9%81%8E%E7%A8%8B%E4%B8%AD%E7%9C%9F%E6%AD%A3%E5%9C%A8%E8%B7%91%E4%BB%80%E9%BA%BC">六、維護腳本與觸發器：安裝過程中真正在跑什麼</a></li>
+<li><a href="#%E4%B8%83%E8%A8%AD%E5%AE%9A%E6%AA%94conffiles%E7%82%BA%E4%BB%80%E9%BA%BC%E6%9C%83%E5%95%8F%E4%BD%A0%E8%A6%81%E4%B8%8D%E8%A6%81%E8%A6%86%E8%93%8B">七、設定檔（conffiles）為什麼會問你要不要覆蓋</a></li>
+<li><a href="#%E5%85%ABdpkg-%E7%9A%84%E8%B3%87%E6%96%99%E5%BA%ABvarlibdpkg">八、dpkg 的資料庫：<code>/var/lib/dpkg</code></a></li>
+<li><a href="#%E4%B9%9D%E5%A3%9E%E6%8E%89%E6%99%82%E7%9A%84%E4%BF%AE%E5%BE%A9%E6%B5%81%E7%A8%8B">九、壞掉時的修復流程</a></li>
+<li><a href="#%E5%8D%81%E9%80%B2%E9%9A%8E%E5%8A%9F%E8%83%BD">十、進階功能</a></li>
+<li><a href="#%E5%8D%81%E4%B8%80%E9%80%9F%E6%9F%A5%E8%A1%A8">十一、速查表</a></li>
+<li><a href="#%E8%87%AA%E6%88%91%E6%B8%AC%E9%A9%97">自我測驗</a></li>
+</ul>
+<hr />
+<h2 id="一dpkg-在套件系統裡的位置">一、dpkg 在套件系統裡的位置</h2>
+<pre><code>apt / apt-get / aptitude      ← 高階：找套件、解相依、決定要裝哪些版本、從 repo 下載
+        │  呼叫
+        ▼
+dpkg                          ← 低階：解開 .deb、把檔案放到正確位置、跑維護腳本、寫資料庫
+        │  使用
+        ▼
+dpkg-deb / dpkg-query / dpkg-divert / dpkg-trigger   ← 更底層的單一功能工具
+</code></pre>
+<p>分工的重點：</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>apt</th>
+<th>dpkg</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>知道 repo 在哪、能下載</td>
+<td>✅</td>
+<td>❌（只吃本機檔案路徑）</td>
+</tr>
+<tr>
+<td>解相依（自動把缺的裝上）</td>
+<td>✅</td>
+<td>❌（只會<strong>檢查</strong>並報錯）</td>
+</tr>
+<tr>
+<td>知道「哪些套件是被自動裝的」</td>
+<td>✅（<code>apt-mark</code>）</td>
+<td>❌</td>
+</tr>
+<tr>
+<td>實際把檔案寫進 <code>/usr</code></td>
+<td>❌（交給 dpkg）</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>記錄哪個檔案屬於哪個套件</td>
+<td>❌</td>
+<td>✅</td>
+</tr>
+</tbody>
+</table>
+<p><strong>所以 <code>dpkg -i foo.deb</code> 遇到相依缺失時只會失敗、把套件留在半裝狀態，不會自己去補</strong>——這正是後面 <code>apt --fix-broken install</code> 存在的原因。</p>
+<hr />
+<h2 id="二deb-檔案的解剖">二、<code>.deb</code> 檔案的解剖</h2>
+<p><code>.deb</code> 其實是一個 <code>ar</code> 封存檔，裡面固定三個成員：</p>
+<pre><code class="language-bash">ar<span class="w"> </span>t<span class="w"> </span>foo.deb
+<span class="c1"># debian-binary        ← 格式版本，內容就一行 &quot;2.0&quot;</span>
+<span class="c1"># control.tar.zst      ← 中繼資料：control 檔、維護腳本、md5sums、conffiles 清單</span>
+<span class="c1"># data.tar.zst         ← 真正要裝進系統的檔案，路徑就是安裝後的絕對路徑</span>
+</code></pre>
+<p>不用真的解開也能看，<code>dpkg-deb</code> 就是專門處理「還沒安裝的 <code>.deb</code>」的工具：</p>
+<pre><code class="language-bash">dpkg-deb<span class="w"> </span>-I<span class="w"> </span>foo.deb<span class="w">              </span><span class="c1"># info：看 control 內容（版本、相依、描述、維護者）</span>
+dpkg-deb<span class="w"> </span>-c<span class="w"> </span>foo.deb<span class="w">              </span><span class="c1"># contents：列出這包會裝出哪些檔案（含權限、大小）</span>
+dpkg-deb<span class="w"> </span>-x<span class="w"> </span>foo.deb<span class="w"> </span>/tmp/out<span class="w">     </span><span class="c1"># extract：只解 data 部分到指定目錄，不動系統</span>
+dpkg-deb<span class="w"> </span>-e<span class="w"> </span>foo.deb<span class="w"> </span>/tmp/ctrl<span class="w">    </span><span class="c1"># 只解 control 部分（想看 postinst 腳本內容時很好用）</span>
+dpkg-deb<span class="w"> </span>-b<span class="w"> </span>mydir<span class="w"> </span>foo.deb<span class="w">        </span><span class="c1"># build：反過來，把目錄打包成 .deb</span>
+</code></pre>
+<p><strong>心法：裝一個來路不明的 <code>.deb</code> 之前，先 <code>dpkg-deb -c</code> 看它要往哪裡寫、<code>dpkg-deb -e</code> 看它的 <code>postinst</code> 會跑什麼。</strong> 維護腳本是用 root 跑的，等同給它 root 權限。</p>
+<blockquote>
+<p><code>dpkg -I</code> / <code>dpkg -c</code> / <code>dpkg -x</code> 是同名捷徑，dpkg 會轉呼叫 dpkg-deb。</p>
+</blockquote>
+<hr />
+<h2 id="三安裝與移除狀態機而不是單一動作">三、安裝與移除：狀態機而不是單一動作</h2>
+<p>dpkg 的安裝<strong>不是一步</strong>，而是「解開（unpack）」與「設定（configure）」兩個階段：</p>
+<pre><code>未安裝 ──dpkg --unpack──► unpacked（檔案就位，但沒設定過）
+                              │
+                              ├──dpkg --configure──► installed（正常，ii）
+                              │
+                              └── 設定腳本失敗 ──► half-configured（iF）
+</code></pre>
+<p>拆成兩段的理由：一次要裝一整批互相依賴的套件時，可以<strong>先全部 unpack、再照相依順序逐一 configure</strong>，避免「A 的設定腳本需要 B 的檔案，但 B 還沒解開」的死結。</p>
+<table>
+<thead>
+<tr>
+<th>指令</th>
+<th>做什麼</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>dpkg -i foo.deb</code></td>
+<td>= <code>--unpack</code> + <code>--configure</code>，最常用</td>
+</tr>
+<tr>
+<td><code>dpkg --unpack foo.deb</code></td>
+<td>只把檔案放好，不跑 <code>postinst</code>（例如服務不想被自動啟動時）</td>
+</tr>
+<tr>
+<td><code>dpkg --configure foo</code></td>
+<td>對已 unpack 的套件跑設定</td>
+</tr>
+<tr>
+<td><code>dpkg --configure -a</code></td>
+<td>對<strong>所有</strong>卡在未設定狀態的套件補跑設定（最常用的修復指令）</td>
+</tr>
+</tbody>
+</table>
+<p>移除也分兩級：</p>
+<table>
+<thead>
+<tr>
+<th>指令</th>
+<th style="text-align:center">刪 <code>data.tar</code> 的檔案</th>
+<th style="text-align:center">刪設定檔（conffiles）</th>
+<th>事後狀態</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>dpkg -r foo</code>（remove）</td>
+<td style="text-align:center">✅</td>
+<td style="text-align:center">❌</td>
+<td><code>rc</code></td>
+</tr>
+<tr>
+<td><code>dpkg -P foo</code>（purge）</td>
+<td style="text-align:center">✅</td>
+<td style="text-align:center">✅</td>
+<td>完全消失</td>
+</tr>
+</tbody>
+</table>
+<p><code>rc</code> 就是「檔案刪了、設定檔留著」的殘留狀態。留著是<strong>刻意設計</strong>：讓你之後重裝時，<code>/etc</code> 底下改過的設定還在。代價是 <code>dpkg -l</code> 會一直列出它們。</p>
+<pre><code class="language-bash"><span class="c1"># 清掉所有 rc 殘留（實測本機有一堆舊核心與舊 NVIDIA 套件處於 rc）</span>
+dpkg<span class="w"> </span>-l<span class="w"> </span><span class="p">|</span><span class="w"> </span>awk<span class="w"> </span><span class="s1">&#39;/^rc/ {print $2}&#39;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>xargs<span class="w"> </span>-r<span class="w"> </span>sudo<span class="w"> </span>dpkg<span class="w"> </span>-P
+</code></pre>
+<p>還有兩個實務上會遇到的選項：</p>
+<ul>
+<li><code>--force-depends</code>：無視相依直接裝／移（會弄壞系統一致性，救急才用）。</li>
+<li><code>--force-overwrite</code>：這包要裝的檔案已經屬於別的套件時照樣覆蓋——專治 <code>trying to overwrite '...', which is also in package ...</code>，NVIDIA 驅動換版時很常見。</li>
+</ul>
+<p>完整清單：<code>dpkg --force-help</code>。<strong>每個 <code>--force-*</code> 都是在告訴 dpkg「我知道我在破壞規則」，所以用之前要先看懂它擋的是什麼。</strong></p>
+<hr />
+<h2 id="四查詢五個最常用的問題">四、查詢：五個最常用的問題</h2>
+<table>
+<thead>
+<tr>
+<th>問題</th>
+<th>指令</th>
+<th>資料來源</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>系統上裝了什麼？</td>
+<td><code>dpkg -l [pattern]</code></td>
+<td>資料庫</td>
+</tr>
+<tr>
+<td>這個套件的詳細狀態？</td>
+<td><code>dpkg -s foo</code></td>
+<td>資料庫</td>
+</tr>
+<tr>
+<td>這個套件裝了哪些檔案？</td>
+<td><code>dpkg -L foo</code></td>
+<td><code>/var/lib/dpkg/info/foo.list</code></td>
+</tr>
+<tr>
+<td>這個檔案是誰裝的？</td>
+<td><code>dpkg -S /path/to/file</code></td>
+<td>所有 <code>.list</code></td>
+</tr>
+<tr>
+<td>這個<strong>還沒裝</strong>的 <code>.deb</code> 是什麼？</td>
+<td><code>dpkg -I foo.deb</code> / <code>dpkg -c foo.deb</code></td>
+<td>檔案本身</td>
+</tr>
+</tbody>
+</table>
+<pre><code class="language-bash">dpkg<span class="w"> </span>-l<span class="w"> </span><span class="s1">&#39;nvidia*&#39;</span><span class="w">                     </span><span class="c1"># 名稱可用 glob，要加引號避免被 shell 展開</span>
+dpkg<span class="w"> </span>-s<span class="w"> </span>coreutils<span class="w">                     </span><span class="c1"># Status: install ok installed / Depends / Description</span>
+dpkg<span class="w"> </span>-L<span class="w"> </span>nginx<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span><span class="s1">&#39;^/etc&#39;</span><span class="w">          </span><span class="c1"># 只看它裝了哪些設定檔</span>
+dpkg<span class="w"> </span>-S<span class="w"> </span><span class="k">$(</span>which<span class="w"> </span>mtr<span class="k">)</span><span class="w">                  </span><span class="c1"># /usr/bin/mtr 屬於哪個套件</span>
+</code></pre>
+<p><strong><code>dpkg -S</code> 的兩個陷阱</strong>（<a href="%E6%8E%92%E6%9F%A5%E6%96%B9%E6%B3%95%E8%AB%96.html">排查方法論</a> 裡也用到這招）：</p>
+<ol>
+<li>它查的是<strong>資料庫裡的檔案清單</strong>，不是磁碟。安裝後才產生的檔案（log、快取、<code>postinst</code> 自己建的檔）查不到，會回 <code>no path found matching pattern</code>。</li>
+<li>它比對的是字串，符號連結不會自動解析——必要時先 <code>readlink -f</code>。</li>
+</ol>
+<p>想要機器可讀的輸出就用 <code>dpkg-query -W -f</code>（<code>dpkg -l</code> 的欄位會被終端機寬度截斷，<strong>不要拿來寫腳本</strong>）：</p>
+<pre><code class="language-bash">dpkg-query<span class="w"> </span>-W<span class="w"> </span>-f<span class="o">=</span><span class="s1">&#39;${Package}\t${Version}\t${Installed-Size}\n&#39;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>sort<span class="w"> </span>-k3<span class="w"> </span>-n<span class="w"> </span><span class="p">|</span><span class="w"> </span>tail<span class="w"> </span>-20<span class="w">   </span><span class="c1"># 找最肥的套件</span>
+dpkg-query<span class="w"> </span>-W<span class="w"> </span>-f<span class="o">=</span><span class="s1">&#39;${binary:Package} ${db:Status-Status}\n&#39;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-v<span class="w"> </span><span class="s1">&#39; installed$&#39;</span><span class="w">        </span><span class="c1"># 找不正常的套件</span>
+dpkg-query<span class="w"> </span>-f<span class="o">=</span><span class="s1">&#39;${Depends}\n&#39;</span><span class="w"> </span>-W<span class="w"> </span>bash<span class="w">                                                      </span><span class="c1"># 只取相依欄位</span>
+</code></pre>
+<hr />
+<h2 id="五讀懂-dpkg--l-開頭那兩個字母">五、讀懂 <code>dpkg -l</code> 開頭那兩個字母</h2>
+<p><code>dpkg -l</code> 的表頭已經把圖例印出來了：</p>
+<pre><code>Desired=Unknown/Install/Remove/Purge/Hold
+| Status=Not/Inst/Conf-files/Unpacked/halF-conf/Half-inst/trig-aWait/Trig-pend
+|/ Err?=(none)/Reinst-required (Status,Err: uppercase=bad)
+||/ Name            Version        Architecture Description
++++-===============-==============-============-=================
+ii  accountsservice 23.13.9-2ubun… amd64        query and manipulate...
+</code></pre>
+<p>三欄分別是：<strong>第一欄 = 你「希望」它處於什麼狀態</strong>（desired／selection），<strong>第二欄 = 它「實際」的狀態</strong>，第三欄是錯誤旗標。</p>
+<table>
+<thead>
+<tr>
+<th>代碼</th>
+<th>意思</th>
+<th>怎麼處理</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ii</code></td>
+<td>desired=install、實際 installed</td>
+<td>正常</td>
+</tr>
+<tr>
+<td><code>rc</code></td>
+<td>desired=remove、只剩 conf-files</td>
+<td>正常殘留；想清乾淨用 <code>dpkg -P</code></td>
+</tr>
+<tr>
+<td><code>iU</code></td>
+<td>已 unpack 但<strong>尚未設定</strong></td>
+<td><code>sudo dpkg --configure -a</code></td>
+</tr>
+<tr>
+<td><code>iF</code></td>
+<td>設定跑到一半失敗（half-configured）</td>
+<td>先看錯誤原因，再 <code>dpkg --configure -a</code></td>
+</tr>
+<tr>
+<td><code>iH</code></td>
+<td>half-installed，解檔就中斷</td>
+<td><code>dpkg -i</code> 重裝該套件</td>
+</tr>
+<tr>
+<td><code>hi</code></td>
+<td>desired=hold，被鎖版不讓升級</td>
+<td><code>apt-mark unhold</code></td>
+</tr>
+<tr>
+<td><code>iW</code> / <code>iT</code></td>
+<td>等待／待處理觸發器</td>
+<td>通常 <code>dpkg --configure -a</code> 就會跑掉</td>
+</tr>
+</tbody>
+</table>
+<p><strong>規則：大寫代表不正常。</strong> 所以「系統是不是有套件卡住」的通用檢查就是</p>
+<pre><code class="language-bash">dpkg<span class="w"> </span>-l<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-E<span class="w"> </span><span class="s1">&#39;^.[^i ]&#39;</span><span class="w">      </span><span class="c1"># 第二欄不是 i 的都撈出來</span>
+dpkg<span class="w"> </span>--audit<span class="w">                     </span><span class="c1"># 官方做法：直接列出半裝／未設定的套件與原因</span>
+</code></pre>
+<hr />
+<h2 id="六維護腳本與觸發器安裝過程中真正在跑什麼">六、維護腳本與觸發器：安裝過程中真正在跑什麼</h2>
+<p>每個套件可以帶四個 <strong>maintainer script</strong>（維護腳本），都是 root 執行：</p>
+<table>
+<thead>
+<tr>
+<th>腳本</th>
+<th>時機</th>
+<th>典型工作</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>preinst</code></td>
+<td>解檔<strong>前</strong></td>
+<td>停掉舊版服務</td>
+</tr>
+<tr>
+<td><code>postinst</code></td>
+<td>解檔<strong>後</strong>、configure 階段</td>
+<td>建使用者、<code>systemctl enable</code>、跑 <code>dkms install</code>、更新 initramfs</td>
+</tr>
+<tr>
+<td><code>prerm</code></td>
+<td>移除<strong>前</strong></td>
+<td>停服務</td>
+</tr>
+<tr>
+<td><code>postrm</code></td>
+<td>移除<strong>後</strong></td>
+<td>刪掉產生的檔案、<code>purge</code> 時清設定</td>
+</tr>
+</tbody>
+</table>
+<p>一次安裝的完整順序（升級既有套件時）：</p>
+<pre><code>新包 preinst upgrade → 解開檔案 → 舊包 postrm upgrade → 新包 postinst configure → 觸發器
+</code></pre>
+<p>想知道某次安裝到底做了什麼，直接讀腳本（它們就躺在資料庫目錄裡）：</p>
+<pre><code class="language-bash">cat<span class="w"> </span>/var/lib/dpkg/info/&lt;套件名&gt;.postinst
+</code></pre>
+<p><strong>觸發器（trigger）</strong> 則是為了避免重複工：<code>update-desktop-database</code>、<code>ldconfig</code>、<code>initramfs</code> 更新這類「裝很多套件時只需要做一次」的動作，套件不會自己跑，而是丟一個 trigger，等這批安裝結束後統一執行——這就是 <code>apt</code> 尾端那些 <code>Processing triggers for ...</code> 的來源。狀態 <code>iT</code>／<code>iW</code> 也是指這件事還沒做完。</p>
+<hr />
+<h2 id="七設定檔conffiles為什麼會問你要不要覆蓋">七、設定檔（conffiles）為什麼會問你要不要覆蓋</h2>
+<p>套件可以把 <code>/etc</code> 底下的檔案登記成 <strong>conffile</strong>。dpkg 對 conffile 有特殊待遇：升級時會比對三方——<strong>你改過的現況、舊版原始內容、新版內容</strong>：</p>
+<ul>
+<li>你沒改過 → 直接換成新版，不吵你。</li>
+<li>你改過、新版沒變 → 保留你的。</li>
+<li><strong>你改過、新版也變了 → 衝突</strong>，才跳出那個 <code>Configuration file '/etc/xxx' ... What would you like to do?</code> 選單（<code>Y</code> 用新版、<code>N</code> 保留舊版、<code>D</code> 看 diff、<code>Z</code> 開 shell 去看）。</li>
+</ul>
+<p>查一個套件有哪些 conffile、有沒有被改過：</p>
+<pre><code class="language-bash">dpkg-query<span class="w"> </span>-W<span class="w"> </span>-f<span class="o">=</span><span class="s1">&#39;${Conffiles}\n&#39;</span><span class="w"> </span>openssh-server<span class="w">    </span><span class="c1"># 列出 conffile 與原始 md5</span>
+dpkg<span class="w"> </span>-V<span class="w"> </span>openssh-server<span class="w">                              </span><span class="c1"># verify：列出與安裝時 md5 不符的檔案</span>
+</code></pre>
+<p>非互動式安裝要事先決定策略：</p>
+<pre><code class="language-bash">sudo<span class="w"> </span>apt-get<span class="w"> </span>-o<span class="w"> </span>Dpkg::Options::<span class="o">=</span><span class="s2">&quot;--force-confdef&quot;</span><span class="w"> </span>-o<span class="w"> </span>Dpkg::Options::<span class="o">=</span><span class="s2">&quot;--force-confold&quot;</span><span class="w"> </span>upgrade
+<span class="c1"># confold：保留現有設定；confnew：用新版；confdef：有預設答案就照預設（兩者常一起用）</span>
+</code></pre>
+<p><strong>注意：只有被登記成 conffile 的檔案才有這套保護。</strong> 套件在 <code>postinst</code> 裡自己產生的 <code>/etc</code> 檔案不算 conffile，升級時可能被無聲覆蓋——這也是「我明明改過設定，升級後卻不見了」的常見原因。</p>
+<hr />
+<h2 id="八dpkg-的資料庫varlibdpkg">八、dpkg 的資料庫：<code>/var/lib/dpkg</code></h2>
+<p>dpkg 沒有用 SQL 資料庫，全部是純文字檔：</p>
+<table>
+<thead>
+<tr>
+<th>路徑</th>
+<th>內容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>status</code></td>
+<td><strong>核心檔案</strong>：每個套件的狀態、版本、相依、conffile md5。<code>dpkg -l</code>／<code>-s</code> 都讀它</td>
+</tr>
+<tr>
+<td><code>status-old</code></td>
+<td>上一版備份（<code>status</code> 損毀時的救命稻草，另有 <code>/var/backups/dpkg.status.*</code>）</td>
+</tr>
+<tr>
+<td><code>info/&lt;pkg&gt;.list</code></td>
+<td>該套件安裝的檔案清單 → <code>dpkg -L</code>／<code>-S</code> 的來源</td>
+</tr>
+<tr>
+<td><code>info/&lt;pkg&gt;.md5sums</code></td>
+<td>各檔案的 md5 → <code>dpkg -V</code> 的比對基準</td>
+</tr>
+<tr>
+<td><code>info/&lt;pkg&gt;.{pre,post}{inst,rm}</code></td>
+<td>四個維護腳本</td>
+</tr>
+<tr>
+<td><code>info/&lt;pkg&gt;.conffiles</code></td>
+<td>設定檔清單</td>
+</tr>
+<tr>
+<td><code>triggers/</code></td>
+<td>待處理的觸發器</td>
+</tr>
+<tr>
+<td><code>lock</code>、<code>lock-frontend</code></td>
+<td>鎖：同時只能有一個 dpkg／apt 在跑</td>
+</tr>
+</tbody>
+</table>
+<p>另外兩個 log 不在這裡，但排查時更常用：</p>
+<pre><code class="language-bash">grep<span class="w"> </span><span class="s1">&#39;2026-09-20&#39;</span><span class="w"> </span>/var/log/dpkg.log<span class="w">      </span><span class="c1"># 誰在什麼時間被 install/upgrade/remove/status changed</span>
+sudo<span class="w"> </span>tail<span class="w"> </span>-n<span class="w"> </span><span class="m">60</span><span class="w"> </span>/var/log/apt/term.log<span class="w">    </span><span class="c1"># apt 當次的完整互動輸出（包含腳本錯誤訊息）</span>
+</code></pre>
+<p><strong>心法：<code>dpkg -l</code> 說的是「資料庫認為」的狀態，不是磁碟現況。</strong> 檔案被手動 <code>rm</code> 掉，dpkg 照樣顯示 <code>ii</code>——這時要靠 <code>dpkg -V</code> 或直接重裝（<code>apt install --reinstall</code>）。這個「資料庫 vs 現實」的落差，就是 <a href="%E6%8E%92%E6%9F%A5%E6%96%B9%E6%B3%95%E8%AB%96.html">排查方法論</a> 裡「先推翻前提」的典型案例。</p>
+<hr />
+<h2 id="九壞掉時的修復流程">九、壞掉時的修復流程</h2>
+<p>照順序試，不要跳著亂下：</p>
+<pre><code class="language-bash"><span class="c1"># 0. 先看清楚壞在哪</span>
+dpkg<span class="w"> </span>--audit
+dpkg<span class="w"> </span>-l<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-E<span class="w"> </span><span class="s1">&#39;^.[^i ]&#39;</span>
+sudo<span class="w"> </span>tail<span class="w"> </span>-n<span class="w"> </span><span class="m">60</span><span class="w"> </span>/var/log/apt/term.log
+
+<span class="c1"># 1. 只是中途被打斷 / 有套件沒設定完（iU、iF、iT）</span>
+sudo<span class="w"> </span>dpkg<span class="w"> </span>--configure<span class="w"> </span>-a
+
+<span class="c1"># 2. 相依沒滿足（dpkg -i 裝完留下 broken）</span>
+sudo<span class="w"> </span>apt<span class="w"> </span>--fix-broken<span class="w"> </span>install<span class="w">        </span><span class="c1"># 讓 apt 去把缺的相依補上</span>
+
+<span class="c1"># 3. 檔案衝突：trying to overwrite &#39;...&#39;, which is also in package ...</span>
+sudo<span class="w"> </span>dpkg<span class="w"> </span>-i<span class="w"> </span>--force-overwrite<span class="w"> </span>/path/to.deb
+
+<span class="c1"># 4. 某個套件的 postinst 一直失敗、擋住整個 apt</span>
+<span class="c1">#    先看它的腳本在做什麼，再決定是修環境還是移除該套件</span>
+cat<span class="w"> </span>/var/lib/dpkg/info/&lt;pkg&gt;.postinst
+sudo<span class="w"> </span>dpkg<span class="w"> </span>--remove<span class="w"> </span>--force-remove-reinstreq<span class="w"> </span>&lt;pkg&gt;<span class="w">   </span><span class="c1"># 最後手段</span>
+
+<span class="c1"># 5. 被鎖住：Could not get lock /var/lib/dpkg/lock-frontend</span>
+sudo<span class="w"> </span>fuser<span class="w"> </span>-v<span class="w"> </span>/var/lib/dpkg/lock-frontend<span class="w">           </span><span class="c1"># 先看是誰佔著（常是 unattended-upgrades）</span>
+<span class="c1">#    確認沒有 apt/dpkg 在跑，才刪鎖檔</span>
+</code></pre>
+<p><strong>絕對不要看到 lock 錯誤就反射性 <code>rm lock</code></strong>：真有 dpkg 在跑時刪鎖，會讓兩個行程同時寫資料庫，那才是真的救不回來。先 <code>fuser</code> / <code>ps aux | grep -E 'apt|dpkg'</code> 確認。</p>
+<p>實戰案例見 <a href="NVIDIA-DKMS%E6%A0%B8%E5%BF%83%E5%8D%87%E7%B4%9A%E5%A4%B1%E6%95%97%E6%8E%92%E6%9F%A5.html">NVIDIA-DKMS核心升級失敗排查</a>：那次就是 DKMS 的 <code>postinst</code> 編譯失敗 → 套件卡在 <code>iF</code> → 整個 apt 動不了。</p>
+<hr />
+<h2 id="十進階功能">十、進階功能</h2>
+<p><strong>鎖版本（hold）</strong>——不讓某套件被升級，典型用途是固定核心或顯卡驅動版本：</p>
+<pre><code class="language-bash">sudo<span class="w"> </span>apt-mark<span class="w"> </span>hold<span class="w"> </span>nvidia-driver-570<span class="w">      </span><span class="c1"># 建議用法（apt-mark 是 dpkg selections 的包裝）</span>
+apt-mark<span class="w"> </span>showhold
+<span class="nb">echo</span><span class="w"> </span><span class="s1">&#39;foo hold&#39;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>sudo<span class="w"> </span>dpkg<span class="w"> </span>--set-selections<span class="w">    </span><span class="c1"># dpkg 原生寫法</span>
+dpkg<span class="w"> </span>--get-selections<span class="w"> </span>&gt;<span class="w"> </span>pkgs.txt<span class="w">                </span><span class="c1"># 匯出整台機器的套件選擇狀態</span>
+</code></pre>
+<p><strong>轉移檔案（diversion）</strong>——讓某個套件裝出來的檔案改放到別的路徑，原位置換成你自己的版本，而且升級時不會被打回去：</p>
+<pre><code class="language-bash">sudo<span class="w"> </span>dpkg-divert<span class="w"> </span>--add<span class="w"> </span>--rename<span class="w"> </span>--divert<span class="w"> </span>/usr/bin/foo.real<span class="w"> </span>/usr/bin/foo
+dpkg-divert<span class="w"> </span>--list
+</code></pre>
+<p><strong>覆寫權限（statoverride）</strong>——強制某檔案的擁有者／權限，讓套件升級不會把你的設定改回去：</p>
+<pre><code class="language-bash">sudo<span class="w"> </span>dpkg-statoverride<span class="w"> </span>--add<span class="w"> </span>root<span class="w"> </span>shadow<span class="w"> </span><span class="m">4755</span><span class="w"> </span>/usr/bin/foo
+dpkg-statoverride<span class="w"> </span>--list
+</code></pre>
+<p><strong>裝到別的根目錄</strong>——做 chroot／容器映像時用：</p>
+<pre><code class="language-bash">sudo<span class="w"> </span>dpkg<span class="w"> </span>--root<span class="o">=</span>/mnt/target<span class="w"> </span>-i<span class="w"> </span>foo.deb<span class="w">      </span><span class="c1"># 連同維護腳本都在該 root 底下跑</span>
+sudo<span class="w"> </span>dpkg<span class="w"> </span>--instdir<span class="o">=</span>/mnt/target<span class="w"> </span>-i<span class="w"> </span>foo.deb<span class="w">   </span><span class="c1"># 只改檔案安裝位置，腳本仍在本機跑</span>
+</code></pre>
+<p><strong>多架構（multi-arch）</strong>——套件名後面的 <code>:amd64</code>、<code>:i386</code> 就是架構標記：</p>
+<pre><code class="language-bash">dpkg<span class="w"> </span>--print-architecture<span class="w">            </span><span class="c1"># 主架構</span>
+dpkg<span class="w"> </span>--print-foreign-architectures<span class="w">   </span><span class="c1"># 額外允許的架構</span>
+sudo<span class="w"> </span>dpkg<span class="w"> </span>--add-architecture<span class="w"> </span>i386<span class="w">    </span><span class="c1"># 加了之後要 apt update 才有效</span>
+dpkg<span class="w"> </span>-l<span class="w"> </span><span class="s1">&#39;libnvidia-compute*&#39;</span><span class="w">         </span><span class="c1"># 輸出會看到 libnvidia-compute-550:amd64</span>
+</code></pre>
+<hr />
+<h2 id="完整指令與選項清單">完整指令與選項清單</h2>
+<p>前面各節只挑了日常會用到的。<strong>以下是本機 <code>dpkg --help</code> / <code>dpkg-deb --help</code> /
+<code>dpkg-query --help</code> / <code>dpkg --force-help</code> 的完整內容</strong>（dpkg 1.22.6），免得你以為那就是全部。</p>
+<h3 id="dpkg-的動作commands"><code>dpkg</code> 的動作（Commands）</h3>
+<p><strong>安裝與移除</strong></p>
+<table>
+<thead>
+<tr>
+<th>動作</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-i</code> <code>--install &lt;deb&gt;</code></td>
+<td>解檔 + 設定</td>
+</tr>
+<tr>
+<td><code>--unpack &lt;deb&gt;</code></td>
+<td><strong>只解檔不設定</strong></td>
+</tr>
+<tr>
+<td><code>-A</code> <code>--record-avail &lt;deb&gt;</code></td>
+<td>只記錄可用版本資訊，不安裝</td>
+</tr>
+<tr>
+<td><code>-R</code> <code>--recursive &lt;目錄&gt;</code></td>
+<td>遞迴處理目錄下所有 <code>.deb</code>（配合上面三個）</td>
+</tr>
+<tr>
+<td><code>--configure &lt;pkg&gt;</code> | <code>-a</code>|<code>--pending</code></td>
+<td>設定已解檔的套件；<code>-a</code> 是<strong>全部待處理的</strong></td>
+</tr>
+<tr>
+<td><code>--triggers-only &lt;pkg&gt;</code> | <code>-a</code></td>
+<td>只處理觸發器</td>
+</tr>
+<tr>
+<td><code>-r</code> <code>--remove &lt;pkg&gt;</code> | <code>-a</code></td>
+<td>移除，保留設定檔</td>
+</tr>
+<tr>
+<td><code>-P</code> <code>--purge &lt;pkg&gt;</code> | <code>-a</code></td>
+<td>徹底清除，含設定檔</td>
+</tr>
+</tbody>
+</table>
+<p><strong>查詢</strong></p>
+<table>
+<thead>
+<tr>
+<th>動作</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-l</code> <code>--list [pattern]</code></td>
+<td>列出套件與狀態</td>
+</tr>
+<tr>
+<td><code>-s</code> <code>--status [pkg]</code></td>
+<td>詳細狀態</td>
+</tr>
+<tr>
+<td><code>-p</code> <code>--print-avail [pkg]</code></td>
+<td>可用版本的詳細資訊</td>
+</tr>
+<tr>
+<td><code>-L</code> <code>--listfiles &lt;pkg&gt;</code></td>
+<td>該套件裝了哪些檔案</td>
+</tr>
+<tr>
+<td><code>-S</code> <code>--search &lt;pattern&gt;</code></td>
+<td>哪個套件擁有這個檔案</td>
+</tr>
+<tr>
+<td><code>-V</code> <code>--verify [pkg]</code></td>
+<td><strong>驗證檔案完整性</strong>（與安裝時的 md5 比對）</td>
+</tr>
+<tr>
+<td><code>-C</code> <code>--audit [pkg]</code></td>
+<td>列出狀態異常的套件</td>
+</tr>
+<tr>
+<td><code>--yet-to-unpack</code></td>
+<td>已選擇安裝但尚未解檔的</td>
+</tr>
+<tr>
+<td><code>--predep-package</code></td>
+<td>印出需要先解檔的前置相依</td>
+</tr>
+</tbody>
+</table>
+<p><strong>選擇狀態（selections）</strong></p>
+<table>
+<thead>
+<tr>
+<th>動作</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--get-selections [pattern]</code></td>
+<td>匯出套件選擇狀態</td>
+</tr>
+<tr>
+<td><code>--set-selections</code></td>
+<td>從 stdin 匯入</td>
+</tr>
+<tr>
+<td><code>--clear-selections</code></td>
+<td>把所有非 essential 套件標成不選</td>
+</tr>
+</tbody>
+</table>
+<p><strong>可用套件資料庫（available）</strong></p>
+<table>
+<thead>
+<tr>
+<th>動作</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--update-avail [Packages]</code></td>
+<td>取代 available 資訊</td>
+</tr>
+<tr>
+<td><code>--merge-avail [Packages]</code></td>
+<td>合併</td>
+</tr>
+<tr>
+<td><code>--clear-avail</code></td>
+<td>清空</td>
+</tr>
+<tr>
+<td><code>--forget-old-unavail</code></td>
+<td>忘掉已移除且不再可用的套件</td>
+</tr>
+</tbody>
+</table>
+<p><strong>架構與其他</strong></p>
+<table>
+<thead>
+<tr>
+<th>動作</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--add-architecture &lt;arch&gt;</code> / <code>--remove-architecture &lt;arch&gt;</code></td>
+<td>增減外來架構</td>
+</tr>
+<tr>
+<td><code>--print-architecture</code> / <code>--print-foreign-architectures</code></td>
+<td>印出主架構／外來架構</td>
+</tr>
+<tr>
+<td><code>--compare-versions &lt;a&gt; &lt;op&gt; &lt;b&gt;</code></td>
+<td><strong>比較版本號</strong>（運算子：<code>lt le eq ne ge gt</code>）；腳本判斷版本很好用</td>
+</tr>
+<tr>
+<td><code>--assert-&lt;feature&gt;</code> / <code>--assert-help</code></td>
+<td>斷言 dpkg 是否支援某功能</td>
+</tr>
+<tr>
+<td><code>--validate-&lt;thing&gt; &lt;字串&gt;</code></td>
+<td>驗證字串格式（套件名、版本號等）</td>
+</tr>
+<tr>
+<td><code>--force-help</code> / <code>-Dh</code>、<code>--debug=help</code></td>
+<td>顯示 force／除錯的說明</td>
+</tr>
+</tbody>
+</table>
+<h3 id="dpkg-的選項options"><code>dpkg</code> 的選項（Options）</h3>
+<table>
+<thead>
+<tr>
+<th>選項</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--admindir=&lt;目錄&gt;</code></td>
+<td>換掉資料庫位置（預設 <code>/var/lib/dpkg</code>）</td>
+</tr>
+<tr>
+<td><code>--root=&lt;目錄&gt;</code></td>
+<td><strong>安裝到另一個根目錄</strong>（連維護腳本都在該 root 下跑）</td>
+</tr>
+<tr>
+<td><code>--instdir=&lt;目錄&gt;</code></td>
+<td>只改檔案安裝位置，腳本仍在本機跑</td>
+</tr>
+<tr>
+<td><code>--pre-invoke=&lt;指令&gt;</code> / <code>--post-invoke=&lt;指令&gt;</code></td>
+<td>前／後置掛鉤</td>
+</tr>
+<tr>
+<td><code>--path-exclude=&lt;pattern&gt;</code> / <code>--path-include=&lt;pattern&gt;</code></td>
+<td><strong>排除／重新納入</strong>符合樣式的路徑（做精簡容器映像常用）</td>
+</tr>
+<tr>
+<td><code>-O</code> <code>--selected-only</code></td>
+<td>跳過未被選擇安裝的套件</td>
+</tr>
+<tr>
+<td><code>-E</code> <code>--skip-same-version</code></td>
+<td>跳過版本相同的</td>
+</tr>
+<tr>
+<td><code>-G</code> <code>--refuse-downgrade</code></td>
+<td>跳過版本較舊的</td>
+</tr>
+<tr>
+<td><code>-B</code> <code>--auto-deconfigure</code></td>
+<td>即使會弄壞別的套件也照裝</td>
+</tr>
+<tr>
+<td><code>--[no-]triggers</code></td>
+<td>略過或強制處理觸發器</td>
+</tr>
+<tr>
+<td><code>--verify-format=&lt;格式&gt;</code></td>
+<td><code>-V</code> 的輸出格式（目前支援 <code>rpm</code>）</td>
+</tr>
+<tr>
+<td><code>--no-pager</code></td>
+<td>不使用分頁器</td>
+</tr>
+<tr>
+<td><code>--no-debsig</code></td>
+<td>不驗證套件簽章</td>
+</tr>
+<tr>
+<td><strong><code>--no-act</code>／<code>--dry-run</code>／<code>--simulate</code></strong></td>
+<td><strong>只說會做什麼，不實際執行</strong> ← 動手前先跑這個</td>
+</tr>
+<tr>
+<td><code>-D</code> <code>--debug=&lt;八進位&gt;</code></td>
+<td>除錯輸出</td>
+</tr>
+<tr>
+<td><code>--status-fd &lt;n&gt;</code> / <code>--status-logger=&lt;指令&gt;</code></td>
+<td>把狀態變更送到 fd／指令（前端工具用）</td>
+</tr>
+<tr>
+<td><code>--log=&lt;檔案&gt;</code></td>
+<td>指定 log 位置（預設 <code>/var/log/dpkg.log</code>）</td>
+</tr>
+<tr>
+<td><code>--ignore-depends=&lt;pkg&gt;[,...]</code></td>
+<td>忽略牽涉到指定套件的相依</td>
+</tr>
+<tr>
+<td><code>--force-&lt;thing&gt;[,...]</code></td>
+<td>強制（見下）</td>
+</tr>
+<tr>
+<td><code>--no-force-&lt;thing&gt;</code> / <code>--refuse-&lt;thing&gt;</code></td>
+<td>反向：遇到問題就停</td>
+</tr>
+<tr>
+<td><code>--abort-after &lt;n&gt;</code></td>
+<td>遇到 n 個錯誤就中止（預設 50）</td>
+</tr>
+<tr>
+<td><code>--robot</code></td>
+<td>部分指令改用機器可讀輸出</td>
+</tr>
+</tbody>
+</table>
+<h3 id="--force-thing-完整清單"><code>--force-&lt;thing&gt;</code> 完整清單</h3>
+<p><code>[!]</code> = <strong>官方警告「可能嚴重損壞系統」</strong>；<code>[*]</code> = 預設已啟用。本機目前啟用的是 <code>security-mac,downgrade</code>。</p>
+<table>
+<thead>
+<tr>
+<th>名稱</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>[!] all</code></td>
+<td>開啟<strong>所有</strong> force 選項</td>
+</tr>
+<tr>
+<td><code>[*] security-mac</code></td>
+<td>盡可能使用 MAC 安全機制</td>
+</tr>
+<tr>
+<td><code>[*] downgrade</code></td>
+<td>允許降版</td>
+</tr>
+<tr>
+<td><code>configure-any</code></td>
+<td>為了滿足需求，設定任何可能有幫助的套件</td>
+</tr>
+<tr>
+<td><code>hold</code></td>
+<td>即使被 hold 也照樣處理</td>
+</tr>
+<tr>
+<td><code>not-root</code></td>
+<td>非 root 也嘗試安裝／移除</td>
+</tr>
+<tr>
+<td><code>bad-path</code></td>
+<td>PATH 缺少重要程式仍繼續</td>
+</tr>
+<tr>
+<td><code>bad-verify</code></td>
+<td>驗證失敗仍安裝</td>
+</tr>
+<tr>
+<td><code>bad-version</code></td>
+<td>版本號有問題仍處理</td>
+</tr>
+<tr>
+<td><code>statoverride-add</code> / <code>statoverride-remove</code></td>
+<td>覆寫既有／忽略不存在的 statoverride</td>
+</tr>
+<tr>
+<td><strong><code>overwrite</code></strong></td>
+<td><strong>覆寫屬於其他套件的檔案</strong> ← 解 <code>trying to overwrite</code> 用這個</td>
+</tr>
+<tr>
+<td><code>overwrite-diverted</code></td>
+<td>用未轉移版本覆寫已 divert 的檔案</td>
+</tr>
+<tr>
+<td><code>[!] overwrite-dir</code></td>
+<td>用檔案覆寫其他套件的目錄</td>
+</tr>
+<tr>
+<td><code>[!] unsafe-io</code></td>
+<td>解檔時不做安全 I/O（快但斷電會壞）</td>
+</tr>
+<tr>
+<td><code>[!] script-chrootless</code></td>
+<td>維護腳本不 chroot</td>
+</tr>
+<tr>
+<td><code>[!] confnew</code> / <code>confold</code> / <code>confdef</code></td>
+<td>設定檔衝突時一律用新版／舊版／預設答案</td>
+</tr>
+<tr>
+<td><code>[!] confmiss</code></td>
+<td>永遠補上缺少的設定檔</td>
+</tr>
+<tr>
+<td><code>[!] confask</code></td>
+<td>即使沒有新版也詢問是否取代設定檔</td>
+</tr>
+<tr>
+<td><code>[!] architecture</code></td>
+<td>架構錯誤或缺架構仍處理</td>
+</tr>
+<tr>
+<td><code>[!] breaks</code></td>
+<td>即使會 break 其他套件仍安裝</td>
+</tr>
+<tr>
+<td><code>[!] conflicts</code></td>
+<td>允許安裝互相衝突的套件</td>
+</tr>
+<tr>
+<td><code>[!] depends</code></td>
+<td>所有相依問題降級為警告</td>
+</tr>
+<tr>
+<td><code>[!] depends-version</code></td>
+<td>只把相依的<strong>版本</strong>問題降級為警告</td>
+</tr>
+<tr>
+<td><code>[!] remove-reinstreq</code></td>
+<td>移除標記為必須重裝的套件</td>
+</tr>
+<tr>
+<td><code>[!] remove-protected</code></td>
+<td>移除受保護的套件</td>
+</tr>
+<tr>
+<td><code>[!] remove-essential</code></td>
+<td><strong>移除 essential 套件</strong>（幾乎等於毀掉系統）</td>
+</tr>
+</tbody>
+</table>
+<h3 id="dpkg-deb-完整動作與選項"><code>dpkg-deb</code> 完整動作與選項</h3>
+<table>
+<thead>
+<tr>
+<th>動作</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-b</code> <code>--build &lt;目錄&gt; [deb]</code></td>
+<td>把目錄打包成 <code>.deb</code></td>
+</tr>
+<tr>
+<td><code>-c</code> <code>--contents &lt;deb&gt;</code></td>
+<td>列出內含檔案</td>
+</tr>
+<tr>
+<td><code>-I</code> <code>--info &lt;deb&gt; [檔]</code></td>
+<td>顯示 control 資訊</td>
+</tr>
+<tr>
+<td><code>-W</code> <code>--show &lt;deb&gt;</code></td>
+<td>顯示套件資訊（可配 <code>--showformat</code>）</td>
+</tr>
+<tr>
+<td><code>-f</code> <code>--field &lt;deb&gt; [欄位]</code></td>
+<td>只印出指定欄位</td>
+</tr>
+<tr>
+<td><code>-e</code> <code>--control &lt;deb&gt; [目錄]</code></td>
+<td>解出 control 目錄（<strong>維護腳本在這裡</strong>）</td>
+</tr>
+<tr>
+<td><code>-x</code> <code>--extract &lt;deb&gt; &lt;目錄&gt;</code></td>
+<td>解出檔案</td>
+</tr>
+<tr>
+<td><code>-X</code> <code>--vextract &lt;deb&gt; &lt;目錄&gt;</code></td>
+<td>解出並列出</td>
+</tr>
+<tr>
+<td><code>-R</code> <code>--raw-extract &lt;deb&gt; &lt;目錄&gt;</code></td>
+<td>control 與檔案都解出</td>
+</tr>
+<tr>
+<td><code>--ctrl-tarfile &lt;deb&gt;</code> / <code>--fsys-tarfile &lt;deb&gt;</code></td>
+<td>直接輸出兩個 tar</td>
+</tr>
+</tbody>
+</table>
+<table>
+<thead>
+<tr>
+<th>選項</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-v</code> <code>--verbose</code> / <code>-D</code> <code>--debug</code></td>
+<td>囉嗦／除錯</td>
+</tr>
+<tr>
+<td><code>--showformat=&lt;格式&gt;</code></td>
+<td><code>--show</code> 的輸出格式</td>
+</tr>
+<tr>
+<td><code>--deb-format=&lt;格式&gt;</code></td>
+<td>封存格式（<code>2.0</code> 預設 / <code>0.939000</code>）</td>
+</tr>
+<tr>
+<td><code>--nocheck</code></td>
+<td>建置時跳過 control 檢查</td>
+</tr>
+<tr>
+<td><code>--root-owner-group</code></td>
+<td>強制檔案擁有者為 root（<strong>無 root 建置可重現套件時必用</strong>）</td>
+</tr>
+</tbody>
+</table>
+<h3 id="dpkg-query-完整動作與選項"><code>dpkg-query</code> 完整動作與選項</h3>
+<table>
+<thead>
+<tr>
+<th>動作</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-s</code> <code>-p</code> <code>-L</code> <code>-l</code> <code>-S</code></td>
+<td>同 dpkg 的對應動作</td>
+</tr>
+<tr>
+<td><code>-W</code> <code>--show [pattern]</code></td>
+<td><strong>可自訂輸出格式</strong>，腳本用</td>
+</tr>
+<tr>
+<td><code>--control-list &lt;pkg&gt;</code></td>
+<td>列出該套件的 control 檔案清單</td>
+</tr>
+<tr>
+<td><code>--control-show &lt;pkg&gt; &lt;檔&gt;</code></td>
+<td>印出某個 control 檔內容（<strong>不用去翻 <code>/var/lib/dpkg/info</code></strong>）</td>
+</tr>
+<tr>
+<td><code>-c</code> <code>--control-path &lt;pkg&gt; [檔]</code></td>
+<td>印出 control 檔的路徑</td>
+</tr>
+</tbody>
+</table>
+<table>
+<thead>
+<tr>
+<th>選項</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--admindir</code> / <code>--root</code></td>
+<td>同 dpkg</td>
+</tr>
+<tr>
+<td><code>--load-avail</code></td>
+<td><code>--show</code>／<code>--list</code> 時一併讀 available 檔</td>
+</tr>
+<tr>
+<td><code>--no-pager</code></td>
+<td>不分頁</td>
+</tr>
+<tr>
+<td><code>-f</code> <code>--showformat=&lt;格式&gt;</code></td>
+<td>輸出格式（支援 <code>\n</code>、<code>\t</code> 等跳脫與 <code>${欄位}</code>）</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="十一速查表">十一、速查表</h2>
+<pre><code class="language-bash"><span class="c1"># --- 安裝 / 移除 ---</span>
+sudo<span class="w"> </span>dpkg<span class="w"> </span>-i<span class="w"> </span>foo.deb<span class="w">                 </span><span class="c1"># 安裝（不解相依，失敗後用 apt --fix-broken install 收尾）</span>
+sudo<span class="w"> </span>dpkg<span class="w"> </span>-r<span class="w"> </span>foo<span class="w">                     </span><span class="c1"># 移除，保留設定檔（狀態變 rc）</span>
+sudo<span class="w"> </span>dpkg<span class="w"> </span>-P<span class="w"> </span>foo<span class="w">                     </span><span class="c1"># 徹底清除，含設定檔</span>
+sudo<span class="w"> </span>dpkg<span class="w"> </span>--unpack<span class="w"> </span>foo.deb<span class="w">           </span><span class="c1"># 只解檔不設定</span>
+sudo<span class="w"> </span>dpkg<span class="w"> </span>--configure<span class="w"> </span>-a<span class="w">             </span><span class="c1"># 把所有沒設定完的套件補跑完 ← 最常用的修復</span>
+
+<span class="c1"># --- 查詢 ---</span>
+dpkg<span class="w"> </span>-l<span class="w"> </span><span class="s1">&#39;pattern*&#39;</span><span class="w">                   </span><span class="c1"># 列出套件與狀態（人看的）</span>
+dpkg<span class="w"> </span>-s<span class="w"> </span>foo<span class="w">                          </span><span class="c1"># 單一套件詳細狀態</span>
+dpkg<span class="w"> </span>-L<span class="w"> </span>foo<span class="w">                          </span><span class="c1"># 這個套件裝了哪些檔案</span>
+dpkg<span class="w"> </span>-S<span class="w"> </span>/usr/bin/foo<span class="w">                 </span><span class="c1"># 這個檔案屬於哪個套件</span>
+dpkg<span class="w"> </span>-V<span class="w"> </span>foo<span class="w">                          </span><span class="c1"># 驗證檔案有沒有被改過 / 不見</span>
+dpkg<span class="w"> </span>--audit<span class="w">                         </span><span class="c1"># 列出處於異常狀態的套件</span>
+dpkg-query<span class="w"> </span>-W<span class="w"> </span>-f<span class="o">=</span><span class="s1">&#39;${Package} ${Version}\n&#39;</span><span class="w">    </span><span class="c1"># 腳本用的輸出（不會被截斷）</span>
+
+<span class="c1"># --- 還沒安裝的 .deb ---</span>
+dpkg-deb<span class="w"> </span>-I<span class="w"> </span>foo.deb<span class="w">                  </span><span class="c1"># 中繼資料</span>
+dpkg-deb<span class="w"> </span>-c<span class="w"> </span>foo.deb<span class="w">                  </span><span class="c1"># 內含檔案清單</span>
+dpkg-deb<span class="w"> </span>-x<span class="w"> </span>foo.deb<span class="w"> </span>/tmp/out<span class="w">         </span><span class="c1"># 解到指定目錄（不動系統）</span>
+dpkg-deb<span class="w"> </span>-e<span class="w"> </span>foo.deb<span class="w"> </span>/tmp/ctrl<span class="w">        </span><span class="c1"># 解出維護腳本來讀</span>
+
+<span class="c1"># --- 資料與日誌 ---</span>
+ls<span class="w"> </span>/var/lib/dpkg/info/foo.*<span class="w">          </span><span class="c1"># list / md5sums / conffiles / 四個維護腳本</span>
+grep<span class="w"> </span><span class="s1">&#39;YYYY-MM-DD&#39;</span><span class="w"> </span>/var/log/dpkg.log<span class="w">  </span><span class="c1"># 套件操作時間軸</span>
+sudo<span class="w"> </span>tail<span class="w"> </span>-n<span class="w"> </span><span class="m">60</span><span class="w"> </span>/var/log/apt/term.log
+
+<span class="c1"># --- 其他 ---</span>
+sudo<span class="w"> </span>apt-mark<span class="w"> </span>hold<span class="w"> </span>foo<span class="w">               </span><span class="c1"># 鎖版本</span>
+dpkg<span class="w"> </span>--get-selections<span class="w"> </span>&gt;<span class="w"> </span>pkgs.txt<span class="w">     </span><span class="c1"># 匯出套件選擇</span>
+dpkg<span class="w"> </span>--print-architecture<span class="w">            </span><span class="c1"># 主架構</span>
+dpkg<span class="w"> </span>--force-help<span class="w">                    </span><span class="c1"># 看所有 --force-* 的意思</span>
+</code></pre>
+<hr />
+<h2 id="自我測驗">自我測驗</h2>
+<ol>
+<li><code>dpkg -i foo.deb</code> 失敗並說相依沒滿足，為什麼 dpkg 不自己去把缺的套件裝上？這個分工邊界告訴你之後該下哪個指令收尾？</li>
+<li>安裝為什麼要拆成 unpack 和 configure 兩階段？如果只有一階段，同時安裝一批互相依賴的套件會遇到什麼問題？</li>
+<li><code>dpkg -l</code> 顯示某套件是 <code>ii</code>，但你執行它卻說 command not found。這代表什麼？要用什麼指令證實你的判斷？</li>
+<li>你手動改過 <code>/etc/ssh/sshd_config</code>，升級 <code>openssh-server</code> 時跳出「要用新版還是保留舊版」的選單；但另一個套件同樣被你改過設定，升級後卻直接被覆蓋、什麼都沒問。兩者差在哪？</li>
+<li>情境題：某次 <code>apt upgrade</code> 中途斷電，重開機後任何 apt 指令都報錯，<code>dpkg -l</code> 裡有幾個套件是 <code>iU</code>、一個是 <code>iF</code>。請描述你的處理順序，並說明為什麼不該一開始就用 <code>--force-*</code>。</li>
+</ol>
+
+</main>
+</div>
+</body>
+</html>

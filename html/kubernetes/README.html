@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kubernetes 筆記索引</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/app.js"></script>
+</head>
+<body>
+<button class="menu-btn" onclick="toggleMenu()">☰ 目錄</button>
+<div class="layout">
+<nav class="side">
+<div class="crumbs"><a href="../index.html">🏠 首頁</a> / kubernetes</div>
+<div class="tools"><button onclick="toggleTheme()">🌓 主題</button></div>
+<ul>
+<li class="l2"><a href="#%E7%AD%86%E8%A8%98%E5%88%97%E8%A1%A8">筆記列表</a></li>
+<li class="l2"><a href="#%E5%B8%B8%E7%94%A8%E8%A8%BA%E6%96%B7%E5%91%BD%E4%BB%A4%E9%80%9F%E6%9F%A5%E8%B7%A8%E7%AD%86%E8%A8%98%E9%80%9A%E7%94%A8">常用診斷命令速查（跨筆記通用）</a></li>
+</ul>
+</nav>
+<main>
+<h1 id="kubernetes-筆記索引">Kubernetes 筆記索引</h1>
+<p>這個目錄收錄 Kubernetes（K8s，容器編排平台 container orchestration）的架構理解、運作原理與排查紀錄。從「有哪些組件」到「一個請求怎麼走到 Pod」，四篇合起來是一條完整的學習路徑，建議照表格順序讀。</p>
+<h2 id="筆記列表">筆記列表</h2>
+<table>
+<thead>
+<tr>
+<th>筆記</th>
+<th>主題</th>
+<th>關鍵字</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="k8s%E6%9E%B6%E6%A7%8B%E7%B8%BD%E8%A6%BD-%E6%8E%A7%E5%88%B6%E5%B9%B3%E9%9D%A2%E8%88%87%E7%AF%80%E9%BB%9E%E7%B5%84%E4%BB%B6.html">k8s架構總覽-控制平面與節點組件</a></td>
+<td>K8s 的本質是「一個共用資料庫 etcd + 一群各自盯著它做事的迴圈」，所有組件只跟 API Server 講話、彼此從不直接呼叫；逐一拆解控制平面（etcd／apiserver／scheduler／controller-manager／cloud-controller-manager）與節點組件（kubelet／containerd／kube-proxy）的職責，並用「哪個組件掛掉會怎樣」的對照表反推各自的責任邊界</td>
+<td><code>etcd</code> <code>kube-apiserver</code> <code>kube-scheduler</code> <code>kube-controller-manager</code> <code>kubelet</code> <code>kube-proxy</code> <code>CRI</code> <code>CNI</code> <code>CSI</code> <code>containerd</code> <code>CoreDNS</code> <code>leader election</code> <code>static pod</code> <code>crictl</code> <code>control plane</code> <code>hub-and-spoke</code></td>
+</tr>
+<tr>
+<td><a href="%E5%AE%A3%E5%91%8A%E5%BC%8FAPI%E8%88%87%E6%8E%A7%E5%88%B6%E5%99%A8%E8%AA%BF%E8%AB%A7%E8%BF%B4%E5%9C%88.html">宣告式API與控制器調諧迴圈</a></td>
+<td>控制器的內部運作：<code>spec</code>／<code>status</code> 的分工、調諧迴圈為何必須冪等、<strong>水平觸發（level-triggered）而非邊緣觸發</strong>才是自我修復的根源；並解釋 list-watch／Informer／workqueue、<code>resourceVersion</code> 樂觀併發、<code>ownerReferences</code> 級聯刪除與 finalizer 卡住的成因、<code>apply</code> 三方合併為何不同於 <code>replace</code></td>
+<td><code>declarative API</code> <code>reconcile loop</code> <code>level-triggered</code> <code>edge-triggered</code> <code>list-watch</code> <code>informer</code> <code>workqueue</code> <code>resync</code> <code>resourceVersion</code> <code>409 Conflict</code> <code>optimistic concurrency</code> <code>ownerReferences</code> <code>finalizer</code> <code>Terminating</code> <code>three-way merge</code> <code>server-side apply</code> <code>CRD</code> <code>Operator</code></td>
+</tr>
+<tr>
+<td><a href="%E5%BE%9Ekubectl-apply%E5%88%B0Pod%E9%81%8B%E8%A1%8C%E7%9A%84%E5%AE%8C%E6%95%B4%E6%B5%81%E7%A8%8B.html">從kubectl-apply到Pod運行的完整流程</a></td>
+<td>一次 <code>kubectl apply</code> 的完整時間軸：API Server 的六道請求管線（認證→授權→mutating→驗證→validating→etcd）、Deployment→ReplicaSet→Pod 的接力、scheduler 的過濾與評分、kubelet 建 pause sandbox 與呼叫 CNI／CSI、探針與 status 回寫、最後才進 EndpointSlice；另含刪除時「移出流量」與「SIGTERM」的競態與 <code>preStop</code> 解法、滾動更新原理、以及「Pod 狀態 → 該查哪一棒」的排查對照表</td>
+<td><code>admission webhook</code> <code>mutating</code> <code>validating</code> <code>RBAC</code> <code>pod-template-hash</code> <code>Binding</code> <code>spec.nodeName</code> <code>pause container</code> <code>sandbox</code> <code>ContainerCreating</code> <code>ImagePullBackOff</code> <code>CrashLoopBackOff</code> <code>Pending</code> <code>livenessProbe</code> <code>readinessProbe</code> <code>preStop</code> <code>terminationGracePeriodSeconds</code> <code>maxSurge</code> <code>maxUnavailable</code> <code>rollout undo</code></td>
+</tr>
+<tr>
+<td><a href="Service%E8%88%87%E5%B0%81%E5%8C%85%E8%B7%AF%E5%BE%91-ClusterIP%E6%80%8E%E9%BA%BC%E8%B5%B0%E5%88%B0Pod.html">Service與封包路徑-ClusterIP怎麼走到Pod</a></td>
+<td>ClusterIP 不存在於任何網卡上，它只是每台節點核心裡一條 DNAT 規則的觸發條件——由此推導出 ping 不通卻 curl 得通、負載平衡在發起端節點就完成、長連線永遠黏在同一個 Pod；另含逐跳封包追蹤與回程反向 NAT 對 conntrack 的依賴、iptables／IPVS／eBPF 取捨、<code>ndots:5</code> 拖慢外部 DNS、<code>externalTrafficPolicy</code> 與來源 IP 遺失、NetworkPolicy 在 Flannel 上靜默失效</td>
+<td><code>ClusterIP</code> <code>DNAT</code> <code>conntrack</code> <code>kube-proxy</code> <code>iptables</code> <code>IPVS</code> <code>eBPF</code> <code>EndpointSlice</code> <code>selector</code> <code>headless service</code> <code>CoreDNS</code> <code>ndots</code> <code>search domain</code> <code>NodePort</code> <code>LoadBalancer</code> <code>Ingress</code> <code>externalTrafficPolicy</code> <code>SNAT</code> <code>NetworkPolicy</code> <code>VXLAN</code> <code>MTU</code> <code>veth</code></td>
+</tr>
+<tr>
+<td><a href="%E6%9C%AC%E5%9C%B0%E7%8E%A9K8s%E8%A6%81%E5%85%88%E9%96%8B%E8%99%9B%E6%93%AC%E6%A9%9F%E5%97%8E-kind-k3s-minikube%E6%80%8E%E9%BA%BC%E9%81%B8.html">本地玩K8s要先開虛擬機嗎-kind-k3s-minikube怎麼選</a></td>
+<td>Linux 上不必開 VM：K8s 節點要的是核心功能（cgroup／namespace／netfilter）而非一台機器，kind 把節點做成容器即可；只有實驗對象涉及核心本身（模組、全域 sysctl、核心版本、kubeadm 從零安裝）才需要 VM；macOS／Windows 的 Docker Desktop 本身就藏著一台 VM；另含 kind 的 proxy、本地映像檔、LoadBalancer pending 等坑</td>
+<td><code>kind</code> <code>k3s</code> <code>k3d</code> <code>minikube</code> <code>VM</code> <code>kubeadm</code> <code>kindest/node</code> <code>kind load docker-image</code> <code>imagePullPolicy</code> <code>cloud-provider-kind</code> <code>MetalLB</code> <code>HTTP_PROXY</code> <code>inotify</code> <code>br_netfilter</code> <code>network namespace</code> <code>Docker Desktop</code></td>
+</tr>
+<tr>
+<td><a href="%E7%94%A8VM%E8%88%87kubeadm%E5%BE%9E%E9%9B%B6%E6%9E%B6%E8%A8%ADK8s%E5%8F%A2%E9%9B%86.html">用VM與kubeadm從零架設K8s叢集</a></td>
+<td>multipass 開 3 台 VM、kubeadm + containerd + Calico 架完整叢集；每一步對應哪個組件的前提：swap、<code>br_netfilter</code>／<code>ip_forward</code> 給 kube-proxy 與 CNI、<code>SystemdCgroup</code> 讓 containerd 與 kubelet 的 cgroup driver 一致、<code>init</code> 各階段把控制平面做成 static Pod、沒裝 CNI 前節點一定 <code>NotReady</code>；另含 Calico 預設 <code>192.168.0.0/16</code> 蓋掉家用 LAN、VirtualBox 節點 IP 重複、IP 變動讓憑證失效、proxy 的 <code>NO_PROXY</code> 要含叢集網段等坑</td>
+<td><code>kubeadm init</code> <code>kubeadm join</code> <code>kubeadm reset</code> <code>multipass</code> <code>containerd</code> <code>SystemdCgroup</code> <code>cgroup driver</code> <code>br_netfilter</code> <code>bridge-nf-call-iptables</code> <code>ip_forward</code> <code>swap</code> <code>pod-network-cidr</code> <code>Calico</code> <code>tigera-operator</code> <code>NotReady</code> <code>static Pod</code> <code>/etc/kubernetes/pki</code> <code>bootstrap token</code> <code>discovery-token-ca-cert-hash</code> <code>apt-mark hold</code> <code>version skew</code> <code>NO_PROXY</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="常用診斷命令速查跨筆記通用">常用診斷命令速查（跨筆記通用）</h2>
+<pre><code class="language-bash"><span class="c1"># 排查三連招（順序不要換）</span>
+kubectl<span class="w"> </span>describe<span class="w"> </span>pod<span class="w"> </span>&lt;name&gt;<span class="w">                                     </span><span class="c1"># Events 在最下面，九成答案在這</span>
+kubectl<span class="w"> </span>logs<span class="w"> </span>&lt;name&gt;<span class="w"> </span>--previous<span class="w">                                  </span><span class="c1"># 上一次崩潰的 log 才是真正原因</span>
+kubectl<span class="w"> </span>get<span class="w"> </span>events<span class="w"> </span>-n<span class="w"> </span>&lt;ns&gt;<span class="w"> </span>--sort-by<span class="o">=</span>.lastTimestamp<span class="w"> </span><span class="p">|</span><span class="w"> </span>tail<span class="w"> </span>-30<span class="w">   </span><span class="c1"># 全域時間軸</span>
+
+<span class="c1"># 定位「接力斷在哪一棒」</span>
+kubectl<span class="w"> </span>get<span class="w"> </span>deploy,rs,pod<span class="w"> </span>-l<span class="w"> </span><span class="nv">app</span><span class="o">=</span>&lt;name&gt;<span class="w">       </span><span class="c1"># 有沒有生出下一層</span>
+kubectl<span class="w"> </span>get<span class="w"> </span>pod<span class="w"> </span>&lt;name&gt;<span class="w"> </span>-o<span class="w"> </span><span class="nv">jsonpath</span><span class="o">=</span><span class="s1">&#39;{.spec.nodeName}&#39;</span><span class="w">   </span><span class="c1"># 空的 = 還沒排程，問題在 scheduler</span>
+kubectl<span class="w"> </span>get<span class="w"> </span>endpointslice<span class="w"> </span>-l<span class="w"> </span>kubernetes.io/service-name<span class="o">=</span>&lt;svc&gt;<span class="w">   </span><span class="c1"># 空的 = selector 對不上</span>
+
+<span class="c1"># 網路排查（第 ③ 步是分水嶺：切開網路層與應用層）</span>
+kubectl<span class="w"> </span>run<span class="w"> </span>tmp<span class="w"> </span>--rm<span class="w"> </span>-it<span class="w"> </span>--image<span class="o">=</span>nicolaka/netshoot<span class="w"> </span>--<span class="w"> </span>curl<span class="w"> </span>-sv<span class="w"> </span>&lt;podIP&gt;:&lt;targetPort&gt;
+kubectl<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>&lt;pod&gt;<span class="w"> </span>--<span class="w"> </span>ss<span class="w"> </span>-tlnp<span class="w">                </span><span class="c1"># 應用是不是只聽 127.0.0.1</span>
+iptables<span class="w"> </span>-t<span class="w"> </span>nat<span class="w"> </span>-L<span class="w"> </span>KUBE-SERVICES<span class="w"> </span>-n<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>&lt;clusterIP&gt;
+ipvsadm<span class="w"> </span>-Ln<span class="w">                                   </span><span class="c1"># IPVS 模式</span>
+
+<span class="c1"># 節點層級（在節點上執行，繞過 K8s 的對照組）</span>
+systemctl<span class="w"> </span>status<span class="w"> </span>kubelet<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>journalctl<span class="w"> </span>-u<span class="w"> </span>kubelet<span class="w"> </span>-f
+crictl<span class="w"> </span>ps<span class="w"> </span>-a<span class="w">                                  </span><span class="c1"># 直接問容器執行環境，不經過 API Server</span>
+ls<span class="w"> </span>/etc/kubernetes/manifests/<span class="w">                 </span><span class="c1"># 控制平面 static Pod 的定義檔</span>
+
+<span class="c1"># 看清楚 kubectl 到底送了什麼 HTTP 請求（學習期必跑一次）</span>
+kubectl<span class="w"> </span>apply<span class="w"> </span>-f<span class="w"> </span>x.yaml<span class="w"> </span>-v<span class="o">=</span><span class="m">8</span>
+</code></pre>
+<hr />
+<blockquote>
+<p>新增筆記時，記得把它加進上面的「筆記列表」表格。</p>
+</blockquote>
+
+</main>
+</div>
+</body>
+</html>

@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>apt upgrade 時 openvpn-dco-dkms 對新核心編譯失敗 —— 核心內部 API 改了，套件還沒跟上</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/app.js"></script>
+</head>
+<body>
+<button class="menu-btn" onclick="toggleMenu()">☰ 目錄</button>
+<div class="layout">
+<nav class="side">
+<div class="crumbs"><a href="../index.html">🏠 首頁</a> / <a href="README.html">linux</a></div>
+<div class="tools"><button onclick="toggleTheme()">🌓 主題</button></div>
+<ul>
+<li class="l2"><a href="#%E4%B8%80%E5%95%8F%E9%A1%8C%E7%8F%BE%E8%B1%A1%E8%88%87%E7%9B%AE%E5%89%8D%E7%8B%80%E6%85%8B">一、問題現象與目前狀態</a></li>
+<li class="l2"><a href="#%E4%BA%8C%E8%AE%80-makelog%E9%8C%AF%E8%AA%A4%E6%98%AF%E4%BB%80%E9%BA%BC">二、讀 make.log：錯誤是什麼</a></li>
+<li class="l2"><a href="#%E4%B8%89%E5%BE%9E-dkms-%E6%A8%A1%E7%B5%84%E5%90%8D%E5%8F%8D%E6%9F%A5%E6%98%AF%E5%93%AA%E5%80%8B%E5%A5%97%E4%BB%B6%E8%A3%9D%E7%9A%84">三、從 DKMS 模組名反查是哪個套件裝的</a></li>
+<li class="l2"><a href="#%E5%9B%9B%E7%82%BA%E4%BB%80%E9%BA%BC%E9%87%8D%E8%A3%9D%E5%92%8C%E5%85%88%E5%8D%87%E7%B4%9A-openvpn%E9%83%BD%E6%B2%92%E7%94%A8">四、為什麼「重裝」和「先升級 openvpn」都沒用</a></li>
+<li class="l2"><a href="#%E4%BA%94dco-%E6%98%AF%E4%BB%80%E9%BA%BC%E7%A7%BB%E9%99%A4%E5%AE%83%E6%9C%89%E4%BB%80%E9%BA%BC%E4%BB%A3%E5%83%B9">五、DCO 是什麼、移除它有什麼代價</a></li>
+<li class="l3"><a href="#%E6%A0%B8%E5%BF%83%E4%B8%8D%E6%98%AF%E8%87%AA%E5%B7%B1%E5%B0%B1%E6%9C%89-ovpn-%E6%A8%A1%E7%B5%84%E5%97%8E">核心不是自己就有 ovpn 模組嗎？</a></li>
+<li class="l2"><a href="#%E5%85%AD%E5%BB%BA%E8%AD%B0%E8%99%95%E7%90%86%E6%AD%A5%E9%A9%9F">六、建議處理步驟</a></li>
+<li class="l3"><a href="#%E5%8F%A6%E4%B8%80%E6%A2%9D%E8%B7%AF%E5%85%88%E4%B8%8D%E5%8D%87%E6%A0%B8%E5%BF%83">另一條路：先不升核心</a></li>
+<li class="l2"><a href="#%E4%B8%83%E9%80%9A%E7%94%A8%E5%88%A4%E6%96%B7%E6%B5%81%E7%A8%8Bdkms-%E7%B7%A8%E8%AD%AF%E5%A4%B1%E6%95%97%E6%99%82">七、通用判斷流程（DKMS 編譯失敗時）</a></li>
+<li class="l2"><a href="#%E8%87%AA%E6%88%91%E6%B8%AC%E9%A9%97">自我測驗</a></li>
+</ul>
+</nav>
+<main>
+<h1 id="apt-upgrade-時-openvpn-dco-dkms-對新核心編譯失敗--核心內部-api-改了套件還沒跟上">apt upgrade 時 openvpn-dco-dkms 對新核心編譯失敗 —— 核心內部 API 改了，套件還沒跟上</h1>
+<blockquote>
+<p>日期：2026-10-03<br />
+症狀：<code>apt upgrade</code> 安裝新核心 <code>7.0.0-38-generic</code> 時，<code>ovpn-dco</code> 的 DKMS（Dynamic Kernel Module Support，動態核心模組支援）模組編譯失敗，核心套件卡在 <code>iF</code>（半設定）<br />
+對應檔案：<code>/var/lib/dkms/ovpn-dco/0.2.20260526-1+26.1/build/make.log</code>（系統產生的建置紀錄，不在 repo 裡）<br />
+環境：Ubuntu 24.04 HWE、執行中核心 <code>7.0.0-34-generic</code>、<code>openvpn</code> 2.6.19、<code>openvpn3-client</code> 27.1、<code>openvpn-dco-dkms</code> 0.2.20260526-1+26.1（OpenVPN 官方 apt 源）</p>
+</blockquote>
+<p><strong>一句話結論：DKMS 編譯失敗時先看 <code>make.log</code> 第一個 <code>error:</code>——如果是「新核心改了函式簽名」，重裝同一版不會好、套件已是最新版也升不上去；這時要問「這個模組我到底有沒有在用」，沒在用（DCO 只是加速，不是必需）就移除它，讓核心升級收尾。</strong></p>
+<hr />
+<h2 id="一問題現象與目前狀態">一、問題現象與目前狀態</h2>
+<table>
+<thead>
+<tr>
+<th>檢查</th>
+<th>結果</th>
+<th>判讀</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>dkms status</code></td>
+<td><code>ovpn-dco</code> 只在 <code>7.0.0-31</code>、<code>7.0.0-34</code> 是 <code>installed</code>，<code>7.0.0-38</code> 沒有</td>
+<td>對新核心編譯失敗</td>
+</tr>
+<tr>
+<td><code>dpkg -l linux-image-7.0.0-38-generic</code></td>
+<td><code>iF</code></td>
+<td>核心套件的 postinst 呼叫 DKMS 失敗 → 半設定（<code>iF</code> 的意思見 <a href="dpkg%E5%AE%8C%E6%95%B4%E4%BD%BF%E7%94%A8%E6%8C%87%E5%8D%97.html">dpkg完整使用指南</a>）</td>
+</tr>
+<tr>
+<td><code>uname -r</code></td>
+<td><code>7.0.0-34-generic</code></td>
+<td>正在跑的是舊核心，上面的模組都正常——<strong>沒有立即風險，只是升級沒收尾</strong></td>
+</tr>
+<tr>
+<td><code>lsmod | grep ovpn</code></td>
+<td>沒有輸出</td>
+<td><code>ovpn-dco-v2</code> 模組<strong>目前根本沒被載入</strong> → 現在的 VPN 連線並沒有在用 DCO</td>
+</tr>
+</tbody>
+</table>
+<p>這跟 <a href="NVIDIA-DKMS%E6%A0%B8%E5%BF%83%E5%8D%87%E7%B4%9A%E5%A4%B1%E6%95%97%E6%8E%92%E6%9F%A5.html">NVIDIA-DKMS核心升級失敗排查</a> 是同一類問題：第三方模組沒跟上新核心。差別在於處理方式（見第五節）。</p>
+<hr />
+<h2 id="二讀-makelog錯誤是什麼">二、讀 make.log：錯誤是什麼</h2>
+<p><code>make.log</code> 的關鍵段落（實際輸出節錄）：</p>
+<pre><code>drivers/net/ovpn-dco/udp.c:346:51: error: passing argument 2 of ‘setup_udp_tunnel_sock’ from incompatible pointer type [-Werror=incompatible-pointer-types]
+  346 |         setup_udp_tunnel_sock(sock_net(sock-&gt;sk), sock, &amp;cfg);
+      |                                                   ^~~~
+      |                                                   struct socket *
+/usr/src/linux-headers-7.0.0-38-generic/include/net/udp_tunnel.h:98:58: note: expected ‘struct sock *’ but argument is of type ‘struct socket *’
+...
+drivers/net/ovpn-dco/tcp.c:486:31: error: assignment to ‘int (*)(struct sock *, struct msghdr *, size_t,  int)’ ... from incompatible pointer type ‘int (*)(struct sock *, struct msghdr *, size_t,  int,  int *)’
+  486 |         ovpn_tcp_prot.recvmsg = ovpn_tcp_recvmsg;
+</code></pre>
+<p>逐條解讀：</p>
+<ol>
+<li><strong><code>setup_udp_tunnel_sock</code> 的第 2 個參數型別變了</strong>。新核心 header 宣告它收 <code>struct sock *</code>（核心內部代表一條連線的結構），模組原始碼還在傳 <code>struct socket *</code>（給系統呼叫層用的外殼，裡面的 <code>sock-&gt;sk</code> 才是 <code>struct sock *</code>）。兩者是不同型別，指標不能互傳。</li>
+<li><strong><code>struct proto</code> 的 <code>recvmsg</code> 函式指標少了最後一個參數</strong>。新核心規定 <code>recvmsg</code> 是 4 個參數 <code>(sk, msg, len, flags)</code>，模組的 <code>ovpn_tcp_recvmsg</code> 還是舊的 5 個參數（多一個 <code>int *addr_len</code>）。</li>
+<li><code>-Werror=incompatible-pointer-types</code>：核心建置把「指標型別不相容」這個警告升級成錯誤（<code>-Werror</code>），所以編譯直接停下。</li>
+<li>開頭兩個 <code>warning: the compiler differs</code> / <code>pahole version differs</code> <strong>不是原因</strong>——編譯器其實是同一版 gcc 13.3，只是名字寫法不同；pahole 只影響 BTF 除錯資訊。找根因要找第一個 <code>error:</code>，不是第一個 <code>warning:</code>。</li>
+</ol>
+<p><strong>根因：</strong> Linux 核心<strong>對內</strong>的 API（模組可以呼叫的函式、結構）<strong>不保證穩定</strong>，每版都可能改；只有對使用者空間的系統呼叫介面才保證不破壞。所以樹外（out-of-tree）模組每遇到核心改 API，就得由模組作者改原始碼跟上。這次是 Ubuntu 7.0.0-38 帶進了改過的網路 API，而 <code>openvpn-dco-dkms</code> 0.2.20260526 還沒跟上。</p>
+<hr />
+<h2 id="三從-dkms-模組名反查是哪個套件裝的">三、從 DKMS 模組名反查是哪個套件裝的</h2>
+<p>錯誤路徑裡的名字是 <strong>DKMS 模組名</strong> <code>ovpn-dco</code>，不是 apt 的<strong>套件名</strong>。同一個東西有三個名字，各自用在不同地方：</p>
+<table>
+<thead>
+<tr>
+<th>名字</th>
+<th>從哪裡來</th>
+<th>用在哪</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ovpn-dco</code></td>
+<td><code>dkms.conf</code> 的 <code>PACKAGE_NAME</code></td>
+<td><code>dkms status</code>、<code>/var/lib/dkms/ovpn-dco/</code>、<code>/usr/src/ovpn-dco-&lt;版本&gt;/</code></td>
+</tr>
+<tr>
+<td><code>ovpn-dco-v2</code></td>
+<td><code>dkms.conf</code> 的 <code>BUILT_MODULE_NAME[0]</code></td>
+<td>編出來的檔案 <code>ovpn-dco-v2.ko</code>，<code>lsmod</code>／<code>modprobe</code> 用這個</td>
+</tr>
+<tr>
+<td><code>openvpn-dco-dkms</code></td>
+<td><code>.deb</code> 套件的名字</td>
+<td><code>apt</code>／<code>dpkg</code> 用這個</td>
+</tr>
+</tbody>
+</table>
+<p>DKMS 的原始碼一定放在 <code>/usr/src/&lt;模組名&gt;-&lt;版本&gt;/</code>，而那個目錄是某個 <code>.deb</code> 解開放進去的，所以用 <code>dpkg -S</code>（查某個檔案屬於哪個套件）就能反查：</p>
+<pre><code class="language-bash">ls<span class="w"> </span>-d<span class="w"> </span>/usr/src/ovpn-dco*
+<span class="c1"># /usr/src/ovpn-dco-0.2.20260526-1+26.1</span>
+
+dpkg<span class="w"> </span>-S<span class="w"> </span>/usr/src/ovpn-dco-0.2.20260526-1+26.1
+<span class="c1"># openvpn-dco-dkms: /usr/src/ovpn-dco-0.2.20260526-1+26.1</span>
+
+grep<span class="w"> </span>-E<span class="w"> </span><span class="s1">&#39;PACKAGE_NAME|BUILT_MODULE_NAME&#39;</span><span class="w"> </span>/usr/src/ovpn-dco-0.2.20260526-1+26.1/dkms.conf
+<span class="c1"># PACKAGE_NAME=&quot;ovpn-dco&quot;</span>
+<span class="c1"># BUILT_MODULE_NAME[0]=&quot;ovpn-dco-v2&quot;</span>
+</code></pre>
+<p>不要用猜的：DKMS 套件通常叫 <code>&lt;名字&gt;-dkms</code>，但前綴常常不一樣（這次模組叫 <code>ovpn-dco</code>，套件卻叫 <code>openvpn-dco-dkms</code>）。<code>dpkg -S</code> 的用法見 <a href="dpkg%E5%AE%8C%E6%95%B4%E4%BD%BF%E7%94%A8%E6%8C%87%E5%8D%97.html">dpkg完整使用指南</a>。</p>
+<hr />
+<h2 id="四為什麼重裝和先升級-openvpn都沒用">四、為什麼「重裝」和「先升級 openvpn」都沒用</h2>
+<ul>
+<li><strong>重裝 openvpn / openvpn-dco-dkms</strong>：DKMS 拿的是同一份原始碼（<code>/usr/src/ovpn-dco-0.2.20260526-1+26.1/</code>），對同一個 7.0.0-38 header 再編一次，錯誤一模一樣。</li>
+<li><strong>升級</strong>：<code>apt-cache policy openvpn-dco-dkms</code> 顯示 <code>Installed</code> 與 <code>Candidate</code> 都是 <code>0.2.20260526-1+26.1</code>——<strong>已經是最新版，沒有東西可升</strong>。<code>openvpn</code> 本身也已是 Candidate。何況 <code>openvpn</code> 是使用者空間程式，升級它不會改到核心模組的原始碼。</li>
+</ul>
+<p>能真正修好編譯的只有兩條路：OpenVPN 官方出新版 <code>openvpn-dco-dkms</code>（改了上面那三處），或你不再需要這個模組。</p>
+<hr />
+<h2 id="五dco-是什麼移除它有什麼代價">五、DCO 是什麼、移除它有什麼代價</h2>
+<p>DCO（Data Channel Offload，資料通道卸載）：把 VPN 封包的加解密與轉送從使用者空間的 <code>openvpn</code> 行程搬進核心模組做，省掉每個封包在核心與使用者空間之間來回複製，吞吐量較高。<strong>它只是加速</strong>——沒有 DCO 時，OpenVPN 會退回傳統的 tun 裝置 + 使用者空間加解密，連線照樣能用。</p>
+<p>相依關係確認（<code>apt-cache show</code>）：</p>
+<table>
+<thead>
+<tr>
+<th>套件</th>
+<th>對 <code>openvpn-dco-dkms</code> 的關係</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>openvpn</code> 2.6.19</td>
+<td><code>Suggests</code>（建議）</td>
+</tr>
+<tr>
+<td><code>openvpn3-client</code> 27.1</td>
+<td><code>Recommends</code>（推薦）</td>
+</tr>
+</tbody>
+</table>
+<p>兩者都<strong>不是 <code>Depends</code></strong>，所以移除 <code>openvpn-dco-dkms</code> 不會連帶移除 openvpn 或 openvpn3。</p>
+<h3 id="核心不是自己就有-ovpn-模組嗎">核心不是自己就有 <code>ovpn</code> 模組嗎？</h3>
+<p>有。<code>find /lib/modules/7.0.0-38-generic -name 'ovpn*'</code> 找到 <code>kernel/drivers/net/ovpn/ovpn.ko.zst</code>（<code>modinfo</code>：<code>OpenVPN data channel offload (ovpn)</code>）——這是 DCO 被收進主線核心後的版本（樹內，in-tree），會跟著核心一起編好，<strong>永遠不會有 DKMS 編譯問題</strong>。</p>
+<p>但使用者空間程式要「認得」它才會用。核心模組與使用者空間是靠 netlink 的家族名（family name）對話的：樹外 DKMS 版叫 <code>ovpn-dco-v2</code>，樹內版叫 <code>ovpn</code>。實測：</p>
+<pre><code class="language-bash">strings<span class="w"> </span>/usr/sbin/openvpn<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-E<span class="w"> </span><span class="s1">&#39;ovpn-dco&#39;</span>
+strings<span class="w"> </span>/usr/libexec/openvpn3-linux/openvpn3-service-netcfg<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-E<span class="w"> </span><span class="s1">&#39;ovpn-dco&#39;</span>
+</code></pre>
+<p>兩者都只找到 <code>ovpn-dco</code>、<code>ovpn-dco-v2</code>，代表這兩個版本<strong>只會跟樹外的 DKMS 模組講話</strong>，不會用樹內的 <code>ovpn</code>。要用樹內版，需要更新的使用者空間（OpenVPN 2.7 起支援；openvpn3 何時支援<strong>未查證</strong>）。</p>
+<p>結論：移除 <code>openvpn-dco-dkms</code> 後，你的 VPN 走的是非 DCO 路徑——而第一節的 <code>lsmod</code> 已經顯示<strong>你現在本來就是走這條路</strong>，所以實際上沒有損失。</p>
+<hr />
+<h2 id="六建議處理步驟">六、建議處理步驟</h2>
+<pre><code class="language-bash"><span class="c1"># 1. 移除 DKMS 套件（dkms 的 prerm 會順便把各核心底下的 ovpn-dco-v2.ko 刪掉）</span>
+sudo<span class="w"> </span>apt<span class="w"> </span>remove<span class="w"> </span>openvpn-dco-dkms
+
+<span class="c1"># 2. 讓卡在 iF 的核心套件重新跑 postinst（這次 DKMS 只剩 nvidia，會過）</span>
+sudo<span class="w"> </span>dpkg<span class="w"> </span>--configure<span class="w"> </span>-a
+sudo<span class="w"> </span>apt<span class="w"> </span>-f<span class="w"> </span>install<span class="w">        </span><span class="c1"># 若上一步之後還有相依沒解完</span>
+
+<span class="c1"># 3. 驗證</span>
+dpkg<span class="w"> </span>-l<span class="w"> </span><span class="s1">&#39;linux-image-7.0.0-38*&#39;</span><span class="w">          </span><span class="c1"># 要變成 ii</span>
+dkms<span class="w"> </span>status<span class="w">                              </span><span class="c1"># nvidia 在 7.0.0-38 是 installed；ovpn-dco 消失</span>
+ls<span class="w"> </span>-l<span class="w"> </span>/boot/initrd.img-7.0.0-38-generic<span class="w">  </span><span class="c1"># initramfs 有產生</span>
+
+<span class="c1"># 4. 重開機進 7.0.0-38，測試 VPN 能連</span>
+uname<span class="w"> </span>-r
+</code></pre>
+<p>以上步驟需要 root，本筆記撰寫時<strong>未實測執行</strong>（只做了唯讀的診斷）。</p>
+<p>之後若 OpenVPN 官方源出了新版 <code>openvpn-dco-dkms</code>，或你升級到支援樹內 <code>ovpn</code> 的 OpenVPN，再決定要不要裝回來。注意：<code>apt upgrade</code> <strong>不會</strong>自動把被移除的 Recommends 裝回來，要裝得自己 <code>apt install</code>。</p>
+<h3 id="另一條路先不升核心">另一條路：先不升核心</h3>
+<p>如果你確實需要 DCO 的效能（例如大流量走 VPN），可以先 <code>sudo apt-mark hold</code> 新核心的 meta 套件、留在 7.0.0-34，等 <code>openvpn-dco-dkms</code> 更新。但這代表也拿不到核心的安全更新，而且你目前根本沒載入 DCO 模組，不建議。</p>
+<hr />
+<h2 id="七通用判斷流程dkms-編譯失敗時">七、通用判斷流程（DKMS 編譯失敗時）</h2>
+<ol>
+<li><strong>確認現況安全</strong>：<code>uname -r</code> 是舊核心、舊核心上的模組 OK → 不急，慢慢處理。</li>
+<li><strong>讀 <code>make.log</code> 第一個 <code>error:</code></strong>，並用 <code>dpkg -S /usr/src/&lt;模組名&gt;-&lt;版本&gt;</code> 反查是哪個套件，判斷是「核心 API 改了」（型別不符、函式不存在、參數數量不對）還是環境問題（缺 header、缺編譯器）。</li>
+<li>API 改了 → 查 <code>apt-cache policy &lt;dkms套件&gt;</code> <strong>有沒有更新版</strong>：有 → 升級它（NVIDIA 那次就是換到新版驅動）；沒有 → 下一步。</li>
+<li><strong>這個模組必不必要？</strong> 用 <code>lsmod</code> 看有沒有在用、<code>apt-cache rdepends --installed</code> 與 <code>apt-cache show</code> 看誰 <code>Depends</code> 它。不必要 → 移除；必要（例如顯卡驅動）→ hold 住核心等上游。</li>
+<li>收尾：<code>dpkg --configure -a</code>，確認核心套件 <code>ii</code>、initramfs 存在，再重開機。</li>
+</ol>
+<hr />
+<h2 id="自我測驗">自我測驗</h2>
+<ol>
+<li><code>make.log</code> 裡同時有 <code>warning: the compiler differs from the one used to build the kernel</code> 和 <code>error: passing argument 2 of 'setup_udp_tunnel_sock' from incompatible pointer type</code>。哪一個才是編譯失敗的原因？為什麼另一個不是？</li>
+<li>為什麼 Linux 的樹外模組常常在核心小版本升級時壞掉，而一般使用者程式（例如 <code>openvpn</code> 執行檔本身）不會？</li>
+<li>這次為什麼「重裝 openvpn-dco-dkms」和「升級 openvpn」都修不好？各自缺了什麼？</li>
+<li>核心 7.0.0-38 自己就帶了 <code>ovpn.ko</code>，為什麼這台機器的 openvpn 2.6.19 還是用不到它？你會用什麼方法確認一個使用者空間程式支援哪個版本的模組？</li>
+<li>情境題：假設下次失敗的不是 <code>openvpn-dco-dkms</code>，而是 VirtualBox 的 <code>vboxdrv</code> DKMS 模組，而且 <code>apt-cache policy</code> 顯示已是最新版。你平常每天都會開虛擬機。你會怎麼處理？跟這次的處理方式差在哪、為什麼？</li>
+<li>錯誤路徑是 <code>/var/lib/dkms/foo/1.2/build/make.log</code>，但 <code>apt remove foo-dkms</code> 回答「找不到套件」。為什麼會這樣？你要怎麼找出正確的套件名，這個方法為什麼一定找得到？</li>
+</ol>
+
+</main>
+</div>
+</body>
+</html>

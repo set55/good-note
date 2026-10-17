@@ -160,10 +160,10 @@ readelf <選項...> <ELF 檔案...>
 （**可以翻筆記作答**：本篇是參考型筆記。題目考的是「差別」與「該用哪個」，不考選項字面。）
 
 1. `readelf` 和 `objdump` 都能看 ELF，差在哪？什麼情況一定要用 `objdump`？
-   > **參考答案**【[第三節](#三本課程會怎麼用它)】`readelf` 只懂 ELF，直接照 ELF 規格列出結構；`objdump` 透過 BFD 支援多種格式，而且能反組譯。一定要用 `objdump` 的情況：要看機器碼／反組譯（`objdump -d`），或檔案不是 ELF。反過來，檔案被剝掉區段標頭時（路由器韌體），`readelf -d` 讀得到 `NEEDED`、`objdump -p` 讀不到（見 [objdump能不能代替ldd第三節](./objdump能不能代替ldd找依賴庫-需求單與實際載入.md#三ldd-會執行東西這是它的代價)）。
-2. `-l`（程式標頭）和 `-S`（區段標頭）描述的是同一個檔案的兩種切法。從 [ELF的interpreter](./ELF的interpreter是什麼-動態載入器與井字號驚嘆號.md) 的例子說明：`INTERP` 和 `.interp` 各屬於哪一種、關係是什麼？
-   > **參考答案**【[第二節](#二全部選項)〈2.2 標頭與區段〉】`INTERP` 是程式標頭（`-l`）的一項，`.interp` 是區段（`-S`），兩者指的是**同一段位元組**：`INTERP` 指向的檔案範圍就是 `.interp` 區段，內容是動態載入器的路徑字串；`readelf -l` 最下面的 Section to Segment mapping 會顯示這個 segment 只裝了 `.interp`。執行時核心讀的是 `INTERP`；`.interp` 這個區段名稱只有連結器與分析工具會用到，剝掉區段標頭也不影響執行。
+   > **參考答案**【[第三節](../html/c/readelf完整選項參考.html#三本課程會怎麼用它)】`readelf` 只懂 ELF，直接照 ELF 規格列出結構；`objdump` 透過 BFD 支援多種格式，而且能反組譯。一定要用 `objdump` 的情況：要看機器碼／反組譯（`objdump -d`），或檔案不是 ELF。反過來，檔案被剝掉區段標頭時（路由器韌體），`readelf -d` 讀得到 `NEEDED`、`objdump -p` 讀不到（見 [objdump能不能代替ldd第三節](../html/c/objdump能不能代替ldd找依賴庫-需求單與實際載入.html#三ldd-會執行東西這是它的代價)）。
+2. `-l`（程式標頭）和 `-S`（區段標頭）描述的是同一個檔案的兩種切法。從 [ELF的interpreter](../html/c/ELF的interpreter是什麼-動態載入器與井字號驚嘆號.html) 的例子說明：`INTERP` 和 `.interp` 各屬於哪一種、關係是什麼？
+   > **參考答案**【[第二節](../html/c/readelf完整選項參考.html#二全部選項)〈2.2 標頭與區段〉】`INTERP` 是程式標頭（`-l`）的一項，`.interp` 是區段（`-S`），兩者指的是**同一段位元組**：`INTERP` 指向的檔案範圍就是 `.interp` 區段，內容是動態載入器的路徑字串；`readelf -l` 最下面的 Section to Segment mapping 會顯示這個 segment 只裝了 `.interp`。執行時核心讀的是 `INTERP`；`.interp` 這個區段名稱只有連結器與分析工具會用到，剝掉區段標頭也不影響執行。
 3. 想知道一支程式在別台機器上會不會因為 glibc 版本太舊而跑不起來，要用哪個選項看、看什麼？
-   > **參考答案**【[第二節](#二全部選項)〈2.4 動態連結、版本、重定位〉】用 `readelf -V`（或 `objdump -p` 的 `Version References`）。看 `.gnu.version_r`（Version needs）裡 `libc.so.6` 列出的 `GLIBC_2.x`，取最大的一個（第 1 課的 hello 是 `GLIBC_2.34`）。目標機器的 glibc 比它舊，就會在載入時失敗（`` version `GLIBC_2.34' not found ``），見 [第 1 課第九節](./hello.c怎麼變成能跑的程式-編譯的四個階段.md#九作業解說四題背後的原因)。
-4. 情境題：你拿到一個來路不明的執行檔，想在**不執行它**的前提下知道它是動態還是靜態連結、會去載入哪些函式庫。為什麼 `readelf` 比 `ldd` 更適合？（提示：[第 1 課](./hello.c怎麼變成能跑的程式-編譯的四個階段.md) 第七節對 `ldd` 的警告。）
-   > **參考答案**【[第三節](#三本課程會怎麼用它)】`readelf -l` 看有沒有 `INTERP`（有＝動態連結），`readelf -d` 看 `NEEDED` 列出哪些函式庫；全程只讀檔案，不執行任何東西。`ldd` 則要啟動 interpreter，而 interpreter 是檔案自己指定的，來路不明的檔案可能指定惡意程式（`man ldd` 的 Security 一節）。
+   > **參考答案**【[第二節](../html/c/readelf完整選項參考.html#二全部選項)〈2.4 動態連結、版本、重定位〉】用 `readelf -V`（或 `objdump -p` 的 `Version References`）。看 `.gnu.version_r`（Version needs）裡 `libc.so.6` 列出的 `GLIBC_2.x`，取最大的一個（第 1 課的 hello 是 `GLIBC_2.34`）。目標機器的 glibc 比它舊，就會在載入時失敗（`` version `GLIBC_2.34' not found ``），見 [第 1 課第九節](../html/c/hello.c怎麼變成能跑的程式-編譯的四個階段.html#九作業解說四題背後的原因)。
+4. 情境題：你拿到一個來路不明的執行檔，想在**不執行它**的前提下知道它是動態還是靜態連結、會去載入哪些函式庫。為什麼 `readelf` 比 `ldd` 更適合？（提示：[第 1 課](../html/c/hello.c怎麼變成能跑的程式-編譯的四個階段.html) 第七節對 `ldd` 的警告。）
+   > **參考答案**【[第三節](../html/c/readelf完整選項參考.html#三本課程會怎麼用它)】`readelf -l` 看有沒有 `INTERP`（有＝動態連結），`readelf -d` 看 `NEEDED` 列出哪些函式庫；全程只讀檔案，不執行任何東西。`ldd` 則要啟動 interpreter，而 interpreter 是檔案自己指定的，來路不明的檔案可能指定惡意程式（`man ldd` 的 Security 一節）。

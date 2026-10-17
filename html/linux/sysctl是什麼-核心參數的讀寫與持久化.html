@@ -1,0 +1,317 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>sysctl 是什麼？怎麼用？—— 核心參數的讀寫與持久化</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/app.js"></script>
+</head>
+<body>
+<button class="menu-btn" onclick="toggleMenu()">☰ 目錄</button>
+<div class="layout">
+<nav class="side">
+<div class="crumbs"><a href="../index.html">🏠 首頁</a> / <a href="README.html">linux</a></div>
+<div class="tools"><button onclick="toggleTheme()">🌓 主題</button></div>
+<ul>
+<li class="l2"><a href="#%E4%B8%80%E5%AE%83%E5%85%B6%E5%AF%A6%E5%B0%B1%E6%98%AF%E5%9C%A8%E8%AE%80%E5%AF%AB%E6%AA%94%E6%A1%88">一、它其實就是在讀寫檔案</a></li>
+<li class="l2"><a href="#%E4%BA%8C%E5%9F%BA%E6%9C%AC%E7%94%A8%E6%B3%95">二、基本用法</a></li>
+<li class="l3"><a href="#%E5%AE%8C%E6%95%B4%E9%81%B8%E9%A0%85%E4%BE%9D%E6%9C%AC%E6%A9%9F-sysctl---helpprocps-ng">完整選項（依本機 sysctl --help，procps-ng）</a></li>
+<li class="l2"><a href="#%E4%B8%89%E5%94%AF%E8%AE%80%E9%82%84%E6%98%AF%E5%8F%AF%E5%AF%AB%E7%9C%8B%E6%AA%94%E6%A1%88%E6%AC%8A%E9%99%90%E5%B0%B1%E7%9F%A5%E9%81%93">三、唯讀還是可寫？看檔案權限就知道</a></li>
+<li class="l2"><a href="#%E5%9B%9B%E6%8C%81%E4%B9%85%E5%8C%96%E4%B8%89%E5%80%8B%E7%9B%AE%E9%8C%84%E8%88%87%E8%BC%89%E5%85%A5%E9%A0%86%E5%BA%8F">四、持久化：三個目錄與載入順序</a></li>
+<li class="l2"><a href="#%E4%BA%94%E6%88%91%E6%94%B9%E4%BA%86%E4%BD%86%E6%B2%92%E7%94%9F%E6%95%88%E7%9A%84%E4%BA%94%E5%80%8B%E5%8E%9F%E5%9B%A0">五、「我改了但沒生效」的五個原因</a></li>
+<li class="l3"><a href="#1--w-%E5%8F%AA%E6%98%AF%E6%9A%AB%E6%99%82%E7%9A%84">1. -w 只是暫時的</a></li>
+<li class="l3"><a href="#2-%E9%9D%9E-root-%E5%9F%B7%E8%A1%8C%E6%99%82%E8%BC%B8%E5%87%BA%E7%9C%8B%E8%B5%B7%E4%BE%86%E5%83%8F%E6%88%90%E5%8A%9F">2. 非 root 執行時，輸出看起來像成功</a></li>
+<li class="l3"><a href="#3-%E5%8F%83%E6%95%B8%E6%A0%B9%E6%9C%AC%E4%B8%8D%E5%AD%98%E5%9C%A8">3. 參數根本不存在</a></li>
+<li class="l3"><a href="#4-%E8%A2%AB%E6%8E%92%E5%BA%8F%E5%9C%A8%E5%BE%8C%E9%9D%A2%E7%9A%84%E6%AA%94%E6%A1%88%E8%A6%86%E8%93%8B">4. 被排序在後面的檔案覆蓋</a></li>
+<li class="l3"><a href="#5-%E5%91%BD%E5%90%8D%E7%A9%BA%E9%96%93%E9%9A%94%E9%9B%A2%E6%9C%80%E5%AE%B9%E6%98%93%E6%BC%8F%E6%8E%89">5. 命名空間隔離（最容易漏掉）</a></li>
+<li class="l2"><a href="#%E5%85%AD%E5%B8%B8%E7%94%A8%E5%8F%83%E6%95%B8%E9%80%9F%E6%9F%A5">六、常用參數速查</a></li>
+<li class="l2"><a href="#%E8%87%AA%E6%88%91%E6%B8%AC%E9%A9%97">自我測驗</a></li>
+</ul>
+</nav>
+<main>
+<h1 id="sysctl-是什麼怎麼用-核心參數的讀寫與持久化">sysctl 是什麼？怎麼用？—— 核心參數的讀寫與持久化</h1>
+<blockquote>
+<p>日期：2026-09-20<br />
+情境：調 <code>net.core.somaxconn</code> 時順帶問的：sysctl 到底是什麼東西<br />
+適用範圍：實測 Ubuntu 24.04（kernel 7.0、1504 個可調參數）<br />
+相關：<a href="procfs%E8%88%87conntrack%E9%81%BA%E5%A4%B1%E5%95%8F%E9%A1%8C.html">procfs與conntrack遺失問題</a>（<code>/proc/sys</code> 的機制在那篇）、
+<a href="%E4%BB%80%E9%BA%BC%E6%98%AFbacklog-TCP%E4%BA%A4%E6%8F%A1%E8%83%8C%E5%BE%8C%E7%9A%84%E5%85%A9%E5%80%8B%E4%BD%87%E5%88%97.html">什麼是backlog-TCP交握背後的兩個佇列</a></p>
+</blockquote>
+<p><strong>一句話結論：sysctl 不是一個服務，也不是一個設定系統——它只是 <code>/proc/sys/</code> 底下那些檔案的命令列包裝。「調核心參數」實際上就是「寫一個檔案」。理解這件事，所有「改了沒生效」的問題都能歸到三類：寫錯地方、被覆蓋、或者你改的根本是另一個命名空間（namespace）的那一份。</strong></p>
+<hr />
+<h2 id="一它其實就是在讀寫檔案">一、它其實就是在讀寫檔案</h2>
+<pre><code class="language-bash">sysctl<span class="w"> </span>-n<span class="w"> </span>net.ipv4.ip_forward<span class="w">           </span><span class="c1"># 等同 cat /proc/sys/net/ipv4/ip_forward</span>
+sudo<span class="w"> </span>sysctl<span class="w"> </span>-w<span class="w"> </span>net.ipv4.ip_forward<span class="o">=</span><span class="m">1</span><span class="w">    </span><span class="c1"># 等同 echo 1 &gt; /proc/sys/net/ipv4/ip_forward</span>
+</code></pre>
+<p><strong>路徑對應規則：把點換成斜線，前面加 <code>/proc/sys/</code>。</strong></p>
+<pre><code>net.core.somaxconn    ↔  /proc/sys/net/core/somaxconn
+vm.swappiness         ↔  /proc/sys/vm/swappiness
+</code></pre>
+<p>（<code>/proc/sys</code> 這個介面本身的機制——為什麼它可寫、和 <code>/proc</code> 其他部分有何不同——見
+<a href="procfs%E8%88%87conntrack%E9%81%BA%E5%A4%B1%E5%95%8F%E9%A1%8C.html">procfs與conntrack遺失問題</a> 第四節，這裡不重複。）</p>
+<p>那為什麼還要 sysctl 這個工具？因為它多做了幾件 <code>cat</code>／<code>echo</code> 做不到的事：<strong>批次列出、從設定檔載入、開機自動套用、統一的錯誤處理</strong>。</p>
+<hr />
+<h2 id="二基本用法">二、基本用法</h2>
+<pre><code class="language-bash">sysctl<span class="w"> </span>-a<span class="w">                       </span><span class="c1"># 列出全部（本機 1504 個）</span>
+sysctl<span class="w"> </span>-a<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>somaxconn<span class="w">      </span><span class="c1"># 找參數</span>
+sysctl<span class="w"> </span>net.core.somaxconn<span class="w">       </span><span class="c1"># 讀（連名字一起印）</span>
+sysctl<span class="w"> </span>-n<span class="w"> </span>net.core.somaxconn<span class="w">    </span><span class="c1"># 只印值 ← 寫腳本用這個</span>
+sudo<span class="w"> </span>sysctl<span class="w"> </span>-w<span class="w"> </span>net.core.somaxconn<span class="o">=</span><span class="m">4096</span><span class="w">     </span><span class="c1"># 寫（暫時）</span>
+sudo<span class="w"> </span>sysctl<span class="w"> </span>-p<span class="w"> </span>/etc/sysctl.d/99-x.conf<span class="w">     </span><span class="c1"># 從指定檔案載入</span>
+sudo<span class="w"> </span>sysctl<span class="w"> </span>--system<span class="w">            </span><span class="c1"># 依規則載入所有目錄的設定檔（開機時做的事）</span>
+</code></pre>
+<h3 id="完整選項依本機-sysctl---helpprocps-ng">完整選項（依本機 <code>sysctl --help</code>，procps-ng）</h3>
+<table>
+<thead>
+<tr>
+<th>選項</th>
+<th>長選項</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-a</code></td>
+<td><code>--all</code></td>
+<td><strong>列出全部參數</strong>（本機 1504 個）</td>
+</tr>
+<tr>
+<td><code>-A</code></td>
+<td>—</td>
+<td><code>-a</code> 的別名</td>
+</tr>
+<tr>
+<td><code>-X</code></td>
+<td>—</td>
+<td><code>-a</code> 的別名</td>
+</tr>
+<tr>
+<td>—</td>
+<td><code>--deprecated</code></td>
+<td>列出時<strong>含已棄用的參數</strong>（預設不顯示）</td>
+</tr>
+<tr>
+<td>—</td>
+<td><code>--dry-run</code></td>
+<td><strong>只印出要寫的鍵與值，不實際寫入</strong> ← 改之前先確認</td>
+</tr>
+<tr>
+<td><code>-b</code></td>
+<td><code>--binary</code></td>
+<td>印值時<strong>不換行</strong>（給腳本取值用）</td>
+</tr>
+<tr>
+<td><code>-e</code></td>
+<td><code>--ignore</code></td>
+<td><strong>忽略「參數不存在」的錯誤</strong>（對應設定檔裡的 <code>-</code> 前綴）</td>
+</tr>
+<tr>
+<td><code>-N</code></td>
+<td><code>--names</code></td>
+<td><strong>只印參數名、不印值</strong></td>
+</tr>
+<tr>
+<td><code>-n</code></td>
+<td><code>--values</code></td>
+<td><strong>只印值、不印參數名</strong> ← 寫腳本最常用</td>
+</tr>
+<tr>
+<td><code>-p[檔案]</code></td>
+<td><code>--load[=檔案]</code></td>
+<td><strong>從檔案載入</strong>；不給檔名預設讀 <code>/etc/sysctl.conf</code></td>
+</tr>
+<tr>
+<td><code>-f</code></td>
+<td>—</td>
+<td><code>-p</code> 的別名</td>
+</tr>
+<tr>
+<td>—</td>
+<td><code>--system</code></td>
+<td><strong>依規則載入所有系統目錄的設定檔</strong>（開機時做的事）</td>
+</tr>
+<tr>
+<td><code>-r &lt;regex&gt;</code></td>
+<td><code>--pattern &lt;regex&gt;</code></td>
+<td><strong>用正規表示式篩選</strong>要處理的參數</td>
+</tr>
+<tr>
+<td><code>-q</code></td>
+<td><code>--quiet</code></td>
+<td>設定值時<strong>不回displayed</strong>的那行輸出</td>
+</tr>
+<tr>
+<td><code>-w</code></td>
+<td><code>--write</code></td>
+<td><strong>寫入</strong>（<code>sysctl -w k=v</code>；其實 <code>k=v</code> 有等號時可省略 <code>-w</code>）</td>
+</tr>
+<tr>
+<td><code>-o</code> / <code>-x</code></td>
+<td>—</td>
+<td><strong>什麼都不做</strong>（為了相容舊版而保留）</td>
+</tr>
+<tr>
+<td><code>-d</code></td>
+<td>—</td>
+<td><code>-h</code> 的別名</td>
+</tr>
+<tr>
+<td><code>-h</code></td>
+<td><code>--help</code></td>
+<td>說明</td>
+</tr>
+<tr>
+<td><code>-V</code></td>
+<td><code>--version</code></td>
+<td>版本</td>
+</tr>
+</tbody>
+</table>
+<p><strong>三個最值得記住的</strong>：<code>--dry-run</code>（改之前先看）、<code>-n</code>（腳本取值）、<code>-e</code>（參數可能不存在時不報錯）。</p>
+<p>參數的規模與分佈（本機實測）：</p>
+<pre><code>  1174  net.*         ← 佔了近八成
+   149  kernel.*
+    60  fs.*
+    50  vm.*
+</code></pre>
+<p><strong><code>net.*</code> 為什麼這麼多</strong>：因為它是<strong>每張網卡各一組</strong>。本機 <code>net.ipv4.conf.*</code> 有 231 個項目，分屬 7 個「介面」：</p>
+<pre><code>all  default  lo  enp58s0  wlp59s0f0  docker0  br-65aa0cb1b71e
+</code></pre>
+<p>其中 <code>all</code> 與 <code>default</code> 是特例：<code>all</code> 對所有介面生效，<code>default</code> 是<strong>之後新建</strong>介面的預設值——
+所以改 <code>default</code> 不會影響已經存在的網卡，這是常見的困惑點。</p>
+<hr />
+<h2 id="三唯讀還是可寫看檔案權限就知道">三、唯讀還是可寫？看檔案權限就知道</h2>
+<p>既然是檔案，用 <code>ls -l</code> 一眼就能判斷，不必 root、也不必試：</p>
+<pre><code>  kernel/ostype          -r--r--r--     ← 唯讀，root 也改不了
+  kernel/osrelease       -r--r--r--     ← 唯讀
+  fs/file-nr             -r--r--r--     ← 唯讀（這是統計值，不是旋鈕）
+  kernel/hostname        -rw-r--r--     ← 可寫
+  vm/swappiness          -rw-r--r--     ← 可寫
+  net/ipv4/ip_forward    -rw-r--r--     ← 可寫
+</code></pre>
+<p><strong><code>/proc/sys</code> 底下同時有「旋鈕」和「儀表」</strong>：可寫的是你能調的，唯讀的是核心報告給你看的（像 <code>fs/file-nr</code> 是目前開啟的檔案描述符統計）。看到某個參數改不動，先確認它是不是本來就唯讀。</p>
+<hr />
+<h2 id="四持久化三個目錄與載入順序">四、持久化：三個目錄與載入順序</h2>
+<p><code>sysctl -w</code> 寫進去的東西<strong>重開機就沒了</strong>。要永久生效得寫成設定檔。</p>
+<p>搜尋路徑（本機實測都存在）：</p>
+<table>
+<thead>
+<tr>
+<th>目錄</th>
+<th>誰放的</th>
+<th>優先權</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>/etc/sysctl.d/*.conf</code></td>
+<td><strong>系統管理員（你）</strong></td>
+<td>最高</td>
+</tr>
+<tr>
+<td><code>/run/sysctl.d/*.conf</code></td>
+<td>執行期產生的</td>
+<td>中</td>
+</tr>
+<tr>
+<td><code>/usr/lib/sysctl.d/*.conf</code></td>
+<td><strong>套件安裝時放的</strong></td>
+<td>最低</td>
+</tr>
+<tr>
+<td><code>/etc/sysctl.conf</code></td>
+<td>傳統單一檔案，仍然有效</td>
+<td>通常最後套用</td>
+</tr>
+</tbody>
+</table>
+<p><strong>載入規則有兩層，很容易搞混：</strong></p>
+<ol>
+<li><strong>所有目錄的檔案先混在一起，按「檔名」排序</strong>（不是按目錄排）——所以 <code>10-foo.conf</code>
+會比 <code>99-bar.conf</code> 先套用，<strong>後套用的覆蓋先套用的</strong>。</li>
+<li><strong>同名檔案時，優先權高的目錄勝出</strong>——<code>/etc/sysctl.d/10-x.conf</code> 會完全遮蔽
+<code>/usr/lib/sysctl.d/10-x.conf</code>（套件的預設值被你覆蓋，這是設計）。</li>
+</ol>
+<p>所以自訂設定的慣例是用大數字開頭，例如 <code>/etc/sysctl.d/99-custom.conf</code>——確保它最後才套用。</p>
+<p>開機時是誰做的：</p>
+<pre><code class="language-bash">$<span class="w"> </span>systemctl<span class="w"> </span>cat<span class="w"> </span>systemd-sysctl.service
+<span class="nv">Description</span><span class="o">=</span>Apply<span class="w"> </span>Kernel<span class="w"> </span>Variables
+<span class="nv">ExecStart</span><span class="o">=</span>/usr/lib/systemd/systemd-sysctl
+</code></pre>
+<p>本機實際被調過的參數（節錄）：</p>
+<pre><code>fs.inotify.max_user_watches=1048576      # 檔案監看上限（IDE／打包工具常要調）
+vm.max_map_count=1048576                 # 記憶體映射數上限（Elasticsearch 等要調）
+net.ipv4.conf.default.rp_filter=2
+-net.core.default_qdisc = fq_codel       # ← 開頭那個減號是什麼？
+</code></pre>
+<p><strong>開頭的 <code>-</code> 表示「這個參數不存在的話就安靜略過，不要報錯」。</strong> 用在「需要某模組載入後才存在」的參數上（例如 <code>fq_codel</code> 的排程器模組沒載入時）。沒有這個減號，開機時就會在日誌裡留下錯誤。</p>
+<hr />
+<h2 id="五我改了但沒生效的五個原因">五、「我改了但沒生效」的五個原因</h2>
+<h3 id="1--w-只是暫時的">1. <code>-w</code> 只是暫時的</h3>
+<p>改完要同時寫進 <code>/etc/sysctl.d/99-xxx.conf</code>，否則重開機還原。</p>
+<h3 id="2-非-root-執行時輸出看起來像成功">2. 非 root 執行時，輸出看起來像成功</h3>
+<pre><code class="language-bash">$<span class="w"> </span>sysctl<span class="w"> </span>-w<span class="w"> </span>vm.swappiness<span class="o">=</span><span class="m">60</span>
+sysctl:<span class="w"> </span>permission<span class="w"> </span>denied<span class="w"> </span>on<span class="w"> </span>key<span class="w"> </span><span class="s2">&quot;vm.swappiness&quot;</span>,<span class="w"> </span>ignoring
+vm.swappiness<span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="m">60</span><span class="w">                </span><span class="c1"># ← 這行照印！很容易誤以為成功</span>
+</code></pre>
+<p><strong>錯誤只有第一行，後面照樣印出 <code>key = value</code>。</strong> 一定要回頭 <code>sysctl -n</code> 驗證。</p>
+<h3 id="3-參數根本不存在">3. 參數根本不存在</h3>
+<p>模組沒載入時，對應的 <code>/proc/sys</code> 節點就不存在——這正是
+<a href="procfs%E8%88%87conntrack%E9%81%BA%E5%A4%B1%E5%95%8F%E9%A1%8C.html">procfs與conntrack遺失問題</a> 那篇的主題。先確認
+<code>ls /proc/sys/&lt;路徑&gt;</code> 有東西，再談調值。</p>
+<h3 id="4-被排序在後面的檔案覆蓋">4. 被排序在後面的檔案覆蓋</h3>
+<p>多個檔案設了同一個參數時，檔名排序大的贏。用 <code>sysctl -n &lt;參數&gt;</code> 看最終結果，而不是相信自己寫的那個檔案。</p>
+<h3 id="5-命名空間隔離最容易漏掉">5. 命名空間隔離（最容易漏掉）</h3>
+<p><strong><code>net.*</code> 參數是每個 network namespace 各一份。</strong> 本機實測：</p>
+<pre><code class="language-bash">$<span class="w"> </span>sysctl<span class="w"> </span>-n<span class="w"> </span>net.ipv4.ip_local_port_range
+<span class="m">32768</span><span class="w">   </span><span class="m">60999</span><span class="w">                              </span><span class="c1"># 主機</span>
+
+$<span class="w"> </span>docker<span class="w"> </span>run<span class="w"> </span>--rm<span class="w"> </span>&lt;image&gt;<span class="w"> </span>cat<span class="w"> </span>/proc/sys/net/ipv4/ip_local_port_range
+<span class="m">32768</span><span class="w">   </span><span class="m">60999</span><span class="w">                              </span><span class="c1"># 容器預設繼承</span>
+
+$<span class="w"> </span>docker<span class="w"> </span>run<span class="w"> </span>--rm<span class="w"> </span>--sysctl<span class="w"> </span>net.ipv4.ip_local_port_range<span class="o">=</span><span class="s2">&quot;20000 30000&quot;</span><span class="w"> </span>&lt;image&gt;<span class="w"> </span><span class="se">\</span>
+<span class="w">      </span>cat<span class="w"> </span>/proc/sys/net/ipv4/ip_local_port_range
+<span class="m">20000</span><span class="w">   </span><span class="m">30000</span><span class="w">                              </span><span class="c1"># 容器內改掉了</span>
+
+$<span class="w"> </span>sysctl<span class="w"> </span>-n<span class="w"> </span>net.ipv4.ip_local_port_range
+<span class="m">32768</span><span class="w">   </span><span class="m">60999</span><span class="w">                              </span><span class="c1"># ← 主機完全不受影響</span>
+</code></pre>
+<p><strong>所以在主機上調 <code>net.*</code> 不會影響容器，反之亦然。</strong> 容器裡的服務要調 backlog、
+port range 這類參數，得用 <code>--sysctl</code>（Docker）或 Pod 的 <code>securityContext.sysctls</code>（Kubernetes）。</p>
+<p>相對地，<code>kernel.*</code>、<code>vm.*</code>、<code>fs.*</code> 大多是<strong>全機共用</strong>的（少數有 namespace 化），在容器裡通常改不動——因為那會影響到主機。</p>
+<hr />
+<h2 id="六常用參數速查">六、常用參數速查</h2>
+<pre><code class="language-bash"><span class="c1"># 網路</span>
+net.ipv4.ip_forward<span class="o">=</span><span class="m">1</span><span class="w">                    </span><span class="c1"># 開啟轉發（路由器／NAT／容器必備）</span>
+net.core.somaxconn<span class="o">=</span><span class="m">4096</span><span class="w">                  </span><span class="c1"># accept queue 上限</span>
+net.ipv4.tcp_max_syn_backlog<span class="o">=</span><span class="m">4096</span><span class="w">        </span><span class="c1"># SYN queue 上限</span>
+net.ipv4.tcp_syncookies<span class="o">=</span><span class="m">1</span><span class="w">                </span><span class="c1"># 防 SYN flood</span>
+net.netfilter.nf_conntrack_max<span class="o">=</span><span class="m">262144</span><span class="w">    </span><span class="c1"># 連線追蹤表上限</span>
+
+<span class="c1"># 檔案與記憶體</span>
+fs.inotify.max_user_watches<span class="o">=</span><span class="m">1048576</span><span class="w">      </span><span class="c1"># 監看檔案數（webpack/IDE 報 ENOSPC 時調這個）</span>
+fs.file-max<span class="w">                              </span><span class="c1"># 全系統開檔上限</span>
+vm.swappiness<span class="o">=</span><span class="m">10</span><span class="w">                         </span><span class="c1"># 越小越不愛用 swap</span>
+vm.max_map_count<span class="o">=</span><span class="m">1048576</span><span class="w">                 </span><span class="c1"># mmap 區段數上限</span>
+
+<span class="c1"># 查與驗</span>
+sysctl<span class="w"> </span>-a<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>&lt;關鍵字&gt;
+sysctl<span class="w"> </span>-n<span class="w"> </span>&lt;參數&gt;<span class="w">                          </span><span class="c1"># 驗證最終值 ← 改完一定要做</span>
+ls<span class="w"> </span>-l<span class="w"> </span>/proc/sys/&lt;路徑&gt;<span class="w">                    </span><span class="c1"># 確認存在且可寫</span>
+</code></pre>
+<hr />
+<h2 id="自我測驗">自我測驗</h2>
+<ol>
+<li>sysctl 和 <code>echo 1 &gt; /proc/sys/...</code> 的關係是什麼？既然等價，為什麼還需要 sysctl 這個工具？</li>
+<li>不需要 root、也不用實際嘗試，怎麼判斷一個核心參數是否可寫？為什麼 <code>/proc/sys</code> 底下會有改不了的項目？</li>
+<li><code>/etc/sysctl.d/10-a.conf</code> 和 <code>/etc/sysctl.d/99-b.conf</code> 設了同一個參數，最後哪個生效？如果是 <code>/etc/sysctl.d/10-a.conf</code> 和 <code>/usr/lib/sysctl.d/10-a.conf</code> 呢？兩題的規則不一樣，分別是什麼？</li>
+<li>你在主機上把 <code>net.core.somaxconn</code> 調到 4096，但容器裡的服務還是會 accept queue 溢位。為什麼？該怎麼改？</li>
+<li>情境題：同事說他執行 <code>sysctl -w fs.inotify.max_user_watches=1048576</code> 之後輸出顯示
+<code>fs.inotify.max_user_watches = 1048576</code>，但問題完全沒解決。請列出兩個最可能的原因，以及一行指令就能分辨是哪一個的驗證方法。</li>
+</ol>
+
+</main>
+</div>
+</body>
+</html>

@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>怎麼從 dpkg 查出一個 .deb 裝完後要怎麼啟動？</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/app.js"></script>
+</head>
+<body>
+<button class="menu-btn" onclick="toggleMenu()">☰ 目錄</button>
+<div class="layout">
+<nav class="side">
+<div class="crumbs"><a href="../index.html">🏠 首頁</a> / <a href="README.html">linux</a></div>
+<div class="tools"><button onclick="toggleTheme()">🌓 主題</button></div>
+<ul>
+<li class="l2"><a href="#%E4%B8%80%E7%82%BA%E4%BB%80%E9%BA%BC-dpkg-%E6%9C%AC%E8%BA%AB%E7%AD%94%E4%B8%8D%E5%87%BA%E9%80%99%E5%80%8B%E5%95%8F%E9%A1%8C">一、為什麼 dpkg 本身答不出這個問題</a></li>
+<li class="l2"><a href="#%E4%BA%8C%E5%85%A5%E5%8F%A3%E7%9A%84%E4%B8%89%E5%80%8B%E5%8F%AF%E8%83%BD%E4%BD%8D%E7%BD%AE">二、入口的三個可能位置</a></li>
+<li class="l3"><a href="#1-path-%E4%B8%8A%E7%9A%84%E5%9F%B7%E8%A1%8C%E6%AA%94cli-%E5%B7%A5%E5%85%B7">1. PATH 上的執行檔（CLI 工具）</a></li>
+<li class="l3"><a href="#2-desktop-%E7%9A%84-execgui-%E7%A8%8B%E5%BC%8F">2. .desktop 的 Exec=（GUI 程式）</a></li>
+<li class="l3"><a href="#3-systemd-unit-%E7%9A%84-execstart%E8%83%8C%E6%99%AF%E6%9C%8D%E5%8B%99">3. systemd unit 的 ExecStart=（背景服務）</a></li>
+<li class="l2"><a href="#%E4%B8%89%E4%B8%80%E6%A2%9D%E9%BE%8D%E6%9F%A5%E6%B3%95">三、一條龍查法</a></li>
+<li class="l2"><a href="#%E5%9B%9B%E9%82%84%E6%B2%92%E5%AE%89%E8%A3%9D%E7%9A%84-deb-%E4%B9%9F%E8%83%BD%E6%9F%A5">四、還沒安裝的 .deb 也能查</a></li>
+<li class="l2"><a href="#%E4%BA%94%E4%B8%89%E8%99%95%E9%83%BD%E6%89%BE%E4%B8%8D%E5%88%B0%E6%99%82">五、三處都找不到時</a></li>
+<li class="l2"><a href="#%E5%85%AD%E9%80%9F%E6%9F%A5%E8%A1%A8">六、速查表</a></li>
+<li class="l2"><a href="#%E8%87%AA%E6%88%91%E6%B8%AC%E9%A9%97">自我測驗</a></li>
+</ul>
+</nav>
+<main>
+<h1 id="怎麼從-dpkg-查出一個-deb-裝完後要怎麼啟動">怎麼從 dpkg 查出一個 <code>.deb</code> 裝完後要怎麼啟動？</h1>
+<blockquote>
+<p>日期：2026-09-20<br />
+情境：裝完一個 <code>.deb</code>（例如 Apifox）卻不知道執行檔叫什麼、指令打什麼才能跑起來<br />
+適用範圍：Debian／Ubuntu；實測環境 Ubuntu 24.04、dpkg 1.22.6<br />
+延伸自：<a href="dpkg%E5%AE%8C%E6%95%B4%E4%BD%BF%E7%94%A8%E6%8C%87%E5%8D%97.html">dpkg完整使用指南</a>、<a href="%E5%BE%9E%E7%B5%82%E7%AB%AF%E6%A9%9F%E5%95%9F%E5%8B%95GUI%E7%A8%8B%E5%BC%8F%E4%B8%A6%E8%84%AB%E9%9B%A2%E7%B5%82%E7%AB%AF%E6%A9%9F.html">從終端機啟動GUI程式並脫離終端機</a></p>
+</blockquote>
+<p><strong>一句話結論：dpkg 沒有「啟動命令」這個欄位——<code>.deb</code> 的 control 檔裡根本沒有 entry point 的概念。但入口一定寫在它裝出來的某個檔案裡，而那只有三個可能：PATH 上的執行檔、<code>.desktop</code> 的 <code>Exec=</code>、systemd unit 的 <code>ExecStart=</code>。所以查法永遠是「先 <code>dpkg -L</code> 列檔案，再往這三處撈」。</strong></p>
+<hr />
+<h2 id="一為什麼-dpkg-本身答不出這個問題">一、為什麼 dpkg 本身答不出這個問題</h2>
+<p><code>dpkg -s &lt;pkg&gt;</code> 能給你的欄位就這些：</p>
+<pre><code>Package / Version / Architecture / Status / Priority / Section /
+Installed-Size / Maintainer / Depends / Pre-Depends / Conffiles / Description
+</code></pre>
+<p>沒有 <code>Exec</code>、沒有 <code>Entrypoint</code>、沒有 <code>Command</code>。這是<strong>刻意的設計</strong>：Debian 套件的職責是「把檔案放到 FHS（Filesystem Hierarchy Standard，檔案系統階層標準）規定的位置」，至於怎麼被啟動，是由<strong>放進去的檔案自己宣告</strong>的——</p>
+<ul>
+<li>放進 <code>/usr/bin</code> → 使用者直接打名字就能跑（因為在 <code>PATH</code> 上）；</li>
+<li>放一個 <code>.desktop</code> 到 <code>/usr/share/applications</code> → 桌面環境從 <code>Exec=</code> 讀到該怎麼開；</li>
+<li>放一個 <code>.service</code> 到 <code>/usr/lib/systemd/system</code> → systemd 從 <code>ExecStart=</code> 讀到該怎麼開。</li>
+</ul>
+<p><strong>這就是為什麼查法一定是「列檔案再反推」，而不是查某個欄位。</strong> 對照 Docker 映像就很清楚：<code>.deb</code> 是「一包檔案」，沒有 <code>CMD</code>／<code>ENTRYPOINT</code> 那層。</p>
+<hr />
+<h2 id="二入口的三個可能位置">二、入口的三個可能位置</h2>
+<h3 id="1-path-上的執行檔cli-工具">1. PATH 上的執行檔（CLI 工具）</h3>
+<pre><code class="language-bash">dpkg<span class="w"> </span>-L<span class="w"> </span>mtr-tiny<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-E<span class="w"> </span><span class="s1">&#39;^/usr/s?bin/|^/usr/local/bin/&#39;</span>
+<span class="c1"># /usr/bin/mtr</span>
+<span class="c1"># /usr/bin/mtr-packet</span>
+</code></pre>
+<p>這是最單純的情況：套件名不一定等於指令名（<code>mtr-tiny</code> 裝出來的是 <code>mtr</code>），所以<strong>別用套件名去猜指令名</strong>。</p>
+<p>順手驗證用途：</p>
+<pre><code class="language-bash">dpkg<span class="w"> </span>-L<span class="w"> </span>&lt;pkg&gt;<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span><span class="s1">&#39;/usr/share/man/&#39;</span><span class="w">    </span><span class="c1"># 有 man page 的通常就是主要入口</span>
+</code></pre>
+<h3 id="2-desktop-的-execgui-程式">2. <code>.desktop</code> 的 <code>Exec=</code>（GUI 程式）</h3>
+<pre><code class="language-bash">dpkg<span class="w"> </span>-L<span class="w"> </span>apifox<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span><span class="s1">&#39;\.desktop$&#39;</span>
+<span class="c1"># /usr/share/applications/apifox.desktop</span>
+
+grep<span class="w"> </span>-E<span class="w"> </span><span class="s1">&#39;^(Name|Exec|TryExec)=&#39;</span><span class="w"> </span>/usr/share/applications/apifox.desktop
+<span class="c1"># Name=Apifox</span>
+<span class="c1"># Exec=/opt/Apifox/apifox %U</span>
+</code></pre>
+<p><strong>這是最常被忽略、但對 <code>.deb</code> 形式的第三方 GUI 程式最關鍵的一條。</strong> 實測 <code>apifox</code> 這包在 <code>/usr/bin</code>、<code>/usr/local/bin</code> 底下<strong>什麼都沒裝</strong>——它整包躺在 <code>/opt/Apifox/</code>，唯一告訴你入口的地方就是 <code>.desktop</code> 的 <code>Exec=</code>。這類「裝進 <code>/opt</code> 再靠 <code>.desktop</code> 曝光」的作法，是 Electron／Chromium 系商用軟體的標準包裝方式（VS Code、Clash Verge、Apifox 都是）。</p>
+<p>兩個細節：</p>
+<ul>
+<li><code>Exec=</code> 裡的 <code>%U</code>／<code>%u</code>／<code>%F</code>／<code>%f</code> 是 freedesktop 規範的 <strong>field code</strong>（欄位代碼），由桌面環境在啟動時替換成檔案或 URL。<strong>自己在終端機跑要把它拿掉</strong>，否則會被當成字面引數。</li>
+<li><code>TryExec=</code> 是「檢查這個執行檔在不在，不在就把圖示灰掉」，不是啟動用的。</li>
+</ul>
+<p>不想自己解析，也可以直接用 desktop file 的 ID 啟動（等同從選單點）：</p>
+<pre><code class="language-bash">gtk-launch<span class="w"> </span>apifox<span class="w">          </span><span class="c1"># 參數是 .desktop 的檔名去掉副檔名</span>
+</code></pre>
+<h3 id="3-systemd-unit-的-execstart背景服務">3. systemd unit 的 <code>ExecStart=</code>（背景服務）</h3>
+<pre><code class="language-bash">dpkg<span class="w"> </span>-L<span class="w"> </span>docker-ce<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span><span class="s1">&#39;\.service$&#39;</span>
+<span class="c1"># /usr/lib/systemd/system/docker.service</span>
+
+grep<span class="w"> </span><span class="s1">&#39;^ExecStart&#39;</span><span class="w"> </span>/usr/lib/systemd/system/docker.service
+<span class="c1"># ExecStart=/usr/bin/dockerd -H fd:// --containerd=/run/containerd/containerd.sock</span>
+
+dpkg<span class="w"> </span>-L<span class="w"> </span>cron<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span><span class="s1">&#39;\.service$&#39;</span>
+grep<span class="w"> </span><span class="s1">&#39;^ExecStart&#39;</span><span class="w"> </span>/usr/lib/systemd/system/cron.service
+<span class="c1"># ExecStart=/usr/sbin/cron -f -P $EXTRA_OPTS</span>
+</code></pre>
+<p>服務類套件的「啟動命令」對使用者來說其實是 <code>systemctl start &lt;unit&gt;</code>；<code>ExecStart=</code> 是它底下真正跑的東西——<strong>要手動前景除錯時（例如服務起不來想看輸出），就照抄 <code>ExecStart</code> 的內容自己跑一次。</strong></p>
+<hr />
+<h2 id="三一條龍查法">三、一條龍查法</h2>
+<p>把三處一次撈出來：</p>
+<pre><code class="language-bash"><span class="nv">p</span><span class="o">=</span>apifox
+dpkg<span class="w"> </span>-L<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$p</span><span class="s2">&quot;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-E<span class="w"> </span><span class="s1">&#39;^/usr/s?bin/|^/usr/local/bin/|^/opt/.*/[^/]+$|\.desktop$|\.service$&#39;</span>
+</code></pre>
+<p>或寫成函式丟進 <code>~/.zshrc</code>：</p>
+<pre><code class="language-bash">pkgexec<span class="o">()</span><span class="w"> </span><span class="o">{</span>
+<span class="w">  </span><span class="nb">local</span><span class="w"> </span><span class="nv">p</span><span class="o">=</span><span class="nv">$1</span>
+<span class="w">  </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;== PATH 執行檔 ==&quot;</span>
+<span class="w">  </span>dpkg<span class="w"> </span>-L<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$p</span><span class="s2">&quot;</span><span class="w"> </span><span class="m">2</span>&gt;/dev/null<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-E<span class="w"> </span><span class="s1">&#39;^/usr/s?bin/|^/usr/local/bin/&#39;</span>
+<span class="w">  </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;== .desktop Exec ==&quot;</span>
+<span class="w">  </span>dpkg<span class="w"> </span>-L<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$p</span><span class="s2">&quot;</span><span class="w"> </span><span class="m">2</span>&gt;/dev/null<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span><span class="s1">&#39;\.desktop$&#39;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span><span class="k">while</span><span class="w"> </span><span class="nb">read</span><span class="w"> </span>-r<span class="w"> </span>f<span class="p">;</span><span class="w"> </span><span class="k">do</span>
+<span class="w">    </span><span class="nb">printf</span><span class="w"> </span><span class="s1">&#39;%s: &#39;</span><span class="w"> </span><span class="s2">&quot;</span><span class="nv">$f</span><span class="s2">&quot;</span><span class="p">;</span><span class="w"> </span>grep<span class="w"> </span>-m1<span class="w"> </span><span class="s1">&#39;^Exec=&#39;</span><span class="w"> </span><span class="s2">&quot;</span><span class="nv">$f</span><span class="s2">&quot;</span>
+<span class="w">  </span><span class="k">done</span>
+<span class="w">  </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;== systemd ExecStart ==&quot;</span>
+<span class="w">  </span>dpkg<span class="w"> </span>-L<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$p</span><span class="s2">&quot;</span><span class="w"> </span><span class="m">2</span>&gt;/dev/null<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span><span class="s1">&#39;\.service$&#39;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span><span class="k">while</span><span class="w"> </span><span class="nb">read</span><span class="w"> </span>-r<span class="w"> </span>f<span class="p">;</span><span class="w"> </span><span class="k">do</span>
+<span class="w">    </span><span class="o">[</span><span class="w"> </span>-f<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$f</span><span class="s2">&quot;</span><span class="w"> </span><span class="o">]</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>grep<span class="w"> </span>-H<span class="w"> </span>-m1<span class="w"> </span><span class="s1">&#39;^ExecStart&#39;</span><span class="w"> </span><span class="s2">&quot;</span><span class="nv">$f</span><span class="s2">&quot;</span>
+<span class="w">  </span><span class="k">done</span>
+<span class="o">}</span>
+</code></pre>
+<hr />
+<h2 id="四還沒安裝的-deb-也能查">四、還沒安裝的 <code>.deb</code> 也能查</h2>
+<p>不用裝、不用解到系統上：</p>
+<pre><code class="language-bash">dpkg-deb<span class="w"> </span>-c<span class="w"> </span>foo.deb<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-E<span class="w"> </span><span class="s1">&#39;/usr/s?bin/|\.desktop$|\.service$&#39;</span><span class="w">   </span><span class="c1"># 看它會裝出哪些入口</span>
+dpkg-deb<span class="w"> </span>-x<span class="w"> </span>foo.deb<span class="w"> </span>/tmp/peek<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>grep<span class="w"> </span>-r<span class="w"> </span><span class="s1">&#39;^Exec=&#39;</span><span class="w"> </span>/tmp/peek/usr/share/applications/
+dpkg-deb<span class="w"> </span>-e<span class="w"> </span>foo.deb<span class="w"> </span>/tmp/ctrl<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>cat<span class="w"> </span>/tmp/ctrl/postinst<span class="w">              </span><span class="c1"># 順便看它安裝時會做什麼</span>
+</code></pre>
+<p><strong>先看再裝</strong>，比裝完再到處找執行檔省事，也比較安全。</p>
+<hr />
+<h2 id="五三處都找不到時">五、三處都找不到時</h2>
+<table>
+<thead>
+<tr>
+<th>情況</th>
+<th>作法</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>東西整包在 <code>/opt</code> 且沒 <code>.desktop</code></td>
+<td><code>dpkg -L &lt;pkg&gt; | xargs -r file 2&gt;/dev/null | grep -i 'ELF.*executable'</code> 直接找出 ELF 執行檔</td>
+</tr>
+<tr>
+<td>只是個函式庫／資料套件</td>
+<td>本來就沒有入口（<code>dpkg -s</code> 看 <code>Section:</code> 是 <code>libs</code>／<code>fonts</code>／<code>doc</code> 就別找了）</td>
+</tr>
+<tr>
+<td>指令被 alternatives 接管</td>
+<td><code>update-alternatives --list editor</code>；<code>/usr/bin/editor</code> 只是符號連結，真正的執行檔在 <code>--display</code> 裡</td>
+</tr>
+<tr>
+<td>想反過來查「這個指令是誰裝的」</td>
+<td><code>dpkg -S &quot;$(readlink -f &quot;$(command -v vi)&quot;)&quot;</code> → <code>vim: /usr/bin/vim.basic</code>（注意要先 <code>readlink -f</code> 解連結）</td>
+</tr>
+<tr>
+<td>套件裝完但指令打不到</td>
+<td><code>hash -r</code> 清 shell 的指令快取；或該執行檔根本不在 <code>PATH</code>（<code>/opt</code> 型套件就是這樣）</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<blockquote>
+<p><strong>完整的 <code>dpkg</code> / <code>dpkg-deb</code> / <code>dpkg-query</code> 動作與選項清單</strong>（含 <code>--force-*</code> 全部項目）見 <a href="dpkg%E5%AE%8C%E6%95%B4%E4%BD%BF%E7%94%A8%E6%8C%87%E5%8D%97.html#%E5%AE%8C%E6%95%B4%E6%8C%87%E4%BB%A4%E8%88%87%E9%81%B8%E9%A0%85%E6%B8%85%E5%96%AE">dpkg完整使用指南</a>，本篇只列這個任務用得到的。</p>
+</blockquote>
+<h2 id="六速查表">六、速查表</h2>
+<pre><code class="language-bash"><span class="c1"># 三處入口</span>
+dpkg<span class="w"> </span>-L<span class="w"> </span>&lt;pkg&gt;<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-E<span class="w"> </span><span class="s1">&#39;^/usr/s?bin/|^/usr/local/bin/&#39;</span><span class="w">   </span><span class="c1"># CLI 執行檔</span>
+dpkg<span class="w"> </span>-L<span class="w"> </span>&lt;pkg&gt;<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span><span class="s1">&#39;\.desktop$&#39;</span><span class="w">                          </span><span class="c1"># → 再 grep &#39;^Exec=&#39; 該檔</span>
+dpkg<span class="w"> </span>-L<span class="w"> </span>&lt;pkg&gt;<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span><span class="s1">&#39;\.service$&#39;</span><span class="w">                          </span><span class="c1"># → 再 grep &#39;^ExecStart&#39; 該檔</span>
+
+<span class="c1"># 直接用 desktop file 啟動（免手動去掉 %U）</span>
+gtk-launch<span class="w"> </span>&lt;desktop檔名去副檔名&gt;
+
+<span class="c1"># 還沒安裝的 .deb</span>
+dpkg-deb<span class="w"> </span>-c<span class="w"> </span>foo.deb<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-E<span class="w"> </span><span class="s1">&#39;/usr/s?bin/|\.desktop$|\.service$&#39;</span>
+
+<span class="c1"># 反查與補充</span>
+dpkg<span class="w"> </span>-S<span class="w"> </span><span class="s2">&quot;</span><span class="k">$(</span>readlink<span class="w"> </span>-f<span class="w"> </span><span class="s2">&quot;</span><span class="k">$(</span><span class="nb">command</span><span class="w"> </span>-v<span class="w"> </span>&lt;cmd&gt;<span class="k">)</span><span class="s2">&quot;</span><span class="k">)</span><span class="s2">&quot;</span><span class="w">   </span><span class="c1"># 指令屬於哪個套件</span>
+update-alternatives<span class="w"> </span>--display<span class="w"> </span>&lt;name&gt;<span class="w">              </span><span class="c1"># 被 alternatives 接管的真正目標</span>
+dpkg<span class="w"> </span>-L<span class="w"> </span>&lt;pkg&gt;<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span><span class="s1">&#39;/usr/share/man/&#39;</span><span class="w">            </span><span class="c1"># 有 man page 的多半是主要入口</span>
+</code></pre>
+<hr />
+<h2 id="自我測驗">自我測驗</h2>
+<ol>
+<li>為什麼 <code>dpkg -s &lt;pkg&gt;</code> 查不到「啟動命令」？從 Debian 套件的職責說明這個設計，不要只說「就是沒有這個欄位」。</li>
+<li><code>apifox</code> 這包在 <code>/usr/bin</code> 底下什麼都沒裝，卻能從應用程式選單點開。它的入口資訊存在哪個檔案的哪個欄位？為什麼這類商用 GUI 軟體常這樣包？</li>
+<li>你從 <code>.desktop</code> 抄到 <code>Exec=/opt/Foo/foo %U</code>，貼到終端機執行卻出現奇怪的引數錯誤。原因是什麼？有哪兩種正確作法？</li>
+<li><code>mtr-tiny</code> 裝出來的指令叫 <code>mtr</code>。這件事對「用套件名猜指令名」這個習慣有什麼啟示？要怎麼確認？</li>
+<li>情境題：某個服務型套件裝完後 <code>systemctl start</code> 一直失敗，日誌訊息又很模糊。你打算手動在前景跑一次看完整輸出——要去哪裡找到它真正執行的那行命令？找到之後直接照抄執行，可能會漏掉 unit 檔裡的哪些設定而導致行為不同？</li>
+</ol>
+
+</main>
+</div>
+</body>
+</html>

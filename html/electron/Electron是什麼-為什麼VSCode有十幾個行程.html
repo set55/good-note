@@ -1,0 +1,264 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Electron 是什麼？為什麼 VS Code 開起來有十幾個行程？</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/app.js"></script>
+</head>
+<body>
+<button class="menu-btn" onclick="toggleMenu()">☰ 目錄</button>
+<div class="layout">
+<nav class="side">
+<div class="crumbs"><a href="../index.html">🏠 首頁</a> / <a href="README.html">electron</a></div>
+<div class="tools"><button onclick="toggleTheme()">🌓 主題</button></div>
+<ul>
+<li class="l2"><a href="#%E4%B8%80electron-%E7%94%B1%E4%BB%80%E9%BA%BC%E7%B5%84%E6%88%90">一、Electron 由什麼組成</a></li>
+<li class="l2"><a href="#%E4%BA%8C%E7%82%BA%E4%BB%80%E9%BA%BC%E6%9C%89%E5%8D%81%E5%B9%BE%E5%80%8B%E8%A1%8C%E7%A8%8B%E5%BE%9E-chromium-%E7%B9%BC%E6%89%BF%E7%9A%84%E5%A4%9A%E8%A1%8C%E7%A8%8B%E6%9E%B6%E6%A7%8B">二、為什麼有十幾個行程：從 Chromium 繼承的多行程架構</a></li>
+<li class="l2"><a href="#%E4%B8%89%E4%BB%A3%E5%83%B9%E8%88%87%E5%A5%BD%E8%99%95">三、代價與好處</a></li>
+<li class="l2"><a href="#%E5%9B%9B%E6%80%8E%E9%BA%BC%E5%88%A4%E6%96%B7%E4%B8%80%E5%80%8B%E7%A8%8B%E5%BC%8F%E6%98%AF%E4%B8%8D%E6%98%AF-electron">四、怎麼判斷一個程式是不是 Electron</a></li>
+<li class="l2"><a href="#%E8%A7%80%E5%AF%9F%E8%A1%8C%E7%A8%8B%E7%94%A8%E5%88%B0%E7%9A%84%E6%8C%87%E4%BB%A4">觀察行程用到的指令</a></li>
+<li class="l3"><a href="#ps">ps</a></li>
+<li class="l3"><a href="#pstree">pstree</a></li>
+<li class="l3"><a href="#strings">strings</a></li>
+<li class="l2"><a href="#%E8%87%AA%E6%88%91%E6%B8%AC%E9%A9%97">自我測驗</a></li>
+</ul>
+</nav>
+<main>
+<h1 id="electron-是什麼為什麼-vs-code-開起來有十幾個行程">Electron 是什麼？為什麼 VS Code 開起來有十幾個行程？</h1>
+<blockquote>
+<p>日期：2026-09-19<br />
+情境：找 VS Code 的 PID 時，<code>pgrep -x code</code> 列出 13 個以上的行程，因而追問「Electron 是什麼」<br />
+對應檔案：<code>/usr/share/code/</code>（本機 VS Code 安裝目錄，由套件管理員安裝，不在本 repo 內）<br />
+版本：本機 VS Code 內嵌 Electron 42.10.0、Chromium 148.0.7778.280（用 <code>strings /usr/share/code/code | grep -oE 'Electron/[0-9.]+'</code> 查得）<br />
+延伸自：<a href="../linux/%E5%BE%9E%E7%B5%82%E7%AB%AF%E6%A9%9F%E5%95%9F%E5%8B%95GUI%E7%A8%8B%E5%BC%8F%E4%B8%A6%E8%84%AB%E9%9B%A2%E7%B5%82%E7%AB%AF%E6%A9%9F.html">從終端機啟動GUI程式並脫離終端機</a></p>
+</blockquote>
+<p><strong>一句話結論：Electron 是「Chromium 瀏覽器 + Node.js」打包在一起的框架，讓你用網頁技術（HTML／CSS／JavaScript）寫桌面程式。每個 Electron 程式都自帶一整個瀏覽器，也繼承了瀏覽器的多行程架構——所以才有一大堆行程、很吃記憶體，也才能跨平台。</strong></p>
+<hr />
+<h2 id="一electron-由什麼組成">一、Electron 由什麼組成</h2>
+<table>
+<thead>
+<tr>
+<th>元件</th>
+<th>負責什麼</th>
+<th>沒有它會怎樣</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Chromium</strong>（Chrome 的開源核心）</td>
+<td>畫出畫面：解析 HTML／CSS、執行畫面上的 JavaScript、GPU 繪圖</td>
+<td>沒有 UI</td>
+</tr>
+<tr>
+<td><strong>Node.js</strong></td>
+<td>讓 JavaScript 能碰作業系統：讀寫檔案、開子行程、網路 socket</td>
+<td>只能做一般網頁能做的事，無法當編輯器</td>
+</tr>
+<tr>
+<td><strong>Electron 自己的 API（Application Programming Interface，應用程式介面）</strong></td>
+<td>原生視窗、選單、系統匣、剪貼簿、檔案對話框，以及行程之間的 IPC（Inter-Process Communication，行程間通訊）</td>
+<td>看起來只是一個網頁分頁，不像桌面程式</td>
+</tr>
+</tbody>
+</table>
+<p>一般網頁<strong>刻意</strong>碰不到本機檔案（瀏覽器的安全沙箱（sandbox））。Electron 的關鍵價值是把 Node.js 接進來，讓「網頁」可以存取檔案系統——這正是 VS Code 能當編輯器的原因。</p>
+<p>你的機器上看得到這個結構：</p>
+<pre><code>/usr/share/code/
+├── code                        ← Electron 執行檔（改名過；內含 Chromium + Node.js）
+├── chrome-sandbox              ← Chromium 的沙箱輔助程式
+├── chrome_crashpad_handler     ← Chromium 的當機回報
+├── libffmpeg.so, libEGL.so …   ← Chromium 的影音／繪圖函式庫
+├── v8_context_snapshot.bin     ← V8（JavaScript 引擎）的啟動快照
+└── resources/app/              ← VS Code 本身：一包 JavaScript 程式碼
+    ├── package.json
+    ├── out/                    ← 編譯後的 VS Code 程式碼
+    └── extensions/             ← 內建擴充套件
+</code></pre>
+<p>也就是說：<strong><code>code</code> 這個執行檔其實是 Electron，VS Code 本體只是 <code>resources/app/</code> 裡的 JavaScript</strong>。整個目錄約 1 GB，大部分是 Chromium。</p>
+<hr />
+<h2 id="二為什麼有十幾個行程從-chromium-繼承的多行程架構">二、為什麼有十幾個行程：從 Chromium 繼承的多行程架構</h2>
+<p>Chromium 為了<strong>安全</strong>與<strong>穩定</strong>，把不同工作拆到不同行程：一個分頁當掉不會拖垮整個瀏覽器；處理不可信網頁內容的行程被關在沙箱裡，權限很低。Electron 原封不動繼承這個架構。</p>
+<p>本機 VS Code 實測（<code>ps -o pid,args</code>，已截短）：</p>
+<pre><code>13767                                         ← main process（主行程）
+13776 --type=zygote                           ← 預先 fork 好的「孵化器」
+13814 --type=gpu-process                      ← GPU 繪圖
+13816 --type=utility …NetworkService          ← 網路請求
+13843 --type=renderer                         ← 一個 VS Code 視窗的 UI
+16283 --type=renderer                         ← 另一個視窗
+13896 --type=utility …NodeService             ← extension host、檔案監看等 Node 工作
+14091 …/markdown-language-features/…          ← 擴充套件啟動的語言伺服器
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>行程類型</th>
+<th>角色</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>main process</strong>（主行程，只有一個）</td>
+<td>程式進入點，跑 Node.js；管理視窗的生命週期、選單、跟作業系統打交道。<strong>它死了整個程式就結束</strong>——所以找 PID 時要找它</td>
+</tr>
+<tr>
+<td><strong>renderer process</strong>（渲染行程，每個視窗一個）</td>
+<td>畫 UI，就是一個網頁。為了安全預設不能直接用 Node.js，要透過 IPC 請主行程代辦</td>
+</tr>
+<tr>
+<td><strong>zygote</strong></td>
+<td>Linux 專有。先把 Chromium 載入好的行程，之後要開新 renderer 就從它 fork，省去重新初始化的時間</td>
+</tr>
+<tr>
+<td><strong>GPU process</strong></td>
+<td>集中處理 GPU 繪圖；顯示卡驅動出問題時只會崩這一個</td>
+</tr>
+<tr>
+<td><strong>utility process</strong></td>
+<td>網路服務、音訊，以及 VS Code 的 extension host（擴充套件主機）等</td>
+</tr>
+</tbody>
+</table>
+<p>VS Code 還額外加了一層：<strong>擴充套件跑在獨立的 extension host 行程</strong>，所以某個擴充套件卡死，編輯器畫面照樣能動。語言伺服器（language server，例如 TypeScript、Python 的自動補全）又是更多的子行程。</p>
+<hr />
+<h2 id="三代價與好處">三、代價與好處</h2>
+<p><strong>好處：</strong></p>
+<ul>
+<li><strong>跨平台</strong>：同一份 JavaScript 程式碼，打包成 Linux／macOS／Windows 版本。</li>
+<li><strong>開發快</strong>：會寫網頁就能寫桌面程式，可以直接用整個 npm 生態系。</li>
+<li><strong>畫面在各平台一致</strong>：因為是自帶的 Chromium 在畫，不依賴系統的 UI 元件。</li>
+</ul>
+<p><strong>代價：</strong></p>
+<ul>
+<li><strong>很吃記憶體</strong>：每個 Electron 程式都自帶一整個 Chromium，Slack、Discord、VS Code 各載入一份，彼此不共用。本機實測 VS Code 所有行程的 RSS（Resident Set Size，常駐記憶體）加總約 3.2 GB——但這個數字<strong>高估</strong>了，因為多個行程共用的函式庫頁面會被重複計算；要看比較準的數字用 PSS（Proportional Set Size，比例分攤記憶體），例如 <code>smem</code> 工具。</li>
+<li><strong>安裝檔大</strong>：光 Chromium 就幾百 MB。</li>
+<li><strong>安全更新依賴 Chromium</strong>：Chromium 爆出漏洞時，每個 Electron 程式都要各自更新自己內嵌的版本。</li>
+</ul>
+<p>常見的 Electron 程式：VS Code、Slack、Discord、Obsidian、Postman、GitHub Desktop、Signal Desktop。想要更輕量的替代方案，有 Tauri（改用作業系統內建的 WebView，後端用 Rust）——代價是各平台 WebView 行為不完全一致。</p>
+<hr />
+<h2 id="四怎麼判斷一個程式是不是-electron">四、怎麼判斷一個程式是不是 Electron</h2>
+<pre><code class="language-bash">ls<span class="w"> </span>/usr/share/&lt;app&gt;/<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-E<span class="w"> </span><span class="s1">&#39;chrome-sandbox|resources|\.pak$&#39;</span><span class="w">   </span><span class="c1"># 有這些檔案幾乎就是</span>
+strings<span class="w"> </span>/path/to/binary<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-m1<span class="w"> </span>-oE<span class="w"> </span><span class="s1">&#39;Electron/[0-9.]+&#39;</span><span class="w">          </span><span class="c1"># 直接問出版本</span>
+ps<span class="w"> </span>-o<span class="w"> </span>args<span class="w"> </span>-p<span class="w"> </span><span class="k">$(</span>pgrep<span class="w"> </span>-d,<span class="w"> </span>-x<span class="w"> </span>&lt;name&gt;<span class="k">)</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-c<span class="w"> </span>--<span class="w"> </span><span class="s1">&#39;--type=&#39;</span><span class="w">         </span><span class="c1"># 有 --type=renderer 等參數</span>
+</code></pre>
+<p>判斷依據都是同一個道理：Electron 程式裡面一定帶著 Chromium 的痕跡——<code>chrome-sandbox</code>、<code>.pak</code> 資源檔、以及子行程命令列上的 <code>--type=</code>。</p>
+<hr />
+<h2 id="觀察行程用到的指令">觀察行程用到的指令</h2>
+<p>本篇只用到三個，選項不多，這裡全列。</p>
+<h3 id="ps"><code>ps</code></h3>
+<p><code>ps</code> 有三套互不相容的語法（UNIX 風 <code>-e</code>、BSD 風 <code>aux</code>、GNU 長選項），
+<strong>完整清單見 <code>man ps</code></strong>。本篇用到的：</p>
+<table>
+<thead>
+<tr>
+<th>寫法</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ps aux</code></td>
+<td>BSD 風：所有使用者、含無終端機的行程、顯示使用者名</td>
+</tr>
+<tr>
+<td><code>ps -ef</code></td>
+<td>UNIX 風：等價的另一種寫法</td>
+</tr>
+<tr>
+<td><code>-o &lt;欄位&gt;</code></td>
+<td><strong>自選輸出欄位</strong>（<code>pid,ppid,comm,args,%cpu,%mem,rss</code>…）</td>
+</tr>
+<tr>
+<td><code>--forest</code> / <code>-H</code></td>
+<td><strong>樹狀顯示父子關係</strong> ← 看 Electron 的行程樹必用</td>
+</tr>
+<tr>
+<td><code>-p &lt;PID&gt;</code></td>
+<td>只看指定行程</td>
+</tr>
+<tr>
+<td><code>-C &lt;名稱&gt;</code></td>
+<td>依指令名選</td>
+</tr>
+</tbody>
+</table>
+<h3 id="pstree"><code>pstree</code></h3>
+<table>
+<thead>
+<tr>
+<th>選項</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-p</code></td>
+<td>顯示 PID</td>
+</tr>
+<tr>
+<td><code>-a</code></td>
+<td>顯示完整命令列參數（<strong>看得出哪個是 renderer、哪個是 GPU 行程</strong>）</td>
+</tr>
+<tr>
+<td><code>-n</code></td>
+<td>依 PID 排序</td>
+</tr>
+<tr>
+<td><code>-u</code></td>
+<td>顯示使用者變更</td>
+</tr>
+<tr>
+<td><code>-s &lt;PID&gt;</code></td>
+<td>顯示該行程的祖先</td>
+</tr>
+<tr>
+<td><code>-T</code></td>
+<td>隱藏執行緒</td>
+</tr>
+<tr>
+<td><code>-h</code></td>
+<td>highlight 當前行程</td>
+</tr>
+</tbody>
+</table>
+<h3 id="strings"><code>strings</code></h3>
+<table>
+<thead>
+<tr>
+<th>選項</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-n &lt;長度&gt;</code></td>
+<td>最短字串長度（預設 4）</td>
+</tr>
+<tr>
+<td><code>-t d|o|x</code></td>
+<td>顯示偏移量</td>
+</tr>
+<tr>
+<td><code>-a</code></td>
+<td>掃描整個檔案</td>
+</tr>
+<tr>
+<td><code>-e &lt;編碼&gt;</code></td>
+<td>字元編碼（<code>s</code>／<code>S</code>／<code>b</code>／<code>l</code>／<code>B</code>／<code>L</code>）</td>
+</tr>
+</tbody>
+</table>
+<h2 id="自我測驗">自我測驗</h2>
+<ol>
+<li>Electron 為什麼需要同時包含 Chromium 和 Node.js？如果只有 Chromium，VS Code 會缺什麼能力？</li>
+<li>Electron 程式為什麼會有這麼多行程？這個設計原本是為了解決瀏覽器的什麼問題？</li>
+<li>VS Code 的 main process 和 renderer process 分別負責什麼？為什麼找「VS Code 的 PID」時要找 main process？</li>
+<li>情境題：你把 VS Code 所有行程的 RSS 加起來得到 3 GB，同事說「VS Code 吃掉 3 GB 記憶體」。這個說法哪裡不精確？</li>
+<li>情境題：新聞說 Chromium 出現嚴重安全漏洞，你已經把 Chrome 瀏覽器更新到最新版。你電腦上的 Slack 和 VS Code 安全了嗎？為什麼？</li>
+</ol>
+
+</main>
+</div>
+</body>
+</html>

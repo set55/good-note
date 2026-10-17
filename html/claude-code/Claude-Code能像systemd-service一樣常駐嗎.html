@@ -1,0 +1,282 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Claude Code 能像 systemctl enable 一樣常駐在 OS 嗎？</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/app.js"></script>
+</head>
+<body>
+<button class="menu-btn" onclick="toggleMenu()">☰ 目錄</button>
+<div class="layout">
+<nav class="side">
+<div class="crumbs"><a href="../index.html">🏠 首頁</a> / <a href="README.html">claude-code</a></div>
+<div class="tools"><button onclick="toggleTheme()">🌓 主題</button></div>
+<ul>
+<li class="l2"><a href="#%E7%9B%AE%E9%8C%84">目錄</a></li>
+<li class="l2"><a href="#%E4%B8%80%E5%85%88%E7%A2%BA%E8%AA%8D%E7%9C%9F%E7%9A%84%E6%B2%92%E6%9C%89-daemon-%E6%A8%A1%E5%BC%8F">一、先確認：真的沒有 daemon 模式</a></li>
+<li class="l2"><a href="#%E4%BA%8C%E5%B8%B8%E9%A7%90%E5%85%B6%E5%AF%A6%E6%98%AF%E5%9B%9B%E7%A8%AE%E4%B8%8D%E5%90%8C%E9%9C%80%E6%B1%82">二、「常駐」其實是四種不同需求</a></li>
+<li class="l2"><a href="#%E4%B8%89%E5%81%9A%E6%B3%95-aclaude---bg-%E8%83%8C%E6%99%AF-session">三、做法 A：claude --bg 背景 session</a></li>
+<li class="l2"><a href="#%E5%9B%9B%E5%81%9A%E6%B3%95-bsystemd-user-timer%E6%9C%80%E6%8E%A5%E8%BF%91-systemctl-enable">四、做法 B：systemd user timer（最接近 systemctl enable）</a></li>
+<li class="l3"><a href="#4-1-%E6%86%91%E8%AD%89%E6%AA%94">4-1 憑證檔</a></li>
+<li class="l3"><a href="#4-2-service-unit">4-2 service unit</a></li>
+<li class="l3"><a href="#4-3-timer-unit">4-3 timer unit</a></li>
+<li class="l3"><a href="#4-4-%E5%95%9F%E7%94%A8">4-4 啟用</a></li>
+<li class="l2"><a href="#%E4%BA%94%E4%B8%89%E5%80%8B%E4%B8%80%E5%AE%9A%E6%9C%83%E8%B8%A9%E7%9A%84%E5%9D%91">五、三個一定會踩的坑</a></li>
+<li class="l3"><a href="#%E5%9D%91-1%E6%86%91%E8%AD%89%E4%B8%8D%E8%A6%81%E7%94%A8-system-service">坑 1：憑證——不要用 system service</a></li>
+<li class="l3"><a href="#%E5%9D%91-2%E6%AC%8A%E9%99%90%E6%8F%90%E7%A4%BA%E9%9D%9E%E4%BA%92%E5%8B%95%E6%A8%A1%E5%BC%8F%E6%B2%92%E4%BA%BA%E8%83%BD%E6%8C%89%E5%90%8C%E6%84%8F">坑 2：權限提示——非互動模式沒人能按「同意」</a></li>
+<li class="l3"><a href="#%E5%9D%91-3path-%E8%88%87%E7%92%B0%E5%A2%83systemd-%E7%9A%84%E7%92%B0%E5%A2%83%E6%98%AF%E4%B9%BE%E6%B7%A8%E7%9A%84">坑 3：PATH 與環境——systemd 的環境是乾淨的</a></li>
+<li class="l2"><a href="#%E5%85%AD%E5%81%9A%E6%B3%95-c-%E8%88%87-d%E9%9B%B2%E7%AB%AF%E6%8E%92%E7%A8%8B%E8%88%87-agent-sdk">六、做法 C 與 D：雲端排程與 Agent SDK</a></li>
+<li class="l2"><a href="#systemd-%E7%9B%B8%E9%97%9C%E6%8C%87%E4%BB%A4%E7%9A%84%E6%B6%B5%E8%93%8B%E7%AF%84%E5%9C%8D">systemd 相關指令的涵蓋範圍</a></li>
+<li class="l2"><a href="#%E8%87%AA%E6%88%91%E6%B8%AC%E9%A9%97">自我測驗</a></li>
+</ul>
+</nav>
+<main>
+<h1 id="claude-code-能像-systemctl-enable-一樣常駐在-os-嗎">Claude Code 能像 <code>systemctl enable</code> 一樣常駐在 OS 嗎？</h1>
+<blockquote>
+<p>日期：2026-09-12<br />
+情境：想讓 Claude Code 像系統服務一樣自己在背景跑，不用每次手動開一個 session<br />
+適用範圍：Claude Code 2.1.269、Linux（systemd）、個人訂閱或 API 金鑰皆可<br />
+對應檔案：本文的 unit 檔路徑都在 <code>~/.config/systemd/user/</code> 底下，屬於<strong>個人用、不入 git</strong> 的設定；憑證檔 <code>~/.config/claude-agent.env</code> 更是絕對不能進 git</p>
+</blockquote>
+<p><strong>一句話結論：Claude Code 沒有 daemon 模式，也不該有——它是「一次一個對話」的互動式 CLI（Command Line Interface，命令列介面）。要常駐請改問「我要的是背景執行、定時執行，還是長駐服務？」這三者的正確工具完全不同。</strong></p>
+<hr />
+<h2 id="目錄">目錄</h2>
+<ul>
+<li><a href="#%E4%B8%80%E5%85%88%E7%A2%BA%E8%AA%8D%E7%9C%9F%E7%9A%84%E6%B2%92%E6%9C%89-daemon-%E6%A8%A1%E5%BC%8F">一、先確認：真的沒有 daemon 模式</a></li>
+<li><a href="#%E4%BA%8C%E5%B8%B8%E9%A7%90%E5%85%B6%E5%AF%A6%E6%98%AF%E5%9B%9B%E7%A8%AE%E4%B8%8D%E5%90%8C%E9%9C%80%E6%B1%82">二、「常駐」其實是四種不同需求</a></li>
+<li><a href="#%E4%B8%89%E5%81%9A%E6%B3%95-aclaude---bg-%E8%83%8C%E6%99%AF-session">三、做法 A：<code>claude --bg</code> 背景 session</a></li>
+<li><a href="#%E5%9B%9B%E5%81%9A%E6%B3%95-bsystemd-user-timer%E6%9C%80%E6%8E%A5%E8%BF%91-systemctl-enable">四、做法 B：systemd user timer（最接近 systemctl enable）</a></li>
+<li><a href="#%E4%BA%94%E4%B8%89%E5%80%8B%E4%B8%80%E5%AE%9A%E6%9C%83%E8%B8%A9%E7%9A%84%E5%9D%91">五、三個一定會踩的坑</a></li>
+<li><a href="#%E5%85%AD%E5%81%9A%E6%B3%95-c-%E8%88%87-d%E9%9B%B2%E7%AB%AF%E6%8E%92%E7%A8%8B%E8%88%87-agent-sdk">六、做法 C 與 D：雲端排程與 Agent SDK</a></li>
+<li><a href="#%E8%87%AA%E6%88%91%E6%B8%AC%E9%A9%97">自我測驗</a></li>
+</ul>
+<hr />
+<h2 id="一先確認真的沒有-daemon-模式">一、先確認：真的沒有 daemon 模式</h2>
+<p>先用最快的方式推翻或確認前提——直接看子命令列表：</p>
+<pre><code class="language-bash">claude<span class="w"> </span>--help<span class="w"> </span><span class="p">|</span><span class="w"> </span>sed<span class="w"> </span>-n<span class="w"> </span><span class="s1">&#39;/^Commands:/,$p&#39;</span>
+</code></pre>
+<p>實際輸出的子命令有 <code>agents</code>、<code>attach</code>、<code>auth</code>、<code>doctor</code>、<code>gateway</code>、<code>install</code>、<code>logs</code>、<code>mcp</code>、
+<code>plugin</code>、<code>project</code>、<code>respawn</code>、<code>rm</code>、<code>setup-token</code>、<code>stop</code>、<code>ultrareview</code>、<code>update</code>。</p>
+<p><strong>沒有 <code>serve</code>，也沒有 <code>daemon</code>。</strong>（<code>gateway</code> 是企業版的認證／遙測閘道，不是讓 Claude 常駐接任務的東西。）</p>
+<p>為什麼沒有？因為 Claude Code 的執行模型是：一個 session 綁一個工作目錄、一段對話歷史（存在
+<code>~/.claude/projects/&lt;專案路徑&gt;/</code>）、一組權限設定。它沒有「等待請求的迴圈」這個概念。想要那種形狀的東西，那是 Agent SDK（Software Development Kit，軟體開發套件）的工作，見第六節。</p>
+<h2 id="二常駐其實是四種不同需求">二、「常駐」其實是四種不同需求</h2>
+<p>問「能不能常駐」的時候，心裡想的通常是下面其中一種。先分清楚要哪一種，才不會選錯工具：</p>
+<table>
+<thead>
+<tr>
+<th>需求</th>
+<th>做法</th>
+<th style="text-align:center">活過關終端機</th>
+<th style="text-align:center">活過重開機</th>
+<th style="text-align:center">電腦關機也跑</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>A. 任務跑很久，想關掉終端機</td>
+<td><code>claude --bg</code></td>
+<td style="text-align:center">✓</td>
+<td style="text-align:center">✗</td>
+<td style="text-align:center">✗</td>
+</tr>
+<tr>
+<td>B. 每天／每小時自動跑一次</td>
+<td>systemd user timer + <code>claude -p</code></td>
+<td style="text-align:center">✓</td>
+<td style="text-align:center">✓</td>
+<td style="text-align:center">✗</td>
+</tr>
+<tr>
+<td>C. 排程且不依賴自己的機器</td>
+<td><code>/schedule</code> 雲端 routine</td>
+<td style="text-align:center">✓</td>
+<td style="text-align:center">✓</td>
+<td style="text-align:center">✓</td>
+</tr>
+<tr>
+<td>D. 真正的長駐服務、對外接請求</td>
+<td>Claude Agent SDK</td>
+<td style="text-align:center">✓</td>
+<td style="text-align:center">✓</td>
+<td style="text-align:center">✓</td>
+</tr>
+</tbody>
+</table>
+<p><strong>重點</strong>：B 不是「長駐一個 process」，而是 <code>Type=oneshot</code> 的服務被 timer 週期性叫醒。這跟 <code>systemctl enable nginx</code> 那種常駐 daemon 在形狀上不一樣，但在「開機後自己會動」這件事上達到了同樣效果——而這通常才是問這個問題的人真正要的。</p>
+<h2 id="三做法-aclaude---bg-背景-session">三、做法 A：<code>claude --bg</code> 背景 session</h2>
+<pre><code class="language-bash">claude<span class="w"> </span>--bg<span class="w"> </span><span class="s2">&quot;把 linux/ 底下所有筆記的索引重新對過一遍&quot;</span>
+<span class="c1"># 印出一個短 id，例如 a3f9</span>
+
+claude<span class="w"> </span>agents<span class="w">          </span><span class="c1"># 列出所有背景 session</span>
+claude<span class="w"> </span>logs<span class="w"> </span>a3f9<span class="w">       </span><span class="c1"># 看它的輸出</span>
+claude<span class="w"> </span>attach<span class="w"> </span>a3f9<span class="w">     </span><span class="c1"># 把它接回目前這個終端機，變成互動式</span>
+claude<span class="w"> </span>stop<span class="w"> </span>a3f9<span class="w">       </span><span class="c1"># 停掉（對話保留，之後還能 attach 或 --resume）</span>
+claude<span class="w"> </span>rm<span class="w"> </span>a3f9<span class="w">         </span><span class="c1"># 刪掉</span>
+claude<span class="w"> </span>respawn<span class="w"> </span>--all<span class="w">   </span><span class="c1"># 用目前版本的 Claude Code 重啟全部背景 session</span>
+</code></pre>
+<p>適合「跑很久的單一任務」。<strong>但它不是服務</strong>：機器重開機後它不會自己回來，systemd 也管不到它。</p>
+<h2 id="四做法-bsystemd-user-timer最接近-systemctl-enable">四、做法 B：systemd user timer（最接近 systemctl enable）</h2>
+<p>核心是 <code>claude -p</code>（<code>--print</code>）：非互動模式，印出結果就結束，正好符合 <code>Type=oneshot</code>。</p>
+<h3 id="4-1-憑證檔">4-1 憑證檔</h3>
+<pre><code class="language-bash">claude<span class="w"> </span>setup-token<span class="w">          </span><span class="c1"># 訂閱用戶：產生長效 token</span>
+</code></pre>
+<p>把 token 寫進一個只有自己讀得到的檔案：</p>
+<pre><code class="language-bash">install<span class="w"> </span>-m<span class="w"> </span><span class="m">600</span><span class="w"> </span>/dev/null<span class="w"> </span>~/.config/claude-agent.env
+cat<span class="w"> </span>&gt;&gt;<span class="w"> </span>~/.config/claude-agent.env<span class="w"> </span><span class="s">&lt;&lt;&#39;ENV&#39;</span>
+<span class="s">CLAUDE_CODE_OAUTH_TOKEN=&lt;剛剛產生的 token&gt;</span>
+<span class="s">ENV</span>
+</code></pre>
+<p>用 API（Application Programming Interface，應用程式介面）金鑰的話，這裡改放 <code>ANTHROPIC_API_KEY=sk-ant-...</code>。兩者擇一即可。</p>
+<h3 id="4-2-service-unit">4-2 service unit</h3>
+<p><code>~/.config/systemd/user/claude-agent.service</code>：</p>
+<pre><code class="language-ini"><span class="k">[Unit]</span>
+<span class="na">Description</span><span class="o">=</span><span class="s">Claude Code scheduled task</span>
+<span class="na">After</span><span class="o">=</span><span class="s">network-online.target</span>
+
+<span class="k">[Service]</span>
+<span class="na">Type</span><span class="o">=</span><span class="s">oneshot</span>
+<span class="na">WorkingDirectory</span><span class="o">=</span><span class="s">%h/work/Projects/github/good-note</span>
+<span class="na">EnvironmentFile</span><span class="o">=</span><span class="s">%h/.config/claude-agent.env</span>
+<span class="na">Environment</span><span class="o">=</span><span class="s">PATH=%h/.local/bin:/usr/local/bin:/usr/bin:/bin</span>
+<span class="na">ExecStart</span><span class="o">=</span><span class="s">%h/.local/bin/claude -p &quot;檢查各領域 README 索引有沒有漏掉的筆記，有就補上&quot; </span>\
+<span class="w">  </span><span class="s">--permission-mode acceptEdits </span>\
+<span class="w">  </span><span class="s">--permission-prompts none </span>\
+<span class="w">  </span><span class="s">--output-format json </span>\
+<span class="w">  </span><span class="s">--max-budget-usd 1.00</span>
+</code></pre>
+<p><code>%h</code> 是 systemd 的 specifier，會展開成使用者家目錄。</p>
+<h3 id="4-3-timer-unit">4-3 timer unit</h3>
+<p><code>~/.config/systemd/user/claude-agent.timer</code>：</p>
+<pre><code class="language-ini"><span class="k">[Unit]</span>
+<span class="na">Description</span><span class="o">=</span><span class="s">Run the Claude Code task daily</span>
+
+<span class="k">[Timer]</span>
+<span class="na">OnCalendar</span><span class="o">=</span><span class="s">*-*-* 03:00:00</span>
+<span class="na">Persistent</span><span class="o">=</span><span class="s">true</span>
+
+<span class="k">[Install]</span>
+<span class="na">WantedBy</span><span class="o">=</span><span class="s">timers.target</span>
+</code></pre>
+<p><code>Persistent=true</code> 的意思是：如果排定時間點機器是關著的，開機後補跑一次。</p>
+<h3 id="4-4-啟用">4-4 啟用</h3>
+<pre><code class="language-bash">loginctl<span class="w"> </span>enable-linger<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$USER</span><span class="s2">&quot;</span><span class="w">        </span><span class="c1"># 關鍵，見第五節</span>
+systemctl<span class="w"> </span>--user<span class="w"> </span>daemon-reload
+systemctl<span class="w"> </span>--user<span class="w"> </span><span class="nb">enable</span><span class="w"> </span>--now<span class="w"> </span>claude-agent.timer
+
+systemctl<span class="w"> </span>--user<span class="w"> </span>list-timers<span class="w">          </span><span class="c1"># 確認下次觸發時間</span>
+journalctl<span class="w"> </span>--user<span class="w"> </span>-u<span class="w"> </span>claude-agent<span class="w"> </span>-f<span class="w">  </span><span class="c1"># 看執行結果</span>
+systemctl<span class="w"> </span>--user<span class="w"> </span>start<span class="w"> </span>claude-agent<span class="w">   </span><span class="c1"># 不等排程，立刻手動跑一次驗證</span>
+</code></pre>
+<h2 id="五三個一定會踩的坑">五、三個一定會踩的坑</h2>
+<h3 id="坑-1憑證不要用-system-service">坑 1：憑證——不要用 system service</h3>
+<p><code>systemctl enable</code> 預設操作的是<strong>系統層</strong>服務，它以 root 或指定的 system user 身分執行，
+<code>$HOME</code> 不是你的家目錄，<strong>讀不到 <code>~/.claude/</code> 底下的登入狀態</strong>。症狀是服務跑起來立刻要求登入然後失敗。</p>
+<p>兩個解法，<strong>優先選第一個</strong>：</p>
+<ol>
+<li>用 <code>systemctl --user</code>（本文做法），身分就是你自己，環境天然正確。</li>
+<li>硬要用 system service 的話，必須自己把憑證餵進去：<code>EnvironmentFile=</code> 指向含
+<code>CLAUDE_CODE_OAUTH_TOKEN</code> 或 <code>ANTHROPIC_API_KEY</code> 的檔案，並且把 <code>User=</code>、<code>WorkingDirectory=</code> 都設對。</li>
+</ol>
+<p>不管哪種，憑證檔一律 <code>chmod 600</code>，而且<strong>不要進 git</strong>。</p>
+<h3 id="坑-2權限提示非互動模式沒人能按同意">坑 2：權限提示——非互動模式沒人能按「同意」</h3>
+<p>互動 session 裡 Claude 要動檔案或跑指令會跳出確認。在 <code>-p</code> 模式下沒有人在螢幕前面，預設行為是卡住或直接被拒，於是任務「跑了但什麼都沒做」。</p>
+<p>兩個旗標要一起理解：</p>
+<ul>
+<li><code>--permission-mode &lt;manual|acceptEdits|auto|dontAsk|plan|bypassPermissions&gt;</code>：決定<strong>規則本身</strong>。</li>
+<li><code>--permission-prompts &lt;host|none&gt;</code>：決定<strong>規則之外那些需要問人的情況由誰回答</strong>。<code>none</code> 表示沒人回答，一律自動拒絕。</li>
+</ul>
+<p>排程任務建議的組合是 <code>--permission-mode acceptEdits --permission-prompts none</code>，再加上 <code>settings.json</code> 裡明確的 <code>allow</code> 清單，讓該放行的指令事先就在規則內。</p>
+<p><code>--dangerously-skip-permissions</code> 會跳過所有檢查。這是無人值守 + 全權限 + 可能連外的組合，只在沒有對外網路的沙箱裡才可接受，不要圖方便就加上去。</p>
+<h3 id="坑-3path-與環境systemd-的環境是乾淨的">坑 3：PATH 與環境——systemd 的環境是乾淨的</h3>
+<p>systemd 不會讀你的 <code>~/.zshrc</code>。<code>claude</code> 裝在 <code>~/.local/bin/</code>，而 systemd 給的預設 <code>PATH</code>
+通常不含這個目錄，症狀是 <code>status=203/EXEC</code>。</p>
+<p>解法：<code>ExecStart=</code> 一律寫<strong>絕對路徑</strong>，並且明確設 <code>Environment=PATH=...</code>，把 Claude 會用到的工具（<code>git</code>、<code>node</code>、專案自己的 toolchain）所在目錄都補進去。</p>
+<p>這種「手動跑得起來、被服務叫就失敗」的差異，本質上都是環境變數的對照組問題，排查思路見 <a href="../linux/%E6%8E%92%E6%9F%A5%E6%96%B9%E6%B3%95%E8%AB%96.html">排查方法論</a>。另外加一個 <code>--max-budget-usd</code>
+當保險絲，避免排程任務在無人看管時無限燒錢。</p>
+<h2 id="六做法-c-與-d雲端排程與-agent-sdk">六、做法 C 與 D：雲端排程與 Agent SDK</h2>
+<p><strong>C. <code>/schedule</code>（雲端 routine）</strong>：在 Claude Code session 裡輸入 <code>/schedule</code>，可以建立以 cron 時程在 Anthropic 雲端執行的排程 agent。相對於做法 B 的差別是<strong>不依賴你的機器</strong>——
+筆電關機、網路斷線都照跑，代價是它跑在雲端環境，不是你本機的檔案系統。另有 <code>/loop</code>，那是在同一個 session 內週期性重跑一段提示，session 結束就沒了，不算常駐。</p>
+<p><strong>D. Claude Agent SDK</strong>：真的要一個長駐的 process 去接 webhook、聽訊息佇列、對外提供服務，那就不該包裝 CLI，而是用 Agent SDK（TypeScript 或 Python）把 agent 迴圈寫進你自己的程式，再讓那支程式變成 systemd service。這時候 <code>systemctl enable</code> 才是名副其實的長駐 daemon。</p>
+<p><strong>判斷準則：任務有明確的開始與結束 → 做法 B；需要一直在線上等事件 → 做法 D。</strong></p>
+<hr />
+<h2 id="systemd-相關指令的涵蓋範圍">systemd 相關指令的涵蓋範圍</h2>
+<blockquote>
+<p><code>systemctl</code> 有 60 個以上的子命令、<code>journalctl</code> 有 50 個以上的選項。
+<strong>這裡只列本篇用到的</strong>，完整清單見 <code>systemctl --help</code>、<code>man systemctl</code>、<code>man journalctl</code>。</p>
+</blockquote>
+<p><strong>本篇用到的 <code>systemctl</code> 動詞</strong></p>
+<table>
+<thead>
+<tr>
+<th>動詞</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>start</code> / <code>stop</code> / <code>restart</code> / <code>reload</code></td>
+<td>啟動／停止／重啟／重載設定</td>
+</tr>
+<tr>
+<td><code>enable</code> / <code>disable</code></td>
+<td>設定／取消開機自動啟動（<code>--now</code> 可同時 start／stop）</td>
+</tr>
+<tr>
+<td><code>status</code></td>
+<td>顯示狀態與最近日誌</td>
+</tr>
+<tr>
+<td><code>is-active</code> / <code>is-enabled</code> / <code>is-failed</code></td>
+<td><strong>用離開碼回答的查詢</strong>（腳本用）</td>
+</tr>
+<tr>
+<td><code>cat</code></td>
+<td><strong>顯示 unit 與所有 drop-in 的合併結果</strong></td>
+</tr>
+<tr>
+<td><code>show [-p &lt;屬性&gt;]</code></td>
+<td>顯示實際生效的屬性值</td>
+</tr>
+<tr>
+<td><code>edit [--full]</code></td>
+<td>編輯 drop-in／完整 unit</td>
+</tr>
+<tr>
+<td><code>daemon-reload</code></td>
+<td><strong>重新載入 unit 設定</strong>（改完檔案必做）</td>
+</tr>
+<tr>
+<td><code>list-units</code> / <code>list-unit-files</code></td>
+<td>列出已載入的 unit／磁碟上的 unit 檔</td>
+</tr>
+</tbody>
+</table>
+<p><strong><code>--user</code> 與 <code>--system</code></strong>：前者操作使用者層的 systemd 實例（本篇的重點），後者是系統層（預設）。<strong>兩者的 unit 目錄、權限與生命週期完全不同。</strong></p>
+<p><strong><code>loginctl</code></strong>：<code>show-user</code>／<code>enable-linger</code>／<code>disable-linger</code>／<code>list-sessions</code>——
+其中 <code>enable-linger</code> 是讓使用者層服務<strong>在沒有登入時也能持續執行</strong>的關鍵。</p>
+<h2 id="自我測驗">自我測驗</h2>
+<ol>
+<li>
+<p><code>claude --bg</code> 和 systemd user timer 都能讓任務在你關掉終端機之後繼續存在。它們最關鍵的差別是什麼？什麼情況下 <code>--bg</code> 明確不夠用？</p>
+</li>
+<li>
+<p>你把 service 寫成系統層的 <code>/etc/systemd/system/claude.service</code> 並 <code>sudo systemctl enable</code>，結果每次執行都失敗在認證。根本原因是什麼？為什麼改成 <code>systemctl --user</code> 就好了？</p>
+</li>
+<li>
+<p><code>--permission-mode</code> 和 <code>--permission-prompts</code> 這兩個旗標分別管什麼？為什麼無人值守的排程任務兩個都要設，只設一個會出什麼問題？</p>
+</li>
+<li>
+<p>情境應用題：你設好了 timer，<code>systemctl --user start claude-agent</code> 手動觸發完全正常，但排定的凌晨三點那次卻沒跑，<code>journalctl</code> 裡連一行紀錄都沒有。你會依序檢查哪些地方？（提示：這台機器平常沒有人登入。）</p>
+</li>
+<li>
+<p>你的需求是「有人在 GitHub 開 issue 時，自動叫 Claude 分析並留言」。照本文的分類，這該用做法 B 還是做法 D？判斷的依據是什麼？</p>
+</li>
+</ol>
+
+</main>
+</div>
+</body>
+</html>

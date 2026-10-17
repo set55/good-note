@@ -1,0 +1,561 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>clash-verge 怎麼用？—— GUI 只是外殼，流量得先「進得去」核心</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/app.js"></script>
+</head>
+<body>
+<button class="menu-btn" onclick="toggleMenu()">☰ 目錄</button>
+<div class="layout">
+<nav class="side">
+<div class="crumbs"><a href="../index.html">🏠 首頁</a> / <a href="README.html">linux</a></div>
+<div class="tools"><button onclick="toggleTheme()">🌓 主題</button></div>
+<ul>
+<li class="l2"><a href="#%E7%9B%AE%E9%8C%84">目錄</a></li>
+<li class="l2"><a href="#%E4%B8%80%E5%9B%9B%E5%80%8B%E8%A7%92%E8%89%B2%E8%AA%B0%E8%B2%A0%E8%B2%AC%E4%BB%80%E9%BA%BC">一、四個角色：誰負責什麼</a></li>
+<li class="l2"><a href="#%E4%BA%8C%E6%B5%81%E9%87%8F%E9%80%B2%E5%85%A5%E6%A0%B8%E5%BF%83%E7%9A%84%E4%B8%89%E6%A2%9D%E8%B7%AF">二、流量進入核心的三條路</a></li>
+<li class="l2"><a href="#%E4%B8%89%E7%B3%BB%E7%B5%B1%E4%BB%A3%E7%90%86%E8%88%87-tun-%E6%A8%A1%E5%BC%8F%E5%B7%AE%E5%9C%A8%E6%94%94%E6%88%AA%E9%BB%9E">三、系統代理與 TUN 模式：差在「攔截點」</a></li>
+<li class="l3"><a href="#%E7%B3%BB%E7%B5%B1%E4%BB%A3%E7%90%86%E4%B8%8D%E6%94%94%E4%BB%BB%E4%BD%95%E6%9D%B1%E8%A5%BF%E9%9D%A0%E7%A8%8B%E5%BC%8F%E8%87%AA%E9%A1%98">系統代理：不攔任何東西，靠程式自願</a></li>
+<li class="l3"><a href="#tun-%E6%A8%A1%E5%BC%8F%E5%BE%9E-ip-%E5%B1%A4%E7%9C%9F%E7%9A%84%E6%94%94%E4%B8%8B%E4%BE%86">TUN 模式：從 IP 層真的攔下來</a></li>
+<li class="l3"><a href="#%E9%80%90%E9%A0%85%E5%B0%8D%E7%85%A7">逐項對照</a></li>
+<li class="l3"><a href="#%E6%9C%80%E9%97%9C%E9%8D%B5%E7%9A%84%E5%B7%AE%E7%95%B0dns">最關鍵的差異：DNS</a></li>
+<li class="l3"><a href="#%E8%83%BD%E4%B8%8D%E8%83%BD%E7%94%A8-all_proxy-%E6%8C%87%E5%90%91-clash%E5%8F%AF%E4%BB%A5%E4%BD%86%E8%A6%81%E5%88%86%E6%B8%85%E6%A5%9A%E5%85%A9%E4%BB%B6%E4%BA%8B">能不能用 all_proxy 指向 clash？可以，但要分清楚兩件事</a></li>
+<li class="l3"><a href="#%E7%82%BA%E4%BB%80%E9%BA%BC%E4%B8%8D%E5%BB%BA%E8%AD%B0%E5%85%A9%E5%80%8B%E4%B8%80%E8%B5%B7%E9%96%8B">為什麼不建議兩個一起開</a></li>
+<li class="l3"><a href="#%E5%AF%A6%E6%B8%AC%E5%87%BA%E5%8F%A3-ip-%E6%B2%92%E8%AE%8A%E4%B8%8D%E4%BB%A3%E8%A1%A8%E6%B2%92%E8%B5%B0-clash">實測：出口 IP 沒變，不代表沒走 clash</a></li>
+<li class="l3"><a href="#%E8%A9%B2%E7%94%A8%E5%93%AA%E4%B8%80%E5%80%8B">該用哪一個</a></li>
+<li class="l2"><a href="#%E5%9B%9B%E5%AF%A6%E6%B8%AC%E6%A0%B8%E5%BF%83%E5%9C%A8%E8%B7%91%E4%BD%86%E6%B5%81%E9%87%8F%E6%98%AF%E9%9B%B6">四、實測：核心在跑，但流量是零</a></li>
+<li class="l2"><a href="#%E4%BA%94%E9%96%8B-tun-%E6%A8%A1%E5%BC%8Fl4">五、開 TUN 模式（L4）</a></li>
+<li class="l3"><a href="#%E5%89%8D%E7%BD%AE%E6%A2%9D%E4%BB%B6">前置條件</a></li>
+<li class="l3"><a href="#%E6%AD%A5%E9%A9%9F">步驟</a></li>
+<li class="l2"><a href="#%E5%85%ADtun-%E9%96%8B%E5%95%9F%E5%BE%8C%E7%B3%BB%E7%B5%B1%E7%99%BC%E7%94%9F%E4%BA%86%E4%BB%80%E9%BA%BC">六、TUN 開啟後系統發生了什麼</a></li>
+<li class="l2"><a href="#%E4%B8%83%E8%A6%8F%E5%89%87%E6%A8%A1%E5%BC%8F%E6%B5%81%E9%87%8F%E6%80%8E%E9%BA%BC%E8%A2%AB%E5%88%86%E6%B5%81">七、規則模式：流量怎麼被分流</a></li>
+<li class="l2"><a href="#%E5%85%AB%E6%8A%8A%E8%87%AA%E6%9E%B6%E7%9A%84%E4%BB%A3%E7%90%86%E6%8E%A5%E9%80%B2%E4%BE%86">八、把自架的代理接進來</a></li>
+<li class="l2"><a href="#%E4%B9%9D%E5%85%AD%E5%80%8B%E6%9C%83%E8%AE%93%E4%BD%A0%E8%AA%A4%E5%88%A4%E7%9A%84%E5%9D%91">九、六個會讓你誤判的坑</a></li>
+<li class="l3"><a href="#1-%E9%96%8B%E4%BA%86-tun%E5%8D%BB%E9%82%84%E7%95%99%E8%91%97-proxy-%E7%92%B0%E5%A2%83%E8%AE%8A%E6%95%B8%E6%9C%80%E5%B8%B8%E8%A6%8B">1. 開了 TUN，卻還留著 proxy 環境變數（最常見）</a></li>
+<li class="l3"><a href="#2-connections-%E6%89%8D%E6%98%AF%E5%94%AF%E4%B8%80%E5%8F%AF%E4%BF%A1%E7%9A%84%E8%AD%89%E6%93%9A">2. /connections 才是唯一可信的證據</a></li>
+<li class="l3"><a href="#3-tun-%E4%B8%8D%E6%B6%B5%E8%93%8B%E7%9A%84%E6%9D%B1%E8%A5%BF">3. TUN 不涵蓋的東西</a></li>
+<li class="l3"><a href="#4-strict-route-false-%E7%9A%84%E6%84%8F%E7%BE%A9">4. strict-route: false 的意義</a></li>
+<li class="l3"><a href="#5-dns-%E6%B2%92%E4%B8%80%E8%B5%B7%E8%99%95%E7%90%86--%E7%99%BD%E5%81%9A">5. DNS 沒一起處理 = 白做</a></li>
+<li class="l3"><a href="#6-%E4%BB%A3%E7%90%86%E4%BC%BA%E6%9C%8D%E5%99%A8%E8%87%AA%E5%B7%B1%E7%9A%84%E4%BD%8D%E5%9D%80%E5%BF%85%E9%A0%88%E6%8E%92%E9%99%A4">6. 代理伺服器自己的位址必須排除</a></li>
+<li class="l2"><a href="#%E5%8D%81%E9%A9%97%E8%AD%89%E8%88%87%E6%95%91%E6%8F%B4">十、驗證與救援</a></li>
+<li class="l2"><a href="#%E8%87%AA%E6%88%91%E6%B8%AC%E9%A9%97">自我測驗</a></li>
+</ul>
+</nav>
+<main>
+<h1 id="clash-verge-怎麼用-gui-只是外殼流量得先進得去核心">clash-verge 怎麼用？—— GUI 只是外殼，流量得先「進得去」核心</h1>
+<blockquote>
+<p>日期：2026-09-20<br />
+情境：想用 clash-verge 在本機做 L4（第四層）代理，取代只對部分程式有效的環境變數<br />
+對應檔案：<code>~/.local/share/io.github.clash-verge-rev.clash-verge-rev/</code>（個人資料目錄，不入 git）、
+<code>/etc/systemd/system/clash-verge-service.service</code>（安裝套件時產生的系統設定）<br />
+適用範圍：Clash Verge Rev 2.2.3、核心 verge-mihomo、Ubuntu 24.04<br />
+延伸自：<a href="%E8%AE%93%E6%95%B4%E5%80%8B%E7%B3%BB%E7%B5%B1%E8%B5%B0SOCKS5%E4%BB%A3%E7%90%86.html">讓整個系統走SOCKS5代理</a></p>
+</blockquote>
+<p><strong>一句話結論：clash-verge 是 GUI 外殼，真正幹活的是 <code>verge-mihomo</code> 核心；GUI 只做三件事——管 profile、產生核心的 yaml、用 RESTful API 指揮核心。所以「怎麼用」的重點不是按哪個鈕，而是先回答一個問題：你的流量要用哪種方式進到核心？（系統代理／TUN／手動指定埠）沒選任何一種，核心就只是空轉。</strong></p>
+<hr />
+<h2 id="目錄">目錄</h2>
+<ul>
+<li><a href="#%E4%B8%80%E5%9B%9B%E5%80%8B%E8%A7%92%E8%89%B2%E8%AA%B0%E8%B2%A0%E8%B2%AC%E4%BB%80%E9%BA%BC">一、四個角色：誰負責什麼</a></li>
+<li><a href="#%E4%BA%8C%E6%B5%81%E9%87%8F%E9%80%B2%E5%85%A5%E6%A0%B8%E5%BF%83%E7%9A%84%E4%B8%89%E6%A2%9D%E8%B7%AF">二、流量進入核心的三條路</a></li>
+<li><a href="#%E4%B8%89%E7%B3%BB%E7%B5%B1%E4%BB%A3%E7%90%86%E8%88%87-tun-%E6%A8%A1%E5%BC%8F%E5%B7%AE%E5%9C%A8%E6%94%94%E6%88%AA%E9%BB%9E">三、系統代理與 TUN 模式：差在「攔截點」</a></li>
+<li><a href="#%E5%9B%9B%E5%AF%A6%E6%B8%AC%E6%A0%B8%E5%BF%83%E5%9C%A8%E8%B7%91%E4%BD%86%E6%B5%81%E9%87%8F%E6%98%AF%E9%9B%B6">四、實測：核心在跑，但流量是零</a></li>
+<li><a href="#%E4%BA%94%E9%96%8B-tun-%E6%A8%A1%E5%BC%8Fl4">五、開 TUN 模式（L4）</a></li>
+<li><a href="#%E5%85%ADtun-%E9%96%8B%E5%95%9F%E5%BE%8C%E7%B3%BB%E7%B5%B1%E7%99%BC%E7%94%9F%E4%BA%86%E4%BB%80%E9%BA%BC">六、TUN 開啟後系統發生了什麼</a></li>
+<li><a href="#%E4%B8%83%E8%A6%8F%E5%89%87%E6%A8%A1%E5%BC%8F%E6%B5%81%E9%87%8F%E6%80%8E%E9%BA%BC%E8%A2%AB%E5%88%86%E6%B5%81">七、規則模式：流量怎麼被分流</a></li>
+<li><a href="#%E5%85%AB%E6%8A%8A%E8%87%AA%E6%9E%B6%E7%9A%84%E4%BB%A3%E7%90%86%E6%8E%A5%E9%80%B2%E4%BE%86">八、把自架的代理接進來</a></li>
+<li><a href="#%E4%B9%9D%E5%85%AD%E5%80%8B%E6%9C%83%E8%AE%93%E4%BD%A0%E8%AA%A4%E5%88%A4%E7%9A%84%E5%9D%91">九、六個會讓你誤判的坑</a></li>
+<li><a href="#%E5%8D%81%E9%A9%97%E8%AD%89%E8%88%87%E6%95%91%E6%8F%B4">十、驗證與救援</a></li>
+<li><a href="#%E8%87%AA%E6%88%91%E6%B8%AC%E9%A9%97">自我測驗</a></li>
+</ul>
+<hr />
+<h2 id="一四個角色誰負責什麼">一、四個角色：誰負責什麼</h2>
+<p>很多人把 clash-verge 當成一個程式，其實是四層：</p>
+<pre><code>Clash Verge（GUI，Tauri 寫的桌面程式）
+  │  ① 管理 profile（訂閱／本地 yaml）
+  │  ② 把 profile + 你的設定合併，產生核心真正讀的 clash-verge.yaml
+  │  ③ 透過 RESTful API（127.0.0.1:9097）即時指揮核心
+  ▼
+verge-mihomo（核心，真正處理封包的那個行程）
+  ▲
+  │  ④ 需要 root 的事（建 TUN 介面、改路由表）委託給它
+clash-verge-service（systemd 服務，以 root 執行的 helper）
+</code></pre>
+<p>在本機對應到：</p>
+<pre><code class="language-bash">$<span class="w"> </span>pgrep<span class="w"> </span>-a<span class="w"> </span>-f<span class="w"> </span>mihomo
+<span class="m">29633</span><span class="w"> </span>/usr/bin/verge-mihomo<span class="w"> </span>-d<span class="w"> </span>~/.local/share/io.github.clash-verge-rev.clash-verge-rev<span class="w"> </span><span class="se">\</span>
+<span class="w">                            </span>-f<span class="w"> </span>~/.local/share/io.github.clash-verge-rev.clash-verge-rev/clash-verge.yaml
+
+$<span class="w"> </span>systemctl<span class="w"> </span>is-active<span class="w"> </span>clash-verge-service
+active
+</code></pre>
+<p><strong>這個分層的意義</strong>：GUI 上每個開關，底層都只是「改 yaml 再叫核心 reload」或「打一個 API」。所以 GUI 壞了、看不懂選項時，可以直接看 <code>clash-verge.yaml</code> 或打 API 查現況——這比在介面上點來點去可靠得多。</p>
+<p>資料目錄（Clash Verge Rev 的路徑，和舊版 <code>~/.config/clash-verge</code> 不同）：</p>
+<table>
+<thead>
+<tr>
+<th>檔案</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>config.yaml</code></td>
+<td><strong>Verge 應用層</strong>的設定：各種 port、TUN 開關、external-controller</td>
+</tr>
+<tr>
+<td><code>clash-verge.yaml</code></td>
+<td><strong>核心真正讀的</strong>完整設定（profile + 上面那些合併後的產物，本機 354 KB）</td>
+</tr>
+<tr>
+<td><code>profiles/</code></td>
+<td>你訂閱或自建的 profile 原始檔</td>
+</tr>
+<tr>
+<td><code>logs/</code></td>
+<td>核心日誌</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="二流量進入核心的三條路">二、流量進入核心的三條路</h2>
+<p>核心開了好幾個入口埠（本機 <code>config.yaml</code> 實況）：</p>
+<table>
+<thead>
+<tr>
+<th>埠</th>
+<th>型別</th>
+<th>說明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>mixed-port: 7897</code></td>
+<td>HTTP + SOCKS5 <strong>混合</strong></td>
+<td>最常用；同一個埠兩種協定都收</td>
+</tr>
+<tr>
+<td><code>socks-port: 7898</code></td>
+<td>純 SOCKS5</td>
+<td></td>
+</tr>
+<tr>
+<td><code>port: 7899</code></td>
+<td>純 HTTP</td>
+<td></td>
+</tr>
+<tr>
+<td><code>redir-port: 7895</code></td>
+<td>REDIRECT 透明代理</td>
+<td>給 iptables <code>REDIRECT</code> 用，只支援 TCP</td>
+</tr>
+<tr>
+<td><code>tproxy-port: 7896</code></td>
+<td>TPROXY 透明代理</td>
+<td>支援 TCP + UDP</td>
+</tr>
+</tbody>
+</table>
+<p>但<strong>開著埠不等於有流量</strong>。要讓程式的連線走進來，只有三種方式：</p>
+<table>
+<thead>
+<tr>
+<th>方式</th>
+<th>做法</th>
+<th>涵蓋範圍</th>
+<th>對應前一篇的層級</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>系統代理</strong></td>
+<td>GUI 開關 → 幫你設 GNOME 的 <code>org.gnome.system.proxy</code> 指向 <code>127.0.0.1:7897</code></td>
+<td>讀系統／環境代理設定的程式</td>
+<td>L1 + L2</td>
+</tr>
+<tr>
+<td><strong>TUN 模式</strong></td>
+<td>建虛擬網卡 + 改路由，從 IP 層接管</td>
+<td><strong>所有程式</strong></td>
+<td><strong>L4</strong></td>
+</tr>
+<tr>
+<td><strong>手動指定</strong></td>
+<td>自己把程式指向 <code>127.0.0.1:7897</code></td>
+<td>你手動設的那些</td>
+<td>L1</td>
+</tr>
+</tbody>
+</table>
+<p><strong>這就是「怎麼用 clash-verge」的核心問題</strong>：不是按哪個鈕，而是先決定用哪條路把流量送進核心。</p>
+<hr />
+<h2 id="三系統代理與-tun-模式差在攔截點">三、系統代理與 TUN 模式：差在「攔截點」</h2>
+<p>GUI 上那兩個開關常被當成「兩種強度」，其實它們是<strong>兩種完全不同的機制</strong>。共同點只有一個：兩者都只是把流量送進 mihomo 核心，<strong>核心之後的行為（規則分流、選節點）完全一樣</strong>。差別全在攔截發生在哪一層。</p>
+<h3 id="系統代理不攔任何東西靠程式自願">系統代理：不攔任何東西，靠程式自願</h3>
+<p>它<strong>不碰任何封包</strong>，只是去改一組系統設定值，讓程式「自己願意」把連線交給 <code>127.0.0.1:7897</code>。在 GNOME 上改的就是這組 gsettings key（本機實測，Verge 已經預填好，只差 <code>mode</code> 沒打開）：</p>
+<pre><code class="language-bash">$<span class="w"> </span>gsettings<span class="w"> </span>get<span class="w"> </span>org.gnome.system.proxy<span class="w"> </span>mode
+<span class="s1">&#39;none&#39;</span><span class="w">                          </span><span class="c1"># ← 開關本身，目前關著</span>
+$<span class="w"> </span>gsettings<span class="w"> </span>get<span class="w"> </span>org.gnome.system.proxy.http<span class="w"> </span>host<span class="w"> </span>/<span class="w"> </span>port
+<span class="s1">&#39;127.0.0.1&#39;</span><span class="w"> </span>/<span class="w"> </span><span class="m">7897</span><span class="w">              </span><span class="c1"># ← 指向 clash 的 mixed-port</span>
+$<span class="w"> </span>gsettings<span class="w"> </span>get<span class="w"> </span>org.gnome.system.proxy<span class="w"> </span>ignore-hosts
+<span class="o">[</span><span class="s1">&#39;localhost&#39;</span>,<span class="w"> </span><span class="s1">&#39;127.0.0.1&#39;</span>,<span class="w"> </span><span class="s1">&#39;192.168.0.0/16&#39;</span>,<span class="w"> </span><span class="s1">&#39;10.0.0.0/8&#39;</span>,<span class="w"> </span>...<span class="o">]</span><span class="w">   </span><span class="c1"># ← no_proxy 的 GUI 版</span>
+</code></pre>
+<p>程式拿到這個設定後，是用<strong>應用層協定</strong>把請求託付給 clash——HTTP 的 <code>CONNECT example.com:443</code>，或 SOCKS5 的交握。<strong>程式知道自己在用代理。</strong></p>
+<h3 id="tun-模式從-ip-層真的攔下來">TUN 模式：從 IP 層真的攔下來</h3>
+<p>它建一張虛擬網卡 <code>utun</code>（<code>198.18.0.1/30</code>），用 <code>auto-route</code> 把預設路由改指向它。之後核心從網卡讀到的是<strong>原始 IP 封包</strong>，再用 gVisor 的使用者空間 TCP/IP 堆疊還原成 TCP／UDP 流交給規則引擎。</p>
+<p><strong>程式毫不知情</strong>——它以為自己在正常地連 <code>example.com</code>，不需要支援任何代理協定。這就是為什麼
+<code>ssh</code>、遊戲、靜態連結的 Go 程式這些「不合作」的對象也能被涵蓋。</p>
+<h3 id="逐項對照">逐項對照</h3>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>系統代理</th>
+<th>TUN 模式</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>攔截點</td>
+<td>不攔，靠程式自願</td>
+<td>IP 層，真的攔</td>
+</tr>
+<tr>
+<td>改了什麼</td>
+<td>gsettings／環境變數</td>
+<td>虛擬網卡 + 路由表 + DNS 劫持</td>
+</tr>
+<tr>
+<td>程式知情嗎</td>
+<td>知道（主動連 proxy）</td>
+<td>不知道</td>
+</tr>
+<tr>
+<td>傳什麼給 clash</td>
+<td><code>CONNECT host:port</code> / SOCKS5 交握</td>
+<td>原始 IP 封包</td>
+</tr>
+<tr>
+<td><code>ssh</code> / 遊戲 / 靜態連結程式</td>
+<td>❌</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>Docker 容器內</td>
+<td>❌</td>
+<td>❌（容器有自己的 netns）</td>
+</tr>
+<tr>
+<td>UDP</td>
+<td>看程式支不支援</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>需要 root</td>
+<td>❌</td>
+<td>✅（<code>CAP_NET_ADMIN</code>，故需 service helper）</td>
+</tr>
+<tr>
+<td>DNS 誰解析</td>
+<td><strong>clash／節點</strong>（送的是域名）</td>
+<td>程式會自己查，<strong>要靠 <code>dns-hijack</code> + fake-ip 攔</strong></td>
+</tr>
+<tr>
+<td>設錯的後果</td>
+<td>程式連不上，關掉就好</td>
+<td><strong>可能整台機器斷網</strong></td>
+</tr>
+<tr>
+<td>對已在執行的程式</td>
+<td>gsettings 式多半即時；環境變數式無效</td>
+<td>立即生效</td>
+</tr>
+</tbody>
+</table>
+<h3 id="最關鍵的差異dns">最關鍵的差異：DNS</h3>
+<p>這一點決定了兩者的設定複雜度天差地遠：</p>
+<ul>
+<li><strong>系統代理</strong>：<code>CONNECT example.com:443</code> 送出去的是<strong>域名</strong>，DNS 實際由 clash 或節點解析——
+天生就不會洩漏，不用額外設定。</li>
+<li><strong>TUN 模式</strong>：程式會先自己發一個 UDP 53 的查詢。如果不攔，域名就由原本的 DNS 解析（洩漏），而且規則引擎只看得到 IP、比對不到域名規則。所以才需要 <code>dns-hijack: any:53</code>
+把查詢攔進核心，再用 fake-ip 回假位址。</li>
+</ul>
+<p><strong>一句話：系統代理天生帶著域名走，TUN 模式得自己把域名搶回來。</strong></p>
+<h3 id="能不能用-all_proxy-指向-clash可以但要分清楚兩件事">能不能用 <code>all_proxy</code> 指向 clash？可以，但要分清楚兩件事</h3>
+<p><strong>第一件：GUI 的「系統代理」開關和環境變數是兩條獨立管道。</strong>
+Verge 在 Linux 上按下那個開關，改的是 gsettings，它<strong>不會也不可能</strong>把環境變數塞進已經在跑的
+shell 或 GUI 程式——環境變數只在行程啟動時繼承，事後無法注入。所以「開了系統代理」不等於「<code>all_proxy</code> 被設好了」，反過來也一樣。</p>
+<p>兩者涵蓋的對象幾乎互補：</p>
+<table>
+<thead>
+<tr>
+<th>管道</th>
+<th>誰會讀</th>
+<th>誰讀不到</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>gsettings（系統代理開關）</td>
+<td>Chrome／Electron／GNOME 應用程式</td>
+<td>終端機裡的 <code>curl</code>、<code>git</code>、<code>pip</code></td>
+</tr>
+<tr>
+<td>環境變數（<code>all_proxy</code> 等）</td>
+<td><code>curl</code>、<code>git</code>、<code>pip</code>、多數 CLI</td>
+<td>從選單啟動的 GUI 程式（實測 <code>gnome-shell</code> 的 environ 裡一個 proxy 變數都沒有）</td>
+</tr>
+</tbody>
+</table>
+<p><strong>要兩邊都覆蓋，就兩個都設，不是二選一。</strong></p>
+<p><strong>第二件：手動 export 完全可行，但協定要選對。</strong>
+<code>mixed-port</code> 顧名思義同一個埠同時收 HTTP 與 SOCKS5，實測三種寫法都通：</p>
+<pre><code>curl -x http://127.0.0.1:7897     → 200
+curl -x socks5://127.0.0.1:7897   → 200
+curl -x socks5h://127.0.0.1:7897  → 200
+</code></pre>
+<p>但<strong>三者送給 clash 的東西不一樣</strong>，核心日誌是鐵證：</p>
+<pre><code>--&gt; example.com:443       ← http://    送的是域名
+--&gt; 104.20.23.154:443     ← socks5://  送的是 IP，域名在本機就被解析掉了
+--&gt; example.com:443       ← socks5h:// 送的是域名
+</code></pre>
+<p><strong><code>socks5://</code> 會讓 clash 的域名規則全部失效。</strong> 因為 curl 先在本機把域名解析成 IP 才送出去，核心收到的只有 <code>104.20.23.154</code>，那 7433 條 <code>DOMAIN-SUFFIX</code> 規則一條都比對不到，只剩 IP 類規則（<code>IP-CIDR</code>、<code>GEOIP</code>）還有作用——分流結果會和你預期的完全不同。順帶一提，DNS 也是在本機查的，等於繞過了 clash 的 DNS 設定。</p>
+<p>所以指向 clash 時：</p>
+<pre><code class="language-bash"><span class="nb">export</span><span class="w"> </span><span class="nv">all_proxy</span><span class="o">=</span>socks5h://127.0.0.1:7897<span class="w">     </span><span class="c1"># ← h 不能少</span>
+<span class="nb">export</span><span class="w"> </span><span class="nv">http_proxy</span><span class="o">=</span>http://127.0.0.1:7897
+<span class="nb">export</span><span class="w"> </span><span class="nv">https_proxy</span><span class="o">=</span>http://127.0.0.1:7897
+<span class="nb">export</span><span class="w"> </span><span class="nv">no_proxy</span><span class="o">=</span>localhost,127.0.0.1,::1,192.168.0.0/16,10.0.0.0/8,*.local
+</code></pre>
+<p><code>no_proxy</code> 要含 <code>localhost</code>／<code>127.0.0.1</code>，否則連本機服務也會繞一圈 clash。</p>
+<p><strong>這條路屬於第二節的第三種——「手動指定」，不是「系統代理」。</strong> 它是 L1，只對讀環境變數的程式有效；真正要涵蓋所有程式，仍然只有 TUN 模式。</p>
+<h3 id="為什麼不建議兩個一起開">為什麼不建議兩個一起開</h3>
+<p>流量會繞兩圈：程式 → 7897 → 核心 → 出站封包又撞上 TUN。mihomo 會標記自己的流量避免無窮迴圈，所以通常不會壞，但你多了一層多餘處理，而且排查時根本分不清某條連線走的是哪條路。
+<strong>開 TUN 就把系統代理關掉。</strong></p>
+<h3 id="實測出口-ip-沒變不代表沒走-clash">實測：出口 IP 沒變，不代表沒走 clash</h3>
+<pre><code>對照組 A：curl --noproxy '*'        → 14.153.77.0
+對照組 B：curl -x 127.0.0.1:7897    → 14.153.77.0     ← 同一個 IP！
+核心的連線數：0 → 1，累計下行 0 → 5647 bytes          ← 但流量確實經過了核心
+</code></pre>
+<p>兩次出口 IP 一模一樣，很容易誤判成「代理沒生效」。實際上流量<strong>有</strong>進核心，核心日誌講得很清楚：</p>
+<pre><code>[TCP] 127.0.0.1:42494 --&gt; example.com:443 doesn't match any rule using DIRECT
+</code></pre>
+<p><strong>沒有任何一條規則命中，於是落到預設的 DIRECT。</strong> 本機那 7433 條規則多半是針對特定域名的清單，最後沒有一條 <code>MATCH,&lt;某個 group&gt;</code> 的兜底規則，所以清單外的流量一律直連——這也解釋了為什麼出口 IP 完全沒變。</p>
+<p><strong>教訓：驗證代理有沒有在工作，要看核心的連線數與流量，不是看出口 IP。</strong>
+IP 沒變有兩種完全不同的原因——流量沒進來，或進來了但規則判直連——只有 <code>/connections</code> 分得出來。</p>
+<h3 id="該用哪一個">該用哪一個</h3>
+<ul>
+<li>只要瀏覽器、<code>curl</code>、<code>git</code> 這些會讀設定的工具走代理 → <strong>系統代理</strong>，零風險、不需 root。</li>
+<li>要涵蓋 <code>ssh</code>、遊戲、不合作的商用軟體，或你要的是第四層（L4）全系統代理 → <strong>TUN 模式</strong>。</li>
+<li>兩者都達不到的：Docker 容器（要另外設）、其他 network namespace。</li>
+</ul>
+<hr />
+<h2 id="四實測核心在跑但流量是零">四、實測：核心在跑，但流量是零</h2>
+<p>本機當下的狀態，三條路一條都沒走：</p>
+<pre><code class="language-bash">$<span class="w"> </span>gsettings<span class="w"> </span>get<span class="w"> </span>org.gnome.system.proxy
+<span class="s1">&#39;none&#39;</span><span class="w">                                   </span><span class="c1"># ← 系統代理沒開</span>
+
+$<span class="w"> </span>curl<span class="w"> </span>-s<span class="w"> </span><span class="m">127</span>.0.0.1:9097/configs<span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span><span class="s1">&#39;.tun.enable&#39;</span>
+<span class="nb">false</span><span class="w">                                    </span><span class="c1"># ← TUN 沒開</span>
+
+$<span class="w"> </span>ip<span class="w"> </span>-br<span class="w"> </span>link<span class="w"> </span>show<span class="w"> </span><span class="nb">type</span><span class="w"> </span>tun
+<span class="o">(</span>空<span class="o">)</span><span class="w">                                     </span><span class="c1"># ← 沒有 tun 介面</span>
+
+$<span class="w"> </span>env<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-i<span class="w"> </span>proxy
+<span class="nv">all_proxy</span><span class="o">=</span>socks5://192.168.1.1:1080<span class="w">      </span><span class="c1"># ← 指向路由器，不是 clash 的 7897</span>
+
+$<span class="w"> </span>curl<span class="w"> </span>-s<span class="w"> </span><span class="m">127</span>.0.0.1:9097/connections<span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span><span class="s1">&#39;{n: (.connections|length), up: .uploadTotal, down: .downloadTotal}&#39;</span>
+<span class="o">{</span><span class="w"> </span><span class="s2">&quot;n&quot;</span>:<span class="w"> </span><span class="m">0</span>,<span class="w"> </span><span class="s2">&quot;up&quot;</span>:<span class="w"> </span><span class="m">0</span>,<span class="w"> </span><span class="s2">&quot;down&quot;</span>:<span class="w"> </span><span class="m">0</span><span class="w"> </span><span class="o">}</span><span class="w">           </span><span class="c1"># ← 核心一個位元組都沒處理過</span>
+</code></pre>
+<p><strong>核心跑著、節點也測得到延遲、GUI 看起來一切正常——但它完全空轉。</strong> 這是新手最常見的誤解：以為「程式開著就會生效」。</p>
+<p><strong>心法：判斷 clash 有沒有在工作，不要看 GUI 有沒有開，要看 <code>/connections</code> 有沒有連線數。</strong></p>
+<hr />
+<h2 id="五開-tun-模式l4">五、開 TUN 模式（L4）</h2>
+<h3 id="前置條件">前置條件</h3>
+<p>TUN 需要建立虛擬網卡、改路由表，這些要 <code>CAP_NET_ADMIN</code>（Capability for Network Administration，網路管理權限）。GUI 是一般使用者身分，所以必須有 <strong>Service Mode</strong>——也就是那個以 root 執行的 helper：</p>
+<pre><code class="language-bash">$<span class="w"> </span>systemctl<span class="w"> </span>is-active<span class="w"> </span>clash-verge-service
+active<span class="w">            </span><span class="c1"># ✅ 本機已具備，可以直接開 TUN</span>
+</code></pre>
+<p>若顯示 <code>inactive</code>，GUI 的「服務模式」頁有安裝鈕（背後執行
+<code>/usr/lib/Clash Verge/resources/install-service-x86_64-unknown-linux-gnu</code>）。</p>
+<h3 id="步驟">步驟</h3>
+<ol>
+<li>GUI → <strong>設定（Settings）</strong> → 確認 <strong>服務模式（Service Mode）</strong> 已啟用。</li>
+<li>同頁打開 <strong>TUN 模式（TUN Mode）</strong>。</li>
+<li>確認 <strong>系統代理（System Proxy）關掉</strong>——TUN 已經從 IP 層接管，再套一層系統代理只會讓封包繞兩圈。</li>
+<li><strong>把 shell 裡的 <code>http_proxy</code>／<code>all_proxy</code> 環境變數拿掉</strong>（見第八節第 1 點，這是最容易誤判的坑）。</li>
+</ol>
+<hr />
+<h2 id="六tun-開啟後系統發生了什麼">六、TUN 開啟後系統發生了什麼</h2>
+<p>不要把它當黑盒子。開啟後可以逐項驗證：</p>
+<pre><code class="language-bash">ip<span class="w"> </span>-br<span class="w"> </span>addr<span class="w"> </span>show<span class="w">                </span><span class="c1"># 多一張 utun，位址 198.18.0.1/30</span>
+ip<span class="w"> </span>route<span class="w"> </span>show<span class="w">                   </span><span class="c1"># default 被導向 utun（auto-route 幹的）</span>
+ip<span class="w"> </span>rule<span class="w"> </span>show<span class="w">                    </span><span class="c1"># 多出 mihomo 用來避免迴圈的策略路由規則</span>
+</code></pre>
+<p>本機 TUN 的設定（<code>config.yaml</code> 與 API 查到的一致）：</p>
+<table>
+<thead>
+<tr>
+<th>欄位</th>
+<th>值</th>
+<th>意義</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>stack</code></td>
+<td><code>gvisor</code></td>
+<td>用 gVisor 的使用者空間 TCP/IP 堆疊解析封包（另有 <code>system</code>／<code>mixed</code>）</td>
+</tr>
+<tr>
+<td><code>auto-route</code></td>
+<td><code>true</code></td>
+<td><strong>自動改路由表</strong>把預設路由指向 TUN——沒有這個，TUN 只是一張沒人用的網卡</td>
+</tr>
+<tr>
+<td><code>auto-detect-interface</code></td>
+<td><code>true</code></td>
+<td>自動偵測真正的出口網卡，核心自己的連線走它而不是繞回 TUN</td>
+</tr>
+<tr>
+<td><code>strict-route</code></td>
+<td><code>false</code></td>
+<td>寬鬆模式，不強制攔截所有流量（見第八節第 4 點）</td>
+</tr>
+<tr>
+<td><code>dns-hijack</code></td>
+<td><code>any:53</code></td>
+<td><strong>把所有送到 53 埠的 DNS 查詢劫持進核心</strong></td>
+</tr>
+<tr>
+<td><code>inet4-address</code></td>
+<td><code>198.18.0.1/30</code></td>
+<td>TUN 介面自己的位址</td>
+</tr>
+</tbody>
+</table>
+<p>搭配的 DNS 設定：</p>
+<pre><code class="language-yaml"><span class="nt">dns</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">enable</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<span class="w">  </span><span class="nt">enhanced-mode</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">fake-ip</span><span class="w">          </span><span class="c1"># 關鍵</span>
+<span class="w">  </span><span class="nt">fake-ip-range</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">198.18.0.1/16</span>
+<span class="w">  </span><span class="nt">fake-ip-filter</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&#39;*.lan&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;*.local&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">...</span><span class="p p-Indicator">]</span>
+</code></pre>
+<p><strong>fake-ip 是 TUN 模式能運作的關鍵機制</strong>：程式查 <code>example.com</code> 時，核心不真的去解析，而是回一個 <code>198.18.x.x</code> 的假位址；程式拿著假位址去連，封包進 TUN 後，核心用「假 IP ↔ 域名」的對照表還原出真正的域名，再交給規則引擎判斷該走哪個節點。</p>
+<p>這樣做的理由：<strong>規則是寫域名的</strong>（<code>DOMAIN-SUFFIX,google.com,🚀 节点选择</code>），但 IP 層的封包裡只有 IP 沒有域名。先發假 IP，就能在封包回來時把域名找回來。代價是 <code>fake-ip-filter</code> 裡列的域名（<code>*.lan</code>、NTP 等）必須排除，否則本地服務會拿到假位址而連不上。</p>
+<hr />
+<h2 id="七規則模式流量怎麼被分流">七、規則模式：流量怎麼被分流</h2>
+<p><code>mode</code> 有三種，GUI 上就是那三顆按鈕：</p>
+<table>
+<thead>
+<tr>
+<th>mode</th>
+<th>行為</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>rule</code></td>
+<td><strong>照規則分流</strong>（預設，也是本機的設定）——每條連線比對 <code>rules</code> 決定走哪個 proxy-group</td>
+</tr>
+<tr>
+<td><code>global</code></td>
+<td>全部走同一個節點，規則完全略過</td>
+</tr>
+<tr>
+<td><code>direct</code></td>
+<td>全部直連，等於只當個擺設（但 TUN 還在攔截）</td>
+</tr>
+</tbody>
+</table>
+<p>本機的規模：<strong>7 個 Trojan 節點、3 個 proxy-group、7433 條規則</strong>（規則多半來自訂閱附帶的規則集）。</p>
+<p>proxy-group 是「一組節點 + 一個選擇策略」，規則指向 group 而不是直接指向節點，所以你換節點不用改規則：</p>
+<pre><code class="language-bash">$<span class="w"> </span>curl<span class="w"> </span>-s<span class="w"> </span><span class="m">127</span>.0.0.1:9097/proxies<span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>-r<span class="w"> </span><span class="s1">&#39;...&#39;</span>
+<span class="w">  </span><span class="o">[</span>Selector<span class="o">]</span><span class="w"> </span>🚀<span class="w"> </span>节点选择<span class="w">   </span>→<span class="w"> </span><span class="nv">now</span><span class="o">=</span>...<span class="w">      </span>（5<span class="w"> </span>個候選）<span class="w">   </span><span class="c1"># Selector = 手動選</span>
+<span class="w">  </span><span class="o">[</span>Selector<span class="o">]</span><span class="w"> </span>🎯<span class="w"> </span>全球直连<span class="w">   </span>→<span class="w"> </span><span class="nv">now</span><span class="o">=</span>DIRECT<span class="w">   </span>（2<span class="w"> </span>個候選）
+<span class="w">  </span><span class="o">[</span>Selector<span class="o">]</span><span class="w"> </span>🐟<span class="w"> </span>漏网之鱼<span class="w">   </span>→<span class="w"> </span><span class="nv">now</span><span class="o">=</span>🚀<span class="w"> </span>节点选择（2<span class="w"> </span>個候選）<span class="w">  </span><span class="c1"># 沒被任何規則命中的流量</span>
+</code></pre>
+<p>常見的 group 型別：<code>Selector</code>（手動）、<code>URLTest</code>（自動選延遲最低）、<code>Fallback</code>（主節點掛了才換）、<code>LoadBalance</code>（分散）。</p>
+<p>規則的比對是<strong>由上而下、第一個命中就決定</strong>，最後一條通常是 <code>MATCH,🐟 漏网之鱼</code>。所以要讓某個域名走特定節點，規則要加在前面。</p>
+<hr />
+<h2 id="八把自架的代理接進來">八、把自架的代理接進來</h2>
+<p><strong>重要前提</strong>：訂閱來的節點和你自架的代理是兩回事。本機實測 <code>grep '192.168.1.1' clash-verge.yaml</code> <strong>完全沒有命中</strong>——目前這 7 個 Trojan 節點是訂閱提供的，clash 直接連它們，<strong>沒有經過你自己的 OpenWrt v2ray</strong>。</p>
+<p>若要讓 clash 把流量交給自架的 SOCKS5（例如路由器上的 v2ray <code>192.168.1.1:1080</code>），在 profile 裡加一個節點：</p>
+<pre><code class="language-yaml"><span class="nt">proxies</span><span class="p">:</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;我的路由器-v2ray&quot;</span>
+<span class="w">    </span><span class="nt">type</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">socks5</span>
+<span class="w">    </span><span class="nt">server</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">192.168.1.1</span>
+<span class="w">    </span><span class="nt">port</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1080</span>
+<span class="w">    </span><span class="nt">udp</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span><span class="w">          </span><span class="c1"># 不加這行，UDP 不會走它</span>
+
+<span class="nt">proxy-groups</span><span class="p">:</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;🚀</span><span class="nv"> </span><span class="s">节点选择&quot;</span>
+<span class="w">    </span><span class="nt">type</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">select</span>
+<span class="w">    </span><span class="nt">proxies</span><span class="p">:</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">&quot;我的路由器-v2ray&quot;</span><span class="w">     </span><span class="c1"># 加進候選，GUI 上就選得到</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">...</span>
+</code></pre>
+<p>Clash Verge 的正確做法<strong>不是直接改 <code>clash-verge.yaml</code></strong>（它是產生物，下次更新訂閱就被覆蓋），而是用 <strong>Profiles 頁的「全域擴展設定（Merge）」或「擴展腳本（Script）」</strong>——這些會在每次產生設定時自動合併進去。本機 <code>profiles/Merge.yaml</code> 就是這個用途的檔案。</p>
+<hr />
+<h2 id="九六個會讓你誤判的坑">九、六個會讓你誤判的坑</h2>
+<h3 id="1-開了-tun卻還留著-proxy-環境變數最常見">1. 開了 TUN，卻還留著 proxy 環境變數（最常見）</h3>
+<p>你的 <code>~/.zshrc</code> 有 <code>all_proxy=socks5://192.168.1.1:1080</code>。開了 TUN 之後：</p>
+<pre><code>curl → 讀到 all_proxy → 連 192.168.1.1:1080（LAN 位址，規則判定 DIRECT，不進 TUN）
+     → 流量走了路由器的 v2ray，clash 完全沒參與
+     → 你以為「TUN 沒作用」，其實是流量根本沒進來
+</code></pre>
+<p><strong>開 TUN 就該把環境變數拿掉</strong>，否則你測的一直是另一條路。</p>
+<h3 id="2-connections-才是唯一可信的證據">2. <code>/connections</code> 才是唯一可信的證據</h3>
+<p>GUI 顯示「已連線」、節點延遲測得到，都只代表<strong>核心自己</strong>連得上節點，不代表<strong>你的程式</strong>走了核心。看連線數。</p>
+<h3 id="3-tun-不涵蓋的東西">3. TUN 不涵蓋的東西</h3>
+<ul>
+<li><strong>Docker 容器</strong>：容器有自己的 network namespace，主機的 TUN 路由管不到（容器要另外設 proxy，見 <a href="../docker/Docker%E6%8B%89%E5%8F%96%E6%98%A0%E5%83%8F%E6%AA%94%E5%A4%B1%E6%95%97-daemon%E7%BC%BAproxy%E6%8E%92%E6%9F%A5.html">Docker拉取映像檔失敗-daemon缺proxy排查</a>）。</li>
+<li><strong>其他 network namespace</strong>、某些以 root 身分且被規則排除的流量。</li>
+</ul>
+<h3 id="4-strict-route-false-的意義">4. <code>strict-route: false</code> 的意義</h3>
+<p>寬鬆模式下，已經綁定特定網卡的流量、或核心判定該繞過的流量不會被強制拉進 TUN。好處是不容易把自己鎖死，壞處是<strong>可能有漏網流量沒走代理</strong>。要求「一個都不漏」時才開 <code>strict-route</code>，但它更容易造成斷網。</p>
+<h3 id="5-dns-沒一起處理--白做">5. DNS 沒一起處理 = 白做</h3>
+<p><code>dns-hijack: any:53</code> 只攔 53 埠的明文 DNS。若你的系統用 <strong>DoH／DoT（DNS over HTTPS／TLS）</strong>（走 443／853），那些查詢不會被攔到，域名還是由原本的 DNS 解析。本機是 systemd-resolved（見 <a href="%E6%9F%A5%E8%A9%A2%E7%9B%AE%E5%89%8D%E4%BD%BF%E7%94%A8%E7%9A%84DNS%E4%BC%BA%E6%9C%8D%E5%99%A8.html">查詢目前使用的DNS伺服器</a>），要確認它沒開 DoT。</p>
+<h3 id="6-代理伺服器自己的位址必須排除">6. 代理伺服器自己的位址必須排除</h3>
+<p>如果你把 <code>192.168.1.1:1080</code> 設成 clash 的節點，同時又開 TUN：核心連向 <code>192.168.1.1</code> 的封包若被自己的 TUN 攔回去，就會形成無窮迴圈、整台機器斷網。防止機制有兩層——<code>auto-detect-interface</code> 讓核心的出站連線走實體網卡，以及規則裡對私有網段的 DIRECT 判定。<strong>自架代理在 LAN 上時，務必確認規則裡有 <code>GEOIP,private,DIRECT</code> 或等價的 <code>IP-CIDR</code> 規則。</strong></p>
+<hr />
+<h2 id="十驗證與救援">十、驗證與救援</h2>
+<pre><code class="language-bash"><span class="c1"># --- 核心狀態（API，唯讀）---</span>
+curl<span class="w"> </span>-s<span class="w"> </span><span class="m">127</span>.0.0.1:9097/configs<span class="w">   </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span><span class="s1">&#39;{tun: .tun.enable, mode: .mode, port: .&quot;mixed-port&quot;}&#39;</span>
+curl<span class="w"> </span>-s<span class="w"> </span><span class="m">127</span>.0.0.1:9097/connections<span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span><span class="s1">&#39;.connections | length&#39;</span><span class="w">    </span><span class="c1"># ← 有沒有真的在處理流量</span>
+curl<span class="w"> </span>-s<span class="w"> </span><span class="m">127</span>.0.0.1:9097/proxies<span class="w">   </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>-r<span class="w"> </span><span class="s1">&#39;.proxies.GLOBAL.now&#39;</span><span class="w">     </span><span class="c1"># 目前選中的節點</span>
+
+<span class="c1"># --- 系統層 ---</span>
+ip<span class="w"> </span>-br<span class="w"> </span>addr<span class="w"> </span>show<span class="w">                  </span><span class="c1"># utun 在不在、位址對不對</span>
+ip<span class="w"> </span>route<span class="w"> </span>show<span class="w"> </span><span class="p">|</span><span class="w"> </span>head<span class="w">              </span><span class="c1"># default 是不是指向 utun</span>
+resolvectl<span class="w"> </span>query<span class="w"> </span>example.com<span class="w">      </span><span class="c1"># 回 198.18.x.x → fake-ip 生效中</span>
+
+<span class="c1"># --- 端到端 ---</span>
+curl<span class="w"> </span>-s<span class="w"> </span>https://ifconfig.me<span class="p">;</span><span class="w"> </span><span class="nb">echo</span><span class="w">            </span><span class="c1"># 出口 IP 變了沒</span>
+curl<span class="w"> </span>-s<span class="w"> </span>--interface<span class="w"> </span>utun<span class="w"> </span>https://ifconfig.me<span class="w"> </span><span class="c1"># 指定走 TUN 對照</span>
+
+<span class="c1"># --- 救援（照順序）---</span>
+<span class="c1"># 1. GUI 關掉 TUN 開關（最正常的做法）</span>
+<span class="c1"># 2. GUI 沒反應 → 停掉核心，路由會自動還原</span>
+pkill<span class="w"> </span>verge-mihomo
+<span class="c1"># 3. 還是不通 → 停掉 root helper</span>
+sudo<span class="w"> </span>systemctl<span class="w"> </span>stop<span class="w"> </span>clash-verge-service
+<span class="c1"># 4. 確認路由已還原</span>
+ip<span class="w"> </span>route<span class="w"> </span>show<span class="w"> </span><span class="p">|</span><span class="w"> </span>head
+</code></pre>
+<p><strong>心法：動 TUN 之前先想好怎麼退。</strong> 它會改預設路由，設錯就是整台機器斷網——而你很可能正在遠端連線上做這件事。</p>
+<hr />
+<h2 id="自我測驗">自我測驗</h2>
+<ol>
+<li>系統代理與 TUN 模式的攔截點各在哪一層？為什麼 <code>ssh</code> 在前者底下一定不會走代理、在後者底下卻會？並說明為什麼只有 TUN 模式需要那個以 root 執行的 service helper。</li>
+<li>核心跑著、節點延遲也測得出來、GUI 一切正常，但 <code>curl</code> 出去的 IP 沒變。要看哪一個數字才能判斷流量到底有沒有經過核心？為什麼「GUI 顯示已連線」不能當證據？</li>
+<li>fake-ip 為什麼是 TUN 模式的關鍵？如果不用 fake-ip、讓系統正常解析 DNS，規則引擎會遇到什麼困難？</li>
+<li>你在 <code>~/.zshrc</code> 留著 <code>all_proxy=socks5://192.168.1.1:1080</code>，然後開了 TUN 模式，結果發現 clash 的連線數一直是 0。解釋整條路徑為什麼繞過了 clash。接著：若改成指向 clash 自己的 <code>socks5://127.0.0.1:7897</code>，流量確實進核心了，但分流結果完全不如預期——為什麼？該怎麼寫才對？</li>
+<li>情境題：你把自家路由器的 SOCKS5（<code>192.168.1.1:1080</code>）加成 clash 的一個節點並選用它，開 TUN 後整台機器立刻斷網。最可能的原因是什麼？要檢查哪一類規則？哪兩個設定本來應該防止這件事？</li>
+</ol>
+
+</main>
+</div>
+</body>
+</html>

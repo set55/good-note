@@ -1,0 +1,391 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ASN 是哪家公司的？——查得到「註冊名稱」，但註冊名稱不一定是你想的那家公司</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/app.js"></script>
+</head>
+<body>
+<button class="menu-btn" onclick="toggleMenu()">☰ 目錄</button>
+<div class="layout">
+<nav class="side">
+<div class="crumbs"><a href="../index.html">🏠 首頁</a> / <a href="README.html">linux</a></div>
+<div class="tools"><button onclick="toggleTheme()">🌓 主題</button></div>
+<ul>
+<li class="l2"><a href="#%E7%9B%AE%E9%8C%84">目錄</a></li>
+<li class="l2"><a href="#%E4%B8%80%E6%9C%80%E5%BF%AB%E4%B8%80%E8%A1%8C%E6%8B%BF%E5%88%B0-as-%E5%90%8D%E7%A8%B1">一、最快：一行拿到 AS 名稱</a></li>
+<li class="l2"><a href="#%E4%BA%8C%E6%9C%80%E6%AC%8A%E5%A8%81rdap-%E6%9F%A5-registrant">二、最權威：RDAP 查 registrant</a></li>
+<li class="l2"><a href="#%E4%B8%89%E6%9C%80%E8%A9%B3%E7%B4%B0rir-%E7%9A%84-aut-num-%E7%89%A9%E4%BB%B6">三、最詳細：RIR 的 aut-num 物件</a></li>
+<li class="l2"><a href="#%E5%9B%9Bas-name-%E4%B8%8D%E7%AD%89%E6%96%BC%E5%85%AC%E5%8F%B8%E5%90%8Das4134-%E7%9A%84%E5%AF%A6%E4%BE%8B">四、as-name 不等於公司名：AS4134 的實例</a></li>
+<li class="l2"><a href="#%E4%BA%94%E7%82%BA%E4%BB%80%E9%BA%BC%E4%BD%A0%E6%9C%83%E6%9F%A5%E5%88%B0%E9%81%8E%E6%99%82%E6%88%96%E4%B8%8D%E5%B0%8D%E7%9A%84%E5%85%AC%E5%8F%B8">五、為什麼你會查到「過時」或「不對」的公司</a></li>
+<li class="l2"><a href="#%E5%85%AD%E5%8F%8D%E5%90%91%E6%9F%A5%E5%85%AC%E5%8F%B8%E5%90%8D--asn">六、反向查：公司名 → ASN</a></li>
+<li class="l2"><a href="#%E5%8F%83%E8%80%83">參考</a></li>
+<li class="l2"><a href="#%E4%B8%83%E8%87%AA%E6%88%91%E6%B8%AC%E9%A9%97">七、自我測驗</a></li>
+<li class="l2"><a href="#whois-%E8%88%87-dig-%E7%9A%84%E5%AE%8C%E6%95%B4%E9%81%B8%E9%A0%85">whois 與 dig 的完整選項</a></li>
+<li class="l3"><a href="#whoisdebian-whois-%E5%A5%97%E4%BB%B6">whois（Debian whois 套件）</a></li>
+<li class="l3"><a href="#dig">dig</a></li>
+</ul>
+</nav>
+<main>
+<h1 id="asn-是哪家公司的查得到註冊名稱但註冊名稱不一定是你想的那家公司">ASN 是哪家公司的？——查得到「註冊名稱」，但註冊名稱不一定是你想的那家公司</h1>
+<blockquote>
+<p>日期：2026-09-10<br />
+情境：traceroute 查出一串 ASN，想知道每個編號背後是哪家公司<br />
+對應檔案：無（純指令操作）<br />
+適用範圍：Linux；本機實測 <code>whois</code> 5.5.x、<code>dig</code>、<code>curl</code>、<code>jq</code>；實測對象 AS13335、AS4134</p>
+</blockquote>
+<blockquote>
+<p><strong>一句話結論：ASN（Autonomous System Number，自治系統編號）對應的公司名有三個不同來源——
+快查用 Team Cymru、權威用 RDAP 的 registrant 物件、細節用 RIR 的 <code>aut-num</code> whois；三者給的「名字」經常不一樣，因為其中只有一個是法人名稱，其他是代號與自由填寫的描述。</strong></p>
+</blockquote>
+<hr />
+<h2 id="目錄">目錄</h2>
+<ol>
+<li><a href="#%E4%B8%80%E6%9C%80%E5%BF%AB%E4%B8%80%E8%A1%8C%E6%8B%BF%E5%88%B0-as-%E5%90%8D%E7%A8%B1">最快：一行拿到 AS 名稱</a></li>
+<li><a href="#%E4%BA%8C%E6%9C%80%E6%AC%8A%E5%A8%81rdap-%E6%9F%A5-registrant">最權威：RDAP 查 registrant</a></li>
+<li><a href="#%E4%B8%89%E6%9C%80%E8%A9%B3%E7%B4%B0rir-%E7%9A%84-aut-num-%E7%89%A9%E4%BB%B6">最詳細：RIR 的 aut-num 物件</a></li>
+<li><a href="#%E5%9B%9Bas-name-%E4%B8%8D%E7%AD%89%E6%96%BC%E5%85%AC%E5%8F%B8%E5%90%8Das4134-%E7%9A%84%E5%AF%A6%E4%BE%8B">as-name 不等於公司名：AS4134 的實例</a></li>
+<li><a href="#%E4%BA%94%E7%82%BA%E4%BB%80%E9%BA%BC%E4%BD%A0%E6%9C%83%E6%9F%A5%E5%88%B0%E9%81%8E%E6%99%82%E6%88%96%E4%B8%8D%E5%B0%8D%E7%9A%84%E5%85%AC%E5%8F%B8">為什麼你會查到「過時」或「不對」的公司</a></li>
+<li><a href="#%E5%85%AD%E5%8F%8D%E5%90%91%E6%9F%A5%E5%85%AC%E5%8F%B8%E5%90%8D--asn">反向查：公司名 → ASN</a></li>
+<li><a href="#%E4%B8%83%E8%87%AA%E6%88%91%E6%B8%AC%E9%A9%97">自我測驗</a></li>
+</ol>
+<hr />
+<h2 id="一最快一行拿到-as-名稱">一、最快：一行拿到 AS 名稱</h2>
+<pre><code class="language-bash"><span class="c1"># Team Cymru（whois 介面）</span>
+whois<span class="w"> </span>-h<span class="w"> </span>whois.cymru.com<span class="w"> </span><span class="s2">&quot; -v AS4134&quot;</span>
+<span class="c1"># 4134 | CN | apnic | 2002-08-01 | CHINANET-BACKBONE - No.31,Jin-rong Street, CN</span>
+
+<span class="c1"># 同一份資料的 DNS 介面，適合寫進腳本</span>
+dig<span class="w"> </span>+short<span class="w"> </span>TXT<span class="w"> </span>AS4134.asn.cymru.com
+
+<span class="c1"># bgp.tools 的 whois 介面，名稱通常更乾淨</span>
+whois<span class="w"> </span>-h<span class="w"> </span>bgp.tools<span class="w"> </span><span class="s2">&quot; -v AS13335&quot;</span>
+<span class="c1"># 13335 | | | US | ARIN | 2010-07-14 | Cloudflare, Inc.</span>
+
+<span class="c1"># RIPEstat API，只要 holder 一個欄位</span>
+curl<span class="w"> </span>-s<span class="w"> </span><span class="s1">&#39;https://stat.ripe.net/data/as-overview/data.json?resource=AS13335&#39;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>-r<span class="w"> </span><span class="s1">&#39;.data.holder&#39;</span>
+</code></pre>
+<p>注意前兩個和第三個給的字串不同：Cymru 給 <code>CLOUDFLARENET - Cloudflare, Inc., US</code>，
+bgp.tools 給 <code>Cloudflare, Inc.</code>。<strong>前半段 <code>CLOUDFLARENET</code> 是 as-name，一個代號；後半段才是組織名。</strong> 兩者不是同一個欄位，下一節會看到它們在原始資料裡本來就是分開的。</p>
+<hr />
+<h2 id="二最權威rdap-查-registrant">二、最權威：RDAP 查 registrant</h2>
+<p>RDAP（Registration Data Access Protocol，註冊資料存取協定）是 whois 的結構化後繼者，走 HTTPS、回 JSON。
+<code>rdap.org</code> 提供啟動（bootstrap）服務，會自動把你的查詢導到正確的 RIR（Regional Internet Registry，區域網際網路註冊管理機構），所以你不必先知道這個 ASN 屬於 ARIN 還是 APNIC：</p>
+<pre><code class="language-bash">curl<span class="w"> </span>-sL<span class="w"> </span>https://rdap.org/autnum/13335<span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span><span class="s1">&#39;{handle, name,</span>
+<span class="s1">  registrant: [.entities[] | select(.roles[]==&quot;registrant&quot;)</span>
+<span class="s1">               | .vcardArray[1] | map(select(.[0]==&quot;fn&quot;)) | .[0][3]]}&#39;</span>
+</code></pre>
+<pre><code class="language-json"><span class="p">{</span>
+<span class="w">  </span><span class="nt">&quot;handle&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;AS13335&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;CLOUDFLARENET&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;registrant&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;Cloudflare, Inc.&quot;</span><span class="p">]</span>
+<span class="p">}</span>
+</code></pre>
+<p>這裡把兩個概念分得很清楚：<code>name</code> 是 as-name（代號），<code>registrant</code> 角色的 <code>fn</code>（formatted name）才是<strong>登記的法人</strong>。要寫程式判斷「這個 AS 屬於誰」，應該取 registrant，不是 <code>name</code>。</p>
+<p>RDAP 還有一個實務優勢：它走 443 埠。本機實測 <code>whois -h whois.arin.net AS13335</code> 得到
+<code>connect: Network is unreachable</code>（43 埠被環境擋掉），RDAP 同一份資料照樣查得到。另外不指定 <code>-h</code> 直接打 <code>whois AS13335</code> 要先向 IANA 問轉介（referral），遇到網路不順會卡很久，本機實測 30 秒逾時都還沒回來——要嘛指定 <code>-h</code>，要嘛用 RDAP。</p>
+<hr />
+<h2 id="三最詳細rir-的-aut-num-物件">三、最詳細：RIR 的 <code>aut-num</code> 物件</h2>
+<p>想看完整註冊資料（聯絡人、維護者、abuse 信箱），就查對應 RIR 的 whois：</p>
+<pre><code class="language-bash">whois<span class="w"> </span>-h<span class="w"> </span>whois.apnic.net<span class="w"> </span>AS4134
+</code></pre>
+<pre><code>aut-num:        AS4134
+as-name:        CHINANET-BACKBONE
+descr:          No.31,Jin-rong Street
+descr:          Beijing
+country:        CN
+remarks:        for backbone of chinanet
+admin-c:        CH93-AP
+abuse-c:        AC1573-AP
+mnt-by:         APNIC-HM
+last-modified:  2021-06-15T08:05:05Z
+irt:            IRT-CHINANET-CN
+e-mail:         anti-spam@chinatelecom.cn
+</code></pre>
+<p>各 RIR 的 whois 主機：<code>whois.arin.net</code>（北美）、<code>whois.ripe.net</code>（歐洲/中東）、
+<code>whois.apnic.net</code>（亞太）、<code>whois.lacnic.net</code>（拉美）、<code>whois.afrinic.net</code>（非洲）。查錯 RIR 只會得到「查無資料」或一句轉介，不會給你錯的答案。</p>
+<hr />
+<h2 id="四as-name-不等於公司名as4134-的實例">四、<code>as-name</code> 不等於公司名：AS4134 的實例</h2>
+<p>上面那筆資料很適合當教材。你想知道「AS4134 是哪家公司」，而資料裡：</p>
+<table>
+<thead>
+<tr>
+<th>欄位</th>
+<th>值</th>
+<th>是公司名嗎</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>as-name</code></td>
+<td><code>CHINANET-BACKBONE</code></td>
+<td>不是，是網路代號</td>
+</tr>
+<tr>
+<td><code>descr</code></td>
+<td><code>No.31,Jin-rong Street</code> / <code>Beijing</code></td>
+<td>不是，<strong>這裡填的是地址</strong></td>
+</tr>
+<tr>
+<td><code>remarks</code></td>
+<td><code>for backbone of chinanet</code></td>
+<td>只是備註</td>
+</tr>
+<tr>
+<td><code>e-mail</code>（irt 物件）</td>
+<td><code>anti-spam@chinatelecom.cn</code></td>
+<td>這才透露出真正的營運者：中國電信</td>
+</tr>
+</tbody>
+</table>
+<p>所以 Cymru 顯示的 <code>CHINANET-BACKBONE - No.31,Jin-rong Street, CN</code> 看起來像「公司名 - 公司名」，其實是「代號 - 地址」。<strong><code>descr</code> 是自由文字欄位，填什麼全看當初登記的人。</strong>
+真的要確認是哪家公司，最可靠的訊號是 abuse／tech 聯絡信箱的網域，以及 RDAP 的 registrant。</p>
+<hr />
+<h2 id="五為什麼你會查到過時或不對的公司">五、為什麼你會查到「過時」或「不對」的公司</h2>
+<p>註冊資料是人工維護的，下面每一種都常見：</p>
+<ul>
+<li><strong>併購後沒更新</strong>。買下一家 ISP 不會自動改 <code>aut-num</code>，<code>as-name</code> 往往維持被併購前的品牌十幾年。你查到一個沒聽過的名字，有可能那就是現在某大電信商的前身。</li>
+<li><strong>ASN 轉移（transfer）但 descr 沒跟上</strong>。RIR 只保證 registrant 正確，<code>descr</code>／<code>remarks</code> 沒人稽核。</li>
+<li><strong>一家公司有很多個 ASN</strong>，不同地區、不同業務線各一個（下一節實測）。看到不同 ASN 不代表換了公司。</li>
+<li><strong>AS 的使用者不是持有者</strong>。企業可能用上游 ISP 的 AS 出去，那段流量在 traceroute 上掛的是 ISP 的名字。</li>
+<li><strong>IXP（Internet Exchange Point，網際網路交換中心）的位址</strong>屬於交換中心自己，既不是來源也不是目的公司。</li>
+<li><strong><code>country</code> 只是登記國別</strong>。AS13335 登記在 US，但它的節點遍布全球，那一跳的實體位置跟這個欄位無關。</li>
+</ul>
+<p>心法：<strong>註冊資料回答的是「誰登記了這個號碼」，不是「這段線路現在由誰營運」。</strong> 前者是權威的，後者只能推測。</p>
+<hr />
+<h2 id="六反向查公司名--asn">六、反向查：公司名 → ASN</h2>
+<p>RIPEstat 的搜尋端點可以用公司名反查，順便驗證「一家公司多個 ASN」：</p>
+<pre><code class="language-bash">curl<span class="w"> </span>-s<span class="w"> </span><span class="s1">&#39;https://stat.ripe.net/data/searchcomplete/data.json?resource=cloudflare&#39;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>-r<span class="w"> </span><span class="s1">&#39;.data.categories[]?.suggestions[]? | &quot;\(.value)\t\(.description)&quot;&#39;</span>
+</code></pre>
+<pre><code>AS13335    CLOUDFLARENET - Cloudflare, Inc.
+AS14789    CLOUDFLARENET - Cloudflare, Inc.
+AS132892   CLOUDFLARE - Cloudflare, Inc.
+AS202623   CLOUDFLARENET-CORE Cloudflare Inc
+AS209242   CLOUDFLARESPECTRUM Cloudflare London, LLC
+AS394536   CLOUDFLARENET-SFO - Cloudflare, Inc.
+</code></pre>
+<p>八個以上的 ASN 指向同一家公司，名稱還有 <code>Cloudflare Inc</code>、<code>Cloudflare, Inc.</code>、<code>Cloudflare London, LLC</code>
+三種寫法。<strong>用字串比對公司名來歸類 AS 是不可靠的做法</strong>，要歸類就該靠 ASN 本身，或靠維護良好的外部資料集。</p>
+<hr />
+<h2 id="參考">參考</h2>
+<ul>
+<li>怎麼從封包路徑拿到這些 ASN：<a href="%E6%9F%A5%E8%A9%A2%E8%AB%8B%E6%B1%82%E7%B6%93%E9%81%8E%E5%93%AA%E4%BA%9BAS%E8%88%87ISP.html">查詢請求經過哪些AS與ISP</a></li>
+<li>追路徑時換探測協定的差別：<a href="mtr%E6%94%B9%E7%94%A8TCP%E6%88%96UDP%E6%8E%A2%E6%B8%AC.html">mtr改用TCP或UDP探測</a></li>
+</ul>
+<hr />
+<h2 id="七自我測驗">七、自我測驗</h2>
+<ol>
+<li>同一個 ASN，Cymru 給 <code>CLOUDFLARENET - Cloudflare, Inc., US</code>，bgp.tools 給 <code>Cloudflare, Inc.</code>。這兩個字串的差別來自原始註冊資料的哪兩個欄位？要寫程式取「公司」時該取哪一個？</li>
+<li>你查到某個 <code>aut-num</code> 的 <code>descr</code> 是一個街道地址，<code>as-name</code> 是一個你沒聽過的代號。還有哪個欄位最可能告訴你真正的營運公司？為什麼那個欄位比 <code>descr</code> 可信？</li>
+<li>為什麼「用公司名做字串比對來判斷兩個 ASN 是不是同一家」會出錯？舉出兩種會失敗的情形。</li>
+<li>情境題：你要查 AS13335，但這台機器 <code>whois -h whois.arin.net</code> 連不上，直接 <code>whois AS13335</code> 又卡住不回。說明這兩個失敗各自的原因，以及你會改用什麼方法。</li>
+<li>情境題：你在 traceroute 上看到某跳屬於一家你沒聽過的小公司，但它的 IP 延遲極低、而且你知道這條路只可能經過某大型電信商。請提出兩個合理解釋，並說明你要查什麼欄位來驗證。</li>
+</ol>
+<h2 id="whois-與-dig-的完整選項">whois 與 dig 的完整選項</h2>
+<h3 id="whoisdebian-whois-套件"><code>whois</code>（Debian whois 套件）</h3>
+<table>
+<thead>
+<tr>
+<th>選項</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-h &lt;主機&gt;</code> <code>--host</code></td>
+<td><strong>指定要問哪台 whois 伺服器</strong>（查 RIR 資料時關鍵）</td>
+</tr>
+<tr>
+<td><code>-p &lt;埠&gt;</code> <code>--port</code></td>
+<td>指定埠（預設 43）</td>
+</tr>
+<tr>
+<td><code>-I</code></td>
+<td><strong>先問 <code>whois.iana.org</code> 再跟著它的轉介走</strong> ← 不知道該問誰時用這個</td>
+</tr>
+<tr>
+<td><code>-H</code></td>
+<td>隱藏冗長的法律聲明（<strong>輸出乾淨很多</strong>）</td>
+</tr>
+<tr>
+<td><code>--verbose</code></td>
+<td>說明它在做什麼（看它轉介到哪）</td>
+</tr>
+<tr>
+<td><code>--no-recursion</code></td>
+<td>不從 registry 遞迴到 registrar</td>
+</tr>
+<tr>
+<td><code>--help</code> / <code>--version</code></td>
+<td>說明／版本</td>
+</tr>
+</tbody>
+</table>
+<p><strong>以下只有 <code>whois.ripe.net</code> 這類 RIPE 系伺服器支援</strong>（查 APNIC／RIPE 的 <code>aut-num</code> 時會用到）：</p>
+<table>
+<thead>
+<tr>
+<th>選項</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-l</code> / <code>-L</code></td>
+<td>找<strong>少一層</strong>／<strong>所有較不明確</strong>的匹配</td>
+</tr>
+<tr>
+<td><code>-m</code> / <code>-M</code></td>
+<td>找<strong>多一層</strong>／<strong>所有較明確</strong>的匹配</td>
+</tr>
+<tr>
+<td><code>-x</code></td>
+<td>精確匹配</td>
+</tr>
+<tr>
+<td><code>-c</code></td>
+<td>找含 <code>mnt-irt</code> 屬性的最小匹配</td>
+</tr>
+<tr>
+<td><code>-b</code></td>
+<td>回傳簡短的 IP 範圍與濫用聯絡人</td>
+</tr>
+<tr>
+<td><code>-B</code></td>
+<td><strong>關閉物件過濾</strong>（顯示 email 位址）</td>
+</tr>
+<tr>
+<td><code>-G</code></td>
+<td>關閉關聯物件分組</td>
+</tr>
+<tr>
+<td><code>-d</code></td>
+<td>一併回傳反解委派物件</td>
+</tr>
+</tbody>
+</table>
+<h3 id="dig"><code>dig</code></h3>
+<p><strong>查詢選項（<code>-</code> 開頭，共 14 個，全部列出）</strong></p>
+<table>
+<thead>
+<tr>
+<th>選項</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-4</code> / <code>-6</code></td>
+<td>只用 IPv4／IPv6 傳輸</td>
+</tr>
+<tr>
+<td><code>-b &lt;位址&gt;[#埠]</code></td>
+<td>綁定來源位址／埠</td>
+</tr>
+<tr>
+<td><code>-c &lt;class&gt;</code></td>
+<td>查詢類別（預設 <code>in</code>）</td>
+</tr>
+<tr>
+<td><code>-f &lt;檔案&gt;</code></td>
+<td><strong>批次模式</strong>，從檔案讀多筆查詢</td>
+</tr>
+<tr>
+<td><code>-k &lt;keyfile&gt;</code></td>
+<td>TSIG 金鑰檔</td>
+</tr>
+<tr>
+<td><code>-m</code></td>
+<td>記憶體用量除錯</td>
+</tr>
+<tr>
+<td><code>-p &lt;埠&gt;</code></td>
+<td><strong>指定埠</strong>（測試非 53 埠的 DNS 伺服器）</td>
+</tr>
+<tr>
+<td><code>-q &lt;名稱&gt;</code></td>
+<td>明確指定查詢名稱（名稱跟選項混淆時用）</td>
+</tr>
+<tr>
+<td><code>-r</code></td>
+<td>不讀 <code>~/.digrc</code></td>
+</tr>
+<tr>
+<td><code>-t &lt;type&gt;</code></td>
+<td>查詢類型（<code>a</code>／<code>aaaa</code>／<code>mx</code>／<code>ns</code>／<code>soa</code>／<code>txt</code>／<code>any</code>／<code>axfr</code>…）</td>
+</tr>
+<tr>
+<td><code>-u</code></td>
+<td>時間用微秒顯示</td>
+</tr>
+<tr>
+<td><code>-x &lt;位址&gt;</code></td>
+<td><strong>反查的捷徑</strong>（自動組出 <code>in-addr.arpa</code>）</td>
+</tr>
+<tr>
+<td><code>-y [hmac:]name:key</code></td>
+<td>指定 TSIG 金鑰</td>
+</tr>
+<tr>
+<td><code>-h</code></td>
+<td>說明</td>
+</tr>
+</tbody>
+</table>
+<p><strong>顯示選項（<code>+keyword</code> 形式）——本機這版共 79 個，不全列。</strong>
+最常用的幾個：</p>
+<table>
+<thead>
+<tr>
+<th>選項</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>+short</code></td>
+<td><strong>只印答案</strong>，一行一筆</td>
+</tr>
+<tr>
+<td><code>+noall +answer</code></td>
+<td>只顯示 answer 區段（比 <code>+short</code> 多一點資訊）</td>
+</tr>
+<tr>
+<td><code>+trace</code></td>
+<td><strong>從根伺服器一路追下來</strong>（看委派鏈）</td>
+</tr>
+<tr>
+<td><code>+nocmd</code> / <code>+nostats</code> / <code>+nocomments</code></td>
+<td>關掉各區塊輸出</td>
+</tr>
+<tr>
+<td><code>+tcp</code> / <code>+notcp</code></td>
+<td>強制走 TCP</td>
+</tr>
+<tr>
+<td><code>+dnssec</code></td>
+<td>要求 DNSSEC 記錄</td>
+</tr>
+<tr>
+<td><code>+bufsize=&lt;n&gt;</code></td>
+<td>設定 EDNS0 的 UDP 封包大小上限</td>
+</tr>
+<tr>
+<td><code>+time=&lt;秒&gt;</code> / <code>+tries=&lt;n&gt;</code> / <code>+retry=&lt;n&gt;</code></td>
+<td>逾時與重試</td>
+</tr>
+<tr>
+<td><code>+subnet=&lt;網段&gt;</code></td>
+<td>帶上 EDNS Client Subnet（<strong>測 CDN 分流</strong>）</td>
+</tr>
+</tbody>
+</table>
+<p><strong>完整 79 個請看 <code>dig -h</code> 或 <code>man dig</code></strong>——它們絕大多數是 <code>+[no]xxx</code> 的顯示開關。</p>
+
+</main>
+</div>
+</body>
+</html>

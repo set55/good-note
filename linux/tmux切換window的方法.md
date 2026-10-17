@@ -146,13 +146,13 @@ can't find window: bu
 > 參考答案寫在每題下面，作答時先遮住答案。
 
 1. `Ctrl+b s` 跟 `Ctrl+b w` 都能切到某個 window，兩者差在哪？為什麼說 `s` 不是「切 window」專用的？
-   > **參考答案**【[第一節](#一先釐清ctrlb-s-其實是選-session的清單)】核心關鍵：(1) 兩個都是同一個命令 `choose-tree`，差別只在一開始收合哪一層：`s` 是 `-s`（session 收合），`w` 是 `-w`（window 收合）；(2) 所以 `s` 先看到 session，要展開才看到 window，`w` 直接列出每個 session 底下的 window。
+   > **參考答案**【[第一節](../html/linux/tmux切換window的方法.html#一先釐清ctrlb-s-其實是選-session的清單)】核心關鍵：(1) 兩個都是同一個命令 `choose-tree`，差別只在一開始收合哪一層：`s` 是 `-s`（session 收合），`w` 是 `-w`（window 收合）；(2) 所以 `s` 先看到 session，要展開才看到 window，`w` 直接列出每個 session 底下的 window。
    > 詳細說明：`s` 不是「只能選 session」——同一棵樹裡展開後一樣能選 window 甚至 pane；說它不是切 window 專用，是因為它的起始畫面是為選 session 設計的。
 2. 你在 window 3 寫程式、window 7 跑測試，要一直在這兩個之間來回。用 `n`／`p` 跟用 `l` 各要按幾次、哪個合適？為什麼 `l` 能做到「來回」？
-   > **參考答案**【[第二節](#二所有切-window-的方法)、[第三節〈實測〉](#實測)】核心關鍵：(1) `n`／`p` 每趟要按 4 次（3→7 按 `n` 4 次，回來按 `p` 4 次）；`l` 每趟 1 次，所以用 `l`；(2) `last-window` 切回「上一個」window，而切過去之後原本的 window 變成新的「上一個」，所以連按就在兩者之間來回。
+   > **參考答案**【[第二節](../html/linux/tmux切換window的方法.html#二所有切-window-的方法)、[第三節〈實測〉](../html/linux/tmux切換window的方法.html#實測)】核心關鍵：(1) `n`／`p` 每趟要按 4 次（3→7 按 `n` 4 次，回來按 `p` 4 次）；`l` 每趟 1 次，所以用 `l`；(2) `last-window` 切回「上一個」window，而切過去之後原本的 window 變成新的「上一個」，所以連按就在兩者之間來回。
    > 詳細說明：實測裡 `last` 前後 `-` 標記會互換，就是這個原因。
 3. 預設綁定 `Ctrl+b 1` 是 `select-window -t :=1` 而不是 `select-window -t :1`。如果拿掉 `=`，在什麼情況下會出現跟預期不同的結果？
-   > **參考答案**【[第三節〈`-t target-window` 怎麼寫〉](#-t-target-window-怎麼寫)】核心關鍵：(1) 沒有 `=` 時，**編號 1 不存在**，tmux 會繼續往下用名稱找（完整名稱 → 名稱開頭 → 萬用字元）；(2) 所以會跳到一個名稱以 `1` 開頭的 window（例如叫 `1abc` 的 window 2），而不是報錯；加了 `=` 就只接受完全相符，找不到就報錯。
+   > **參考答案**【[第三節〈`-t target-window` 怎麼寫〉](../html/linux/tmux切換window的方法.html#-t-target-window-怎麼寫)】核心關鍵：(1) 沒有 `=` 時，**編號 1 不存在**，tmux 會繼續往下用名稱找（完整名稱 → 名稱開頭 → 萬用字元）；(2) 所以會跳到一個名稱以 `1` 開頭的 window（例如叫 `1abc` 的 window 2），而不是報錯；加了 `=` 就只接受完全相符，找不到就報錯。
    > 詳細說明：跟「二位數」無關——`:1` 的編號比對只看編號 1，不會比對到編號 11。2026-10-12 實測：window 0 `editor`、2 `1abc`、3 `logs`，`selectw -t demo:1` 跳到 `2 1abc`；`selectw -t demo:=1` 報 `can't find window: 1`。
 4. 情境題：你開了 12 個 window，想切到 window 11，但按 `Ctrl+b 1` 再按 `1` 只會到 window 1。該怎麼切？另外，如果你忘了編號、只記得那個 window 裡曾經印出 `segmentation fault`，有什麼辦法找到它？這個辦法什麼情況下會找不到？
-   > **參考答案**【[第二節](#二所有切-window-的方法)、[第三節](#三背後的命令與完整旗標)】核心關鍵：(1) 按 `Ctrl+b '` 再輸入 `11` Enter（或 `Ctrl+b w` 從清單選）；(2) 按 `Ctrl+b f` 輸入 `segmentation`，`find-window` 預設同時比對名稱、標題與畫面內容；(3) 它只搜**目前可見的畫面**，那行字已經捲到歷史裡（被後面的輸出推上去）就找不到。
+   > **參考答案**【[第二節](../html/linux/tmux切換window的方法.html#二所有切-window-的方法)、[第三節](../html/linux/tmux切換window的方法.html#三背後的命令與完整旗標)】核心關鍵：(1) 按 `Ctrl+b '` 再輸入 `11` Enter（或 `Ctrl+b w` 從清單選）；(2) 按 `Ctrl+b f` 輸入 `segmentation`，`find-window` 預設同時比對名稱、標題與畫面內容；(3) 它只搜**目前可見的畫面**，那行字已經捲到歷史裡（被後面的輸出推上去）就找不到。

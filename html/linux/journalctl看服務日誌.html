@@ -1,0 +1,449 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>用 journalctl 看 systemd 服務的日誌</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/app.js"></script>
+</head>
+<body>
+<button class="menu-btn" onclick="toggleMenu()">☰ 目錄</button>
+<div class="layout">
+<nav class="side">
+<div class="crumbs"><a href="../index.html">🏠 首頁</a> / <a href="README.html">linux</a></div>
+<div class="tools"><button onclick="toggleTheme()">🌓 主題</button></div>
+<ul>
+<li class="l2"><a href="#%E4%B8%80%E7%82%BA%E4%BB%80%E9%BA%BC%E6%9C%8D%E5%8B%99%E6%B2%92%E6%9C%89%E8%87%AA%E5%B7%B1%E7%9A%84-log-%E6%AA%94">一、為什麼服務沒有自己的 log 檔</a></li>
+<li class="l2"><a href="#%E4%BA%8C%E6%9C%80%E5%B8%B8%E7%94%A8%E7%9A%84%E5%B9%BE%E6%8B%9B">二、最常用的幾招</a></li>
+<li class="l2"><a href="#%E4%B8%89%E5%AE%8C%E6%95%B4%E9%81%B8%E9%A0%85%E4%BE%9D%E6%9C%AC%E6%A9%9F-journalctl---helpsystemd-255">三、完整選項（依本機 journalctl --help，systemd 255）</a></li>
+<li class="l3"><a href="#%E4%BE%86%E6%BA%90%E9%81%B8%E9%A0%85">來源選項</a></li>
+<li class="l3"><a href="#%E9%81%8E%E6%BF%BE%E9%81%B8%E9%A0%85">過濾選項</a></li>
+<li class="l3"><a href="#%E8%BC%B8%E5%87%BA%E6%8E%A7%E5%88%B6">輸出控制</a></li>
+<li class="l3"><a href="#%E5%91%BD%E4%BB%A4%E5%9E%8B%E4%B8%8D%E6%98%AF%E6%9F%A5%E8%A9%A2%E6%98%AF%E6%93%8D%E4%BD%9C">命令型（不是查詢，是操作）</a></li>
+<li class="l2"><a href="#%E5%9B%9B%E7%B5%90%E6%A7%8B%E5%8C%96%E6%9F%A5%E8%A9%A2journal-%E7%9C%9F%E6%AD%A3%E7%9A%84%E5%83%B9%E5%80%BC">四、結構化查詢：journal 真正的價值</a></li>
+<li class="l2"><a href="#%E4%BA%94--user-%E8%88%87---system">五、--user 與 --system</a></li>
+<li class="l2"><a href="#%E5%85%AD%E7%A3%81%E7%A2%9F%E7%A9%BA%E9%96%93%E7%AE%A1%E7%90%86">六、磁碟空間管理</a></li>
+<li class="l2"><a href="#%E4%B8%83%E8%88%87-openwrt-logread-%E7%9A%84%E5%B0%8D%E7%85%A7">七、與 OpenWrt logread 的對照</a></li>
+<li class="l2"><a href="#%E8%87%AA%E6%88%91%E6%B8%AC%E9%A9%97">自我測驗</a></li>
+</ul>
+</nav>
+<main>
+<h1 id="用-journalctl-看-systemd-服務的日誌">用 <code>journalctl</code> 看 systemd 服務的日誌</h1>
+<blockquote>
+<p>日期：2026-09-21<br />
+情境：<code>systemctl</code> 啟動的服務怎麼看 log？服務又沒有自己的 log 檔<br />
+適用範圍：實測 Ubuntu 24.04、systemd 255、journal 已持久化（<code>/var/log/journal</code> 存在）<br />
+相關：<a href="../openwrt/OpenWrt%E7%9A%84%E6%9C%8D%E5%8B%99%E7%AE%A1%E7%90%86-service%E8%88%87procd.html">OpenWrt的服務管理-service與procd</a>
+（OpenWrt 用 <code>logread</code>，機制完全不同）</p>
+</blockquote>
+<p><strong>一句話結論：systemd 服務的 stdout／stderr 預設<strong>直接被 journald 收走</strong>，所以不用去找 log 檔——
+<code>journalctl -u &lt;服務名&gt;</code> 就是。它存的不是純文字而是<strong>帶結構化欄位的二進位資料庫</strong>，所以可以用 <code>-u</code>／<code>-p</code>／<code>--since</code>／<code>-g</code> 這些條件精確過濾，這是 <code>tail -f /var/log/xxx</code> 做不到的。</strong></p>
+<hr />
+<h2 id="一為什麼服務沒有自己的-log-檔">一、為什麼服務沒有自己的 log 檔</h2>
+<p>systemd unit 的 <code>StandardOutput=</code> 預設是 <code>journal</code>，<strong>服務印到 stdout／stderr 的東西會被
+journald 直接收走</strong>，不落地成檔案。所以：</p>
+<pre><code class="language-bash">systemctl<span class="w"> </span>cat<span class="w"> </span>docker<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-i<span class="w"> </span>standard<span class="w">      </span><span class="c1"># 多數 unit 根本沒寫這行，因為預設就是 journal</span>
+</code></pre>
+<p>journald 收三種來源：<strong>服務的 stdout／stderr、syslog(3) API、核心的 kmsg</strong>，全部放進同一個 journal，再用欄位區分。</p>
+<hr />
+<h2 id="二最常用的幾招">二、最常用的幾招</h2>
+<pre><code class="language-bash">journalctl<span class="w"> </span>-u<span class="w"> </span>v2ray<span class="w">                  </span><span class="c1"># 某個服務的全部日誌</span>
+journalctl<span class="w"> </span>-u<span class="w"> </span>v2ray<span class="w"> </span>-f<span class="w">               </span><span class="c1"># ★ 持續跟隨（等同 tail -f）</span>
+journalctl<span class="w"> </span>-u<span class="w"> </span>v2ray<span class="w"> </span>-n<span class="w"> </span><span class="m">50</span><span class="w">            </span><span class="c1"># 最後 50 行</span>
+journalctl<span class="w"> </span>-u<span class="w"> </span>v2ray<span class="w"> </span>-e<span class="w">               </span><span class="c1"># 直接跳到最後（用分頁器）</span>
+journalctl<span class="w"> </span>-u<span class="w"> </span>v2ray<span class="w"> </span>-r<span class="w">               </span><span class="c1"># 最新的排最前面</span>
+journalctl<span class="w"> </span>-u<span class="w"> </span>v2ray<span class="w"> </span>--since<span class="w"> </span><span class="s1">&#39;10 min ago&#39;</span>
+journalctl<span class="w"> </span>-u<span class="w"> </span>v2ray<span class="w"> </span>-p<span class="w"> </span>err<span class="w">           </span><span class="c1"># 只看 error 以上</span>
+journalctl<span class="w"> </span>-u<span class="w"> </span>v2ray<span class="w"> </span>-g<span class="w"> </span><span class="s1">&#39;timeout&#39;</span><span class="w">     </span><span class="c1"># 訊息內容用正規式過濾</span>
+journalctl<span class="w"> </span>-u<span class="w"> </span>v2ray<span class="w"> </span>-b<span class="w">               </span><span class="c1"># 只看這次開機以來</span>
+journalctl<span class="w"> </span>-u<span class="w"> </span>v2ray<span class="w"> </span>--since<span class="w"> </span>today<span class="w"> </span>--until<span class="w"> </span><span class="s1">&#39;1 hour ago&#39;</span>
+</code></pre>
+<p><strong><code>-f</code> 和 <code>-e</code> 是日常最常用的兩個</strong>：前者盯即時輸出，後者看「剛剛發生什麼」。</p>
+<p><code>--since</code>／<code>--until</code> 吃得懂人話：<code>&quot;2026-09-21 13:00&quot;</code>、<code>yesterday</code>、<code>today</code>、
+<code>&quot;10 min ago&quot;</code>、<code>&quot;-1h&quot;</code>。</p>
+<hr />
+<h2 id="三完整選項依本機-journalctl---helpsystemd-255">三、完整選項（依本機 <code>journalctl --help</code>，systemd 255）</h2>
+<h3 id="來源選項">來源選項</h3>
+<table>
+<thead>
+<tr>
+<th>選項</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--system</code> / <code>--user</code></td>
+<td><strong>系統層／當前使用者層</strong>的 journal</td>
+</tr>
+<tr>
+<td><code>-M</code> <code>--machine=&lt;容器&gt;</code></td>
+<td>讀本機某個容器的 journal</td>
+</tr>
+<tr>
+<td><code>-m</code> <code>--merge</code></td>
+<td>合併所有可用的 journal</td>
+</tr>
+<tr>
+<td><code>-D</code> <code>--directory=&lt;路徑&gt;</code></td>
+<td>讀指定目錄的 journal 檔</td>
+</tr>
+<tr>
+<td><code>--file=&lt;路徑&gt;</code></td>
+<td>讀單一 journal 檔</td>
+</tr>
+<tr>
+<td><code>--root=&lt;路徑&gt;</code></td>
+<td>以另一個檔案系統根目錄操作（救援時用）</td>
+</tr>
+<tr>
+<td><code>--image=&lt;路徑&gt;</code> / <code>--image-policy=&lt;政策&gt;</code></td>
+<td>直接讀磁碟映像</td>
+</tr>
+<tr>
+<td><code>--namespace=&lt;名稱&gt;</code></td>
+<td>讀指定的 journal namespace</td>
+</tr>
+</tbody>
+</table>
+<h3 id="過濾選項">過濾選項</h3>
+<table>
+<thead>
+<tr>
+<th>選項</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-u</code> <code>--unit=&lt;單元&gt;</code></td>
+<td><strong>指定服務</strong></td>
+</tr>
+<tr>
+<td><code>--user-unit=&lt;單元&gt;</code></td>
+<td>指定使用者層服務</td>
+</tr>
+<tr>
+<td><code>-S</code> <code>--since=&lt;時間&gt;</code> / <code>-U</code> <code>--until=&lt;時間&gt;</code></td>
+<td>時間範圍</td>
+</tr>
+<tr>
+<td><code>-b</code> <code>--boot[=ID]</code></td>
+<td><strong>這次開機</strong>（<code>-b -1</code> 是上一次）</td>
+</tr>
+<tr>
+<td><code>-p</code> <code>--priority=&lt;範圍&gt;</code></td>
+<td>優先度：<code>emerg</code>(0)／<code>alert</code>／<code>crit</code>／<code>err</code>(3)／<code>warning</code>／<code>notice</code>／<code>info</code>／<code>debug</code>(7)，可寫範圍 <code>-p 0..3</code></td>
+</tr>
+<tr>
+<td><code>--facility=&lt;設施&gt;</code></td>
+<td>syslog facility</td>
+</tr>
+<tr>
+<td><code>-g</code> <code>--grep=&lt;正規式&gt;</code></td>
+<td><strong>訊息內容比對</strong></td>
+</tr>
+<tr>
+<td><code>--case-sensitive[=BOOL]</code></td>
+<td>強制（不）區分大小寫</td>
+</tr>
+<tr>
+<td><code>-t</code> <code>--identifier=&lt;字串&gt;</code></td>
+<td>依 syslog identifier</td>
+</tr>
+<tr>
+<td><code>-k</code> <code>--dmesg</code></td>
+<td><strong>只看核心訊息</strong>（等同 <code>dmesg</code>）</td>
+</tr>
+<tr>
+<td><code>-c</code> <code>--cursor</code> / <code>--after-cursor</code> / <code>--cursor-file</code></td>
+<td>從游標位置繼續（<strong>寫監控腳本用</strong>）</td>
+</tr>
+</tbody>
+</table>
+<h3 id="輸出控制">輸出控制</h3>
+<table>
+<thead>
+<tr>
+<th>選項</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-o</code> <code>--output=&lt;模式&gt;</code></td>
+<td><code>short</code>（預設）／<code>short-iso</code>／<code>short-precise</code>／<code>short-monotonic</code>／<code>short-unix</code>／<code>verbose</code>／<code>cat</code>／<code>with-unit</code>／<code>json</code>／<code>json-pretty</code>／<code>json-sse</code>／<code>json-seq</code>／<code>export</code></td>
+</tr>
+<tr>
+<td><code>--output-fields=&lt;清單&gt;</code></td>
+<td>verbose／export／json 模式要印哪些欄位</td>
+</tr>
+<tr>
+<td><code>-n</code> <code>--lines[=N]</code></td>
+<td>顯示幾行</td>
+</tr>
+<tr>
+<td><code>-r</code> <code>--reverse</code></td>
+<td>最新在前</td>
+</tr>
+<tr>
+<td><code>-f</code> <code>--follow</code></td>
+<td><strong>持續跟隨</strong></td>
+</tr>
+<tr>
+<td><code>--no-tail</code></td>
+<td>follow 模式也顯示全部歷史</td>
+</tr>
+<tr>
+<td><code>-e</code> <code>--pager-end</code></td>
+<td><strong>直接跳到結尾</strong></td>
+</tr>
+<tr>
+<td><code>--show-cursor</code></td>
+<td>結尾印出游標</td>
+</tr>
+<tr>
+<td><code>--utc</code></td>
+<td>時間用 UTC</td>
+</tr>
+<tr>
+<td><code>-x</code> <code>--catalog</code></td>
+<td><strong>附上訊息的說明文字</strong>（有的話）</td>
+</tr>
+<tr>
+<td><code>-a</code> <code>--all</code></td>
+<td>顯示所有欄位，含過長與不可印字元</td>
+</tr>
+<tr>
+<td><code>--no-full</code></td>
+<td>過長欄位用省略號</td>
+</tr>
+<tr>
+<td><code>--no-hostname</code></td>
+<td>不印主機名</td>
+</tr>
+<tr>
+<td><code>--truncate-newline</code></td>
+<td>遇到第一個換行就截斷</td>
+</tr>
+<tr>
+<td><code>-q</code> <code>--quiet</code></td>
+<td>不印提示與權限警告</td>
+</tr>
+<tr>
+<td><code>--no-pager</code></td>
+<td><strong>不要用分頁器</strong>（腳本必加）</td>
+</tr>
+</tbody>
+</table>
+<h3 id="命令型不是查詢是操作">命令型（不是查詢，是操作）</h3>
+<table>
+<thead>
+<tr>
+<th>選項</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-N</code> <code>--fields</code></td>
+<td><strong>列出目前用到的所有欄位名</strong></td>
+</tr>
+<tr>
+<td><code>-F</code> <code>--field=&lt;欄位&gt;</code></td>
+<td><strong>列出某欄位出現過的所有值</strong> ← 探索用</td>
+</tr>
+<tr>
+<td><code>--list-boots</code></td>
+<td>列出記錄過的開機</td>
+</tr>
+<tr>
+<td><code>--disk-usage</code></td>
+<td><strong>journal 佔多少磁碟</strong></td>
+</tr>
+<tr>
+<td><code>--vacuum-size=&lt;位元組&gt;</code> / <code>--vacuum-files=&lt;n&gt;</code> / <code>--vacuum-time=&lt;時間&gt;</code></td>
+<td><strong>清理舊日誌</strong></td>
+</tr>
+<tr>
+<td><code>--verify</code></td>
+<td>驗證檔案一致性</td>
+</tr>
+<tr>
+<td><code>--sync</code> / <code>--flush</code> / <code>--rotate</code></td>
+<td>同步到磁碟／把 <code>/run</code> 的資料刷進 <code>/var</code>／立即輪替</td>
+</tr>
+<tr>
+<td><code>--relinquish-var</code> / <code>--smart-relinquish-var</code></td>
+<td>停止寫磁碟，改寫暫存檔</td>
+</tr>
+<tr>
+<td><code>--header</code></td>
+<td>顯示 journal 檔頭資訊</td>
+</tr>
+<tr>
+<td><code>--list-catalog</code> / <code>--dump-catalog</code> / <code>--update-catalog</code></td>
+<td>訊息目錄相關</td>
+</tr>
+<tr>
+<td><code>--setup-keys</code> / <code>--interval</code> / <code>--verify-key</code> / <code>--force</code></td>
+<td>FSS（前向安全封印）</td>
+</tr>
+<tr>
+<td><code>-h</code> <code>--help</code> / <code>--version</code></td>
+<td>說明／版本</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="四結構化查詢journal-真正的價值">四、結構化查詢：journal 真正的價值</h2>
+<p>journal 每筆訊息都帶一堆欄位，不只是一行字：</p>
+<pre><code class="language-bash">$<span class="w"> </span>journalctl<span class="w"> </span>-u<span class="w"> </span>docker<span class="w"> </span>-n<span class="w"> </span><span class="m">1</span><span class="w"> </span>-o<span class="w"> </span>json-pretty
+<span class="o">{</span>
+<span class="w">    </span><span class="s2">&quot;PRIORITY&quot;</span><span class="w"> </span>:<span class="w"> </span><span class="s2">&quot;6&quot;</span>,
+<span class="w">    </span><span class="s2">&quot;_CMDLINE&quot;</span><span class="w"> </span>:<span class="w"> </span><span class="s2">&quot;/sbin/init splash&quot;</span>,
+<span class="w">    </span><span class="s2">&quot;_EXE&quot;</span><span class="w"> </span>:<span class="w"> </span><span class="s2">&quot;/usr/lib/systemd/systemd&quot;</span>,
+<span class="w">    </span><span class="s2">&quot;_BOOT_ID&quot;</span><span class="w"> </span>:<span class="w"> </span><span class="s2">&quot;54c126bc...&quot;</span>,
+<span class="w">    </span><span class="s2">&quot;UNIT&quot;</span><span class="w"> </span>:<span class="w"> </span><span class="s2">&quot;docker.service&quot;</span>,
+<span class="w">    </span><span class="s2">&quot;CODE_FILE&quot;</span><span class="w"> </span>:<span class="w"> </span><span class="s2">&quot;src/core/job.c&quot;</span>,
+<span class="w">    </span><span class="s2">&quot;CODE_LINE&quot;</span><span class="w"> </span>:<span class="w"> </span><span class="s2">&quot;796&quot;</span>,
+<span class="w">    </span>...
+<span class="o">}</span>
+</code></pre>
+<p><strong>可以直接用 <code>欄位=值</code> 當查詢條件</strong>（就是 usage 裡的 <code>[MATCHES...]</code>）：</p>
+<pre><code class="language-bash">journalctl<span class="w"> </span><span class="nv">_PID</span><span class="o">=</span><span class="m">1234</span><span class="w">                      </span><span class="c1"># 某個 PID 的所有訊息</span>
+journalctl<span class="w"> </span><span class="nv">_COMM</span><span class="o">=</span>sshd<span class="w">                     </span><span class="c1"># 某個執行檔名</span>
+journalctl<span class="w"> </span><span class="nv">_UID</span><span class="o">=</span><span class="m">1000</span><span class="w">                      </span><span class="c1"># 某個使用者</span>
+journalctl<span class="w"> </span><span class="nv">_SYSTEMD_UNIT</span><span class="o">=</span>docker.service<span class="w">   </span><span class="c1"># 等同 -u docker</span>
+journalctl<span class="w"> </span><span class="nv">_TRANSPORT</span><span class="o">=</span>kernel<span class="w">              </span><span class="c1"># 只看核心來源</span>
+journalctl<span class="w"> </span>-u<span class="w"> </span>docker<span class="w"> </span><span class="nv">_PID</span><span class="o">=</span><span class="m">1234</span><span class="w">            </span><span class="c1"># 條件可以疊（AND）</span>
+journalctl<span class="w"> </span>-u<span class="w"> </span>docker<span class="w"> </span>+<span class="w"> </span>-u<span class="w"> </span>containerd<span class="w">      </span><span class="c1"># 用 + 表示 OR</span>
+</code></pre>
+<p><strong>不知道有哪些欄位可用時：</strong></p>
+<pre><code class="language-bash">journalctl<span class="w"> </span>-N<span class="w">                 </span><span class="c1"># 列出所有欄位名</span>
+journalctl<span class="w"> </span>-F<span class="w"> </span>_COMM<span class="w">           </span><span class="c1"># _COMM 這個欄位出現過哪些值</span>
+</code></pre>
+<p><strong>這是 <code>logread</code>／<code>tail</code> 完全做不到的</strong>——它們只有一行純文字，沒有結構。</p>
+<hr />
+<h2 id="五--user-與---system">五、<code>--user</code> 與 <code>--system</code></h2>
+<pre><code class="language-bash">journalctl<span class="w"> </span>-u<span class="w"> </span>nginx<span class="w">              </span><span class="c1"># 系統層服務</span>
+journalctl<span class="w"> </span>--user<span class="w"> </span>-u<span class="w"> </span>myapp<span class="w">       </span><span class="c1"># 使用者層服務（systemctl --user 啟動的）</span>
+</code></pre>
+<p><strong>兩者的 journal 是分開的</strong>。用 <code>systemctl --user</code> 跑的服務（例如常駐的個人程式），一定要加 <code>--user</code>，否則 <code>-u</code> 找不到。</p>
+<hr />
+<h2 id="六磁碟空間管理">六、磁碟空間管理</h2>
+<p>本機實測：</p>
+<pre><code class="language-bash">$<span class="w"> </span>journalctl<span class="w"> </span>--disk-usage
+Archived<span class="w"> </span>and<span class="w"> </span>active<span class="w"> </span>journals<span class="w"> </span>take<span class="w"> </span>up<span class="w"> </span><span class="m">550</span>.1M<span class="w"> </span><span class="k">in</span><span class="w"> </span>the<span class="w"> </span>file<span class="w"> </span>system.
+
+$<span class="w"> </span>ls<span class="w"> </span>-d<span class="w"> </span>/var/log/journal<span class="w">        </span><span class="c1"># 存在 → 持久化，重開機後仍查得到</span>
+/var/log/journal
+</code></pre>
+<p><strong><code>/var/log/journal</code> 存不存在，決定 journal 會不會留過重開機</strong>：</p>
+<table>
+<thead>
+<tr>
+<th>情況</th>
+<th>行為</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>/var/log/journal</code> 存在</td>
+<td>寫磁碟，<strong>重開機後仍查得到</strong>（本機是這種）</td>
+</tr>
+<tr>
+<td>不存在</td>
+<td>只寫 <code>/run/log/journal</code>（記憶體），<strong>重開機就沒了</strong></td>
+</tr>
+</tbody>
+</table>
+<p>由 <code>/etc/systemd/journald.conf</code> 的 <code>Storage=</code> 控制（預設 <code>auto</code>＝目錄在就寫磁碟）。</p>
+<p>清理：</p>
+<pre><code class="language-bash">sudo<span class="w"> </span>journalctl<span class="w"> </span>--vacuum-size<span class="o">=</span>200M<span class="w">      </span><span class="c1"># 只留 200MB</span>
+sudo<span class="w"> </span>journalctl<span class="w"> </span>--vacuum-time<span class="o">=</span>7d<span class="w">        </span><span class="c1"># 只留 7 天</span>
+sudo<span class="w"> </span>journalctl<span class="w"> </span>--vacuum-files<span class="o">=</span><span class="m">5</span><span class="w">        </span><span class="c1"># 只留 5 個檔</span>
+</code></pre>
+<p>查歷史開機：</p>
+<pre><code class="language-bash">$<span class="w"> </span>journalctl<span class="w"> </span>--list-boots
+-2<span class="w"> </span>c922706e...<span class="w">  </span>Sat<span class="w"> </span><span class="m">2026</span>-09-19<span class="w"> </span><span class="m">08</span>:04<span class="w"> </span>...
+-1<span class="w"> </span>b263162b...<span class="w">  </span>Sun<span class="w"> </span><span class="m">2026</span>-09-20<span class="w"> </span><span class="m">08</span>:29<span class="w"> </span>...
+<span class="w"> </span><span class="m">0</span><span class="w"> </span>54c126bc...<span class="w">  </span>Mon<span class="w"> </span><span class="m">2026</span>-09-21<span class="w"> </span><span class="m">09</span>:31<span class="w"> </span>...
+
+journalctl<span class="w"> </span>-b<span class="w"> </span>-1<span class="w"> </span>-u<span class="w"> </span>docker<span class="w">      </span><span class="c1"># 上一次開機時 docker 的日誌</span>
+</code></pre>
+<hr />
+<h2 id="七與-openwrt-logread-的對照">七、與 OpenWrt <code>logread</code> 的對照</h2>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>systemd（journalctl）</th>
+<th>OpenWrt（logread）</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>收集者</td>
+<td><code>systemd-journald</code></td>
+<td><code>logd</code>（procd 生態）</td>
+</tr>
+<tr>
+<td>儲存</td>
+<td><strong>二進位、結構化欄位</strong>的 journal</td>
+<td><strong>純文字、記憶體環狀緩衝區</strong></td>
+</tr>
+<tr>
+<td>預設持久化</td>
+<td>是（<code>/var/log/journal</code> 存在時）</td>
+<td><strong>否</strong>，重開機就沒</td>
+</tr>
+<tr>
+<td>容量</td>
+<td>數百 MB（本機 550M）</td>
+<td>很小（本機 <code>log_size=128</code> KB）</td>
+</tr>
+<tr>
+<td>依服務過濾</td>
+<td><code>-u &lt;unit&gt;</code></td>
+<td><code>-e &lt;正規式&gt;</code>（<strong>只能比對文字</strong>）</td>
+</tr>
+<tr>
+<td>依時間過濾</td>
+<td><code>--since</code> / <code>--until</code></td>
+<td>❌ 沒有</td>
+</tr>
+<tr>
+<td>依等級過濾</td>
+<td><code>-p err</code></td>
+<td><code>-z</code>／<code>-Z</code>（只能依 facility）</td>
+</tr>
+<tr>
+<td>跟隨</td>
+<td><code>-f</code></td>
+<td><code>-f</code></td>
+</tr>
+<tr>
+<td>結構化查詢</td>
+<td>✅ <code>_PID=</code>、<code>-N</code>、<code>-F</code></td>
+<td>❌</td>
+</tr>
+</tbody>
+</table>
+<p><strong>最大的差異是「有沒有結構」</strong>：journal 可以問「docker 這個 unit 在昨天下午出現的 error」，
+logread 只能 <code>grep</code>。代價是 journal 吃磁碟、格式不透明（不能直接 <code>cat</code>）。</p>
+<hr />
+<h2 id="自我測驗">自我測驗</h2>
+<ol>
+<li>用 <code>systemctl</code> 啟動的服務為什麼通常沒有自己的 log 檔？它的 stdout 去哪裡了？</li>
+<li><code>journalctl -u X -f</code> 和 <code>journalctl -u X -e</code> 分別適合什麼情境？</li>
+<li>journal 存的不是純文字，這帶來哪兩個 <code>tail -f /var/log/xxx</code> 做不到的能力？舉出兩個具體的查詢例子。</li>
+<li>你用 <code>systemctl --user</code> 啟動了一個服務，但 <code>journalctl -u &lt;名稱&gt;</code> 找不到日誌。為什麼？</li>
+<li>情境題：某台機器重開機之後就查不到前一天的日誌了。可能是什麼原因？要怎麼確認、怎麼改？</li>
+</ol>
+
+</main>
+</div>
+</body>
+</html>

@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GORM 的 foreignKey 與 references 差在哪</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/app.js"></script>
+</head>
+<body>
+<button class="menu-btn" onclick="toggleMenu()">☰ 目錄</button>
+<div class="layout">
+<nav class="side">
+<div class="crumbs"><a href="../index.html">🏠 首頁</a> / <a href="README.html">golang</a></div>
+<div class="tools"><button onclick="toggleTheme()">🌓 主題</button></div>
+<ul>
+<li class="l2"><a href="#%E4%B8%80%E5%8F%A5%E8%A9%B1%E7%B5%90%E8%AB%96">一句話結論</a></li>
+<li class="l2"><a href="#%E7%82%BA%E4%BB%80%E9%BA%BC%E6%9C%83%E6%90%9E%E6%B7%B7">為什麼會搞混</a></li>
+<li class="l2"><a href="#%E5%AF%A6%E6%B8%AC%E5%B0%8D%E7%85%A7">實測對照</a></li>
+<li class="l2"><a href="#gorm-%E6%80%8E%E9%BA%BC%E6%B1%BA%E5%AE%9A%E6%98%AF%E5%93%AA%E4%B8%80%E7%A8%AE%E6%96%87%E4%BB%B6%E6%B2%92%E8%AC%9B%E6%B8%85%E6%A5%9A">GORM 怎麼決定是哪一種（文件沒講清楚）</a></li>
+<li class="l2"><a href="#%E5%AF%A6%E5%8B%99%E5%88%A4%E6%96%B7%E6%AD%A5%E9%A9%9F">實務判斷步驟</a></li>
+<li class="l2"><a href="#%E6%80%8E%E9%BA%BC%E8%87%AA%E5%B7%B1%E9%A9%97%E4%B8%8D%E7%94%A8%E9%80%A3-db">怎麼自己驗（不用連 DB）</a></li>
+<li class="l2"><a href="#%E5%AF%A6%E9%9A%9B%E6%A1%88%E4%BE%8Bistr-%E7%9A%84-dmgatewaydevice">實際案例：istr 的 DmGatewayDevice</a></li>
+<li class="l2"><a href="#%E4%B8%80%E5%80%8B%E5%AE%B9%E6%98%93%E5%BF%BD%E7%95%A5%E7%9A%84%E5%B7%AE%E7%95%B0%E7%B4%9A%E8%81%AF%E5%AF%AB%E5%85%A5">一個容易忽略的差異：級聯寫入</a></li>
+<li class="l2"><a href="#%E7%B8%BD%E7%B5%90">總結</a></li>
+</ul>
+</nav>
+<main>
+<h1 id="gorm-的-foreignkey-與-references-差在哪">GORM 的 foreignKey 與 references 差在哪</h1>
+<blockquote>
+<p>建立日期：2026-07-21<br />
+情境：追 istr <code>dm_gateway_device</code>（網關與子設備關聯表）的 model 定義時搞混，實際驗證後釐清<br />
+對應檔案：<code>istr/src/dmsvr/internal/repo/relationDB/model.go</code>（<code>DmGatewayDevice</code>）
+GORM 版本：v1.25.1</p>
+</blockquote>
+<hr />
+<h2 id="一句話結論">一句話結論</h2>
+<blockquote>
+<p><strong><code>foreignKey</code> = 存放指標的欄位（指人的）</strong>
+<strong><code>references</code> = 被指向的欄位（被指的）</strong></p>
+<p>這個定義恆成立。真正會讓人搞混的是：<strong>這兩個欄位分別長在哪個 struct 上，會隨關係方向翻轉。</strong></p>
+</blockquote>
+<hr />
+<h2 id="為什麼會搞混">為什麼會搞混</h2>
+<p>大多數人（包含我）記的是 belongs-to 的版本：「foreignKey 是自己的欄位，references 是對方的欄位」。</p>
+<p>這個記法在 has-one / has-many 上<strong>完全相反</strong>，套錯就會誤判 model 寫錯。</p>
+<table>
+<thead>
+<tr>
+<th>關係</th>
+<th>FK 欄位實際長在哪張表</th>
+<th><code>foreignKey</code> 指的是</th>
+<th><code>references</code> 指的是</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>belongs to</strong></td>
+<td>自己這張表</td>
+<td><strong>自己</strong>的欄位</td>
+<td>對方的欄位</td>
+</tr>
+<tr>
+<td><strong>has one / has many</strong></td>
+<td>對方那張表</td>
+<td><strong>對方</strong>的欄位</td>
+<td>自己的欄位</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="實測對照">實測對照</h2>
+<p>兩個 tag 寫法幾乎一模一樣，解析出來卻是相反方向：</p>
+<pre><code class="language-go"><span class="c1">// FK 長在自己(User)身上 → belongs_to</span>
+<span class="kd">type</span><span class="w"> </span><span class="nx">Company</span><span class="w"> </span><span class="kd">struct</span><span class="p">{</span><span class="w"> </span><span class="nx">ID</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="p">}</span>
+<span class="kd">type</span><span class="w"> </span><span class="nx">User</span><span class="w"> </span><span class="kd">struct</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">ID</span><span class="w">        </span><span class="kt">int</span>
+<span class="w">    </span><span class="nx">CompanyID</span><span class="w"> </span><span class="kt">int</span><span class="w">                                        </span><span class="c1">// ← FK 在這</span>
+<span class="w">    </span><span class="nx">Company</span><span class="w">   </span><span class="nx">Company</span><span class="w"> </span><span class="s">`gorm:&quot;foreignKey:CompanyID;references:ID&quot;`</span>
+<span class="p">}</span>
+
+<span class="c1">// FK 長在對方(Card)身上 → has_one</span>
+<span class="kd">type</span><span class="w"> </span><span class="nx">Card</span><span class="w"> </span><span class="kd">struct</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">ID</span><span class="w">     </span><span class="kt">int</span>
+<span class="w">    </span><span class="nx">UserID</span><span class="w"> </span><span class="kt">int</span><span class="w">                                           </span><span class="c1">// ← FK 在這</span>
+<span class="p">}</span>
+<span class="kd">type</span><span class="w"> </span><span class="nx">Owner</span><span class="w"> </span><span class="kd">struct</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">ID</span><span class="w">   </span><span class="kt">int</span>
+<span class="w">    </span><span class="nx">Card</span><span class="w"> </span><span class="nx">Card</span><span class="w"> </span><span class="s">`gorm:&quot;foreignKey:UserID;references:ID&quot;`</span>
+<span class="p">}</span>
+</code></pre>
+<p>實際解析結果：</p>
+<pre><code>Company    type=belongs_to | FKfield=users.company_id &lt;- refs companies.id
+Card       type=has_one    | FKfield=cards.user_id    &lt;- refs owners.id
+</code></pre>
+<hr />
+<h2 id="gorm-怎麼決定是哪一種文件沒講清楚">GORM 怎麼決定是哪一種（文件沒講清楚）</h2>
+<p>從行為反推出來的規則：</p>
+<blockquote>
+<p><strong>GORM 預設先當成 has，找不到才退回 belongs_to。</strong></p>
+</blockquote>
+<p>判斷依據是：<code>foreignKey</code> 寫的那個欄位名，<strong>在對方 struct 上找不找得到</strong>。</p>
+<ul>
+<li>找得到 → 維持 <code>has_one</code> / <code>has_many</code></li>
+<li>找不到 → 退回 <code>belongs_to</code>，改去自己 struct 上找</li>
+</ul>
+<p>驗證：</p>
+<ul>
+<li><code>Company</code> 的 <code>foreignKey:CompanyID</code> → <code>Company</code> struct 沒有 <code>CompanyID</code> → 退回 <code>belongs_to</code> ✓</li>
+<li><code>Card</code> 的 <code>foreignKey:UserID</code> → <code>Card</code> struct <strong>有</strong> <code>UserID</code> → 維持 <code>has_one</code> ✓</li>
+</ul>
+<hr />
+<h2 id="實務判斷步驟">實務判斷步驟</h2>
+<p>寫 tag 前先問自己一句：</p>
+<blockquote>
+<p><strong>「FK 這一欄，實際上是長在哪張表？」</strong></p>
+</blockquote>
+<ol>
+<li>長在<strong>對方</strong>表 → has one / has many → <code>foreignKey</code> 填<strong>對方</strong>的欄位名，<code>references</code> 填自己的</li>
+<li>長在<strong>自己</strong>表 → belongs to → <code>foreignKey</code> 填<strong>自己</strong>的欄位名，<code>references</code> 填對方的</li>
+</ol>
+<hr />
+<h2 id="怎麼自己驗不用連-db">怎麼自己驗（不用連 DB）</h2>
+<p>比看 tag 用猜的可靠得多：</p>
+<pre><code class="language-go"><span class="kn">import</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="s">&quot;sync&quot;</span>
+<span class="w">    </span><span class="s">&quot;gorm.io/gorm/schema&quot;</span>
+<span class="p">)</span>
+
+<span class="nx">s</span><span class="p">,</span><span class="w"> </span><span class="nx">err</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">schema</span><span class="p">.</span><span class="nx">Parse</span><span class="p">(</span><span class="o">&amp;</span><span class="nx">YourModel</span><span class="p">{},</span><span class="w"> </span><span class="o">&amp;</span><span class="nx">sync</span><span class="p">.</span><span class="nx">Map</span><span class="p">{},</span><span class="w"> </span><span class="nx">schema</span><span class="p">.</span><span class="nx">NamingStrategy</span><span class="p">{})</span>
+<span class="k">if</span><span class="w"> </span><span class="nx">err</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="kc">nil</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nb">panic</span><span class="p">(</span><span class="nx">err</span><span class="p">)</span><span class="w">  </span><span class="c1">// tag 寫錯時這裡就會噴</span>
+<span class="p">}</span>
+
+<span class="nx">rel</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">s</span><span class="p">.</span><span class="nx">Relationships</span><span class="p">.</span><span class="nx">Relations</span><span class="p">[</span><span class="s">&quot;FieldName&quot;</span><span class="p">]</span>
+<span class="nx">fmt</span><span class="p">.</span><span class="nx">Println</span><span class="p">(</span><span class="nx">rel</span><span class="p">.</span><span class="nx">Type</span><span class="p">)</span><span class="w">               </span><span class="c1">// belongs_to / has_one / has_many / many2many</span>
+
+<span class="k">for</span><span class="w"> </span><span class="nx">_</span><span class="p">,</span><span class="w"> </span><span class="nx">r</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="k">range</span><span class="w"> </span><span class="nx">rel</span><span class="p">.</span><span class="nx">References</span><span class="w"> </span><span class="p">{</span><span class="w">  </span><span class="c1">// 實際 JOIN 的兩端</span>
+<span class="w">    </span><span class="nx">fmt</span><span class="p">.</span><span class="nx">Printf</span><span class="p">(</span><span class="s">&quot;%s.%s &lt;- %s.%s\n&quot;</span><span class="p">,</span>
+<span class="w">        </span><span class="nx">r</span><span class="p">.</span><span class="nx">ForeignKey</span><span class="p">.</span><span class="nx">Schema</span><span class="p">.</span><span class="nx">Table</span><span class="p">,</span><span class="w"> </span><span class="nx">r</span><span class="p">.</span><span class="nx">ForeignKey</span><span class="p">.</span><span class="nx">DBName</span><span class="p">,</span>
+<span class="w">        </span><span class="nx">r</span><span class="p">.</span><span class="nx">PrimaryKey</span><span class="p">.</span><span class="nx">Schema</span><span class="p">.</span><span class="nx">Table</span><span class="p">,</span><span class="w"> </span><span class="nx">r</span><span class="p">.</span><span class="nx">PrimaryKey</span><span class="p">.</span><span class="nx">DBName</span><span class="p">)</span>
+<span class="p">}</span>
+</code></pre>
+<p>丟一個 <code>xxx_test.go</code> 進該 package 跑 <code>go test -run TestXxx -v</code> 最快，驗完就刪。</p>
+<hr />
+<h2 id="實際案例istr-的-dmgatewaydevice">實際案例：istr 的 DmGatewayDevice</h2>
+<p>一張純關聯表，用自然鍵 <code>(product_id, device_name)</code> 去指 <code>dm_device_info</code>，同時要指「子設備」和「網關」兩筆：</p>
+<pre><code class="language-go"><span class="kd">type</span><span class="w"> </span><span class="nx">DmGatewayDevice</span><span class="w"> </span><span class="kd">struct</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">ID</span><span class="w">                </span><span class="kt">int64</span>
+<span class="w">    </span><span class="nx">GatewayProductID</span><span class="w">  </span><span class="kt">string</span><span class="w">   </span><span class="c1">// 網關產品id</span>
+<span class="w">    </span><span class="nx">GatewayDeviceName</span><span class="w"> </span><span class="kt">string</span><span class="w">   </span><span class="c1">// 網關設備名</span>
+<span class="w">    </span><span class="nx">ProductID</span><span class="w">         </span><span class="kt">string</span><span class="w">   </span><span class="c1">// 子設備產品id</span>
+<span class="w">    </span><span class="nx">DeviceName</span><span class="w">        </span><span class="kt">string</span><span class="w">   </span><span class="c1">// 子設備名</span>
+<span class="w">    </span><span class="nx">stores</span><span class="p">.</span><span class="nx">Time</span>
+
+<span class="w">    </span><span class="nx">Device</span><span class="w">  </span><span class="o">*</span><span class="nx">DmDeviceInfo</span><span class="w"> </span><span class="s">`gorm:&quot;foreignKey:ProductID,DeviceName;references:ProductID,DeviceName&quot;`</span>
+<span class="w">    </span><span class="nx">Gateway</span><span class="w"> </span><span class="o">*</span><span class="nx">DmDeviceInfo</span><span class="w"> </span><span class="s">`gorm:&quot;foreignKey:ProductID,DeviceName;references:GatewayProductID,GatewayDeviceName&quot;`</span>
+<span class="p">}</span>
+</code></pre>
+<p>第一眼看 <code>Gateway</code> 那行會覺得寫錯——因為 <code>DmDeviceInfo</code> 上根本沒有 <code>GatewayProductID</code> / <code>GatewayDeviceName</code> 這兩個欄位。</p>
+<p><strong>但實際跑出來是對的：</strong></p>
+<pre><code>Device   type=has_one | FKfield=dm_device_info.product_id  &lt;- refs dm_gateway_device.product_id
+                      | FKfield=dm_device_info.device_name &lt;- refs dm_gateway_device.device_name
+Gateway  type=has_one | FKfield=dm_device_info.product_id  &lt;- refs dm_gateway_device.gateway_product_id
+                      | FKfield=dm_device_info.device_name &lt;- refs dm_gateway_device.gateway_device_name
+</code></pre>
+<p>因為它是 <strong>has_one</strong>：</p>
+<ul>
+<li><code>foreignKey:ProductID,DeviceName</code> → 對方（<code>DmDeviceInfo</code>）的欄位 ✓ 存在</li>
+<li><code>references:GatewayProductID,GatewayDeviceName</code> → 自己（<code>DmGatewayDevice</code>）的欄位 ✓ 存在</li>
+</ul>
+<p>產生的 JOIN 正是 <code>dm_device_info.product_id = dm_gateway_device.gateway_product_id</code>，完全正確。</p>
+<blockquote>
+<p><strong>教訓</strong>：不要憑 tag 的直覺判斷 model 寫錯，先用上面的 <code>schema.Parse</code> 跑一次。我就是套錯 belongs-to 的規則，誤判原作者寫錯。</p>
+</blockquote>
+<hr />
+<h2 id="一個容易忽略的差異級聯寫入">一個容易忽略的差異：級聯寫入</h2>
+<p>has_one 跟 belongs_to 在<strong>查詢</strong>上可以等價（JOIN 條件相同），但在<strong>寫入</strong>上不同：</p>
+<ul>
+<li><strong>belongs_to</strong>：儲存時只會更新自己表的 FK 欄位</li>
+<li><strong>has_one</strong>：<code>Save</code> 一個帶了關聯物件的 struct 時，GORM 會試著 <strong>upsert 對方那筆記錄</strong>，並用自己的 <code>references</code> 欄位去覆寫對方的 <code>foreignKey</code> 欄位</li>
+</ul>
+<p>以上面 <code>DmGatewayDevice</code> 為例：如果 <code>Save</code> 時 <code>Gateway</code> 欄位有值，GORM 會去動 <code>dm_device_info</code> 那筆，把它的 <code>product_id</code>/<code>device_name</code> 覆寫成 <code>gateway_product_id</code>/<code>gateway_device_name</code>。</p>
+<p>istr 目前所有查詢都走 repo 裡手寫的 JOIN（<code>fmtFilter</code>），沒有任何地方 <code>Preload</code> 或填充這兩個欄位，所以碰不到。但<strong>日後若開始用 <code>Preload</code> 或關聯寫入，這裡要特別小心</strong>。</p>
+<hr />
+<h2 id="總結">總結</h2>
+<table>
+<thead>
+<tr>
+<th>要點</th>
+<th>內容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>恆等定義</td>
+<td><code>foreignKey</code> = 指人的欄位；<code>references</code> = 被指的欄位</td>
+</tr>
+<tr>
+<td>陷阱</td>
+<td>兩者各屬哪個 struct 會隨 belongs_to / has_one 翻轉</td>
+</tr>
+<tr>
+<td>判斷起點</td>
+<td>先問「FK 實際長在哪張表」，再決定方向</td>
+</tr>
+<tr>
+<td>GORM 內部規則</td>
+<td>先試 has，<code>foreignKey</code> 在對方找不到才退回 belongs_to</td>
+</tr>
+<tr>
+<td>驗證方式</td>
+<td><code>schema.Parse</code> + 印 <code>rel.Type</code> 與 <code>rel.References</code>，不要用猜的</td>
+</tr>
+<tr>
+<td>額外風險</td>
+<td>has_one 有級聯 upsert 行為，belongs_to 沒有</td>
+</tr>
+</tbody>
+</table>
+
+</main>
+</div>
+</body>
+</html>
