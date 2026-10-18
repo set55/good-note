@@ -2,7 +2,8 @@
 """把筆記的 .md 轉成 html/ 底下的 .html（.md 是原稿，html/ 是產物）。
 
 用法：python3 tools/build_html.py
-不轉的：small-project/、review/、tools/、html/、CLAUDE.md、learning/ 的兩個追蹤檔。
+不轉的：tools/、html/、CLAUDE.md、learning/ 的兩個追蹤檔。
+small-project/ 與 review/ 的作答框會變成輸入框，透過 tools/serve.py 寫回 .md。
 """
 import html
 import json
@@ -23,7 +24,8 @@ from pygments.util import ClassNotFound
 
 ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "html"
-SKIP_DIRS = {"small-project", "review", "tools", "html", ".git"}
+SKIP_DIRS = {"tools", "html", ".git"}
+PRACTICE_DIRS = ("small-project", "review")  # 作答區，不是筆記領域
 SKIP_FILES = {"CLAUDE.md", "learning/學習進度.md", "learning/複習排程.md"}
 LANG_ALIAS = {"asm": "gas", "sh": "bash", "zsh": "bash", "jsonc": "json", "console": "console"}
 
@@ -88,6 +90,9 @@ def rewrite_href(href, src_rel, converted, out_dir=None):
         return href
     self_page = out_dir is None
     out_dir = out_dir or OUT / src_rel.parent
+    if target.is_dir() and (target_rel / "README.md").as_posix() in converted:
+        target_rel = target_rel / "README.md"  # 連到資料夾：改連它的 README 頁，不要落到伺服器的目錄清單
+        target = ROOT / target_rel
     if self_page and target == (OUT / src_rel.with_suffix(".html")).resolve() and frag:
         return "#" + frag  # 原稿連到自己的 HTML 版：同頁錨點
     if target_rel.as_posix() in converted:
@@ -145,6 +150,48 @@ def fix_nested_strong(token, md):
     inner = md.parseInline(c[2:-2], {})[0].children
     token.children = [Token("strong_open", "strong", 1, markup="**")] + inner + [
         Token("strong_close", "strong", -1, markup="**")]
+
+
+# 2026-10-08 以前的作答框是舊格式（批改不一定緊接在下面），一律當歷程、不給編輯
+EDITABLE_SINCE = "2026-10-08"
+DATE = re.compile(r"\d{4}-\d{2}-\d{2}")
+ANSWER_PREV = re.compile(r"^(\*\*.*(次|答).*\*\*|> 盒子|> 過去的作答|> 題目：|#{3,4} )")
+
+
+def mark_answer_boxes(tokens, src_rel, lines):
+    """作答區（small-project、review）裡沒標語言的程式碼區塊，前一行是作答框標籤、而且下面還沒有批改的，換成輸入框。"""
+    if src_rel.parts[0] not in PRACTICE_DIRS:
+        return 0
+    n = 0
+    for t in tokens:
+        if t.type != "fence" or t.info.strip() or not t.map:
+            continue
+        start, end = t.map
+        k = start - 1
+        while k >= 0 and not lines[k].strip():
+            k -= 1
+        if k < 0 or not ANSWER_PREV.match(lines[k].strip()):
+            continue
+        # 日期在作答標籤上；標籤和作答框中間夾了 `> 題目：` 時往上多看一行；都沒有就用複習檔檔名的日期
+        label = lines[k]
+        if label.startswith("> 題目：") and k > 0:
+            label = lines[k - 2] if not lines[k - 1].strip() and k > 1 else lines[k - 1]
+        d = DATE.search(label) or DATE.match(src_rel.name)
+        if d and d.group(0) < EDITABLE_SINCE:
+            continue
+        k = end
+        while k < len(lines) and not lines[k].strip():
+            k += 1
+        graded = k < len(lines) and lines[k].strip().startswith("> **批改")
+        if graded:
+            continue
+        t.type = "html_block"
+        t.content = (f'<div class="answer-box" data-file="{html.escape(src_rel.as_posix())}" data-line="{start}">'
+                     f'<textarea spellcheck="false" placeholder="在這裡作答">{html.escape(t.content)}</textarea>'
+                     '<div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button>'
+                     '<span class="status"></span></div></div>\n')
+        n += 1
+    return n
 
 
 def transform(tokens, src_rel, converted, md, out_dir=None):
@@ -245,6 +292,16 @@ details.answer{margin:.6em 0;border:1px solid var(--accent);border-radius:6px;ba
 details.answer>summary{cursor:pointer;color:var(--accent);font-weight:600;padding:6px 0;user-select:none}
 details.answer[open]>summary{border-bottom:1px dashed var(--accent);margin-bottom:6px}
 .menu-btn{display:none}
+.answer-box{margin:.6em 0 1em;border:1px solid var(--link);border-radius:6px;background:var(--q);padding:8px}
+.answer-box.dirty{border-color:var(--accent)}
+.answer-box textarea{width:100%;min-height:5.5em;resize:vertical;border:1px solid var(--line);border-radius:4px;
+padding:8px 10px;background:var(--bg);color:var(--fg);font:14px/1.55 "JetBrains Mono","Fira Code",ui-monospace,
+Menlo,Consolas,"Noto Sans Mono CJK TC",monospace}
+.answer-bar{display:flex;align-items:center;gap:10px;margin-top:6px}
+.answer-bar .status{font-size:13px;color:var(--muted)}.answer-bar .status.err{color:#cf222e}
+.answer-box.dirty .status{color:var(--accent)}
+.practice{display:flex;gap:10px;flex-wrap:wrap;margin:0 0 6px}
+.practice a{border:1px solid var(--line);border-radius:6px;padding:6px 12px}
 @media (max-width:900px){.layout{display:block}nav.side{position:fixed;z-index:10;left:0;top:0;
 transform:translateX(-100%);transition:transform .2s;box-shadow:2px 0 12px rgba(0,0,0,.25)}
 nav.side.open{transform:none}main{padding:56px 16px 60px}
@@ -270,6 +327,8 @@ def pyg_css():
     light, dark = strip_bg(light), strip_bg(dark)
     dark_scoped = lambda sel: "\n".join(
         sel + " " + line for line in dark.splitlines() if line.startswith("pre code"))
+    # 程式碼裡夾中文註解時 lexer 會標成 .err（紅框），不要顯示
+    light += "\npre code .err{border:0;color:inherit;background:none}"
     return (light + "\n@media (prefers-color-scheme:dark){\n"
             + dark_scoped(':root:not([data-theme="light"])') + "\n}\n"
             + dark_scoped(':root[data-theme="dark"]') + "\n")
@@ -284,9 +343,38 @@ window.toggleTheme=function(){var dark=root.getAttribute('data-theme')==='dark'|
 var n=dark?'light':'dark';root.setAttribute('data-theme',n);try{localStorage.setItem('theme',n);}catch(e){}};
 window.toggleAnswers=function(open){document.querySelectorAll('details.answer').forEach(function(d){d.open=open;});};
 window.toggleMenu=function(){document.querySelector('nav.side').classList.toggle('open');};
+// 作答框：按「儲存」透過 tools/serve.py 寫回 .md 原稿
+function fit(ta){ta.style.height='auto';ta.style.height=(ta.scrollHeight+2)+'px';}
+window.saveAnswer=function(btn){
+  var box=btn.closest('.answer-box'),ta=box.querySelector('textarea'),st=box.querySelector('.status');
+  if(location.protocol==='file:'){st.textContent='要存檔請用 python3 tools/serve.py 開啟';return;}
+  btn.disabled=true;st.className='status';st.textContent='儲存中…';
+  fetch('/api/save',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({file:box.dataset.file,line:+box.dataset.line,original:ta.defaultValue,content:ta.value})})
+  .then(function(r){return r.json().then(function(j){return {ok:r.ok,j:j};});})
+  .then(function(x){
+    btn.disabled=false;
+    if(!x.ok){st.className='status err';st.textContent='✗ '+x.j.error;return;}
+    var line=+box.dataset.line;
+    document.querySelectorAll('.answer-box').forEach(function(b){
+      if(b!==box&&b.dataset.file===box.dataset.file&&+b.dataset.line>line)b.dataset.line=+b.dataset.line+x.j.delta;});
+    ta.defaultValue=ta.value;box.classList.remove('dirty');
+    st.textContent='✓ 已儲存 '+new Date().toLocaleTimeString();})
+  .catch(function(e){btn.disabled=false;st.className='status err';st.textContent='✗ 連不到 serve.py：'+e;});
+};
+window.addEventListener('beforeunload',function(e){
+  if(document.querySelector('.answer-box.dirty')){e.preventDefault();e.returnValue='';}});
 document.addEventListener('DOMContentLoaded',function(){
   document.querySelectorAll('main h1[id],main h2[id],main h3[id],main h4[id]').forEach(function(h){
     var a=document.createElement('a');a.className='anchor';a.href='#'+h.id;a.textContent='#';h.appendChild(a);});
+  document.querySelectorAll('.answer-box textarea').forEach(function(ta){
+    var box=ta.closest('.answer-box'),st=box.querySelector('.status');fit(ta);
+    if(location.protocol==='file:'){ta.readOnly=true;box.querySelector('.save').disabled=true;
+      st.textContent='唯讀：用 python3 tools/serve.py 開啟才能作答存檔';return;}
+    ta.addEventListener('input',function(){fit(ta);var d=ta.value!==ta.defaultValue;box.classList.toggle('dirty',d);
+      st.className='status';st.textContent=d?'未儲存':'';});
+    ta.addEventListener('keydown',function(e){if((e.ctrlKey||e.metaKey)&&e.key==='s'){e.preventDefault();
+      saveAnswer(box.querySelector('.save'));}});});
   var links=[].slice.call(document.querySelectorAll('nav.side li a'));
   if(!links.length||!('IntersectionObserver' in window))return;
   var map={};links.forEach(function(a){map[decodeURIComponent(a.hash.slice(1))]=a;});
@@ -327,13 +415,19 @@ def page(title, side, body, depth):
 
 
 def side_nav(src_rel, toc, has_answers):
+    """側欄：麵包屑、工具按鈕、本頁目錄。"""
     depth = len(src_rel.parts) - 1
     home = "../" * depth + "index.html"
     crumbs = f'<a href="{home}">🏠 首頁</a>'
-    if src_rel.name != "README.md":
-        crumbs += f' / <a href="README.html">{html.escape(src_rel.parts[0])}</a>'
-    else:
-        crumbs += f" / {html.escape(src_rel.parts[0])}"
+    # 每一層有 README 的資料夾都列一個麵包屑（small-project/s1-05-asm-calls/ 會有兩層）
+    for i in range(1, len(src_rel.parts)):
+        folder = Path(*src_rel.parts[:i])
+        name = html.escape(src_rel.parts[i - 1])
+        if (ROOT / folder / "README.md").exists() and src_rel != folder / "README.md":
+            href = "../" * (depth - i) + "README.html"
+            crumbs += f' / <a href="{href}">{name}</a>'
+        else:
+            crumbs += f" / {name}"
     tools = '<button onclick="toggleTheme()">🌓 主題</button>'
     if has_answers:
         tools += ('<button onclick="toggleAnswers(true)">展開答案</button>'
@@ -398,7 +492,12 @@ def build_index(domains, converted, md):
                        for lv, text, hid in toc if lv == 3]
     side = ('<div class="crumbs">🏠 首頁</div><div class="tools"><button onclick="toggleTheme()">🌓 主題</button></div>'
             "<ul>" + "".join(side_items) + "</ul>")
-    body = ('<h1>筆記總索引</h1>'
+    reviews = sorted((ROOT / "review").glob("20*.md"))
+    practice = ('<div class="practice"><a href="small-project/README.html">✍️ 課程練習區（small-project）</a>'
+                '<a href="review/README.html">🔁 間隔複習（review）</a>'
+                + (f'<a href="review/{quote(reviews[-1].stem)}.html">📅 最新複習：{html.escape(reviews[-1].stem)}</a>'
+                   if reviews else "") + "</div>")
+    body = ('<h1>筆記總索引</h1>' + practice +
             f'<input class="search" id="q" placeholder="搜尋筆記、主題、關鍵字（共 {total} 篇，空白分隔多個詞）" autofocus>'
             '<p class="empty" id="empty" hidden>沒有符合的筆記。</p>'
             + '<div class="index">' + "\n".join(blocks) + "</div>"
@@ -433,10 +532,11 @@ def main():
     for rel in files:
         src = (ROOT / rel).read_text(encoding="utf-8")
         tokens = md.parse(src)
+        mark_answer_boxes(tokens, rel, src.splitlines())
         title, toc = transform(tokens, rel, converted, md)
         title = title or rel.stem
         titles[rel.as_posix()] = title
-        if rel.name == "README.md" and rel.parts[0] not in domains:
+        if rel.name == "README.md" and rel.parts[0] not in domains and rel.parts[0] not in PRACTICE_DIRS:
             domains.append(rel.parts[0])
         body = fix_cjk_strong(md.renderer.render(tokens, md.options, {}))
         has_answers = 'class="answer"' in body
@@ -444,7 +544,7 @@ def main():
         out.parent.mkdir(parents=True, exist_ok=True)
         out.write_text(page(title, side_nav(rel, toc, has_answers), body, len(rel.parts) - 1), encoding="utf-8")
 
-    missing = sorted({f.parts[0] for f in files} - set(domains))
+    missing = sorted({f.parts[0] for f in files} - set(domains) - set(PRACTICE_DIRS))
     if missing:
         print("警告：這些領域沒有 README.md：", missing, file=sys.stderr)
     build_index(sorted(domains), converted, md)

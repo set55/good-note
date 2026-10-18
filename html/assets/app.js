@@ -7,9 +7,38 @@ window.toggleTheme=function(){var dark=root.getAttribute('data-theme')==='dark'|
 var n=dark?'light':'dark';root.setAttribute('data-theme',n);try{localStorage.setItem('theme',n);}catch(e){}};
 window.toggleAnswers=function(open){document.querySelectorAll('details.answer').forEach(function(d){d.open=open;});};
 window.toggleMenu=function(){document.querySelector('nav.side').classList.toggle('open');};
+// 作答框：按「儲存」透過 tools/serve.py 寫回 .md 原稿
+function fit(ta){ta.style.height='auto';ta.style.height=(ta.scrollHeight+2)+'px';}
+window.saveAnswer=function(btn){
+  var box=btn.closest('.answer-box'),ta=box.querySelector('textarea'),st=box.querySelector('.status');
+  if(location.protocol==='file:'){st.textContent='要存檔請用 python3 tools/serve.py 開啟';return;}
+  btn.disabled=true;st.className='status';st.textContent='儲存中…';
+  fetch('/api/save',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({file:box.dataset.file,line:+box.dataset.line,original:ta.defaultValue,content:ta.value})})
+  .then(function(r){return r.json().then(function(j){return {ok:r.ok,j:j};});})
+  .then(function(x){
+    btn.disabled=false;
+    if(!x.ok){st.className='status err';st.textContent='✗ '+x.j.error;return;}
+    var line=+box.dataset.line;
+    document.querySelectorAll('.answer-box').forEach(function(b){
+      if(b!==box&&b.dataset.file===box.dataset.file&&+b.dataset.line>line)b.dataset.line=+b.dataset.line+x.j.delta;});
+    ta.defaultValue=ta.value;box.classList.remove('dirty');
+    st.textContent='✓ 已儲存 '+new Date().toLocaleTimeString();})
+  .catch(function(e){btn.disabled=false;st.className='status err';st.textContent='✗ 連不到 serve.py：'+e;});
+};
+window.addEventListener('beforeunload',function(e){
+  if(document.querySelector('.answer-box.dirty')){e.preventDefault();e.returnValue='';}});
 document.addEventListener('DOMContentLoaded',function(){
   document.querySelectorAll('main h1[id],main h2[id],main h3[id],main h4[id]').forEach(function(h){
     var a=document.createElement('a');a.className='anchor';a.href='#'+h.id;a.textContent='#';h.appendChild(a);});
+  document.querySelectorAll('.answer-box textarea').forEach(function(ta){
+    var box=ta.closest('.answer-box'),st=box.querySelector('.status');fit(ta);
+    if(location.protocol==='file:'){ta.readOnly=true;box.querySelector('.save').disabled=true;
+      st.textContent='唯讀：用 python3 tools/serve.py 開啟才能作答存檔';return;}
+    ta.addEventListener('input',function(){fit(ta);var d=ta.value!==ta.defaultValue;box.classList.toggle('dirty',d);
+      st.className='status';st.textContent=d?'未儲存':'';});
+    ta.addEventListener('keydown',function(e){if((e.ctrlKey||e.metaKey)&&e.key==='s'){e.preventDefault();
+      saveAnswer(box.querySelector('.save'));}});});
   var links=[].slice.call(document.querySelectorAll('nav.side li a'));
   if(!links.length||!('IntersectionObserver' in window))return;
   var map={};links.forEach(function(a){map[decodeURIComponent(a.hash.slice(1))]=a;});

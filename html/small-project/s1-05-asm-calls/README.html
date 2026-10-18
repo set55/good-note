@@ -1,0 +1,834 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>s1-05：讀懂 x86-64 組合語言（二）——函式呼叫與堆疊框</title>
+<link rel="stylesheet" href="../../assets/style.css">
+<script src="../../assets/app.js"></script>
+</head>
+<body>
+<button class="menu-btn" onclick="toggleMenu()">☰ 目錄</button>
+<div class="layout">
+<nav class="side">
+<div class="crumbs"><a href="../../index.html">🏠 首頁</a> / <a href="../README.html">small-project</a> / s1-05-asm-calls</div>
+<div class="tools"><button onclick="toggleTheme()">🌓 主題</button></div>
+<ul>
+<li class="l2"><a href="#%E8%AA%AA%E6%98%8E">說明</a></li>
+<li class="l2"><a href="#%E7%AD%86%E8%A8%98%E7%9A%84%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F">筆記的範例程式</a></li>
+<li class="l2"><a href="#%E6%89%B9%E6%94%B9%E7%B5%90%E6%9E%9C2026-10-12">批改結果（2026-10-12）</a></li>
+<li class="l2"><a href="#1-%E4%B8%8D%E5%90%8C%E5%9E%8B%E5%88%A5%E7%9A%84%E5%8F%83%E6%95%B8%E6%94%BE%E5%9C%A8%E5%93%AA%E8%A3%A1">1. 不同型別的參數放在哪裡</a></li>
+<li class="l3"><a href="#1-1-%E7%B7%A8%E8%AD%AF%E5%89%8D%E5%85%88%E9%A0%90%E6%B8%AC6-%E5%80%8B%E5%8F%83%E6%95%B8%E5%90%84%E6%98%AF%E6%94%BE%E5%9C%A8%E5%93%AA%E5%80%8B%E6%9A%AB%E5%AD%98%E5%99%A8%E5%82%B3%E9%80%B2%E4%BE%86%E7%9A%84%E5%90%84%E7%94%A8%E9%82%A3%E5%80%8B%E6%9A%AB%E5%AD%98%E5%99%A8%E7%9A%84%E5%93%AA%E5%80%8B%E5%90%8D%E5%AD%976432168-%E4%BD%8D%E5%85%83%E5%AF%AB%E6%88%90%E4%B8%80%E5%BC%B5%E8%A1%A8%E7%AD%86%E8%A8%98%E7%AC%AC%E4%BA%94%E7%AF%80%E7%9A%84%E8%A1%A8%E8%88%87%E8%A1%A8%E4%B8%8B%E7%AC%AC%E4%B8%80%E6%AE%B5%E7%AC%AC-4-%E8%AA%B2%E7%AD%86%E8%A8%98%E7%AC%AC%E4%BA%8C%E7%AF%80%E7%9A%84%E6%9A%AB%E5%AD%98%E5%99%A8%E5%90%8D%E5%AD%97%E8%A1%A8">1-1. 編譯前先預測：6 個參數各是放在哪個暫存器傳進來的？各用那個暫存器的哪個名字（64／32／16／8 位元）？寫成一張表。【筆記第五節的表與表下第一段；第 4 課筆記第二節的暫存器名字表】</a></li>
+<li class="l3"><a href="#1-2-%E7%B7%A8%E8%AD%AF%E8%B2%BC%E4%B8%8A-pick-%E5%BE%9E%E9%96%8B%E9%A0%AD%E5%88%B0%E7%AC%AC%E4%B8%80%E5%80%8B-movs-%E9%96%8B%E9%A0%AD%E7%9A%84%E6%8C%87%E4%BB%A4%E4%B9%8B%E5%89%8D%E7%9A%84%E9%82%A3%E5%B9%BE%E8%A1%8C%E5%AD%98%E5%8F%83%E6%95%B8%E7%9A%84%E9%83%A8%E5%88%86%E5%B0%8D%E7%85%A7%E9%A0%90%E6%B8%AC%E6%AF%8F%E5%80%8B%E5%8F%83%E6%95%B8%E8%A2%AB%E5%AD%98%E5%88%B0%E5%93%AA%E5%80%8B--nrbp%E9%80%99%E5%80%8B-mov-%E4%B8%80%E6%AC%A1%E5%AF%AB%E9%80%B2%E8%A8%98%E6%86%B6%E9%AB%94%E5%B9%BE-byte%E7%9C%8B%E5%AE%83%E7%94%A8%E7%9A%84%E6%9A%AB%E5%AD%98%E5%99%A8%E5%90%8D%E5%AD%97dl-%E6%98%AF-1-byteax-%E6%98%AF-2-byte%E5%93%AA%E8%A3%A1%E8%B7%9F%E4%BD%A0%E9%A0%90%E6%B8%AC%E7%9A%84%E4%B8%8D%E4%B8%80%E6%A8%A32026-10-12-%E6%94%B9%E5%AF%AB%E5%8E%9F%E6%9C%AC%E5%95%8F%E7%94%A8%E7%9A%84%E6%98%AF%E5%B9%BE-byte-%E7%9A%84-mov%E4%BD%BF%E7%94%A8%E8%80%85%E5%8F%8D%E6%98%A0%E7%9C%8B%E4%B8%8D%E6%87%82">1-2. 編譯，貼上 pick 從開頭到「第一個 movs 開頭的指令」之前的那幾行（存參數的部分）。對照預測：每個參數被存到哪個 -N(%rbp)？這個 mov 一次寫進記憶體幾 byte（看它用的暫存器名字：%dl 是 1 byte、%ax 是 2 byte……）？哪裡跟你預測的不一樣？（2026-10-12 改寫：原本問「用的是幾 byte 的 mov」，使用者反映看不懂）</a></li>
+<li class="l3"><a href="#1-3-e-%E6%98%AF%E6%8C%87%E6%A8%99f-%E6%98%AF-unsigned-int%E7%82%BA%E4%BB%80%E9%BA%BC%E4%B8%80%E5%80%8B%E7%94%A8%E6%9A%AB%E5%AD%98%E5%99%A8%E7%9A%84-64-%E4%BD%8D%E5%85%83%E5%90%8D%E5%AD%97%E4%B8%80%E5%80%8B%E7%94%A8-32-%E4%BD%8D%E5%85%83%E5%90%8D%E5%AD%97%E7%AD%86%E8%A8%98%E7%AC%AC%E4%BA%94%E7%AF%80%E8%A1%A8%E4%B8%8B%E7%AC%AC%E4%B8%80%E6%AE%B5%E7%AC%AC-2-%E8%AA%B2%E7%AD%86%E8%A8%98%E7%AC%AC%E4%B8%80%E7%AF%80%E5%9E%8B%E5%88%A5%E5%A4%A7%E5%B0%8F">1-3. e 是指標、f 是 unsigned int，為什麼一個用暫存器的 64 位元名字、一個用 32 位元名字？【筆記第五節表下第一段；第 2 課筆記第一節（型別大小）】</a></li>
+<li class="l3"><a href="#1-4-%E6%8A%8A%E5%8F%83%E6%95%B8%E5%8A%A0%E8%B5%B7%E4%BE%86%E4%B9%8B%E5%89%8Dab-%E5%85%88%E7%B6%93%E9%81%8E%E5%93%AA%E5%85%A9%E5%80%8B%E6%8C%87%E4%BB%A4%E8%AE%8A%E6%88%90-32-%E4%BD%8D%E5%85%83%E7%82%BA%E4%BB%80%E9%BA%BC%E5%AE%83%E5%80%91%E7%94%A8-movs-%E9%96%8B%E9%A0%AD%E8%80%8C%E4%B8%8D%E6%98%AF-movz-%E9%96%8B%E9%A0%AD%E7%AC%AC-4-%E8%AA%B2%E7%AD%86%E8%A8%98%E7%AC%AC%E4%BA%8C%E7%AF%80%E5%AF%AB%E4%BD%8E%E4%BD%8D%E7%9A%84%E5%90%8D%E5%AD%97%E6%99%82%E9%AB%98%E4%BD%8D%E6%9C%83%E6%80%8E%E6%A8%A3%E7%9A%84%E6%93%B4%E5%B1%95%E6%8C%87%E4%BB%A4%E8%A1%A8%E7%AC%AC-2-%E8%AA%B2%E7%AD%86%E8%A8%98%E7%AC%AC%E4%B8%80%E7%AF%80unsigned-%E5%96%AE%E7%8D%A8%E5%AF%AB%E5%B0%B1%E6%98%AF-unsigned-int%E6%95%B4%E6%95%B8%E5%9E%8B%E5%88%A5%E7%9A%84%E6%89%80%E6%9C%89%E5%AF%AB%E6%B3%95char-%E5%9C%A8%E6%9C%AC%E6%A9%9F%E6%9C%89%E6%B2%92%E6%9C%89%E8%99%9F">1-4. 把參數加起來之前，a、b 先經過哪兩個指令變成 32 位元？為什麼它們用 movs 開頭，而不是 movz 開頭？【第 4 課筆記第二節〈寫低位的名字時，高位會怎樣？〉的擴展指令表；第 2 課筆記第一節〈unsigned 單獨寫就是 unsigned int：整數型別的所有寫法〉（char 在本機有沒有號）】</a></li>
+<li class="l2"><a href="#2-9-%E5%80%8B%E5%8F%83%E6%95%B8%E8%88%87-16-byte-%E5%B0%8D%E9%BD%8A">2. 9 個參數與 16 byte 對齊</a></li>
+<li class="l3"><a href="#2-1-%E7%B7%A8%E8%AD%AF%E5%89%8D%E5%85%88%E9%A0%90%E6%B8%AC-call9%E5%93%AA%E5%B9%BE%E5%80%8B%E5%8F%83%E6%95%B8%E7%94%A8-push-%E6%94%BE%E4%B8%8A%E5%A0%86%E7%96%8A%E6%8E%A8%E7%9A%84%E9%A0%86%E5%BA%8F%E6%98%AF%E4%BB%80%E9%BA%BC%E6%AF%8F%E5%80%8B-int-%E5%8F%83%E6%95%B8%E5%9C%A8%E5%A0%86%E7%96%8A%E4%B8%8A%E4%BD%94%E5%B9%BE-byte%E7%AD%86%E8%A8%98%E7%AC%AC%E4%BA%94%E7%AF%80%E7%9A%84%E8%A1%A8%E5%AF%A6%E9%A9%978-%E5%80%8B%E5%8F%83%E6%95%B8%E7%AC%AC-78-%E5%80%8B%E5%8E%BB%E5%93%AA%E4%BA%86">2-1. 編譯前先預測 call9：哪幾個參數用 push 放上堆疊？推的順序是什麼？每個 int 參數在堆疊上佔幾 byte？【筆記第五節的表、〈實驗：8 個參數，第 7、8 個去哪了〉】</a></li>
+<li class="l3"><a href="#2-2-%E7%B7%A8%E8%AD%AF%E5%89%8D%E5%85%88%E9%A0%90%E6%B8%AC-sum9%E7%AC%AC-789-%E5%80%8B%E5%8F%83%E6%95%B8ghi%E5%90%84%E5%9C%A8-nrbp-%E7%9A%84%E5%93%AA%E8%A3%A1%E8%AA%AA%E6%98%8E%E9%80%99%E5%B9%BE%E5%80%8B%E6%95%B8%E5%AD%97%E6%98%AF%E6%80%8E%E9%BA%BC%E7%AE%97%E5%87%BA%E4%BE%86%E7%9A%84%E7%AD%86%E8%A8%98%E7%AC%AC%E4%BA%94%E7%AF%80%E5%AF%A6%E9%A9%978-%E5%80%8B%E5%8F%83%E6%95%B8%E7%AC%AC-78-%E5%80%8B%E5%8E%BB%E5%93%AA%E4%BA%86%E7%9A%84%E9%80%90%E9%BB%9E%E8%AA%AA%E6%98%8E%E7%AC%AC%E5%9B%9B%E7%AF%80">2-2. 編譯前先預測 sum9：第 7、8、9 個參數（g、h、i）各在 N(%rbp) 的哪裡？說明這幾個數字是怎麼算出來的。【筆記第五節〈實驗：8 個參數，第 7、8 個去哪了〉的逐點說明；第四節】</a></li>
+<li class="l3"><a href="#2-3-%E7%B7%A8%E8%AD%AF%E8%B2%BC%E4%B8%8A-call9-%E5%92%8C-sum9-%E7%9A%84%E6%9C%AC%E9%AB%94%E8%B7%9F-2-12-2-%E7%9A%84%E9%A0%90%E6%B8%AC%E5%B0%8D%E7%85%A7">2-3. 編譯，貼上 call9 和 sum9 的本體，跟 2-1、2-2 的預測對照。</a></li>
+<li class="l3"><a href="#2-4-call9-%E5%9C%A8-call-%E4%B9%8B%E5%BE%8C%E7%94%A8-add-%E6%8A%8A-rsp-%E5%8A%A0%E5%9B%9E%E5%8E%BB%E7%9A%84%E6%95%B8%E5%AD%97%E6%98%AF%E5%A4%9A%E5%B0%91%E8%B7%9F%E6%8E%A8%E4%B8%8A%E5%A0%86%E7%96%8A%E7%9A%84%E5%8F%83%E6%95%B8%E7%B8%BD%E5%85%B1%E5%B9%BE-byte-%E4%B8%80%E6%A8%A3%E5%97%8E%E5%A6%82%E6%9E%9C%E4%B8%8D%E4%B8%80%E6%A8%A3%E5%A4%9A%E5%87%BA%E4%BE%86%E7%9A%84%E6%98%AF-call9-%E8%A3%A1%E5%93%AA%E4%B8%80%E8%A1%8C%E6%8C%87%E4%BB%A4%E9%80%A0%E6%88%90%E7%9A%84%E7%82%BA%E4%BB%80%E9%BA%BC%E9%9C%80%E8%A6%81%E9%82%A3%E4%B8%80%E8%A1%8C%E7%AD%86%E8%A8%98%E7%AC%AC%E5%85%AD%E7%AF%80%E4%B8%8A%E9%9D%A2%E7%9A%84-sub-0x8rsp16-byte-%E5%B0%8D%E9%BD%8A">2-4. call9 在 call 之後用 add 把 %rsp 加回去的數字是多少？跟推上堆疊的參數總共幾 byte 一樣嗎？如果不一樣，多出來的是 call9 裡哪一行指令造成的？為什麼需要那一行？【筆記第六節〈上面的 sub $0x8,%rsp：16 byte 對齊〉】</a></li>
+<li class="l3"><a href="#2-5-%E6%8A%8A-ninec-%E8%A3%A1-sum9-%E7%9A%84%E5%AE%A3%E5%91%8A%E6%8F%9B%E6%88%90-sum9c-%E7%9A%84%E5%AE%8C%E6%95%B4%E5%AE%9A%E7%BE%A9%E5%85%A9%E5%80%8B%E5%87%BD%E5%BC%8F%E6%94%BE%E5%9C%A8%E5%90%8C%E4%B8%80%E5%80%8B%E6%AA%94%E6%A1%88%E9%87%8D%E6%96%B0%E7%B7%A8%E8%AD%AF%E7%9C%8B-call92-4-%E6%89%BE%E5%88%B0%E7%9A%84%E9%82%A3%E4%B8%80%E8%A1%8C%E9%82%84%E5%9C%A8%E5%97%8E%E7%8C%9C%E7%8C%9C%E7%9C%8B%E7%82%BA%E4%BB%80%E9%BA%BC%E6%96%B0%E8%A7%80%E5%BF%B5%E5%85%88%E7%8C%9C">2-5. 把 nine.c 裡 sum9 的宣告換成 sum9.c 的完整定義（兩個函式放在同一個檔案），重新編譯，看 call9。2-4 找到的那一行還在嗎？猜猜看為什麼。【新觀念，先猜】</a></li>
+<li class="l2"><a href="#3-%E7%94%A8-gdb-%E6%B2%BF%E8%91%97%E5%A0%86%E7%96%8A%E6%89%BE%E5%87%BA%E5%85%A9%E5%B1%A4%E5%91%BC%E5%8F%AB">3. 用 gdb 沿著堆疊找出兩層呼叫</a></li>
+<li class="l3"><a href="#3-1-%E5%9C%A8-gdb-%E8%A3%A1-break-innerrun%E5%81%9C%E5%9C%A8-inner-%E7%9A%84%E7%AC%AC%E4%B8%80%E6%A2%9D%E6%8C%87%E4%BB%A4%E7%94%A8%E6%9C%AC%E8%AA%B2%E7%9A%84%E5%91%BD%E4%BB%A4%E6%89%BE%E5%87%BA%E8%BF%94%E5%9B%9E%E4%BD%8D%E5%9D%80%E7%94%A8-info-symbol-%E8%AA%AA%E5%87%BA%E5%AE%83%E5%9C%A8%E5%93%AA%E5%80%8B%E5%87%BD%E5%BC%8F%E7%9A%84--%E5%B9%BE%E5%86%8D%E5%88%B0-objdump-%E7%9A%84%E8%BC%B8%E5%87%BA%E8%A3%A1%E6%89%BE%E5%87%BA%E5%AE%83%E6%98%AF%E5%93%AA%E4%B8%80%E6%A2%9D-call-%E7%9A%84%E4%B8%8B%E4%B8%80%E6%A2%9D%E6%8C%87%E4%BB%A4%E8%B2%BC%E4%B8%8A%E4%BD%A0%E4%B8%8B%E7%9A%84%E5%91%BD%E4%BB%A4%E8%88%87%E8%BC%B8%E5%87%BA%E7%AD%86%E8%A8%98%E7%AC%AC%E4%B8%89%E7%AF%80%E5%81%9C%E5%9C%A8%E5%87%BD%E5%BC%8F%E5%85%A5%E5%8F%A3%E6%99%82%E6%80%8E%E9%BA%BC%E7%9F%A5%E9%81%93%E6%98%AF%E8%AA%B0%E5%91%BC%E5%8F%AB%E7%9A%84">3-1. 在 gdb 裡 break *inner、run，停在 inner 的第一條指令。用本課的命令找出返回位址，用 info symbol 說出它在哪個函式的 + 幾；再到 objdump 的輸出裡，找出它是哪一條 call 的下一條指令。貼上你下的命令與輸出。【筆記第三節〈停在函式入口時，怎麼知道是誰呼叫的〉】</a></li>
+<li class="l3"><a href="#3-2-%E6%8E%A5%E8%91%97-stepi-%E4%B8%89%E6%AC%A1%E5%9F%B7%E8%A1%8C%E5%AE%8C-endbr64push-rbpmov-rsprbp%E5%85%88%E7%94%A8-info-registers-rbp-%E7%A2%BA%E8%AA%8D-rbp-%E5%B7%B2%E7%B6%93%E6%98%AF-inner-%E7%9A%84%E4%BA%86%E7%84%B6%E5%BE%8C%E5%8F%AA%E7%94%A8-x2gx%E5%BE%9E-inner-%E7%9A%84-rbp-%E5%87%BA%E7%99%BC%E6%B2%BF%E8%91%97-rbp-%E9%8F%88%E5%BE%80%E4%B8%8A%E8%B5%B0%E5%85%A9%E5%B1%A4%E6%89%BE%E5%87%BA-outer-%E7%9A%84%E8%BF%94%E5%9B%9E%E4%BD%8D%E5%9D%80%E5%AE%83%E5%9B%9E%E5%88%B0-main-%E7%9A%84%E5%93%AA%E8%A3%A1%E8%B2%BC%E4%B8%8A%E5%91%BD%E4%BB%A4%E8%88%87%E8%BC%B8%E5%87%BA%E8%AA%AA%E6%98%8E%E6%AF%8F%E4%B8%80%E6%AC%A1-x2gx-%E8%AE%80%E5%88%B0%E7%9A%84%E5%85%A9%E6%A0%BC%E5%90%84%E6%98%AF%E4%BB%80%E9%BA%BC%E7%AD%86%E8%A8%98%E7%AC%AC%E5%9B%9B%E7%AF%80%E7%95%AB%E5%87%BA%E4%BE%86%E5%81%9C%E5%9C%A8-add3-%E8%A3%A1%E9%9D%A2%E6%99%82%E7%9A%84%E5%A0%86%E7%96%8A">3-2. 接著 stepi 三次（執行完 endbr64、push %rbp、mov %rsp,%rbp），先用 info registers rbp 確認 %rbp 已經是 inner 的了。然後只用 x/2gx，從 inner 的 %rbp 出發，沿著 %rbp 鏈往上走兩層，找出 outer 的返回位址（它回到 main 的哪裡）。貼上命令與輸出，說明每一次 x/2gx 讀到的兩格各是什麼。【筆記第四節〈畫出來：停在 add3 裡面時的堆疊〉】</a></li>
+<li class="l3"><a href="#3-3-%E6%8A%8A-3-2-%E6%89%BE%E5%88%B0%E7%9A%84%E6%9D%B1%E8%A5%BF%E7%95%AB%E6%88%90%E5%83%8F%E7%AD%86%E8%A8%98%E7%95%AB%E5%87%BA%E4%BE%86%E9%82%A3%E6%A8%A3%E7%9A%84%E5%A0%86%E7%96%8A%E5%9C%96%E5%BE%9E-main-%E7%9A%84-rbp-%E9%82%A3%E4%B8%80%E6%A0%BC%E5%BE%80%E4%B8%8B%E7%95%AB%E5%88%B0-inner-%E7%9A%84-rbp-%E9%82%A3%E4%B8%80%E6%A0%BC%E6%AF%8F%E4%B8%80%E6%A0%BC%E5%AF%AB%E4%BD%8D%E5%9D%80%E6%9C%80%E5%BE%8C-3-%E4%BD%8D%E5%B0%B1%E5%A5%BD%E5%85%A7%E5%AE%B9%E5%B1%AC%E6%96%BC%E8%AA%B0%E7%9A%84%E5%A0%86%E7%96%8A%E6%A1%86%E4%B8%8D%E7%9F%A5%E9%81%93%E5%85%A7%E5%AE%B9%E7%9A%84%E6%A0%BC%E5%AD%90%E5%AF%AB%E4%B8%8D%E7%9F%A5%E9%81%93%E5%B0%B1%E5%A5%BD%E4%B8%8D%E5%BF%85%E6%AF%8F%E6%A0%BC%E9%83%BD%E5%A1%AB%E6%BB%BF%E7%AD%86%E8%A8%98%E7%AC%AC%E5%9B%9B%E7%AF%80%E7%95%AB%E5%87%BA%E4%BE%86">3-3. 把 3-2 找到的東西畫成像筆記〈畫出來〉那樣的堆疊圖：從 main 的 %rbp 那一格，往下畫到 inner 的 %rbp 那一格。每一格寫位址（最後 3 位就好）、內容、屬於誰的堆疊框。（不知道內容的格子寫「不知道」就好，不必每格都填滿。）【筆記第四節〈畫出來〉】</a></li>
+<li class="l3"><a href="#3-4-%E5%9C%A8%E5%90%8C%E4%B8%80%E5%80%8B%E5%9C%B0%E6%96%B9%E4%B8%8B-bt%E8%B2%BC%E4%B8%8A%E8%BC%B8%E5%87%BAbt-%E5%8D%B0%E5%87%BA%E7%9A%84%E6%AF%8F%E4%B8%80%E5%B1%A4%E4%BD%8D%E5%9D%80%E8%B7%9F%E4%BD%A0%E5%9C%A8-3-13-2-%E6%89%BE%E5%88%B0%E7%9A%84%E8%BF%94%E5%9B%9E%E4%BD%8D%E5%9D%80%E4%B8%80%E8%87%B4%E5%97%8E%E7%AC%AC-3-%E8%AA%B2%E7%AD%86%E8%A8%98%E7%AC%AC%E5%85%AD%E7%AF%80bt%E7%AD%86%E8%A8%98%E7%AC%AC%E4%B8%89%E7%AF%80%E5%81%9C%E5%9C%A8%E5%87%BD%E5%BC%8F%E5%85%A5%E5%8F%A3%E6%99%82%E6%80%8E%E9%BA%BC%E7%9F%A5%E9%81%93%E6%98%AF%E8%AA%B0%E5%91%BC%E5%8F%AB%E7%9A%84%E6%9C%80%E5%BE%8C%E4%B8%80%E6%AE%B5">3-4. 在同一個地方下 bt，貼上輸出。bt 印出的每一層位址，跟你在 3-1、3-2 找到的返回位址一致嗎？【第 3 課筆記第六節（bt）；筆記第三節〈停在函式入口時，怎麼知道是誰呼叫的〉最後一段】</a></li>
+<li class="l2"><a href="#4-%E8%A6%81%E6%92%90%E9%81%8E%E5%85%A9%E6%AC%A1-call-%E7%9A%84%E5%80%BC">4. 要撐過兩次 call 的值</a></li>
+<li class="l3"><a href="#4-1-%E7%B7%A8%E8%AD%AF%E5%89%8D%E5%85%88%E9%A0%90%E6%B8%ACabxy-%E8%A3%A1%E9%9D%A2%E5%93%AA%E4%BA%9B%E5%80%BC%E5%9C%A8%E6%9F%90%E4%B8%80%E6%AC%A1-call-%E4%B9%8B%E5%BE%8C%E9%82%84%E8%A6%81%E7%94%A8%E6%AF%8F%E5%80%8B%E5%80%BC%E5%AF%AB%E5%87%BA%E5%AE%83%E8%A6%81%E6%92%90%E9%81%8E%E5%93%AA%E5%B9%BE%E6%AC%A1-callh-%E6%9C%83%E7%94%A8%E5%88%B0%E5%B9%BE%E5%80%8B-callee-saved-%E6%9A%AB%E5%AD%98%E5%99%A8%E9%96%8B%E9%A0%AD-push-%E5%B9%BE%E6%AC%A1%E9%9C%80%E4%B8%8D%E9%9C%80%E8%A6%81%E9%A1%8D%E5%A4%96%E7%9A%84-sub-0x8rsp-%E4%BE%86%E5%B0%8D%E9%BD%8A%E7%AD%86%E8%A8%98%E7%AC%AC%E5%85%AD%E7%AF%80">4-1. 編譯前先預測：a、b、x、y 裡面，哪些值在某一次 call 之後還要用（每個值寫出它要撐過哪幾次 call）？h 會用到幾個 callee-saved 暫存器、開頭 push 幾次？需不需要額外的 sub $0x8,%rsp 來對齊？【筆記第六節】</a></li>
+<li class="l3"><a href="#4-2-%E7%B7%A8%E8%AD%AF%E8%B2%BC%E4%B8%8A-h-%E7%9A%84%E6%9C%AC%E9%AB%94%E5%9C%A8%E6%AF%8F%E5%80%8B-callee-saved-%E6%9A%AB%E5%AD%98%E5%99%A8%E6%97%81%E9%82%8A%E8%A8%BB%E6%98%8E%E5%AE%83%E5%AD%98%E7%9A%84%E6%98%AF%E5%93%AA%E5%80%8B%E5%80%BC%E8%B7%9F%E9%A0%90%E6%B8%AC%E5%B0%8D%E7%85%A7">4-2. 編譯，貼上 h 的本體，在每個 callee-saved 暫存器旁邊註明它存的是哪個值，跟預測對照。</a></li>
+<li class="l3"><a href="#4-3-%E6%8A%8A-return-%E6%94%B9%E6%88%90-x--y%E4%B8%8D%E5%8A%A0-a%E9%87%8D%E6%96%B0%E7%B7%A8%E8%AD%AF%E8%B2%BC%E4%B8%8A%E6%9C%AC%E9%AB%94push-%E7%9A%84%E6%AC%A1%E6%95%B8%E6%9C%89%E6%B2%92%E6%9C%89-sub-0x8rsp-%E5%90%84%E6%80%8E%E9%BA%BC%E8%AE%8A%E7%94%A8%E9%80%B2%E5%87%BD%E5%BC%8F%E6%99%82-rsp-%E9%99%A4%E4%BB%A5-16-%E9%A4%98%E5%B9%BE%E6%AF%8F%E5%80%8B-push-%E6%8C%AA%E5%B9%BE-byte%E7%AE%97%E4%B8%80%E6%AC%A1%E8%A7%A3%E9%87%8B%E7%82%BA%E4%BB%80%E9%BA%BC%E7%AD%86%E8%A8%98%E7%AC%AC%E5%85%AD%E7%AF%80%E4%B8%8A%E9%9D%A2%E7%9A%84-sub-0x8rsp16-byte-%E5%B0%8D%E9%BD%8A">4-3. 把 return 改成 x + y（不加 a），重新編譯，貼上本體。push 的次數、有沒有 sub $0x8,%rsp 各怎麼變？用「進函式時 %rsp 除以 16 餘幾、每個 push 挪幾 byte」算一次，解釋為什麼。【筆記第六節〈上面的 sub $0x8,%rsp：16 byte 對齊〉】</a></li>
+<li class="l3"><a href="#4-4-4-2-%E7%9A%84-h-%E8%A3%A1pop-%E7%9A%84%E9%A0%86%E5%BA%8F%E8%B7%9F-push-%E7%9A%84%E9%A0%86%E5%BA%8F%E6%98%AF%E4%BB%80%E9%BA%BC%E9%97%9C%E4%BF%82%E7%82%BA%E4%BB%80%E9%BA%BC%E4%B8%80%E5%AE%9A%E8%A6%81%E9%80%99%E6%A8%A3%E7%AD%86%E8%A8%98%E7%AC%AC%E4%BA%8C%E7%AF%80">4-4. 4-2 的 h 裡，pop 的順序跟 push 的順序是什麼關係？為什麼一定要這樣？【筆記第二節】</a></li>
+<li class="l2"><a href="#5-%E5%8F%AF%E8%AE%8A%E5%8F%83%E6%95%B8%E5%87%BD%E5%BC%8F%E7%9A%84-al">5. 可變參數函式的 %al</a></li>
+<li class="l3"><a href="#5-1-%E7%B7%A8%E8%AD%AF%E5%89%8D%E5%85%88%E9%A0%90%E6%B8%AC%E7%AC%AC%E4%B8%80%E5%80%8B-printf6-%E5%80%8B%E5%8F%83%E6%95%B8%E5%90%AB%E6%A0%BC%E5%BC%8F%E5%AD%97%E4%B8%B2%E5%90%84%E6%94%BE%E5%9C%A8%E5%93%AA%E5%80%8B%E6%9A%AB%E5%AD%98%E5%99%A8%E5%91%BC%E5%8F%AB%E5%89%8D-eax-%E6%9C%83%E8%A2%AB%E8%A8%AD%E6%88%90%E5%A4%9A%E5%B0%91%E7%AD%86%E8%A8%98%E7%AC%AC%E4%BA%94%E7%AF%80%E8%A1%A8%E4%B8%8B%E7%AC%AC%E4%B8%80%E6%AE%B5%E7%AC%AC%E4%B8%83%E7%AF%80">5-1. 編譯前先預測第一個 printf：6 個參數（含格式字串）各放在哪個暫存器？呼叫前 %eax 會被設成多少？【筆記第五節表下第一段、第七節】</a></li>
+<li class="l3"><a href="#5-2-%E7%B7%A8%E8%AD%AF%E5%89%8D%E5%85%88%E9%A0%90%E6%B8%ACmain-%E5%9C%A8-call-showd-%E4%B9%8B%E5%89%8D%E6%9C%83%E4%B8%8D%E6%9C%83%E8%A8%AD-eax%E7%82%BA%E4%BB%80%E9%BA%BC%E7%AD%86%E8%A8%98%E7%AC%AC%E4%B8%83%E7%AF%80%E6%9C%80%E5%BE%8C%E4%B8%80%E6%AE%B5">5-2. 編譯前先預測：main 在 call showd 之前會不會設 %eax？為什麼？【筆記第七節最後一段】</a></li>
+<li class="l3"><a href="#5-3-%E7%B7%A8%E8%AD%AF%E8%B2%BC%E4%B8%8A-main-%E8%A3%A1%E7%AC%AC%E4%B8%80%E5%80%8B-printf-%E5%92%8C-showd-%E9%80%99%E5%85%A9%E6%AC%A1%E5%91%BC%E5%8F%AB%E5%89%8D%E9%9D%A2%E8%A8%AD%E5%8F%83%E6%95%B8%E7%9A%84%E9%82%A3%E5%B9%BE%E8%A1%8C%E8%B7%9F-5-15-2-%E7%9A%84%E9%A0%90%E6%B8%AC%E5%B0%8D%E7%85%A7">5-3. 編譯，貼上 main 裡第一個 printf 和 showd 這兩次呼叫前面設參數的那幾行，跟 5-1、5-2 的預測對照。</a></li>
+<li class="l3"><a href="#5-4-%E7%AC%AC%E4%BA%8C%E5%80%8B-printf-%E6%9C%89-9-%E5%80%8B-double%E5%8F%AF%E6%98%AF%E5%82%B3%E6%B5%AE%E9%BB%9E%E5%8F%83%E6%95%B8%E7%9A%84%E6%9A%AB%E5%AD%98%E5%99%A8%E5%8F%AA%E6%9C%89-xmm0xmm7-%E5%85%AB%E5%80%8B%E7%B7%A8%E8%AD%AF%E5%89%8D%E5%85%88%E7%8C%9C%E7%AC%AC-9-%E5%80%8B-double-%E6%9C%83%E6%94%BE%E5%9C%A8%E5%93%AA%E8%A3%A1al-%E6%9C%83%E6%98%AF%E5%A4%9A%E5%B0%91%E5%86%8D%E5%B0%8D%E7%85%A7%E5%AF%A6%E9%9A%9B%E8%BC%B8%E5%87%BA%E8%B2%BC%E4%B8%8A%E7%9B%B8%E9%97%9C%E7%9A%84%E5%B9%BE%E8%A1%8C%E6%96%B0%E8%A7%80%E5%BF%B5%E5%85%88%E7%8C%9C">5-4. 第二個 printf 有 9 個 double，可是傳浮點參數的暫存器只有 %xmm0～%xmm7 八個。編譯前先猜：第 9 個 double 會放在哪裡？%al 會是多少？再對照實際輸出，貼上相關的幾行。【新觀念，先猜】</a></li>
+</ul>
+</nav>
+<main>
+<h1 id="s1-05讀懂-x86-64-組合語言二函式呼叫與堆疊框">s1-05：讀懂 x86-64 組合語言（二）——函式呼叫與堆疊框</h1>
+<blockquote>
+<p>對應課程：第 ① 站第 5 課<br />
+課程筆記：<a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80%E4%BA%8C-call%E8%88%87ret%E3%80%81%E5%A0%86%E7%96%8A%E6%A1%86%E3%80%81%E5%8F%83%E6%95%B8%E8%88%87%E5%91%BC%E5%8F%AB%E6%85%A3%E4%BE%8B.html">x86-64組合語言入門二-call與ret、堆疊框、參數與呼叫慣例.html</a><br />
+自我測驗：寫在同資料夾的 <a href="quiz.html">quiz</a></p>
+</blockquote>
+<h2 id="說明">說明</h2>
+<p>這一課的目標還是<strong>讀得懂</strong>：自己打一小段 C（題目給的程式碼照打，或照題目說明寫）→ 先預測 → 用 <code>gcc</code>／<code>objdump</code>／<code>gdb</code> 實際看 → 對照、解釋。</p>
+<ul>
+<li>看組合語言用：<code>gcc -O0 -c -fno-asynchronous-unwind-tables 檔名.c</code>，再 <code>objdump -dr --no-show-raw-insn 檔名.o</code>（題目指定 <code>-O2</code> 或要連結成執行檔的除外）。</li>
+<li>編譯產物不會進 git（白名單），要留的輸出<strong>貼進作答框</strong>。只貼題目要的那個函式。</li>
+<li>筆記裡的範例可以參考，但每一題的參數個數、型別、情境都跟範例不同，照抄範例答不出來。</li>
+</ul>
+<p>每題「解釋原因」的地方都標了答案的來源：</p>
+<ul>
+<li>【筆記第 X 節】：本課教過，回筆記那一節找。</li>
+<li>【第 4 課筆記第 X 節】：回 <a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80-%E6%9A%AB%E5%AD%98%E5%99%A8%E3%80%81mov%E8%88%87lea%E3%80%81cmp%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D.html">x86-64組合語言入門（一）</a> 那一節找。</li>
+<li>【新觀念，先猜】：還沒教過，寫下你的猜測就好，猜錯不算錯。</li>
+</ul>
+<p><strong>「先預測」的題目，一定要先把預測寫進作答框，再編譯。</strong> 預測錯了沒關係，把錯在哪裡寫下來，這才是練習的重點。</p>
+<p><strong>怎麼作答</strong>：每個小題下面有作答框，直接寫在裡面（把 <code>YYYY-MM-DD</code> 換成作答日期）。批改與參考答案寫在作答框正下方，不重答。</p>
+<hr />
+<h2 id="筆記的範例程式">筆記的範例程式</h2>
+<p>課程筆記裡每個實驗的原始碼與 gdb 命令稿都放在這個資料夾，可以直接跟著筆記重做。<strong>它們是範例，不是作業</strong>；作業的檔名（<code>pick.c</code>、<code>nine.c</code>、<code>sum9.c</code>、<code>chain.c</code>、<code>keep.c</code>、<code>va.c</code>）跟它們不重複。</p>
+<table>
+<thead>
+<tr>
+<th>檔案</th>
+<th>筆記裡的位置</th>
+<th>示範什麼</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="../../../small-project/s1-05-asm-calls/frame.c"><code>frame.c</code></a></td>
+<td><a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80%E4%BA%8C-call%E8%88%87ret%E3%80%81%E5%A0%86%E7%96%8A%E6%A1%86%E3%80%81%E5%8F%83%E6%95%B8%E8%88%87%E5%91%BC%E5%8F%AB%E6%85%A3%E4%BE%8B.html#%E4%B8%89call-%E8%88%87-ret%E7%94%A8-gdb-%E4%B8%80%E6%A2%9D%E4%B8%80%E6%A2%9D%E8%B5%B0">第三節</a>〈實驗：<code>frame.c</code>〉、第四節</td>
+<td><code>main</code> 呼叫 <code>add3</code>：<code>call</code>／<code>ret</code>、堆疊框、紅區</td>
+</tr>
+<tr>
+<td><a href="../../../small-project/s1-05-asm-calls/trace.gdb"><code>trace.gdb</code></a></td>
+<td>第三節〈實驗：<code>frame.c</code>〉</td>
+<td>用 <code>stepi</code> 一條一條看 <code>call</code>、<code>push</code>、<code>ret</code> 時 <code>%rsp</code> 的變化</td>
+</tr>
+<tr>
+<td><a href="../../../small-project/s1-05-asm-calls/who.gdb"><code>who.gdb</code></a></td>
+<td>第三節〈停在函式入口時，怎麼知道是誰呼叫的〉</td>
+<td><code>x/gx $rsp</code> ＋ <code>info symbol</code> 找呼叫者</td>
+</tr>
+<tr>
+<td><a href="../../../small-project/s1-05-asm-calls/leave.gdb"><code>leave.gdb</code></a></td>
+<td><a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80%E4%BA%8C-call%E8%88%87ret%E3%80%81%E5%A0%86%E7%96%8A%E6%A1%86%E3%80%81%E5%8F%83%E6%95%B8%E8%88%87%E5%91%BC%E5%8F%AB%E6%85%A3%E4%BE%8B.html#%E5%9B%9B%E5%A0%86%E7%96%8A%E6%A1%86pushq-rbp-movq-rsp-rbp-%E8%88%87-leave">第四節</a>〈<code>leave</code>：一條指令做兩件事〉</td>
+<td><code>leave</code> 前後的 <code>%rsp</code>、<code>%rbp</code></td>
+</tr>
+<tr>
+<td><a href="../../../small-project/s1-05-asm-calls/redzone.gdb"><code>redzone.gdb</code></a></td>
+<td>第四節〈上圖 <code>add3</code> 的變數在 <code>%rsp</code> 的「下面」：紅區〉</td>
+<td>葉函式的區域變數在 <code>%rsp</code> 下方</td>
+</tr>
+<tr>
+<td><a href="../../../small-project/s1-05-asm-calls/args8.c"><code>args8.c</code></a></td>
+<td><a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80%E4%BA%8C-call%E8%88%87ret%E3%80%81%E5%A0%86%E7%96%8A%E6%A1%86%E3%80%81%E5%8F%83%E6%95%B8%E8%88%87%E5%91%BC%E5%8F%AB%E6%85%A3%E4%BE%8B.html#%E4%BA%94%E5%8F%83%E6%95%B8%E8%88%87%E5%9B%9E%E5%82%B3%E5%80%BC%E6%94%BE%E5%93%AA%E8%A3%A1">第五節</a>〈實驗：8 個參數〉</td>
+<td>前 6 個參數的暫存器、第 7、8 個放堆疊</td>
+</tr>
+<tr>
+<td><a href="../../../small-project/s1-05-asm-calls/saved.c"><code>saved.c</code></a>、<a href="../../../small-project/s1-05-asm-calls/noret.c"><code>noret.c</code></a></td>
+<td><a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80%E4%BA%8C-call%E8%88%87ret%E3%80%81%E5%A0%86%E7%96%8A%E6%A1%86%E3%80%81%E5%8F%83%E6%95%B8%E8%88%87%E5%91%BC%E5%8F%AB%E6%85%A3%E4%BE%8B.html#%E5%85%AD%E8%AA%B0%E8%B2%A0%E8%B2%AC%E4%BF%9D%E5%AD%98%E6%9A%AB%E5%AD%98%E5%99%A8%E4%BB%A5%E5%8F%8A-16-byte-%E5%B0%8D%E9%BD%8A">第六節</a></td>
+<td>callee-saved 的 <code>%rbx</code>；只為了對齊的 <code>sub $0x8,%rsp</code></td>
+</tr>
+<tr>
+<td><a href="../../../small-project/s1-05-asm-calls/align9.c"><code>align9.c</code></a></td>
+<td><a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80%E4%BA%8C-call%E8%88%87ret%E3%80%81%E5%A0%86%E7%96%8A%E6%A1%86%E3%80%81%E5%8F%83%E6%95%B8%E8%88%87%E5%91%BC%E5%8F%AB%E6%85%A3%E4%BE%8B.html#%E5%85%AD%E8%AA%B0%E8%B2%A0%E8%B2%AC%E4%BF%9D%E5%AD%98%E6%9A%AB%E5%AD%98%E5%99%A8%E4%BB%A5%E5%8F%8A-16-byte-%E5%B0%8D%E9%BD%8A">第六節</a>〈補教：被呼叫的函式就在同一個檔案時，<code>sub $0x8,%rsp</code> 為什麼不見了〉</td>
+<td>看得到被呼叫者的本體時，gcc 省掉對齊用的 <code>sub $0x8,%rsp</code>（<code>-fipa-stack-alignment</code>）</td>
+</tr>
+<tr>
+<td><a href="../../../small-project/s1-05-asm-calls/varargs.c"><code>varargs.c</code></a></td>
+<td><a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80%E4%BA%8C-call%E8%88%87ret%E3%80%81%E5%A0%86%E7%96%8A%E6%A1%86%E3%80%81%E5%8F%83%E6%95%B8%E8%88%87%E5%91%BC%E5%8F%AB%E6%85%A3%E4%BE%8B.html#%E4%B8%83printf-%E5%89%8D%E7%9A%84-movl-0-eax%E5%8F%AF%E8%AE%8A%E5%8F%83%E6%95%B8%E5%87%BD%E5%BC%8F%E7%9A%84-al">第七節</a></td>
+<td>可變參數函式呼叫前的 <code>%al</code> ＝ 0、1、2</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="批改結果2026-10-12">批改結果（2026-10-12）</h2>
+<p>第 1 題已批改（2026-10-12），第 2 題已批改（2026-10-16），第 3 題已批改（2026-10-17），第 4、5 題等作答。</p>
+<table>
+<thead>
+<tr>
+<th>題目</th>
+<th>結果</th>
+<th>錯在哪／缺什麼</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1-1</td>
+<td>大致對</td>
+<td>預測題：5 個對；<code>e</code> 是指標（8 byte），要用整個 <code>%r8</code>，不是 <code>%r8b</code></td>
+</tr>
+<tr>
+<td>1-2</td>
+<td>對（改判）</td>
+<td>六個參數的位置都標出來了（<code>a</code>、<code>b</code> 標在貼上的輸出裡），<code>e</code> 跟預測不同也指出了。原判不完整：漏看了貼上輸出裡 <code>// a</code>、<code>// b</code> 的標註，且「幾 byte 的 <code>mov</code>」題目問法不清楚，已改寫題目，不扣分。<code>b</code> 不是「跟預測不同」：它確實從 <code>%si</code> 傳進來，<code>mov %esi,%eax</code> 是 <code>-O0</code> 先整個複製再只存低 16 位元（沒教過，已補教進筆記，不扣分）</td>
+</tr>
+<tr>
+<td>1-3</td>
+<td>對</td>
+<td>抓到：指標 8 byte 用 64 位元名字，<code>unsigned int</code> 4 byte 用 32 位元名字</td>
+</tr>
+<tr>
+<td>1-4</td>
+<td>對</td>
+<td>抓到：<code>movsbl</code>、<code>movswl</code>；<code>char</code>（本機有號）與 <code>short</code> 是有號，要補符號位元，不能一律補 0</td>
+</tr>
+<tr>
+<td>2-1</td>
+<td>大致對</td>
+<td>預測題：推 70、80、90，從 90 先推，都對；大小錯：<code>push</code> 每次 8 byte，<code>int</code> 參數也佔 8 byte，不是 4</td>
+</tr>
+<tr>
+<td>2-2</td>
+<td>錯</td>
+<td>預測題：寫成負偏移 <code>-4</code>～<code>-12</code>（那是 <code>sum9</code> 自己的區域變數）；應是 <code>0x10</code>／<code>0x18</code>／<code>0x20(%rbp)</code>，因為 <code>0(%rbp)</code> 舊 <code>%rbp</code>、<code>0x8(%rbp)</code> 返回位址</td>
+</tr>
+<tr>
+<td>2-3</td>
+<td>對</td>
+<td>輸出正確，對照出兩個錯：參數 8 byte、<code>sum9</code> 要用正的偏移讀</td>
+</tr>
+<tr>
+<td>2-4</td>
+<td>不完整</td>
+<td><code>0x20</code>、不一樣、<code>sub $0x8,%rsp</code> 都對；原因錯成「存返回位址」，應是讓 <code>call</code> 時 <code>%rsp</code> 是 16 的倍數（24 byte 參數差 8）</td>
+</tr>
+<tr>
+<td>2-5</td>
+<td>對</td>
+<td>觀察題：看到 <code>sub</code> 不見了；原因是新觀念（<code>-fipa-stack-alignment</code>：看得到 <code>sum9</code> 不需要對齊），已補教</td>
+</tr>
+<tr>
+<td>3-1</td>
+<td>對</td>
+<td><code>x/xg $rsp</code> 找到 <code>0x55555555517b</code>、<code>info symbol</code> 答出 <code>outer + 28</code>、是 <code>call inner</code> 的下一條（<code>117b</code>）</td>
+</tr>
+<tr>
+<td>3-2</td>
+<td>對</td>
+<td>兩次 <code>x/2gx</code> 沿 <code>%rbp</code> 鏈往上走，指出第 1 格是上一層的 <code>%rbp</code>、第 2 格是返回位址，<code>outer</code> 回到 <code>main+18</code></td>
+</tr>
+<tr>
+<td>3-3</td>
+<td>不完整</td>
+<td>順序與四個值對；沒寫每格位址、沒標屬於誰的框，且漏了 <code>outer</code> 用 <code>sub $0x8,%rsp</code> 挪出的 <code>d768</code>（存 <code>x = 4</code>），<code>517b</code> 應在 <code>d760</code></td>
+</tr>
+<tr>
+<td>3-4</td>
+<td>對</td>
+<td><code>#1</code>、<code>#2</code> 的位址跟 3-1、3-2 的返回位址一致；可補：<code>#0</code> 是目前的 <code>%rip</code>，不是返回位址</td>
+</tr>
+</tbody>
+</table>
+<h2 id="1-不同型別的參數放在哪裡">1. 不同型別的參數放在哪裡</h2>
+<p>寫 <code>pick.c</code>：</p>
+<pre><code class="language-c"><span class="kt">long</span><span class="w"> </span><span class="nf">pick</span><span class="p">(</span><span class="kt">char</span><span class="w"> </span><span class="n">a</span><span class="p">,</span><span class="w"> </span><span class="kt">short</span><span class="w"> </span><span class="n">b</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">c</span><span class="p">,</span><span class="w"> </span><span class="kt">long</span><span class="w"> </span><span class="n">d</span><span class="p">,</span><span class="w"> </span><span class="kt">unsigned</span><span class="w"> </span><span class="kt">char</span><span class="w"> </span><span class="o">*</span><span class="n">e</span><span class="p">,</span><span class="w"> </span><span class="kt">unsigned</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">f</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">b</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">c</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">d</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="o">*</span><span class="n">e</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">f</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<pre><code>gcc -O0 -c -fno-asynchronous-unwind-tables pick.c
+objdump -dr --no-show-raw-insn pick.o
+</code></pre>
+<h3 id="1-1-編譯前先預測6-個參數各是放在哪個暫存器傳進來的各用那個暫存器的哪個名字6432168-位元寫成一張表筆記第五節的表與表下第一段第-4-課筆記第二節的暫存器名字表">1-1. 編譯前先預測：6 個參數各是放在哪個暫存器傳進來的？各用那個暫存器的哪個名字（64／32／16／8 位元）？寫成一張表。【筆記<a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80%E4%BA%8C-call%E8%88%87ret%E3%80%81%E5%A0%86%E7%96%8A%E6%A1%86%E3%80%81%E5%8F%83%E6%95%B8%E8%88%87%E5%91%BC%E5%8F%AB%E6%85%A3%E4%BE%8B.html#%E4%BA%94%E5%8F%83%E6%95%B8%E8%88%87%E5%9B%9E%E5%82%B3%E5%80%BC%E6%94%BE%E5%93%AA%E8%A3%A1">第五節</a>的表與表下第一段；<a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80-%E6%9A%AB%E5%AD%98%E5%99%A8%E3%80%81mov%E8%88%87lea%E3%80%81cmp%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D.html#%E4%BA%8C%E6%9A%AB%E5%AD%98%E5%99%A8cpu-%E8%A3%A1%E7%9A%84-16-%E5%80%8B%E8%AE%8A%E6%95%B8">第 4 課筆記第二節</a>的暫存器名字表】</h3>
+<p><strong>第 1 次（2026-10-12）</strong></p>
+<pre><code>a: dil
+b: si
+c: edx
+d: rcx
+e: r8b
+f: r9d
+</code></pre>
+<blockquote>
+<p><strong>批改</strong>：<strong>大致對</strong>（預測題）。<code>a</code>→<code>%dil</code>、<code>b</code>→<code>%si</code>、<code>c</code>→<code>%edx</code>、<code>d</code>→<code>%rcx</code>、<code>f</code>→<code>%r9d</code> 都對。<code>e</code> 錯：<code>e</code> 是 <code>unsigned char *</code>，<strong>指標本身是 8 byte 的位址</strong>，所以用整個 <code>%r8</code>；<code>unsigned char</code> 是它<strong>指向</strong>的東西的型別，跟傳參數用多大的名字無關。（1-3 你答對了同一件事，預測時被 <code>char</code> 這個字帶偏了。）</p>
+<p><strong>參考答案</strong>【筆記<a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80%E4%BA%8C-call%E8%88%87ret%E3%80%81%E5%A0%86%E7%96%8A%E6%A1%86%E3%80%81%E5%8F%83%E6%95%B8%E8%88%87%E5%91%BC%E5%8F%AB%E6%85%A3%E4%BE%8B.html#%E4%BA%94%E5%8F%83%E6%95%B8%E8%88%87%E5%9B%9E%E5%82%B3%E5%80%BC%E6%94%BE%E5%93%AA%E8%A3%A1">第五節</a>的表與表下第一段】</p>
+<p><strong>核心關鍵</strong>（答到這幾點就算對）：</p>
+<ol>
+<li>第幾個參數決定哪個暫存器：<code>%rdi</code>、<code>%rsi</code>、<code>%rdx</code>、<code>%rcx</code>、<code>%r8</code>、<code>%r9</code>。</li>
+<li>參數的大小決定用哪個名字：<code>a</code>（<code>char</code>，1 byte）<code>%dil</code>、<code>b</code>（<code>short</code>，2 byte）<code>%si</code>、<code>c</code>（<code>int</code>）<code>%edx</code>、<code>d</code>（<code>long</code>）<code>%rcx</code>、<code>e</code>（指標，8 byte）<code>%r8</code>、<code>f</code>（<code>unsigned int</code>）<code>%r9d</code>。</li>
+</ol>
+<p><strong>詳細說明</strong>：看指標參數的大小時，看的是 <code>*</code> 前面那整個型別「指標」，不是它指向的型別：<code>char *</code>、<code>long *</code>、<code>struct foo *</code> 在本機都是 8 byte。</p>
+</blockquote>
+<h3 id="1-2-編譯貼上-pick-從開頭到第一個-movs-開頭的指令之前的那幾行存參數的部分對照預測每個參數被存到哪個--nrbp這個-mov-一次寫進記憶體幾-byte看它用的暫存器名字dl-是-1-byteax-是-2-byte哪裡跟你預測的不一樣2026-10-12-改寫原本問用的是幾-byte-的-mov使用者反映看不懂">1-2. 編譯，貼上 <code>pick</code> 從開頭到「第一個 <code>movs</code> 開頭的指令」之前的那幾行（存參數的部分）。對照預測：每個參數被存到哪個 <code>-N(%rbp)</code>？這個 <code>mov</code> 一次寫進記憶體幾 byte（看它用的暫存器名字：<code>%dl</code> 是 1 byte、<code>%ax</code> 是 2 byte……）？哪裡跟你預測的不一樣？（2026-10-12 改寫：原本問「用的是幾 byte 的 <code>mov</code>」，使用者反映看不懂）</h3>
+<p><strong>第 1 次（2026-10-12）</strong></p>
+<pre><code>0000000000000000 &lt;pick&gt;:
+   0:   f3 0f 1e fa             endbr64
+   4:   55                      push   %rbp
+   5:   48 89 e5                mov    %rsp,%rbp
+   8:   89 f0                   mov    %esi,%eax  // b
+   a:   89 55 f4                mov    %edx,-0xc(%rbp) // c
+   d:   48 89 4d e8             mov    %rcx,-0x18(%rbp) // d
+  11:   4c 89 45 e0             mov    %r8,-0x20(%rbp) // e
+  15:   44 89 4d f0             mov    %r9d,-0x10(%rbp) // f
+  19:   89 fa                   mov    %edi,%edx // a
+  1b:   88 55 fc                mov    %dl,-0x4(%rbp) // a
+  1e:   66 89 45 f8             mov    %ax,-0x8(%rbp) // b
+  # 以上
+  
+  22:   0f be 55 fc             movsbl -0x4(%rbp),%edx // a
+  26:   0f bf 45 f8             movswl -0x8(%rbp),%eax // b
+  2a:   01 c2                   add    %eax,%edx
+  2c:   8b 45 f4                mov    -0xc(%rbp),%eax
+  2f:   01 d0                   add    %edx,%eax
+  31:   48 63 d0                movslq %eax,%rdx
+  34:   48 8b 45 e8             mov    -0x18(%rbp),%rax
+  38:   48 01 c2                add    %rax,%rdx
+  3b:   48 8b 45 e0             mov    -0x20(%rbp),%rax
+  3f:   0f b6 00                movzbl (%rax),%eax
+  42:   0f b6 c0                movzbl %al,%eax
+  45:   48 01 c2                add    %rax,%rdx
+  48:   8b 45 f0                mov    -0x10(%rbp),%eax
+  4b:   48 01 d0                add    %rdx,%rax
+  4e:   5d                      pop    %rbp
+  4f:   c3                      ret
+
+8:   89 f0                   mov    %esi,%eax 跟我預測的不同,我原本是預測si因爲他的類型是short 2byte
+a:   89 55 f4                mov    %edx,-0xc(%rbp) 預測是相同的,選了舉例頂端低位12byte的位置
+d:   48 89 4d e8             mov    %rcx,-0x18(%rbp),這個也符合預測,選了低頂端24byte
+11:   4c 89 45 e0             mov    %r8,-0x20(%rbp) 不符合,選了低32byte的地方
+15:   44 89 4d f0             mov    %r9d,-0x10(%rbp) 符合, 存在低16byte的地方
+</code></pre>
+<blockquote>
+<p><strong>批改</strong>：<strong>對</strong>（改判；原判不完整）。貼的輸出跟我在本機重編的一模一樣；<code>c</code>～<code>f</code> 的位置寫在下面的說明，<code>a</code>（<code>mov %dl,-0x4(%rbp)</code>）、<code>b</code>（<code>mov %ax,-0x8(%rbp)</code>）標在貼上的輸出裡，<code>e</code> 跟預測不同也指出了。原判時漏看了 <code>// a</code>、<code>// b</code> 的標註；「用的是幾 byte 的 <code>mov</code>」是題目問法不清楚（使用者反映看不懂），已改寫題目，不扣分。</p>
+<ul>
+<li>題目的意思：<code>mov</code> 一次搬幾 byte，看指令裡<strong>暫存器的名字</strong>（<code>objdump</code> 沒寫字尾時就靠它）：<code>%dl</code> 1、<code>%ax</code> 2、<code>%edx</code>／<code>%r9d</code> 4、<code>%rcx</code>／<code>%r8</code> 8。所以 <code>mov %dl,-0x4(%rbp)</code> 只寫進 <code>-0x4(%rbp)</code> 那 1 byte。</li>
+<li><code>e</code> 跟預測不同的原因：指標是 8 byte，所以是 <code>%r8</code>（見 1-1）。</li>
+</ul>
+<p><strong>補教（沒教過，不扣分）</strong>：你說 <code>b</code>「跟預測不同」，其實<strong>預測是對的</strong>：<code>b</code> 確實放在 <code>%rsi</code> 的最低 2 byte（<code>%si</code>）傳進來。<code>mov %esi,%eax</code> 是 <code>-O0</code> 的寫法：先用 32 位元的名字把<strong>整個</strong>暫存器複製到暫存用的 <code>%eax</code>，下一步 <code>mov %ax,-0x8(%rbp)</code> 才只存低 2 byte。<code>a</code> 也一樣：<code>mov %edi,%edx</code> 再 <code>mov %dl,-0x4(%rbp)</code>。上面多複製的高位是垃圾（第 4 課講過：參數只佔最低幾個 byte，高位不保證），但最後只存低位，所以不影響。這段已補進筆記<a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80%E4%BA%8C-call%E8%88%87ret%E3%80%81%E5%A0%86%E7%96%8A%E6%A1%86%E3%80%81%E5%8F%83%E6%95%B8%E8%88%87%E5%91%BC%E5%8F%AB%E6%85%A3%E4%BE%8B.html#%E4%BA%94%E5%8F%83%E6%95%B8%E8%88%87%E5%9B%9E%E5%82%B3%E5%80%BC%E6%94%BE%E5%93%AA%E8%A3%A1">第五節</a>〈補教：<code>char</code>、<code>short</code> 參數為什麼先 <code>mov %edi,%edx</code> 再存 <code>%dl</code>〉。</p>
+<p><strong>參考答案</strong>【筆記<a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80%E4%BA%8C-call%E8%88%87ret%E3%80%81%E5%A0%86%E7%96%8A%E6%A1%86%E3%80%81%E5%8F%83%E6%95%B8%E8%88%87%E5%91%BC%E5%8F%AB%E6%85%A3%E4%BE%8B.html#%E4%BA%94%E5%8F%83%E6%95%B8%E8%88%87%E5%9B%9E%E5%82%B3%E5%80%BC%E6%94%BE%E5%93%AA%E8%A3%A1">第五節</a>、<a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80%E4%BA%8C-call%E8%88%87ret%E3%80%81%E5%A0%86%E7%96%8A%E6%A1%86%E3%80%81%E5%8F%83%E6%95%B8%E8%88%87%E5%91%BC%E5%8F%AB%E6%85%A3%E4%BE%8B.html#%E5%9B%9B%E5%A0%86%E7%96%8A%E6%A1%86pushq-rbp-movq-rsp-rbp-%E8%88%87-leave">第四節</a>（區域變數用負的偏移）】</p>
+<p><strong>核心關鍵</strong>（答到這幾點就算對）：</p>
+<ol>
+<li>六個參數的位置與大小：<code>a</code> → <code>-0x4(%rbp)</code>（<code>%dl</code>，1 byte）、<code>b</code> → <code>-0x8</code>（<code>%ax</code>，2 byte）、<code>c</code> → <code>-0xc</code>（<code>%edx</code>，4 byte）、<code>d</code> → <code>-0x18</code>（<code>%rcx</code>，8 byte）、<code>e</code> → <code>-0x20</code>（<code>%r8</code>，8 byte）、<code>f</code> → <code>-0x10</code>（<code>%r9d</code>，4 byte）。</li>
+<li>跟預測不同的是 <code>e</code>：指標 8 byte，用 <code>%r8</code>。</li>
+</ol>
+<p><strong>詳細說明</strong>：每個參數存進去的大小就是它的型別大小。位置不是照參數順序排的：gcc 把每個值放在跟自己大小對齊的位置（8 byte 的 <code>d</code>、<code>e</code> 放在 8 的倍數 <code>-0x18</code>、<code>-0x20</code>）。另外 <code>pick</code> 沒有 <code>sub ...,%rsp</code>，因為它不呼叫別的函式，是葉函式，直接用紅區（筆記第四節〈紅區〉）。</p>
+</blockquote>
+<h3 id="1-3-e-是指標f-是-unsigned-int為什麼一個用暫存器的-64-位元名字一個用-32-位元名字筆記第五節表下第一段第-2-課筆記第一節型別大小">1-3. <code>e</code> 是指標、<code>f</code> 是 <code>unsigned int</code>，為什麼一個用暫存器的 64 位元名字、一個用 32 位元名字？【筆記<a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80%E4%BA%8C-call%E8%88%87ret%E3%80%81%E5%A0%86%E7%96%8A%E6%A1%86%E3%80%81%E5%8F%83%E6%95%B8%E8%88%87%E5%91%BC%E5%8F%AB%E6%85%A3%E4%BE%8B.html#%E4%BA%94%E5%8F%83%E6%95%B8%E8%88%87%E5%9B%9E%E5%82%B3%E5%80%BC%E6%94%BE%E5%93%AA%E8%A3%A1">第五節</a>表下第一段；<a href="../../c/C%E7%9A%84%E8%B3%87%E6%96%99%E5%9C%A8%E8%A8%98%E6%86%B6%E9%AB%94%E8%A3%A1%E9%95%B7%E6%80%8E%E6%A8%A3-%E4%BD%8D%E5%85%83%E7%B5%84%E3%80%81%E6%8C%87%E6%A8%99%E3%80%81%E4%BD%8D%E5%85%83%E7%B5%84%E9%A0%86%E5%BA%8F%E8%88%87%E6%9C%89%E8%99%9F%E7%84%A1%E8%99%9F.html#%E4%B8%80%E4%BD%8D%E5%85%83%E7%B5%84%E8%88%87%E5%9E%8B%E5%88%A5%E5%A4%A7%E5%B0%8F">第 2 課筆記第一節</a>（型別大小）】</h3>
+<p><strong>第 1 次（2026-10-12）</strong></p>
+<pre><code>因爲指標是8byte,e的暫存器要存這個指標的位址
+f只需要存int值,也就是4byte:32位元 
+</code></pre>
+<blockquote>
+<p><strong>批改</strong>：<strong>對</strong>。指標是 8 byte 的位址，<code>unsigned int</code> 是 4 byte。</p>
+<p><strong>參考答案</strong>【筆記<a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80%E4%BA%8C-call%E8%88%87ret%E3%80%81%E5%A0%86%E7%96%8A%E6%A1%86%E3%80%81%E5%8F%83%E6%95%B8%E8%88%87%E5%91%BC%E5%8F%AB%E6%85%A3%E4%BE%8B.html#%E4%BA%94%E5%8F%83%E6%95%B8%E8%88%87%E5%9B%9E%E5%82%B3%E5%80%BC%E6%94%BE%E5%93%AA%E8%A3%A1">第五節</a>表下第一段；<a href="../../c/C%E7%9A%84%E8%B3%87%E6%96%99%E5%9C%A8%E8%A8%98%E6%86%B6%E9%AB%94%E8%A3%A1%E9%95%B7%E6%80%8E%E6%A8%A3-%E4%BD%8D%E5%85%83%E7%B5%84%E3%80%81%E6%8C%87%E6%A8%99%E3%80%81%E4%BD%8D%E5%85%83%E7%B5%84%E9%A0%86%E5%BA%8F%E8%88%87%E6%9C%89%E8%99%9F%E7%84%A1%E8%99%9F.html#%E4%B8%80%E4%BD%8D%E5%85%83%E7%B5%84%E8%88%87%E5%9E%8B%E5%88%A5%E5%A4%A7%E5%B0%8F">第 2 課筆記第一節</a>】</p>
+<p><strong>核心關鍵</strong>（答到這幾點就算對）：</p>
+<ol>
+<li>用哪個名字由參數的<strong>大小</strong>決定。</li>
+<li>指標在 x86-64 是 8 byte（位址是 64 位元）→ <code>%r8</code>；<code>unsigned int</code> 是 4 byte → <code>%r9d</code>。</li>
+</ol>
+<p><strong>詳細說明</strong>：有號無號不影響用哪個名字（<code>f</code> 是無號，照樣用 <code>%r9d</code>）；名字只跟大小有關。</p>
+</blockquote>
+<h3 id="1-4-把參數加起來之前ab-先經過哪兩個指令變成-32-位元為什麼它們用-movs-開頭而不是-movz-開頭第-4-課筆記第二節寫低位的名字時高位會怎樣的擴展指令表第-2-課筆記第一節unsigned-單獨寫就是-unsigned-int整數型別的所有寫法char-在本機有沒有號">1-4. 把參數加起來之前，<code>a</code>、<code>b</code> 先經過哪兩個指令變成 32 位元？為什麼它們用 <code>movs</code> 開頭，而不是 <code>movz</code> 開頭？【<a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80-%E6%9A%AB%E5%AD%98%E5%99%A8%E3%80%81mov%E8%88%87lea%E3%80%81cmp%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D.html#%E4%BA%8C%E6%9A%AB%E5%AD%98%E5%99%A8cpu-%E8%A3%A1%E7%9A%84-16-%E5%80%8B%E8%AE%8A%E6%95%B8">第 4 課筆記第二節</a>〈寫低位的名字時，高位會怎樣？〉的擴展指令表；<a href="../../c/C%E7%9A%84%E8%B3%87%E6%96%99%E5%9C%A8%E8%A8%98%E6%86%B6%E9%AB%94%E8%A3%A1%E9%95%B7%E6%80%8E%E6%A8%A3-%E4%BD%8D%E5%85%83%E7%B5%84%E3%80%81%E6%8C%87%E6%A8%99%E3%80%81%E4%BD%8D%E5%85%83%E7%B5%84%E9%A0%86%E5%BA%8F%E8%88%87%E6%9C%89%E8%99%9F%E7%84%A1%E8%99%9F.html#%E4%B8%80%E4%BD%8D%E5%85%83%E7%B5%84%E8%88%87%E5%9E%8B%E5%88%A5%E5%A4%A7%E5%B0%8F">第 2 課筆記第一節</a>〈<code>unsigned</code> 單獨寫就是 <code>unsigned int</code>：整數型別的所有寫法〉（<code>char</code> 在本機有沒有號）】</h3>
+<p><strong>第 1 次（2026-10-12）</strong></p>
+<pre><code> 22:   0f be 55 fc             movsbl -0x4(%rbp),%edx // a
+  26:   0f bf 45 f8             movswl -0x8(%rbp),%eax // b 
+  這兩個
+  因爲來源類型都是有號,無法無差別補0
+</code></pre>
+<blockquote>
+<p><strong>批改</strong>：<strong>對</strong>。<code>movsbl</code>、<code>movswl</code>，因為來源是有號，不能一律補 0。可以再補一句：<code>short</code> 一定有號，但 <code>char</code> 有沒有號是<strong>平台決定</strong>的，本機 x86-64 Linux 的 <code>char</code> 是有號，gcc 才用 <code>movs</code>（在 ARM Linux 上 <code>char</code> 是無號，同一段程式會變成 <code>movzbl</code>）。</p>
+<p><strong>參考答案</strong>【<a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80-%E6%9A%AB%E5%AD%98%E5%99%A8%E3%80%81mov%E8%88%87lea%E3%80%81cmp%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D.html#%E4%BA%8C%E6%9A%AB%E5%AD%98%E5%99%A8cpu-%E8%A3%A1%E7%9A%84-16-%E5%80%8B%E8%AE%8A%E6%95%B8">第 4 課筆記第二節</a>〈寫低位的名字時，高位會怎樣？〉的擴展指令表；<a href="../../c/C%E7%9A%84%E8%B3%87%E6%96%99%E5%9C%A8%E8%A8%98%E6%86%B6%E9%AB%94%E8%A3%A1%E9%95%B7%E6%80%8E%E6%A8%A3-%E4%BD%8D%E5%85%83%E7%B5%84%E3%80%81%E6%8C%87%E6%A8%99%E3%80%81%E4%BD%8D%E5%85%83%E7%B5%84%E9%A0%86%E5%BA%8F%E8%88%87%E6%9C%89%E8%99%9F%E7%84%A1%E8%99%9F.html#%E4%B8%80%E4%BD%8D%E5%85%83%E7%B5%84%E8%88%87%E5%9E%8B%E5%88%A5%E5%A4%A7%E5%B0%8F">第 2 課筆記第一節</a>〈<code>unsigned</code> 單獨寫就是 <code>unsigned int</code>：整數型別的所有寫法〉】</p>
+<p><strong>核心關鍵</strong>（答到這幾點就算對）：</p>
+<ol>
+<li><code>movsbl -0x4(%rbp),%edx</code>（<code>a</code>：1 → 4 byte）、<code>movswl -0x8(%rbp),%eax</code>（<code>b</code>：2 → 4 byte）。</li>
+<li><code>a</code>（<code>char</code>，本機有號）、<code>b</code>（<code>short</code>）都是有號，C 要先把它們提升成 <code>int</code> 再加；有號要<strong>符號擴展</strong>（照最高位補），負數才會保持原值，補 0 會把 −1 變成 255／65535。</li>
+</ol>
+<p><strong>詳細說明</strong>：對照同一個函式裡的 <code>*e</code>：它是 <code>unsigned char</code>，所以用 <code>movzbl</code>。</p>
+</blockquote>
+<hr />
+<h2 id="2-9-個參數與-16-byte-對齊">2. 9 個參數與 16 byte 對齊</h2>
+<p>寫兩個檔案。<code>nine.c</code> 只<strong>宣告</strong> <code>sum9</code>（跟筆記第六節的 <code>saved.c</code> 一樣，讓 gcc 不知道 <code>sum9</code> 長什麼樣子）：</p>
+<pre><code class="language-c"><span class="cm">/* nine.c */</span>
+<span class="kt">int</span><span class="w"> </span><span class="nf">sum9</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">a</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">b</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">c</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">d</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">e</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">f</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">g</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">h</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">i</span><span class="p">);</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">call9</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">sum9</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span><span class="w"> </span><span class="mi">20</span><span class="p">,</span><span class="w"> </span><span class="mi">30</span><span class="p">,</span><span class="w"> </span><span class="mi">40</span><span class="p">,</span><span class="w"> </span><span class="mi">50</span><span class="p">,</span><span class="w"> </span><span class="mi">60</span><span class="p">,</span><span class="w"> </span><span class="mi">70</span><span class="p">,</span><span class="w"> </span><span class="mi">80</span><span class="p">,</span><span class="w"> </span><span class="mi">90</span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre>
+<p><code>sum9.c</code> 是 <code>sum9</code> 本體：</p>
+<pre><code class="language-c"><span class="cm">/* sum9.c */</span>
+<span class="kt">int</span><span class="w"> </span><span class="nf">sum9</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">a</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">b</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">c</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">d</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">e</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">f</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">g</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">h</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">i</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">b</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">c</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">d</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">e</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">f</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">g</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">h</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">i</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<pre><code>gcc -O0 -c -fno-asynchronous-unwind-tables nine.c
+gcc -O0 -c -fno-asynchronous-unwind-tables sum9.c
+objdump -dr --no-show-raw-insn nine.o
+objdump -dr --no-show-raw-insn sum9.o
+</code></pre>
+<h3 id="2-1-編譯前先預測-call9哪幾個參數用-push-放上堆疊推的順序是什麼每個-int-參數在堆疊上佔幾-byte筆記第五節的表實驗8-個參數第-78-個去哪了">2-1. 編譯前先預測 <code>call9</code>：哪幾個參數用 <code>push</code> 放上堆疊？推的順序是什麼？每個 <code>int</code> 參數在堆疊上佔幾 byte？【筆記<a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80%E4%BA%8C-call%E8%88%87ret%E3%80%81%E5%A0%86%E7%96%8A%E6%A1%86%E3%80%81%E5%8F%83%E6%95%B8%E8%88%87%E5%91%BC%E5%8F%AB%E6%85%A3%E4%BE%8B.html#%E4%BA%94%E5%8F%83%E6%95%B8%E8%88%87%E5%9B%9E%E5%82%B3%E5%80%BC%E6%94%BE%E5%93%AA%E8%A3%A1">第五節</a>的表、〈實驗：8 個參數，第 7、8 個去哪了〉】</h3>
+<p><strong>第 1 次（2026-10-16）</strong></p>
+<pre><code>7,8,9 會用push上堆疊,
+順序應該是90,80,70
+4byte
+</code></pre>
+<blockquote>
+<p><strong>批改</strong>：<strong>大致對</strong>（預測題）。推上堆疊的是第 7～9 個（70、80、90）、從最後一個 90 先推，都對。錯在大小：<strong><code>push</code> 每次一定搬 8 byte</strong>，跟參數是 <code>int</code> 還是 <code>long</code> 無關，所以每個 <code>int</code> 參數在堆疊上佔 8 byte（高 4 byte 沒用到）。2-3 你自己對照出來了。</p>
+<p><strong>參考答案</strong>【筆記<a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80%E4%BA%8C-call%E8%88%87ret%E3%80%81%E5%A0%86%E7%96%8A%E6%A1%86%E3%80%81%E5%8F%83%E6%95%B8%E8%88%87%E5%91%BC%E5%8F%AB%E6%85%A3%E4%BE%8B.html#%E4%BA%94%E5%8F%83%E6%95%B8%E8%88%87%E5%9B%9E%E5%82%B3%E5%80%BC%E6%94%BE%E5%93%AA%E8%A3%A1">第五節</a>〈實驗：8 個參數，第 7、8 個去哪了〉；<a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80%E4%BA%8C-call%E8%88%87ret%E3%80%81%E5%A0%86%E7%96%8A%E6%A1%86%E3%80%81%E5%8F%83%E6%95%B8%E8%88%87%E5%91%BC%E5%8F%AB%E6%85%A3%E4%BE%8B.html#%E4%BA%8C%E5%A0%86%E7%96%8Arsp-%E6%8C%87%E8%91%97%E9%A0%82%E7%AB%AF%E5%BE%80%E4%BD%8E%E4%BD%8D%E5%9D%80%E9%95%B7">第二節</a>（<code>push</code> 每次搬 8 byte）】</p>
+<p><strong>核心關鍵</strong>（答到這幾點就算對）：</p>
+<ol>
+<li>前 6 個進暫存器，第 7、8、9 個（<code>g</code>、<code>h</code>、<code>i</code> ＝ 70、80、90）用 <code>push</code> 放上堆疊。</li>
+<li>從最後一個開始推：90 → 80 → 70，所以第 7 個最後推、在最低的位址。</li>
+<li>每個佔 8 byte：<code>push</code> 一次就是 8 byte，<code>int</code> 也一樣。</li>
+</ol>
+<p><strong>詳細說明</strong>：<code>push $0x5a</code> 推的是 8 byte 的立即值 90；<code>sum9</code> 讀的時候用 <code>mov 0x10(%rbp),%eax</code>，只讀那 8 byte 的低 4 byte。「每個堆疊參數佔 8 byte」也是 ABI 的規定，這樣每個參數的位址都是 8 的倍數，偏移也好算（第 7 個 <code>0x10</code>、第 8 個 <code>0x18</code>……一次加 8）。</p>
+</blockquote>
+<h3 id="2-2-編譯前先預測-sum9第-789-個參數ghi各在-nrbp-的哪裡說明這幾個數字是怎麼算出來的筆記第五節實驗8-個參數第-78-個去哪了的逐點說明第四節">2-2. 編譯前先預測 <code>sum9</code>：第 7、8、9 個參數（<code>g</code>、<code>h</code>、<code>i</code>）各在 <code>N(%rbp)</code> 的哪裡？說明這幾個數字是怎麼算出來的。【筆記第五節〈實驗：8 個參數，第 7、8 個去哪了〉的逐點說明；<a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80%E4%BA%8C-call%E8%88%87ret%E3%80%81%E5%A0%86%E7%96%8A%E6%A1%86%E3%80%81%E5%8F%83%E6%95%B8%E8%88%87%E5%91%BC%E5%8F%AB%E6%85%A3%E4%BE%8B.html#%E5%9B%9B%E5%A0%86%E7%96%8A%E6%A1%86pushq-rbp-movq-rsp-rbp-%E8%88%87-leave">第四節</a>】</h3>
+<p><strong>第 1 次（2026-10-16）</strong></p>
+<pre><code>9: -4(%rbp)
+8: -8(%rbp)
+7: -12(%rbp)
+就是從rbp堆疊頂端,按照int大小找順序一個一個減下來的
+</code></pre>
+<blockquote>
+<p><strong>批改</strong>：<strong>錯</strong>（預測題）。負的偏移是 <code>sum9</code> <strong>自己的</strong>區域變數（<code>-0x4</code>～<code>-0x18</code> 正是 <code>a</code>～<code>f</code> 存的地方）；第 7～9 個參數是 <code>call9</code> 在 <code>call</code> <strong>之前</strong>推的，在 <code>sum9</code> 的 <code>%rbp</code> <strong>上面</strong>，要用正的偏移，而且中間還隔著返回位址和舊 <code>%rbp</code> 兩格。2-3 你對照出了方向（「應該用加的，因為堆疊是在 <code>call9</code> 做成的」），但這題要的數字與算法在下面。</p>
+<p><strong>參考答案</strong>【筆記<a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80%E4%BA%8C-call%E8%88%87ret%E3%80%81%E5%A0%86%E7%96%8A%E6%A1%86%E3%80%81%E5%8F%83%E6%95%B8%E8%88%87%E5%91%BC%E5%8F%AB%E6%85%A3%E4%BE%8B.html#%E4%BA%94%E5%8F%83%E6%95%B8%E8%88%87%E5%9B%9E%E5%82%B3%E5%80%BC%E6%94%BE%E5%93%AA%E8%A3%A1">第五節</a>〈實驗：8 個參數，第 7、8 個去哪了〉「在 <code>sum8</code> 裡為什麼是 <code>0x10(%rbp)</code>」；<a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80%E4%BA%8C-call%E8%88%87ret%E3%80%81%E5%A0%86%E7%96%8A%E6%A1%86%E3%80%81%E5%8F%83%E6%95%B8%E8%88%87%E5%91%BC%E5%8F%AB%E6%85%A3%E4%BE%8B.html#%E5%9B%9B%E5%A0%86%E7%96%8A%E6%A1%86pushq-rbp-movq-rsp-rbp-%E8%88%87-leave">第四節</a>】</p>
+<p><strong>核心關鍵</strong>（答到這幾點就算對）：</p>
+<ol>
+<li><code>g</code> ＝ <code>0x10(%rbp)</code>、<code>h</code> ＝ <code>0x18(%rbp)</code>、<code>i</code> ＝ <code>0x20(%rbp)</code>（正的偏移，在 <code>%rbp</code> 上面、呼叫者那邊）。</li>
+<li>從 <code>sum9</code> 的 <code>%rbp</code> 往上：<code>0(%rbp)</code> 是 <code>push %rbp</code> 存的舊 <code>%rbp</code>、<code>0x8(%rbp)</code> 是 <code>call</code> 推的返回位址，所以第 7 個從 <code>0x10</code> 開始。</li>
+<li>之後每個參數 8 byte（<code>push</code> 一次 8 byte），第 8、9 個依序再加 8。</li>
+</ol>
+<p><strong>詳細說明</strong>：畫成圖（位址往上變大）：</p>
+<pre><code>0x20(%rbp)  90  ← i（call9 第一個 push）
+0x18(%rbp)  80  ← h
+0x10(%rbp)  70  ← g（call9 最後一個 push）
+0x08(%rbp)  返回位址（call 推的）
+0x00(%rbp)  call9 的 %rbp（sum9 的 push %rbp）  ← sum9 的 %rbp 指這裡
+-0x4(%rbp)  a … -0x18(%rbp)  f（sum9 自己存的）
+</code></pre>
+<p>口訣是筆記那句：<strong>參數用正的偏移（在呼叫者那邊），區域變數用負的偏移（在自己這邊）。</strong></p>
+</blockquote>
+<h3 id="2-3-編譯貼上-call9-和-sum9-的本體跟-2-12-2-的預測對照">2-3. 編譯，貼上 <code>call9</code> 和 <code>sum9</code> 的本體，跟 2-1、2-2 的預測對照。</h3>
+<p><strong>第 1 次（2026-10-16）</strong></p>
+<pre><code>nine.o:     file format elf64-x86-64
+
+
+Disassembly of section .text:
+
+0000000000000000 &lt;call9&gt;:
+   0:   endbr64
+   4:   push   %rbp
+   5:   mov    %rsp,%rbp
+   8:   sub    $0x8,%rsp
+   c:   push   $0x5a      // 先推90
+   e:   push   $0x50      // 再推80
+  10:   push   $0x46      // 再推70
+  12:   mov    $0x3c,%r9d
+  18:   mov    $0x32,%r8d
+  1e:   mov    $0x28,%ecx
+  23:   mov    $0x1e,%edx
+  28:   mov    $0x14,%esi
+  2d:   mov    $0xa,%edi
+  32:   call   37 &lt;call9+0x37&gt;
+                        33: R_X86_64_PLT32      sum9-0x4
+  37:   add    $0x20,%rsp
+  3b:   leave
+  3c:   ret
+
+參數在堆疊上應該是8byte 不是4byte
+
+
+0000000000000000 &lt;sum9&gt;:
+   0:   endbr64
+   4:   push   %rbp
+   5:   mov    %rsp,%rbp
+   8:   mov    %edi,-0x4(%rbp)
+   b:   mov    %esi,-0x8(%rbp)
+   e:   mov    %edx,-0xc(%rbp)
+  11:   mov    %ecx,-0x10(%rbp)
+  14:   mov    %r8d,-0x14(%rbp)
+  18:   mov    %r9d,-0x18(%rbp)
+  1c:   mov    -0x4(%rbp),%edx
+  1f:   mov    -0x8(%rbp),%eax
+  22:   add    %eax,%edx
+  24:   mov    -0xc(%rbp),%eax
+  27:   add    %eax,%edx
+  29:   mov    -0x10(%rbp),%eax
+  2c:   add    %eax,%edx
+  2e:   mov    -0x14(%rbp),%eax
+  31:   add    %eax,%edx
+  33:   mov    -0x18(%rbp),%eax
+  36:   add    %eax,%edx
+  38:   mov    0x10(%rbp),%eax
+  3b:   add    %eax,%edx
+  3d:   mov    0x18(%rbp),%eax
+  40:   add    %eax,%edx
+  42:   mov    0x20(%rbp),%eax
+  45:   add    %edx,%eax
+  47:   pop    %rbp
+  48:   ret
+
+  好像與預測不太符合 我忽略了堆疊是在sum9裏面看,那就應該用加的,因爲堆疊是在call9做成的
+</code></pre>
+<blockquote>
+<p><strong>批改</strong>：<strong>對</strong>。貼的輸出跟我在本機用題目的 <code>nine.c</code>（只有宣告）重編的一模一樣，也對照出 2-1、2-2 的兩個錯：每個參數 8 byte、<code>sum9</code> 要用正的偏移去讀（<code>0x10</code>、<code>0x18</code>、<code>0x20</code>）。為什麼從 <code>0x10</code> 開始寫在 2-2 的參考答案。</p>
+<p>註：資料夾裡的 <code>nine.c</code> 現在已經是 2-5 改過的版本（含 <code>sum9</code> 本體），要重現 2-3 的輸出，要把 <code>sum9</code> 改回只有宣告。</p>
+<p><strong>參考答案</strong>【筆記<a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80%E4%BA%8C-call%E8%88%87ret%E3%80%81%E5%A0%86%E7%96%8A%E6%A1%86%E3%80%81%E5%8F%83%E6%95%B8%E8%88%87%E5%91%BC%E5%8F%AB%E6%85%A3%E4%BE%8B.html#%E4%BA%94%E5%8F%83%E6%95%B8%E8%88%87%E5%9B%9E%E5%82%B3%E5%80%BC%E6%94%BE%E5%93%AA%E8%A3%A1">第五節</a>〈實驗：8 個參數〉】</p>
+<p><strong>核心關鍵</strong>（答到這幾點就算對）：</p>
+<ol>
+<li><code>call9</code>：<code>push $0x5a</code>、<code>$0x50</code>、<code>$0x46</code>（90 → 80 → 70），其餘 6 個用 <code>mov</code> 放進 <code>%r9d</code>～<code>%edi</code>。</li>
+<li><code>sum9</code>：<code>g</code>、<code>h</code>、<code>i</code> 用 <code>0x10(%rbp)</code>、<code>0x18(%rbp)</code>、<code>0x20(%rbp)</code> 讀，跟預測不同的地方要指出來。</li>
+</ol>
+<p><strong>詳細說明</strong>：<code>call9</code> 還多了 <code>sub $0x8,%rsp</code> 和 <code>add $0x20,%rsp</code>，那是 2-4 要問的。</p>
+</blockquote>
+<h3 id="2-4-call9-在-call-之後用-add-把-rsp-加回去的數字是多少跟推上堆疊的參數總共幾-byte-一樣嗎如果不一樣多出來的是-call9-裡哪一行指令造成的為什麼需要那一行筆記第六節上面的-sub-0x8rsp16-byte-對齊">2-4. <code>call9</code> 在 <code>call</code> 之後用 <code>add</code> 把 <code>%rsp</code> 加回去的數字是多少？跟推上堆疊的參數總共幾 byte 一樣嗎？如果不一樣，多出來的是 <code>call9</code> 裡哪一行指令造成的？為什麼需要那一行？【筆記<a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80%E4%BA%8C-call%E8%88%87ret%E3%80%81%E5%A0%86%E7%96%8A%E6%A1%86%E3%80%81%E5%8F%83%E6%95%B8%E8%88%87%E5%91%BC%E5%8F%AB%E6%85%A3%E4%BE%8B.html#%E5%85%AD%E8%AA%B0%E8%B2%A0%E8%B2%AC%E4%BF%9D%E5%AD%98%E6%9A%AB%E5%AD%98%E5%99%A8%E4%BB%A5%E5%8F%8A-16-byte-%E5%B0%8D%E9%BD%8A">第六節</a>〈上面的 <code>sub $0x8,%rsp</code>：16 byte 對齊〉】</h3>
+<p><strong>第 1 次（2026-10-16）</strong></p>
+<pre><code>0x20
+
+不一樣
+
+sub    $0x8,%rsp
+
+爲了存sum結束後ret的位址
+</code></pre>
+<blockquote>
+<p><strong>批改</strong>：<strong>不完整</strong>。<code>0x20</code>、不一樣、多出來的是 <code>sub $0x8,%rsp</code>，三點都對（可以再寫明推的參數是 3 × 8 ＝ 24 ＝ <code>0x18</code> byte，差 8）。<strong>原因錯了</strong>：返回位址是 <code>call</code> 自己推的，不需要事先留位置（<code>sum9</code> 結束時 <code>ret</code> 從堆疊取走它，跟這 8 byte 無關）。這 8 byte 什麼都沒存，是為了讓 <code>call</code> 那一刻 <code>%rsp</code> 是 16 的倍數。</p>
+<p><strong>參考答案</strong>【筆記<a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80%E4%BA%8C-call%E8%88%87ret%E3%80%81%E5%A0%86%E7%96%8A%E6%A1%86%E3%80%81%E5%8F%83%E6%95%B8%E8%88%87%E5%91%BC%E5%8F%AB%E6%85%A3%E4%BE%8B.html#%E5%85%AD%E8%AA%B0%E8%B2%A0%E8%B2%AC%E4%BF%9D%E5%AD%98%E6%9A%AB%E5%AD%98%E5%99%A8%E4%BB%A5%E5%8F%8A-16-byte-%E5%B0%8D%E9%BD%8A">第六節</a>〈上面的 <code>sub $0x8,%rsp</code>：16 byte 對齊〉】</p>
+<p><strong>核心關鍵</strong>（答到這幾點就算對）：</p>
+<ol>
+<li><code>add $0x20,%rsp</code> 加回 32 byte；推的參數只有 3 × 8 ＝ 24 byte，不一樣，多 8 byte。</li>
+<li>多出來的是 <code>sub $0x8,%rsp</code>。</li>
+<li>原因是 16 byte 對齊：ABI 規定執行 <code>call</code> 那一刻 <code>%rsp</code> 必須是 16 的倍數；只推 3 個參數（24 byte）會差 8，所以先挪 8 byte 補齊。</li>
+</ol>
+<p><strong>詳細說明</strong>：用「除以 16 餘幾」算一次：</p>
+<table>
+<thead>
+<tr>
+<th>時間點</th>
+<th><code>%rsp</code> 除以 16 餘</th>
+<th>為什麼</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>進 <code>call9</code></td>
+<td>8</td>
+<td>呼叫者 <code>call call9</code> 時是 16 的倍數，<code>call</code> 推了 8 byte 返回位址</td>
+</tr>
+<tr>
+<td><code>push %rbp</code> 後</td>
+<td>0</td>
+<td>再挪 8</td>
+</tr>
+<tr>
+<td><code>sub $0x8,%rsp</code> 後</td>
+<td>8</td>
+<td>再挪 8</td>
+</tr>
+<tr>
+<td>三個 <code>push</code> 後</td>
+<td>0</td>
+<td>再挪 24（8 + 24 ＝ 32）</td>
+</tr>
+<tr>
+<td><code>call sum9</code></td>
+<td>0</td>
+<td>✔ 16 的倍數</td>
+</tr>
+</tbody>
+</table>
+<p>沒有 <code>sub</code> 的話，<code>call</code> 時餘 0 + 24 ＝ 24 → 餘 8，不對齊。對照筆記的 <code>args8.c</code>：推 2 個參數（16 byte）本身就是 16 的倍數，所以 <code>call8</code> 不用 <code>sub</code>、只 <code>add $0x10</code>。<strong>推奇數個堆疊參數時才需要補 8。</strong></p>
+</blockquote>
+<h3 id="2-5-把-ninec-裡-sum9-的宣告換成-sum9c-的完整定義兩個函式放在同一個檔案重新編譯看-call92-4-找到的那一行還在嗎猜猜看為什麼新觀念先猜">2-5. 把 <code>nine.c</code> 裡 <code>sum9</code> 的宣告換成 <code>sum9.c</code> 的完整定義（兩個函式放在同一個檔案），重新編譯，看 <code>call9</code>。2-4 找到的那一行還在嗎？猜猜看為什麼。【新觀念，先猜】</h3>
+<p><strong>第 1 次（2026-10-16）</strong></p>
+<pre><code>不在了
+我不知道
+</code></pre>
+<blockquote>
+<p><strong>批改</strong>：觀察<strong>對</strong>（<code>sub $0x8,%rsp</code> 不見了）。原因是新觀念，沒猜不扣分，補教如下（已寫進筆記第六節〈補教：被呼叫的函式就在同一個檔案時，<code>sub $0x8,%rsp</code> 為什麼不見了〉）。</p>
+<p><strong>補教</strong>【新觀念；筆記<a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80%E4%BA%8C-call%E8%88%87ret%E3%80%81%E5%A0%86%E7%96%8A%E6%A1%86%E3%80%81%E5%8F%83%E6%95%B8%E8%88%87%E5%91%BC%E5%8F%AB%E6%85%A3%E4%BE%8B.html#%E5%85%AD%E8%AA%B0%E8%B2%A0%E8%B2%AC%E4%BF%9D%E5%AD%98%E6%9A%AB%E5%AD%98%E5%99%A8%E4%BB%A5%E5%8F%8A-16-byte-%E5%B0%8D%E9%BD%8A">第六節</a>〈補教：被呼叫的函式就在同一個檔案時，<code>sub $0x8,%rsp</code> 為什麼不見了〉】</p>
+<p><strong>核心關鍵</strong>：</p>
+<ol>
+<li>只有宣告時，gcc 不知道 <code>sum9</code> 裡面做什麼，只能假設它需要 ABI 的 16 byte 對齊，所以補 <code>sub $0x8,%rsp</code>。</li>
+<li><code>sum9</code> 的本體在同一個檔案時，gcc 看得出 <code>sum9</code> 不會再 <code>call</code> 別人、也沒有要求 16 byte 對齊的指令，<strong>這一次呼叫</strong>就不必對齊，於是省掉那 8 byte：<code>add</code> 也跟著變成 <code>$0x18</code>（剛好 3 個參數）。</li>
+<li>這是 gcc 的 <code>-fipa-stack-alignment</code>（<code>-O0</code> 也預設開著），加 <code>-fno-ipa-stack-alignment</code> 重編，<code>sub $0x8,%rsp</code> 和 <code>add $0x20</code> 就回來了（本機實測）。</li>
+</ol>
+<p><strong>詳細說明</strong>：16 byte 對齊不是 CPU 硬性要求，而是為了讓<strong>被呼叫的函式</strong>可以放心用 <code>movaps</code> 這類需要對齊的指令。被呼叫的函式根本不需要時，對齊就沒有用處。只有 gcc 看得到被呼叫者的本體時才能這樣省；<code>sum9</code> 是一般的全域函式，別的檔案呼叫它時，那邊的 gcc 看不到本體，照樣會補齊。完整的程式與輸出見筆記那一小節（範例檔 <a href="../../../small-project/s1-05-asm-calls/align9.c"><code>align9.c</code></a>）。</p>
+</blockquote>
+<hr />
+<h2 id="3-用-gdb-沿著堆疊找出兩層呼叫">3. 用 gdb 沿著堆疊找出兩層呼叫</h2>
+<p>寫 <code>chain.c</code>，編成有除錯資訊的執行檔：</p>
+<pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">inner</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">y</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">y</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mi">3</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">outer</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">x</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">inner</span><span class="p">(</span><span class="n">x</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="p">)</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mi">2</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;%d</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">outer</span><span class="p">(</span><span class="mi">4</span><span class="p">));</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<pre><code>gcc -O0 -g chain.c -o chain
+objdump -d --no-show-raw-insn chain
+gdb ./chain
+</code></pre>
+<h3 id="3-1-在-gdb-裡-break-innerrun停在-inner-的第一條指令用本課的命令找出返回位址用-info-symbol-說出它在哪個函式的--幾再到-objdump-的輸出裡找出它是哪一條-call-的下一條指令貼上你下的命令與輸出筆記第三節停在函式入口時怎麼知道是誰呼叫的">3-1. 在 gdb 裡 <code>break *inner</code>、<code>run</code>，停在 <code>inner</code> 的第一條指令。用本課的命令找出返回位址，用 <code>info symbol</code> 說出它在哪個函式的 <code>+</code> 幾；再到 <code>objdump</code> 的輸出裡，找出它是哪一條 <code>call</code> 的下一條指令。貼上你下的命令與輸出。【筆記<a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80%E4%BA%8C-call%E8%88%87ret%E3%80%81%E5%A0%86%E7%96%8A%E6%A1%86%E3%80%81%E5%8F%83%E6%95%B8%E8%88%87%E5%91%BC%E5%8F%AB%E6%85%A3%E4%BE%8B.html#%E4%B8%89call-%E8%88%87-ret%E7%94%A8-gdb-%E4%B8%80%E6%A2%9D%E4%B8%80%E6%A2%9D%E8%B5%B0">第三節</a>〈停在函式入口時，怎麼知道是誰呼叫的〉】</h3>
+<p><strong>第 1 次（2026-10-17）</strong></p>
+<pre><code>(gdb) x/xg $rsp
+0x7fffffffd760: 0x000055555555517b
+(gdb) info symbol 0x000055555555517b
+outer + 28 in section .text of /home/set/work/Projects/github/good-note/small-project/s1-05-asm-calls/chain
+在outer+28
+
+不需要用objdump也可以
+(gdb) x/30i $rip
+=&gt; 0x555555555149 &lt;inner&gt;:      endbr64
+   0x55555555514d &lt;inner+4&gt;:    push   %rbp
+   0x55555555514e &lt;inner+5&gt;:    mov    %rsp,%rbp
+   0x555555555151 &lt;inner+8&gt;:    mov    %edi,-0x4(%rbp)
+   0x555555555154 &lt;inner+11&gt;:   mov    -0x4(%rbp),%edx
+   0x555555555157 &lt;inner+14&gt;:   mov    %edx,%eax
+   0x555555555159 &lt;inner+16&gt;:   add    %eax,%eax
+   0x55555555515b &lt;inner+18&gt;:   add    %edx,%eax
+   0x55555555515d &lt;inner+20&gt;:   pop    %rbp
+   0x55555555515e &lt;inner+21&gt;:   ret
+   0x55555555515f &lt;outer&gt;:      endbr64
+   0x555555555163 &lt;outer+4&gt;:    push   %rbp
+   0x555555555164 &lt;outer+5&gt;:    mov    %rsp,%rbp
+   0x555555555167 &lt;outer+8&gt;:    sub    $0x8,%rsp
+   0x55555555516b &lt;outer+12&gt;:   mov    %edi,-0x4(%rbp)
+   0x55555555516e &lt;outer+15&gt;:   mov    -0x4(%rbp),%eax
+   0x555555555171 &lt;outer+18&gt;:   add    $0x1,%eax
+   0x555555555174 &lt;outer+21&gt;:   mov    %eax,%edi
+   0x555555555176 &lt;outer+23&gt;:   call   0x555555555149 &lt;inner&gt;
+   0x55555555517b &lt;outer+28&gt;:   add    %eax,%eax    # 在這裏,如果是用objdump -d 位址是117b
+   0x55555555517d &lt;outer+30&gt;:   leave
+   0x55555555517e &lt;outer+31&gt;:   ret
+   0x55555555517f &lt;main&gt;:       endbr64
+   0x555555555183 &lt;main+4&gt;:     push   %rbp
+   0x555555555184 &lt;main+5&gt;:     mov    %rsp,%rbp
+   0x555555555187 &lt;main+8&gt;:     mov    $0x4,%edi
+   0x55555555518c &lt;main+13&gt;:    call   0x55555555515f &lt;outer&gt;
+   0x555555555191 &lt;main+18&gt;:    mov    %eax,%esi
+   0x555555555193 &lt;main+20&gt;:    lea    0xe6a(%rip),%rax        # 0x555555556004
+   0x55555555519a &lt;main+27&gt;:    mov    %rax,%rdi
+
+   
+</code></pre>
+<blockquote>
+<p><strong>批改</strong>：<strong>對</strong>。<code>x/xg $rsp</code> 讀到返回位址 <code>0x55555555517b</code>，<code>info symbol</code> 答出 <code>outer + 28</code>，也找到它是 <code>outer+23</code> 那條 <code>call inner</code> 的下一條指令 <code>add %eax,%eax</code>。用 gdb 的 <code>x/30i $rip</code> 代替 <code>objdump</code> 一樣能對照，而且你自己發現 <code>objdump</code> 印的是 <code>117b</code>。</p>
+<p><strong>參考答案</strong>【筆記<a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80%E4%BA%8C-call%E8%88%87ret%E3%80%81%E5%A0%86%E7%96%8A%E6%A1%86%E3%80%81%E5%8F%83%E6%95%B8%E8%88%87%E5%91%BC%E5%8F%AB%E6%85%A3%E4%BE%8B.html#%E4%B8%89call-%E8%88%87-ret%E7%94%A8-gdb-%E4%B8%80%E6%A2%9D%E4%B8%80%E6%A2%9D%E8%B5%B0">第三節</a>〈停在函式入口時，怎麼知道是誰呼叫的〉】</p>
+<p><strong>核心關鍵</strong>（答到這幾點就算對）：</p>
+<ol>
+<li>停在 <code>inner</code> 第一條指令時，<code>call</code> 剛把返回位址推上堆疊，堆疊頂就是它：<code>x/gx $rsp</code> 讀到 <code>0x55555555517b</code>。</li>
+<li><code>info symbol 0x55555555517b</code> → <code>outer + 28</code>，所以呼叫者是 <code>outer</code>。</li>
+<li>它是 <code>outer+23</code>（<code>objdump</code> 裡是 <code>1176</code>）那條 <code>call inner</code> 的下一條指令 <code>add %eax,%eax</code>（<code>objdump</code> 裡是 <code>117b</code>）。</li>
+</ol>
+<p><strong>詳細說明</strong>：<code>objdump</code> 的 <code>117b</code> 和 gdb 的 <code>0x55555555517b</code> 差在載入位址：這個執行檔是 PIE，gdb 執行時把它放在 <code>0x555555554000</code>，<code>0x555555554000 + 0x117b ＝ 0x55555555517b</code>（第三節〈實驗：<code>frame.c</code>〉第 1 點講過同一件事）。返回位址是「<code>call</code> 的下一條」：<code>call</code> 這條指令本身 5 byte（<code>1176</code> → <code>117b</code>），<code>call</code> 推的是執行完它之後要接著跑的位址，所以 <code>inner</code> 回來時從 <code>add %eax,%eax</code>（C 的 <code>* 2</code>）繼續。</p>
+</blockquote>
+<h3 id="3-2-接著-stepi-三次執行完-endbr64push-rbpmov-rsprbp先用-info-registers-rbp-確認-rbp-已經是-inner-的了然後只用-x2gx從-inner-的-rbp-出發沿著-rbp-鏈往上走兩層找出-outer-的返回位址它回到-main-的哪裡貼上命令與輸出說明每一次-x2gx-讀到的兩格各是什麼筆記第四節畫出來停在-add3-裡面時的堆疊">3-2. 接著 <code>stepi</code> 三次（執行完 <code>endbr64</code>、<code>push %rbp</code>、<code>mov %rsp,%rbp</code>），先用 <code>info registers rbp</code> 確認 <code>%rbp</code> 已經是 <code>inner</code> 的了。然後<strong>只用 <code>x/2gx</code></strong>，從 <code>inner</code> 的 <code>%rbp</code> 出發，沿著 <code>%rbp</code> 鏈往上走兩層，找出 <code>outer</code> 的返回位址（它回到 <code>main</code> 的哪裡）。貼上命令與輸出，說明每一次 <code>x/2gx</code> 讀到的兩格各是什麼。【筆記<a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80%E4%BA%8C-call%E8%88%87ret%E3%80%81%E5%A0%86%E7%96%8A%E6%A1%86%E3%80%81%E5%8F%83%E6%95%B8%E8%88%87%E5%91%BC%E5%8F%AB%E6%85%A3%E4%BE%8B.html#%E5%9B%9B%E5%A0%86%E7%96%8A%E6%A1%86pushq-rbp-movq-rsp-rbp-%E8%88%87-leave">第四節</a>〈畫出來：停在 <code>add3</code> 裡面時的堆疊〉】</h3>
+<p><strong>第 1 次（2026-10-17）</strong></p>
+<pre><code>(gdb) x/2xg $rbp
+0x7fffffffd758: 0x00007fffffffd770      0x000055555555517b
+(gdb) x/2xg 0x00007fffffffd770
+0x7fffffffd770: 0x00007fffffffd780      0x0000555555555191
+(gdb) x/i 0x0000555555555191
+   0x555555555191 &lt;main+18&gt;:    mov    %eax,%esi
+
+   第一個是上一層的rbp位址, 第二個是這一層的返回上一層的位址
+</code></pre>
+<blockquote>
+<p><strong>批改</strong>：<strong>對</strong>。兩次 <code>x/2gx</code> 都讀對、往上走的方法對（用第一格的值當下一次的位址），也找出 <code>outer</code> 回到 <code>main+18</code>（<code>mov %eax,%esi</code>）。小缺點不扣分：題目要的 <code>info registers rbp</code> 沒貼（應該看到 <code>0x7fffffffd758</code>，跟 <code>%rsp</code> 相同）；說明的用詞可以更精確——第一格「存的是上一層的 <code>%rbp</code> 值」，這個值剛好是上一層堆疊框的位址。</p>
+<p><strong>參考答案</strong>【筆記<a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80%E4%BA%8C-call%E8%88%87ret%E3%80%81%E5%A0%86%E7%96%8A%E6%A1%86%E3%80%81%E5%8F%83%E6%95%B8%E8%88%87%E5%91%BC%E5%8F%AB%E6%85%A3%E4%BE%8B.html#%E5%9B%9B%E5%A0%86%E7%96%8A%E6%A1%86pushq-rbp-movq-rsp-rbp-%E8%88%87-leave">第四節</a>〈畫出來：停在 <code>add3</code> 裡面時的堆疊〉】</p>
+<p><strong>核心關鍵</strong>（答到這幾點就算對）：</p>
+<ol>
+<li><code>x/2gx $rbp</code>（<code>d758</code>）：第 1 格 <code>0x7fffffffd770</code> 是 <code>inner</code> 的 <code>push %rbp</code> 存下來的 <strong><code>outer</code> 的 <code>%rbp</code></strong>；第 2 格 <code>0x55555555517b</code> 是 <code>call inner</code> 推的<strong>返回位址</strong>（回到 <code>outer+28</code>）。</li>
+<li>拿第 1 格的值往上走，<code>x/2gx 0x7fffffffd770</code>：第 1 格 <code>0x7fffffffd780</code> 是 <strong><code>main</code> 的 <code>%rbp</code></strong>；第 2 格 <code>0x555555555191</code> 是 <code>outer</code> 的返回位址，回到 <strong><code>main+18</code></strong>（<code>call outer</code> 的下一條）。</li>
+<li>規律：每一層 <code>%rbp</code> 指的那格存上一層的 <code>%rbp</code>，<code>%rbp + 8</code> 那格是這一層的返回位址，所以兩格一組就能一層一層往上走。</li>
+</ol>
+<p><strong>詳細說明</strong>：為什麼 <code>0(%rbp)</code> 是舊 <code>%rbp</code>、<code>8(%rbp)</code> 是返回位址？進 <code>inner</code> 時順序是：<code>call</code> 推返回位址（<code>%rsp</code> 變 <code>d760</code>）→ <code>push %rbp</code> 推 <code>outer</code> 的 <code>%rbp</code>（<code>%rsp</code> 變 <code>d758</code>）→ <code>mov %rsp,%rbp</code>（<code>%rbp</code> 變 <code>d758</code>）。後推的在低位址，所以 <code>d758</code> 是舊 <code>%rbp</code>、上面的 <code>d760</code> 是返回位址。這跟 2-2 的「參數從 <code>0x10(%rbp)</code> 開始」是同一張圖：<code>0x0</code>、<code>0x8</code> 被這兩格占了。</p>
+</blockquote>
+<h3 id="3-3-把-3-2-找到的東西畫成像筆記畫出來那樣的堆疊圖從-main-的-rbp-那一格往下畫到-inner-的-rbp-那一格每一格寫位址最後-3-位就好內容屬於誰的堆疊框不知道內容的格子寫不知道就好不必每格都填滿筆記第四節畫出來">3-3. 把 3-2 找到的東西畫成像筆記〈畫出來〉那樣的堆疊圖：從 <code>main</code> 的 <code>%rbp</code> 那一格，往下畫到 <code>inner</code> 的 <code>%rbp</code> 那一格。每一格寫位址（最後 3 位就好）、內容、屬於誰的堆疊框。（不知道內容的格子寫「不知道」就好，不必每格都填滿。）【筆記第四節〈畫出來〉】</h3>
+<p><strong>第 1 次（2026-10-17）</strong></p>
+<pre><code>one | is 8byte
+
+---(main)rbp: 0x7fffffffd780
+|0x555555555191
+|0x7fffffffd780
+---(outer)rbp: 0x7fffffffd770
+|0x55555555517b
+|0x7fffffffd770
+---(inner)rbp: 0x7fffffffd758
+</code></pre>
+<blockquote>
+<p><strong>批改</strong>：<strong>不完整</strong>。四個值的上下順序對（<code>191</code> → <code>d780</code> → <code>517b</code> → <code>d770</code>），但有三個問題：</p>
+<ol>
+<li><strong>沒寫每格的位址</strong>（題目要求最後 3 位），所以看不出每格在哪。</li>
+<li><strong>漏了一格</strong>：<code>outer</code> 開頭有 <code>sub $0x8,%rsp</code>（你在 3-1 貼的 <code>outer+8</code>），所以 <code>d770</code> 和 <code>d760</code> 中間隔著 <code>d768</code> 這一格，<code>x = 4</code>（<code>-0x4(%rbp)</code> ＝ <code>d76c</code>）就存在裡面。你的圖把 <code>517b</code> 畫成緊接在 <code>d770</code> 下面，照你的圖它會在 <code>d768</code>，跟 3-2 讀到的 <code>d758 + 8 ＝ d760</code> 對不上。</li>
+<li><strong>沒標每格屬於誰的堆疊框</strong>；<code>---(outer)rbp: 0x7fffffffd770</code> 這種分隔線也看不出 <code>%rbp</code> 指的是線上面還是下面那格。</li>
+</ol>
+<p>檢查法：相鄰兩層的 <code>%rbp</code> 相減 ÷ 8 ＝ 中間有幾格。<code>d770 − d758 ＝ 0x18 ＝ 24</code>，是 3 格（<code>d770</code>、<code>d768</code>、<code>d760</code>），你只畫了 2 格。</p>
+<p><strong>參考答案</strong>【筆記<a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80%E4%BA%8C-call%E8%88%87ret%E3%80%81%E5%A0%86%E7%96%8A%E6%A1%86%E3%80%81%E5%8F%83%E6%95%B8%E8%88%87%E5%91%BC%E5%8F%AB%E6%85%A3%E4%BE%8B.html#%E5%9B%9B%E5%A0%86%E7%96%8A%E6%A1%86pushq-rbp-movq-rsp-rbp-%E8%88%87-leave">第四節</a>〈畫出來：停在 <code>add3</code> 裡面時的堆疊〉；<code>sub $0x8,%rsp</code> 見<a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80%E4%BA%8C-call%E8%88%87ret%E3%80%81%E5%A0%86%E7%96%8A%E6%A1%86%E3%80%81%E5%8F%83%E6%95%B8%E8%88%87%E5%91%BC%E5%8F%AB%E6%85%A3%E4%BE%8B.html#%E5%85%AD%E8%AA%B0%E8%B2%A0%E8%B2%AC%E4%BF%9D%E5%AD%98%E6%9A%AB%E5%AD%98%E5%99%A8%E4%BB%A5%E5%8F%8A-16-byte-%E5%B0%8D%E9%BD%8A">第六節</a>】</p>
+<p><strong>核心關鍵</strong>（答到這幾點就算對）：</p>
+<ol>
+<li>每格 8 byte、位址連續往下：<code>d780</code>、<code>d778</code>、<code>d770</code>、<code>d768</code>、<code>d760</code>、<code>d758</code>，每格寫出位址。</li>
+<li>內容：<code>d778</code> ＝ <code>0x555555555191</code>（返回 <code>main+18</code>）；<code>d770</code> ＝ <code>0x7fffffffd780</code>（<code>main</code> 的 <code>%rbp</code>，<strong><code>outer</code> 的 <code>%rbp</code> 指這格</strong>）；<code>d768</code> ＝ <code>outer</code> 用 <code>sub $0x8,%rsp</code> 挪出來的那格（<code>x = 4</code> 在 <code>d76c</code>）；<code>d760</code> ＝ <code>0x55555555517b</code>（返回 <code>outer+28</code>）；<code>d758</code> ＝ <code>0x7fffffffd770</code>（<code>outer</code> 的 <code>%rbp</code>，<strong><code>inner</code> 的 <code>%rbp</code> 和 <code>%rsp</code> 指這格</strong>）。</li>
+<li>標出每格屬於誰的堆疊框（照筆記的畫法：返回位址＋舊 <code>%rbp</code> 是被呼叫者堆疊框的開頭）。</li>
+</ol>
+<p><strong>詳細說明</strong>：</p>
+<pre><code>位址   內容                                    誰的
+d780   不知道（libc 那層的 %rbp）   ← main 的 %rbp      main 的堆疊框
+d778   0x555555555191（返回 main+18）          ┐
+d770   0x7fffffffd780（main 的 %rbp） ← outer 的 %rbp  │ outer 的堆疊框
+d768   高 4 byte（d76c）是 x = 4，低 4 byte 沒用到  ┘
+d760   0x55555555517b（返回 outer+28）         ┐ inner 的堆疊框
+d758   0x7fffffffd770（outer 的 %rbp） ← inner 的 %rbp 和 %rsp ┘
+</code></pre>
+<ul>
+<li><code>d768</code> 那格怎麼來：<code>outer</code> 進來時 <code>%rsp</code> ＝ <code>d778</code>，<code>push %rbp</code> → <code>d770</code>，<code>sub $0x8,%rsp</code> → <code>d768</code>（為了 <code>call inner</code> 時 16 byte 對齊，跟 2-4 同一個道理），<code>mov %edi,-0x4(%rbp)</code> 把 <code>x</code> 存到 <code>d770 − 4 ＝ d76c</code>。接著 <code>call inner</code> 推返回位址到 <code>d760</code>。</li>
+<li>驗證：在同一個地方下 <code>x/xg 0x7fffffffd768</code>，會看到 <code>0x00000004????????</code>——小端序，高位址的 4 byte（<code>d76c</code>）是 <code>4</code>，低 4 byte 是沒清過的舊資料（本機重跑是 <code>0x00000004f7fe5af0</code>；位址因環境變數不同而跟你的差一個固定值，相對位置一樣）。</li>
+<li><code>main</code> 自己沒有 <code>sub</code>：它只有 <code>push %rbp; mov %rsp,%rbp</code>，<code>%rsp</code> ＝ <code>d780</code> 已經是 16 的倍數，直接 <code>call outer</code> 推到 <code>d778</code>。</li>
+<li>還沒寫進去的格子：停在 <code>inner+8</code>，<code>mov %edi,-0x4(%rbp)</code> 還沒執行，所以 <code>inner</code> 的 <code>y</code>（<code>d754</code>）還沒存。</li>
+</ul>
+</blockquote>
+<h3 id="3-4-在同一個地方下-bt貼上輸出bt-印出的每一層位址跟你在-3-13-2-找到的返回位址一致嗎第-3-課筆記第六節bt筆記第三節停在函式入口時怎麼知道是誰呼叫的最後一段">3-4. 在同一個地方下 <code>bt</code>，貼上輸出。<code>bt</code> 印出的每一層位址，跟你在 3-1、3-2 找到的返回位址一致嗎？【<a href="../../c/%E9%99%A3%E5%88%97%E3%80%81%E5%AD%97%E4%B8%B2%E8%88%87%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97-C%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%88%87%E7%94%A8gdb%E6%89%BEsegfault.html#%E5%85%AD%E7%94%A8-gdb-%E6%89%BE-segfault%E5%AF%A6%E9%9A%9B%E8%B5%B0%E4%B8%80%E6%AC%A1">第 3 課筆記第六節</a>（<code>bt</code>）；筆記第三節〈停在函式入口時，怎麼知道是誰呼叫的〉最後一段】</h3>
+<p><strong>第 1 次（2026-10-17）</strong></p>
+<pre><code>(gdb) bt
+#0  0x0000555555555151 in inner (y=0) at chain.c:4
+#1  0x000055555555517b in outer (x=4) at chain.c:10
+#2  0x0000555555555191 in main () at chain.c:15
+一致
+</code></pre>
+<blockquote>
+<p><strong>批改</strong>：<strong>對</strong>。<code>#1</code> 的 <code>0x55555555517b</code> 和 3-1 的返回位址一樣、<code>#2</code> 的 <code>0x555555555191</code> 和 3-2 第二次讀到的一樣，結論「一致」對。可以補的一點：<code>#0</code> 的 <code>0x555555555151</code> 不是返回位址，是<strong>現在的 <code>%rip</code></strong>（<code>stepi</code> 三次後停在 <code>inner+8</code>）。</p>
+<p><strong>參考答案</strong>【筆記<a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80%E4%BA%8C-call%E8%88%87ret%E3%80%81%E5%A0%86%E7%96%8A%E6%A1%86%E3%80%81%E5%8F%83%E6%95%B8%E8%88%87%E5%91%BC%E5%8F%AB%E6%85%A3%E4%BE%8B.html#%E4%B8%89call-%E8%88%87-ret%E7%94%A8-gdb-%E4%B8%80%E6%A2%9D%E4%B8%80%E6%A2%9D%E8%B5%B0">第三節</a>〈停在函式入口時，怎麼知道是誰呼叫的〉最後一段】</p>
+<p><strong>核心關鍵</strong>（答到這幾點就算對）：</p>
+<ol>
+<li><code>#1 0x55555555517b in outer</code> ＝ 3-1（也是 3-2 第一次 <code>x/2gx</code> 的第 2 格）找到的返回位址 <code>outer+28</code>。</li>
+<li><code>#2 0x555555555191 in main</code> ＝ 3-2 第二次 <code>x/2gx</code> 的第 2 格，<code>outer</code> 回到 <code>main+18</code>。</li>
+<li>所以一致：<code>bt</code> 做的就是沿著堆疊一層一層找返回位址，跟你手動走 <code>%rbp</code> 鏈得到一樣的結果。</li>
+</ol>
+<p><strong>詳細說明</strong>：</p>
+<ul>
+<li><code>#0</code> 那一層印的是目前執行到的位址（<code>%rip</code> ＝ <code>inner+8</code>），<code>#1</code> 以後每一層印的才是「回到那一層時從哪裡繼續」，也就是返回位址。</li>
+<li><code>inner (y=0)</code> 是錯的，<code>outer (x=4)</code> 是對的：跟筆記<a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80%E4%BA%8C-call%E8%88%87ret%E3%80%81%E5%A0%86%E7%96%8A%E6%A1%86%E3%80%81%E5%8F%83%E6%95%B8%E8%88%87%E5%91%BC%E5%8F%AB%E6%85%A3%E4%BE%8B.html#%E4%B8%89call-%E8%88%87-ret%E7%94%A8-gdb-%E4%B8%80%E6%A2%9D%E4%B8%80%E6%A2%9D%E8%B5%B0">第三節</a>〈gdb 在第 1 段結尾印的 <code>add3 (a=0, b=0, c=0)</code> 是錯的〉同一個原因。gdb 照除錯資訊去 <code>-0x4(%rbp)</code>（<code>d754</code>）讀 <code>y</code>，可是 <code>y</code> 還在 <code>%edi</code>（值是 <code>5</code>），<code>mov %edi,-0x4(%rbp)</code> 還沒執行，讀到的是舊資料；<code>outer</code> 早就把 <code>x</code> 存進 <code>d76c</code> 了，所以印得對。</li>
+</ul>
+</blockquote>
+<hr />
+<h2 id="4-要撐過兩次-call-的值">4. 要撐過兩次 <code>call</code> 的值</h2>
+<p>寫 <code>keep.c</code>（<code>g</code> 只宣告，理由同第 2 題）：</p>
+<pre><code class="language-c"><span class="kt">long</span><span class="w"> </span><span class="nf">g</span><span class="p">(</span><span class="kt">long</span><span class="w"> </span><span class="n">x</span><span class="p">);</span>
+
+<span class="kt">long</span><span class="w"> </span><span class="nf">h</span><span class="p">(</span><span class="kt">long</span><span class="w"> </span><span class="n">a</span><span class="p">,</span><span class="w"> </span><span class="kt">long</span><span class="w"> </span><span class="n">b</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="kt">long</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">g</span><span class="p">(</span><span class="n">a</span><span class="p">);</span>
+<span class="w">    </span><span class="kt">long</span><span class="w"> </span><span class="n">y</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">g</span><span class="p">(</span><span class="n">b</span><span class="p">);</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">y</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">a</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<pre><code>gcc -O2 -c -fno-asynchronous-unwind-tables keep.c
+objdump -dr --no-show-raw-insn keep.o
+</code></pre>
+<h3 id="4-1-編譯前先預測abxy-裡面哪些值在某一次-call-之後還要用每個值寫出它要撐過哪幾次-callh-會用到幾個-callee-saved-暫存器開頭-push-幾次需不需要額外的-sub-0x8rsp-來對齊筆記第六節">4-1. 編譯前先預測：<code>a</code>、<code>b</code>、<code>x</code>、<code>y</code> 裡面，哪些值在某一次 <code>call</code> 之後還要用（每個值寫出它要撐過哪幾次 <code>call</code>）？<code>h</code> 會用到幾個 callee-saved 暫存器、開頭 <code>push</code> 幾次？需不需要額外的 <code>sub $0x8,%rsp</code> 來對齊？【筆記<a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80%E4%BA%8C-call%E8%88%87ret%E3%80%81%E5%A0%86%E7%96%8A%E6%A1%86%E3%80%81%E5%8F%83%E6%95%B8%E8%88%87%E5%91%BC%E5%8F%AB%E6%85%A3%E4%BE%8B.html#%E5%85%AD%E8%AA%B0%E8%B2%A0%E8%B2%AC%E4%BF%9D%E5%AD%98%E6%9A%AB%E5%AD%98%E5%99%A8%E4%BB%A5%E5%8F%8A-16-byte-%E5%B0%8D%E9%BD%8A">第六節</a>】</h3>
+<p><strong>第 1 次（2026-10-18）</strong></p>
+<div class="answer-box" data-file="small-project/s1-05-asm-calls/README.md" data-line="634"><textarea spellcheck="false" placeholder="在這裡作答">x call g(a), g(b)之後還要用 -&gt; 2次
+y call g(b)之後還要用 -&gt; 1次
+a call g(a), g(b)之後還要用 -&gt; 2次
+b 沒有
+
+他要先push rbx, 因爲h本身也是callee對於call它的人來說
+然後rdi 一開始是a, g會用到, g有可能改他,而且,call g(b) 感覺也需要改rdi,把rdi換成b
+所以要先把一開始的rdi push,因此要push 一個rbx 在push一個rdi
+會用到rbx一個callee-saved暫存器
+
+需要,因爲不確定g在做什麼
+</textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<h3 id="4-2-編譯貼上-h-的本體在每個-callee-saved-暫存器旁邊註明它存的是哪個值跟預測對照">4-2. 編譯，貼上 <code>h</code> 的本體，在每個 callee-saved 暫存器旁邊註明它存的是哪個值，跟預測對照。</h3>
+<p><strong>第 1 次（2026-10-18）</strong></p>
+<div class="answer-box" data-file="small-project/s1-05-asm-calls/README.md" data-line="651"><textarea spellcheck="false" placeholder="在這裡作答">0000000000000000 &lt;h&gt;:
+   0:   endbr64
+   4:   push   %r12 // 先把r12原本的值放到頂端
+   6:   mov    %rsi,%r12 // 把b複寫到r12
+   9:   push   %rbp // 在把rbp原值存到第二個頂端
+   a:   mov    %rdi,%rbp // a 存到rbp
+   d:   push   %rbx // 再把rbx原值存到第三個頂端
+   e:   call   13 &lt;h+0x13&gt; // 
+                        f: R_X86_64_PLT32       g-0x4
+  13:   mov    %r12,%rdi // 把b 放到rdi
+  16:   mov    %rax,%rbx // 把g(a)的回傳值放到rbx
+  19:   call   1e &lt;h+0x1e&gt;
+                        1a: R_X86_64_PLT32      g-0x4
+  1e:   add    %rbx,%rax // 把g(a) + g(b)
+  21:   pop    %rbx // 恢復原值
+  22:   add    %rbp,%rax // +a
+  25:   pop    %rbp // 恢復rbp
+  26:   pop    %r12 // 恢復r12
+  28:   ret
+
+沒預測到r12的使用, 說要push rdi也不對
+rbx爲什麼要push的原因沒有說明
+rdi 有說到 g(a), g(b)都需要用到, 只是方式是用 mov r12, rdi
+</textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<h3 id="4-3-把-return-改成-x--y不加-a重新編譯貼上本體push-的次數有沒有-sub-0x8rsp-各怎麼變用進函式時-rsp-除以-16-餘幾每個-push-挪幾-byte算一次解釋為什麼筆記第六節上面的-sub-0x8rsp16-byte-對齊">4-3. 把 <code>return</code> 改成 <code>x + y</code>（不加 <code>a</code>），重新編譯，貼上本體。<code>push</code> 的次數、有沒有 <code>sub $0x8,%rsp</code> 各怎麼變？用「進函式時 <code>%rsp</code> 除以 16 餘幾、每個 <code>push</code> 挪幾 byte」算一次，解釋為什麼。【筆記第六節〈上面的 <code>sub $0x8,%rsp</code>：16 byte 對齊〉】</h3>
+<p><strong>第 1 次（2026-10-18）</strong></p>
+<div class="answer-box" data-file="small-project/s1-05-asm-calls/README.md" data-line="680"><textarea spellcheck="false" placeholder="在這裡作答">0000000000000000 &lt;h&gt;:
+   0:   endbr64
+   4:   push   %rbp
+   5:   mov    %rsi,%rbp
+   8:   push   %rbx
+   9:   sub    $0x8,%rsp
+   d:   call   12 &lt;h+0x12&gt;
+                        e: R_X86_64_PLT32       g-0x4
+  12:   mov    %rbp,%rdi
+  15:   mov    %rax,%rbx
+  18:   call   1d &lt;h+0x1d&gt;
+                        19: R_X86_64_PLT32      g-0x4
+  1d:   add    $0x8,%rsp
+  21:   add    %rbx,%rax
+  24:   pop    %rbx
+  25:   pop    %rbp
+  26:   ret
+
+不再push r12 ,變成只push兩次,應該是不需要把a存到rbp, rbp可以用來存b
+有sub $0x8, $rsp 置於爲什麼有這個下面有解釋
+
+push rbp, rsp挪動8byte
+push rbx, rsp再挪動8byte
+但call g(a)的時候, 需要push返回位址,所以rsp還需要-8byte 給返回位址, 總共24byte
+所以除以16應該餘8byte
+</textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<h3 id="4-4-4-2-的-h-裡pop-的順序跟-push-的順序是什麼關係為什麼一定要這樣筆記第二節">4-4. 4-2 的 <code>h</code> 裡，<code>pop</code> 的順序跟 <code>push</code> 的順序是什麼關係？為什麼一定要這樣？【筆記<a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80%E4%BA%8C-call%E8%88%87ret%E3%80%81%E5%A0%86%E7%96%8A%E6%A1%86%E3%80%81%E5%8F%83%E6%95%B8%E8%88%87%E5%91%BC%E5%8F%AB%E6%85%A3%E4%BE%8B.html#%E4%BA%8C%E5%A0%86%E7%96%8Arsp-%E6%8C%87%E8%91%97%E9%A0%82%E7%AB%AF%E5%BE%80%E4%BD%8E%E4%BD%8D%E5%9D%80%E9%95%B7">第二節</a>】</h3>
+<p><strong>第 1 次（2026-10-18）</strong></p>
+<div class="answer-box" data-file="small-project/s1-05-asm-calls/README.md" data-line="711"><textarea spellcheck="false" placeholder="在這裡作答">先進後出, 因爲stack是從最上面的先移出去,
+如果先pop rbp, rsp這個時候的記憶體位址指向的是rbx, 就會把rbx的原值寫入rbp
+</textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<hr />
+<h2 id="5-可變參數函式的-al">5. 可變參數函式的 <code>%al</code></h2>
+<p>寫 <code>va.c</code>：</p>
+<pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+
+<span class="kt">void</span><span class="w"> </span><span class="nf">showd</span><span class="p">(</span><span class="kt">double</span><span class="w"> </span><span class="n">x</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;%f</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">x</span><span class="p">);</span>
+<span class="p">}</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;%d %f %d %f %f</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mf">0.5</span><span class="p">,</span><span class="w"> </span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="mf">1.5</span><span class="p">,</span><span class="w"> </span><span class="mf">2.5</span><span class="p">);</span>
+<span class="w">    </span><span class="n">showd</span><span class="p">(</span><span class="mf">0.25</span><span class="p">);</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;%f %f %f %f %f %f %f %f %f</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span>
+<span class="w">           </span><span class="mf">1.0</span><span class="p">,</span><span class="w"> </span><span class="mf">2.0</span><span class="p">,</span><span class="w"> </span><span class="mf">3.0</span><span class="p">,</span><span class="w"> </span><span class="mf">4.0</span><span class="p">,</span><span class="w"> </span><span class="mf">5.0</span><span class="p">,</span><span class="w"> </span><span class="mf">6.0</span><span class="p">,</span><span class="w"> </span><span class="mf">7.0</span><span class="p">,</span><span class="w"> </span><span class="mf">8.0</span><span class="p">,</span><span class="w"> </span><span class="mf">9.0</span><span class="p">);</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<pre><code>gcc -O0 -fno-asynchronous-unwind-tables va.c -o va
+./va
+objdump -d --no-show-raw-insn va
+</code></pre>
+<h3 id="5-1-編譯前先預測第一個-printf6-個參數含格式字串各放在哪個暫存器呼叫前-eax-會被設成多少筆記第五節表下第一段第七節">5-1. 編譯前先預測第一個 <code>printf</code>：6 個參數（含格式字串）各放在哪個暫存器？呼叫前 <code>%eax</code> 會被設成多少？【筆記<a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80%E4%BA%8C-call%E8%88%87ret%E3%80%81%E5%A0%86%E7%96%8A%E6%A1%86%E3%80%81%E5%8F%83%E6%95%B8%E8%88%87%E5%91%BC%E5%8F%AB%E6%85%A3%E4%BE%8B.html#%E4%BA%94%E5%8F%83%E6%95%B8%E8%88%87%E5%9B%9E%E5%82%B3%E5%80%BC%E6%94%BE%E5%93%AA%E8%A3%A1">第五節</a>表下第一段、<a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80%E4%BA%8C-call%E8%88%87ret%E3%80%81%E5%A0%86%E7%96%8A%E6%A1%86%E3%80%81%E5%8F%83%E6%95%B8%E8%88%87%E5%91%BC%E5%8F%AB%E6%85%A3%E4%BE%8B.html#%E4%B8%83printf-%E5%89%8D%E7%9A%84-movl-0-eax%E5%8F%AF%E8%AE%8A%E5%8F%83%E6%95%B8%E5%87%BD%E5%BC%8F%E7%9A%84-al">第七節</a>】</h3>
+<p><strong>第 1 次（YYYY-MM-DD）</strong></p>
+<div class="answer-box" data-file="small-project/s1-05-asm-calls/README.md" data-line="749"><textarea spellcheck="false" placeholder="在這裡作答">
+</textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<h3 id="5-2-編譯前先預測main-在-call-showd-之前會不會設-eax為什麼筆記第七節最後一段">5-2. 編譯前先預測：<code>main</code> 在 <code>call showd</code> 之前會不會設 <code>%eax</code>？為什麼？【筆記第七節最後一段】</h3>
+<p><strong>第 1 次（YYYY-MM-DD）</strong></p>
+<div class="answer-box" data-file="small-project/s1-05-asm-calls/README.md" data-line="756"><textarea spellcheck="false" placeholder="在這裡作答">
+</textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<h3 id="5-3-編譯貼上-main-裡第一個-printf-和-showd-這兩次呼叫前面設參數的那幾行跟-5-15-2-的預測對照">5-3. 編譯，貼上 <code>main</code> 裡第一個 <code>printf</code> 和 <code>showd</code> 這兩次呼叫前面設參數的那幾行，跟 5-1、5-2 的預測對照。</h3>
+<p><strong>第 1 次（YYYY-MM-DD）</strong></p>
+<div class="answer-box" data-file="small-project/s1-05-asm-calls/README.md" data-line="763"><textarea spellcheck="false" placeholder="在這裡作答">
+</textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<h3 id="5-4-第二個-printf-有-9-個-double可是傳浮點參數的暫存器只有-xmm0xmm7-八個編譯前先猜第-9-個-double-會放在哪裡al-會是多少再對照實際輸出貼上相關的幾行新觀念先猜">5-4. 第二個 <code>printf</code> 有 9 個 <code>double</code>，可是傳浮點參數的暫存器只有 <code>%xmm0</code>～<code>%xmm7</code> 八個。編譯前先猜：第 9 個 <code>double</code> 會放在哪裡？<code>%al</code> 會是多少？再對照實際輸出，貼上相關的幾行。【新觀念，先猜】</h3>
+<p><strong>第 1 次（YYYY-MM-DD）</strong></p>
+<div class="answer-box" data-file="small-project/s1-05-asm-calls/README.md" data-line="770"><textarea spellcheck="false" placeholder="在這裡作答">
+</textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+
+</main>
+</div>
+</body>
+</html>

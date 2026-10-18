@@ -1,0 +1,1052 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>s1-04：讀懂 x86-64 組合語言（一）</title>
+<link rel="stylesheet" href="../../assets/style.css">
+<script src="../../assets/app.js"></script>
+</head>
+<body>
+<button class="menu-btn" onclick="toggleMenu()">☰ 目錄</button>
+<div class="layout">
+<nav class="side">
+<div class="crumbs"><a href="../../index.html">🏠 首頁</a> / <a href="../README.html">small-project</a> / s1-04-asm-basics</div>
+<div class="tools"><button onclick="toggleTheme()">🌓 主題</button></div>
+<ul>
+<li class="l2"><a href="#%E8%AA%AA%E6%98%8E">說明</a></li>
+<li class="l2"><a href="#%E7%AD%86%E8%A8%98%E7%9A%84%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F">筆記的範例程式</a></li>
+<li class="l2"><a href="#%E6%89%B9%E6%94%B9%E7%B5%90%E6%9E%9C2026-10-08">批改結果（2026-10-08）</a></li>
+<li class="l2"><a href="#1-%E7%94%A8-lea-%E5%81%9A%E4%B9%98%E6%B3%95">1. 用 lea 做乘法</a></li>
+<li class="l3"><a href="#1-1-%E7%B7%A8%E8%AD%AF%E5%89%8D%E5%85%88%E9%A0%90%E6%B8%AC%E5%9B%9B%E5%80%8B%E8%A3%A1%E9%9D%A2%E5%93%AA%E5%B9%BE%E5%80%8B-gcc-%E5%8F%AF%E4%BB%A5%E5%8F%AA%E7%94%A8%E4%B8%80%E5%80%8B-lea-%E5%81%9A%E5%AE%8C%E6%8A%8A%E4%BD%A0%E9%A0%90%E6%B8%AC%E7%9A%84%E9%82%A3%E4%B8%80%E8%A1%8C-lea-%E5%AF%AB%E5%87%BA%E4%BE%86%E6%9A%AB%E5%AD%98%E5%99%A8%E7%94%A8-rdirax%E5%8F%A6%E5%A4%96%E5%B9%BE%E5%80%8B%E7%82%BA%E4%BB%80%E9%BA%BC%E4%B8%8D%E8%A1%8C%E7%AD%86%E8%A8%98%E7%AC%AC%E4%B8%89%E7%AF%80%E7%9A%84-dbis-%E8%A1%A8%E7%AC%AC%E5%9B%9B%E7%AF%80lea-%E8%A2%AB%E6%8B%BF%E4%BE%86%E5%81%9A%E7%AE%97%E8%A1%93">1-1. 編譯前先預測：四個裡面，哪幾個 gcc 可以只用一個 lea 做完？把你預測的那一行 lea 寫出來（暫存器用 %rdi、%rax）。另外幾個為什麼不行？【筆記第三節的 D(B,I,S) 表、第四節〈lea 被拿來做算術〉】</a></li>
+<li class="l3"><a href="#1-2-%E7%94%A8--o2-%E7%B7%A8%E8%AD%AF%E8%B2%BC%E4%B8%8A%E5%9B%9B%E5%80%8B%E5%87%BD%E5%BC%8F%E7%9A%84%E6%9C%AC%E9%AB%94%E8%B7%9F%E9%A0%90%E6%B8%AC%E5%B0%8D%E7%85%A7%E5%93%AA%E8%A3%A1%E7%8C%9C%E5%B0%8D%E5%93%AA%E8%A3%A1%E7%8C%9C%E9%8C%AF">1-2. 用 -O2 編譯，貼上四個函式的本體，跟預測對照：哪裡猜對、哪裡猜錯？</a></li>
+<li class="l3"><a href="#1-3-%E4%B8%8D%E6%98%AF%E4%B8%80%E5%80%8B-lea-%E5%B0%B1%E5%81%9A%E5%AE%8C%E7%9A%84%E9%82%A3%E5%B9%BE%E5%80%8B%E9%80%90%E8%A1%8C%E5%AF%AB%E5%87%BA%E6%AF%8F%E5%80%8B%E6%8C%87%E4%BB%A4%E4%B9%8B%E5%BE%8C-rax-%E7%AD%89%E6%96%BC-x-%E7%9A%84%E5%B9%BE%E5%80%8D%E8%AA%AA%E6%98%8E-gcc-%E6%98%AF%E6%80%8E%E9%BA%BC%E6%B9%8A%E5%87%BA%E4%BE%86%E7%9A%84%E7%AD%86%E8%A8%98%E7%AC%AC%E4%B8%89%E7%AF%80dis-%E9%80%99%E7%A8%AE%E7%9C%81%E7%95%A5%E5%BD%A2%E5%BC%8F%E7%AC%AC%E5%9B%9B%E7%AF%80%E6%9C%AC%E8%AA%B2%E7%9A%84%E7%AE%97%E8%A1%93%E8%88%87%E9%82%8F%E8%BC%AF%E6%8C%87%E4%BB%A4">1-3. 不是一個 lea 就做完的那幾個，逐行寫出每個指令之後 %rax 等於 x 的幾倍，說明 gcc 是怎麼湊出來的。【筆記第三節（D(,I,S) 這種省略形式）、第四節〈本課的算術與邏輯指令〉】</a></li>
+<li class="l2"><a href="#2-%E4%B8%8D%E5%90%8C%E5%9E%8B%E5%88%A5%E7%9A%84%E9%99%A3%E5%88%97%E5%AD%98%E5%8F%96">2. 不同型別的陣列存取</a></li>
+<li class="l3"><a href="#2-1-%E7%B7%A8%E8%AD%AF%E5%89%8D%E5%85%88%E9%A0%90%E6%B8%AC%E6%AF%8F%E5%80%8B%E5%87%BD%E5%BC%8F%E7%9A%84%E6%9C%AC%E9%AB%94endbr64-%E5%92%8C-ret-%E4%BB%A5%E5%A4%96%E5%90%84%E6%98%AF%E5%93%AA%E4%B8%80%E5%80%8B%E6%8C%87%E4%BB%A4%E5%AF%AB%E5%87%BA%E5%AE%8C%E6%95%B4%E7%9A%84%E4%B8%80%E8%A1%8C%E5%8C%85%E6%8B%AC%E7%94%A8-mov-%E7%B3%BB%E5%88%97%E9%82%84%E6%98%AF-lea%E5%A4%A7%E5%B0%8F%E5%BE%8C%E7%B6%B4%E6%88%96%E6%93%B4%E5%B1%95%E6%8C%87%E4%BB%A4%E7%9A%84%E5%90%8D%E5%AD%97%E8%A8%98%E6%86%B6%E9%AB%94%E9%81%8B%E7%AE%97%E5%85%83%E7%9A%84-dbis-%E5%90%84%E6%98%AF%E4%BB%80%E9%BA%BC%E7%AD%86%E8%A8%98%E7%AC%AC%E4%BA%8C%E7%AF%80%E5%AF%AB%E4%BD%8E%E4%BD%8D%E7%9A%84%E5%90%8D%E5%AD%97%E6%99%82%E9%AB%98%E4%BD%8D%E6%9C%83%E6%80%8E%E6%A8%A3%E7%9A%84%E6%93%B4%E5%B1%95%E6%8C%87%E4%BB%A4%E8%A1%A8%E7%AC%AC%E4%B8%89%E7%AF%80%E7%AC%AC%E5%9B%9B%E7%AF%80">2-1. 編譯前先預測：每個函式的本體（endbr64 和 ret 以外）各是哪一個指令？寫出完整的一行，包括：用 mov 系列還是 lea、大小後綴或擴展指令的名字、記憶體運算元的 D、B、I、S 各是什麼。【筆記第二節〈寫低位的名字時，高位會怎樣？〉的擴展指令表、第三節、第四節】</a></li>
+<li class="l3"><a href="#2-2-%E7%94%A8--o2-%E7%B7%A8%E8%AD%AF%E8%B2%BC%E4%B8%8A%E8%BC%B8%E5%87%BA%E8%B7%9F%E9%A0%90%E6%B8%AC%E5%B0%8D%E7%85%A7">2-2. 用 -O2 編譯，貼上輸出，跟預測對照。</a></li>
+<li class="l3"><a href="#2-3-get_short-%E5%92%8C-get_uchar-%E9%83%BD%E5%9B%9E%E5%82%B3-int%E7%82%BA%E4%BB%80%E9%BA%BC%E4%B8%80%E5%80%8B%E7%94%A8-movs-%E9%96%8B%E9%A0%AD%E7%9A%84%E6%8C%87%E4%BB%A4%E4%B8%80%E5%80%8B%E7%94%A8-movz-%E9%96%8B%E9%A0%AD%E7%9A%84%E5%A6%82%E6%9E%9C%E9%99%A3%E5%88%97%E8%A3%A1%E9%82%A3%E5%80%8B%E5%85%83%E7%B4%A0%E7%9A%84%E4%BD%8D%E5%85%83%E6%98%AF-0xffget_uchar%E6%88%96-0xffffget_short%E5%85%A9%E5%80%8B%E5%87%BD%E5%BC%8F%E5%90%84%E5%9B%9E%E5%82%B3%E5%A4%9A%E5%B0%91%E7%AD%86%E8%A8%98%E7%AC%AC%E4%BA%8C%E7%AF%80%E7%AC%AC-2-%E8%AA%B2%E7%AD%86%E8%A8%98%E7%AC%AC%E5%85%AD%E7%AF%80%E8%AE%8A%E5%AF%AC%E6%93%B4%E5%B1%95extension">2-3. get_short 和 get_uchar 都回傳 int，為什麼一個用 movs 開頭的指令、一個用 movz 開頭的？如果陣列裡那個元素的位元是 0xff（get_uchar）或 0xffff（get_short），兩個函式各回傳多少？【筆記第二節；第 2 課筆記第六節〈變寬（擴展，extension）〉】</a></li>
+<li class="l3"><a href="#2-4-get_long2-%E5%92%8C-next_long-%E8%A3%A1%E7%9A%84-d%E4%BD%8D%E7%A7%BB%E5%90%84%E6%98%AF%E5%A4%9A%E5%B0%91%E7%82%BA%E4%BB%80%E9%BA%BC%E6%98%AF%E9%80%99%E5%80%8B%E6%95%B8%E8%80%8C%E4%B8%8D%E6%98%AF-c-%E5%8E%9F%E5%A7%8B%E7%A2%BC%E8%A3%A1%E7%9A%84-2-%E5%92%8C-1%E7%AD%86%E8%A8%98%E7%AC%AC%E4%B8%89%E7%AF%80%E7%AC%AC-3-%E8%AA%B2%E7%AD%86%E8%A8%98%E7%AC%AC%E4%BA%8C%E7%AF%80">2-4. get_long2 和 next_long 裡的 D（位移）各是多少？為什麼是這個數，而不是 C 原始碼裡的 2 和 1？【筆記第三節；第 3 課筆記第二節】</a></li>
+<li class="l2"><a href="#3-%E6%9C%89%E8%99%9F%E8%88%87%E7%84%A1%E8%99%9F%E7%9A%84%E5%88%86%E6%94%AF">3. 有號與無號的分支</a></li>
+<li class="l3"><a href="#3-1-%E8%B2%BC%E4%B8%8A%E5%85%A9%E5%80%8B%E5%87%BD%E5%BC%8F%E7%9A%84%E6%9C%AC%E9%AB%94%E6%89%BE%E5%87%BA%E5%90%84%E8%87%AA%E7%9A%84-cmp-%E5%92%8C%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D%E9%82%A3%E5%85%A9%E8%A1%8C%E5%AF%AB%E5%87%BAcmp-%E7%AE%97%E7%9A%84%E6%98%AF%E8%AA%B0%E6%B8%9B%E8%AA%B0%E7%94%A8-ab-%E8%A1%A8%E7%A4%BA%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D%E7%9A%84%E6%A2%9D%E4%BB%B6%E7%A2%BC%E6%98%AF%E4%BB%80%E9%BA%BC%E5%AE%83%E5%9C%A8%E4%BB%80%E9%BA%BC%E6%83%85%E6%B3%81%E4%B8%8B%E8%B7%B3%E7%AD%86%E8%A8%98%E7%AC%AC%E4%BA%94%E7%AF%80cmp-%E8%88%87-test%E8%88%87%E6%A2%9D%E4%BB%B6%E7%A2%BC%E8%A1%A8%E7%AC%AC%E5%85%AD%E7%AF%80">3-1. 貼上兩個函式的本體。找出各自的 cmp 和條件跳躍那兩行，寫出：cmp 算的是「誰減誰」（用 a、b 表示），條件跳躍的條件碼是什麼、它在什麼情況下跳。【筆記第五節〈cmp 與 test〉與條件碼表、第六節】</a></li>
+<li class="l3"><a href="#3-2-%E5%85%A9%E5%80%8B%E5%87%BD%E5%BC%8F%E7%9A%84%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D%E7%94%A8%E4%BA%86%E4%B8%8D%E5%90%8C%E7%9A%84%E6%A2%9D%E4%BB%B6%E7%A2%BC%E7%82%BA%E4%BB%80%E9%BA%BC%E5%A6%82%E6%9E%9C-a-%E7%9A%84%E4%BD%8D%E5%85%83%E6%98%AF-0xffffffffb-%E6%98%AF-1%E5%85%A9%E5%80%8B%E5%87%BD%E5%BC%8F%E5%90%84%E5%9B%9E%E5%82%B3%E4%BB%80%E9%BA%BC%E7%AD%86%E8%A8%98%E7%AC%AC%E4%BA%94%E7%AF%80%E5%AF%A6%E9%A9%97%E5%90%8C%E4%B8%80%E5%80%8B-cmp%E5%90%8C%E4%B8%80%E7%B5%84%E6%97%97%E6%A8%99setl-%E8%AA%AA%E6%98%AFsetb-%E8%AA%AA%E5%90%A6">3-2. 兩個函式的條件跳躍用了不同的條件碼。為什麼？如果 a 的位元是 0xffffffff、b 是 1，兩個函式各回傳什麼？【筆記第五節〈實驗：同一個 cmp、同一組旗標，setl 說是、setb 說否〉】</a></li>
+<li class="l3"><a href="#3-3-c-%E5%AF%AB%E7%9A%84%E6%98%AF-a--b%E4%BD%86-pick_s-%E7%9A%84%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D%E6%AA%A2%E6%9F%A5%E7%9A%84%E5%8D%BB%E6%98%AF%E5%B0%8F%E6%96%BC%E6%88%96%E7%AD%89%E6%96%BC%E7%82%BA%E4%BB%80%E9%BA%BC-gcc-%E8%A6%81%E7%94%A8%E7%9B%B8%E5%8F%8D%E7%9A%84%E6%A2%9D%E4%BB%B6%E8%B7%B3%E9%81%8E%E5%8E%BB%E7%9A%84%E5%9C%B0%E6%96%B9%E6%98%AF-return-1-%E9%82%84%E6%98%AF-return-2%E6%96%B0%E8%A7%80%E5%BF%B5%E5%85%88%E7%8C%9C">3-3. C 寫的是 a &gt; b，但 pick_s 的條件跳躍檢查的卻是「小於或等於」。為什麼 gcc 要用相反的條件？跳過去的地方是 return 1 還是 return 2？【新觀念，先猜】</a></li>
+<li class="l3"><a href="#3-4-pick_u-%E7%9A%84-cmp-%E5%85%A9%E5%80%8B%E9%81%8B%E7%AE%97%E5%85%83%E7%9A%84%E9%A0%86%E5%BA%8F%E8%B7%9F-pick_s-%E4%B8%8D%E4%B8%80%E6%A8%A3%E6%A2%9D%E4%BB%B6%E7%A2%BC%E4%B9%9F%E4%B8%8D%E6%98%AF-be%E6%8A%8A-pick_u-%E7%9A%84cmp--%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D%E7%BF%BB%E6%88%90%E4%B8%80%E5%8F%A5-c-%E7%9A%84%E6%A2%9D%E4%BB%B6%E7%94%A8-ab%E8%AA%AA%E6%98%8E%E5%AE%83%E8%B7%9F-a--b-%E6%98%AF%E5%90%8C%E4%B8%80%E4%BB%B6%E4%BA%8B%E7%AD%86%E8%A8%98%E7%AC%AC%E4%BA%94%E7%AF%80att-%E7%9A%84%E9%A0%86%E5%BA%8F%E6%A2%9D%E4%BB%B6%E7%A2%BC%E8%A1%A8%E8%A3%A1%E7%9A%84%E5%88%A5%E5%90%8D">3-4. pick_u 的 cmp 兩個運算元的順序跟 pick_s 不一樣，條件碼也不是 be。把 pick_u 的「cmp ＋ 條件跳躍」翻成一句 C 的條件（用 a、b），說明它跟 !(a &gt; b) 是同一件事。【筆記第五節（AT&amp;T 的順序、條件碼表裡的別名）】</a></li>
+<li class="l2"><a href="#4-%E8%AE%80%E4%B8%80%E5%80%8B%E9%99%A3%E5%88%97%E5%8A%A0%E7%B8%BD%E8%BF%B4%E5%9C%88-o0-%E8%88%87--o2">4. 讀一個陣列加總迴圈：-O0 與 -O2</a></li>
+<li class="l3"><a href="#4-1-%E7%94%A8--o0-%E7%B7%A8%E8%AD%AF%E8%B2%BC%E4%B8%8A%E6%9C%AC%E9%AB%94%E6%AF%8F%E4%B8%80%E8%A1%8C%E6%97%81%E9%82%8A%E5%AF%AB%E5%AE%83%E5%B0%8D%E6%87%89%E5%93%AA%E4%B8%80%E5%8F%A5-c%E5%9C%A8%E5%81%9A%E4%BB%80%E9%BA%BC%E5%83%8F%E7%AD%86%E8%A8%98%E7%AC%AC%E5%85%AD%E7%AF%80%E7%9A%84%E9%80%90%E8%A1%8C%E8%A1%A8%E9%82%A3%E6%A8%A3%E5%8F%AF%E4%BB%A5%E5%AF%AB%E6%88%90--%E8%A8%BB%E8%A7%A3%E5%AF%AB%E5%AE%8C%E5%86%8D%E7%94%A8--fverbose-asm-%E7%B7%A8%E4%B8%80%E6%AC%A1%E5%B0%8D%E7%AD%94%E6%A1%88%E5%8F%A6%E5%A4%96%E6%89%BE%E5%87%BA-anti-%E5%90%84%E4%BD%8F%E5%9C%A8%E5%93%AA%E5%80%8B%E8%A8%98%E6%86%B6%E9%AB%94%E4%BD%8D%E7%BD%AE%E7%AD%86%E8%A8%98%E7%AC%AC%E5%85%AD%E7%AF%80">4-1. 用 -O0 編譯，貼上本體，每一行旁邊寫它對應哪一句 C、在做什麼（像筆記第六節的逐行表那樣，可以寫成 # 註解）。寫完再用 -fverbose-asm 編一次對答案。另外找出 a、n、t、i 各住在哪個記憶體位置。【筆記第六節】</a></li>
+<li class="l3"><a href="#4-2--o0-%E7%89%88%E8%A3%A1ai-%E7%94%A8%E4%BA%86%E5%A5%BD%E5%B9%BE%E5%80%8B%E6%8C%87%E4%BB%A4%E6%89%8D%E8%AE%80%E5%88%B0%E7%AD%86%E8%A8%98%E7%AC%AC%E5%9B%9B%E7%AF%80%E7%9A%84-get-%E5%8F%AA%E7%94%A8%E4%B8%80%E5%80%8B-movl-rdirsi4-eax%E7%82%BA%E4%BB%80%E9%BA%BC--o0-%E4%B8%8D%E9%80%99%E6%A8%A3%E5%AF%AB%E6%8F%90%E7%A4%BA%E5%85%88%E7%9C%8B-a-%E5%92%8C-i-%E5%9C%A8--o0-%E6%99%82%E4%BD%8F%E5%9C%A8%E5%93%AA%E8%A3%A1%E7%AD%86%E8%A8%98%E7%AC%AC%E4%B8%89%E7%AF%80bi-%E5%8F%AA%E8%83%BD%E6%98%AF%E4%BB%80%E9%BA%BC%E4%B8%80%E5%80%8B%E6%8C%87%E4%BB%A4%E6%9C%80%E5%A4%9A%E5%B9%BE%E5%80%8B%E8%A8%98%E6%86%B6%E9%AB%94%E9%81%8B%E7%AE%97%E5%85%83%E7%AC%AC%E5%85%AD%E7%AF%80">4-2. -O0 版裡，a[i] 用了好幾個指令才讀到。筆記第四節的 get 只用一個 movl (%rdi,%rsi,4), %eax，為什麼 -O0 不這樣寫？（提示：先看 a 和 i 在 -O0 時住在哪裡。）【筆記第三節（B、I 只能是什麼、一個指令最多幾個記憶體運算元）、第六節】</a></li>
+<li class="l3"><a href="#4-3-%E7%94%A8--o2-%E7%B7%A8%E8%AD%AF%E8%B2%BC%E4%B8%8A%E6%9C%AC%E9%AB%94%E5%83%8F%E7%AD%86%E8%A8%98%E7%AC%AC%E4%B8%83%E7%AF%80%E5%85%88%E6%89%BE%E5%87%BA%E8%AA%B0%E6%98%AF%E8%AA%B0%E9%82%A3%E6%A8%A3%E5%88%97%E8%A1%A8%E6%AF%8F%E5%80%8B%E7%94%A8%E5%88%B0%E7%9A%84%E6%9A%AB%E5%AD%98%E5%99%A8%E4%BB%A3%E8%A1%A8%E4%BB%80%E9%BA%BC%E4%BD%A0%E6%80%8E%E9%BA%BC%E7%9C%8B%E5%87%BA%E4%BE%86%E7%9A%84%E7%AD%86%E8%A8%98%E7%AC%AC%E4%B8%83%E7%AF%80">4-3. 用 -O2 編譯，貼上本體。像筆記第七節〈先找出「誰是誰」〉那樣列表：每個用到的暫存器代表什麼、你怎麼看出來的。【筆記第七節】</a></li>
+<li class="l3"><a href="#4-4--o2-%E7%89%88%E8%A3%A1%E6%89%BE%E4%B8%8D%E5%88%B0-i-%E4%BA%86%E8%BF%B4%E5%9C%88%E6%98%AF%E9%9D%A0%E4%BB%80%E9%BA%BC%E7%9F%A5%E9%81%93%E8%A9%B2%E7%B5%90%E6%9D%9F%E4%BA%86gcc-%E7%82%BA%E4%BB%80%E9%BA%BC%E8%A6%81%E9%80%99%E6%A8%A3%E6%94%B9%E5%AF%AB%E5%89%8D%E5%8D%8A%E7%AD%86%E8%A8%98%E7%AC%AC%E4%B8%89%E7%AF%80%E7%AC%AC%E4%B8%83%E7%AF%80%E5%BE%8C%E5%8D%8A%E7%82%BA%E4%BB%80%E9%BA%BC%E6%96%B0%E8%A7%80%E5%BF%B5%E5%85%88%E7%8C%9C">4-4. -O2 版裡找不到 i 了。迴圈是靠什麼知道「該結束了」？gcc 為什麼要這樣改寫？【前半：筆記第三節、第七節；後半「為什麼」：新觀念，先猜】</a></li>
+<li class="l2"><a href="#5-%E5%BE%9E%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%8F%8D%E6%8E%A8-c">5. 從組合語言反推 C</a></li>
+<li class="l3"><a href="#5-1-%E5%AF%AB%E5%87%BA-mystery1-%E7%9A%84-c%E5%8C%85%E6%8B%AC%E5%8F%83%E6%95%B8%E5%92%8C%E5%9B%9E%E5%82%B3%E5%80%BC%E7%9A%84%E5%9E%8B%E5%88%A5%E5%AD%98%E6%88%90-mysteryc%E7%94%A8%E5%90%8C%E6%A8%A3%E7%9A%84%E5%91%BD%E4%BB%A4%E7%B7%A8%E8%AD%AF%E7%9B%B4%E5%88%B0%E6%9C%AC%E9%AB%94%E8%B7%9F%E4%B8%8A%E9%9D%A2%E4%B8%80%E6%A8%A1%E4%B8%80%E6%A8%A3%E8%B2%BC%E4%B8%8A%E4%BD%A0%E7%9A%84-c-%E5%92%8C%E7%B7%A8%E5%87%BA%E4%BE%86%E7%9A%84%E7%B5%90%E6%9E%9C%E7%AD%86%E8%A8%98%E7%AC%AC%E4%BA%8C%E5%9B%9B%E7%AF%80">5-1. 寫出 mystery1 的 C（包括參數和回傳值的型別）。存成 mystery.c，用同樣的命令編譯，直到本體跟上面一模一樣。貼上你的 C 和編出來的結果。【筆記第二～四節】</a></li>
+<li class="l3"><a href="#5-2-%E5%AF%AB%E5%87%BA-mystery2-%E7%9A%84-c%E5%90%8C%E6%A8%A3%E7%B7%A8%E8%AD%AF%E5%88%B0%E4%B8%80%E6%A8%A1%E4%B8%80%E6%A8%A3%E7%82%BA%E6%AD%A2%E8%B2%BC%E4%B8%8A-c-%E5%92%8C%E7%B5%90%E6%9E%9C%E7%AD%86%E8%A8%98%E7%AC%AC%E4%BA%94%E7%AF%80">5-2. 寫出 mystery2 的 C，同樣編譯到一模一樣為止，貼上 C 和結果。【筆記第五節】</a></li>
+<li class="l3"><a href="#5-3-%E8%AA%AA%E6%98%8E%E4%BD%A0%E6%98%AF%E6%80%8E%E9%BA%BC%E5%BE%9E%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E6%8E%A8%E5%87%BA-5-15-2-%E7%9A%84%E5%9E%8B%E5%88%A5%E7%9A%84%E6%AF%8F%E5%80%8B%E5%8F%83%E6%95%B8%E5%9B%9E%E5%82%B3%E5%80%BC%E7%9A%84%E5%9E%8B%E5%88%A5%E5%90%84%E6%98%AF%E7%9C%8B%E5%93%AA%E5%80%8B%E7%B7%9A%E7%B4%A2%E6%9A%AB%E5%AD%98%E5%99%A8%E5%90%8D%E5%AD%97s%E6%A2%9D%E4%BB%B6%E7%A2%BC%E6%B1%BA%E5%AE%9A%E7%9A%84%E6%9C%89%E6%B2%92%E6%9C%89%E5%93%AA%E5%80%8B%E5%9E%8B%E5%88%A5%E6%98%AF%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E7%84%A1%E6%B3%95%E7%A2%BA%E5%AE%9A%E7%9A%84%E7%AD%86%E8%A8%98%E7%AC%AC%E4%BA%8C%E7%AF%80%E7%AC%AC%E4%B8%89%E7%AF%80%E7%AC%AC%E4%BA%94%E7%AF%80">5-3. 說明你是怎麼從組合語言推出 5-1、5-2 的型別的：每個參數、回傳值的型別，各是看哪個線索（暫存器名字、S、條件碼……）決定的？有沒有哪個型別是組合語言無法確定的？【筆記第二節、第三節、第五節】</a></li>
+</ul>
+</nav>
+<main>
+<h1 id="s1-04讀懂-x86-64-組合語言一">s1-04：讀懂 x86-64 組合語言（一）</h1>
+<blockquote>
+<p>對應課程：第 ① 站第 4 課<br />
+課程筆記：<a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80-%E6%9A%AB%E5%AD%98%E5%99%A8%E3%80%81mov%E8%88%87lea%E3%80%81cmp%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D.html">x86-64組合語言入門-暫存器、mov與lea、cmp與條件跳躍.html</a><br />
+自我測驗：寫在同資料夾的 <a href="quiz.html">quiz</a></p>
+</blockquote>
+<h2 id="說明">說明</h2>
+<p>這一課的目標是<strong>讀得懂</strong>，不是會寫組合語言。每一題都是：自己寫一小段 C → 先預測 gcc 會產生什麼 → 用 <code>gcc -S</code> 實際編出來 → 對照、解釋。</p>
+<ul>
+<li>看組合語言一律用：<code>gcc -S -O2 -fno-asynchronous-unwind-tables 檔名.c -o 檔名.s</code>（題目指定 <code>-O0</code> 的除外），然後打開 <code>.s</code> 檔看。不需要 <code>main</code>，因為 <code>-S</code> 不連結。</li>
+<li><code>.s</code> 檔不會進 git（白名單），要留的輸出<strong>貼進作答框</strong>。貼的時候只要函式本體（從 <code>函式名:</code> 到 <code>ret</code>），以 <code>.p2align</code>、<code>.globl</code> 這類 <code>.</code> 開頭的指示詞可以刪掉。</li>
+<li>筆記裡的範例可以參考，但每一題的型別、數值、情境都跟範例不同，照抄範例答不出來。</li>
+</ul>
+<p>每題「解釋原因」的地方都標了答案的來源：</p>
+<ul>
+<li>【筆記第 X 節】：本課教過，回筆記那一節找。</li>
+<li>【第 2 課筆記第 X 節】：回 <a href="../../c/C%E7%9A%84%E8%B3%87%E6%96%99%E5%9C%A8%E8%A8%98%E6%86%B6%E9%AB%94%E8%A3%A1%E9%95%B7%E6%80%8E%E6%A8%A3-%E4%BD%8D%E5%85%83%E7%B5%84%E3%80%81%E6%8C%87%E6%A8%99%E3%80%81%E4%BD%8D%E5%85%83%E7%B5%84%E9%A0%86%E5%BA%8F%E8%88%87%E6%9C%89%E8%99%9F%E7%84%A1%E8%99%9F.html">C的資料在記憶體裡長怎樣</a> 那一節找。</li>
+<li>【新觀念，先猜】：還沒教過，寫下你的猜測就好，猜錯不算錯。</li>
+</ul>
+<p><strong>「先預測」的題目，一定要先把預測寫進作答框，再編譯。</strong> 預測錯了沒關係，把錯在哪裡寫下來，這才是練習的重點。</p>
+<p><strong>怎麼作答</strong>：每個小題下面有作答框，直接寫在裡面。批改寫在作答框正下方；要重答時，批改下方會預先放好下一個作答框。</p>
+<hr />
+<h2 id="筆記的範例程式">筆記的範例程式</h2>
+<p>課程筆記裡每個實驗的原始碼都存成檔案放在這個資料夾（2026-10-07 起），可以直接編譯、跟著筆記重做。<strong>它們是範例，不是作業</strong>；作業的檔名（<code>mul.c</code>、<code>elem.c</code>、<code>pick.c</code>、<code>sumarr.c</code>、<code>mystery.c</code>）跟它們不重複。編譯命令寫在筆記對應的那一段。</p>
+<table>
+<thead>
+<tr>
+<th>檔案</th>
+<th>筆記裡的位置</th>
+<th>示範什麼</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="../../../small-project/s1-04-asm-basics/ops.c"><code>ops.c</code></a></td>
+<td><a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80-%E6%9A%AB%E5%AD%98%E5%99%A8%E3%80%81mov%E8%88%87lea%E3%80%81cmp%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D.html#%E4%BA%8C%E6%9A%AB%E5%AD%98%E5%99%A8cpu-%E8%A3%A1%E7%9A%84-16-%E5%80%8B%E8%AE%8A%E6%95%B8">第二節</a>〈寫低位的名字時，高位會怎樣？〉、第四、五節</td>
+<td><code>widen_s</code>／<code>widen_u</code>、<code>get</code>／<code>addr</code>、<code>times3</code>、<code>lt_s</code>／<code>lt_u</code></td>
+</tr>
+<tr>
+<td><a href="../../../small-project/s1-04-asm-basics/paren.c"><code>paren.c</code></a></td>
+<td><a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80-%E6%9A%AB%E5%AD%98%E5%99%A8%E3%80%81mov%E8%88%87lea%E3%80%81cmp%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D.html#%E4%B8%89%E6%8C%87%E4%BB%A4%E7%9A%84%E6%96%87%E6%B3%95%E5%8A%A9%E6%86%B6%E7%AC%A6%E5%A4%A7%E5%B0%8F%E5%BE%8C%E7%B6%B4%E9%81%8B%E7%AE%97%E5%85%83">第三節</a>〈上表第一列 <code>(B)</code> 的 <code>(%rdi)</code>〉、〈<code>break *widen_char+4</code> 的 <code>*</code>〉</td>
+<td><code>%rdi</code> vs <code>(%rdi)</code>；<code>break *位址</code></td>
+</tr>
+<tr>
+<td><a href="../../../small-project/s1-04-asm-basics/forms.c"><code>forms.c</code></a></td>
+<td>第三節〈上表其他五列〉</td>
+<td><code>D(B)</code>、<code>(B,I,S)</code>、<code>D(B,I,S)</code>、<code>D(,I,S)</code>、<code>D(%rip)</code></td>
+</tr>
+<tr>
+<td><a href="../../../small-project/s1-04-asm-basics/suffix.c"><code>suffix.c</code></a></td>
+<td>第三節〈為什麼 <code>l</code> 叫 long 卻是 4 byte〉實驗一</td>
+<td>C 的 <code>long</code> 編成 <code>q</code> 字尾</td>
+</tr>
+<tr>
+<td><a href="../../../small-project/s1-04-asm-basics/data.s"><code>data.s</code></a>、<a href="../../../small-project/s1-04-asm-basics/data2.s"><code>data2.s</code></a></td>
+<td>同上，實驗二</td>
+<td>手寫的 <code>.s</code>：<code>.byte</code>／<code>.word</code>／<code>.long</code>／<code>.quad</code> 的大小、小端序</td>
+</tr>
+<tr>
+<td><a href="../../../small-project/s1-04-asm-basics/xv.c"><code>xv.c</code></a></td>
+<td>同上，gdb 的 <code>x</code></td>
+<td><code>x/1l</code> 的錯誤與 <code>w</code>／<code>h</code></td>
+</tr>
+<tr>
+<td><a href="../../../small-project/s1-04-asm-basics/dil.c"><code>dil.c</code></a></td>
+<td>第三節〈讀懂實驗一的範例〉、〈<code>$rdi</code>〉</td>
+<td>參數只佔 <code>%rdi</code> 最低 1 byte；暫存器的名字</td>
+</tr>
+<tr>
+<td><a href="../../../small-project/s1-04-asm-basics/ext.c"><code>ext.c</code></a></td>
+<td>第三節〈符號擴展補的是第 7 位元〉</td>
+<td><code>movsbl</code> vs <code>movzbl</code></td>
+</tr>
+<tr>
+<td><a href="../../../small-project/s1-04-asm-basics/lt.c"><code>lt.c</code></a>、<a href="../../../small-project/s1-04-asm-basics/ltmain.c"><code>ltmain.c</code></a></td>
+<td><a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80-%E6%9A%AB%E5%AD%98%E5%99%A8%E3%80%81mov%E8%88%87lea%E3%80%81cmp%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D.html#%E4%BA%94%E6%97%97%E6%A8%99%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8Dcmp-%E5%8F%AA%E8%B2%A0%E8%B2%AC%E6%AF%94%E8%B7%B3%E4%B8%8D%E8%B7%B3%E7%94%B1%E4%B8%8B%E4%B8%80%E5%80%8B%E6%8C%87%E4%BB%A4%E6%B1%BA%E5%AE%9A">第五節</a>〈實驗：同一個 <code>cmp</code>、同一組旗標〉</td>
+<td><code>setl</code> vs <code>setb</code> 的旗標</td>
+</tr>
+<tr>
+<td><a href="../../../small-project/s1-04-asm-basics/cmptest.s"><code>cmptest.s</code></a>、<a href="../../../small-project/s1-04-asm-basics/cmptestmain.c"><code>cmptestmain.c</code></a></td>
+<td>第五節〈上表「典型用途」欄的 <code>i</code>、<code>n</code> 是誰？〉</td>
+<td><code>sum_to</code> 的 <code>cmpl</code>（i − n）與 <code>testl</code>（n &amp; n）的旗標</td>
+</tr>
+<tr>
+<td><a href="../../../small-project/s1-04-asm-basics/andtest.s"><code>andtest.s</code></a>、<a href="../../../small-project/s1-04-asm-basics/andtestmain.c"><code>andtestmain.c</code></a></td>
+<td><a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80-%E6%9A%AB%E5%AD%98%E5%99%A8%E3%80%81mov%E8%88%87lea%E3%80%81cmp%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D.html#%E4%B8%83%E9%80%90%E8%A1%8C%E8%AE%80-sum_to-%E7%9A%84--o2-%E7%89%88">第七節</a>〈上表的 <code>andl</code> 和 <code>testl</code>：看起來一樣，差在哪？〉</td>
+<td><code>and</code> 寫回結果、<code>test</code> 只設旗標；旗標相同</td>
+</tr>
+<tr>
+<td><a href="../../../small-project/s1-04-asm-basics/flags.s"><code>flags.s</code></a>、<a href="../../../small-project/s1-04-asm-basics/flagsmain.c"><code>flagsmain.c</code></a></td>
+<td><a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80-%E6%9A%AB%E5%AD%98%E5%99%A8%E3%80%81mov%E8%88%87lea%E3%80%81cmp%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D.html#%E4%BA%94%E6%97%97%E6%A8%99%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8Dcmp-%E5%8F%AA%E8%B2%A0%E8%B2%AC%E6%AF%94%E8%B7%B3%E4%B8%8D%E8%B7%B3%E7%94%B1%E4%B8%8B%E4%B8%80%E5%80%8B%E6%8C%87%E4%BB%A4%E6%B1%BA%E5%AE%9A">第五節</a>〈上表的四個旗標在講什麼〉</td>
+<td>10 組 8 位元 <code>cmpb</code>／<code>addb</code> 的 ZF/SF/CF/OF；手寫 <code>.s</code></td>
+</tr>
+<tr>
+<td><a href="../../../small-project/s1-04-asm-basics/countdown.c"><code>countdown.c</code></a></td>
+<td>第五節〈上面這段十進位暖身：十位也是 0，98 是從哪裡冒出來的？〉</td>
+<td>8 位元從 3 倒數 5 下，翻過 0 變 255、254</td>
+</tr>
+<tr>
+<td><a href="../../../small-project/s1-04-asm-basics/borrow.c"><code>borrow.c</code></a>（配 <code>flags.s</code>）</td>
+<td><a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80-%E6%9A%AB%E5%AD%98%E5%99%A8%E3%80%81mov%E8%88%87lea%E3%80%81cmp%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D.html#%E4%BA%94%E6%97%97%E6%A8%99%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8Dcmp-%E5%8F%AA%E8%B2%A0%E8%B2%AC%E6%AF%94%E8%B7%B3%E4%B8%8D%E8%B7%B3%E7%94%B1%E4%B8%8B%E4%B8%80%E5%80%8B%E6%8C%87%E4%BB%A4%E6%B1%BA%E5%AE%9A">第五節</a>〈上面③：3 − 5 在 CPU 裡實際上是怎麼算的？〉</td>
+<td>直式減法逐位借位、CF＝最高位往外借；加法器 D + ~S + 1</td>
+</tr>
+<tr>
+<td><a href="../../../small-project/s1-04-asm-basics/clamp0.c"><code>clamp0.c</code></a></td>
+<td><a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80-%E6%9A%AB%E5%AD%98%E5%99%A8%E3%80%81mov%E8%88%87lea%E3%80%81cmp%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D.html#%E5%85%AD%E9%80%90%E8%A1%8C%E8%AE%80-sum_to-%E7%9A%84--o0-%E7%89%88">第六節</a>〈<code>if</code> 怎麼翻〉（2026-10-08 批改作業 3-3 時補教）</td>
+<td><code>-O0</code> 的 <code>if</code>：條件跳躍檢查 C 條件的反面（<code>jns</code>）</td>
+</tr>
+<tr>
+<td><a href="../../../small-project/s1-04-asm-basics/ivopts.c"><code>ivopts.c</code></a></td>
+<td><a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80-%E6%9A%AB%E5%AD%98%E5%99%A8%E3%80%81mov%E8%88%87lea%E3%80%81cmp%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D.html#%E4%B8%83%E9%80%90%E8%A1%8C%E8%AE%80-sum_to-%E7%9A%84--o2-%E7%89%88">第七節</a>〈陣列迴圈的 <code>i</code> 為什麼不見了〉（2026-10-08 批改作業 4-4 時補教）</td>
+<td><code>-O2</code> 與 <code>-O2 -fno-ivopts</code>：<code>i</code> 被換成往前走的指標</td>
+</tr>
+<tr>
+<td><a href="../../../small-project/s1-01-hello-compile/sumto.c"><code>../s1-01-hello-compile/sumto.c</code></a></td>
+<td>第一、六、七節</td>
+<td><code>sum_to</code> 的 <code>-O0</code>／<code>-O2</code>（第 1 課的檔案）</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="批改結果2026-10-08">批改結果（2026-10-08）</h2>
+<table>
+<thead>
+<tr>
+<th>題目</th>
+<th>結果</th>
+<th>錯在哪／缺什麼</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1-1</td>
+<td>大致對</td>
+<td>重答後：<code>mul5</code>／<code>mul9</code> 可以、<code>mul6</code>／<code>mul7</code> 不行，對；缺「<code>B</code> 也放 <code>x</code>，算 <code>x + x×S</code>，所以 5 ＝ 1 + 4、9 ＝ 1 + 8」</td>
+</tr>
+<tr>
+<td>1-2</td>
+<td>不完整</td>
+<td>重答後仍只寫「沒有猜錯的」，沒拿第 1 次預測對照（猜成四個都一個 <code>lea</code>、<code>S</code> 寫 5、括號裡加 <code>$</code>）；已附參考答案</td>
+</tr>
+<tr>
+<td>1-3</td>
+<td>對</td>
+<td>抓到重點：<code>mul6</code> ＝ 3 倍再 ×2，<code>mul7</code> ＝ 8 倍減 1 倍</td>
+</tr>
+<tr>
+<td>2-1</td>
+<td>錯</td>
+<td>預測題：指令名字、<code>B</code> 的暫存器、<code>S</code>、<code>D</code>、<code>$</code> 都跟實際不同；不重答，錯在哪寫進 2-2</td>
+</tr>
+<tr>
+<td>2-2</td>
+<td>大致對</td>
+<td>重答後：四行的錯都找到了（<code>%rdi</code>、<code>S</code>、<code>D</code>、<code>movswl</code>／<code>movzbl</code>）；新誤會：<code>%rsi(%rdi)</code> 不合法，<code>D</code> 只能是常數</td>
+</tr>
+<tr>
+<td>2-3</td>
+<td>對</td>
+<td>重答後：<code>0xffff</code> 第 15 位元是 1，符號擴展成 −1；看的是來源型別</td>
+</tr>
+<tr>
+<td>2-4</td>
+<td>大致對</td>
+<td>16、8 對；少了「位址以 byte 為單位，2 個 <code>long</code> ＝ 2×8 byte」這一步</td>
+</tr>
+<tr>
+<td>3-1</td>
+<td>對</td>
+<td>重答後：<code>jnb</code> 只看 CF = 0，相等時也不借位，已經包含在內</td>
+</tr>
+<tr>
+<td>3-2</td>
+<td>大致對</td>
+<td>回傳值 2、1 都對；沒講到「同一組旗標，有號讀 SF/OF、無號讀 CF」，運算元順序不是原因</td>
+</tr>
+<tr>
+<td>3-3</td>
+<td>對</td>
+<td>後半對（跳到 <code>return 2</code>）；前半是新觀念，已補教（筆記第六節〈<code>if</code> 怎麼翻〉）</td>
+</tr>
+<tr>
+<td>3-4</td>
+<td>不完整</td>
+<td>重答後：<code>nb</code> 看 CF 對，但沒翻成 C；應為 <code>b &gt;= a</code>（＝<code>!(a &gt; b)</code>），<code>unsigned</code> 的 <code>b - a &gt;= 0</code> 永遠成立；已附參考答案</td>
+</tr>
+<tr>
+<td>4-1</td>
+<td>大致對</td>
+<td>位置與迴圈條件都對；<code>addq %rdx, %rax</code> 之後是 <code>&amp;a[i]</code> 不是 <code>a[i]</code>；有幾行沒註解</td>
+</tr>
+<tr>
+<td>4-2</td>
+<td>對</td>
+<td>抓到重點：<code>-O0</code> 的 <code>a</code>、<code>i</code> 在記憶體，<code>B</code>、<code>I</code> 只能是暫存器</td>
+</tr>
+<tr>
+<td>4-3</td>
+<td>大致對</td>
+<td>漏了 <code>%rdx</code>（<code>&amp;a[n]</code>）；<code>%rdi</code> 是每圈 +8 的指標，不只是 <code>a</code>；<code>testq</code>／<code>jle</code> 沒說明</td>
+</tr>
+<tr>
+<td>4-4</td>
+<td>對</td>
+<td>前半對：拿 <code>%rdi</code> 跟終點 <code>%rdx</code> 比；後半是新觀念，已補教（筆記第七節〈歸納變數最佳化〉）</td>
+</tr>
+<tr>
+<td>5-1</td>
+<td>對</td>
+<td>重答後：<code>i</code> 改 <code>long</code>，<code>movslq</code> 消失，本體一模一樣（實測）</td>
+</tr>
+<tr>
+<td>5-2</td>
+<td>對</td>
+<td>重答後：<code>!(a &lt; b)</code> 一模一樣（實測）；更直接是 <code>a &gt;= b</code></td>
+</tr>
+<tr>
+<td>5-3</td>
+<td>不完整</td>
+<td>重答後：<code>i</code> 是 8 byte 對，但線索是「沒有擴展」不是「用了 <code>%rsi</code>」；<code>xorl %eax, %eax</code> 清的是整個 <code>%rax</code>，回傳 <code>long</code> 也一樣；「無法確定」的型別沒答出（已附參考答案）</td>
+</tr>
+</tbody>
+</table>
+<p>最終（含重答）：<strong>對 8</strong>（1-3、2-3、3-1、3-3、4-2、4-4、5-1、5-2）、<strong>大致對 6</strong>（1-1、2-2、2-4、3-2、4-1、4-3）、<strong>不完整 3</strong>（1-2、3-4、5-3）、<strong>錯 1</strong>（2-1，預測題不重答）。第 1 次：對 4、大致對 4、錯 1、待重答 9（第 1 次的結果：錯 3〔1-1、5-1、5-2〕、不完整 6〔1-2、2-2、2-3、3-1、3-4、5-3〕）；重答 2026-10-08 批改完。
+<strong>還沒弄懂的觀念</strong>：無號比較的條件跳躍翻回 C（CF ＝ 借位 ⇔ 無號的 <code>&lt;</code>）；組合語言什麼時候看得出有號無號（只有擴展與比較）；寫 32 位元暫存器會清掉高 32 位元。</p>
+<hr />
+<h2 id="1-用-lea-做乘法">1. 用 <code>lea</code> 做乘法</h2>
+<p>寫 <code>mul.c</code>，裡面四個函式（都是 <code>long</code>）：</p>
+<pre><code class="language-c"><span class="kt">long</span><span class="w"> </span><span class="nf">mul5</span><span class="p">(</span><span class="kt">long</span><span class="w"> </span><span class="n">x</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mi">5</span><span class="p">;</span><span class="w"> </span><span class="p">}</span>
+<span class="kt">long</span><span class="w"> </span><span class="nf">mul9</span><span class="p">(</span><span class="kt">long</span><span class="w"> </span><span class="n">x</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mi">9</span><span class="p">;</span><span class="w"> </span><span class="p">}</span>
+<span class="kt">long</span><span class="w"> </span><span class="nf">mul6</span><span class="p">(</span><span class="kt">long</span><span class="w"> </span><span class="n">x</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mi">6</span><span class="p">;</span><span class="w"> </span><span class="p">}</span>
+<span class="kt">long</span><span class="w"> </span><span class="nf">mul7</span><span class="p">(</span><span class="kt">long</span><span class="w"> </span><span class="n">x</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mi">7</span><span class="p">;</span><span class="w"> </span><span class="p">}</span>
+</code></pre>
+<h3 id="1-1-編譯前先預測四個裡面哪幾個-gcc-可以只用一個-lea-做完把你預測的那一行-lea-寫出來暫存器用-rdirax另外幾個為什麼不行筆記第三節的-dbis-表第四節lea-被拿來做算術">1-1. 編譯前先預測：四個裡面，哪幾個 gcc 可以只用<strong>一個</strong> <code>lea</code> 做完？把你預測的那一行 <code>lea</code> 寫出來（暫存器用 <code>%rdi</code>、<code>%rax</code>）。另外幾個為什麼不行？【筆記<a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80-%E6%9A%AB%E5%AD%98%E5%99%A8%E3%80%81mov%E8%88%87lea%E3%80%81cmp%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D.html#%E4%B8%89%E6%8C%87%E4%BB%A4%E7%9A%84%E6%96%87%E6%B3%95%E5%8A%A9%E6%86%B6%E7%AC%A6%E5%A4%A7%E5%B0%8F%E5%BE%8C%E7%B6%B4%E9%81%8B%E7%AE%97%E5%85%83">第三節</a>的 <code>D(B,I,S)</code> 表、<a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80-%E6%9A%AB%E5%AD%98%E5%99%A8%E3%80%81mov%E8%88%87lea%E3%80%81cmp%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D.html#%E5%9B%9Bmov-%E8%88%87-lea%E6%90%AC%E8%B3%87%E6%96%99-vs-%E7%AE%97%E4%BD%8D%E5%9D%80">第四節</a>〈<code>lea</code> 被拿來做算術〉】</h3>
+<p><strong>第 1 次（2026-10-08）</strong></p>
+<pre><code>leaq 0x0(,%rdi,$5), %rax
+leaq 0x0(,%rdi,$9), %rax
+leaq 0x0(,%rdi,$6), %rax
+leaq 0x0(,%rdi,$7), %rax
+</code></pre>
+<blockquote>
+<p><strong>批改</strong>：<strong>錯</strong>。</p>
+<ul>
+<li>預測「四個都能一個 <code>lea</code> 做完」不對：從你 1-2 貼的輸出就看得到，只有兩個是一個 <code>lea</code>，另外兩個都是兩個指令。</li>
+<li>你寫的 <code>0x0(,%rdi,$5)</code> 有兩個文法問題：① <code>$</code> 是<strong>立即數</strong>（immediate）的記號，只用在「整個運算元就是一個數字」的時候（例如 <code>$1</code>）；記憶體運算元括號裡的 <code>D</code>、<code>S</code> 不加 <code>$</code>。② <code>S</code> 不是隨便一個數字都可以。</li>
+<li>題目後半「另外幾個為什麼不行」沒有回答。</li>
+</ul>
+<p><strong>提示</strong>：回<a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80-%E6%9A%AB%E5%AD%98%E5%99%A8%E3%80%81mov%E8%88%87lea%E3%80%81cmp%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D.html#%E4%B8%89%E6%8C%87%E4%BB%A4%E7%9A%84%E6%96%87%E6%B3%95%E5%8A%A9%E6%86%B6%E7%AC%A6%E5%A4%A7%E5%B0%8F%E5%BE%8C%E7%B6%B4%E9%81%8B%E7%AE%97%E5%85%83">筆記第三節</a> <code>D(B,I,S)</code> 表下面，看 <code>S</code> 只能是哪幾個數。再想：<code>lea</code> 一次能算的是 <code>D + B + I×S</code>，如果 <code>B</code>、<code>I</code> 都放 <code>%rdi</code>（也就是 <code>x</code>），能算出 <code>x</code> 的幾倍？把所有能湊出的倍數列出來，就知道哪幾個做得到、哪幾個做不到。重答時寫出：能一個 <code>lea</code> 做完的那幾行（正確文法），以及其他幾個為什麼不行。</p>
+</blockquote>
+<p><strong>第 2 次（重答，2026-10-08）</strong></p>
+<blockquote>
+<p>題目：編譯前先預測：四個裡面，哪幾個 gcc 可以只用<strong>一個</strong> <code>lea</code> 做完？把你預測的那一行 <code>lea</code> 寫出來（暫存器用 <code>%rdi</code>、<code>%rax</code>）。另外幾個為什麼不行？</p>
+</blockquote>
+<pre><code>leaq (%rdi, %rdi, 4)
+leaq (%rdi, %rdi, 8)
+mul5, mul9 可以
+mul6, mul7 不行,因爲S只能是1,2,4,8
+</code></pre>
+<blockquote>
+<p><strong>批改（第 2 次）</strong>：<strong>大致對</strong>。<code>mul5</code>、<code>mul9</code> 可以、<code>mul6</code>、<code>mul7</code> 不行，兩行 <code>lea</code> 的括號也寫對了（少了目的地 <code>, %rax</code>）。但「因為 <code>S</code> 只能是 1、2、4、8」只說了一半：照這句話，5 和 9 也不在 1、2、4、8 裡，為什麼它們可以？缺的是「<code>B</code> 也放 <code>x</code>，所以算的是 <code>x + x×S</code>」這一步。</p>
+<p><strong>參考答案</strong>【<a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80-%E6%9A%AB%E5%AD%98%E5%99%A8%E3%80%81mov%E8%88%87lea%E3%80%81cmp%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D.html#%E4%B8%89%E6%8C%87%E4%BB%A4%E7%9A%84%E6%96%87%E6%B3%95%E5%8A%A9%E6%86%B6%E7%AC%A6%E5%A4%A7%E5%B0%8F%E5%BE%8C%E7%B6%B4%E9%81%8B%E7%AE%97%E5%85%83">筆記第三節</a> <code>D(B,I,S)</code> 表、<a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80-%E6%9A%AB%E5%AD%98%E5%99%A8%E3%80%81mov%E8%88%87lea%E3%80%81cmp%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D.html#%E5%9B%9Bmov-%E8%88%87-lea%E6%90%AC%E8%B3%87%E6%96%99-vs-%E7%AE%97%E4%BD%8D%E5%9D%80">第四節</a>〈<code>lea</code> 被拿來做算術〉】<code>S</code> 只能是 1、2、4、8。一個 <code>lea</code> 能算 <code>D + B + I×S</code>，<code>B</code>、<code>I</code> 都放 <code>x</code> 時，做得出 <code>x×S</code>（1、2、4、8 倍）或 <code>x + x×S</code>（2、3、5、9 倍）。5 ＝ 1 + 4、9 ＝ 1 + 8，所以 <code>mul5</code> 是 <code>leaq (%rdi,%rdi,4), %rax</code>、<code>mul9</code> 是 <code>leaq (%rdi,%rdi,8), %rax</code>；6 和 7 不在這些倍數裡，一個 <code>lea</code> 做不到。</p>
+</blockquote>
+<h3 id="1-2-用--o2-編譯貼上四個函式的本體跟預測對照哪裡猜對哪裡猜錯">1-2. 用 <code>-O2</code> 編譯，貼上四個函式的本體，跟預測對照：哪裡猜對、哪裡猜錯？</h3>
+<p><strong>第 1 次（2026-10-08）</strong></p>
+<pre><code>mul5:
+	endbr64
+	leaq	(%rdi,%rdi,4), %rax
+	ret
+	.size	mul5, .-mul5
+	.p2align 4
+	.globl	mul9
+	.type	mul9, @function
+mul9:
+	endbr64
+	leaq	(%rdi,%rdi,8), %rax
+	ret
+	.size	mul9, .-mul9
+	.p2align 4
+	.globl	mul6
+	.type	mul6, @function
+mul6:
+	endbr64
+	leaq	(%rdi,%rdi,2), %rax
+	addq	%rax, %rax
+	ret
+	.size	mul6, .-mul6
+	.p2align 4
+	.globl	mul7
+	.type	mul7, @function
+mul7:
+	endbr64
+	leaq	0(,%rdi,8), %rax
+	subq	%rdi, %rax
+	ret
+	.size	mul7, .-mul7
+	.ident	&quot;GCC: (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0&quot;
+	.section	.note.GNU-stack,&quot;&quot;,@progbits
+	.section	.note.gnu.property,&quot;a&quot;
+	.align 8
+	.long	1f - 0f
+	.long	4f - 1f
+	.long	5
+</code></pre>
+<blockquote>
+<p><strong>批改</strong>：<strong>不完整</strong>。輸出貼對了（<code>.size</code> 以後的指示詞可以刪掉，題目只要本體），但題目要的「跟預測對照：哪裡猜對、哪裡猜錯」完全沒寫。</p>
+<p><strong>提示</strong>：逐個函式對照 1-1：你猜一個 <code>lea</code> 的，實際上是一個還是兩個指令？你寫的 <code>0x0(,%rdi,$5)</code> 跟實際的 <code>mul5</code> 那一行比，<code>B</code>、<code>I</code>、<code>S</code> 各差在哪？為什麼實際的寫法能用合法的 <code>S</code> 算出 5 倍？</p>
+</blockquote>
+<p><strong>第 2 次（重答，2026-10-08）</strong></p>
+<blockquote>
+<p>題目：用 <code>-O2</code> 編譯，貼上四個函式的本體，跟預測對照：哪裡猜對、哪裡猜錯？</p>
+</blockquote>
+<pre><code>重答後, 沒有猜錯的
+</code></pre>
+<blockquote>
+<p><strong>批改（第 2 次）</strong>：<strong>不完整</strong>。「重答後沒有猜錯的」沒有回答題目：題目要的是拿<strong>第 1 次</strong>的預測跟實際輸出對照。第 1 次你預測四個都能一個 <code>lea</code> 做完，也寫了不合法的 <code>S</code>，這些都是猜錯的地方，要寫出來。重答只有這一次，所以直接附參考答案。</p>
+<p><strong>參考答案</strong>：猜錯的有三處：① 預測四個都是一個 <code>lea</code>，實際上只有 <code>mul5</code>、<code>mul9</code> 是，<code>mul6</code>、<code>mul7</code> 各要兩個指令；② 寫成 <code>0x0(,%rdi,$5)</code>，<code>S</code> 用了不合法的 5、6、7、9，實際的寫法是把 <code>B</code> 也放 <code>%rdi</code>，用 <code>x + x×4</code>、<code>x + x×8</code> 湊出 5 倍、9 倍；③ 括號裡加了 <code>$</code>，記憶體運算元裡的數字不加 <code>$</code>。猜對的：用 <code>leaq</code>、結果放 <code>%rax</code>。</p>
+</blockquote>
+<h3 id="1-3-不是一個-lea-就做完的那幾個逐行寫出每個指令之後-rax-等於-x-的幾倍說明-gcc-是怎麼湊出來的筆記第三節dis-這種省略形式第四節本課的算術與邏輯指令">1-3. 不是一個 <code>lea</code> 就做完的那幾個，逐行寫出每個指令之後 <code>%rax</code> 等於 <code>x</code> 的幾倍，說明 gcc 是怎麼湊出來的。【筆記<a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80-%E6%9A%AB%E5%AD%98%E5%99%A8%E3%80%81mov%E8%88%87lea%E3%80%81cmp%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D.html#%E4%B8%89%E6%8C%87%E4%BB%A4%E7%9A%84%E6%96%87%E6%B3%95%E5%8A%A9%E6%86%B6%E7%AC%A6%E5%A4%A7%E5%B0%8F%E5%BE%8C%E7%B6%B4%E9%81%8B%E7%AE%97%E5%85%83">第三節</a>（<code>D(,I,S)</code> 這種省略形式）、<a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80-%E6%9A%AB%E5%AD%98%E5%99%A8%E3%80%81mov%E8%88%87lea%E3%80%81cmp%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D.html#%E5%9B%9Bmov-%E8%88%87-lea%E6%90%AC%E8%B3%87%E6%96%99-vs-%E7%AE%97%E4%BD%8D%E5%9D%80">第四節</a>〈本課的算術與邏輯指令〉】</h3>
+<p><strong>第 1 次（2026-10-08）</strong></p>
+<pre><code>mul6:
+	endbr64
+	leaq	(%rdi,%rdi,2), %rax # rax =rdi + 2*rdi = 3rdi
+	addq	%rax, %rax          # rax = rax + rax =6*rdi = 6*x
+
+mul7:
+	endbr64
+	leaq	0(,%rdi,8), %rax    # rax = 8*rdi
+	subq	%rdi, %rax          # rax = rax - rdi = 7*rdi
+
+</code></pre>
+<blockquote>
+<p><strong>批改</strong>：<strong>對</strong>。<code>mul6</code> 是先 3 倍再自己加自己變 6 倍；<code>mul7</code> 是先 8 倍再減掉一個 <code>x</code>。兩個都逐行寫出了 <code>%rax</code> 是幾倍。</p>
+<p><strong>參考答案</strong>【<a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80-%E6%9A%AB%E5%AD%98%E5%99%A8%E3%80%81mov%E8%88%87lea%E3%80%81cmp%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D.html#%E4%B8%89%E6%8C%87%E4%BB%A4%E7%9A%84%E6%96%87%E6%B3%95%E5%8A%A9%E6%86%B6%E7%AC%A6%E5%A4%A7%E5%B0%8F%E5%BE%8C%E7%B6%B4%E9%81%8B%E7%AE%97%E5%85%83">筆記第三節</a>（<code>D(,I,S)</code> 這種省略形式）、<a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80-%E6%9A%AB%E5%AD%98%E5%99%A8%E3%80%81mov%E8%88%87lea%E3%80%81cmp%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D.html#%E5%9B%9Bmov-%E8%88%87-lea%E6%90%AC%E8%B3%87%E6%96%99-vs-%E7%AE%97%E4%BD%8D%E5%9D%80">第四節</a>〈本課的算術與邏輯指令〉】</p>
+<ul>
+<li><code>mul6</code>：<code>leaq (%rdi,%rdi,2), %rax</code> → <code>x + x×2</code> ＝ <strong>3x</strong>；<code>addq %rax, %rax</code> → 3x + 3x ＝ <strong>6x</strong>。</li>
+<li><code>mul7</code>：<code>leaq 0(,%rdi,8), %rax</code>（省略 <code>B</code>）→ <code>x×8</code> ＝ <strong>8x</strong>；<code>subq %rdi, %rax</code> → 8x − x ＝ <strong>7x</strong>。</li>
+<li>gcc 的湊法：一個 <code>lea</code> 只做得出 1、2、3、4、5、8、9 倍（見 1-1 參考答案）。6 和 7 不在裡面，就拆成「先用 <code>lea</code> 做出 3 倍或 8 倍，再補一個 <code>add</code>／<code>sub</code>」，兩個便宜的指令仍然比一個乘法指令划算。</li>
+</ul>
+</blockquote>
+<hr />
+<h2 id="2-不同型別的陣列存取">2. 不同型別的陣列存取</h2>
+<p>寫 <code>elem.c</code>：</p>
+<pre><code class="language-c"><span class="kt">int</span><span class="w">   </span><span class="nf">get_short</span><span class="p">(</span><span class="kt">short</span><span class="w"> </span><span class="o">*</span><span class="n">a</span><span class="p">,</span><span class="w"> </span><span class="kt">long</span><span class="w"> </span><span class="n">i</span><span class="p">)</span><span class="w">         </span><span class="p">{</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="n">a</span><span class="p">[</span><span class="n">i</span><span class="p">];</span><span class="w"> </span><span class="p">}</span>
+<span class="kt">int</span><span class="w">   </span><span class="nf">get_uchar</span><span class="p">(</span><span class="kt">unsigned</span><span class="w"> </span><span class="kt">char</span><span class="w"> </span><span class="o">*</span><span class="n">a</span><span class="p">,</span><span class="w"> </span><span class="kt">long</span><span class="w"> </span><span class="n">i</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="n">a</span><span class="p">[</span><span class="n">i</span><span class="p">];</span><span class="w"> </span><span class="p">}</span>
+<span class="kt">long</span><span class="w">  </span><span class="nf">get_long2</span><span class="p">(</span><span class="kt">long</span><span class="w"> </span><span class="o">*</span><span class="n">a</span><span class="p">,</span><span class="w"> </span><span class="kt">long</span><span class="w"> </span><span class="n">i</span><span class="p">)</span><span class="w">          </span><span class="p">{</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="n">a</span><span class="p">[</span><span class="n">i</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">2</span><span class="p">];</span><span class="w"> </span><span class="p">}</span>
+<span class="kt">long</span><span class="w"> </span><span class="o">*</span><span class="nf">next_long</span><span class="p">(</span><span class="kt">long</span><span class="w"> </span><span class="o">*</span><span class="n">a</span><span class="p">,</span><span class="w"> </span><span class="kt">long</span><span class="w"> </span><span class="n">i</span><span class="p">)</span><span class="w">          </span><span class="p">{</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="o">&amp;</span><span class="n">a</span><span class="p">[</span><span class="n">i</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="p">];</span><span class="w"> </span><span class="p">}</span>
+</code></pre>
+<h3 id="2-1-編譯前先預測每個函式的本體endbr64-和-ret-以外各是哪一個指令寫出完整的一行包括用-mov-系列還是-lea大小後綴或擴展指令的名字記憶體運算元的-dbis-各是什麼筆記第二節寫低位的名字時高位會怎樣的擴展指令表第三節第四節">2-1. 編譯前先預測：每個函式的本體（<code>endbr64</code> 和 <code>ret</code> 以外）各是哪一個指令？寫出完整的一行，包括：用 <code>mov</code> 系列還是 <code>lea</code>、大小後綴或擴展指令的名字、記憶體運算元的 <code>D</code>、<code>B</code>、<code>I</code>、<code>S</code> 各是什麼。【筆記<a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80-%E6%9A%AB%E5%AD%98%E5%99%A8%E3%80%81mov%E8%88%87lea%E3%80%81cmp%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D.html#%E4%BA%8C%E6%9A%AB%E5%AD%98%E5%99%A8cpu-%E8%A3%A1%E7%9A%84-16-%E5%80%8B%E8%AE%8A%E6%95%B8">第二節</a>〈寫低位的名字時，高位會怎樣？〉的擴展指令表、<a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80-%E6%9A%AB%E5%AD%98%E5%99%A8%E3%80%81mov%E8%88%87lea%E3%80%81cmp%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D.html#%E4%B8%89%E6%8C%87%E4%BB%A4%E7%9A%84%E6%96%87%E6%B3%95%E5%8A%A9%E6%86%B6%E7%AC%A6%E5%A4%A7%E5%B0%8F%E5%BE%8C%E7%B6%B4%E9%81%8B%E7%AE%97%E5%85%83">第三節</a>、<a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80-%E6%9A%AB%E5%AD%98%E5%99%A8%E3%80%81mov%E8%88%87lea%E3%80%81cmp%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D.html#%E5%9B%9Bmov-%E8%88%87-lea%E6%90%AC%E8%B3%87%E6%96%99-vs-%E7%AE%97%E4%BD%8D%E5%9D%80">第四節</a>】</h3>
+<p><strong>第 1 次（2026-10-08）</strong></p>
+<pre><code>get_short:
+movw %rsi(%di) %eax
+
+get_uchar:
+movb %rsi(%dil) %eax
+
+get_long2:
+movq  $2(%rdi, %rsi, $1) %rax
+
+next_long:
+leaq  $1(%rdi, %rsi, $1) $rax
+</code></pre>
+<blockquote>
+<p><strong>批改</strong>：<strong>錯</strong>（預測題）。四行都跟實際輸出不同。預測錯沒關係，這題<strong>不重答</strong>；錯在哪裡，請寫在下面 2-2 的重答框（那才是這題的練習重點）。參考答案在 2-2 批改後一起補。</p>
+<p><strong>參考答案</strong>：見 2-2 第 2 次的參考答案（實際的四行與第 1 次預測錯在哪）。</p>
+</blockquote>
+<h3 id="2-2-用--o2-編譯貼上輸出跟預測對照">2-2. 用 <code>-O2</code> 編譯，貼上輸出，跟預測對照。</h3>
+<p><strong>第 1 次（2026-10-08）</strong></p>
+<pre><code>get_short:
+	endbr64
+	movswl	(%rdi,%rsi,2), %eax
+	ret
+	.size	get_short, .-get_short
+	.p2align 4
+	.globl	get_uchar
+	.type	get_uchar, @function
+get_uchar:
+	endbr64
+	movzbl	(%rdi,%rsi), %eax
+	ret
+	.size	get_uchar, .-get_uchar
+	.p2align 4
+	.globl	get_long2
+	.type	get_long2, @function
+get_long2:
+	endbr64
+	movq	16(%rdi,%rsi,8), %rax
+	ret
+	.size	get_long2, .-get_long2
+	.p2align 4
+	.globl	next_long
+	.type	next_long, @function
+next_long:
+	endbr64
+	leaq	8(%rdi,%rsi,8), %rax
+	ret
+</code></pre>
+<blockquote>
+<p><strong>批改</strong>：<strong>不完整</strong>。輸出貼對了，但題目要的「跟預測對照」沒寫。</p>
+<p><strong>提示</strong>：一行一行對照你在 2-1 的預測，至少檢查這五個地方：</p>
+<ol>
+<li><strong>指令名字</strong>：你寫 <code>movw</code>／<code>movb</code>，實際是什麼？回<a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80-%E6%9A%AB%E5%AD%98%E5%99%A8%E3%80%81mov%E8%88%87lea%E3%80%81cmp%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D.html#%E4%BA%8C%E6%9A%AB%E5%AD%98%E5%99%A8cpu-%E8%A3%A1%E7%9A%84-16-%E5%80%8B%E8%AE%8A%E6%95%B8">筆記第二節</a>〈寫低位的名字時，高位會怎樣？〉的擴展指令表：元素比回傳的 <code>int</code> 小時，為什麼不能只搬那 1、2 byte？</li>
+<li><strong><code>B</code> 放哪個暫存器</strong>：你寫 <code>(%di)</code>、<code>(%dil)</code>。<code>B</code> 放的是指標 <code>a</code>，指標是幾 byte？所以要用哪個名字？（<a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80-%E6%9A%AB%E5%AD%98%E5%99%A8%E3%80%81mov%E8%88%87lea%E3%80%81cmp%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D.html#%E4%B8%89%E6%8C%87%E4%BB%A4%E7%9A%84%E6%96%87%E6%B3%95%E5%8A%A9%E6%86%B6%E7%AC%A6%E5%A4%A7%E5%B0%8F%E5%BE%8C%E7%B6%B4%E9%81%8B%E7%AE%97%E5%85%83">第三節</a>）</li>
+<li><strong><code>I</code> 和 <code>S</code></strong>：<code>I</code> 是誰？<code>S</code> 跟元素的型別有什麼關係？</li>
+<li><strong><code>D</code></strong>：<code>get_long2</code>、<code>next_long</code> 的 <code>D</code> 你寫 <code>$2</code>、<code>$1</code>，實際是多少（2-4 你已經答對了）？</li>
+<li><strong><code>$</code></strong>：記憶體運算元裡能不能出現 <code>$</code>（見 1-1 的批改）？還有運算元之間要用逗號隔開。</li>
+</ol>
+</blockquote>
+<p><strong>第 2 次（重答，2026-10-08）</strong></p>
+<blockquote>
+<p>題目：用 <code>-O2</code> 編譯，貼上輸出，跟預測對照。</p>
+</blockquote>
+<pre><code>int   get_short(short *a, long i)         { return a[i]; }
+movw %rsi(%di) %eax
+movswl	(%rdi,%rsi,2), %eax
+
+我的預測錯誤了,首先我應該用rdi,因爲指標大小是8byte, 記憶體位址我也忽略了 long i 需要乘 2(byte)
+其次這是有號的然後形態是short to int
+用movswl, w是2byte short, l是4byte int
+
+
+int   get_uchar(unsigned char *a, long i) { return a[i]; }
+movb %rsi(%dil) %eax
+movzbl	(%rdi,%rsi), %eax
+
+rdi也是與前面同樣的問題,指標是8byte
+movb 也漏掉了這是unsigned類型轉 signed int,故高位補0 用movzbl, b是char 1byte, l是int 4byte
+但記憶體位址我覺得如果寫成%rsi(%rdi)好像也沒有問題
+
+long  get_long2(long *a, long i)          { return a[i + 2]; }
+movq  $2(%rdi, %rsi, $1) %rax
+movq	16(%rdi,%rsi,8), %rax
+
+不應該是,1, 2 應該改換成類型的byte大小, 是long類型,所以應該分別是8byte, 16byte
+
+long *next_long(long *a, long i)          { return &amp;a[i + 1]; }
+leaq  $1(%rdi, %rsi, $1) $rax
+leaq	8(%rdi,%rsi,8), %rax
+
+一樣的問題,換成long 8byte就好
+</code></pre>
+<blockquote>
+<p><strong>批改（第 2 次）</strong>：<strong>大致對</strong>。四行的錯都找到了：<code>B</code> 要用 64 位元的 <code>%rdi</code>（指標是 8 byte），<code>S</code> 要乘元素大小（<code>short</code> 2、<code>long</code> 8），<code>D</code> 要換成 byte（16、8），擴展指令要用 <code>movswl</code>／<code>movzbl</code>，名字的兩個字母依序是來源大小和目的大小。<br />
+有一個新的誤會：「寫成 <code>%rsi(%rdi)</code> 好像也沒問題」<strong>不對</strong>。<code>D</code> 只能是<strong>常數</strong>，不能是暫存器；要放暫存器只能放進括號裡當 <code>I</code>。實測 <code>as</code> 會拒絕：<code>Error: junk '(%rdi)' after register</code>。另外 <code>get_uchar</code> 是「無號 <code>unsigned char</code> 轉 <code>int</code>」，你寫成了「<code>unsigned</code> 類型轉 signed int」，意思是對的。</p>
+<p><strong>參考答案</strong>【<a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80-%E6%9A%AB%E5%AD%98%E5%99%A8%E3%80%81mov%E8%88%87lea%E3%80%81cmp%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D.html#%E4%BA%8C%E6%9A%AB%E5%AD%98%E5%99%A8cpu-%E8%A3%A1%E7%9A%84-16-%E5%80%8B%E8%AE%8A%E6%95%B8">筆記第二節</a>擴展指令表、<a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80-%E6%9A%AB%E5%AD%98%E5%99%A8%E3%80%81mov%E8%88%87lea%E3%80%81cmp%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D.html#%E4%B8%89%E6%8C%87%E4%BB%A4%E7%9A%84%E6%96%87%E6%B3%95%E5%8A%A9%E6%86%B6%E7%AC%A6%E5%A4%A7%E5%B0%8F%E5%BE%8C%E7%B6%B4%E9%81%8B%E7%AE%97%E5%85%83">第三節</a>】實際是 <code>movswl (%rdi,%rsi,2), %eax</code>、<code>movzbl (%rdi,%rsi), %eax</code>（<code>S</code> = 1 可以省略）、<code>movq 16(%rdi,%rsi,8), %rax</code>、<code>leaq 8(%rdi,%rsi,8), %rax</code>。第 1 次預測錯在：① 指令名字：元素比 <code>int</code> 小，要用擴展指令（<code>movs</code>／<code>movz</code>＋來源大小＋目的大小），不能只用 <code>movw</code>／<code>movb</code> 搬 1、2 byte；② <code>B</code> 放指標 <code>a</code>，要用 64 位元的 <code>%rdi</code>；③ <code>I</code> 是 <code>%rsi</code>（<code>i</code>），<code>S</code> 是元素大小 2、1、8、8；④ <code>D</code> 是 byte 數 2×8 ＝ 16、1×8 ＝ 8；⑤ 記憶體運算元裡不加 <code>$</code>，運算元之間要用逗號隔開。</p>
+</blockquote>
+<h3 id="2-3-get_short-和-get_uchar-都回傳-int為什麼一個用-movs-開頭的指令一個用-movz-開頭的如果陣列裡那個元素的位元是-0xffget_uchar或-0xffffget_short兩個函式各回傳多少筆記第二節第-2-課筆記第六節變寬擴展extension">2-3. <code>get_short</code> 和 <code>get_uchar</code> 都回傳 <code>int</code>，為什麼一個用 <code>movs</code> 開頭的指令、一個用 <code>movz</code> 開頭的？如果陣列裡那個元素的位元是 <code>0xff</code>（<code>get_uchar</code>）或 <code>0xffff</code>（<code>get_short</code>），兩個函式各回傳多少？【筆記<a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80-%E6%9A%AB%E5%AD%98%E5%99%A8%E3%80%81mov%E8%88%87lea%E3%80%81cmp%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D.html#%E4%BA%8C%E6%9A%AB%E5%AD%98%E5%99%A8cpu-%E8%A3%A1%E7%9A%84-16-%E5%80%8B%E8%AE%8A%E6%95%B8">第二節</a>；<a href="../../c/C%E7%9A%84%E8%B3%87%E6%96%99%E5%9C%A8%E8%A8%98%E6%86%B6%E9%AB%94%E8%A3%A1%E9%95%B7%E6%80%8E%E6%A8%A3-%E4%BD%8D%E5%85%83%E7%B5%84%E3%80%81%E6%8C%87%E6%A8%99%E3%80%81%E4%BD%8D%E5%85%83%E7%B5%84%E9%A0%86%E5%BA%8F%E8%88%87%E6%9C%89%E8%99%9F%E7%84%A1%E8%99%9F.html#%E5%85%AD%E6%9C%89%E8%99%9F%E8%88%87%E7%84%A1%E8%99%9F%E4%B9%8B%E9%96%93%E7%9A%84%E8%BD%89%E6%8F%9B%E4%BD%8D%E5%85%83%E4%B8%8D%E8%AE%8A%E6%8F%9B%E5%80%8B%E8%AE%80%E6%B3%95">第 2 課筆記第六節</a>〈<strong>變寬（擴展，extension）</strong>〉】</h3>
+<p><strong>第 1 次（2026-10-08）</strong></p>
+<pre><code>因爲get_short 是signed 轉sigend所以要用movs,而get_uchar a是無號的轉成int以後高位補0所以用movz
+
+get_uchar: 255
+get_short: 65535
+
+</code></pre>
+<blockquote>
+<p><strong>批改</strong>：<strong>不完整</strong>。</p>
+<ul>
+<li>第一問<strong>方向對</strong>：<code>short</code> 是有號，用 <code>movs</code>（符號擴展）；<code>unsigned char</code> 是無號，用 <code>movz</code>（零擴展）。補一句更精確的說法：決定補什麼的是<strong>來源</strong>（元素）型別的有號無號，不是目的地。</li>
+<li><code>get_uchar</code> 回傳 <strong>255，對</strong>。</li>
+<li><code>get_short</code> 回傳 65535，<strong>錯</strong>。65535 是把 <code>0xffff</code> 當無號讀、高位補 0 的結果，但 <code>get_short</code> 用的不是 <code>movz</code>。</li>
+</ul>
+<p><strong>提示</strong>：<code>movswl</code> 的 <code>s</code> 代表哪一種擴展？<code>0xffff</code> 的最高位元（第 15 位元）是 0 還是 1？照<a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80-%E6%9A%AB%E5%AD%98%E5%99%A8%E3%80%81mov%E8%88%87lea%E3%80%81cmp%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D.html#%E4%B8%89%E6%8C%87%E4%BB%A4%E7%9A%84%E6%96%87%E6%B3%95%E5%8A%A9%E6%86%B6%E7%AC%A6%E5%A4%A7%E5%B0%8F%E5%BE%8C%E7%B6%B4%E9%81%8B%E7%AE%97%E5%85%83">筆記第三節</a>〈<code>%dil</code> 是 <code>0xff</code>，為什麼 <code>%eax</code> 變成 <code>0xffffffff</code>〉的道理（那裡是 1 byte 看第 7 位元，這裡是 2 byte 看第 15 位元），補完之後 32 位元的十六進位是什麼？當 <code>int</code> 讀是多少？</p>
+</blockquote>
+<p><strong>第 2 次（重答，2026-10-08）</strong></p>
+<blockquote>
+<p>題目：<code>get_short</code> 和 <code>get_uchar</code> 都回傳 <code>int</code>，為什麼一個用 <code>movs</code> 開頭的指令、一個用 <code>movz</code> 開頭的？如果陣列裡那個元素的位元是 <code>0xff</code>（<code>get_uchar</code>）或 <code>0xffff</code>（<code>get_short</code>），兩個函式各回傳多少？</p>
+</blockquote>
+<pre><code>int   get_short(short *a, long i)         { return a[i]; }
+movswl	(%rdi,%rsi,2), %eax
+
+int   get_uchar(unsigned char *a, long i) { return a[i]; }
+movzbl	(%rdi,%rsi), %eax
+
+get_short 來源類型是short, 目標類型是int, 有號,2byte用sw,
+get_uchar 來源是無號,char, 所以用zb
+
+0xff -&gt; 255
+0xffff -&gt; 最高位是1, 故 -&gt; 0xffffffff, -1
+</code></pre>
+<blockquote>
+<p><strong>批改（第 2 次）</strong>：<strong>對</strong>。<code>0xffff</code> 的最高位元（第 15 位元）是 1，<code>movswl</code> 照它補 1 → <code>0xffffffff</code> ＝ <strong>−1</strong>。決定用 <code>movs</code> 還是 <code>movz</code> 的是<strong>來源</strong>型別的有號無號，這次也說清楚了。</p>
+<p><strong>參考答案</strong>【<a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80-%E6%9A%AB%E5%AD%98%E5%99%A8%E3%80%81mov%E8%88%87lea%E3%80%81cmp%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D.html#%E4%BA%8C%E6%9A%AB%E5%AD%98%E5%99%A8cpu-%E8%A3%A1%E7%9A%84-16-%E5%80%8B%E8%AE%8A%E6%95%B8">筆記第二節</a>；第 2 課第六節〈變寬〉】<code>short</code> 是有號，要保住正負號，用符號擴展 <code>movswl</code>（照第 15 位元補高位）；<code>unsigned char</code> 是無號，用零擴展 <code>movzbl</code>（高位補 0）。<code>0xff</code> → <code>get_uchar</code> 回傳 <strong>255</strong>；<code>0xffff</code> → <code>get_short</code> 回傳 <strong>−1</strong>（<code>0xffffffff</code>）。</p>
+</blockquote>
+<h3 id="2-4-get_long2-和-next_long-裡的-d位移各是多少為什麼是這個數而不是-c-原始碼裡的-2-和-1筆記第三節第-3-課筆記第二節">2-4. <code>get_long2</code> 和 <code>next_long</code> 裡的 <code>D</code>（位移）各是多少？為什麼是這個數，而不是 C 原始碼裡的 <code>2</code> 和 <code>1</code>？【筆記<a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80-%E6%9A%AB%E5%AD%98%E5%99%A8%E3%80%81mov%E8%88%87lea%E3%80%81cmp%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D.html#%E4%B8%89%E6%8C%87%E4%BB%A4%E7%9A%84%E6%96%87%E6%B3%95%E5%8A%A9%E6%86%B6%E7%AC%A6%E5%A4%A7%E5%B0%8F%E5%BE%8C%E7%B6%B4%E9%81%8B%E7%AE%97%E5%85%83">第三節</a>；<a href="../../c/%E9%99%A3%E5%88%97%E3%80%81%E5%AD%97%E4%B8%B2%E8%88%87%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97-C%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%88%87%E7%94%A8gdb%E6%89%BEsegfault.html#%E4%BA%8C%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97p--1-%E8%B5%B0%E4%B8%80%E5%80%8B%E5%85%83%E7%B4%A0%E4%B8%8D%E6%98%AF%E4%B8%80%E5%80%8B-byte">第 3 課筆記第二節</a>】</h3>
+<p><strong>第 1 次（2026-10-08）</strong></p>
+<pre><code>get_long2: 16byte
+next_long: 8byte
+
+因爲兩個的a都是long指標
+</code></pre>
+<blockquote>
+<p><strong>批改</strong>：<strong>大致對</strong>。<code>D</code> = 16、8 都對，「因為 <code>a</code> 是 <code>long</code> 指標」也抓到方向，但少了中間那一步：<strong>為什麼 <code>long</code> 指標就會變成 16 和 8</strong>。</p>
+<p><strong>參考答案</strong>【<a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80-%E6%9A%AB%E5%AD%98%E5%99%A8%E3%80%81mov%E8%88%87lea%E3%80%81cmp%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D.html#%E4%B8%89%E6%8C%87%E4%BB%A4%E7%9A%84%E6%96%87%E6%B3%95%E5%8A%A9%E6%86%B6%E7%AC%A6%E5%A4%A7%E5%B0%8F%E5%BE%8C%E7%B6%B4%E9%81%8B%E7%AE%97%E5%85%83">筆記第三節</a>；<a href="../../c/%E9%99%A3%E5%88%97%E3%80%81%E5%AD%97%E4%B8%B2%E8%88%87%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97-C%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%88%87%E7%94%A8gdb%E6%89%BEsegfault.html#%E4%BA%8C%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97p--1-%E8%B5%B0%E4%B8%80%E5%80%8B%E5%85%83%E7%B4%A0%E4%B8%8D%E6%98%AF%E4%B8%80%E5%80%8B-byte">第 3 課筆記第二節</a>】組合語言的位址以 <strong>byte</strong> 為單位、沒有型別。C 的 <code>a[i + 2]</code> 是「從 <code>a</code> 往後 <code>i + 2</code> 個 <code>long</code>」，gcc 要換算成 byte：<code>a + (i + 2)×8</code> = <code>a + i×8 + 16</code>，所以 <code>S</code> = 8、<code>D</code> = 2 × <code>sizeof(long)</code> = <strong>16</strong>。<code>&amp;a[i + 1]</code> 同理：<code>D</code> = 1 × 8 = <strong>8</strong>。C 寫的 2 和 1 是「幾個元素」，組合語言的 <code>D</code> 是「幾個 byte」。</p>
+</blockquote>
+<hr />
+<h2 id="3-有號與無號的分支">3. 有號與無號的分支</h2>
+<p>寫 <code>pick.c</code>，兩個函式只差在參數型別：</p>
+<pre><code class="language-c"><span class="kt">int</span><span class="w"> </span><span class="nf">pick_s</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">a</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">b</span><span class="p">)</span><span class="w">           </span><span class="p">{</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">a</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="n">b</span><span class="p">)</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="mi">2</span><span class="p">;</span><span class="w"> </span><span class="p">}</span>
+<span class="kt">int</span><span class="w"> </span><span class="nf">pick_u</span><span class="p">(</span><span class="kt">unsigned</span><span class="w"> </span><span class="n">a</span><span class="p">,</span><span class="w"> </span><span class="kt">unsigned</span><span class="w"> </span><span class="n">b</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">a</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="n">b</span><span class="p">)</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="mi">2</span><span class="p">;</span><span class="w"> </span><span class="p">}</span>
+</code></pre>
+<p>這題用 <strong><code>-O0</code></strong> 編譯：<code>gcc -S -O0 -fno-asynchronous-unwind-tables pick.c -o pick.s</code>（<code>-O2</code> 會把 <code>if</code> 改寫掉，看不到跳躍）。</p>
+<h3 id="3-1-貼上兩個函式的本體找出各自的-cmp-和條件跳躍那兩行寫出cmp-算的是誰減誰用-ab-表示條件跳躍的條件碼是什麼它在什麼情況下跳筆記第五節cmp-與-test與條件碼表第六節">3-1. 貼上兩個函式的本體。找出各自的 <code>cmp</code> 和條件跳躍那兩行，寫出：<code>cmp</code> 算的是「誰減誰」（用 <code>a</code>、<code>b</code> 表示），條件跳躍的條件碼是什麼、它在什麼情況下跳。【筆記<a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80-%E6%9A%AB%E5%AD%98%E5%99%A8%E3%80%81mov%E8%88%87lea%E3%80%81cmp%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D.html#%E4%BA%94%E6%97%97%E6%A8%99%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8Dcmp-%E5%8F%AA%E8%B2%A0%E8%B2%AC%E6%AF%94%E8%B7%B3%E4%B8%8D%E8%B7%B3%E7%94%B1%E4%B8%8B%E4%B8%80%E5%80%8B%E6%8C%87%E4%BB%A4%E6%B1%BA%E5%AE%9A">第五節</a>〈<code>cmp</code> 與 <code>test</code>〉與條件碼表、<a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80-%E6%9A%AB%E5%AD%98%E5%99%A8%E3%80%81mov%E8%88%87lea%E3%80%81cmp%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D.html#%E5%85%AD%E9%80%90%E8%A1%8C%E8%AE%80-sum_to-%E7%9A%84--o0-%E7%89%88">第六節</a>】</h3>
+<p><strong>第 1 次（2026-10-08）</strong></p>
+<pre><code>pick_s:
+	endbr64
+	pushq	%rbp
+	movq	%rsp, %rbp
+	movl	%edi, -4(%rbp)   # int a
+	movl	%esi, -8(%rbp)   # int b
+	movl	-4(%rbp), %eax   # a的值寫入ax
+	cmpl	-8(%rbp), %eax   # $eax - (-8(%rbp)) =&gt; a - b (cmp` 算的是「誰減誰」)
+	jle	.L2					 # if SF != OF || ZF = 1(a &lt;= b) 跳 L2 (條件跳躍的條件碼是什麼、它在什麼情況下跳)
+	movl	$1, %eax
+	jmp	.L3
+.L2:
+	movl	$2, %eax
+.L3:
+	popq	%rbp
+	ret
+	.size	pick_s, .-pick_s
+	.globl	pick_u
+	.type	pick_u, @function
+
+
+pick_u:
+	endbr64
+	pushq	%rbp
+	movq	%rsp, %rbp
+	movl	%edi, -4(%rbp)   # unsigned a
+	movl	%esi, -8(%rbp)   # unsigned b
+	movl	-4(%rbp), %eax   # eax = a
+	cmpl	%eax, -8(%rbp)   # $(-8(%rbp)) - %eax =&gt; b - a (cmp` 算的是「誰減誰」)
+	jnb	.L5					 # ZF = 1 OR CF = 0 (條件跳躍的條件碼是什麼、它在什麼情況下跳)
+	movl	$1, %eax
+	jmp	.L6
+.L5:
+	movl	$2, %eax
+.L6:
+	popq	%rbp
+	ret
+	.size	pick_u, .-pick_u
+	.ident	&quot;GCC: (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0&quot;
+	.section	.note.GNU-stack,&quot;&quot;,@progbits
+	.section	.note.gnu.property,&quot;a&quot;
+	.align 8
+	.long	1f - 0f
+	.long	4f - 1f
+	.long	5
+</code></pre>
+<blockquote>
+<p><strong>批改</strong>：<strong>不完整</strong>。</p>
+<ul>
+<li><code>pick_s</code> <strong>全對</strong>：<code>cmpl -8(%rbp), %eax</code> 算 <code>a − b</code>；<code>jle</code> 在 ZF = 1 或 SF ≠ OF 時跳，也就是 <code>a &lt;= b</code>（有號）時跳到 <code>.L2</code>。</li>
+<li><code>pick_u</code>：<code>cmpl %eax, -8(%rbp)</code> 算 <strong><code>b − a</code></strong>，對；條件碼 <code>nb</code>，對。但「ZF = 1 OR CF = 0」<strong>錯</strong>：多了 ZF。</li>
+</ul>
+<p><strong>提示</strong>：回<a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80-%E6%9A%AB%E5%AD%98%E5%99%A8%E3%80%81mov%E8%88%87lea%E3%80%81cmp%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D.html#%E4%BA%94%E6%97%97%E6%A8%99%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8Dcmp-%E5%8F%AA%E8%B2%A0%E8%B2%AC%E6%AF%94%E8%B7%B3%E4%B8%8D%E8%B7%B3%E7%94%B1%E4%B8%8B%E4%B8%80%E5%80%8B%E6%8C%87%E4%BB%A4%E6%B1%BA%E5%AE%9A">筆記第五節</a>〈條件碼：全部 16 種〉找 <code>nb</code> 那一列：它有哪些別名、看哪幾個旗標？再想一下：<code>b == a</code> 時算 <code>b − a</code>，需不需要往外借位？CF 是多少？光看 CF 是不是就已經把「相等」包含進去了？重答時把 <code>pick_u</code> 的部分重寫一次（<code>pick_s</code> 不用重寫）。</p>
+</blockquote>
+<p><strong>第 2 次（重答，2026-10-08）</strong></p>
+<blockquote>
+<p>題目：貼上兩個函式的本體。找出各自的 <code>cmp</code> 和條件跳躍那兩行，寫出：<code>cmp</code> 算的是「誰減誰」（用 <code>a</code>、<code>b</code> 表示），條件跳躍的條件碼是什麼、它在什麼情況下跳。</p>
+</blockquote>
+<pre><code>我修正這邊的解釋: jnb	.L5					 # ZF = 1 OR CF = 0 (條件跳躍的條件碼是什麼、它在什麼情況下跳)
+應該是CF=0就可以了,就已經代表b &gt;= a了 因爲b == a 也符合CF=0
+</code></pre>
+<blockquote>
+<p><strong>批改（第 2 次）</strong>：<strong>對</strong>。<code>jnb</code> 只看 CF = 0；<code>b == a</code> 時 <code>b − a</code> 不需要借位，CF 本來就是 0，所以「相等」已經包含在裡面，不必另外看 ZF。</p>
+<p><strong>參考答案</strong>【<a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80-%E6%9A%AB%E5%AD%98%E5%99%A8%E3%80%81mov%E8%88%87lea%E3%80%81cmp%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D.html#%E4%BA%94%E6%97%97%E6%A8%99%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8Dcmp-%E5%8F%AA%E8%B2%A0%E8%B2%AC%E6%AF%94%E8%B7%B3%E4%B8%8D%E8%B7%B3%E7%94%B1%E4%B8%8B%E4%B8%80%E5%80%8B%E6%8C%87%E4%BB%A4%E6%B1%BA%E5%AE%9A">筆記第五節</a>〈<code>cmp</code> 與 <code>test</code>〉、條件碼表】<code>pick_s</code>：<code>cmpl -8(%rbp), %eax</code> 算 <code>a − b</code>；<code>jle .L2</code> 在 ZF = 1 或 SF ≠ OF 時跳，也就是 <code>a &lt;= b</code>（有號）時跳到 <code>return 2</code>。<code>pick_u</code>：<code>cmpl %eax, -8(%rbp)</code> 算 <code>b − a</code>；<code>jnb .L5</code>（＝<code>jae</code>）在 CF = 0 時跳，也就是 <code>b &gt;= a</code>（無號）時跳到 <code>return 2</code>。</p>
+</blockquote>
+<h3 id="3-2-兩個函式的條件跳躍用了不同的條件碼為什麼如果-a-的位元是-0xffffffffb-是-1兩個函式各回傳什麼筆記第五節實驗同一個-cmp同一組旗標setl-說是setb-說否">3-2. 兩個函式的條件跳躍用了不同的條件碼。為什麼？如果 <code>a</code> 的位元是 <code>0xffffffff</code>、<code>b</code> 是 1，兩個函式各回傳什麼？【筆記<a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80-%E6%9A%AB%E5%AD%98%E5%99%A8%E3%80%81mov%E8%88%87lea%E3%80%81cmp%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D.html#%E4%BA%94%E6%97%97%E6%A8%99%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8Dcmp-%E5%8F%AA%E8%B2%A0%E8%B2%AC%E6%AF%94%E8%B7%B3%E4%B8%8D%E8%B7%B3%E7%94%B1%E4%B8%8B%E4%B8%80%E5%80%8B%E6%8C%87%E4%BB%A4%E6%B1%BA%E5%AE%9A">第五節</a>〈實驗：同一個 <code>cmp</code>、同一組旗標，<code>setl</code> 說是、<code>setb</code> 說否〉】</h3>
+<p><strong>第 1 次（2026-10-08）</strong></p>
+<pre><code>pick_s是有號比較, 另外他cmp S, D S是b D是a, a-b &lt;= 0 就跳L2 所以有號找小於等於用le
+pick_u 是無號, 他的S 是a, D是b, b-a &gt;= 0 就跳L5 所以無號找大於等於用nb
+
+pick_s return 2
+pick_u return 1
+
+</code></pre>
+<blockquote>
+<p><strong>批改</strong>：<strong>大致對</strong>。兩個回傳值都對：<code>pick_s</code> 回傳 <strong>2</strong>（<code>a</code> 當 <code>int</code> 讀是 −1，−1 &gt; 1 不成立），<code>pick_u</code> 回傳 <strong>1</strong>（<code>a</code> 當 <code>unsigned</code> 讀是 4294967295，大於 1）。「一個有號、一個無號」也是對的核心。缺的是旗標這一層的「為什麼」：你的說明主要在講兩邊的運算元順序，但順序不同<strong>不是</strong>條件碼不同的原因（<code>pick_u</code> 也可以寫成 <code>a − b</code> 再用 <code>be</code>）。</p>
+<p><strong>參考答案</strong>【<a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80-%E6%9A%AB%E5%AD%98%E5%99%A8%E3%80%81mov%E8%88%87lea%E3%80%81cmp%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D.html#%E4%BA%94%E6%97%97%E6%A8%99%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8Dcmp-%E5%8F%AA%E8%B2%A0%E8%B2%AC%E6%AF%94%E8%B7%B3%E4%B8%8D%E8%B7%B3%E7%94%B1%E4%B8%8B%E4%B8%80%E5%80%8B%E6%8C%87%E4%BB%A4%E6%B1%BA%E5%AE%9A">筆記第五節</a>〈實驗：同一個 <code>cmp</code>、同一組旗標，<code>setl</code> 說是、<code>setb</code> 說否〉】<code>cmp</code> 只做一次減法，把有號和無號兩種解讀需要的旗標（ZF、SF、OF、CF）一次全部設好，它不知道資料是有號還是無號。有號的條件碼（<code>l</code>、<code>le</code>、<code>g</code>、<code>ge</code>）讀 SF、OF，無號的（<code>b</code>、<code>be</code>、<code>a</code>、<code>ae</code>）讀 CF。gcc 依照 C 的型別挑條件碼：<code>int</code> 用 <code>le</code>，<code>unsigned</code> 用 <code>nb</code>（＝<code>ae</code>）。套到 <code>a</code> = <code>0xffffffff</code>、<code>b</code> = 1：<code>pick_s</code> 算 <code>a − b</code> ＝ −1 − 1 ＝ −2，SF = 1、OF = 0 → SF ≠ OF，<code>jle</code> 跳 → 回傳 <strong>2</strong>；<code>pick_u</code> 算 <code>b − a</code> ＝ 1 − 4294967295，要往外借位，CF = 1 → <code>jnb</code> 不跳 → 回傳 <strong>1</strong>。</p>
+</blockquote>
+<h3 id="3-3-c-寫的是-a--b但-pick_s-的條件跳躍檢查的卻是小於或等於為什麼-gcc-要用相反的條件跳過去的地方是-return-1-還是-return-2新觀念先猜">3-3. C 寫的是 <code>a &gt; b</code>，但 <code>pick_s</code> 的條件跳躍檢查的卻是「小於或等於」。為什麼 gcc 要用<strong>相反</strong>的條件？跳過去的地方是 <code>return 1</code> 還是 <code>return 2</code>？【新觀念，先猜】</h3>
+<p><strong>第 1 次（2026-10-08）</strong></p>
+<pre><code>猜不出來
+
+return 2
+</code></pre>
+<blockquote>
+<p><strong>批改</strong>：<strong>對</strong>（後半）。跳過去的 <code>.L2</code> 是 <code>return 2</code>，對。前半「為什麼用相反的條件」是<strong>新觀念</strong>，猜不出來不算錯，已補教並寫進筆記：<a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80-%E6%9A%AB%E5%AD%98%E5%99%A8%E3%80%81mov%E8%88%87lea%E3%80%81cmp%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D.html#if-%E6%80%8E%E9%BA%BC%E7%BF%BB%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D%E6%AA%A2%E6%9F%A5%E7%9A%84%E6%98%AF-c-%E6%A2%9D%E4%BB%B6%E7%9A%84%E5%8F%8D%E9%9D%A2">第六節〈<code>if</code> 怎麼翻：條件跳躍檢查的是 C 條件的「反面」〉</a>。</p>
+<p><strong>參考答案</strong>【補教，<a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80-%E6%9A%AB%E5%AD%98%E5%99%A8%E3%80%81mov%E8%88%87lea%E3%80%81cmp%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D.html#if-%E6%80%8E%E9%BA%BC%E7%BF%BB%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D%E6%AA%A2%E6%9F%A5%E7%9A%84%E6%98%AF-c-%E6%A2%9D%E4%BB%B6%E7%9A%84%E5%8F%8D%E9%9D%A2">第六節</a>〈<code>if</code> 怎麼翻〉】條件跳躍只有「跳」和「不跳（往下一行）」兩條路。<code>-O0</code> 照原始碼順序把 <code>if</code> 的本體（<code>return 1</code>）放在條件跳躍的正下方：條件成立時要執行本體，所以<strong>不跳</strong>、直接往下；條件不成立時才要<strong>跳過</strong>本體。所以跳躍檢查的是「什麼時候該跳過」＝ C 條件的反面 <code>!(a &gt; b)</code>，也就是 <code>a &lt;= b</code> → <code>jle .L2</code>，跳過去的 <code>.L2</code> 是 <code>return 2</code>。對照迴圈：往回跳是「再跑一次」，用原本的條件；往前跳是「跳過」，用反面的條件。</p>
+</blockquote>
+<h3 id="3-4-pick_u-的-cmp-兩個運算元的順序跟-pick_s-不一樣條件碼也不是-be把-pick_u-的cmp--條件跳躍翻成一句-c-的條件用-ab說明它跟-a--b-是同一件事筆記第五節att-的順序條件碼表裡的別名">3-4. <code>pick_u</code> 的 <code>cmp</code> 兩個運算元的順序跟 <code>pick_s</code> 不一樣，條件碼也不是 <code>be</code>。把 <code>pick_u</code> 的「<code>cmp</code> ＋ 條件跳躍」翻成一句 C 的條件（用 <code>a</code>、<code>b</code>），說明它跟 <code>!(a &gt; b)</code> 是同一件事。【筆記<a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80-%E6%9A%AB%E5%AD%98%E5%99%A8%E3%80%81mov%E8%88%87lea%E3%80%81cmp%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D.html#%E4%BA%94%E6%97%97%E6%A8%99%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8Dcmp-%E5%8F%AA%E8%B2%A0%E8%B2%AC%E6%AF%94%E8%B7%B3%E4%B8%8D%E8%B7%B3%E7%94%B1%E4%B8%8B%E4%B8%80%E5%80%8B%E6%8C%87%E4%BB%A4%E6%B1%BA%E5%AE%9A">第五節</a>（AT&amp;T 的順序、條件碼表裡的別名）】</h3>
+<p><strong>第 1 次（2026-10-08）</strong></p>
+<pre><code>用c翻譯: b - a &gt;= 0
+
+證明是同一件事: !(a&gt;b) =&gt; !(a - b &gt; 0) =&gt; a - b &lt;= 0 =&gt; b - a &gt;= 0
+</code></pre>
+<blockquote>
+<p><strong>批改</strong>：<strong>不完整</strong>。「<code>cmp</code> 算 <code>b − a</code>」對，推導的方向（把 <code>!(a &gt; b)</code> 改寫成 <code>a &lt;= b</code>）也對，但最後翻成的 C 條件 <code>b - a &gt;= 0</code> 有問題：</p>
+<ul>
+<li>在 C 裡 <code>a</code>、<code>b</code> 都是 <code>unsigned</code>，<code>b - a</code> 也是 <code>unsigned</code>。<strong>無號數 <code>&gt;= 0</code> 什麼時候會是假的？</strong>所以 <code>b - a &gt;= 0</code> 跟 <code>jnb</code> 不是同一件事。</li>
+<li><code>jnb</code> 看的也不是「相減的結果是正是負」。</li>
+</ul>
+<p><strong>提示</strong>：回<a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80-%E6%9A%AB%E5%AD%98%E5%99%A8%E3%80%81mov%E8%88%87lea%E3%80%81cmp%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D.html#%E4%BA%94%E6%97%97%E6%A8%99%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8Dcmp-%E5%8F%AA%E8%B2%A0%E8%B2%AC%E6%AF%94%E8%B7%B3%E4%B8%8D%E8%B7%B3%E7%94%B1%E4%B8%8B%E4%B8%80%E5%80%8B%E6%8C%87%E4%BB%A4%E6%B1%BA%E5%AE%9A">筆記第五節</a>：<code>nb</code> 看的是哪一個旗標（3-1 的提示）？那個旗標在算 <code>b − a</code> 時代表什麼事（〈上面③：3 − 5 在 CPU 裡實際上是怎麼算的？〉）？什麼時候它是 0？用 <code>a</code>、<code>b</code> <strong>直接比大小</strong>寫出 C 條件，不要寫成減法；再說明它為什麼等於 <code>!(a &gt; b)</code>。順便查條件碼表：<code>nb</code> 的別名是什麼，讀法是什麼意思？</p>
+</blockquote>
+<p><strong>第 2 次（重答，2026-10-08）</strong></p>
+<blockquote>
+<p>題目：<code>pick_u</code> 的 <code>cmp</code> 兩個運算元的順序跟 <code>pick_s</code> 不一樣，條件碼也不是 <code>be</code>。把 <code>pick_u</code> 的「<code>cmp</code> ＋ 條件跳躍」翻成一句 C 的條件（用 <code>a</code>、<code>b</code>），說明它跟 <code>!(a &gt; b)</code> 是同一件事。</p>
+</blockquote>
+<pre><code>nb 看CF, 判斷正確答案是否unsigned 容不下,容不下代表溢位 CF = 1
+
+想不出
+</code></pre>
+<blockquote>
+<p><strong>批改（第 2 次）</strong>：<strong>不完整</strong>。前半對：<code>nb</code> 看 CF，CF = 1 代表無號的答案「容不下」（往外借位）。但題目要的「翻成一句 C 的條件」和「說明它等於 <code>!(a &gt; b)</code>」沒有答出來（「想不出」）。重答只有這一次，直接附參考答案。</p>
+<p><strong>參考答案</strong>【<a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80-%E6%9A%AB%E5%AD%98%E5%99%A8%E3%80%81mov%E8%88%87lea%E3%80%81cmp%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D.html#%E4%BA%94%E6%97%97%E6%A8%99%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8Dcmp-%E5%8F%AA%E8%B2%A0%E8%B2%AC%E6%AF%94%E8%B7%B3%E4%B8%8D%E8%B7%B3%E7%94%B1%E4%B8%8B%E4%B8%80%E5%80%8B%E6%8C%87%E4%BB%A4%E6%B1%BA%E5%AE%9A">筆記第五節</a>〈上面③：3 − 5 在 CPU 裡實際上是怎麼算的？〉、條件碼表】<code>cmpl %eax, -8(%rbp)</code> 算 <code>b − a</code>。CF = 1 代表 <code>b − a</code> 要往外借位，也就是無號的 <code>b &lt; a</code>；<code>jnb</code> 在 CF = 0 時跳，也就是<strong>沒有借位 ⇔ <code>b &gt;= a</code></strong>。所以這兩行翻成 C 是 <strong><code>if (b &gt;= a) goto .L5;</code></strong>（<code>nb</code> 的別名是 <code>ae</code>，above or equal，無號的 ≥）。<code>b &gt;= a</code> 就是 <code>a &lt;= b</code>，也就是 <code>!(a &gt; b)</code>：條件跳躍檢查 C 條件的反面（第六節〈<code>if</code> 怎麼翻〉），跳過 <code>return 1</code>。為什麼不能寫成 <code>b - a &gt;= 0</code>：在 C 裡 <code>b - a</code> 也是 <code>unsigned</code>，永遠 <code>&gt;= 0</code>，那句話永遠成立；CPU 判斷「夠不夠減」看的是<strong>有沒有借位（CF）</strong>，不是相減結果的正負。</p>
+</blockquote>
+<hr />
+<h2 id="4-讀一個陣列加總迴圈-o0-與--o2">4. 讀一個陣列加總迴圈：<code>-O0</code> 與 <code>-O2</code></h2>
+<p>寫 <code>sumarr.c</code>：</p>
+<pre><code class="language-c"><span class="kt">long</span><span class="w"> </span><span class="nf">sum_arr</span><span class="p">(</span><span class="kt">long</span><span class="w"> </span><span class="o">*</span><span class="n">a</span><span class="p">,</span><span class="w"> </span><span class="kt">long</span><span class="w"> </span><span class="n">n</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="kt">long</span><span class="w"> </span><span class="n">t</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kt">long</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">n</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="o">++</span><span class="p">)</span>
+<span class="w">        </span><span class="n">t</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="n">a</span><span class="p">[</span><span class="n">i</span><span class="p">];</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">t</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<h3 id="4-1-用--o0-編譯貼上本體每一行旁邊寫它對應哪一句-c在做什麼像筆記第六節的逐行表那樣可以寫成--註解寫完再用--fverbose-asm-編一次對答案另外找出-anti-各住在哪個記憶體位置筆記第六節">4-1. 用 <code>-O0</code> 編譯，貼上本體，<strong>每一行</strong>旁邊寫它對應哪一句 C、在做什麼（像筆記第六節的逐行表那樣，可以寫成 <code>#</code> 註解）。寫完再用 <code>-fverbose-asm</code> 編一次對答案。另外找出 <code>a</code>、<code>n</code>、<code>t</code>、<code>i</code> 各住在哪個記憶體位置。【筆記<a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80-%E6%9A%AB%E5%AD%98%E5%99%A8%E3%80%81mov%E8%88%87lea%E3%80%81cmp%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D.html#%E5%85%AD%E9%80%90%E8%A1%8C%E8%AE%80-sum_to-%E7%9A%84--o0-%E7%89%88">第六節</a>】</h3>
+<p><strong>第 1 次（2026-10-08）</strong></p>
+<pre><code>	.file	&quot;sumarr.c&quot;
+	.text
+	.globl	sum_arr
+	.type	sum_arr, @function
+sum_arr:
+	endbr64
+	pushq	%rbp
+	movq	%rsp, %rbp
+	movq	%rdi, -24(%rbp)		# long *a
+	movq	%rsi, -32(%rbp)     # long n
+	movq	$0, -16(%rbp)		# long t = 0
+	movq	$0, -8(%rbp)		# long i = 0
+	jmp	.L2
+.L3:
+	movq	-8(%rbp), %rax   	# rax 此時是 i
+	leaq	0(,%rax,8), %rdx	# rdx此時是 8*i byte(代表陣列位移)
+	movq	-24(%rbp), %rax		# rax這個時候變成 指標a
+	addq	%rdx, %rax			# a+8*i =&gt; a[i]
+	movq	(%rax), %rax		# a[i]取值
+	addq	%rax, -16(%rbp)		# t += a[i]
+	addq	$1, -8(%rbp)		# i++
+.L2:
+	movq	-8(%rbp), %rax		
+	cmpq	-32(%rbp), %rax 	# cmp n i
+	jl	.L3						# i - n &lt; 0 =&gt; i &lt; n
+	movq	-16(%rbp), %rax     return t
+	popq	%rbp
+	ret
+
+
+記憶體位址
+a: -24(%rbp)
+n: -32(%rbp)
+t: -16(%rbp)
+i: -8(%rbp)
+
+
+sum_arr:
+	endbr64	
+	pushq	%rbp	#
+	movq	%rsp, %rbp	#,
+	movq	%rdi, -24(%rbp)	# a, a
+	movq	%rsi, -32(%rbp)	# n, n
+# sumarr.c:3:     long t = 0;
+	movq	$0, -16(%rbp)	#, t
+# sumarr.c:4:     for (long i = 0; i &lt; n; i++)
+	movq	$0, -8(%rbp)	#, i
+# sumarr.c:4:     for (long i = 0; i &lt; n; i++)
+	jmp	.L2	#
+.L3:
+# sumarr.c:5:         t += a[i];
+	movq	-8(%rbp), %rax	# i, i.0_1
+	leaq	0(,%rax,8), %rdx	#, _2
+	movq	-24(%rbp), %rax	# a, tmp88
+	addq	%rdx, %rax	# _2, _3
+	movq	(%rax), %rax	# *_3, _4
+# sumarr.c:5:         t += a[i];
+	addq	%rax, -16(%rbp)	# _4, t
+# sumarr.c:4:     for (long i = 0; i &lt; n; i++)
+	addq	$1, -8(%rbp)	#, i
+.L2:
+# sumarr.c:4:     for (long i = 0; i &lt; n; i++)
+	movq	-8(%rbp), %rax	# i, tmp89
+	cmpq	-32(%rbp), %rax	# n, tmp89
+	jl	.L3	#,
+# sumarr.c:6:     return t;
+	movq	-16(%rbp), %rax	# t, _10
+# sumarr.c:7: }
+	popq	%rbp	#
+	ret	
+
+
+
+</code></pre>
+<blockquote>
+<p><strong>批改</strong>：<strong>大致對</strong>。<code>a</code>、<code>n</code>、<code>t</code>、<code>i</code> 的位置全對（<code>-24</code>、<code>-32</code>、<code>-16</code>、<code>-8(%rbp)</code>），迴圈的條件 <code>i − n &lt; 0</code> → <code>i &lt; n</code> 也對。兩個地方要修：</p>
+<ul>
+<li><code>addq %rdx, %rax</code> 的註解寫「<code>a+8*i =&gt; a[i]</code>」不精確：這時 <code>%rax</code> 是 <code>a + 8×i</code>，是 <strong><code>&amp;a[i]</code>（位址）</strong>，還不是 <code>a[i]</code>；下一行 <code>movq (%rax), %rax</code> 的括號才是去記憶體把 <code>a[i]</code> 讀出來（<a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80-%E6%9A%AB%E5%AD%98%E5%99%A8%E3%80%81mov%E8%88%87lea%E3%80%81cmp%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D.html#%E4%B8%89%E6%8C%87%E4%BB%A4%E7%9A%84%E6%96%87%E6%B3%95%E5%8A%A9%E6%86%B6%E7%AC%A6%E5%A4%A7%E5%B0%8F%E5%BE%8C%E7%B6%B4%E9%81%8B%E7%AE%97%E5%85%83">筆記第三節</a>〈<code>%rdi</code> 和 <code>(%rdi)</code> 差在哪？括號就是 C 的 <code>*</code>〉）。</li>
+<li>題目要求<strong>每一行</strong>都寫，<code>jmp .L2</code>、<code>.L2:</code> 第一行的 <code>movq -8(%rbp), %rax</code>、還有開頭的 <code>endbr64</code>、<code>pushq</code>、<code>movq %rsp, %rbp</code> 沒有註解。</li>
+</ul>
+<p><strong>參考答案</strong>【<a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80-%E6%9A%AB%E5%AD%98%E5%99%A8%E3%80%81mov%E8%88%87lea%E3%80%81cmp%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D.html#%E5%85%AD%E9%80%90%E8%A1%8C%E8%AE%80-sum_to-%E7%9A%84--o0-%E7%89%88">筆記第六節</a>】<code>movq %rdi, -24(%rbp)</code>／<code>movq %rsi, -32(%rbp)</code>：參數 <code>a</code>、<code>n</code> 存進記憶體；<code>movq $0, -16(%rbp)</code>：<code>t = 0</code>；<code>movq $0, -8(%rbp)</code>：<code>i = 0</code>；<code>jmp .L2</code>：<code>for</code> 一開始先跳到底部檢查條件。<code>.L3</code>：讀 <code>i</code> → <code>leaq 0(,%rax,8), %rdx</code> 算 <code>i×8</code>（byte 位移）→ 讀 <code>a</code> → <code>addq</code> 得到 <code>&amp;a[i]</code> → <code>movq (%rax), %rax</code> 讀出 <code>a[i]</code> → <code>addq %rax, -16(%rbp)</code>：<code>t += a[i]</code> → <code>addq $1, -8(%rbp)</code>：<code>i++</code>。<code>.L2</code>：讀 <code>i</code>，<code>cmpq -32(%rbp), %rax</code> 算 <code>i − n</code>，<code>jl .L3</code>：<code>i &lt; n</code>（有號）就回去再跑一圈。最後 <code>movq -16(%rbp), %rax</code>：<code>return t</code>。位置：<code>a</code> 在 <code>-24(%rbp)</code>、<code>n</code> 在 <code>-32(%rbp)</code>、<code>t</code> 在 <code>-16(%rbp)</code>、<code>i</code> 在 <code>-8(%rbp)</code>。</p>
+</blockquote>
+<h3 id="4-2--o0-版裡ai-用了好幾個指令才讀到筆記第四節的-get-只用一個-movl-rdirsi4-eax為什麼--o0-不這樣寫提示先看-a-和-i-在--o0-時住在哪裡筆記第三節bi-只能是什麼一個指令最多幾個記憶體運算元第六節">4-2. <code>-O0</code> 版裡，<code>a[i]</code> 用了好幾個指令才讀到。筆記第四節的 <code>get</code> 只用一個 <code>movl (%rdi,%rsi,4), %eax</code>，為什麼 <code>-O0</code> 不這樣寫？（提示：先看 <code>a</code> 和 <code>i</code> 在 <code>-O0</code> 時住在哪裡。）【筆記<a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80-%E6%9A%AB%E5%AD%98%E5%99%A8%E3%80%81mov%E8%88%87lea%E3%80%81cmp%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D.html#%E4%B8%89%E6%8C%87%E4%BB%A4%E7%9A%84%E6%96%87%E6%B3%95%E5%8A%A9%E6%86%B6%E7%AC%A6%E5%A4%A7%E5%B0%8F%E5%BE%8C%E7%B6%B4%E9%81%8B%E7%AE%97%E5%85%83">第三節</a>（<code>B</code>、<code>I</code> 只能是什麼、一個指令最多幾個記憶體運算元）、<a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80-%E6%9A%AB%E5%AD%98%E5%99%A8%E3%80%81mov%E8%88%87lea%E3%80%81cmp%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D.html#%E5%85%AD%E9%80%90%E8%A1%8C%E8%AE%80-sum_to-%E7%9A%84--o0-%E7%89%88">第六節</a>】</h3>
+<p><strong>第 1 次（2026-10-08）</strong></p>
+<pre><code>因爲本題,a,i是放在記憶體位址,get的a,i是放在寄存器, 而B,I只能是寄存器
+</code></pre>
+<blockquote>
+<p><strong>批改</strong>：<strong>對</strong>。抓到重點：<code>-O0</code> 的 <code>a</code>、<code>i</code> 住在記憶體，而 <code>B</code>、<code>I</code> 只能是暫存器。</p>
+<p><strong>參考答案</strong>【<a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80-%E6%9A%AB%E5%AD%98%E5%99%A8%E3%80%81mov%E8%88%87lea%E3%80%81cmp%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D.html#%E4%B8%89%E6%8C%87%E4%BB%A4%E7%9A%84%E6%96%87%E6%B3%95%E5%8A%A9%E6%86%B6%E7%AC%A6%E5%A4%A7%E5%B0%8F%E5%BE%8C%E7%B6%B4%E9%81%8B%E7%AE%97%E5%85%83">筆記第三節</a>、<a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80-%E6%9A%AB%E5%AD%98%E5%99%A8%E3%80%81mov%E8%88%87lea%E3%80%81cmp%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D.html#%E5%85%AD%E9%80%90%E8%A1%8C%E8%AE%80-sum_to-%E7%9A%84--o0-%E7%89%88">第六節</a>】<code>movq (%rdi,%rsi,8), %rax</code> 這種寫法要求 <code>a</code> 和 <code>i</code> 已經在暫存器裡（<code>B</code>、<code>I</code> 只能放暫存器），而且一個指令最多只能有一個記憶體運算元。<code>-O0</code> 把每個變數都放在記憶體（<code>a</code> 在 <code>-24(%rbp)</code>、<code>i</code> 在 <code>-8(%rbp)</code>），所以必須先用 <code>movq</code> 把它們各自讀進暫存器，再算位址、再讀 <code>a[i]</code>，就變成好幾個指令。<code>get</code> 是 <code>-O2</code>，參數一直留在 <code>%rdi</code>、<code>%rsi</code>，一個指令就夠。</p>
+</blockquote>
+<h3 id="4-3-用--o2-編譯貼上本體像筆記第七節先找出誰是誰那樣列表每個用到的暫存器代表什麼你怎麼看出來的筆記第七節">4-3. 用 <code>-O2</code> 編譯，貼上本體。像筆記第七節〈先找出「誰是誰」〉那樣列表：每個用到的暫存器代表什麼、你怎麼看出來的。【筆記<a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80-%E6%9A%AB%E5%AD%98%E5%99%A8%E3%80%81mov%E8%88%87lea%E3%80%81cmp%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D.html#%E4%B8%83%E9%80%90%E8%A1%8C%E8%AE%80-sum_to-%E7%9A%84--o2-%E7%89%88">第七節</a>】</h3>
+<p><strong>第 1 次（2026-10-08）</strong></p>
+<pre><code>sum_arr:
+	endbr64
+	testq	%rsi, %rsi
+	jle	.L4
+	leaq	(%rdi,%rsi,8), %rdx
+	xorl	%eax, %eax
+	.p2align 4,,10
+	.p2align 3
+.L3:
+	addq	(%rdi), %rax
+	addq	$8, %rdi
+	cmpq	%rdx, %rdi
+	jne	.L3
+	ret
+	.p2align 4,,10
+	.p2align 3
+.L4:
+	xorl	%eax, %eax
+	ret
+
+n: %rsi, 他是第二個參數
+a: %rdi 第一個參數
+t: %rax t是return的值 而且 addq	(%rdi), %rax =&gt; t += a[i]
+
+不用i 理由見4-4
+</code></pre>
+<blockquote>
+<p><strong>批改</strong>：<strong>大致對</strong>。<code>n</code> = <code>%rsi</code>、<code>t</code> = <code>%rax</code> 都對，理由也對（第 2 個參數；<code>addq (%rdi), %rax</code> 是 <code>t +=</code>，最後當回傳值）。缺的：</p>
+<ul>
+<li><code>%rdx</code> 沒列進表（你在 4-4 寫了它是 <code>a[n]</code> 的位址，但這題要列出<strong>每個</strong>用到的暫存器）。</li>
+<li><code>%rdi</code> 不只是 <code>a</code>：每圈 <code>addq $8, %rdi</code>，它是一個一直往前走的指標，第 k 圈指向 <code>a[k]</code>。</li>
+<li>開頭的 <code>testq %rsi, %rsi</code>／<code>jle .L4</code> 沒說明。</li>
+</ul>
+<p><strong>參考答案</strong>【<a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80-%E6%9A%AB%E5%AD%98%E5%99%A8%E3%80%81mov%E8%88%87lea%E3%80%81cmp%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D.html#%E4%B8%83%E9%80%90%E8%A1%8C%E8%AE%80-sum_to-%E7%9A%84--o2-%E7%89%88">筆記第七節</a>〈先找出「誰是誰」〉】</p>
+<table>
+<thead>
+<tr>
+<th>暫存器</th>
+<th>代表</th>
+<th>怎麼看出來的</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>%rdi</code></td>
+<td>一開始是 <code>a</code>；之後是<strong>目前元素的位址</strong> <code>&amp;a[i]</code></td>
+<td>第 1 個參數；每圈 <code>addq $8, %rdi</code>（一個 <code>long</code>），<code>addq (%rdi), %rax</code> 讀它指的元素</td>
+</tr>
+<tr>
+<td><code>%rsi</code></td>
+<td><code>n</code></td>
+<td>第 2 個參數；<code>testq %rsi, %rsi</code>／<code>jle .L4</code>：<code>n &lt;= 0</code> 就直接回傳 0</td>
+</tr>
+<tr>
+<td><code>%rdx</code></td>
+<td><code>&amp;a[n]</code>，迴圈的終點</td>
+<td><code>leaq (%rdi,%rsi,8), %rdx</code> ＝ <code>a + n×8</code></td>
+</tr>
+<tr>
+<td><code>%rax</code></td>
+<td><code>t</code></td>
+<td><code>xorl %eax, %eax</code> 清成 0；每圈加上一個元素；最後直接 <code>ret</code> 當回傳值</td>
+</tr>
+</tbody>
+</table>
+</blockquote>
+<h3 id="4-4--o2-版裡找不到-i-了迴圈是靠什麼知道該結束了gcc-為什麼要這樣改寫前半筆記第三節第七節後半為什麼新觀念先猜">4-4. <code>-O2</code> 版裡找不到 <code>i</code> 了。迴圈是靠什麼知道「該結束了」？gcc 為什麼要這樣改寫？【前半：筆記<a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80-%E6%9A%AB%E5%AD%98%E5%99%A8%E3%80%81mov%E8%88%87lea%E3%80%81cmp%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D.html#%E4%B8%89%E6%8C%87%E4%BB%A4%E7%9A%84%E6%96%87%E6%B3%95%E5%8A%A9%E6%86%B6%E7%AC%A6%E5%A4%A7%E5%B0%8F%E5%BE%8C%E7%B6%B4%E9%81%8B%E7%AE%97%E5%85%83">第三節</a>、<a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80-%E6%9A%AB%E5%AD%98%E5%99%A8%E3%80%81mov%E8%88%87lea%E3%80%81cmp%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D.html#%E4%B8%83%E9%80%90%E8%A1%8C%E8%AE%80-sum_to-%E7%9A%84--o2-%E7%89%88">第七節</a>；後半「為什麼」：新觀念，先猜】</h3>
+<p><strong>第 1 次（2026-10-08）</strong></p>
+<pre><code>不用i
+a指標的位移a[i] =&gt; addq	$8, %rdi
+rdx就是leaq	(%rdi,%rsi,8), %rdx , a[n]的記憶體位址
+cmpq	%rdx, %rdi 
+jne	.L3
+直接判斷記憶體位址到了沒,靠這個確定迴圈是否結束
+
+
+避免使用記憶體位址,所以只要rdx存住陣列的最後address就可以決定迴圈是否結束
+</code></pre>
+<blockquote>
+<p><strong>批改</strong>：<strong>對</strong>（前半）。迴圈靠「<code>%rdi</code> 這個往前走的位址有沒有走到終點 <code>%rdx</code>（<code>&amp;a[n]</code>）」判斷結束：<code>cmpq %rdx, %rdi</code>／<code>jne .L3</code>。說得完整。後半「為什麼」是<strong>新觀念</strong>，猜錯不算錯。你猜「避免使用記憶體位址」不太對：兩個版本都要從記憶體讀 <code>a[i]</code>，被改寫掉的是 <code>i</code>，不是記憶體存取。已補教並寫進筆記：<a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80-%E6%9A%AB%E5%AD%98%E5%99%A8%E3%80%81mov%E8%88%87lea%E3%80%81cmp%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D.html#%E9%99%A3%E5%88%97%E8%BF%B4%E5%9C%88%E7%9A%84-i-%E7%82%BA%E4%BB%80%E9%BA%BC%E4%B8%8D%E8%A6%8B%E4%BA%86%E6%AD%B8%E7%B4%8D%E8%AE%8A%E6%95%B8%E6%9C%80%E4%BD%B3%E5%8C%96">第七節〈陣列迴圈的 <code>i</code> 為什麼不見了：歸納變數最佳化〉</a>，裡面用 <code>-fno-ivopts</code> 編出「保留 <code>i</code>」的版本對照。</p>
+<p><strong>參考答案</strong>【前半：<a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80-%E6%9A%AB%E5%AD%98%E5%99%A8%E3%80%81mov%E8%88%87lea%E3%80%81cmp%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D.html#%E4%B8%83%E9%80%90%E8%A1%8C%E8%AE%80-sum_to-%E7%9A%84--o2-%E7%89%88">筆記第七節</a>；後半：補教，<a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80-%E6%9A%AB%E5%AD%98%E5%99%A8%E3%80%81mov%E8%88%87lea%E3%80%81cmp%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D.html#%E9%99%A3%E5%88%97%E8%BF%B4%E5%9C%88%E7%9A%84-i-%E7%82%BA%E4%BB%80%E9%BA%BC%E4%B8%8D%E8%A6%8B%E4%BA%86%E6%AD%B8%E7%B4%8D%E8%AE%8A%E6%95%B8%E6%9C%80%E4%BD%B3%E5%8C%96">第七節</a>〈陣列迴圈的 <code>i</code> 為什麼不見了〉】迴圈前先用 <code>leaq (%rdi,%rsi,8), %rdx</code> 算出終點 <code>&amp;a[n]</code>；每圈 <code>%rdi += 8</code> 指向下一個元素，<code>cmpq %rdx, %rdi</code>／<code>jne</code> 判斷走到終點沒。等於把 C 改寫成 <code>for (p = a; p != a + n; p++) t += *p;</code>。為什麼：<code>i</code> 只拿來算位址和判斷結束，gcc 的歸納變數最佳化（<code>-fivopts</code>）把它跟 <code>a</code> 合併成一個每圈 +8 的指標——少維護一個變數、少用一個暫存器，記憶體運算元也從 <code>(%rdi,%rcx,8)</code> 變成簡單的 <code>(%rdi)</code>。這種把「每圈重算 <code>a + i×8</code>」換成「每圈加 8」的改寫叫強度削減（strength reduction）。</p>
+</blockquote>
+<hr />
+<h2 id="5-從組合語言反推-c">5. 從組合語言反推 C</h2>
+<p>下面兩段是某個 C 檔用 <code>gcc -S -O2 -fno-asynchronous-unwind-tables</code> 編出來的（指示詞已刪掉）：</p>
+<pre><code class="language-asm"><span class="nl">mystery1:</span>
+<span class="w">	</span><span class="nf">endbr64</span>
+<span class="w">	</span><span class="nf">movl</span><span class="w">	</span><span class="p">(</span><span class="nv">%rdi</span><span class="p">,</span><span class="nv">%rsi</span><span class="p">,</span><span class="mi">4</span><span class="p">),</span><span class="w"> </span><span class="nv">%eax</span>
+<span class="w">	</span><span class="nf">leal</span><span class="w">	</span><span class="mi">3</span><span class="p">(</span><span class="nv">%rax</span><span class="p">,</span><span class="nv">%rax</span><span class="p">,</span><span class="mi">4</span><span class="p">),</span><span class="w"> </span><span class="nv">%eax</span>
+<span class="w">	</span><span class="nf">ret</span>
+<span class="nl">mystery2:</span>
+<span class="w">	</span><span class="nf">endbr64</span>
+<span class="w">	</span><span class="nf">xorl</span><span class="w">	</span><span class="nv">%eax</span><span class="p">,</span><span class="w"> </span><span class="nv">%eax</span>
+<span class="w">	</span><span class="nf">cmpl</span><span class="w">	</span><span class="nv">%esi</span><span class="p">,</span><span class="w"> </span><span class="nv">%edi</span>
+<span class="w">	</span><span class="nf">setnb</span><span class="w">	</span><span class="nv">%al</span>
+<span class="w">	</span><span class="nf">ret</span>
+</code></pre>
+<h3 id="5-1-寫出-mystery1-的-c包括參數和回傳值的型別存成-mysteryc用同樣的命令編譯直到本體跟上面一模一樣貼上你的-c-和編出來的結果筆記第二四節">5-1. 寫出 <code>mystery1</code> 的 C（包括參數和回傳值的型別）。存成 <code>mystery.c</code>，用同樣的命令編譯，直到本體跟上面<strong>一模一樣</strong>。貼上你的 C 和編出來的結果。【筆記<a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80-%E6%9A%AB%E5%AD%98%E5%99%A8%E3%80%81mov%E8%88%87lea%E3%80%81cmp%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D.html#%E4%BA%8C%E6%9A%AB%E5%AD%98%E5%99%A8cpu-%E8%A3%A1%E7%9A%84-16-%E5%80%8B%E8%AE%8A%E6%95%B8">第二～四節</a>】</h3>
+<p><strong>第 1 次（2026-10-08）</strong></p>
+<pre><code>int mystery1(int *a, int i) {return 5*a[i] + 3;}
+int mystery2(unsigned a, unsigned b) {return a &lt; b ;}
+
+	.file	&quot;mystery.c&quot;
+	.text
+	.p2align 4
+	.globl	mystery1
+	.type	mystery1, @function
+mystery1:
+	endbr64
+	movslq	%esi, %rsi
+	movl	(%rdi,%rsi,4), %eax
+	leal	3(%rax,%rax,4), %eax
+	ret
+	.size	mystery1, .-mystery1
+	.p2align 4
+	.globl	mystery2
+	.type	mystery2, @function
+mystery2:
+	endbr64
+	xorl	%eax, %eax
+	cmpl	%edi, %esi
+	setb	%al
+	ret
+	.size	mystery2, .-mystery2
+	.ident	&quot;GCC: (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0&quot;
+	.section	.note.GNU-stack,&quot;&quot;,@progbits
+	.section	.note.gnu.property,&quot;a&quot;
+	.align 8
+	.long	1f - 0f
+	.long	4f - 1f
+	.long	5
+0:
+	.string	&quot;GNU&quot;
+1:
+	.align 8
+	.long	0xc0000002
+	.long	3f - 2f
+2:
+	.long	0x3
+3:
+	.align 8
+4:
+</code></pre>
+<blockquote>
+<p><strong>批改</strong>：<strong>錯</strong>。你編出來的本體比題目<strong>多了一行</strong> <code>movslq %esi, %rsi</code>，題目要求一模一樣，所以還沒完成。（另外：資料夾裡的 <code>mystery.c</code> 現在是 <code>unsigned mystery1(unsigned *a, int i)</code>，跟作答框裡的 <code>int</code> 版不同；兩個都會多出那一行。）<code>5*a[i] + 3</code>、<code>a</code> 指向 4 byte 元素、回傳 4 byte，這些都推對了。</p>
+<p><strong>提示</strong>：<code>movslq</code> 是<a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80-%E6%9A%AB%E5%AD%98%E5%99%A8%E3%80%81mov%E8%88%87lea%E3%80%81cmp%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D.html#%E4%BA%8C%E6%9A%AB%E5%AD%98%E5%99%A8cpu-%E8%A3%A1%E7%9A%84-16-%E5%80%8B%E8%AE%8A%E6%95%B8">筆記第二節</a>擴展指令表裡的哪一種、把幾 byte 變成幾 byte？gcc 為什麼一定要先做這一步，才能把 <code>%rsi</code> 當 <code>(%rdi,%rsi,4)</code> 的 <code>I</code> 用（<code>I</code> 必須是幾位元的暫存器）？題目的組合語言<strong>沒有</strong>這一行，代表 <code>i</code> 傳進來的時候就已經是幾 byte 了？改完重新編譯，貼上 C 和<strong>一模一樣</strong>的結果。</p>
+</blockquote>
+<p><strong>第 2 次（重答，2026-10-08）</strong></p>
+<blockquote>
+<p>題目：寫出 <code>mystery1</code> 的 C（包括參數和回傳值的型別）。存成 <code>mystery.c</code>，用同樣的命令編譯，直到本體跟上面<strong>一模一樣</strong>。貼上你的 C 和編出來的結果。</p>
+</blockquote>
+<pre><code>unsigned mystery1(unsigned *a, long i) {return 5*a[i] + 3;}
+mystery1:
+	endbr64
+	movl	(%rdi,%rsi,4), %eax
+	leal	3(%rax,%rax,4), %eax
+	ret
+</code></pre>
+<blockquote>
+<p><strong>批改（第 2 次）</strong>：<strong>對</strong>。<code>i</code> 改成 <code>long</code> 之後 <code>movslq</code> 消失，本體跟題目一模一樣（本機重新編譯 <code>mystery.c</code> 確認過）。<code>unsigned</code> 換成 <code>int</code> 也會得到一模一樣的結果，這正是 5-3 要問的。</p>
+<p><strong>參考答案</strong>【<a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80-%E6%9A%AB%E5%AD%98%E5%99%A8%E3%80%81mov%E8%88%87lea%E3%80%81cmp%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D.html#%E4%BA%8C%E6%9A%AB%E5%AD%98%E5%99%A8cpu-%E8%A3%A1%E7%9A%84-16-%E5%80%8B%E8%AE%8A%E6%95%B8">筆記第二～四節</a>】<code>int mystery1(int *a, long i) { return 5 * a[i] + 3; }</code>（<code>int</code> 換成 <code>unsigned</code>、<code>long</code> 換成 <code>unsigned long</code> 也一模一樣）。<code>movl (%rdi,%rsi,4), %eax</code> 讀 <code>a[i]</code>（4 byte 元素）；<code>leal 3(%rax,%rax,4), %eax</code> 算 <code>x + x×4 + 3</code> ＝ <code>5x + 3</code>。</p>
+</blockquote>
+<h3 id="5-2-寫出-mystery2-的-c同樣編譯到一模一樣為止貼上-c-和結果筆記第五節">5-2. 寫出 <code>mystery2</code> 的 C，同樣編譯到一模一樣為止，貼上 C 和結果。【筆記<a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80-%E6%9A%AB%E5%AD%98%E5%99%A8%E3%80%81mov%E8%88%87lea%E3%80%81cmp%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D.html#%E4%BA%94%E6%97%97%E6%A8%99%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8Dcmp-%E5%8F%AA%E8%B2%A0%E8%B2%AC%E6%AF%94%E8%B7%B3%E4%B8%8D%E8%B7%B3%E7%94%B1%E4%B8%8B%E4%B8%80%E5%80%8B%E6%8C%87%E4%BB%A4%E6%B1%BA%E5%AE%9A">第五節</a>】</h3>
+<p><strong>第 1 次（2026-10-08）</strong></p>
+<pre><code>已經寫在5-1裏面
+</code></pre>
+<blockquote>
+<p><strong>批改</strong>：<strong>錯</strong>。<code>a &gt; b</code> 編出來是 <code>cmpl %edi, %esi</code>＋<code>setb</code>，題目是 <code>cmpl %esi, %edi</code>＋<code>setnb</code>，不一樣。你在 5-3 自己寫了「<code>setnb</code> 是無號的大於等於」，但 C 寫成了 <code>&gt;</code>。參數是兩個 <code>unsigned</code> 這點是對的。</p>
+<p><strong>提示</strong>：照 <code>cmp S, D</code> 算的是 <code>D − S</code>：題目的 <code>cmpl %esi, %edi</code> 算的是哪個參數減哪個參數？<code>setnb</code> 在這個 <code>D − S</code> 之後代表 <code>D</code> 和 <code>S</code> 什麼關係（<a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80-%E6%9A%AB%E5%AD%98%E5%99%A8%E3%80%81mov%E8%88%87lea%E3%80%81cmp%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D.html#%E4%BA%94%E6%97%97%E6%A8%99%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8Dcmp-%E5%8F%AA%E8%B2%A0%E8%B2%AC%E6%AF%94%E8%B7%B3%E4%B8%8D%E8%B7%B3%E7%94%B1%E4%B8%8B%E4%B8%80%E5%80%8B%E6%8C%87%E4%BB%A4%E6%B1%BA%E5%AE%9A">筆記第五節</a>條件碼表的最後一欄）？</p>
+</blockquote>
+<p><strong>第 2 次（重答，2026-10-08）</strong></p>
+<blockquote>
+<p>題目：寫出 <code>mystery2</code> 的 C，同樣編譯到一模一樣為止，貼上 C 和結果。</p>
+</blockquote>
+<pre><code>int mystery2(unsigned a, unsigned b) {return !(a &lt; b);}
+
+mystery2:
+	endbr64
+	xorl	%eax, %eax
+	cmpl	%esi, %edi
+	setnb	%al
+	ret
+</code></pre>
+<blockquote>
+<p><strong>批改（第 2 次）</strong>：<strong>對</strong>。<code>!(a &lt; b)</code> 編出來跟題目一模一樣（本機重新編譯確認過）。更直接的寫法是 <code>a &gt;= b</code>，編出來也一模一樣。</p>
+<p><strong>參考答案</strong>【<a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80-%E6%9A%AB%E5%AD%98%E5%99%A8%E3%80%81mov%E8%88%87lea%E3%80%81cmp%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D.html#%E4%BA%94%E6%97%97%E6%A8%99%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8Dcmp-%E5%8F%AA%E8%B2%A0%E8%B2%AC%E6%AF%94%E8%B7%B3%E4%B8%8D%E8%B7%B3%E7%94%B1%E4%B8%8B%E4%B8%80%E5%80%8B%E6%8C%87%E4%BB%A4%E6%B1%BA%E5%AE%9A">筆記第五節</a>】<code>int mystery2(unsigned a, unsigned b) { return a &gt;= b; }</code>。<code>cmpl %esi, %edi</code> 算 <code>a − b</code>（<code>D − S</code>），<code>setnb</code> 是「沒有借位」，也就是無號的 <code>a &gt;= b</code>，成立時 <code>%al</code> = 1。<code>xorl %eax, %eax</code> 先把整個回傳暫存器清成 0，因為 <code>set</code> 只寫最低的 1 byte。</p>
+</blockquote>
+<h3 id="5-3-說明你是怎麼從組合語言推出-5-15-2-的型別的每個參數回傳值的型別各是看哪個線索暫存器名字s條件碼決定的有沒有哪個型別是組合語言無法確定的筆記第二節第三節第五節">5-3. 說明你是怎麼從組合語言推出 5-1、5-2 的<strong>型別</strong>的：每個參數、回傳值的型別，各是看哪個線索（暫存器名字、<code>S</code>、條件碼……）決定的？有沒有哪個型別是組合語言<strong>無法</strong>確定的？【筆記<a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80-%E6%9A%AB%E5%AD%98%E5%99%A8%E3%80%81mov%E8%88%87lea%E3%80%81cmp%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D.html#%E4%BA%8C%E6%9A%AB%E5%AD%98%E5%99%A8cpu-%E8%A3%A1%E7%9A%84-16-%E5%80%8B%E8%AE%8A%E6%95%B8">第二節</a>、<a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80-%E6%9A%AB%E5%AD%98%E5%99%A8%E3%80%81mov%E8%88%87lea%E3%80%81cmp%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D.html#%E4%B8%89%E6%8C%87%E4%BB%A4%E7%9A%84%E6%96%87%E6%B3%95%E5%8A%A9%E6%86%B6%E7%AC%A6%E5%A4%A7%E5%B0%8F%E5%BE%8C%E7%B6%B4%E9%81%8B%E7%AE%97%E5%85%83">第三節</a>、<a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80-%E6%9A%AB%E5%AD%98%E5%99%A8%E3%80%81mov%E8%88%87lea%E3%80%81cmp%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D.html#%E4%BA%94%E6%97%97%E6%A8%99%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8Dcmp-%E5%8F%AA%E8%B2%A0%E8%B2%AC%E6%AF%94%E8%B7%B3%E4%B8%8D%E8%B7%B3%E7%94%B1%E4%B8%8B%E4%B8%80%E5%80%8B%E6%8C%87%E4%BB%A4%E6%B1%BA%E5%AE%9A">第五節</a>】</h3>
+<p><strong>第 1 次（2026-10-08）</strong></p>
+<pre><code>5-1 
+return 值用了eax,並且用了 movl 的 l 所以return 類型是4byte, 有可能是int or unsigned 都可以,我只需要隨機選一個
+再來 用了movl 與 S = 4, 看起來很像指標rdi位移4byte * rsi, 並且movl是在記憶體讀寫值,寫入eax 寄存器
+4byte符合int or unsigned類型大小,所以猜測第一個參數是int, unsigned選一個, 第二個參數我沒法確定,但因爲他使用rsi所以 我認爲只要低於64元位應該都行
+
+
+5-2 
+第一與第二個參數都用了 edi, esi 先猜測4byte
+另外條件判斷用了 setnb, nb是無號 的 大於等於判斷, 所以連個參數我都用unsigned
+
+回傳值 用了 setnb %al, al是1byte, 而且set是條件達成寫入0x1, 沒有寫入0x0, 故大於1byte都可以,隨便就選了int
+
+float或double,我猜測的
+
+</code></pre>
+<blockquote>
+<p><strong>批改</strong>：<strong>不完整</strong>。推對的部分：<code>mystery1</code> 回傳 <code>%eax</code>＋<code>l</code> → 4 byte，<code>int</code> 或 <code>unsigned</code> 都行；<code>a</code> 的元素看 <code>S</code> = 4 和 <code>movl</code> → 4 byte；<code>mystery2</code> 兩個參數用 <code>%edi</code>、<code>%esi</code> → 4 byte，<code>setnb</code> 是無號的條件碼 → <code>unsigned</code>。這幾點都對。有問題的：</p>
+<ul>
+<li><code>mystery1</code> 的 <code>i</code>：「沒法確定，低於 64 位元都行」<strong>錯</strong>。這個型別組合語言其實看得出來（見 5-1 的提示）。</li>
+<li><code>mystery2</code> 的回傳值：「<code>%al</code> 是 1 byte，所以大於 1 byte 都可以」方向接近，但理由沒有用到最關鍵的那一行。</li>
+<li>「float 或 double」：浮點數本課沒教（它們用另一組暫存器，之後的課會講），不算錯，但這不是題目要的答案。</li>
+</ul>
+<p><strong>提示</strong>：</p>
+<ol>
+<li><code>i</code>：同 5-1 的提示，有沒有擴展指令就是線索。</li>
+<li><code>mystery2</code> 的回傳值：<code>setnb %al</code> 前面為什麼要先 <code>xorl %eax, %eax</code>？它清掉的是幾 byte？（<a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80-%E6%9A%AB%E5%AD%98%E5%99%A8%E3%80%81mov%E8%88%87lea%E3%80%81cmp%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D.html#%E4%BA%94%E6%97%97%E6%A8%99%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8Dcmp-%E5%8F%AA%E8%B2%A0%E8%B2%AC%E6%AF%94%E8%B7%B3%E4%B8%8D%E8%B7%B3%E7%94%B1%E4%B8%8B%E4%B8%80%E5%80%8B%E6%8C%87%E4%BB%A4%E6%B1%BA%E5%AE%9A">筆記第五節</a>條件碼表下方 <code>set&lt;cc&gt;</code> 那一列）如果回傳型別只有 1 byte，gcc 還需要這一行嗎？</li>
+<li>「無法確定」的意思是：<strong>換成另一個型別，編出來的組合語言一模一樣</strong>。哪些地方的組合語言根本沒有用到「有號還是無號」這個資訊（沒有擴展、沒有比較）？</li>
+</ol>
+</blockquote>
+<p><strong>第 2 次（重答，2026-10-08）</strong></p>
+<blockquote>
+<p>題目：說明你是怎麼從組合語言推出 5-1、5-2 的<strong>型別</strong>的：每個參數、回傳值的型別，各是看哪個線索（暫存器名字、<code>S</code>、條件碼……）決定的？有沒有哪個型別是組合語言<strong>無法</strong>確定的？</p>
+</blockquote>
+<pre><code>i 因爲用了rsi 推測是8byte 故爲long
+
+補上回傳值之所以用int 是因爲xorl eax eax 清掉的是4byte,所以判斷是int
+
+哪個型別無法確定請告訴我答案
+
+</code></pre>
+<blockquote>
+<p><strong>批改（第 2 次）</strong>：<strong>不完整</strong>。</p>
+<ul>
+<li><code>i</code> 是 8 byte，<strong>結論對</strong>，但理由「因為用了 <code>%rsi</code>」不夠：你第 1 次寫 <code>int i</code> 時也用了 <code>%rsi</code>。真正的線索是 <strong><code>%rsi</code> 沒有經過擴展就直接拿來當 <code>I</code></strong>；如果 <code>i</code> 是 4 byte，gcc 必須先用 <code>movslq</code> 把它擴展成 64 位元。</li>
+<li>回傳值「<code>xorl %eax, %eax</code> 清 4 byte，所以是 <code>int</code>」<strong>不對</strong>：寫 32 位元暫存器會把高 32 位元也清成 0（<a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80-%E6%9A%AB%E5%AD%98%E5%99%A8%E3%80%81mov%E8%88%87lea%E3%80%81cmp%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D.html#%E4%BA%8C%E6%9A%AB%E5%AD%98%E5%99%A8cpu-%E8%A3%A1%E7%9A%84-16-%E5%80%8B%E8%AE%8A%E6%95%B8">筆記第二節</a>〈寫低位的名字時，高位會怎樣？〉），所以這一行其實清掉了整個 <code>%rax</code>。實測回傳 <code>long</code> 也編出一模一樣的結果；回傳 <code>_Bool</code> 或 <code>char</code> 時，<code>xorl</code> 那一行就<strong>不見了</strong>。</li>
+<li>「哪個型別無法確定」沒有答出來（你請我直接給答案），這次附上參考答案。</li>
+</ul>
+<p><strong>參考答案</strong>【<a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80-%E6%9A%AB%E5%AD%98%E5%99%A8%E3%80%81mov%E8%88%87lea%E3%80%81cmp%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D.html#%E4%BA%8C%E6%9A%AB%E5%AD%98%E5%99%A8cpu-%E8%A3%A1%E7%9A%84-16-%E5%80%8B%E8%AE%8A%E6%95%B8">筆記第二節</a>、<a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80-%E6%9A%AB%E5%AD%98%E5%99%A8%E3%80%81mov%E8%88%87lea%E3%80%81cmp%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D.html#%E4%B8%89%E6%8C%87%E4%BB%A4%E7%9A%84%E6%96%87%E6%B3%95%E5%8A%A9%E6%86%B6%E7%AC%A6%E5%A4%A7%E5%B0%8F%E5%BE%8C%E7%B6%B4%E9%81%8B%E7%AE%97%E5%85%83">第三節</a>、<a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80-%E6%9A%AB%E5%AD%98%E5%99%A8%E3%80%81mov%E8%88%87lea%E3%80%81cmp%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D.html#%E4%BA%94%E6%97%97%E6%A8%99%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8Dcmp-%E5%8F%AA%E8%B2%A0%E8%B2%AC%E6%AF%94%E8%B7%B3%E4%B8%8D%E8%B7%B3%E7%94%B1%E4%B8%8B%E4%B8%80%E5%80%8B%E6%8C%87%E4%BB%A4%E6%B1%BA%E5%AE%9A">第五節</a>】「無法確定」的意思是：換成另一個型別，編出來的組合語言一模一樣。</p>
+<table>
+<thead>
+<tr>
+<th>位置</th>
+<th>看得出來的</th>
+<th>看不出來的</th>
+<th>線索</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>mystery1</code> 的 <code>a</code></td>
+<td>指向 <strong>4 byte</strong> 元素的指標</td>
+<td>元素是 <code>int</code> 還是 <code>unsigned</code></td>
+<td><code>S</code> = 4、<code>movl</code> 讀 4 byte、沒有擴展；後面的 <code>leal</code> 對有號和無號算出的位元一樣</td>
+</tr>
+<tr>
+<td><code>mystery1</code> 的 <code>i</code></td>
+<td><strong>8 byte</strong> 整數</td>
+<td><code>long</code> 還是 <code>unsigned long</code></td>
+<td><code>%rsi</code> 直接當 <code>I</code>，沒有 <code>movslq</code> 擴展</td>
+</tr>
+<tr>
+<td><code>mystery1</code> 的回傳值</td>
+<td><strong>4 byte</strong>（<code>%eax</code>、<code>leal</code> 的 <code>l</code>）</td>
+<td><code>int</code> 還是 <code>unsigned</code></td>
+<td>加法和乘法的位元結果不分有號無號</td>
+</tr>
+<tr>
+<td><code>mystery2</code> 的 <code>a</code>、<code>b</code></td>
+<td>4 byte（<code>%edi</code>、<code>%esi</code>），而且是<strong>無號</strong></td>
+<td>——（這裡看得出來）</td>
+<td>有比較，<code>setnb</code> 是無號的條件碼（有號會是 <code>setge</code>）</td>
+</tr>
+<tr>
+<td><code>mystery2</code> 的回傳值</td>
+<td>至少 4 byte 的整數</td>
+<td><code>int</code>、<code>unsigned</code>、<code>long</code>、<code>unsigned long</code> 都一樣</td>
+<td><code>xorl %eax, %eax</code> 清掉整個 <code>%rax</code>；回傳 <code>_Bool</code>／<code>char</code> 時 gcc 不會產生這一行（實測）</td>
+</tr>
+</tbody>
+</table>
+<p>規則：<strong>只有遇到擴展（<code>movs</code>／<code>movz</code>）或比較（條件碼）時，組合語言才看得出有號無號</strong>；單純的搬移、加減、乘法，對有號和無號產生的位元一樣，型別就分不出來。</p>
+</blockquote>
+
+</main>
+</div>
+</body>
+</html>

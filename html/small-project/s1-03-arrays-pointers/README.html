@@ -1,0 +1,976 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>s1-03：陣列、字串與指標運算</title>
+<link rel="stylesheet" href="../../assets/style.css">
+<script src="../../assets/app.js"></script>
+</head>
+<body>
+<button class="menu-btn" onclick="toggleMenu()">☰ 目錄</button>
+<div class="layout">
+<nav class="side">
+<div class="crumbs"><a href="../../index.html">🏠 首頁</a> / <a href="../README.html">small-project</a> / s1-03-arrays-pointers</div>
+<div class="tools"><button onclick="toggleTheme()">🌓 主題</button><button onclick="toggleAnswers(true)">展開答案</button><button onclick="toggleAnswers(false)">收起答案</button></div>
+<ul>
+<li class="l2"><a href="#%E8%AA%AA%E6%98%8E">說明</a></li>
+<li class="l2"><a href="#%E7%AD%86%E8%A8%98%E7%9A%84%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F">筆記的範例程式</a></li>
+<li class="l2"><a href="#1-short-%E8%88%87-long-%E7%9A%84%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97">1. short 與 long 的指標運算</a></li>
+<li class="l3"><a href="#1-1-%E5%9F%B7%E8%A1%8C%E5%89%8D%E5%85%88%E9%A0%90%E6%B8%AC%E4%BB%A5-s-%E5%92%8C-l-%E7%9A%84%E4%BD%8D%E5%9D%80%E7%82%BA%E5%9F%BA%E6%BA%96s--3l--2s--1-%E5%90%84%E5%BE%80%E5%BE%8C%E5%A4%9A%E5%B9%BE%E5%80%8B-byte%E5%85%A9%E5%80%8B%E7%9B%B8%E6%B8%9B%E7%9A%84%E7%B5%90%E6%9E%9C%E5%90%84%E6%98%AF%E5%A4%9A%E5%B0%91%E5%AF%AB%E5%87%BA%E6%AF%8F%E4%B8%80%E5%80%8B%E7%9A%84%E7%AE%97%E6%B3%95%E7%AD%86%E8%A8%98%E7%AC%AC%E4%BA%8C%E7%AF%80%E7%AC%AC%E4%B8%89%E7%AF%80">1-1. 執行前先預測：以 s 和 l 的位址為基準，s + 3、l + 2、&amp;s + 1 各往後多幾個 byte？兩個相減的結果各是多少？寫出每一個的算法。【筆記第二節、第三節】</a></li>
+<li class="l3"><a href="#1-2-%E7%B7%A8%E8%AD%AF%E5%9F%B7%E8%A1%8C%E8%B2%BC%E4%B8%8A%E8%BC%B8%E5%87%BA%E8%B7%9F%E9%A0%90%E6%B8%AC%E5%B0%8D%E7%85%A7%E5%85%A9%E5%80%8B%E7%9B%B8%E6%B8%9B%E7%9A%84%E7%B5%90%E6%9E%9C%E8%A6%81%E7%94%A8%E5%93%AA%E5%80%8B-printf-%E6%A0%BC%E5%BC%8F%E5%8D%B0%E7%82%BA%E4%BB%80%E9%BA%BC%E4%B8%8D%E6%98%AF-d-%E4%B9%9F%E4%B8%8D%E6%98%AF-zu%E7%AD%86%E8%A8%98%E7%AC%AC%E4%BA%8C%E7%AF%80">1-2. 編譯執行，貼上輸出，跟預測對照。兩個相減的結果要用哪個 printf 格式印？為什麼不是 %d 也不是 %zu？【筆記第二節】</a></li>
+<li class="l3"><a href="#1-3-s5---s1-%E5%92%8C-char-s5---char-s1-%E5%B7%AE%E5%9C%A8%E5%93%AA%E8%A3%A1%E7%82%BA%E4%BB%80%E9%BA%BC%E5%90%8C%E6%A8%A3%E5%85%A9%E5%80%8B%E4%BD%8D%E5%9D%80%E7%9B%B8%E6%B8%9B%E6%9C%83%E5%BE%97%E5%88%B0%E5%85%A9%E5%80%8B%E4%B8%8D%E5%90%8C%E7%9A%84%E6%95%B8%E7%AD%86%E8%A8%98%E7%AC%AC%E4%BA%8C%E7%AF%80">1-3. &amp;s[5] - &amp;s[1] 和 (char *)&amp;s[5] - (char *)&amp;s[1] 差在哪裡？為什麼同樣兩個位址相減，會得到兩個不同的數？【筆記第二節】</a></li>
+<li class="l2"><a href="#2-%E4%B8%8D%E7%94%A8--%E6%8A%8A%E9%99%A3%E5%88%97%E5%80%92%E9%81%8E%E4%BE%86">2. 不用 [] 把陣列倒過來</a></li>
+<li class="l3"><a href="#2-1-%E8%B2%BC%E4%B8%8A%E4%BD%A0%E7%9A%84-reverse-%E5%87%BD%E5%BC%8F%E5%92%8C%E5%9F%B7%E8%A1%8C%E7%B5%90%E6%9E%9C%E5%A5%87%E6%95%B8%E5%80%8B%E5%92%8C%E5%81%B6%E6%95%B8%E5%80%8B%E5%85%83%E7%B4%A0%E4%BD%A0%E7%9A%84%E8%BF%B4%E5%9C%88%E5%88%86%E5%88%A5%E5%9C%A8%E4%BB%80%E9%BA%BC%E6%A2%9D%E4%BB%B6%E4%B8%8B%E5%81%9C%E6%AD%A2%E7%AD%86%E8%A8%98%E7%AC%AC%E4%BA%8C%E7%AF%80">2-1. 貼上你的 reverse 函式和執行結果。奇數個和偶數個元素，你的迴圈分別在什麼條件下停止？【筆記第二節】</a></li>
+<li class="l3"><a href="#2-2-%E5%9C%A8-reverse-%E8%A3%A1%E5%8A%A0%E4%B8%80%E8%A1%8C%E5%8D%B0%E5%87%BA-sizeof-first%E5%86%8D%E6%8A%8A%E5%8F%83%E6%95%B8%E6%94%B9%E5%AF%AB%E6%88%90-int-first%E9%87%8D%E6%96%B0%E7%B7%A8%E8%AD%AF%E5%90%84%E5%8D%B0%E5%87%BA%E5%A4%9A%E5%B0%91%E7%B7%A8%E8%AD%AF%E5%99%A8%E8%AA%AA%E4%BA%86%E4%BB%80%E9%BA%BC%E7%82%BA%E4%BB%80%E9%BA%BC-reverse-%E4%B8%80%E5%AE%9A%E8%A6%81%E6%9C%89-n-%E9%80%99%E5%80%8B%E5%8F%83%E6%95%B8%E7%AD%86%E8%A8%98%E7%AC%AC%E4%B8%89%E7%AF%80">2-2. 在 reverse 裡加一行印出 sizeof first，再把參數改寫成 int first[]，重新編譯。各印出多少？編譯器說了什麼？為什麼 reverse 一定要有 n 這個參數？【筆記第三節】</a></li>
+<li class="l3"><a href="#2-3-%E5%9C%A8-main-%E8%A3%A1%E6%95%85%E6%84%8F%E6%8A%8A-5-%E5%80%8B%E5%85%83%E7%B4%A0%E7%9A%84%E9%99%A3%E5%88%97%E7%94%A8-reversea-6-%E5%91%BC%E5%8F%AB%E5%85%88%E9%A0%90%E6%B8%AC%E7%94%A8%E4%B8%80%E8%88%AC%E6%96%B9%E5%BC%8F%E7%B7%A8%E8%AD%AF%E5%9F%B7%E8%A1%8C%E6%9C%83%E7%95%B6%E6%8E%89%E5%97%8E%E5%86%8D%E5%8A%A0--fsanitizeaddress-%E7%B7%A8%E8%AD%AF%E5%9F%B7%E8%A1%8C%E8%B2%BC%E4%B8%8A%E5%A0%B1%E5%91%8A%E7%9A%84%E5%89%8D-5-%E8%A1%8C%E8%AA%AA%E6%98%8E%E5%AE%83%E6%98%AF-read-%E9%82%84%E6%98%AF-write%E5%B9%BE%E5%80%8B-byte%E7%99%BC%E7%94%9F%E5%9C%A8%E5%93%AA%E4%B8%80%E8%A1%8C%E4%BB%A5%E5%8F%8A%E7%82%BA%E4%BB%80%E9%BA%BC%E4%B8%80%E8%88%AC%E7%B7%A8%E8%AD%AF%E7%9A%84%E7%89%88%E6%9C%AC%E5%8F%AF%E8%83%BD%E7%9C%8B%E4%B8%8D%E5%87%BA%E9%8C%AF%E7%AD%86%E8%A8%98%E7%AC%AC%E4%BA%94%E7%AF%80%E7%AC%AC%E4%B8%83%E7%AF%80">2-3. 在 main 裡故意把 5 個元素的陣列用 reverse(a, 6) 呼叫。先預測：用一般方式編譯執行，會當掉嗎？再加 -fsanitize=address 編譯執行，貼上報告的前 5 行，說明它是 READ 還是 WRITE、幾個 byte、發生在哪一行，以及為什麼一般編譯的版本可能看不出錯。【筆記第五節、第七節】</a></li>
+<li class="l2"><a href="#3-%E8%87%AA%E5%B7%B1%E5%AF%AB-strlen">3. 自己寫 strlen</a></li>
+<li class="l3"><a href="#3-1-%E8%B2%BC%E4%B8%8A%E4%BD%A0%E7%9A%84-my_strlen%E4%B8%A6%E7%94%A8-linux%E7%A9%BA%E5%AD%97%E4%B8%B2%E5%AD%97-%E4%B8%89%E5%80%8B%E5%AD%97%E4%B8%B2%E6%B8%AC%E8%A9%A6%E8%B2%BC%E4%B8%8A%E7%B5%90%E6%9E%9C%E5%AD%97-%E7%9A%84%E7%B5%90%E6%9E%9C%E7%82%BA%E4%BB%80%E9%BA%BC%E4%B8%8D%E6%98%AF-1%E7%AD%86%E8%A8%98%E7%AC%AC%E4%BA%8C%E7%AF%80%E7%AC%AC%E5%9B%9B%E7%AF%80%E5%AD%97%E5%85%83%E6%98%AF%E4%BB%80%E9%BA%BC%E7%AC%AC%E5%9B%9B%E7%AF%80">3-1. 貼上你的 my_strlen，並用 &quot;Linux&quot;、&quot;&quot;（空字串）、&quot;字&quot; 三個字串測試，貼上結果。&quot;字&quot; 的結果為什麼不是 1？【筆記第二節、第四節；〈字元是什麼〉第四節】</a></li>
+<li class="l3"><a href="#3-2-%E5%AE%A3%E5%91%8A-char-name16--linux%E5%85%88%E9%A0%90%E6%B8%AC-sizeof-name-%E5%92%8C-my_strlenname-%E5%90%84%E6%98%AF%E5%A4%9A%E5%B0%91%E5%86%8D%E5%9F%B7%E8%A1%8C%E9%A9%97%E8%AD%89%E7%82%BA%E4%BB%80%E9%BA%BC%E5%85%A9%E5%80%8B%E6%95%B8%E5%AD%97%E4%B8%8D%E4%B8%80%E6%A8%A3name5-%E5%88%B0-name15-%E8%A3%A1%E6%98%AF%E4%BB%80%E9%BA%BC%E7%AD%86%E8%A8%98%E7%AC%AC%E5%9B%9B%E7%AF%80%E5%BE%8C%E5%8D%8A%E6%96%B0%E8%A7%80%E5%BF%B5%E5%85%88%E7%8C%9C">3-2. 宣告 char name[16] = &quot;Linux&quot;;。先預測 sizeof name 和 my_strlen(name) 各是多少，再執行驗證。為什麼兩個數字不一樣？name[5] 到 name[15] 裡是什麼？【筆記第四節；後半【新觀念，先猜】】</a></li>
+<li class="l3"><a href="#3-3-%E5%86%8D%E5%AE%A3%E5%91%8A-char-t5--linux-%E5%92%8C-char-u4--linux%E5%85%88%E9%A0%90%E6%B8%AC-wall--wextra-%E6%9C%83%E5%B0%8D%E5%93%AA%E4%B8%80%E8%A1%8C%E8%AD%A6%E5%91%8A%E6%96%B0%E8%A7%80%E5%BF%B5%E5%85%88%E7%8C%9C%E7%84%B6%E5%BE%8C%E5%B0%8D-t-%E5%91%BC%E5%8F%AB-my_strlen%E5%88%86%E5%88%A5%E7%94%A8%E4%B8%80%E8%88%AC%E6%96%B9%E5%BC%8F%E5%92%8C--fsanitizeaddress-%E7%B7%A8%E8%AD%AF%E5%9F%B7%E8%A1%8C%E8%B2%BC%E4%B8%8A%E7%B5%90%E6%9E%9Ct-%E5%B0%91%E4%BA%86%E4%BB%80%E9%BA%BC%E7%82%BA%E4%BB%80%E9%BA%BC%E4%B8%80%E8%88%AC%E7%B7%A8%E8%AD%AF%E5%8F%AF%E8%83%BD%E5%8D%B0%E5%87%BA%E7%9C%8B%E8%B5%B7%E4%BE%86%E6%AD%A3%E7%A2%BA%E7%9A%84-5%E7%AD%86%E8%A8%98%E7%AC%AC%E5%9B%9B%E7%AF%80%E7%AC%AC%E4%BA%94%E7%AF%80%E7%AC%AC%E4%B8%83%E7%AF%80">3-3. 再宣告 char t[5] = &quot;Linux&quot;; 和 char u[4] = &quot;Linux&quot;;。先預測：-Wall -Wextra 會對哪一行警告？（【新觀念，先猜】）然後對 t 呼叫 my_strlen，分別用一般方式和 -fsanitize=address 編譯執行，貼上結果。t 少了什麼？為什麼一般編譯可能印出看起來正確的 5？【筆記第四節、第五節、第七節】</a></li>
+<li class="l2"><a href="#4-%E7%94%A8-gdb-%E6%89%BE%E5%87%BA-segfault-%E7%9A%84%E7%9C%9F%E6%AD%A3%E5%8E%9F%E5%9B%A0">4. 用 gdb 找出 segfault 的真正原因</a></li>
+<li class="l3"><a href="#4-1-%E7%B7%A8%E8%AD%AF%E5%9F%B7%E8%A1%8C%E8%B2%BC%E4%B8%8A%E8%BC%B8%E5%87%BA%E8%88%87%E7%B5%90%E6%9D%9F%E7%8B%80%E6%85%8Becho-%E7%AC%AC%E4%B8%80%E8%A1%8C%E7%82%BA%E4%BB%80%E9%BA%BC%E6%98%AF%E5%B0%8D%E7%9A%84%E7%B5%90%E6%9D%9F%E7%8B%80%E6%85%8B%E4%BB%A3%E8%A1%A8%E4%BB%80%E9%BA%BC%E7%AD%86%E8%A8%98%E7%AC%AC%E4%BA%94%E7%AF%80">4-1. 編譯執行，貼上輸出與結束狀態（echo $?）。第一行為什麼是對的？結束狀態代表什麼？【筆記第五節】</a></li>
+<li class="l3"><a href="#4-2-%E7%94%A8-gdb-%E5%9F%B7%E8%A1%8C%E5%88%B0%E7%95%B6%E6%8E%89%E8%B2%BC%E4%B8%8A-bt-%E7%9A%84%E8%BC%B8%E5%87%BA%E7%95%B6%E5%9C%A8%E5%93%AA%E5%80%8B%E5%87%BD%E5%BC%8F%E5%93%AA%E4%B8%80%E8%A1%8C%E6%98%AF%E5%BE%9E-main-%E7%9A%84%E5%93%AA%E4%B8%80%E8%A1%8C%E5%91%BC%E5%8F%AB%E9%80%B2%E4%BE%86%E7%9A%84%E5%8F%83%E6%95%B8-target-%E6%98%AF%E5%A4%9A%E5%B0%91%E7%AD%86%E8%A8%98%E7%AC%AC%E5%85%AD%E7%AF%80">4-2. 用 gdb 執行到當掉，貼上 bt 的輸出。當在哪個函式、哪一行？是從 main 的哪一行呼叫進來的？參數 target 是多少？【筆記第六節】</a></li>
+<li class="l3"><a href="#4-3-%E5%9C%A8%E7%95%B6%E6%8E%89%E7%9A%84%E5%9C%B0%E6%96%B9%E7%94%A8-print-p---start-%E7%AE%97%E5%87%BA-p-%E5%B7%B2%E7%B6%93%E8%B5%B0%E9%81%8E%E5%B9%BE%E5%80%8B%E5%85%83%E7%B4%A0%E5%86%8D%E7%94%A8-info-proc-mappings-%E6%89%BE%E5%87%BA-p-%E7%9A%84%E4%BD%8D%E5%9D%80%E8%90%BD%E5%9C%A8%E5%93%AA%E4%B8%80%E6%AE%B5%E7%9A%84%E9%82%8A%E7%95%8C%E4%B8%8A%E8%B2%BC%E4%B8%8A%E7%9B%B8%E9%97%9C%E7%9A%84%E8%BC%B8%E5%87%BA%E4%B8%A6%E7%94%A8%E7%AD%86%E8%A8%98%E7%AC%AC%E5%85%AD%E7%AF%80%E7%9A%84%E6%96%B9%E5%BC%8F%E9%A9%97%E7%AE%97%E4%B8%80%E6%AC%A1%E8%B5%B7%E9%BB%9E%E4%BD%8D%E5%9D%80--%E5%85%83%E7%B4%A0%E5%80%8B%E6%95%B8--%E6%AF%8F%E5%80%8B%E5%85%83%E7%B4%A0%E7%9A%84%E5%A4%A7%E5%B0%8F--%E7%95%B6%E6%8E%89%E7%9A%84%E4%BD%8D%E5%9D%80%E7%AD%86%E8%A8%98%E7%AC%AC%E5%85%AD%E7%AF%80">4-3. 在當掉的地方用 print p - start 算出 p 已經走過幾個元素，再用 info proc mappings 找出 p 的位址落在哪一段的邊界上。貼上相關的輸出，並用筆記第六節的方式驗算一次（起點位址 + 元素個數 × 每個元素的大小 = 當掉的位址）。【筆記第六節】</a></li>
+<li class="l3"><a href="#4-4-%E7%94%A8-print-data-%E6%89%BE%E5%87%BA-data-%E5%9C%A8%E5%93%AA%E4%B8%80%E6%AE%B5%E7%9C%8B-info-proc-mappings-%E7%9A%84%E9%82%A3%E4%B8%80%E6%AE%B5%E6%98%AF%E4%BB%80%E9%BA%BC%E6%AC%8A%E9%99%90%E6%98%AF%E4%BB%80%E9%BA%BCp-%E7%95%B6%E6%8E%89%E7%9A%84%E4%BD%8D%E7%BD%AE%E4%B8%8D%E6%98%AF-data-%E6%89%80%E5%9C%A8%E9%82%A3%E4%B8%80%E6%AE%B5%E7%9A%84%E7%B5%90%E5%B0%BE%E8%80%8C%E6%98%AF%E5%86%8D%E5%BE%80%E5%BE%8C%E5%8F%A6%E4%B8%80%E6%AE%B5%E7%9A%84%E7%B5%90%E5%B0%BE%E9%82%A3%E4%B8%80%E6%AE%B5%E5%8F%AB%E4%BB%80%E9%BA%BC%E5%90%8D%E5%AD%97%E7%82%BA%E4%BB%80%E9%BA%BC-p-%E8%B5%B0%E5%87%BA-data-%E9%82%A3%E4%B8%80%E6%AE%B5%E7%9A%84%E6%99%82%E5%80%99%E6%B2%92%E6%9C%89%E7%95%B6%E6%8E%89%E5%89%8D%E5%8D%8A%E7%AD%86%E8%A8%98%E7%AC%AC%E5%85%AD%E7%AF%80%E5%BE%8C%E5%8D%8A%E6%96%B0%E8%A7%80%E5%BF%B5%E5%85%88%E7%8C%9C">4-4. 用 print &amp;data 找出 data 在哪一段（看 info proc mappings 的那一段是什麼、權限是什麼）。p 當掉的位置不是 data 所在那一段的結尾，而是再往後另一段的結尾。那一段叫什麼名字？為什麼 p 走出 data 那一段的時候沒有當掉？【前半筆記第六節；後半【新觀念，先猜】】</a></li>
+<li class="l3"><a href="#4-5-%E7%9C%9F%E6%AD%A3%E7%9A%84-bug-%E5%9C%A8%E5%93%AA%E4%B8%80%E8%A1%8C%E7%82%BA%E4%BB%80%E9%BA%BC%E7%95%B6%E6%8E%89%E7%9A%84%E9%82%A3%E4%B8%80%E8%A1%8C%E7%AC%AC-8-%E8%A1%8C%E4%B8%8D%E6%98%AF%E7%8A%AF%E9%8C%AF%E7%9A%84%E9%82%A3%E4%B8%80%E8%A1%8C%E6%8A%8A-find-%E6%94%B9%E6%88%90%E4%B8%8D%E6%9C%83%E8%B6%8A%E7%95%8C%E7%9A%84%E7%89%88%E6%9C%AC%E6%8F%90%E7%A4%BA%E6%83%B3%E6%83%B3%E7%AC%AC%E4%B8%89%E7%AF%80%E8%AA%AA%E7%9A%84%E9%95%B7%E5%BA%A6%E8%A6%81%E5%8F%A6%E5%A4%96%E5%82%B3%E6%89%BE%E4%B8%8D%E5%88%B0%E6%99%82%E8%A6%81%E5%9B%9E%E5%82%B3%E4%BB%80%E9%BA%BC%E4%BD%A0%E8%87%AA%E5%B7%B1%E6%B1%BA%E5%AE%9A%E4%B8%A6%E8%AA%AA%E6%98%8E%E8%B2%BC%E4%B8%8A%E6%94%B9%E5%A5%BD%E7%9A%84%E7%A8%8B%E5%BC%8F%E8%88%87%E5%9F%B7%E8%A1%8C%E7%B5%90%E6%9E%9C%E7%AD%86%E8%A8%98%E7%AC%AC%E4%B8%89%E7%AF%80%E7%AC%AC%E5%85%AD%E7%AF%80">4-5. 真正的 bug 在哪一行？為什麼當掉的那一行（第 8 行）不是犯錯的那一行？把 find 改成不會越界的版本（提示：想想第三節說的「長度要另外傳」；找不到時要回傳什麼，你自己決定並說明），貼上改好的程式與執行結果。【筆記第三節、第六節】</a></li>
+<li class="l2"><a href="#5-%E5%80%92%E8%91%97%E8%B5%B0%E7%9A%84%E8%BF%B4%E5%9C%88%E8%88%87-size_t">5. 倒著走的迴圈與 size_t</a></li>
+<li class="l3"><a href="#5-1-%E5%85%88%E9%A0%90%E6%B8%AC%E5%8F%AA%E7%94%A8--wall-%E7%B7%A8%E8%AD%AF%E6%9C%83%E4%B8%8D%E6%9C%83%E8%AD%A6%E5%91%8A%E5%8A%A0%E4%B8%8A--wextra-%E5%91%A2%E5%A6%82%E6%9E%9C%E6%9C%89%E8%AD%A6%E5%91%8A%E5%AE%83%E5%9C%A8%E8%AA%AA%E4%BB%80%E9%BA%BC%E7%82%BA%E4%BB%80%E9%BA%BC%E9%A0%90%E6%B8%AC%E5%AE%8C%E5%86%8D%E7%B7%A8%E8%AD%AF%E9%A9%97%E8%AD%89%E7%AC%AC-2-%E8%AA%B2%E7%AD%86%E8%A8%98%E7%AC%AC%E4%B8%83%E7%AF%80-wtype-limits">5-1. 先預測：只用 -Wall 編譯會不會警告？加上 -Wextra 呢？如果有警告，它在說什麼、為什麼？預測完再編譯驗證。【第 2 課筆記第七節〈-Wtype-limits〉】</a></li>
+<li class="l3"><a href="#5-2-%E5%85%88%E9%A0%90%E6%B8%AC%E5%8D%B0%E5%AE%8C-5-4-3-2-1-%E4%B9%8B%E5%BE%8C%E6%9C%83%E7%99%BC%E7%94%9F%E4%BB%80%E9%BA%BC%E5%86%8D%E5%9F%B7%E8%A1%8C-back--head--10back--devnull-echo-back--wc--l%E8%B2%BC%E4%B8%8A%E7%B5%90%E6%9E%9C%E5%8D%B0%E4%BA%86%E5%A4%A7%E7%B4%84%E5%B9%BE%E8%A1%8C%E6%89%8D%E5%81%9C%E7%B5%90%E6%9D%9F%E7%8B%80%E6%85%8B%E4%BB%A3%E8%A1%A8%E4%BB%80%E9%BA%BC%E7%82%BA%E4%BB%80%E9%BA%BC%E5%89%9B%E5%A5%BD%E6%98%AF%E9%80%99%E9%BA%BC%E5%A4%9A%E8%A1%8C%E6%89%8D%E7%95%B6%E6%8E%89%E6%96%B0%E8%A7%80%E5%BF%B5%E5%85%88%E7%8C%9C%E6%8F%90%E7%A4%BAulimit--s-%E6%9C%83%E5%8D%B0%E5%87%BA%E4%B8%80%E5%80%8B%E6%95%B8%E5%AD%97%E5%96%AE%E4%BD%8D%E6%98%AF-kb">5-2. 先預測印完 5 4 3 2 1 之後會發生什麼，再執行 ./back | head -10、./back &gt; /dev/null; echo $?、./back | wc -l，貼上結果。印了大約幾行才停？結束狀態代表什麼？（「為什麼剛好是這麼多行才當掉」：【新觀念，先猜】，提示：ulimit -s 會印出一個數字，單位是 KB）</a></li>
+<li class="l3"><a href="#5-3-%E7%94%A8--fsanitizeaddress-%E7%B7%A8%E8%AD%AF%E5%9F%B7%E8%A1%8C%E8%B2%BC%E4%B8%8A%E5%A0%B1%E5%91%8A%E7%9A%84%E5%89%8D-5-%E8%A1%8C%E5%A0%B1%E5%91%8A%E8%AA%AA%E7%9A%84%E6%98%AF-underflow%E5%9C%A8%E9%99%A3%E5%88%97%E5%89%8D%E9%9D%A2%E4%B8%8D%E6%98%AF-overflow%E8%A7%A3%E9%87%8B1-i-%E6%98%AF-0-%E7%9A%84%E6%99%82%E5%80%99%E5%86%8D%E5%81%9A-i--i-%E8%AE%8A%E6%88%90%E5%A4%9A%E5%B0%91%E7%AC%AC-2-%E8%AA%B2%E7%AD%86%E8%A8%98%E7%AC%AC%E5%9B%9B%E7%AF%80-2-%E7%82%BA%E4%BB%80%E9%BA%BC-ai-%E7%A2%B0%E5%88%B0%E7%9A%84%E6%98%AF-a-%E5%89%8D%E9%9D%A2%E7%B7%8A%E9%84%B0%E7%9A%84%E9%82%A3%E4%B8%80%E6%A0%BC%E8%80%8C%E4%B8%8D%E6%98%AF%E5%BE%88%E9%81%A0%E5%BE%88%E9%81%A0%E7%9A%84%E5%9C%B0%E6%96%B9%E6%96%B0%E8%A7%80%E5%BF%B5%E5%85%88%E7%8C%9C%E6%8F%90%E7%A4%BAai-%E6%98%AF-a--i%E4%BD%8D%E5%9D%80%E6%98%AF-a-%E5%8A%A0%E4%B8%8A-i--4%E8%80%8C%E4%BD%8D%E5%9D%80%E5%8F%AA%E6%9C%89-64-bit">5-3. 用 -fsanitize=address 編譯執行，貼上報告的前 5 行。報告說的是 underflow（在陣列前面），不是 overflow。解釋：(1) i 是 0 的時候再做 i--，i 變成多少？【第 2 課筆記第四節】 (2) 為什麼 a[i] 碰到的是 a 前面緊鄰的那一格，而不是很遠很遠的地方？【新觀念，先猜；提示：a[i] 是 *(a + i)，位址是 a 加上 i × 4，而位址只有 64 bit】</a></li>
+<li class="l3"><a href="#5-4-%E6%8A%8A%E8%BF%B4%E5%9C%88%E6%94%B9%E6%88%90%E6%AD%A3%E7%A2%BA%E7%9A%84%E7%89%88%E6%9C%ACi-%E4%BB%8D%E7%84%B6%E7%94%A8-size_t%E4%B8%A6%E8%AA%AA%E6%98%8E%E4%BD%A0%E7%9A%84%E6%94%B9%E6%B3%95%E7%82%BA%E4%BB%80%E9%BA%BC%E4%B8%8D%E6%9C%83%E5%86%8D%E5%87%BA%E9%8C%AF%E7%94%A8--wall--wextra-%E5%92%8C--fsanitizeaddress-%E9%A9%97%E8%AD%89%E8%B2%BC%E4%B8%8A%E7%A8%8B%E5%BC%8F%E8%88%87%E7%B5%90%E6%9E%9C%E6%B2%92%E6%9C%89%E5%94%AF%E4%B8%80%E7%9A%84%E7%AD%94%E6%A1%88%E6%83%B3%E4%B8%8D%E5%87%BA%E4%BE%86%E5%8F%AF%E4%BB%A5%E5%85%88%E5%AF%AB%E4%B8%80%E5%80%8B%E7%94%A8-int-%E7%9A%84%E7%89%88%E6%9C%AC%E4%B8%A6%E8%AA%AA%E6%98%8E-int-%E7%89%88%E6%9C%AC%E5%9C%A8%E4%BB%80%E9%BA%BC%E6%83%85%E6%B3%81%E4%B8%8B%E6%9C%83%E4%B8%8D%E5%A4%A0%E7%94%A8">5-4. 把迴圈改成正確的版本，i 仍然用 size_t，並說明你的改法為什麼不會再出錯。用 -Wall -Wextra 和 -fsanitize=address 驗證，貼上程式與結果。（沒有唯一的答案；想不出來可以先寫一個用 int 的版本，並說明 int 版本在什麼情況下會不夠用。）</a></li>
+</ul>
+</nav>
+<main>
+<h1 id="s1-03陣列字串與指標運算">s1-03：陣列、字串與指標運算</h1>
+<blockquote>
+<p>對應課程：第 ① 站第 3 課<br />
+課程筆記：<a href="../../c/%E9%99%A3%E5%88%97%E3%80%81%E5%AD%97%E4%B8%B2%E8%88%87%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97-C%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%88%87%E7%94%A8gdb%E6%89%BEsegfault.html">陣列、字串與指標運算-C不檢查邊界與用gdb找segfault.html</a><br />
+自我測驗：寫在同資料夾的 <a href="quiz.html">quiz</a></p>
+</blockquote>
+<h2 id="說明">說明</h2>
+<p>程式碼都在這個資料夾裡<strong>自己寫</strong>，每支程式都用 <code>gcc -Wall -Wextra -g -O0</code> 編譯（題目另有指定的除外）。筆記裡的範例可以參考寫法，但每一題的型別、數值、情境都跟範例不同，照抄範例答不出來。每題「解釋原因」的地方都標了答案的來源：</p>
+<ul>
+<li>【筆記第 X 節】：本課教過，回筆記那一節找。</li>
+<li>【第 2 課筆記第 X 節】：上一課教過，回 <a href="../../c/C%E7%9A%84%E8%B3%87%E6%96%99%E5%9C%A8%E8%A8%98%E6%86%B6%E9%AB%94%E8%A3%A1%E9%95%B7%E6%80%8E%E6%A8%A3-%E4%BD%8D%E5%85%83%E7%B5%84%E3%80%81%E6%8C%87%E6%A8%99%E3%80%81%E4%BD%8D%E5%85%83%E7%B5%84%E9%A0%86%E5%BA%8F%E8%88%87%E6%9C%89%E8%99%9F%E7%84%A1%E8%99%9F.html">C的資料在記憶體裡長怎樣</a> 那一節找。</li>
+<li>【新觀念，先猜】：還沒教過，寫下你的猜測就好，猜錯不算錯。</li>
+</ul>
+<p><strong>「先預測」的題目，一定要先把預測寫進作答框，再執行程式。</strong> 預測錯了沒關係，把錯在哪裡寫下來，這才是練習的重點。</p>
+<p><strong>怎麼作答</strong>：每個小題下面有作答框，直接寫在裡面。批改寫在作答框正下方；要重答時，批改下方會預先放好下一個作答框。</p>
+<h2 id="筆記的範例程式">筆記的範例程式</h2>
+<p>筆記的範例原始碼放在 <a href="../../../small-project/s1-03-arrays-pointers/note-sample/"><code>note-sample/</code></a>。2026-10-07 以前的範例（<code>arr.c</code>、<code>count.c</code>、<code>decay.c</code>、<code>oob.c</code>、<code>ptrarith.c</code>、<code>segv.c</code>、<code>smash.c</code>、<code>strings.c</code>）沒有逐一列表；之後新增的列在下面。</p>
+<table>
+<thead>
+<tr>
+<th>檔案</th>
+<th>在筆記的位置</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="../../../small-project/s1-03-arrays-pointers/note-sample/shadow.c"><code>note-sample/shadow.c</code></a></td>
+<td>第七節〈上圖的 <code>01</code>：影子 byte 的值是「個數」，不是資料〉（2026-10-11 追問）</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="1-short-與-long-的指標運算">1. <code>short</code> 與 <code>long</code> 的指標運算</h2>
+<p>寫 <code>stride.c</code>，宣告：</p>
+<pre><code class="language-c"><span class="kt">short</span><span class="w"> </span><span class="n">s</span><span class="p">[</span><span class="mi">6</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="mi">3</span><span class="p">,</span><span class="w"> </span><span class="mi">4</span><span class="p">,</span><span class="w"> </span><span class="mi">5</span><span class="p">,</span><span class="w"> </span><span class="mi">6</span><span class="p">};</span>
+<span class="kt">long</span><span class="w">  </span><span class="n">l</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="mi">10</span><span class="p">,</span><span class="w"> </span><span class="mi">20</span><span class="p">,</span><span class="w"> </span><span class="mi">30</span><span class="p">};</span>
+</code></pre>
+<p>印出 <code>s</code>、<code>s + 3</code>、<code>l</code>、<code>l + 2</code>、<code>&amp;s + 1</code> 的位址（<code>%p</code>），以及 <code>&amp;s[5] - &amp;s[1]</code>、<code>(char *)(l + 2) - (char *)l</code> 兩個相減的結果。</p>
+<h3 id="1-1-執行前先預測以-s-和-l-的位址為基準s--3l--2s--1-各往後多幾個-byte兩個相減的結果各是多少寫出每一個的算法筆記第二節第三節">1-1. 執行前先預測：以 <code>s</code> 和 <code>l</code> 的位址為基準，<code>s + 3</code>、<code>l + 2</code>、<code>&amp;s + 1</code> 各往後多幾個 byte？兩個相減的結果各是多少？寫出每一個的算法。【筆記<a href="../../c/%E9%99%A3%E5%88%97%E3%80%81%E5%AD%97%E4%B8%B2%E8%88%87%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97-C%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%88%87%E7%94%A8gdb%E6%89%BEsegfault.html#%E4%BA%8C%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97p--1-%E8%B5%B0%E4%B8%80%E5%80%8B%E5%85%83%E7%B4%A0%E4%B8%8D%E6%98%AF%E4%B8%80%E5%80%8B-byte">第二節</a>、<a href="../../c/%E9%99%A3%E5%88%97%E3%80%81%E5%AD%97%E4%B8%B2%E8%88%87%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97-C%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%88%87%E7%94%A8gdb%E6%89%BEsegfault.html#%E4%B8%89%E9%99%A3%E5%88%97%E5%90%8D%E7%A8%B1%E4%BB%80%E9%BA%BC%E6%99%82%E5%80%99%E8%AE%8A%E6%88%90%E6%8C%87%E6%A8%99%E4%BB%80%E9%BA%BC%E6%99%82%E5%80%99%E4%B8%8D%E6%9C%83">第三節</a>】</h3>
+<p><strong>第 1 次（2026-09-29）</strong></p>
+<pre><code>s+3: 6 byte  2byte*3 = 6
+l+2: 16 byte 8byte*2 = 16
+&amp;s+1: 12 byte 1*12byte = 12
+
+&amp;s[5] - &amp;s[1] = 差4各元素
+
+(char *)(l + 2) - (char *)l = 2*8byte = 16byte
+
+</code></pre>
+<blockquote>
+<p><strong>批改</strong>：<strong>對</strong>，五個預測全對，算法也都寫出來了：<code>s + 3</code> 是 3 × 2 = 6 byte、<code>l + 2</code> 是 2 × 8 = 16 byte；
+<code>&amp;s + 1</code> 是 12 byte——<code>&amp;s</code> 的型別是「指向整個 <code>short[6]</code> 的指標」，一步走整個陣列 6 × 2 = 12（筆記<a href="../../c/%E9%99%A3%E5%88%97%E3%80%81%E5%AD%97%E4%B8%B2%E8%88%87%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97-C%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%88%87%E7%94%A8gdb%E6%89%BEsegfault.html#%E4%B8%89%E9%99%A3%E5%88%97%E5%90%8D%E7%A8%B1%E4%BB%80%E9%BA%BC%E6%99%82%E5%80%99%E8%AE%8A%E6%88%90%E6%8C%87%E6%A8%99%E4%BB%80%E9%BA%BC%E6%99%82%E5%80%99%E4%B8%8D%E6%9C%83">第三節</a>〈<code>a</code> 和 <code>&amp;a</code>〉）。
+<code>&amp;s[5] - &amp;s[1]</code> 差 4 個元素（「各」應是「個」）；<code>(char *)</code> 相減是 16 byte。</p>
+</blockquote>
+<h3 id="1-2-編譯執行貼上輸出跟預測對照兩個相減的結果要用哪個-printf-格式印為什麼不是-d-也不是-zu筆記第二節">1-2. 編譯執行，貼上輸出，跟預測對照。兩個相減的結果要用哪個 <code>printf</code> 格式印？為什麼不是 <code>%d</code> 也不是 <code>%zu</code>？【筆記<a href="../../c/%E9%99%A3%E5%88%97%E3%80%81%E5%AD%97%E4%B8%B2%E8%88%87%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97-C%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%88%87%E7%94%A8gdb%E6%89%BEsegfault.html#%E4%BA%8C%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97p--1-%E8%B5%B0%E4%B8%80%E5%80%8B%E5%85%83%E7%B4%A0%E4%B8%8D%E6%98%AF%E4%B8%80%E5%80%8B-byte">第二節</a>】</h3>
+<p><strong>第 1 次（2026-09-29）</strong></p>
+<pre><code>s address = 0x7fffe3fe7c44
+s+3 address = 0x7fffe3fe7c4a 差 s 6byte
+l address = 0x7fffe3fe7c50
+l+2 address = 0x7fffe3fe7c60 差 l 16byte
+&amp;s + 1 address = 0x7fffe3fe7c50 差 s 12 byte剛好一個數組的長度
+&amp;s[5] - &amp;s[1] = 4
+(char *)(l + 2) - (char *)l = 16
+
+用td
+因爲兩個指標相減的性別是ptrdiff_t
+</code></pre>
+<blockquote>
+<p><strong>批改</strong>：<strong>不完整</strong>。輸出正確、跟預測完全一致（本機重跑也一樣），<code>%td</code>、型別 <code>ptrdiff_t</code> 都對（「性別」應是「型別」）。但題目的後半「為什麼<strong>不是</strong> <code>%d</code>、也<strong>不是</strong> <code>%zu</code>」沒有回答——只說出它叫 <code>ptrdiff_t</code>，沒說出 <code>ptrdiff_t</code> 的哪兩個性質讓另外兩個格式不適用。</p>
+<p><strong>提示</strong>【筆記<a href="../../c/%E9%99%A3%E5%88%97%E3%80%81%E5%AD%97%E4%B8%B2%E8%88%87%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97-C%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%88%87%E7%94%A8gdb%E6%89%BEsegfault.html#%E4%BA%8C%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97p--1-%E8%B5%B0%E4%B8%80%E5%80%8B%E5%85%83%E7%B4%A0%E4%B8%8D%E6%98%AF%E4%B8%80%E5%80%8B-byte">第二節</a>〈兩個指標相減：得到「差幾個元素」，型別是 <code>ptrdiff_t</code>〉】：本機 <code>ptrdiff_t</code> 是幾 byte？<code>%d</code> 對應的 <code>int</code> 是幾 byte？<code>%zu</code> 對應的 <code>size_t</code> 是有號還是無號？<code>&amp;s[1] - &amp;s[5]</code> 會得到什麼？</p>
+</blockquote>
+<p><strong>第 2 次（重答，2026-09-29）</strong></p>
+<blockquote>
+<p>題目：編譯執行，貼上輸出，跟預測對照。兩個相減的結果要用哪個 <code>printf</code> 格式印？為什麼不是 <code>%d</code> 也不是 <code>%zu</code>？</p>
+</blockquote>
+<pre><code>s address = 0x7fffe3fe7c44
+s+3 address = 0x7fffe3fe7c4a 差 s 6byte
+l address = 0x7fffe3fe7c50
+l+2 address = 0x7fffe3fe7c60 差 l 16byte
+&amp;s + 1 address = 0x7fffe3fe7c50 差 s 12 byte剛好一個數組的長度
+&amp;s[5] - &amp;s[1] = 4
+(char *)(l + 2) - (char *)l = 16
+
+ptrdiff_t 8byte 有號整數
+int是4byte
+zu是無號
+
+&amp;s[5] - &amp;s[1] = 4 這個出來的型別是ptrdiff_t 不是int 也不是size_t 至於爲什麼我不確定
+</code></pre>
+<blockquote>
+<p><strong>批改（第 2 次）</strong>：<strong>大致對</strong>。答案需要的兩個性質你都寫出來了——<code>ptrdiff_t</code> 是 <strong>8 byte</strong>、<strong>有號</strong>；<code>int</code> 是 4 byte；<code>%zu</code> 是無號——只差最後一步：把這兩個性質接到「所以不能用」。已經兩次作答，公布參考答案。本機實測（<code>fmt.c</code>，印 <code>&amp;s[1] - &amp;s[5]</code>，應該是 −4）：</p>
+<pre><code>$ gcc -Wall -Wextra -g -O0 fmt.c -o fmt
+fmt.c:8:20: warning: format '%d' expects argument of type 'int', but argument 2 has type 'long int' [-Wformat=]
+$ ./fmt
+%td: -4
+%zu: 18446744073709551612      ← 把 −4 的 8 個 byte 當成無號讀：2⁶⁴ − 4
+%d : -4                        ← 這次碰巧對，但 gcc 已經警告型別不符
+</code></pre>
+<p><code>fmt.c</code> 原始碼：</p>
+<pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="kt">short</span><span class="w"> </span><span class="n">s</span><span class="p">[</span><span class="mi">6</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="mi">3</span><span class="p">,</span><span class="w"> </span><span class="mi">4</span><span class="p">,</span><span class="w"> </span><span class="mi">5</span><span class="p">,</span><span class="w"> </span><span class="mi">6</span><span class="p">};</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;%%td: %td</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">s</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="o">&amp;</span><span class="n">s</span><span class="p">[</span><span class="mi">5</span><span class="p">]);</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;%%zu: %zu</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">s</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="o">&amp;</span><span class="n">s</span><span class="p">[</span><span class="mi">5</span><span class="p">]);</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;%%d : %d</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">s</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="o">&amp;</span><span class="n">s</span><span class="p">[</span><span class="mi">5</span><span class="p">]);</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<p><strong>參考答案</strong>：用 <strong><code>%td</code></strong>，因為相減的結果型別是 <code>ptrdiff_t</code>（<code>t</code> 就是它的長度修飾字）。</p>
+<ul>
+<li>不用 <code>%d</code>：<code>%d</code> 要的是 4 byte 的 <code>int</code>，<code>ptrdiff_t</code> 在本機是 8 byte 的 <code>long</code>，<strong>大小不符</strong>——gcc 的 <code>-Wformat</code> 會警告；差距超出 <code>int</code> 範圍時印出來的數字就是錯的。</li>
+<li>不用 <code>%zu</code>：<code>%zu</code> 要的是<strong>無號</strong>的 <code>size_t</code>，但指標相減<strong>可以是負的</strong>（<code>&amp;s[1] - &amp;s[5]</code> 是 −4），用 <code>%zu</code> 印會變成 18446744073709551612（第 2 課的「同寬換讀法」）。</li>
+</ul>
+</blockquote>
+<h3 id="1-3-s5---s1-和-char-s5---char-s1-差在哪裡為什麼同樣兩個位址相減會得到兩個不同的數筆記第二節">1-3. <code>&amp;s[5] - &amp;s[1]</code> 和 <code>(char *)&amp;s[5] - (char *)&amp;s[1]</code> 差在哪裡？為什麼同樣兩個位址相減，會得到兩個不同的數？【筆記<a href="../../c/%E9%99%A3%E5%88%97%E3%80%81%E5%AD%97%E4%B8%B2%E8%88%87%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97-C%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%88%87%E7%94%A8gdb%E6%89%BEsegfault.html#%E4%BA%8C%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97p--1-%E8%B5%B0%E4%B8%80%E5%80%8B%E5%85%83%E7%B4%A0%E4%B8%8D%E6%98%AF%E4%B8%80%E5%80%8B-byte">第二節</a>】</h3>
+<p><strong>第 1 次（2026-09-29）</strong></p>
+<pre><code>數組內指標相減 得到的類型是ptrdiff_t,一個long類型,相差的是元素個數
+第二個因爲轉成char 單位是1byte,所以應該是4 * 2 * 1 = 8byte,第二個有轉換類型
+</code></pre>
+<blockquote>
+<p><strong>批改</strong>：<strong>對</strong>。指標相減的結果是「差幾個元素」：兩個位址差 8 byte，除以元素大小——<code>short *</code> 除以 2 得 4，<code>char *</code> 除以 1 得 8。同樣兩個位址，相減時用哪個型別的指標，就決定「一步」多大。（作答原本寫在作答框外面，已搬進框裡。）</p>
+</blockquote>
+<hr />
+<h2 id="2-不用--把陣列倒過來">2. 不用 <code>[]</code> 把陣列倒過來</h2>
+<p>寫 <code>rev.c</code>，實作：</p>
+<pre><code class="language-c"><span class="kt">void</span><span class="w"> </span><span class="nf">reverse</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="o">*</span><span class="n">first</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">n</span><span class="p">);</span>
+</code></pre>
+<p>把從 <code>first</code> 開始的 <code>n</code> 個 <code>int</code> 原地倒轉（例如 <code>{1, 2, 3, 4, 5}</code> 變成 <code>{5, 4, 3, 2, 1}</code>）。
+<strong>函式裡不准出現 <code>[]</code></strong>，只能用指標運算（<code>+</code>、<code>-</code>、<code>++</code>、<code>--</code>、<code>*</code>、指標比較）。
+<code>main</code> 裡分別用 5 個元素和 6 個元素的陣列測試，印出倒轉前後的內容。</p>
+<h3 id="2-1-貼上你的-reverse-函式和執行結果奇數個和偶數個元素你的迴圈分別在什麼條件下停止筆記第二節">2-1. 貼上你的 <code>reverse</code> 函式和執行結果。奇數個和偶數個元素，你的迴圈分別在什麼條件下停止？【筆記<a href="../../c/%E9%99%A3%E5%88%97%E3%80%81%E5%AD%97%E4%B8%B2%E8%88%87%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97-C%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%88%87%E7%94%A8gdb%E6%89%BEsegfault.html#%E4%BA%8C%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97p--1-%E8%B5%B0%E4%B8%80%E5%80%8B%E5%85%83%E7%B4%A0%E4%B8%8D%E6%98%AF%E4%B8%80%E5%80%8B-byte">第二節</a>】</h3>
+<p><strong>第 1 次（2026-09-29）</strong></p>
+<pre><code>#include &lt;stdio.h&gt;
+
+void reverse(int *first, int n) {
+    int start = 0;
+    int end = n - 1;
+    while (start &lt; end) {
+        int* getfirst = first + start;
+        int* getend = first + end;
+
+        int temp = *getfirst;
+        *getfirst = *getend;
+        *getend = temp;
+
+        start++;
+        end--;
+    }
+}
+
+int main() {
+    int arr[] = {1, 2, 3, 4, 5};
+    int arr2[] = {1, 2, 3, 4, 5, 6};
+    reverse(arr, 5);
+    reverse(arr2, 6);
+    printf(&quot;arr reversed: &quot;);
+    for (int i = 0; i &lt; 5; i++) {
+        printf(&quot;%d &quot;, arr[i]);
+    }
+    printf(&quot;\n&quot;);
+    printf(&quot;arr2 reversed: &quot;);
+    for (int i = 0; i &lt; 6; i++) {
+        printf(&quot;%d &quot;, arr2[i]);
+    }
+    printf(&quot;\n&quot;);
+    return 0;
+}
+
+arr reversed: 5 4 3 2 1 
+arr2 reversed: 6 5 4 3 2 1
+
+當start &gt; end 的時候迴圈結束,都交換完了
+</code></pre>
+<blockquote>
+<p><strong>批改</strong>：程式<strong>對</strong>，兩組都正確倒轉，也沒有用到 <code>[]</code>。停止條件<strong>不完整</strong>：題目要你<strong>分開</strong>說奇數和偶數，你只寫了一個「<code>start &gt; end</code>」，而這對奇數個是錯的。另外一個寫法上的建議（不扣分）：你用兩個整數 <code>start</code>、<code>end</code> 當索引，每圈再算 <code>first + start</code>——這其實是把 <code>a[i]</code> 換個寫法。題目想練的是<strong>直接移動兩根指標</strong>：一根從頭往後 <code>++</code>、一根從尾往前 <code>--</code>，比較兩根指標決定何時停（筆記第二節：同一個陣列裡的指標可以比大小）。有興趣可以改寫看看。</p>
+<p><strong>提示</strong>：用 5 個元素手動走一次你的迴圈：每一圈結束時 <code>start</code>、<code>end</code> 各是多少？最後一次檢查 <code>start &lt; end</code> 時，兩者的值是什麼、是「大於」還是「等於」？再用 6 個元素走一次。中間那個元素（奇數時）需要交換嗎？</p>
+</blockquote>
+<p><strong>第 2 次（重答，2026-09-29）</strong></p>
+<blockquote>
+<p>題目：貼上你的 <code>reverse</code> 函式和執行結果。奇數個和偶數個元素，你的迴圈分別在什麼條件下停止？</p>
+</blockquote>
+<pre><code>我不太確定題目想讓我怎麼寫,可以直接寫出來嗎?
+</code></pre>
+<blockquote>
+<p><strong>批改（第 2 次）</strong>：還沒作答，你問題目要怎麼寫——這裡把題目說清楚。程式那一半第 1 次已經對了，<strong>只剩停止條件</strong>：你的迴圈是 <code>while (start &lt; end)</code>，它在 <code>start &lt; end</code> 變成<strong>不成立</strong>的那一刻停。「不成立」有兩種可能：<code>start == end</code>，或 <code>start &gt; end</code>。<br />
+題目問的是：5 個元素時是哪一種？6 個元素時是哪一種？</p>
+<p><strong>怎麼寫</strong>：照下面的格式，把你的迴圈<strong>用手</strong>走一次（或在 <code>while</code> 裡加一行 <code>printf</code> 印出 <code>start</code>、<code>end</code>），填完兩張表，最後各用一句話回答「停的時候 <code>start</code> 和 <code>end</code> 是什麼關係」、以及「奇數時中間那一格有沒有被換、需不需要換」。</p>
+<pre><code>n = 5：
+檢查第幾次   start   end   start &lt; end ?
+1            0       4     成立 → 交換
+2            ?       ?     ?
+...
+n = 6：
+（同上）
+</code></pre>
+</blockquote>
+<details class="answer"><summary>參考答案</summary>
+<p>（2026-09-30 改為重答一次即公布）：迴圈 <code>while (start &lt; end)</code> 在條件不成立時停，兩種情況停的方式不同：</p>
+<pre><code>n = 5：檢查 (start, end) = (0,4) 交換 → (1,3) 交換 → (2,2) 不成立，停     ← start == end
+n = 6：檢查 (start, end) = (0,5) 交換 → (1,4) 交換 → (2,3) 交換 → (3,2) 不成立，停   ← start &gt; end
+</code></pre>
+<ul>
+<li><strong>奇數個</strong>：停在 <code>start == end</code>，兩個索引剛好碰在中間那一格（<code>arr[2]</code>）。中間那格跟自己交換沒有意義，<strong>不需要換</strong>，所以停在這裡正好。</li>
+<li><strong>偶數個</strong>：沒有中間那格，最後一次交換 <code>(2,3)</code> 之後兩者<strong>交錯</strong>，停在 <code>start &gt; end</code>（<code>start == end + 1</code>）。</li>
+<li>所以條件寫 <code>start &lt; end</code> 兩種情況都對；寫成 <code>start != end</code> 的話，偶數個時兩者會直接交錯過去、永遠不相等，一路換到陣列外面。</li>
+</ul>
+</details>
+<h3 id="2-2-在-reverse-裡加一行印出-sizeof-first再把參數改寫成-int-first重新編譯各印出多少編譯器說了什麼為什麼-reverse-一定要有-n-這個參數筆記第三節">2-2. 在 <code>reverse</code> 裡加一行印出 <code>sizeof first</code>，再把參數改寫成 <code>int first[]</code>，重新編譯。各印出多少？編譯器說了什麼？為什麼 <code>reverse</code> 一定要有 <code>n</code> 這個參數？【筆記<a href="../../c/%E9%99%A3%E5%88%97%E3%80%81%E5%AD%97%E4%B8%B2%E8%88%87%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97-C%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%88%87%E7%94%A8gdb%E6%89%BEsegfault.html#%E4%B8%89%E9%99%A3%E5%88%97%E5%90%8D%E7%A8%B1%E4%BB%80%E9%BA%BC%E6%99%82%E5%80%99%E8%AE%8A%E6%88%90%E6%8C%87%E6%A8%99%E4%BB%80%E9%BA%BC%E6%99%82%E5%80%99%E4%B8%8D%E6%9C%83">第三節</a>】</h3>
+<p><strong>第 1 次（2026-09-29）</strong></p>
+<pre><code>size of first: 8
+參數改了, size of first: 8
+warning: ‘sizeof’ on array function parameter ‘first’ will return size of ‘int *’ [-Wsizeof-array-argument]
+    6 |     printf(&quot;size of first: %zu\n&quot;, sizeof first);
+把他當成了 int指標了, 所以還是8byte
+
+因爲指標進去 我們還是不知道陣列長度,不帶就不知道陣列邊界在哪裏
+</code></pre>
+<blockquote>
+<p><strong>批改</strong>：<strong>對</strong>。兩次都是 8；<code>int first[]</code> 寫在參數裡其實就是 <code>int *first</code>，gcc 用 <code>-Wsizeof-array-argument</code> 提醒你 <code>sizeof</code> 拿到的是指標大小；陣列傳進函式只剩起點位址，長度資訊不見了，所以一定要另外傳 <code>n</code>（筆記<a href="../../c/%E9%99%A3%E5%88%97%E3%80%81%E5%AD%97%E4%B8%B2%E8%88%87%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97-C%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%88%87%E7%94%A8gdb%E6%89%BEsegfault.html#%E4%B8%89%E9%99%A3%E5%88%97%E5%90%8D%E7%A8%B1%E4%BB%80%E9%BA%BC%E6%99%82%E5%80%99%E8%AE%8A%E6%88%90%E6%8C%87%E6%A8%99%E4%BB%80%E9%BA%BC%E6%99%82%E5%80%99%E4%B8%8D%E6%9C%83">第三節</a>〈函式參數寫成 <code>int a[]</code>，其實就是 <code>int *a</code>〉）。</p>
+</blockquote>
+<h3 id="2-3-在-main-裡故意把-5-個元素的陣列用-reversea-6-呼叫先預測用一般方式編譯執行會當掉嗎再加--fsanitizeaddress-編譯執行貼上報告的前-5-行說明它是-read-還是-write幾個-byte發生在哪一行以及為什麼一般編譯的版本可能看不出錯筆記第五節第七節">2-3. 在 <code>main</code> 裡故意把 5 個元素的陣列用 <code>reverse(a, 6)</code> 呼叫。<strong>先預測</strong>：用一般方式編譯執行，會當掉嗎？再加 <code>-fsanitize=address</code> 編譯執行，貼上報告的前 5 行，說明它是 <code>READ</code> 還是 <code>WRITE</code>、幾個 byte、發生在哪一行，以及為什麼一般編譯的版本可能看不出錯。【筆記<a href="../../c/%E9%99%A3%E5%88%97%E3%80%81%E5%AD%97%E4%B8%B2%E8%88%87%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97-C%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%88%87%E7%94%A8gdb%E6%89%BEsegfault.html#%E4%BA%94c-%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%B6%8A%E7%95%8C%E7%9A%84%E4%B8%89%E7%A8%AE%E4%B8%8B%E5%A0%B4">第五節</a>、<a href="../../c/%E9%99%A3%E5%88%97%E3%80%81%E5%AD%97%E4%B8%B2%E8%88%87%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97-C%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%88%87%E7%94%A8gdb%E6%89%BEsegfault.html#%E4%B8%83addresssanitizer%E5%9C%A8%E7%AC%AC%E4%B8%80%E6%AC%A1%E8%B6%8A%E7%95%8C%E7%9A%84%E7%95%B6%E4%B8%8B%E6%8A%93%E5%88%B0%E5%AE%83">第七節</a>】</h3>
+<p><strong>第 1 次（2026-09-29）</strong></p>
+<pre><code>1. 不會
+2. 
+ gcc -Wall -Wextra -fsanitize=address -O0 -o rev rev.c    ok | base py | at 14:47:54 
+rev.c: In function ‘main’:
+rev.c:31:23: warning: comparison of integer expressions of different signedness: ‘int’ and ‘long unsigned int’ [-Wsign-compare]
+   31 |     for (int i = 0; i &lt; sizeof arr2 / sizeof arr2[0]; i++) {
+      |      
+報告只有出這個
+
+可能沒有到金絲雀記憶體位址,也沒有到main入口點村的rip位址
+</code></pre>
+<blockquote>
+<p><strong>批改</strong>：預測「不會當掉」<strong>對</strong>（本機一般編譯跑完 exit 0）。「只越界一格，碰不到金絲雀和返回位址」方向也對。但 ASan 那部分<strong>還沒做</strong>：你貼的是<strong>編譯</strong>時的警告（第 31 行 <code>int</code> 和 <code>sizeof</code> 比較，跟這題無關），不是 ASan 報告。<strong>ASan 的報告要等程式執行時才出現</strong>——編譯完要再跑 <code>./rev</code>。我跑了你資料夾裡那支 <code>rev</code>，報告確實有出來，只是你沒執行。還有兩點：</p>
+<ul>
+<li>題目說明要求用 <code>-g</code> 編譯，你這次沒加。沒有 <code>-g</code>，報告裡只有 <code>reverse+0x1350</code> 這種偏移，<strong>看不到行號</strong>（筆記<a href="../../c/%E9%99%A3%E5%88%97%E3%80%81%E5%AD%97%E4%B8%B2%E8%88%87%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97-C%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%88%87%E7%94%A8gdb%E6%89%BEsegfault.html#%E4%B8%83addresssanitizer%E5%9C%A8%E7%AC%AC%E4%B8%80%E6%AC%A1%E8%B6%8A%E7%95%8C%E7%9A%84%E7%95%B6%E4%B8%8B%E6%8A%93%E5%88%B0%E5%AE%83">第七節</a>）。</li>
+<li>一般編譯的結果其實<strong>不是</strong>完全正確：看看印出來的 <code>arr</code> 第一個數字是多少，它是從哪裡來的？</li>
+</ul>
+<p><strong>提示</strong>：用 <code>gcc -Wall -Wextra -g -O0 -fsanitize=address -o rev rev.c</code> 重新編譯，<strong>再執行 <code>./rev</code></strong>，貼上前 5 行，回答題目的四件事（<code>READ</code>／<code>WRITE</code>、幾個 byte、哪一行、為什麼一般版本看不出錯）。再用一般方式編譯執行一次，貼上 <code>arr reversed:</code> 那一行，說明第一個數字和第六個數字各是怎麼來的。</p>
+</blockquote>
+<p><strong>第 2 次（重答，2026-09-29）</strong></p>
+<blockquote>
+<p>題目：在 <code>main</code> 裡故意把 5 個元素的陣列用 <code>reverse(a, 6)</code> 呼叫。<strong>先預測</strong>：用一般方式編譯執行，會當掉嗎？再加 <code>-fsanitize=address</code> 編譯執行，貼上報告的前 5 行，說明它是 <code>READ</code> 還是 <code>WRITE</code>、幾個 byte、發生在哪一行，以及為什麼一般編譯的版本可能看不出錯。</p>
+</blockquote>
+<pre><code>size of first: 8
+=================================================================
+==9732==ERROR: AddressSanitizer: stack-buffer-overflow on address 0x777b5bb00034 at pc 0x5942bee5c351 bp 0x7ffda5d08460 sp 0x7ffda5d08450
+READ of size 4 at 0x777b5bb00034 thread T0
+    #0 0x5942bee5c350 in reverse /home/set/work/Projects/github/good-note/small-project/s1-03-arrays-pointers/rev.c:12
+    #1 0x5942bee5c700 in main /home/set/work/Projects/github/good-note/small-project/s1-03-arrays-pointers/rev.c:23
+    #2 0x777b5da2a1c9 in __libc_start_call_main ../sysdeps/nptl/libc_start_call_main.h:58
+    #3 0x777b5da2a28a in __libc_start_main_impl ../csu/libc-start.c:360
+    #4 0x5942bee5c1a4 in _start (/home/set/work/Projects/github/good-note/small-project/s1-03-arrays-pointers/rev+0x11a4) (BuildId: 39769f27c794178662c6263c65a077f98c280931)
+
+Address 0x777b5bb00034 is located in stack of thread T0 at offset 52 in frame
+    #0 0x5942bee5c38d in main /home/set/work/Projects/github/good-note/small-project/s1-03-arrays-pointers/rev.c:20           
+
+是read出錯,在程式12行
+*getfirst = *getend;
+
+看錯誤像是超出stack, 但具體原因可能要麻煩你跟我說
+主要是因爲arr只有5個,但是我們直接只向第6個byte的位址所以stack overflow?
+</code></pre>
+<blockquote>
+<p><strong>批改（第 2 次）</strong>：這次<strong>有執行、有加 <code>-g</code></strong>，報告有行號了。（作答原本寫在空白框下面，已搬進框裡。）</p>
+<ul>
+<li><code>READ</code>、第 12 行 <code>*getfirst = *getend;</code> <strong>對</strong>。幾個 byte 沒寫出來：報告寫 <code>READ of size 4</code>——4 byte，剛好一個 <code>int</code>。</li>
+<li>「指向第 6 個 <strong>byte</strong>」<strong>不對</strong>：是第 6 個<strong>元素</strong>（<code>arr[5]</code>），位址是 <code>arr</code> + 5 × 4 = 偏移 20 byte。這正是第 1 題練的「<code>p + 1</code> 走一個元素」。</li>
+<li>你問「<code>stack-buffer-overflow</code> 是不是 stack overflow」：<strong>不是</strong>，這兩個是不同的東西。報告的名字要拆開讀：<strong>stack</strong> 上的一個 <strong>buffer</strong>（緩衝區，就是陣列）被 <strong>overflow</strong>（寫／讀超過結尾）——
+也就是「<strong>堆疊上的陣列越界</strong>」（筆記<a href="../../c/%E9%99%A3%E5%88%97%E3%80%81%E5%AD%97%E4%B8%B2%E8%88%87%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97-C%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%88%87%E7%94%A8gdb%E6%89%BEsegfault.html#%E4%B8%83addresssanitizer%E5%9C%A8%E7%AC%AC%E4%B8%80%E6%AC%A1%E8%B6%8A%E7%95%8C%E7%9A%84%E7%95%B6%E4%B8%8B%E6%8A%93%E5%88%B0%E5%AE%83">第七節</a>那張表的第一列）。「stack overflow」（堆疊溢位）則是整個堆疊用完了，例如遞迴太深——第 5 題會碰到。</li>
+<li>報告的下半段你沒有貼：本機重跑是 <code>[32, 52) 'arr' (line 21) &lt;== Memory access at offset 52 overflows this variable</code>。<code>arr</code> 佔偏移 32～51（5 × 4 = 20 byte），讀的是偏移 52，<strong>剛好超出結尾</strong>。</li>
+<li>「為什麼一般版本看不出錯」這次沒答（第 1 次答的方向是對的）。</li>
+</ul>
+<p><strong>提示</strong>：</p>
+<ol>
+<li>第 12 行 <code>*getfirst = *getend;</code> 同時有讀和寫，第 13 行 <code>*getend = temp;</code> 是寫。越界的那一格<strong>先被讀、後被寫</strong>，為什麼報告只說 <code>READ</code>，沒有 <code>WRITE</code>？【筆記<a href="../../c/%E9%99%A3%E5%88%97%E3%80%81%E5%AD%97%E4%B8%B2%E8%88%87%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97-C%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%88%87%E7%94%A8gdb%E6%89%BEsegfault.html#%E4%B8%83addresssanitizer%E5%9C%A8%E7%AC%AC%E4%B8%80%E6%AC%A1%E8%B6%8A%E7%95%8C%E7%9A%84%E7%95%B6%E4%B8%8B%E6%8A%93%E5%88%B0%E5%AE%83">第七節</a>那張表最後一列】</li>
+<li>一般編譯（不加 ASan）執行一次，貼上 <code>arr reversed:</code> 那一行。第一個數字是什麼、從哪裡來？原本 <code>arr</code> 裡的 <code>1</code> 被搬到哪裡去了？這說明一般版本是「沒有錯」還是「錯了但沒當掉」？【筆記<a href="../../c/%E9%99%A3%E5%88%97%E3%80%81%E5%AD%97%E4%B8%B2%E8%88%87%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97-C%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%88%87%E7%94%A8gdb%E6%89%BEsegfault.html#%E4%BA%94c-%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%B6%8A%E7%95%8C%E7%9A%84%E4%B8%89%E7%A8%AE%E4%B8%8B%E5%A0%B4">第五節</a>〈下場一：安靜地出錯〉】</li>
+</ol>
+</blockquote>
+<details class="answer"><summary>參考答案</summary>
+<p>（2026-09-30 改為重答一次即公布）：</p>
+<ul>
+<li>一般編譯<strong>不會當掉</strong>。ASan 報告：<code>stack-buffer-overflow</code>（堆疊上的陣列越界）、<strong><code>READ of size 4</code></strong>（讀了 4 byte，一個 <code>int</code>）、發生在 <strong><code>rev.c:12</code></strong> 的 <code>*getfirst = *getend;</code>，由 <code>main</code> 第 23 行 <code>reverse(arr, 6)</code> 呼叫；<code>[32, 52) 'arr' &lt;== Memory access at offset 52</code>：<code>arr</code> 佔 20 byte，讀的是<strong>剛好超出結尾</strong>的下一格，也就是第 6 個元素 <code>arr[5]</code>。</li>
+<li>為什麼只有 <code>READ</code>：第一次 swap（<code>start=0, end=5</code>）時，第 12 行<strong>先讀</strong> <code>arr[5]</code>，第 13 行才寫它。ASan 在<strong>第一個錯誤就停</strong>（筆記<a href="../../c/%E9%99%A3%E5%88%97%E3%80%81%E5%AD%97%E4%B8%B2%E8%88%87%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97-C%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%88%87%E7%94%A8gdb%E6%89%BEsegfault.html#%E4%B8%83addresssanitizer%E5%9C%A8%E7%AC%AC%E4%B8%80%E6%AC%A1%E8%B6%8A%E7%95%8C%E7%9A%84%E7%95%B6%E4%B8%8B%E6%8A%93%E5%88%B0%E5%AE%83">第七節</a>表格最後一列），第 13 行的越界寫入根本沒機會執行。</li>
+<li>一般版本本機實測印出 <code>arr reversed: 0 5 4 3 2 1</code>：第一個數字 <code>0</code> 是 <code>arr</code> 後面那 4 byte 原本的內容（這裡是空隙），被換進了 <code>arr[0]</code>；原本的 <code>1</code> 則被<strong>寫到 <code>arr</code> 外面</strong>。程式不是「沒有錯」，而是<strong>錯了但沒當掉</strong>（筆記<a href="../../c/%E9%99%A3%E5%88%97%E3%80%81%E5%AD%97%E4%B8%B2%E8%88%87%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97-C%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%88%87%E7%94%A8gdb%E6%89%BEsegfault.html#%E4%BA%94c-%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%B6%8A%E7%95%8C%E7%9A%84%E4%B8%89%E7%A8%AE%E4%B8%8B%E5%A0%B4">第五節</a>〈下場一：安靜地出錯〉）。只越界一格，碰到的是空隙或別的區域變數，碰不到金絲雀與返回位址，所以堆疊保護也不會觸發。</li>
+</ul>
+</details>
+<hr />
+<h2 id="3-自己寫-strlen">3. 自己寫 <code>strlen</code></h2>
+<p>寫 <code>mystrlen.c</code>，實作：</p>
+<pre><code class="language-c"><span class="kt">size_t</span><span class="w"> </span><span class="nf">my_strlen</span><span class="p">(</span><span class="kt">char</span><span class="w"> </span><span class="o">*</span><span class="n">s</span><span class="p">);</span>
+</code></pre>
+<p><strong>只能用指標往前走</strong>：用另一個指標從 <code>s</code> 開始走到 <code>'\0'</code>，最後用兩個指標相減得到長度（不准用 <code>strlen</code>、不准用 <code>[]</code>、不准另外用整數計數）。</p>
+<h3 id="3-1-貼上你的-my_strlen並用-linux空字串字-三個字串測試貼上結果字-的結果為什麼不是-1筆記第二節第四節字元是什麼第四節">3-1. 貼上你的 <code>my_strlen</code>，並用 <code>&quot;Linux&quot;</code>、<code>&quot;&quot;</code>（空字串）、<code>&quot;字&quot;</code> 三個字串測試，貼上結果。<code>&quot;字&quot;</code> 的結果為什麼不是 1？【筆記<a href="../../c/%E9%99%A3%E5%88%97%E3%80%81%E5%AD%97%E4%B8%B2%E8%88%87%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97-C%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%88%87%E7%94%A8gdb%E6%89%BEsegfault.html#%E4%BA%8C%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97p--1-%E8%B5%B0%E4%B8%80%E5%80%8B%E5%85%83%E7%B4%A0%E4%B8%8D%E6%98%AF%E4%B8%80%E5%80%8B-byte">第二節</a>、<a href="../../c/%E9%99%A3%E5%88%97%E3%80%81%E5%AD%97%E4%B8%B2%E8%88%87%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97-C%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%88%87%E7%94%A8gdb%E6%89%BEsegfault.html#%E5%9B%9B%E5%AD%97%E4%B8%B2%E4%BB%A5-0-%E7%B5%90%E5%B0%BE%E7%9A%84-char-%E9%99%A3%E5%88%97">第四節</a>；〈字元是什麼〉<a href="../../c/%E5%AD%97%E5%85%83%E6%98%AF%E4%BB%80%E9%BA%BC-char%E5%B0%B1%E6%98%AF1byte%E7%9A%84%E6%95%B4%E6%95%B8%E8%88%87ASCII%E5%92%8CUTF-8.html#%E5%9B%9B%E4%B8%AD%E6%96%87%E5%AD%97%E4%B8%80%E5%80%8B-byte-%E8%A3%9D%E4%B8%8D%E4%B8%8Butf-8-%E7%94%A8-3-%E5%80%8B-byte">第四節</a>】</h3>
+<p><strong>第 1 次（2026-09-29）</strong></p>
+<pre><code>#include &lt;stdio.h&gt;
+
+size_t my_strlen(char *s){
+    char *start = s;
+    while (*s != '\0') {
+        s++;
+    }
+    return s - start;
+}
+
+int main() {
+    char li[] = &quot;Linux&quot;;
+    char empty[] = &quot;&quot;; 
+    char word[] = &quot;字&quot;;
+    printf(&quot;Length of '%s' is %zu\n&quot;, li, my_strlen(li));
+    printf(&quot;Length of '%s' is %zu\n&quot;, empty, my_strlen(empty));
+    printf(&quot;Length of '%s' is %zu\n&quot;, word, my_strlen(word));
+    return 0;
+}
+
+Length of 'Linux' is 5
+Length of '' is 0
+Length of '字' is 3
+
+因爲根據unicode編碼字是三個字元
+</code></pre>
+<blockquote>
+<p><strong>批改</strong>：程式<strong>對</strong>：一根指標走到 <code>'\0'</code>、兩根指標相減，符合題目限制，三個結果 5、0、3 都正確（本機重跑一樣）。「為什麼不是 1」<strong>錯</strong>：「字是三個<strong>字元</strong>」正是〈字元是什麼〉第 5 題卡住的那個混淆——「字」是<strong>一個</strong>字元（一個 Unicode code point），3 是別的東西。另外，把中文變成 3 的那套編碼規則叫什麼？不是「Unicode 編碼」這個籠統的說法。</p>
+<p><strong>提示</strong>【〈字元是什麼〉<a href="../../c/%E5%AD%97%E5%85%83%E6%98%AF%E4%BB%80%E9%BA%BC-char%E5%B0%B1%E6%98%AF1byte%E7%9A%84%E6%95%B4%E6%95%B8%E8%88%87ASCII%E5%92%8CUTF-8.html#%E5%9B%9B%E4%B8%AD%E6%96%87%E5%AD%97%E4%B8%80%E5%80%8B-byte-%E8%A3%9D%E4%B8%8D%E4%B8%8Butf-8-%E7%94%A8-3-%E5%80%8B-byte">第四節</a>、第五節】：<code>my_strlen</code> 每走一步，<code>s</code> 前進的是一個什麼（看 <code>s</code> 的型別）？它數的是字元數，還是別的單位？「字」在檔案裡是用哪一種編碼存的、佔幾個那種單位？</p>
+</blockquote>
+<p><strong>第 2 次（重答，2026-09-29）</strong></p>
+<blockquote>
+<p>題目：貼上你的 <code>my_strlen</code>，並用 <code>&quot;Linux&quot;</code>、<code>&quot;&quot;</code>（空字串）、<code>&quot;字&quot;</code> 三個字串測試，貼上結果。<code>&quot;字&quot;</code> 的結果為什麼不是 1？</p>
+</blockquote>
+<pre><code>我直接回答錯的部分
+是因爲我的my_strlen 是一個字元一個字元算,到\0這個字元停下,所以走了3次,因此判斷&quot;字&quot;是三個字元
+</code></pre>
+<blockquote>
+<p><strong>批改（第 2 次）</strong>：<strong>不完整</strong>。「<code>my_strlen</code> 一格一格走、走到 <code>\0</code> 停，所以走了 3 步」<strong>對</strong>。但「一個字元一個字元算」和「字是三個字元」還是把兩種「字元」混在一起了：<code>my_strlen</code> 一步走的是一個 <strong><code>char</code>，也就是 1 個 byte</strong>，不是一個字元（字）。答案需要的「byte」「UTF-8」兩個詞都沒有出現。已經兩次作答，公布參考答案——這跟〈字元是什麼〉第 5 題是同一個觀念，明天（10/1）以後複習那篇時會再考。</p>
+<p><strong>參考答案</strong>：<code>my_strlen</code> 的指標是 <code>char *</code>，每次 <code>s++</code> 前進 <strong>1 個 byte</strong>，所以它數的是 <strong>byte 數</strong>，不是字元數。「字」是<strong>一個</strong>字元（一個 Unicode code point，U+5B57），原始碼存成 <strong>UTF-8</strong>，一個中文字用 <strong>3 個 byte</strong>（<code>e5 ad 97</code>）表示，後面才是 <code>\0</code>，所以走 3 步。C 的 <code>char</code> 叫「字元」，其實是「1 byte 的整數」（〈字元是什麼〉<a href="../../c/%E5%AD%97%E5%85%83%E6%98%AF%E4%BB%80%E9%BA%BC-char%E5%B0%B1%E6%98%AF1byte%E7%9A%84%E6%95%B4%E6%95%B8%E8%88%87ASCII%E5%92%8CUTF-8.html#%E4%B8%80%E5%AD%97%E5%85%83%E5%B0%B1%E6%98%AF%E4%B8%80%E5%80%8B%E6%95%B8%E5%AD%97">第一節</a>），這個名字就是混淆的來源。</p>
+</blockquote>
+<h3 id="3-2-宣告-char-name16--linux先預測-sizeof-name-和-my_strlenname-各是多少再執行驗證為什麼兩個數字不一樣name5-到-name15-裡是什麼筆記第四節後半新觀念先猜">3-2. 宣告 <code>char name[16] = &quot;Linux&quot;;</code>。<strong>先預測</strong> <code>sizeof name</code> 和 <code>my_strlen(name)</code> 各是多少，再執行驗證。為什麼兩個數字不一樣？<code>name[5]</code> 到 <code>name[15]</code> 裡是什麼？【筆記<a href="../../c/%E9%99%A3%E5%88%97%E3%80%81%E5%AD%97%E4%B8%B2%E8%88%87%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97-C%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%88%87%E7%94%A8gdb%E6%89%BEsegfault.html#%E5%9B%9B%E5%AD%97%E4%B8%B2%E4%BB%A5-0-%E7%B5%90%E5%B0%BE%E7%9A%84-char-%E9%99%A3%E5%88%97">第四節</a>；後半【新觀念，先猜】】</h3>
+<p><strong>第 1 次（2026-09-29）</strong></p>
+<pre><code>sizeof name 預測是 16(byte)
+my_strlen(name) 預測是5
+sizeof name是name指標指向整個陣列,所以是整個陣列的大小
+mystren到\0就會停下來了,只有5
+
+name[5]是\0
+所以剩餘的我猜都是\0
+</code></pre>
+<blockquote>
+<p><strong>批改</strong>：預測 16 和 5 <strong>對</strong>，<code>my_strlen</code> 走到 <code>\0</code> 就停也對。但有兩個問題：</p>
+<ul>
+<li><strong>沒有執行驗證</strong>：題目要求預測完再執行，<code>strlen.c</code> 裡沒有 <code>name</code>，作答框也沒有輸出。</li>
+<li><strong>「<code>name</code> 指標指向整個陣列」不對</strong>：<code>name</code> 是<strong>陣列</strong>，不是指標。<code>sizeof name</code> 得到 16，正是因為 <code>sizeof</code> 作用在陣列名稱上時<strong>不會</strong>退化成指標（筆記<a href="../../c/%E9%99%A3%E5%88%97%E3%80%81%E5%AD%97%E4%B8%B2%E8%88%87%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97-C%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%88%87%E7%94%A8gdb%E6%89%BEsegfault.html#%E4%B8%89%E9%99%A3%E5%88%97%E5%90%8D%E7%A8%B1%E4%BB%80%E9%BA%BC%E6%99%82%E5%80%99%E8%AE%8A%E6%88%90%E6%8C%87%E6%A8%99%E4%BB%80%E9%BA%BC%E6%99%82%E5%80%99%E4%B8%8D%E6%9C%83">第三節</a>）；如果它是指標，<code>sizeof</code> 會是 8——跟你在第 2-2 題看到的一樣。</li>
+</ul>
+<p>後半（【新觀念，先猜】）：猜「<code>name[5]</code> 是 <code>\0</code>，剩下都是 <code>\0</code>」<strong>猜對了</strong>。規則是：陣列的初始值比陣列短時，沒給到的格子一律補 0。已補教進筆記第四節〈<a href="../../c/%E9%99%A3%E5%88%97%E3%80%81%E5%AD%97%E4%B8%B2%E8%88%87%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97-C%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%88%87%E7%94%A8gdb%E6%89%BEsegfault.html#%E9%99%A3%E5%88%97%E5%A4%A7%E5%B0%8F%E8%B7%9F%E5%AD%97%E4%B8%B2%E9%95%B7%E5%BA%A6%E4%B8%8D%E4%B8%80%E6%A8%A3%E6%99%82%E6%AF%94%E8%BC%83%E9%95%B7%E5%89%9B%E5%A5%BD%E6%AF%94%E8%BC%83%E7%9F%AD">陣列大小跟字串長度不一樣時：比較長、剛好、比較短</a>〉（附實測）。</p>
+<p><strong>提示</strong>：在程式裡加上 <code>name</code>，實際印出 <code>sizeof name</code> 與 <code>my_strlen(name)</code> 貼上來；再用一句話重寫「為什麼兩個數字不一樣」——<code>sizeof</code> 量的是什麼、<code>my_strlen</code> 量的是什麼，並把「指標」這個錯字眼拿掉。</p>
+</blockquote>
+<p><strong>第 2 次（重答，2026-09-29）</strong></p>
+<blockquote>
+<p>題目：宣告 <code>char name[16] = &quot;Linux&quot;;</code>。<strong>先預測</strong> <code>sizeof name</code> 和 <code>my_strlen(name)</code> 各是多少，再執行驗證。為什麼兩個數字不一樣？<code>name[5]</code> 到 <code>name[15]</code> 裡是什麼？</p>
+</blockquote>
+<pre><code>其餘的描述同上,我這邊改寫了strlen.c 並且把輸出貼上
+Length of 'Linux' is 5
+Length of '' is 0
+Length of '字' is 3
+Length of 'LinuxLinux' is 10
+Length of 'LinuLinuxLinux' is 14
+Length of 'Linux' is 16
+Length of 'Linux' is 5
+
+sizeof name 預測是 16(byte)
+my_strlen(name) 預測是5
+sizeof name是整個陣列,所以是整個陣列的大小
+
+
+</code></pre>
+<blockquote>
+<p><strong>批改（第 2 次）</strong>：<strong>對</strong>。實際執行得到 16 和 5，跟預測一致；「<code>sizeof name</code> 是整個陣列的大小」這次把「指標」拿掉了，說法正確。<br />
+小提醒：你印 <code>sizeof name</code> 那行的標籤也寫成 <code>Length of</code>，自己回頭看輸出時容易搞混，標籤寫 <code>sizeof</code> 比較好。</p>
+<p><strong>參考答案</strong>：<code>sizeof name</code> 量的是<strong>陣列佔多少 byte</strong>（宣告時決定，16），<code>my_strlen</code> 量的是<strong>從開頭到第一個 <code>\0</code> 有幾個 byte</strong>（5）。兩個量的東西不同。
+<code>name[5]</code> 到 <code>name[15]</code> 全是 0：初始值比陣列短時，沒給到的格子補 0（補教見筆記第四節〈陣列大小跟字串長度不一樣時〉）。</p>
+</blockquote>
+<h3 id="3-3-再宣告-char-t5--linux-和-char-u4--linux先預測-wall--wextra-會對哪一行警告新觀念先猜然後對-t-呼叫-my_strlen分別用一般方式和--fsanitizeaddress-編譯執行貼上結果t-少了什麼為什麼一般編譯可能印出看起來正確的-5筆記第四節第五節第七節">3-3. 再宣告 <code>char t[5] = &quot;Linux&quot;;</code> 和 <code>char u[4] = &quot;Linux&quot;;</code>。<strong>先預測</strong>：<code>-Wall -Wextra</code> 會對哪一行警告？（【新觀念，先猜】）然後對 <code>t</code> 呼叫 <code>my_strlen</code>，分別用一般方式和 <code>-fsanitize=address</code> 編譯執行，貼上結果。<code>t</code> 少了什麼？為什麼一般編譯可能印出看起來正確的 5？【筆記<a href="../../c/%E9%99%A3%E5%88%97%E3%80%81%E5%AD%97%E4%B8%B2%E8%88%87%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97-C%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%88%87%E7%94%A8gdb%E6%89%BEsegfault.html#%E5%9B%9B%E5%AD%97%E4%B8%B2%E4%BB%A5-0-%E7%B5%90%E5%B0%BE%E7%9A%84-char-%E9%99%A3%E5%88%97">第四節</a>、<a href="../../c/%E9%99%A3%E5%88%97%E3%80%81%E5%AD%97%E4%B8%B2%E8%88%87%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97-C%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%88%87%E7%94%A8gdb%E6%89%BEsegfault.html#%E4%BA%94c-%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%B6%8A%E7%95%8C%E7%9A%84%E4%B8%89%E7%A8%AE%E4%B8%8B%E5%A0%B4">第五節</a>、<a href="../../c/%E9%99%A3%E5%88%97%E3%80%81%E5%AD%97%E4%B8%B2%E8%88%87%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97-C%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%88%87%E7%94%A8gdb%E6%89%BEsegfault.html#%E4%B8%83addresssanitizer%E5%9C%A8%E7%AC%AC%E4%B8%80%E6%AC%A1%E8%B6%8A%E7%95%8C%E7%9A%84%E7%95%B6%E4%B8%8B%E6%8A%93%E5%88%B0%E5%AE%83">第七節</a>】</h3>
+<p><strong>第 1 次（2026-09-29）</strong></p>
+<pre><code>兩行都會,長度都不夠
+
+-Wall -Wextra
+~/w/Proj/g/good-note/s/s1-03-arrays-pointers | on main !1 ?3  gcc -Wall -Wextra -O0 -o strlen strlen.c                 ok | base py | at 15:00:06 
+strlen.c: In function ‘main’:
+strlen.c:16:17: warning: initializer-string for array of ‘char’ is too long
+   16 |     char u[4] = &quot;Linux&quot;;
+      |                 ^~~~~~
+
+輸出結果:
+Length of 'Linux' is 5
+Length of '' is 0
+Length of '字' is 3
+Length of 'LinuxLinux' is 10
+Length of 'LinuLinuxLinux' is 14
+
+gcc -Wall -Wextra -O0 -fsanitize=address -o strlen strlen.c
+strlen.c: In function ‘main’:
+strlen.c:16:17: warning: initializer-string for array of ‘char’ is too long
+   16 |     char u[4] = &quot;Linux&quot;;
+      |                 ^~~~~~~
+輸出
+~/w/Proj/g/good-note/s/s1-03-arrays-pointers | on main !1 ?3  ./strlen                                                 ok | base py | at 15:19:35 
+Length of 'Linux' is 5
+Length of '' is 0
+Length of '字' is 3
+=================================================================
+==48796==ERROR: AddressSanitizer: stack-buffer-overflow on address 0x7548bf500065 at pc 0x59e273b042dc bp 0x7ffe44f8d8f0 sp 0x7ffe44f8d8e0
+READ of size 1 at 0x7548bf500065 thread T0
+    #0 0x59e273b042db in my_strlen (/home/set/work/Projects/github/good-note/small-project/s1-03-arrays-pointers/strlen+0x12db) (BuildId: 31e3859f785c2e80912216ed533a9b8ba6afb932)
+    #1 0x59e273b045b8 in main (/home/set/work/Projects/github/good-note/small-project/s1-03-arrays-pointers/strlen+0x15b8) (BuildId: 31e3859f785c2e80912216ed533a9b8ba6afb932)
+    #2 0x7548c142a1c9 in __libc_start_call_main ../sysdeps/nptl/libc_start_call_main.h:58
+    #3 0x7548c142a28a in __libc_start_main_impl ../csu/libc-start.c:360
+    #4 0x59e273b041c4 in _start (/home/set/work/Projects/github/good-note/small-project/s1-03-arrays-pointers/strlen+0x11c4) (BuildId: 31e3859f785c2e80912216ed533a9b8ba6afb932)
+
+Address 0x7548bf500065 is located in stack of thread T0 at offset 101 in frame
+    #0 0x59e273b04300 in main (/home/set/work/Projects/github/good-note/small-project/s1-03-arrays-pointers/strlen+0x1300) (BuildId: 31e3859f785c2e80912216ed533a9b8ba6afb932)
+
+  This frame has 5 object(s):
+    [48, 49) 'empty' (line 13)
+    [64, 68) 'word' (line 14)
+    [80, 84) 'u' (line 16)
+    [96, 101) 't' (line 15) &lt;== Memory access at offset 101 overflows this variable
+    [128, 134) 'li' (line 12)
+HINT: this may be a false positive if your program uses some custom stack unwind mechanism, swapcontext or vfork
+      (longjmp and C++ exceptions *are* supported)
+SUMMARY: AddressSanitizer: stack-buffer-overflow (/home/set/work/Projects/github/good-note/small-project/s1-03-arrays-pointers/strlen+0x12db) (BuildId: 31e3859f785c2e80912216ed533a9b8ba6afb932) in my_strlen
+Shadow bytes around the buggy address:
+  0x7548bf4ffd80: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+  0x7548bf4ffe00: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+  0x7548bf4ffe80: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+  0x7548bf4fff00: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+  0x7548bf4fff80: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+=&gt;0x7548bf500000: f1 f1 f1 f1 f1 f1 01 f2 04 f2 04 f2[05]f2 f2 f2
+  0x7548bf500080: 06 f3 f3 f3 00 00 00 00 00 00 00 00 00 00 00 00
+  0x7548bf500100: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+  0x7548bf500180: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+  0x7548bf500200: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+  0x7548bf500280: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+Shadow byte legend (one shadow byte represents 8 application bytes):
+  Addressable:           00
+  Partially addressable: 01 02 03 04 05 06 07 
+  Heap left redzone:       fa
+  Freed heap region:       fd
+  Stack left redzone:      f1
+  Stack mid redzone:       f2
+  Stack right redzone:     f3
+  Stack after return:      f5
+  Stack use after scope:   f8
+  Global redzone:          f9
+  Global init order:       f6
+  Poisoned by user:        f7
+  Container overflow:      fc
+  Array cookie:            ac
+  Intra object redzone:    bb
+  ASan internal:           fe
+  Left alloca redzone:     ca
+  Right alloca redzone:    cb
+==48796==ABORTING
+
+ ~/w/Proj/g/good-note/s/s1-03-arrays-pointers | on main !1 ?3                                                        1 err | base py | at 15:20:23 
+</code></pre>
+<blockquote>
+<p><strong>批改</strong>：<strong>實驗做完、輸出也對，但題目問的兩個「為什麼」都沒有回答。</strong></p>
+<ul>
+<li>預測「兩行都會警告」<strong>猜錯，不算錯</strong>（新觀念）：實際只有 <code>u[4]</code> 那行。<code>t[5]</code> 剛好放得下 5 個字元、放不下 <code>\0</code>，C 允許這樣寫，本機 gcc 13.3 開 <code>-Wall -Wextra</code> 也<strong>不警告</strong>——這正是它危險的地方。已補教進筆記第四節〈<a href="../../c/%E9%99%A3%E5%88%97%E3%80%81%E5%AD%97%E4%B8%B2%E8%88%87%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97-C%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%88%87%E7%94%A8gdb%E6%89%BEsegfault.html#%E9%99%A3%E5%88%97%E5%A4%A7%E5%B0%8F%E8%B7%9F%E5%AD%97%E4%B8%B2%E9%95%B7%E5%BA%A6%E4%B8%8D%E4%B8%80%E6%A8%A3%E6%99%82%E6%AF%94%E8%BC%83%E9%95%B7%E5%89%9B%E5%A5%BD%E6%AF%94%E8%BC%83%E7%9F%AD">陣列大小跟字串長度不一樣時：比較長、剛好、比較短</a>〉。</li>
+<li>你的一般編譯輸出很有價值：<code>t</code> 得到 <strong>10</strong>（<code>LinuxLinux</code>）、<code>u</code> 得到 <strong>14</strong>（<code>LinuLinuxLinux</code>）。我印了三個陣列的位址，它們在堆疊上<strong>緊緊相連</strong>：<code>u</code> 後面就是 <code>t</code>、<code>t</code> 後面就是 <code>li</code>，所以 <code>my_strlen(t)</code> 讀過 <code>t</code> 的結尾、一路讀完 <code>li</code> 的 <code>Linux\0</code> 才停（實測與原始碼見筆記那一小節）。</li>
+<li>ASan 報告你貼了，但沒有解讀；而且又沒加 <code>-g</code>，第一行只有 <code>my_strlen+0x12db</code>，沒有行號。加了 <code>-g</code> 本機會顯示 <code>my_strlen strlen.c:5</code>、<code>main strlen.c:20</code>。</li>
+</ul>
+<p><strong>提示</strong>：重答時回答三件事：</p>
+<ol>
+<li><code>t</code> 的 5 格裡放了什麼、<strong>少了什麼</strong>？這跟 <code>my_strlen</code> 的停止條件有什麼關係？【筆記<a href="../../c/%E9%99%A3%E5%88%97%E3%80%81%E5%AD%97%E4%B8%B2%E8%88%87%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97-C%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%88%87%E7%94%A8gdb%E6%89%BEsegfault.html#%E5%9B%9B%E5%AD%97%E4%B8%B2%E4%BB%A5-0-%E7%B5%90%E5%B0%BE%E7%9A%84-char-%E9%99%A3%E5%88%97">第四節</a>】</li>
+<li>看你貼的 ASan 報告：是 <code>READ</code> 還是 <code>WRITE</code>、幾個 byte？<code>[96, 101) 't'</code> 和 <code>offset 101</code> 說明讀到了哪裡？【筆記<a href="../../c/%E9%99%A3%E5%88%97%E3%80%81%E5%AD%97%E4%B8%B2%E8%88%87%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97-C%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%88%87%E7%94%A8gdb%E6%89%BEsegfault.html#%E4%B8%83addresssanitizer%E5%9C%A8%E7%AC%AC%E4%B8%80%E6%AC%A1%E8%B6%8A%E7%95%8C%E7%9A%84%E7%95%B6%E4%B8%8B%E6%8A%93%E5%88%B0%E5%AE%83">第七節</a>】</li>
+<li>你的 <code>t</code> 印出 10 而不是 5。什麼情況下會印出「看起來正確」的 5？印出 5 代表程式是對的嗎？【筆記<a href="../../c/%E9%99%A3%E5%88%97%E3%80%81%E5%AD%97%E4%B8%B2%E8%88%87%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97-C%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%88%87%E7%94%A8gdb%E6%89%BEsegfault.html#%E4%BA%94c-%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%B6%8A%E7%95%8C%E7%9A%84%E4%B8%89%E7%A8%AE%E4%B8%8B%E5%A0%B4">第五節</a>〈下場一：安靜地出錯〉】</li>
+</ol>
+</blockquote>
+<p><strong>第 2 次（重答，2026-09-29）</strong></p>
+<blockquote>
+<p>題目：再宣告 <code>char t[5] = &quot;Linux&quot;;</code> 和 <code>char u[4] = &quot;Linux&quot;;</code>。<strong>先預測</strong>：<code>-Wall -Wextra</code> 會對哪一行警告？（【新觀念，先猜】）然後對 <code>t</code> 呼叫 <code>my_strlen</code>，分別用一般方式和 <code>-fsanitize=address</code> 編譯執行，貼上結果。<code>t</code> 少了什麼？為什麼一般編譯可能印出看起來正確的 5？</p>
+</blockquote>
+<pre><code>其他輸出同上
+t的5格
+0x4c    0x69    0x6e    0x75    0x78
+少了\0 = 0x00
+
+Start Addr           End Addr       Size     Offset  Perms  objfile
+      0x555555554000     0x555555555000     0x1000        0x0  r--p   /home/set/work/Projects/github/good-note/small-project/s1-03-arrays-pointers/strlen
+      0x555555555000     0x555555556000     0x1000     0x1000  r-xp   /home/set/work/Projects/github/good-note/small-project/s1-03-arrays-pointers/strlen
+      0x555555556000     0x555555557000     0x1000     0x2000  r--p   /home/set/work/Projects/github/good-note/small-project/s1-03-arrays-pointers/strlen
+      0x555555557000     0x555555558000     0x1000     0x2000  r--p   /home/set/work/Projects/github/good-note/small-project/s1-03-arrays-pointers/strlen
+      0x555555558000     0x555555559000     0x1000     0x3000  rw-p   /home/set/work/Projects/github/good-note/small-project/s1-03-arrays-pointers/strlen
+      0x555555559000     0x55555557a000    0x21000        0x0  rw-p   [heap]
+      0x7ffff7c00000     0x7ffff7c28000    0x28000        0x0  r--p   /usr/lib/x86_64-linux-gnu/libc.so.6
+      0x7ffff7c28000     0x7ffff7db1000   0x189000    0x28000  r-xp   /usr/lib/x86_64-linux-gnu/libc.so.6
+      0x7ffff7db1000     0x7ffff7e00000    0x4f000   0x1b1000  r--p   /usr/lib/x86_64-linux-gnu/libc.so.6
+      0x7ffff7e00000     0x7ffff7e04000     0x4000   0x1ff000  r--p   /usr/lib/x86_64-linux-gnu/libc.so.6
+      0x7ffff7e04000     0x7ffff7e06000     0x2000   0x203000  rw-p   /usr/lib/x86_64-linux-gnu/libc.so.6
+      0x7ffff7e06000     0x7ffff7e13000     0xd000        0x0  rw-p
+      0x7ffff7f9e000     0x7ffff7fa1000     0x3000        0x0  rw-p
+      0x7ffff7fbb000     0x7ffff7fbd000     0x2000        0x0  rw-p
+      0x7ffff7fbd000     0x7ffff7fc1000     0x4000        0x0  r--p   [vvar]
+      0x7ffff7fc1000     0x7ffff7fc3000     0x2000        0x0  r--p   [vvar_vclock]
+      0x7ffff7fc3000     0x7ffff7fc5000     0x2000        0x0  r-xp   [vdso]
+      0x7ffff7fc5000     0x7ffff7fc6000     0x1000        0x0  r--p   /usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2
+      0x7ffff7fc6000     0x7ffff7ff1000    0x2b000     0x1000  r-xp   /usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2
+      0x7ffff7ff1000     0x7ffff7ffb000     0xa000    0x2c000  r--p   /usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2
+      0x7ffff7ffb000     0x7ffff7ffd000     0x2000    0x36000  r--p   /usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2
+      0x7ffff7ffd000     0x7ffff7fff000     0x2000    0x38000  rw-p   /usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2
+      0x7ffffffdd000     0x7ffffffff000    0x22000        0x0  rw-p   [stack]
+  0xffffffffff600000 0xffffffffff601000     0x1000        0x0  --xp   [vsyscall]
+
+  (gdb) x t
+0x7fffffffd5f5: 0x4c
+(gdb) x u
+0x7fffffffd5f1: 0x4c
+(gdb) x li
+0x7fffffffd5fa: 0x4c
+(gdb) x/6xb li
+0x7fffffffd5fa: 0x4c    0x69    0x6e    0x75    0x78    0x00
+(gdb) x empty
+0x7fffffffd5ec: 0x00
+(gdb) x word
+0x7fffffffd5ed: 0xe5
+(gdb) x/11xb u
+0x7fffffffd5f1: 0x4c    0x69    0x6e    0x75    0x4c    0x69    0x6e    0x75
+0x7fffffffd5f9: 0x78    0x4c    0x69
+(gdb) x/12xb u
+0x7fffffffd5f1: 0x4c    0x69    0x6e    0x75    0x4c    0x69    0x6e    0x75
+0x7fffffffd5f9: 0x78    0x4c    0x69    0x6e
+(gdb) x/13xb u
+0x7fffffffd5f1: 0x4c    0x69    0x6e    0x75    0x4c    0x69    0x6e    0x75
+0x7fffffffd5f9: 0x78    0x4c    0x69    0x6e    0x75
+(gdb) x/15xb u
+0x7fffffffd5f1: 0x4c    0x69    0x6e    0x75    0x4c    0x69    0x6e    0x75
+0x7fffffffd5f9: 0x78    0x4c    0x69    0x6e    0x75    0x78    0x00
+我的沒有印出5, t,li在記憶體位址連在一起了
+
+中間也沒有/0做區隔
+
+如果長度剛好是5個,而且雖然沒有\0的那個格,c允許他這樣寫
+</code></pre>
+<blockquote>
+<p><strong>批改（第 2 次）</strong>：提示的三件事：1 <strong>對</strong>、2 <strong>未答</strong>、3 <strong>不完整</strong>。</p>
+<ul>
+<li>1：<code>t</code> 的 5 格是 <code>4c 69 6e 75 78</code>（<code>Linux</code>），<strong>少了 <code>\0</code></strong> ——對。你還自己用 gdb 的 <code>x/15xb u</code> 把 <code>u</code>（<code>d5f1</code>）→ <code>t</code>（<code>d5f5</code>）→ <code>li</code>（<code>d5fa</code>）一路讀到 <code>li</code> 的 <code>00</code>，親眼證實三個陣列緊緊相連、中間沒有 <code>\0</code>，所以 <code>t</code> 得到 10。這個實驗做得很好，也跟筆記補教的位址實測吻合。（<code>info proc mappings</code> 這題用不到，可以不貼。）</li>
+<li>2：ASan 報告沒有解讀。</li>
+<li>3：「C 允許剛好 5 格的寫法」是<strong>為什麼沒有警告</strong>的答案，不是「什麼時候會印出 5」的答案。</li>
+</ul>
+<p><strong>提示</strong>：</p>
+<ol>
+<li>看你第 1 次貼的報告：<code>READ of size 1</code> 和 <code>[96, 101) 't' (line 15) &lt;== Memory access at offset 101 overflows this variable</code>。<code>t</code> 佔哪幾個偏移？讀的是哪一個偏移、那是 <code>t</code> 的第幾格？是<strong>讀</strong>還是<strong>寫</strong>？（對照你在 2-3 讀過的 <code>[32, 52) 'arr'</code>，是同一種看法。）</li>
+<li>你的 gdb 輸出裡，<code>t</code> 後面緊接的那個 byte（<code>0x7fffffffd5fa</code>）是什麼？<code>my_strlen(t)</code> 要在第 5 步就停下來、印出 5，那個 byte 必須是什麼？如果印出了 5，代表 <code>t</code> 是一個正確的字串嗎？</li>
+</ol>
+</blockquote>
+<details class="answer"><summary>參考答案</summary>
+<p>（2026-09-30 改為重答一次即公布）：</p>
+<ul>
+<li><code>t</code> 的 5 格是 <code>L i n u x</code>，<strong>少了結尾的 <code>\0</code></strong>。<code>my_strlen</code> 只靠「碰到 <code>\0</code> 才停」判斷結尾，所以會走出 <code>t</code>。</li>
+<li>ASan：<strong><code>READ of size 1</code></strong>，<code>[96, 101) 't'</code> 表示 <code>t</code> 佔偏移 96～100，讀的是偏移 <strong>101</strong>——<code>t</code> 後面的第一個 byte（<code>t[5]</code>），<code>my_strlen</code> 在第 5 行 <code>while (*s != '\0')</code> 讀它時被抓到。</li>
+<li>你的一般編譯得到 10：<code>t</code> 後面緊接的是 <code>li</code> 的 <code>Linux\0</code>，一路讀到 <code>li</code> 的 <code>\0</code> 才停（你的 <code>x/15xb u</code> 已經證實）。只有當 <code>t</code> 後面<strong>碰巧</strong>是一個 <code>0</code> byte（例如對齊留下的空隙、換個最佳化等級或變數順序），才會在第 5 步停下、印出「看起來正確」的 5。</li>
+<li>印出 5 <strong>不代表程式對</strong>：它照樣讀了陣列外面的記憶體，只是碰巧讀到 0。結果對、程式錯——正是筆記<a href="../../c/%E9%99%A3%E5%88%97%E3%80%81%E5%AD%97%E4%B8%B2%E8%88%87%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97-C%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%88%87%E7%94%A8gdb%E6%89%BEsegfault.html#%E4%BA%94c-%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%B6%8A%E7%95%8C%E7%9A%84%E4%B8%89%E7%A8%AE%E4%B8%8B%E5%A0%B4">第五節</a>〈下場一：安靜地出錯〉，也是要用 ASan 的原因。</li>
+</ul>
+</details>
+<hr />
+<h2 id="4-用-gdb-找出-segfault-的真正原因">4. 用 gdb 找出 segfault 的真正原因</h2>
+<p>下面這支程式<strong>有 bug</strong>（這是題目，不是解答）。把它複製成 <code>find.c</code>，<strong>不要先改</strong>：</p>
+<pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="n">data</span><span class="p">[</span><span class="mi">8</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="mi">3</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">4</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">5</span><span class="p">,</span><span class="w"> </span><span class="mi">9</span><span class="p">,</span><span class="w"> </span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="mi">6</span><span class="p">};</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="o">*</span><span class="nf">find</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="o">*</span><span class="n">p</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">target</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="o">*</span><span class="n">start</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">p</span><span class="p">;</span><span class="w">             </span><span class="cm">/* 只是為了在 gdb 裡算「走了多遠」 */</span>
+<span class="w">    </span><span class="k">while</span><span class="w"> </span><span class="p">(</span><span class="o">*</span><span class="n">p</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="n">target</span><span class="p">)</span><span class="w">        </span><span class="cm">/* 第 8 行 */</span>
+<span class="w">        </span><span class="n">p</span><span class="o">++</span><span class="p">;</span>
+<span class="w">    </span><span class="p">(</span><span class="kt">void</span><span class="p">)</span><span class="n">start</span><span class="p">;</span><span class="w">                </span><span class="cm">/* 告訴編譯器「我知道 start 沒被用到」，避免 -Wextra 的警告 */</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">p</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;找 5：第 %td 個</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">find</span><span class="p">(</span><span class="n">data</span><span class="p">,</span><span class="w"> </span><span class="mi">5</span><span class="p">)</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">data</span><span class="p">);</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;找 7：第 %td 個</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">find</span><span class="p">(</span><span class="n">data</span><span class="p">,</span><span class="w"> </span><span class="mi">7</span><span class="p">)</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">data</span><span class="p">);</span><span class="w">   </span><span class="cm">/* 第 17 行 */</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<p>注意 <code>data</code> 宣告在<strong>函式外面</strong>（全域變數），不在堆疊上。</p>
+<h3 id="4-1-編譯執行貼上輸出與結束狀態echo-第一行為什麼是對的結束狀態代表什麼筆記第五節">4-1. 編譯執行，貼上輸出與結束狀態（<code>echo $?</code>）。第一行為什麼是對的？結束狀態代表什麼？【筆記<a href="../../c/%E9%99%A3%E5%88%97%E3%80%81%E5%AD%97%E4%B8%B2%E8%88%87%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97-C%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%88%87%E7%94%A8gdb%E6%89%BEsegfault.html#%E4%BA%94c-%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%B6%8A%E7%95%8C%E7%9A%84%E4%B8%89%E7%A8%AE%E4%B8%8B%E5%A0%B4">第五節</a>】</h3>
+<p><strong>第 1 次（2026-09-30）</strong></p>
+<pre><code>~/w/Proj/g/good-note/s/s1-03-arrays-pointers | on main &gt;8 ?1  ./find; echo $?                                                                         ok | base py | at 14:17:29
+找 5：第 4 個
+[1]    29761 segmentation fault (core dumped)  ./find
+139
+
+因爲第一行在陣列第4個元素就可以找到了,沒有越界
+Starting program: /home/set/work/Projects/github/good-note/small-project/s1-03-arrays-pointers/find
+
+This GDB supports auto-downloading debuginfo from the following URLs:
+  &lt;https://debuginfod.ubuntu.com&gt;
+Enable debuginfod for this session? (y or [n]) y
+Debuginfod has been enabled.
+To make this setting permanent, add 'set debuginfod enabled on' to .gdbinit.
+[Thread debugging using libthread_db enabled]
+Using host libthread_db library &quot;/lib/x86_64-linux-gnu/libthread_db.so.1&quot;.
+找 5：第 4 個
+
+Program received signal SIGSEGV, Segmentation fault.
+0x000055555555516b in find (p=0x55555557a000, target=7) at find.c:8
+8           while (*p != target)        /* 第 8 行 */
+(gdb) info proc mapping
+process 30310
+Mapped address spaces:
+
+          Start Addr           End Addr       Size     Offset  Perms  objfile
+      0x555555554000     0x555555555000     0x1000        0x0  r--p   /home/set/work/Projects/github/good-note/small-project/s1-03-arrays-pointers/find
+      0x555555555000     0x555555556000     0x1000     0x1000  r-xp   /home/set/work/Projects/github/good-note/small-project/s1-03-arrays-pointers/find
+      0x555555556000     0x555555557000     0x1000     0x2000  r--p   /home/set/work/Projects/github/good-note/small-project/s1-03-arrays-pointers/find
+      0x555555557000     0x555555558000     0x1000     0x2000  r--p   /home/set/work/Projects/github/good-note/small-project/s1-03-arrays-pointers/find
+      0x555555558000     0x555555559000     0x1000     0x3000  rw-p   /home/set/work/Projects/github/good-note/small-project/s1-03-arrays-pointers/find
+      0x555555559000     0x55555557a000    0x21000        0x0  rw-p   [heap]
+      0x7ffff7c00000     0x7ffff7c28000    0x28000        0x0  r--p   /usr/lib/x86_64-linux-gnu/libc.so.6
+      0x7ffff7c28000     0x7ffff7db1000   0x189000    0x28000  r-xp   /usr/lib/x86_64-linux-gnu/libc.so.6
+      0x7ffff7db1000     0x7ffff7e00000    0x4f000   0x1b1000  r--p   /usr/lib/x86_64-linux-gnu/libc.so.6
+      0x7ffff7e00000     0x7ffff7e04000     0x4000   0x1ff000  r--p   /usr/lib/x86_64-linux-gnu/libc.so.6
+      0x7ffff7e04000     0x7ffff7e06000     0x2000   0x203000  rw-p   /usr/lib/x86_64-linux-gnu/libc.so.6
+      0x7ffff7e06000     0x7ffff7e13000     0xd000        0x0  rw-p
+      0x7ffff7f9e000     0x7ffff7fa1000     0x3000        0x0  rw-p
+      0x7ffff7fbb000     0x7ffff7fbd000     0x2000        0x0  rw-p
+      0x7ffff7fbd000     0x7ffff7fc1000     0x4000        0x0  r--p   [vvar]
+      0x7ffff7fc1000     0x7ffff7fc3000     0x2000        0x0  r--p   [vvar_vclock]
+      0x7ffff7fc3000     0x7ffff7fc5000     0x2000        0x0  r-xp   [vdso]
+      0x7ffff7fc5000     0x7ffff7fc6000     0x1000        0x0  r--p   /usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2
+      0x7ffff7fc6000     0x7ffff7ff1000    0x2b000     0x1000  r-xp   /usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2
+      0x7ffff7ff1000     0x7ffff7ffb000     0xa000    0x2c000  r--p   /usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2
+      0x7ffff7ffb000     0x7ffff7ffd000     0x2000    0x36000  r--p   /usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2
+      0x7ffff7ffd000     0x7ffff7fff000     0x2000    0x38000  rw-p   /usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2
+      0x7ffffffdd000     0x7ffffffff000    0x22000        0x0  rw-p   [stack]
+  0xffffffffff600000 0xffffffffff601000     0x1000        0x0  --xp   [vsyscall]
+(gdb) info frame
+Stack level 0, frame at 0x7fffffffd620:
+ rip = 0x55555555516b in find (find.c:8); saved rip = 0x5555555551cd
+ called by frame at 0x7fffffffd630
+ source language c.
+ Arglist at 0x7fffffffd610, args: p=0x55555557a000, target=7
+ Locals at 0x7fffffffd610, Previous frame's sp is 0x7fffffffd620
+ Saved registers:
+  rbp at 0x7fffffffd610, rip at 0x7fffffffd618
+(gdb) x/8xw data
+0x555555558020 &lt;data&gt;:  0x00000003      0x00000001      0x00000004      0x00000001
+0x555555558030 &lt;data+16&gt;:       0x00000005      0x00000009      0x00000002      0x00000006
+
+data[0] 的指標是0x555555558020, 當target 設定爲7的時候,data裏面沒有,那在遇到符合7的值之前 p指標會一直以4byte移動,最後移到0x7fffffffd618 kernel踩到程式停止的位址
+最後就會變成139,139具體的名字我有點忘了
+
+
+</code></pre>
+<blockquote>
+<p><strong>批改</strong>：輸出與結束狀態 139 <strong>對</strong>；「第一行在第 4 個元素就找到、沒越界」<strong>對</strong>。兩處要修：</p>
+<ul>
+<li><strong>139 代表什麼沒答</strong>（筆記<a href="../../c/%E9%99%A3%E5%88%97%E3%80%81%E5%AD%97%E4%B8%B2%E8%88%87%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97-C%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%88%87%E7%94%A8gdb%E6%89%BEsegfault.html#%E4%BA%94c-%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%B6%8A%E7%95%8C%E7%9A%84%E4%B8%89%E7%A8%AE%E4%B8%8B%E5%A0%B4">第五節</a>〈結束狀態 139 和 134 是什麼〉）。</li>
+<li>「<code>p</code> 最後移到 <code>0x7fffffffd618</code>」<strong>不對</strong>：那是 <code>info frame</code> 裡<strong>返回位址存放的位置</strong>（<code>rip at 0x7fffffffd618</code>），在堆疊上，跟 <code>p</code> 無關。<code>p</code> 當掉時的值就在同一段輸出的第一行：<code>find (p=0x55555557a000, ...)</code>。</li>
+</ul>
+<p><strong>提示</strong>：139 = 128 + 幾？那個數字是哪一個訊號？</p>
+</blockquote>
+<p><strong>第 2 次（重答，2026-09-30）</strong></p>
+<blockquote>
+<p>題目：編譯執行，貼上輸出與結束狀態（<code>echo $?</code>）。第一行為什麼是對的？結束狀態代表什麼？</p>
+</blockquote>
+<pre><code>139是區段違規 因爲0x55555557a000是rw_p分頁的邊界
+</code></pre>
+<blockquote>
+<p><strong>批改（第 2 次）</strong>：<strong>大致對</strong>。「區段違規」就是 segmentation violation（SIGSEGV）；邊界更精確地說是 <code>[heap]</code> 的結尾。沒寫出 139 是怎麼算的。</p>
+<p><strong>參考答案</strong>：輸出第一行「找 5：第 4 個」正確，因為 5 在 <code>data[4]</code>，迴圈在陣列內就停了，沒有越界。第二行找 7，<code>data</code> 裡沒有 7，<code>p</code> 一路讀出界，碰到沒對映的記憶體就當掉。結束狀態 <strong>139 = 128 + 11</strong>：shell 用「128 + 訊號編號」表示程式被訊號殺死，11 是 <strong>SIGSEGV</strong>（segmentation fault，區段違規），見筆記<a href="../../c/%E9%99%A3%E5%88%97%E3%80%81%E5%AD%97%E4%B8%B2%E8%88%87%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97-C%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%88%87%E7%94%A8gdb%E6%89%BEsegfault.html#%E4%BA%94c-%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%B6%8A%E7%95%8C%E7%9A%84%E4%B8%89%E7%A8%AE%E4%B8%8B%E5%A0%B4">第五節</a>〈結束狀態 139 和 134 是什麼〉。</p>
+</blockquote>
+<h3 id="4-2-用-gdb-執行到當掉貼上-bt-的輸出當在哪個函式哪一行是從-main-的哪一行呼叫進來的參數-target-是多少筆記第六節">4-2. 用 gdb 執行到當掉，貼上 <code>bt</code> 的輸出。當在哪個函式、哪一行？是從 <code>main</code> 的哪一行呼叫進來的？參數 <code>target</code> 是多少？【筆記<a href="../../c/%E9%99%A3%E5%88%97%E3%80%81%E5%AD%97%E4%B8%B2%E8%88%87%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97-C%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%88%87%E7%94%A8gdb%E6%89%BEsegfault.html#%E5%85%AD%E7%94%A8-gdb-%E6%89%BE-segfault%E5%AF%A6%E9%9A%9B%E8%B5%B0%E4%B8%80%E6%AC%A1">第六節</a>】</h3>
+<p><strong>第 1 次（2026-09-30）</strong></p>
+<pre><code>find 第8行, target=7
+</code></pre>
+<blockquote>
+<p><strong>批改</strong>：<code>find</code>、第 8 行、<code>target=7</code> <strong>對</strong>。但<strong>沒有貼 <code>bt</code> 的輸出</strong>，也沒答「從 <code>main</code> 的哪一行呼叫進來」——這一半正是 <code>bt</code> 才看得到的（第 4-1 題貼的是當掉時的那一行，不是 <code>bt</code>）。</p>
+<p><strong>提示</strong>：在 gdb 當掉後打 <code>bt</code>，看 <code>#1</code> 那一行（筆記<a href="../../c/%E9%99%A3%E5%88%97%E3%80%81%E5%AD%97%E4%B8%B2%E8%88%87%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97-C%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%88%87%E7%94%A8gdb%E6%89%BEsegfault.html#%E5%85%AD%E7%94%A8-gdb-%E6%89%BE-segfault%E5%AF%A6%E9%9A%9B%E8%B5%B0%E4%B8%80%E6%AC%A1">第六節</a>第 2 步）。</p>
+</blockquote>
+<p><strong>第 2 次（重答，2026-09-30）</strong></p>
+<blockquote>
+<p>題目：用 gdb 執行到當掉，貼上 <code>bt</code> 的輸出。當在哪個函式、哪一行？是從 <code>main</code> 的哪一行呼叫進來的？參數 <code>target</code> 是多少？</p>
+</blockquote>
+<pre><code>find 第8行, target=7
+(gdb) run
+Starting program: /home/set/work/Projects/github/good-note/small-project/s1-03-arrays-pointers/find
+
+This GDB supports auto-downloading debuginfo from the following URLs:
+  &lt;https://debuginfod.ubuntu.com&gt;
+Enable debuginfod for this session? (y or [n]) y
+Debuginfod has been enabled.
+To make this setting permanent, add 'set debuginfod enabled on' to .gdbinit.
+[Thread debugging using libthread_db enabled]
+Using host libthread_db library &quot;/lib/x86_64-linux-gnu/libthread_db.so.1&quot;.
+找 5：第 4 個
+
+Program received signal SIGSEGV, Segmentation fault.
+0x000055555555516b in find (p=0x55555557a000, target=7) at find.c:8
+8           while (*p != target)        /* 第 8 行 */
+(gdb) bt
+#0  0x000055555555516b in find (p=0x55555557a000, target=7) at find.c:8
+#1  0x00005555555551cd in main () at find.c:17
+</code></pre>
+<blockquote>
+<p><strong>批改（第 2 次）</strong>：<strong>對</strong>。<code>bt</code> 貼了：當在 <code>find</code> 第 8 行（<code>#0</code>），由 <code>main</code> 第 17 行呼叫進來（<code>#1</code>），<code>target=7</code>。</p>
+</blockquote>
+<h3 id="4-3-在當掉的地方用-print-p---start-算出-p-已經走過幾個元素再用-info-proc-mappings-找出-p-的位址落在哪一段的邊界上貼上相關的輸出並用筆記第六節的方式驗算一次起點位址--元素個數--每個元素的大小--當掉的位址筆記第六節">4-3. 在當掉的地方用 <code>print p - start</code> 算出 <code>p</code> 已經走過幾個元素，再用 <code>info proc mappings</code> 找出 <code>p</code> 的位址落在哪一段的邊界上。貼上相關的輸出，並用筆記<a href="../../c/%E9%99%A3%E5%88%97%E3%80%81%E5%AD%97%E4%B8%B2%E8%88%87%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97-C%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%88%87%E7%94%A8gdb%E6%89%BEsegfault.html#%E5%85%AD%E7%94%A8-gdb-%E6%89%BE-segfault%E5%AF%A6%E9%9A%9B%E8%B5%B0%E4%B8%80%E6%AC%A1">第六節</a>的方式驗算一次（起點位址 + 元素個數 × 每個元素的大小 = 當掉的位址）。【筆記<a href="../../c/%E9%99%A3%E5%88%97%E3%80%81%E5%AD%97%E4%B8%B2%E8%88%87%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97-C%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%88%87%E7%94%A8gdb%E6%89%BEsegfault.html#%E5%85%AD%E7%94%A8-gdb-%E6%89%BE-segfault%E5%AF%A6%E9%9A%9B%E8%B5%B0%E4%B8%80%E6%AC%A1">第六節</a>】</h3>
+<p><strong>第 1 次（2026-09-30）</strong></p>
+<pre><code>(gdb) print p -start
+$2 = 34808
+
+(gdb) x p
+0x55555557a000: Cannot access memory at address 0x55555557a00
+
+(gdb) info proc mapping
+process 30310
+Mapped address spaces:
+
+          Start Addr           End Addr       Size     Offset  Perms  objfile
+      0x555555554000     0x555555555000     0x1000        0x0  r--p   /home/set/work/Projects/github/good-note/small-project/s1-03-arrays-pointers/find
+      0x555555555000     0x555555556000     0x1000     0x1000  r-xp   /home/set/work/Projects/github/good-note/small-project/s1-03-arrays-pointers/find
+      0x555555556000     0x555555557000     0x1000     0x2000  r--p   /home/set/work/Projects/github/good-note/small-project/s1-03-arrays-pointers/find
+      0x555555557000     0x555555558000     0x1000     0x2000  r--p   /home/set/work/Projects/github/good-note/small-project/s1-03-arrays-pointers/find
+      0x555555558000     0x555555559000     0x1000     0x3000  rw-p   /home/set/work/Projects/github/good-note/small-project/s1-03-arrays-pointers/find
+      0x555555559000     0x55555557a000    0x21000        0x0  rw-p   [heap]
+      0x7ffff7c00000     0x7ffff7c28000    0x28000        0x0  r--p   /usr/lib/x86_64-linux-gnu/libc.so.6
+      0x7ffff7c28000     0x7ffff7db1000   0x189000    0x28000  r-xp   /usr/lib/x86_64-linux-gnu/libc.so.6
+      0x7ffff7db1000     0x7ffff7e00000    0x4f000   0x1b1000  r--p   /usr/lib/x86_64-linux-gnu/libc.so.6
+      0x7ffff7e00000     0x7ffff7e04000     0x4000   0x1ff000  r--p   /usr/lib/x86_64-linux-gnu/libc.so.6
+      0x7ffff7e04000     0x7ffff7e06000     0x2000   0x203000  rw-p   /usr/lib/x86_64-linux-gnu/libc.so.6
+      0x7ffff7e06000     0x7ffff7e13000     0xd000        0x0  rw-p
+      0x7ffff7f9e000     0x7ffff7fa1000     0x3000        0x0  rw-p
+      0x7ffff7fbb000     0x7ffff7fbd000     0x2000        0x0  rw-p
+      0x7ffff7fbd000     0x7ffff7fc1000     0x4000        0x0  r--p   [vvar]
+      0x7ffff7fc1000     0x7ffff7fc3000     0x2000        0x0  r--p   [vvar_vclock]
+      0x7ffff7fc3000     0x7ffff7fc5000     0x2000        0x0  r-xp   [vdso]
+      0x7ffff7fc5000     0x7ffff7fc6000     0x1000        0x0  r--p   /usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2
+      0x7ffff7fc6000     0x7ffff7ff1000    0x2b000     0x1000  r-xp   /usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2
+      0x7ffff7ff1000     0x7ffff7ffb000     0xa000    0x2c000  r--p   /usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2
+      0x7ffff7ffb000     0x7ffff7ffd000     0x2000    0x36000  r--p   /usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2
+      0x7ffff7ffd000     0x7ffff7fff000     0x2000    0x38000  rw-p   /usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2
+      0x7ffffffdd000     0x7ffffffff000    0x22000        0x0  rw-p   [stack]
+  0xffffffffff600000 0xffffffffff601000     0x1000        0x0  --xp   [vsyscall]
+
+  落在這裏0x55555557a000剛好是 rw-p分頁的邊界
+
+  (gdb) x/8xw data
+0x555555558020 &lt;data&gt;:  0x00000003      0x00000001      0x00000004      0x00000001
+0x555555558030 &lt;data+16&gt;:       0x00000005      0x00000009      0x00000002      0x00000006
+
+起點在0x555555558020 + 4 * 34808 = 0x55555557a000(我沒實際算,16進制我不知道該怎麼計算)
+
+</code></pre>
+<blockquote>
+<p><strong>批改</strong>：<strong>大致對</strong>。<code>p - start</code> = 34808、<code>p</code> 停在 <code>0x55555557a000</code>、式子都對。邊界要講名字：<code>0x55555557a000</code> 是 <strong><code>[heap]</code> 的結尾</strong>（End Addr，不含）。十六進位不必手算，交給工具（已補教進筆記〈<a href="../../c/%E9%99%A3%E5%88%97%E3%80%81%E5%AD%97%E4%B8%B2%E8%88%87%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97-C%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%88%87%E7%94%A8gdb%E6%89%BEsegfault.html#%E4%BD%9C%E6%A5%AD%E7%AC%AC-45-%E9%A1%8C%E7%9A%84%E8%A3%9C%E6%95%99%E7%95%B6%E6%8E%89%E7%9A%84%E4%BD%8D%E7%BD%AE%E7%94%B1%E5%93%AA%E8%A3%A1%E6%B2%92%E6%9C%89%E5%B0%8D%E6%98%A0%E6%B1%BA%E5%AE%9A">作業第 4、5 題的補教</a>〉第三件）：</p>
+<pre><code>$ printf '%#x\n' $((0x555555558020 + 4*34808))
+0x55555557a000
+(gdb) print/x 0x555555558020 + 4*34808
+$3 = 0x55555557a000
+</code></pre>
+<p>驗算成立：34808 × 4 = 139232 = <code>0x21fe0</code>，<code>0x555555558020 + 0x21fe0 = 0x55555557a000</code>。</p>
+</blockquote>
+<h3 id="4-4-用-print-data-找出-data-在哪一段看-info-proc-mappings-的那一段是什麼權限是什麼p-當掉的位置不是-data-所在那一段的結尾而是再往後另一段的結尾那一段叫什麼名字為什麼-p-走出-data-那一段的時候沒有當掉前半筆記第六節後半新觀念先猜">4-4. 用 <code>print &amp;data</code> 找出 <code>data</code> 在哪一段（看 <code>info proc mappings</code> 的那一段是什麼、權限是什麼）。<code>p</code> 當掉的位置<strong>不是</strong> <code>data</code> 所在那一段的結尾，而是再往後另一段的結尾。那一段叫什麼名字？為什麼 <code>p</code> 走出 <code>data</code> 那一段的時候沒有當掉？【前半筆記<a href="../../c/%E9%99%A3%E5%88%97%E3%80%81%E5%AD%97%E4%B8%B2%E8%88%87%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97-C%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%88%87%E7%94%A8gdb%E6%89%BEsegfault.html#%E5%85%AD%E7%94%A8-gdb-%E6%89%BE-segfault%E5%AF%A6%E9%9A%9B%E8%B5%B0%E4%B8%80%E6%AC%A1">第六節</a>；後半【新觀念，先猜】】</h3>
+<p><strong>第 1 次（2026-09-30）</strong></p>
+<pre><code>上面題目的回答都有貼,我用上面的輸出回答先
+rw_p
+
+我不確定那一段叫什麼名字?你是說heap嗎?
+
+應該是因爲沒有踩到金絲雀, 與結束點的記憶體
+</code></pre>
+<blockquote>
+<p><strong>批改</strong>：</p>
+<ul>
+<li>前半<strong>不完整</strong>：<code>rw-p</code> 對，但要說是<strong>哪一段</strong>——<code>data</code> 在 <code>0x555555558000</code>～<code>0x555555559000</code>、檔名是 <code>find</code> 的那一段，也就是執行檔自己的 <code>.data</code> 所在的載入段。</li>
+<li>那一段的名字：<strong><code>[heap]</code></strong>，你猜對了。</li>
+<li>後半【新觀念，先猜】：猜「沒踩到金絲雀」不對，但猜錯不算錯。補教（已寫進筆記〈<a href="../../c/%E9%99%A3%E5%88%97%E3%80%81%E5%AD%97%E4%B8%B2%E8%88%87%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97-C%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%88%87%E7%94%A8gdb%E6%89%BEsegfault.html#%E4%BD%9C%E6%A5%AD%E7%AC%AC-45-%E9%A1%8C%E7%9A%84%E8%A3%9C%E6%95%99%E7%95%B6%E6%8E%89%E7%9A%84%E4%BD%8D%E7%BD%AE%E7%94%B1%E5%93%AA%E8%A3%A1%E6%B2%92%E6%9C%89%E5%B0%8D%E6%98%A0%E6%B1%BA%E5%AE%9A">作業第 4、5 題的補教</a>〉第一件）：</li>
+</ul>
+<p><strong>參考答案</strong>：<code>.data</code> 那一段結束在 <code>0x555555559000</code>，<strong><code>[heap]</code> 剛好從同一個位址開始</strong>，中間沒有空隙；<code>p</code> 走出 <code>.data</code> 時踏進的是有對映的 <code>[heap]</code>，所以沒當，一直讀到 <code>[heap]</code> 結尾才碰到沒對映的地方。金絲雀只保護堆疊上的返回位址，跟全域變數無關。
+<strong>而且這只在 gdb 裡成立</strong>：gdb 預設關掉 ASLR，<code>[heap]</code> 才緊貼在後面。本機用 <code>set disable-randomization off</code> 實測三次，<code>[heap]</code> 都離很遠，<code>p - start</code> 都是 <strong>1016</strong>——一走出 <code>.data</code> 那一頁（<code>0x1000 − 0x20</code> = 4064 byte）就當。</p>
+</blockquote>
+<h3 id="4-5-真正的-bug-在哪一行為什麼當掉的那一行第-8-行不是犯錯的那一行把-find-改成不會越界的版本提示想想第三節說的長度要另外傳找不到時要回傳什麼你自己決定並說明貼上改好的程式與執行結果筆記第三節第六節">4-5. 真正的 bug 在哪一行？為什麼當掉的那一行（第 8 行）不是犯錯的那一行？把 <code>find</code> 改成不會越界的版本（提示：想想第三節說的「長度要另外傳」；找不到時要回傳什麼，你自己決定並說明），貼上改好的程式與執行結果。【筆記<a href="../../c/%E9%99%A3%E5%88%97%E3%80%81%E5%AD%97%E4%B8%B2%E8%88%87%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97-C%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%88%87%E7%94%A8gdb%E6%89%BEsegfault.html#%E4%B8%89%E9%99%A3%E5%88%97%E5%90%8D%E7%A8%B1%E4%BB%80%E9%BA%BC%E6%99%82%E5%80%99%E8%AE%8A%E6%88%90%E6%8C%87%E6%A8%99%E4%BB%80%E9%BA%BC%E6%99%82%E5%80%99%E4%B8%8D%E6%9C%83">第三節</a>、<a href="../../c/%E9%99%A3%E5%88%97%E3%80%81%E5%AD%97%E4%B8%B2%E8%88%87%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97-C%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%88%87%E7%94%A8gdb%E6%89%BEsegfault.html#%E5%85%AD%E7%94%A8-gdb-%E6%89%BE-segfault%E5%AF%A6%E9%9A%9B%E8%B5%B0%E4%B8%80%E6%AC%A1">第六節</a>】</h3>
+<p><strong>第 1 次（2026-09-30）</strong></p>
+<pre><code>第9行
+因爲0x55555557a000+1 第9行越界,第8行的時候還是0x55555557a000 只是剛好在邊界
+./find_fix                                                                           ok | base py | at 15:29:51
+找 5：第 4 個
+找 7：未找到
+程式在find_fix.c
+</code></pre>
+<blockquote>
+<p><strong>批改</strong>：改好的程式<strong>對</strong>：<code>len-- &gt; 0</code> 讓迴圈最多走 <code>len</code> 格，找不到時回傳 <code>data + 8</code>（剛好超出結尾的位置，C 允許指到這裡、但不能讀它），<code>main</code> 用索引 <code>&lt; 8</code> 判斷找到沒有；本機用 <code>-fsanitize=address</code> 跑也沒有報錯。<br />
+小地方：題目要你<strong>說明找不到時回傳什麼</strong>，你沒寫；編譯時有兩個 <code>-Wsign-compare</code> 警告（<code>ptrdiff_t</code> 跟 <code>sizeof</code> 的 <code>size_t</code> 比較——正是筆記第三節〈算元素個數再跑迴圈〉的陷阱）；<code>find</code> 每個數字呼叫了兩次，可以先存進變數。「真正的 bug 在哪一行」<strong>錯</strong>：第 9 行 <code>p++</code> 只是照指示往前走；而且當掉是在第 8 行<strong>讀</strong> <code>*p</code> 的時候，不是第 9 行。</p>
+<p><strong>提示</strong>【筆記<a href="../../c/%E9%99%A3%E5%88%97%E3%80%81%E5%AD%97%E4%B8%B2%E8%88%87%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97-C%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%88%87%E7%94%A8gdb%E6%89%BEsegfault.html#%E5%85%AD%E7%94%A8-gdb-%E6%89%BE-segfault%E5%AF%A6%E9%9A%9B%E8%B5%B0%E4%B8%80%E6%AC%A1">第六節</a>〈當掉的那一行 ≠ 犯錯的那一行〉】：<code>find</code> 從哪裡得知 <code>data</code> 有幾個元素？是誰在「不知道長度」的情況下叫它去找一個<strong>不存在</strong>的值？（看 <code>bt</code> 的 <code>#1</code>。）當掉的第 8 行只是「第一次碰到沒對映記憶體」的地方。</p>
+</blockquote>
+<p><strong>第 2 次（重答，2026-09-30）</strong></p>
+<blockquote>
+<p>題目：真正的 bug 在哪一行？為什麼當掉的那一行（第 8 行）不是犯錯的那一行？（程式與執行結果已經對了，這次只回答這兩問，並補一句「找不到時回傳什麼、為什麼這樣設計」。）</p>
+</blockquote>
+<pre><code>第17行
+因爲第17行沒有給他範圍
+
+找不到時回傳null,如果是因爲他不可能是null,我已經在find_fix.c改寫了
+</code></pre>
+<blockquote>
+<p><strong>批改（第 2 次）</strong>：「bug 在第 17 行、因為沒給範圍」<strong>大致對</strong>；「為什麼第 8 行不是犯錯的那一行」沒有正面回答。回傳 <code>NULL</code> 表示找不到，這個設計<strong>好</strong>（<code>NULL</code> 不可能是陣列裡的有效位置，呼叫者一看就知道）。但<strong>新版 <code>find_fix.c</code> 多了一個越界讀取</strong>：找不到時迴圈結束，<code>p</code> 已經是 <code>data + 8</code>（剛好超出結尾），第 11 行 <code>if (*p != target)</code> 又去<strong>讀</strong>它。本機 ASan 實測：</p>
+<pre><code>$ gcc -Wall -Wextra -g -O0 -fsanitize=address find_fix.c -o find_fix &amp;&amp; ./find_fix
+找 5：第 4 個
+==48768==ERROR: AddressSanitizer: global-buffer-overflow on address 0x59f1158b8040 ...
+READ of size 4 at 0x59f1158b8040 thread T0
+    #0 0x59f1158b52b3 in find find_fix.c:11
+    #1 0x59f1158b5352 in main find_fix.c:25
+0x59f1158b8040 is located 0 bytes after global variable 'data' defined in 'find_fix.c:3:5' (0x59f1158b8020) of size 32
+</code></pre>
+<p>一般編譯看不出來（只多讀 4 byte，碰到的是有對映的記憶體），印出的結果也對——又是「結果對、程式錯」。這就是為什麼改完要用 ASan 再<strong>執行</strong>一次。（另外第 11 行後面那段註解是原本給 <code>(void)start;</code> 的，搬錯位置了。）</p>
+<p><strong>參考答案</strong>：</p>
+<ul>
+<li>真正的 bug 是 <strong><code>find</code> 的設計</strong>：它只拿到起點，<strong>不知道陣列有多長</strong>，只能一直往前讀到碰巧遇到 <code>target</code>；而 <code>main</code> 第 17 行叫它找一個陣列裡<strong>不存在</strong>的 7，它就停不下來。錯在「沒有長度資訊」與第 17 行的呼叫，不在 <code>find</code> 的某一行運算。</li>
+<li>第 8 行只是「<strong>第一次讀到沒對映記憶體</strong>」的地方：<code>p</code> 從走出 <code>data</code> 那一刻就已經錯了，前面三萬多次越界讀取都沒當，當在哪裡只取決於旁邊的記憶體有沒有對映（筆記<a href="../../c/%E9%99%A3%E5%88%97%E3%80%81%E5%AD%97%E4%B8%B2%E8%88%87%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97-C%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%88%87%E7%94%A8gdb%E6%89%BEsegfault.html#%E5%85%AD%E7%94%A8-gdb-%E6%89%BE-segfault%E5%AF%A6%E9%9A%9B%E8%B5%B0%E4%B8%80%E6%AC%A1">第六節</a>〈當掉的那一行 ≠ 犯錯的那一行〉）。</li>
+<li>修法：傳入長度，迴圈最多走 <code>len</code> 格；找不到時回傳 <code>NULL</code>。判斷「找到沒有」要看<strong>迴圈是不是走完了全部 <code>len</code> 格</strong>（例如記下結尾位置 <code>data + len</code>，比較 <code>p</code> 有沒有到達那裡），<strong>不能再去讀 <code>*p</code></strong>——走完時 <code>p</code> 已經指在陣列外面。</li>
+</ul>
+</blockquote>
+<hr />
+<h2 id="5-倒著走的迴圈與-size_t">5. 倒著走的迴圈與 <code>size_t</code></h2>
+<p>寫 <code>back.c</code>：宣告 <code>int a[5] = {1, 2, 3, 4, 5};</code>，用下面這個迴圈<strong>倒著</strong>印出每個元素：</p>
+<pre><code class="language-c"><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kt">size_t</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">sizeof</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="k">sizeof</span><span class="w"> </span><span class="n">a</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="o">--</span><span class="p">)</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;%d</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">a</span><span class="p">[</span><span class="n">i</span><span class="p">]);</span>
+</code></pre>
+<h3 id="5-1-先預測只用--wall-編譯會不會警告加上--wextra-呢如果有警告它在說什麼為什麼預測完再編譯驗證第-2-課筆記第七節-wtype-limits">5-1. <strong>先預測</strong>：只用 <code>-Wall</code> 編譯會不會警告？加上 <code>-Wextra</code> 呢？如果有警告，它在說什麼、為什麼？預測完再編譯驗證。【第 2 課筆記<a href="../../c/C%E7%9A%84%E8%B3%87%E6%96%99%E5%9C%A8%E8%A8%98%E6%86%B6%E9%AB%94%E8%A3%A1%E9%95%B7%E6%80%8E%E6%A8%A3-%E4%BD%8D%E5%85%83%E7%B5%84%E3%80%81%E6%8C%87%E6%A8%99%E3%80%81%E4%BD%8D%E5%85%83%E7%B5%84%E9%A0%86%E5%BA%8F%E8%88%87%E6%9C%89%E8%99%9F%E7%84%A1%E8%99%9F.html#%E4%B8%83%E9%99%B7%E9%98%B1%E6%9C%89%E8%99%9F%E5%92%8C%E7%84%A1%E8%99%9F%E6%B7%B7%E5%9C%A8%E4%B8%80%E8%B5%B7%E6%AF%94%E8%BC%83">第七節</a>〈<a href="../../c/C%E7%9A%84%E8%B3%87%E6%96%99%E5%9C%A8%E8%A8%98%E6%86%B6%E9%AB%94%E8%A3%A1%E9%95%B7%E6%80%8E%E6%A8%A3-%E4%BD%8D%E5%85%83%E7%B5%84%E3%80%81%E6%8C%87%E6%A8%99%E3%80%81%E4%BD%8D%E5%85%83%E7%B5%84%E9%A0%86%E5%BA%8F%E8%88%87%E6%9C%89%E8%99%9F%E7%84%A1%E8%99%9F.html#-wtype-limits-%E5%8F%AA%E6%8A%93%E6%B0%B8%E9%81%A0%E6%88%90%E7%AB%8B%E6%B0%B8%E9%81%A0%E4%B8%8D%E6%88%90%E7%AB%8B%E7%9A%84%E6%AF%94%E8%BC%83"><code>-Wtype-limits</code></a>〉】</h3>
+<p><strong>第 1 次（2026-09-30）</strong></p>
+<pre><code>不會
+有
+sizeof 的類型是unsigned long , -1 就是+ -1 因爲C語言沒有負數, 但-1 原始型別是int, int跟 unsigned long比,最大值是unsigend long最大,所以會以他的爲主,那-1就是最大的unsigned long,二補數回補,那就會永遠大於0了
+
+back.c: In function ‘main’:
+back.c:6:51: warning: comparison of unsigned expression in ‘&gt;= 0’ is always true [-Wtype-limits]
+    6 |     for (size_t i = sizeof a / sizeof a[0] - 1; i &gt;= 0; i--)
+      |
+</code></pre>
+<blockquote>
+<p><strong>批改</strong>：兩個預測（<code>-Wall</code> 不警告、<code>-Wextra</code> 會）<strong>對</strong>，警告內容也貼了。原因<strong>大致對</strong>但混進了一個錯誤：</p>
+<ul>
+<li>對的部分：<code>size_t</code> 是無號，<strong>無號數永遠 ≥ 0</strong>，所以 <code>i &gt;= 0</code> 永遠成立，<code>-Wextra</code> 裡的 <code>-Wtype-limits</code> 抓的就是這種「永遠成立」的比較。</li>
+<li>不對的部分：初始值 <code>sizeof a / sizeof a[0] - 1</code> 是 <strong>4</strong>（5 − 1），不是「最大的 unsigned long」。這裡的 <code>1</code> 會轉成 <code>unsigned long</code> 的 1，5 − 1 = 4，沒有回繞。回繞是之後 <code>i</code> 從 0 再 <code>i--</code> 時才發生（第 5-3 題）。</li>
+</ul>
+</blockquote>
+<h3 id="5-2-先預測印完-5-4-3-2-1-之後會發生什麼再執行-back--head--10back--devnull-echo-back--wc--l貼上結果印了大約幾行才停結束狀態代表什麼為什麼剛好是這麼多行才當掉新觀念先猜提示ulimit--s-會印出一個數字單位是-kb">5-2. <strong>先預測</strong>印完 <code>5 4 3 2 1</code> 之後會發生什麼，再執行 <code>./back | head -10</code>、<code>./back &gt; /dev/null; echo $?</code>、<code>./back | wc -l</code>，貼上結果。印了大約幾行才停？結束狀態代表什麼？（「為什麼剛好是這麼多行才當掉」：【新觀念，先猜】，提示：<code>ulimit -s</code> 會印出一個數字，單位是 KB）</h3>
+<p><strong>第 1 次（2026-09-30）</strong></p>
+<pre><code>會瘋狂迴圈,指針不斷不斷移動4byte,直到移動到邊界才停
+
+
+ ~/w/Proj/g/good-note/s/s1-03-arrays-pointers | on main &gt;8 !1 ?3  ./back | head -10                                                                   INT | base py | at 15:41:59
+5
+4
+3
+2
+1
+-1
+-2
+0
+0
+25028
+
+~/w/Proj/g/good-note/s/s1-03-arrays-pointers | on main &gt;8 !1 ?3  ./back &gt; /dev/null; echo $?                                                   PIPE|0 ok | base py | at 15:42:11
+[1]    40865 segmentation fault (core dumped)  ./back &gt; /dev/null
+139
+
+~/w/Proj/g/good-note/s/s1-03-arrays-pointers | on main &gt;8 !1 ?3  ./back | wc -l                                                         ok | took 5m 20s | base py | at 15:49:50
+2093475
+
+我猜是指標跑到了記憶體分頁邊界,只是這是往回跑
+
+</code></pre>
+<blockquote>
+<p><strong>批改</strong>：預測「一直跑到邊界才停」<strong>對</strong>；三個指令的結果都貼了：約 <strong>209 萬行</strong>（2093475），結束狀態 139。139 的意思同第 4-1 題。「為什麼剛好這麼多行」【新觀念，先猜】：猜「往回跑到記憶體邊界」<strong>方向對</strong>，缺的是那個邊界為什麼在這裡。補教（筆記〈<a href="../../c/%E9%99%A3%E5%88%97%E3%80%81%E5%AD%97%E4%B8%B2%E8%88%87%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97-C%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%88%87%E7%94%A8gdb%E6%89%BEsegfault.html#%E4%BD%9C%E6%A5%AD%E7%AC%AC-45-%E9%A1%8C%E7%9A%84%E8%A3%9C%E6%95%99%E7%95%B6%E6%8E%89%E7%9A%84%E4%BD%8D%E7%BD%AE%E7%94%B1%E5%93%AA%E8%A3%A1%E6%B2%92%E6%9C%89%E5%B0%8D%E6%98%A0%E6%B1%BA%E5%AE%9A">作業第 4、5 題的補教</a>〉第二件）：</p>
+<p><strong>參考答案</strong>：<code>a</code> 在堆疊上，迴圈是往<strong>低位址</strong>倒著讀。堆疊往低位址長，起初只對映 136 KB，但往下讀時<strong>核心會自動把堆疊延長</strong>，直到上限 <code>ulimit -s</code>（本機 8192 KB ＝ 8 MB）。
+209 萬 × 4 byte ≈ 8.37 MB，約等於 8 MB 的上限（<code>a</code> 上面還有環境變數等），超過上限核心不再延長，才 segfault。</p>
+</blockquote>
+<h3 id="5-3-用--fsanitizeaddress-編譯執行貼上報告的前-5-行報告說的是-underflow在陣列前面不是-overflow解釋1-i-是-0-的時候再做-i--i-變成多少第-2-課筆記第四節-2-為什麼-ai-碰到的是-a-前面緊鄰的那一格而不是很遠很遠的地方新觀念先猜提示ai-是-a--i位址是-a-加上-i--4而位址只有-64-bit">5-3. 用 <code>-fsanitize=address</code> 編譯執行，貼上報告的前 5 行。報告說的是 <code>underflow</code>（在陣列<strong>前面</strong>），不是 <code>overflow</code>。解釋：(1) <code>i</code> 是 0 的時候再做 <code>i--</code>，<code>i</code> 變成多少？【第 2 課筆記<a href="../../c/C%E7%9A%84%E8%B3%87%E6%96%99%E5%9C%A8%E8%A8%98%E6%86%B6%E9%AB%94%E8%A3%A1%E9%95%B7%E6%80%8E%E6%A8%A3-%E4%BD%8D%E5%85%83%E7%B5%84%E3%80%81%E6%8C%87%E6%A8%99%E3%80%81%E4%BD%8D%E5%85%83%E7%B5%84%E9%A0%86%E5%BA%8F%E8%88%87%E6%9C%89%E8%99%9F%E7%84%A1%E8%99%9F.html#%E5%9B%9B%E7%84%A1%E8%99%9F%E6%95%B4%E6%95%B8%E4%BA%8C%E9%80%B2%E4%BD%8D%E8%88%87%E5%9B%9E%E7%B9%9E">第四節</a>】 (2) 為什麼 <code>a[i]</code> 碰到的是 <code>a</code> 前面緊鄰的那一格，而不是很遠很遠的地方？【新觀念，先猜；提示：<code>a[i]</code> 是 <code>*(a + i)</code>，位址是 <code>a</code> 加上 <code>i × 4</code>，而位址只有 64 bit】</h3>
+<p><strong>第 1 次（2026-09-30）</strong></p>
+<pre><code>==41806==ERROR: AddressSanitizer: stack-buffer-underflow on address 0x7f318340001c at pc 0x566d642d543a bp 0x7fff61e70e40 sp 0x7fff61e70e30
+READ of size 4 at 0x7f318340001c thread T0
+    #0 0x566d642d5439 in main /home/set/work/Projects/github/good-note/small-project/s1-03-arrays-pointers/back.c:7
+    #1 0x7f318542a1c9 in __libc_start_call_main ../sysdeps/nptl/libc_start_call_main.h:58
+    #2 0x7f318542a28a in __libc_start_main_impl ../csu/libc-start.c:360
+    #3 0x566d642d5164 in _start (/home/set/work/Projects/github/good-note/small-project/s1-03-arrays-pointers/back+0x1164) (BuildId: 684fe8e707909772cfd48dafb2a2e6bbfba5e24b)
+
+(1) 18446744073709551615
+(2) 不確定
+
+</code></pre>
+<blockquote>
+<p><strong>批改</strong>：ASan 報告<strong>對</strong>（<code>stack-buffer-underflow</code>、<code>READ of size 4</code>、<code>back.c:7</code>）。(1) <strong>對</strong>：<code>SIZE_MAX</code> = 2⁶⁴ − 1。
+(2)【新觀念，先猜】沒猜，直接補教（筆記〈<a href="../../c/%E9%99%A3%E5%88%97%E3%80%81%E5%AD%97%E4%B8%B2%E8%88%87%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97-C%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%88%87%E7%94%A8gdb%E6%89%BEsegfault.html#%E4%BD%9C%E6%A5%AD%E7%AC%AC-45-%E9%A1%8C%E7%9A%84%E8%A3%9C%E6%95%99%E7%95%B6%E6%8E%89%E7%9A%84%E4%BD%8D%E7%BD%AE%E7%94%B1%E5%93%AA%E8%A3%A1%E6%B2%92%E6%9C%89%E5%B0%8D%E6%98%A0%E6%B1%BA%E5%AE%9A">作業第 4、5 題的補教</a>〉第二件）：</p>
+<p><strong>參考答案</strong>：<code>a[i]</code> 的位址是 <code>a + i × 4</code>。<code>i = 2⁶⁴ − 1</code> 時，<code>i × 4 = 2⁶⁶ − 4</code>，位址只有 64 bit，超出的部分被丟掉（回繞），剩下 2⁶⁴ − 4，也就是「−4」。所以 <code>a + i × 4</code> 等於 <strong><code>a − 4</code></strong>，正是 <code>a[-1]</code>：<code>a</code> 前面緊鄰的那一格。這跟第 2 課「無號整數回繞」是同一件事，只是發生在位址運算上。</p>
+</blockquote>
+<h3 id="5-4-把迴圈改成正確的版本i-仍然用-size_t並說明你的改法為什麼不會再出錯用--wall--wextra-和--fsanitizeaddress-驗證貼上程式與結果沒有唯一的答案想不出來可以先寫一個用-int-的版本並說明-int-版本在什麼情況下會不夠用">5-4. 把迴圈改成正確的版本，<strong><code>i</code> 仍然用 <code>size_t</code></strong>，並說明你的改法為什麼不會再出錯。用 <code>-Wall -Wextra</code> 和 <code>-fsanitize=address</code> 驗證，貼上程式與結果。（沒有唯一的答案；想不出來可以先寫一個用 <code>int</code> 的版本，並說明 <code>int</code> 版本在什麼情況下會不夠用。）</h3>
+<p><strong>第 1 次（2026-09-30）</strong></p>
+<pre><code>我改在back_fix.c
+因爲當i小於0在減,會回退,變更大,i是unsigned long,所以&gt;=0永遠成立,但我只需要在加一個條件 不然i的範圍超過4就好
+ ~/w/Proj/g/good-note/s/s1-03-arrays-pointers | on main &gt;8 !1 ?3  gcc -Wall -Wextra -g -O0 -o back_fix back_fix.c                                   1 err | base py | at 15:52:42
+back_fix.c: In function ‘main’:
+back_fix.c:6:51: warning: comparison of unsigned expression in ‘&gt;= 0’ is always true [-Wtype-limits]
+    6 |     for (size_t i = sizeof a / sizeof a[0] - 1; i &gt;= 0 &amp;&amp; i &lt; sizeof a / sizeof a[0]; i--)
+      |                                                   ^~
+
+ ~/w/Proj/g/good-note/s/s1-03-arrays-pointers | on main &gt;8 !1 ?4  gcc -Wall -Wextra -g -O0 -fsanitize=address -o back_fix back_fix.c                   ok | base py | at 16:16:36
+back_fix.c: In function ‘main’:
+back_fix.c:6:51: warning: comparison of unsigned expression in ‘&gt;= 0’ is always true [-Wtype-limits]
+    6 |     for (size_t i = sizeof a / sizeof a[0] - 1; i &gt;= 0 &amp;&amp; i &lt; sizeof a / sizeof a[0]; i--)
+</code></pre>
+<blockquote>
+<p><strong>批改</strong>：<strong>對</strong>。加上 <code>i &lt; 5</code>：<code>i</code> 從 0 再減 1 回繞成 <code>SIZE_MAX</code>，<code>i &lt; 5</code> 不成立，迴圈就停——正是利用回繞本身來判斷。本機用 ASan 跑，印出 5 4 3 2 1、exit 0，沒有報錯。<br />
+兩個建議：</p>
+<ul>
+<li>你沒有貼 ASan 版<strong>執行</strong>的結果，只有編譯（跟 2-3 題一樣，ASan 要執行才會檢查）。</li>
+<li>那個警告還在，因為 <code>i &gt;= 0</code> 還留著。它永遠成立、沒有作用，刪掉只留 <code>i &lt; 5</code>，警告就消失了。另一種常見寫法是 <code>for (size_t i = n; i-- &gt; 0; )</code>：先比較、再減，<code>i</code> 在迴圈本體裡是 4、3、2、1、0。</li>
+</ul>
+</blockquote>
+
+</main>
+</div>
+</body>
+</html>

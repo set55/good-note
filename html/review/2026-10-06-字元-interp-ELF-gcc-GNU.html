@@ -1,0 +1,308 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>2026-10-06 複習：字元、interp、ELF、gcc、GNU</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/app.js"></script>
+</head>
+<body>
+<button class="menu-btn" onclick="toggleMenu()">☰ 目錄</button>
+<div class="layout">
+<nav class="side">
+<div class="crumbs"><a href="../index.html">🏠 首頁</a> / <a href="README.html">review</a></div>
+<div class="tools"><button onclick="toggleTheme()">🌓 主題</button></div>
+<ul>
+<li class="l2"><a href="#%E6%89%B9%E6%94%B9%E7%B5%90%E6%9E%9C2026-10-06">批改結果（2026-10-06）</a></li>
+<li class="l2"><a href="#%E4%BB%8A%E5%A4%A9%E7%9A%84%E9%A1%8C%E7%9B%AE">今天的題目</a></li>
+<li class="l2"><a href="#%E5%AD%97%E5%85%83%E5%AD%97%E5%85%83%E6%98%AF%E4%BB%80%E9%BA%BC-char%E5%B0%B1%E6%98%AF1byte%E7%9A%84%E6%95%B4%E6%95%B8%E8%88%87ascii%E5%92%8Cutf-8">字元：字元是什麼-char就是1byte的整數與ASCII和UTF-8</a></li>
+<li class="l3"><a href="#%E5%AD%97%E5%85%83-4-%E6%83%85%E5%A2%83%E9%A1%8C%E4%BD%A0%E5%AF%AB%E4%BA%86%E4%B8%80%E5%80%8B%E5%87%BD%E5%BC%8F%E7%94%A8-char-c-%E4%B8%80%E5%80%8B%E4%B8%80%E5%80%8B-byte-%E8%AE%80%E4%B8%80%E6%AE%B5-utf-8-%E6%96%87%E5%AD%97%E4%B8%A6%E7%94%A8-if-c--127-%E5%88%A4%E6%96%B7%E9%80%99%E6%98%AF%E4%B8%8D%E6%98%AF%E9%9D%9E-ascii-%E7%9A%84-byte%E5%9C%A8%E6%9C%AC%E6%A9%9F%E9%80%99%E5%80%8B%E5%88%A4%E6%96%B7%E6%9C%83%E6%88%90%E7%AB%8B%E5%97%8E%E7%82%BA%E4%BB%80%E9%BA%BC%E8%A9%B2%E6%80%8E%E9%BA%BC%E6%94%B9">字元 4. 情境題：你寫了一個函式，用 char c 一個一個 byte 讀一段 UTF-8 文字，並用 if (c &gt; 127) 判斷「這是不是非 ASCII 的 byte」。在本機這個判斷會成立嗎？為什麼？該怎麼改？</a></li>
+<li class="l2"><a href="#interpelf%E7%9A%84interpreter%E6%98%AF%E4%BB%80%E9%BA%BC-%E5%8B%95%E6%85%8B%E8%BC%89%E5%85%A5%E5%99%A8%E8%88%87%E4%BA%95%E5%AD%97%E8%99%9F%E9%A9%9A%E5%98%86%E8%99%9F">interp：ELF的interpreter是什麼-動態載入器與井字號驚嘆號</a></li>
+<li class="l3"><a href="#interp-1-%E5%8B%95%E6%85%8B%E9%80%A3%E7%B5%90%E7%9A%84%E5%9F%B7%E8%A1%8C%E6%AA%94%E8%A3%A1interpreter-%E7%9A%84%E8%B7%AF%E5%BE%91%E5%AF%AB%E5%9C%A8%E5%93%AA%E8%A3%A1execve-%E4%B9%8B%E5%BE%8C%E6%A0%B8%E5%BF%83%E5%85%88%E5%9F%B7%E8%A1%8C%E7%9A%84%E6%98%AF%E4%BD%A0%E7%9A%84%E7%A8%8B%E5%BC%8F%E9%82%84%E6%98%AF%E5%AE%83%E7%82%BA%E4%BB%80%E9%BA%BC%E8%A6%81%E9%80%99%E6%A8%A3%E5%AE%89%E6%8E%92">interp 1. 動態連結的執行檔裡，interpreter 的路徑寫在哪裡？execve 之後，核心先執行的是你的程式還是它？為什麼要這樣安排？</a></li>
+<li class="l3"><a href="#interp-2-ld-%E5%92%8C-ldsold-linux-x86-64so2%E5%90%84%E5%9C%A8%E4%BB%80%E9%BA%BC%E6%99%82%E9%96%93%E9%BB%9E%E5%81%9A%E4%BB%80%E9%BA%BC%E4%BA%8B">interp 2. ld 和 ld.so（ld-linux-x86-64.so.2）各在什麼時間點、做什麼事？</a></li>
+<li class="l3"><a href="#interp-3-%E8%85%B3%E6%9C%AC%E7%9A%84-binsh-%E5%92%8C-elf-%E7%9A%84-interpreter%E5%93%AA%E8%A3%A1%E7%9B%B8%E5%90%8C%E5%93%AA%E8%A3%A1%E4%B8%8D%E5%90%8C%E7%94%A8-bincat-%E7%9A%84%E5%AF%A6%E9%A9%97%E8%AA%AA%E6%98%8E%E6%A0%B8%E5%BF%83%E6%8A%8A%E4%BB%80%E9%BA%BC%E4%BA%A4%E7%B5%A6%E7%9B%B4%E8%AD%AF%E5%99%A8">interp 3. 腳本的 #!/bin/sh 和 ELF 的 interpreter，哪裡相同、哪裡不同？用 #!/bin/cat 的實驗說明「核心把什麼交給直譯器」。</a></li>
+<li class="l3"><a href="#interp-6-%E6%83%85%E5%A2%83%E9%A1%8C%E4%B8%80%E6%94%AF%E8%85%B3%E6%9C%AC%E6%AC%8A%E9%99%90%E6%98%AF----x--x--x%E5%8F%AA%E6%9C%89%E5%9F%B7%E8%A1%8C%E6%AC%8A%E9%99%90%E7%AC%AC%E4%B8%80%E8%A1%8C%E6%98%AF-binsh%E5%9F%B7%E8%A1%8C%E6%99%82%E5%87%BA%E7%8F%BE-binsh-xsh-permission-denied%E9%80%99%E5%80%8B%E9%8C%AF%E8%AA%A4%E6%98%AF%E8%AA%B0%E5%8D%B0%E7%9A%84%E7%82%BA%E4%BB%80%E9%BA%BC%E6%A0%B8%E5%BF%83%E8%AE%80%E5%BE%97%E5%88%B0--%E9%82%A3%E4%B8%80%E8%A1%8C%E7%9B%B4%E8%AD%AF%E5%99%A8%E5%8D%BB%E8%AE%80%E4%B8%8D%E5%88%B0%E8%85%B3%E6%9C%AC%E5%90%8C%E6%A8%A3%E5%8F%AA%E6%9C%89%E5%9F%B7%E8%A1%8C%E6%AC%8A%E9%99%90%E7%9A%84-elf-%E5%9F%B7%E8%A1%8C%E6%AA%94%E7%82%BA%E4%BB%80%E9%BA%BC%E5%B0%B1%E8%83%BD%E8%B7%91">interp 6. 情境題：一支腳本權限是 ---x--x--x（只有執行權限），第一行是 #!/bin/sh，執行時出現 /bin/sh: ./x.sh: Permission denied。這個錯誤是誰印的？為什麼核心讀得到 #! 那一行，直譯器卻讀不到腳本？同樣只有執行權限的 ELF 執行檔為什麼就能跑？</a></li>
+<li class="l2"><a href="#elfelf%E6%98%AF%E4%BB%80%E9%BA%BC-%E5%8F%AF%E5%9F%B7%E8%A1%8C%E8%88%87%E5%8F%AF%E9%80%A3%E7%B5%90%E6%A0%BC%E5%BC%8F%E7%9A%84%E5%85%A9%E7%A8%AE%E8%A6%96%E8%A7%92">ELF：ELF是什麼-可執行與可連結格式的兩種視角</a></li>
+<li class="l3"><a href="#elf-1-elf-%E4%B8%89%E5%80%8B%E5%AD%97%E6%AF%8D%E5%90%84%E4%BB%A3%E8%A1%A8%E4%BB%80%E9%BA%BC%E7%82%BA%E4%BB%80%E9%BA%BC%E8%AA%AAexecutable%E5%92%8Clinkable%E5%B0%8D%E6%87%89%E5%85%A9%E7%A8%AE%E4%B8%8D%E5%90%8C%E7%9A%84%E8%AE%80%E8%80%85">ELF 1. ELF 三個字母各代表什麼？為什麼說「Executable」和「Linkable」對應兩種不同的讀者？</a></li>
+<li class="l3"><a href="#elf-2-readelf--l-helloo-%E8%AA%AA-there-are-no-program-headers-in-this-file%E9%80%99%E4%BB%A3%E8%A1%A8%E4%BB%80%E9%BA%BC%E9%80%A3%E7%B5%90%E5%99%A8%E5%81%9A%E4%BA%86%E4%BB%80%E9%BA%BC%E6%89%8D%E8%AE%93%E5%9F%B7%E8%A1%8C%E6%AA%94%E6%9C%89%E7%A8%8B%E5%BC%8F%E6%A8%99%E9%A0%AD">ELF 2. readelf -l hello.o 說 There are no program headers in this file，這代表什麼？連結器做了什麼才讓執行檔有程式標頭？</a></li>
+<li class="l2"><a href="#gccgcc%E6%9C%80%E4%BD%B3%E5%8C%96%E7%AD%89%E7%B4%9A-o0%E5%88%B0o3%E5%B7%AE%E5%9C%A8%E5%93%AA">gcc：gcc最佳化等級-O0到O3差在哪</a></li>
+<li class="l3"><a href="#gcc-5-%E6%83%85%E5%A2%83%E9%A1%8C%E4%BD%A0%E5%9C%A8%E8%87%AA%E5%B7%B1%E7%9A%84%E7%A8%8B%E5%BC%8F%E8%A3%A1%E7%94%A8--o2-%E7%B7%A8%E8%AD%AFgdb-%E5%8D%B0%E6%9F%90%E5%80%8B%E8%AE%8A%E6%95%B8%E6%99%82%E9%A1%AF%E7%A4%BA-optimized-out%E4%BD%A0%E6%9C%83%E6%80%8E%E9%BA%BC%E8%99%95%E7%90%86%E5%A6%82%E6%9E%9C%E6%98%AF%E5%9C%A8-kernel-%E8%A3%A1%E9%81%87%E5%88%B0%E5%90%8C%E6%A8%A3%E7%9A%84%E7%8B%80%E6%B3%81%E8%99%95%E7%90%86%E6%96%B9%E5%BC%8F%E5%8F%88%E6%9C%89%E4%BB%80%E9%BA%BC%E4%B8%8D%E5%90%8C">gcc 5. 情境題：你在自己的程式裡用 -O2 編譯，gdb 印某個變數時顯示 &lt;optimized out&gt;。你會怎麼處理？如果是在 kernel 裡遇到同樣的狀況，處理方式又有什麼不同？</a></li>
+<li class="l2"><a href="#gnugnu%E6%98%AF%E4%BB%80%E9%BA%BC-linux%E6%A0%B8%E5%BF%83%E8%88%87gnu%E5%B7%A5%E5%85%B7%E7%9A%84%E5%88%86%E5%B7%A5">GNU：GNU是什麼-Linux核心與GNU工具的分工</a></li>
+<li class="l3"><a href="#gnu-3-%E6%83%85%E5%A2%83%E9%A1%8C%E4%B8%80%E6%94%AF-shell-%E8%85%B3%E6%9C%AC%E5%9C%A8%E4%BD%A0%E7%9A%84-ubuntu-%E4%B8%8A%E7%94%A8-bash-%E6%B8%AC%E8%A9%A6%E5%AE%8C%E5%85%A8%E6%AD%A3%E5%B8%B8%E6%94%BE%E5%88%B0-openwrt-%E4%B8%8A%E5%8D%BB%E5%87%BA%E9%8C%AF%E5%BE%9E%E6%9C%AC%E7%AF%87%E7%9A%84%E8%A7%92%E5%BA%A6%E6%9C%80%E5%8F%AF%E8%83%BD%E7%9A%84%E5%8E%9F%E5%9B%A0%E6%98%AF%E4%BB%80%E9%BA%BC%E5%AF%AB%E8%85%B3%E6%9C%AC%E6%99%82%E8%A9%B2%E6%80%8E%E9%BA%BC%E9%A0%90%E9%98%B2">GNU 3. 情境題：一支 shell 腳本在你的 Ubuntu 上用 bash 測試完全正常，放到 OpenWrt 上卻出錯。從本篇的角度，最可能的原因是什麼？寫腳本時該怎麼預防？</a></li>
+<li class="l3"><a href="#gnu-4-gpl-%E7%9A%84-copyleft-%E8%A6%81%E6%B1%82%E4%BB%80%E9%BA%BCglibc-%E7%94%A8-lgpl-%E8%80%8C%E4%B8%8D%E6%98%AF-gpl%E5%B0%8D%E5%95%86%E6%A5%AD%E8%BB%9F%E9%AB%94%E8%83%BD%E4%B8%8D%E8%83%BD%E9%80%A3%E7%B5%90-libc%E6%9C%89%E4%BB%80%E9%BA%BC%E5%B7%AE%E5%88%A5">GNU 4. GPL 的 copyleft 要求什麼？glibc 用 LGPL 而不是 GPL，對「商業軟體能不能連結 libc」有什麼差別？</a></li>
+</ul>
+</nav>
+<main>
+<h1 id="2026-10-06-複習字元interpelfgccgnu">2026-10-06 複習：字元、interp、ELF、gcc、GNU</h1>
+<blockquote>
+<p>依 <a href="../../learning/%E8%A4%87%E7%BF%92%E6%8E%92%E7%A8%8B.md">複習排程</a> 選出今天到期的 10 題。今天不上新課（第 4 課的作業與測驗還沒交，先完成那兩份），所以不放「跟新課相關」的題目，全部依<strong>過期最久 → 盒子小 → 上次作答較早</strong>挑選：字元 4（10-01 到期）、interp 1／2／3／6 與 ELF 1／2（10-02 到期），再從 10-03 到期的 8 題裡依排程表順序取 gcc 5、GNU 3、GNU 4。今天到期的共 41 題，沒選到的 31 題順延，日期不動。</p>
+<p><strong>怎麼寫</strong>：闔上筆記，每題寫 1～2 句關鍵句就好。寫完說「幫我批改」。複習不重答，批改會直接附參考答案。</p>
+</blockquote>
+<h2 id="批改結果2026-10-06">批改結果（2026-10-06）</h2>
+<p>對 3（interp 1、ELF 1、GNU 3）、大致對 4（字元 4、interp 6、ELF 2、gcc 5）、不完整 3（interp 2、interp 3、GNU 4）。升級：interp 1、ELF 1、GNU 3 → 盒子 3（10-13）；字元 4、interp 6、ELF 2、gcc 5 留在盒子 2（10-09）；interp 2、interp 3、GNU 4 回盒子 1，明天（10-07）再考。
+<strong>反覆卡住的觀念</strong>：interp 3 第 9 次仍說成「把腳本內容交給直譯器」（實為<strong>路徑</strong>；你在 interp 6 自己答出的「<code>sh</code> 沒有讀取權限」正是反證）；interp 2 又漏了 <code>ld.so</code> 的「接線」並說成跳進 <code>main</code>；gcc 5 仍沒說出 kernel <strong>不能用 <code>-O0</code></strong>。
+<strong>新出現的錯</strong>：GNU 4 把 copyleft 說成「必須對外發布」（實為「散布時要用同樣授權並附原始碼」）；ELF 1、2 把區段標頭表叫成「需求單」。
+<strong>進步</strong>：GNU 3 這次一次答出 POSIX 和在本機用 <code>ash</code> 測；interp 6 的前兩問完整答對。</p>
+<h2 id="今天的題目">今天的題目</h2>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>題目</th>
+<th>盒子</th>
+<th>原本該考的日期</th>
+<th>為什麼選</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>字元 4</td>
+<td>2</td>
+<td>2026-10-01</td>
+<td>過期最久</td>
+</tr>
+<tr>
+<td>2</td>
+<td>interp 1</td>
+<td>2</td>
+<td>2026-10-02</td>
+<td>過期最久</td>
+</tr>
+<tr>
+<td>3</td>
+<td>interp 2</td>
+<td>2</td>
+<td>2026-10-02</td>
+<td>過期最久</td>
+</tr>
+<tr>
+<td>4</td>
+<td>interp 3</td>
+<td>2</td>
+<td>2026-10-02</td>
+<td>過期最久（反覆卡住：交給直譯器的是<strong>什麼</strong>）</td>
+</tr>
+<tr>
+<td>5</td>
+<td>interp 6</td>
+<td>2</td>
+<td>2026-10-02</td>
+<td>過期最久</td>
+</tr>
+<tr>
+<td>6</td>
+<td>ELF 1</td>
+<td>2</td>
+<td>2026-10-02</td>
+<td>過期最久</td>
+</tr>
+<tr>
+<td>7</td>
+<td>ELF 2</td>
+<td>2</td>
+<td>2026-10-02</td>
+<td>過期最久</td>
+</tr>
+<tr>
+<td>8</td>
+<td>gcc 5</td>
+<td>2</td>
+<td>2026-10-03</td>
+<td>過期次久，排程表順序</td>
+</tr>
+<tr>
+<td>9</td>
+<td>GNU 3</td>
+<td>2</td>
+<td>2026-10-03</td>
+<td>過期次久，排程表順序</td>
+</tr>
+<tr>
+<td>10</td>
+<td>GNU 4</td>
+<td>2</td>
+<td>2026-10-03</td>
+<td>過期次久，排程表順序</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="字元字元是什麼-char就是1byte的整數與ascii和utf-8">字元：<a href="../c/%E5%AD%97%E5%85%83%E6%98%AF%E4%BB%80%E9%BA%BC-char%E5%B0%B1%E6%98%AF1byte%E7%9A%84%E6%95%B4%E6%95%B8%E8%88%87ASCII%E5%92%8CUTF-8.html">字元是什麼-char就是1byte的整數與ASCII和UTF-8</a></h2>
+<h3 id="字元-4-情境題你寫了一個函式用-char-c-一個一個-byte-讀一段-utf-8-文字並用-if-c--127-判斷這是不是非-ascii-的-byte在本機這個判斷會成立嗎為什麼該怎麼改">字元 4. 情境題：你寫了一個函式，用 <code>char c</code> 一個一個 byte 讀一段 UTF-8 文字，並用 <code>if (c &gt; 127)</code> 判斷「這是不是非 ASCII 的 byte」。在本機這個判斷會成立嗎？為什麼？該怎麼改？</h3>
+<blockquote>
+<p>盒子 2｜過去的作答：<a href="../small-project/s1-02-data-repr/quiz.html#4-%E6%83%85%E5%A2%83%E9%A1%8C%E4%BD%A0%E5%AF%AB%E4%BA%86%E4%B8%80%E5%80%8B%E5%87%BD%E5%BC%8F%E7%94%A8-char-c-%E4%B8%80%E5%80%8B%E4%B8%80%E5%80%8B-byte-%E8%AE%80%E4%B8%80%E6%AE%B5-utf-8-%E6%96%87%E5%AD%97%E4%B8%A6%E7%94%A8-if-c--127-%E5%88%A4%E6%96%B7%E9%80%99%E6%98%AF%E4%B8%8D%E6%98%AF%E9%9D%9E-ascii-%E7%9A%84-byte%E5%9C%A8%E6%9C%AC%E6%A9%9F%E9%80%99%E5%80%8B%E5%88%A4%E6%96%B7%E6%9C%83%E6%88%90%E7%AB%8B%E5%97%8E%E7%82%BA%E4%BB%80%E9%BA%BC%E8%A9%B2%E6%80%8E%E9%BA%BC%E6%94%B9">s1-02 quiz.md 第 4 題</a></p>
+</blockquote>
+<pre><code>不會
+
+ascii 是0~127, 但char有可能是負數所以 不只&gt;127 不是 ascii, &lt; 0 也不是
+
+if (c &gt; 127 || c &lt; 0)
+</code></pre>
+<blockquote>
+<p><strong>批改</strong>：<strong>大致對</strong>（盒子 2 → 2）。「不會成立」對，改法也能用。缺兩點：(1) 沒講出<strong>為什麼 <code>&gt; 127</code> 永遠是假</strong>：本機 <code>char</code> 是有號的，範圍 −128～127，任何 <code>char</code> 都不可能大於 127，所以你改法裡的 <code>c &gt; 127 ||</code> 那半是死的（<code>-Wextra</code> 會警告 <code>comparison is always false</code>），真正在做事的只有 <code>c &lt; 0</code>；(2) <code>c &lt; 0</code> 依賴「<code>char</code> 有號」，換到 ARM（<code>char</code> 通常無號）就變成永遠假。正解是改<strong>讀法</strong>，不是補條件。</p>
+<p><strong>參考答案</strong>【<a href="../c/%E5%AD%97%E5%85%83%E6%98%AF%E4%BB%80%E9%BA%BC-char%E5%B0%B1%E6%98%AF1byte%E7%9A%84%E6%95%B4%E6%95%B8%E8%88%87ASCII%E5%92%8CUTF-8.html#%E8%B7%9F%E7%AC%AC-2-%E8%AA%B2%E7%9A%84%E9%80%A3%E7%B5%90char-%E6%9C%89%E8%99%9F%E8%AE%80%E5%88%B0%E4%B8%AD%E6%96%87%E6%9C%83%E8%AE%8A%E8%B2%A0%E6%95%B8">字元第四節</a>〈跟第 2 課的連結〉、〈<a href="../c/%E5%AD%97%E5%85%83%E6%98%AF%E4%BB%80%E9%BA%BC-char%E5%B0%B1%E6%98%AF1byte%E7%9A%84%E6%95%B4%E6%95%B8%E8%88%87ASCII%E5%92%8CUTF-8.html#%E5%88%A4%E6%96%B7%E6%98%AF%E4%B8%8D%E6%98%AF%E9%9D%9E-ascii-%E7%9A%84-byte%E7%94%A8%E5%93%AA%E5%80%8B%E5%9E%8B%E5%88%A5%E7%82%BA%E4%BB%80%E9%BA%BC%E6%98%AF-127">判斷「是不是非 ASCII 的 byte」</a>〉】：不會成立。本機 <code>char</code> 有號（−128～127），UTF-8 的非 ASCII byte 是 <code>0x80</code>～<code>0xff</code>，用 <code>char</code> 讀變成負數（例如 <code>0xe5</code> → −27），<code>c &gt; 127</code> 永遠為假。改成 <code>unsigned char c</code>（或比較時寫 <code>(unsigned char)c &gt; 127</code>），byte 就照 0～255 讀，<code>&gt; 127</code> 的意思才正確。不要改成 <code>unsigned int</code>：會先符號擴展成 <code>0xffffffe5</code>，判斷碰巧對、值卻是錯的。</p>
+</blockquote>
+<hr />
+<h2 id="interpelf的interpreter是什麼-動態載入器與井字號驚嘆號">interp：<a href="../c/ELF%E7%9A%84interpreter%E6%98%AF%E4%BB%80%E9%BA%BC-%E5%8B%95%E6%85%8B%E8%BC%89%E5%85%A5%E5%99%A8%E8%88%87%E4%BA%95%E5%AD%97%E8%99%9F%E9%A9%9A%E5%98%86%E8%99%9F.html">ELF的interpreter是什麼-動態載入器與井字號驚嘆號</a></h2>
+<h3 id="interp-1-動態連結的執行檔裡interpreter-的路徑寫在哪裡execve-之後核心先執行的是你的程式還是它為什麼要這樣安排">interp 1. 動態連結的執行檔裡，interpreter 的路徑寫在哪裡？<code>execve</code> 之後，核心先執行的是你的程式還是它？為什麼要這樣安排？</h3>
+<blockquote>
+<p>盒子 2｜過去的作答：<a href="../small-project/s1-01-hello-compile/quiz.html#1-%E5%8B%95%E6%85%8B%E9%80%A3%E7%B5%90%E7%9A%84%E5%9F%B7%E8%A1%8C%E6%AA%94%E8%A3%A1interpreter-%E7%9A%84%E8%B7%AF%E5%BE%91%E5%AF%AB%E5%9C%A8%E5%93%AA%E8%A3%A1execve-%E4%B9%8B%E5%BE%8C%E6%A0%B8%E5%BF%83%E5%85%88%E5%9F%B7%E8%A1%8C%E7%9A%84%E6%98%AF%E4%BD%A0%E7%9A%84%E7%A8%8B%E5%BC%8F%E9%82%84%E6%98%AF%E5%AE%83%E7%82%BA%E4%BB%80%E9%BA%BC%E8%A6%81%E9%80%99%E6%A8%A3%E5%AE%89%E6%8E%92">s1-01 quiz.md 第 1 題</a></p>
+</blockquote>
+<pre><code>在program header
+
+先執行interpreter
+
+因爲需要interpreter 把其他函式庫加載進來
+</code></pre>
+<blockquote>
+<p><strong>批改</strong>：<strong>對</strong>（盒子 2 → 3）。三問都答出：寫在程式標頭（<code>INTERP</code>）、核心先跑 interpreter、因為要先把函式庫載入。補一個細節：<code>INTERP</code> 指向 <code>.interp</code> 區段那串路徑；載入器除了「載入」，還要把符號的真實位址填好（見下一題）。</p>
+<p><strong>參考答案</strong>【<a href="../c/ELF%E7%9A%84interpreter%E6%98%AF%E4%BB%80%E9%BA%BC-%E5%8B%95%E6%85%8B%E8%BC%89%E5%85%A5%E5%99%A8%E8%88%87%E4%BA%95%E5%AD%97%E8%99%9F%E9%A9%9A%E5%98%86%E8%99%9F.html#%E4%B8%80%E5%AE%83%E5%AF%AB%E5%9C%A8%E5%9F%B7%E8%A1%8C%E6%AA%94%E7%9A%84%E5%93%AA%E8%A3%A1">interp 第一節</a>、<a href="../c/ELF%E7%9A%84interpreter%E6%98%AF%E4%BB%80%E9%BA%BC-%E5%8B%95%E6%85%8B%E8%BC%89%E5%85%A5%E5%99%A8%E8%88%87%E4%BA%95%E5%AD%97%E8%99%9F%E9%A9%9A%E5%98%86%E8%99%9F.html#%E4%BA%8C%E5%9F%B7%E8%A1%8C%E6%99%82%E7%99%BC%E7%94%9F%E4%BB%80%E9%BA%BC%E4%BA%8B">第二節</a>】：路徑寫在程式標頭表的 <code>INTERP</code> 項（指向 <code>.interp</code> 區段，內容是 <code>/lib64/ld-linux-x86-64.so.2</code>）。核心 <code>execve</code> 時把程式和載入器都映射進記憶體，<strong>先執行載入器</strong>；載入器依 <code>NEEDED</code> 找到並映射 <code>libc.so.6</code>、檢查版本、填好 <code>puts</code> 等符號的位址，最後跳到程式的進入點。這樣安排是因為程式一開始就要呼叫函式庫，函式庫必須在程式的第一條指令之前就接好。</p>
+</blockquote>
+<h3 id="interp-2-ld-和-ldsold-linux-x86-64so2各在什麼時間點做什麼事">interp 2. <code>ld</code> 和 <code>ld.so</code>（<code>ld-linux-x86-64.so.2</code>）各在什麼時間點、做什麼事？</h3>
+<blockquote>
+<p>盒子 2｜過去的作答：<a href="../small-project/s1-01-hello-compile/quiz.html#2-ld-%E5%92%8C-ldsold-linux-x86-64so2%E5%90%84%E5%9C%A8%E4%BB%80%E9%BA%BC%E6%99%82%E9%96%93%E9%BB%9E%E5%81%9A%E4%BB%80%E9%BA%BC%E4%BA%8B">s1-01 quiz.md 第 2 題</a></p>
+</blockquote>
+<pre><code>ld: 連接時,負責將.o的需求(section header), 寫出來並整理kernel看得懂的格式 與 NEED,在program header, 例如動態載入器,所有section元素的內存分頁
+
+ld.so: 執行時,kernel把他加載進來,他在根據需求單NEED把需要的函式庫載入,在跳入main的entrypoint
+</code></pre>
+<blockquote>
+<p><strong>批改</strong>：<strong>不完整</strong>（盒子 2 → 1）。時間點兩個都對，<code>ld</code> 寫 <code>NEEDED</code>、<code>INTERP</code>、建程式標頭這部分也對。問題有三：
+(1) <code>ld</code> <strong>最主要的工作沒寫</strong>：把多個 <code>.o</code> 的同類區段合併、決定位址，然後<strong>把 <code>call</code> 後面的 <code>00 00 00 00</code> 洞填上</strong>（重定位）。你寫的「將 <code>.o</code> 的需求（section header）寫出來」不對——區段標頭表不是需求單，<code>.o</code> 本來就有區段標頭表；「需求單」指的是 <code>NEEDED</code>。
+(2) <code>ld.so</code> 漏了<strong>接線</strong>：載入函式庫之後，要把 <code>puts</code> 這些符號的真實位址填進 <code>.got</code>，程式才呼叫得到。這是上次就指出的卡點，這次又漏了。
+(3) <code>ld.so</code> 跳去的是<strong>進入點 <code>_start</code></strong>，不是 <code>main</code>。<code>_start</code> 再呼叫 libc 的 <code>__libc_start_main</code>，由它呼叫 <code>main</code>。這也是 9/27 指出過的。</p>
+<p><strong>參考答案</strong>【<a href="../c/ELF%E7%9A%84interpreter%E6%98%AF%E4%BB%80%E9%BA%BC-%E5%8B%95%E6%85%8B%E8%BC%89%E5%85%A5%E5%99%A8%E8%88%87%E4%BA%95%E5%AD%97%E8%99%9F%E9%A9%9A%E5%98%86%E8%99%9F.html#%E4%BA%8C%E5%9F%B7%E8%A1%8C%E6%99%82%E7%99%BC%E7%94%9F%E4%BB%80%E9%BA%BC%E4%BA%8B">interp 第二節</a>〈「跳進程式」是什麼意思：進入點（entry point）〉、<a href="../c/hello.c%E6%80%8E%E9%BA%BC%E8%AE%8A%E6%88%90%E8%83%BD%E8%B7%91%E7%9A%84%E7%A8%8B%E5%BC%8F-%E7%B7%A8%E8%AD%AF%E7%9A%84%E5%9B%9B%E5%80%8B%E9%9A%8E%E6%AE%B5.html#%E4%BA%94%E9%80%A3%E7%B5%90%E6%8A%8A%E6%B4%9E%E6%8E%A5%E4%B8%8A%E4%BD%86-puts-%E9%82%84%E6%98%AF%E6%B2%92%E6%8E%A5%E5%AE%8C">第 1 課第五節</a>】：</p>
+<ul>
+<li><strong><code>ld</code>（連結時，<code>gcc</code> 的最後一步，只做一次）</strong>：合併各 <code>.o</code> 的區段、決定每個符號的位址、把 <code>call</code> 的洞填上；遇到在 <code>libc.so.6</code> 裡的符號（例如 <code>puts</code>）填不了真實位址，只寫一張<strong>需求單</strong>：<code>NEEDED libc.so.6</code>、<code>INTERP</code> 路徑，並產生程式標頭表。</li>
+<li><strong><code>ld.so</code>（執行時，每次執行都做）</strong>：依 <code>NEEDED</code> 找到函式庫並映射進記憶體、檢查版本、把 <code>puts</code> 等符號的真實位址填進 <code>.got</code>（接線），最後跳到程式的進入點 <code>_start</code>。</li>
+</ul>
+</blockquote>
+<h3 id="interp-3-腳本的-binsh-和-elf-的-interpreter哪裡相同哪裡不同用-bincat-的實驗說明核心把什麼交給直譯器">interp 3. 腳本的 <code>#!/bin/sh</code> 和 ELF 的 interpreter，哪裡相同、哪裡不同？用 <code>#!/bin/cat</code> 的實驗說明「核心把什麼交給直譯器」。</h3>
+<blockquote>
+<p>盒子 2｜過去的作答：<a href="../small-project/s1-01-hello-compile/quiz.html#3-%E8%85%B3%E6%9C%AC%E7%9A%84-binsh-%E5%92%8C-elf-%E7%9A%84-interpreter%E5%93%AA%E8%A3%A1%E7%9B%B8%E5%90%8C%E5%93%AA%E8%A3%A1%E4%B8%8D%E5%90%8C%E7%94%A8-bincat-%E7%9A%84%E5%AF%A6%E9%A9%97%E8%AA%AA%E6%98%8E%E6%A0%B8%E5%BF%83%E6%8A%8A%E4%BB%80%E9%BA%BC%E4%BA%A4%E7%B5%A6%E7%9B%B4%E8%AD%AF%E5%99%A8">s1-01 quiz.md 第 3 題</a></p>
+</blockquote>
+<pre><code>相同的是 核心 都首先執行他們
+不同的是 sh實際執行程式碼,而interpreter沒有實際執行
+
+ ~/w/Proj/g/good-note/small-project/s1-01-hello-compile | on main !3 ?3  cat echoscript.sh                                                                                        ok | base py | at 10:38:30
+#!/usr/bin/cat
+這一行 cat 不會讀
+
+ ~/w/Proj/g/good-note/small-project/s1-01-hello-compile | on main !3 ?3  ./echoscript.sh                                                                                          ok | base py | at 10:38:40
+#!/usr/bin/cat
+這一行 cat 不會讀
+
+第一個是我們直接教cat去打印echoscript.sh
+
+第二個,我們執行腳本,打印出完全相同的內容, 核心先執行cat,並把腳本(程式碼)交給cat, cat讀了以後在把這個內容打印出來
+</code></pre>
+<blockquote>
+<p><strong>批改</strong>：<strong>不完整</strong>（盒子 2 → 1）。</p>
+<ul>
+<li>前半「相同」答對（核心 <code>execve</code> 時讀到，先執行它們）；「不同」大致對（<code>sh</code> 自己逐行執行腳本，<code>ld.so</code> 只負責載入、接線，然後跳進程式本身讓 CPU 執行），還缺一句「寫的地方不同：<code>#!</code> 是文字檔第一行，ELF 是程式標頭的 <code>INTERP</code>」。</li>
+<li>後半是這題的重點，<strong>仍然錯</strong>：「把腳本（程式碼）交給 cat」——核心交給 <code>cat</code> 的是<strong>腳本的路徑</strong>，不是內容。核心實際執行的是 <code>/usr/bin/cat ./echoscript.sh</code>，<code>cat</code> 拿到這個路徑，<strong>自己去打開檔案</strong>、讀出內容印出來，所以連 <code>#!</code> 那一行也被印出來。</li>
+<li><strong>你在 interp 6 自己答出了反證</strong>：你說 <code>Permission denied</code> 是因為「<code>sh</code> 沒有讀的權限」。如果核心交給直譯器的是內容，直譯器根本不需要去讀檔，就不會有讀取權限的問題。兩題的答案只有「交的是路徑」才同時成立。</li>
+<li>另外，你貼的實驗用的是 <code>#!/usr/bin/cat</code>，<code>cat</code> 會把檔案內容印出來，所以「直接 <code>cat</code> 檔案」和「執行腳本」看起來一模一樣，這個實驗<strong>分不出</strong>交的是路徑還是內容。檔名叫 <code>echoscript.sh</code>，但筆記裡的 <code>echoscript.sh</code> 第一行是 <code>#!/usr/bin/echo</code>：用 <code>echo</code> 當直譯器，印出來的是 <code>./echoscript.sh</code> 這個路徑，第二行的內容完全沒出現，這才是分得出來的實驗。</li>
+</ul>
+<p><strong>參考答案</strong>【<a href="../c/ELF%E7%9A%84interpreter%E6%98%AF%E4%BB%80%E9%BA%BC-%E5%8B%95%E6%85%8B%E8%BC%89%E5%85%A5%E5%99%A8%E8%88%87%E4%BA%95%E5%AD%97%E8%99%9F%E9%A9%9A%E5%98%86%E8%99%9F.html#%E5%9B%9B%E8%B7%9F%E8%85%B3%E6%9C%AC%E7%9A%84--%E6%98%AF%E5%90%8C%E4%B8%80%E5%80%8B%E6%A9%9F%E5%88%B6">interp 第四節</a>、〈<a href="../c/ELF%E7%9A%84interpreter%E6%98%AF%E4%BB%80%E9%BA%BC-%E5%8B%95%E6%85%8B%E8%BC%89%E5%85%A5%E5%99%A8%E8%88%87%E4%BA%95%E5%AD%97%E8%99%9F%E9%A9%9A%E5%98%86%E8%99%9F.html#%E4%BA%A4%E7%B5%A6%E7%9B%B4%E8%AD%AF%E5%99%A8%E7%9A%84%E6%98%AF%E8%B7%AF%E5%BE%91%E4%B8%8D%E6%98%AF%E5%85%A7%E5%AE%B9%E4%B8%89%E5%80%8B%E5%AF%A6%E9%A9%97">交給直譯器的是「路徑」，不是內容：三個實驗</a>〉】：相同：都由核心在 <code>execve</code> 時讀到、先啟動那支程式。不同：寫的地方（文字檔第一行的 <code>#!</code> vs 程式標頭的 <code>INTERP</code>）；直譯器拿到檔案後做的事（<code>sh</code> 逐行讀文字、執行命令 vs <code>ld.so</code> 載入函式庫、填好位址後跳進程式本身）。<code>#!/bin/cat</code> 的腳本被執行時，核心實際跑的是 <strong><code>/bin/cat ./catscript</code></strong>，交給直譯器的是<strong>腳本的路徑（當作參數）</strong>；<code>cat</code> 用這個路徑自己打開檔案，把整個檔案（含第一行）印出來。</p>
+</blockquote>
+<h3 id="interp-6-情境題一支腳本權限是----x--x--x只有執行權限第一行是-binsh執行時出現-binsh-xsh-permission-denied這個錯誤是誰印的為什麼核心讀得到--那一行直譯器卻讀不到腳本同樣只有執行權限的-elf-執行檔為什麼就能跑">interp 6. 情境題：一支腳本權限是 <code>---x--x--x</code>（只有執行權限），第一行是 <code>#!/bin/sh</code>，執行時出現 <code>/bin/sh: ./x.sh: Permission denied</code>。這個錯誤是誰印的？為什麼核心讀得到 <code>#!</code> 那一行，直譯器卻讀不到腳本？同樣只有執行權限的 ELF 執行檔為什麼就能跑？</h3>
+<blockquote>
+<p>盒子 2｜過去的作答：<a href="../small-project/s1-01-hello-compile/quiz.html#6-%E6%83%85%E5%A2%83%E9%A1%8C%E4%B8%80%E6%94%AF%E8%85%B3%E6%9C%AC%E6%AC%8A%E9%99%90%E6%98%AF----x--x--x%E5%8F%AA%E6%9C%89%E5%9F%B7%E8%A1%8C%E6%AC%8A%E9%99%90%E7%AC%AC%E4%B8%80%E8%A1%8C%E6%98%AF-binsh%E5%9F%B7%E8%A1%8C%E6%99%82%E5%87%BA%E7%8F%BE-binsh-xsh-permission-denied%E9%80%99%E5%80%8B%E9%8C%AF%E8%AA%A4%E6%98%AF%E8%AA%B0%E5%8D%B0%E7%9A%84%E7%82%BA%E4%BB%80%E9%BA%BC%E6%A0%B8%E5%BF%83%E8%AE%80%E5%BE%97%E5%88%B0--%E9%82%A3%E4%B8%80%E8%A1%8C%E7%9B%B4%E8%AD%AF%E5%99%A8%E5%8D%BB%E8%AE%80%E4%B8%8D%E5%88%B0%E8%85%B3%E6%9C%AC%E5%90%8C%E6%A8%A3%E5%8F%AA%E6%9C%89%E5%9F%B7%E8%A1%8C%E6%AC%8A%E9%99%90%E7%9A%84-elf-%E5%9F%B7%E8%A1%8C%E6%AA%94%E7%82%BA%E4%BB%80%E9%BA%BC%E5%B0%B1%E8%83%BD%E8%B7%91">s1-01 quiz.md 第 6 題</a></p>
+</blockquote>
+<pre><code>是,sh印的,他沒有讀的權限
+
+因爲kernel不受這個角色權限的限制
+
+因爲interpreter ld.so 他是需要讀函式庫,函式庫有讀的權限,ld.so載入函式庫後就跳入main的entrypoint了,之後就是kernel的事了,實際執行程式碼的是kernel
+</code></pre>
+<blockquote>
+<p><strong>批改</strong>：<strong>大致對</strong>（盒子 2 → 2）。前兩問對：錯誤是 <code>/bin/sh</code> 印的；核心自己讀檔、不受讀取權限限制，<code>sh</code> 用你的身分開檔被擋。第三問方向對（ELF 不需要哪個使用者行程去讀它），但理由講偏了：</p>
+<ul>
+<li>關鍵是<strong>程式檔本身是核心直接映射進記憶體的</strong>，沒有任何使用者行程需要用 <code>open</code> 去讀它。<code>ld.so</code> 讀的是函式庫，跟程式檔有沒有 <code>r</code> 無關——這點你說的沒錯，但不是主因。</li>
+<li>「實際執行程式碼的是 kernel」<strong>不對</strong>：跳進程式之後，指令是 <strong>CPU</strong> 執行的，核心只在系統呼叫時才介入。</li>
+</ul>
+<p><strong>參考答案</strong>【<a href="../c/ELF%E7%9A%84interpreter%E6%98%AF%E4%BB%80%E9%BA%BC-%E5%8B%95%E6%85%8B%E8%BC%89%E5%85%A5%E5%99%A8%E8%88%87%E4%BA%95%E5%AD%97%E8%99%9F%E9%A9%9A%E5%98%86%E8%99%9F.html#%E4%BA%A4%E7%B5%A6%E7%9B%B4%E8%AD%AF%E5%99%A8%E7%9A%84%E6%98%AF%E8%B7%AF%E5%BE%91%E4%B8%8D%E6%98%AF%E5%85%A7%E5%AE%B9%E4%B8%89%E5%80%8B%E5%AF%A6%E9%A9%97">interp 第四節</a>〈實驗三〉】：錯誤是 <code>/bin/sh</code> 印的。核心在 <code>execve</code> 時自己讀 <code>#!</code> 那一行，核心讀檔不受 <code>r</code> 位元限制（執行只要 <code>x</code>）；但接著核心是把<strong>腳本路徑</strong>交給 <code>sh</code>，<code>sh</code> 是普通行程，要用使用者身分 <code>open</code> 這個檔案，沒有 <code>r</code> 就 <code>Permission denied</code>。只有 <code>x</code> 的 ELF 能跑，是因為程式本身由<strong>核心直接映射進記憶體</strong>，不需要任何使用者行程打開它。所以腳本要 <code>r</code>＋<code>x</code>，ELF 只要 <code>x</code>。</p>
+</blockquote>
+<hr />
+<h2 id="elfelf是什麼-可執行與可連結格式的兩種視角">ELF：<a href="../c/ELF%E6%98%AF%E4%BB%80%E9%BA%BC-%E5%8F%AF%E5%9F%B7%E8%A1%8C%E8%88%87%E5%8F%AF%E9%80%A3%E7%B5%90%E6%A0%BC%E5%BC%8F%E7%9A%84%E5%85%A9%E7%A8%AE%E8%A6%96%E8%A7%92.html">ELF是什麼-可執行與可連結格式的兩種視角</a></h2>
+<h3 id="elf-1-elf-三個字母各代表什麼為什麼說executable和linkable對應兩種不同的讀者">ELF 1. ELF 三個字母各代表什麼？為什麼說「Executable」和「Linkable」對應兩種不同的讀者？</h3>
+<blockquote>
+<p>盒子 2｜過去的作答：<a href="../small-project/s1-01-hello-compile/quiz.html#1-elf-%E4%B8%89%E5%80%8B%E5%AD%97%E6%AF%8D%E5%90%84%E4%BB%A3%E8%A1%A8%E4%BB%80%E9%BA%BC%E7%82%BA%E4%BB%80%E9%BA%BC%E8%AA%AAexecutable%E5%92%8Clinkable%E5%B0%8D%E6%87%89%E5%85%A9%E7%A8%AE%E4%B8%8D%E5%90%8C%E7%9A%84%E8%AE%80%E8%80%85">s1-01 quiz.md 第 1 題</a></p>
+</blockquote>
+<pre><code>executable linkable format
+
+executable 是給核心看的,例如核心看program header去找動態載入器,還有建立內存分頁,分配各個元素的內存
+
+linkable是給連接器看的(ld),就是section的需求單
+</code></pre>
+<blockquote>
+<p><strong>批改</strong>：<strong>對</strong>（盒子 2 → 3）。全名、兩種讀者（核心看程式標頭、連結器看區段）都答出。用詞提醒：「section 的需求單」——區段標頭表是<strong>目錄</strong>（每個區段叫什麼、在哪、多大），不是需求單；這個專案裡「需求單」一直是指 <code>NEEDED</code>。</p>
+<p><strong>參考答案</strong>【<a href="../c/ELF%E6%98%AF%E4%BB%80%E9%BA%BC-%E5%8F%AF%E5%9F%B7%E8%A1%8C%E8%88%87%E5%8F%AF%E9%80%A3%E7%B5%90%E6%A0%BC%E5%BC%8F%E7%9A%84%E5%85%A9%E7%A8%AE%E8%A6%96%E8%A7%92.html#%E4%B8%80%E5%90%8D%E5%AD%97%E7%9A%84%E6%84%8F%E6%80%9D">ELF 第一節</a>、<a href="../c/ELF%E6%98%AF%E4%BB%80%E9%BA%BC-%E5%8F%AF%E5%9F%B7%E8%A1%8C%E8%88%87%E5%8F%AF%E9%80%A3%E7%B5%90%E6%A0%BC%E5%BC%8F%E7%9A%84%E5%85%A9%E7%A8%AE%E8%A6%96%E8%A7%92.html#%E5%9B%9B%E5%90%8D%E5%AD%97%E7%9A%84%E9%97%9C%E9%8D%B5%E5%85%A9%E7%A8%AE%E8%A6%96%E8%A7%92">第四節</a>】：Executable and Linkable Format。ELF 有兩張目錄：<strong>程式標頭表</strong>（執行視角，單位是載入段 segment，給核心與動態載入器看：載入時把哪幾塊放進記憶體、權限是什麼）和<strong>區段標頭表</strong>（連結視角，單位是區段 section，給連結器 <code>ld</code>、<code>nm</code>、<code>objdump</code> 看：每個區段叫什麼、在哪、多大）。</p>
+</blockquote>
+<h3 id="elf-2-readelf--l-helloo-說-there-are-no-program-headers-in-this-file這代表什麼連結器做了什麼才讓執行檔有程式標頭">ELF 2. <code>readelf -l hello.o</code> 說 <code>There are no program headers in this file</code>，這代表什麼？連結器做了什麼才讓執行檔有程式標頭？</h3>
+<blockquote>
+<p>盒子 2｜過去的作答：<a href="../small-project/s1-01-hello-compile/quiz.html#2-readelf--l-helloo-%E8%AA%AA-there-are-no-program-headers-in-this-file%E9%80%99%E4%BB%A3%E8%A1%A8%E4%BB%80%E9%BA%BC%E9%80%A3%E7%B5%90%E5%99%A8%E5%81%9A%E4%BA%86%E4%BB%80%E9%BA%BC%E6%89%8D%E8%AE%93%E5%9F%B7%E8%A1%8C%E6%AA%94%E6%9C%89%E7%A8%8B%E5%BC%8F%E6%A8%99%E9%A0%AD">s1-01 quiz.md 第 2 題</a></p>
+</blockquote>
+<pre><code>這代表這個時候ld還沒有連接.o檔
+他是根據需求單section header來建立需求單每個元素的內存分頁,根據權限.然後根據是否有--static決定要不要提供interpreter,最後再把這些信息用來建立program header
+</code></pre>
+<blockquote>
+<p><strong>批改</strong>：<strong>大致對</strong>（盒子 2 → 2）。連結器做的事答得好：依權限打包、看是否 <code>-static</code> 決定要不要 <code>INTERP</code>、產生程式標頭。缺兩點：</p>
+<ul>
+<li>前半「代表什麼」：比「<code>ld</code> 還沒連結」更直接的說法是 <strong><code>.o</code> 只給連結器用，還沒準備好被核心載入執行</strong>，所以沒有執行視角。</li>
+<li>漏了第一步「<strong>把多個 <code>.o</code> 的同類區段合併</strong>」（例如各檔的 <code>.text</code> 併成一個 <code>.text</code>），之後才打包成載入段。另外「需求單 section header」用詞錯（同 ELF 1）；打包的單位是<strong>載入段</strong>，「內存分頁」是載入段的對齊單位，不是它本身。</li>
+</ul>
+<p><strong>參考答案</strong>【<a href="../c/ELF%E6%98%AF%E4%BB%80%E9%BA%BC-%E5%8F%AF%E5%9F%B7%E8%A1%8C%E8%88%87%E5%8F%AF%E9%80%A3%E7%B5%90%E6%A0%BC%E5%BC%8F%E7%9A%84%E5%85%A9%E7%A8%AE%E8%A6%96%E8%A7%92.html#%E5%9B%9B%E5%90%8D%E5%AD%97%E7%9A%84%E9%97%9C%E9%8D%B5%E5%85%A9%E7%A8%AE%E8%A6%96%E8%A7%92">ELF 第四節</a>〈最有力的證據：<code>.o</code> 沒有執行視角〉】：<code>.o</code> 沒有程式標頭表，代表它只有連結視角——只給連結器用，還不能被核心載入執行。連結器把一堆 <code>.o</code> 的區段<strong>合併</strong>，再把權限相同的區段打包成載入段（<code>LOAD</code>，依分頁對齊），動態連結時加上 <code>INTERP</code>、<code>DYNAMIC</code> 等項，最後寫出程式標頭表，「可連結的」才變成「可執行的」。</p>
+</blockquote>
+<hr />
+<h2 id="gccgcc最佳化等級-o0到o3差在哪">gcc：<a href="../c/gcc%E6%9C%80%E4%BD%B3%E5%8C%96%E7%AD%89%E7%B4%9A-O0%E5%88%B0O3%E5%B7%AE%E5%9C%A8%E5%93%AA.html">gcc最佳化等級-O0到O3差在哪</a></h2>
+<h3 id="gcc-5-情境題你在自己的程式裡用--o2-編譯gdb-印某個變數時顯示-optimized-out你會怎麼處理如果是在-kernel-裡遇到同樣的狀況處理方式又有什麼不同">gcc 5. 情境題：你在自己的程式裡用 <code>-O2</code> 編譯，<code>gdb</code> 印某個變數時顯示 <code>&lt;optimized out&gt;</code>。你會怎麼處理？如果是在 kernel 裡遇到同樣的狀況，處理方式又有什麼不同？</h3>
+<blockquote>
+<p>盒子 2｜過去的作答：<a href="../small-project/s1-01-hello-compile/quiz.html#5-%E6%83%85%E5%A2%83%E9%A1%8C%E4%BD%A0%E5%9C%A8%E8%87%AA%E5%B7%B1%E7%9A%84%E7%A8%8B%E5%BC%8F%E8%A3%A1%E7%94%A8--o2-%E7%B7%A8%E8%AD%AFgdb-%E5%8D%B0%E6%9F%90%E5%80%8B%E8%AE%8A%E6%95%B8%E6%99%82%E9%A1%AF%E7%A4%BA-optimized-out%E4%BD%A0%E6%9C%83%E6%80%8E%E9%BA%BC%E8%99%95%E7%90%86%E5%A6%82%E6%9E%9C%E6%98%AF%E5%9C%A8-kernel-%E8%A3%A1%E9%81%87%E5%88%B0%E5%90%8C%E6%A8%A3%E7%9A%84%E7%8B%80%E6%B3%81%E8%99%95%E7%90%86%E6%96%B9%E5%BC%8F%E5%8F%88%E6%9C%89%E4%BB%80%E9%BA%BC%E4%B8%8D%E5%90%8C">s1-01 quiz.md 第 5 題</a></p>
+</blockquote>
+<pre><code>我會在程式碼,直接把這個變數打印出來,或者直接重新用-O0編譯
+
+如果是kernel,那就只能用程式碼來打印了
+</code></pre>
+<blockquote>
+<p><strong>批改</strong>：<strong>大致對</strong>（盒子 2 → 2）。自己的程式的兩種處理（印出來、用 <code>-O0</code> 重編）都對。kernel 那半跟 9/30 一樣：「只能用程式碼打印」方向對，但沒講出<strong>為什麼只能這樣</strong>——kernel <strong>不能用 <code>-O0</code> 編</strong>。另外 kernel 裡印東西用的是 <code>printk</code>，不是 <code>printf</code>（kernel 不連結 libc）。</p>
+<p><strong>參考答案</strong>【<a href="../c/gcc%E6%9C%80%E4%BD%B3%E5%8C%96%E7%AD%89%E7%B4%9A-O0%E5%88%B0O3%E5%B7%AE%E5%9C%A8%E5%93%AA.html#%E4%B8%89%E7%82%BA%E4%BB%80%E9%BA%BC%E9%99%A4%E9%8C%AF%E8%A6%81%E7%94%A8--o0">gcc 第三節</a>、<a href="../c/gcc%E6%9C%80%E4%BD%B3%E5%8C%96%E7%AD%89%E7%B4%9A-O0%E5%88%B0O3%E5%B7%AE%E5%9C%A8%E5%93%AA.html#%E5%9B%9B%E8%B7%9F-kernel-%E7%9A%84%E9%97%9C%E4%BF%82">第四節</a>】：自己的程式：改用 <code>-O0 -g</code>（或 <code>-Og -g</code>）重新編譯，變數就有固定位置；不能重編時加 <code>printf</code> 印出來。kernel：<strong>不能用 <code>-O0</code> 重編</strong>（kernel 依賴編譯器一定會做的內嵌與刪除死碼才編得過），<code>&lt;optimized out&gt;</code> 是常態，只能改用 <code>printk</code>、tracing 等方法觀察，並學會讀最佳化後的組合語言。一句話：自己的程式可以「改編譯方式」，kernel 只能「改觀察方式」。</p>
+</blockquote>
+<hr />
+<h2 id="gnugnu是什麼-linux核心與gnu工具的分工">GNU：<a href="../linux/GNU%E6%98%AF%E4%BB%80%E9%BA%BC-Linux%E6%A0%B8%E5%BF%83%E8%88%87GNU%E5%B7%A5%E5%85%B7%E7%9A%84%E5%88%86%E5%B7%A5.html">GNU是什麼-Linux核心與GNU工具的分工</a></h2>
+<h3 id="gnu-3-情境題一支-shell-腳本在你的-ubuntu-上用-bash-測試完全正常放到-openwrt-上卻出錯從本篇的角度最可能的原因是什麼寫腳本時該怎麼預防">GNU 3. 情境題：一支 shell 腳本在你的 Ubuntu 上用 <code>bash</code> 測試完全正常，放到 OpenWrt 上卻出錯。從本篇的角度，最可能的原因是什麼？寫腳本時該怎麼預防？</h3>
+<blockquote>
+<p>盒子 2｜過去的作答：<a href="../small-project/s1-01-hello-compile/quiz.html#3-%E6%83%85%E5%A2%83%E9%A1%8C%E4%B8%80%E6%94%AF-shell-%E8%85%B3%E6%9C%AC%E5%9C%A8%E4%BD%A0%E7%9A%84-ubuntu-%E4%B8%8A%E7%94%A8-bash-%E6%B8%AC%E8%A9%A6%E5%AE%8C%E5%85%A8%E6%AD%A3%E5%B8%B8%E6%94%BE%E5%88%B0-openwrt-%E4%B8%8A%E5%8D%BB%E5%87%BA%E9%8C%AF%E5%BE%9E%E6%9C%AC%E7%AF%87%E7%9A%84%E8%A7%92%E5%BA%A6%E6%9C%80%E5%8F%AF%E8%83%BD%E7%9A%84%E5%8E%9F%E5%9B%A0%E6%98%AF%E4%BB%80%E9%BA%BC%E5%AF%AB%E8%85%B3%E6%9C%AC%E6%99%82%E8%A9%B2%E6%80%8E%E9%BA%BC%E9%A0%90%E9%98%B2">s1-01 quiz.md 第 3 題</a></p>
+</blockquote>
+<pre><code>最有可能就是兩個os的shell是不同的
+
+儘量用所有腳本都可以讀的腳本語法(posix規範),並且在openwrt測試之前,現在ubuntu(bash)用openwrt(ash)的shell測試
+</code></pre>
+<blockquote>
+<p><strong>批改</strong>：<strong>對</strong>（盒子 2 → 3）。原因（shell 不同）、預防（只用 POSIX 語法、在本機用 OpenWrt 那種 shell 測）都答出，這次也說出了 <code>ash</code>，比 9/30 完整。可以再精確一點：OpenWrt 的 <code>/bin/sh</code> 是 BusyBox 的 <code>ash</code>，本機要用 <code>busybox sh</code> 或 <code>dash</code> 來跑；而且本機 <code>/bin/sh -&gt; bash</code>，直接 <code>./腳本</code> 測不出問題。</p>
+<p><strong>參考答案</strong>【<a href="../linux/GNU%E6%98%AF%E4%BB%80%E9%BA%BC-Linux%E6%A0%B8%E5%BF%83%E8%88%87GNU%E5%B7%A5%E5%85%B7%E7%9A%84%E5%88%86%E5%B7%A5.html#%E5%9B%9B%E4%B8%8D%E6%98%AF-gnu-%E7%9A%84-linux%E4%BD%A0%E5%B7%B2%E7%B6%93%E9%81%87%E9%81%8E%E4%BA%86">GNU 第四節</a>】：OpenWrt 不是 GNU 使用者空間，沒有 bash，<code>/bin/sh</code> 是 BusyBox 的 <code>ash</code>；腳本裡用了 bash 的擴充語法（陣列、<code>[^...]</code> 等）就會出錯。預防：只用 POSIX 規定的語法與選項，並在本機用 <code>busybox sh 腳本</code>（或 <code>dash</code>）測試——本機 <code>/bin/sh</code> 指向 bash，直接執行測不出問題。</p>
+</blockquote>
+<h3 id="gnu-4-gpl-的-copyleft-要求什麼glibc-用-lgpl-而不是-gpl對商業軟體能不能連結-libc有什麼差別">GNU 4. GPL 的 copyleft 要求什麼？glibc 用 LGPL 而不是 GPL，對「商業軟體能不能連結 libc」有什麼差別？</h3>
+<blockquote>
+<p>盒子 2｜過去的作答：<a href="../small-project/s1-01-hello-compile/quiz.html#4-gpl-%E7%9A%84-copyleft-%E8%A6%81%E6%B1%82%E4%BB%80%E9%BA%BCglibc-%E7%94%A8-lgpl-%E8%80%8C%E4%B8%8D%E6%98%AF-gpl%E5%B0%8D%E5%95%86%E6%A5%AD%E8%BB%9F%E9%AB%94%E8%83%BD%E4%B8%8D%E8%83%BD%E9%80%A3%E7%B5%90-libc%E6%9C%89%E4%BB%80%E9%BA%BC%E5%B7%AE%E5%88%A5">s1-01 quiz.md 第 4 題</a></p>
+</blockquote>
+<pre><code>要求 開發者開發的程式如果連接了GPL的軟體, 或者修改軟體後 必須對外發布
+
+用LGPL 連接 glibc後不用對外發佈
+</code></pre>
+<blockquote>
+<p><strong>批改</strong>：<strong>不完整</strong>（盒子 2 → 1）。LGPL 那半對（商業軟體連結 glibc 不必開放自己的原始碼）。GPL 那半講錯了條件與內容：</p>
+<ul>
+<li>GPL <strong>不要求你「對外發布」</strong>。修改了 GPL 軟體自己用、不給別人，沒有任何義務。義務是在<strong>散布（distribute）</strong>的時候才發生：<strong>你把修改版（或連結了它的程式）給別人時</strong>，必須用同樣的授權、並提供原始碼。</li>
+<li>你寫的「必須對外發布」把「散布時要附原始碼」說成了「有義務發布」，方向反了；也沒寫出 copyleft 最核心的「<strong>同樣的授權</strong>」——自由不能在傳遞途中被拿走。</li>
+</ul>
+<p><strong>參考答案</strong>【<a href="../linux/GNU%E6%98%AF%E4%BB%80%E9%BA%BC-Linux%E6%A0%B8%E5%BF%83%E8%88%87GNU%E5%B7%A5%E5%85%B7%E7%9A%84%E5%88%86%E5%B7%A5.html#%E4%BA%94gplgnu-%E6%9C%80%E6%B7%B1%E9%81%A0%E7%9A%84%E5%BD%B1%E9%9F%BF">GNU 第五節</a>】：copyleft：可以自由使用、修改、散布，但<strong>散布修改後的版本時，必須用同樣的授權（GPL）、並提供原始碼</strong>。glibc 用 LGPL（較寬鬆）：允許非自由的程式<strong>連結</strong>它而不必開放自己的原始碼（只有改了 glibc 本身、再散布時，才要公開對 glibc 的修改）。所以任何商業軟體都能動態連結 <code>libc.so.6</code>；如果 glibc 是 GPL，連結它的程式在散布時就得整個用 GPL 開放。</p>
+</blockquote>
+
+</main>
+</div>
+</body>
+</html>

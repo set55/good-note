@@ -1,0 +1,369 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>2026-10-07 複習：GNU、C資料、hello、objdump、字元</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/app.js"></script>
+</head>
+<body>
+<button class="menu-btn" onclick="toggleMenu()">☰ 目錄</button>
+<div class="layout">
+<nav class="side">
+<div class="crumbs"><a href="../index.html">🏠 首頁</a> / <a href="README.html">review</a></div>
+<div class="tools"><button onclick="toggleTheme()">🌓 主題</button></div>
+<ul>
+<li class="l2"><a href="#%E6%89%B9%E6%94%B9%E7%B5%90%E6%9E%9C2026-10-07">批改結果（2026-10-07）</a></li>
+<li class="l2"><a href="#%E4%BB%8A%E5%A4%A9%E7%9A%84%E9%A1%8C%E7%9B%AE">今天的題目</a></li>
+<li class="l2"><a href="#gnugnu%E6%98%AF%E4%BB%80%E9%BA%BC-linux%E6%A0%B8%E5%BF%83%E8%88%87gnu%E5%B7%A5%E5%85%B7%E7%9A%84%E5%88%86%E5%B7%A5">GNU：GNU是什麼-Linux核心與GNU工具的分工</a></li>
+<li class="l3"><a href="#gnu-5-%E4%BD%A0%E5%B0%87%E4%BE%86%E9%80%81-kernel-patch-%E6%99%82%E8%A6%81%E5%8A%A0%E7%9A%84-signed-off-by-%E8%B7%9F-gpl-%E6%9C%89%E4%BB%80%E9%BA%BC%E9%97%9C%E4%BF%82">GNU 5. 你將來送 kernel patch 時要加的 Signed-off-by: 跟 GPL 有什麼關係？</a></li>
+<li class="l2"><a href="#c%E8%B3%87%E6%96%99c%E7%9A%84%E8%B3%87%E6%96%99%E5%9C%A8%E8%A8%98%E6%86%B6%E9%AB%94%E8%A3%A1%E9%95%B7%E6%80%8E%E6%A8%A3-%E4%BD%8D%E5%85%83%E7%B5%84%E6%8C%87%E6%A8%99%E4%BD%8D%E5%85%83%E7%B5%84%E9%A0%86%E5%BA%8F%E8%88%87%E6%9C%89%E8%99%9F%E7%84%A1%E8%99%9F">C資料：C的資料在記憶體裡長怎樣-位元組、指標、位元組順序與有號無號</a></li>
+<li class="l3"><a href="#c%E8%B3%87%E6%96%99-2-int-x--0x12345678-unsigned-char-b--unsigned-char-x-%E5%9C%A8%E6%9C%AC%E6%A9%9F-b-%E6%98%AF%E5%A4%9A%E5%B0%91%E6%8F%9B%E5%88%B0%E5%A4%A7%E7%AB%AF%E5%BA%8F%E7%9A%84%E6%A9%9F%E5%99%A8%E4%B8%8A%E6%98%AF%E5%A4%9A%E5%B0%91%E7%82%BA%E4%BB%80%E9%BA%BC-int-p--x-%E7%9A%84-p-%E5%9C%A8%E5%85%A9%E7%A8%AE%E6%A9%9F%E5%99%A8%E4%B8%8A%E9%83%BD%E6%98%AF-0x12345678">C資料 2. int x = 0x12345678; unsigned char *b = (unsigned char *)&amp;x; 在本機 *b 是多少？換到大端序的機器上是多少？為什麼 int *p = &amp;x; 的 *p 在兩種機器上都是 0x12345678？</a></li>
+<li class="l3"><a href="#c%E8%B3%87%E6%96%99-3-int-n---1-unsigned-int-len--5n--len-%E7%82%BA%E4%BB%80%E9%BA%BC%E6%98%AF%E5%81%87%E5%8F%AA%E5%8A%A0--wall-%E7%B7%A8%E8%AD%AFgcc-%E6%9C%83%E4%B8%8D%E6%9C%83%E6%8F%90%E9%86%92%E4%BD%A0">C資料 3. int n = -1; unsigned int len = 5;，n &lt; len 為什麼是假？只加 -Wall 編譯，gcc 會不會提醒你？</a></li>
+<li class="l3"><a href="#c%E8%B3%87%E6%96%99-4-int-y--x--1-return-y--x-%E5%9C%A8-x--int_max-%E6%99%82-o0-%E5%9B%9E%E5%82%B3-0-o2-%E5%9B%9E%E5%82%B3-1%E7%82%BA%E4%BB%80%E9%BA%BC%E6%9C%83%E9%80%99%E6%A8%A3%E9%80%99%E7%AE%97%E4%B8%8D%E7%AE%97-gcc-%E7%9A%84-bugkernel-%E7%94%A8%E5%93%AA%E5%80%8B%E9%81%B8%E9%A0%85%E9%81%BF%E5%85%8D%E9%80%99%E7%A8%AE%E6%83%85%E6%B3%81%E4%BB%A3%E5%83%B9%E6%98%AF%E4%BB%80%E9%BA%BC">C資料 4. int y = x + 1; return y &gt; x; 在 x = INT_MAX 時，-O0 回傳 0、-O2 回傳 1。為什麼會這樣？這算不算 gcc 的 bug？kernel 用哪個選項避免這種情況，代價是什麼？</a></li>
+<li class="l3"><a href="#c%E8%B3%87%E6%96%99-6-printfp-%E5%8D%B0%E5%87%BA-0x7ffe50b23624%E5%8F%AA%E6%9C%89-12-%E4%BD%8D%E5%8D%81%E5%85%AD%E9%80%B2%E4%BD%8D%E6%8C%87%E6%A8%99%E5%88%B0%E5%BA%95%E4%BD%94%E5%B9%BE%E5%80%8B-byte%E5%8D%B0%E5%87%BA%E4%BE%86%E7%82%BA%E4%BB%80%E9%BA%BC%E6%AF%94%E8%BC%83%E7%9F%AD%E5%A6%82%E6%9E%9C%E5%9C%A8-kernel-%E7%9A%84%E9%8C%AF%E8%AA%A4%E8%A8%8A%E6%81%AF%E8%A3%A1%E7%9C%8B%E5%88%B0-0xffff888102a4c000%E5%BE%9E%E4%BD%8D%E5%9D%80%E7%9A%84%E9%95%B7%E7%9B%B8%E4%BD%A0%E8%83%BD%E5%88%A4%E6%96%B7%E4%BB%80%E9%BA%BC">C資料 6. printf(&quot;%p&quot;) 印出 0x7ffe50b23624，只有 12 位十六進位。指標到底佔幾個 byte？印出來為什麼比較短？如果在 kernel 的錯誤訊息裡看到 0xffff888102a4c000，從位址的長相你能判斷什麼？</a></li>
+<li class="l2"><a href="#hellohelloc%E6%80%8E%E9%BA%BC%E8%AE%8A%E6%88%90%E8%83%BD%E8%B7%91%E7%9A%84%E7%A8%8B%E5%BC%8F-%E7%B7%A8%E8%AD%AF%E7%9A%84%E5%9B%9B%E5%80%8B%E9%9A%8E%E6%AE%B5">hello：hello.c怎麼變成能跑的程式-編譯的四個階段</a></li>
+<li class="l3"><a href="#hello-1-gcc-helloc-%E8%83%8C%E5%BE%8C%E5%AF%A6%E9%9A%9B%E6%98%AF%E5%93%AA%E5%B9%BE%E5%80%8B%E7%A8%8B%E5%BC%8F%E5%9C%A8%E6%8E%A5%E5%8A%9B%E7%82%BA%E4%BB%80%E9%BA%BC%E8%AA%AA-gcc-%E6%98%AF%E7%B8%BD%E6%8C%87%E6%8F%AE">hello 1. gcc hello.c 背後實際是哪幾個程式在接力？為什麼說 gcc 是「總指揮」？</a></li>
+<li class="l3"><a href="#hello-2-helloi-%E8%A3%A1%E6%9C%89-printf-%E7%9A%84%E5%AE%A3%E5%91%8A%E5%8D%BB%E6%B2%92%E6%9C%89%E5%AE%83%E7%9A%84%E7%A8%8B%E5%BC%8F%E7%A2%BC%E9%82%A3%E5%AE%83%E7%9A%84%E7%A8%8B%E5%BC%8F%E7%A2%BC%E5%9C%A8%E5%93%AA%E6%98%AF%E5%9C%A8%E5%93%AA%E5%80%8B%E6%99%82%E9%96%93%E9%BB%9E%E7%94%B1%E8%AA%B0%E6%8A%8A%E5%91%BC%E5%8F%AB-printf%E5%92%8Cprintf-%E7%9A%84%E7%A8%8B%E5%BC%8F%E7%A2%BC%E6%8E%A5%E8%B5%B7%E4%BE%86%E7%9A%84">hello 2. hello.i 裡有 printf 的宣告，卻沒有它的程式碼。那它的程式碼在哪？是在哪個時間點、由誰把「呼叫 printf」和「printf 的程式碼」接起來的？</a></li>
+<li class="l3"><a href="#hello-4-%E9%80%A3%E7%B5%90%E5%AE%8C%E6%88%90%E5%BE%8C-nm-hello-%E4%BB%8D%E7%84%B6%E9%A1%AF%E7%A4%BA-u-putsglibc_225%E9%80%99%E6%98%AF%E9%80%A3%E7%B5%90%E5%A4%B1%E6%95%97%E5%97%8E%E7%82%BA%E4%BB%80%E9%BA%BC">hello 4. 連結完成後 nm hello 仍然顯示 U puts@GLIBC_2.2.5，這是連結失敗嗎？為什麼？</a></li>
+<li class="l2"><a href="#objdumpobjdump%E8%83%BD%E4%B8%8D%E8%83%BD%E4%BB%A3%E6%9B%BFldd%E6%89%BE%E4%BE%9D%E8%B3%B4%E5%BA%AB-%E9%9C%80%E6%B1%82%E5%96%AE%E8%88%87%E5%AF%A6%E9%9A%9B%E8%BC%89%E5%85%A5">objdump：objdump能不能代替ldd找依賴庫-需求單與實際載入</a></li>
+<li class="l3"><a href="#objdump-2-ldd-%E6%98%AF%E6%80%8E%E9%BA%BC%E5%BE%97%E5%88%B0%E4%BE%9D%E8%B3%B4%E6%B8%85%E5%96%AE%E7%9A%84%E5%BE%9E%E9%80%99%E5%80%8B%E6%A9%9F%E5%88%B6%E8%A7%A3%E9%87%8B%E7%82%BA%E4%BB%80%E9%BA%BC%E5%B0%8D%E4%BE%86%E8%B7%AF%E4%B8%8D%E6%98%8E%E7%9A%84%E5%9F%B7%E8%A1%8C%E6%AA%94%E7%94%A8-ldd-%E6%9C%89%E9%A2%A8%E9%9A%AAobjdump--p-%E5%8D%BB%E6%B2%92%E6%9C%89">objdump 2. ldd 是怎麼得到依賴清單的？從這個機制解釋：為什麼對來路不明的執行檔用 ldd 有風險，objdump -p 卻沒有？</a></li>
+<li class="l2"><a href="#%E5%AD%97%E5%85%83%E5%AD%97%E5%85%83%E6%98%AF%E4%BB%80%E9%BA%BC-char%E5%B0%B1%E6%98%AF1byte%E7%9A%84%E6%95%B4%E6%95%B8%E8%88%87ascii%E5%92%8Cutf-8">字元：字元是什麼-char就是1byte的整數與ASCII和UTF-8</a></li>
+<li class="l3"><a href="#%E5%AD%97%E5%85%83-3-sizeofasizeofasizeof%E5%AD%97-%E5%9C%A8%E6%9C%AC%E6%A9%9F%E5%90%84%E6%98%AF%E5%A4%9A%E5%B0%91%E5%88%86%E5%88%A5%E8%A7%A3%E9%87%8B%E7%82%BA%E4%BB%80%E9%BA%BC">字元 3. sizeof(&#x27;A&#x27;)、sizeof(&quot;A&quot;)、sizeof(&quot;字&quot;) 在本機各是多少？分別解釋為什麼。</a></li>
+</ul>
+</nav>
+<main>
+<h1 id="2026-10-07-複習gnuc資料helloobjdump字元">2026-10-07 複習：GNU、C資料、hello、objdump、字元</h1>
+<blockquote>
+<p>依 <a href="../../learning/%E8%A4%87%E7%BF%92%E6%8E%92%E7%A8%8B.md">複習排程</a> 選出今天到期的 10 題。今天不上新課（第 4 課筆記剛讀完，作業與自我測驗還沒交），所以不放「跟新課相關」的題目，全部依<strong>過期最久 → 盒子小 → 上次作答較早</strong>挑選：
+GNU 5、C資料 2／3／4／6（10-03 到期，已順延 4 天），hello 1／2／4、objdump 2（10-04 到期），再從 10-05 到期的題目裡依排程表順序取字元 3。今天到期的共 40 題，沒選到的 30 題順延，日期不動。</p>
+<p><strong>怎麼寫</strong>：闔上筆記，每題寫 1～2 句關鍵句就好。寫完說「幫我批改」。複習不重答，批改會直接附參考答案。</p>
+</blockquote>
+<h2 id="批改結果2026-10-07">批改結果（2026-10-07）</h2>
+<table>
+<thead>
+<tr>
+<th>題目</th>
+<th>結果</th>
+<th>盒子</th>
+<th>下次</th>
+<th>錯在哪／缺什麼</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>GNU 5</td>
+<td>不完整</td>
+<td>2 → 1</td>
+<td>10-08</td>
+<td>名字是 <strong>DCO</strong>（不是 DOR）；它管的是<strong>著作權與授權</strong>（「我有權用 GPL-2.0 貢獻這段」），不是 bug 找誰負責；這是 kernel 社群的規定，不是 GPL 條文的要求</td>
+</tr>
+<tr>
+<td>C資料 2</td>
+<td>大致對</td>
+<td>2 → 2</td>
+<td>10-10</td>
+<td>漏了「每台機器用自己的順序寫、再用同一套讀，一來一回抵消」：小端把第一個 byte 當最低位，大端當最高位</td>
+</tr>
+<tr>
+<td>C資料 3</td>
+<td>大致對</td>
+<td>2 → 2</td>
+<td>10-10</td>
+<td><code>unsigned int</code> 和 <code>int</code> 的<strong>等級相同</strong>，不是比較大；規則是「無號那邊等級 ≥ 有號那邊 → 轉成無號」。選項名是 <code>-Wsign-compare</code></td>
+</tr>
+<tr>
+<td>C資料 4</td>
+<td>不完整</td>
+<td>2 → 1</td>
+<td>10-08</td>
+<td><code>-O2</code> 的推理說反了：因為溢位是 UB，gcc <strong>可以假設它不會發生</strong>，不是「不能確定」；選項要說出 <strong><code>-fno-strict-overflow</code></strong>（<code>-fwrapv</code>）</td>
+</tr>
+<tr>
+<td>C資料 6</td>
+<td>不完整</td>
+<td>2 → 1</td>
+<td>10-08</td>
+<td>印得短是因為使用者位址上面 2 byte 是 <code>00 00</code>、<code>%p</code> 不補零，不是「留給 kernel 用」；<code>0xffff888102a4c000</code> <strong>整個</strong>是 kernel 位址，不能拆成兩段</td>
+</tr>
+<tr>
+<td>hello 1</td>
+<td>大致對</td>
+<td>3 → 3</td>
+<td>10-14</td>
+<td>組譯器是 <code>as</code> 不是 <code>ac</code>；「總指揮」的關鍵是 <strong><code>gcc</code> 自己不做任何轉換</strong>，只負責呼叫其他程式、傳遞暫存檔</td>
+</tr>
+<tr>
+<td>hello 2</td>
+<td>大致對（改判）</td>
+<td>3 → 3</td>
+<td>10-14</td>
+<td>核心對：最後接上 <code>puts</code> 的是執行時的 <code>ld.so</code>。但「CPU 執行 <code>call</code>」不是「接」：<code>call</code> 後面的洞是<strong>連結時 <code>ld</code></strong> 填成 <code>puts@plt</code> 的</td>
+</tr>
+<tr>
+<td>hello 4</td>
+<td>對</td>
+<td>3 → 4</td>
+<td>10-21</td>
+<td>抓到重點：<code>ld</code> 只記下要哪個函式庫的哪個版本，執行時才由 interpreter 接上</td>
+</tr>
+<tr>
+<td>objdump 2</td>
+<td>不完整</td>
+<td>3 → 1</td>
+<td>10-08</td>
+<td>風險不是「讀到惡意函式庫」，而是<strong>載入器由檔案自己的 <code>INTERP</code> 指定</strong>，攻擊者可以把它換成自己的程式</td>
+</tr>
+<tr>
+<td>字元 3</td>
+<td>不完整</td>
+<td>1 → 1</td>
+<td>10-08</td>
+<td><code>sizeof('A')</code> 是 <strong>4</strong>，<strong>跟 10-04 錯在同一處</strong>：C 的 <code>'A'</code> 型別是 <code>int</code>（它只是寫 65 的另一種方式）</td>
+</tr>
+</tbody>
+</table>
+<p>對 1（hello 4）、大致對 4（C資料 2、C資料 3、hello 1、hello 2〔使用者爭論後改判〕）、不完整 5（GNU 5、C資料 4、C資料 6、objdump 2、字元 3）。升級：hello 4 → 盒子 4（10-21）；C資料 2、C資料 3 留盒子 2（10-10）；hello 1、hello 2 留盒子 3（10-14）；其餘 5 題回盒子 1，明天（10-08）再考。
+<strong>反覆卡住的觀念</strong>：字元 3 第二次把 <code>sizeof('A')</code> 答成 1（C 的 <code>'A'</code> 是 <code>int</code>）。hello 2 改判大致對，但「CPU 執行 <code>call</code>」和「<code>ld</code> 把 <code>call</code> 接到 <code>puts@plt</code>」要分清楚。
+<strong>新出現的錯</strong>：C資料 6 把 <code>0xffff888102a4c000</code> 拆成「kernel 的前綴＋使用者位址」；C資料 4 把 <code>-O2</code> 的推理說成「gcc 不能確定」（實為「可以假設不會發生」）；C資料 3 說 <code>unsigned int</code> 等級比 <code>int</code> 大（實為相同）；objdump 2 把 <code>ldd</code> 的風險說成「讀到惡意函式庫」（實為檔案自己指定 <code>INTERP</code>）。</p>
+<h2 id="今天的題目">今天的題目</h2>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>題目</th>
+<th>盒子</th>
+<th>原本該考的日期</th>
+<th>為什麼選</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>GNU 5</td>
+<td>2</td>
+<td>2026-10-03</td>
+<td>過期最久</td>
+</tr>
+<tr>
+<td>2</td>
+<td>C資料 2</td>
+<td>2</td>
+<td>2026-10-03</td>
+<td>過期最久</td>
+</tr>
+<tr>
+<td>3</td>
+<td>C資料 3</td>
+<td>2</td>
+<td>2026-10-03</td>
+<td>過期最久</td>
+</tr>
+<tr>
+<td>4</td>
+<td>C資料 4</td>
+<td>2</td>
+<td>2026-10-03</td>
+<td>過期最久</td>
+</tr>
+<tr>
+<td>5</td>
+<td>C資料 6</td>
+<td>2</td>
+<td>2026-10-03</td>
+<td>過期最久</td>
+</tr>
+<tr>
+<td>6</td>
+<td>hello 1</td>
+<td>3</td>
+<td>2026-10-04</td>
+<td>過期次久</td>
+</tr>
+<tr>
+<td>7</td>
+<td>hello 2</td>
+<td>3</td>
+<td>2026-10-04</td>
+<td>過期次久</td>
+</tr>
+<tr>
+<td>8</td>
+<td>hello 4</td>
+<td>3</td>
+<td>2026-10-04</td>
+<td>過期次久</td>
+</tr>
+<tr>
+<td>9</td>
+<td>objdump 2</td>
+<td>3</td>
+<td>2026-10-04</td>
+<td>過期次久</td>
+</tr>
+<tr>
+<td>10</td>
+<td>字元 3</td>
+<td>1</td>
+<td>2026-10-05</td>
+<td>過期第三久，排程表順序</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="gnugnu是什麼-linux核心與gnu工具的分工">GNU：<a href="../linux/GNU%E6%98%AF%E4%BB%80%E9%BA%BC-Linux%E6%A0%B8%E5%BF%83%E8%88%87GNU%E5%B7%A5%E5%85%B7%E7%9A%84%E5%88%86%E5%B7%A5.html">GNU是什麼-Linux核心與GNU工具的分工</a></h2>
+<h3 id="gnu-5-你將來送-kernel-patch-時要加的-signed-off-by-跟-gpl-有什麼關係">GNU 5. 你將來送 kernel patch 時要加的 <code>Signed-off-by:</code> 跟 GPL 有什麼關係？</h3>
+<blockquote>
+<p>盒子 2｜過去的作答：<a href="../small-project/s1-01-hello-compile/quiz.html#5-%E4%BD%A0%E5%B0%87%E4%BE%86%E9%80%81-kernel-patch-%E6%99%82%E8%A6%81%E5%8A%A0%E7%9A%84-signed-off-by-%E8%B7%9F-gpl-%E6%9C%89%E4%BB%80%E9%BA%BC%E9%97%9C%E4%BF%82">s1-01 quiz.md 第 5 題</a></p>
+</blockquote>
+<pre><code>這個叫做DOR,GPL讓我們有自由研讀,修改,與發佈的權力,當我們發佈的時候必須著名,這樣以後我們修改的部分出問題的時候可以找到責任歸屬
+</code></pre>
+<blockquote>
+<p><strong>批改</strong>：<strong>不完整</strong>（盒子 2 → 1）。「出問題時找得到責任歸屬」方向對，但有三處錯或缺：(1) 名字是 <strong>DCO</strong>（Developer Certificate of Origin，開發者原創聲明），不是 DOR；(2) 它負責的不是「程式出 bug 找誰」，而是<strong>著作權與授權</strong>：聲明「這段是我寫的，或我有權用 GPL-2.0 貢獻它」，kernel 才能合法地整包以 GPL-2.0 散布；(3)「GPL 規定發布時必須署名」不對——<code>Signed-off-by:</code> 是 <strong>kernel 社群的規定</strong>，GPL 條文本身沒有這個要求。</p>
+<p><strong>參考答案</strong>【<a href="../linux/GNU%E6%98%AF%E4%BB%80%E9%BA%BC-Linux%E6%A0%B8%E5%BF%83%E8%88%87GNU%E5%B7%A5%E5%85%B7%E7%9A%84%E5%88%86%E5%B7%A5.html#%E4%BA%94gplgnu-%E6%9C%80%E6%B7%B1%E9%81%A0%E7%9A%84%E5%BD%B1%E9%9F%BF">第五節</a>】<code>Signed-off-by:</code> 是 DCO：加上這一行，就是聲明這段程式碼是你自己寫的，或你有權以這個專案的授權（kernel 是 GPL-2.0）貢獻它。Linux 核心以 GPL-2.0 散布，每段合併進去的程式碼都必須能合法地以 GPL-2.0 散布；DCO 讓每個 patch 都有人為此負責，出了著作權爭議時查得到是誰聲明的。它是 kernel 社群的規定，不是 GPL 條文本身的要求。</p>
+</blockquote>
+<hr />
+<h2 id="c資料c的資料在記憶體裡長怎樣-位元組指標位元組順序與有號無號">C資料：<a href="../c/C%E7%9A%84%E8%B3%87%E6%96%99%E5%9C%A8%E8%A8%98%E6%86%B6%E9%AB%94%E8%A3%A1%E9%95%B7%E6%80%8E%E6%A8%A3-%E4%BD%8D%E5%85%83%E7%B5%84%E3%80%81%E6%8C%87%E6%A8%99%E3%80%81%E4%BD%8D%E5%85%83%E7%B5%84%E9%A0%86%E5%BA%8F%E8%88%87%E6%9C%89%E8%99%9F%E7%84%A1%E8%99%9F.html">C的資料在記憶體裡長怎樣-位元組、指標、位元組順序與有號無號</a></h2>
+<h3 id="c資料-2-int-x--0x12345678-unsigned-char-b--unsigned-char-x-在本機-b-是多少換到大端序的機器上是多少為什麼-int-p--x-的-p-在兩種機器上都是-0x12345678">C資料 2. <code>int x = 0x12345678; unsigned char *b = (unsigned char *)&amp;x;</code> 在本機 <code>*b</code> 是多少？換到大端序的機器上是多少？為什麼 <code>int *p = &amp;x;</code> 的 <code>*p</code> 在兩種機器上都是 <code>0x12345678</code>？</h3>
+<blockquote>
+<p>盒子 2｜過去的作答：<a href="../small-project/s1-02-data-repr/quiz.html#2-int-x--0x12345678-unsigned-char-b--unsigned-char-x-%E5%9C%A8%E6%9C%AC%E6%A9%9F-b-%E6%98%AF%E5%A4%9A%E5%B0%91%E6%8F%9B%E5%88%B0%E5%A4%A7%E7%AB%AF%E5%BA%8F%E7%9A%84%E6%A9%9F%E5%99%A8%E4%B8%8A%E6%98%AF%E5%A4%9A%E5%B0%91%E7%82%BA%E4%BB%80%E9%BA%BC-int-p--x-%E7%9A%84-p-%E5%9C%A8%E5%85%A9%E7%A8%AE%E6%A9%9F%E5%99%A8%E4%B8%8A%E9%83%BD%E6%98%AF-0x12345678">s1-02 quiz.md 第 2 題</a></p>
+</blockquote>
+<pre><code>0x78
+
+0x12
+
+因爲指標類型int在兩種機械大小都是4byte(不是指標的大小,是從起點byte開始數4個byte),大端序從0x12開始往0x34 數4個byte
+小端從0x78 往 0x56 數4個byte
+</code></pre>
+<blockquote>
+<p><strong>批改</strong>：<strong>大致對</strong>（盒子 2 → 2）。<code>0x78</code>、<code>0x12</code> 都對；「<code>int *</code> 從起點讀 4 個 byte」也對。缺的是<strong>為什麼兩邊讀回來都一樣</strong>：關鍵是每台機器用<strong>自己那一套順序寫進去、再用同一套順序讀出來</strong>，一來一回抵消——小端機器把第一個 byte（<code>0x78</code>）當最低位，大端機器把第一個 byte（<code>0x12</code>）當最高位。你寫了「從哪個 byte 開始數」，沒寫出「第一個 byte 被當成最低位還是最高位」。</p>
+<p><strong>參考答案</strong>【<a href="../c/C%E7%9A%84%E8%B3%87%E6%96%99%E5%9C%A8%E8%A8%98%E6%86%B6%E9%AB%94%E8%A3%A1%E9%95%B7%E6%80%8E%E6%A8%A3-%E4%BD%8D%E5%85%83%E7%B5%84%E3%80%81%E6%8C%87%E6%A8%99%E3%80%81%E4%BD%8D%E5%85%83%E7%B5%84%E9%A0%86%E5%BA%8F%E8%88%87%E6%9C%89%E8%99%9F%E7%84%A1%E8%99%9F.html#%E4%B8%89%E4%BD%8D%E5%85%83%E7%B5%84%E9%A0%86%E5%BA%8Fendianness">第三節</a>〈什麼時候要在意位元組順序？〉】本機（小端序）<code>*b</code> 是 <code>0x78</code>，大端序機器是 <code>0x12</code>。<code>*p</code> 兩邊都是 <code>0x12345678</code>：小端機器寫成 <code>78 56 34 12</code>、讀的時候把第一個 byte 當最低位；大端機器寫成 <code>12 34 56 78</code>、讀的時候把第一個 byte 當最高位——每台機器都用自己那一套順序寫、再用同一套順序讀，剛好抵消。看得出順序的只有兩種情況：用 <code>unsigned char *</code> 一個 byte 一個 byte 看，或一台機器寫、另一種順序的機器讀（網路封包、檔案）。</p>
+</blockquote>
+<h3 id="c資料-3-int-n---1-unsigned-int-len--5n--len-為什麼是假只加--wall-編譯gcc-會不會提醒你">C資料 3. <code>int n = -1; unsigned int len = 5;</code>，<code>n &lt; len</code> 為什麼是假？只加 <code>-Wall</code> 編譯，gcc 會不會提醒你？</h3>
+<blockquote>
+<p>盒子 2｜過去的作答：<a href="../small-project/s1-02-data-repr/quiz.html#3-int-n---1-unsigned-int-len--5n--len-%E7%82%BA%E4%BB%80%E9%BA%BC%E6%98%AF%E5%81%87%E5%8F%AA%E5%8A%A0--wall-%E7%B7%A8%E8%AD%AFgcc-%E6%9C%83%E4%B8%8D%E6%9C%83%E6%8F%90%E9%86%92%E4%BD%A0">s1-02 quiz.md 第 3 題</a></p>
+</blockquote>
+<pre><code>unsigned int的等級比int大,所以-1轉成unsigned看就是 unsinged int的最大值,因此是假
+
+不會,因爲類型compare的警告要下-Wextra (Wsigned-compare)
+</code></pre>
+<blockquote>
+<p><strong>批改</strong>：<strong>大致對</strong>（盒子 2 → 2）。「<code>-1</code> 轉成無號變成最大值，所以為假」「<code>-Wall</code> 不會提醒、要 <code>-Wextra</code>」都對（選項名是 <code>-Wsign-compare</code>，不是 <code>Wsigned-compare</code>）。<strong>有一處觀念錯</strong>：<code>unsigned int</code> 和 <code>int</code> 的等級（rank）<strong>一樣</strong>，不是比較大。規則是「無號那邊的等級 <strong>≥</strong> 有號那邊 → 轉成無號」，等級相同時無號贏。這一點跟 C資料 10（<code>long</code> 對 <code>unsigned int</code>，10-05 答過）是同一條規則，值得再看一次。</p>
+<p><strong>參考答案</strong>【<a href="../c/C%E7%9A%84%E8%B3%87%E6%96%99%E5%9C%A8%E8%A8%98%E6%86%B6%E9%AB%94%E8%A3%A1%E9%95%B7%E6%80%8E%E6%A8%A3-%E4%BD%8D%E5%85%83%E7%B5%84%E3%80%81%E6%8C%87%E6%A8%99%E3%80%81%E4%BD%8D%E5%85%83%E7%B5%84%E9%A0%86%E5%BA%8F%E8%88%87%E6%9C%89%E8%99%9F%E7%84%A1%E8%99%9F.html#%E5%9B%9B%E7%84%A1%E8%99%9F%E6%95%B4%E6%95%B8%E4%BA%8C%E9%80%B2%E4%BD%8D%E8%88%87%E5%9B%9E%E7%B9%9E">第四節</a>〈怎麼確定一個常數的型別？比較時以誰為準？〉、<a href="../c/C%E7%9A%84%E8%B3%87%E6%96%99%E5%9C%A8%E8%A8%98%E6%86%B6%E9%AB%94%E8%A3%A1%E9%95%B7%E6%80%8E%E6%A8%A3-%E4%BD%8D%E5%85%83%E7%B5%84%E3%80%81%E6%8C%87%E6%A8%99%E3%80%81%E4%BD%8D%E5%85%83%E7%B5%84%E9%A0%86%E5%BA%8F%E8%88%87%E6%9C%89%E8%99%9F%E7%84%A1%E8%99%9F.html#%E4%B8%83%E9%99%B7%E9%98%B1%E6%9C%89%E8%99%9F%E5%92%8C%E7%84%A1%E8%99%9F%E6%B7%B7%E5%9C%A8%E4%B8%80%E8%B5%B7%E6%AF%94%E8%BC%83">第七節</a>】比較之前，一般算術轉換把 <code>int</code> 轉成 <code>unsigned int</code>（兩者等級相同，無號贏）：位元不變、換成無號讀法，<code>-1</code>（<code>0xffffffff</code>）變成 4294967295 &gt; 5，所以 <code>n &lt; len</code> 為假。只加 <code>-Wall</code> 不會提醒（C 的 <code>-Wall</code> 不含 <code>-Wsign-compare</code>），要加 <code>-Wextra</code>。</p>
+</blockquote>
+<h3 id="c資料-4-int-y--x--1-return-y--x-在-x--int_max-時-o0-回傳-0-o2-回傳-1為什麼會這樣這算不算-gcc-的-bugkernel-用哪個選項避免這種情況代價是什麼">C資料 4. <code>int y = x + 1; return y &gt; x;</code> 在 <code>x = INT_MAX</code> 時，<code>-O0</code> 回傳 0、<code>-O2</code> 回傳 1。為什麼會這樣？這算不算 gcc 的 bug？kernel 用哪個選項避免這種情況，代價是什麼？</h3>
+<blockquote>
+<p>盒子 2｜過去的作答：<a href="../small-project/s1-02-data-repr/quiz.html#4-int-y--x--1-return-y--x-%E5%9C%A8-x--int_max-%E6%99%82-o0-%E5%9B%9E%E5%82%B3-0-o2-%E5%9B%9E%E5%82%B3-1%E7%82%BA%E4%BB%80%E9%BA%BC%E6%9C%83%E9%80%99%E6%A8%A3%E9%80%99%E7%AE%97%E4%B8%8D%E7%AE%97-gcc-%E7%9A%84-bugkernel-%E7%94%A8%E5%93%AA%E5%80%8B%E9%81%B8%E9%A0%85%E9%81%BF%E5%85%8D%E9%80%99%E7%A8%AE%E6%83%85%E6%B3%81%E4%BB%A3%E5%83%B9%E6%98%AF%E4%BB%80%E9%BA%BC">s1-02 quiz.md 第 4 題</a></p>
+</blockquote>
+<pre><code>-O0 實際計算y,x是int最大值,再加1,會變成INT_MIN,所以回傳0
+-O2 因爲溢位是UB的行爲,gcc不能確定是否發生溢位,他只能看到y-x = 1 -&gt; y-x&gt;0 所以爲真
+
+UB行爲是未定義的,不算bug
+
+有一個option,可以讓gcc在UB的行爲進行實際計算,代價是計算的增加,會比原本沒有下這個命令還要慢一點
+</code></pre>
+<blockquote>
+<p><strong>批改</strong>：<strong>不完整</strong>（盒子 2 → 1）。<code>-O0</code> 對、「不算 bug」對。兩處問題：(1) <code>-O2</code> 的推理<strong>說反了</strong>：不是「gcc 不能確定會不會溢位」，而是正因為有號溢位是 UB，C 標準允許 gcc <strong>假設它一定不會發生</strong>；在這個假設下 <code>x + 1 &gt; x</code> 永遠成立，直接回傳 1。(2) 選項沒說出名字：kernel 用 <strong><code>-fno-strict-overflow</code></strong>（等於 <code>-fwrapv -fwrapv-pointer</code>），讓溢位照二補數回繞、變成有定義的行為。代價「少了一些最佳化、可能稍慢」你答到了。</p>
+<p><strong>參考答案</strong>【<a href="../c/C%E7%9A%84%E8%B3%87%E6%96%99%E5%9C%A8%E8%A8%98%E6%86%B6%E9%AB%94%E8%A3%A1%E9%95%B7%E6%80%8E%E6%A8%A3-%E4%BD%8D%E5%85%83%E7%B5%84%E3%80%81%E6%8C%87%E6%A8%99%E3%80%81%E4%BD%8D%E5%85%83%E7%B5%84%E9%A0%86%E5%BA%8F%E8%88%87%E6%9C%89%E8%99%9F%E7%84%A1%E8%99%9F.html#%E5%85%AB%E6%BA%A2%E4%BD%8D%E7%84%A1%E8%99%9F%E5%9B%9E%E7%B9%9E%E6%9C%89%E8%99%9F%E6%98%AF%E6%9C%AA%E5%AE%9A%E7%BE%A9%E8%A1%8C%E7%82%BA">第八節</a>】有號溢位是未定義行為（UB），C 標準允許編譯器<strong>假設它不會發生</strong>。<code>-O0</code> 照字面算，<code>INT_MAX + 1</code> 回繞成 <code>INT_MIN</code>，<code>y &gt; x</code> 為假 → 0；<code>-O2</code> 推論「<code>x + 1</code> 一定大於 <code>x</code>」，直接回傳 1。不是 gcc 的 bug：標準對發生 UB 的程式沒有任何要求，兩種結果都合法。kernel 用 <code>-fno-strict-overflow</code>（等於 <code>-fwrapv -fwrapv-pointer</code>），讓溢位照二補數回繞、變成有定義的行為；代價是編譯器少了依賴「不會溢位」這個假設的最佳化，程式可能稍慢。</p>
+</blockquote>
+<h3 id="c資料-6-printfp-印出-0x7ffe50b23624只有-12-位十六進位指標到底佔幾個-byte印出來為什麼比較短如果在-kernel-的錯誤訊息裡看到-0xffff888102a4c000從位址的長相你能判斷什麼">C資料 6. <code>printf(&quot;%p&quot;)</code> 印出 <code>0x7ffe50b23624</code>，只有 12 位十六進位。指標到底佔幾個 byte？印出來為什麼比較短？如果在 kernel 的錯誤訊息裡看到 <code>0xffff888102a4c000</code>，從位址的長相你能判斷什麼？</h3>
+<blockquote>
+<p>盒子 2｜過去的作答：<a href="../small-project/s1-02-data-repr/quiz.html#6-printfp-%E5%8D%B0%E5%87%BA-0x7ffe50b23624%E5%8F%AA%E6%9C%89-12-%E4%BD%8D%E5%8D%81%E5%85%AD%E9%80%B2%E4%BD%8D%E6%8C%87%E6%A8%99%E5%88%B0%E5%BA%95%E4%BD%94%E5%B9%BE%E5%80%8B-byte%E5%8D%B0%E5%87%BA%E4%BE%86%E7%82%BA%E4%BB%80%E9%BA%BC%E6%AF%94%E8%BC%83%E7%9F%AD%E5%A6%82%E6%9E%9C%E5%9C%A8-kernel-%E7%9A%84%E9%8C%AF%E8%AA%A4%E8%A8%8A%E6%81%AF%E8%A3%A1%E7%9C%8B%E5%88%B0-0xffff888102a4c000%E5%BE%9E%E4%BD%8D%E5%9D%80%E7%9A%84%E9%95%B7%E7%9B%B8%E4%BD%A0%E8%83%BD%E5%88%A4%E6%96%B7%E4%BB%80%E9%BA%BC">s1-02 quiz.md 第 6 題</a></p>
+</blockquote>
+<pre><code>8個byte
+剩下2個byte是kernel在用
+0xffff是kernel用的指標
+0x888102a4c000才是使用者空間可以看的記憶體位址
+</code></pre>
+<blockquote>
+<p><strong>批改</strong>：<strong>不完整</strong>（盒子 2 → 1）。「8 byte」對。另外兩問錯：(1) 印出來比較短，<strong>不是</strong>「剩下 2 byte 給 kernel 用」：使用者空間的位址上面 2 byte 一定是 <code>00 00</code>，而 <code>%p</code> 不補前導零，所以只印 12 位。x86-64 的虛擬位址只用 48 bit，上面 16 bit 必須跟第 47 bit 相同（canonical address）。(2) <code>0xffff888102a4c000</code> 不能拆成「<code>0xffff</code> 是 kernel 的、後面是使用者空間的位址」——<strong>整個</strong>是一個位址；上面 16 bit 全是 1，代表它落在位址空間的<strong>核心那一半</strong>，所以整個是 kernel 位址。</p>
+<p><strong>參考答案</strong>【<a href="../c/C%E7%9A%84%E8%B3%87%E6%96%99%E5%9C%A8%E8%A8%98%E6%86%B6%E9%AB%94%E8%A3%A1%E9%95%B7%E6%80%8E%E6%A8%A3-%E4%BD%8D%E5%85%83%E7%B5%84%E3%80%81%E6%8C%87%E6%A8%99%E3%80%81%E4%BD%8D%E5%85%83%E7%B5%84%E9%A0%86%E5%BA%8F%E8%88%87%E6%9C%89%E8%99%9F%E7%84%A1%E8%99%9F.html#%E4%BA%8C%E6%8C%87%E6%A8%99%E5%B0%B1%E6%98%AF%E4%BD%8D%E5%9D%80">第二節</a>〈位址看起來只有 6 byte？〉】指標佔 8 byte。x86-64 虛擬位址只用 48 bit，上面 16 bit 必須跟第 47 bit 相同（canonical address）。使用者空間是 <code>0x0000…</code>～<code>0x00007fff…</code>，上面 2 byte 一定是 <code>00 00</code>，<code>%p</code> 不補零，就只印出 12 位。<code>0xffff888102a4c000</code> 上面 16 bit 全是 1，屬於位址空間的核心那一半，所以這是 kernel 的位址。</p>
+</blockquote>
+<hr />
+<h2 id="hellohelloc怎麼變成能跑的程式-編譯的四個階段">hello：<a href="../c/hello.c%E6%80%8E%E9%BA%BC%E8%AE%8A%E6%88%90%E8%83%BD%E8%B7%91%E7%9A%84%E7%A8%8B%E5%BC%8F-%E7%B7%A8%E8%AD%AF%E7%9A%84%E5%9B%9B%E5%80%8B%E9%9A%8E%E6%AE%B5.html">hello.c怎麼變成能跑的程式-編譯的四個階段</a></h2>
+<h3 id="hello-1-gcc-helloc-背後實際是哪幾個程式在接力為什麼說-gcc-是總指揮">hello 1. <code>gcc hello.c</code> 背後實際是哪幾個程式在接力？為什麼說 <code>gcc</code> 是「總指揮」？</h3>
+<blockquote>
+<p>盒子 3｜過去的作答：<a href="../small-project/s1-01-hello-compile/quiz.html#1-gcc-helloc-%E8%83%8C%E5%BE%8C%E5%AF%A6%E9%9A%9B%E6%98%AF%E5%93%AA%E5%B9%BE%E5%80%8B%E7%A8%8B%E5%BC%8F%E5%9C%A8%E6%8E%A5%E5%8A%9B%E7%82%BA%E4%BB%80%E9%BA%BC%E8%AA%AA-gcc-%E6%98%AF%E7%B8%BD%E6%8C%87%E6%8F%AE">s1-01 quiz.md 第 1 題</a></p>
+</blockquote>
+<pre><code>cc1 ac ld
+
+因爲 gcc可以會使用這些程式完成整個編譯的工作
+cc1 前處理,轉成組合語言
+ac 組譯
+ld 連接
+</code></pre>
+<blockquote>
+<p><strong>批改</strong>：<strong>大致對</strong>（盒子 3 → 3）。<code>cc1</code>（前處理＋轉成組合語言）、組譯器、<code>ld</code> 三棒對。小地方：組譯器是 <strong><code>as</code></strong>（不是 <code>ac</code>）；<code>ld</code> 是由 <code>collect2</code> 呼叫的。「總指揮」的理由缺了關鍵的一半：<strong><code>gcc</code> 自己不做任何轉換</strong>，只負責依序呼叫它們、在中間傳遞暫存檔；<code>gcc -v</code> 可以看到它實際執行的每個命令。</p>
+<p><strong>參考答案</strong>【<a href="../c/hello.c%E6%80%8E%E9%BA%BC%E8%AE%8A%E6%88%90%E8%83%BD%E8%B7%91%E7%9A%84%E7%A8%8B%E5%BC%8F-%E7%B7%A8%E8%AD%AF%E7%9A%84%E5%9B%9B%E5%80%8B%E9%9A%8E%E6%AE%B5.html#%E4%B8%80%E5%9B%9B%E5%80%8B%E9%9A%8E%E6%AE%B5%E7%B8%BD%E8%A6%BD">第一節</a>】本機實際接力的是 <code>cc1</code>（前處理＋編譯，C → 組合語言）→ <code>as</code>（組合語言 → 機器碼的 <code>.o</code>，還有洞、不能執行）→ <code>collect2</code> 呼叫 <code>ld</code>（連結成執行檔）。<code>gcc</code> 自己不做任何轉換，只負責依序呼叫它們、在中間傳遞暫存檔，所以叫總指揮（driver）；<code>gcc -v</code> 看得到它實際執行的每個命令。</p>
+</blockquote>
+<h3 id="hello-2-helloi-裡有-printf-的宣告卻沒有它的程式碼那它的程式碼在哪是在哪個時間點由誰把呼叫-printf和printf-的程式碼接起來的">hello 2. <code>hello.i</code> 裡有 <code>printf</code> 的宣告，卻沒有它的程式碼。那它的程式碼在哪？是在哪個時間點、由誰把「呼叫 <code>printf</code>」和「<code>printf</code> 的程式碼」接起來的？</h3>
+<blockquote>
+<p>盒子 3｜過去的作答：<a href="../small-project/s1-01-hello-compile/quiz.html#2-helloi-%E8%A3%A1%E6%9C%89-printf-%E7%9A%84%E5%AE%A3%E5%91%8A%E5%8D%BB%E6%B2%92%E6%9C%89%E5%AE%83%E7%9A%84%E7%A8%8B%E5%BC%8F%E7%A2%BC%E9%82%A3%E5%AE%83%E7%9A%84%E7%A8%8B%E5%BC%8F%E7%A2%BC%E5%9C%A8%E5%93%AA%E6%98%AF%E5%9C%A8%E5%93%AA%E5%80%8B%E6%99%82%E9%96%93%E9%BB%9E%E7%94%B1%E8%AA%B0%E6%8A%8A%E5%91%BC%E5%8F%AB-printf%E5%92%8Cprintf-%E7%9A%84%E7%A8%8B%E5%BC%8F%E7%A2%BC%E6%8E%A5%E8%B5%B7%E4%BE%86%E7%9A%84">s1-01 quiz.md 第 2 題</a></p>
+</blockquote>
+<pre><code>在c標準函式庫
+
+在執行的時候,由interpreter
+</code></pre>
+<blockquote>
+<p><strong>批改</strong>：<strong>不完整</strong>（盒子 3 → 1）。「在 C 標準函式庫」「執行時由 interpreter 接上」對（檔名要說得出 <strong><code>libc.so.6</code></strong>，interpreter 是 <code>ld-linux-x86-64.so.2</code>）。缺了<strong>連結時</strong>那一半：題目問「哪個時間點、由誰」，答案是兩個時間點——連結時 <code>ld</code> 不把程式碼接進來，只在執行檔裡寫下需求單（<code>NEEDED libc.so.6</code>、interpreter 路徑、需要的符號版本）；執行時才由動態載入器照需求單載入並接上位址。你在 hello 4 自己寫出了「<code>ld</code> 連接這個函式的函式庫與版本」，這裡卻沒寫進來。</p>
+<p><strong>參考答案</strong>【<a href="../c/hello.c%E6%80%8E%E9%BA%BC%E8%AE%8A%E6%88%90%E8%83%BD%E8%B7%91%E7%9A%84%E7%A8%8B%E5%BC%8F-%E7%B7%A8%E8%AD%AF%E7%9A%84%E5%9B%9B%E5%80%8B%E9%9A%8E%E6%AE%B5.html#%E4%BA%94%E9%80%A3%E7%B5%90%E6%8A%8A%E6%B4%9E%E6%8E%A5%E4%B8%8A%E4%BD%86-puts-%E9%82%84%E6%98%AF%E6%B2%92%E6%8E%A5%E5%AE%8C">第五節</a>、<a href="../c/hello.c%E6%80%8E%E9%BA%BC%E8%AE%8A%E6%88%90%E8%83%BD%E8%B7%91%E7%9A%84%E7%A8%8B%E5%BC%8F-%E7%B7%A8%E8%AD%AF%E7%9A%84%E5%9B%9B%E5%80%8B%E9%9A%8E%E6%AE%B5.html#%E5%85%AD%E5%9F%B7%E8%A1%8C%E5%BE%9E-execve-%E5%88%B0-write">第六節</a>、<a href="../c/hello.c%E6%80%8E%E9%BA%BC%E8%AE%8A%E6%88%90%E8%83%BD%E8%B7%91%E7%9A%84%E7%A8%8B%E5%BC%8F-%E7%B7%A8%E8%AD%AF%E7%9A%84%E5%9B%9B%E5%80%8B%E9%9A%8E%E6%AE%B5.html#%E5%8D%81%E4%B8%89%E5%80%8B%E5%90%8D%E5%AD%97%E5%BE%88%E5%83%8F%E7%9A%84%E6%AA%94%E6%A1%88ldld-linux-x86-64so2libcso6">第十節</a>】<code>puts</code>（<code>printf</code> 在本課被換成 <code>puts</code>）的程式碼在 <code>libc.so.6</code>。接起來分兩個時間點：<strong>連結時，<code>ld</code></strong> 不把程式碼接進來，只在執行檔裡寫需求單（<code>NEEDED libc.so.6</code>、interpreter 路徑、需要的符號版本）；<strong>執行時，動態載入器 <code>ld-linux-x86-64.so.2</code></strong> 在 <code>execve</code> 後先跑，照需求單打開 <code>libc.so.6</code>、<code>mmap</code> 進來，再把 <code>puts</code> 的位址接上（<code>LD_DEBUG=bindings ./hello</code> 看得到這一步）。<code>ld</code> 和 <code>ld-linux-x86-64.so.2</code> 是兩個不同的程式。</p>
+</blockquote>
+<blockquote>
+<p><strong>改判（2026-10-07，使用者提出爭論）</strong>：<strong>大致對</strong>（盒子 3 → 3，下次 10-14）。<br />
+你的論點成立的部分：題目問的是「把呼叫和程式碼<strong>接起來</strong>」，真正把 <code>puts</code> 在 <code>libc.so.6</code> 裡的位址接上的，確實是<strong>執行時</strong>的動態載入器（本機 <code>LD_DEBUG=bindings ./hello</code> 印出 <code>binding file ./h [0] to /lib/x86_64-linux-gnu/libc.so.6 [0]: normal symbol 'puts' [GLIBC_2.2.5]</code>）。題目沒有明講「分幾個時間點」，原本因為沒寫連結時就判「不完整」太嚴，改判。<br />
+你的論點不成立的部分：「呼叫 <code>printf</code> 是 CPU 去 <code>call</code>」——CPU <strong>執行</strong> <code>call</code> 不等於把呼叫<strong>接</strong>到某處。<code>call</code> 要跳去哪，寫在指令後面那 4 個 byte 裡；那 4 個 byte 在 <code>hello.o</code> 裡是 <code>00 00 00 00</code>，是<strong>連結時 <code>ld</code></strong> 把它填成 <code>puts@plt</code> 的（本機實測：<code>hello.o</code> 是 <code>e8 00 00 00 00</code> 加上 <code>R_X86_64_PLT32 puts-0x4</code>，連結後是 <code>e8 f0 fe ff ff  call 1050 &lt;puts@plt&gt;</code>）。執行時 <code>ld.so</code> 填的是另一張表 <code>.got</code>，<code>puts@plt</code> 再從那裡跳到 libc。所以這條路有兩段：<strong>呼叫點 → <code>puts@plt</code>（連結時，<code>ld</code>）</strong>、<strong><code>.got</code> → libc 裡的 <code>puts</code>（執行時，<code>ld.so</code>）</strong>。這是 <a href="../c/hello.c%E6%80%8E%E9%BA%BC%E8%AE%8A%E6%88%90%E8%83%BD%E8%B7%91%E7%9A%84%E7%A8%8B%E5%BC%8F-%E7%B7%A8%E8%AD%AF%E7%9A%84%E5%9B%9B%E5%80%8B%E9%9A%8E%E6%AE%B5.html#%E4%BA%94%E9%80%A3%E7%B5%90%E6%8A%8A%E6%B4%9E%E6%8E%A5%E4%B8%8A%E4%BD%86-puts-%E9%82%84%E6%98%AF%E6%B2%92%E6%8E%A5%E5%AE%8C">hello 第五節</a>末尾〈2026-09-29 補充：「執行時才填」填的不是第四節那 4 個 <code>00 00 00 00</code>〉的內容；你在 hello 4 寫的「<code>ld</code> 連接這個函式的函式庫與版本」也是連結時的那一段。</p>
+<p><strong>參考答案（改判後的版本）</strong>：程式碼在 <code>libc.so.6</code>。<strong>最後把呼叫接到 <code>puts</code> 程式碼的是執行時的動態載入器 <code>ld-linux-x86-64.so.2</code></strong>：<code>execve</code> 後它先跑，照需求單載入 <code>libc.so.6</code>，把 <code>puts</code> 的真正位址填進 <code>.got</code>。但這一步要成立，<strong>連結時 <code>ld</code></strong> 得先做兩件事：把 <code>call</code> 後面的洞填成 <code>puts@plt</code>，並在執行檔裡寫下需求單（<code>NEEDED libc.so.6</code>、interpreter 路徑、符號版本）。<code>ld</code> 和 <code>ld-linux-x86-64.so.2</code> 是兩個不同的程式。</p>
+</blockquote>
+<h3 id="hello-4-連結完成後-nm-hello-仍然顯示-u-putsglibc_225這是連結失敗嗎為什麼">hello 4. 連結完成後 <code>nm hello</code> 仍然顯示 <code>U puts@GLIBC_2.2.5</code>，這是連結失敗嗎？為什麼？</h3>
+<blockquote>
+<p>盒子 3｜過去的作答：<a href="../small-project/s1-01-hello-compile/quiz.html#4-%E9%80%A3%E7%B5%90%E5%AE%8C%E6%88%90%E5%BE%8C-nm-hello-%E4%BB%8D%E7%84%B6%E9%A1%AF%E7%A4%BA-u-putsglibc_225%E9%80%99%E6%98%AF%E9%80%A3%E7%B5%90%E5%A4%B1%E6%95%97%E5%97%8E%E7%82%BA%E4%BB%80%E9%BA%BC">s1-01 quiz.md 第 4 題</a></p>
+</blockquote>
+<pre><code>不是
+ld連接這個funtion的函式庫與版本,實際接上程式碼是執行時 interpreter在做
+</code></pre>
+<blockquote>
+<p><strong>批改</strong>：<strong>對</strong>（盒子 3 → 4）。「不是失敗；<code>ld</code> 只記下需要哪個函式庫的哪個版本，真正接上是執行時 interpreter 做的」就是重點。答案裡可以再用上「動態連結」「<code>U</code> = 未定義」這兩個詞，讓理由更完整。</p>
+<p><strong>參考答案</strong>【<a href="../c/hello.c%E6%80%8E%E9%BA%BC%E8%AE%8A%E6%88%90%E8%83%BD%E8%B7%91%E7%9A%84%E7%A8%8B%E5%BC%8F-%E7%B7%A8%E8%AD%AF%E7%9A%84%E5%9B%9B%E5%80%8B%E9%9A%8E%E6%AE%B5.html#%E4%BA%94%E9%80%A3%E7%B5%90%E6%8A%8A%E6%B4%9E%E6%8E%A5%E4%B8%8A%E4%BD%86-puts-%E9%82%84%E6%98%AF%E6%B2%92%E6%8E%A5%E5%AE%8C">第五節</a>】不是連結失敗。這是動態連結：連結器只記下「需要 glibc 提供的 <code>puts</code>」，真正的位址要等執行時由動態載入器載入 <code>libc.so.6</code> 後才填上，所以連結後的執行檔裡 <code>puts</code> 仍是 <code>U</code>（未定義）。</p>
+</blockquote>
+<hr />
+<h2 id="objdumpobjdump能不能代替ldd找依賴庫-需求單與實際載入">objdump：<a href="../c/objdump%E8%83%BD%E4%B8%8D%E8%83%BD%E4%BB%A3%E6%9B%BFldd%E6%89%BE%E4%BE%9D%E8%B3%B4%E5%BA%AB-%E9%9C%80%E6%B1%82%E5%96%AE%E8%88%87%E5%AF%A6%E9%9A%9B%E8%BC%89%E5%85%A5.html">objdump能不能代替ldd找依賴庫-需求單與實際載入</a></h2>
+<h3 id="objdump-2-ldd-是怎麼得到依賴清單的從這個機制解釋為什麼對來路不明的執行檔用-ldd-有風險objdump--p-卻沒有">objdump 2. <code>ldd</code> 是怎麼得到依賴清單的？從這個機制解釋：為什麼對來路不明的執行檔用 <code>ldd</code> 有風險，<code>objdump -p</code> 卻沒有？</h3>
+<blockquote>
+<p>盒子 3｜過去的作答：<a href="../small-project/s1-01-hello-compile/quiz.html#2-ldd-%E6%98%AF%E6%80%8E%E9%BA%BC%E5%BE%97%E5%88%B0%E4%BE%9D%E8%B3%B4%E6%B8%85%E5%96%AE%E7%9A%84%E5%BE%9E%E9%80%99%E5%80%8B%E6%A9%9F%E5%88%B6%E8%A7%A3%E9%87%8B%E7%82%BA%E4%BB%80%E9%BA%BC%E5%B0%8D%E4%BE%86%E8%B7%AF%E4%B8%8D%E6%98%8E%E7%9A%84%E5%9F%B7%E8%A1%8C%E6%AA%94%E7%94%A8-ldd-%E6%9C%89%E9%A2%A8%E9%9A%AAobjdump--p-%E5%8D%BB%E6%B2%92%E6%9C%89">s1-01 quiz.md 第 2 題</a></p>
+</blockquote>
+<pre><code>ldd 載入interpreter, 由interpreter載入所有直接,簡介函式庫
+因爲他會實際去讀函式庫的內容,如果這個有問題的函式庫有攻擊行爲,就有可能執行
+objdump -p 只是顯示header的記錄
+</code></pre>
+<blockquote>
+<p><strong>批改</strong>：<strong>不完整</strong>（盒子 3 → 1）。機制對：<code>ldd</code> 讓動態載入器去處理程式，載入器照常載入直接與間接的函式庫。<code>objdump -p</code> 只讀檔案裡的紀錄，也對。<strong>風險的來源說錯了</strong>：重點不是「讀到有問題的函式庫」，而是<strong>載入器是誰由這個檔案自己決定</strong>——它寫在檔案的 <code>INTERP</code> 裡。攻擊者可以把 <code>INTERP</code> 寫成自己的程式，你一跑 <code>ldd</code>，執行的就是他的程式。（<code>ldd</code> 本身是 shell 腳本，靠設 <code>LD_TRACE_LOADED_OBJECTS=1</code> 讓載入器在進 <code>main</code> 前停下來印清單。）</p>
+<p><strong>參考答案</strong>【<a href="../c/objdump%E8%83%BD%E4%B8%8D%E8%83%BD%E4%BB%A3%E6%9B%BFldd%E6%89%BE%E4%BE%9D%E8%B3%B4%E5%BA%AB-%E9%9C%80%E6%B1%82%E5%96%AE%E8%88%87%E5%AF%A6%E9%9A%9B%E8%BC%89%E5%85%A5.html#%E4%B8%89ldd-%E6%9C%83%E5%9F%B7%E8%A1%8C%E6%9D%B1%E8%A5%BF%E9%80%99%E6%98%AF%E5%AE%83%E7%9A%84%E4%BB%A3%E5%83%B9">第三節</a>】<code>ldd</code> 是 shell 腳本，設 <code>LD_TRACE_LOADED_OBJECTS=1</code> 後讓動態載入器處理這支程式；載入器照常找、載入全部依賴，但在進 <code>main</code> 前停下來改成印清單。風險：載入器是誰由檔案的 <code>INTERP</code> 決定，攻擊者可以寫成自己的程式，跑 <code>ldd</code> 就執行了它。<code>objdump -p</code> 只讀檔案裡的 <code>NEEDED</code>，不啟動任何東西。</p>
+</blockquote>
+<hr />
+<h2 id="字元字元是什麼-char就是1byte的整數與ascii和utf-8">字元：<a href="../c/%E5%AD%97%E5%85%83%E6%98%AF%E4%BB%80%E9%BA%BC-char%E5%B0%B1%E6%98%AF1byte%E7%9A%84%E6%95%B4%E6%95%B8%E8%88%87ASCII%E5%92%8CUTF-8.html">字元是什麼-char就是1byte的整數與ASCII和UTF-8</a></h2>
+<h3 id="字元-3-sizeofasizeofasizeof字-在本機各是多少分別解釋為什麼">字元 3. <code>sizeof('A')</code>、<code>sizeof(&quot;A&quot;)</code>、<code>sizeof(&quot;字&quot;)</code> 在本機各是多少？分別解釋為什麼。</h3>
+<blockquote>
+<p>盒子 1｜過去的作答：<a href="../small-project/s1-02-data-repr/quiz.html#3-sizeofasizeofasizeof%E5%AD%97-%E5%9C%A8%E6%9C%AC%E6%A9%9F%E5%90%84%E6%98%AF%E5%A4%9A%E5%B0%91%E5%88%86%E5%88%A5%E8%A7%A3%E9%87%8B%E7%82%BA%E4%BB%80%E9%BA%BC">s1-02 quiz.md 第 3 題</a></p>
+</blockquote>
+<pre><code>1byte
+
+2 byte
+
+4byte
+
+'A' 是char類型 1byte
+
+&quot;A&quot; 字符串類型,陣列以\0字元結爲 所以2byte
+
+&quot;字&quot; 字符串類型,字用了3個字元char + \0 所以4byte
+</code></pre>
+<blockquote>
+<p><strong>批改</strong>：<strong>不完整</strong>（盒子 1 → 1）。<code>&quot;A&quot;</code> 2、<code>&quot;字&quot;</code> 4 對，理由也對（「字」是 3 個 byte）。<code>sizeof('A')</code> <strong>錯</strong>，跟 10-04 那次錯在同一個地方：答案是 <strong>4</strong>，不是 1。在 C 裡，單引號的字元常數 <code>'A'</code> 型別是 <strong><code>int</code></strong>，不是 <code>char</code>；C++ 才是 <code>char</code>。記法：<code>'A'</code> 只是寫數字 65 的另一種方式，而 C 裡沒有後綴的整數常數都是 <code>int</code>。</p>
+<p><strong>參考答案</strong>【<a href="../c/%E5%AD%97%E5%85%83%E6%98%AF%E4%BB%80%E9%BA%BC-char%E5%B0%B1%E6%98%AF1byte%E7%9A%84%E6%95%B4%E6%95%B8%E8%88%87ASCII%E5%92%8CUTF-8.html#%E4%B8%89c-%E7%9A%84%E5%AD%97%E5%85%83%E5%B8%B8%E6%95%B8%E5%96%AE%E5%BC%95%E8%99%9F%E8%80%8C%E4%B8%94%E5%9E%8B%E5%88%A5%E6%98%AF-int">第三節</a>、<a href="../c/%E5%AD%97%E5%85%83%E6%98%AF%E4%BB%80%E9%BA%BC-char%E5%B0%B1%E6%98%AF1byte%E7%9A%84%E6%95%B4%E6%95%B8%E8%88%87ASCII%E5%92%8CUTF-8.html#%E5%9B%9B%E4%B8%AD%E6%96%87%E5%AD%97%E4%B8%80%E5%80%8B-byte-%E8%A3%9D%E4%B8%8D%E4%B8%8Butf-8-%E7%94%A8-3-%E5%80%8B-byte">第四節</a>】<code>sizeof('A')</code> = 4：在 C 裡，字元常數 <code>'A'</code> 的型別是 <code>int</code>（C++ 才是 <code>char</code>）。<code>sizeof(&quot;A&quot;)</code> = 2：<code>'A'</code> 加上結尾的 <code>'\0'</code>。<code>sizeof(&quot;字&quot;)</code> = 4：UTF-8 用 3 byte 表示「字」，再加上 <code>'\0'</code>。</p>
+</blockquote>
+
+</main>
+</div>
+</body>
+</html>

@@ -1,0 +1,491 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>2026-10-08 複習：字元、C資料、objdump、hello、ELF、陣列</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/app.js"></script>
+</head>
+<body>
+<button class="menu-btn" onclick="toggleMenu()">☰ 目錄</button>
+<div class="layout">
+<nav class="side">
+<div class="crumbs"><a href="../index.html">🏠 首頁</a> / <a href="README.html">review</a></div>
+<div class="tools"><button onclick="toggleTheme()">🌓 主題</button></div>
+<ul>
+<li class="l2"><a href="#%E6%89%B9%E6%94%B9%E7%B5%90%E6%9E%9C2026-10-08">批改結果（2026-10-08）</a></li>
+<li class="l2"><a href="#%E4%BB%8A%E5%A4%A9%E7%9A%84%E9%A1%8C%E7%9B%AE">今天的題目</a></li>
+<li class="l2"><a href="#%E5%AD%97%E5%85%83%E5%AD%97%E5%85%83%E6%98%AF%E4%BB%80%E9%BA%BC-char%E5%B0%B1%E6%98%AF1byte%E7%9A%84%E6%95%B4%E6%95%B8%E8%88%87ascii%E5%92%8Cutf-8">字元：字元是什麼-char就是1byte的整數與ASCII和UTF-8</a></li>
+<li class="l3"><a href="#%E5%AD%97%E5%85%83-5-%E6%9C%89%E4%BA%BA%E8%AA%AA%E5%AD%97%E6%98%AF-3-%E5%80%8B%E5%AD%97%E5%85%83%E5%8F%A6%E4%B8%80%E5%80%8B%E4%BA%BA%E8%AA%AA%E6%98%AF-1-%E5%80%8B%E5%AD%97%E5%85%83%E8%AA%B0%E5%B0%8Dstrlen%E5%AD%97-%E5%92%8C-mbstowcsnull-%E5%AD%97-0-%E5%90%84%E6%9C%83%E5%BE%97%E5%88%B0%E5%A4%9A%E5%B0%91%E5%A6%82%E6%9E%9C%E7%A8%8B%E5%BC%8F%E5%BF%98%E4%BA%86%E5%91%BC%E5%8F%AB-setlocale%E5%BE%8C%E8%80%85%E6%9C%83%E5%BE%97%E5%88%B0%E4%BB%80%E9%BA%BC%E9%82%A3%E5%80%8B%E6%95%B8%E5%AD%97%E6%98%AF%E6%80%8E%E9%BA%BC%E4%BE%86%E7%9A%84">字元 5. 有人說「『字』是 3 個字元」，另一個人說「是 1 個字元」，誰對？strlen(&quot;字&quot;) 和 mbstowcs(NULL, &quot;字&quot;, 0) 各會得到多少？如果程式忘了呼叫 setlocale，後者會得到什麼，那個數字是怎麼來的？</a></li>
+<li class="l2"><a href="#c%E8%B3%87%E6%96%99c%E7%9A%84%E8%B3%87%E6%96%99%E5%9C%A8%E8%A8%98%E6%86%B6%E9%AB%94%E8%A3%A1%E9%95%B7%E6%80%8E%E6%A8%A3-%E4%BD%8D%E5%85%83%E7%B5%84%E6%8C%87%E6%A8%99%E4%BD%8D%E5%85%83%E7%B5%84%E9%A0%86%E5%BA%8F%E8%88%87%E6%9C%89%E8%99%9F%E7%84%A1%E8%99%9F">C資料：C的資料在記憶體裡長怎樣-位元組、指標、位元組順序與有號無號</a></li>
+<li class="l3"><a href="#c%E8%B3%87%E6%96%99-9-%E6%83%85%E5%A2%83%E9%A1%8C%E6%9C%89%E4%BA%BA%E5%AF%AB%E4%BA%86-if-len---used--0-%E5%88%A4%E6%96%B7%E7%B7%A9%E8%A1%9D%E5%8D%80%E9%82%84%E6%9C%89%E6%B2%92%E6%9C%89%E5%89%A9%E9%A4%98%E7%A9%BA%E9%96%93lenused-%E9%83%BD%E6%98%AF-size_t%E7%94%A8--wall--wextra-%E7%B7%A8%E8%AD%AF%E6%B2%92%E6%9C%89%E4%BB%BB%E4%BD%95%E8%AD%A6%E5%91%8A%E9%80%99%E5%80%8B%E5%88%A4%E6%96%B7%E5%9C%A8%E4%BB%80%E9%BA%BC%E6%83%85%E6%B3%81%E4%B8%8B%E6%9C%83%E5%87%BA%E9%8C%AF%E7%82%BA%E4%BB%80%E9%BA%BC-gcc-%E5%B0%8D-len---used--0-%E6%9C%83%E8%AD%A6%E5%91%8A%E5%B0%8D--0-%E5%8D%BB%E4%B8%8D%E6%9C%83%E5%8F%A6%E5%A4%96%E7%82%BA%E4%BB%80%E9%BA%BC-int-sum--x--y-if-sum--x-%E9%80%99%E7%A8%AE%E6%BA%A2%E4%BD%8D%E6%AA%A2%E6%9F%A5%E5%9C%A8--o2-%E4%B8%8B%E5%8F%AF%E8%83%BD%E5%AE%8C%E5%85%A8%E5%A4%B1%E6%95%88">C資料 9. 情境題：有人寫了 if (len - used &gt; 0) 判斷「緩衝區還有沒有剩餘空間」，len、used 都是 size_t，用 -Wall -Wextra 編譯沒有任何警告。這個判斷在什麼情況下會出錯？為什麼 gcc 對 len - used &lt; 0 會警告、對 &gt; 0 卻不會？另外，為什麼 int sum = x + y; if (sum &lt; x) 這種溢位檢查在 -O2 下可能完全失效？</a></li>
+<li class="l2"><a href="#objdumpobjdump%E8%83%BD%E4%B8%8D%E8%83%BD%E4%BB%A3%E6%9B%BFldd%E6%89%BE%E4%BE%9D%E8%B3%B4%E5%BA%AB-%E9%9C%80%E6%B1%82%E5%96%AE%E8%88%87%E5%AF%A6%E9%9A%9B%E8%BC%89%E5%85%A5">objdump：objdump能不能代替ldd找依賴庫-需求單與實際載入</a></li>
+<li class="l3"><a href="#objdump-3-%E4%B8%80%E6%94%AF%E7%A8%8B%E5%BC%8F%E9%80%A3%E7%B5%90%E6%99%82%E7%94%A8%E4%BA%86--llib--lfoo%E7%B7%A8%E8%AD%AF%E6%88%90%E5%8A%9F%E5%9F%B7%E8%A1%8C%E6%99%82%E5%8D%BB%E5%87%BA%E7%8F%BE-error-while-loading-shared-libraries-libfooso%E7%94%A8%E9%80%A3%E7%B5%90%E6%99%82%E8%88%87%E5%9F%B7%E8%A1%8C%E6%99%82%E5%88%86%E5%88%A5%E6%98%AF%E8%AA%B0%E5%9C%A8%E6%89%BE%E6%AA%94%E6%A1%88%E8%A7%A3%E9%87%8B%E7%82%BA%E4%BB%80%E9%BA%BC%E9%80%A3%E7%B5%90%E6%89%BE%E5%BE%97%E5%88%B0%E5%9F%B7%E8%A1%8C%E5%8D%BB%E6%89%BE%E4%B8%8D%E5%88%B0%E9%80%99%E6%99%82-objdump--p-%E8%88%87-ldd-%E5%90%84%E6%9C%83%E9%A1%AF%E7%A4%BA%E4%BB%80%E9%BA%BC">objdump 3. 一支程式連結時用了 -L./lib -lfoo，編譯成功；執行時卻出現 error while loading shared libraries: libfoo.so。用「連結時」與「執行時」分別是誰在找檔案，解釋為什麼連結找得到、執行卻找不到。這時 objdump -p 與 ldd 各會顯示什麼？</a></li>
+<li class="l3"><a href="#objdump-4-%E6%83%85%E5%A2%83%E9%A1%8C%E5%90%8C%E4%BA%8B%E5%82%B3%E4%BE%86%E4%B8%80%E6%94%AF-arm-%E9%96%8B%E7%99%BC%E6%9D%BF%E7%94%A8%E7%9A%84%E5%9F%B7%E8%A1%8C%E6%AA%94%E5%95%8F%E4%BD%A0%E5%AE%83%E9%9C%80%E8%A6%81%E5%93%AA%E4%BA%9B%E5%87%BD%E5%BC%8F%E5%BA%AB%E4%BD%A0%E5%9C%A8%E8%87%AA%E5%B7%B1%E7%9A%84-x86-64-%E9%9B%BB%E8%85%A6%E4%B8%8A%E8%A9%B2%E7%94%A8%E5%93%AA%E5%80%8B%E5%B7%A5%E5%85%B7%E7%94%A8-ldd-%E6%9C%83%E7%99%BC%E7%94%9F%E4%BB%80%E9%BA%BC%E4%BA%8B%E7%82%BA%E4%BB%80%E9%BA%BC">objdump 4. 情境題：同事傳來一支 ARM 開發板用的執行檔，問你「它需要哪些函式庫」。你在自己的 x86-64 電腦上該用哪個工具？用 ldd 會發生什麼事，為什麼？</a></li>
+<li class="l3"><a href="#objdump-1-objdump--p-usrbincurl-%E5%8F%AA%E5%88%97%E5%87%BA-3-%E5%80%8B-neededldd-%E5%8D%BB%E5%88%97%E5%87%BA-33-%E8%A1%8C%E5%A4%9A%E5%87%BA%E4%BE%86%E7%9A%84%E6%98%AF%E5%93%AA%E5%B9%BE%E9%A1%9E%E6%9D%B1%E8%A5%BF%E7%82%BA%E4%BB%80%E9%BA%BC-objdump-%E7%9C%8B%E4%B8%8D%E5%88%B0">objdump 1. objdump -p /usr/bin/curl 只列出 3 個 NEEDED，ldd 卻列出 33 行。多出來的是哪幾類東西？為什麼 objdump 看不到？</a></li>
+<li class="l2"><a href="#hellohelloc%E6%80%8E%E9%BA%BC%E8%AE%8A%E6%88%90%E8%83%BD%E8%B7%91%E7%9A%84%E7%A8%8B%E5%BC%8F-%E7%B7%A8%E8%AD%AF%E7%9A%84%E5%9B%9B%E5%80%8B%E9%9A%8E%E6%AE%B5">hello：hello.c怎麼變成能跑的程式-編譯的四個階段</a></li>
+<li class="l3"><a href="#hello-5-%E6%83%85%E5%A2%83%E9%A1%8C%E4%BD%A0%E6%8A%8A%E4%B8%80%E6%94%AF%E5%8B%95%E6%85%8B%E9%80%A3%E7%B5%90%E7%9A%84%E7%A8%8B%E5%BC%8F%E8%A4%87%E8%A3%BD%E5%88%B0%E5%8F%A6%E4%B8%80%E5%8F%B0%E6%A9%9F%E5%99%A8%E5%9F%B7%E8%A1%8C%E6%99%82%E5%87%BA%E7%8F%BE%E6%89%BE%E4%B8%8D%E5%88%B0-libcso6-%E6%9F%90%E5%80%8B%E7%89%88%E6%9C%AC%E7%AC%A6%E8%99%9F%E7%9A%84%E9%8C%AF%E8%AA%A4%E5%BE%9E%E6%9C%AC%E8%AA%B2%E7%9A%84%E5%93%AA%E5%80%8B%E9%9A%8E%E6%AE%B5%E5%8F%AF%E4%BB%A5%E8%A7%A3%E9%87%8B%E9%80%99%E4%BB%B6%E4%BA%8B%E5%A6%82%E6%9E%9C%E6%94%B9%E7%94%A8--static-%E7%B7%A8%E8%AD%AF%E9%80%99%E5%80%8B%E5%95%8F%E9%A1%8C%E9%82%84%E6%9C%83%E7%99%BC%E7%94%9F%E5%97%8E">hello 5. 情境題：你把一支動態連結的程式複製到另一台機器，執行時出現找不到 libc.so.6 某個版本符號的錯誤。從本課的哪個階段可以解釋這件事？如果改用 -static 編譯，這個問題還會發生嗎？</a></li>
+<li class="l2"><a href="#elfelf%E6%98%AF%E4%BB%80%E9%BA%BC-%E5%8F%AF%E5%9F%B7%E8%A1%8C%E8%88%87%E5%8F%AF%E9%80%A3%E7%B5%90%E6%A0%BC%E5%BC%8F%E7%9A%84%E5%85%A9%E7%A8%AE%E8%A6%96%E8%A7%92">ELF：ELF是什麼-可執行與可連結格式的兩種視角</a></li>
+<li class="l3"><a href="#elf-3-%E6%9C%AC%E6%A9%9F%E4%B8%80%E8%88%AC-gcc-%E7%B7%A8%E5%87%BA%E7%9A%84%E5%9F%B7%E8%A1%8C%E6%AA%94type-%E7%82%BA%E4%BB%80%E9%BA%BC%E6%98%AF-dyn%E8%B7%9F-libcso6-%E5%90%8C%E4%B8%80%E9%A1%9E%E8%80%8C%E9%9D%9C%E6%85%8B%E7%89%88%E6%98%AF-exec">ELF 3. 本機一般 gcc 編出的執行檔，Type 為什麼是 DYN，跟 libc.so.6 同一類，而靜態版是 EXEC？</a></li>
+<li class="l3"><a href="#elf-4-%E5%8D%80%E6%AE%B5section%E5%92%8C%E8%BC%89%E5%85%A5%E6%AE%B5segment%E5%B7%AE%E5%9C%A8%E5%93%AA%E7%82%BA%E4%BB%80%E9%BA%BC%E6%A0%B8%E5%BF%83%E8%BC%89%E5%85%A5%E6%99%82%E8%A6%81%E6%8A%8A%E5%BE%88%E5%A4%9A%E5%8D%80%E6%AE%B5%E6%89%93%E5%8C%85%E6%88%90%E5%B0%91%E6%95%B8%E5%B9%BE%E5%80%8B%E8%BC%89%E5%85%A5%E6%AE%B5">ELF 4. 區段（section）和載入段（segment）差在哪？為什麼核心載入時要把很多區段打包成少數幾個載入段？</a></li>
+<li class="l2"><a href="#%E9%99%A3%E5%88%97%E9%99%A3%E5%88%97%E5%AD%97%E4%B8%B2%E8%88%87%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97-c%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%88%87%E7%94%A8gdb%E6%89%BEsegfault">陣列：陣列、字串與指標運算-C不檢查邊界與用gdb找segfault</a></li>
+<li class="l3"><a href="#%E9%99%A3%E5%88%97-1-%E6%8C%87%E6%A8%99%E7%9A%84%E5%9E%8B%E5%88%A5%E8%88%87%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97">陣列 1. 指標的型別與指標運算</a></li>
+<li class="l3"><a href="#%E9%99%A3%E5%88%97-4-%E8%B6%8A%E7%95%8C%E7%9A%84%E4%B8%89%E7%A8%AE%E4%B8%8B%E5%A0%B4">陣列 4. 越界的三種下場</a></li>
+</ul>
+</nav>
+<main>
+<h1 id="2026-10-08-複習字元c資料objdumphelloelf陣列">2026-10-08 複習：字元、C資料、objdump、hello、ELF、陣列</h1>
+<blockquote>
+<p>依 <a href="../../learning/%E8%A4%87%E7%BF%92%E6%8E%92%E7%A8%8B.md">複習排程</a> 選出今天到期的 10 題。今天不上新課（s1-04 作業剛批改、有 9 題待重答，自我測驗還沒交），所以不放「跟新課相關」的題目，全部依<strong>過期最久 → 盒子小 → 上次作答較早</strong>挑選：
+10-05 到期的 11 題（全部盒子 1、上次作答都是 10-04）依排程表順序取前 10 題；<strong>陣列 5</strong> 沒選到，順延到明天。今天到期的共 37 題（10-05 到期 11、10-06 到期 9、10-07 到期 10、10-08 到期 7），沒選到的 27 題順延，日期不動。</p>
+<p><strong>怎麼寫</strong>：闔上筆記，每題寫 1～2 句關鍵句就好。寫完說「幫我批改」。複習不重答，批改會直接附參考答案。陣列 1、陣列 4 已拆成小題，每個小題一個作答框。</p>
+</blockquote>
+<h2 id="批改結果2026-10-08">批改結果（2026-10-08）</h2>
+<table>
+<thead>
+<tr>
+<th>題目</th>
+<th>結果</th>
+<th>盒子</th>
+<th>下次</th>
+<th>錯在哪／缺什麼</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>字元 5</td>
+<td>不完整</td>
+<td>1 → 1</td>
+<td>10-09</td>
+<td>前兩問對；忘了 <code>setlocale</code> 時不是 3，而是 <code>&quot;C&quot;</code> locale 看不懂 UTF-8，回傳 <code>(size_t)-1</code> ＝ 18446744073709551615</td>
+</tr>
+<tr>
+<td>C資料 9</td>
+<td>不完整</td>
+<td>1 → 1</td>
+<td>10-09</td>
+<td>第三問<strong>跟 10-04 錯在同一處</strong>：不是「必為假」，而是被改寫成 <code>y &lt; 0</code>；另外 <code>len == used</code> 時 <code>&gt; 0</code> 為假，不是「永遠為真」</td>
+</tr>
+<tr>
+<td>objdump 3</td>
+<td>錯</td>
+<td>1 → 1</td>
+<td>10-09</td>
+<td>不是「讀不了」：執行時是載入器在找，它不知道 <code>-L</code>，所以找不到；<code>ldd</code> 印的是 <code>libfoo.so =&gt; not found</code></td>
+</tr>
+<tr>
+<td>objdump 4</td>
+<td>不完整</td>
+<td>1 → 1</td>
+<td>10-09</td>
+<td><code>readelf -d</code> 對；<code>ldd</code> 印 <code>not a dynamic executable</code>（本機載入器處理不了 ARM），不是「kernel 找不到」——<strong>跟 10-04 錯在同一處</strong></td>
+</tr>
+<tr>
+<td>objdump 1</td>
+<td>對</td>
+<td>1 → 2</td>
+<td>10-11</td>
+<td>抓到重點：三類（vdso、間接依賴、載入器），<code>objdump -p</code> 只讀連結時的需求單</td>
+</tr>
+<tr>
+<td>hello 5</td>
+<td>大致對</td>
+<td>1 → 1</td>
+<td>10-09</td>
+<td>執行時檢查對；仍缺「版本需求是連結時 <code>ld</code> 寫進去的」（跟 10-04 一樣）；<code>-static</code> 是整份複製 libc，不是補洞</td>
+</tr>
+<tr>
+<td>ELF 3</td>
+<td>不完整</td>
+<td>1 → 1</td>
+<td>10-09</td>
+<td>沒說出 PIE／ASLR；「因為動態編譯」<strong>跟 10-04 錯在同一處</strong>：DYN 只看是不是 PIE（反例 <code>-no-pie</code>、<code>-static-pie</code>）</td>
+</tr>
+<tr>
+<td>ELF 4</td>
+<td>對（改判）</td>
+<td>1 → 2</td>
+<td>10-11</td>
+<td>三個核心關鍵都答到（區段給 <code>ld</code>、載入段在執行時載入、權限以分頁為單位）；載入段只寫給 interpreter、沒寫 kernel，屬細節。原判大致對，10-08 改用核心關鍵標準後改判</td>
+</tr>
+<tr>
+<td>陣列 1</td>
+<td>不完整</td>
+<td>1 → 1</td>
+<td>10-09</td>
+<td>1-1 對；1-2 寫成 <code>p + 3</code>，少了取值：應為 <code>*(p + 3)</code>；1-3 同樣少了 <code>*</code></td>
+</tr>
+<tr>
+<td>陣列 4</td>
+<td>大致對</td>
+<td>1 → 1</td>
+<td>10-09</td>
+<td>三種下場的分界對；金絲雀是被<strong>寫入</strong>改掉、返回前才檢查；缺「越界是 UB、會默默寫壞資料」</td>
+</tr>
+</tbody>
+</table>
+<p>對 2（objdump 1、ELF 4〔改判〕）、大致對 2（hello 5、陣列 4）、不完整 5（字元 5、C資料 9、objdump 4、ELF 3、陣列 1）、錯 1（objdump 3）。升級：objdump 1、ELF 4 → 盒子 2（10-11）；其餘 8 題留在盒子 1，明天（10-09）再考。
+<strong>反覆卡住的觀念</strong>（跟 10-04 錯在同一處）：C資料 9 的 <code>x + y &lt; x</code> 被改寫成 <code>y &lt; 0</code>；objdump 4 的 <code>ldd</code> 印 <code>not a dynamic executable</code>；ELF 3 的 DYN ＝ PIE、跟動態連結無關；hello 5 漏了「連結時寫下版本需求」。
+<strong>新出現的錯</strong>：objdump 3 說成「找得到但讀不了」（實為執行時的載入器不知道 <code>-L</code>）；陣列 1 的下標定義漏了 <code>*</code>。</p>
+<h2 id="今天的題目">今天的題目</h2>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>題目</th>
+<th>盒子</th>
+<th>原本該考的日期</th>
+<th>為什麼選</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>字元 5</td>
+<td>1</td>
+<td>2026-10-05</td>
+<td>過期最久，排程表順序</td>
+</tr>
+<tr>
+<td>2</td>
+<td>C資料 9</td>
+<td>1</td>
+<td>2026-10-05</td>
+<td>同上</td>
+</tr>
+<tr>
+<td>3</td>
+<td>objdump 3</td>
+<td>1</td>
+<td>2026-10-05</td>
+<td>同上</td>
+</tr>
+<tr>
+<td>4</td>
+<td>objdump 4</td>
+<td>1</td>
+<td>2026-10-05</td>
+<td>同上</td>
+</tr>
+<tr>
+<td>5</td>
+<td>hello 5</td>
+<td>1</td>
+<td>2026-10-05</td>
+<td>同上</td>
+</tr>
+<tr>
+<td>6</td>
+<td>objdump 1</td>
+<td>1</td>
+<td>2026-10-05</td>
+<td>同上</td>
+</tr>
+<tr>
+<td>7</td>
+<td>ELF 3</td>
+<td>1</td>
+<td>2026-10-05</td>
+<td>同上</td>
+</tr>
+<tr>
+<td>8</td>
+<td>ELF 4</td>
+<td>1</td>
+<td>2026-10-05</td>
+<td>同上</td>
+</tr>
+<tr>
+<td>9</td>
+<td>陣列 1（3 小題）</td>
+<td>1</td>
+<td>2026-10-05</td>
+<td>同上</td>
+</tr>
+<tr>
+<td>10</td>
+<td>陣列 4（2 小題）</td>
+<td>1</td>
+<td>2026-10-05</td>
+<td>同上</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="字元字元是什麼-char就是1byte的整數與ascii和utf-8">字元：<a href="../c/%E5%AD%97%E5%85%83%E6%98%AF%E4%BB%80%E9%BA%BC-char%E5%B0%B1%E6%98%AF1byte%E7%9A%84%E6%95%B4%E6%95%B8%E8%88%87ASCII%E5%92%8CUTF-8.html">字元是什麼-char就是1byte的整數與ASCII和UTF-8</a></h2>
+<h3 id="字元-5-有人說字是-3-個字元另一個人說是-1-個字元誰對strlen字-和-mbstowcsnull-字-0-各會得到多少如果程式忘了呼叫-setlocale後者會得到什麼那個數字是怎麼來的">字元 5. 有人說「『字』是 3 個字元」，另一個人說「是 1 個字元」，誰對？<code>strlen(&quot;字&quot;)</code> 和 <code>mbstowcs(NULL, &quot;字&quot;, 0)</code> 各會得到多少？如果程式忘了呼叫 <code>setlocale</code>，後者會得到什麼，那個數字是怎麼來的？</h3>
+<blockquote>
+<p>盒子 1｜過去的作答：<a href="../small-project/s1-02-data-repr/quiz.html#5-%E6%9C%89%E4%BA%BA%E8%AA%AA%E5%AD%97%E6%98%AF-3-%E5%80%8B%E5%AD%97%E5%85%83%E5%8F%A6%E4%B8%80%E5%80%8B%E4%BA%BA%E8%AA%AA%E6%98%AF-1-%E5%80%8B%E5%AD%97%E5%85%83%E8%AA%B0%E5%B0%8Dstrlen%E5%AD%97-%E5%92%8C-mbstowcsnull-%E5%AD%97-0-%E5%90%84%E6%9C%83%E5%BE%97%E5%88%B0%E5%A4%9A%E5%B0%91%E5%A6%82%E6%9E%9C%E7%A8%8B%E5%BC%8F%E5%BF%98%E4%BA%86%E5%91%BC%E5%8F%AB-setlocale%E5%BE%8C%E8%80%85%E6%9C%83%E5%BE%97%E5%88%B0%E4%BB%80%E9%BA%BC%E9%82%A3%E5%80%8B%E6%95%B8%E5%AD%97%E6%98%AF%E6%80%8E%E9%BA%BC%E4%BE%86%E7%9A%84">s1-02 quiz.md 第 5 題</a>、<a href="2026-10-04-%E5%AD%97%E5%85%83-C%E8%B3%87%E6%96%99-objdump-hello-ELF.html">10-04 複習</a></p>
+</blockquote>
+<pre><code>如果字元是指char類型, 那就是3個char
+如果是指unicode字元,那就是1個
+所以都對
+
+strlen: 3
+mbstowcs: 1
+
+如果setlocale沒有用LC_ALL,那就使用C函式庫默認,那最後就是3
+c默認的是1個byte大小,所以3就是這樣來的
+</code></pre>
+<blockquote>
+<p><strong>批改</strong>：<strong>不完整</strong>（盒子 1 → 1）。前兩問<strong>對</strong>：以 <code>char</code>（byte）算是 3 個、以 Unicode 字元算是 1 個；<code>strlen</code> = 3、<code>mbstowcs</code> = 1（呼叫過 <code>setlocale</code> 之後）。第三問<strong>錯</strong>：忘了 <code>setlocale</code> 時「用 C 函式庫預設的 locale」方向對，但結果不是 3。<code>&quot;C&quot;</code> locale 只認 ASCII，看到 <code>0xe5</code> 這種大於 127 的 byte 不是「當成 1 個字元」，而是<strong>看不懂、回報錯誤</strong>。10-04 這一問也沒答出數字。</p>
+<p><strong>參考答案</strong>【<a href="../c/%E5%AD%97%E5%85%83%E6%98%AF%E4%BB%80%E9%BA%BC-char%E5%B0%B1%E6%98%AF1byte%E7%9A%84%E6%95%B4%E6%95%B8%E8%88%87ASCII%E5%92%8CUTF-8.html#%E4%BA%94%E9%82%A3%E5%AD%97%E6%98%AF-3-%E5%80%8B%E5%AD%97%E5%85%83%E5%97%8E%E7%9C%8B%E4%BD%A0%E8%AA%AA%E7%9A%84%E6%98%AF%E5%93%AA%E4%B8%80%E7%A8%AE%E5%AD%97%E5%85%83">第五節</a>】</p>
+<p><strong>核心關鍵</strong>（答到這幾點就算對）：</p>
+<ol>
+<li>兩個人都對：以 <code>char</code>（byte）算是 <strong>3</strong> 個，以 Unicode 字元算是 <strong>1</strong> 個。</li>
+<li><code>strlen(&quot;字&quot;)</code> = 3；呼叫 <code>setlocale</code> 之後 <code>mbstowcs</code> = 1。</li>
+<li>忘了 <code>setlocale</code> → 用 <code>&quot;C&quot;</code> locale，看不懂 UTF-8 → 回傳 <code>(size_t)-1</code>，也就是 <strong>18446744073709551615</strong>（2⁶⁴ − 1）。</li>
+</ol>
+<p><strong>詳細說明</strong>：「字」在 UTF-8 是 3 個 byte（<code>e5 ad 97</code>），碼位是 U+5B57。<code>strlen</code> 數的是 byte；<code>mbstowcs</code> 數的是字元，但它要先知道編碼，必須呼叫 <code>setlocale(LC_ALL, &quot;&quot;)</code> 讀進環境變數 <code>LANG</code>（例如 <code>zh_TW.UTF-8</code>）。沒呼叫時，不管 <code>LANG</code> 設什麼，程式都用預設的 <code>&quot;C&quot;</code> locale，只認 ASCII（0～127），看到 <code>0xe5</code> 就判定是無效的多位元組序列，回傳 <code>(size_t)-1</code>。<code>size_t</code> 在本機是 8 byte 無號，<code>-1</code> 轉成無號就是全部位元為 1。</p>
+</blockquote>
+<hr />
+<h2 id="c資料c的資料在記憶體裡長怎樣-位元組指標位元組順序與有號無號">C資料：<a href="../c/C%E7%9A%84%E8%B3%87%E6%96%99%E5%9C%A8%E8%A8%98%E6%86%B6%E9%AB%94%E8%A3%A1%E9%95%B7%E6%80%8E%E6%A8%A3-%E4%BD%8D%E5%85%83%E7%B5%84%E3%80%81%E6%8C%87%E6%A8%99%E3%80%81%E4%BD%8D%E5%85%83%E7%B5%84%E9%A0%86%E5%BA%8F%E8%88%87%E6%9C%89%E8%99%9F%E7%84%A1%E8%99%9F.html">C的資料在記憶體裡長怎樣-位元組、指標、位元組順序與有號無號</a></h2>
+<h3 id="c資料-9-情境題有人寫了-if-len---used--0-判斷緩衝區還有沒有剩餘空間lenused-都是-size_t用--wall--wextra-編譯沒有任何警告這個判斷在什麼情況下會出錯為什麼-gcc-對-len---used--0-會警告對--0-卻不會另外為什麼-int-sum--x--y-if-sum--x-這種溢位檢查在--o2-下可能完全失效">C資料 9. 情境題：有人寫了 <code>if (len - used &gt; 0)</code> 判斷「緩衝區還有沒有剩餘空間」，<code>len</code>、<code>used</code> 都是 <code>size_t</code>，用 <code>-Wall -Wextra</code> 編譯沒有任何警告。這個判斷在什麼情況下會出錯？為什麼 gcc 對 <code>len - used &lt; 0</code> 會警告、對 <code>&gt; 0</code> 卻不會？另外，為什麼 <code>int sum = x + y; if (sum &lt; x)</code> 這種溢位檢查在 <code>-O2</code> 下可能完全失效？</h3>
+<blockquote>
+<p>盒子 1｜過去的作答：<a href="../small-project/s1-02-data-repr/quiz.html#9-%E6%83%85%E5%A2%83%E9%A1%8C%E6%9C%89%E4%BA%BA%E5%AF%AB%E4%BA%86-if-len---used--0-%E5%88%A4%E6%96%B7%E7%B7%A9%E8%A1%9D%E5%8D%80%E9%82%84%E6%9C%89%E6%B2%92%E6%9C%89%E5%89%A9%E9%A4%98%E7%A9%BA%E9%96%93lenused-%E9%83%BD%E6%98%AF-size_t%E7%94%A8--wall--wextra-%E7%B7%A8%E8%AD%AF%E6%B2%92%E6%9C%89%E4%BB%BB%E4%BD%95%E8%AD%A6%E5%91%8A%E9%80%99%E5%80%8B%E5%88%A4%E6%96%B7%E5%9C%A8%E4%BB%80%E9%BA%BC%E6%83%85%E6%B3%81%E4%B8%8B%E6%9C%83%E5%87%BA%E9%8C%AF%E7%82%BA%E4%BB%80%E9%BA%BC-gcc-%E5%B0%8D-len---used--0-%E6%9C%83%E8%AD%A6%E5%91%8A%E5%B0%8D--0-%E5%8D%BB%E4%B8%8D%E6%9C%83%E5%8F%A6%E5%A4%96%E7%82%BA%E4%BB%80%E9%BA%BC-int-sum--x--y-if-sum--x-%E9%80%99%E7%A8%AE%E6%BA%A2%E4%BD%8D%E6%AA%A2%E6%9F%A5%E5%9C%A8--o2-%E4%B8%8B%E5%8F%AF%E8%83%BD%E5%AE%8C%E5%85%A8%E5%A4%B1%E6%95%88">s1-02 quiz.md 第 9 題</a>、<a href="2026-10-04-%E5%AD%97%E5%85%83-C%E8%B3%87%E6%96%99-objdump-hello-ELF.html">10-04 複習</a></p>
+</blockquote>
+<pre><code>size_t是unsigned long,無號相減發生溢位 這個判斷會出錯 也就是len &lt; used 結果還是&gt;0,也就是無論如何這個判斷永遠爲真
+
+因爲len 與 used都是無號, 結果也是無號,所以小於0會發warn, 但是 &gt; 0 是對於unsigned是合理的
+
+因爲溢位在gcc 是UB(gcc根本沒有定義溢位的情況),所以-O2 的話 認爲int相加 sum不可能&lt;x 必爲假
+</code></pre>
+<blockquote>
+<p><strong>批改</strong>：<strong>不完整</strong>（盒子 1 → 1）。</p>
+<ul>
+<li>第一問大致對：<code>len &lt; used</code> 時相減回繞成很大的正數，誤判有空間。但「無論如何這個判斷永遠為真」不對：<code>len == used</code> 時結果是 0，<code>&gt; 0</code> 為假。無號數的 <code>&gt; 0</code> 等於 <code>!= 0</code>。</li>
+<li>第二問<strong>對</strong>。</li>
+<li>第三問<strong>錯，跟 10-04 錯在同一處</strong>：「UB」答出來了，但 gcc 不是把 <code>sum &lt; x</code> 當成「必為假」。gcc 假設溢位不會發生，在這個假設下 <code>x + y &lt; x</code> 等於 <strong><code>y &lt; 0</code></strong>，檢查被改寫成「<code>y</code> 是不是負的」。真的溢位時（<code>y</code> 是正的），這個檢查就抓不到。</li>
+</ul>
+<p><strong>參考答案</strong>【<a href="../c/C%E7%9A%84%E8%B3%87%E6%96%99%E5%9C%A8%E8%A8%98%E6%86%B6%E9%AB%94%E8%A3%A1%E9%95%B7%E6%80%8E%E6%A8%A3-%E4%BD%8D%E5%85%83%E7%B5%84%E3%80%81%E6%8C%87%E6%A8%99%E3%80%81%E4%BD%8D%E5%85%83%E7%B5%84%E9%A0%86%E5%BA%8F%E8%88%87%E6%9C%89%E8%99%9F%E7%84%A1%E8%99%9F.html#%E4%B8%83%E9%99%B7%E9%98%B1%E6%9C%89%E8%99%9F%E5%92%8C%E7%84%A1%E8%99%9F%E6%B7%B7%E5%9C%A8%E4%B8%80%E8%B5%B7%E6%AF%94%E8%BC%83">第七節</a>〈<code>-Wtype-limits</code> 只抓「永遠成立／永遠不成立」的比較〉、<a href="../c/C%E7%9A%84%E8%B3%87%E6%96%99%E5%9C%A8%E8%A8%98%E6%86%B6%E9%AB%94%E8%A3%A1%E9%95%B7%E6%80%8E%E6%A8%A3-%E4%BD%8D%E5%85%83%E7%B5%84%E3%80%81%E6%8C%87%E6%A8%99%E3%80%81%E4%BD%8D%E5%85%83%E7%B5%84%E9%A0%86%E5%BA%8F%E8%88%87%E6%9C%89%E8%99%9F%E7%84%A1%E8%99%9F.html#%E5%85%AB%E6%BA%A2%E4%BD%8D%E7%84%A1%E8%99%9F%E5%9B%9E%E7%B9%9E%E6%9C%89%E8%99%9F%E6%98%AF%E6%9C%AA%E5%AE%9A%E7%BE%A9%E8%A1%8C%E7%82%BA">第八節</a>〈另一種寫法：<code>x + y &lt; x</code> 被改寫成 <code>y &lt; 0</code>〉】</p>
+<p><strong>核心關鍵</strong>（答到這幾點就算對）：</p>
+<ol>
+<li><code>len &lt; used</code> 時，<code>len - used</code> 回繞成很大的正數，判斷誤以為「還有空間」。</li>
+<li>無號數 <code>&lt; 0</code> 永遠為假，所以 gcc 警告；<code>&gt; 0</code> 等於 <code>!= 0</code>，結果不固定，是合法寫法，所以不警告。</li>
+<li>有號溢位是 UB，gcc 假設它不會發生，把 <code>x + y &lt; x</code> 改寫成 <strong><code>y &lt; 0</code></strong>；真的溢位時（<code>y</code> 是正的），這個檢查抓不到。</li>
+</ol>
+<p><strong>詳細說明</strong>：<code>len == used</code> 時結果是 0，<code>&gt; 0</code> 為假，所以不是「永遠為真」，只有 <code>len &lt; used</code> 這種情況會出錯。警告來自 <code>-Wtype-limits</code>（<code>-Wextra</code> 會開啟），它只抓「永遠成立／永遠不成立」的比較。溢位那一問：gcc 不是把檢查當成「必為假」直接刪掉，而是在「不會溢位」的假設下，把它化簡成等價的 <code>y &lt; 0</code>。正確的溢位檢查要在運算<strong>之前</strong>，用不會溢位的式子判斷，例如 <code>y &gt; 0 &amp;&amp; x &gt; INT_MAX - y</code>。</p>
+</blockquote>
+<hr />
+<h2 id="objdumpobjdump能不能代替ldd找依賴庫-需求單與實際載入">objdump：<a href="../c/objdump%E8%83%BD%E4%B8%8D%E8%83%BD%E4%BB%A3%E6%9B%BFldd%E6%89%BE%E4%BE%9D%E8%B3%B4%E5%BA%AB-%E9%9C%80%E6%B1%82%E5%96%AE%E8%88%87%E5%AF%A6%E9%9A%9B%E8%BC%89%E5%85%A5.html">objdump能不能代替ldd找依賴庫-需求單與實際載入</a></h2>
+<h3 id="objdump-3-一支程式連結時用了--llib--lfoo編譯成功執行時卻出現-error-while-loading-shared-libraries-libfooso用連結時與執行時分別是誰在找檔案解釋為什麼連結找得到執行卻找不到這時-objdump--p-與-ldd-各會顯示什麼">objdump 3. 一支程式連結時用了 <code>-L./lib -lfoo</code>，編譯成功；執行時卻出現 <code>error while loading shared libraries: libfoo.so</code>。用「連結時」與「執行時」分別是誰在找檔案，解釋為什麼連結找得到、執行卻找不到。這時 <code>objdump -p</code> 與 <code>ldd</code> 各會顯示什麼？</h3>
+<blockquote>
+<p>盒子 1｜過去的作答：<a href="../small-project/s1-01-hello-compile/quiz.html#3-%E4%B8%80%E6%94%AF%E7%A8%8B%E5%BC%8F%E9%80%A3%E7%B5%90%E6%99%82%E7%94%A8%E4%BA%86--llib--lfoo%E7%B7%A8%E8%AD%AF%E6%88%90%E5%8A%9F%E5%9F%B7%E8%A1%8C%E6%99%82%E5%8D%BB%E5%87%BA%E7%8F%BE-error-while-loading-shared-libraries-libfooso%E7%94%A8%E9%80%A3%E7%B5%90%E6%99%82%E8%88%87%E5%9F%B7%E8%A1%8C%E6%99%82%E5%88%86%E5%88%A5%E6%98%AF%E8%AA%B0%E5%9C%A8%E6%89%BE%E6%AA%94%E6%A1%88%E8%A7%A3%E9%87%8B%E7%82%BA%E4%BB%80%E9%BA%BC%E9%80%A3%E7%B5%90%E6%89%BE%E5%BE%97%E5%88%B0%E5%9F%B7%E8%A1%8C%E5%8D%BB%E6%89%BE%E4%B8%8D%E5%88%B0%E9%80%99%E6%99%82-objdump--p-%E8%88%87-ldd-%E5%90%84%E6%9C%83%E9%A1%AF%E7%A4%BA%E4%BB%80%E9%BA%BC">s1-01 quiz.md 第 3 題</a>、<a href="2026-10-04-%E5%AD%97%E5%85%83-C%E8%B3%87%E6%96%99-objdump-hello-ELF.html">10-04 複習</a></p>
+</blockquote>
+<pre><code>連接時, ld 會把這個庫寫入需求單,libfoo.so會寫入needed
+執行時, interpreter會去讀這個庫,並把程式碼載入執行檔,實際讀這個檔案
+找得到不代表可以讀, 所以如果這個庫不能讀可能就會噴這個錯
+
+objdump -p 會顯示這個執行檔的needed
+ldd 會噴 error while loading shared libraries: libfoo.so, 因爲ldd就是用interpreter去載入需求的庫
+</code></pre>
+<blockquote>
+<p><strong>批改</strong>：<strong>錯</strong>（盒子 1 → 1）。題目的關鍵是「連結時和執行時<strong>是不同的程式、用不同的路徑</strong>在找」，答案裡沒有提到。</p>
+<ul>
+<li>「找得到不代表可以讀，庫不能讀就會噴錯」不是原因。執行時是<strong>動態載入器</strong>在找，它根本不知道當初連結時給的 <code>-L./lib</code>，只找自己的預設路徑，所以<strong>找不到</strong>這個檔案，不是讀不了。</li>
+<li><code>objdump -p</code> 列出 <code>NEEDED libfoo.so</code>，<strong>對</strong>。補一句：它看不出有問題。</li>
+<li><code>ldd</code> 不會噴 <code>error while loading shared libraries</code>，它印的是 <strong><code>libfoo.so =&gt; not found</code></strong>。</li>
+</ul>
+<p><strong>參考答案</strong>【<a href="../c/objdump%E8%83%BD%E4%B8%8D%E8%83%BD%E4%BB%A3%E6%9B%BFldd%E6%89%BE%E4%BE%9D%E8%B3%B4%E5%BA%AB-%E9%9C%80%E6%B1%82%E5%96%AE%E8%88%87%E5%AF%A6%E9%9A%9B%E8%BC%89%E5%85%A5.html#%E5%9B%9B%E6%89%BE%E4%B8%8D%E5%88%B0%E5%87%BD%E5%BC%8F%E5%BA%AB%E6%99%82%E5%85%A9%E8%80%85%E5%90%84%E7%9C%8B%E5%88%B0%E4%BB%80%E9%BA%BC">第四節</a>、<a href="../c/objdump%E8%83%BD%E4%B8%8D%E8%83%BD%E4%BB%A3%E6%9B%BFldd%E6%89%BE%E4%BE%9D%E8%B3%B4%E5%BA%AB-%E9%9C%80%E6%B1%82%E5%96%AE%E8%88%87%E5%AF%A6%E9%9A%9B%E8%BC%89%E5%85%A5.html#%E4%BA%8C%E7%82%BA%E4%BB%80%E9%BA%BC%E6%9C%83%E5%B7%AE%E9%80%99%E9%BA%BC%E5%A4%9A%E5%85%A9%E8%80%85%E7%9C%8B%E7%9A%84%E6%98%AF%E4%B8%8D%E5%90%8C%E6%99%82%E9%96%93%E9%BB%9E">第二節</a>】</p>
+<p><strong>核心關鍵</strong>（答到這幾點就算對）：</p>
+<ol>
+<li>連結時是 <strong><code>ld</code></strong> 在找：照 <code>-L./lib</code> 找到 <code>libfoo.so</code>，在執行檔寫下 <code>NEEDED libfoo.so</code>，<strong>只有名字、沒有路徑</strong>。</li>
+<li>執行時是<strong>動態載入器</strong>在找：它不知道當初的 <code>-L</code>，只找自己的預設路徑（加上 <code>LD_LIBRARY_PATH</code> 等），所以找不到。</li>
+<li><code>objdump -p</code> 照樣列出 <code>NEEDED libfoo.so</code>（看不出問題）；<code>ldd</code> 顯示 <code>libfoo.so =&gt; not found</code>。</li>
+</ol>
+<p><strong>詳細說明</strong>：<code>-L</code> 只影響連結時的 <code>ld</code>，不會被記進執行檔。執行時找函式庫的是另一個程式（<code>ld-linux-x86-64.so.2</code>），它的搜尋順序是：執行檔裡的 <code>RUNPATH</code>、<code>LD_LIBRARY_PATH</code>、<code>/etc/ld.so.cache</code>、預設目錄（<code>/lib</code>、<code>/usr/lib</code>）。所以修法是在連結時加 <code>-Wl,-rpath,…</code> 把路徑寫進執行檔，或執行時設 <code>LD_LIBRARY_PATH</code>。<code>objdump -p</code> 只讀檔案，看到的是需求單；<code>ldd</code> 是請載入器實際找一次，所以才看得到 <code>not found</code>。</p>
+</blockquote>
+<h3 id="objdump-4-情境題同事傳來一支-arm-開發板用的執行檔問你它需要哪些函式庫你在自己的-x86-64-電腦上該用哪個工具用-ldd-會發生什麼事為什麼">objdump 4. 情境題：同事傳來一支 ARM 開發板用的執行檔，問你「它需要哪些函式庫」。你在自己的 x86-64 電腦上該用哪個工具？用 <code>ldd</code> 會發生什麼事，為什麼？</h3>
+<blockquote>
+<p>盒子 1｜過去的作答：<a href="../small-project/s1-01-hello-compile/quiz.html#4-%E6%83%85%E5%A2%83%E9%A1%8C%E5%90%8C%E4%BA%8B%E5%82%B3%E4%BE%86%E4%B8%80%E6%94%AF-arm-%E9%96%8B%E7%99%BC%E6%9D%BF%E7%94%A8%E7%9A%84%E5%9F%B7%E8%A1%8C%E6%AA%94%E5%95%8F%E4%BD%A0%E5%AE%83%E9%9C%80%E8%A6%81%E5%93%AA%E4%BA%9B%E5%87%BD%E5%BC%8F%E5%BA%AB%E4%BD%A0%E5%9C%A8%E8%87%AA%E5%B7%B1%E7%9A%84-x86-64-%E9%9B%BB%E8%85%A6%E4%B8%8A%E8%A9%B2%E7%94%A8%E5%93%AA%E5%80%8B%E5%B7%A5%E5%85%B7%E7%94%A8-ldd-%E6%9C%83%E7%99%BC%E7%94%9F%E4%BB%80%E9%BA%BC%E4%BA%8B%E7%82%BA%E4%BB%80%E9%BA%BC">s1-01 quiz.md 第 4 題</a>、<a href="2026-10-04-%E5%AD%97%E5%85%83-C%E8%B3%87%E6%96%99-objdump-hello-ELF.html">10-04 複習</a></p>
+</blockquote>
+<pre><code>可以用objdump -p or readelf -d去找dynamic section裏面 需要動態載入的庫(needed)
+
+用ldd會發生 not found的錯誤,因爲arm 的interpreter 與 x86不一樣, kernel找不到
+</code></pre>
+<blockquote>
+<p><strong>批改</strong>：<strong>不完整</strong>（盒子 1 → 1）。</p>
+<ul>
+<li>工具：<code>readelf -d</code> <strong>對</strong>。<code>objdump -p</code> 不一定行：開發板上的檔案常被剝掉區段標頭，<code>objdump -p</code> 找不到 <code>.dynamic</code>；<code>readelf -d</code> 能透過程式標頭的 <code>DYNAMIC</code> 找到同一份資料。</li>
+<li><code>ldd</code>：「x86 跟 ARM 的載入器不一樣」方向對，但結果和原因都不精確。<code>ldd</code> 印的不是 <code>not found</code>，而是誤導人的 <strong><code>not a dynamic executable</code></strong>。原因是 <code>ldd</code> 要靠<strong>本機的 x86-64 載入器</strong>實際載入這個檔案，而本機載入器處理不了 ARM 的檔案。這不是「kernel 找不到」。<strong>跟 10-04 錯在同一處</strong>（<code>ldd</code> 那一半）。</li>
+</ul>
+<p><strong>參考答案</strong>【<a href="../c/objdump%E8%83%BD%E4%B8%8D%E8%83%BD%E4%BB%A3%E6%9B%BFldd%E6%89%BE%E4%BE%9D%E8%B3%B4%E5%BA%AB-%E9%9C%80%E6%B1%82%E5%96%AE%E8%88%87%E5%AF%A6%E9%9A%9B%E8%BC%89%E5%85%A5.html#%E4%B8%89ldd-%E6%9C%83%E5%9F%B7%E8%A1%8C%E6%9D%B1%E8%A5%BF%E9%80%99%E6%98%AF%E5%AE%83%E7%9A%84%E4%BB%A3%E5%83%B9">第三節</a>、<a href="../c/objdump%E8%83%BD%E4%B8%8D%E8%83%BD%E4%BB%A3%E6%9B%BFldd%E6%89%BE%E4%BE%9D%E8%B3%B4%E5%BA%AB-%E9%9C%80%E6%B1%82%E5%96%AE%E8%88%87%E5%AF%A6%E9%9A%9B%E8%BC%89%E5%85%A5.html#%E4%BA%94%E6%80%8E%E9%BA%BC%E9%81%B8">第五節</a>】</p>
+<p><strong>核心關鍵</strong>（答到這幾點就算對）：</p>
+<ol>
+<li>用 <strong><code>readelf -d</code></strong> 看 <code>NEEDED</code>：只讀檔案、不執行，任何架構的 ELF 都讀得了。</li>
+<li><code>ldd</code> 要靠<strong>本機的 x86-64 載入器</strong>實際載入，處理不了 ARM 的檔案，於是印出誤導人的 <strong><code>not a dynamic executable</code></strong>。</li>
+</ol>
+<p><strong>詳細說明</strong>：<code>objdump -p</code> 平常也行，但開發板上的檔案常被剝掉區段標頭，<code>objdump -p</code> 就找不到 <code>.dynamic</code>；<code>readelf -d</code> 能透過<strong>程式標頭</strong>的 <code>DYNAMIC</code> 找到同一份資料，所以比較保險。<code>ldd</code> 的訊息之所以誤導，是因為那個檔案明明是動態連結的。直接執行它則會看到核心的 <code>exec format error</code>（檔頭的 <code>Machine</code> 不是本機 CPU）。</p>
+</blockquote>
+<h3 id="objdump-1-objdump--p-usrbincurl-只列出-3-個-neededldd-卻列出-33-行多出來的是哪幾類東西為什麼-objdump-看不到">objdump 1. <code>objdump -p /usr/bin/curl</code> 只列出 3 個 <code>NEEDED</code>，<code>ldd</code> 卻列出 33 行。多出來的是哪幾類東西？為什麼 <code>objdump</code> 看不到？</h3>
+<blockquote>
+<p>盒子 1｜過去的作答：<a href="../small-project/s1-01-hello-compile/quiz.html#1-objdump--p-usrbincurl-%E5%8F%AA%E5%88%97%E5%87%BA-3-%E5%80%8B-neededldd-%E5%8D%BB%E5%88%97%E5%87%BA-33-%E8%A1%8C%E5%A4%9A%E5%87%BA%E4%BE%86%E7%9A%84%E6%98%AF%E5%93%AA%E5%B9%BE%E9%A1%9E%E6%9D%B1%E8%A5%BF%E7%82%BA%E4%BB%80%E9%BA%BC-objdump-%E7%9C%8B%E4%B8%8D%E5%88%B0">s1-01 quiz.md 第 1 題</a>、<a href="2026-10-04-%E5%AD%97%E5%85%83-C%E8%B3%87%E6%96%99-objdump-hello-ELF.html">10-04 複習</a></p>
+</blockquote>
+<pre><code>虛擬的庫linux-vdso.so.1
+Needed庫的間接庫
+還有interpreter
+
+objdump -p 看的是 ld在連接階段寫入dynamic section 的需求單 需要動態載入的庫的需求
+</code></pre>
+<blockquote>
+<p><strong>批改</strong>：<strong>對</strong>（盒子 1 → 2）。三類都答出來了（<code>linux-vdso.so.1</code>、間接依賴、載入器本身），原因也對：<code>objdump -p</code> 只讀 <code>ld</code> 在<strong>連結時</strong>寫進這個檔案的需求單。可以再補半句：完整清單是<strong>執行時</strong>由載入器一路追出來的。</p>
+<p><strong>參考答案</strong>【<a href="../c/objdump%E8%83%BD%E4%B8%8D%E8%83%BD%E4%BB%A3%E6%9B%BFldd%E6%89%BE%E4%BE%9D%E8%B3%B4%E5%BA%AB-%E9%9C%80%E6%B1%82%E5%96%AE%E8%88%87%E5%AF%A6%E9%9A%9B%E8%BC%89%E5%85%A5.html#%E4%BA%8C%E7%82%BA%E4%BB%80%E9%BA%BC%E6%9C%83%E5%B7%AE%E9%80%99%E9%BA%BC%E5%A4%9A%E5%85%A9%E8%80%85%E7%9C%8B%E7%9A%84%E6%98%AF%E4%B8%8D%E5%90%8C%E6%99%82%E9%96%93%E9%BB%9E">第二節</a>】</p>
+<p><strong>核心關鍵</strong>（答到這幾點就算對）：</p>
+<ol>
+<li>多出來的是：<strong>間接依賴</strong>（最大宗）、<code>linux-vdso.so.1</code>、<strong>動態載入器本身</strong>。</li>
+<li><code>objdump -p</code> 只讀<strong>連結時</strong>寫進 <code>curl</code> 的需求單（只有直接依賴）；完整清單是<strong>執行時</strong>載入器一路追出來的，<code>ldd</code> 是請載入器實際跑一次。</li>
+</ol>
+<p><strong>詳細說明</strong>：例如 <code>libssl.so.3</code> 是 <code>libcurl.so.4</code> 要的，不是 <code>curl</code> 自己要的，所以不在 <code>curl</code> 的 <code>NEEDED</code> 裡。<code>linux-vdso.so.1</code> 是核心直接映射進每個行程的虛擬函式庫，磁碟上沒有這個檔案。動態載入器寫在 <code>INTERP</code>，不在 <code>NEEDED</code>。</p>
+</blockquote>
+<hr />
+<h2 id="hellohelloc怎麼變成能跑的程式-編譯的四個階段">hello：<a href="../c/hello.c%E6%80%8E%E9%BA%BC%E8%AE%8A%E6%88%90%E8%83%BD%E8%B7%91%E7%9A%84%E7%A8%8B%E5%BC%8F-%E7%B7%A8%E8%AD%AF%E7%9A%84%E5%9B%9B%E5%80%8B%E9%9A%8E%E6%AE%B5.html">hello.c怎麼變成能跑的程式-編譯的四個階段</a></h2>
+<h3 id="hello-5-情境題你把一支動態連結的程式複製到另一台機器執行時出現找不到-libcso6-某個版本符號的錯誤從本課的哪個階段可以解釋這件事如果改用--static-編譯這個問題還會發生嗎">hello 5. 情境題：你把一支動態連結的程式複製到另一台機器，執行時出現找不到 <code>libc.so.6</code> 某個版本符號的錯誤。從本課的哪個階段可以解釋這件事？如果改用 <code>-static</code> 編譯，這個問題還會發生嗎？</h3>
+<blockquote>
+<p>盒子 1｜過去的作答：<a href="../small-project/s1-01-hello-compile/quiz.html#5-%E6%83%85%E5%A2%83%E9%A1%8C%E4%BD%A0%E6%8A%8A%E4%B8%80%E6%94%AF%E5%8B%95%E6%85%8B%E9%80%A3%E7%B5%90%E7%9A%84%E7%A8%8B%E5%BC%8F%E8%A4%87%E8%A3%BD%E5%88%B0%E5%8F%A6%E4%B8%80%E5%8F%B0%E6%A9%9F%E5%99%A8%E5%9F%B7%E8%A1%8C%E6%99%82%E5%87%BA%E7%8F%BE%E6%89%BE%E4%B8%8D%E5%88%B0-libcso6-%E6%9F%90%E5%80%8B%E7%89%88%E6%9C%AC%E7%AC%A6%E8%99%9F%E7%9A%84%E9%8C%AF%E8%AA%A4%E5%BE%9E%E6%9C%AC%E8%AA%B2%E7%9A%84%E5%93%AA%E5%80%8B%E9%9A%8E%E6%AE%B5%E5%8F%AF%E4%BB%A5%E8%A7%A3%E9%87%8B%E9%80%99%E4%BB%B6%E4%BA%8B%E5%A6%82%E6%9E%9C%E6%94%B9%E7%94%A8--static-%E7%B7%A8%E8%AD%AF%E9%80%99%E5%80%8B%E5%95%8F%E9%A1%8C%E9%82%84%E6%9C%83%E7%99%BC%E7%94%9F%E5%97%8E">s1-01 quiz.md 第 5 題</a>、<a href="2026-10-04-%E5%AD%97%E5%85%83-C%E8%B3%87%E6%96%99-objdump-hello-ELF.html">10-04 複習</a></p>
+</blockquote>
+<pre><code>執行時,kernel 會先去 載入interpreter, interpreter在根據dynamic section 的需求單needed載入需要載入的庫 與確認對應的版本信息
+,如果這個時候本地電腦不支持對應版本的庫,就會噴錯
+
+不會 因爲static在ld連接階段就會把那個版本庫的程式碼直接補上 .text的洞
+</code></pre>
+<blockquote>
+<p><strong>批改</strong>：<strong>大致對</strong>（盒子 1 → 1）。核心對：<strong>執行時</strong>由 kernel 先載入 interpreter，再由 interpreter 照需求單載入函式庫、檢查版本，本機的 <code>libc.so.6</code> 沒有那個版本就報錯。<code>-static</code> 不會發生，也對。缺的跟 10-04 一樣：「要哪個版本」是<strong>連結時</strong> <code>ld</code> 寫進執行檔的（<code>readelf -V</code> 看得到 <code>GLIBC_2.34</code>），完整的說法是「連結時記下要求、執行時才被檢查」。另外，<code>-static</code> 不是「補上 <code>.text</code> 的洞」，而是把 libc 的程式碼<strong>整份複製進執行檔</strong>，執行時根本不需要外部的 <code>libc.so.6</code>。</p>
+<p><strong>參考答案</strong>【<a href="../c/hello.c%E6%80%8E%E9%BA%BC%E8%AE%8A%E6%88%90%E8%83%BD%E8%B7%91%E7%9A%84%E7%A8%8B%E5%BC%8F-%E7%B7%A8%E8%AD%AF%E7%9A%84%E5%9B%9B%E5%80%8B%E9%9A%8E%E6%AE%B5.html#%E4%B9%9D%E4%BD%9C%E6%A5%AD%E8%A7%A3%E8%AA%AA%E5%9B%9B%E9%A1%8C%E8%83%8C%E5%BE%8C%E7%9A%84%E5%8E%9F%E5%9B%A0">第九節</a>〈自我測驗第 5 題延伸：「找不到版本符號」是怎麼回事〉】</p>
+<p><strong>核心關鍵</strong>（答到這幾點就算對）：</p>
+<ol>
+<li><strong>連結時</strong>：<code>ld</code> 把需要的符號版本（例如 <code>GLIBC_2.34</code>）寫進執行檔。</li>
+<li><strong>執行時</strong>：動態載入器檢查目標機器的 <code>libc.so.6</code> 有沒有提供這個版本，沒有就報 <code>version `GLIBC_2.34' not found</code>。</li>
+<li><code>-static</code> 不會發生：libc 的程式碼已經整份複製進執行檔，不再找外部的 <code>libc.so.6</code>。</li>
+</ol>
+<p><strong>詳細說明</strong>：一句話：「連結時記下要求、執行時才被檢查」。<code>readelf -V hello</code> 看得到版本需求；本機的真正門檻是 2.34（<code>__libc_start_main</code>），不是 <code>puts</code> 的 2.2.5。<code>-static</code> 的代價是檔案大，而且 libc 的安全修補要重新編譯才會帶進去。</p>
+</blockquote>
+<hr />
+<h2 id="elfelf是什麼-可執行與可連結格式的兩種視角">ELF：<a href="../c/ELF%E6%98%AF%E4%BB%80%E9%BA%BC-%E5%8F%AF%E5%9F%B7%E8%A1%8C%E8%88%87%E5%8F%AF%E9%80%A3%E7%B5%90%E6%A0%BC%E5%BC%8F%E7%9A%84%E5%85%A9%E7%A8%AE%E8%A6%96%E8%A7%92.html">ELF是什麼-可執行與可連結格式的兩種視角</a></h2>
+<h3 id="elf-3-本機一般-gcc-編出的執行檔type-為什麼是-dyn跟-libcso6-同一類而靜態版是-exec">ELF 3. 本機一般 <code>gcc</code> 編出的執行檔，<code>Type</code> 為什麼是 DYN，跟 <code>libc.so.6</code> 同一類，而靜態版是 EXEC？</h3>
+<blockquote>
+<p>盒子 1｜過去的作答：<a href="../small-project/s1-01-hello-compile/quiz.html#3-%E6%9C%AC%E6%A9%9F%E4%B8%80%E8%88%AC-gcc-%E7%B7%A8%E5%87%BA%E7%9A%84%E5%9F%B7%E8%A1%8C%E6%AA%94type-%E7%82%BA%E4%BB%80%E9%BA%BC%E6%98%AF-dyn%E8%B7%9F-libcso6-%E5%90%8C%E4%B8%80%E9%A1%9E%E8%80%8C%E9%9D%9C%E6%85%8B%E7%89%88%E6%98%AF-exec">s1-01 quiz.md 第 3 題</a>、<a href="2026-10-04-%E5%AD%97%E5%85%83-C%E8%B3%87%E6%96%99-objdump-hello-ELF.html">10-04 複習</a></p>
+</blockquote>
+<pre><code>因爲動態編譯的,所有元素的內存分配是相對位址,也就是virtual address,而執行的時候 才會真的分配實際在記憶體的位址(相對位置不變)
+
+靜態版本是編譯完成後已經分配好記憶體的絕對位址了
+</code></pre>
+<blockquote>
+<p><strong>批改</strong>：<strong>不完整</strong>（盒子 1 → 1）。「執行時才決定實際位址」碰到了邊，但缺了兩個關鍵：</p>
+<ul>
+<li>名字是 <strong>PIE</strong>（位置無關執行檔），每次執行被放在隨機位址（ASLR），跟共享函式庫「可以放在任意位址」的性質相同，所以同屬 DYN。</li>
+<li>「因為是動態編譯的」<strong>跟 10-04 錯在同一處</strong>：<code>Type</code> 看的是「是不是 PIE」，<strong>跟有沒有動態連結無關</strong>。兩個反例：<code>-no-pie</code> 照樣動態連結，<code>Type</code> 卻是 EXEC；<code>-static-pie</code> 是靜態連結，<code>Type</code> 卻是 DYN。</li>
+</ul>
+<p>靜態版「位址在連結時就固定了」這部分<strong>對</strong>。</p>
+<p><strong>參考答案</strong>【<a href="../c/ELF%E6%98%AF%E4%BB%80%E9%BA%BC-%E5%8F%AF%E5%9F%B7%E8%A1%8C%E8%88%87%E5%8F%AF%E9%80%A3%E7%B5%90%E6%A0%BC%E5%BC%8F%E7%9A%84%E5%85%A9%E7%A8%AE%E8%A6%96%E8%A7%92.html#%E4%B8%89%E4%B8%80%E7%A8%AE%E6%A0%BC%E5%BC%8F%E5%9B%9B%E7%A8%AE%E6%AA%94%E6%A1%88">第三節</a>〈DYN／EXEC 跟「有沒有動態連結」無關：兩個反例〉】</p>
+<p><strong>核心關鍵</strong>（答到這幾點就算對）：</p>
+<ol>
+<li>本機 gcc 預設產生 <strong>PIE</strong>（位置無關執行檔），每次執行被放在隨機位址（ASLR），跟共享函式庫一樣「可以放在任意位址」，所以是 DYN。</li>
+<li><code>-static</code> 版是傳統的<strong>固定位址</strong>執行檔，所以是 EXEC。</li>
+</ol>
+<p><strong>詳細說明</strong>：<code>Type</code> 只看「是不是 PIE」，<strong>跟有沒有動態連結無關</strong>，兩個反例：<code>-no-pie</code> 照樣動態連結，<code>Type</code> 卻是 EXEC；<code>-static-pie</code> 是靜態連結，<code>Type</code> 卻是 DYN。所以「因為是動態編譯的」不是原因。</p>
+</blockquote>
+<h3 id="elf-4-區段section和載入段segment差在哪為什麼核心載入時要把很多區段打包成少數幾個載入段">ELF 4. 區段（section）和載入段（segment）差在哪？為什麼核心載入時要把很多區段打包成少數幾個載入段？</h3>
+<blockquote>
+<p>盒子 1｜過去的作答：<a href="../small-project/s1-01-hello-compile/quiz.html#4-%E5%8D%80%E6%AE%B5section%E5%92%8C%E8%BC%89%E5%85%A5%E6%AE%B5segment%E5%B7%AE%E5%9C%A8%E5%93%AA%E7%82%BA%E4%BB%80%E9%BA%BC%E6%A0%B8%E5%BF%83%E8%BC%89%E5%85%A5%E6%99%82%E8%A6%81%E6%8A%8A%E5%BE%88%E5%A4%9A%E5%8D%80%E6%AE%B5%E6%89%93%E5%8C%85%E6%88%90%E5%B0%91%E6%95%B8%E5%B9%BE%E5%80%8B%E8%BC%89%E5%85%A5%E6%AE%B5">s1-01 quiz.md 第 4 題</a>、<a href="2026-10-04-%E5%AD%97%E5%85%83-C%E8%B3%87%E6%96%99-objdump-hello-ELF.html">10-04 複習</a></p>
+</blockquote>
+<pre><code>section 是給連接器ld看的, 連接器根據section給的每個元素的權限 合併成同權限的分頁
+segment是給 interpreter看的,根據segment的分頁實際把各分頁的資料實際分配到真實的記憶體位址
+
+因爲記憶體位址分頁的規則需要依據權限分,同一個記憶體位址不能同時有兩種權限例如不能同時是 r_xp, 與 rwxp
+</code></pre>
+<blockquote>
+<p><strong>批改</strong>：<strong>對</strong>（改判，盒子 1 → 2；原判大致對，2026-10-08 改用「答到核心關鍵就算對」的標準後改判）。比 10-04 進步：這次講出了「權限以分頁為單位，同一頁不能有兩種權限」。兩處要修：以下兩點是細節，不影響對錯：</p>
+<ul>
+<li>載入段主要是給 <strong>kernel</strong> 看的（<code>execve</code> 時照 <code>LOAD</code> 把執行檔映射進記憶體），動態載入器則用它來載入函式庫。只寫「給 interpreter 看」少了 kernel。</li>
+<li>「<code>ld</code> 把同權限的區段合併成<strong>分頁</strong>」不精確：合併成的是<strong>載入段</strong>，載入段再依分頁對齊。</li>
+</ul>
+<p><strong>參考答案</strong>【<a href="../c/ELF%E6%98%AF%E4%BB%80%E9%BA%BC-%E5%8F%AF%E5%9F%B7%E8%A1%8C%E8%88%87%E5%8F%AF%E9%80%A3%E7%B5%90%E6%A0%BC%E5%BC%8F%E7%9A%84%E5%85%A9%E7%A8%AE%E8%A6%96%E8%A7%92.html#%E5%9B%9B%E5%90%8D%E5%AD%97%E7%9A%84%E9%97%9C%E9%8D%B5%E5%85%A9%E7%A8%AE%E8%A6%96%E8%A7%92">第四節</a>】</p>
+<p><strong>核心關鍵</strong>（答到這幾點就算對）：</p>
+<ol>
+<li>區段（section）是<strong>連結視角</strong>，給 <code>ld</code>、<code>nm</code>、<code>objdump</code> 用，切得很細。</li>
+<li>載入段（segment）是<strong>執行視角</strong>，給<strong>核心與動態載入器</strong>載入時用，描述哪一塊放進記憶體、權限是什麼。</li>
+<li>記憶體權限<strong>最小以分頁為單位</strong>設定，同一頁不能有兩種權限，所以把權限相同的區段打包成少數幾個載入段。</li>
+</ol>
+<p><strong>詳細說明</strong>：<code>hello</code> 有 31 個區段，卻只有 4 個 <code>LOAD</code> 載入段。<code>execve</code> 時是核心照執行檔的 <code>LOAD</code> 把它映射進記憶體；動態載入器則用同樣的方式載入各個函式庫。打包完，核心只要做幾次映射、每塊設一種權限。合併成的是<strong>載入段</strong>，載入段再依分頁（4096 byte）對齊。</p>
+</blockquote>
+<hr />
+<h2 id="陣列陣列字串與指標運算-c不檢查邊界與用gdb找segfault">陣列：<a href="../c/%E9%99%A3%E5%88%97%E3%80%81%E5%AD%97%E4%B8%B2%E8%88%87%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97-C%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%88%87%E7%94%A8gdb%E6%89%BEsegfault.html">陣列、字串與指標運算-C不檢查邊界與用gdb找segfault</a></h2>
+<h3 id="陣列-1-指標的型別與指標運算">陣列 1. 指標的型別與指標運算</h3>
+<h4 id="陣列-1-1-int-p-和-unsigned-char-c-存著同一個位址為什麼-p--1-和-c--1-不一樣">陣列 1-1. <code>int *p</code> 和 <code>unsigned char *c</code> 存著同一個位址，為什麼 <code>p + 1</code> 和 <code>c + 1</code> 不一樣？</h4>
+<blockquote>
+<p>盒子 1｜過去的作答：<a href="../small-project/s1-03-arrays-pointers/quiz.html#1-1-int-p-%E5%92%8C-unsigned-char-c-%E5%AD%98%E8%91%97%E5%90%8C%E4%B8%80%E5%80%8B%E4%BD%8D%E5%9D%80%E7%82%BA%E4%BB%80%E9%BA%BC-p--1-%E5%92%8C-c--1-%E4%B8%8D%E4%B8%80%E6%A8%A3">s1-03 quiz.md 1-1</a></p>
+</blockquote>
+<pre><code>因爲 p 是int類型的指標, +1 是位移 4個byte
+而c是char指標, +1 是位移一個byte
+</code></pre>
+<blockquote>
+<p><strong>批改</strong>：<strong>對</strong>。<code>int *</code> 的 <code>+ 1</code> 走 4 byte，<code>unsigned char *</code> 走 1 byte。完整的規則是走 <code>n × sizeof(T)</code>；位址本身一樣，差別在用什麼型別去看它。</p>
+</blockquote>
+<h4 id="陣列-1-2-p3-在-c-標準裡是怎麼定義的">陣列 1-2. <code>p[3]</code> 在 C 標準裡是怎麼定義的？</h4>
+<blockquote>
+<p>過去的作答：<a href="../small-project/s1-03-arrays-pointers/quiz.html#1-2-p3-%E5%9C%A8-c-%E6%A8%99%E6%BA%96%E8%A3%A1%E6%98%AF%E6%80%8E%E9%BA%BC%E5%AE%9A%E7%BE%A9%E7%9A%84">s1-03 quiz.md 1-2</a></p>
+</blockquote>
+<pre><code>p + 3
+</code></pre>
+<blockquote>
+<p><strong>批改</strong>：<strong>不完整</strong>。少了取值的 <code>*</code>：<code>p + 3</code> 是<strong>位址</strong>（指標），<code>p[3]</code> 是那個位址上的<strong>值</strong>。定義是 <code>p[3]</code> ≡ <strong><code>*(p + 3)</code></strong>。</p>
+</blockquote>
+<h4 id="陣列-1-3-為什麼-3p-也能編譯而且值跟-p3-一樣">陣列 1-3. 為什麼 <code>3[p]</code> 也能編譯，而且值跟 <code>p[3]</code> 一樣？</h4>
+<blockquote>
+<p>過去的作答：<a href="../small-project/s1-03-arrays-pointers/quiz.html#1-3-%E7%82%BA%E4%BB%80%E9%BA%BC-3p-%E4%B9%9F%E8%83%BD%E7%B7%A8%E8%AD%AF%E8%80%8C%E4%B8%94%E5%80%BC%E8%B7%9F-p3-%E4%B8%80%E6%A8%A3">s1-03 quiz.md 1-3</a></p>
+</blockquote>
+<pre><code>因爲[是加的寫法, 3[p] = 3 + p = p + 3 = p[3]
+</code></pre>
+<blockquote>
+<p><strong>批改</strong>：<strong>大致對</strong>。「加法可以交換」是重點，但同樣少了 <code>*</code>：<code>3[p]</code> ≡ <code>*(3 + p)</code> ≡ <code>*(p + 3)</code> ≡ <code>p[3]</code>。整題取最差的小題，<strong>陣列 1 記為不完整</strong>（盒子 1 → 1）。</p>
+<p><strong>參考答案</strong>【<a href="../c/%E9%99%A3%E5%88%97%E3%80%81%E5%AD%97%E4%B8%B2%E8%88%87%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97-C%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%88%87%E7%94%A8gdb%E6%89%BEsegfault.html#%E4%BA%8C%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97p--1-%E8%B5%B0%E4%B8%80%E5%80%8B%E5%85%83%E7%B4%A0%E4%B8%8D%E6%98%AF%E4%B8%80%E5%80%8B-byte">第二節</a>〈<code>p[i]</code> 就是 <code>*(p + i)</code>〉】</p>
+<p><strong>核心關鍵</strong>（答到這幾點就算對）：</p>
+<ol>
+<li>1-1：<code>T *p</code> 的 <code>p + n</code> 走 <code>n × sizeof(T)</code> byte：<code>int *</code> 走 4，<code>unsigned char *</code> 走 1。</li>
+<li>1-2：<code>p[3]</code> 的定義是 <strong><code>*(p + 3)</code></strong>（往後走 3 個元素，再取值）。</li>
+<li>1-3：<code>3[p]</code> ＝ <code>*(3 + p)</code>，加法可以交換，所以等於 <code>*(p + 3)</code> ＝ <code>p[3]</code>。</li>
+</ol>
+<p><strong>詳細說明</strong>：位址本身一樣，差在用什麼型別看它。C 標準把下標定義成 <code>E1[E2]</code> ≡ <code>*((E1) + (E2))</code>；<code>p + 3</code> 只是位址，要加 <code>*</code> 才是那個位址上的值。<code>3[p]</code> 能編譯，證明 <code>[]</code> 只是「指標加法再取值」的縮寫。</p>
+</blockquote>
+<h3 id="陣列-4-越界的三種下場">陣列 4. 越界的三種下場</h3>
+<h4 id="陣列-4-1-越界存取有三種下場安靜出錯stack-smashing-detectedsegfault分別是什麼決定會落到哪一種">陣列 4-1. 越界存取有三種下場：安靜出錯、<code>stack smashing detected</code>、segfault。分別是什麼決定會落到哪一種？</h4>
+<blockquote>
+<p>盒子 1｜過去的作答：<a href="../small-project/s1-03-arrays-pointers/quiz.html#4-1-%E8%B6%8A%E7%95%8C%E5%AD%98%E5%8F%96%E6%9C%89%E4%B8%89%E7%A8%AE%E4%B8%8B%E5%A0%B4%E5%AE%89%E9%9D%9C%E5%87%BA%E9%8C%AFstack-smashing-detectedsegfault%E5%88%86%E5%88%A5%E6%98%AF%E4%BB%80%E9%BA%BC%E6%B1%BA%E5%AE%9A%E6%9C%83%E8%90%BD%E5%88%B0%E5%93%AA%E4%B8%80%E7%A8%AE">s1-03 quiz.md 4-1</a></p>
+</blockquote>
+<pre><code>安靜出錯: 程式執行的時候 指標讀取的還是在相同的權限分頁, 或者還沒有觸碰到金絲雀標籤的那個記憶體位址,這個時候執行不會有問題
+
+stack smashing detected: 當你指標存取到金絲雀的標籤的時候就會噴出這個錯誤,但還沒存取到沒有權限的分頁,這個是gcc噴的錯誤
+
+segfault: 存取到了沒有權限的分頁,這個是kernel會噴的
+</code></pre>
+<blockquote>
+<p><strong>批改</strong>：<strong>大致對</strong>。三種的分界都對：位址還在可存取的記憶體 → 安靜出錯；改到金絲雀 → <code>stack smashing detected</code>；分頁沒有對映或權限不允許 → segfault（kernel 送 <code>SIGSEGV</code>）。兩處要修：</p>
+<ul>
+<li>金絲雀是被越界<strong>寫入</strong>改掉的，而且<strong>函式返回前</strong>才檢查，所以發現得比犯錯晚。只讀不寫的話，金絲雀不會被改到。</li>
+<li>噴錯的不是 gcc 本身：gcc 在編譯時<strong>插入</strong>檢查碼，錯誤是程式執行時由那段檢查碼（呼叫 glibc 的 <code>__stack_chk_fail</code>）報出來的。</li>
+</ul>
+</blockquote>
+<h4 id="陣列-4-2-為什麼程式沒當掉不能證明沒有越界">陣列 4-2. 為什麼「程式沒當掉」不能證明沒有越界？</h4>
+<blockquote>
+<p>過去的作答：<a href="../small-project/s1-03-arrays-pointers/quiz.html#4-2-%E7%82%BA%E4%BB%80%E9%BA%BC%E7%A8%8B%E5%BC%8F%E6%B2%92%E7%95%B6%E6%8E%89%E4%B8%8D%E8%83%BD%E8%AD%89%E6%98%8E%E6%B2%92%E6%9C%89%E8%B6%8A%E7%95%8C">s1-03 quiz.md 4-2</a></p>
+</blockquote>
+<pre><code>程式執行的時候 指標讀取的還是在相同的權限分頁, 或者還沒有觸碰到金絲雀標籤的那個記憶體位址,這個時候執行不會有問題
+kernel沒辦法抓到越界,gcc也沒辦法
+</code></pre>
+<blockquote>
+<p><strong>批改</strong>：<strong>大致對</strong>。「落在還能存取的記憶體時，kernel 和金絲雀都抓不到」對。缺了後果和根本原因：越界是<strong>未定義行為</strong>、C 不檢查邊界。這時程式會讀到垃圾、或寫壞別人的資料，照常結束（<code>oob.c</code> 的結束狀態是 0），錯誤可能很久以後才在別處出現。
+<strong>陣列 4 記為大致對</strong>（盒子 1 → 1）。</p>
+<p><strong>參考答案</strong>【<a href="../c/%E9%99%A3%E5%88%97%E3%80%81%E5%AD%97%E4%B8%B2%E8%88%87%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97-C%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%88%87%E7%94%A8gdb%E6%89%BEsegfault.html#%E4%BA%94c-%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%B6%8A%E7%95%8C%E7%9A%84%E4%B8%89%E7%A8%AE%E4%B8%8B%E5%A0%B4">第五節</a>開頭的表格、〈下場一：安靜地出錯〉、〈下場二：被堆疊保護抓到〉】</p>
+<p><strong>核心關鍵</strong>（答到這幾點就算對）：</p>
+<ol>
+<li>4-1：位址還在可存取的記憶體 → <strong>安靜出錯</strong>；越界<strong>寫入</strong>改掉金絲雀、函式返回前檢查 → <strong><code>stack smashing detected</code></strong>；分頁<strong>沒有對映或權限不允許</strong> → <strong>segfault</strong>。</li>
+<li>4-2：C 不檢查邊界（越界是未定義行為），落在還能存取的記憶體時沒有任何機制會報錯。</li>
+</ol>
+<p><strong>詳細說明</strong>：金絲雀是 gcc 放在區域陣列後面的檢查值，返回前才檢查，所以發現得比犯錯晚；只讀不寫不會改到它。報錯的是 gcc 插入的檢查碼（呼叫 glibc 的 <code>__stack_chk_fail</code>），segfault 則是核心送出的 <code>SIGSEGV</code>。「沒當掉」的時候，程式可能讀到垃圾、寫壞別人的資料，照常結束（<code>oob.c</code> 結束狀態 0），錯誤很久以後才在別處出現。</p>
+</blockquote>
+
+</main>
+</div>
+</body>
+</html>

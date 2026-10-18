@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>s1-05 自我測驗作答</title>
+<link rel="stylesheet" href="../../assets/style.css">
+<script src="../../assets/app.js"></script>
+</head>
+<body>
+<button class="menu-btn" onclick="toggleMenu()">☰ 目錄</button>
+<div class="layout">
+<nav class="side">
+<div class="crumbs"><a href="../../index.html">🏠 首頁</a> / <a href="../README.html">small-project</a> / <a href="README.html">s1-05-asm-calls</a></div>
+<div class="tools"><button onclick="toggleTheme()">🌓 主題</button></div>
+<ul>
+<li class="l2"><a href="#%E7%9B%AE%E9%8C%84">目錄</a></li>
+<li class="l2"><a href="#%E6%9C%AA%E7%AD%94%E7%AC%AC-5-%E8%AA%B2%E8%AE%80%E6%87%82-x86-64-%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E4%BA%8C">未答：第 5 課：讀懂 x86-64 組合語言（二）</a></li>
+<li class="l3"><a href="#1-call-%E8%88%87-ret">1. call 與 ret</a></li>
+<li class="l3"><a href="#2-%E5%A0%86%E7%96%8A%E6%A1%86">2. 堆疊框</a></li>
+<li class="l3"><a href="#3-8-%E5%80%8B%E5%8F%83%E6%95%B8">3. 8 個參數</a></li>
+<li class="l3"><a href="#4-callee-saved-%E8%88%87%E5%B0%8D%E9%BD%8A">4. callee-saved 與對齊</a></li>
+<li class="l3"><a href="#5-%E6%83%85%E5%A2%83%E9%A1%8C%E5%81%9C%E5%9C%A8%E5%87%BD%E5%BC%8F%E7%9A%84%E7%AC%AC%E4%B8%80%E6%A2%9D%E6%8C%87%E4%BB%A4">5. 情境題：停在函式的第一條指令</a></li>
+</ul>
+</nav>
+<main>
+<h1 id="s1-05-自我測驗作答">s1-05 自我測驗作答</h1>
+<blockquote>
+<p>第 ① 站第 5 課的自我測驗寫在這裡。題目從筆記複製過來；批改完後，最新版的參考答案也寫在筆記每題下面。</p>
+<p><strong>怎麼寫</strong>：直接在每題下面的空白區塊裡作答，<strong>闔上筆記、用自己的話</strong>（把 <code>YYYY-MM-DD</code> 換成作答日期）。寫完跟 Claude 說「幫我批改」。批改與參考答案會寫在你的答案下方，<strong>不重答</strong>：答錯或不完整也直接附參考答案，沒弄懂的交給間隔複習再考。</p>
+<p><strong>複習</strong>：間隔複習的作答寫在 repo 根目錄的 <a href="../../review/README.html"><code>review/</code></a>（每天一個檔），排程見 <a href="../../../learning/%E8%A4%87%E7%BF%92%E6%8E%92%E7%A8%8B.md">複習排程</a>。本檔只放第一次作答。</p>
+</blockquote>
+<h2 id="目錄">目錄</h2>
+<table>
+<thead>
+<tr>
+<th>測驗</th>
+<th>對應筆記</th>
+<th>狀態</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="#%E6%9C%AA%E7%AD%94%E7%AC%AC-5-%E8%AA%B2%E8%AE%80%E6%87%82-x86-64-%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E4%BA%8C">第 5 課：讀懂 x86-64 組合語言（二）</a></td>
+<td><a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80%E4%BA%8C-call%E8%88%87ret%E3%80%81%E5%A0%86%E7%96%8A%E6%A1%86%E3%80%81%E5%8F%83%E6%95%B8%E8%88%87%E5%91%BC%E5%8F%AB%E6%85%A3%E4%BE%8B.html">x86-64組合語言入門二-call與ret、堆疊框、參數與呼叫慣例</a></td>
+<td>未答</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="未答第-5-課讀懂-x86-64-組合語言二">未答：第 5 課：讀懂 x86-64 組合語言（二）</h2>
+<blockquote>
+<p>題目來自 <a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80%E4%BA%8C-call%E8%88%87ret%E3%80%81%E5%A0%86%E7%96%8A%E6%A1%86%E3%80%81%E5%8F%83%E6%95%B8%E8%88%87%E5%91%BC%E5%8F%AB%E6%85%A3%E4%BE%8B.html">x86-64組合語言入門二-call與ret、堆疊框、參數與呼叫慣例.html</a>。每題拆成小題（<code>N-M</code>），每個小題各有一個作答框；題目用到的程式碼附在每個大題的開頭。</p>
+</blockquote>
+<h3 id="1-call-與-ret">1. <code>call</code> 與 <code>ret</code></h3>
+<p><code>frame.c</code> 的 <code>main</code> 裡有 <code>call 1149 &lt;add3&gt;</code>（位址 <code>0x1194</code>），下一條指令在 <code>0x1199</code>；<code>add3</code> 最後一條是 <code>ret</code>。</p>
+<pre><code class="language-asm"><span class="c1"># main</span>
+<span class="err">1194:</span><span class="w">	</span><span class="nf">call</span><span class="w">   </span><span class="mh">1149</span> <span class="p">&lt;</span><span class="no">add3</span><span class="p">&gt;</span>
+<span class="err">1199:</span><span class="w">	</span><span class="nf">mov</span><span class="w">    </span><span class="nv">%rax</span><span class="p">,-</span><span class="mi">0x8</span><span class="p">(</span><span class="nv">%rbp</span><span class="p">)</span>
+<span class="c1"># add3 的最後</span>
+<span class="err">1177:</span><span class="w">	</span><span class="nf">pop</span><span class="w">    </span><span class="nv">%rbp</span>
+<span class="err">1178:</span><span class="w">	</span><span class="nf">ret</span>
+</code></pre>
+<h4 id="1-1-call-做了哪兩件事">1-1. <code>call</code> 做了哪兩件事？</h4>
+<p><strong>第 1 次（YYYY-MM-DD）</strong></p>
+<div class="answer-box" data-file="small-project/s1-05-asm-calls/quiz.md" data-line="38"><textarea spellcheck="false" placeholder="在這裡作答">
+</textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<h4 id="1-2-ret-做了什麼">1-2. <code>ret</code> 做了什麼？</h4>
+<p><strong>第 1 次（YYYY-MM-DD）</strong></p>
+<div class="answer-box" data-file="small-project/s1-05-asm-calls/quiz.md" data-line="45"><textarea spellcheck="false" placeholder="在這裡作答">
+</textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<h4 id="1-3-ret-怎麼知道要回到-0x1199">1-3. <code>ret</code> 怎麼知道要回到 <code>0x1199</code>？</h4>
+<p><strong>第 1 次（YYYY-MM-DD）</strong></p>
+<div class="answer-box" data-file="small-project/s1-05-asm-calls/quiz.md" data-line="52"><textarea spellcheck="false" placeholder="在這裡作答">
+</textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<h4 id="1-4-如果-add3-裡有個陣列越界寫入剛好蓋掉了堆疊上的返回位址ret-會發生什麼事">1-4. 如果 <code>add3</code> 裡有個陣列越界寫入，剛好蓋掉了堆疊上的返回位址，<code>ret</code> 會發生什麼事？</h4>
+<p><strong>第 1 次（YYYY-MM-DD）</strong></p>
+<div class="answer-box" data-file="small-project/s1-05-asm-calls/quiz.md" data-line="59"><textarea spellcheck="false" placeholder="在這裡作答">
+</textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<hr />
+<h3 id="2-堆疊框">2. 堆疊框</h3>
+<pre><code class="language-asm"><span class="nl">add3:</span><span class="w">                                 </span><span class="nl">main:</span>
+<span class="w">  </span><span class="nf">push</span><span class="w">   </span><span class="nv">%rbp</span><span class="w">                           </span><span class="no">push</span><span class="w">   </span><span class="nv">%rbp</span>
+<span class="w">  </span><span class="nf">mov</span><span class="w">    </span><span class="nv">%rsp</span><span class="p">,</span><span class="nv">%rbp</span><span class="w">                      </span><span class="no">mov</span><span class="w">    </span><span class="nv">%rsp</span><span class="p">,</span><span class="nv">%rbp</span>
+<span class="w">  </span><span class="nf">mov</span><span class="w">    </span><span class="nv">%rdi</span><span class="p">,-</span><span class="mi">0x18</span><span class="p">(</span><span class="nv">%rbp</span><span class="p">)</span><span class="w">               </span><span class="no">sub</span><span class="w">    </span><span class="no">$0x10</span><span class="p">,</span><span class="nv">%rsp</span>
+<span class="w">  </span><span class="na">...</span><span class="err">（沒有</span><span class="w"> </span><span class="no">sub</span><span class="err">、沒有</span><span class="w"> </span><span class="no">call</span><span class="err">）</span><span class="w">              </span><span class="no">...</span><span class="err">（有</span><span class="w"> </span><span class="no">call</span><span class="w"> </span><span class="no">add3</span><span class="err">、</span><span class="no">call</span><span class="w"> </span><span class="no">printf</span><span class="err">）</span>
+<span class="w">  </span><span class="nf">pop</span><span class="w">    </span><span class="nv">%rbp</span><span class="w">                           </span><span class="no">leave</span>
+<span class="w">  </span><span class="nf">ret</span><span class="w">                                   </span><span class="no">ret</span>
+</code></pre>
+<h4 id="2-1-函式開頭的-push-rbp-和-mov-rsprbp-各在做什麼">2-1. 函式開頭的 <code>push %rbp</code> 和 <code>mov %rsp,%rbp</code> 各在做什麼？</h4>
+<p><strong>第 1 次（YYYY-MM-DD）</strong></p>
+<div class="answer-box" data-file="small-project/s1-05-asm-calls/quiz.md" data-line="80"><textarea spellcheck="false" placeholder="在這裡作答">
+</textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<h4 id="2-2-main-結尾的-leave-等於哪兩條指令">2-2. <code>main</code> 結尾的 <code>leave</code> 等於哪兩條指令？</h4>
+<p><strong>第 1 次（YYYY-MM-DD）</strong></p>
+<div class="answer-box" data-file="small-project/s1-05-asm-calls/quiz.md" data-line="87"><textarea spellcheck="false" placeholder="在這裡作答">
+</textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<h4 id="2-3-add3-把區域變數放在-rsp-下面沒有-sub-rspmain-卻要-sub-0x10rsp為什麼">2-3. <code>add3</code> 把區域變數放在 <code>%rsp</code> 下面、沒有 <code>sub %rsp</code>，<code>main</code> 卻要 <code>sub $0x10,%rsp</code>，為什麼？</h4>
+<p><strong>第 1 次（YYYY-MM-DD）</strong></p>
+<div class="answer-box" data-file="small-project/s1-05-asm-calls/quiz.md" data-line="94"><textarea spellcheck="false" placeholder="在這裡作答">
+</textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<hr />
+<h3 id="3-8-個參數">3. 8 個參數</h3>
+<p><code>args8.c</code> 的 <code>sum8</code> 有 8 個 <code>long</code> 參數。</p>
+<pre><code class="language-c"><span class="kt">long</span><span class="w"> </span><span class="nf">sum8</span><span class="p">(</span><span class="kt">long</span><span class="w"> </span><span class="n">a</span><span class="p">,</span><span class="w"> </span><span class="kt">long</span><span class="w"> </span><span class="n">b</span><span class="p">,</span><span class="w"> </span><span class="kt">long</span><span class="w"> </span><span class="n">c</span><span class="p">,</span><span class="w"> </span><span class="kt">long</span><span class="w"> </span><span class="n">d</span><span class="p">,</span><span class="w"> </span><span class="kt">long</span><span class="w"> </span><span class="n">e</span><span class="p">,</span><span class="w"> </span><span class="kt">long</span><span class="w"> </span><span class="n">f</span><span class="p">,</span><span class="w"> </span><span class="kt">long</span><span class="w"> </span><span class="n">g</span><span class="p">,</span><span class="w"> </span><span class="kt">long</span><span class="w"> </span><span class="n">h</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">b</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">c</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">d</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">e</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">f</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">g</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">h</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="kt">long</span><span class="w"> </span><span class="nf">call8</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">sum8</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="mi">3</span><span class="p">,</span><span class="w"> </span><span class="mi">4</span><span class="p">,</span><span class="w"> </span><span class="mi">5</span><span class="p">,</span><span class="w"> </span><span class="mi">6</span><span class="p">,</span><span class="w"> </span><span class="mi">7</span><span class="p">,</span><span class="w"> </span><span class="mi">8</span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre>
+<pre><code class="language-asm"><span class="nl">call8:</span><span class="w">                                </span><span class="nf">sum8</span><span class="w"> </span><span class="err">裡讀第</span><span class="w"> </span><span class="mi">7</span><span class="err">、</span><span class="mi">8</span><span class="w"> </span><span class="err">個參數：</span>
+<span class="w">  </span><span class="nf">push</span><span class="w">   </span><span class="nv">%rbp</span><span class="w">                           </span><span class="no">mov</span><span class="w">    </span><span class="mi">0x10</span><span class="p">(</span><span class="nv">%rbp</span><span class="p">),</span><span class="nv">%rax</span>
+<span class="w">  </span><span class="nf">mov</span><span class="w">    </span><span class="nv">%rsp</span><span class="p">,</span><span class="nv">%rbp</span><span class="w">                      </span><span class="no">...</span>
+<span class="w">  </span><span class="nf">push</span><span class="w">   </span><span class="no">$0x8</span><span class="w">                           </span><span class="no">mov</span><span class="w">    </span><span class="mi">0x18</span><span class="p">(</span><span class="nv">%rbp</span><span class="p">),</span><span class="nv">%rax</span>
+<span class="w">  </span><span class="nf">push</span><span class="w">   </span><span class="no">$0x7</span>
+<span class="w">  </span><span class="nf">mov</span><span class="w">    </span><span class="no">$0x6</span><span class="p">,</span><span class="nv">%r9d</span>
+<span class="w">  </span><span class="na">...</span><span class="err">（</span><span class="mi">5</span><span class="err">～</span><span class="mi">1</span><span class="w"> </span><span class="err">分別放進</span><span class="w"> </span><span class="nv">%r8d</span><span class="err">、</span><span class="nv">%ecx</span><span class="err">、</span><span class="nv">%edx</span><span class="err">、</span><span class="nv">%esi</span><span class="err">、</span><span class="nv">%edi</span><span class="err">）</span>
+<span class="w">  </span><span class="nf">call</span><span class="w">   </span><span class="no">sum8</span>
+<span class="w">  </span><span class="nf">add</span><span class="w">    </span><span class="no">$0x10</span><span class="p">,</span><span class="nv">%rsp</span>
+<span class="w">  </span><span class="nf">leave</span>
+<span class="w">  </span><span class="nf">ret</span>
+</code></pre>
+<h4 id="3-1-前-6-個參數放在哪裡">3-1. 前 6 個參數放在哪裡？</h4>
+<p><strong>第 1 次（YYYY-MM-DD）</strong></p>
+<div class="answer-box" data-file="small-project/s1-05-asm-calls/quiz.md" data-line="133"><textarea spellcheck="false" placeholder="在這裡作答">
+</textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<h4 id="3-2-第-78-個放在哪裡call8-用什麼順序放">3-2. 第 7、8 個放在哪裡、<code>call8</code> 用什麼順序放？</h4>
+<p><strong>第 1 次（YYYY-MM-DD）</strong></p>
+<div class="answer-box" data-file="small-project/s1-05-asm-calls/quiz.md" data-line="140"><textarea spellcheck="false" placeholder="在這裡作答">
+</textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<h4 id="3-3-在-sum8-裡第-7-個參數為什麼是-0x10rbp而不是-0rbp">3-3. 在 <code>sum8</code> 裡第 7 個參數為什麼是 <code>0x10(%rbp)</code>，而不是 <code>0(%rbp)</code>？</h4>
+<p><strong>第 1 次（YYYY-MM-DD）</strong></p>
+<div class="answer-box" data-file="small-project/s1-05-asm-calls/quiz.md" data-line="147"><textarea spellcheck="false" placeholder="在這裡作答">
+</textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<h4 id="3-4-call8-在-call-之後為什麼要-add-0x10rsp">3-4. <code>call8</code> 在 <code>call</code> 之後為什麼要 <code>add $0x10,%rsp</code>？</h4>
+<p><strong>第 1 次（YYYY-MM-DD）</strong></p>
+<div class="answer-box" data-file="small-project/s1-05-asm-calls/quiz.md" data-line="154"><textarea spellcheck="false" placeholder="在這裡作答">
+</textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<hr />
+<h3 id="4-callee-saved-與對齊">4. callee-saved 與對齊</h3>
+<p>下面兩個函式用 <code>-O2</code> 編譯（<code>g</code> 只有宣告）。</p>
+<pre><code class="language-c"><span class="cm">/* saved.c */</span><span class="w">                          </span><span class="cm">/* noret.c */</span>
+<span class="kt">long</span><span class="w"> </span><span class="nf">g</span><span class="p">(</span><span class="kt">long</span><span class="w"> </span><span class="n">x</span><span class="p">);</span><span class="w">                         </span><span class="kt">long</span><span class="w"> </span><span class="nf">g</span><span class="p">(</span><span class="kt">long</span><span class="w"> </span><span class="n">x</span><span class="p">);</span>
+
+<span class="kt">long</span><span class="w"> </span><span class="nf">f</span><span class="p">(</span><span class="kt">long</span><span class="w"> </span><span class="n">x</span><span class="p">)</span><span class="w">                          </span><span class="kt">long</span><span class="w"> </span><span class="n">f</span><span class="p">(</span><span class="kt">long</span><span class="w"> </span><span class="n">x</span><span class="p">)</span>
+<span class="p">{</span><span class="w">                                       </span><span class="p">{</span>
+<span class="w">    </span><span class="kt">long</span><span class="w"> </span><span class="n">y</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">g</span><span class="p">(</span><span class="n">x</span><span class="p">);</span><span class="w">                          </span><span class="kt">long</span><span class="w"> </span><span class="n">y</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">g</span><span class="p">(</span><span class="n">x</span><span class="p">);</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">y</span><span class="p">;</span><span class="w">                           </span><span class="k">return</span><span class="w"> </span><span class="n">y</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mi">2</span><span class="p">;</span>
+<span class="p">}</span><span class="w">                                       </span><span class="p">}</span>
+</code></pre>
+<pre><code class="language-asm"><span class="c1"># saved.c 的 f                          # noret.c 的 f</span>
+<span class="nf">push</span><span class="w">   </span><span class="nv">%rbx</span><span class="w">                             </span><span class="no">sub</span><span class="w">    </span><span class="no">$0x8</span><span class="p">,</span><span class="nv">%rsp</span>
+<span class="nf">mov</span><span class="w">    </span><span class="nv">%rdi</span><span class="p">,</span><span class="nv">%rbx</span><span class="w">                        </span><span class="no">call</span><span class="w">   </span><span class="no">g</span>
+<span class="nf">call</span><span class="w">   </span><span class="no">g</span><span class="w">                                </span><span class="no">add</span><span class="w">    </span><span class="no">$0x8</span><span class="p">,</span><span class="nv">%rsp</span>
+<span class="nf">add</span><span class="w">    </span><span class="nv">%rbx</span><span class="p">,</span><span class="nv">%rax</span><span class="w">                        </span><span class="no">add</span><span class="w">    </span><span class="nv">%rax</span><span class="p">,</span><span class="nv">%rax</span>
+<span class="nf">pop</span><span class="w">    </span><span class="nv">%rbx</span><span class="w">                             </span><span class="no">ret</span>
+<span class="nf">ret</span>
+</code></pre>
+<h4 id="4-1-為什麼-savedc-的-f-要-push-rbx而不是讓-x-留在-rdi">4-1. 為什麼 <code>saved.c</code> 的 <code>f</code> 要 <code>push %rbx</code>，而不是讓 <code>x</code> 留在 <code>%rdi</code>？</h4>
+<p><strong>第 1 次（YYYY-MM-DD）</strong></p>
+<div class="answer-box" data-file="small-project/s1-05-asm-calls/quiz.md" data-line="188"><textarea spellcheck="false" placeholder="在這裡作答">
+</textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<h4 id="4-2-noretc-的-f-不需要保存任何值為什麼還要-sub-0x8rsp">4-2. <code>noret.c</code> 的 <code>f</code> 不需要保存任何值，為什麼還要 <code>sub $0x8,%rsp</code>？</h4>
+<p><strong>第 1 次（YYYY-MM-DD）</strong></p>
+<div class="answer-box" data-file="small-project/s1-05-asm-calls/quiz.md" data-line="195"><textarea spellcheck="false" placeholder="在這裡作答">
+</textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<hr />
+<h3 id="5-情境題停在函式的第一條指令">5. 情境題：停在函式的第一條指令</h3>
+<p>你用 <code>break *add3</code> 停在 <code>add3</code> 的第一條指令（還沒執行 <code>push %rbp</code>），gdb 顯示 <code>add3 (a=0, b=0, c=0)</code>，可是 <code>main</code> 明明傳的是 1、2、3。</p>
+<pre><code class="language-c"><span class="kt">long</span><span class="w"> </span><span class="nf">add3</span><span class="p">(</span><span class="kt">long</span><span class="w"> </span><span class="n">a</span><span class="p">,</span><span class="w"> </span><span class="kt">long</span><span class="w"> </span><span class="n">b</span><span class="p">,</span><span class="w"> </span><span class="kt">long</span><span class="w"> </span><span class="n">c</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="kt">long</span><span class="w"> </span><span class="n">s</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">b</span><span class="p">;</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">s</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">c</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<pre><code class="language-asm"><span class="nl">add3:</span>
+<span class="w">  </span><span class="nf">endbr64</span><span class="w">                 </span><span class="err">←</span><span class="w"> </span><span class="err">停在這裡</span>
+<span class="w">  </span><span class="nf">push</span><span class="w">   </span><span class="nv">%rbp</span>
+<span class="w">  </span><span class="nf">mov</span><span class="w">    </span><span class="nv">%rsp</span><span class="p">,</span><span class="nv">%rbp</span>
+<span class="w">  </span><span class="nf">mov</span><span class="w">    </span><span class="nv">%rdi</span><span class="p">,-</span><span class="mi">0x18</span><span class="p">(</span><span class="nv">%rbp</span><span class="p">)</span>
+<span class="w">  </span><span class="nf">mov</span><span class="w">    </span><span class="nv">%rsi</span><span class="p">,-</span><span class="mi">0x20</span><span class="p">(</span><span class="nv">%rbp</span><span class="p">)</span>
+<span class="w">  </span><span class="nf">mov</span><span class="w">    </span><span class="nv">%rdx</span><span class="p">,-</span><span class="mi">0x28</span><span class="p">(</span><span class="nv">%rbp</span><span class="p">)</span>
+<span class="w">  </span><span class="na">...</span>
+</code></pre>
+<h4 id="5-1-為什麼-gdb-印錯這時候要看真正的參數該看哪裡">5-1. 為什麼 gdb 印錯？這時候要看真正的參數，該看哪裡？</h4>
+<p><strong>第 1 次（YYYY-MM-DD）</strong></p>
+<div class="answer-box" data-file="small-project/s1-05-asm-calls/quiz.md" data-line="227"><textarea spellcheck="false" placeholder="在這裡作答">
+</textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<h4 id="5-2-同一個時間點你想知道是誰呼叫了-add3可是不能用-bt根據本課你會看哪個暫存器指的位址看到的值代表什麼">5-2. 同一個時間點，你想知道「是誰呼叫了 <code>add3</code>」，可是不能用 <code>bt</code>。根據本課，你會看哪個暫存器指的位址？看到的值代表什麼？</h4>
+<p><strong>第 1 次（YYYY-MM-DD）</strong></p>
+<div class="answer-box" data-file="small-project/s1-05-asm-calls/quiz.md" data-line="234"><textarea spellcheck="false" placeholder="在這裡作答">
+</textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+
+</main>
+</div>
+</body>
+</html>

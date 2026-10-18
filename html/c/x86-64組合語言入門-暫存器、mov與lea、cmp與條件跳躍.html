@@ -92,7 +92,7 @@
 </ul>
 <hr />
 <h2 id="零開課複習今天的複習題跟本課的關係">零、開課複習：今天的複習題跟本課的關係</h2>
-<p>今天的複習檔 <a href="../../review/2026-10-05-gcc-%E9%99%A3%E5%88%97-GNU-C%E8%B3%87%E6%96%99-%E5%AD%97%E5%85%83.md"><code>review/2026-10-05-gcc-陣列-GNU-C資料-字元.md</code></a> 的前 5 題特意挑了跟本課相關的：</p>
+<p>今天的複習檔 <a href="../review/2026-10-05-gcc-%E9%99%A3%E5%88%97-GNU-C%E8%B3%87%E6%96%99-%E5%AD%97%E5%85%83.html"><code>review/2026-10-05-gcc-陣列-GNU-C資料-字元</code></a> 的前 5 題特意挑了跟本課相關的：</p>
 <table>
 <thead>
 <tr>
@@ -3005,7 +3005,7 @@ $9 = void
 <p><code>-O0</code> 這樣寫是為了<strong>除錯</strong>：變數一直在記憶體裡，<code>gdb</code> 隨時 <code>print total</code> 都讀得到正確的值，停在任何一行也都對應得到原始碼（<a href="gcc%E6%9C%80%E4%BD%B3%E5%8C%96%E7%AD%89%E7%B4%9A-O0%E5%88%B0O3%E5%B7%AE%E5%9C%A8%E5%93%AA.html#%E4%B8%89%E7%82%BA%E4%BB%80%E9%BA%BC%E9%99%A4%E9%8C%AF%E8%A6%81%E7%94%A8--o0">gcc最佳化等級第三節</a>）。代價是每圈有 5 個指令要碰記憶體（其中兩個 <code>addl</code> 還是先讀再寫）。</p>
 <h3 id="if-怎麼翻條件跳躍檢查的是-c-條件的反面"><code>if</code> 怎麼翻：條件跳躍檢查的是 C 條件的「反面」</h3>
 <blockquote>
-<p>2026-10-08 批改作業時補教：作業 <a href="../../small-project/s1-04-asm-basics/README.md">3-3</a> 問「C 寫 <code>a &gt; b</code>，<code>pick_s</code> 的條件跳躍為什麼檢查小於或等於」，這是本課原本沒教的新觀念。</p>
+<p>2026-10-08 批改作業時補教：作業 <a href="../small-project/s1-04-asm-basics/README.html">3-3</a> 問「C 寫 <code>a &gt; b</code>，<code>pick_s</code> 的條件跳躍為什麼檢查小於或等於」，這是本課原本沒教的新觀念。</p>
 </blockquote>
 <p>上面的 <code>for</code> 迴圈，底部的 <code>jle .L3</code> 檢查的條件跟 C 一樣（<code>i &lt;= n</code>）。換成 <code>if</code>，條件卻會反過來。用一個最小的例子看：</p>
 <p><code>clamp0.c</code>（檔案：<a href="../../small-project/s1-04-asm-basics/clamp0.c"><code>clamp0.c</code></a>）完整原始碼：</p>
@@ -3481,7 +3481,7 @@ testl  n=5：做完後 %edi = 5   ZF=0 SF=0 CF=0 OF=0
 <p>最後一列就是 <a href="gcc%E6%9C%80%E4%BD%B3%E5%8C%96%E7%AD%89%E7%B4%9A-O0%E5%88%B0O3%E5%B7%AE%E5%9C%A8%E5%93%AA.html#%E4%B8%89%E7%82%BA%E4%BB%80%E9%BA%BC%E9%99%A4%E9%8C%AF%E8%A6%81%E7%94%A8--o0">gcc最佳化等級第三節</a>說的 <code>&lt;optimized out&gt;</code> 的來源：<code>-O2</code> 的 <code>total</code> 只存在 <code>%edx</code> 裡，而且迴圈裡它一次跳兩個數，<code>gdb</code> 停在某一圈時，「<code>total</code> 現在是多少」在原始碼的意義上可能根本不存在。</p>
 <h3 id="陣列迴圈的-i-為什麼不見了歸納變數最佳化">陣列迴圈的 <code>i</code> 為什麼不見了：歸納變數最佳化</h3>
 <blockquote>
-<p>2026-10-08 批改作業時補教：作業 <a href="../../small-project/s1-04-asm-basics/README.md">4-4</a> 後半「gcc 為什麼要把 <code>i</code> 改寫掉」是本課原本沒教的新觀念。</p>
+<p>2026-10-08 批改作業時補教：作業 <a href="../small-project/s1-04-asm-basics/README.html">4-4</a> 後半「gcc 為什麼要把 <code>i</code> 改寫掉」是本課原本沒教的新觀念。</p>
 </blockquote>
 <p><code>sum_to</code> 的 <code>-O2</code> 還留著 <code>i</code>（<code>%eax</code>），因為 <code>i</code> 本身就是要加進 <code>total</code> 的數。如果 <code>i</code> 只拿來<strong>算位址</strong>（<code>a[i]</code>）和<strong>判斷結束</strong>（<code>i &lt; n</code>），gcc 會把它整個換掉。用一個走訪 <code>int</code> 陣列的迴圈看：</p>
 <p><code>ivopts.c</code>（檔案：<a href="../../small-project/s1-04-asm-basics/ivopts.c"><code>ivopts.c</code></a>）完整原始碼：</p>
@@ -3690,12 +3690,12 @@ gcc<span class="w"> </span>-S<span class="w"> </span>-O2<span class="w"> </span>
 </ul>
 <hr />
 <h2 id="九動手作業">九、動手作業</h2>
-<p>作業在 <a href="../../small-project/s1-04-asm-basics/README.md"><code>small-project/s1-04-asm-basics/</code></a>，共 5 題：
+<p>作業在 <a href="../small-project/s1-04-asm-basics/README.html"><code>small-project/s1-04-asm-basics/</code></a>，共 5 題：
 <code>lea</code> 當乘法、不同型別的陣列存取、有號／無號的分支、讀一個陣列加總迴圈的 <code>-O0</code> 與 <code>-O2</code>、從組合語言反推 C。</p>
 <hr />
 <h2 id="自我測驗">自我測驗</h2>
 <blockquote>
-<p>參考答案寫在每題下面（2026-10-06 使用者指定），作答時先遮住答案、自己想過再對照。2026-10-08 第一次作答批改後寫入，格式是每個小題先列<strong>核心關鍵</strong>（答到就算對）、再寫詳細說明；作答與批改的歷程在 <a href="../../small-project/s1-04-asm-basics/quiz.md"><code>s1-04-asm-basics/quiz.md</code></a>。</p>
+<p>參考答案寫在每題下面（2026-10-06 使用者指定），作答時先遮住答案、自己想過再對照。2026-10-08 第一次作答批改後寫入，格式是每個小題先列<strong>核心關鍵</strong>（答到就算對）、再寫詳細說明；作答與批改的歷程在 <a href="../small-project/s1-04-asm-basics/quiz.html"><code>s1-04-asm-basics/quiz</code></a>。</p>
 </blockquote>
 <ol>
 <li>
