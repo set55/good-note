@@ -842,6 +842,131 @@ $ objdump -d --no-show-raw-insn varargs
 
 **只有可變參數函式需要設 `%al`。** 呼叫一般函式（例如 `add3`）時，`main` 沒有寫這一行（第三節的 `main` 在 `call add3` 前沒有 `mov $0x0,%eax`）。
 
+### 補教：超過 8 個 `double`，第 9 個放哪裡、`%al` 是多少
+
+（2026-10-19 批改作業 5-4 時補教。）浮點參數的暫存器只有 `%xmm0`～`%xmm7` 八個。第 9 個 `double` 跟第 7 個以後的整數參數一樣，**放到堆疊上**（[第五節](#五參數與回傳值放哪裡)的表最右欄），每個佔 8 byte。`%al` 數的是**用了幾個向量暫存器**，不是有幾個 `double`，所以最多就是 8。
+
+`float9.c`（檔案：[`float9.c`](../small-project/s1-05-asm-calls/float9.c)）完整原始碼：
+
+```c
+/* float9.c：9 個 double 傳給 printf，第 9 個放不進 %xmm0～%xmm7 */
+#include <stdio.h>
+
+int main(void)
+{
+    printf("%.1f %.1f %.1f %.1f %.1f %.1f %.1f %.1f %.1f\n",
+           1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0);
+    return 0;
+}
+```
+
+```
+$ gcc -O0 -g -fno-asynchronous-unwind-tables float9.c -o float9
+$ ./float9
+1.0 2.0 3.0 4.0 5.0 6.0 7.0 8.0 9.0
+$ objdump -d --no-show-raw-insn float9
+$ objdump -s -j .rodata float9
+```
+
+`-g` 是為了下面用 gdb 看，加不加 `-g` 編出來的指令都一樣（本機對照過，位址相同）。`objdump -s -j .rodata` 是第 4 課[第三節](./x86-64組合語言入門-暫存器、mov與lea、cmp與條件跳躍.md#為什麼-l-叫-long-卻是-4-byte組合語言的大小名稱和-c-的型別是兩套)〈為什麼 `l` 叫 long 卻是 4 byte〉的步驟三教過的「印出某個區段的原始內容」（`-s` 印內容、`-j` 指定區段），用來查每個常數是多少：
+
+```
+Contents of section .rodata:
+ 2000 01000200 00000000 252e3166 20252e31  ........%.1f %.1
+ ...
+ 2030 252e3166 0a000000 00000000 00002040  %.1f.......... @
+ 2040 00000000 00001c40 00000000 00001840  .......@.......@
+ 2050 00000000 00001440 00000000 00001040  .......@.......@
+ 2060 00000000 00000840 00000000 00000040  .......@.......@
+ 2070 00000000 0000f03f 00000000 00002240  .......?......"@
+```
+
+每個 `double` 佔 8 byte，小端序（第 2 課[第三節](./C的資料在記憶體裡長怎樣-位元組、指標、位元組順序與有號無號.md#三位元組順序endianness)），所以要倒過來讀：`2038` 開始的 `00 00 00 00 00 00 20 40` 是 `0x4020000000000000`，也就是 8.0。依同樣的讀法：`2040` ＝ 7.0（`0x401c…`）、`2048` ＝ 6.0、`2050` ＝ 5.0、`2058` ＝ 4.0、`2060` ＝ 3.0、`2068` ＝ 2.0（`0x4000…`）、`2070` ＝ 1.0（`0x3ff0…`）、`2078` ＝ 9.0（`0x4022…`）。`double` 的位元怎麼對應到數值（IEEE 754 格式）本路線不教，這裡只要知道「這 8 byte 是哪個數」；下面用 gdb 的 `x/fg` 直接把它印成浮點數，不必自己換算。
+
+`main` 的部分（`#` 後面是說明）：
+
+```asm
+0000000000001149 <main>:
+    1149:	endbr64
+    114d:	push   %rbp                  # 進 main 時餘 8，push 後 %rsp 是 16 的倍數
+    114e:	mov    %rsp,%rbp
+    1151:	movsd  0xedf(%rip),%xmm7     # 2038：8.0 → %xmm7（第 8 個 double）
+    1159:	movsd  0xedf(%rip),%xmm6     # 2040：7.0 → %xmm6
+    1161:	movsd  0xedf(%rip),%xmm5     # 2048：6.0 → %xmm5
+    1169:	movsd  0xedf(%rip),%xmm4     # 2050：5.0 → %xmm4
+    1171:	movsd  0xedf(%rip),%xmm3     # 2058：4.0 → %xmm3
+    1179:	movsd  0xedf(%rip),%xmm2     # 2060：3.0 → %xmm2
+    1181:	movsd  0xedf(%rip),%xmm1     # 2068：2.0 → %xmm1
+    1189:	mov    0xee0(%rip),%rax      # 2070：1.0 先暫放 %rax（%xmm0 等一下要先借來搬 9.0）
+    1190:	sub    $0x8,%rsp             # 對齊用：只有 1 個 8 byte 的堆疊參數，先補 8 byte
+    1194:	movsd  0xedc(%rip),%xmm0     # 2078：9.0 → %xmm0（暫時借用）
+    119c:	lea    -0x8(%rsp),%rsp       # %rsp = %rsp - 8：挪出放第 9 個參數的一格
+    11a1:	movsd  %xmm0,(%rsp)          # 9.0 寫進堆疊頂端：第 9 個 double 在堆疊上
+    11a6:	movq   %rax,%xmm0            # 1.0 放回 %xmm0（第 1 個 double）
+    11ab:	lea    0xe56(%rip),%rax      # 格式字串的位址
+    11b2:	mov    %rax,%rdi             # 第 1 個參數（整數序列的第 1 個）
+    11b5:	mov    $0x8,%eax             # %al = 8：用了 8 個向量暫存器
+    11ba:	call   1050 <printf@plt>
+    11bf:	add    $0x10,%rsp            # 呼叫者清掉：堆疊參數 8 ＋ 對齊 8 ＝ 16
+    11c3:	mov    $0x0,%eax             # return 0;
+    11c8:	leave
+    11c9:	ret
+```
+
+逐段看：
+
+1. **前 8 個 `double` 照順序放 `%xmm0`～`%xmm7`**：1.0 在 `%xmm0`、2.0 在 `%xmm1`……8.0 在 `%xmm7`。gcc 從 `%xmm7` 倒著填，順序不重要，要看的是 `call` 那一刻每個暫存器裡是什麼。1.0 繞了一圈（先放 `%rax`、最後才搬進 `%xmm0`），因為 gcc 要先借 `%xmm0` 把 9.0 從 `.rodata` 搬到堆疊（`-O0` 不會想辦法省這一步）。
+2. **第 9 個放堆疊**：`lea -0x8(%rsp),%rsp` 把 `%rsp` 減 8（`lea` 只算位址、不讀記憶體，見第 4 課[第四節](./x86-64組合語言入門-暫存器、mov與lea、cmp與條件跳躍.md#四mov-與-lea搬資料-vs-算位址)；這裡的效果跟 `sub $0x8,%rsp` 一樣），`movsd %xmm0,(%rsp)` 把 9.0 寫到新的頂端。`call` 推進返回位址後，9.0 就在 `printf` 看到的「返回位址上面那一格」，跟[第五節](#五參數與回傳值放哪裡)第 7 個整數參數放的位置一樣。
+3. **`sub $0x8,%rsp` 是對齊**，跟[第六節](#上面的-sub-0x8rsp16-byte-對齊)同一條規則：進 `main` 時餘 8，`push %rbp` 後餘 0；堆疊參數只有 1 個（8 byte），放上去會變成餘 8，所以先補 8 byte，`call` 時才是 16 的倍數。作業第 2 題的 `call9` 推 3 個 `int`（24 byte）要補 8，也是同一個道理。
+4. **`%al` ＝ 8**：放在堆疊的第 9 個不算，因為 `%al` 是給 `printf` 決定「要把幾個 `%xmm` 暫存器存起來」，堆疊上的參數本來就在記憶體裡，不必存。
+5. **`add $0x10,%rsp`**：呼叫者清掉自己放的東西（第五節），8 byte 參數加 8 byte 對齊，一次加 16。
+
+用 gdb 確認 `call` 那一刻的狀態。`float9.gdb`（檔案：[`float9.gdb`](../small-project/s1-05-asm-calls/float9.gdb)），`main+113` 是 `call printf` 那一行（`0x11ba − 0x1149 = 0x71 = 113`）：
+
+```
+break *main
+break *main+113
+run
+echo == 進 main 時 ==\n
+info registers rsp
+continue
+echo == 執行 call printf 之前 ==\n
+info registers rsp
+x/gx $rsp
+x/fg $rsp
+p $xmm0.v2_double[0]
+p $xmm7.v2_double[0]
+p $rax
+```
+
+```
+$ gdb -q -batch -x float9.gdb ./float9
+Breakpoint 1 at 0x1149: file float9.c, line 5.
+Breakpoint 2 at 0x11ba: file float9.c, line 6.
+
+Breakpoint 1, main () at float9.c:5
+5	{
+== 進 main 時 ==
+rsp            0x7fffffffd4b8      0x7fffffffd4b8
+
+Breakpoint 2, 0x00005555555551ba in main () at float9.c:6
+6	    printf("%.1f %.1f %.1f %.1f %.1f %.1f %.1f %.1f %.1f\n",
+== 執行 call printf 之前 ==
+rsp            0x7fffffffd4a0      0x7fffffffd4a0
+0x7fffffffd4a0:	0x4022000000000000
+0x7fffffffd4a0:	9
+$1 = 1
+$2 = 8
+$3 = 8
+```
+
+逐行對照：
+
+- 進 `main` 時 `%rsp` ＝ `…d4b8`（除以 16 餘 8）；到 `call` 前是 `…d4a0`（餘 0）。中間少了 24 byte：`push %rbp` 8、對齊 8、第 9 個參數 8。
+- `x/gx $rsp` 印出頂端 8 byte 是 `0x4022000000000000`，跟 `.rodata` 的 `2078` 一樣；`x/fg $rsp` 把同樣的 8 byte 當浮點數印，就是 `9`。格式字母 `f`（浮點數）、大小字母 `g`（8 byte）的全表見 [gdb完整命令參考第三節](./gdb完整命令參考.md#三gdb-內部命令的共通文法)〈輸出格式 `/FMT`：`print` 與 `x` 共用〉。
+- `p` 是 `print` 的縮寫。`%xmm` 暫存器是 16 byte，gdb 把它看成好幾種排法（`v2_double` ＝ 當成 2 個 `double`、`v4_float` ＝ 4 個 `float`……），`movsd` 只用最低的 8 byte，就是 `v2_double[0]`。`%xmm0` ＝ 1、`%xmm7` ＝ 8，跟上面的推論一樣。
+- `p $rax` ＝ 8：`mov $0x8,%eax` 把整個 `%rax` 設成 8，`%al` 就是 8。
+
 ---
 
 ## 八、本課用到的工具、選項與完整清單在哪
@@ -856,10 +981,10 @@ gdb 的頂層命令共 173 個，本課用到其中 9 個（`info registers`、`
 | `run` | 開始執行 | 4.1 running |
 | `stepi`（`si`） | 剛好執行一條機器指令，遇到 `call` 會跟進去 | 4.1 running |
 | `continue`（`c`） | 繼續跑到下一個中斷點 | 4.1 running |
-| `x/FMT 位址` | `x/2gx $rsp`：看堆疊頂端兩格；`x/i $pc`：看下一條指令 | 4.3 data；格式字母全表見第三節〈輸出格式 `/FMT`〉 |
+| `x/FMT 位址` | `x/2gx $rsp`：看堆疊頂端兩格；`x/i $pc`：看下一條指令；`x/fg $rsp`：把頂端 8 byte 當浮點數印（第七節補教） | 4.3 data；格式字母全表見第三節〈輸出格式 `/FMT`〉 |
 | `info registers 名字…` | 只印指定的暫存器 | 第五節（`info` 子命令） |
 | `info symbol 位址` | 位址落在哪個符號＋偏移 | 第五節（`info` 子命令） |
-| `print` | `print &a`：看變數的位址 | 4.3 data |
+| `print` | `print &a`：看變數的位址；`p $xmm0.v2_double[0]`：把 `%xmm0` 最低 8 byte 當 `double` 印（第七節補教，`p` 是縮寫） | 4.3 data |
 | `echo 文字` | 在命令稿裡印標題（本課只當分隔用） | 4.7 support |
 | `set 設定 值` | `set disassemble-next-line off`：`stepi` 停下時不要自動印出下一條指令的反組譯（這本來就是預設值，寫出來是確保輸出一致；命令稿用 `x/i $pc` 自己印） | 4.3 data；`set` 底下的子命令多到上千個，見[第六節](./gdb完整命令參考.md#六setshowmaintenance數量為什麼不逐項列怎麼查) |
 
@@ -870,7 +995,7 @@ gdb 的頂層命令共 173 個，本課用到其中 9 個（`info registers`、`
 ### `gcc`、`objdump`：本課新用到的選項
 
 - `gcc`：主線沒有新選項（2026-10-16 批改作業時的補教用到 `-fno-ipa-stack-alignment`，見第六節〈補教：被呼叫的函式就在同一個檔案時，`sub $0x8,%rsp` 為什麼不見了〉），用的都是第 4 課[第八節](./x86-64組合語言入門-暫存器、mov與lea、cmp與條件跳躍.md#八本課用到的工具選項與完整清單在哪)列過的 `-O0`、`-O2`、`-c`、`-g`、`-fno-asynchronous-unwind-tables`。
-- `objdump`：新用到 `-r`（`--reloc`）：顯示重定位項目，和 `-d` 一起用時印在相關的指令下面。`-d`、`--no-show-raw-insn` 第 4 課教過；「顯示什麼」一組的全部 31 項在 [objdump能不能代替ldd第六節](./objdump能不能代替ldd找依賴庫-需求單與實際載入.md#六本篇用到的工具選項)。
+- `objdump`：新用到 `-r`（`--reloc`）：顯示重定位項目，和 `-d` 一起用時印在相關的指令下面。`-d`、`--no-show-raw-insn` 第 4 課教過，第七節補教用到的 `-s`、`-j` 也是第 4 課教過的；「顯示什麼」一組的全部 31 項在 [objdump能不能代替ldd第六節](./objdump能不能代替ldd找依賴庫-需求單與實際載入.md#六本篇用到的工具選項)。
 
 ### 本課的指令
 

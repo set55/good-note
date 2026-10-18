@@ -124,11 +124,16 @@
 <td><a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80%E4%BA%8C-call%E8%88%87ret%E3%80%81%E5%A0%86%E7%96%8A%E6%A1%86%E3%80%81%E5%8F%83%E6%95%B8%E8%88%87%E5%91%BC%E5%8F%AB%E6%85%A3%E4%BE%8B.html#%E4%B8%83printf-%E5%89%8D%E7%9A%84-movl-0-eax%E5%8F%AF%E8%AE%8A%E5%8F%83%E6%95%B8%E5%87%BD%E5%BC%8F%E7%9A%84-al">第七節</a></td>
 <td>可變參數函式呼叫前的 <code>%al</code> ＝ 0、1、2</td>
 </tr>
+<tr>
+<td><a href="../../../small-project/s1-05-asm-calls/float9.c"><code>float9.c</code></a>、<a href="../../../small-project/s1-05-asm-calls/float9.gdb"><code>float9.gdb</code></a></td>
+<td><a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80%E4%BA%8C-call%E8%88%87ret%E3%80%81%E5%A0%86%E7%96%8A%E6%A1%86%E3%80%81%E5%8F%83%E6%95%B8%E8%88%87%E5%91%BC%E5%8F%AB%E6%85%A3%E4%BE%8B.html#%E4%B8%83printf-%E5%89%8D%E7%9A%84-movl-0-eax%E5%8F%AF%E8%AE%8A%E5%8F%83%E6%95%B8%E5%87%BD%E5%BC%8F%E7%9A%84-al">第七節</a>〈補教：超過 8 個 <code>double</code>，第 9 個放哪裡、<code>%al</code> 是多少〉</td>
+<td>第 9 個 <code>double</code> 放堆疊、對齊補 8 byte、<code>%al</code> 最多是 8</td>
+</tr>
 </tbody>
 </table>
 <hr />
 <h2 id="批改結果2026-10-12">批改結果（2026-10-12）</h2>
-<p>第 1 題已批改（2026-10-12），第 2 題已批改（2026-10-16），第 3 題已批改（2026-10-17），第 4、5 題等作答。</p>
+<p>第 1 題已批改（2026-10-12），第 2 題已批改（2026-10-16），第 3 題已批改（2026-10-17），第 4 題已批改（2026-10-18），第 5 題已批改（2026-10-19）。作業全部批改完。</p>
 <table>
 <thead>
 <tr>
@@ -202,6 +207,46 @@
 <td>3-4</td>
 <td>對</td>
 <td><code>#1</code>、<code>#2</code> 的位址跟 3-1、3-2 的返回位址一致；可補：<code>#0</code> 是目前的 <code>%rip</code>，不是返回位址</td>
+</tr>
+<tr>
+<td>4-1</td>
+<td>錯</td>
+<td>預測題：只有 <code>a</code>（撐過兩次）對；<code>x</code> 只撐過 <code>g(b)</code>、<code>y</code> 不用撐、<code>b</code> 要撐過 <code>g(a)</code>，所以是 3 個 callee-saved、<code>push</code> 3 次（不是 1 個加 <code>push %rdi</code>）；不用 <code>sub</code>，因為 8 ＋ 3×8 ＝ 32 已對齊，跟 <code>g</code> 做什麼無關</td>
+</tr>
+<tr>
+<td>4-2</td>
+<td>大致對</td>
+<td><code>%r12</code> ＝ <code>b</code>、<code>%rbp</code> ＝ <code>a</code>、<code>%rbx</code> ＝ <code>x</code> 都標對；對照漏了「預測要 <code>sub</code>，實際沒有」，也沒點出 <code>%r12</code> ＝ <code>b</code> 推翻了「<code>b</code> 不用撐」</td>
+</tr>
+<tr>
+<td>4-3</td>
+<td>不完整</td>
+<td>輸出、<code>push</code> 3→2、多了 <code>sub</code> 都對；對齊算錯：把 <code>call g</code> 推的返回位址算進去、漏了進 <code>h</code> 時已餘 8。正確是 8 ＋ 2×8 ＝ 24 餘 8 → 補 <code>sub 8</code>。跟 2-4 錯在同一處（把返回位址當成對齊的原因）</td>
+</tr>
+<tr>
+<td>4-4</td>
+<td>對</td>
+<td>抓到：順序相反、<code>pop</code> 只拿頂端那格，順序錯會把 <code>%rbx</code> 原值還原進 <code>%rbp</code></td>
+</tr>
+<tr>
+<td>5-1</td>
+<td>不完整</td>
+<td>預測題：<code>%eax</code> ＝ 3 對；暫存器錯：<code>double</code> 走另一組 <code>%xmm0</code>～<code>%xmm2</code>，整數只有 <code>%rdi</code>、<code>%esi</code>、<code>%edx</code>，不是全部排進 <code>%rdi</code>～<code>%r9</code></td>
+</tr>
+<tr>
+<td>5-2</td>
+<td>對</td>
+<td>抓到：<code>showd</code> 是參數固定的函式，只有呼叫可變參數函式才設 <code>%al</code></td>
+</tr>
+<tr>
+<td>5-3</td>
+<td>大致對</td>
+<td>輸出對，<code>%eax</code> ＝ 3、<code>showd</code> 前不設 <code>%eax</code> 都對照了；漏了 5-1 暫存器預測錯（整數、<code>double</code> 各一條序列）</td>
+</tr>
+<tr>
+<td>5-4</td>
+<td>對</td>
+<td>新觀念，猜測不計分；輸出貼對。補教：第 9 個 <code>double</code> 放堆疊、<code>%al</code> ＝ 8（只數暫存器）、<code>sub $0x8</code> 是對齊</td>
 </tr>
 </tbody>
 </table>
@@ -717,7 +762,7 @@ objdump -dr --no-show-raw-insn keep.o
 </code></pre>
 <h3 id="4-1-編譯前先預測abxy-裡面哪些值在某一次-call-之後還要用每個值寫出它要撐過哪幾次-callh-會用到幾個-callee-saved-暫存器開頭-push-幾次需不需要額外的-sub-0x8rsp-來對齊筆記第六節">4-1. 編譯前先預測：<code>a</code>、<code>b</code>、<code>x</code>、<code>y</code> 裡面，哪些值在某一次 <code>call</code> 之後還要用（每個值寫出它要撐過哪幾次 <code>call</code>）？<code>h</code> 會用到幾個 callee-saved 暫存器、開頭 <code>push</code> 幾次？需不需要額外的 <code>sub $0x8,%rsp</code> 來對齊？【筆記<a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80%E4%BA%8C-call%E8%88%87ret%E3%80%81%E5%A0%86%E7%96%8A%E6%A1%86%E3%80%81%E5%8F%83%E6%95%B8%E8%88%87%E5%91%BC%E5%8F%AB%E6%85%A3%E4%BE%8B.html#%E5%85%AD%E8%AA%B0%E8%B2%A0%E8%B2%AC%E4%BF%9D%E5%AD%98%E6%9A%AB%E5%AD%98%E5%99%A8%E4%BB%A5%E5%8F%8A-16-byte-%E5%B0%8D%E9%BD%8A">第六節</a>】</h3>
 <p><strong>第 1 次（2026-10-18）</strong></p>
-<div class="answer-box" data-file="small-project/s1-05-asm-calls/README.md" data-line="634"><textarea spellcheck="false" placeholder="在這裡作答">x call g(a), g(b)之後還要用 -&gt; 2次
+<pre><code>x call g(a), g(b)之後還要用 -&gt; 2次
 y call g(b)之後還要用 -&gt; 1次
 a call g(a), g(b)之後還要用 -&gt; 2次
 b 沒有
@@ -728,10 +773,34 @@ b 沒有
 會用到rbx一個callee-saved暫存器
 
 需要,因爲不確定g在做什麼
-</textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+</code></pre>
+<blockquote>
+<p><strong>批改</strong>：<strong>錯</strong>。抓到一個重點：<code>h</code> 對呼叫它的人來說也是被呼叫者，要用 <code>%rbx</code> 就得先 <code>push</code> 存起原值。但四個值撐過幾次 <code>call</code> 錯了三個，所以暫存器數量和對齊也跟著錯：</p>
+<ul>
+<li><code>a</code>：撐過兩次，<strong>對</strong>（最後 <code>+ a</code>）。</li>
+<li><code>x</code>：寫成兩次，<strong>錯</strong>。<code>x</code> 是 <code>g(a)</code> 的回傳值，<code>g(a)</code> 之前它還不存在，只要撐過 <code>g(b)</code> 這一次。</li>
+<li><code>y</code>：寫成一次，<strong>錯</strong>。<code>y</code> 是 <code>g(b)</code> 的回傳值，之後沒有 <code>call</code> 了，留在 <code>%rax</code> 直接加就好，不必保存。</li>
+<li><code>b</code>：寫成沒有，<strong>錯</strong>。<code>b</code> 放在 <code>%rsi</code>，是 <code>g(b)</code> 的參數，可是 <code>g(a)</code> 先執行，<code>g</code> 可以改掉 <code>%rsi</code>（caller-saved），所以 <code>b</code> 要撐過 <code>g(a)</code>。</li>
+<li>所以要保存的是 <code>a</code>、<code>b</code>、<code>x</code> 三個值，要用 3 個 callee-saved 暫存器、<code>push</code> 3 次，不是 1 個。「<code>push</code> 一個 <code>%rdi</code>」：<code>%rdi</code> 不是 callee-saved，<code>h</code> 沒有替呼叫者保存它的義務。把值推上堆疊、<code>call</code> 完再取回來，技術上也能保存，但題目問的是用幾個 callee-saved 暫存器，<code>-O2</code> 的做法是把值搬進 callee-saved 暫存器（筆記第六節 <code>saved.c</code> 的 <code>%rbx</code>）。</li>
+<li>對齊的理由錯了：要不要補 <code>sub $0x8,%rsp</code> 跟 <code>g</code> 在做什麼無關，只看 <code>push</code> 了幾次（算法見參考答案第 3 點）。</li>
+</ul>
+<p><strong>參考答案</strong>【筆記<a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80%E4%BA%8C-call%E8%88%87ret%E3%80%81%E5%A0%86%E7%96%8A%E6%A1%86%E3%80%81%E5%8F%83%E6%95%B8%E8%88%87%E5%91%BC%E5%8F%AB%E6%85%A3%E4%BE%8B.html#%E5%85%AD%E8%AA%B0%E8%B2%A0%E8%B2%AC%E4%BF%9D%E5%AD%98%E6%9A%AB%E5%AD%98%E5%99%A8%E4%BB%A5%E5%8F%8A-16-byte-%E5%B0%8D%E9%BD%8A">第六節</a>〈實驗：要跨過 <code>call</code> 保存的值放哪裡〉、〈上面的 <code>sub $0x8,%rsp</code>：16 byte 對齊〉】</p>
+<p><strong>核心關鍵</strong>（答到這幾點就算對）：</p>
+<ol>
+<li><code>a</code> 撐過 <code>g(a)</code>、<code>g(b)</code> 兩次（最後要 <code>+ a</code>）；<code>b</code> 撐過 <code>g(a)</code> 一次（之後要當 <code>g(b)</code> 的參數）；<code>x</code> 撐過 <code>g(b)</code> 一次；<code>y</code> 不用撐（後面沒有 <code>call</code>）。</li>
+<li>要保存三個值，所以用 3 個 callee-saved 暫存器，開頭 <code>push</code> 3 次。</li>
+<li>不需要 <code>sub $0x8,%rsp</code>：進 <code>h</code> 時 <code>%rsp</code> 除以 16 餘 8，3 次 <code>push</code> 再挪 24 byte，8 ＋ 24 ＝ 32，剛好是 16 的倍數，<code>call g</code> 時已經對齊。</li>
+</ol>
+<p><strong>詳細說明</strong>：</p>
+<ul>
+<li>判斷一個值要不要保存，只看一件事：它是不是<strong>在某次 <code>call</code> 之前就有、在那次 <code>call</code> 之後還要用</strong>。參數（<code>%rdi</code>、<code>%rsi</code>）和回傳值（<code>%rax</code>）都在 caller-saved 暫存器裡，<code>g</code> 都可以改，所以撐過 <code>call</code> 的值要搬到 callee-saved 暫存器。</li>
+<li>逐個值畫時間線：<code>a</code>、<code>b</code> 一進來就有；<code>call g(a)</code> → 產生 <code>x</code>；<code>call g(b)</code> → 產生 <code>y</code>；最後 <code>x + y + a</code>。跨過 <code>g(a)</code> 的是 <code>a</code>、<code>b</code>，跨過 <code>g(b)</code> 的是 <code>a</code>、<code>x</code>，合起來是 <code>a</code>、<code>b</code>、<code>x</code>。</li>
+<li>實際分到哪個暫存器是 gcc 決定的，見 4-2：<code>%r12</code> ＝ <code>b</code>、<code>%rbp</code> ＝ <code>a</code>、<code>%rbx</code> ＝ <code>x</code>。<code>-O2</code> 不建 <code>%rbp</code> 堆疊框，<code>%rbp</code> 在這裡只是一個普通的 callee-saved 暫存器。</li>
+</ul>
+</blockquote>
 <h3 id="4-2-編譯貼上-h-的本體在每個-callee-saved-暫存器旁邊註明它存的是哪個值跟預測對照">4-2. 編譯，貼上 <code>h</code> 的本體，在每個 callee-saved 暫存器旁邊註明它存的是哪個值，跟預測對照。</h3>
 <p><strong>第 1 次（2026-10-18）</strong></p>
-<div class="answer-box" data-file="small-project/s1-05-asm-calls/README.md" data-line="651"><textarea spellcheck="false" placeholder="在這裡作答">0000000000000000 &lt;h&gt;:
+<pre><code>0000000000000000 &lt;h&gt;:
    0:   endbr64
    4:   push   %r12 // 先把r12原本的值放到頂端
    6:   mov    %rsi,%r12 // 把b複寫到r12
@@ -754,10 +823,31 @@ b 沒有
 沒預測到r12的使用, 說要push rdi也不對
 rbx爲什麼要push的原因沒有說明
 rdi 有說到 g(a), g(b)都需要用到, 只是方式是用 mov r12, rdi
-</textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+</code></pre>
+<blockquote>
+<p><strong>批改</strong>：<strong>大致對</strong>。輸出正確（本機重跑一樣），三個 callee-saved 暫存器存什麼都標對了：<code>%r12</code> ＝ <code>b</code>、<code>%rbp</code> ＝ <code>a</code>、<code>%rbx</code> ＝ <code>g(a)</code> 的回傳值（<code>x</code>）。對照也找出了「沒預測到 <code>%r12</code>」「<code>push %rdi</code> 不對」。缺的是兩處跟預測不同但沒寫出來：</p>
+<ul>
+<li>4-1 預測「需要 <code>sub $0x8,%rsp</code>」，實際<strong>沒有</strong>：3 次 <code>push</code> 已經把 <code>%rsp</code> 對齊了。</li>
+<li><code>%r12</code> 存 <code>b</code>，就直接推翻了 4-1 的「<code>b</code> 沒有要撐過 <code>call</code>」；而 <code>%rbx</code> 存的 <code>x</code> 只撐過 <code>g(b)</code> 一次，也跟 4-1 寫的「兩次」不同。這兩點才是 4-1 錯的根源，<code>%r12</code> 不是單純「沒預測到」。</li>
+</ul>
+<p>另外，最後一行說「<code>rdi</code> 有說到 <code>g(a)</code>、<code>g(b)</code> 都需要用到」，指的其實是 <code>b</code>：要保存的是 <code>%rsi</code> 裡的 <code>b</code>（<code>mov %rsi,%r12</code>），<code>%rdi</code> 裡的 <code>a</code> 是存進 <code>%rbp</code>。</p>
+<p><strong>參考答案</strong>【筆記<a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80%E4%BA%8C-call%E8%88%87ret%E3%80%81%E5%A0%86%E7%96%8A%E6%A1%86%E3%80%81%E5%8F%83%E6%95%B8%E8%88%87%E5%91%BC%E5%8F%AB%E6%85%A3%E4%BE%8B.html#%E5%85%AD%E8%AA%B0%E8%B2%A0%E8%B2%AC%E4%BF%9D%E5%AD%98%E6%9A%AB%E5%AD%98%E5%99%A8%E4%BB%A5%E5%8F%8A-16-byte-%E5%B0%8D%E9%BD%8A">第六節</a>〈實驗：要跨過 <code>call</code> 保存的值放哪裡〉】</p>
+<p><strong>核心關鍵</strong>（答到這幾點就算對）：</p>
+<ol>
+<li><code>%r12</code> 存 <code>b</code>：<code>6: mov %rsi,%r12</code> 存起來，<code>g(a)</code> 回來後 <code>13: mov %r12,%rdi</code> 當 <code>g(b)</code> 的參數。</li>
+<li><code>%rbp</code> 存 <code>a</code>：<code>a: mov %rdi,%rbp</code> 存起來，兩次 <code>call</code> 之後 <code>22: add %rbp,%rax</code> 加上 <code>a</code>。</li>
+<li><code>%rbx</code> 存 <code>x</code>（<code>g(a)</code> 的回傳值）：<code>16: mov %rax,%rbx</code> 存起來，撐過 <code>g(b)</code> 後 <code>1e: add %rbx,%rax</code>。</li>
+<li>對照預測：3 個 callee-saved、<code>push</code> 3 次、沒有 <code>sub $0x8,%rsp</code>。</li>
+</ol>
+<p><strong>詳細說明</strong>：</p>
+<ul>
+<li><code>y</code>（<code>g(b)</code> 的回傳值）從頭到尾沒有被存，一直留在 <code>%rax</code> 裡直接加：<code>1e: add %rbx,%rax</code> 就是 <code>y + x</code>。</li>
+<li><code>13</code> 和 <code>16</code> 兩行的順序對結果沒影響，這兩行用到的暫存器不重疊，gcc 可以自由排。<code>21: pop %rbx</code> 排在 <code>22: add %rbp,%rax</code> 前面也一樣：<code>%rbx</code> 裡的 <code>x</code> 在 <code>1e</code> 已經加完了，可以先還原。</li>
+</ul>
+</blockquote>
 <h3 id="4-3-把-return-改成-x--y不加-a重新編譯貼上本體push-的次數有沒有-sub-0x8rsp-各怎麼變用進函式時-rsp-除以-16-餘幾每個-push-挪幾-byte算一次解釋為什麼筆記第六節上面的-sub-0x8rsp16-byte-對齊">4-3. 把 <code>return</code> 改成 <code>x + y</code>（不加 <code>a</code>），重新編譯，貼上本體。<code>push</code> 的次數、有沒有 <code>sub $0x8,%rsp</code> 各怎麼變？用「進函式時 <code>%rsp</code> 除以 16 餘幾、每個 <code>push</code> 挪幾 byte」算一次，解釋為什麼。【筆記第六節〈上面的 <code>sub $0x8,%rsp</code>：16 byte 對齊〉】</h3>
 <p><strong>第 1 次（2026-10-18）</strong></p>
-<div class="answer-box" data-file="small-project/s1-05-asm-calls/README.md" data-line="680"><textarea spellcheck="false" placeholder="在這裡作答">0000000000000000 &lt;h&gt;:
+<pre><code>0000000000000000 &lt;h&gt;:
    0:   endbr64
    4:   push   %rbp
    5:   mov    %rsi,%rbp
@@ -782,12 +872,44 @@ push rbp, rsp挪動8byte
 push rbx, rsp再挪動8byte
 但call g(a)的時候, 需要push返回位址,所以rsp還需要-8byte 給返回位址, 總共24byte
 所以除以16應該餘8byte
-</textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+</code></pre>
+<blockquote>
+<p><strong>批改</strong>：<strong>不完整</strong>。輸出正確（本機重跑一樣）；<code>push</code> 從 3 次變 2 次、多了 <code>sub $0x8,%rsp</code> 都對，少一次 <code>push</code> 的原因也大致對（<code>a</code> 不用再存，剩下 <code>b</code> 放 <code>%rbp</code>，再加上 <code>x</code> 放 <code>%rbx</code>）。錯在對齊的算法，有兩處：</p>
+<ol>
+<li><strong>把 <code>call g</code> 推的返回位址算了進去</strong>。規則是「<strong>執行 <code>call</code> 的那一刻</strong>」<code>%rsp</code> 要是 16 的倍數，也就是 <code>call</code> 推返回位址<strong>之前</strong>。<code>call g</code> 推的那 8 byte 是讓 <code>g</code> 一進來餘 8，跟 <code>h</code> 要不要補 <code>sub</code> 無關。跟 2-4 錯在同一處（2026-10-16，把 <code>sub $0x8</code> 的原因錯成「存返回位址」）。</li>
+<li><strong>漏了起點</strong>。進 <code>h</code> 時 <code>%rsp</code> 已經是「16 的倍數 − 8」，因為呼叫 <code>h</code> 的人的 <code>call h</code> 推了 8 byte 返回位址。</li>
+</ol>
+<p>所以「24 byte、餘 8」這個數字的來源不對，也沒有推到「所以要補 <code>sub</code>」這個結論。正確算法見參考答案第 3 點。</p>
+<p><strong>參考答案</strong>【筆記<a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80%E4%BA%8C-call%E8%88%87ret%E3%80%81%E5%A0%86%E7%96%8A%E6%A1%86%E3%80%81%E5%8F%83%E6%95%B8%E8%88%87%E5%91%BC%E5%8F%AB%E6%85%A3%E4%BE%8B.html#%E5%85%AD%E8%AA%B0%E8%B2%A0%E8%B2%AC%E4%BF%9D%E5%AD%98%E6%9A%AB%E5%AD%98%E5%99%A8%E4%BB%A5%E5%8F%8A-16-byte-%E5%B0%8D%E9%BD%8A">第六節</a>〈上面的 <code>sub $0x8,%rsp</code>：16 byte 對齊〉】</p>
+<p><strong>核心關鍵</strong>（答到這幾點就算對）：</p>
+<ol>
+<li><code>push</code> 從 3 次變 2 次：<code>a</code> 在兩次 <code>call</code> 之後不再用，不必保存，只剩 <code>b</code>（<code>%rbp</code>）和 <code>x</code>（<code>%rbx</code>）。</li>
+<li>多了 <code>sub $0x8,%rsp</code>（兩次 <code>call</code> 都做完後用 <code>add $0x8,%rsp</code> 還原）。</li>
+<li>算法：進 <code>h</code> 時 <code>%rsp</code> 除以 16 餘 8（<code>call h</code> 推了返回位址），每個 <code>push</code> 挪 8 byte。2 次 <code>push</code> 後是 8 ＋ 16 ＝ 24，除以 16 餘 8，<code>call g</code> 時沒對齊，所以補 <code>sub $0x8</code> 變成 32（餘 0）。4-2 是 3 次 <code>push</code>：8 ＋ 24 ＝ 32，已經對齊，不用補。</li>
+</ol>
+<p><strong>詳細說明</strong>：</p>
+<ul>
+<li>用位址算一次（假設進 <code>h</code> 時 <code>%rsp</code> ＝ <code>…d8</code>，餘 8）：<code>push %rbp</code> → <code>…d0</code>（餘 0）、<code>push %rbx</code> → <code>…c8</code>（餘 8）、<code>sub $0x8,%rsp</code> → <code>…c0</code>（餘 0），<code>call g</code> 時 <code>%rsp</code> ＝ <code>…c0</code>，是 16 的倍數。<code>call</code> 推返回位址後，<code>g</code> 一進來是 <code>…b8</code>，又是「餘 8」。每個函式進來時都是這個狀態，它就能用同一套算法排自己的堆疊。</li>
+<li>規則可以推廣：函式裡有 <code>call</code>、又沒有別的區域變數時，<code>push</code> 奇數次就自動對齊，偶數次（包括 0 次，筆記的 <code>noret.c</code>）就要補 <code>sub $0x8,%rsp</code>。</li>
+<li>4-3 的 <code>b</code> 從 <code>%r12</code> 換成 <code>%rbp</code>：哪個值分到哪個 callee-saved 暫存器是 gcc 自己決定的，不用背，要看的是「用了幾個」。</li>
+</ul>
+</blockquote>
 <h3 id="4-4-4-2-的-h-裡pop-的順序跟-push-的順序是什麼關係為什麼一定要這樣筆記第二節">4-4. 4-2 的 <code>h</code> 裡，<code>pop</code> 的順序跟 <code>push</code> 的順序是什麼關係？為什麼一定要這樣？【筆記<a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80%E4%BA%8C-call%E8%88%87ret%E3%80%81%E5%A0%86%E7%96%8A%E6%A1%86%E3%80%81%E5%8F%83%E6%95%B8%E8%88%87%E5%91%BC%E5%8F%AB%E6%85%A3%E4%BE%8B.html#%E4%BA%8C%E5%A0%86%E7%96%8Arsp-%E6%8C%87%E8%91%97%E9%A0%82%E7%AB%AF%E5%BE%80%E4%BD%8E%E4%BD%8D%E5%9D%80%E9%95%B7">第二節</a>】</h3>
 <p><strong>第 1 次（2026-10-18）</strong></p>
-<div class="answer-box" data-file="small-project/s1-05-asm-calls/README.md" data-line="711"><textarea spellcheck="false" placeholder="在這裡作答">先進後出, 因爲stack是從最上面的先移出去,
+<pre><code>先進後出, 因爲stack是從最上面的先移出去,
 如果先pop rbp, rsp這個時候的記憶體位址指向的是rbx, 就會把rbx的原值寫入rbp
-</textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+</code></pre>
+<blockquote>
+<p><strong>批改</strong>：<strong>對</strong>。順序相反（後進先出）、<code>pop</code> 只會拿當時的頂端，順序錯了 <code>%rbp</code> 會拿到 <code>%rbx</code> 的原值，這三點都講到了。可以把後果說完整：值還原到錯的暫存器，呼叫 <code>h</code> 的人回來後 <code>%rbx</code>、<code>%rbp</code> 就被改掉了，違反 callee-saved 的保證。</p>
+<p><strong>參考答案</strong>【筆記<a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80%E4%BA%8C-call%E8%88%87ret%E3%80%81%E5%A0%86%E7%96%8A%E6%A1%86%E3%80%81%E5%8F%83%E6%95%B8%E8%88%87%E5%91%BC%E5%8F%AB%E6%85%A3%E4%BE%8B.html#%E4%BA%8C%E5%A0%86%E7%96%8Arsp-%E6%8C%87%E8%91%97%E9%A0%82%E7%AB%AF%E5%BE%80%E4%BD%8E%E4%BD%8D%E5%9D%80%E9%95%B7">第二節</a>的 <code>push</code>／<code>pop</code> 表；<a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80%E4%BA%8C-call%E8%88%87ret%E3%80%81%E5%A0%86%E7%96%8A%E6%A1%86%E3%80%81%E5%8F%83%E6%95%B8%E8%88%87%E5%91%BC%E5%8F%AB%E6%85%A3%E4%BE%8B.html#%E5%85%AD%E8%AA%B0%E8%B2%A0%E8%B2%AC%E4%BF%9D%E5%AD%98%E6%9A%AB%E5%AD%98%E5%99%A8%E4%BB%A5%E5%8F%8A-16-byte-%E5%B0%8D%E9%BD%8A">第六節</a>的 callee-saved 規則】</p>
+<p><strong>核心關鍵</strong>（答到這幾點就算對）：</p>
+<ol>
+<li><code>pop</code> 的順序跟 <code>push</code> 相反：<code>push %r12</code>、<code>%rbp</code>、<code>%rbx</code>，所以 <code>pop %rbx</code>、<code>%rbp</code>、<code>%r12</code>。</li>
+<li><code>pop</code> 只是把 <code>%rsp</code> 指的頂端那 8 byte 讀出來，不知道那一格當初是哪個暫存器推的；頂端永遠是最後推的那一格。</li>
+<li>順序錯了，原值會還原到錯的暫存器，呼叫者的 callee-saved 暫存器就被改掉了。</li>
+</ol>
+<p><strong>詳細說明</strong>：照第二節的定義，<code>pop %rbx</code> ＝ <code>mov (%rsp),%rbx</code> 再 <code>add $8,%rsp</code>。三次 <code>push</code> 後堆疊由頂端往下是 <code>%rbx</code> 原值、<code>%rbp</code> 原值、<code>%r12</code> 原值。中間如果還有 <code>sub $0x8,%rsp</code>（4-3），要先 <code>add $0x8,%rsp</code> 把頂端挪回 <code>%rbx</code> 那格，再開始 <code>pop</code>，也是同一個道理。</p>
+</blockquote>
 <hr />
 <h2 id="5-可變參數函式的-al">5. 可變參數函式的 <code>%al</code></h2>
 <p>寫 <code>va.c</code>：</p>
@@ -812,21 +934,114 @@ push rbx, rsp再挪動8byte
 objdump -d --no-show-raw-insn va
 </code></pre>
 <h3 id="5-1-編譯前先預測第一個-printf6-個參數含格式字串各放在哪個暫存器呼叫前-eax-會被設成多少筆記第五節表下第一段第七節">5-1. 編譯前先預測第一個 <code>printf</code>：6 個參數（含格式字串）各放在哪個暫存器？呼叫前 <code>%eax</code> 會被設成多少？【筆記<a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80%E4%BA%8C-call%E8%88%87ret%E3%80%81%E5%A0%86%E7%96%8A%E6%A1%86%E3%80%81%E5%8F%83%E6%95%B8%E8%88%87%E5%91%BC%E5%8F%AB%E6%85%A3%E4%BE%8B.html#%E4%BA%94%E5%8F%83%E6%95%B8%E8%88%87%E5%9B%9E%E5%82%B3%E5%80%BC%E6%94%BE%E5%93%AA%E8%A3%A1">第五節</a>表下第一段、<a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80%E4%BA%8C-call%E8%88%87ret%E3%80%81%E5%A0%86%E7%96%8A%E6%A1%86%E3%80%81%E5%8F%83%E6%95%B8%E8%88%87%E5%91%BC%E5%8F%AB%E6%85%A3%E4%BE%8B.html#%E4%B8%83printf-%E5%89%8D%E7%9A%84-movl-0-eax%E5%8F%AF%E8%AE%8A%E5%8F%83%E6%95%B8%E5%87%BD%E5%BC%8F%E7%9A%84-al">第七節</a>】</h3>
-<p><strong>第 1 次（YYYY-MM-DD）</strong></p>
-<div class="answer-box" data-file="small-project/s1-05-asm-calls/README.md" data-line="749"><textarea spellcheck="false" placeholder="在這裡作答">
-</textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<p><strong>第 1 次（2026-10-18）</strong></p>
+<pre><code>rdi, rsi, rdx, rcx, r8, r9
+
+0x3
+</code></pre>
+<blockquote>
+<p><strong>批改</strong>：<strong>不完整</strong>。<code>%eax</code> ＝ 3 對：三個 <code>double</code> 用掉 3 個向量暫存器。但 6 個參數的位置錯了：你把 6 個參數全部排進整數那一組 <code>%rdi</code>～<code>%r9</code>，可是 <code>double</code> 走<strong>另一組</strong> <code>%xmm0</code>～<code>%xmm7</code>，兩組各自從第 1 個開始數，互不影響。所以只有格式字串、<code>1</code>、<code>2</code> 用整數暫存器（<code>%rdi</code>、<code>%rsi</code>、<code>%rdx</code>），<code>%rcx</code>、<code>%r8</code>、<code>%r9</code> 根本沒用到。你的 <code>%eax</code> ＝ 3 其實已經算到「3 個 <code>double</code> 用了 3 個 <code>%xmm</code>」，暫存器那一行跟它是矛盾的。</p>
+<p><strong>參考答案</strong>【筆記<a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80%E4%BA%8C-call%E8%88%87ret%E3%80%81%E5%A0%86%E7%96%8A%E6%A1%86%E3%80%81%E5%8F%83%E6%95%B8%E8%88%87%E5%91%BC%E5%8F%AB%E6%85%A3%E4%BE%8B.html#%E4%BA%94%E5%8F%83%E6%95%B8%E8%88%87%E5%9B%9E%E5%82%B3%E5%80%BC%E6%94%BE%E5%93%AA%E8%A3%A1">第五節</a>表下第一段（「浮點數（<code>double</code>）的參數走另一組暫存器」）、<a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80%E4%BA%8C-call%E8%88%87ret%E3%80%81%E5%A0%86%E7%96%8A%E6%A1%86%E3%80%81%E5%8F%83%E6%95%B8%E8%88%87%E5%91%BC%E5%8F%AB%E6%85%A3%E4%BE%8B.html#%E4%B8%83printf-%E5%89%8D%E7%9A%84-movl-0-eax%E5%8F%AF%E8%AE%8A%E5%8F%83%E6%95%B8%E5%87%BD%E5%BC%8F%E7%9A%84-al">第七節</a>〈可以注意兩件事〉那段（「各走各的暫存器序列」）】</p>
+<p><strong>核心關鍵</strong>（答到這幾點就算對）：</p>
+<ol>
+<li>整數與指標照整數序列：格式字串 → <code>%rdi</code>、<code>1</code> → <code>%esi</code>、<code>2</code> → <code>%edx</code>。</li>
+<li><code>double</code> 照浮點序列：<code>0.5</code> → <code>%xmm0</code>、<code>1.5</code> → <code>%xmm1</code>、<code>2.5</code> → <code>%xmm2</code>。</li>
+<li><code>%eax</code> ＝ 3：用了 3 個向量暫存器。</li>
+</ol>
+<p><strong>詳細說明</strong>：判斷方法是<strong>把參數依型別分成兩串，各自照順序排</strong>，不是全部參數一起數。<code>printf(&quot;%d %f %d %f %f\n&quot;, 1, 0.5, 2, 1.5, 2.5)</code> 的整數串是「格式字串、1、2」，浮點串是「0.5、1.5、2.5」。所以 <code>2</code> 雖然是第 4 個參數，卻放 <code>%rdx</code>（整數串的第 3 個），不是 <code>%rcx</code>。<code>1</code>、<code>2</code> 是 <code>int</code>，用 32 位元的名字 <code>%esi</code>、<code>%edx</code>（第五節表下第一段）。</p>
+</blockquote>
 <h3 id="5-2-編譯前先預測main-在-call-showd-之前會不會設-eax為什麼筆記第七節最後一段">5-2. 編譯前先預測：<code>main</code> 在 <code>call showd</code> 之前會不會設 <code>%eax</code>？為什麼？【筆記第七節最後一段】</h3>
-<p><strong>第 1 次（YYYY-MM-DD）</strong></p>
-<div class="answer-box" data-file="small-project/s1-05-asm-calls/README.md" data-line="756"><textarea spellcheck="false" placeholder="在這裡作答">
-</textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<p><strong>第 1 次（2026-10-18）</strong></p>
+<pre><code>不會,因爲這是可變參數函式才有的規定
+</code></pre>
+<blockquote>
+<p><strong>批改</strong>：<strong>對</strong>。抓到：<code>showd(double x)</code> 是參數固定的一般函式，<code>%al</code> 只有呼叫可變參數函式時才要設。</p>
+<p><strong>參考答案</strong>【筆記<a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80%E4%BA%8C-call%E8%88%87ret%E3%80%81%E5%A0%86%E7%96%8A%E6%A1%86%E3%80%81%E5%8F%83%E6%95%B8%E8%88%87%E5%91%BC%E5%8F%AB%E6%85%A3%E4%BE%8B.html#%E4%B8%83printf-%E5%89%8D%E7%9A%84-movl-0-eax%E5%8F%AF%E8%AE%8A%E5%8F%83%E6%95%B8%E5%87%BD%E5%BC%8F%E7%9A%84-al">第七節</a>最後一段】</p>
+<p><strong>核心關鍵</strong>（答到這幾點就算對）：</p>
+<ol>
+<li>不會設 <code>%eax</code>。</li>
+<li><code>%al</code> 是可變參數函式才有的規定；<code>showd</code> 的參數個數和型別是固定的，<code>showd</code> 知道 <code>x</code> 就在 <code>%xmm0</code>，不需要別人告訴它用了幾個向量暫存器。</li>
+</ol>
+<p><strong>詳細說明</strong>：反過來看 <code>showd</code> 裡面：它呼叫 <code>printf(&quot;%f\n&quot;, x)</code> 之前會有 <code>mov $0x1,%eax</code>，因為那一次呼叫的是可變參數函式（本機 <code>objdump</code> 的 <code>116d: mov $0x1,%eax</code>）。所以要不要設 <code>%al</code>，看的是<strong>被呼叫的函式</strong>是不是可變參數，跟參數裡有沒有 <code>double</code> 無關。</p>
+</blockquote>
 <h3 id="5-3-編譯貼上-main-裡第一個-printf-和-showd-這兩次呼叫前面設參數的那幾行跟-5-15-2-的預測對照">5-3. 編譯，貼上 <code>main</code> 裡第一個 <code>printf</code> 和 <code>showd</code> 這兩次呼叫前面設參數的那幾行，跟 5-1、5-2 的預測對照。</h3>
-<p><strong>第 1 次（YYYY-MM-DD）</strong></p>
-<div class="answer-box" data-file="small-project/s1-05-asm-calls/README.md" data-line="763"><textarea spellcheck="false" placeholder="在這裡作答">
-</textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<p><strong>第 1 次（2026-10-19）</strong></p>
+<pre><code>000000000000117a &lt;main&gt;:
+    117a:       endbr64
+    117e:       push   %rbp
+    117f:       mov    %rsp,%rbp
+    1182:       movsd  0xeae(%rip),%xmm1        # 2038 &lt;_IO_stdin_used+0x38&gt;
+    118a:       movsd  0xeae(%rip),%xmm0        # 2040 &lt;_IO_stdin_used+0x40&gt;
+    1192:       mov    0xeaf(%rip),%rax        # 2048 &lt;_IO_stdin_used+0x48&gt;
+    1199:       movapd %xmm1,%xmm2
+    119d:       movapd %xmm0,%xmm1
+    11a1:       mov    $0x2,%edx
+    11a6:       movq   %rax,%xmm0
+    11ab:       mov    $0x1,%esi
+    11b0:       lea    0xe55(%rip),%rax        # 200c &lt;_IO_stdin_used+0xc&gt;
+    11b7:       mov    %rax,%rdi
+    11ba:       mov    $0x3,%eax # &lt;- 符合5-1的預測
+    11bf:       call   1050 &lt;printf@plt&gt;
+    11c4:       mov    0xe85(%rip),%rax        # 2050 &lt;_IO_stdin_used+0x50&gt;
+    11cb:       movq   %rax,%xmm0 # &lt;- 符合5-2
+    11d0:       call   1149 &lt;showd&gt;
+</code></pre>
+<blockquote>
+<p><strong>批改</strong>：<strong>大致對</strong>。貼的幾行正確（本機重跑一樣），<code>%eax</code> ＝ 3、<code>call showd</code> 前沒有設 <code>%eax</code> 這兩點也對照出來了。漏的是 5-1 最主要的不同：預測的「<code>%rdi</code>～<code>%r9</code>」跟實際不一樣。輸出裡 <code>1</code> 在 <code>%esi</code>（<code>11ab</code>）、<code>2</code> 在 <code>%edx</code>（<code>11a1</code>），三個 <code>double</code> 在 <code>%xmm0</code>～<code>%xmm2</code>，<code>%rcx</code>、<code>%r8</code>、<code>%r9</code> 完全沒出現，這要寫出來。另外，<code>11cb: movq %rax,%xmm0</code> 是把 <code>0.25</code> 放進 <code>%xmm0</code> 當 <code>showd</code> 的參數；「符合 5-2」要看的是它下面<strong>沒有</strong> <code>mov ...,%eax</code>，不是這一行本身。</p>
+<p><strong>參考答案</strong>【筆記<a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80%E4%BA%8C-call%E8%88%87ret%E3%80%81%E5%A0%86%E7%96%8A%E6%A1%86%E3%80%81%E5%8F%83%E6%95%B8%E8%88%87%E5%91%BC%E5%8F%AB%E6%85%A3%E4%BE%8B.html#%E4%BA%94%E5%8F%83%E6%95%B8%E8%88%87%E5%9B%9E%E5%82%B3%E5%80%BC%E6%94%BE%E5%93%AA%E8%A3%A1">第五節</a>表下第一段、<a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80%E4%BA%8C-call%E8%88%87ret%E3%80%81%E5%A0%86%E7%96%8A%E6%A1%86%E3%80%81%E5%8F%83%E6%95%B8%E8%88%87%E5%91%BC%E5%8F%AB%E6%85%A3%E4%BE%8B.html#%E4%B8%83printf-%E5%89%8D%E7%9A%84-movl-0-eax%E5%8F%AF%E8%AE%8A%E5%8F%83%E6%95%B8%E5%87%BD%E5%BC%8F%E7%9A%84-al">第七節</a>】</p>
+<p><strong>核心關鍵</strong>（答到這幾點就算對）：</p>
+<ol>
+<li>第一個 <code>printf</code>：格式字串 → <code>%rdi</code>（<code>11b0</code>～<code>11b7</code>）、<code>1</code> → <code>%esi</code>（<code>11ab</code>）、<code>2</code> → <code>%edx</code>（<code>11a1</code>）；<code>0.5</code>、<code>1.5</code>、<code>2.5</code> → <code>%xmm0</code>、<code>%xmm1</code>、<code>%xmm2</code>；<code>mov $0x3,%eax</code>。</li>
+<li><code>call showd</code> 前：<code>0.25</code> 放進 <code>%xmm0</code>，沒有設 <code>%eax</code>。</li>
+<li>對照：<code>%eax</code> 和 5-2 符合預測；5-1 的暫存器預測錯了，整數和 <code>double</code> 是兩條序列。</li>
+</ol>
+<p><strong>詳細說明</strong>：照 <code>.rodata</code> 的內容（<code>objdump -s -j .rodata va</code>），<code>2038</code> ＝ 2.5、<code>2040</code> ＝ 1.5、<code>2048</code> ＝ 0.5、<code>2050</code> ＝ 0.25。gcc 的順序有點繞：2.5 先放 <code>%xmm1</code>、1.5 先放 <code>%xmm0</code>，再用 <code>movapd</code> 搬成 2.5 → <code>%xmm2</code>、1.5 → <code>%xmm1</code>，最後 0.5 從 <code>%rax</code> 搬進 <code>%xmm0</code>。看組合語言時要看<strong><code>call</code> 那一刻</strong>每個暫存器裡是什麼，中間怎麼搬不重要（<code>movsd</code>／<code>movapd</code>／<code>movq</code> 只要看得出「把 <code>double</code> 放進 <code>%xmm</code>」就夠了，筆記第七節）。</p>
+</blockquote>
 <h3 id="5-4-第二個-printf-有-9-個-double可是傳浮點參數的暫存器只有-xmm0xmm7-八個編譯前先猜第-9-個-double-會放在哪裡al-會是多少再對照實際輸出貼上相關的幾行新觀念先猜">5-4. 第二個 <code>printf</code> 有 9 個 <code>double</code>，可是傳浮點參數的暫存器只有 <code>%xmm0</code>～<code>%xmm7</code> 八個。編譯前先猜：第 9 個 <code>double</code> 會放在哪裡？<code>%al</code> 會是多少？再對照實際輸出，貼上相關的幾行。【新觀念，先猜】</h3>
-<p><strong>第 1 次（YYYY-MM-DD）</strong></p>
-<div class="answer-box" data-file="small-project/s1-05-asm-calls/README.md" data-line="770"><textarea spellcheck="false" placeholder="在這裡作答">
-</textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<p><strong>第 1 次（2026-10-19）</strong></p>
+<pre><code>先猜: 不知道
+al是9
+11d5:       movsd  0xe7b(%rip),%xmm7        # 2058 &lt;_IO_stdin_used+0x58&gt;
+    11dd:       movsd  0xe7b(%rip),%xmm6        # 2060 &lt;_IO_stdin_used+0x60&gt;
+    11e5:       movsd  0xe7b(%rip),%xmm5        # 2068 &lt;_IO_stdin_used+0x68&gt;
+    11ed:       movsd  0xe7b(%rip),%xmm4        # 2070 &lt;_IO_stdin_used+0x70&gt;
+    11f5:       movsd  0xe7b(%rip),%xmm3        # 2078 &lt;_IO_stdin_used+0x78&gt;
+    11fd:       movsd  0xe7b(%rip),%xmm2        # 2080 &lt;_IO_stdin_used+0x80&gt;
+    1205:       movsd  0xe7b(%rip),%xmm1        # 2088 &lt;_IO_stdin_used+0x88&gt;
+    120d:       mov    0xe7c(%rip),%rax        # 2090 &lt;_IO_stdin_used+0x90&gt;
+    1214:       sub    $0x8,%rsp
+    1218:       movsd  0xe78(%rip),%xmm0        # 2098 &lt;_IO_stdin_used+0x98&gt;
+    1220:       lea    -0x8(%rsp),%rsp
+    1225:       movsd  %xmm0,(%rsp)
+    122a:       movq   %rax,%xmm0
+    122f:       lea    0xde6(%rip),%rax        # 201c &lt;_IO_stdin_used+0x1c&gt;
+    1236:       mov    %rax,%rdi
+    1239:       mov    $0x8,%eax
+    123e:       call   1050 &lt;printf@plt&gt;
+
+我不理解
+</code></pre>
+<blockquote>
+<p><strong>批改</strong>：<strong>對</strong>（這題是【新觀念，先猜】，猜測不計分）。貼的幾行正確（本機重跑一樣）。猜 <code>%al</code> ＝ 9，實際是 8；第 9 個放哪裡沒有猜。這兩點都是沒教過的，下面補教，也已經寫進筆記<a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80%E4%BA%8C-call%E8%88%87ret%E3%80%81%E5%A0%86%E7%96%8A%E6%A1%86%E3%80%81%E5%8F%83%E6%95%B8%E8%88%87%E5%91%BC%E5%8F%AB%E6%85%A3%E4%BE%8B.html#%E4%B8%83printf-%E5%89%8D%E7%9A%84-movl-0-eax%E5%8F%AF%E8%AE%8A%E5%8F%83%E6%95%B8%E5%87%BD%E5%BC%8F%E7%9A%84-al">第七節</a>〈補教：超過 8 個 <code>double</code>，第 9 個放哪裡、<code>%al</code> 是多少〉（範例 <a href="../../../small-project/s1-05-asm-calls/float9.c"><code>float9.c</code></a>、<a href="../../../small-project/s1-05-asm-calls/float9.gdb"><code>float9.gdb</code></a>，有 gdb 實測）。</p>
+<p><strong>參考答案</strong>【新觀念，已補教：筆記<a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80%E4%BA%8C-call%E8%88%87ret%E3%80%81%E5%A0%86%E7%96%8A%E6%A1%86%E3%80%81%E5%8F%83%E6%95%B8%E8%88%87%E5%91%BC%E5%8F%AB%E6%85%A3%E4%BE%8B.html#%E4%B8%83printf-%E5%89%8D%E7%9A%84-movl-0-eax%E5%8F%AF%E8%AE%8A%E5%8F%83%E6%95%B8%E5%87%BD%E5%BC%8F%E7%9A%84-al">第七節</a>〈補教：超過 8 個 <code>double</code>，第 9 個放哪裡、<code>%al</code> 是多少〉】</p>
+<p><strong>核心關鍵</strong>（答到這幾點就算對）：</p>
+<ol>
+<li>前 8 個 <code>double</code>（1.0～8.0）照順序放 <code>%xmm0</code>～<code>%xmm7</code>。</li>
+<li>第 9 個（9.0）放在<strong>堆疊</strong>上，跟第 7 個以後的整數參數一樣：<code>lea -0x8(%rsp),%rsp</code> 挪出一格，<code>movsd %xmm0,(%rsp)</code> 寫進去。</li>
+<li><code>%al</code> ＝ 8：數的是用了幾個向量暫存器，堆疊上的不算，所以最多是 8。</li>
+<li>前面的 <code>sub $0x8,%rsp</code> 是對齊：堆疊參數只有 8 byte，不補的話 <code>call</code> 時 <code>%rsp</code> 不是 16 的倍數；<code>call</code> 之後 <code>add $0x10,%rsp</code> 一次清掉兩者。</li>
+</ol>
+<p><strong>詳細說明</strong>（逐段讀你貼的輸出，常數值用 <code>objdump -s -j .rodata va</code> 查出來）：</p>
+<ul>
+<li><code>11d5</code>～<code>1205</code>：從 <code>.rodata</code> 讀 8.0、7.0……2.0，依序放進 <code>%xmm7</code>、<code>%xmm6</code>……<code>%xmm1</code>。gcc 從後面倒著填，順序不重要。</li>
+<li><code>120d: mov 0xe7c(%rip),%rax</code>：1.0 先暫放 <code>%rax</code>，因為 gcc 要先借 <code>%xmm0</code> 搬 9.0。</li>
+<li><code>1214: sub $0x8,%rsp</code>：對齊。進 <code>main</code> 時餘 8，<code>push %rbp</code> 後餘 0；接下來要放 1 個 8 byte 的堆疊參數，放完會變成餘 8，所以先補 8。跟 4-3 的算法一樣，也跟第 2 題 <code>call9</code> 推 3 個參數（24 byte）要補 8 同一個道理。</li>
+<li><code>1218</code>～<code>1225</code>：9.0 放進 <code>%xmm0</code>，<code>lea -0x8(%rsp),%rsp</code>（<code>%rsp</code> 減 8，效果跟 <code>sub $0x8,%rsp</code> 一樣）挪出一格，<code>movsd %xmm0,(%rsp)</code> 寫進堆疊頂端。<code>call</code> 推進返回位址後，9.0 就在返回位址上面那一格，<code>printf</code> 從那裡讀第 9 個 <code>double</code>。</li>
+<li><code>122a: movq %rax,%xmm0</code>：1.0 放回 <code>%xmm0</code>。到這裡 <code>%xmm0</code>～<code>%xmm7</code> ＝ 1.0～8.0。</li>
+<li><code>1239: mov $0x8,%eax</code>：<code>%al</code> ＝ 8。<code>%al</code> 是讓 <code>printf</code> 決定要把幾個 <code>%xmm</code> 存起來，堆疊上的參數本來就在記憶體裡，不必存，所以不算。</li>
+<li>你沒貼的下一行 <code>1243: add $0x10,%rsp</code>：呼叫者清掉 8 byte 參數 ＋ 8 byte 對齊。</li>
+</ul>
+</blockquote>
 
 </main>
 </div>
