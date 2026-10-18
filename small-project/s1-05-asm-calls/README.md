@@ -631,7 +631,7 @@ objdump -dr --no-show-raw-insn keep.o
 
 ### 4-1. 編譯前先預測：`a`、`b`、`x`、`y` 裡面，哪些值在某一次 `call` 之後還要用（每個值寫出它要撐過哪幾次 `call`）？`h` 會用到幾個 callee-saved 暫存器、開頭 `push` 幾次？需不需要額外的 `sub $0x8,%rsp` 來對齊？【筆記[第六節](../../html/c/x86-64組合語言入門二-call與ret、堆疊框、參數與呼叫慣例.html#六誰負責保存暫存器以及-16-byte-對齊)】
 
-**第 1 次（YYYY-MM-DD）**
+**第 1 次（2026-10-18）**
 ```
 x call g(a), g(b)之後還要用 -> 2次
 y call g(b)之後還要用 -> 1次
@@ -640,32 +640,78 @@ b 沒有
 
 他要先push rbx, 因爲h本身也是callee對於call它的人來說
 然後rdi 一開始是a, g會用到, g有可能改他,而且,call g(b) 感覺也需要改rdi,把rdi換成b
-所以要先把一開始的rdi push
+所以要先把一開始的rdi push,因此要push 一個rbx 在push一個rdi
+會用到rbx一個callee-saved暫存器
 
-需要因爲不確定g在做什麼
-
-
+需要,因爲不確定g在做什麼
 ```
 
 ### 4-2. 編譯，貼上 `h` 的本體，在每個 callee-saved 暫存器旁邊註明它存的是哪個值，跟預測對照。
 
-**第 1 次（YYYY-MM-DD）**
+**第 1 次（2026-10-18）**
 ```
+0000000000000000 <h>:
+   0:   endbr64
+   4:   push   %r12 // 先把r12原本的值放到頂端
+   6:   mov    %rsi,%r12 // 把b複寫到r12
+   9:   push   %rbp // 在把rbp原值存到第二個頂端
+   a:   mov    %rdi,%rbp // a 存到rbp
+   d:   push   %rbx // 再把rbx原值存到第三個頂端
+   e:   call   13 <h+0x13> // 
+                        f: R_X86_64_PLT32       g-0x4
+  13:   mov    %r12,%rdi // 把b 放到rdi
+  16:   mov    %rax,%rbx // 把g(a)的回傳值放到rbx
+  19:   call   1e <h+0x1e>
+                        1a: R_X86_64_PLT32      g-0x4
+  1e:   add    %rbx,%rax // 把g(a) + g(b)
+  21:   pop    %rbx // 恢復原值
+  22:   add    %rbp,%rax // +a
+  25:   pop    %rbp // 恢復rbp
+  26:   pop    %r12 // 恢復r12
+  28:   ret
 
+沒預測到r12的使用, 說要push rdi也不對
+rbx爲什麼要push的原因沒有說明
+rdi 有說到 g(a), g(b)都需要用到, 只是方式是用 mov r12, rdi
 ```
 
 ### 4-3. 把 `return` 改成 `x + y`（不加 `a`），重新編譯，貼上本體。`push` 的次數、有沒有 `sub $0x8,%rsp` 各怎麼變？用「進函式時 `%rsp` 除以 16 餘幾、每個 `push` 挪幾 byte」算一次，解釋為什麼。【筆記第六節〈上面的 `sub $0x8,%rsp`：16 byte 對齊〉】
 
-**第 1 次（YYYY-MM-DD）**
+**第 1 次（2026-10-18）**
 ```
+0000000000000000 <h>:
+   0:   endbr64
+   4:   push   %rbp
+   5:   mov    %rsi,%rbp
+   8:   push   %rbx
+   9:   sub    $0x8,%rsp
+   d:   call   12 <h+0x12>
+                        e: R_X86_64_PLT32       g-0x4
+  12:   mov    %rbp,%rdi
+  15:   mov    %rax,%rbx
+  18:   call   1d <h+0x1d>
+                        19: R_X86_64_PLT32      g-0x4
+  1d:   add    $0x8,%rsp
+  21:   add    %rbx,%rax
+  24:   pop    %rbx
+  25:   pop    %rbp
+  26:   ret
 
+不再push r12 ,變成只push兩次,應該是不需要把a存到rbp, rbp可以用來存b
+有sub $0x8, $rsp 置於爲什麼有這個下面有解釋
+
+push rbp, rsp挪動8byte
+push rbx, rsp再挪動8byte
+但call g(a)的時候, 需要push返回位址,所以rsp還需要-8byte 給返回位址, 總共24byte
+所以除以16應該餘8byte
 ```
 
 ### 4-4. 4-2 的 `h` 裡，`pop` 的順序跟 `push` 的順序是什麼關係？為什麼一定要這樣？【筆記[第二節](../../html/c/x86-64組合語言入門二-call與ret、堆疊框、參數與呼叫慣例.html#二堆疊rsp-指著頂端往低位址長)】
 
-**第 1 次（YYYY-MM-DD）**
+**第 1 次（2026-10-18）**
 ```
-
+先進後出, 因爲stack是從最上面的先移出去,
+如果先pop rbp, rsp這個時候的記憶體位址指向的是rbx, 就會把rbx的原值寫入rbp
 ```
 
 ---
