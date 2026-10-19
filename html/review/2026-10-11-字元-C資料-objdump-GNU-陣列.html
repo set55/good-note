@@ -329,7 +329,7 @@ mbstowcs: 1
 <span class="p">}</span>
 </code></pre>
 <p>編譯與執行：<code>gcc -O0 ub.c -o ub &amp;&amp; ./ub</code>、<code>gcc -O2 ub.c -o ub &amp;&amp; ./ub</code>（結果如題目所述，分別印 0 與 1）。</p>
-<pre><code>-O0, gcc實際去算 ,因爲x超過int最大值溢位,所以變成負最小因此返回0
+<div class="answer-box locked"><textarea readonly spellcheck="false">-O0, gcc實際去算 ,因爲x超過int最大值溢位,所以變成負最小因此返回0
 -O2, gcc沒有實際算,因爲溢位在c沒有定義,所以c會認爲兩個int相加的值必大於兩者,因此返回1
 
 不算因爲c沒有去定義溢位這件事
@@ -337,7 +337,7 @@ mbstowcs: 1
 -fno-strict-overflow
 這可以讓溢位變成有定義的
 代價是每一個可能發生溢位的地方都會被標記實際算一次,犧牲cpu的計算增加
-</code></pre>
+</textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
 <details class="answer"><summary>批改</summary>
 <p><strong>對</strong>（盒子 1 → 2）。四點都答到：<code>-O0</code> 回繞成最小值所以回傳 0；<code>-O2</code> 因為溢位是 UB、直接當成恆真回傳 1；不算 bug；<code>-fno-strict-overflow</code> 讓溢位有定義、代價是比較慢。10-07 說反的 <code>-O2</code> 推理與沒寫出的選項名稱，這次都對了。三個用詞小修，不扣分：(1) 做假設的是<strong>編譯器（gcc）</strong>，C 標準只是允許它這樣假設；(2)「兩個 <code>int</code> 相加必大於兩者」只在加的是正數時成立，這題是 <code>x + 1 &gt; x</code>；(3) 代價不是「每個地方實際多算一次」——加法 <code>-O2</code> 一樣會算，差別是 gcc 不能再靠「不會溢位」這個假設來化簡比較、改寫程式。</p>
 <details class="answer"><summary>參考答案</summary>

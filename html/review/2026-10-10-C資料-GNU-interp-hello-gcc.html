@@ -391,13 +391,13 @@ chmod +x catscript
 ./catscript
 </code></pre>
 <p>（執行結果不附，因為會洩漏答案。）</p>
-<pre><code>都是被核心第一個載入
+<div class="answer-box locked"><textarea readonly spellcheck="false">都是被核心第一個載入
 不同的是interpreter是負責載入函式庫, 而sh是負責執行檔案
 
 會把腳本內容整個印出來
 也就是  cat catscript.sh
 也就是核心把整個腳本交給直譯器cat了
-</code></pre>
+</textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
 <details class="answer"><summary>批改</summary>
 <p><strong>不完整</strong>。相同的地方對：核心先啟動直譯器，不是檔案本身。不同的地方答到直譯器做的事（<code>ld.so</code> 載入函式庫、<code>sh</code> 執行腳本），缺寫的地方（第一行的 <code>#!</code> vs 程式標頭的 <code>INTERP</code>）。第三問錯：「核心把整個腳本交給直譯器 cat」，又說成<strong>內容</strong>，跟 10-06 和更早幾次錯在同一處。其實你自己寫的「也就是 <code>cat catscript.sh</code>」就是答案：這個命令列交給 <code>cat</code> 的只有 <code>./catscript</code> 這個<strong>名字</strong>（參數），是 <code>cat</code> 自己拿這個名字去打開檔案、讀出內容、印出來。要分清兩件事：核心交給直譯器的東西，是直譯器的<strong>命令列參數</strong>；印出來的內容，是 <code>cat</code> 自己讀檔的結果。</p>
 <details class="answer"><summary>參考答案</summary>
@@ -432,7 +432,7 @@ chmod +x catscript
 <pre><code>gcc -c hello.c -o hello.o
 </code></pre>
 <p>（原始碼寫的是 <code>printf</code>，gcc 把「<code>printf(&quot;%s\n&quot;, 字串)</code>」換成了 <code>puts(字串)</code>，所以 <code>hello.o</code> 裡呼叫的是 <code>puts</code>——見筆記第三節。）</p>
-<pre><code>因爲這個時候連接器還沒有把需要連接的函式庫連接起來,所以用00 準備讓連接器補
+<div class="answer-box locked"><textarea readonly spellcheck="false">因爲這個時候連接器還沒有把需要連接的函式庫連接起來,所以用00 準備讓連接器補
 
 用objdump -dr 可以看到組合語言裏面已經提示了他該去找什麼方法
 
@@ -449,7 +449,7 @@ chmod +x catscript
   17:   b8 00 00 00 00          mov    $0x0,%eax
   1c:   5d                      pop    %rbp
   1d:   c3                      ret
-</code></pre>
+</textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
 <details class="answer"><summary>批改</summary>
 <p><strong>對</strong>。抓到：連結之前還不知道 <code>puts</code> 的位址，先填 0 留給連結器補；並用 <code>objdump -dr</code> 找到 <code>13: R_X86_64_PLT32 puts-0x4</code> 這一筆，就是它告訴連結器要填誰。小補兩點：這一筆叫<strong>重定位項目</strong>（relocation），是<strong>組譯器</strong>留下來的；<code>13</code> 是要填的位置（<code>call</code> 的 <code>e8</code> 後面那 4 byte 從位移 0x13 開始）。</p>
 <details class="answer"><summary>參考答案</summary>

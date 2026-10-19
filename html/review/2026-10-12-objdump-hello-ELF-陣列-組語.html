@@ -485,9 +485,9 @@ int* f(int *a, long b){return &amp;a[b];}
 <span class="w">	</span><span class="nf">leaq</span><span class="w">	</span><span class="p">(</span><span class="nv">%rdi</span><span class="p">,</span><span class="nv">%rdi</span><span class="p">,</span><span class="mi">2</span><span class="p">),</span><span class="w"> </span><span class="nv">%rax</span><span class="w">       </span><span class="c1"># 這一行就是本題要解釋的</span>
 <span class="w">	</span><span class="nf">ret</span><span class="w">                           </span><span class="c1"># 回傳 %rax</span>
 </code></pre>
-<pre><code>因爲位址的計算就是8byte的位址直接計算,純數字計算自然也可以用到這裏
+<div class="answer-box locked"><textarea readonly spellcheck="false">因爲位址的計算就是8byte的位址直接計算,純數字計算自然也可以用到這裏
 而且如果不用這個算 就需要分配內存去計算, 用leaq只用到寄存器
-</code></pre>
+</textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
 <details class="answer"><summary>批改</summary>
 <p><strong>大致對</strong>。第一句抓到「<code>lea</code> 算的就是數字，不一定要是位址」。缺的跟 10-08 一樣：<strong>怎麼用它算 <code>x * 3</code></strong>——<code>x * 3</code> ＝ <code>x + x×2</code>，剛好是 <code>(%rdi,%rdi,2)</code> 的 B ＋ I × S。<br />
 第二句不對：不用 <code>lea</code> 也<strong>不需要記憶體</strong>，例如 <code>imulq $3, %rdi, %rax</code> 一樣全在暫存器裡算；<code>lea</code> 的好處是一個便宜的指令就做完、<strong>不改旗標</strong>、結果可以放到另一個暫存器。

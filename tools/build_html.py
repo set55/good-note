@@ -159,7 +159,7 @@ ANSWER_PREV = re.compile(r"^(\*\*.*(次|答).*\*\*|> 盒子|> 過去的作答|> 
 
 
 def mark_answer_boxes(tokens, src_rel, lines):
-    """作答區（small-project、review）裡沒標語言的程式碼區塊，前一行是作答框標籤、而且下面還沒有批改的，換成輸入框。"""
+    """作答區（small-project、review）裡沒標語言的程式碼區塊，前一行是作答框標籤（或正下方是批改）的，換成輸入框；已批改的唯讀。"""
     if src_rel.parts[0] not in PRACTICE_DIRS:
         return 0
     n = 0
@@ -170,7 +170,12 @@ def mark_answer_boxes(tokens, src_rel, lines):
         k = start - 1
         while k >= 0 and not lines[k].strip():
             k -= 1
-        if k < 0 or not ANSWER_PREV.match(lines[k].strip()):
+        j = end
+        while j < len(lines) and not lines[j].strip():
+            j += 1
+        graded = j < len(lines) and lines[j].strip().startswith("> **批改")
+        # 沒有作答標籤、但正下方就是批改的（早期複習檔把作答框直接接在題目程式碼後面），也是作答框
+        if k < 0 or not (ANSWER_PREV.match(lines[k].strip()) or graded):
             continue
         # 日期在作答標籤上；標籤和作答框中間夾了 `> 題目：` 時往上多看一行；都沒有就用複習檔檔名的日期
         label = lines[k]
@@ -179,10 +184,6 @@ def mark_answer_boxes(tokens, src_rel, lines):
         # 只有「**第 N 次（日期）**」的日期是作答日期；`> 盒子…過去的作答` 那行的日期是連結到舊複習檔的，不能拿來判斷
         d = (DATE.search(label) if label.lstrip().startswith("**") else None) or DATE.match(src_rel.name)
         old = bool(d and d.group(0) < EDITABLE_SINCE)
-        k = end
-        while k < len(lines) and not lines[k].strip():
-            k += 1
-        graded = k < len(lines) and lines[k].strip().startswith("> **批改")
         t.type = "html_block"
         # 已批改或舊格式的作答框：外觀一樣是輸入框，但唯讀、沒有儲存鈕
         if graded or old:

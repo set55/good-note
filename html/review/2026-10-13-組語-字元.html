@@ -673,8 +673,8 @@ gdb<span class="w"> </span>-batch<span class="w"> </span>-ex<span class="w"> </s
 <span class="w">    </span><span class="err">118</span><span class="nl">e:</span><span class="w">	</span><span class="nf">pop</span><span class="w">    </span><span class="nv">%rbp</span><span class="w">             </span><span class="c1"># 還原呼叫者的 %rbp</span>
 <span class="w">    </span><span class="err">118</span><span class="nl">f:</span><span class="w">	</span><span class="nf">ret</span><span class="w">                     </span><span class="c1"># 回傳 %rax</span>
 </code></pre>
-<pre><code>*deref 會停在endbr64前, 而deref會直接做到建立堆棧頂端
-</code></pre>
+<div class="answer-box locked"><textarea readonly spellcheck="false">*deref 會停在endbr64前, 而deref會直接做到建立堆棧頂端
+</textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
 <details class="answer"><summary>批改</summary>
 <p><strong>對</strong>（改判，見下方）。抓到主線：<code>break *deref</code> 停在第一條 <code>endbr64</code>，<code>break deref</code> 跳過開頭的準備工作（10-08 說成「取值」，這次對了）。<s>原判：不精確，應是等 <code>1183</code> 也執行完、停在 <code>0x1187</code></s>——這只對 <code>-g</code> 版成立。
 <strong>組語 11 記為大致對</strong>（盒子 1 → 1）。</p>
@@ -939,9 +939,9 @@ tesl 是算1&amp;edi的旗標edi = edi
 <span class="w">	</span><span class="nf">movl</span><span class="w">	</span><span class="nv">%edx</span><span class="p">,</span><span class="w"> </span><span class="nv">%eax</span><span class="w">            </span><span class="c1"># 回傳 0</span>
 <span class="w">	</span><span class="nf">ret</span>
 </code></pre>
-<pre><code>testl 只是要驗證 edi是否&lt;=0 所以只需要看旗標
+<div class="answer-box locked"><textarea readonly spellcheck="false">testl 只是要驗證 edi是否&lt;=0 所以只需要看旗標
 andl只是要用edi去判斷他是不是奇數或偶數,而且後面edi已經沒有用了
-</code></pre>
+</textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
 <details class="answer"><summary>批改</summary>
 <p><strong>不完整</strong>。中間那半對：<code>andl</code> 之後 <code>%edi</code> 再也沒用到。開頭那半的理由不夠：「只需要看旗標」說明 <code>test</code> <strong>可以</strong>用，沒說明為什麼<strong>一定要</strong>用——關鍵是下一條 <code>leal 1(%rdi), %ecx</code> 還要讀 <code>n</code> 算 <code>n + 1</code>，<code>%edi</code> 被改掉就算錯了（跟 10-08 缺同一點）。
 <strong>組語 16 記為不完整</strong>（盒子 1 → 1）。</p>
