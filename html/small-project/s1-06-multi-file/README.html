@@ -1,0 +1,357 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>s1-06：多檔案的 C 程式——標頭檔、static／extern、連結錯誤、make</title>
+<link rel="stylesheet" href="../../assets/style.css">
+<script src="../../assets/app.js"></script>
+</head>
+<body>
+<button class="menu-btn" onclick="toggleMenu()">☰ 目錄</button>
+<div class="layout">
+<nav class="side">
+<div class="crumbs"><a href="../../index.html">🏠 首頁</a> / <a href="../README.html">small-project</a> / s1-06-multi-file</div>
+<div class="tools"><button onclick="toggleTheme()">🌓 主題</button></div>
+<ul>
+<li class="l2"><a href="#%E8%AA%AA%E6%98%8E">說明</a></li>
+<li class="l2"><a href="#%E7%AD%86%E8%A8%98%E7%9A%84%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F">筆記的範例程式</a></li>
+<li class="l2"><a href="#1-%E6%8A%8A%E4%B8%80%E5%80%8B%E6%AA%94%E6%A1%88%E6%8B%86%E6%88%90%E4%B8%89%E5%80%8B">1. 把一個檔案拆成三個</a></li>
+<li class="l3"><a href="#1-1-%E8%B2%BC%E4%B8%8A%E4%B8%89%E5%80%8B%E6%AA%94%E6%A1%88%E7%9A%84%E5%85%A7%E5%AE%B9%E8%88%87%E5%9F%B7%E8%A1%8C%E7%B5%90%E6%9E%9Cis_digit-%E4%BD%A0%E6%80%8E%E9%BA%BC%E8%99%95%E7%90%86%E7%82%BA%E4%BB%80%E9%BA%BCstrstatc-%E6%9C%89%E6%B2%92%E6%9C%89-include-strstath%E7%82%BA%E4%BB%80%E9%BA%BC%E8%A6%81%E6%88%96%E4%B8%8D%E8%A6%81%E7%AD%86%E8%A8%98%E7%AC%AC%E4%B8%89%E7%AF%80%E5%AE%9A%E7%BE%A9%E7%9A%84%E9%82%A3%E5%80%8B-c-%E7%82%BA%E4%BB%80%E9%BA%BC%E4%B9%9F%E8%A6%81-include-%E8%87%AA%E5%B7%B1%E7%9A%84%E6%A8%99%E9%A0%AD%E6%AA%94%E7%AC%AC%E4%BA%94%E7%AF%80%E4%BB%80%E9%BA%BC%E6%99%82%E5%80%99%E7%94%A8">1-1. 貼上三個檔案的內容與執行結果。is_digit 你怎麼處理？為什麼？strstat.c 有沒有 #include &quot;strstat.h&quot;？為什麼要（或不要）？【筆記第三節〈定義的那個 .c 為什麼也要 #include 自己的標頭檔〉、第五節〈什麼時候用〉】</a></li>
+<li class="l3"><a href="#1-2-%E7%94%A8-readelf--s-%E7%9C%8B-strstato-%E5%92%8C-hw1_maino%E8%B2%BC%E4%B8%8A-is_digitcount_digitslengthmainprintf-%E9%80%99%E5%B9%BE%E5%88%97%E5%9C%A8%E5%93%AA%E5%80%8B-o-%E5%87%BA%E7%8F%BE%E5%B0%B1%E8%B2%BC%E5%93%AA%E5%80%8B%E6%AF%8F%E4%B8%80%E5%88%97%E7%9A%84-bind-%E5%92%8C-ndx-%E6%98%AF%E4%BB%80%E9%BA%BC%E8%AA%AA%E6%98%8E%E7%82%BA%E4%BB%80%E9%BA%BC%E6%98%AF%E9%80%99%E6%A8%A3%E7%AD%86%E8%A8%98%E7%AC%AC%E5%9B%9B%E7%AF%80%E7%9A%84%E6%AC%84%E4%BD%8D%E8%A1%A8%E7%AC%AC%E4%BA%94%E7%AF%80">1-2. 用 readelf -s 看 strstat.o 和 hw1_main.o，貼上 is_digit、count_digits、length、main、printf 這幾列（在哪個 .o 出現就貼哪個）。每一列的 Bind 和 Ndx 是什麼？說明為什麼是這樣。【筆記第四節的欄位表、第五節】</a></li>
+<li class="l3"><a href="#1-3-msg-%E9%80%99%E5%80%8B%E5%AD%97%E4%B8%B2%E5%9C%A8-hw1_maino-%E7%9A%84%E7%AC%A6%E8%99%9F%E8%A1%A8%E8%A3%A1%E6%9C%89%E6%B2%92%E6%9C%89%E4%B8%80%E5%88%97%E5%8F%AB-msg%E5%85%88%E9%A0%90%E6%B8%AC%E5%86%8D%E7%94%A8-readelf--s-%E7%A2%BA%E8%AA%8D%E7%82%BA%E4%BB%80%E9%BA%BC%E7%AD%86%E8%A8%98%E7%AC%AC%E4%BA%94%E7%AF%80%E5%87%BD%E5%BC%8F%E8%A3%A1%E7%9A%84-static%E5%93%AA%E4%BA%9B%E8%AE%8A%E6%95%B8%E6%9C%89%E7%AC%A6%E8%99%9F%E5%93%AA%E4%BA%9B%E6%B2%92%E6%9C%89">1-3. msg 這個字串在 hw1_main.o 的符號表裡有沒有一列叫 msg？先預測，再用 readelf -s 確認。為什麼？【筆記第五節〈函式裡的 static〉（哪些變數有符號、哪些沒有）】</a></li>
+<li class="l3"><a href="#1-4-%E5%85%88%E9%A0%90%E6%B8%AC%E5%86%8D%E5%AF%A6%E9%A9%97%E6%8A%8A-strstatc-%E8%A3%A1-length-%E7%9A%84%E5%AE%9A%E7%BE%A9%E6%94%B9%E6%88%90-int-lengthconst-char-s%E6%A8%99%E9%A0%AD%E6%AA%94%E4%B8%8D%E6%94%B9a-%E9%87%8D%E6%96%B0-gcc--wall--c-strstatc%E6%9C%83%E6%80%8E%E6%A8%A3%E6%98%AF%E7%B7%A8%E8%AD%AF%E9%82%84%E6%98%AF%E9%80%A3%E7%B5%90%E9%9A%8E%E6%AE%B5%E8%B2%BC%E4%B8%8A%E8%A8%8A%E6%81%AFb-%E5%86%8D%E6%8A%8A-strstatc-%E7%9A%84-include-strstath-%E6%8B%BF%E6%8E%89%E9%87%8D%E6%96%B0%E7%B7%A8%E8%AD%AF%E9%80%A3%E7%B5%90%E5%9F%B7%E8%A1%8C%E6%9C%83%E6%80%8E%E6%A8%A3%E7%82%BA%E4%BB%80%E9%BA%BC-a-%E5%92%8C-b-%E7%9A%84%E7%B5%90%E6%9E%9C%E4%B8%8D%E4%B8%80%E6%A8%A3%E5%81%9A%E5%AE%8C%E6%8A%8A%E6%AA%94%E6%A1%88%E6%94%B9%E5%9B%9E%E4%BE%86%E7%AD%86%E8%A8%98%E7%AC%AC%E4%B8%89%E7%AF%80%E5%AE%9A%E7%BE%A9%E7%9A%84%E9%82%A3%E5%80%8B-c-%E7%82%BA%E4%BB%80%E9%BA%BC%E4%B9%9F%E8%A6%81-include-%E8%87%AA%E5%B7%B1%E7%9A%84%E6%A8%99%E9%A0%AD%E6%AA%94%E7%AC%AC%E5%9B%9B%E7%AF%80%E4%B8%89%E7%A8%AE%E9%8C%AF%E8%AA%A4%E5%90%84%E7%99%BC%E7%94%9F%E5%9C%A8%E5%93%AA%E4%B8%80%E6%AD%A5">1-4. 先預測再實驗：把 strstat.c 裡 length 的定義改成 int length(const char *s)（標頭檔不改）。(a) 重新 gcc -Wall -c strstat.c，會怎樣？是編譯還是連結階段？貼上訊息。(b) 再把 strstat.c 的 #include &quot;strstat.h&quot; 拿掉，重新編譯、連結、執行，會怎樣？為什麼 (a) 和 (b) 的結果不一樣？做完把檔案改回來。【筆記第三節〈定義的那個 .c 為什麼也要 #include 自己的標頭檔〉、第四節〈三種錯誤，各發生在哪一步〉】</a></li>
+<li class="l2"><a href="#2-%E8%AE%93%E4%B8%89%E5%80%8B%E6%AA%94%E6%A1%88%E5%85%B1%E7%94%A8%E4%B8%80%E5%80%8B%E5%85%A8%E5%9F%9F%E8%AE%8A%E6%95%B8">2. 讓三個檔案共用一個全域變數</a></li>
+<li class="l3"><a href="#2-1-%E8%B2%BC%E4%B8%8A-loggerhloggerc-%E7%9A%84%E5%85%A7%E5%AE%B9%E8%88%87%E5%9F%B7%E8%A1%8C%E7%B5%90%E6%9E%9C%E8%AA%AA%E6%98%8E-log_level-%E5%9C%A8-loggerh-%E5%92%8C-loggerc-%E5%90%84%E5%AF%AB%E6%88%90%E4%BB%80%E9%BA%BC%E7%82%BA%E4%BB%80%E9%BA%BC%E8%A6%81%E9%80%99%E6%A8%A3%E5%88%86%E7%AD%86%E8%A8%98%E7%AC%AC%E5%85%AD%E7%AF%80%E6%95%B4%E7%90%86%E5%85%A8%E5%9F%9F%E8%AE%8A%E6%95%B8%E6%94%BE%E5%93%AA%E8%A3%A1">2-1. 貼上 logger.h、logger.c 的內容與執行結果。說明 log_level 在 logger.h 和 logger.c 各寫成什麼、為什麼要這樣分。【筆記第六節〈整理：全域變數放哪裡〉】</a></li>
+<li class="l3"><a href="#2-2-%E5%85%88%E9%A0%90%E6%B8%AClog_level-%E5%9C%A8-loggero-%E7%9A%84%E7%AC%A6%E8%99%9F%E8%A1%A8%E8%A3%A1ndx-%E6%98%AF-bss-%E9%82%84%E6%98%AF-data-%E7%9A%84%E7%B7%A8%E8%99%9F%E5%9C%A8-workerohw2_maino-%E8%A3%A1%E5%91%A2%E7%94%A8-readelf--s-%E8%88%87-readelf--s-%E7%A2%BA%E8%AA%8D%E8%B2%BC%E4%B8%8A%E7%9B%B8%E9%97%9C%E7%9A%84%E5%88%97%E7%82%BA%E4%BB%80%E9%BA%BC%E8%B7%9F%E7%AD%86%E8%A8%98-hits-%E7%9A%84%E4%BE%8B%E5%AD%90%E5%9C%A8%E4%B8%8D%E5%90%8C%E7%9A%84%E5%8D%80%E6%AE%B5%E7%AD%86%E8%A8%98%E7%AC%AC%E4%BA%94%E7%AF%80%E5%87%BD%E5%BC%8F%E8%A3%A1%E7%9A%84-static%E7%9A%84-bss-%E8%AA%AA%E6%98%8E%E7%AC%AC%E5%85%AD%E7%AF%80">2-2. 先預測：log_level 在 logger.o 的符號表裡，Ndx 是 .bss 還是 .data 的編號？在 worker.o、hw2_main.o 裡呢？用 readelf -s 與 readelf -S 確認，貼上相關的列。為什麼跟筆記 hits 的例子在不同的區段？【筆記第五節〈函式裡的 static〉的 .bss 說明、第六節】</a></li>
+<li class="l3"><a href="#2-3-%E5%85%88%E7%8C%9C%E5%86%8D%E5%AF%A6%E9%A9%97%E5%9C%A8-workerc-%E8%A3%A1%E4%B9%9F%E5%AF%AB%E4%B8%80%E8%A1%8C-int-log_level--1%E6%9C%89%E5%88%9D%E5%80%BC%E7%84%B6%E5%BE%8C%E7%94%A8-gcc--fcommon-%E7%B7%A8%E8%AD%AF%E5%85%A8%E9%83%A8%E6%AA%94%E6%A1%88%E5%86%8D%E9%80%A3%E7%B5%90%E7%AD%86%E8%A8%98%E8%AA%AA--fcommon-%E6%9C%83%E5%90%88%E4%BD%B5%E5%90%8C%E5%90%8D%E7%9A%84%E5%85%A8%E5%9F%9F%E8%AE%8A%E6%95%B8%E9%80%99%E6%AC%A1%E6%9C%83%E6%88%90%E5%8A%9F%E5%97%8E%E8%B2%BC%E4%B8%8A%E7%B5%90%E6%9E%9C%E5%81%9A%E5%AE%8C%E6%8A%8A%E9%82%A3%E4%B8%80%E8%A1%8C%E5%88%AA%E6%8E%89%E6%96%B0%E8%A7%80%E5%BF%B5%E5%85%88%E7%8C%9C">2-3. 先猜再實驗：在 worker.c 裡也寫一行 int log_level = 1;（有初值），然後用 gcc -fcommon 編譯全部檔案再連結。筆記說 -fcommon 會合併同名的全域變數，這次會成功嗎？貼上結果。做完把那一行刪掉。【新觀念，先猜】</a></li>
+<li class="l3"><a href="#2-4-%E5%85%88%E7%8C%9C%E5%86%8D%E5%AF%A6%E9%A9%97%E6%8A%8A-loggerc-%E7%9A%84%E5%AE%9A%E7%BE%A9%E6%94%B9%E6%88%90-static-int-log_level--2loggerh-%E4%B8%8D%E6%94%B9%E5%8F%AA%E7%B7%A8%E8%AD%AF-loggerc%E6%9C%83%E6%80%8E%E6%A8%A3%E6%98%AF%E5%93%AA%E5%80%8B%E9%9A%8E%E6%AE%B5%E5%A0%B1%E9%8C%AF%E5%A6%82%E6%9E%9C%E9%80%99%E4%B8%80%E6%AD%A5%E6%B2%92%E6%9C%89%E5%A0%B1%E9%8C%AF%E4%BD%A0%E8%A6%BA%E5%BE%97%E9%80%A3%E7%B5%90%E6%99%82%E6%9C%83%E5%87%BA%E7%8F%BE%E4%BB%80%E9%BA%BC%E9%8C%AF%E8%AA%A4%E8%B2%BC%E4%B8%8A%E8%A8%8A%E6%81%AF%E8%AA%AA%E6%98%8E%E4%BD%A0%E7%9A%84%E6%8E%A8%E7%90%86%E5%81%9A%E5%AE%8C%E6%94%B9%E5%9B%9E%E4%BE%86%E6%96%B0%E8%A7%80%E5%BF%B5%E5%85%88%E7%8C%9C%E6%8E%A8%E7%90%86%E5%8F%AF%E4%BB%A5%E7%94%A8%E7%AD%86%E8%A8%98%E7%AC%AC%E4%BA%94%E5%85%AD%E7%AF%80static-%E8%AE%93%E5%90%8D%E5%AD%97%E5%8F%AA%E5%9C%A8%E6%9C%AC%E6%AA%94%E6%A1%88%E6%9C%89%E6%95%88extern-%E5%AE%A3%E5%91%8A%E5%AE%9A%E7%BE%A9%E5%9C%A8%E5%88%A5%E8%99%95">2-4. 先猜再實驗：把 logger.c 的定義改成 static int log_level = 2;（logger.h 不改），只編譯 logger.c。會怎樣？是哪個階段報錯？如果這一步沒有報錯，你覺得連結時會出現什麼錯誤？貼上訊息，說明你的推理。做完改回來。【新觀念，先猜】（推理可以用筆記第五、六節：static 讓名字只在本檔案有效、extern 宣告「定義在別處」）</a></li>
+<li class="l2"><a href="#3-%E5%87%BD%E5%BC%8F%E8%A3%A1%E7%9A%84-static">3. 函式裡的 static</a></li>
+<li class="l3"><a href="#3-1-%E8%B2%BC%E4%B8%8A-totalc-%E8%88%87%E5%9F%B7%E8%A1%8C%E7%B5%90%E6%9E%9C%E7%AD%86%E8%A8%98%E7%AC%AC%E4%BA%94%E7%AF%80%E5%87%BD%E5%BC%8F%E8%A3%A1%E7%9A%84-static">3-1. 貼上 total.c 與執行結果。【筆記第五節〈函式裡的 static〉】</a></li>
+<li class="l3"><a href="#3-2-%E5%85%88%E9%A0%90%E6%B8%AC%E5%85%A9%E5%80%8B-static-%E8%AE%8A%E6%95%B8%E5%9C%A8-totalo-%E7%9A%84%E7%AC%A6%E8%99%9F%E8%A1%A8%E8%A3%A1%E5%8F%AB%E4%BB%80%E9%BA%BC%E5%90%8D%E5%AD%97bind-%E6%98%AF%E4%BB%80%E9%BA%BC%E5%90%84%E5%9C%A8%E5%93%AA%E5%80%8B%E5%8D%80%E6%AE%B5%E7%94%A8-readelf--sreadelf--s-%E7%A2%BA%E8%AA%8D%E8%B2%BC%E4%B8%8A%E7%9B%B8%E9%97%9C%E7%9A%84%E5%88%97%E5%85%A9%E5%80%8B%E8%AE%8A%E6%95%B8%E7%82%BA%E4%BB%80%E9%BA%BC%E5%9C%A8%E4%B8%8D%E5%90%8C%E7%9A%84%E5%8D%80%E6%AE%B5%E7%AD%86%E8%A8%98%E7%AC%AC%E4%BA%94%E7%AF%80%E5%87%BD%E5%BC%8F%E8%A3%A1%E7%9A%84-static">3-2. 先預測：兩個 static 變數在 total.o 的符號表裡叫什麼名字、Bind 是什麼、各在哪個區段？用 readelf -s、readelf -S 確認，貼上相關的列。兩個變數為什麼在不同的區段？【筆記第五節〈函式裡的 static〉】</a></li>
+<li class="l3"><a href="#3-3-%E7%94%A8-objdump--d---no-show-raw-insn-totalo-%E7%9C%8B-running_total%E8%B2%BC%E4%B8%8A%E5%AE%83%E7%9A%84%E6%9C%AC%E9%AB%94static-%E8%AE%8A%E6%95%B8%E7%94%A8%E4%BB%80%E9%BA%BC%E5%AF%AB%E6%B3%95%E5%AD%98%E5%8F%96%E5%A6%82%E6%9E%9C%E6%8A%8A-static-%E6%8B%BF%E6%8E%89%E4%BD%A0%E9%A0%90%E6%9C%9F%E9%80%99%E5%B9%BE%E8%A1%8C%E6%9C%83%E8%AE%8A%E6%88%90%E4%BB%80%E9%BA%BC%E5%AF%AB%E6%B3%95%E5%9F%B7%E8%A1%8C%E7%B5%90%E6%9E%9C%E8%AE%8A%E6%88%90%E4%BB%80%E9%BA%BC%E5%8F%AA%E8%A6%81%E9%A0%90%E6%B8%AC%E4%B8%8D%E5%BF%85%E7%9C%9F%E7%9A%84%E6%94%B9%E7%AD%86%E8%A8%98%E7%AC%AC%E4%BA%94%E7%AF%80%E5%87%BD%E5%BC%8F%E8%A3%A1%E7%9A%84-static%E7%9A%84%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%B0%8D%E7%85%A7%E7%AC%AC-5-%E8%AA%B2%E7%AD%86%E8%A8%98%E7%AC%AC%E5%9B%9B%E7%AF%80">3-3. 用 objdump -d --no-show-raw-insn total.o 看 running_total，貼上它的本體。static 變數用什麼寫法存取？如果把 static 拿掉，你預期這幾行會變成什麼寫法、執行結果變成什麼？（只要預測，不必真的改。）【筆記第五節〈函式裡的 static〉的組合語言對照；第 5 課筆記第四節】</a></li>
+<li class="l2"><a href="#4-%E8%AE%80%E9%80%A3%E7%B5%90%E9%8C%AF%E8%AA%A4">4. 讀連結錯誤</a></li>
+<li class="l3"><a href="#4a%E5%87%BD%E5%BC%8F%E5%AF%AB%E5%9C%A8%E6%A8%99%E9%A0%AD%E6%AA%94%E8%A3%A1">4a：函式寫在標頭檔裡</a></li>
+<li class="l3"><a href="#4b%E5%90%8D%E5%AD%97%E6%89%93%E9%8C%AF">4b：名字打錯</a></li>
+<li class="l3"><a href="#4c%E5%8F%83%E6%95%B8%E5%80%8B%E6%95%B8%E4%B8%8D%E5%B0%8D">4c：參數個數不對</a></li>
+<li class="l2"><a href="#5-%E8%87%AA%E5%B7%B1%E5%AF%AB-makefile">5. 自己寫 Makefile</a></li>
+<li class="l3"><a href="#5-1-%E8%B2%BC%E4%B8%8A-makefile-%E8%88%87%E7%AC%AC%E4%B8%80%E6%AC%A1-make-%E7%9A%84%E8%BC%B8%E5%87%BA%E5%9F%B7%E8%A1%8C%E7%B5%90%E6%9E%9C%E9%80%90%E8%A1%8C%E8%AA%AA%E6%98%8E-makefile-%E6%AF%8F%E4%B8%80%E8%A1%8C%E5%9C%A8%E5%81%9A%E4%BB%80%E9%BA%BC%E7%AD%86%E8%A8%98%E7%AC%AC%E4%B8%83%E7%AF%80%E5%AF%A6%E7%94%A8%E7%9A%84-makefile">5-1. 貼上 Makefile 與第一次 make 的輸出、執行結果。逐行說明 Makefile 每一行在做什麼。【筆記第七節〈實用的 Makefile〉】</a></li>
+<li class="l3"><a href="#5-2-%E5%85%88%E9%A0%90%E6%B8%ACtouch-workerh-%E4%B9%8B%E5%BE%8C-make%E5%93%AA%E4%BA%9B-o-%E6%9C%83%E9%87%8D%E7%B7%A8%E6%9C%83%E4%B8%8D%E6%9C%83%E9%87%8D%E6%96%B0%E9%80%A3%E7%B5%90%E5%86%8D%E5%AF%A6%E9%9A%9B%E8%B7%91%E8%B2%BC%E4%B8%8A%E8%BC%B8%E5%87%BA%E4%B8%A6%E8%B2%BC%E4%B8%8A-workerd-%E8%88%87-hw2_maind-%E7%9A%84%E5%85%A7%E5%AE%B9%E7%95%B6%E8%AD%89%E6%93%9A%E6%8F%9B%E6%88%90-touch-loggerh-%E5%91%A2%E7%AD%86%E8%A8%98%E7%AC%AC%E4%B8%83%E7%AF%80%E5%AF%A6%E9%A9%97%E7%AC%AC%E4%B8%80%E5%80%8B-makefile%E7%9A%84%E9%80%90%E9%BB%9E%E8%AA%AA%E6%98%8E-mmd--mp">5-2. 先預測：touch worker.h 之後 make，哪些 .o 會重編、會不會重新連結？再實際跑，貼上輸出，並貼上 worker.d 與 hw2_main.d 的內容當證據。換成 touch logger.h 呢？【筆記第七節〈實驗：第一個 Makefile〉的逐點說明、〈-MMD -MP〉】</a></li>
+<li class="l3"><a href="#5-3-touch-loggerc-%E4%B9%8B%E5%BE%8C%E7%94%A8-make-%E7%9A%84%E6%9F%90%E5%80%8B%E9%81%B8%E9%A0%85%E5%8F%AA%E5%8D%B0%E5%87%BA%E6%9C%83%E5%9F%B7%E8%A1%8C%E7%9A%84%E5%91%BD%E4%BB%A4%E4%B8%8D%E7%9C%9F%E7%9A%84%E5%9F%B7%E8%A1%8C%E8%B2%BC%E4%B8%8A%E5%91%BD%E4%BB%A4%E8%88%87%E8%BC%B8%E5%87%BA%E6%8E%A5%E8%91%97%E7%9C%9F%E7%9A%84-make-%E4%B8%80%E6%AC%A1%E7%AD%86%E8%A8%98%E7%AC%AC%E4%B8%83%E7%AF%80%E5%91%BD%E4%BB%A4%E5%88%97%E7%9A%84%E9%81%B8%E9%A0%85%E8%A1%A8">5-3. touch logger.c 之後，用 make 的某個選項只印出會執行的命令、不真的執行，貼上命令與輸出。接著真的 make 一次。【筆記第七節〈命令列〉的選項表】</a></li>
+<li class="l3"><a href="#5-4-%E5%85%88%E7%8C%9C%E5%86%8D%E5%AF%A6%E9%A9%97%E4%BB%80%E9%BA%BC%E6%AA%94%E6%A1%88%E9%83%BD%E4%B8%8D%E6%94%B9%E7%9B%B4%E6%8E%A5%E5%9F%B7%E8%A1%8C-make-cflags-wall--o2make-%E6%9C%83%E7%94%A8--o2-%E9%87%8D%E7%B7%A8%E5%97%8E%E8%B2%BC%E4%B8%8A%E8%BC%B8%E5%87%BA%E7%82%BA%E4%BB%80%E9%BA%BC%E5%A6%82%E6%9E%9C%E4%BD%A0%E7%9C%9F%E7%9A%84%E6%83%B3%E7%94%A8%E6%96%B0%E7%9A%84%E9%81%B8%E9%A0%85%E5%85%A8%E9%83%A8%E9%87%8D%E7%B7%A8%E6%9C%89%E4%BB%80%E9%BA%BC%E8%BE%A6%E6%B3%95%E6%96%B0%E8%A7%80%E5%BF%B5%E5%85%88%E7%8C%9C%E7%AC%AC%E4%BA%8C%E5%95%8F%E5%8F%AF%E4%BB%A5%E7%94%A8%E7%AD%86%E8%A8%98%E7%AC%AC%E4%B8%83%E7%AF%80%E5%91%BD%E4%BB%A4%E5%88%97%E7%9A%84%E9%81%B8%E9%A0%85%E8%A1%A8">5-4. 先猜再實驗：什麼檔案都不改，直接執行 make CFLAGS=&quot;-Wall -O2&quot;。make 會用 -O2 重編嗎？貼上輸出。為什麼？如果你真的想用新的選項全部重編，有什麼辦法？【新觀念，先猜】（第二問可以用筆記第七節〈命令列〉的選項表）</a></li>
+</ul>
+</nav>
+<main>
+<h1 id="s1-06多檔案的-c-程式標頭檔staticextern連結錯誤make">s1-06：多檔案的 C 程式——標頭檔、<code>static</code>／<code>extern</code>、連結錯誤、<code>make</code></h1>
+<blockquote>
+<p>對應課程：第 ① 站第 6 課<br />
+課程筆記：<a href="../../c/%E5%A4%9A%E6%AA%94%E6%A1%88%E7%9A%84C%E7%A8%8B%E5%BC%8F-%E6%A8%99%E9%A0%AD%E6%AA%94%E3%80%81static%E8%88%87extern%E3%80%81%E9%80%A3%E7%B5%90%E9%8C%AF%E8%AA%A4%E8%88%87make.html">多檔案的C程式-標頭檔、static與extern、連結錯誤與make.html</a><br />
+自我測驗：寫在同資料夾的 <a href="quiz.html">quiz</a></p>
+</blockquote>
+<h2 id="說明">說明</h2>
+<p>這一課要<strong>自己動手寫</strong>：把程式拆成好幾個檔案、看符號表、讀連結錯誤、寫 <code>Makefile</code>。</p>
+<ul>
+<li>每一題一個資料夾（<code>hw1/</code>～<code>hw5/</code>），檔案自己建。題目給的程式碼照打；題目只給說明的，照說明自己寫。</li>
+<li>編譯一律加 <code>-Wall</code>，<strong>有警告就要處理</strong>，不能忽略。</li>
+<li>看符號表用 <code>readelf -s 檔名.o</code>（只貼題目問的那幾列就好）。</li>
+<li>編譯產物不會進 git（白名單），要留的輸出<strong>貼進作答框</strong>。</li>
+<li>筆記裡的範例可以參考，但每一題的檔案、型別、情境都跟範例不同，照抄範例答不出來。</li>
+</ul>
+<p>每題「解釋原因」的地方都標了答案的來源：</p>
+<ul>
+<li>【筆記第 X 節】：本課教過，回筆記那一節找。</li>
+<li>【新觀念，先猜】：還沒教過，寫下你的猜測就好，猜錯不算錯。</li>
+</ul>
+<p><strong>「先預測」的題目，一定要先把預測寫進作答框，再編譯。</strong> 預測錯了沒關係，把錯在哪裡寫下來，這才是練習的重點。</p>
+<p><strong>怎麼作答</strong>：每個小題下面有作答框，直接寫在裡面（把 <code>YYYY-MM-DD</code> 換成作答日期）。批改與參考答案寫在作答框正下方，不重答。</p>
+<hr />
+<h2 id="筆記的範例程式">筆記的範例程式</h2>
+<p>課程筆記裡每個實驗的原始碼都放在 <a href="../../../small-project/s1-06-multi-file/examples/"><code>examples/</code></a>，一個實驗一個子資料夾，可以直接跟著筆記重做。<strong>它們是範例，不是作業</strong>；作業寫在 <code>hw1/</code>～<code>hw5/</code>，檔名跟範例不重複。</p>
+<table>
+<thead>
+<tr>
+<th>資料夾</th>
+<th>檔案</th>
+<th>筆記裡的位置</th>
+<th>示範什麼</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="../../../small-project/s1-06-multi-file/examples/implicit/"><code>examples/implicit/</code></a></td>
+<td><a href="../../../small-project/s1-06-multi-file/examples/implicit/main.c"><code>main.c</code></a>、<a href="../../../small-project/s1-06-multi-file/examples/implicit/mathx.c"><code>mathx.c</code></a></td>
+<td><a href="../../c/%E5%A4%9A%E6%AA%94%E6%A1%88%E7%9A%84C%E7%A8%8B%E5%BC%8F-%E6%A8%99%E9%A0%AD%E6%AA%94%E3%80%81static%E8%88%87extern%E3%80%81%E9%80%A3%E7%B5%90%E9%8C%AF%E8%AA%A4%E8%88%87make.html#%E4%BA%8C%E5%AE%A3%E5%91%8A%E8%88%87%E5%AE%9A%E7%BE%A9%E6%B2%92%E6%9C%89%E5%AE%A3%E5%91%8A%E7%B7%A8%E8%AD%AF%E5%99%A8%E5%8F%AA%E8%83%BD%E7%8C%9C">第二節</a>〈實驗：忘了宣告〉</td>
+<td>沒有宣告，<code>square(100000)</code> 印出 1410065408（<code>cltq</code> 只取低 32 位元）</td>
+</tr>
+<tr>
+<td><a href="../../../small-project/s1-06-multi-file/examples/header/"><code>examples/header/</code></a></td>
+<td><a href="../../../small-project/s1-06-multi-file/examples/header/mathx.h"><code>mathx.h</code></a>、<a href="../../../small-project/s1-06-multi-file/examples/header/mathx.c"><code>mathx.c</code></a>、<a href="../../../small-project/s1-06-multi-file/examples/header/main.c"><code>main.c</code></a>、<a href="../../../small-project/s1-06-multi-file/examples/header/bad.c"><code>bad.c</code></a>、<a href="../../../small-project/s1-06-multi-file/examples/header/inc.c"><code>inc.c</code></a>、<a href="../../../small-project/s1-06-multi-file/examples/header/mathx2.c"><code>mathx2.c</code></a></td>
+<td><a href="../../c/%E5%A4%9A%E6%AA%94%E6%A1%88%E7%9A%84C%E7%A8%8B%E5%BC%8F-%E6%A8%99%E9%A0%AD%E6%AA%94%E3%80%81static%E8%88%87extern%E3%80%81%E9%80%A3%E7%B5%90%E9%8C%AF%E8%AA%A4%E8%88%87make.html#%E4%B8%89%E6%A8%99%E9%A0%AD%E6%AA%94%E6%8A%8A%E5%AE%A3%E5%91%8A%E5%AF%AB%E4%B8%80%E6%AC%A1%E8%AE%93%E5%85%A9%E9%82%8A%E9%83%BD%E6%AA%A2%E6%9F%A5">第三節</a>、<a href="../../c/%E5%A4%9A%E6%AA%94%E6%A1%88%E7%9A%84C%E7%A8%8B%E5%BC%8F-%E6%A8%99%E9%A0%AD%E6%AA%94%E3%80%81static%E8%88%87extern%E3%80%81%E9%80%A3%E7%B5%90%E9%8C%AF%E8%AA%A4%E8%88%87make.html#%E5%9B%9B%E7%AC%A6%E8%99%9F%E8%A1%A8o-%E4%B9%8B%E9%96%93%E9%9D%A0%E5%90%8D%E5%AD%97%E6%8E%A5%E8%B5%B7%E4%BE%86">第四節</a></td>
+<td>標頭檔、<code>conflicting types</code>、<code>&lt;&gt;</code> 找不到與 <code>-I</code>、符號表、<code>undefined reference</code>、<code>multiple definition</code></td>
+</tr>
+<tr>
+<td><a href="../../../small-project/s1-06-multi-file/examples/guard/without/"><code>examples/guard/without/</code></a>、<a href="../../../small-project/s1-06-multi-file/examples/guard/with/"><code>examples/guard/with/</code></a></td>
+<td><code>point.h</code>、<code>draw.h</code>、<code>move.h</code>、<code>guard_main.c</code></td>
+<td>第三節〈include guard〉</td>
+<td>沒有 guard 時 <code>redefinition of 'struct point'</code>；有 guard 只貼一次</td>
+</tr>
+<tr>
+<td><a href="../../../small-project/s1-06-multi-file/examples/static/"><code>examples/static/</code></a></td>
+<td><a href="../../../small-project/s1-06-multi-file/examples/static/a.c"><code>a.c</code></a>、<a href="../../../small-project/s1-06-multi-file/examples/static/b.c"><code>b.c</code></a>、<a href="../../../small-project/s1-06-multi-file/examples/static/ab_main.c"><code>ab_main.c</code></a>、<a href="../../../small-project/s1-06-multi-file/examples/static/callhelper.c"><code>callhelper.c</code></a></td>
+<td><a href="../../c/%E5%A4%9A%E6%AA%94%E6%A1%88%E7%9A%84C%E7%A8%8B%E5%BC%8F-%E6%A8%99%E9%A0%AD%E6%AA%94%E3%80%81static%E8%88%87extern%E3%80%81%E9%80%A3%E7%B5%90%E9%8C%AF%E8%AA%A4%E8%88%87make.html#%E4%BA%94static%E5%85%A9%E7%A8%AE%E5%AE%8C%E5%85%A8%E4%B8%8D%E5%90%8C%E7%9A%84%E6%84%8F%E6%80%9D">第五節</a>〈檔案層級的 <code>static</code>〉</td>
+<td>兩個 <code>static helper</code> 變 <code>LOCAL</code> 不衝突；別的檔案呼叫不到</td>
+</tr>
+<tr>
+<td><a href="../../../small-project/s1-06-multi-file/examples/staticlocal/"><code>examples/staticlocal/</code></a></td>
+<td><a href="../../../small-project/s1-06-multi-file/examples/staticlocal/nextid.c"><code>nextid.c</code></a></td>
+<td>第五節〈函式裡的 <code>static</code>〉</td>
+<td><code>static</code> 區域變數在 <code>.bss</code>、值留到下一次</td>
+</tr>
+<tr>
+<td><a href="../../../small-project/s1-06-multi-file/examples/extern/"><code>examples/extern/</code></a>、<a href="../../../small-project/s1-06-multi-file/examples/extern/bad/"><code>examples/extern/bad/</code></a></td>
+<td><code>hits.h</code>、<code>hits.c</code>、<code>hits_main.c</code></td>
+<td><a href="../../c/%E5%A4%9A%E6%AA%94%E6%A1%88%E7%9A%84C%E7%A8%8B%E5%BC%8F-%E6%A8%99%E9%A0%AD%E6%AA%94%E3%80%81static%E8%88%87extern%E3%80%81%E9%80%A3%E7%B5%90%E9%8C%AF%E8%AA%A4%E8%88%87make.html#%E5%85%ADextern%E5%85%A8%E5%9F%9F%E8%AE%8A%E6%95%B8%E7%9A%84%E5%AE%A3%E5%91%8A%E8%88%87%E5%AE%9A%E7%BE%A9">第六節</a></td>
+<td>標頭檔寫 <code>extern</code>；忘了 <code>extern</code> 時 <code>multiple definition</code>、<code>-fcommon</code></td>
+</tr>
+<tr>
+<td><a href="../../../small-project/s1-06-multi-file/examples/make/"><code>examples/make/</code></a></td>
+<td><a href="../../../small-project/s1-06-multi-file/examples/make/Makefile"><code>Makefile</code></a>、<a href="../../../small-project/s1-06-multi-file/examples/make/Makefile.nodeps"><code>Makefile.nodeps</code></a>、<a href="../../../small-project/s1-06-multi-file/examples/make/Makefile.nophony"><code>Makefile.nophony</code></a>、<a href="../../../small-project/s1-06-multi-file/examples/make/mathx.h"><code>mathx.h</code></a>、<a href="../../../small-project/s1-06-multi-file/examples/make/mathx.c"><code>mathx.c</code></a>、<a href="../../../small-project/s1-06-multi-file/examples/make/main.c"><code>main.c</code></a></td>
+<td><a href="../../c/%E5%A4%9A%E6%AA%94%E6%A1%88%E7%9A%84C%E7%A8%8B%E5%BC%8F-%E6%A8%99%E9%A0%AD%E6%AA%94%E3%80%81static%E8%88%87extern%E3%80%81%E9%80%A3%E7%B5%90%E9%8C%AF%E8%AA%A4%E8%88%87make.html#%E4%B8%83make%E5%8F%AA%E9%87%8D%E7%B7%A8%E6%94%B9%E9%81%8E%E7%9A%84%E6%AA%94%E6%A1%88">第七節</a></td>
+<td>規則與時間判斷、漏了標頭檔相依、<code>-MMD -MP</code>、<code>.PHONY</code></td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="1-把一個檔案拆成三個">1. 把一個檔案拆成三個</h2>
+<p>下面是一個單檔程式 <code>wordcount.c</code>（這份不用存，拆完的三個檔案才是作業）：</p>
+<pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">is_digit</span><span class="p">(</span><span class="kt">char</span><span class="w"> </span><span class="n">c</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">c</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="sc">&#39;0&#39;</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">c</span><span class="w"> </span><span class="o">&lt;=</span><span class="w"> </span><span class="sc">&#39;9&#39;</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="kt">long</span><span class="w"> </span><span class="nf">count_digits</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="kt">char</span><span class="w"> </span><span class="o">*</span><span class="n">s</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="kt">long</span><span class="w"> </span><span class="n">n</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">(;</span><span class="w"> </span><span class="o">*</span><span class="n">s</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="sc">&#39;\0&#39;</span><span class="p">;</span><span class="w"> </span><span class="n">s</span><span class="o">++</span><span class="p">)</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">is_digit</span><span class="p">(</span><span class="o">*</span><span class="n">s</span><span class="p">))</span>
+<span class="w">            </span><span class="n">n</span><span class="o">++</span><span class="p">;</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">n</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="kt">long</span><span class="w"> </span><span class="nf">length</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="kt">char</span><span class="w"> </span><span class="o">*</span><span class="n">s</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="kt">long</span><span class="w"> </span><span class="n">n</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="w">    </span><span class="k">while</span><span class="w"> </span><span class="p">(</span><span class="n">s</span><span class="p">[</span><span class="n">n</span><span class="p">]</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="sc">&#39;\0&#39;</span><span class="p">)</span>
+<span class="w">        </span><span class="n">n</span><span class="o">++</span><span class="p">;</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">n</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="k">const</span><span class="w"> </span><span class="kt">char</span><span class="w"> </span><span class="o">*</span><span class="n">msg</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;room 101, floor 3&quot;</span><span class="p">;</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;length = %ld, digits = %ld</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">length</span><span class="p">(</span><span class="n">msg</span><span class="p">),</span><span class="w"> </span><span class="n">count_digits</span><span class="p">(</span><span class="n">msg</span><span class="p">));</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<p>在 <code>hw1/</code> 裡把它拆成三個檔案：</p>
+<ul>
+<li><code>strstat.h</code>：<code>count_digits</code>、<code>length</code> 的宣告，要有 include guard。</li>
+<li><code>strstat.c</code>：<code>is_digit</code>、<code>count_digits</code>、<code>length</code> 的定義。<code>is_digit</code> 只給這個檔案自己用。</li>
+<li><code>hw1_main.c</code>：<code>main</code>。</li>
+</ul>
+<p>各自用 <code>gcc -Wall -c</code> 編成 <code>.o</code>，再連結成 <code>wordcount</code>。</p>
+<h3 id="1-1-貼上三個檔案的內容與執行結果is_digit-你怎麼處理為什麼strstatc-有沒有-include-strstath為什麼要或不要筆記第三節定義的那個-c-為什麼也要-include-自己的標頭檔第五節什麼時候用">1-1. 貼上三個檔案的內容與執行結果。<code>is_digit</code> 你怎麼處理？為什麼？<code>strstat.c</code> 有沒有 <code>#include &quot;strstat.h&quot;</code>？為什麼要（或不要）？【筆記<a href="../../c/%E5%A4%9A%E6%AA%94%E6%A1%88%E7%9A%84C%E7%A8%8B%E5%BC%8F-%E6%A8%99%E9%A0%AD%E6%AA%94%E3%80%81static%E8%88%87extern%E3%80%81%E9%80%A3%E7%B5%90%E9%8C%AF%E8%AA%A4%E8%88%87make.html#%E4%B8%89%E6%A8%99%E9%A0%AD%E6%AA%94%E6%8A%8A%E5%AE%A3%E5%91%8A%E5%AF%AB%E4%B8%80%E6%AC%A1%E8%AE%93%E5%85%A9%E9%82%8A%E9%83%BD%E6%AA%A2%E6%9F%A5">第三節</a>〈定義的那個 <code>.c</code> 為什麼也要 <code>#include</code> 自己的標頭檔〉、<a href="../../c/%E5%A4%9A%E6%AA%94%E6%A1%88%E7%9A%84C%E7%A8%8B%E5%BC%8F-%E6%A8%99%E9%A0%AD%E6%AA%94%E3%80%81static%E8%88%87extern%E3%80%81%E9%80%A3%E7%B5%90%E9%8C%AF%E8%AA%A4%E8%88%87make.html#%E4%BA%94static%E5%85%A9%E7%A8%AE%E5%AE%8C%E5%85%A8%E4%B8%8D%E5%90%8C%E7%9A%84%E6%84%8F%E6%80%9D">第五節</a>〈什麼時候用〉】</h3>
+<p><strong>第 1 次（YYYY-MM-DD）</strong></p>
+<div class="answer-box" data-file="small-project/s1-06-multi-file/README.md" data-line="90"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<h3 id="1-2-用-readelf--s-看-strstato-和-hw1_maino貼上-is_digitcount_digitslengthmainprintf-這幾列在哪個-o-出現就貼哪個每一列的-bind-和-ndx-是什麼說明為什麼是這樣筆記第四節的欄位表第五節">1-2. 用 <code>readelf -s</code> 看 <code>strstat.o</code> 和 <code>hw1_main.o</code>，貼上 <code>is_digit</code>、<code>count_digits</code>、<code>length</code>、<code>main</code>、<code>printf</code> 這幾列（在哪個 <code>.o</code> 出現就貼哪個）。每一列的 <code>Bind</code> 和 <code>Ndx</code> 是什麼？說明為什麼是這樣。【筆記<a href="../../c/%E5%A4%9A%E6%AA%94%E6%A1%88%E7%9A%84C%E7%A8%8B%E5%BC%8F-%E6%A8%99%E9%A0%AD%E6%AA%94%E3%80%81static%E8%88%87extern%E3%80%81%E9%80%A3%E7%B5%90%E9%8C%AF%E8%AA%A4%E8%88%87make.html#%E5%9B%9B%E7%AC%A6%E8%99%9F%E8%A1%A8o-%E4%B9%8B%E9%96%93%E9%9D%A0%E5%90%8D%E5%AD%97%E6%8E%A5%E8%B5%B7%E4%BE%86">第四節</a>的欄位表、第五節】</h3>
+<p><strong>第 1 次（YYYY-MM-DD）</strong></p>
+<div class="answer-box" data-file="small-project/s1-06-multi-file/README.md" data-line="96"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<h3 id="1-3-msg-這個字串在-hw1_maino-的符號表裡有沒有一列叫-msg先預測再用-readelf--s-確認為什麼筆記第五節函式裡的-static哪些變數有符號哪些沒有">1-3. <code>msg</code> 這個字串在 <code>hw1_main.o</code> 的符號表裡有沒有一列叫 <code>msg</code>？先預測，再用 <code>readelf -s</code> 確認。為什麼？【筆記第五節〈函式裡的 <code>static</code>〉（哪些變數有符號、哪些沒有）】</h3>
+<p><strong>第 1 次（YYYY-MM-DD）</strong></p>
+<div class="answer-box" data-file="small-project/s1-06-multi-file/README.md" data-line="102"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<h3 id="1-4-先預測再實驗把-strstatc-裡-length-的定義改成-int-lengthconst-char-s標頭檔不改a-重新-gcc--wall--c-strstatc會怎樣是編譯還是連結階段貼上訊息b-再把-strstatc-的-include-strstath-拿掉重新編譯連結執行會怎樣為什麼-a-和-b-的結果不一樣做完把檔案改回來筆記第三節定義的那個-c-為什麼也要-include-自己的標頭檔第四節三種錯誤各發生在哪一步">1-4. 先預測再實驗：把 <code>strstat.c</code> 裡 <code>length</code> 的定義改成 <code>int length(const char *s)</code>（標頭檔不改）。(a) 重新 <code>gcc -Wall -c strstat.c</code>，會怎樣？是編譯還是連結階段？貼上訊息。(b) 再把 <code>strstat.c</code> 的 <code>#include &quot;strstat.h&quot;</code> 拿掉，重新編譯、連結、執行，會怎樣？為什麼 (a) 和 (b) 的結果不一樣？做完把檔案改回來。【筆記第三節〈定義的那個 <code>.c</code> 為什麼也要 <code>#include</code> 自己的標頭檔〉、第四節〈三種錯誤，各發生在哪一步〉】</h3>
+<p><strong>第 1 次（YYYY-MM-DD）</strong></p>
+<div class="answer-box" data-file="small-project/s1-06-multi-file/README.md" data-line="108"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<hr />
+<h2 id="2-讓三個檔案共用一個全域變數">2. 讓三個檔案共用一個全域變數</h2>
+<p>在 <code>hw2/</code> 裡寫一個小程式，有一個全域變數 <code>int log_level</code>，<code>main</code> 設定它，另外兩個檔案讀它：</p>
+<ul>
+<li><code>logger.h</code>：<code>log_level</code> 的宣告，以及 <code>void log_msg(int level, const char *text);</code> 的宣告。要有 include guard。</li>
+<li><code>logger.c</code>：<code>log_level</code> 的<strong>定義，初值是 2</strong>；<code>log_msg</code> 的定義：<code>level &lt;= log_level</code> 時印出 <code>[level] text</code>，否則什麼都不印。</li>
+<li><code>worker.h</code>、<code>worker.c</code>：<code>void do_work(void);</code>，裡面呼叫 <code>log_msg(1, &quot;work start&quot;)</code>、<code>log_msg(3, &quot;work detail&quot;)</code>。</li>
+<li><code>hw2_main.c</code>：先呼叫一次 <code>do_work()</code>，把 <code>log_level</code> 改成 3，再呼叫一次 <code>do_work()</code>。</li>
+</ul>
+<h3 id="2-1-貼上-loggerhloggerc-的內容與執行結果說明-log_level-在-loggerh-和-loggerc-各寫成什麼為什麼要這樣分筆記第六節整理全域變數放哪裡">2-1. 貼上 <code>logger.h</code>、<code>logger.c</code> 的內容與執行結果。說明 <code>log_level</code> 在 <code>logger.h</code> 和 <code>logger.c</code> 各寫成什麼、為什麼要這樣分。【筆記<a href="../../c/%E5%A4%9A%E6%AA%94%E6%A1%88%E7%9A%84C%E7%A8%8B%E5%BC%8F-%E6%A8%99%E9%A0%AD%E6%AA%94%E3%80%81static%E8%88%87extern%E3%80%81%E9%80%A3%E7%B5%90%E9%8C%AF%E8%AA%A4%E8%88%87make.html#%E5%85%ADextern%E5%85%A8%E5%9F%9F%E8%AE%8A%E6%95%B8%E7%9A%84%E5%AE%A3%E5%91%8A%E8%88%87%E5%AE%9A%E7%BE%A9">第六節</a>〈整理：全域變數放哪裡〉】</h3>
+<p><strong>第 1 次（YYYY-MM-DD）</strong></p>
+<div class="answer-box" data-file="small-project/s1-06-multi-file/README.md" data-line="125"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<h3 id="2-2-先預測log_level-在-loggero-的符號表裡ndx-是-bss-還是-data-的編號在-workerohw2_maino-裡呢用-readelf--s-與-readelf--s-確認貼上相關的列為什麼跟筆記-hits-的例子在不同的區段筆記第五節函式裡的-static的-bss-說明第六節">2-2. 先預測：<code>log_level</code> 在 <code>logger.o</code> 的符號表裡，<code>Ndx</code> 是 <code>.bss</code> 還是 <code>.data</code> 的編號？在 <code>worker.o</code>、<code>hw2_main.o</code> 裡呢？用 <code>readelf -s</code> 與 <code>readelf -S</code> 確認，貼上相關的列。為什麼跟筆記 <code>hits</code> 的例子在不同的區段？【筆記第五節〈函式裡的 <code>static</code>〉的 <code>.bss</code> 說明、第六節】</h3>
+<p><strong>第 1 次（YYYY-MM-DD）</strong></p>
+<div class="answer-box" data-file="small-project/s1-06-multi-file/README.md" data-line="131"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<h3 id="2-3-先猜再實驗在-workerc-裡也寫一行-int-log_level--1有初值然後用-gcc--fcommon-編譯全部檔案再連結筆記說--fcommon-會合併同名的全域變數這次會成功嗎貼上結果做完把那一行刪掉新觀念先猜">2-3. 先猜再實驗：在 <code>worker.c</code> 裡<strong>也</strong>寫一行 <code>int log_level = 1;</code>（有初值），然後用 <code>gcc -fcommon</code> 編譯全部檔案再連結。筆記說 <code>-fcommon</code> 會合併同名的全域變數，這次會成功嗎？貼上結果。做完把那一行刪掉。【新觀念，先猜】</h3>
+<p><strong>第 1 次（YYYY-MM-DD）</strong></p>
+<div class="answer-box" data-file="small-project/s1-06-multi-file/README.md" data-line="137"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<h3 id="2-4-先猜再實驗把-loggerc-的定義改成-static-int-log_level--2loggerh-不改只編譯-loggerc會怎樣是哪個階段報錯如果這一步沒有報錯你覺得連結時會出現什麼錯誤貼上訊息說明你的推理做完改回來新觀念先猜推理可以用筆記第五六節static-讓名字只在本檔案有效extern-宣告定義在別處">2-4. 先猜再實驗：把 <code>logger.c</code> 的定義改成 <code>static int log_level = 2;</code>（<code>logger.h</code> 不改），只編譯 <code>logger.c</code>。會怎樣？是哪個階段報錯？如果這一步沒有報錯，你覺得連結時會出現什麼錯誤？貼上訊息，說明你的推理。做完改回來。【新觀念，先猜】（推理可以用筆記第五、六節：<code>static</code> 讓名字只在本檔案有效、<code>extern</code> 宣告「定義在別處」）</h3>
+<p><strong>第 1 次（YYYY-MM-DD）</strong></p>
+<div class="answer-box" data-file="small-project/s1-06-multi-file/README.md" data-line="143"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<hr />
+<h2 id="3-函式裡的-static">3. 函式裡的 <code>static</code></h2>
+<p>在 <code>hw3/</code> 寫 <code>total.c</code>，裡面有：</p>
+<ul>
+<li><code>long running_total(long x)</code>：回傳<strong>到目前為止所有呼叫傳進來的 <code>x</code> 的總和</strong>。不能用全域變數，要用函式裡的 <code>static</code> 變數，初值 0。</li>
+<li><code>int calls(void)</code>：回傳<strong>自己被呼叫了第幾次</strong>（第一次回傳 1），同樣用函式裡的 <code>static</code>，但這個變數的初值設成 <strong>100</strong>，回傳時再減掉 100（也就是 <code>static int count = 100;</code>，每次加 1 後回傳 <code>count - 100</code>）。</li>
+<li><code>main</code>：依序呼叫 <code>running_total(5)</code>、<code>running_total(10)</code>、<code>running_total(-3)</code>，各印出回傳值；再呼叫 <code>calls()</code> 三次，各印出回傳值。</li>
+</ul>
+<p>用 <code>gcc -Wall -O0 -c total.c</code> 編譯，再連結執行。</p>
+<h3 id="3-1-貼上-totalc-與執行結果筆記第五節函式裡的-static">3-1. 貼上 <code>total.c</code> 與執行結果。【筆記<a href="../../c/%E5%A4%9A%E6%AA%94%E6%A1%88%E7%9A%84C%E7%A8%8B%E5%BC%8F-%E6%A8%99%E9%A0%AD%E6%AA%94%E3%80%81static%E8%88%87extern%E3%80%81%E9%80%A3%E7%B5%90%E9%8C%AF%E8%AA%A4%E8%88%87make.html#%E4%BA%94static%E5%85%A9%E7%A8%AE%E5%AE%8C%E5%85%A8%E4%B8%8D%E5%90%8C%E7%9A%84%E6%84%8F%E6%80%9D">第五節</a>〈函式裡的 <code>static</code>〉】</h3>
+<p><strong>第 1 次（YYYY-MM-DD）</strong></p>
+<div class="answer-box" data-file="small-project/s1-06-multi-file/README.md" data-line="161"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<h3 id="3-2-先預測兩個-static-變數在-totalo-的符號表裡叫什麼名字bind-是什麼各在哪個區段用-readelf--sreadelf--s-確認貼上相關的列兩個變數為什麼在不同的區段筆記第五節函式裡的-static">3-2. 先預測：兩個 <code>static</code> 變數在 <code>total.o</code> 的符號表裡叫什麼名字、<code>Bind</code> 是什麼、各在哪個區段？用 <code>readelf -s</code>、<code>readelf -S</code> 確認，貼上相關的列。兩個變數為什麼在不同的區段？【筆記第五節〈函式裡的 <code>static</code>〉】</h3>
+<p><strong>第 1 次（YYYY-MM-DD）</strong></p>
+<div class="answer-box" data-file="small-project/s1-06-multi-file/README.md" data-line="167"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<h3 id="3-3-用-objdump--d---no-show-raw-insn-totalo-看-running_total貼上它的本體static-變數用什麼寫法存取如果把-static-拿掉你預期這幾行會變成什麼寫法執行結果變成什麼只要預測不必真的改筆記第五節函式裡的-static的組合語言對照第-5-課筆記第四節">3-3. 用 <code>objdump -d --no-show-raw-insn total.o</code> 看 <code>running_total</code>，貼上它的本體。<code>static</code> 變數用什麼寫法存取？如果把 <code>static</code> 拿掉，你預期這幾行會變成什麼寫法、執行結果變成什麼？（只要預測，不必真的改。）【筆記第五節〈函式裡的 <code>static</code>〉的組合語言對照；<a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80%E4%BA%8C-call%E8%88%87ret%E3%80%81%E5%A0%86%E7%96%8A%E6%A1%86%E3%80%81%E5%8F%83%E6%95%B8%E8%88%87%E5%91%BC%E5%8F%AB%E6%85%A3%E4%BE%8B.html#%E5%9B%9B%E5%A0%86%E7%96%8A%E6%A1%86pushq-rbp-movq-rsp-rbp-%E8%88%87-leave">第 5 課筆記第四節</a>】</h3>
+<p><strong>第 1 次（YYYY-MM-DD）</strong></p>
+<div class="answer-box" data-file="small-project/s1-06-multi-file/README.md" data-line="173"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<hr />
+<h2 id="4-讀連結錯誤">4. 讀連結錯誤</h2>
+<p>下面三個小專案各有一個錯。每一個都在 <code>hw4/</code> 底下開一個子資料夾（<code>a/</code>、<code>b/</code>、<code>c/</code>），照打、照指令編譯，然後回答。</p>
+<h3 id="4a函式寫在標頭檔裡">4a：函式寫在標頭檔裡</h3>
+<p><code>clamp.h</code>：</p>
+<pre><code class="language-c"><span class="cp">#ifndef CLAMP_H</span>
+<span class="cp">#define CLAMP_H</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">clamp</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">v</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">lo</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">hi</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">v</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">lo</span><span class="p">)</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="n">lo</span><span class="p">;</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">v</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="n">hi</span><span class="p">)</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="n">hi</span><span class="p">;</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">v</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="cp">#endif</span>
+</code></pre>
+<p><code>volume.c</code>：</p>
+<pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;clamp.h&quot;</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">set_volume</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">v</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">clamp</span><span class="p">(</span><span class="n">v</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">100</span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre>
+<p><code>a_main.c</code>：</p>
+<pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;clamp.h&quot;</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">set_volume</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">v</span><span class="p">);</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;%d %d</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">set_volume</span><span class="p">(</span><span class="mi">150</span><span class="p">),</span><span class="w"> </span><span class="n">clamp</span><span class="p">(</span><span class="mi">-5</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">10</span><span class="p">));</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<pre><code>gcc -Wall -c volume.c a_main.c
+gcc -o a volume.o a_main.o
+</code></pre>
+<h4 id="4a-1-貼上錯誤訊息是編譯還是連結階段原因是什麼已經有-include-guard-了為什麼沒擋住筆記第四節三種錯誤各發生在哪一步第三節標頭檔放什麼第六節忘了-extern最後一段">4a-1. 貼上錯誤訊息。是編譯還是連結階段？原因是什麼？已經有 include guard 了，為什麼沒擋住？【筆記<a href="../../c/%E5%A4%9A%E6%AA%94%E6%A1%88%E7%9A%84C%E7%A8%8B%E5%BC%8F-%E6%A8%99%E9%A0%AD%E6%AA%94%E3%80%81static%E8%88%87extern%E3%80%81%E9%80%A3%E7%B5%90%E9%8C%AF%E8%AA%A4%E8%88%87make.html#%E5%9B%9B%E7%AC%A6%E8%99%9F%E8%A1%A8o-%E4%B9%8B%E9%96%93%E9%9D%A0%E5%90%8D%E5%AD%97%E6%8E%A5%E8%B5%B7%E4%BE%86">第四節</a>〈三種錯誤，各發生在哪一步〉、<a href="../../c/%E5%A4%9A%E6%AA%94%E6%A1%88%E7%9A%84C%E7%A8%8B%E5%BC%8F-%E6%A8%99%E9%A0%AD%E6%AA%94%E3%80%81static%E8%88%87extern%E3%80%81%E9%80%A3%E7%B5%90%E9%8C%AF%E8%AA%A4%E8%88%87make.html#%E4%B8%89%E6%A8%99%E9%A0%AD%E6%AA%94%E6%8A%8A%E5%AE%A3%E5%91%8A%E5%AF%AB%E4%B8%80%E6%AC%A1%E8%AE%93%E5%85%A9%E9%82%8A%E9%83%BD%E6%AA%A2%E6%9F%A5">第三節</a>〈標頭檔放什麼〉、第六節〈忘了 <code>extern</code>〉最後一段】</h4>
+<p><strong>第 1 次（YYYY-MM-DD）</strong></p>
+<div class="answer-box" data-file="small-project/s1-06-multi-file/README.md" data-line="236"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<h4 id="4a-2-照筆記的原則修好它要動哪些檔案各放什麼貼上修好後的檔案與執行結果">4a-2. 照筆記的原則修好它（要動哪些檔案、各放什麼），貼上修好後的檔案與執行結果。</h4>
+<p><strong>第 1 次（YYYY-MM-DD）</strong></p>
+<div class="answer-box" data-file="small-project/s1-06-multi-file/README.md" data-line="242"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<h4 id="4a-3-另一種修法不搬檔案只在-clamph-的-int-clamp-前面加-static先預測能不能連結再試如果能用-readelf--s-看兩個-o說明這樣做的代價是什麼筆記第五節檔案層級的-static">4a-3. 另一種「修法」：不搬檔案，只在 <code>clamp.h</code> 的 <code>int clamp(...)</code> 前面加 <code>static</code>。先預測能不能連結，再試。如果能，用 <code>readelf -s</code> 看兩個 <code>.o</code>，說明這樣做的代價是什麼。【筆記第五節〈檔案層級的 <code>static</code>〉】</h4>
+<p><strong>第 1 次（YYYY-MM-DD）</strong></p>
+<div class="answer-box" data-file="small-project/s1-06-multi-file/README.md" data-line="248"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<h3 id="4b名字打錯">4b：名字打錯</h3>
+<p><code>report.h</code>：</p>
+<pre><code class="language-c"><span class="cp">#ifndef REPORT_H</span>
+<span class="cp">#define REPORT_H</span>
+
+<span class="kt">void</span><span class="w"> </span><span class="nf">print_report</span><span class="p">(</span><span class="kt">void</span><span class="p">);</span>
+
+<span class="cp">#endif</span>
+</code></pre>
+<p><code>report.c</code>：</p>
+<pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;report.h&quot;</span>
+
+<span class="kt">void</span><span class="w"> </span><span class="nf">print_reprot</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;report ok</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre>
+<p><code>b_main.c</code>：</p>
+<pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;report.h&quot;</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">print_report</span><span class="p">();</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<pre><code>gcc -Wall -c report.c b_main.c
+gcc -o b report.o b_main.o
+</code></pre>
+<h4 id="4b-1-貼上錯誤訊息是哪個階段用-readelf--s或-nm看兩個-o找出證據說明連結器為什麼配不起來為什麼-reportc-明明-include-了-reporth編譯時卻沒有報錯筆記第四節第二節宣告與定義">4b-1. 貼上錯誤訊息。是哪個階段？用 <code>readelf -s</code>（或 <code>nm</code>）看兩個 <code>.o</code>，找出證據說明連結器為什麼配不起來。為什麼 <code>report.c</code> 明明 <code>#include</code> 了 <code>report.h</code>，編譯時卻沒有報錯？【筆記第四節；第二節（宣告與定義）】</h4>
+<p><strong>第 1 次（YYYY-MM-DD）</strong></p>
+<div class="answer-box" data-file="small-project/s1-06-multi-file/README.md" data-line="296"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<h3 id="4c參數個數不對">4c：參數個數不對</h3>
+<p><code>area.h</code>：</p>
+<pre><code class="language-c"><span class="cp">#ifndef AREA_H</span>
+<span class="cp">#define AREA_H</span>
+
+<span class="kt">long</span><span class="w"> </span><span class="nf">area</span><span class="p">(</span><span class="kt">long</span><span class="w"> </span><span class="n">w</span><span class="p">,</span><span class="w"> </span><span class="kt">long</span><span class="w"> </span><span class="n">h</span><span class="p">);</span>
+
+<span class="cp">#endif</span>
+</code></pre>
+<p><code>area.c</code>：</p>
+<pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;area.h&quot;</span>
+
+<span class="kt">long</span><span class="w"> </span><span class="nf">area</span><span class="p">(</span><span class="kt">long</span><span class="w"> </span><span class="n">w</span><span class="p">,</span><span class="w"> </span><span class="kt">long</span><span class="w"> </span><span class="n">h</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">w</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">h</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<p><code>c_main.c</code>：</p>
+<pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;area.h&quot;</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;%ld</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">area</span><span class="p">(</span><span class="mi">3</span><span class="p">));</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<pre><code>gcc -Wall -c area.c c_main.c
+</code></pre>
+<h4 id="4c-1-貼上錯誤訊息是哪個階段如果-c_mainc-沒有-include-areah也沒有自己的宣告先猜會在哪個階段出問題還是根本不會報錯為什麼可以實際試試看-wall-的警告也貼上筆記第二節實驗忘了宣告第四節">4c-1. 貼上錯誤訊息。是哪個階段？如果 <code>c_main.c</code> 沒有 <code>#include &quot;area.h&quot;</code>（也沒有自己的宣告），先猜：會在哪個階段出問題、還是根本不會報錯？為什麼？（可以實際試試看，<code>-Wall</code> 的警告也貼上。）【筆記第二節〈實驗：忘了宣告〉、第四節】</h4>
+<p><strong>第 1 次（YYYY-MM-DD）</strong></p>
+<div class="answer-box" data-file="small-project/s1-06-multi-file/README.md" data-line="343"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<hr />
+<h2 id="5-自己寫-makefile">5. 自己寫 <code>Makefile</code></h2>
+<p>把第 2 題的檔案（<code>logger.h</code>、<code>logger.c</code>、<code>worker.h</code>、<code>worker.c</code>、<code>hw2_main.c</code>）複製到 <code>hw5/</code>，替它寫一個 <code>Makefile</code>。要求：</p>
+<ul>
+<li>用變數 <code>CC</code>、<code>CFLAGS</code>、<code>OBJS</code>；<code>CFLAGS</code> 要有 <code>-Wall -g -O0</code>。</li>
+<li>用一條樣式規則把任何 <code>.c</code> 編成 <code>.o</code>，命令裡用自動變數，不能寫死檔名。</li>
+<li>用 <code>gcc</code> 自動產生標頭檔相依，並在 <code>Makefile</code> 裡讀進來。</li>
+<li>預設目標是連結出 <code>logdemo</code>；有 <code>clean</code>，而且是假目標。</li>
+</ul>
+<h3 id="5-1-貼上-makefile-與第一次-make-的輸出執行結果逐行說明-makefile-每一行在做什麼筆記第七節實用的-makefile">5-1. 貼上 <code>Makefile</code> 與第一次 <code>make</code> 的輸出、執行結果。逐行說明 <code>Makefile</code> 每一行在做什麼。【筆記<a href="../../c/%E5%A4%9A%E6%AA%94%E6%A1%88%E7%9A%84C%E7%A8%8B%E5%BC%8F-%E6%A8%99%E9%A0%AD%E6%AA%94%E3%80%81static%E8%88%87extern%E3%80%81%E9%80%A3%E7%B5%90%E9%8C%AF%E8%AA%A4%E8%88%87make.html#%E4%B8%83make%E5%8F%AA%E9%87%8D%E7%B7%A8%E6%94%B9%E9%81%8E%E7%9A%84%E6%AA%94%E6%A1%88">第七節</a>〈實用的 <code>Makefile</code>〉】</h3>
+<p><strong>第 1 次（YYYY-MM-DD）</strong></p>
+<div class="answer-box" data-file="small-project/s1-06-multi-file/README.md" data-line="360"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<h3 id="5-2-先預測touch-workerh-之後-make哪些-o-會重編會不會重新連結再實際跑貼上輸出並貼上-workerd-與-hw2_maind-的內容當證據換成-touch-loggerh-呢筆記第七節實驗第一個-makefile的逐點說明-mmd--mp">5-2. 先預測：<code>touch worker.h</code> 之後 <code>make</code>，哪些 <code>.o</code> 會重編、會不會重新連結？再實際跑，貼上輸出，並貼上 <code>worker.d</code> 與 <code>hw2_main.d</code> 的內容當證據。換成 <code>touch logger.h</code> 呢？【筆記第七節〈實驗：第一個 <code>Makefile</code>〉的逐點說明、〈<code>-MMD -MP</code>〉】</h3>
+<p><strong>第 1 次（YYYY-MM-DD）</strong></p>
+<div class="answer-box" data-file="small-project/s1-06-multi-file/README.md" data-line="366"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<h3 id="5-3-touch-loggerc-之後用-make-的某個選項只印出會執行的命令不真的執行貼上命令與輸出接著真的-make-一次筆記第七節命令列的選項表">5-3. <code>touch logger.c</code> 之後，用 <code>make</code> 的某個選項<strong>只印出會執行的命令、不真的執行</strong>，貼上命令與輸出。接著真的 <code>make</code> 一次。【筆記第七節〈命令列〉的選項表】</h3>
+<p><strong>第 1 次（YYYY-MM-DD）</strong></p>
+<div class="answer-box" data-file="small-project/s1-06-multi-file/README.md" data-line="372"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<h3 id="5-4-先猜再實驗什麼檔案都不改直接執行-make-cflags-wall--o2make-會用--o2-重編嗎貼上輸出為什麼如果你真的想用新的選項全部重編有什麼辦法新觀念先猜第二問可以用筆記第七節命令列的選項表">5-4. 先猜再實驗：什麼檔案都不改，直接執行 <code>make CFLAGS=&quot;-Wall -O2&quot;</code>。<code>make</code> 會用 <code>-O2</code> 重編嗎？貼上輸出。為什麼？如果你真的想用新的選項全部重編，有什麼辦法？【新觀念，先猜】（第二問可以用筆記第七節〈命令列〉的選項表）</h3>
+<p><strong>第 1 次（YYYY-MM-DD）</strong></p>
+<div class="answer-box" data-file="small-project/s1-06-multi-file/README.md" data-line="378"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+
+</main>
+</div>
+</body>
+</html>

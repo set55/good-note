@@ -91,6 +91,11 @@
 <td>函式呼叫只是堆疊加四個指令：<code>call</code> ＝ 推返回位址＋跳、<code>ret</code> ＝ 從堆疊頂取位址跳回（gdb <code>stepi</code> 實測 <code>%rsp</code> 每步 ±8）；<code>push %rbp; mov %rsp,%rbp</code> 建堆疊框、<code>leave</code> 拆掉、<code>%rbp</code> 串成鏈；葉函式用紅區；參數 <code>%rdi</code>…<code>%r9</code>、第 7 個起推堆疊（<code>0x10(%rbp)</code>）、呼叫者清；callee-saved <code>%rbx</code>/<code>%rbp</code>/<code>%r12</code>～<code>%r15</code>；<code>call</code> 時 <code>%rsp</code> 16 byte 對齊（<code>sub $0x8</code>）；可變參數函式的 <code>%al</code> ＝ 用了幾個 <code>%xmm</code></td>
 <td><code>call</code> <code>ret</code> <code>push</code> <code>pop</code> <code>leave</code> <code>%rsp</code> <code>%rbp</code> <code>stack frame</code> <code>red zone</code> <code>System V AMD64 ABI</code> <code>caller-saved</code> <code>callee-saved</code> <code>16-byte alignment</code> <code>%al</code> <code>varargs</code> <code>stepi</code> <code>info symbol</code> <code>objdump -r</code></td>
 </tr>
+<tr>
+<td><a href="%E5%A4%9A%E6%AA%94%E6%A1%88%E7%9A%84C%E7%A8%8B%E5%BC%8F-%E6%A8%99%E9%A0%AD%E6%AA%94%E3%80%81static%E8%88%87extern%E3%80%81%E9%80%A3%E7%B5%90%E9%8C%AF%E8%AA%A4%E8%88%87make.html">多檔案的C程式-標頭檔、static與extern、連結錯誤與make</a></td>
+<td>編譯器一次只看一個 <code>.c</code>，靠宣告知道別處的型別；連結器只比對符號表的名字（<code>UND</code> 配 <code>GLOBAL</code>），型別不合不會發現，所以定義與使用的兩邊都要 <code>#include</code> 同一個標頭檔；<code>conflicting types</code>（編譯）、<code>undefined reference</code>、<code>multiple definition</code>（連結）各發生在哪；檔案層級 <code>static</code> → <code>LOCAL</code>，函式裡 <code>static</code> → 放 <code>.bss</code>／<code>.data</code> 不放堆疊；標頭檔寫 <code>extern</code>、恰好一個 <code>.c</code> 定義（gcc 10 起 <code>-fno-common</code>）；<code>make</code> 依時間判斷、漏了標頭檔相依會用到舊的 <code>.o</code>，用 <code>-MMD -MP</code> 自動產生；<code>make --help</code> 全部 32 個選項</td>
+<td><code>#include</code> <code>include guard</code> <code>#ifndef</code> <code>static</code> <code>extern</code> <code>-fcommon</code> <code>readelf -s</code> <code>nm</code> <code>UND</code> <code>LOCAL</code> <code>GLOBAL</code> <code>.bss</code> <code>undefined reference</code> <code>multiple definition</code> <code>conflicting types</code> <code>-I</code> <code>make</code> <code>Makefile</code> <code>-MMD</code> <code>-MP</code> <code>.PHONY</code> <code>$@</code> <code>$&lt;</code> <code>$^</code> <code>cltq</code></td>
+</tr>
 </tbody>
 </table>
 <hr />

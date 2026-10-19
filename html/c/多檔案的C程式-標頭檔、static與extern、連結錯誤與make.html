@@ -1,0 +1,1494 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>多檔案的 C 程式 —— 標頭檔、static 與 extern、三種連結錯誤、make</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/app.js"></script>
+</head>
+<body>
+<button class="menu-btn" onclick="toggleMenu()">☰ 目錄</button>
+<div class="layout">
+<nav class="side">
+<div class="crumbs"><a href="../index.html">🏠 首頁</a> / <a href="README.html">c</a></div>
+<div class="tools"><button onclick="toggleTheme()">🌓 主題</button></div>
+<ul>
+<li class="l2"><a href="#%E7%9B%AE%E9%8C%84">目錄</a></li>
+<li class="l2"><a href="#%E9%9B%B6%E9%96%8B%E8%AA%B2%E8%A4%87%E7%BF%92%E7%AC%AC-5-%E8%AA%B2%E5%8D%A1%E4%BD%8F%E7%9A%84%E8%A7%80%E5%BF%B5">零、開課複習：第 5 課卡住的觀念</a></li>
+<li class="l2"><a href="#%E4%B8%80%E6%9C%AC%E8%AA%B2%E5%9C%A8%E5%81%9A%E4%BB%80%E9%BA%BC%E7%B7%A8%E8%AD%AF%E5%99%A8%E4%B8%80%E6%AC%A1%E5%8F%AA%E7%9C%8B%E4%B8%80%E5%80%8B-c">一、本課在做什麼：編譯器一次只看一個 .c</a></li>
+<li class="l2"><a href="#%E4%BA%8C%E5%AE%A3%E5%91%8A%E8%88%87%E5%AE%9A%E7%BE%A9%E6%B2%92%E6%9C%89%E5%AE%A3%E5%91%8A%E7%B7%A8%E8%AD%AF%E5%99%A8%E5%8F%AA%E8%83%BD%E7%8C%9C">二、宣告與定義：沒有宣告，編譯器只能猜</a></li>
+<li class="l3"><a href="#%E5%AF%A6%E9%A9%97%E5%BF%98%E4%BA%86%E5%AE%A3%E5%91%8Asquare100000-%E5%8D%B0%E5%87%BA-1410065408">實驗：忘了宣告，square(100000) 印出 1410065408</a></li>
+<li class="l2"><a href="#%E4%B8%89%E6%A8%99%E9%A0%AD%E6%AA%94%E6%8A%8A%E5%AE%A3%E5%91%8A%E5%AF%AB%E4%B8%80%E6%AC%A1%E8%AE%93%E5%85%A9%E9%82%8A%E9%83%BD%E6%AA%A2%E6%9F%A5">三、標頭檔：把宣告寫一次，讓兩邊都檢查</a></li>
+<li class="l3"><a href="#include-%E5%8F%AA%E6%98%AF%E8%B2%BC%E4%B8%8A">#include 只是貼上</a></li>
+<li class="l3"><a href="#%E5%AE%9A%E7%BE%A9%E7%9A%84%E9%82%A3%E5%80%8B-c-%E7%82%BA%E4%BB%80%E9%BA%BC%E4%B9%9F%E8%A6%81-include-%E8%87%AA%E5%B7%B1%E7%9A%84%E6%A8%99%E9%A0%AD%E6%AA%94">定義的那個 .c 為什麼也要 #include 自己的標頭檔</a></li>
+<li class="l3"><a href="#-%E8%88%87-%E5%8E%BB%E5%93%AA%E8%A3%A1%E6%89%BE%E6%A8%99%E9%A0%AD%E6%AA%94">&quot;...&quot; 與 &lt;...&gt;：去哪裡找標頭檔</a></li>
+<li class="l3"><a href="#include-guard%E5%90%8C%E4%B8%80%E5%80%8B%E6%A8%99%E9%A0%AD%E6%AA%94%E8%A2%AB%E8%B2%BC%E5%85%A9%E6%AC%A1">include guard：同一個標頭檔被貼兩次</a></li>
+<li class="l2"><a href="#%E5%9B%9B%E7%AC%A6%E8%99%9F%E8%A1%A8o-%E4%B9%8B%E9%96%93%E9%9D%A0%E5%90%8D%E5%AD%97%E6%8E%A5%E8%B5%B7%E4%BE%86">四、符號表：.o 之間靠名字接起來</a></li>
+<li class="l3"><a href="#%E4%B8%89%E7%A8%AE%E9%8C%AF%E8%AA%A4%E5%90%84%E7%99%BC%E7%94%9F%E5%9C%A8%E5%93%AA%E4%B8%80%E6%AD%A5">三種錯誤，各發生在哪一步</a></li>
+<li class="l2"><a href="#%E4%BA%94static%E5%85%A9%E7%A8%AE%E5%AE%8C%E5%85%A8%E4%B8%8D%E5%90%8C%E7%9A%84%E6%84%8F%E6%80%9D">五、static：兩種完全不同的意思</a></li>
+<li class="l3"><a href="#%E6%AA%94%E6%A1%88%E5%B1%A4%E7%B4%9A%E7%9A%84-static%E8%AE%93%E5%90%8D%E5%AD%97%E8%AE%8A%E6%88%90-local">檔案層級的 static：讓名字變成 LOCAL</a></li>
+<li class="l3"><a href="#%E5%87%BD%E5%BC%8F%E8%A3%A1%E7%9A%84-static%E4%B8%8D%E6%94%BE%E5%A0%86%E7%96%8A%E5%80%BC%E7%95%99%E5%88%B0%E4%B8%8B%E4%B8%80%E6%AC%A1">函式裡的 static：不放堆疊，值留到下一次</a></li>
+<li class="l2"><a href="#%E5%85%ADextern%E5%85%A8%E5%9F%9F%E8%AE%8A%E6%95%B8%E7%9A%84%E5%AE%A3%E5%91%8A%E8%88%87%E5%AE%9A%E7%BE%A9">六、extern：全域變數的宣告與定義</a></li>
+<li class="l3"><a href="#%E5%BF%98%E4%BA%86-extern%E6%AF%8F%E5%80%8B-c-%E9%83%BD%E6%9C%89%E4%B8%80%E4%BB%BD%E5%AE%9A%E7%BE%A9">忘了 extern：每個 .c 都有一份定義</a></li>
+<li class="l2"><a href="#%E4%B8%83make%E5%8F%AA%E9%87%8D%E7%B7%A8%E6%94%B9%E9%81%8E%E7%9A%84%E6%AA%94%E6%A1%88">七、make：只重編改過的檔案</a></li>
+<li class="l3"><a href="#%E6%96%87%E6%B3%95%E8%A6%8F%E5%89%87">文法：規則</a></li>
+<li class="l3"><a href="#%E5%AF%A6%E9%A9%97%E7%AC%AC%E4%B8%80%E5%80%8B-makefile">實驗：第一個 Makefile</a></li>
+<li class="l3"><a href="#%E5%85%88%E6%B1%BA%E6%A2%9D%E4%BB%B6%E6%BC%8F%E4%BA%86%E6%A8%99%E9%A0%AD%E6%AA%94make-%E8%AA%AA%E4%B8%8D%E7%94%A8%E9%87%8D%E7%B7%A8%E7%B5%90%E6%9E%9C%E6%98%AF%E8%88%8A%E7%9A%84">先決條件漏了標頭檔：make 說不用重編，結果是舊的</a></li>
+<li class="l3"><a href="#%E5%AF%A6%E7%94%A8%E7%9A%84-makefile%E8%AE%8A%E6%95%B8%E6%A8%A3%E5%BC%8F%E8%A6%8F%E5%89%87%E8%87%AA%E5%8B%95%E7%94%A2%E7%94%9F%E7%9B%B8%E4%BE%9D">實用的 Makefile：變數、樣式規則、自動產生相依</a></li>
+<li class="l3"><a href="#%E5%91%BD%E4%BB%A4%E5%88%97make-%E9%81%B8%E9%A0%85-%E7%9B%AE%E6%A8%99-">命令列：make [選項] [目標] ...</a></li>
+<li class="l2"><a href="#%E5%85%AB%E6%9C%AC%E8%AA%B2%E7%94%A8%E5%88%B0%E7%9A%84%E5%B7%A5%E5%85%B7%E9%81%B8%E9%A0%85%E8%88%87%E5%AE%8C%E6%95%B4%E6%B8%85%E5%96%AE%E5%9C%A8%E5%93%AA">八、本課用到的工具、選項與完整清單在哪</a></li>
+<li class="l3"><a href="#gcc%E6%9C%AC%E8%AA%B2%E6%96%B0%E7%94%A8%E5%88%B0%E7%9A%84%E9%81%B8%E9%A0%85">gcc：本課新用到的選項</a></li>
+<li class="l3"><a href="#%E8%A7%80%E5%AF%9F%E5%B7%A5%E5%85%B7">觀察工具</a></li>
+<li class="l3"><a href="#c-%E8%AA%9E%E8%A8%80%E6%9C%AC%E8%AA%B2%E7%9A%84%E9%97%9C%E9%8D%B5%E5%AD%97">C 語言：本課的關鍵字</a></li>
+<li class="l2"><a href="#%E4%B9%9D%E5%8B%95%E6%89%8B%E4%BD%9C%E6%A5%AD">九、動手作業</a></li>
+<li class="l2"><a href="#%E8%87%AA%E6%88%91%E6%B8%AC%E9%A9%97">自我測驗</a></li>
+</ul>
+</nav>
+<main>
+<h1 id="多檔案的-c-程式--標頭檔static-與-extern三種連結錯誤make">多檔案的 C 程式 —— 標頭檔、<code>static</code> 與 <code>extern</code>、三種連結錯誤、<code>make</code></h1>
+<blockquote>
+<p>日期：2026-10-19<br />
+情境：系統化學習路線第 ① 站第 6 課。對應 CS:APP 第 7.1～7.6 節（連結：編譯器驅動程式、目的檔、符號與符號表、符號解析）；
+<code>make</code> 的部分對應 GNU make 手冊第 2、4、6、10 章（<em>An Introduction to Makefiles</em>、規則、變數、隱含規則）。原本排在第 6 課的「靜態與動態函式庫」移到第 7 課（本課份量已經很多）。<br />
+適用範圍：實測本機 Ubuntu 24.04、x86-64、gcc 13.3.0、GNU make 4.3、GNU readelf／nm 2.42；所有輸出都是本機實際產生的<br />
+對應檔案：每個實驗的完整原始碼都寫在它出現的那一節；同樣的檔案放在
+<a href="../../small-project/s1-06-multi-file/examples/"><code>small-project/s1-06-multi-file/examples/</code></a>（會進 git，編譯產物不進），一個實驗一個子資料夾；作業在 <a href="../small-project/s1-06-multi-file/README.html"><code>small-project/s1-06-multi-file/</code></a><br />
+相關：<a href="hello.c%E6%80%8E%E9%BA%BC%E8%AE%8A%E6%88%90%E8%83%BD%E8%B7%91%E7%9A%84%E7%A8%8B%E5%BC%8F-%E7%B7%A8%E8%AD%AF%E7%9A%84%E5%9B%9B%E5%80%8B%E9%9A%8E%E6%AE%B5.html">hello.c怎麼變成能跑的程式</a>（第 1 課：前處理、<code>.o</code> 裡的洞、符號解析與重定位、連結器只比對名字）、
+<a href="readelf%E5%AE%8C%E6%95%B4%E9%81%B8%E9%A0%85%E5%8F%83%E8%80%83.html">readelf完整選項參考</a>、<a href="x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80%E4%BA%8C-call%E8%88%87ret%E3%80%81%E5%A0%86%E7%96%8A%E6%A1%86%E3%80%81%E5%8F%83%E6%95%B8%E8%88%87%E5%91%BC%E5%8F%AB%E6%85%A3%E4%BE%8B.html">x86-64組合語言入門二</a>（第 5 課）</p>
+</blockquote>
+<p><strong>一句話結論：編譯器一次只看一個 <code>.c</code>，看不到別的檔案；它靠「宣告」知道別處的函式與變數長什麼樣子，再在 <code>.o</code> 的符號表留下「我需要 <code>X</code>」（<code>UND</code>）或「我提供 <code>X</code>」。連結器只靠名字把這些需求和提供配對：找不到是 <code>undefined reference</code>，找到兩個是 <code>multiple definition</code>，型別不合它不會發現。標頭檔就是「寫一次、讓定義的那邊和使用的那邊都 <code>#include</code>」的宣告，型別不合才會在編譯時被抓到。檔案層級的 <code>static</code> 讓名字變成 <code>LOCAL</code>、別的檔案看不到；函式裡的 <code>static</code> 讓變數不放堆疊、值留到下一次呼叫。全域變數在標頭檔要寫 <code>extern</code>（只宣告），整個程式只能有一個 <code>.c</code> 寫定義。
+<code>make</code> 依「目標比先決條件舊就重做」決定要重編哪些檔案，所以先決條件要列完整（含標頭檔，用 <code>gcc -MMD -MP</code> 自動產生）。</strong></p>
+<hr />
+<h2 id="目錄">目錄</h2>
+<ul>
+<li><a href="#%E9%9B%B6%E9%96%8B%E8%AA%B2%E8%A4%87%E7%BF%92%E7%AC%AC-5-%E8%AA%B2%E5%8D%A1%E4%BD%8F%E7%9A%84%E8%A7%80%E5%BF%B5">零、開課複習：第 5 課卡住的觀念</a></li>
+<li><a href="#%E4%B8%80%E6%9C%AC%E8%AA%B2%E5%9C%A8%E5%81%9A%E4%BB%80%E9%BA%BC%E7%B7%A8%E8%AD%AF%E5%99%A8%E4%B8%80%E6%AC%A1%E5%8F%AA%E7%9C%8B%E4%B8%80%E5%80%8B-c">一、本課在做什麼：編譯器一次只看一個 <code>.c</code></a></li>
+<li><a href="#%E4%BA%8C%E5%AE%A3%E5%91%8A%E8%88%87%E5%AE%9A%E7%BE%A9%E6%B2%92%E6%9C%89%E5%AE%A3%E5%91%8A%E7%B7%A8%E8%AD%AF%E5%99%A8%E5%8F%AA%E8%83%BD%E7%8C%9C">二、宣告與定義：沒有宣告，編譯器只能猜</a></li>
+<li><a href="#%E4%B8%89%E6%A8%99%E9%A0%AD%E6%AA%94%E6%8A%8A%E5%AE%A3%E5%91%8A%E5%AF%AB%E4%B8%80%E6%AC%A1%E8%AE%93%E5%85%A9%E9%82%8A%E9%83%BD%E6%AA%A2%E6%9F%A5">三、標頭檔：把宣告寫一次，讓兩邊都檢查</a></li>
+<li><a href="#%E5%9B%9B%E7%AC%A6%E8%99%9F%E8%A1%A8o-%E4%B9%8B%E9%96%93%E9%9D%A0%E5%90%8D%E5%AD%97%E6%8E%A5%E8%B5%B7%E4%BE%86">四、符號表：<code>.o</code> 之間靠名字接起來</a></li>
+<li><a href="#%E4%BA%94static%E5%85%A9%E7%A8%AE%E5%AE%8C%E5%85%A8%E4%B8%8D%E5%90%8C%E7%9A%84%E6%84%8F%E6%80%9D">五、<code>static</code>：兩種完全不同的意思</a></li>
+<li><a href="#%E5%85%ADextern%E5%85%A8%E5%9F%9F%E8%AE%8A%E6%95%B8%E7%9A%84%E5%AE%A3%E5%91%8A%E8%88%87%E5%AE%9A%E7%BE%A9">六、<code>extern</code>：全域變數的宣告與定義</a></li>
+<li><a href="#%E4%B8%83make%E5%8F%AA%E9%87%8D%E7%B7%A8%E6%94%B9%E9%81%8E%E7%9A%84%E6%AA%94%E6%A1%88">七、<code>make</code>：只重編改過的檔案</a></li>
+<li><a href="#%E5%85%AB%E6%9C%AC%E8%AA%B2%E7%94%A8%E5%88%B0%E7%9A%84%E5%B7%A5%E5%85%B7%E9%81%B8%E9%A0%85%E8%88%87%E5%AE%8C%E6%95%B4%E6%B8%85%E5%96%AE%E5%9C%A8%E5%93%AA">八、本課用到的工具、選項與完整清單在哪</a></li>
+<li><a href="#%E4%B9%9D%E5%8B%95%E6%89%8B%E4%BD%9C%E6%A5%AD">九、動手作業</a></li>
+<li><a href="#%E8%87%AA%E6%88%91%E6%B8%AC%E9%A9%97">自我測驗</a></li>
+</ul>
+<hr />
+<h2 id="零開課複習第-5-課卡住的觀念">零、開課複習：第 5 課卡住的觀念</h2>
+<p>第 5 課的作業與測驗批改後，記成「第 6 課開頭先複習」的觀念如下。今天的 10 題複習額度已經用完，這裡只講解、不另外出題；這些題目明天（10-20）會從複習排程考到。</p>
+<ol>
+<li><strong><code>%rsp</code> 本身 vs 它指的那格</strong>：<code>%rsp</code> 裡放的是一個<strong>位址</strong>（例如 <code>0x7fffffffd408</code>）；返回位址是放在<strong>那個位址的 8 byte 記憶體</strong>裡。要看返回位址，是 <code>x/gx $rsp</code>，不是 <code>info registers rsp</code>。出處：<a href="x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80%E4%BA%8C-call%E8%88%87ret%E3%80%81%E5%A0%86%E7%96%8A%E6%A1%86%E3%80%81%E5%8F%83%E6%95%B8%E8%88%87%E5%91%BC%E5%8F%AB%E6%85%A3%E4%BE%8B.html#%E4%BA%8C%E5%A0%86%E7%96%8Arsp-%E6%8C%87%E8%91%97%E9%A0%82%E7%AB%AF%E5%BE%80%E4%BD%8E%E4%BD%8D%E5%9D%80%E9%95%B7">第 5 課第二節</a>、<a href="x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80%E4%BA%8C-call%E8%88%87ret%E3%80%81%E5%A0%86%E7%96%8A%E6%A1%86%E3%80%81%E5%8F%83%E6%95%B8%E8%88%87%E5%91%BC%E5%8F%AB%E6%85%A3%E4%BE%8B.html#%E4%B8%89call-%E8%88%87-ret%E7%94%A8-gdb-%E4%B8%80%E6%A2%9D%E4%B8%80%E6%A2%9D%E8%B5%B0">第三節</a>〈停在函式入口時，怎麼知道是誰呼叫的〉。</li>
+<li><strong>紅區</strong>：<code>%rsp</code> 下方 128 byte 保證不會被<strong>別人</strong>（例如訊號處理函式）蓋掉；葉函式自己也不 <code>push</code>／<code>call</code>，所以能直接把變數放在那裡，省一條 <code>sub</code>。會 <code>call</code> 的函式，<code>call</code> 會把返回位址寫進 <code>%rsp − 8</code>，所以 gcc 一律 <code>sub</code> 把變數放到 <code>%rsp</code> 上面。出處：<a href="x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80%E4%BA%8C-call%E8%88%87ret%E3%80%81%E5%A0%86%E7%96%8A%E6%A1%86%E3%80%81%E5%8F%83%E6%95%B8%E8%88%87%E5%91%BC%E5%8F%AB%E6%85%A3%E4%BE%8B.html#%E5%9B%9B%E5%A0%86%E7%96%8A%E6%A1%86pushq-rbp-movq-rsp-rbp-%E8%88%87-leave">第 5 課第四節</a>〈上圖 <code>add3</code> 的變數在 <code>%rsp</code> 的「下面」：紅區〉與後面三個追問補充。</li>
+<li><strong>callee-saved 的 <code>push %rbx</code></strong>：要撐過 <code>call</code> 的值不能留在 <code>%rdi</code> 這種 caller-saved 暫存器（被呼叫的函式可以隨便改），要搬到 <code>%rbx</code> 這種 callee-saved 暫存器；但 <code>%rbx</code> 也是<strong>自己的呼叫者</strong>的，借用前要先 <code>push</code> 存起來、結束前 <code>pop</code> 還回去。出處：<a href="x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80%E4%BA%8C-call%E8%88%87ret%E3%80%81%E5%A0%86%E7%96%8A%E6%A1%86%E3%80%81%E5%8F%83%E6%95%B8%E8%88%87%E5%91%BC%E5%8F%AB%E6%85%A3%E4%BE%8B.html#%E5%85%AD%E8%AA%B0%E8%B2%A0%E8%B2%AC%E4%BF%9D%E5%AD%98%E6%9A%AB%E5%AD%98%E5%99%A8%E4%BB%A5%E5%8F%8A-16-byte-%E5%B0%8D%E9%BD%8A">第 5 課第六節</a>〈實驗：要跨過 <code>call</code> 保存的值放哪裡〉。</li>
+<li><strong>停在第一條指令時 gdb 印錯參數</strong>：<code>-O0</code> 的除錯資訊只記「參數在堆疊的哪一格」，序言還沒把 <code>%rdi</code> 存進去，所以讀到舊值；真正的參數在 <code>%rdi</code>、<code>%rsi</code>、<code>%rdx</code>。出處：<a href="x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80%E4%BA%8C-call%E8%88%87ret%E3%80%81%E5%A0%86%E7%96%8A%E6%A1%86%E3%80%81%E5%8F%83%E6%95%B8%E8%88%87%E5%91%BC%E5%8F%AB%E6%85%A3%E4%BE%8B.html#%E4%B8%89call-%E8%88%87-ret%E7%94%A8-gdb-%E4%B8%80%E6%A2%9D%E4%B8%80%E6%A2%9D%E8%B5%B0">第 5 課第三節</a>〈gdb 為什麼去堆疊讀參數，而不是讀暫存器〉。</li>
+<li><strong>參數的正偏移從 <code>0x10(%rbp)</code> 開始</strong>：<code>%rbp</code> 那格是舊 <code>%rbp</code>，<code>8(%rbp)</code> 是返回位址，第 7 個參數才在 <code>0x10(%rbp)</code>。出處：<a href="x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80%E4%BA%8C-call%E8%88%87ret%E3%80%81%E5%A0%86%E7%96%8A%E6%A1%86%E3%80%81%E5%8F%83%E6%95%B8%E8%88%87%E5%91%BC%E5%8F%AB%E6%85%A3%E4%BE%8B.html#%E4%BA%94%E5%8F%83%E6%95%B8%E8%88%87%E5%9B%9E%E5%82%B3%E5%80%BC%E6%94%BE%E5%93%AA%E8%A3%A1">第 5 課第五節</a>〈實驗：8 個參數，第 7、8 個去哪了〉。</li>
+<li><strong>16 byte 對齊的算法</strong>：規則是「執行 <code>call</code> 的那一刻 <code>%rsp</code> 是 16 的倍數」。進函式時 <code>call</code> 已經推了 8 byte，所以 <code>%rsp</code> 除以 16 餘 8；之後每個 <code>push</code>、<code>sub</code> 都要算進去，湊回餘 0 才能 <code>call</code>。出處：<a href="x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80%E4%BA%8C-call%E8%88%87ret%E3%80%81%E5%A0%86%E7%96%8A%E6%A1%86%E3%80%81%E5%8F%83%E6%95%B8%E8%88%87%E5%91%BC%E5%8F%AB%E6%85%A3%E4%BE%8B.html#%E5%85%AD%E8%AA%B0%E8%B2%A0%E8%B2%AC%E4%BF%9D%E5%AD%98%E6%9A%AB%E5%AD%98%E5%99%A8%E4%BB%A5%E5%8F%8A-16-byte-%E5%B0%8D%E9%BD%8A">第 5 課第六節</a>〈上面的 <code>sub $0x8,%rsp</code>：16 byte 對齊〉。</li>
+<li><strong>畫堆疊圖時，區域變數與對齊用的空格也要佔格</strong>：相鄰兩個 <code>%rbp</code> 相減再除以 8，就是中間應該有幾格。</li>
+</ol>
+<p>本課回到 C 語言本身，組合語言只在第二節用來看一個 bug 的成因，讀到的指令都是第 4、5 課教過的。</p>
+<hr />
+<h2 id="一本課在做什麼編譯器一次只看一個-c">一、本課在做什麼：編譯器一次只看一個 <code>.c</code></h2>
+<p>到目前為止的程式都是一個 <code>.c</code> 檔。真正的專案（包括 Linux kernel，好幾萬個 <code>.c</code>）都是很多檔案。本課回答：</p>
+<ul>
+<li><code>main.c</code> 呼叫 <code>mathx.c</code> 裡的函式，編譯 <code>main.c</code> 的時候編譯器怎麼知道那個函式長什麼樣子（第二、三節）；</li>
+<li>兩個 <code>.o</code> 是怎麼接起來的，接不起來時錯誤訊息在說什麼（第四節）；</li>
+<li>怎麼讓一個名字只在自己的檔案裡有效，怎麼讓一個變數被很多檔案共用（第五、六節）；</li>
+<li>改了一個檔案，怎麼只重編需要重編的部分（第七節）。</li>
+</ul>
+<p>關鍵事實只有一個：<strong>gcc 編譯時一次只處理一個 <code>.c</code></strong>（加上它 <code>#include</code> 進來的內容），這個範圍叫<strong>編譯單元</strong>（translation unit，C 標準的用語，也譯「轉譯單元」）。
+<code>gcc -c main.c</code> 時，gcc 完全不會去讀 <code>mathx.c</code>。檔案之間的連繫，要等到<strong>連結</strong>（第 1 課第五節）才發生，而連結器手上只有每個 <code>.o</code> 的<strong>符號表</strong>——一串名字。</p>
+<p>kernel 也是一樣：每個 <code>.c</code> 各自編成 <code>.o</code>，大部分函式都寫成 <code>static</code>（只給自己的檔案用），要給別的模組用的才特別匯出；kernel 的建置系統（Kbuild）也是建立在 <code>make</code> 上的（本課只提一句，K0 才會實際碰到）。</p>
+<hr />
+<h2 id="二宣告與定義沒有宣告編譯器只能猜">二、宣告與定義：沒有宣告，編譯器只能猜</h2>
+<p>先分清兩個詞：</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>是什麼</th>
+<th>例子</th>
+<th>整個程式可以有幾個</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>定義</strong>（definition）</td>
+<td>真正產生東西：函式的本體（機器碼）、變數的儲存空間</td>
+<td><code>long square(long x) { return x * x; }</code></td>
+<td>一個</td>
+</tr>
+<tr>
+<td><strong>宣告</strong>（declaration）</td>
+<td>只告訴編譯器「有這個名字，它的型別是這樣」，不產生東西</td>
+<td><code>long square(long x);</code>（結尾是分號、沒有 <code>{}</code>）</td>
+<td>幾個都可以（型別要一致）</td>
+</tr>
+</tbody>
+</table>
+<p>函式的宣告也叫<strong>原型</strong>（prototype）。定義同時也是一個宣告（看到定義，編譯器當然也知道型別了）。</p>
+<h3 id="實驗忘了宣告square100000-印出-1410065408">實驗：忘了宣告，<code>square(100000)</code> 印出 1410065408</h3>
+<p><code>examples/implicit/</code>：<code>mathx.c</code>（檔案：<a href="../../small-project/s1-06-multi-file/examples/implicit/mathx.c"><code>mathx.c</code></a>）</p>
+<pre><code class="language-c"><span class="kt">long</span><span class="w"> </span><span class="nf">square</span><span class="p">(</span><span class="kt">long</span><span class="w"> </span><span class="n">x</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">x</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<p><code>main.c</code>（檔案：<a href="../../small-project/s1-06-multi-file/examples/implicit/main.c"><code>main.c</code></a>），<strong>沒有</strong> <code>square</code> 的宣告：</p>
+<pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="kt">long</span><span class="w"> </span><span class="n">r</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">square</span><span class="p">(</span><span class="mi">100000</span><span class="p">);</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;%ld</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">r</span><span class="p">);</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<pre><code>$ gcc -c main.c
+main.c: In function ‘main’:
+main.c:5:14: warning: implicit declaration of function ‘square’ [-Wimplicit-function-declaration]
+    5 |     long r = square(100000);
+      |              ^~~~~~
+$ gcc -c mathx.c
+$ gcc -o calc main.o mathx.o &amp;&amp; ./calc
+1410065408
+</code></pre>
+<p>100000 × 100000 ＝ 10000000000（一百億），印出來卻是 1410065408。沒有任何錯誤，只有一個警告。</p>
+<p><strong>原因</strong>：編譯 <code>main.c</code> 時，gcc 沒看過 <code>square</code>，只好照舊式 C 的規則<strong>猜</strong>它回傳 <code>int</code>（隱式宣告，implicit declaration；第 1 課<a href="hello.c%E6%80%8E%E9%BA%BC%E8%AE%8A%E6%88%90%E8%83%BD%E8%B7%91%E7%9A%84%E7%A8%8B%E5%BC%8F-%E7%B7%A8%E8%AD%AF%E7%9A%84%E5%9B%9B%E5%80%8B%E9%9A%8E%E6%AE%B5.html#%E4%B9%9D%E4%BD%9C%E6%A5%AD%E8%A7%A3%E8%AA%AA%E5%9B%9B%E9%A1%8C%E8%83%8C%E5%BE%8C%E7%9A%84%E5%8E%9F%E5%9B%A0">第九節</a>〈第 2 題〉看過同一件事）。看 <code>main.o</code> 的組合語言就知道它怎麼用這個猜測：</p>
+<pre><code>$ objdump -dr --no-show-raw-insn main.o
+0000000000000000 &lt;main&gt;:
+   0:	endbr64
+   4:	push   %rbp
+   5:	mov    %rsp,%rbp
+   8:	sub    $0x10,%rsp
+   c:	mov    $0x186a0,%edi
+  11:	mov    $0x0,%eax
+  16:	call   1b &lt;main+0x1b&gt;
+			17: R_X86_64_PLT32	square-0x4
+  1b:	cltq
+  1d:	mov    %rax,-0x8(%rbp)
+  ...
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>指令</th>
+<th>在做什麼</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>mov $0x186a0,%edi</code></td>
+<td>第 1 個參數 ＝ 100000（<code>0x186a0</code>）。猜成 <code>int</code> 參數，所以只寫 <code>%edi</code>（寫 32 位元會清高位，第 4 課）</td>
+</tr>
+<tr>
+<td><code>mov $0x0,%eax</code></td>
+<td>沒有原型的函式，gcc 照可變參數函式的規矩把 <code>%al</code> 設成 0（第 5 課第七節）</td>
+</tr>
+<tr>
+<td><code>call 1b</code> ＋ <code>R_X86_64_PLT32 square</code></td>
+<td>呼叫 <code>square</code>；位址還沒填，是重定位項目（第 1 課第四節的「洞」，<code>-r</code> 第 5 課教過）</td>
+</tr>
+<tr>
+<td><strong><code>cltq</code></strong></td>
+<td>把 <code>%eax</code> <strong>符號擴展</strong>成 <code>%rax</code>，等於第 4 課的 <code>movslq %eax,%rax</code>（<code>cltq</code> 是 AT&amp;T 對這個特定組合的專用寫法：convert long to quad）</td>
+</tr>
+<tr>
+<td><code>mov %rax,-0x8(%rbp)</code></td>
+<td>存進 <code>r</code></td>
+</tr>
+</tbody>
+</table>
+<p><code>square</code> 本身是照 <code>long</code> 寫的，<code>imul</code> 算出完整的 10000000000 放在 <code>%rax</code>（<code>0x2540be400</code>）。可是 <code>main</code> 以為回傳值是 <code>int</code>，<code>cltq</code> <strong>只拿 <code>%eax</code> 的低 32 位元</strong>，再擴展回 64 位元：</p>
+<pre><code>10000000000 = 0x2_540be400
+低 32 位元   =   0x540be400 = 1410065408（最高位元是 0，擴展後還是正數）
+</code></pre>
+<p><strong>被呼叫的那邊是對的，呼叫的那邊用錯的型別解讀結果</strong>。編譯 <code>main.c</code> 時看不到 <code>mathx.c</code>，連結時連結器只比對名字 <code>square</code>（第 1 課），沒有任何一個階段知道兩邊型別不一樣。</p>
+<p>（本機 gcc 13 預設 C17，隱式宣告只是警告；據 gcc 14 的變更說明，新版預設會變成錯誤，本機未實測。這也是為什麼編譯時一定要開 <code>-Wall</code> 而且不能忽略警告。）</p>
+<hr />
+<h2 id="三標頭檔把宣告寫一次讓兩邊都檢查">三、標頭檔：把宣告寫一次，讓兩邊都檢查</h2>
+<p>修法是讓 <code>main.c</code> 看到正確的宣告。宣告直接寫在 <code>main.c</code> 裡也行，但有 10 個檔案要用 <code>square</code> 就要寫 10 次，改型別時要改 10 個地方。所以把宣告放進一個<strong>標頭檔</strong>（header file），要用的檔案 <code>#include</code> 它。</p>
+<p><code>examples/header/</code>：<code>mathx.h</code>（檔案：<a href="../../small-project/s1-06-multi-file/examples/header/mathx.h"><code>mathx.h</code></a>）</p>
+<pre><code class="language-c"><span class="cp">#ifndef MATHX_H</span>
+<span class="cp">#define MATHX_H</span>
+
+<span class="kt">long</span><span class="w"> </span><span class="nf">square</span><span class="p">(</span><span class="kt">long</span><span class="w"> </span><span class="n">x</span><span class="p">);</span>
+
+<span class="cp">#endif</span>
+</code></pre>
+<p>（<code>#ifndef</code>／<code>#define</code>／<code>#endif</code> 這三行是 include guard，本節後面解釋。）</p>
+<p><code>mathx.c</code>（檔案：<a href="../../small-project/s1-06-multi-file/examples/header/mathx.c"><code>mathx.c</code></a>）——<strong>定義的那個檔案自己也 <code>#include</code> 自己的標頭檔</strong>：</p>
+<pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;mathx.h&quot;</span>
+
+<span class="kt">long</span><span class="w"> </span><span class="nf">square</span><span class="p">(</span><span class="kt">long</span><span class="w"> </span><span class="n">x</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">x</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<p><code>main.c</code>（檔案：<a href="../../small-project/s1-06-multi-file/examples/header/main.c"><code>main.c</code></a>）：</p>
+<pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;mathx.h&quot;</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="kt">long</span><span class="w"> </span><span class="n">r</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">square</span><span class="p">(</span><span class="mi">100000</span><span class="p">);</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;%ld</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">r</span><span class="p">);</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<pre><code>$ gcc -Wall -c main.c mathx.c
+$ gcc -o calc main.o mathx.o &amp;&amp; ./calc
+10000000000
+</code></pre>
+<p><code>gcc -c</code> 後面可以接好幾個 <code>.c</code>，它會<strong>各自</strong>編成同名的 <code>.o</code>（還是一次一個編譯單元，只是一個指令做完）。</p>
+<h3 id="include-只是貼上"><code>#include</code> 只是貼上</h3>
+<p>第 1 課<a href="hello.c%E6%80%8E%E9%BA%BC%E8%AE%8A%E6%88%90%E8%83%BD%E8%B7%91%E7%9A%84%E7%A8%8B%E5%BC%8F-%E7%B7%A8%E8%AD%AF%E7%9A%84%E5%9B%9B%E5%80%8B%E9%9A%8E%E6%AE%B5.html#%E4%BA%8C%E5%89%8D%E8%99%95%E7%90%86include-%E5%8F%AA%E6%98%AF%E8%A4%87%E8%A3%BD%E8%B2%BC%E4%B8%8A">第二節</a>教過：前處理器把 <code>#include</code> 那一行換成檔案的內容。用 <code>gcc -E</code> 看 <code>main.c</code> 前處理後的最後幾行：</p>
+<pre><code>$ gcc -E main.c | tail -11
+
+# 4 &quot;mathx.h&quot;
+long square(long x);
+# 3 &quot;main.c&quot; 2
+
+int main(void)
+{
+    long r = square(100000);
+    printf(&quot;%ld\n&quot;, r);
+    return 0;
+}
+</code></pre>
+<p>（全部 827 行，前面幾百行都是 <code>stdio.h</code> 貼進來的。<code># 4 &quot;mathx.h&quot;</code> 這種行是前處理器留給編譯器的位置標記，讓錯誤訊息能指回原本的檔名與行號。）</p>
+<p>所以真正讓編譯器知道型別的，是貼進來的那一行 <code>long square(long x);</code>。標頭檔沒有任何魔法，它就是<strong>被很多 <code>.c</code> 共用的一段文字</strong>。</p>
+<h3 id="定義的那個-c-為什麼也要-include-自己的標頭檔">定義的那個 <code>.c</code> 為什麼也要 <code>#include</code> 自己的標頭檔</h3>
+<p>這樣編譯器在編 <code>mathx.c</code> 時，會同時看到宣告和定義，<strong>兩者不一致就報錯</strong>。故意把定義改成 <code>int</code>：<code>bad.c</code>（檔案：<a href="../../small-project/s1-06-multi-file/examples/header/bad.c"><code>bad.c</code></a>）</p>
+<pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;mathx.h&quot;</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">square</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">x</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">x</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<pre><code>$ gcc -c bad.c
+bad.c:3:5: error: conflicting types for ‘square’; have ‘int(int)’
+    3 | int square(int x)
+      |     ^~~~~~
+In file included from bad.c:1:
+mathx.h:4:6: note: previous declaration of ‘square’ with type ‘long int(long int)’
+    4 | long square(long x);
+      |      ^~~~~~
+</code></pre>
+<p>這就是標頭檔的價值：<strong>使用的那邊（<code>main.c</code>）和定義的那邊（<code>mathx.c</code>）看的是同一份宣告</strong>，任何一邊跟它不一致，編譯時就會被抓到。如果 <code>mathx.c</code> 沒有 <code>#include &quot;mathx.h&quot;</code>，改了定義卻忘了改標頭檔，<code>main.c</code> 會照舊的宣告呼叫——又回到第二節「連結成功、結果錯誤」的情況。</p>
+<p><strong>標頭檔放什麼</strong>：宣告（函式原型、<code>extern</code> 變數，第六節）、型別定義（<code>struct</code>、<code>typedef</code>）、巨集（<code>#define</code>）。
+<strong>不放什麼</strong>：函式的定義、變數的定義——標頭檔會被貼進很多個 <code>.c</code>，定義跟著被貼了幾次，連結時就有幾份（第四、六節會看到這個錯誤）。</p>
+<h3 id="-與-去哪裡找標頭檔"><code>&quot;...&quot;</code> 與 <code>&lt;...&gt;</code>：去哪裡找標頭檔</h3>
+<table>
+<thead>
+<tr>
+<th>寫法</th>
+<th>先找哪裡</th>
+<th>再找哪裡</th>
+<th>用在</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>#include &quot;mathx.h&quot;</code></td>
+<td><strong>寫這行 <code>#include</code> 的那個檔案所在的資料夾</strong></td>
+<td><code>-iquote</code> 指定的資料夾，然後跟 <code>&lt;...&gt;</code> 一樣</td>
+<td>自己專案的標頭檔</td>
+</tr>
+<tr>
+<td><code>#include &lt;stdio.h&gt;</code></td>
+<td><code>-I</code> 指定的資料夾（照命令列的順序）</td>
+<td>系統資料夾（下面這份清單）</td>
+<td>系統與函式庫的標頭檔</td>
+</tr>
+</tbody>
+</table>
+<p>系統資料夾可以問 gcc（<code>-v</code> 印出詳細過程，<code>-E</code> 只做前處理，<code>-x c -</code> 表示從標準輸入讀 C 程式，<code>echo</code> 給它一個空的程式）：</p>
+<pre><code>$ echo | gcc -v -E -x c - 2&gt;&amp;1 | sed -n '/#include &quot;...&quot; search/,/End of search/p'
+#include &quot;...&quot; search starts here:
+#include &lt;...&gt; search starts here:
+ /usr/lib/gcc/x86_64-linux-gnu/13/include
+ /usr/local/include
+ /usr/include/x86_64-linux-gnu
+ /usr/include
+End of search list.
+</code></pre>
+<p><code>#include &quot;...&quot;</code> 那一段是空的，因為沒給 <code>-iquote</code>；「目前檔案所在的資料夾」是固定先找的，不列在這裡。</p>
+<p>把 <code>mathx.h</code> 用角括號引入會找不到：<code>inc.c</code>（檔案：<a href="../../small-project/s1-06-multi-file/examples/header/inc.c"><code>inc.c</code></a>）</p>
+<pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;mathx.h&gt;</span>
+</code></pre>
+<pre><code>$ gcc -c inc.c
+inc.c:1:10: fatal error: mathx.h: No such file or directory
+    1 | #include &lt;mathx.h&gt;
+      |          ^~~~~~~~~
+compilation terminated.
+$ gcc -I. -c inc.c &amp;&amp; echo ok
+ok
+</code></pre>
+<p><code>-I.</code> 把目前資料夾（<code>.</code>）加進 <code>&lt;...&gt;</code> 的搜尋清單，就找得到了。大專案常把所有標頭檔放在 <code>include/</code> 資料夾，編譯時加 <code>-Iinclude</code>（kernel 也是這樣）。</p>
+<h3 id="include-guard同一個標頭檔被貼兩次">include guard：同一個標頭檔被貼兩次</h3>
+<p>函式的宣告重複幾次都沒關係，但 <code>struct</code> 的<strong>定義</strong>在同一個編譯單元裡只能出現一次。標頭檔又會引入別的標頭檔，很容易「繞了兩條路貼進來兩次」。</p>
+<p><code>examples/guard/without/</code>：<code>point.h</code>（檔案：<a href="../../small-project/s1-06-multi-file/examples/guard/without/point.h"><code>point.h</code></a>），沒有 guard：</p>
+<pre><code class="language-c"><span class="k">struct</span><span class="w"> </span><span class="nc">point</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kt">long</span><span class="w"> </span><span class="n">x</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">long</span><span class="w"> </span><span class="n">y</span><span class="p">;</span>
+<span class="p">};</span>
+</code></pre>
+<p><code>draw.h</code>（檔案：<a href="../../small-project/s1-06-multi-file/examples/guard/without/draw.h"><code>draw.h</code></a>）與 <code>move.h</code>（檔案：<a href="../../small-project/s1-06-multi-file/examples/guard/without/move.h"><code>move.h</code></a>）都需要 <code>struct point</code>：</p>
+<pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;point.h&quot;</span>
+<span class="kt">void</span><span class="w"> </span><span class="nf">draw</span><span class="p">(</span><span class="k">struct</span><span class="w"> </span><span class="nc">point</span><span class="w"> </span><span class="n">p</span><span class="p">);</span>
+</code></pre>
+<pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;point.h&quot;</span>
+<span class="k">struct</span><span class="w"> </span><span class="nc">point</span><span class="w"> </span><span class="n">move_right</span><span class="p">(</span><span class="k">struct</span><span class="w"> </span><span class="nc">point</span><span class="w"> </span><span class="n">p</span><span class="p">,</span><span class="w"> </span><span class="kt">long</span><span class="w"> </span><span class="n">dx</span><span class="p">);</span>
+</code></pre>
+<p><code>guard_main.c</code>（檔案：<a href="../../small-project/s1-06-multi-file/examples/guard/without/guard_main.c"><code>guard_main.c</code></a>）兩個都要用：</p>
+<pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;draw.h&quot;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;move.h&quot;</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="k">struct</span><span class="w"> </span><span class="nc">point</span><span class="w"> </span><span class="n">p</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">2</span><span class="w"> </span><span class="p">};</span>
+<span class="w">    </span><span class="p">(</span><span class="kt">void</span><span class="p">)</span><span class="n">p</span><span class="p">;</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<p>（<code>(void)p;</code> 只是「用一下 <code>p</code>」，避免 <code>-Wall</code> 警告變數沒用到。）</p>
+<pre><code>$ gcc -c guard_main.c
+In file included from move.h:1,
+                 from guard_main.c:2:
+point.h:1:8: error: redefinition of ‘struct point’
+    1 | struct point {
+      |        ^~~~~
+In file included from draw.h:1,
+                 from guard_main.c:1:
+point.h:1:8: note: originally defined here
+    1 | struct point {
+      |        ^~~~~
+</code></pre>
+<p>錯誤訊息把兩條路都印出來了：<code>guard_main.c</code> 第 1 行 → <code>draw.h</code> → <code>point.h</code>，以及 <code>guard_main.c</code> 第 2 行 → <code>move.h</code> → <code>point.h</code>。<code>gcc -E guard_main.c</code> 也看得到 <code>struct point { ... }</code> 被貼了兩次。</p>
+<p><code>examples/guard/with/point.h</code>（檔案：<a href="../../small-project/s1-06-multi-file/examples/guard/with/point.h"><code>point.h</code></a>）加上 guard，其他三個檔案不變：</p>
+<pre><code class="language-c"><span class="cp">#ifndef POINT_H</span>
+<span class="cp">#define POINT_H</span>
+
+<span class="k">struct</span><span class="w"> </span><span class="nc">point</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kt">long</span><span class="w"> </span><span class="n">x</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">long</span><span class="w"> </span><span class="n">y</span><span class="p">;</span>
+<span class="p">};</span>
+
+<span class="cp">#endif</span>
+</code></pre>
+<pre><code>$ gcc -c guard_main.c &amp;&amp; echo OK
+OK
+$ gcc -E guard_main.c | grep -c &quot;struct point {&quot;
+1
+</code></pre>
+<p>三行的意思（都是前處理器的指令，第 1 課第二節）：</p>
+<table>
+<thead>
+<tr>
+<th>行</th>
+<th>意思</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>#ifndef POINT_H</code></td>
+<td>如果 <code>POINT_H</code> 這個巨集<strong>還沒定義</strong>（if not defined），保留到 <code>#endif</code> 為止的內容；已經定義了就整段丟掉</td>
+</tr>
+<tr>
+<td><code>#define POINT_H</code></td>
+<td>定義它（內容是空的，只是做個記號）</td>
+</tr>
+<tr>
+<td><code>#endif</code></td>
+<td>結束 <code>#ifndef</code> 的範圍</td>
+</tr>
+</tbody>
+</table>
+<p>第一次貼進來時 <code>POINT_H</code> 還沒定義，內容保留，同時定義了 <code>POINT_H</code>；第二次貼進來時 <code>POINT_H</code> 已經定義，整段被丟掉。巨集名字自己取，慣例是檔名大寫、<code>.</code> 換成 <code>_</code>，只要整個專案裡不重複就好。<strong>每個標頭檔都要加</strong>，不要等出錯才加。（另一種寫法是在檔案開頭寫 <code>#pragma once</code>，gcc 支援，但它不是 C 標準的一部分；kernel 用的是 <code>#ifndef</code> 這種寫法。）</p>
+<hr />
+<h2 id="四符號表o-之間靠名字接起來">四、符號表：<code>.o</code> 之間靠名字接起來</h2>
+<p>第 1 課<a href="hello.c%E6%80%8E%E9%BA%BC%E8%AE%8A%E6%88%90%E8%83%BD%E8%B7%91%E7%9A%84%E7%A8%8B%E5%BC%8F-%E7%B7%A8%E8%AD%AF%E7%9A%84%E5%9B%9B%E5%80%8B%E9%9A%8E%E6%AE%B5.html#%E5%9B%9B%E7%B5%84%E8%AD%AF%E6%A9%9F%E5%99%A8%E7%A2%BC%E8%A3%A1%E7%9A%84%E6%B4%9E">第四節</a>用 <code>nm</code> 看過符號表：<code>T</code> 是「這個檔案提供」，<code>U</code> 是「這個檔案需要別人提供」。本課改用 <code>readelf -s</code>，它多一欄 <strong>Bind</strong>，第五節要用。</p>
+<pre><code>$ readelf -s main.o mathx.o
+
+File: main.o
+
+Symbol table '.symtab' contains 7 entries:
+   Num:    Value          Size Type    Bind   Vis      Ndx Name
+     0: 0000000000000000     0 NOTYPE  LOCAL  DEFAULT  UND 
+     1: 0000000000000000     0 FILE    LOCAL  DEFAULT  ABS main.c
+     2: 0000000000000000     0 SECTION LOCAL  DEFAULT    1 .text
+     3: 0000000000000000     0 SECTION LOCAL  DEFAULT    5 .rodata
+     4: 0000000000000000    60 FUNC    GLOBAL DEFAULT    1 main
+     5: 0000000000000000     0 NOTYPE  GLOBAL DEFAULT  UND square
+     6: 0000000000000000     0 NOTYPE  GLOBAL DEFAULT  UND printf
+
+File: mathx.o
+
+Symbol table '.symtab' contains 4 entries:
+   Num:    Value          Size Type    Bind   Vis      Ndx Name
+     0: 0000000000000000     0 NOTYPE  LOCAL  DEFAULT  UND 
+     1: 0000000000000000     0 FILE    LOCAL  DEFAULT  ABS mathx.c
+     2: 0000000000000000     0 SECTION LOCAL  DEFAULT    1 .text
+     3: 0000000000000000    22 FUNC    GLOBAL DEFAULT    1 square
+</code></pre>
+<p>每一欄（<code>readelf</code> 的全部選項見 <a href="readelf%E5%AE%8C%E6%95%B4%E9%81%B8%E9%A0%85%E5%8F%83%E8%80%83.html">readelf完整選項參考</a>，<code>-s</code> 在<a href="readelf%E5%AE%8C%E6%95%B4%E9%81%B8%E9%A0%85%E5%8F%83%E8%80%83.html#23-%E7%AC%A6%E8%99%9F">第 2.3 節〈符號〉</a>）：</p>
+<table>
+<thead>
+<tr>
+<th>欄</th>
+<th>意思</th>
+<th>本例</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Num</code></td>
+<td>第幾個符號</td>
+<td>第 0 個永遠是空的（ELF 規定的佔位）</td>
+</tr>
+<tr>
+<td><code>Value</code></td>
+<td>在 <code>.o</code> 裡是「在它所屬區段裡的偏移」；連結後的執行檔裡是位址</td>
+<td><code>main</code>、<code>square</code> 都在各自 <code>.text</code> 的開頭，所以是 0</td>
+</tr>
+<tr>
+<td><code>Size</code></td>
+<td>佔幾 byte</td>
+<td><code>main</code> 60 byte、<code>square</code> 22 byte</td>
+</tr>
+<tr>
+<td><code>Type</code></td>
+<td><code>FUNC</code> 函式、<code>OBJECT</code> 變數、<code>SECTION</code> 區段本身、<code>FILE</code> 原始檔名、<code>NOTYPE</code> 不知道（未定義的符號，這個檔案只知道名字）</td>
+<td><code>square</code> 在 <code>main.o</code> 是 <code>NOTYPE</code>，在 <code>mathx.o</code> 是 <code>FUNC</code></td>
+</tr>
+<tr>
+<td><code>Bind</code></td>
+<td><strong><code>GLOBAL</code>：別的檔案看得到、可以拿來配對；<code>LOCAL</code>：只在這個檔案裡有效</strong>（還有一種 <code>WEAK</code>，本課不用）</td>
+<td>目前都是 <code>GLOBAL</code>；第五節的 <code>static</code> 會變 <code>LOCAL</code></td>
+</tr>
+<tr>
+<td><code>Vis</code></td>
+<td>可見度，給共享函式庫用的進一步限制</td>
+<td>本課都是 <code>DEFAULT</code>，第 7 課才會用到</td>
+</tr>
+<tr>
+<td><code>Ndx</code></td>
+<td>屬於第幾個區段（<code>readelf -S</code> 的編號）；<strong><code>UND</code> ＝ undefined，這個檔案沒有定義、需要別人提供</strong>；<code>ABS</code> ＝ 不屬於任何區段；<code>COM</code> 第六節</td>
+<td><code>main.o</code> 的 <code>square</code>、<code>printf</code> 是 <code>UND</code></td>
+</tr>
+<tr>
+<td><code>Name</code></td>
+<td>名字</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p>連結器做的「符號解析」就是：把每個 <code>.o</code> 的 <code>UND</code> 拿去跟別的 <code>.o</code> 的 <code>GLOBAL</code> 定義配對。<strong>它只比對 <code>Name</code> 這一欄</strong>——<code>.o</code> 的符號表裡根本沒有 C 的型別（<code>Type</code> 只分函式、變數，沒有 <code>long(long)</code> 這種資訊）。這就是第二節的 bug 沒有被連結器發現的原因。</p>
+<h3 id="三種錯誤各發生在哪一步">三種錯誤，各發生在哪一步</h3>
+<table>
+<thead>
+<tr>
+<th>錯誤訊息</th>
+<th>誰報的</th>
+<th>原因</th>
+<th>例子</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>conflicting types for ‘square’</code></td>
+<td><strong>編譯器</strong>（<code>gcc -c</code> 時）</td>
+<td>同一個編譯單元裡，兩個宣告（或宣告與定義）的型別不一樣</td>
+<td>第三節 <code>bad.c</code></td>
+</tr>
+<tr>
+<td><code>undefined reference to ‘square’</code></td>
+<td><strong>連結器</strong>（<code>ld</code>）</td>
+<td>有 <code>UND</code>，但所有 <code>.o</code> 和函式庫裡都沒有 <code>GLOBAL</code> 的定義</td>
+<td>下面實驗 1</td>
+</tr>
+<tr>
+<td><code>multiple definition of ‘square’</code></td>
+<td><strong>連結器</strong></td>
+<td>兩個 <code>.o</code> 都有 <code>GLOBAL</code> 的定義，不知道要用哪個</td>
+<td>下面實驗 2</td>
+</tr>
+</tbody>
+</table>
+<p>實驗 1：只連結 <code>main.o</code>，不給 <code>mathx.o</code>：</p>
+<pre><code>$ gcc -o x main.o
+/usr/bin/ld: main.o: in function `main':
+main.c:(.text+0x12): undefined reference to `square'
+collect2: error: ld returned 1 exit status
+</code></pre>
+<p><code>/usr/bin/ld</code> 開頭表示是連結器報的（<code>collect2</code> 是 gcc 用來呼叫 <code>ld</code> 的小程式，最後一行只是轉告「<code>ld</code> 失敗了」）。<code>main.c:(.text+0x12)</code> 是「<code>main.o</code> 的 <code>.text</code> 第 <code>0x12</code> byte 需要 <code>square</code>」——就是第二節 <code>objdump -dr</code> 看到的那個重定位項目的位置（<code>call</code> 指令從 <code>0x11</code> 開始，要填的 4 byte 從 <code>0x12</code> 開始）。</p>
+<p>實驗 2：<code>mathx2.c</code>（檔案：<a href="../../small-project/s1-06-multi-file/examples/header/mathx2.c"><code>mathx2.c</code></a>）是 <code>mathx.c</code> 原封不動的複製，一起連結：</p>
+<pre><code>$ gcc -o x main.o mathx.o mathx2.c
+/usr/bin/ld: /tmp/ccVohvCq.o: in function `square':
+mathx2.c:(.text+0x0): multiple definition of `square'; mathx.o:mathx.c:(.text+0x0): first defined here
+collect2: error: ld returned 1 exit status
+</code></pre>
+<p>（<code>gcc</code> 的命令列可以混著給 <code>.o</code> 和 <code>.c</code>；<code>.c</code> 會先編成 <code>/tmp/</code> 底下的暫存 <code>.o</code>，所以第一行是一個隨機的暫存檔名。）兩份定義內容一模一樣也不行：連結器不比較內容，有兩個同名的 <code>GLOBAL</code> 定義就是錯。</p>
+<p><strong>看錯誤訊息反推原因</strong>：開頭是 <code>檔名:行:欄: error:</code> → 編譯時，看那一行的 C；開頭是 <code>/usr/bin/ld:</code> → 連結時，問題在「哪些 <code>.o</code> 一起連結」、「誰定義了什麼」，用 <code>readelf -s</code>／<code>nm</code> 查每個 <code>.o</code> 的符號表。</p>
+<hr />
+<h2 id="五static兩種完全不同的意思">五、<code>static</code>：兩種完全不同的意思</h2>
+<p><code>static</code> 這個關鍵字寫在不同位置，意思完全不一樣：</p>
+<table>
+<thead>
+<tr>
+<th>寫在哪裡</th>
+<th>例子</th>
+<th>意思</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>檔案層級</strong>（函式外面）的函式或變數前面</td>
+<td><code>static int helper(void) { ... }</code></td>
+<td>這個名字<strong>只在這個 <code>.c</code> 裡有效</strong>，符號變成 <code>LOCAL</code>，別的檔案看不到、也不會跟別的檔案的同名符號衝突</td>
+</tr>
+<tr>
+<td><strong>函式裡面</strong>的區域變數前面</td>
+<td><code>static int n = 0;</code></td>
+<td>這個變數<strong>不放在堆疊上</strong>，整個程式執行期間只有一份，值會留到下一次呼叫</td>
+</tr>
+</tbody>
+</table>
+<h3 id="檔案層級的-static讓名字變成-local">檔案層級的 <code>static</code>：讓名字變成 <code>LOCAL</code></h3>
+<p><code>examples/static/</code>：<code>a.c</code>（檔案：<a href="../../small-project/s1-06-multi-file/examples/static/a.c"><code>a.c</code></a>）與 <code>b.c</code>（檔案：<a href="../../small-project/s1-06-multi-file/examples/static/b.c"><code>b.c</code></a>）各有一個叫 <code>helper</code> 的函式：</p>
+<pre><code class="language-c"><span class="k">static</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="nf">helper</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">a_value</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">helper</span><span class="p">();</span>
+<span class="p">}</span>
+</code></pre>
+<pre><code class="language-c"><span class="k">static</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="nf">helper</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">2</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">b_value</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">helper</span><span class="p">();</span>
+<span class="p">}</span>
+</code></pre>
+<p><code>ab_main.c</code>（檔案：<a href="../../small-project/s1-06-multi-file/examples/static/ab_main.c"><code>ab_main.c</code></a>）：</p>
+<pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">a_value</span><span class="p">(</span><span class="kt">void</span><span class="p">);</span>
+<span class="kt">int</span><span class="w"> </span><span class="nf">b_value</span><span class="p">(</span><span class="kt">void</span><span class="p">);</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;a_value() = %d, b_value() = %d</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">a_value</span><span class="p">(),</span><span class="w"> </span><span class="n">b_value</span><span class="p">());</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<p>（這裡為了少一個檔案，把宣告直接寫在 <code>ab_main.c</code>；正式專案應該放進 <code>a.h</code>、<code>b.h</code>。）</p>
+<pre><code>$ gcc -c a.c b.c ab_main.c &amp;&amp; gcc -o ab ab_main.o a.o b.o &amp;&amp; ./ab
+a_value() = 1, b_value() = 2
+$ readelf -s a.o
+...
+   Num:    Value          Size Type    Bind   Vis      Ndx Name
+     0: 0000000000000000     0 NOTYPE  LOCAL  DEFAULT  UND 
+     1: 0000000000000000     0 FILE    LOCAL  DEFAULT  ABS a.c
+     2: 0000000000000000     0 SECTION LOCAL  DEFAULT    1 .text
+     3: 0000000000000000    15 FUNC    LOCAL  DEFAULT    1 helper
+     4: 000000000000000f    15 FUNC    GLOBAL DEFAULT    1 a_value
+$ nm a.o
+000000000000000f T a_value
+0000000000000000 t helper
+</code></pre>
+<p><code>helper</code> 的 Bind 是 <strong><code>LOCAL</code></strong>；<code>nm</code> 用<strong>小寫</strong> <code>t</code> 表示（小寫 ＝ local，大寫 ＝ global；<code>nm</code> 符號字母的完整清單見 <code>man nm</code>）。連結器配對時不看 <code>LOCAL</code> 符號，所以兩個 <code>helper</code> 互不干擾。連結後的執行檔裡兩個都還在，各自有位址：</p>
+<pre><code>$ nm ab | grep -E &quot;helper|_value&quot;
+0000000000001194 T a_value
+00000000000011b2 T b_value
+0000000000001185 t helper
+00000000000011a3 t helper
+</code></pre>
+<p>把兩個 <code>static</code> 拿掉（<code>sed 's/^static //' a.c &gt; a2.c</code>，<code>b2.c</code> 同樣做法），就變成兩個 <code>GLOBAL</code> 的 <code>helper</code>：</p>
+<pre><code>$ gcc -c a2.c b2.c
+$ readelf -s a2.o | grep helper
+     3: 0000000000000000    15 FUNC    GLOBAL DEFAULT    1 helper
+$ gcc -o ab2 ab_main.o a2.o b2.o
+/usr/bin/ld: b2.o: in function `helper':
+b2.c:(.text+0x0): multiple definition of `helper'; a2.o:a2.c:(.text+0x0): first defined here
+collect2: error: ld returned 1 exit status
+</code></pre>
+<p>反過來，別的檔案想呼叫 <code>static</code> 的 <code>helper</code> 也不行：<code>callhelper.c</code>（檔案：<a href="../../small-project/s1-06-multi-file/examples/static/callhelper.c"><code>callhelper.c</code></a>）</p>
+<pre><code class="language-c"><span class="kt">int</span><span class="w"> </span><span class="nf">helper</span><span class="p">(</span><span class="kt">void</span><span class="p">);</span><span class="w">       </span><span class="cm">/* 想呼叫 a.c 裡的 static helper */</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">helper</span><span class="p">();</span>
+<span class="p">}</span>
+</code></pre>
+<pre><code>$ gcc -o ch callhelper.c a.c
+/usr/bin/ld: /tmp/cc92gUUI.o: in function `main':
+callhelper.c:(.text+0x9): undefined reference to `helper'
+collect2: error: ld returned 1 exit status
+</code></pre>
+<p><code>a.o</code> 裡明明有 <code>helper</code>，但它是 <code>LOCAL</code>，不能拿來配對，所以是 <code>undefined reference</code>。</p>
+<p><strong>什麼時候用</strong>：只給自己檔案用的函式與全域變數<strong>一律加 <code>static</code></strong>。好處是名字不會跟別的檔案撞、別人不會依賴你的內部細節、讀程式的人一看就知道「這個只在本檔案用」。kernel 的程式碼裡絕大部分函式都是 <code>static</code>。</p>
+<h3 id="函式裡的-static不放堆疊值留到下一次">函式裡的 <code>static</code>：不放堆疊，值留到下一次</h3>
+<p><code>examples/staticlocal/nextid.c</code>（檔案：<a href="../../small-project/s1-06-multi-file/examples/staticlocal/nextid.c"><code>nextid.c</code></a>）：</p>
+<pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">next_id</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="k">static</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">n</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w">   </span><span class="cm">/* 只初始化一次，值留到下一次呼叫 */</span>
+<span class="w">    </span><span class="n">n</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">n</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">n</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">plain_id</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">n</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w">          </span><span class="cm">/* 每次呼叫都重新放在堆疊上、重新設成 0 */</span>
+<span class="w">    </span><span class="n">n</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">n</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">n</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">3</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="o">++</span><span class="p">)</span>
+<span class="w">        </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;next_id() = %d, plain_id() = %d</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">next_id</span><span class="p">(),</span><span class="w"> </span><span class="n">plain_id</span><span class="p">());</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<pre><code>$ gcc -g -O0 -o nextid nextid.c &amp;&amp; ./nextid
+next_id() = 1, plain_id() = 1
+next_id() = 2, plain_id() = 1
+next_id() = 3, plain_id() = 1
+</code></pre>
+<p>看兩個函式的組合語言（<code>gcc -O0 -c nextid.c</code>，<code>objdump -d --no-show-raw-insn nextid.o</code>）：</p>
+<pre><code>0000000000000000 &lt;next_id&gt;:
+   0:	endbr64
+   4:	push   %rbp
+   5:	mov    %rsp,%rbp
+   8:	mov    0x0(%rip),%eax        # e &lt;next_id+0xe&gt;
+   e:	add    $0x1,%eax
+  11:	mov    %eax,0x0(%rip)        # 17 &lt;next_id+0x17&gt;
+  17:	mov    0x0(%rip),%eax        # 1d &lt;next_id+0x1d&gt;
+  1d:	pop    %rbp
+  1e:	ret
+
+000000000000001f &lt;plain_id&gt;:
+  1f:	endbr64
+  23:	push   %rbp
+  24:	mov    %rsp,%rbp
+  27:	movl   $0x0,-0x4(%rbp)
+  2e:	addl   $0x1,-0x4(%rbp)
+  32:	mov    -0x4(%rbp),%eax
+  35:	pop    %rbp
+  36:	ret
+</code></pre>
+<ul>
+<li><code>plain_id</code> 的 <code>n</code> 在 <code>-0x4(%rbp)</code>：<strong>堆疊框裡</strong>（第 5 課第四節），每次呼叫都 <code>movl $0x0</code> 重新設成 0，函式回傳後那塊空間就不屬於它了。</li>
+<li><code>next_id</code> 的 <code>n</code> 用 <code>0x0(%rip)</code> 存取：<code>D(%rip)</code> 是「相對於目前指令位址」的寫法（<a href="x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80-%E6%9A%AB%E5%AD%98%E5%99%A8%E3%80%81mov%E8%88%87lea%E3%80%81cmp%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D.html#%E4%B8%89%E6%8C%87%E4%BB%A4%E7%9A%84%E6%96%87%E6%B3%95%E5%8A%A9%E6%86%B6%E7%AC%A6%E5%A4%A7%E5%B0%8F%E5%BE%8C%E7%B6%B4%E9%81%8B%E7%AE%97%E5%85%83">第 4 課第三節</a>〈上表其他五列：每一種用一個實際的 C 函式對照〉），指向<strong>固定的一塊記憶體</strong>，不在堆疊上。<code>0x0</code> 是還沒填的洞（連結時才填）。而且函式裡<strong>沒有任何把它設成 0 的指令</strong>——初值 0 是程式載入時就準備好的，之後每次呼叫只是讀、加 1、寫回。</li>
+</ul>
+<p>符號表裡看得到它：</p>
+<pre><code>$ readelf -s nextid.o
+...
+   Num:    Value          Size Type    Bind   Vis      Ndx Name
+     ...
+     3: 0000000000000000     0 SECTION LOCAL  DEFAULT    4 .bss
+     4: 0000000000000000     4 OBJECT  LOCAL  DEFAULT    4 n.0
+     ...
+     6: 0000000000000000    31 FUNC    GLOBAL DEFAULT    1 next_id
+     7: 000000000000001f    24 FUNC    GLOBAL DEFAULT    1 plain_id
+     8: 0000000000000037    79 FUNC    GLOBAL DEFAULT    1 main
+</code></pre>
+<ul>
+<li><code>n.0</code>：4 byte 的 <code>OBJECT</code>（變數）、<code>LOCAL</code>，放在第 4 個區段 <strong><code>.bss</code></strong>。名字是 gcc 自己取的（加 <code>.0</code> 避免跟別的函式裡同名的 <code>static</code> 變數撞名）。</li>
+<li><code>plain_id</code> 的 <code>n</code> 不在符號表裡：堆疊上的變數只是 <code>-0x4(%rbp)</code> 這種偏移，沒有名字可以給連結器。</li>
+<li><strong><code>.bss</code></strong>：放「初值是 0」的全域變數與 <code>static</code> 變數。這些變數全部是 0，檔案裡不必存內容，只記「需要幾 byte」（<code>readelf -S</code> 看它的型別是 <code>NOBITS</code>），程式載入時才配一塊全是 0 的記憶體。初值不是 0 的（例如 <code>static int n = 5;</code>）放 <code>.data</code>，內容要存在檔案裡。（第 1 課〈ELF〉的圖裡看過這兩個區段名，<code>.data</code>／<code>.bss</code> 都在可寫的 <code>LOAD</code> 段。）</li>
+</ul>
+<p>所以函式裡的 <code>static</code> 改的是<strong>儲存期間</strong>（storage duration）：普通區域變數是「自動」（automatic），呼叫時才在堆疊上出現、回傳就消失；<code>static</code> 區域變數是「靜態」（static），整個程式執行期間都在。它的<strong>名字</strong>仍然只在那個函式裡看得到。</p>
+<hr />
+<h2 id="六extern全域變數的宣告與定義">六、<code>extern</code>：全域變數的宣告與定義</h2>
+<p>函式的宣告和定義很好分（有沒有 <code>{}</code>）。全域變數就不好分了：<code>long hits;</code> 看起來像宣告，其實是定義。要明確寫「只是宣告」，要加 <strong><code>extern</code></strong>。</p>
+<table>
+<thead>
+<tr>
+<th>寫法（寫在函式外面）</th>
+<th>是什麼</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>extern long hits;</code></td>
+<td><strong>宣告</strong>：有一個 <code>long</code> 叫 <code>hits</code>，定義在別的地方。不配置空間</td>
+</tr>
+<tr>
+<td><code>long hits = 0;</code></td>
+<td><strong>定義</strong>：配置 8 byte，初值 0</td>
+</tr>
+<tr>
+<td><code>long hits;</code></td>
+<td><strong>暫定定義</strong>（tentative definition）：同一個檔案裡沒有別的定義時，就當成 <code>long hits = 0;</code>。所以實際上還是<strong>定義</strong></td>
+</tr>
+</tbody>
+</table>
+<p>正確做法：<strong>標頭檔寫 <code>extern</code> 宣告，恰好一個 <code>.c</code> 寫定義</strong>。</p>
+<p><code>examples/extern/</code>：<code>hits.h</code>（檔案：<a href="../../small-project/s1-06-multi-file/examples/extern/hits.h"><code>hits.h</code></a>）</p>
+<pre><code class="language-c"><span class="cp">#ifndef HITS_H</span>
+<span class="cp">#define HITS_H</span>
+
+<span class="k">extern</span><span class="w"> </span><span class="kt">long</span><span class="w"> </span><span class="n">hits</span><span class="p">;</span><span class="w">       </span><span class="cm">/* 宣告：hits 這個變數存在，定義在別的檔案 */</span>
+<span class="kt">void</span><span class="w"> </span><span class="nf">hit</span><span class="p">(</span><span class="kt">void</span><span class="p">);</span>
+
+<span class="cp">#endif</span>
+</code></pre>
+<p><code>hits.c</code>（檔案：<a href="../../small-project/s1-06-multi-file/examples/extern/hits.c"><code>hits.c</code></a>）</p>
+<pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;hits.h&quot;</span>
+
+<span class="kt">long</span><span class="w"> </span><span class="n">hits</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w">          </span><span class="cm">/* 定義：真正配置 8 byte 的地方，整個程式只能有一個 */</span>
+
+<span class="kt">void</span><span class="w"> </span><span class="nf">hit</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">hits</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">hits</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<p><code>hits_main.c</code>（檔案：<a href="../../small-project/s1-06-multi-file/examples/extern/hits_main.c"><code>hits_main.c</code></a>）</p>
+<pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;hits.h&quot;</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">hit</span><span class="p">();</span>
+<span class="w">    </span><span class="n">hit</span><span class="p">();</span>
+<span class="w">    </span><span class="n">hit</span><span class="p">();</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;hits = %ld</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">hits</span><span class="p">);</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<pre><code>$ gcc -Wall -c hits.c hits_main.c &amp;&amp; gcc -o hits hits_main.o hits.o &amp;&amp; ./hits
+hits = 3
+$ readelf -s hits_main.o hits.o | grep -E &quot;File| hits?$&quot;
+File: hits_main.o
+     5: 0000000000000000     0 NOTYPE  GLOBAL DEFAULT  UND hit
+     6: 0000000000000000     0 NOTYPE  GLOBAL DEFAULT  UND hits
+File: hits.o
+     3: 0000000000000000     8 OBJECT  GLOBAL DEFAULT    4 hits
+     4: 0000000000000000    29 FUNC    GLOBAL DEFAULT    1 hit
+</code></pre>
+<p><code>hits_main.o</code> 只有 <code>UND hits</code>（需要），<code>hits.o</code> 有 8 byte 的 <code>OBJECT hits</code>（提供，在第 4 區段 <code>.bss</code>，因為初值是 0）。跟函式完全同一套規則。</p>
+<h3 id="忘了-extern每個-c-都有一份定義">忘了 <code>extern</code>：每個 <code>.c</code> 都有一份定義</h3>
+<p><code>examples/extern/bad/</code>：<code>hits.h</code>（檔案：<a href="../../small-project/s1-06-multi-file/examples/extern/bad/hits.h"><code>hits.h</code></a>）把 <code>extern</code> 拿掉：</p>
+<pre><code class="language-c"><span class="cp">#ifndef HITS_H</span>
+<span class="cp">#define HITS_H</span>
+
+<span class="kt">long</span><span class="w"> </span><span class="n">hits</span><span class="p">;</span>
+<span class="kt">void</span><span class="w"> </span><span class="nf">hit</span><span class="p">(</span><span class="kt">void</span><span class="p">);</span>
+
+<span class="cp">#endif</span>
+</code></pre>
+<p><code>hits.c</code>（檔案：<a href="../../small-project/s1-06-multi-file/examples/extern/bad/hits.c"><code>hits.c</code></a>）也不寫自己的定義，只靠標頭檔：</p>
+<pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;hits.h&quot;</span>
+
+<span class="cm">/* 這一版沒有自己寫 long hits = 0;，只靠標頭檔裡的 long hits; */</span>
+
+<span class="kt">void</span><span class="w"> </span><span class="nf">hit</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">hits</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">hits</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<p><code>hits_main.c</code>（檔案：<a href="../../small-project/s1-06-multi-file/examples/extern/bad/hits_main.c"><code>hits_main.c</code></a>）跟上面的一樣。</p>
+<pre><code>$ gcc -c hits.c hits_main.c
+$ readelf -s hits.o hits_main.o | grep -E &quot;File| hits$&quot;
+File: hits.o
+     3: 0000000000000000     8 OBJECT  GLOBAL DEFAULT    4 hits
+File: hits_main.o
+     4: 0000000000000000     8 OBJECT  GLOBAL DEFAULT    4 hits
+$ gcc -o hits hits_main.o hits.o
+/usr/bin/ld: hits.o:(.bss+0x0): multiple definition of `hits'; hits_main.o:(.bss+0x0): first defined here
+collect2: error: ld returned 1 exit status
+</code></pre>
+<p>標頭檔被貼進兩個 <code>.c</code>，每個 <code>.c</code> 各有一個暫定定義，各自變成一份 8 byte 的 <code>hits</code>——兩個 <code>GLOBAL</code> 定義，<code>multiple definition</code>。注意 include guard 救不了這個：guard 只防止<strong>同一個 <code>.c</code></strong> 裡貼兩次，兩個不同的 <code>.c</code> 本來就各貼一次。</p>
+<p><strong><code>-fcommon</code>：舊程式為什麼這樣寫也能動</strong></p>
+<p>舊版 gcc 對「沒有初值的全域變數」有另一種處理：把它標成 <strong>common</strong> 符號（<code>Ndx</code> 是 <code>COM</code>，<code>nm</code> 印 <code>C</code>），連結器遇到好幾個同名的 common 符號時，會合併成一份，不報錯。這個行為現在要用 <code>-fcommon</code> 才會打開：</p>
+<pre><code>$ gcc -fcommon -c hits.c hits_main.c
+$ readelf -s hits.o hits_main.o | grep -E &quot;File| hits$&quot;
+File: hits.o
+     3: 0000000000000008     8 OBJECT  GLOBAL DEFAULT  COM hits
+File: hits_main.o
+     4: 0000000000000008     8 OBJECT  GLOBAL DEFAULT  COM hits
+$ gcc -o hits hits_main.o hits.o &amp;&amp; ./hits
+hits = 3
+$ gcc -Q --help=common | grep -- &quot;-fcommon&quot;
+  -fcommon                    		[disabled]
+</code></pre>
+<p>（<code>gcc -Q --help=common</code> 列出「各語言共通的選項」與目前的設定值，<code>-Q</code> 是「印出設定值」；<code>COM</code> 符號的 <code>Value</code> 欄存的是對齊要求，不是偏移。）本機 gcc 13 預設是關閉的（<code>-fno-common</code>）；據 gcc 10 的變更說明，預設是從 gcc 10 開始改成關閉的（本機沒有更舊的 gcc，未實測）。所以很多舊專案升級 gcc 後突然出現一堆 <code>multiple definition</code>，就是這個原因。正確的修法是補上 <code>extern</code>，不是加 <code>-fcommon</code>。</p>
+<p><strong>整理：全域變數放哪裡</strong></p>
+<table>
+<thead>
+<tr>
+<th>放在</th>
+<th>寫</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>標頭檔</td>
+<td><code>extern long hits;</code>（宣告，多少個 <code>.c</code> 引入都沒關係）</td>
+</tr>
+<tr>
+<td>恰好一個 <code>.c</code></td>
+<td><code>long hits = 0;</code>（定義，這個 <code>.c</code> 也引入同一個標頭檔，讓編譯器檢查型別一致）</td>
+</tr>
+<tr>
+<td>只有自己檔案用</td>
+<td><code>static long hits = 0;</code>（第五節，<code>LOCAL</code>，不寫進標頭檔）</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="七make只重編改過的檔案">七、<code>make</code>：只重編改過的檔案</h2>
+<p>檔案一多，每次都 <code>gcc -c</code> 全部重編很慢（kernel 全部重編要幾十分鐘）。分開編譯的好處是：<strong>改了 <code>mathx.c</code>，只要重編 <code>mathx.o</code> 再重新連結</strong>，<code>main.o</code> 不必動。<code>make</code> 就是自動做這個判斷的工具。</p>
+<h3 id="文法規則">文法：規則</h3>
+<p><code>Makefile</code> 由<strong>規則</strong>（rule）組成：</p>
+<pre><code>目標 … : 先決條件 …
+&lt;TAB&gt;命令
+&lt;TAB&gt;命令
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>位置</th>
+<th>是什麼</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>目標</strong>（target）</td>
+<td>這條規則要產生的東西，通常是檔名（<code>calc</code>、<code>main.o</code>）；冒號左邊可以有好幾個</td>
+</tr>
+<tr>
+<td><code>:</code></td>
+<td>分隔目標與先決條件（固定符號）</td>
+</tr>
+<tr>
+<td><strong>先決條件</strong>（prerequisites）</td>
+<td>產生目標需要用到的檔案，空格分開；可以是空的</td>
+</tr>
+<tr>
+<td><strong>命令</strong>（recipe）</td>
+<td>怎麼從先決條件產生目標，交給 shell 執行的指令。<strong>每一行都必須用 TAB 開頭</strong>（不能用空格），可以有好幾行</td>
+</tr>
+</tbody>
+</table>
+<p><strong><code>make</code> 怎麼決定要不要執行命令</strong>：目標不存在，或任何一個先決條件的<strong>修改時間比目標新</strong>，就執行命令；否則跳過。先決條件本身如果也是別的規則的目標，先遞迴處理它。</p>
+<h3 id="實驗第一個-makefile">實驗：第一個 <code>Makefile</code></h3>
+<p><code>examples/make/</code>：<code>mathx.h</code>（檔案：<a href="../../small-project/s1-06-multi-file/examples/make/mathx.h"><code>mathx.h</code></a>），比第三節多一個巨集：</p>
+<pre><code class="language-c"><span class="cp">#ifndef MATHX_H</span>
+<span class="cp">#define MATHX_H</span>
+
+<span class="cp">#define DEFAULT_N 7     </span><span class="cm">/* main 要算平方的數字 */</span>
+
+<span class="kt">long</span><span class="w"> </span><span class="nf">square</span><span class="p">(</span><span class="kt">long</span><span class="w"> </span><span class="n">x</span><span class="p">);</span>
+
+<span class="cp">#endif</span>
+</code></pre>
+<p><code>mathx.c</code>（檔案：<a href="../../small-project/s1-06-multi-file/examples/make/mathx.c"><code>mathx.c</code></a>）與第三節相同：</p>
+<pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;mathx.h&quot;</span>
+
+<span class="kt">long</span><span class="w"> </span><span class="nf">square</span><span class="p">(</span><span class="kt">long</span><span class="w"> </span><span class="n">x</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">x</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<p><code>main.c</code>（檔案：<a href="../../small-project/s1-06-multi-file/examples/make/main.c"><code>main.c</code></a>）：</p>
+<pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;mathx.h&quot;</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;square(%d) = %ld</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">DEFAULT_N</span><span class="p">,</span><span class="w"> </span><span class="n">square</span><span class="p">(</span><span class="n">DEFAULT_N</span><span class="p">));</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<p>先寫一個每個檔案都寫死的版本（這個版本只在本節示範，沒有另外存檔；命令前面是 TAB）：</p>
+<pre><code class="language-make"><span class="nf">calc</span><span class="o">:</span><span class="w"> </span><span class="n">main</span>.<span class="n">o</span> <span class="n">mathx</span>.<span class="n">o</span>
+<span class="w">	</span>gcc<span class="w"> </span>-o<span class="w"> </span>calc<span class="w"> </span>main.o<span class="w"> </span>mathx.o
+
+<span class="nf">main.o</span><span class="o">:</span><span class="w"> </span><span class="n">main</span>.<span class="n">c</span> <span class="n">mathx</span>.<span class="n">h</span>
+<span class="w">	</span>gcc<span class="w"> </span>-Wall<span class="w"> </span>-c<span class="w"> </span>main.c
+
+<span class="nf">mathx.o</span><span class="o">:</span><span class="w"> </span><span class="n">mathx</span>.<span class="n">c</span> <span class="n">mathx</span>.<span class="n">h</span>
+<span class="w">	</span>gcc<span class="w"> </span>-Wall<span class="w"> </span>-c<span class="w"> </span>mathx.c
+
+<span class="nf">clean</span><span class="o">:</span>
+<span class="w">	</span>rm<span class="w"> </span>-f<span class="w"> </span>calc<span class="w"> </span>main.o<span class="w"> </span>mathx.o
+
+<span class="nf">.PHONY</span><span class="o">:</span><span class="w"> </span><span class="n">clean</span>
+</code></pre>
+<pre><code>$ make
+gcc -Wall -c main.c
+gcc -Wall -c mathx.c
+gcc -o calc main.o mathx.o
+$ make
+make: 'calc' is up to date.
+$ touch mathx.c
+$ make
+gcc -Wall -c mathx.c
+gcc -o calc main.o mathx.o
+$ touch mathx.h
+$ make
+gcc -Wall -c main.c
+gcc -Wall -c mathx.c
+gcc -o calc main.o mathx.o
+$ make mathx.o
+gcc -Wall -c mathx.c
+</code></pre>
+<p>（<code>touch</code> 把檔案的修改時間改成現在，內容不變，等於「假裝改過」。）</p>
+<ol>
+<li>第一次 <code>make</code>：沒給目標名字，就做檔案裡<strong>第一條規則的目標</strong> <code>calc</code>。<code>calc</code> 需要 <code>main.o</code>、<code>mathx.o</code>，兩個都不存在，先做它們，再連結。<code>make</code> 會先把每一行命令印出來再執行。</li>
+<li>第二次：<code>calc</code> 比 <code>main.o</code>、<code>mathx.o</code> 新，<code>main.o</code> 比 <code>main.c</code>、<code>mathx.h</code> 新……全部都不用做。</li>
+<li><code>touch mathx.c</code>：只有 <code>mathx.o</code> 比它舊，重編 <code>mathx.o</code>；<code>mathx.o</code> 變新了，<code>calc</code> 也要重新連結；<code>main.o</code> 不動。</li>
+<li><code>touch mathx.h</code>：兩個 <code>.o</code> 的先決條件都有 <code>mathx.h</code>，兩個都重編。</li>
+<li><code>make mathx.o</code>：命令列指定目標，只做這一個。</li>
+</ol>
+<p><strong>命令一定要用 TAB</strong>：把 TAB 換成 4 個空格，<code>make</code> 會報</p>
+<pre><code>Makefile:2: *** missing separator.  Stop.
+</code></pre>
+<p>（<code>Makefile:2</code> 是第 2 行。很多編輯器會自動把 TAB 換成空格，寫 <code>Makefile</code> 時要注意。）</p>
+<h3 id="先決條件漏了標頭檔make-說不用重編結果是舊的">先決條件漏了標頭檔：<code>make</code> 說不用重編，結果是舊的</h3>
+<p><code>Makefile.nodeps</code>（檔案：<a href="../../small-project/s1-06-multi-file/examples/make/Makefile.nodeps"><code>Makefile.nodeps</code></a>）跟上面一樣，只是先決條件<strong>沒寫 <code>mathx.h</code></strong>：</p>
+<pre><code class="language-make"><span class="nf">calc</span><span class="o">:</span><span class="w"> </span><span class="n">main</span>.<span class="n">o</span> <span class="n">mathx</span>.<span class="n">o</span>
+<span class="w">	</span>gcc<span class="w"> </span>-o<span class="w"> </span>calc<span class="w"> </span>main.o<span class="w"> </span>mathx.o
+
+<span class="nf">main.o</span><span class="o">:</span><span class="w"> </span><span class="n">main</span>.<span class="n">c</span>
+<span class="w">	</span>gcc<span class="w"> </span>-Wall<span class="w"> </span>-c<span class="w"> </span>main.c
+
+<span class="nf">mathx.o</span><span class="o">:</span><span class="w"> </span><span class="n">mathx</span>.<span class="n">c</span>
+<span class="w">	</span>gcc<span class="w"> </span>-Wall<span class="w"> </span>-c<span class="w"> </span>mathx.c
+</code></pre>
+<pre><code>$ make -f Makefile.nodeps &amp;&amp; ./calc
+gcc -Wall -c main.c
+gcc -Wall -c mathx.c
+gcc -o calc main.o mathx.o
+square(7) = 49
+$ sed -i 's/DEFAULT_N 7 /DEFAULT_N 9 /' mathx.h
+$ grep DEFAULT_N mathx.h | head -1
+#define DEFAULT_N 9     /* main 要算平方的數字 */
+$ make -f Makefile.nodeps
+make: 'calc' is up to date.
+$ ./calc
+square(7) = 49
+</code></pre>
+<p>（<code>-f 檔名</code> 指定要讀哪個 makefile，不給就找 <code>GNUmakefile</code>、<code>makefile</code>、<code>Makefile</code>。<code>sed -i</code> 直接修改檔案。）</p>
+<p>標頭檔改成 9 了，<code>make</code> 卻說不用做，程式還印 7。因為 <code>make</code> <strong>只看 <code>Makefile</code> 寫的先決條件</strong>，它不會自己去讀 <code>main.c</code> 有 <code>#include</code> 哪些檔案。<code>main.o</code> 的先決條件只有 <code>main.c</code>，<code>main.c</code> 沒變，就不重編。
+<code>DEFAULT_N</code> 是巨集，前處理時就被換成數字寫死在 <code>main.o</code> 裡，不重編就永遠是 7。</p>
+<p>這種錯最難查：程式碼看起來是對的，跑出來的卻是舊版。<strong>先決條件一定要列完整</strong>；但手動維護「每個 <code>.c</code> 引入了哪些 <code>.h</code>」很容易漏，所以讓 gcc 自動產生。</p>
+<h3 id="實用的-makefile變數樣式規則自動產生相依">實用的 <code>Makefile</code>：變數、樣式規則、自動產生相依</h3>
+<p><code>Makefile</code>（檔案：<a href="../../small-project/s1-06-multi-file/examples/make/Makefile"><code>Makefile</code></a>），命令前面是 TAB：</p>
+<pre><code class="language-make"><span class="nv">CC</span><span class="w">     </span><span class="o">=</span><span class="w"> </span>gcc
+<span class="nv">CFLAGS</span><span class="w"> </span><span class="o">=</span><span class="w"> </span>-Wall<span class="w"> </span>-g<span class="w"> </span>-O0<span class="w"> </span>-MMD<span class="w"> </span>-MP
+<span class="nv">OBJS</span><span class="w">   </span><span class="o">=</span><span class="w"> </span>main.o<span class="w"> </span>mathx.o
+
+<span class="nf">calc</span><span class="o">:</span><span class="w"> </span><span class="k">$(</span><span class="nv">OBJS</span><span class="k">)</span>
+<span class="w">	</span><span class="k">$(</span>CC<span class="k">)</span><span class="w"> </span>-o<span class="w"> </span><span class="nv">$@</span><span class="w"> </span>$^
+
+<span class="nf">%.o</span><span class="o">:</span><span class="w"> </span>%.<span class="n">c</span>
+<span class="w">	</span><span class="k">$(</span>CC<span class="k">)</span><span class="w"> </span><span class="k">$(</span>CFLAGS<span class="k">)</span><span class="w"> </span>-c<span class="w"> </span>$&lt;<span class="w"> </span>-o<span class="w"> </span><span class="nv">$@</span>
+
+<span class="cp">-include $(OBJS:.o=.d)</span>
+
+<span class="nf">clean</span><span class="o">:</span>
+<span class="w">	</span>rm<span class="w"> </span>-f<span class="w"> </span>calc<span class="w"> </span><span class="k">$(</span>OBJS<span class="k">)</span><span class="w"> </span><span class="k">$(</span>OBJS:.o<span class="o">=</span>.d<span class="k">)</span>
+
+<span class="nf">.PHONY</span><span class="o">:</span><span class="w"> </span><span class="n">clean</span>
+</code></pre>
+<p>（先把 <code>mathx.h</code> 改回 7，<code>rm -f *.o calc</code> 清掉舊的產物。）</p>
+<pre><code>$ make &amp;&amp; ./calc
+gcc -Wall -g -O0 -MMD -MP -c main.c -o main.o
+gcc -Wall -g -O0 -MMD -MP -c mathx.c -o mathx.o
+gcc -o calc main.o mathx.o
+square(7) = 49
+$ cat main.d
+main.o: main.c mathx.h
+mathx.h:
+$ sed -i 's/DEFAULT_N 7 /DEFAULT_N 9 /' mathx.h
+$ make &amp;&amp; ./calc
+gcc -Wall -g -O0 -MMD -MP -c main.c -o main.o
+gcc -Wall -g -O0 -MMD -MP -c mathx.c -o mathx.o
+gcc -o calc main.o mathx.o
+square(9) = 81
+</code></pre>
+<p>這次改了標頭檔，兩個 <code>.o</code> 都重編了。逐行解釋：</p>
+<p><strong>1. 變數</strong>：<code>CC = gcc</code> 定義變數，<code>$(CC)</code> 取用（也可以寫 <code>${CC}</code>）。<code>CC</code>、<code>CFLAGS</code> 是慣用的名字（C 編譯器、C 編譯選項），<code>make</code> 的內建規則也用這兩個名字。變數的賦值有 5 種寫法（GNU make 手冊 6.2、6.5～6.6 節）：</p>
+<table>
+<thead>
+<tr>
+<th>寫法</th>
+<th>意思</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>X = 值</code></td>
+<td><strong>遞迴展開</strong>：存的是「文字」，每次 <code>$(X)</code> 被用到時才展開裡面的變數（所以可以引用後面才定義的變數）</td>
+</tr>
+<tr>
+<td><code>X := 值</code>（或 <code>::=</code>）</td>
+<td><strong>立即展開</strong>：定義的那一刻就把裡面的變數展開，之後不再變</td>
+</tr>
+<tr>
+<td><code>X ?= 值</code></td>
+<td>只有 <code>X</code> 還沒定義時才設（常用來給預設值，讓命令列或環境變數可以蓋過）</td>
+</tr>
+<tr>
+<td><code>X += 值</code></td>
+<td>在原本的值後面加一個空格再接上</td>
+</tr>
+<tr>
+<td><code>X != 指令</code></td>
+<td>執行 shell 指令，把輸出存進來</td>
+</tr>
+</tbody>
+</table>
+<p>命令列也可以蓋掉變數：<code>make CFLAGS=-O2</code> 會讓 <code>Makefile</code> 裡的 <code>CFLAGS = ...</code> 失效（命令列優先）。</p>
+<p><strong>2. 自動變數</strong>：在命令裡代表「這條規則的某個部分」，<code>make</code> 執行每條規則時自動設好。全部 8 個（GNU make 手冊 10.5.3 節）：</p>
+<table>
+<thead>
+<tr>
+<th>自動變數</th>
+<th>代表</th>
+<th>本例</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>$@</code></td>
+<td>目標</td>
+<td><code>calc</code>、<code>main.o</code></td>
+</tr>
+<tr>
+<td><code>$&lt;</code></td>
+<td>第一個先決條件</td>
+<td><code>main.c</code></td>
+</tr>
+<tr>
+<td><code>$^</code></td>
+<td>全部先決條件（去掉重複）</td>
+<td><code>main.o mathx.o</code></td>
+</tr>
+<tr>
+<td><code>$+</code></td>
+<td>全部先決條件（保留重複，照原順序）</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>$?</code></td>
+<td>比目標新的那些先決條件</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>$*</code></td>
+<td>樣式規則裡 <code>%</code> 對到的部分（「主幹」，stem）</td>
+<td><code>main</code>（做 <code>main.o</code> 時）</td>
+</tr>
+<tr>
+<td><code>$|</code></td>
+<td>「只看存在、不看時間」的先決條件（order-only，寫在 <code>|</code> 後面）</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>$%</code></td>
+<td>目標是函式庫成員 <code>lib.a(x.o)</code> 時的成員名</td>
+<td>—（第 7 課的靜態函式庫才會碰到）</td>
+</tr>
+</tbody>
+</table>
+<p>每個都可以加 <code>D</code>／<code>F</code> 取資料夾或檔名部分，例如 <code>$(@D)</code>、<code>$(&lt;F)</code>。</p>
+<p><strong>3. 樣式規則</strong>（pattern rule）：<code>%.o: %.c</code> 的 <code>%</code> 對到任何字串，意思是「任何 <code>X.o</code> 都可以從 <code>X.c</code> 這樣產生」。有了它，每多一個 <code>.c</code> 只要加進 <code>OBJS</code>，不必再寫一條規則。其實 <code>make</code> 本身就內建了這條規則（<code>make -p</code> 印出內部資料庫，<code>-f /dev/null</code> 表示不讀任何 makefile，只看內建的）：</p>
+<pre><code>$ make -p -f /dev/null 2&gt;/dev/null | grep -A3 '^%.o: %.c'
+%.o: %.c
+#  recipe to execute (built-in):
+	$(COMPILE.c) $(OUTPUT_OPTION) $&lt;
+...
+$ make -p -f /dev/null 2&gt;/dev/null | grep -E &quot;^COMPILE.c|^OUTPUT_OPTION|^CC =&quot;
+COMPILE.c = $(CC) $(CFLAGS) $(CPPFLAGS) $(TARGET_ARCH) -c
+OUTPUT_OPTION = -o $@
+CC = cc
+</code></pre>
+<p>內建的 <code>CC</code> 是 <code>cc</code>（在 Ubuntu 上 <code>cc</code> 是指向 gcc 的連結）。自己寫一次是為了讓規則看得見，也避免依賴內建規則（<code>make -r</code> 可以關掉所有內建規則）。</p>
+<p><strong>4. <code>$(OBJS:.o=.d)</code></strong>：<strong>替換參照</strong>（substitution reference），把 <code>OBJS</code> 裡每個字結尾的 <code>.o</code> 換成 <code>.d</code>，得到 <code>main.d mathx.d</code>。</p>
+<p><strong>5. <code>-MMD -MP</code>：讓 gcc 寫出相依檔</strong>。這兩個是 gcc 的選項，跟 <code>make</code> 無關：</p>
+<table>
+<thead>
+<tr>
+<th>選項</th>
+<th>做什麼</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-MMD</code></td>
+<td>編譯的同時，另外寫一個 <code>.d</code> 檔，內容是 <code>make</code> 的規則格式：「這個 <code>.o</code> 依賴哪些檔案」。<strong>只列使用者的標頭檔</strong>，不列系統標頭檔（<code>stdio.h</code> 那些）</td>
+</tr>
+<tr>
+<td><code>-MD</code></td>
+<td>跟 <code>-MMD</code> 一樣，但連系統標頭檔也列（本機實測 <code>main.c</code> 的 <code>.d</code> 有 24 行，全是 <code>/usr/include/...</code>）</td>
+</tr>
+<tr>
+<td><code>-MP</code></td>
+<td>替每個標頭檔多寫一條<strong>沒有先決條件、沒有命令的規則</strong>（上面 <code>main.d</code> 的第 2 行 <code>mathx.h:</code>）。萬一之後把 <code>mathx.h</code> 刪掉或改名，<code>make</code> 不會因為「<code>main.o</code> 依賴的 <code>mathx.h</code> 不存在、又沒有規則能產生它」而停下來</td>
+</tr>
+</tbody>
+</table>
+<p><code>main.d</code> 的第 1 行 <code>main.o: main.c mathx.h</code> 就是我們在 <code>Makefile.nodeps</code> 漏掉的那條相依。gcc 在前處理時本來就知道 <code>#include</code> 了哪些檔案，由它寫出來最準。（gcc 的 <code>-M</code> 系列還有 <code>-M</code>、<code>-MM</code>、<code>-MF</code>、<code>-MT</code>、<code>-MQ</code>、<code>-MG</code> 等，完整說明在 <code>man gcc</code> 的 <em>Preprocessor Options</em>。）</p>
+<p><strong>6. <code>-include $(OBJS:.o=.d)</code></strong>：把 <code>main.d</code>、<code>mathx.d</code> 的內容讀進來，當成 <code>Makefile</code> 的一部分。<code>include</code> 前面的 <code>-</code> 表示「檔案不存在也不要報錯」——第一次 <code>make</code> 時 <code>.d</code> 還沒產生（那時 <code>.o</code> 也不存在，反正都要編）。同一個目標可以出現在好幾條規則裡：<code>%.o: %.c</code> 給了命令，<code>main.d</code> 的 <code>main.o: main.c mathx.h</code> 補上更多先決條件，<code>make</code> 會把它們合起來。</p>
+<p><strong>7. <code>clean</code> 與 <code>.PHONY</code></strong>：<code>clean</code> 不是檔案，是「清掉產物」這個動作的名字，所以沒有先決條件。<code>.PHONY: clean</code> 宣告它是<strong>假目標</strong>（phony target）：不管有沒有叫 <code>clean</code> 的檔案，<code>make clean</code> 都要執行命令。不宣告會怎樣：<code>Makefile.nophony</code>（檔案：<a href="../../small-project/s1-06-multi-file/examples/make/Makefile.nophony"><code>Makefile.nophony</code></a>，就是上面的 <code>Makefile</code> 拿掉 <code>.PHONY: clean</code> 那一行）</p>
+<pre><code>$ touch clean
+$ make -f Makefile.nophony clean
+make: 'clean' is up to date.
+$ make clean
+rm -f calc main.o mathx.o main.d mathx.d
+</code></pre>
+<p>剛好有一個叫 <code>clean</code> 的檔案，它沒有先決條件、檔案又存在，<code>make</code> 判斷「已經是最新的」，什麼都不做。有 <code>.PHONY</code> 的版本照樣執行。</p>
+<h3 id="命令列make-選項-目標-">命令列：<code>make [選項] [目標] ...</code></h3>
+<table>
+<thead>
+<tr>
+<th>位置</th>
+<th>是什麼</th>
+<th>省略時</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>選項</td>
+<td>下表</td>
+<td>—</td>
+</tr>
+<tr>
+<td>目標</td>
+<td>要做哪些目標，可以好幾個，照順序做</td>
+<td>做 <code>Makefile</code> 裡第一條規則的目標（叫「預設目標」，default goal）</td>
+</tr>
+<tr>
+<td>（也可以放）<code>變數=值</code></td>
+<td>蓋掉 <code>Makefile</code> 裡的變數，例如 <code>make CFLAGS=-O2</code></td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<p><code>make --help</code> 的全部選項（本機 GNU Make 4.3，共 32 項，照 <code>--help</code> 的順序；它沒有再分組）：</p>
+<table>
+<thead>
+<tr>
+<th>選項</th>
+<th>做什麼</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-b</code>、<code>-m</code></td>
+<td>不做任何事，只是為了相容舊版 <code>make</code> 而接受</td>
+</tr>
+<tr>
+<td><code>-B</code>、<code>--always-make</code></td>
+<td>不管時間，所有目標都重做</td>
+</tr>
+<tr>
+<td><code>-C 資料夾</code>、<code>--directory=資料夾</code></td>
+<td>先切換到該資料夾再開始（kernel 編外部模組就是 <code>make -C &lt;kernel 原始碼&gt; M=$PWD</code>）</td>
+</tr>
+<tr>
+<td><code>-d</code></td>
+<td>印出大量除錯訊息（為什麼決定做或不做每個目標）</td>
+</tr>
+<tr>
+<td><code>--debug[=FLAGS]</code></td>
+<td>只印某幾類除錯訊息（<code>a</code> 全部、<code>b</code> 基本、<code>v</code> 詳細、<code>i</code> 隱含規則、<code>j</code> 子程序、<code>m</code> 重讀 makefile、<code>n</code> 都不印）</td>
+</tr>
+<tr>
+<td><code>-e</code>、<code>--environment-overrides</code></td>
+<td>讓環境變數蓋過 <code>Makefile</code> 裡的變數（預設是 <code>Makefile</code> 優先）</td>
+</tr>
+<tr>
+<td><code>-E 字串</code>、<code>--eval=字串</code></td>
+<td>把字串當成 <code>Makefile</code> 的一行先執行</td>
+</tr>
+<tr>
+<td><code>-f 檔案</code>、<code>--file=檔案</code>、<code>--makefile=檔案</code></td>
+<td>讀指定的檔案，而不是預設的 <code>GNUmakefile</code>／<code>makefile</code>／<code>Makefile</code></td>
+</tr>
+<tr>
+<td><code>-h</code>、<code>--help</code></td>
+<td>印出說明</td>
+</tr>
+<tr>
+<td><code>-i</code>、<code>--ignore-errors</code></td>
+<td>命令失敗也繼續（預設是一個命令失敗就停）</td>
+</tr>
+<tr>
+<td><code>-I 資料夾</code>、<code>--include-dir=資料夾</code></td>
+<td><code>include</code> 其他 makefile 時也去這個資料夾找（跟 gcc 的 <code>-I</code> 無關）</td>
+</tr>
+<tr>
+<td><code>-j [N]</code>、<code>--jobs[=N]</code></td>
+<td>同時執行 N 個命令（平行編譯）；不給 N 就不限數量</td>
+</tr>
+<tr>
+<td><code>-k</code>、<code>--keep-going</code></td>
+<td>某個目標失敗時，不相干的目標繼續做（一次看到所有錯誤）</td>
+</tr>
+<tr>
+<td><code>-l [N]</code>、<code>--load-average[=N]</code>、<code>--max-load[=N]</code></td>
+<td>系統負載高於 N 時不開新的平行工作</td>
+</tr>
+<tr>
+<td><code>-L</code>、<code>--check-symlink-times</code></td>
+<td>符號連結比較時間時，用連結本身和指向的檔案中較新的那個</td>
+</tr>
+<tr>
+<td><code>-n</code>、<code>--just-print</code>、<code>--dry-run</code>、<code>--recon</code></td>
+<td><strong>只印出會執行的命令，不真的執行</strong>（檢查 <code>Makefile</code> 最常用）</td>
+</tr>
+<tr>
+<td><code>-o 檔案</code>、<code>--old-file=檔案</code>、<code>--assume-old=檔案</code></td>
+<td>把這個檔案當成很舊，不重做它（也不因為它而重做別人）</td>
+</tr>
+<tr>
+<td><code>-O[TYPE]</code>、<code>--output-sync[=TYPE]</code></td>
+<td>平行執行時，把每個工作的輸出整理在一起再印，不交錯</td>
+</tr>
+<tr>
+<td><code>-p</code>、<code>--print-data-base</code></td>
+<td>印出內部資料庫（全部變數與規則，含內建的）</td>
+</tr>
+<tr>
+<td><code>-q</code>、<code>--question</code></td>
+<td>不執行命令，只用結束狀態回答「是不是最新的」（0 ＝ 最新）</td>
+</tr>
+<tr>
+<td><code>-r</code>、<code>--no-builtin-rules</code></td>
+<td>關掉內建的隱含規則（例如內建的 <code>%.o: %.c</code>）</td>
+</tr>
+<tr>
+<td><code>-R</code>、<code>--no-builtin-variables</code></td>
+<td>關掉內建的變數（例如內建的 <code>CC = cc</code>）</td>
+</tr>
+<tr>
+<td><code>-s</code>、<code>--silent</code>、<code>--quiet</code></td>
+<td>不印出命令本身（只印命令的輸出）</td>
+</tr>
+<tr>
+<td><code>--no-silent</code></td>
+<td>印出命令（取消 <code>-s</code>）</td>
+</tr>
+<tr>
+<td><code>-S</code>、<code>--no-keep-going</code>、<code>--stop</code></td>
+<td>取消 <code>-k</code></td>
+</tr>
+<tr>
+<td><code>-t</code>、<code>--touch</code></td>
+<td>不執行命令，只把目標 <code>touch</code> 成最新</td>
+</tr>
+<tr>
+<td><code>--trace</code></td>
+<td>印出每個目標為什麼要做、做了什麼</td>
+</tr>
+<tr>
+<td><code>-v</code>、<code>--version</code></td>
+<td>印出版本</td>
+</tr>
+<tr>
+<td><code>-w</code>、<code>--print-directory</code></td>
+<td>印出目前所在的資料夾（遞迴呼叫 <code>make</code> 時有用）</td>
+</tr>
+<tr>
+<td><code>--no-print-directory</code></td>
+<td>不印資料夾（取消 <code>-w</code>）</td>
+</tr>
+<tr>
+<td><code>-W 檔案</code>、<code>--what-if=檔案</code>、<code>--new-file=檔案</code>、<code>--assume-new=檔案</code></td>
+<td>把這個檔案當成剛改過（配合 <code>-n</code> 可以問「改了這個檔案會重做什麼」）</td>
+</tr>
+<tr>
+<td><code>--warn-undefined-variables</code></td>
+<td>用到沒定義的變數時警告（打錯變數名字會變成空字串，這個選項抓得到）</td>
+</tr>
+</tbody>
+</table>
+<p><code>Makefile</code> 本身的文法比這裡教的多很多：函式（<code>$(wildcard *.c)</code>、<code>$(patsubst ...)</code> 等，手冊第 8 章）、條件（<code>ifeq</code>、<code>ifdef</code>，第 7 章）、命令前加 <code>@</code>（不印這行）或 <code>-</code>（這行失敗也繼續）、遞迴 <code>make</code> 等。本課只教了規則、變數、自動變數、樣式規則、<code>include</code>、<code>.PHONY</code> 與替換參照；完整文法見 <code>info make</code>（GNU make 手冊，本機要先 <code>sudo apt install make-doc</code>，或看線上版 <a href="https://www.gnu.org/software/make/manual/">https://www.gnu.org/software/make/manual/</a>）。</p>
+<hr />
+<h2 id="八本課用到的工具選項與完整清單在哪">八、本課用到的工具、選項與完整清單在哪</h2>
+<h3 id="gcc本課新用到的選項"><code>gcc</code>：本課新用到的選項</h3>
+<p>gcc 的選項有上千個，完整見 <code>man gcc</code>；<code>gcc --help=common</code>、<code>--help=warnings</code> 等可以分類列出。本課新用到 7 個：</p>
+<table>
+<thead>
+<tr>
+<th>選項</th>
+<th>做什麼</th>
+<th>出處</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-I 資料夾</code></td>
+<td>把資料夾加進 <code>#include &lt;...&gt;</code>（以及 <code>&quot;...&quot;</code> 的後半段）的搜尋清單</td>
+<td>第三節</td>
+</tr>
+<tr>
+<td><code>-v</code></td>
+<td>印出 gcc 執行的每個步驟與搜尋路徑</td>
+<td>第三節</td>
+</tr>
+<tr>
+<td><code>-MMD</code>、<code>-MD</code>、<code>-MP</code></td>
+<td>編譯時順便寫出 <code>make</code> 用的相依檔 <code>.d</code></td>
+<td>第七節</td>
+</tr>
+<tr>
+<td><code>-fcommon</code>（預設 <code>-fno-common</code>）</td>
+<td>沒有初值的全域變數變成 common 符號，同名的會被合併</td>
+<td>第六節</td>
+</tr>
+<tr>
+<td><code>-Q --help=common</code></td>
+<td>列出共通選項與目前的設定值</td>
+<td>第六節</td>
+</tr>
+</tbody>
+</table>
+<p><code>-c</code>、<code>-E</code>、<code>-o</code>、<code>-g</code>、<code>-O0</code>、<code>-Wall</code> 前幾課教過（第 1 課<a href="hello.c%E6%80%8E%E9%BA%BC%E8%AE%8A%E6%88%90%E8%83%BD%E8%B7%91%E7%9A%84%E7%A8%8B%E5%BC%8F-%E7%B7%A8%E8%AD%AF%E7%9A%84%E5%9B%9B%E5%80%8B%E9%9A%8E%E6%AE%B5.html#%E4%B8%83%E6%9C%AC%E8%AA%B2%E7%94%A8%E5%88%B0%E7%9A%84%E5%B7%A5%E5%85%B7%E8%88%87%E9%81%B8%E9%A0%85">第七節</a>）。</p>
+<h3 id="觀察工具">觀察工具</h3>
+<ul>
+<li><code>readelf -s</code>：符號表。<code>readelf</code> 的全部選項見 <a href="readelf%E5%AE%8C%E6%95%B4%E9%81%B8%E9%A0%85%E5%8F%83%E8%80%83.html">readelf完整選項參考</a>；本課用到 <code>-s</code>、<code>-S</code> 兩個。各欄的意思見第四節的表。</li>
+<li><code>nm</code>：第 1 課教過（<code>nm --help</code> 共 36 個選項，完整見 <code>man nm</code>）；本課多了小寫字母（<code>t</code> ＝ local 的程式碼、<code>b</code> ＝ local 的 <code>.bss</code>）與 <code>C</code>（common）。符號字母的完整清單在 <code>man nm</code>。</li>
+<li><code>objdump -dr</code>：第 5 課教過。</li>
+<li><code>touch</code>：把檔案的修改時間改成現在（不存在就建一個空檔）。本課只用這個最基本的用法；它還能指定時間（<code>-d</code>、<code>-t</code>）、只改存取時間（<code>-a</code>）等，完整見 <code>touch --help</code>。</li>
+<li><code>make</code>：全部 32 個選項見第七節〈命令列〉。</li>
+</ul>
+<h3 id="c-語言本課的關鍵字">C 語言：本課的關鍵字</h3>
+<ul>
+<li><code>static</code>：兩種意思，第五節。</li>
+<li><code>extern</code>：宣告「定義在別處」，第六節。（<code>extern</code> 也能用在函式宣告上，但函式宣告本來就預設是 <code>extern</code>，寫不寫都一樣。）</li>
+<li>前處理指令 <code>#ifndef</code>／<code>#define</code>／<code>#endif</code>：第三節。前處理指令的完整清單見 <code>info cpp</code>（GNU C 前處理器手冊；第 1 課第二節只教了 <code>#include</code> 與 <code>#define</code>）。</li>
+</ul>
+<hr />
+<h2 id="九動手作業">九、動手作業</h2>
+<p>作業在 <a href="../small-project/s1-06-multi-file/README.html"><code>small-project/s1-06-multi-file/</code></a>，共 5 題。題目、要寫的檔案與作答框都在該資料夾的 <code>README.md</code>。</p>
+<hr />
+<h2 id="自我測驗">自我測驗</h2>
+<blockquote>
+<p>參考答案寫在每題下面，第一次作答批改完才會補上。作答時先遮住答案、自己想過再對照。作答寫在 <a href="../small-project/s1-06-multi-file/quiz.html"><code>s1-06-multi-file/quiz</code></a>。</p>
+</blockquote>
+<ol>
+<li><code>main.c</code> 沒有 <code>square</code> 的宣告，<code>gcc -c main.c</code> 只有一個警告，連結也成功，但 <code>square(100000)</code> 印出 1410065408 而不是 10000000000。為什麼編譯器會產生錯的程式？為什麼連結器沒有發現兩邊型別不一樣？<code>main.o</code> 裡的 <code>cltq</code> 在這個錯誤裡扮演什麼角色？<pre><code class="language-c"><span class="cm">/* mathx.c */</span>
+<span class="kt">long</span><span class="w"> </span><span class="nf">square</span><span class="p">(</span><span class="kt">long</span><span class="w"> </span><span class="n">x</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">x</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<pre><code class="language-c"><span class="cm">/* main.c */</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="kt">long</span><span class="w"> </span><span class="n">r</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">square</span><span class="p">(</span><span class="mi">100000</span><span class="p">);</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;%ld</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">r</span><span class="p">);</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<pre><code class="language-asm"><span class="c1"># objdump -dr --no-show-raw-insn main.o（main 的一部分）</span>
+<span class="w">  </span><span class="nl">c:</span><span class="w">	</span><span class="nf">mov</span><span class="w">    </span><span class="no">$0x186a0</span><span class="p">,</span><span class="nv">%edi</span><span class="w">         </span><span class="c1"># 第 1 個參數 = 100000</span>
+<span class="w"> </span><span class="err">11:</span><span class="w">	</span><span class="nf">mov</span><span class="w">    </span><span class="no">$0x0</span><span class="p">,</span><span class="nv">%eax</span>
+<span class="w"> </span><span class="err">16:</span><span class="w">	</span><span class="nf">call</span><span class="w">   </span><span class="mh">1b</span> <span class="p">&lt;</span><span class="no">main</span><span class="p">+</span><span class="mi">0x1b</span><span class="p">&gt;</span><span class="w">        </span><span class="c1"># 呼叫 square（位址連結時才填）</span>
+<span class="w">			</span><span class="err">17:</span><span class="w"> </span><span class="nf">R_X86_64_PLT32</span><span class="w">	</span><span class="no">square-0x4</span>
+<span class="w"> </span><span class="err">1</span><span class="nl">b:</span><span class="w">	</span><span class="nf">cltq</span><span class="w">                         </span><span class="c1"># 把 %eax 符號擴展成 %rax（= movslq %eax,%rax）</span>
+<span class="w"> </span><span class="err">1</span><span class="nl">d:</span><span class="w">	</span><span class="nf">mov</span><span class="w">    </span><span class="nv">%rax</span><span class="p">,-</span><span class="mi">0x8</span><span class="p">(</span><span class="nv">%rbp</span><span class="p">)</span><span class="w">       </span><span class="c1"># 存進 r</span>
+</code></pre>
+編譯與執行：<code>gcc -c main.c &amp;&amp; gcc -c mathx.c &amp;&amp; gcc -o calc main.o mathx.o &amp;&amp; ./calc</code></li>
+<li>為什麼「定義函式的那個 <code>.c</code> 也要 <code>#include</code> 自己的標頭檔」？如果 <code>mathx.c</code> 沒有 <code>#include &quot;mathx.h&quot;</code>，有人把 <code>mathx.c</code> 的定義改成 <code>int square(int x)</code> 卻忘了改 <code>mathx.h</code>，會發生什麼事、在哪個階段（編譯、連結、執行）才發現？<pre><code class="language-c"><span class="cm">/* mathx.h */</span>
+<span class="cp">#ifndef MATHX_H</span>
+<span class="cp">#define MATHX_H</span>
+
+<span class="kt">long</span><span class="w"> </span><span class="nf">square</span><span class="p">(</span><span class="kt">long</span><span class="w"> </span><span class="n">x</span><span class="p">);</span>
+
+<span class="cp">#endif</span>
+</code></pre>
+</li>
+<li><code>static</code> 寫在函式外面和寫在函式裡面，各改變了什麼？用下面兩個例子說明：(a) <code>a.c</code>、<code>b.c</code> 各有一個 <code>static int helper(void)</code>，為什麼能一起連結，拿掉 <code>static</code> 為什麼就 <code>multiple definition</code>？(b) <code>next_id()</code> 呼叫三次回傳 1、2、3，<code>plain_id()</code> 每次都是 1，兩個 <code>n</code> 各放在記憶體的哪裡？<pre><code class="language-c"><span class="cm">/* a.c（b.c 一樣，只是 helper 回傳 2、函式叫 b_value） */</span>
+<span class="k">static</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="nf">helper</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">a_value</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">helper</span><span class="p">();</span>
+<span class="p">}</span>
+</code></pre>
+<pre><code class="language-c"><span class="cm">/* nextid.c 的兩個函式 */</span>
+<span class="kt">int</span><span class="w"> </span><span class="nf">next_id</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="k">static</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">n</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="w">    </span><span class="n">n</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">n</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">n</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">plain_id</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">n</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="w">    </span><span class="n">n</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">n</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">n</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+</li>
+<li>下面的 <code>hits.h</code> 被 <code>hits.c</code> 和 <code>hits_main.c</code> 都 <code>#include</code>，兩個 <code>.c</code> 都沒有再寫 <code>hits</code> 的定義。本機 gcc 13 連結時出現 <code>multiple definition of 'hits'</code>。為什麼？已經有 include guard 了，為什麼沒擋住？該怎麼改（標頭檔寫什麼、哪裡寫什麼）？為什麼同樣的程式碼在舊版 gcc 上可以連結？<pre><code class="language-c"><span class="cm">/* hits.h */</span>
+<span class="cp">#ifndef HITS_H</span>
+<span class="cp">#define HITS_H</span>
+
+<span class="kt">long</span><span class="w"> </span><span class="n">hits</span><span class="p">;</span>
+<span class="kt">void</span><span class="w"> </span><span class="nf">hit</span><span class="p">(</span><span class="kt">void</span><span class="p">);</span>
+
+<span class="cp">#endif</span>
+</code></pre>
+<pre><code class="language-c"><span class="cm">/* hits.c */</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;hits.h&quot;</span>
+
+<span class="kt">void</span><span class="w"> </span><span class="nf">hit</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">hits</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">hits</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<pre><code class="language-c"><span class="cm">/* hits_main.c */</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;hits.h&quot;</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">hit</span><span class="p">();</span>
+<span class="w">    </span><span class="n">hit</span><span class="p">();</span>
+<span class="w">    </span><span class="n">hit</span><span class="p">();</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;hits = %ld</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">hits</span><span class="p">);</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+編譯與連結：<code>gcc -c hits.c hits_main.c &amp;&amp; gcc -o hits hits_main.o hits.o</code></li>
+<li>情境題：同事的專案用下面的 <code>Makefile</code>。他把 <code>config.h</code> 裡的 <code>#define BUF_SIZE 64</code> 改成 <code>128</code>，存檔後執行 <code>make</code>，<code>make</code> 只印了 <code>make: 'server' is up to date.</code>，跑起來的緩衝區還是 64。<code>make</code> 是怎麼判斷不用重編的？為什麼這個判斷錯了？你會怎麼改這個 <code>Makefile</code>，讓以後改任何標頭檔都會重編該重編的檔案？（不必寫出完整的 <code>Makefile</code>，說明要改哪些地方、各自的作用即可。）<pre><code class="language-make"><span class="nf">server</span><span class="o">:</span><span class="w"> </span><span class="n">server</span>.<span class="n">o</span> <span class="n">net</span>.<span class="n">o</span>
+<span class="w">	</span>gcc<span class="w"> </span>-o<span class="w"> </span>server<span class="w"> </span>server.o<span class="w"> </span>net.o
+
+<span class="nf">server.o</span><span class="o">:</span><span class="w"> </span><span class="n">server</span>.<span class="n">c</span>
+<span class="w">	</span>gcc<span class="w"> </span>-Wall<span class="w"> </span>-c<span class="w"> </span>server.c
+
+<span class="nf">net.o</span><span class="o">:</span><span class="w"> </span><span class="n">net</span>.<span class="n">c</span>
+<span class="w">	</span>gcc<span class="w"> </span>-Wall<span class="w"> </span>-c<span class="w"> </span>net.c
+</code></pre>
+（<code>server.c</code> 和 <code>net.c</code> 都 <code>#include &quot;config.h&quot;</code>；命令前面是 TAB。）</li>
+</ol>
+
+</main>
+</div>
+</body>
+</html>
