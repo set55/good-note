@@ -28,11 +28,31 @@ window.saveAnswer=function(btn){
 };
 window.addEventListener('beforeunload',function(e){
   if(document.querySelector('.answer-box.dirty')){e.preventDefault();e.returnValue='';}});
+// 程式碼區塊的「複製」按鈕；navigator.clipboard 只在 localhost／https 能用，file:// 改用 execCommand
+function copyText(text){
+  if(navigator.clipboard&&window.isSecureContext)return navigator.clipboard.writeText(text);
+  return new Promise(function(ok,fail){var ta=document.createElement('textarea');ta.value=text;
+    ta.style.position='fixed';ta.style.opacity='0';document.body.appendChild(ta);ta.select();
+    var r=false;try{r=document.execCommand('copy');}catch(e){}document.body.removeChild(ta);r?ok():fail();});
+}
+function addCopyButtons(){
+  document.querySelectorAll('main pre').forEach(function(pre){
+    var wrap=document.createElement('div');wrap.className='code-wrap';
+    pre.parentNode.insertBefore(wrap,pre);wrap.appendChild(pre);
+    var b=document.createElement('button');b.className='copy-btn';b.type='button';b.textContent='複製';
+    b.onclick=function(){var code=pre.querySelector('code')||pre;
+      copyText(code.textContent).then(function(){b.textContent='✓ 已複製';b.classList.add('done');},
+        function(){b.textContent='複製失敗';})
+      .then(function(){setTimeout(function(){b.textContent='複製';b.classList.remove('done');},1500);});};
+    wrap.appendChild(b);});
+}
 document.addEventListener('DOMContentLoaded',function(){
+  addCopyButtons();
   document.querySelectorAll('main h1[id],main h2[id],main h3[id],main h4[id]').forEach(function(h){
     var a=document.createElement('a');a.className='anchor';a.href='#'+h.id;a.textContent='#';h.appendChild(a);});
   document.querySelectorAll('.answer-box textarea').forEach(function(ta){
     var box=ta.closest('.answer-box'),st=box.querySelector('.status');fit(ta);
+    if(box.classList.contains('locked'))return;
     if(location.protocol==='file:'){ta.readOnly=true;box.querySelector('.save').disabled=true;
       st.textContent='唯讀：用 python3 tools/serve.py 開啟才能作答存檔';return;}
     ta.addEventListener('input',function(){fit(ta);var d=ta.value!==ta.defaultValue;box.classList.toggle('dirty',d);

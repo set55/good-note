@@ -12,7 +12,7 @@
 <div class="layout">
 <nav class="side">
 <div class="crumbs"><a href="../../index.html">🏠 首頁</a> / <a href="../README.html">small-project</a> / s1-01-hello-compile</div>
-<div class="tools"><button onclick="toggleTheme()">🌓 主題</button></div>
+<div class="tools"><button onclick="toggleTheme()">🌓 主題</button><button onclick="toggleAnswers(true)">展開答案</button><button onclick="toggleAnswers(false)">收起答案</button></div>
 <ul>
 <li class="l2"><a href="#%E8%AA%AA%E6%98%8E">說明</a></li>
 <li class="l2"><a href="#%E6%89%B9%E6%94%B9%E7%B8%BD%E8%A1%A8">批改總表</a></li>
@@ -65,21 +65,23 @@
 <hr />
 <h2 id="1-用-gcc--e-s-c-各停一次再完整編譯一次用-ls--l-比較四個檔案的大小">1. 用 <code>gcc -E</code>、<code>-S</code>、<code>-c</code> 各停一次，再完整編譯一次；用 <code>ls -l</code> 比較四個檔案的大小。</h2>
 <p><strong>第 1 次（2026-09-22）</strong></p>
-<pre><code>-rwxrwxr-x 1 set set  16K Sep 22 18:26 hello
+<div class="answer-box locked"><textarea readonly spellcheck="false">-rwxrwxr-x 1 set set  16K Sep 22 18:26 hello
 -rw-rw-r-- 1 set set  110 Sep 22 18:02 hello.c
 -rw-rw-r-- 1 set set  21K Sep 22 18:03 hello.i
 -rw-rw-r-- 1 set set 1.5K Sep 22 18:22 hello.o
 -rw-rw-r-- 1 set set  667 Sep 22 18:17 hello.s
-</code></pre>
-<blockquote>
-<p><strong>批改</strong>：<strong>對</strong>。</p>
-<p><strong>參考答案</strong>：<code>.c</code> 110 → <code>.i</code> 21K 是因為 <code>#include &lt;stdio.h&gt;</code> 把整份標頭檔（及它再 include 的檔案）貼進來（筆記<a href="../../c/hello.c%E6%80%8E%E9%BA%BC%E8%AE%8A%E6%88%90%E8%83%BD%E8%B7%91%E7%9A%84%E7%A8%8B%E5%BC%8F-%E7%B7%A8%E8%AD%AF%E7%9A%84%E5%9B%9B%E5%80%8B%E9%9A%8E%E6%AE%B5.html#%E4%BA%8C%E5%89%8D%E8%99%95%E7%90%86include-%E5%8F%AA%E6%98%AF%E8%A4%87%E8%A3%BD%E8%B2%BC%E4%B8%8A">第二節</a>）。
+</textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+<details class="answer"><summary>批改</summary>
+<p><strong>對</strong>。</p>
+<details class="answer"><summary>參考答案</summary>
+<p><code>.c</code> 110 → <code>.i</code> 21K 是因為 <code>#include &lt;stdio.h&gt;</code> 把整份標頭檔（及它再 include 的檔案）貼進來（筆記<a href="../../c/hello.c%E6%80%8E%E9%BA%BC%E8%AE%8A%E6%88%90%E8%83%BD%E8%B7%91%E7%9A%84%E7%A8%8B%E5%BC%8F-%E7%B7%A8%E8%AD%AF%E7%9A%84%E5%9B%9B%E5%80%8B%E9%9A%8E%E6%AE%B5.html#%E4%BA%8C%E5%89%8D%E8%99%95%E7%90%86include-%E5%8F%AA%E6%98%AF%E8%A4%87%E8%A3%BD%E8%B2%BC%E4%B8%8A">第二節</a>）。
 <code>.o</code> 1.5K → <code>hello</code> 16K：連結器加入啟動碼與動態連結要用的區段（<code>.plt</code>、<code>.got</code>、<code>.dynamic</code>、<code>.interp</code> 等，合計約 2K），但主因是<strong>分頁對齊</strong>——4 個 <code>LOAD</code> 區塊各自從 4096 bytes 的分頁邊界開始，中間補空白（新觀念，第九節）。</p>
-</blockquote>
+</details>
+</details>
 <hr />
 <h2 id="2-刪掉-include-stdioh-再編譯是在哪個階段出錯錯誤或警告訊息是什麼">2. 刪掉 <code>#include &lt;stdio.h&gt;</code> 再編譯。是在<strong>哪個階段</strong>出錯？錯誤（或警告）訊息是什麼？</h2>
 <p><strong>第 1 次（2026-09-22）</strong></p>
-<pre><code>gcc -S -O0 ./hello.c -o hello.s                                                       ok | base py | at 18:42:57
+<div class="answer-box locked"><textarea readonly spellcheck="false">gcc -S -O0 ./hello.c -o hello.s                                                       ok | base py | at 18:42:57
 ./hello.c: In function ‘main’:
 ./hello.c:5:9: warning: implicit declaration of function ‘printf’ [-Wimplicit-function-declaration]
     5 |         printf(&quot;%s\n&quot;, GREETING);
@@ -92,26 +94,30 @@
       |         ^~~~~~
 ./hello.c:5:9: note: include ‘&lt;stdio.h&gt;’ or provide a declaration of ‘printf’
 在編譯出現警告沒有報錯,而且hello還是能執行
-</code></pre>
-<blockquote>
-<p><strong>批改</strong>：<strong>對</strong>（輸出與「只有警告、還能執行」的觀察都正確）。</p>
-<p><strong>參考答案</strong>：出錯的是<strong>編譯階段（<code>cc1</code>）</strong>，不是前處理；少了 <code>#include</code> 只是少貼一段文字。沒有宣告時編譯器用 C89 舊規則「猜」函式型別，只發警告；<strong>連結器只比對名字、不比對型別</strong>，所以照名字 <code>printf</code> 仍然接得上 libc，程式能跑。型別猜錯時（例如回傳 <code>double</code> 的函式）會在執行時得到錯誤結果，沒有任何階段會擋下來（新觀念，第九節有 <code>half(10) = 0.000000</code> 的實測）。</p>
-</blockquote>
+</textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+<details class="answer"><summary>批改</summary>
+<p><strong>對</strong>（輸出與「只有警告、還能執行」的觀察都正確）。</p>
+<details class="answer"><summary>參考答案</summary>
+<p>出錯的是<strong>編譯階段（<code>cc1</code>）</strong>，不是前處理；少了 <code>#include</code> 只是少貼一段文字。沒有宣告時編譯器用 C89 舊規則「猜」函式型別，只發警告；<strong>連結器只比對名字、不比對型別</strong>，所以照名字 <code>printf</code> 仍然接得上 libc，程式能跑。型別猜錯時（例如回傳 <code>double</code> 的函式）會在執行時得到錯誤結果，沒有任何階段會擋下來（新觀念，第九節有 <code>half(10) = 0.000000</code> 的實測）。</p>
+</details>
+</details>
 <hr />
 <h2 id="3-把輸出那行改成-printfhi-dn-42再產生-s這次還會變成-puts-嗎為什麼">3. 把輸出那行改成 <code>printf(&quot;hi %d\n&quot;, 42);</code>，再產生 <code>.s</code>。這次還會變成 <code>puts</code> 嗎？為什麼？</h2>
 <p><strong>第 1 次（2026-09-22）</strong></p>
-<pre><code>call	printf@PLT
+<div class="answer-box locked"><textarea readonly spellcheck="false">call	printf@PLT
 變成printf 但我不知道爲什麼
-</code></pre>
-<blockquote>
-<p><strong>批改</strong>：<strong>對</strong>（觀察到的 <code>call printf@PLT</code> 正確；「為什麼」本課沒教過，不算錯，已補教）。</p>
-<p><strong>參考答案</strong>：不會換成 <code>puts</code>。<code>puts(s)</code> 只能「原封不動印字串再補換行」，不懂任何 <code>%</code> 格式；
+</textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+<details class="answer"><summary>批改</summary>
+<p><strong>對</strong>（觀察到的 <code>call printf@PLT</code> 正確；「為什麼」本課沒教過，不算錯，已補教）。</p>
+<details class="answer"><summary>參考答案</summary>
+<p>不會換成 <code>puts</code>。<code>puts(s)</code> 只能「原封不動印字串再補換行」，不懂任何 <code>%</code> 格式；
 <code>%d</code> 要把 42 轉成字元 <code>'4'</code>、<code>'2'</code>，只有 <code>printf</code> 做得到。gcc 只在效果剛好等於「印現成字串加換行」時才換（新觀念，第九節）。</p>
-</blockquote>
+</details>
+</details>
 <hr />
 <h2 id="4-gcc--static-helloc--o-hello_static比較動態版與靜態版的-ls--lfilelddstrace--c">4. <code>gcc -static hello.c -o hello_static</code>，比較動態版與靜態版的 <code>ls -l</code>、<code>file</code>、<code>ldd</code>、<code>strace -c</code>。</h2>
 <p><strong>第 1 次（2026-09-22）</strong></p>
-<pre><code>-rwxrwxr-x 1 set set  16K Sep 22 20:42 hello
+<div class="answer-box locked"><textarea readonly spellcheck="false">-rwxrwxr-x 1 set set  16K Sep 22 20:42 hello
 -rw-rw-r-- 1 set set  110 Sep 22 20:42 hello.c
 -rwxrwxr-x 1 set set 767K Sep 22 20:43 hello_static
 -rw-rw-r-- 1 set set 2.0K Sep 22 19:21 README.md
@@ -172,11 +178,13 @@ hello, world
   0.00    0.000000           0         1           rseq
 ------ ----------- ----------- --------- --------- ----------------
 100.00    0.000000           0        16           total
-</code></pre>
-<blockquote>
-<p><strong>批改</strong>：<strong>對</strong>。</p>
-<p><strong>參考答案</strong>：靜態版把 libc 用到的程式碼複製進執行檔，所以大約 50 倍大（程式碼區 1375 → 668305 bytes）。動態版的 <code>openat</code> 是動態載入器打開 <code>/etc/ld.so.cache</code> 與 <code>libc.so.6</code>；靜態版沒有 interpreter、libc 已在自己身上，沒有東西要打開，系統呼叫 34 → 16。兩者都只有 1 次 <code>write</code>：連結方式只影響程式碼從哪來，不影響最後請核心做的事（筆記<a href="../../c/hello.c%E6%80%8E%E9%BA%BC%E8%AE%8A%E6%88%90%E8%83%BD%E8%B7%91%E7%9A%84%E7%A8%8B%E5%BC%8F-%E7%B7%A8%E8%AD%AF%E7%9A%84%E5%9B%9B%E5%80%8B%E9%9A%8E%E6%AE%B5.html#%E4%BA%94%E9%80%A3%E7%B5%90%E6%8A%8A%E6%B4%9E%E6%8E%A5%E4%B8%8A%E4%BD%86-puts-%E9%82%84%E6%98%AF%E6%B2%92%E6%8E%A5%E5%AE%8C">第五節</a>、<a href="../../c/hello.c%E6%80%8E%E9%BA%BC%E8%AE%8A%E6%88%90%E8%83%BD%E8%B7%91%E7%9A%84%E7%A8%8B%E5%BC%8F-%E7%B7%A8%E8%AD%AF%E7%9A%84%E5%9B%9B%E5%80%8B%E9%9A%8E%E6%AE%B5.html#%E5%85%AD%E5%9F%B7%E8%A1%8C%E5%BE%9E-execve-%E5%88%B0-write">第六節</a>）。</p>
-</blockquote>
+</textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+<details class="answer"><summary>批改</summary>
+<p><strong>對</strong>。</p>
+<details class="answer"><summary>參考答案</summary>
+<p>靜態版把 libc 用到的程式碼複製進執行檔，所以大約 50 倍大（程式碼區 1375 → 668305 bytes）。動態版的 <code>openat</code> 是動態載入器打開 <code>/etc/ld.so.cache</code> 與 <code>libc.so.6</code>；靜態版沒有 interpreter、libc 已在自己身上，沒有東西要打開，系統呼叫 34 → 16。兩者都只有 1 次 <code>write</code>：連結方式只影響程式碼從哪來，不影響最後請核心做的事（筆記<a href="../../c/hello.c%E6%80%8E%E9%BA%BC%E8%AE%8A%E6%88%90%E8%83%BD%E8%B7%91%E7%9A%84%E7%A8%8B%E5%BC%8F-%E7%B7%A8%E8%AD%AF%E7%9A%84%E5%9B%9B%E5%80%8B%E9%9A%8E%E6%AE%B5.html#%E4%BA%94%E9%80%A3%E7%B5%90%E6%8A%8A%E6%B4%9E%E6%8E%A5%E4%B8%8A%E4%BD%86-puts-%E9%82%84%E6%98%AF%E6%B2%92%E6%8E%A5%E5%AE%8C">第五節</a>、<a href="../../c/hello.c%E6%80%8E%E9%BA%BC%E8%AE%8A%E6%88%90%E8%83%BD%E8%B7%91%E7%9A%84%E7%A8%8B%E5%BC%8F-%E7%B7%A8%E8%AD%AF%E7%9A%84%E5%9B%9B%E5%80%8B%E9%9A%8E%E6%AE%B5.html#%E5%85%AD%E5%9F%B7%E8%A1%8C%E5%BE%9E-execve-%E5%88%B0-write">第六節</a>）。</p>
+</details>
+</details>
 
 </main>
 </div>

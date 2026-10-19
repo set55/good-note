@@ -12,7 +12,7 @@
 <div class="layout">
 <nav class="side">
 <div class="crumbs"><a href="../../index.html">🏠 首頁</a> / <a href="../README.html">small-project</a> / <a href="README.html">s1-03-arrays-pointers</a></div>
-<div class="tools"><button onclick="toggleTheme()">🌓 主題</button></div>
+<div class="tools"><button onclick="toggleTheme()">🌓 主題</button><button onclick="toggleAnswers(true)">展開答案</button><button onclick="toggleAnswers(false)">收起答案</button></div>
 <ul>
 <li class="l2"><a href="#%E7%9B%AE%E9%8C%84">目錄</a></li>
 <li class="l2"><a href="#%E4%BD%9C%E7%AD%94%E7%AC%AC-3-%E8%AA%B2%E9%99%A3%E5%88%97%E5%AD%97%E4%B8%B2%E8%88%87%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97">作答：第 3 課：陣列、字串與指標運算</a></li>
@@ -29,7 +29,7 @@
 <blockquote>
 <p>第 ① 站第 3 課的自我測驗寫在這裡。延伸筆記〈分號與結束狀態〉的測驗不放這裡（2026-10-04 使用者指定），在對話裡回答。題目從各篇筆記複製過來，筆記本身只留題目。</p>
 <p><strong>怎麼寫</strong>：直接在每題下面的空白區塊裡作答，<strong>闔上筆記、用自己的話</strong>。寫完跟 Claude 說「幫我批改」。批改與參考答案會寫在你的答案下方；還在等你重答的題目只會有提示，並附上新的空白作答區。</p>
-<p><strong>複習</strong>：2026-10-01 起，間隔複習的作答寫在 repo 根目錄的 <a href="../../review/README.html"><code>review/</code></a>（每天一個檔），排程見 <a href="../../../learning/%E8%A4%87%E7%BF%92%E6%8E%92%E7%A8%8B.md">複習排程</a>。本檔只放第一次作答與重答；2026-09-30 以前的複習紀錄仍留在各題下方。</p>
+<p><strong>複習</strong>：2026-10-01 起，間隔複習的作答寫在 repo 根目錄的 <a href="../../review/README.html"><code>review/</code></a>（每天一個檔），排程見 <a href="../../learning/%E8%A4%87%E7%BF%92%E6%8E%92%E7%A8%8B.html">複習排程</a>。本檔只放第一次作答與重答；2026-09-30 以前的複習紀錄仍留在各題下方。</p>
 </blockquote>
 <h2 id="目錄">目錄</h2>
 <table>
@@ -60,286 +60,314 @@
 <h3 id="1-指標的型別與指標運算">1. 指標的型別與指標運算</h3>
 <h4 id="1-1-int-p-和-unsigned-char-c-存著同一個位址為什麼-p--1-和-c--1-不一樣">1-1. <code>int *p</code> 和 <code>unsigned char *c</code> 存著同一個位址，為什麼 <code>p + 1</code> 和 <code>c + 1</code> 不一樣？</h4>
 <p><strong>第 1 次（2026-10-04）</strong></p>
-<pre><code>一個是4byte的指針,一個是1byte的指針
+<div class="answer-box locked"><textarea readonly spellcheck="false">一個是4byte的指針,一個是1byte的指針
 指針位移根據他的型別大小 所以p+1是加4byte c+1是1byte
-</code></pre>
-<blockquote>
-<p><strong>批改（第 1 次，2026-10-04）</strong>：<strong>對</strong>。關鍵「位移量由指標指向的型別大小決定」答出來了。用詞小修正：不是「4 byte 的指標」——本機<strong>指標本身都是 8 byte</strong>，
+</textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+<details class="answer"><summary>批改（第 1 次，2026-10-04）</summary>
+<p><strong>對</strong>。關鍵「位移量由指標指向的型別大小決定」答出來了。用詞小修正：不是「4 byte 的指標」——本機<strong>指標本身都是 8 byte</strong>，
 4 和 1 是它<strong>指向的東西</strong>（<code>int</code>、<code>unsigned char</code>）的大小。第 2 課也在這個用詞上錯過一次，要分清楚。</p>
-<p><strong>參考答案</strong>【筆記<a href="../../c/%E9%99%A3%E5%88%97%E3%80%81%E5%AD%97%E4%B8%B2%E8%88%87%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97-C%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%88%87%E7%94%A8gdb%E6%89%BEsegfault.html#%E4%BA%8C%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97p--1-%E8%B5%B0%E4%B8%80%E5%80%8B%E5%85%83%E7%B4%A0%E4%B8%8D%E6%98%AF%E4%B8%80%E5%80%8B-byte">第二節</a>】：指標運算的規則是 <code>T *</code> 型別的 <code>p</code>，<code>p + n</code> 的位址 = <code>p</code> 的位址 + <code>n × sizeof(T)</code>。<code>p</code> 指向 <code>int</code>，<code>+ 1</code> 走 4 byte；<code>c</code> 指向 <code>unsigned char</code>，<code>+ 1</code> 走 1 byte。位址本身一樣，差在用什麼型別看它。</p>
-</blockquote>
+<details class="answer"><summary>參考答案</summary>
+<p>【筆記<a href="../../c/%E9%99%A3%E5%88%97%E3%80%81%E5%AD%97%E4%B8%B2%E8%88%87%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97-C%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%88%87%E7%94%A8gdb%E6%89%BEsegfault.html#%E4%BA%8C%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97p--1-%E8%B5%B0%E4%B8%80%E5%80%8B%E5%85%83%E7%B4%A0%E4%B8%8D%E6%98%AF%E4%B8%80%E5%80%8B-byte">第二節</a>】：指標運算的規則是 <code>T *</code> 型別的 <code>p</code>，<code>p + n</code> 的位址 = <code>p</code> 的位址 + <code>n × sizeof(T)</code>。<code>p</code> 指向 <code>int</code>，<code>+ 1</code> 走 4 byte；<code>c</code> 指向 <code>unsigned char</code>，<code>+ 1</code> 走 1 byte。位址本身一樣，差在用什麼型別看它。</p>
+</details>
+</details>
 <h4 id="1-2-p3-在-c-標準裡是怎麼定義的">1-2. <code>p[3]</code> 在 C 標準裡是怎麼定義的？</h4>
 <p><strong>第 1 次（2026-10-04）</strong></p>
-<pre><code>是指針的p+3
-</code></pre>
-<blockquote>
-<p><strong>批改（第 1 次，2026-10-04）</strong>：<strong>不完整</strong>。<code>p + 3</code> 只是一個<strong>位址</strong>（型別還是 <code>int *</code>），但 <code>p[3]</code> 得到的是一個 <strong><code>int</code> 值</strong>。定義式裡少了一個運算子。</p>
+<div class="answer-box locked"><textarea readonly spellcheck="false">是指針的p+3
+</textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+<details class="answer"><summary>批改（第 1 次，2026-10-04）</summary>
+<p><strong>不完整</strong>。<code>p + 3</code> 只是一個<strong>位址</strong>（型別還是 <code>int *</code>），但 <code>p[3]</code> 得到的是一個 <strong><code>int</code> 值</strong>。定義式裡少了一個運算子。</p>
 <p><strong>提示</strong>【筆記<a href="../../c/%E9%99%A3%E5%88%97%E3%80%81%E5%AD%97%E4%B8%B2%E8%88%87%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97-C%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%88%87%E7%94%A8gdb%E6%89%BEsegfault.html#%E4%BA%8C%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97p--1-%E8%B5%B0%E4%B8%80%E5%80%8B%E5%85%83%E7%B4%A0%E4%B8%8D%E6%98%AF%E4%B8%80%E5%80%8B-byte">第二節</a>〈<code>p[i]</code> 就是 <code>*(p + i)</code>〉】：從「位址」變成「那個位址上的值」，要經過哪個運算子？把完整的定義式寫出來（<code>E1[E2]</code> 等於什麼）。</p>
-</blockquote>
+</details>
 <p><strong>第 2 次（重答，2026-10-04）</strong></p>
 <blockquote>
 <p>題目：<code>p[3]</code> 在 C 標準裡是怎麼定義的？</p>
 </blockquote>
-<pre><code>*(p+3)
-</code></pre>
-<blockquote>
-<p><strong>批改（第 2 次，重答，2026-10-04）</strong>：<strong>對</strong>。</p>
-<p><strong>參考答案</strong>【筆記<a href="../../c/%E9%99%A3%E5%88%97%E3%80%81%E5%AD%97%E4%B8%B2%E8%88%87%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97-C%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%88%87%E7%94%A8gdb%E6%89%BEsegfault.html#%E4%BA%8C%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97p--1-%E8%B5%B0%E4%B8%80%E5%80%8B%E5%85%83%E7%B4%A0%E4%B8%8D%E6%98%AF%E4%B8%80%E5%80%8B-byte">第二節</a>〈<code>p[i]</code> 就是 <code>*(p + i)</code>〉】：C 標準把下標定義成 <code>E1[E2]</code> ≡ <code>*((E1) + (E2))</code>，所以 <code>p[3]</code> 就是 <code>*(p + 3)</code>：從 <code>p</code> 往後走 3 個元素（3 × 4 byte），再取那一格的值。<code>[]</code> 不是陣列專屬的語法，只是「指標加法再取值」的縮寫。</p>
-</blockquote>
+<div class="answer-box locked"><textarea readonly spellcheck="false">*(p+3)
+</textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+<details class="answer"><summary>批改（第 2 次，重答，2026-10-04）</summary>
+<p><strong>對</strong>。</p>
+<details class="answer"><summary>參考答案</summary>
+<p>【筆記<a href="../../c/%E9%99%A3%E5%88%97%E3%80%81%E5%AD%97%E4%B8%B2%E8%88%87%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97-C%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%88%87%E7%94%A8gdb%E6%89%BEsegfault.html#%E4%BA%8C%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97p--1-%E8%B5%B0%E4%B8%80%E5%80%8B%E5%85%83%E7%B4%A0%E4%B8%8D%E6%98%AF%E4%B8%80%E5%80%8B-byte">第二節</a>〈<code>p[i]</code> 就是 <code>*(p + i)</code>〉】：C 標準把下標定義成 <code>E1[E2]</code> ≡ <code>*((E1) + (E2))</code>，所以 <code>p[3]</code> 就是 <code>*(p + 3)</code>：從 <code>p</code> 往後走 3 個元素（3 × 4 byte），再取那一格的值。<code>[]</code> 不是陣列專屬的語法，只是「指標加法再取值」的縮寫。</p>
+</details>
+</details>
 <h4 id="1-3-為什麼-3p-也能編譯而且值跟-p3-一樣">1-3. 為什麼 <code>3[p]</code> 也能編譯，而且值跟 <code>p[3]</code> 一樣？</h4>
 <p><strong>第 1 次（2026-10-04）</strong></p>
-<pre><code>忘記了
-</code></pre>
-<blockquote>
-<p><strong>批改（第 1 次，2026-10-04）</strong>：<strong>未作答</strong>。</p>
+<div class="answer-box locked"><textarea readonly spellcheck="false">忘記了
+</textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+<details class="answer"><summary>批改（第 1 次，2026-10-04）</summary>
+<p><strong>未作答</strong>。</p>
 <p><strong>提示</strong>【筆記<a href="../../c/%E9%99%A3%E5%88%97%E3%80%81%E5%AD%97%E4%B8%B2%E8%88%87%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97-C%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%88%87%E7%94%A8gdb%E6%89%BEsegfault.html#%E4%BA%8C%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97p--1-%E8%B5%B0%E4%B8%80%E5%80%8B%E5%85%83%E7%B4%A0%E4%B8%8D%E6%98%AF%E4%B8%80%E5%80%8B-byte">第二節</a>〈<code>p[i]</code> 就是 <code>*(p + i)</code>〉】：先把 1-2 的定義式寫對，然後把 <code>3[p]</code> 也照同一條定義展開（<code>E1</code> 是 <code>3</code>、<code>E2</code> 是 <code>p</code>）。把兩個展開式並排，差在哪？加法有什麼性質讓它們相等？</p>
-</blockquote>
+</details>
 <p><strong>第 2 次（重答，2026-10-04）</strong></p>
 <blockquote>
 <p>題目：為什麼 <code>3[p]</code> 也能編譯，而且值跟 <code>p[3]</code> 一樣？</p>
 </blockquote>
-<pre><code>p[3] = *(p+3)
+<div class="answer-box locked"><textarea readonly spellcheck="false">p[3] = *(p+3)
 p[3] 是 指標加法後取值的縮寫
 反過來也成立
 *(p+3) = *(3+p): 3[p]
-</code></pre>
-<blockquote>
-<p><strong>批改（第 2 次，重答，2026-10-04）</strong>：<strong>對</strong>。展開成 <code>*(3 + p)</code>，再用加法交換律等於 <code>*(p + 3)</code>，推得很完整。</p>
-<p><strong>參考答案</strong>【筆記<a href="../../c/%E9%99%A3%E5%88%97%E3%80%81%E5%AD%97%E4%B8%B2%E8%88%87%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97-C%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%88%87%E7%94%A8gdb%E6%89%BEsegfault.html#%E4%BA%8C%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97p--1-%E8%B5%B0%E4%B8%80%E5%80%8B%E5%85%83%E7%B4%A0%E4%B8%8D%E6%98%AF%E4%B8%80%E5%80%8B-byte">第二節</a>〈<code>p[i]</code> 就是 <code>*(p + i)</code>〉】：<code>3[p]</code> 照定義展開是 <code>*(3 + p)</code>；加法可以交換，所以等於 <code>*(p + 3)</code>，也就是 <code>p[3]</code>。沒有人會這樣寫，它的價值是證明 <code>[]</code> 只是指標加法的縮寫。</p>
-</blockquote>
+</textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+<details class="answer"><summary>批改（第 2 次，重答，2026-10-04）</summary>
+<p><strong>對</strong>。展開成 <code>*(3 + p)</code>，再用加法交換律等於 <code>*(p + 3)</code>，推得很完整。</p>
+<details class="answer"><summary>參考答案</summary>
+<p>【筆記<a href="../../c/%E9%99%A3%E5%88%97%E3%80%81%E5%AD%97%E4%B8%B2%E8%88%87%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97-C%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%88%87%E7%94%A8gdb%E6%89%BEsegfault.html#%E4%BA%8C%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97p--1-%E8%B5%B0%E4%B8%80%E5%80%8B%E5%85%83%E7%B4%A0%E4%B8%8D%E6%98%AF%E4%B8%80%E5%80%8B-byte">第二節</a>〈<code>p[i]</code> 就是 <code>*(p + i)</code>〉】：<code>3[p]</code> 照定義展開是 <code>*(3 + p)</code>；加法可以交換，所以等於 <code>*(p + 3)</code>，也就是 <code>p[3]</code>。沒有人會這樣寫，它的價值是證明 <code>[]</code> 只是指標加法的縮寫。</p>
+</details>
+</details>
 <hr />
 <h3 id="2-陣列傳進函式之後">2. 陣列傳進函式之後</h3>
 <h4 id="2-1-int-a10-在-main-裡-sizeof-a-是-40傳進-void-fint-a-之後-sizeof-a-變成-8為什麼">2-1. <code>int a[10];</code> 在 <code>main</code> 裡 <code>sizeof a</code> 是 40，傳進 <code>void f(int a[])</code> 之後 <code>sizeof a</code> 變成 8。為什麼？</h4>
 <p><strong>第 1 次（2026-10-04）</strong></p>
-<pre><code>sizeof a是特例,他顯示的是a整個陣列的大小
+<div class="answer-box locked"><textarea readonly spellcheck="false">sizeof a是特例,他顯示的是a整個陣列的大小
 一般情況皆視爲指標
-</code></pre>
-<blockquote>
-<p><strong>批改（第 1 次，2026-10-04）</strong>：<strong>不完整</strong>。「<code>sizeof a</code> 是不退化的特例」解釋了 <code>main</code> 裡為什麼是 40，這部分對。但題目問的是<strong>為什麼到了 <code>f</code> 裡變成 8</strong>——同樣是寫 <code>sizeof a</code>，在 <code>f</code> 裡這個特例為什麼不成立了？「一般情況皆視為指標」太籠統，沒講到函式參數。</p>
+</textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+<details class="answer"><summary>批改（第 1 次，2026-10-04）</summary>
+<p><strong>不完整</strong>。「<code>sizeof a</code> 是不退化的特例」解釋了 <code>main</code> 裡為什麼是 40，這部分對。但題目問的是<strong>為什麼到了 <code>f</code> 裡變成 8</strong>——同樣是寫 <code>sizeof a</code>，在 <code>f</code> 裡這個特例為什麼不成立了？「一般情況皆視為指標」太籠統，沒講到函式參數。</p>
 <p><strong>提示</strong>【筆記<a href="../../c/%E9%99%A3%E5%88%97%E3%80%81%E5%AD%97%E4%B8%B2%E8%88%87%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97-C%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%88%87%E7%94%A8gdb%E6%89%BEsegfault.html#%E4%B8%89%E9%99%A3%E5%88%97%E5%90%8D%E7%A8%B1%E4%BB%80%E9%BA%BC%E6%99%82%E5%80%99%E8%AE%8A%E6%88%90%E6%8C%87%E6%A8%99%E4%BB%80%E9%BA%BC%E6%99%82%E5%80%99%E4%B8%8D%E6%9C%83">第三節</a>〈函式參數寫成 <code>int a[]</code>，其實就是 <code>int *a</code>〉】：<br />
 兩件事：(1) 呼叫 <code>f(a)</code> 時，真正傳過去的是什麼、幾個 byte？(2) 編譯器把參數宣告 <code>int a[]</code> 當成什麼型別？8 是什麼東西的大小？</p>
-</blockquote>
+</details>
 <p><strong>第 2 次（重答，2026-10-04）</strong></p>
 <blockquote>
 <p>題目：<code>int a[10];</code> 在 <code>main</code> 裡 <code>sizeof a</code> 是 40，傳進 <code>void f(int a[])</code> 之後 <code>sizeof a</code> 變成 8。為什麼？</p>
 </blockquote>
-<pre><code>sizeof a是特例,他顯示的是a整個陣列的大小
+<div class="answer-box locked"><textarea readonly spellcheck="false">sizeof a是特例,他顯示的是a整個陣列的大小
 函式參數int a[]之int的指標,而不管是什麼指標都是8byte
-</code></pre>
-<blockquote>
-<p><strong>批改（第 2 次，重答，2026-10-04）</strong>：<strong>對</strong>。關鍵「參數 <code>int a[]</code> 其實是 <code>int *</code>，指標在本機都是 8 byte」答出來了。</p>
-<p><strong>參考答案</strong>【筆記<a href="../../c/%E9%99%A3%E5%88%97%E3%80%81%E5%AD%97%E4%B8%B2%E8%88%87%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97-C%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%88%87%E7%94%A8gdb%E6%89%BEsegfault.html#%E4%B8%89%E9%99%A3%E5%88%97%E5%90%8D%E7%A8%B1%E4%BB%80%E9%BA%BC%E6%99%82%E5%80%99%E8%AE%8A%E6%88%90%E6%8C%87%E6%A8%99%E4%BB%80%E9%BA%BC%E6%99%82%E5%80%99%E4%B8%8D%E6%9C%83">第三節</a>〈函式參數寫成 <code>int a[]</code>，其實就是 <code>int *a</code>〉】：在 <code>main</code> 裡 <code>sizeof a</code> 是不退化的例外，得到整個陣列 40 byte。呼叫 <code>f(a)</code> 時 <code>a</code> 退化成指向 <code>a[0]</code> 的指標，傳過去的只是一個 8 byte 的位址；而函式參數宣告成 <code>int a[]</code>（甚至 <code>int a[10]</code>），編譯器一律當成 <code>int *a</code>，所以 <code>f</code> 裡的 <code>sizeof a</code> 是指標的大小 8。gcc 的 <code>-Wsizeof-array-argument</code> 會警告這件事。</p>
-</blockquote>
+</textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+<details class="answer"><summary>批改（第 2 次，重答，2026-10-04）</summary>
+<p><strong>對</strong>。關鍵「參數 <code>int a[]</code> 其實是 <code>int *</code>，指標在本機都是 8 byte」答出來了。</p>
+<details class="answer"><summary>參考答案</summary>
+<p>【筆記<a href="../../c/%E9%99%A3%E5%88%97%E3%80%81%E5%AD%97%E4%B8%B2%E8%88%87%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97-C%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%88%87%E7%94%A8gdb%E6%89%BEsegfault.html#%E4%B8%89%E9%99%A3%E5%88%97%E5%90%8D%E7%A8%B1%E4%BB%80%E9%BA%BC%E6%99%82%E5%80%99%E8%AE%8A%E6%88%90%E6%8C%87%E6%A8%99%E4%BB%80%E9%BA%BC%E6%99%82%E5%80%99%E4%B8%8D%E6%9C%83">第三節</a>〈函式參數寫成 <code>int a[]</code>，其實就是 <code>int *a</code>〉】：在 <code>main</code> 裡 <code>sizeof a</code> 是不退化的例外，得到整個陣列 40 byte。呼叫 <code>f(a)</code> 時 <code>a</code> 退化成指向 <code>a[0]</code> 的指標，傳過去的只是一個 8 byte 的位址；而函式參數宣告成 <code>int a[]</code>（甚至 <code>int a[10]</code>），編譯器一律當成 <code>int *a</code>，所以 <code>f</code> 裡的 <code>sizeof a</code> 是指標的大小 8。gcc 的 <code>-Wsizeof-array-argument</code> 會警告這件事。</p>
+</details>
+</details>
 <h4 id="2-2-這件事對怎麼設計接收陣列的函式有什麼影響">2-2. 這件事對「怎麼設計接收陣列的函式」有什麼影響？</h4>
 <p><strong>第 1 次（2026-10-04）</strong></p>
-<pre><code>void f如果想知道陣列的大小,還需要多傳 sizeof a / sizeof a[0]
-</code></pre>
-<blockquote>
-<p><strong>批改（第 1 次，2026-10-04）</strong>：<strong>對</strong>。長度要另外傳，而且你傳的是<strong>元素個數</strong>，正確。要注意的是 <code>sizeof a / sizeof a[0]</code> 一定要在<strong>呼叫端</strong>（<code>a</code> 還是陣列的地方）算好再傳；如果在 <code>f</code> 裡面算，會得到 8 / 4 = 2，就是 2-1 的陷阱。</p>
-<p><strong>參考答案</strong>【筆記<a href="../../c/%E9%99%A3%E5%88%97%E3%80%81%E5%AD%97%E4%B8%B2%E8%88%87%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97-C%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%88%87%E7%94%A8gdb%E6%89%BEsegfault.html#%E4%B8%89%E9%99%A3%E5%88%97%E5%90%8D%E7%A8%B1%E4%BB%80%E9%BA%BC%E6%99%82%E5%80%99%E8%AE%8A%E6%88%90%E6%8C%87%E6%A8%99%E4%BB%80%E9%BA%BC%E6%99%82%E5%80%99%E4%B8%8D%E6%9C%83">第三節</a>】：函式拿到的只有一個位址，不知道陣列多長，所以<strong>長度一定要另外當參數傳</strong>（例如 <code>long sum(int *p, int n)</code>），在呼叫端用 <code>sizeof a / sizeof a[0]</code> 算。<br />
+<div class="answer-box locked"><textarea readonly spellcheck="false">void f如果想知道陣列的大小,還需要多傳 sizeof a / sizeof a[0]
+</textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+<details class="answer"><summary>批改（第 1 次，2026-10-04）</summary>
+<p><strong>對</strong>。長度要另外傳，而且你傳的是<strong>元素個數</strong>，正確。要注意的是 <code>sizeof a / sizeof a[0]</code> 一定要在<strong>呼叫端</strong>（<code>a</code> 還是陣列的地方）算好再傳；如果在 <code>f</code> 裡面算，會得到 8 / 4 = 2，就是 2-1 的陷阱。</p>
+<details class="answer"><summary>參考答案</summary>
+<p>【筆記<a href="../../c/%E9%99%A3%E5%88%97%E3%80%81%E5%AD%97%E4%B8%B2%E8%88%87%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97-C%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%88%87%E7%94%A8gdb%E6%89%BEsegfault.html#%E4%B8%89%E9%99%A3%E5%88%97%E5%90%8D%E7%A8%B1%E4%BB%80%E9%BA%BC%E6%99%82%E5%80%99%E8%AE%8A%E6%88%90%E6%8C%87%E6%A8%99%E4%BB%80%E9%BA%BC%E6%99%82%E5%80%99%E4%B8%8D%E6%9C%83">第三節</a>】：函式拿到的只有一個位址，不知道陣列多長，所以<strong>長度一定要另外當參數傳</strong>（例如 <code>long sum(int *p, int n)</code>），在呼叫端用 <code>sizeof a / sizeof a[0]</code> 算。<br />
 標準函式庫也是這樣設計：<code>memcpy(dst, src, n)</code>、<code>read(fd, buf, count)</code>。唯一的例外是字串，它靠結尾的 <code>\0</code> 知道在哪結束。</p>
-</blockquote>
+</details>
+</details>
 <h4 id="2-3-a-和-a-印出來的位址一樣它們差在哪裡">2-3. <code>a</code> 和 <code>&amp;a</code> 印出來的位址一樣，它們差在哪裡？</h4>
 <p><strong>第 1 次（2026-10-04）</strong></p>
-<pre><code>a 是 指標
+<div class="answer-box locked"><textarea readonly spellcheck="false">a 是 指標
 &amp;a 是 把a看成陣列,dereference陣列的位址
-</code></pre>
-<blockquote>
-<p><strong>批改（第 1 次，2026-10-04）</strong>：<strong>錯</strong>。<code>&amp;</code> 是<strong>取位址</strong>，不是 dereference（dereference 是 <code>*</code>，方向正好相反）。「<code>a</code> 是指標」只對一半：<code>a</code> 本身是陣列，是<strong>在運算式裡退化</strong>成指標。兩者的差別也還沒講出來。</p>
+</textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+<details class="answer"><summary>批改（第 1 次，2026-10-04）</summary>
+<p><strong>錯</strong>。<code>&amp;</code> 是<strong>取位址</strong>，不是 dereference（dereference 是 <code>*</code>，方向正好相反）。「<code>a</code> 是指標」只對一半：<code>a</code> 本身是陣列，是<strong>在運算式裡退化</strong>成指標。兩者的差別也還沒講出來。</p>
 <p><strong>提示</strong>【筆記<a href="../../c/%E9%99%A3%E5%88%97%E3%80%81%E5%AD%97%E4%B8%B2%E8%88%87%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97-C%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%88%87%E7%94%A8gdb%E6%89%BEsegfault.html#%E4%B8%89%E9%99%A3%E5%88%97%E5%90%8D%E7%A8%B1%E4%BB%80%E9%BA%BC%E6%99%82%E5%80%99%E8%AE%8A%E6%88%90%E6%8C%87%E6%A8%99%E4%BB%80%E9%BA%BC%E6%99%82%E5%80%99%E4%B8%8D%E6%9C%83">第三節</a>〈<code>a</code> 和 <code>&amp;a</code>：位址一樣，型別不一樣〉】：這題的答案是「型別」。<code>a</code> 退化成指向什麼的指標？<code>&amp;a</code> 是指向什麼的指標？用 1-1 的規則想：<code>a + 1</code> 和 <code>&amp;a + 1</code> 各會多幾個 byte（<code>int a[10]</code>）？</p>
-</blockquote>
+</details>
 <p><strong>第 2 次（重答，2026-10-04）</strong></p>
 <blockquote>
 <p>題目：<code>a</code> 和 <code>&amp;a</code> 印出來的位址一樣，它們差在哪裡？</p>
 </blockquote>
-<pre><code>a本身是陣列退化成指標 int*, a+1 是多4byte
+<div class="answer-box locked"><textarea readonly spellcheck="false">a本身是陣列退化成指標 int*, a+1 是多4byte
 &amp;a是指向a整個陣列的指標 是 int *[40]  &amp;a+1是多160byte
-</code></pre>
-<blockquote>
-<p><strong>批改（第 2 次，重答，2026-10-04）</strong>：<strong>不完整</strong>。觀念對了：<code>a</code> 退化成 <code>int *</code>、<code>+ 1</code> 多 4；<code>&amp;a</code> 是「指向整個陣列」的指標。兩個細節錯：</p>
+</textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+<details class="answer"><summary>批改（第 2 次，重答，2026-10-04）</summary>
+<p><strong>不完整</strong>。觀念對了：<code>a</code> 退化成 <code>int *</code>、<code>+ 1</code> 多 4；<code>&amp;a</code> 是「指向整個陣列」的指標。兩個細節錯：</p>
 <ul>
 <li>型別寫法：<code>int *[40]</code> 是「<strong>40 個 <code>int *</code> 組成的陣列</strong>」，不是指向陣列的指標。指向陣列的指標要加括號：<strong><code>int (*)[10]</code></strong>（括號讓 <code>*</code> 先跟名字結合，方括號裡是<strong>元素個數</strong> 10，不是 byte 數 40）。</li>
 <li><code>&amp;a + 1</code> 多的是<strong>整個陣列的大小 40 byte</strong>（10 × 4），不是 160。你把 40 當成元素個數又乘了 4。</li>
 </ul>
-<p><strong>參考答案</strong>【筆記<a href="../../c/%E9%99%A3%E5%88%97%E3%80%81%E5%AD%97%E4%B8%B2%E8%88%87%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97-C%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%88%87%E7%94%A8gdb%E6%89%BEsegfault.html#%E4%B8%89%E9%99%A3%E5%88%97%E5%90%8D%E7%A8%B1%E4%BB%80%E9%BA%BC%E6%99%82%E5%80%99%E8%AE%8A%E6%88%90%E6%8C%87%E6%A8%99%E4%BB%80%E9%BA%BC%E6%99%82%E5%80%99%E4%B8%8D%E6%9C%83">第三節</a>〈<code>a</code> 和 <code>&amp;a</code>：位址一樣，型別不一樣〉】：兩者位址相同，<strong>型別不同</strong>。
+<details class="answer"><summary>參考答案</summary>
+<p>【筆記<a href="../../c/%E9%99%A3%E5%88%97%E3%80%81%E5%AD%97%E4%B8%B2%E8%88%87%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97-C%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%88%87%E7%94%A8gdb%E6%89%BEsegfault.html#%E4%B8%89%E9%99%A3%E5%88%97%E5%90%8D%E7%A8%B1%E4%BB%80%E9%BA%BC%E6%99%82%E5%80%99%E8%AE%8A%E6%88%90%E6%8C%87%E6%A8%99%E4%BB%80%E9%BA%BC%E6%99%82%E5%80%99%E4%B8%8D%E6%9C%83">第三節</a>〈<code>a</code> 和 <code>&amp;a</code>：位址一樣，型別不一樣〉】：兩者位址相同，<strong>型別不同</strong>。
 <code>a</code> 退化成 <code>int *</code>（指向一個 <code>int</code>），<code>a + 1</code> 走 4 byte；<code>&amp;a</code> 的型別是 <code>int (*)[10]</code>（指向「10 個 <code>int</code> 的陣列」），<code>&amp;a + 1</code> 走整個陣列 40 byte。筆記用 <code>int a[5]</code> 實測：<code>a + 1</code> 多 4、<code>&amp;a + 1</code> 多 20（<code>0x14</code>）。</p>
-</blockquote>
+</details>
+</details>
 <hr />
 <h3 id="3-char-s1-與-char-s2">3. <code>char s1[]</code> 與 <code>char *s2</code></h3>
 <h4 id="3-1-char-s1--hi-和-char-s2--hi-的-hi-分別在記憶體的哪裡">3-1. <code>char s1[] = &quot;hi&quot;;</code> 和 <code>char *s2 = &quot;hi&quot;;</code> 的 <code>&quot;hi&quot;</code> 分別在記憶體的哪裡？</h4>
 <p><strong>第 1 次（2026-10-04）</strong></p>
-<pre><code>不知道怎麼回答
-</code></pre>
-<blockquote>
-<p><strong>批改（第 1 次，2026-10-04）</strong>：<strong>未作答</strong>。「在哪裡」問的是<strong>在哪一區記憶體</strong>（堆疊？執行檔的哪個區段？）。</p>
+<div class="answer-box locked"><textarea readonly spellcheck="false">不知道怎麼回答
+</textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+<details class="answer"><summary>批改（第 1 次，2026-10-04）</summary>
+<p><strong>未作答</strong>。「在哪裡」問的是<strong>在哪一區記憶體</strong>（堆疊？執行檔的哪個區段？）。</p>
 <p><strong>提示</strong>【筆記<a href="../../c/%E9%99%A3%E5%88%97%E3%80%81%E5%AD%97%E4%B8%B2%E8%88%87%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97-C%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%88%87%E7%94%A8gdb%E6%89%BEsegfault.html#%E5%9B%9B%E5%AD%97%E4%B8%B2%E4%BB%A5-0-%E7%B5%90%E5%B0%BE%E7%9A%84-char-%E9%99%A3%E5%88%97">第四節</a>】：<br />
 三個線索：(1) <code>strings.c</code> 印出 <code>s1</code> 的位址開頭是 <code>0x7ff…</code>、<code>s2</code> 指向的是 <code>0x5…</code>，這兩種位址各是哪一區？
 (2) <code>char s1[] = &quot;hi&quot;;</code> 這行對 <code>h</code>、<code>i</code>、<code>\0</code> 做了什麼動作——是「指過去」還是「＿＿進來」？
 (3) <code>readelf -p</code> 印出哪一個區段時找到了 <code>hi</code>？那個區段名稱的全名是什麼意思？</p>
-</blockquote>
+</details>
 <p><strong>第 2 次（重答，2026-10-04）</strong></p>
 <blockquote>
 <p>題目：<code>char s1[] = &quot;hi&quot;;</code> 和 <code>char *s2 = &quot;hi&quot;;</code> 的 <code>&quot;hi&quot;</code> 分別在記憶體的哪裡？</p>
 </blockquote>
-<pre><code>s1. 在讀寫區
+<div class="answer-box locked"><textarea readonly spellcheck="false">s1. 在讀寫區
 s2 在唯讀區
-</code></pre>
-<blockquote>
-<p><strong>批改（第 2 次，重答，2026-10-04）</strong>：<strong>不完整</strong>。「一個可寫、一個唯讀」說的是權限，方向對；但題目問「在哪裡」，要講出<strong>哪一區</strong>，也沒有講到 <code>s1</code> 那份是<strong>複製</strong>出來的。</p>
-<p><strong>參考答案</strong>【筆記<a href="../../c/%E9%99%A3%E5%88%97%E3%80%81%E5%AD%97%E4%B8%B2%E8%88%87%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97-C%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%88%87%E7%94%A8gdb%E6%89%BEsegfault.html#%E5%9B%9B%E5%AD%97%E4%B8%B2%E4%BB%A5-0-%E7%B5%90%E5%B0%BE%E7%9A%84-char-%E9%99%A3%E5%88%97">第四節</a>】：</p>
+</textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+<details class="answer"><summary>批改（第 2 次，重答，2026-10-04）</summary>
+<p><strong>不完整</strong>。「一個可寫、一個唯讀」說的是權限，方向對；但題目問「在哪裡」，要講出<strong>哪一區</strong>，也沒有講到 <code>s1</code> 那份是<strong>複製</strong>出來的。</p>
+<details class="answer"><summary>參考答案</summary>
+<p>【筆記<a href="../../c/%E9%99%A3%E5%88%97%E3%80%81%E5%AD%97%E4%B8%B2%E8%88%87%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97-C%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%88%87%E7%94%A8gdb%E6%89%BEsegfault.html#%E5%9B%9B%E5%AD%97%E4%B8%B2%E4%BB%A5-0-%E7%B5%90%E5%B0%BE%E7%9A%84-char-%E9%99%A3%E5%88%97">第四節</a>】：</p>
 <ul>
 <li><code>char s1[] = &quot;hi&quot;;</code>：在<strong>堆疊</strong>上開一個 3 byte 的陣列，把 <code>h</code>、<code>i</code>、<code>\0</code> <strong>複製</strong>進去（位址 <code>0x7ff…</code>）。這是 <code>s1</code> 自己的一份，可讀可寫。</li>
 <li><code>char *s2 = &quot;hi&quot;;</code>：<code>&quot;hi&quot;</code> 是字串常數，放在<strong>執行檔的 <code>.rodata</code>（read-only data）區段</strong>，載入後在一個權限 <code>r--p</code> 的分頁裡（位址 <code>0x5…</code>）；<code>s2</code> 只是指向它的 8 byte 指標。用 <code>readelf -p .rodata</code> 可以在偏移 8 看到 <code>hi</code>。</li>
 </ul>
-</blockquote>
+</details>
+</details>
 <h4 id="3-2-為什麼改-s10-沒事改-s20-卻-segfault">3-2. 為什麼改 <code>s1[0]</code> 沒事，改 <code>s2[0]</code> 卻 segfault？</h4>
 <p><strong>第 1 次（2026-10-04）</strong></p>
-<pre><code>因爲s1字符串是陣列
+<div class="answer-box locked"><textarea readonly spellcheck="false">因爲s1字符串是陣列
 而s2是純char 指標
 另外我猜測,因爲s1 有\0可以識別, 
 s2沒有
-</code></pre>
-<blockquote>
-<p><strong>批改（第 1 次，2026-10-04）</strong>：<strong>錯</strong>。</p>
+</textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+<details class="answer"><summary>批改（第 1 次，2026-10-04）</summary>
+<p><strong>錯</strong>。</p>
 <ul>
 <li>「s1 是陣列、s2 是指標」是<strong>表面的差別</strong>，沒說明為什麼寫入一個會當、一個不會（指標本身也可以拿來寫入，例如 <code>int *p = a; p[0] = 9;</code> 就沒事）。</li>
 <li>「s2 沒有 <code>\0</code>」<strong>錯</strong>：字串常數 <code>&quot;hi&quot;</code> 一定是 3 byte，含 <code>\0</code>。證據在筆記的輸出：<code>strlen(s2) = 2</code>——<code>strlen</code> 就是數到 <code>\0</code> 才停的，沒有 <code>\0</code> 它不會剛好停在 2。而且 <code>\0</code> 跟「能不能寫入」無關，<code>\0</code> 只影響「字串在哪裡結束」。</li>
 </ul>
 <p><strong>提示</strong>【筆記<a href="../../c/%E9%99%A3%E5%88%97%E3%80%81%E5%AD%97%E4%B8%B2%E8%88%87%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97-C%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%88%87%E7%94%A8gdb%E6%89%BEsegfault.html#%E5%9B%9B%E5%AD%97%E4%B8%B2%E4%BB%A5-0-%E7%B5%90%E5%B0%BE%E7%9A%84-char-%E9%99%A3%E5%88%97">第四節</a>、<a href="../../c/%E9%99%A3%E5%88%97%E3%80%81%E5%AD%97%E4%B8%B2%E8%88%87%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97-C%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%88%87%E7%94%A8gdb%E6%89%BEsegfault.html#%E4%BA%94c-%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%B6%8A%E7%95%8C%E7%9A%84%E4%B8%89%E7%A8%AE%E4%B8%8B%E5%A0%B4">第五節</a>開頭的表格】：先答出 3-1。第五節表格說 segfault 的條件有兩種：「沒有對映」，<strong>或</strong>「＿＿不允許這種存取」。<code>s2</code> 指向的那一頁有對映（不然連讀都讀不到），那它被擋下來是因為什麼？那一頁的 <code>Perms</code> 是什麼？</p>
-</blockquote>
+</details>
 <p><strong>第 2 次（重答，2026-10-04）</strong></p>
 <blockquote>
 <p>題目：為什麼改 <code>s1[0]</code> 沒事，改 <code>s2[0]</code> 卻 segfault？</p>
 </blockquote>
-<pre><code>因爲s1本身就是可以讀寫的
+<div class="answer-box locked"><textarea readonly spellcheck="false">因爲s1本身就是可以讀寫的
 但s2 是唯獨,寫了就是segfault
-</code></pre>
-<blockquote>
-<p><strong>批改（第 2 次，重答，2026-10-04）</strong>：<strong>大致對</strong>。「<code>s1</code> 可寫、<code>s2</code> 指向唯讀，寫了就 segfault」是核心。缺「為什麼一個可寫」：因為 <code>s1</code> 是堆疊上<strong>自己的副本</strong>；以及唯讀是<strong>分頁的權限</strong>，由 CPU 擋下、核心送出 <code>SIGSEGV</code>。</p>
-<p><strong>參考答案</strong>【筆記<a href="../../c/%E9%99%A3%E5%88%97%E3%80%81%E5%AD%97%E4%B8%B2%E8%88%87%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97-C%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%88%87%E7%94%A8gdb%E6%89%BEsegfault.html#%E5%9B%9B%E5%AD%97%E4%B8%B2%E4%BB%A5-0-%E7%B5%90%E5%B0%BE%E7%9A%84-char-%E9%99%A3%E5%88%97">第四節</a>、<a href="../../c/%E9%99%A3%E5%88%97%E3%80%81%E5%AD%97%E4%B8%B2%E8%88%87%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97-C%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%88%87%E7%94%A8gdb%E6%89%BEsegfault.html#%E4%BA%94c-%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%B6%8A%E7%95%8C%E7%9A%84%E4%B8%89%E7%A8%AE%E4%B8%8B%E5%A0%B4">第五節</a>開頭的表格】：<code>s1[0]</code> 改的是堆疊上自己那份副本，那一頁是 <code>rw-p</code>，可以寫。
+</textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+<details class="answer"><summary>批改（第 2 次，重答，2026-10-04）</summary>
+<p><strong>大致對</strong>。「<code>s1</code> 可寫、<code>s2</code> 指向唯讀，寫了就 segfault」是核心。缺「為什麼一個可寫」：因為 <code>s1</code> 是堆疊上<strong>自己的副本</strong>；以及唯讀是<strong>分頁的權限</strong>，由 CPU 擋下、核心送出 <code>SIGSEGV</code>。</p>
+<details class="answer"><summary>參考答案</summary>
+<p>【筆記<a href="../../c/%E9%99%A3%E5%88%97%E3%80%81%E5%AD%97%E4%B8%B2%E8%88%87%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97-C%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%88%87%E7%94%A8gdb%E6%89%BEsegfault.html#%E5%9B%9B%E5%AD%97%E4%B8%B2%E4%BB%A5-0-%E7%B5%90%E5%B0%BE%E7%9A%84-char-%E9%99%A3%E5%88%97">第四節</a>、<a href="../../c/%E9%99%A3%E5%88%97%E3%80%81%E5%AD%97%E4%B8%B2%E8%88%87%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97-C%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%88%87%E7%94%A8gdb%E6%89%BEsegfault.html#%E4%BA%94c-%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%B6%8A%E7%95%8C%E7%9A%84%E4%B8%89%E7%A8%AE%E4%B8%8B%E5%A0%B4">第五節</a>開頭的表格】：<code>s1[0]</code> 改的是堆疊上自己那份副本，那一頁是 <code>rw-p</code>，可以寫。
 <code>s2[0]</code> 改的是 <code>.rodata</code> 裡的字串常數，那一頁是 <code>r--p</code>（可讀、不可寫）：分頁<strong>有對映</strong>，但<strong>權限不允許寫入</strong>，CPU 拒絕，核心送出 <code>SIGSEGV</code>。
 C 標準只說「修改字串常數是未定義行為」，在 Linux／gcc 上的實際表現就是 segfault。</p>
-</blockquote>
+</details>
+</details>
 <h4 id="3-3-你會怎麼在-gdb-裡確認-3-2-的答案">3-3. 你會怎麼在 gdb 裡確認 3-2 的答案？</h4>
 <p><strong>第 1 次（2026-10-04）</strong></p>
-<pre><code>print s1[0]
+<div class="answer-box locked"><textarea readonly spellcheck="false">print s1[0]
 print s2[0]
-</code></pre>
-<blockquote>
-<p><strong>批改（第 1 次，2026-10-04）</strong>：<strong>錯</strong>。這兩個命令都會印出 <code>104 'h'</code>——<strong>讀</strong>兩邊都沒問題，所以看不出任何差別，確認不了 3-2。</p>
+</textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+<details class="answer"><summary>批改（第 1 次，2026-10-04）</summary>
+<p><strong>錯</strong>。這兩個命令都會印出 <code>104 'h'</code>——<strong>讀</strong>兩邊都沒問題，所以看不出任何差別，確認不了 3-2。</p>
 <p><strong>提示</strong>【筆記<a href="../../c/%E9%99%A3%E5%88%97%E3%80%81%E5%AD%97%E4%B8%B2%E8%88%87%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97-C%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%88%87%E7%94%A8gdb%E6%89%BEsegfault.html#%E5%9B%9B%E5%AD%97%E4%B8%B2%E4%BB%A5-0-%E7%B5%90%E5%B0%BE%E7%9A%84-char-%E9%99%A3%E5%88%97">第四節</a>「在 gdb 裡跑，當掉時看它指向的那一頁的權限」那一段】：<br />
 要確認的是兩件事：(1) <code>s2</code> 指向哪個位址（印的是 <code>s2</code> 本身，不是 <code>s2[0]</code>）；(2) 那個位址落在哪一段對映、權限是什麼。第 (2) 個要用 gdb 的哪個命令，才能列出每一段記憶體的起訖位址與 <code>Perms</code>？（可以翻 <a href="../../c/gdb%E5%AE%8C%E6%95%B4%E5%91%BD%E4%BB%A4%E5%8F%83%E8%80%83.html">gdb完整命令參考</a>，那是參考型筆記。）</p>
-</blockquote>
+</details>
 <p><strong>第 2 次（重答，2026-10-04）</strong></p>
 <blockquote>
 <p>題目：你會怎麼在 gdb 裡確認 3-2 的答案？</p>
 </blockquote>
-<pre><code>x s1
+<div class="answer-box locked"><textarea readonly spellcheck="false">x s1
 x s2
 info proc mapping
 再去判斷他們各自的perms
 
-</code></pre>
-<blockquote>
-<p><strong>批改（第 2 次，重答，2026-10-04）</strong>：<strong>對</strong>。<code>x</code> 會在左邊印出位址，再用 <code>info proc mappings</code> 找那個位址落在哪一段、看 <code>Perms</code>，就是筆記的做法。<br />
+</textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+<details class="answer"><summary>批改（第 2 次，重答，2026-10-04）</summary>
+<p><strong>對</strong>。<code>x</code> 會在左邊印出位址，再用 <code>info proc mappings</code> 找那個位址落在哪一段、看 <code>Perms</code>，就是筆記的做法。<br />
 小建議：只要位址的話，<code>print s2</code>、<code>print &amp;s1</code> 比 <code>x</code> 直接（<code>x</code> 是看記憶體內容）。</p>
-<p><strong>參考答案</strong>【筆記<a href="../../c/%E9%99%A3%E5%88%97%E3%80%81%E5%AD%97%E4%B8%B2%E8%88%87%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97-C%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%88%87%E7%94%A8gdb%E6%89%BEsegfault.html#%E5%9B%9B%E5%AD%97%E4%B8%B2%E4%BB%A5-0-%E7%B5%90%E5%B0%BE%E7%9A%84-char-%E9%99%A3%E5%88%97">第四節</a>「在 gdb 裡跑，當掉時看它指向的那一頁的權限」那一段】：在 gdb 裡 <code>run</code> 讓它當在 <code>s2[0] = 'H';</code>，<code>print s2</code> 得到 <code>0x555555556008</code>；
+<details class="answer"><summary>參考答案</summary>
+<p>【筆記<a href="../../c/%E9%99%A3%E5%88%97%E3%80%81%E5%AD%97%E4%B8%B2%E8%88%87%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97-C%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%88%87%E7%94%A8gdb%E6%89%BEsegfault.html#%E5%9B%9B%E5%AD%97%E4%B8%B2%E4%BB%A5-0-%E7%B5%90%E5%B0%BE%E7%9A%84-char-%E9%99%A3%E5%88%97">第四節</a>「在 gdb 裡跑，當掉時看它指向的那一頁的權限」那一段】：在 gdb 裡 <code>run</code> 讓它當在 <code>s2[0] = 'H';</code>，<code>print s2</code> 得到 <code>0x555555556008</code>；
 <code>info proc mappings</code> 看到這個位址落在 <code>0x555555556000</code>～<code>0x555555557000</code>、權限 <code>r--p</code> 的那一段；<code>print &amp;s1</code> 則落在 <code>[stack]</code>（<code>rw-p</code>）。</p>
-</blockquote>
+</details>
+</details>
 <hr />
 <h3 id="4-越界的三種下場">4. 越界的三種下場</h3>
 <h4 id="4-1-越界存取有三種下場安靜出錯stack-smashing-detectedsegfault分別是什麼決定會落到哪一種">4-1. 越界存取有三種下場：安靜出錯、<code>stack smashing detected</code>、segfault。分別是什麼決定會落到哪一種？</h4>
 <p><strong>第 1 次（2026-10-04）</strong></p>
-<pre><code>兩個指標,一個是a 金絲雀位址,一個是b 記憶體分頁的邊界
+<div class="answer-box locked"><textarea readonly spellcheck="false">兩個指標,一個是a 金絲雀位址,一個是b 記憶體分頁的邊界
 
 如果寫入的記憶體位址沒有超過ab,那就會安靜出錯
 超過a stack smashing detected
 超過b segfault
-</code></pre>
-<blockquote>
-<p><strong>批改（第 1 次，2026-10-04）</strong>：<strong>不完整</strong>。核心方向對：<strong>取決於那個位址上剛好有什麼</strong>——一般資料、金絲雀值、還是不能碰的分頁。用 a、b 兩個位置去想也是好的模型。兩個地方不對：</p>
+</textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+<details class="answer"><summary>批改（第 1 次，2026-10-04）</summary>
+<p><strong>不完整</strong>。核心方向對：<strong>取決於那個位址上剛好有什麼</strong>——一般資料、金絲雀值、還是不能碰的分頁。用 a、b 兩個位置去想也是好的模型。兩個地方不對：</p>
 <ul>
 <li>segfault 只寫了「超過分頁邊界」。可是第 3 題的 <code>s2[0]</code> 根本沒有越界、也沒有超出任何邊界，照樣 segfault——你的規則漏了另一個條件。</li>
 <li>「超過 a 就 stack smashing」太寬：金絲雀值是怎麼被發現的？只是<strong>讀</strong>過它會被抓嗎？它是在<strong>什麼時候</strong>被檢查的？</li>
 </ul>
 <p><strong>提示</strong>【筆記<a href="../../c/%E9%99%A3%E5%88%97%E3%80%81%E5%AD%97%E4%B8%B2%E8%88%87%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97-C%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%88%87%E7%94%A8gdb%E6%89%BEsegfault.html#%E4%BA%94c-%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%B6%8A%E7%95%8C%E7%9A%84%E4%B8%89%E7%A8%AE%E4%B8%8B%E5%A0%B4">第五節</a>開頭的表格、〈下場二：被堆疊保護抓到〉最後一段】：把三種下場各補一句「條件」：segfault 的條件有兩種（「沒有＿＿」或「＿＿不允許」）；stack smashing 要「金絲雀被＿＿」，而且在「＿＿時」才檢查。</p>
-</blockquote>
+</details>
 <p><strong>第 2 次（重答，2026-10-04）</strong></p>
 <blockquote>
 <p>題目：越界存取有三種下場：安靜出錯、<code>stack smashing detected</code>、segfault。分別是什麼決定會落到哪一種？</p>
 </blockquote>
-<pre><code>金絲雀放在函式區域後面. 金絲雀被篡改,而且在函式返回前檢查
+<div class="answer-box locked"><textarea readonly spellcheck="false">金絲雀放在函式區域後面. 金絲雀被篡改,而且在函式返回前檢查
 segfault要沒有對映,或存取不允許
-</code></pre>
-<blockquote>
-<p><strong>批改（第 2 次，重答，2026-10-04）</strong>：<strong>對</strong>。兩個缺口都補上了：金絲雀要「被篡改」且「返回前才檢查」；segfault 是「沒有對映或權限不允許」。加上第 1 次的「其餘情況安靜出錯」，三種下場完整。</p>
-<p><strong>參考答案</strong>【筆記<a href="../../c/%E9%99%A3%E5%88%97%E3%80%81%E5%AD%97%E4%B8%B2%E8%88%87%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97-C%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%88%87%E7%94%A8gdb%E6%89%BEsegfault.html#%E4%BA%94c-%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%B6%8A%E7%95%8C%E7%9A%84%E4%B8%89%E7%A8%AE%E4%B8%8B%E5%A0%B4">第五節</a>開頭的表格、〈下場二：被堆疊保護抓到〉】：取決於那個位址上剛好有什麼——</p>
+</textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+<details class="answer"><summary>批改（第 2 次，重答，2026-10-04）</summary>
+<p><strong>對</strong>。兩個缺口都補上了：金絲雀要「被篡改」且「返回前才檢查」；segfault 是「沒有對映或權限不允許」。加上第 1 次的「其餘情況安靜出錯」，三種下場完整。</p>
+<details class="answer"><summary>參考答案</summary>
+<p>【筆記<a href="../../c/%E9%99%A3%E5%88%97%E3%80%81%E5%AD%97%E4%B8%B2%E8%88%87%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97-C%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%88%87%E7%94%A8gdb%E6%89%BEsegfault.html#%E4%BA%94c-%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%B6%8A%E7%95%8C%E7%9A%84%E4%B8%89%E7%A8%AE%E4%B8%8B%E5%A0%B4">第五節</a>開頭的表格、〈下場二：被堆疊保護抓到〉】：取決於那個位址上剛好有什麼——</p>
 <ul>
 <li><strong>安靜出錯</strong>：位址還在程式可以存取的記憶體裡（例如堆疊上的其他變數）。</li>
 <li><strong><code>stack smashing detected</code></strong>：越界寫入<strong>改掉了</strong>編譯器放在區域陣列後面的金絲雀值；函式<strong>返回前</strong>才檢查，所以發現得比犯錯晚，而且只抓得到「一路寫到金絲雀」的寫入。</li>
 <li><strong>segfault</strong>：位址所在分頁<strong>沒有對映</strong>，或<strong>權限不允許</strong>這種存取（例如寫 <code>.rodata</code>）。</li>
 </ul>
-</blockquote>
+</details>
+</details>
 <h4 id="4-2-為什麼程式沒當掉不能證明沒有越界">4-2. 為什麼「程式沒當掉」不能證明沒有越界？</h4>
 <p><strong>第 1 次（2026-10-04）</strong></p>
-<pre><code>因爲c只有金絲雀位址 與記憶體分頁的邊界
+<div class="answer-box locked"><textarea readonly spellcheck="false">因爲c只有金絲雀位址 與記憶體分頁的邊界
 可以判斷
 如果是在範圍內,如果有分配的記憶體寫到別的變數的位址內,c是無感知的
-</code></pre>
-<blockquote>
-<p><strong>批改（第 1 次，2026-10-04）</strong>：<strong>大致對</strong>。關鍵「越界的位址還在程式可以存取的記憶體裡時，寫壞別的變數也沒有人發現」答出來了。要修正的是主詞：
+</textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+<details class="answer"><summary>批改（第 1 次，2026-10-04）</summary>
+<p><strong>大致對</strong>。關鍵「越界的位址還在程式可以存取的記憶體裡時，寫壞別的變數也沒有人發現」答出來了。要修正的是主詞：
 <strong>C 語言本身什麼都不檢查</strong>。金絲雀值是 <strong>gcc</strong> 的堆疊保護插進去的，分頁邊界是 <strong>CPU 與核心</strong>的機制（筆記說「segfault 不是 C 語言的機制」）。</p>
-<p><strong>參考答案</strong>【筆記<a href="../../c/%E9%99%A3%E5%88%97%E3%80%81%E5%AD%97%E4%B8%B2%E8%88%87%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97-C%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%88%87%E7%94%A8gdb%E6%89%BEsegfault.html#%E4%BA%94c-%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%B6%8A%E7%95%8C%E7%9A%84%E4%B8%89%E7%A8%AE%E4%B8%8B%E5%A0%B4">第五節</a>〈下場一：安靜地出錯〉】：越界是未定義行為，C 不檢查邊界；只有剛好碰到檢查值或不能碰的分頁才會有反應。越界的位址如果落在還能存取的記憶體（例如堆疊上的其他變數），讀到的是垃圾、寫壞的是別人的資料，程式照常結束（<code>oob.c</code> 結束狀態 0）。錯誤可能在很久以後、很遠的地方才顯現，或者永遠不顯現、只是結果默默錯了。</p>
-</blockquote>
+<details class="answer"><summary>參考答案</summary>
+<p>【筆記<a href="../../c/%E9%99%A3%E5%88%97%E3%80%81%E5%AD%97%E4%B8%B2%E8%88%87%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97-C%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%88%87%E7%94%A8gdb%E6%89%BEsegfault.html#%E4%BA%94c-%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%B6%8A%E7%95%8C%E7%9A%84%E4%B8%89%E7%A8%AE%E4%B8%8B%E5%A0%B4">第五節</a>〈下場一：安靜地出錯〉】：越界是未定義行為，C 不檢查邊界；只有剛好碰到檢查值或不能碰的分頁才會有反應。越界的位址如果落在還能存取的記憶體（例如堆疊上的其他變數），讀到的是垃圾、寫壞的是別人的資料，程式照常結束（<code>oob.c</code> 結束狀態 0）。錯誤可能在很久以後、很遠的地方才顯現，或者永遠不顯現、只是結果默默錯了。</p>
+</details>
+</details>
 <hr />
 <h3 id="5-情境題當掉的那一行">5. 情境題：當掉的那一行</h3>
 <h4 id="5-1-同事的程式偶爾-segfaultgdb-的-bt-顯示當在-parse-裡-x--bufk-這一行k-的值是-523871而-buf-只有-256-個元素你接下來要怎麼查出真正的錯誤在哪裡">5-1. 同事的程式偶爾 segfault，gdb 的 <code>bt</code> 顯示當在 <code>parse()</code> 裡 <code>x = buf[k];</code> 這一行，<code>k</code> 的值是 523871，而 <code>buf</code> 只有 256 個元素。你接下來要怎麼查出真正的錯誤在哪裡？</h4>
 <p><strong>第 1 次（2026-10-04）</strong></p>
-<pre><code>看起來像是函式不知道陣列的長度, 我會去找k是如何產生的,以及陣列長度函式是否有傳入
-</code></pre>
-<blockquote>
-<p><strong>批改（第 1 次，2026-10-04）</strong>：<strong>大致對</strong>。「去找 <code>k</code> 是怎麼產生的」就是核心——往回推錯的值從哪裡來。缺的是<strong>怎麼找</strong>：
+<div class="answer-box locked"><textarea readonly spellcheck="false">看起來像是函式不知道陣列的長度, 我會去找k是如何產生的,以及陣列長度函式是否有傳入
+</textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+<details class="answer"><summary>批改（第 1 次，2026-10-04）</summary>
+<p><strong>大致對</strong>。「去找 <code>k</code> 是怎麼產生的」就是核心——往回推錯的值從哪裡來。缺的是<strong>怎麼找</strong>：
 <code>bt</code> 已經給了呼叫路徑，下一步是用 <code>frame N</code> 切到上面幾層、在每一層 <code>print</code> 參數和變數。另外 523871 跟 256 差太多，不像 <code>i &lt;= n</code> 那種多一格的錯，比較像 <code>k</code> 本身被算錯、沒初始化，或<strong>被別的越界寫入蓋掉了</strong>——這時候 bug 甚至可能不在算 <code>k</code> 的那段程式裡。</p>
-<p><strong>參考答案</strong>【筆記<a href="../../c/%E9%99%A3%E5%88%97%E3%80%81%E5%AD%97%E4%B8%B2%E8%88%87%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97-C%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%88%87%E7%94%A8gdb%E6%89%BEsegfault.html#%E5%85%AD%E7%94%A8-gdb-%E6%89%BE-segfault%E5%AF%A6%E9%9A%9B%E8%B5%B0%E4%B8%80%E6%AC%A1">第六節</a>〈當掉的那一行 ≠ 犯錯的那一行〉】：當掉的那一行只是「第一次碰到不能碰的分頁」的地方。用 <code>bt</code> 看一路呼叫過來的路徑，<code>frame N</code> 切到每一層，<code>print</code> 看 <code>k</code> 和決定 <code>k</code> 的參數、變數，往回推「523871 是在哪一層、哪一步變成這個值的」，同時檢查 <code>parse</code> 有沒有拿到 <code>buf</code> 的長度、有沒有檢查 <code>k</code>。</p>
-</blockquote>
+<details class="answer"><summary>參考答案</summary>
+<p>【筆記<a href="../../c/%E9%99%A3%E5%88%97%E3%80%81%E5%AD%97%E4%B8%B2%E8%88%87%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97-C%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%88%87%E7%94%A8gdb%E6%89%BEsegfault.html#%E5%85%AD%E7%94%A8-gdb-%E6%89%BE-segfault%E5%AF%A6%E9%9A%9B%E8%B5%B0%E4%B8%80%E6%AC%A1">第六節</a>〈當掉的那一行 ≠ 犯錯的那一行〉】：當掉的那一行只是「第一次碰到不能碰的分頁」的地方。用 <code>bt</code> 看一路呼叫過來的路徑，<code>frame N</code> 切到每一層，<code>print</code> 看 <code>k</code> 和決定 <code>k</code> 的參數、變數，往回推「523871 是在哪一層、哪一步變成這個值的」，同時檢查 <code>parse</code> 有沒有拿到 <code>buf</code> 的長度、有沒有檢查 <code>k</code>。</p>
+</details>
+</details>
 <h4 id="5-2-為什麼不能直接修改這一行就算解決">5-2. 為什麼不能直接修改這一行就算解決？</h4>
 <p><strong>第 1 次（2026-10-04）</strong></p>
-<pre><code>直接修改?這問題好怪?我沒有辦法看到代碼,如何判斷是否可以改一行解決
-</code></pre>
-<blockquote>
-<p><strong>批改（第 1 次，2026-10-04）</strong>：<strong>未作答</strong>。你說得對，題目寫得不夠清楚，這裡補清楚：「直接修改這一行」指的是<strong>只在當掉的地方動手</strong>，例如在 <code>x = buf[k];</code> 前面加 <code>if (k &gt;= 256) return;</code>，或把 <code>k</code> 夾在 0～255 之間，讓它不再當掉。不需要看到程式碼，這題問的是原則。</p>
+<div class="answer-box locked"><textarea readonly spellcheck="false">直接修改?這問題好怪?我沒有辦法看到代碼,如何判斷是否可以改一行解決
+</textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+<details class="answer"><summary>批改（第 1 次，2026-10-04）</summary>
+<p><strong>未作答</strong>。你說得對，題目寫得不夠清楚，這裡補清楚：「直接修改這一行」指的是<strong>只在當掉的地方動手</strong>，例如在 <code>x = buf[k];</code> 前面加 <code>if (k &gt;= 256) return;</code>，或把 <code>k</code> 夾在 0～255 之間，讓它不再當掉。不需要看到程式碼，這題問的是原則。</p>
 <p><strong>提示</strong>【筆記<a href="../../c/%E9%99%A3%E5%88%97%E3%80%81%E5%AD%97%E4%B8%B2%E8%88%87%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97-C%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%88%87%E7%94%A8gdb%E6%89%BEsegfault.html#%E5%85%AD%E7%94%A8-gdb-%E6%89%BE-segfault%E5%AF%A6%E9%9A%9B%E8%B5%B0%E4%B8%80%E6%AC%A1">第六節</a>〈當掉的那一行 ≠ 犯錯的那一行〉、<a href="../../c/%E9%99%A3%E5%88%97%E3%80%81%E5%AD%97%E4%B8%B2%E8%88%87%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97-C%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%88%87%E7%94%A8gdb%E6%89%BEsegfault.html#%E4%BA%94c-%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%B6%8A%E7%95%8C%E7%9A%84%E4%B8%89%E7%A8%AE%E4%B8%8B%E5%A0%B4">第五節</a>〈下場一：安靜地出錯〉】：這樣改完不當了，但 <code>k</code> 為什麼會是 523871 的那個錯還在不在？如果 <code>k</code> 是被別處的越界寫入蓋掉的，那個越界寫入同時還可能寫壞了什麼？</p>
-</blockquote>
+</details>
 <p><strong>第 2 次（重答，2026-10-04）</strong></p>
 <blockquote>
 <p>題目：為什麼不能直接修改這一行就算解決？</p>
 </blockquote>
-<pre><code>因爲有可能k被越界寫入,也就是安靜的出錯
-</code></pre>
-<blockquote>
-<p><strong>批改（第 2 次，重答，2026-10-04）</strong>：<strong>大致對</strong>。抓到「<code>k</code> 可能是被別處的越界寫入蓋掉的」，很好。還要把結論講出來：只在這一行擋住，<strong>當掉的症狀消失了，但錯誤的源頭還在</strong>，它還會繼續安靜地寫壞別的資料。</p>
-<p><strong>參考答案</strong>【筆記<a href="../../c/%E9%99%A3%E5%88%97%E3%80%81%E5%AD%97%E4%B8%B2%E8%88%87%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97-C%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%88%87%E7%94%A8gdb%E6%89%BEsegfault.html#%E5%85%AD%E7%94%A8-gdb-%E6%89%BE-segfault%E5%AF%A6%E9%9A%9B%E8%B5%B0%E4%B8%80%E6%AC%A1">第六節</a>〈當掉的那一行 ≠ 犯錯的那一行〉】：當掉的那一行只是 <code>k</code> 這個錯的值<strong>第一次碰到不能碰的分頁</strong>的地方，不是 <code>k</code> 變錯的地方。在這行加檢查或把 <code>k</code> 夾在範圍內，只是把症狀藏起來：算錯 <code>k</code>（或蓋掉 <code>k</code>）的那段程式還在，它可能同時寫壞其他資料（下場一，安靜出錯），之後在別處以更難查的方式出現。要往回找到 <code>k</code> 從哪裡變錯，修那裡。</p>
-</blockquote>
+<div class="answer-box locked"><textarea readonly spellcheck="false">因爲有可能k被越界寫入,也就是安靜的出錯
+</textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+<details class="answer"><summary>批改（第 2 次，重答，2026-10-04）</summary>
+<p><strong>大致對</strong>。抓到「<code>k</code> 可能是被別處的越界寫入蓋掉的」，很好。還要把結論講出來：只在這一行擋住，<strong>當掉的症狀消失了，但錯誤的源頭還在</strong>，它還會繼續安靜地寫壞別的資料。</p>
+<details class="answer"><summary>參考答案</summary>
+<p>【筆記<a href="../../c/%E9%99%A3%E5%88%97%E3%80%81%E5%AD%97%E4%B8%B2%E8%88%87%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97-C%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%88%87%E7%94%A8gdb%E6%89%BEsegfault.html#%E5%85%AD%E7%94%A8-gdb-%E6%89%BE-segfault%E5%AF%A6%E9%9A%9B%E8%B5%B0%E4%B8%80%E6%AC%A1">第六節</a>〈當掉的那一行 ≠ 犯錯的那一行〉】：當掉的那一行只是 <code>k</code> 這個錯的值<strong>第一次碰到不能碰的分頁</strong>的地方，不是 <code>k</code> 變錯的地方。在這行加檢查或把 <code>k</code> 夾在範圍內，只是把症狀藏起來：算錯 <code>k</code>（或蓋掉 <code>k</code>）的那段程式還在，它可能同時寫壞其他資料（下場一，安靜出錯），之後在別處以更難查的方式出現。要往回找到 <code>k</code> 從哪裡變錯，修那裡。</p>
+</details>
+</details>
 <h4 id="5-3-如果想在第一次越界的當下就抓到它要怎麼做">5-3. 如果想在「第一次越界的當下」就抓到它，要怎麼做？</h4>
 <p><strong>第 1 次（2026-10-04）</strong></p>
-<pre><code>傳入長度到函式中
+<div class="answer-box locked"><textarea readonly spellcheck="false">傳入長度到函式中
 並且檢查k是否超過長度
-</code></pre>
-<blockquote>
-<p><strong>批改（第 1 次，2026-10-04）</strong>：<strong>錯</strong>（答的是另一個問題）。「傳長度、檢查 <code>k</code>」是<strong>防禦性寫法</strong>，是修好之後該做的事，方向沒錯；但它只檢查<strong>你想到要檢查的那一行</strong>。題目問的是「<strong>在不知道錯在哪的情況下</strong>，讓程式在第一次越界的當下停下來並告訴你在哪一行」——要靠工具，不是靠手寫檢查。例如 <code>k</code> 若是被別處的越界寫入蓋掉的，在 <code>parse</code> 裡檢查 <code>k</code> 只能發現「<code>k</code> 已經錯了」，抓不到是誰把它寫壞的。</p>
+</textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+<details class="answer"><summary>批改（第 1 次，2026-10-04）</summary>
+<p><strong>錯</strong>（答的是另一個問題）。「傳長度、檢查 <code>k</code>」是<strong>防禦性寫法</strong>，是修好之後該做的事，方向沒錯；但它只檢查<strong>你想到要檢查的那一行</strong>。題目問的是「<strong>在不知道錯在哪的情況下</strong>，讓程式在第一次越界的當下停下來並告訴你在哪一行」——要靠工具，不是靠手寫檢查。例如 <code>k</code> 若是被別處的越界寫入蓋掉的，在 <code>parse</code> 裡檢查 <code>k</code> 只能發現「<code>k</code> 已經錯了」，抓不到是誰把它寫壞的。</p>
 <p><strong>提示</strong>【筆記<a href="../../c/%E9%99%A3%E5%88%97%E3%80%81%E5%AD%97%E4%B8%B2%E8%88%87%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97-C%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%88%87%E7%94%A8gdb%E6%89%BEsegfault.html#%E4%B8%83addresssanitizer%E5%9C%A8%E7%AC%AC%E4%B8%80%E6%AC%A1%E8%B6%8A%E7%95%8C%E7%9A%84%E7%95%B6%E4%B8%8B%E6%8A%93%E5%88%B0%E5%AE%83">第七節</a>】：第七節的標題就是這題的答案。要怎麼編譯（加哪個選項，還有哪個選項才看得到行號）？然後要怎麼跑？它有什麼限制（哪些越界抓不到）？</p>
-</blockquote>
+</details>
 <p><strong>第 2 次（重答，2026-10-04）</strong></p>
 <blockquote>
 <p>題目：如果想在「第一次越界的當下」就抓到它，要怎麼做？</p>
 </blockquote>
-<pre><code>編譯的時候用 -fsanitize=address , 這樣他會在變數或常數前後插入檢查,如果有越界就會噴錯
-</code></pre>
-<blockquote>
-<p><strong>批改（第 2 次，重答，2026-10-04）</strong>：<strong>大致對</strong>。<code>-fsanitize=address</code> 對。機制要修一下：ASan 是在每個陣列前後放<strong>禁區（redzone）</strong>，並在<strong>每一次讀寫記憶體前</strong>插入檢查。另外缺：要加 <code>-g</code> 才有行號，以及要<strong>重跑、讓那段程式碼真的被執行到</strong>才抓得到。</p>
-<p><strong>參考答案</strong>【筆記<a href="../../c/%E9%99%A3%E5%88%97%E3%80%81%E5%AD%97%E4%B8%B2%E8%88%87%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97-C%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%88%87%E7%94%A8gdb%E6%89%BEsegfault.html#%E4%B8%83addresssanitizer%E5%9C%A8%E7%AC%AC%E4%B8%80%E6%AC%A1%E8%B6%8A%E7%95%8C%E7%9A%84%E7%95%B6%E4%B8%8B%E6%8A%93%E5%88%B0%E5%AE%83">第七節</a>】：用 <code>gcc -g -fsanitize=address</code> 重新編譯，再跑一次重現問題。ASan 在<strong>第一次</strong>越界讀寫的當下就停下來，報告是讀還是寫、幾個 byte、哪一行、越過了哪個變數（例如 <code>stack-buffer-overflow</code>、<code>WRITE of size 4</code>、<code>[16, 40) 'buf'</code>）。<br />
+<div class="answer-box locked"><textarea readonly spellcheck="false">編譯的時候用 -fsanitize=address , 這樣他會在變數或常數前後插入檢查,如果有越界就會噴錯
+</textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+<details class="answer"><summary>批改（第 2 次，重答，2026-10-04）</summary>
+<p><strong>大致對</strong>。<code>-fsanitize=address</code> 對。機制要修一下：ASan 是在每個陣列前後放<strong>禁區（redzone）</strong>，並在<strong>每一次讀寫記憶體前</strong>插入檢查。另外缺：要加 <code>-g</code> 才有行號，以及要<strong>重跑、讓那段程式碼真的被執行到</strong>才抓得到。</p>
+<details class="answer"><summary>參考答案</summary>
+<p>【筆記<a href="../../c/%E9%99%A3%E5%88%97%E3%80%81%E5%AD%97%E4%B8%B2%E8%88%87%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97-C%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%88%87%E7%94%A8gdb%E6%89%BEsegfault.html#%E4%B8%83addresssanitizer%E5%9C%A8%E7%AC%AC%E4%B8%80%E6%AC%A1%E8%B6%8A%E7%95%8C%E7%9A%84%E7%95%B6%E4%B8%8B%E6%8A%93%E5%88%B0%E5%AE%83">第七節</a>】：用 <code>gcc -g -fsanitize=address</code> 重新編譯，再跑一次重現問題。ASan 在<strong>第一次</strong>越界讀寫的當下就停下來，報告是讀還是寫、幾個 byte、哪一行、越過了哪個變數（例如 <code>stack-buffer-overflow</code>、<code>WRITE of size 4</code>、<code>[16, 40) 'buf'</code>）。<br />
 限制：要重新編譯；沒執行到的路徑抓不到；會變慢、吃記憶體，所以用在開發與測試。</p>
-</blockquote>
+</details>
+</details>
 <hr />
 <h3 id="6-情境題讀懂-asan-的區間2026-09-30-新增">6. 情境題：讀懂 ASan 的區間（2026-09-30 新增）</h3>
 <blockquote>
@@ -347,78 +375,86 @@ segfault要沒有對映,或存取不允許
 </blockquote>
 <h4 id="6-1-buf-佔幾個-byte">6-1. <code>buf</code> 佔幾個 byte？</h4>
 <p><strong>第 1 次（2026-10-04）</strong></p>
-<pre><code>24*4 = 96byte
-</code></pre>
-<blockquote>
-<p><strong>批改（第 1 次，2026-10-04）</strong>：<strong>錯</strong>。40 − 16 = 24 這一步對，但多乘了 4。</p>
+<div class="answer-box locked"><textarea readonly spellcheck="false">24*4 = 96byte
+</textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+<details class="answer"><summary>批改（第 1 次，2026-10-04）</summary>
+<p><strong>錯</strong>。40 − 16 = 24 這一步對，但多乘了 4。</p>
 <p><strong>提示</strong>【筆記<a href="../../c/%E9%99%A3%E5%88%97%E3%80%81%E5%AD%97%E4%B8%B2%E8%88%87%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97-C%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%88%87%E7%94%A8gdb%E6%89%BEsegfault.html#%E4%B8%83addresssanitizer%E5%9C%A8%E7%AC%AC%E4%B8%80%E6%AC%A1%E8%B6%8A%E7%95%8C%E7%9A%84%E7%95%B6%E4%B8%8B%E6%8A%93%E5%88%B0%E5%AE%83">第七節</a>〈<code>[96, 101)</code> 怎麼讀：半開區間、偏移與影子 byte〉】：區間裡的 16、40 是「偏移」，偏移的單位是什麼？筆記的例子 <code>[96, 101)</code> 對應 <code>char t[5]</code>、<code>[64, 72)</code> 對應 <code>char buf[8]</code>——區間長度跟陣列大小（byte）是什麼關係？</p>
-</blockquote>
+</details>
 <p><strong>第 2 次（重答，2026-10-04）</strong></p>
 <blockquote>
 <p>題目：<code>buf</code> 佔幾個 byte？</p>
 </blockquote>
-<pre><code>24bytes
-</code></pre>
-<blockquote>
-<p><strong>批改（第 2 次，重答，2026-10-04）</strong>：<strong>對</strong>。</p>
-<p><strong>參考答案</strong>【筆記<a href="../../c/%E9%99%A3%E5%88%97%E3%80%81%E5%AD%97%E4%B8%B2%E8%88%87%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97-C%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%88%87%E7%94%A8gdb%E6%89%BEsegfault.html#%E4%B8%83addresssanitizer%E5%9C%A8%E7%AC%AC%E4%B8%80%E6%AC%A1%E8%B6%8A%E7%95%8C%E7%9A%84%E7%95%B6%E4%B8%8B%E6%8A%93%E5%88%B0%E5%AE%83">第七節</a>〈<code>[96, 101)</code> 怎麼讀：半開區間、偏移與影子 byte〉】：區間的單位是 byte，半開區間的長度 = 右端 − 左端 = 40 − 16 = <strong>24 byte</strong>。</p>
-</blockquote>
+<div class="answer-box locked"><textarea readonly spellcheck="false">24bytes
+</textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+<details class="answer"><summary>批改（第 2 次，重答，2026-10-04）</summary>
+<p><strong>對</strong>。</p>
+<details class="answer"><summary>參考答案</summary>
+<p>【筆記<a href="../../c/%E9%99%A3%E5%88%97%E3%80%81%E5%AD%97%E4%B8%B2%E8%88%87%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97-C%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%88%87%E7%94%A8gdb%E6%89%BEsegfault.html#%E4%B8%83addresssanitizer%E5%9C%A8%E7%AC%AC%E4%B8%80%E6%AC%A1%E8%B6%8A%E7%95%8C%E7%9A%84%E7%95%B6%E4%B8%8B%E6%8A%93%E5%88%B0%E5%AE%83">第七節</a>〈<code>[96, 101)</code> 怎麼讀：半開區間、偏移與影子 byte〉】：區間的單位是 byte，半開區間的長度 = 右端 − 左端 = 40 − 16 = <strong>24 byte</strong>。</p>
+</details>
+</details>
 <h4 id="6-2-如果它是-int-陣列有幾個元素">6-2. 如果它是 <code>int</code> 陣列，有幾個元素？</h4>
 <p><strong>第 1 次（2026-10-04）</strong></p>
-<pre><code>24個
-</code></pre>
-<blockquote>
-<p><strong>批改（第 1 次，2026-10-04）</strong>：<strong>錯</strong>。24 是 byte 數，不是元素數。</p>
+<div class="answer-box locked"><textarea readonly spellcheck="false">24個
+</textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+<details class="answer"><summary>批改（第 1 次，2026-10-04）</summary>
+<p><strong>錯</strong>。24 是 byte 數，不是元素數。</p>
 <p><strong>提示</strong>：6-1 改對之後，一個 <code>int</code> 佔幾個 byte？（題目的 <code>WRITE of size 4</code> 也在告訴你一次寫一個多大的東西。）</p>
-</blockquote>
+</details>
 <p><strong>第 2 次（重答，2026-10-04）</strong></p>
 <blockquote>
 <p>題目：如果它是 <code>int</code> 陣列，有幾個元素？</p>
 </blockquote>
-<pre><code>6
-</code></pre>
-<blockquote>
-<p><strong>批改（第 2 次，重答，2026-10-04）</strong>：<strong>對</strong>。</p>
-<p><strong>參考答案</strong>：24 byte ÷ <code>sizeof(int)</code> 4 = <strong>6 個元素</strong>（<code>int buf[6]</code>）。</p>
-</blockquote>
+<div class="answer-box locked"><textarea readonly spellcheck="false">6
+</textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+<details class="answer"><summary>批改（第 2 次，重答，2026-10-04）</summary>
+<p><strong>對</strong>。</p>
+<details class="answer"><summary>參考答案</summary>
+<p>24 byte ÷ <code>sizeof(int)</code> 4 = <strong>6 個元素</strong>（<code>int buf[6]</code>）。</p>
+</details>
+</details>
 <h4 id="6-3-這次寫到的是-buf-的第幾格索引多少">6-3. 這次寫到的是 <code>buf</code> 的第幾格（索引多少）？</h4>
 <p><strong>第 1 次（2026-10-04）</strong></p>
-<pre><code>24
-</code></pre>
-<blockquote>
-<p><strong>批改（第 1 次，2026-10-04）</strong>：<strong>錯</strong>。</p>
+<div class="answer-box locked"><textarea readonly spellcheck="false">24
+</textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+<details class="answer"><summary>批改（第 1 次，2026-10-04）</summary>
+<p><strong>錯</strong>。</p>
 <p><strong>提示</strong>【同 6-1 那一小節：「右端那個數字就是『剛好超出結尾』的第一個 byte」】：寫入的偏移 40 離 <code>buf</code> 的開頭（偏移 16）幾個 byte？一格幾個 byte？算出來的索引，跟 6-2 的元素個數比，有什麼關係？</p>
-</blockquote>
+</details>
 <p><strong>第 2 次（重答，2026-10-04）</strong></p>
 <blockquote>
 <p>題目：這次寫到的是 <code>buf</code> 的第幾格（索引多少）？</p>
 </blockquote>
-<pre><code>5
-</code></pre>
-<blockquote>
-<p><strong>批改（第 2 次，重答，2026-10-04）</strong>：<strong>錯</strong>。5 是 <code>buf</code> <strong>最後一個合法的索引</strong>，但題目說存取的是 <code>offset 40</code>，而 40 正是區間右端、<strong>不屬於</strong> <code>buf</code> 的第一個 byte（<code>overflows this variable</code>）。寫到 <code>buf[5]</code> 不會被報錯。</p>
-<p><strong>參考答案</strong>【筆記<a href="../../c/%E9%99%A3%E5%88%97%E3%80%81%E5%AD%97%E4%B8%B2%E8%88%87%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97-C%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%88%87%E7%94%A8gdb%E6%89%BEsegfault.html#%E4%B8%83addresssanitizer%E5%9C%A8%E7%AC%AC%E4%B8%80%E6%AC%A1%E8%B6%8A%E7%95%8C%E7%9A%84%E7%95%B6%E4%B8%8B%E6%8A%93%E5%88%B0%E5%AE%83">第七節</a>〈<code>[96, 101)</code> 怎麼讀〉「右端那個數字就是『剛好超出結尾』的第一個 byte」】：
+<div class="answer-box locked"><textarea readonly spellcheck="false">5
+</textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+<details class="answer"><summary>批改（第 2 次，重答，2026-10-04）</summary>
+<p><strong>錯</strong>。5 是 <code>buf</code> <strong>最後一個合法的索引</strong>，但題目說存取的是 <code>offset 40</code>，而 40 正是區間右端、<strong>不屬於</strong> <code>buf</code> 的第一個 byte（<code>overflows this variable</code>）。寫到 <code>buf[5]</code> 不會被報錯。</p>
+<details class="answer"><summary>參考答案</summary>
+<p>【筆記<a href="../../c/%E9%99%A3%E5%88%97%E3%80%81%E5%AD%97%E4%B8%B2%E8%88%87%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97-C%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%88%87%E7%94%A8gdb%E6%89%BEsegfault.html#%E4%B8%83addresssanitizer%E5%9C%A8%E7%AC%AC%E4%B8%80%E6%AC%A1%E8%B6%8A%E7%95%8C%E7%9A%84%E7%95%B6%E4%B8%8B%E6%8A%93%E5%88%B0%E5%AE%83">第七節</a>〈<code>[96, 101)</code> 怎麼讀〉「右端那個數字就是『剛好超出結尾』的第一個 byte」】：
 (40 − 16) ÷ 4 = <strong>6</strong>，寫到的是 <code>buf[6]</code>——6 個元素的索引是 0～5，<code>buf[6]</code> 剛好超出結尾一格（典型的 <code>i &lt;= n</code> 錯誤）。</p>
-</blockquote>
+</details>
+</details>
 <h4 id="6-4-影子-byte-那一列裡buf-會是幾個什麼樣的影子-byte">6-4. 影子 byte 那一列裡，<code>buf</code> 會是幾個什麼樣的影子 byte？</h4>
 <p><strong>第 1 次（2026-10-04）</strong></p>
-<pre><code>不記得影子byte了
-</code></pre>
-<blockquote>
-<p><strong>批改（第 1 次，2026-10-04）</strong>：<strong>未作答</strong>。</p>
+<div class="answer-box locked"><textarea readonly spellcheck="false">不記得影子byte了
+</textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+<details class="answer"><summary>批改（第 1 次，2026-10-04）</summary>
+<p><strong>未作答</strong>。</p>
 <p><strong>提示</strong>【筆記<a href="../../c/%E9%99%A3%E5%88%97%E3%80%81%E5%AD%97%E4%B8%B2%E8%88%87%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97-C%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%88%87%E7%94%A8gdb%E6%89%BEsegfault.html#%E4%B8%83addresssanitizer%E5%9C%A8%E7%AC%AC%E4%B8%80%E6%AC%A1%E8%B6%8A%E7%95%8C%E7%9A%84%E7%95%B6%E4%B8%8B%E6%8A%93%E5%88%B0%E5%AE%83">第七節</a>〈<code>[96, 101)</code> 怎麼讀：半開區間、偏移與影子 byte〉「影子 byte 那一列跟區間是同一件事的另一種寫法」那一段】：
 1 個影子 byte 代表幾個真正的 byte？<code>buf</code> 的 byte 數（6-1）除下去是幾組？每一組的 8 個 byte 是全部可以碰、還是只有前幾個可以碰？全部可以碰的那一組，影子 byte 寫成什麼？</p>
-</blockquote>
+</details>
 <p><strong>第 2 次（重答，2026-10-04）</strong></p>
 <blockquote>
 <p>題目：影子 byte 那一列裡，<code>buf</code> 會是幾個什麼樣的影子 byte？</p>
 </blockquote>
-<pre><code>00 00 00
-</code></pre>
-<blockquote>
-<p><strong>批改（第 2 次，重答，2026-10-04）</strong>：<strong>對</strong>。</p>
-<p><strong>參考答案</strong>【筆記<a href="../../c/%E9%99%A3%E5%88%97%E3%80%81%E5%AD%97%E4%B8%B2%E8%88%87%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97-C%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%88%87%E7%94%A8gdb%E6%89%BEsegfault.html#%E4%B8%83addresssanitizer%E5%9C%A8%E7%AC%AC%E4%B8%80%E6%AC%A1%E8%B6%8A%E7%95%8C%E7%9A%84%E7%95%B6%E4%B8%8B%E6%8A%93%E5%88%B0%E5%AE%83">第七節</a>〈<code>[96, 101)</code> 怎麼讀〉】：1 個影子 byte 代表 8 個 byte，24 byte 剛好 3 組、每組 8 個 byte 全部可以碰，所以是 <strong>3 個 <code>00</code></strong>，後面接右禁區 <code>f3</code>。本機實測 <code>int buf[6]</code> 越界寫 <code>buf[6]</code>：<code>f1 f1 f1 f1 f1 f1 04 f2 00 00 00[f3]f3 f3 f3 f3</code>（<code>04</code> 是另一個 <code>int</code> 變數，<code>[f3]</code> 是這次寫到的地方）。</p>
-</blockquote>
+<div class="answer-box locked"><textarea readonly spellcheck="false">00 00 00
+</textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+<details class="answer"><summary>批改（第 2 次，重答，2026-10-04）</summary>
+<p><strong>對</strong>。</p>
+<details class="answer"><summary>參考答案</summary>
+<p>【筆記<a href="../../c/%E9%99%A3%E5%88%97%E3%80%81%E5%AD%97%E4%B8%B2%E8%88%87%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97-C%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%88%87%E7%94%A8gdb%E6%89%BEsegfault.html#%E4%B8%83addresssanitizer%E5%9C%A8%E7%AC%AC%E4%B8%80%E6%AC%A1%E8%B6%8A%E7%95%8C%E7%9A%84%E7%95%B6%E4%B8%8B%E6%8A%93%E5%88%B0%E5%AE%83">第七節</a>〈<code>[96, 101)</code> 怎麼讀〉】：1 個影子 byte 代表 8 個 byte，24 byte 剛好 3 組、每組 8 個 byte 全部可以碰，所以是 <strong>3 個 <code>00</code></strong>，後面接右禁區 <code>f3</code>。本機實測 <code>int buf[6]</code> 越界寫 <code>buf[6]</code>：<code>f1 f1 f1 f1 f1 f1 04 f2 00 00 00[f3]f3 f3 f3 f3</code>（<code>04</code> 是另一個 <code>int</code> 變數，<code>[f3]</code> 是這次寫到的地方）。</p>
+</details>
+</details>
 
 </main>
 </div>

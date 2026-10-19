@@ -84,6 +84,14 @@ def save_answer(rel, line, original, content):
 
 
 class Handler(SimpleHTTPRequestHandler):
+    # 原始碼與 .md 一律當 UTF-8 純文字送出：不寫 charset，瀏覽器會用錯編碼把中文顯示成亂碼；.gdb 這類沒登記的副檔名還會變成下載
+    TEXT_SUFFIXES = {".md", ".c", ".h", ".s", ".S", ".rs", ".gdb", ".sh", ".ld", ".toml", ".txt"}
+
+    def guess_type(self, path):
+        if Path(path).suffix in self.TEXT_SUFFIXES or Path(path).name in ("Makefile", "Kbuild", "Kconfig"):
+            return "text/plain; charset=utf-8"
+        return super().guess_type(path)
+
     def end_headers(self):
         self.send_header("Cache-Control", "no-store")
         super().end_headers()

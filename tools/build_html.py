@@ -2,7 +2,7 @@
 """把筆記的 .md 轉成 html/ 底下的 .html（.md 是原稿，html/ 是產物）。
 
 用法：python3 tools/build_html.py
-不轉的：tools/、html/、CLAUDE.md、learning/ 的兩個追蹤檔。
+不轉的：tools/、html/、CLAUDE.md。
 small-project/ 與 review/ 的作答框會變成輸入框，透過 tools/serve.py 寫回 .md。
 """
 import html
@@ -26,7 +26,7 @@ ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "html"
 SKIP_DIRS = {"tools", "html", ".git"}
 PRACTICE_DIRS = ("small-project", "review")  # 作答區，不是筆記領域
-SKIP_FILES = {"CLAUDE.md", "learning/學習進度.md", "learning/複習排程.md"}
+SKIP_FILES = {"CLAUDE.md"}
 LANG_ALIAS = {"asm": "gas", "sh": "bash", "zsh": "bash", "jsonc": "json", "console": "console"}
 
 
@@ -98,7 +98,7 @@ def rewrite_href(href, src_rel, converted, out_dir=None):
     if target_rel.as_posix() in converted:
         new = os.path.relpath(OUT / target_rel.with_suffix(".html"), out_dir)
     else:
-        # 沒轉的檔（small-project、review、追蹤檔、原始碼）：直接指回 repo 裡的原檔
+        # 沒轉的檔（原始碼、CLAUDE.md）：直接指回 repo 裡的原檔
         new = os.path.relpath(target, out_dir)
         if path.endswith("/") and not new.endswith("/"):
             new += "/"
@@ -176,16 +176,21 @@ def mark_answer_boxes(tokens, src_rel, lines):
         label = lines[k]
         if label.startswith("> 題目：") and k > 0:
             label = lines[k - 2] if not lines[k - 1].strip() and k > 1 else lines[k - 1]
-        d = DATE.search(label) or DATE.match(src_rel.name)
-        if d and d.group(0) < EDITABLE_SINCE:
-            continue
+        # 只有「**第 N 次（日期）**」的日期是作答日期；`> 盒子…過去的作答` 那行的日期是連結到舊複習檔的，不能拿來判斷
+        d = (DATE.search(label) if label.lstrip().startswith("**") else None) or DATE.match(src_rel.name)
+        old = bool(d and d.group(0) < EDITABLE_SINCE)
         k = end
         while k < len(lines) and not lines[k].strip():
             k += 1
         graded = k < len(lines) and lines[k].strip().startswith("> **批改")
-        if graded:
-            continue
         t.type = "html_block"
+        # 已批改或舊格式的作答框：外觀一樣是輸入框，但唯讀、沒有儲存鈕
+        if graded or old:
+            note = "已批改，不能再修改" if graded else "2026-10-08 以前的舊格式作答，唯讀"
+            t.content = (f'<div class="answer-box locked"><textarea readonly spellcheck="false">'
+                         f'{html.escape(t.content)}</textarea>'
+                         f'<div class="answer-bar"><span class="status">🔒 {note}</span></div></div>\n')
+            continue
         t.content = (f'<div class="answer-box" data-file="{html.escape(src_rel.as_posix())}" data-line="{start}">'
                      f'<textarea spellcheck="false" placeholder="在這裡作答">{html.escape(t.content)}</textarea>'
                      '<div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button>'
@@ -195,9 +200,9 @@ def mark_answer_boxes(tokens, src_rel, lines):
 
 
 def transform(tokens, src_rel, converted, md, out_dir=None):
-    """改連結、加 heading id、把「參考答案」引言區塊換成 <details>。回傳 (title, toc)。"""
+    """改連結、加 heading id、把「參考答案」「批改」引言區塊換成 <details>。回傳 (title, toc)。"""
     title, toc, seen = None, [], {}
-    stack = []  # 每個 blockquote_open 是否被換成 details
+    stack = []  # 每個 blockquote_open 結束時要補幾個 </details>（0 ＝ 一般引言）
     for i, t in enumerate(tokens):
         if t.type == "heading_open":
             text = inline_text(tokens[i + 1])
@@ -226,23 +231,48 @@ def transform(tokens, src_rel, converted, md, out_dir=None):
                 elif c.type == "image":
                     c.attrSet("src", rewrite_href(c.attrGet("src"), src_rel, converted, out_dir))
         elif t.type == "blockquote_open":
-            is_answer = False
-            if i + 2 < len(tokens) and tokens[i + 1].type == "paragraph_open":
-                ch = tokens[i + 2].children or []
-                k = 1 if ch and ch[0].type == "text" and ch[0].content == "" else 0
-                if (len(ch) >= k + 3 and ch[k].type == "strong_open"
-                        and ch[k + 1].content.strip() == "參考答案"):
-                    is_answer = True
-                    del ch[0:k + 3]
-            stack.append(is_answer)
-            if is_answer:
+            label = lead_label(tokens, i + 1)
+            stack.append(0)
+            if label == "參考答案" or (label or "").startswith("批改"):
+                strip_lead_label(tokens[i + 2])
+                summary = label
+                stack[-1] = 1
                 t.type, t.tag, t.nesting = "html_block", "", 0
-                t.content = '<details class="answer"><summary>參考答案</summary>\n'
+                t.content = f'<details class="answer"><summary>{html.escape(summary)}</summary>\n'
+        elif t.type == "paragraph_open" and stack and stack[-1] == 1 and lead_label(tokens, i) == "參考答案":
+            # 批改區塊裡的「參考答案」段落：從這段到區塊結尾再摺一層，先看批改、想過再打開答案
+            strip_lead_label(tokens[i + 1])
+            stack[-1] = 2
+            t.type, t.tag, t.nesting = "html_block", "", 0
+            t.content = '<details class="answer"><summary>參考答案</summary>\n<p>'
         elif t.type == "blockquote_close":
-            if stack.pop():
+            n = stack.pop()
+            if n:
                 t.type, t.tag, t.nesting = "html_block", "", 0
-                t.content = "</details>\n"
+                t.content = "</details>\n" * n
     return title, toc
+
+
+def lead_label(tokens, i):
+    """tokens[i] 是 paragraph_open 而且段落以粗體開頭時，回傳粗體的文字（例如「參考答案」「批改（第 2 次）」）。"""
+    if i + 1 >= len(tokens) or tokens[i].type != "paragraph_open":
+        return None
+    ch = tokens[i + 1].children or []
+    k = 1 if ch and ch[0].type == "text" and ch[0].content == "" else 0
+    if len(ch) >= k + 3 and ch[k].type == "strong_open" and ch[k + 2].type == "strong_close":
+        return ch[k + 1].content.strip()
+    return None
+
+
+def strip_lead_label(inline):
+    """拿掉段落開頭的粗體標籤（已經放進 <summary>），連同後面的「：」。"""
+    ch = inline.children
+    k = 1 if ch[0].type == "text" and ch[0].content == "" else 0
+    del ch[0:k + 3]
+    if ch and ch[0].type == "text":
+        ch[0].content = ch[0].content.lstrip("：: ")
+    while ch and ch[0].type in ("softbreak", "hardbreak") or (ch and ch[0].type == "text" and not ch[0].content):
+        del ch[0]
 
 
 # ---------- 版面 ----------
@@ -292,8 +322,14 @@ details.answer{margin:.6em 0;border:1px solid var(--accent);border-radius:6px;ba
 details.answer>summary{cursor:pointer;color:var(--accent);font-weight:600;padding:6px 0;user-select:none}
 details.answer[open]>summary{border-bottom:1px dashed var(--accent);margin-bottom:6px}
 .menu-btn{display:none}
+details.answer details.answer{margin:.8em 0 .4em}
+.code-wrap{position:relative}.code-wrap pre{margin:1em 0}
+.copy-btn{position:absolute;top:6px;right:6px;font-size:12px;padding:1px 8px;opacity:.55}
+.code-wrap:hover .copy-btn,.copy-btn:focus{opacity:1}.copy-btn.done{color:var(--accent);border-color:var(--accent)}
 .answer-box{margin:.6em 0 1em;border:1px solid var(--link);border-radius:6px;background:var(--q);padding:8px}
 .answer-box.dirty{border-color:var(--accent)}
+.answer-box.locked{border-color:var(--line);background:var(--code-bg)}
+.answer-box.locked textarea{resize:none;cursor:default;color:var(--fg);opacity:.9}
 .answer-box textarea{width:100%;min-height:5.5em;resize:vertical;border:1px solid var(--line);border-radius:4px;
 padding:8px 10px;background:var(--bg);color:var(--fg);font:14px/1.55 "JetBrains Mono","Fira Code",ui-monospace,
 Menlo,Consolas,"Noto Sans Mono CJK TC",monospace}
@@ -364,11 +400,31 @@ window.saveAnswer=function(btn){
 };
 window.addEventListener('beforeunload',function(e){
   if(document.querySelector('.answer-box.dirty')){e.preventDefault();e.returnValue='';}});
+// 程式碼區塊的「複製」按鈕；navigator.clipboard 只在 localhost／https 能用，file:// 改用 execCommand
+function copyText(text){
+  if(navigator.clipboard&&window.isSecureContext)return navigator.clipboard.writeText(text);
+  return new Promise(function(ok,fail){var ta=document.createElement('textarea');ta.value=text;
+    ta.style.position='fixed';ta.style.opacity='0';document.body.appendChild(ta);ta.select();
+    var r=false;try{r=document.execCommand('copy');}catch(e){}document.body.removeChild(ta);r?ok():fail();});
+}
+function addCopyButtons(){
+  document.querySelectorAll('main pre').forEach(function(pre){
+    var wrap=document.createElement('div');wrap.className='code-wrap';
+    pre.parentNode.insertBefore(wrap,pre);wrap.appendChild(pre);
+    var b=document.createElement('button');b.className='copy-btn';b.type='button';b.textContent='複製';
+    b.onclick=function(){var code=pre.querySelector('code')||pre;
+      copyText(code.textContent).then(function(){b.textContent='✓ 已複製';b.classList.add('done');},
+        function(){b.textContent='複製失敗';})
+      .then(function(){setTimeout(function(){b.textContent='複製';b.classList.remove('done');},1500);});};
+    wrap.appendChild(b);});
+}
 document.addEventListener('DOMContentLoaded',function(){
+  addCopyButtons();
   document.querySelectorAll('main h1[id],main h2[id],main h3[id],main h4[id]').forEach(function(h){
     var a=document.createElement('a');a.className='anchor';a.href='#'+h.id;a.textContent='#';h.appendChild(a);});
   document.querySelectorAll('.answer-box textarea').forEach(function(ta){
     var box=ta.closest('.answer-box'),st=box.querySelector('.status');fit(ta);
+    if(box.classList.contains('locked'))return;
     if(location.protocol==='file:'){ta.readOnly=true;box.querySelector('.save').disabled=true;
       st.textContent='唯讀：用 python3 tools/serve.py 開啟才能作答存檔';return;}
     ta.addEventListener('input',function(){fit(ta);var d=ta.value!==ta.defaultValue;box.classList.toggle('dirty',d);

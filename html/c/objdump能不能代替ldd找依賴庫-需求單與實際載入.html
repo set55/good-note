@@ -445,7 +445,13 @@ $ ./app                                     # 實際執行：跟 ldd 說的一�
 </blockquote>
 <ol>
 <li><code>objdump -p /usr/bin/curl</code> 只列出 3 個 <code>NEEDED</code>，<code>ldd</code> 卻列出 33 行。多出來的是哪幾類東西？為什麼 <code>objdump</code> 看不到？<details class="answer"><summary>參考答案</summary>
-<p>【<a href="#%E4%BA%8C%E7%82%BA%E4%BB%80%E9%BA%BC%E6%9C%83%E5%B7%AE%E9%80%99%E9%BA%BC%E5%A4%9A%E5%85%A9%E8%80%85%E7%9C%8B%E7%9A%84%E6%98%AF%E4%B8%8D%E5%90%8C%E6%99%82%E9%96%93%E9%BB%9E">第二節</a>】多出來的是 (1) <strong>間接依賴</strong>（最大宗，例如 <code>libssl.so.3</code> 是 <code>libcurl.so.4</code> 要的，不是 <code>curl</code> 自己要的）、(2) <code>linux-vdso.so.1</code>（核心提供的虛擬函式庫）、(3) 動態載入器本身。<code>objdump -p</code> 只讀連結時寫進 <code>curl</code> 的需求單（只有直接依賴）；<code>ldd</code> 是請載入器實際跑一次，才拿到完整清單。</p>
+<p>【<a href="#%E4%BA%8C%E7%82%BA%E4%BB%80%E9%BA%BC%E6%9C%83%E5%B7%AE%E9%80%99%E9%BA%BC%E5%A4%9A%E5%85%A9%E8%80%85%E7%9C%8B%E7%9A%84%E6%98%AF%E4%B8%8D%E5%90%8C%E6%99%82%E9%96%93%E9%BB%9E">第二節</a>】（2026-10-19 改寫成核心關鍵格式）</p>
+<p>核心關鍵：</p>
+<ol>
+<li>多出來的三類：<strong>間接依賴</strong>（最大宗，例如 <code>libssl.so.3</code> 是 <code>libcurl.so.4</code> 要的，不是 <code>curl</code> 自己要的）、<code>linux-vdso.so.1</code>（核心提供的虛擬函式庫）、動態載入器本身。</li>
+<li><code>objdump -p</code> 只讀連結時寫進 <code>curl</code> 的需求單（<code>NEEDED</code>），裡面<strong>只有直接依賴</strong>；<code>ldd</code> 是請載入器實際跑一次，才拿到完整清單。</li>
+</ol>
+<p>詳細說明：<code>NEEDED</code> 放在 dynamic section，不在檔頭。另外兩類也不會出現在 <code>curl</code> 的需求單裡：vdso 是核心在執行時直接放進行程的，沒有對應的檔案；載入器的路徑寫在 <code>INTERP</code>，不在 <code>NEEDED</code>。</p>
 </details>
 </li>
 <li><code>ldd</code> 是怎麼得到依賴清單的？從這個機制解釋：為什麼對來路不明的執行檔用 <code>ldd</code> 有風險，<code>objdump -p</code> 卻沒有？<details class="answer"><summary>參考答案</summary>

@@ -12,7 +12,7 @@
 <div class="layout">
 <nav class="side">
 <div class="crumbs"><a href="../index.html">🏠 首頁</a> / <a href="README.html">review</a></div>
-<div class="tools"><button onclick="toggleTheme()">🌓 主題</button></div>
+<div class="tools"><button onclick="toggleTheme()">🌓 主題</button><button onclick="toggleAnswers(true)">展開答案</button><button onclick="toggleAnswers(false)">收起答案</button></div>
 <ul>
 <li class="l2"><a href="#%E6%89%B9%E6%94%B9%E7%B5%90%E6%9E%9C2026-10-05">批改結果（2026-10-05）</a></li>
 <li class="l2"><a href="#%E4%BB%8A%E5%A4%A9%E7%9A%84%E9%A1%8C%E7%9B%AE">今天的題目</a></li>
@@ -36,7 +36,7 @@
 <main>
 <h1 id="2026-10-05-複習gcc陣列gnuc資料字元">2026-10-05 複習：gcc、陣列、GNU、C資料、字元</h1>
 <blockquote>
-<p>依 <a href="../../learning/%E8%A4%87%E7%BF%92%E6%8E%92%E7%A8%8B.md">複習排程</a> 選出今天到期的 10 題。今天上第 4 課（組合語言），依規則開頭放 5 題相關的到期題：
+<p>依 <a href="../learning/%E8%A4%87%E7%BF%92%E6%8E%92%E7%A8%8B.html">複習排程</a> 選出今天到期的 10 題。今天上第 4 課（組合語言），依規則開頭放 5 題相關的到期題：
 gcc 3、gcc 4（<code>-O0</code>／<code>-O2</code> 會在本課逐行讀到），陣列 2、3、6（第 3 課批改後指定「下一課開頭先複習」的三個觀念：<code>&amp;a</code> 的型別、字串常數在 <code>.rodata</code>、半開區間）；其餘 5 題依<strong>過期最久 → 盒子小 → 上次作答較早</strong>挑選。今天到期的共 41 題，沒選到的順延，日期不動。</p>
 <p><strong>怎麼寫</strong>：闔上筆記，每題寫 1～2 句關鍵句就好。寫完說「幫我批改」。複習不重答，批改會直接附參考答案。
 <strong>建議先寫完這份，再讀第 4 課筆記。</strong></p>
@@ -135,23 +135,27 @@ gcc 3、gcc 4（<code>-O0</code>／<code>-O2</code> 會在本課逐行讀到）�
 <blockquote>
 <p>盒子 1｜過去的作答：<a href="../small-project/s1-01-hello-compile/quiz.html#3--o2-%E4%B8%8B-answer-%E7%9B%B4%E6%8E%A5%E8%AE%8A%E6%88%90-movl-5050-eax%E7%B7%A8%E8%AD%AF%E5%99%A8%E5%81%9A%E4%BA%86%E5%93%AA%E5%85%A9%E4%BB%B6%E4%BA%8B%E6%89%8D%E8%83%BD%E5%81%9A%E5%88%B0">s1-01 quiz.md 第 3 題</a></p>
 </blockquote>
-<pre><code>編譯器發現sum_to的參數是常數, 在編譯階段直接把sum_to的答案算出來
-</code></pre>
-<blockquote>
-<p><strong>批改</strong>：<strong>不完整</strong>（盒子 1 → 1）。你只講出第 2 步「編譯時把答案算出來」（常數摺疊），漏了第 1 步<strong>內嵌</strong>。而且「<code>sum_to</code> 的參數是常數」這件事，<strong>要先內嵌才成立</strong>：只看 <code>sum_to(int n)</code> 本身，<code>n</code> 是呼叫的人才知道的值，編譯器沒辦法事先算。上次也只答出一步。</p>
-<p><strong>參考答案</strong>【<a href="../c/gcc%E6%9C%80%E4%BD%B3%E5%8C%96%E7%AD%89%E7%B4%9A-O0%E5%88%B0O3%E5%B7%AE%E5%9C%A8%E5%93%AA.html#%E4%BA%8C%E5%AF%A6%E9%A9%97%E5%90%8C%E4%B8%80%E6%AE%B5%E7%A8%8B%E5%BC%8F%E4%B8%8D%E5%90%8C%E7%AD%89%E7%B4%9A%E7%B7%A8%E5%87%BA%E4%BB%80%E9%BA%BC">gcc最佳化等級第二節</a>〈「內嵌」是什麼〉】：(1) <strong>內嵌（inline）</strong>：把 <code>sum_to</code> 的本體整段複製進 <code>answer</code>，取代呼叫，<code>n</code> 換成 100；(2) <strong>常數摺疊（constant folding）</strong>：內嵌後迴圈的次數和所有數字在編譯時都已知，直接算出 5050。兩步缺一不可，所以第 4 課看到的 <code>answer:</code> 只剩 <code>movl $5050, %eax</code> 和 <code>ret</code>。</p>
-</blockquote>
+<div class="answer-box locked"><textarea readonly spellcheck="false">編譯器發現sum_to的參數是常數, 在編譯階段直接把sum_to的答案算出來
+</textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+<details class="answer"><summary>批改</summary>
+<p><strong>不完整</strong>（盒子 1 → 1）。你只講出第 2 步「編譯時把答案算出來」（常數摺疊），漏了第 1 步<strong>內嵌</strong>。而且「<code>sum_to</code> 的參數是常數」這件事，<strong>要先內嵌才成立</strong>：只看 <code>sum_to(int n)</code> 本身，<code>n</code> 是呼叫的人才知道的值，編譯器沒辦法事先算。上次也只答出一步。</p>
+<details class="answer"><summary>參考答案</summary>
+<p>【<a href="../c/gcc%E6%9C%80%E4%BD%B3%E5%8C%96%E7%AD%89%E7%B4%9A-O0%E5%88%B0O3%E5%B7%AE%E5%9C%A8%E5%93%AA.html#%E4%BA%8C%E5%AF%A6%E9%A9%97%E5%90%8C%E4%B8%80%E6%AE%B5%E7%A8%8B%E5%BC%8F%E4%B8%8D%E5%90%8C%E7%AD%89%E7%B4%9A%E7%B7%A8%E5%87%BA%E4%BB%80%E9%BA%BC">gcc最佳化等級第二節</a>〈「內嵌」是什麼〉】：(1) <strong>內嵌（inline）</strong>：把 <code>sum_to</code> 的本體整段複製進 <code>answer</code>，取代呼叫，<code>n</code> 換成 100；(2) <strong>常數摺疊（constant folding）</strong>：內嵌後迴圈的次數和所有數字在編譯時都已知，直接算出 5050。兩步缺一不可，所以第 4 課看到的 <code>answer:</code> 只剩 <code>movl $5050, %eax</code> 和 <code>ret</code>。</p>
+</details>
+</details>
 <h3 id="gcc-4-最佳化等級越高程式越小對嗎用本篇的數字說明">gcc 4. 「最佳化等級越高，程式越小」對嗎？用本篇的數字說明。</h3>
 <blockquote>
 <p>盒子 1｜過去的作答：<a href="../small-project/s1-01-hello-compile/quiz.html#4-%E6%9C%80%E4%BD%B3%E5%8C%96%E7%AD%89%E7%B4%9A%E8%B6%8A%E9%AB%98%E7%A8%8B%E5%BC%8F%E8%B6%8A%E5%B0%8F%E5%B0%8D%E5%97%8E%E7%94%A8%E6%9C%AC%E7%AF%87%E7%9A%84%E6%95%B8%E5%AD%97%E8%AA%AA%E6%98%8E">s1-01 quiz.md 第 4 題</a></p>
 </blockquote>
-<pre><code>不一定,最佳化等級只是代表最佳化的方式
+<div class="answer-box locked"><textarea readonly spellcheck="false">不一定,最佳化等級只是代表最佳化的方式
 例如從O0到O2 程式變大
-</code></pre>
-<blockquote>
-<p><strong>批改</strong>：<strong>大致對</strong>（盒子 1 → 1）。判斷對（不對），例子的方向也對（<code>-O0</code> → <code>-O2</code> 變大）。但題目要求「用本篇的數字」，你沒有給數字；理由也只寫「最佳化的方式」，沒講出「用空間換時間」。</p>
-<p><strong>參考答案</strong>【<a href="../c/gcc%E6%9C%80%E4%BD%B3%E5%8C%96%E7%AD%89%E7%B4%9A-O0%E5%88%B0O3%E5%B7%AE%E5%9C%A8%E5%93%AA.html#%E4%BA%8C%E5%AF%A6%E9%A9%97%E5%90%8C%E4%B8%80%E6%AE%B5%E7%A8%8B%E5%BC%8F%E4%B8%8D%E5%90%8C%E7%AD%89%E7%B4%9A%E7%B7%A8%E5%87%BA%E4%BB%80%E9%BA%BC">gcc最佳化等級第二節</a>〈大小〉】：不對。本機 <code>.text</code> 大小：<code>-Oz</code> 30、<code>-Os</code> 35、<code>-O0</code> 70、<code>-O2</code> 90、<code>-O3</code> 234 byte。<code>-O2</code>、<code>-O3</code> 以速度為目標，會把迴圈展開、改寫（第 4 課看到 <code>-O2</code> 的 <code>sum_to</code> 為了一圈加兩個數，指令從 16 個變成 21 個），是用空間換時間。真的要小，要用 <code>-Os</code>／<code>-Oz</code>。</p>
-</blockquote>
+</textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+<details class="answer"><summary>批改</summary>
+<p><strong>大致對</strong>（盒子 1 → 1）。判斷對（不對），例子的方向也對（<code>-O0</code> → <code>-O2</code> 變大）。但題目要求「用本篇的數字」，你沒有給數字；理由也只寫「最佳化的方式」，沒講出「用空間換時間」。</p>
+<details class="answer"><summary>參考答案</summary>
+<p>【<a href="../c/gcc%E6%9C%80%E4%BD%B3%E5%8C%96%E7%AD%89%E7%B4%9A-O0%E5%88%B0O3%E5%B7%AE%E5%9C%A8%E5%93%AA.html#%E4%BA%8C%E5%AF%A6%E9%A9%97%E5%90%8C%E4%B8%80%E6%AE%B5%E7%A8%8B%E5%BC%8F%E4%B8%8D%E5%90%8C%E7%AD%89%E7%B4%9A%E7%B7%A8%E5%87%BA%E4%BB%80%E9%BA%BC">gcc最佳化等級第二節</a>〈大小〉】：不對。本機 <code>.text</code> 大小：<code>-Oz</code> 30、<code>-Os</code> 35、<code>-O0</code> 70、<code>-O2</code> 90、<code>-O3</code> 234 byte。<code>-O2</code>、<code>-O3</code> 以速度為目標，會把迴圈展開、改寫（第 4 課看到 <code>-O2</code> 的 <code>sum_to</code> 為了一圈加兩個數，指令從 16 個變成 21 個），是用空間換時間。真的要小，要用 <code>-Os</code>／<code>-Oz</code>。</p>
+</details>
+</details>
 <hr />
 <h2 id="陣列陣列字串與指標運算-c不檢查邊界與用gdb找segfault">陣列：<a href="../c/%E9%99%A3%E5%88%97%E3%80%81%E5%AD%97%E4%B8%B2%E8%88%87%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97-C%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%88%87%E7%94%A8gdb%E6%89%BEsegfault.html">陣列、字串與指標運算-C不檢查邊界與用gdb找segfault</a></h2>
 <h3 id="陣列-2-陣列傳進函式之後">陣列 2. 陣列傳進函式之後</h3>
@@ -159,167 +163,177 @@ gcc 3、gcc 4（<code>-O0</code>／<code>-O2</code> 會在本課逐行讀到）�
 <blockquote>
 <p>盒子 1｜過去的作答：<a href="../small-project/s1-03-arrays-pointers/quiz.html#2-1-int-a10-%E5%9C%A8-main-%E8%A3%A1-sizeof-a-%E6%98%AF-40%E5%82%B3%E9%80%B2-void-fint-a-%E4%B9%8B%E5%BE%8C-sizeof-a-%E8%AE%8A%E6%88%90-8%E7%82%BA%E4%BB%80%E9%BA%BC">s1-03 quiz.md 2-1</a></p>
 </blockquote>
-<pre><code>main裏a宣告爲陣列時,原本a會退化稱int指標,指向數組的第一個元素,但是sizeof a是例外,它是顯示整個數組的大小
+<div class="answer-box locked"><textarea readonly spellcheck="false">main裏a宣告爲陣列時,原本a會退化稱int指標,指向數組的第一個元素,但是sizeof a是例外,它是顯示整個數組的大小
 在f裏,a就死一個int指標的參數,所以f裏sizeof a 就是一個指標的大小
-</code></pre>
-<blockquote>
-<p><strong>批改</strong>：<strong>對</strong>。陣列名稱遇到 <code>sizeof</code> 不會退化，所以是整個陣列 40 byte；函式參數寫成 <code>int a[]</code> 其實就是 <code>int *a</code>，<code>sizeof</code> 量的是指標，8 byte。（錯字：「退化稱」→「成」、「就死」→「就是」。）</p>
-</blockquote>
+</textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+<details class="answer"><summary>批改</summary>
+<p><strong>對</strong>。陣列名稱遇到 <code>sizeof</code> 不會退化，所以是整個陣列 40 byte；函式參數寫成 <code>int a[]</code> 其實就是 <code>int *a</code>，<code>sizeof</code> 量的是指標，8 byte。（錯字：「退化稱」→「成」、「就死」→「就是」。）</p>
+</details>
 <h4 id="陣列-2-2-這件事對怎麼設計接收陣列的函式有什麼影響">陣列 2-2. 這件事對「怎麼設計接收陣列的函式」有什麼影響？</h4>
 <blockquote>
 <p>過去的作答：<a href="../small-project/s1-03-arrays-pointers/quiz.html#2-2-%E9%80%99%E4%BB%B6%E4%BA%8B%E5%B0%8D%E6%80%8E%E9%BA%BC%E8%A8%AD%E8%A8%88%E6%8E%A5%E6%94%B6%E9%99%A3%E5%88%97%E7%9A%84%E5%87%BD%E5%BC%8F%E6%9C%89%E4%BB%80%E9%BA%BC%E5%BD%B1%E9%9F%BF">s1-03 quiz.md 2-2</a></p>
 </blockquote>
-<pre><code>f只有拿到a陣列第一個元素的位址指標,無法知道這個陣列的大小,所以參數要多出入a陣列的長度
-</code></pre>
-<blockquote>
-<p><strong>批改</strong>：<strong>對</strong>。函式只拿到第 0 個元素的位址，長度要用另一個參數傳進去（例如 <code>void f(int *a, size_t n)</code>）。</p>
-</blockquote>
+<div class="answer-box locked"><textarea readonly spellcheck="false">f只有拿到a陣列第一個元素的位址指標,無法知道這個陣列的大小,所以參數要多出入a陣列的長度
+</textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+<details class="answer"><summary>批改</summary>
+<p><strong>對</strong>。函式只拿到第 0 個元素的位址，長度要用另一個參數傳進去（例如 <code>void f(int *a, size_t n)</code>）。</p>
+</details>
 <h4 id="陣列-2-3-a-和-a-印出來的位址一樣它們差在哪裡">陣列 2-3. <code>a</code> 和 <code>&amp;a</code> 印出來的位址一樣，它們差在哪裡？</h4>
 <blockquote>
 <p>過去的作答：<a href="../small-project/s1-03-arrays-pointers/quiz.html#2-3-a-%E5%92%8C-a-%E5%8D%B0%E5%87%BA%E4%BE%86%E7%9A%84%E4%BD%8D%E5%9D%80%E4%B8%80%E6%A8%A3%E5%AE%83%E5%80%91%E5%B7%AE%E5%9C%A8%E5%93%AA%E8%A3%A1">s1-03 quiz.md 2-3</a></p>
 </blockquote>
-<pre><code>a + 1 , 指標位移4byte, a是退化稱int的指標
+<div class="answer-box locked"><textarea readonly spellcheck="false">a + 1 , 指標位移4byte, a是退化稱int的指標
 &amp;a + 1, 指標是位移40byte, &amp;a是 int *[10]的指標類型
-</code></pre>
-<blockquote>
-<p><strong>批改</strong>：<strong>不完整</strong>。<code>a + 1</code> 走 4 byte、<code>&amp;a + 1</code> 走 40 byte，這兩點對，「差在型別」的方向也對。但<strong>型別寫錯了</strong>，而這正是上次卡住的地方：
+</textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+<details class="answer"><summary>批改</summary>
+<p><strong>不完整</strong>。<code>a + 1</code> 走 4 byte、<code>&amp;a + 1</code> 走 40 byte，這兩點對，「差在型別」的方向也對。但<strong>型別寫錯了</strong>，而這正是上次卡住的地方：
 <code>int *[10]</code> 是「10 個 <code>int *</code> 組成的陣列」，不是指標；指向整個陣列的指標要加括號，寫成 <strong><code>int (*)[10]</code></strong>。括號讓 <code>*</code> 先跟名字結合，宣告變數時是 <code>int (*p)[10] = &amp;a;</code>。整題取最差的小題，<strong>陣列 2 記為不完整</strong>（盒子 1 → 1）。</p>
-<p><strong>參考答案</strong>【<a href="../c/%E9%99%A3%E5%88%97%E3%80%81%E5%AD%97%E4%B8%B2%E8%88%87%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97-C%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%88%87%E7%94%A8gdb%E6%89%BEsegfault.html#%E4%B8%89%E9%99%A3%E5%88%97%E5%90%8D%E7%A8%B1%E4%BB%80%E9%BA%BC%E6%99%82%E5%80%99%E8%AE%8A%E6%88%90%E6%8C%87%E6%A8%99%E4%BB%80%E9%BA%BC%E6%99%82%E5%80%99%E4%B8%8D%E6%9C%83">第 3 課第三節</a>〈<code>a</code> 和 <code>&amp;a</code>：位址一樣，型別不一樣〉】：位址相同，型別不同。<code>a</code> 退化成 <code>int *</code>，指向第 0 個元素，<code>+ 1</code> 走 <code>sizeof(int)</code> = 4 byte；<code>&amp;a</code> 的型別是 <code>int (*)[10]</code>（指向「10 個 <code>int</code> 的陣列」的指標），<code>+ 1</code> 走 <code>sizeof(int[10])</code> = 40 byte。</p>
-</blockquote>
+<details class="answer"><summary>參考答案</summary>
+<p>【<a href="../c/%E9%99%A3%E5%88%97%E3%80%81%E5%AD%97%E4%B8%B2%E8%88%87%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97-C%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%88%87%E7%94%A8gdb%E6%89%BEsegfault.html#%E4%B8%89%E9%99%A3%E5%88%97%E5%90%8D%E7%A8%B1%E4%BB%80%E9%BA%BC%E6%99%82%E5%80%99%E8%AE%8A%E6%88%90%E6%8C%87%E6%A8%99%E4%BB%80%E9%BA%BC%E6%99%82%E5%80%99%E4%B8%8D%E6%9C%83">第 3 課第三節</a>〈<code>a</code> 和 <code>&amp;a</code>：位址一樣，型別不一樣〉】：位址相同，型別不同。<code>a</code> 退化成 <code>int *</code>，指向第 0 個元素，<code>+ 1</code> 走 <code>sizeof(int)</code> = 4 byte；<code>&amp;a</code> 的型別是 <code>int (*)[10]</code>（指向「10 個 <code>int</code> 的陣列」的指標），<code>+ 1</code> 走 <code>sizeof(int[10])</code> = 40 byte。</p>
+</details>
+</details>
 <h3 id="陣列-3-char-s1-與-char-s2">陣列 3. <code>char s1[]</code> 與 <code>char *s2</code></h3>
 <h4 id="陣列-3-1-char-s1--hi-和-char-s2--hi-的-hi-分別在記憶體的哪裡">陣列 3-1. <code>char s1[] = &quot;hi&quot;;</code> 和 <code>char *s2 = &quot;hi&quot;;</code> 的 <code>&quot;hi&quot;</code> 分別在記憶體的哪裡？</h4>
 <blockquote>
 <p>盒子 1｜過去的作答：<a href="../small-project/s1-03-arrays-pointers/quiz.html#3-1-char-s1--hi-%E5%92%8C-char-s2--hi-%E7%9A%84-hi-%E5%88%86%E5%88%A5%E5%9C%A8%E8%A8%98%E6%86%B6%E9%AB%94%E7%9A%84%E5%93%AA%E8%A3%A1">s1-03 quiz.md 3-1</a></p>
 </blockquote>
-<pre><code>char s1 是在stack裏
+<div class="answer-box locked"><textarea readonly spellcheck="false">char s1 是在stack裏
 char* s2 是在.rodata 常數區
-</code></pre>
-<blockquote>
-<p><strong>批改</strong>：<strong>對</strong>。精確一點的說法：<code>s1</code> 是堆疊上一個 3 byte 的陣列，裡面是 <code>&quot;hi&quot;</code> 的<strong>副本</strong>（<code>h</code>、<code>i</code>、<code>\0</code>）；<code>s2</code> 本身是堆疊上的 8 byte 指標，<code>&quot;hi&quot;</code> 本體在 <code>.rodata</code>。</p>
-</blockquote>
+</textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+<details class="answer"><summary>批改</summary>
+<p><strong>對</strong>。精確一點的說法：<code>s1</code> 是堆疊上一個 3 byte 的陣列，裡面是 <code>&quot;hi&quot;</code> 的<strong>副本</strong>（<code>h</code>、<code>i</code>、<code>\0</code>）；<code>s2</code> 本身是堆疊上的 8 byte 指標，<code>&quot;hi&quot;</code> 本體在 <code>.rodata</code>。</p>
+</details>
 <h4 id="陣列-3-2-為什麼改-s10-沒事改-s20-卻-segfault">陣列 3-2. 為什麼改 <code>s1[0]</code> 沒事，改 <code>s2[0]</code> 卻 segfault？</h4>
 <blockquote>
 <p>過去的作答：<a href="../small-project/s1-03-arrays-pointers/quiz.html#3-2-%E7%82%BA%E4%BB%80%E9%BA%BC%E6%94%B9-s10-%E6%B2%92%E4%BA%8B%E6%94%B9-s20-%E5%8D%BB-segfault">s1-03 quiz.md 3-2</a></p>
 </blockquote>
-<pre><code>因爲常數區的分頁是唯讀權限,並沒有寫入的權限
-</code></pre>
-<blockquote>
-<p><strong>批改</strong>：<strong>對</strong>。<code>.rodata</code> 被載入到權限 <code>r--p</code> 的分頁，寫入就觸發 segfault；<code>s1</code> 的副本在堆疊，堆疊是 <code>rw-p</code>，可以寫。</p>
-</blockquote>
+<div class="answer-box locked"><textarea readonly spellcheck="false">因爲常數區的分頁是唯讀權限,並沒有寫入的權限
+</textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+<details class="answer"><summary>批改</summary>
+<p><strong>對</strong>。<code>.rodata</code> 被載入到權限 <code>r--p</code> 的分頁，寫入就觸發 segfault；<code>s1</code> 的副本在堆疊，堆疊是 <code>rw-p</code>，可以寫。</p>
+</details>
 <h4 id="陣列-3-3-你會怎麼在-gdb-裡確認-3-2-的答案">陣列 3-3. 你會怎麼在 gdb 裡確認 3-2 的答案？</h4>
 <blockquote>
 <p>過去的作答：<a href="../small-project/s1-03-arrays-pointers/quiz.html#3-3-%E4%BD%A0%E6%9C%83%E6%80%8E%E9%BA%BC%E5%9C%A8-gdb-%E8%A3%A1%E7%A2%BA%E8%AA%8D-3-2-%E7%9A%84%E7%AD%94%E6%A1%88">s1-03 quiz.md 3-3</a></p>
 </blockquote>
-<pre><code>x s2 找出記憶體位址
+<div class="answer-box locked"><textarea readonly spellcheck="false">x s2 找出記憶體位址
 info proc mappings 找出s2是落於哪個位置
-</code></pre>
-<blockquote>
-<p><strong>批改</strong>：<strong>大致對</strong>。<code>info proc mappings</code> 是對的工具，但<strong>少了最關鍵的一步：看那一段的權限欄</strong>。光知道「落在哪一段」不能證明唯讀，要看到 <code>r--p</code>。另外 <code>x s2</code> 會去讀 <code>s2</code> 指向的內容，要看位址用 <code>print s2</code> 比較直接。整題 3-1、3-2 對、3-3 大致對，<strong>陣列 3 記為大致對</strong>（盒子 1 → 1）。</p>
-<p><strong>參考答案</strong>【<a href="../c/%E9%99%A3%E5%88%97%E3%80%81%E5%AD%97%E4%B8%B2%E8%88%87%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97-C%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%88%87%E7%94%A8gdb%E6%89%BEsegfault.html#%E5%9B%9B%E5%AD%97%E4%B8%B2%E4%BB%A5-0-%E7%B5%90%E5%B0%BE%E7%9A%84-char-%E9%99%A3%E5%88%97">第 3 課第四節</a>】：在 gdb 裡 <code>run</code>，讓它當在 <code>s2[0] = 'H';</code>，<code>print s2</code> 得到位址；<code>info proc mappings</code> 找到包含這個位址的那一段，權限是 <code>r--p</code>（沒有 <code>w</code>）。對照 <code>print &amp;s1</code>，落在 <code>[stack]</code>，權限 <code>rw-p</code>。</p>
-</blockquote>
+</textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+<details class="answer"><summary>批改</summary>
+<p><strong>大致對</strong>。<code>info proc mappings</code> 是對的工具，但<strong>少了最關鍵的一步：看那一段的權限欄</strong>。光知道「落在哪一段」不能證明唯讀，要看到 <code>r--p</code>。另外 <code>x s2</code> 會去讀 <code>s2</code> 指向的內容，要看位址用 <code>print s2</code> 比較直接。整題 3-1、3-2 對、3-3 大致對，<strong>陣列 3 記為大致對</strong>（盒子 1 → 1）。</p>
+<details class="answer"><summary>參考答案</summary>
+<p>【<a href="../c/%E9%99%A3%E5%88%97%E3%80%81%E5%AD%97%E4%B8%B2%E8%88%87%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97-C%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%88%87%E7%94%A8gdb%E6%89%BEsegfault.html#%E5%9B%9B%E5%AD%97%E4%B8%B2%E4%BB%A5-0-%E7%B5%90%E5%B0%BE%E7%9A%84-char-%E9%99%A3%E5%88%97">第 3 課第四節</a>】：在 gdb 裡 <code>run</code>，讓它當在 <code>s2[0] = 'H';</code>，<code>print s2</code> 得到位址；<code>info proc mappings</code> 找到包含這個位址的那一段，權限是 <code>r--p</code>（沒有 <code>w</code>）。對照 <code>print &amp;s1</code>，落在 <code>[stack]</code>，權限 <code>rw-p</code>。</p>
+</details>
+</details>
 <h3 id="陣列-6-情境題讀懂-asan-的區間">陣列 6. 情境題：讀懂 ASan 的區間</h3>
 <blockquote>
 <p>ASan 報告裡有一行 <code>[16, 40) 'buf' (line 7) &lt;== Memory access at offset 40 overflows this variable</code>，上面寫著 <code>WRITE of size 4</code>。</p>
 <p>盒子 1｜過去的作答：<a href="../small-project/s1-03-arrays-pointers/quiz.html#6-%E6%83%85%E5%A2%83%E9%A1%8C%E8%AE%80%E6%87%82-asan-%E7%9A%84%E5%8D%80%E9%96%932026-09-30-%E6%96%B0%E5%A2%9E">s1-03 quiz.md 第 6 題</a></p>
 </blockquote>
 <h4 id="陣列-6-1-buf-佔幾個-byte">陣列 6-1. <code>buf</code> 佔幾個 byte？</h4>
-<pre><code>24 byte
-</code></pre>
+<div class="answer-box locked"><textarea readonly spellcheck="false">24 byte
+</textarea><div class="answer-bar"><span class="status">🔒 2026-10-08 以前的舊格式作答，唯讀</span></div></div>
 <h4 id="陣列-6-2-如果它是-int-陣列有幾個元素">陣列 6-2. 如果它是 <code>int</code> 陣列，有幾個元素？</h4>
-<pre><code>6個
-</code></pre>
+<div class="answer-box locked"><textarea readonly spellcheck="false">6個
+</textarea><div class="answer-bar"><span class="status">🔒 2026-10-08 以前的舊格式作答，唯讀</span></div></div>
 <h4 id="陣列-6-3-這次寫到的是-buf-的第幾格索引多少">陣列 6-3. 這次寫到的是 <code>buf</code> 的第幾格（索引多少）？</h4>
-<pre><code>6
-</code></pre>
+<div class="answer-box locked"><textarea readonly spellcheck="false">6
+</textarea><div class="answer-bar"><span class="status">🔒 2026-10-08 以前的舊格式作答，唯讀</span></div></div>
 <h4 id="陣列-6-4-影子-byte-那一列裡buf-會是幾個什麼樣的影子-byte">陣列 6-4. 影子 byte 那一列裡，<code>buf</code> 會是幾個什麼樣的影子 byte？</h4>
-<pre><code>00 00 00
-</code></pre>
-<blockquote>
-<p><strong>批改（6-1～6-4）</strong>：<strong>全對</strong>。6-1：40 − 16 = 24 byte；6-2：24 ÷ 4 = 6 個；6-3：偏移 40 − 16 = 24 byte，24 ÷ 4 = <strong>索引 6</strong>（上次答成 5，這次對了：半開區間的右端 40 正好是第一個越界的 byte）；6-4：1 個影子 byte 代表 8 byte，24 byte 是 3 組，全部可存取，所以是 <strong>3 個 <code>00</code></strong>。
+<div class="answer-box locked"><textarea readonly spellcheck="false">00 00 00
+</textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+<details class="answer"><summary>批改（6-1～6-4）</summary>
+<p><strong>全對</strong>。6-1：40 − 16 = 24 byte；6-2：24 ÷ 4 = 6 個；6-3：偏移 40 − 16 = 24 byte，24 ÷ 4 = <strong>索引 6</strong>（上次答成 5，這次對了：半開區間的右端 40 正好是第一個越界的 byte）；6-4：1 個影子 byte 代表 8 byte，24 byte 是 3 組，全部可存取，所以是 <strong>3 個 <code>00</code></strong>。
 <strong>陣列 6 記為對</strong>（盒子 1 → 2）。</p>
-</blockquote>
+</details>
 <hr />
 <h2 id="gnugnu是什麼-linux核心與gnu工具的分工">GNU：<a href="../linux/GNU%E6%98%AF%E4%BB%80%E9%BA%BC-Linux%E6%A0%B8%E5%BF%83%E8%88%87GNU%E5%B7%A5%E5%85%B7%E7%9A%84%E5%88%86%E5%B7%A5.html">GNU是什麼-Linux核心與GNU工具的分工</a></h2>
 <h3 id="gnu-6-情境題同事說我在這台機器上打-uname--o-看到-gnulinux所以它一定用-glibc這個推論錯在哪uname-的哪些欄位可以信哪一欄不行為什麼你會改看什麼來判斷">GNU 6. 情境題：同事說「我在這台機器上打 <code>uname -o</code> 看到 <code>GNU/Linux</code>，所以它一定用 glibc」。這個推論錯在哪？<code>uname</code> 的哪些欄位可以信、哪一欄不行，為什麼？你會改看什麼來判斷？</h3>
 <blockquote>
 <p>盒子 1｜過去的作答：<a href="../small-project/s1-01-hello-compile/quiz.html#6-%E6%83%85%E5%A2%83%E9%A1%8C%E5%90%8C%E4%BA%8B%E8%AA%AA%E6%88%91%E5%9C%A8%E9%80%99%E5%8F%B0%E6%A9%9F%E5%99%A8%E4%B8%8A%E6%89%93-uname--o-%E7%9C%8B%E5%88%B0-gnulinux%E6%89%80%E4%BB%A5%E5%AE%83%E4%B8%80%E5%AE%9A%E7%94%A8-glibc%E9%80%99%E5%80%8B%E6%8E%A8%E8%AB%96%E9%8C%AF%E5%9C%A8%E5%93%AAuname-%E7%9A%84%E5%93%AA%E4%BA%9B%E6%AC%84%E4%BD%8D%E5%8F%AF%E4%BB%A5%E4%BF%A1%E5%93%AA%E4%B8%80%E6%AC%84%E4%B8%8D%E8%A1%8C%E7%82%BA%E4%BB%80%E9%BA%BC%E4%BD%A0%E6%9C%83%E6%94%B9%E7%9C%8B%E4%BB%80%E9%BA%BC%E4%BE%86%E5%88%A4%E6%96%B7">s1-01 quiz.md GNU 第 6 題</a></p>
 </blockquote>
-<pre><code>uname -o 並不是向核心詢問得到的,而是 uname自己直接打印出來的
+<div class="answer-box locked"><textarea readonly spellcheck="false">uname -o 並不是向核心詢問得到的,而是 uname自己直接打印出來的
 -s, -n -r, -v -m可以信
 -p -i -o不能, 其中-p -i是posix標準沒有的,所以在各大系統 不一定支持
 用strace -e trace=uname uname -o
 -p -i 
 uname --help
 明確寫着這兩個是non portable不可以移植
-</code></pre>
-<blockquote>
-<p><strong>批改</strong>：<strong>不完整</strong>（盒子 1 → 1）。前兩問對：<code>-o</code> 是 <code>uname</code> 程式自己印的字串，不是向核心問來的；<code>-s -n -r -v -m</code> 來自 <code>uname()</code> 系統呼叫，可以信，<code>-p -i -o</code> 不行。用 <code>strace -e trace=uname</code> 確認，是好的驗證方法。但<strong>第三問「改看什麼來判斷用不用 glibc」沒有答</strong>：你寫的 <code>strace</code>、<code>uname --help</code> 都是在驗證 <code>uname</code>，不是在判斷 libc。上次也卡在這一問。</p>
-<p><strong>參考答案</strong>【<a href="../linux/GNU%E6%98%AF%E4%BB%80%E9%BA%BC-Linux%E6%A0%B8%E5%BF%83%E8%88%87GNU%E5%B7%A5%E5%85%B7%E7%9A%84%E5%88%86%E5%B7%A5.html#%E5%9B%9B%E4%B8%8D%E6%98%AF-gnu-%E7%9A%84-linux%E4%BD%A0%E5%B7%B2%E7%B6%93%E9%81%87%E9%81%8E%E4%BA%86">GNU是什麼第四節</a>〈<code>uname -o</code> 印出 <code>GNU/Linux</code>，不代表它是 GNU〉】：</p>
+</textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+<details class="answer"><summary>批改</summary>
+<p><strong>不完整</strong>（盒子 1 → 1）。前兩問對：<code>-o</code> 是 <code>uname</code> 程式自己印的字串，不是向核心問來的；<code>-s -n -r -v -m</code> 來自 <code>uname()</code> 系統呼叫，可以信，<code>-p -i -o</code> 不行。用 <code>strace -e trace=uname</code> 確認，是好的驗證方法。但<strong>第三問「改看什麼來判斷用不用 glibc」沒有答</strong>：你寫的 <code>strace</code>、<code>uname --help</code> 都是在驗證 <code>uname</code>，不是在判斷 libc。上次也卡在這一問。</p>
+<details class="answer"><summary>參考答案</summary>
+<p>【<a href="../linux/GNU%E6%98%AF%E4%BB%80%E9%BA%BC-Linux%E6%A0%B8%E5%BF%83%E8%88%87GNU%E5%B7%A5%E5%85%B7%E7%9A%84%E5%88%86%E5%B7%A5.html#%E5%9B%9B%E4%B8%8D%E6%98%AF-gnu-%E7%9A%84-linux%E4%BD%A0%E5%B7%B2%E7%B6%93%E9%81%87%E9%81%8E%E4%BA%86">GNU是什麼第四節</a>〈<code>uname -o</code> 印出 <code>GNU/Linux</code>，不代表它是 GNU〉】：</p>
 <ul>
 <li>錯在把 <code>-o</code> 當證據：它是程式寫死的字串，BusyBox 也印 <code>GNU/Linux</code>，實測 OpenWrt（musl）一樣印。</li>
 <li>可以信 <code>-s -n -r -v -m</code>（核心透過 <code>uname()</code> 回傳的 <code>struct utsname</code>）；不能信 <code>-o</code>（寫死），<code>-p</code>、<code>-i</code> 也是程式自己判斷、標明 non-portable。</li>
 <li>判斷 libc 要看<strong>動態載入器</strong>：<code>readelf -l /bin/ls | grep interpreter</code>（glibc 是 <code>/lib64/ld-linux-x86-64.so.2</code>，musl 是 <code>/lib/ld-musl-x86_64.so.1</code>），或 <code>ls /lib/ld-musl-*</code>、直接執行載入器看它的自我介紹。</li>
 </ul>
-</blockquote>
+</details>
+</details>
 <hr />
 <h2 id="c資料c的資料在記憶體裡長怎樣-位元組指標位元組順序與有號無號">C資料：<a href="../c/C%E7%9A%84%E8%B3%87%E6%96%99%E5%9C%A8%E8%A8%98%E6%86%B6%E9%AB%94%E8%A3%A1%E9%95%B7%E6%80%8E%E6%A8%A3-%E4%BD%8D%E5%85%83%E7%B5%84%E3%80%81%E6%8C%87%E6%A8%99%E3%80%81%E4%BD%8D%E5%85%83%E7%B5%84%E9%A0%86%E5%BA%8F%E8%88%87%E6%9C%89%E8%99%9F%E7%84%A1%E8%99%9F.html">C的資料在記憶體裡長怎樣-位元組、指標、位元組順序與有號無號</a></h2>
 <h3 id="c資料-8-signed-char-c---1-unsigned-int-u--c-之後-u-是多少擴展時新補的高位是-0-還是-1由哪個型別決定如果把-c-改宣告成-unsigned-char-c--0xffu-又是多少">C資料 8. <code>signed char c = -1; unsigned int u = c;</code> 之後 <code>u</code> 是多少？擴展時新補的高位是 0 還是 1，由哪個型別決定？如果把 <code>c</code> 改宣告成 <code>unsigned char c = 0xff;</code>，<code>u</code> 又是多少？</h3>
 <blockquote>
 <p>盒子 2｜過去的作答：<a href="../small-project/s1-02-data-repr/quiz.html#8-signed-char-c---1-unsigned-int-u--c-%E4%B9%8B%E5%BE%8C-u-%E6%98%AF%E5%A4%9A%E5%B0%91%E6%93%B4%E5%B1%95%E6%99%82%E6%96%B0%E8%A3%9C%E7%9A%84%E9%AB%98%E4%BD%8D%E6%98%AF-0-%E9%82%84%E6%98%AF-1%E7%94%B1%E5%93%AA%E5%80%8B%E5%9E%8B%E5%88%A5%E6%B1%BA%E5%AE%9A%E5%A6%82%E6%9E%9C%E6%8A%8A-c-%E6%94%B9%E5%AE%A3%E5%91%8A%E6%88%90-unsigned-char-c--0xffu-%E5%8F%88%E6%98%AF%E5%A4%9A%E5%B0%91">s1-02 quiz.md 第 8 題</a></p>
 </blockquote>
-<pre><code>u = 2^32 -1
+<div class="answer-box locked"><textarea readonly spellcheck="false">u = 2^32 -1
 補的是1, 由原本的類型決定
 還是0xff
-</code></pre>
-<blockquote>
-<p><strong>批改</strong>：<strong>對</strong>（盒子 2 → 3）。<code>u</code> = 2³² − 1 = 4294967295；補 1，由<strong>原本的型別</strong>（<code>signed char</code>）決定；改成 <code>unsigned char</code> 補 0，<code>u</code> = <code>0xff</code> = 255。第 4 課的連結：這就是組合語言裡 <code>movsbl</code>（符號擴展）和 <code>movzbl</code>（零擴展）的差別。</p>
-</blockquote>
+</textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+<details class="answer"><summary>批改</summary>
+<p><strong>對</strong>（盒子 2 → 3）。<code>u</code> = 2³² − 1 = 4294967295；補 1，由<strong>原本的型別</strong>（<code>signed char</code>）決定；改成 <code>unsigned char</code> 補 0，<code>u</code> = <code>0xff</code> = 255。第 4 課的連結：這就是組合語言裡 <code>movsbl</code>（符號擴展）和 <code>movzbl</code>（零擴展）的差別。</p>
+</details>
 <h3 id="c資料-10-long-a---1-unsigned-int-b--1-與-int-c---1-unsigned-long-d--1a--b-和-c--d-各是真還是假兩邊各被轉成什麼型別依據的是哪一條規則為什麼-gcc-只對其中一個發出--wsign-compare-警告">C資料 10. <code>long a = -1; unsigned int b = 1;</code> 與 <code>int c = -1; unsigned long d = 1;</code>，<code>a &lt; b</code> 和 <code>c &lt; d</code> 各是真還是假？兩邊各被轉成什麼型別，依據的是哪一條規則？為什麼 gcc 只對其中一個發出 <code>-Wsign-compare</code> 警告？</h3>
 <blockquote>
 <p>盒子 2｜過去的作答：<a href="../small-project/s1-02-data-repr/quiz.html#10-long-a---1-unsigned-int-b--1-%E8%88%87-int-c---1-unsigned-long-d--1a--b-%E5%92%8C-c--d-%E5%90%84%E6%98%AF%E7%9C%9F%E9%82%84%E6%98%AF%E5%81%87%E5%85%A9%E9%82%8A%E5%90%84%E8%A2%AB%E8%BD%89%E6%88%90%E4%BB%80%E9%BA%BC%E5%9E%8B%E5%88%A5%E4%BE%9D%E6%93%9A%E7%9A%84%E6%98%AF%E5%93%AA%E4%B8%80%E6%A2%9D%E8%A6%8F%E5%89%87%E7%82%BA%E4%BB%80%E9%BA%BC-gcc-%E5%8F%AA%E5%B0%8D%E5%85%B6%E4%B8%AD%E4%B8%80%E5%80%8B%E7%99%BC%E5%87%BA--wsign-compare-%E8%AD%A6%E5%91%8A">s1-02 quiz.md 第 10 題</a></p>
 </blockquote>
-<pre><code>a &lt; b 爲真
+<div class="answer-box locked"><textarea readonly spellcheck="false">a &lt; b 爲真
 c &lt; d 爲假
 
 long 有號的最大值大於無號,用有號的規則
 unsigned long 有號的最大值小於無號, 用無號
 
 c,d發出警告,因爲c是有號轉無號,c無法確定是否會有溢位,這是個UB
-</code></pre>
-<blockquote>
-<p><strong>批改</strong>：<strong>不完整</strong>（盒子 2 → 1）。兩個真假對。規則說得不清楚（「有號的最大值小於無號」看不出比的是什麼）。<strong>警告的理由錯了</strong>：有號轉成無號<strong>不是 UB</strong>，C 標準規定得很清楚（位元不變，換成無號的讀法，<a href="../c/C%E7%9A%84%E8%B3%87%E6%96%99%E5%9C%A8%E8%A8%98%E6%86%B6%E9%AB%94%E8%A3%A1%E9%95%B7%E6%80%8E%E6%A8%A3-%E4%BD%8D%E5%85%83%E7%B5%84%E3%80%81%E6%8C%87%E6%A8%99%E3%80%81%E4%BD%8D%E5%85%83%E7%B5%84%E9%A0%86%E5%BA%8F%E8%88%87%E6%9C%89%E8%99%9F%E7%84%A1%E8%99%9F.html#%E5%85%AD%E6%9C%89%E8%99%9F%E8%88%87%E7%84%A1%E8%99%9F%E4%B9%8B%E9%96%93%E7%9A%84%E8%BD%89%E6%8F%9B%E4%BD%8D%E5%85%83%E4%B8%8D%E8%AE%8A%E6%8F%9B%E5%80%8B%E8%AE%80%E6%B3%95">第 2 課第六節</a>）；UB 是<strong>有號溢位</strong>（第八節），跟這題無關。gcc 警告是因為「−1 被轉成無號，值變了，比較結果可能出乎意料」。</p>
-<p><strong>參考答案</strong>【<a href="../c/C%E7%9A%84%E8%B3%87%E6%96%99%E5%9C%A8%E8%A8%98%E6%86%B6%E9%AB%94%E8%A3%A1%E9%95%B7%E6%80%8E%E6%A8%A3-%E4%BD%8D%E5%85%83%E7%B5%84%E3%80%81%E6%8C%87%E6%A8%99%E3%80%81%E4%BD%8D%E5%85%83%E7%B5%84%E9%A0%86%E5%BA%8F%E8%88%87%E6%9C%89%E8%99%9F%E7%84%A1%E8%99%9F.html#%E5%9B%9B%E7%84%A1%E8%99%9F%E6%95%B4%E6%95%B8%E4%BA%8C%E9%80%B2%E4%BD%8D%E8%88%87%E5%9B%9E%E7%B9%9E">第 2 課第四節</a>〈怎麼確定一個常數的型別？比較時以誰為準？〉】：</p>
+</textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+<details class="answer"><summary>批改</summary>
+<p><strong>不完整</strong>（盒子 2 → 1）。兩個真假對。規則說得不清楚（「有號的最大值小於無號」看不出比的是什麼）。<strong>警告的理由錯了</strong>：有號轉成無號<strong>不是 UB</strong>，C 標準規定得很清楚（位元不變，換成無號的讀法，<a href="../c/C%E7%9A%84%E8%B3%87%E6%96%99%E5%9C%A8%E8%A8%98%E6%86%B6%E9%AB%94%E8%A3%A1%E9%95%B7%E6%80%8E%E6%A8%A3-%E4%BD%8D%E5%85%83%E7%B5%84%E3%80%81%E6%8C%87%E6%A8%99%E3%80%81%E4%BD%8D%E5%85%83%E7%B5%84%E9%A0%86%E5%BA%8F%E8%88%87%E6%9C%89%E8%99%9F%E7%84%A1%E8%99%9F.html#%E5%85%AD%E6%9C%89%E8%99%9F%E8%88%87%E7%84%A1%E8%99%9F%E4%B9%8B%E9%96%93%E7%9A%84%E8%BD%89%E6%8F%9B%E4%BD%8D%E5%85%83%E4%B8%8D%E8%AE%8A%E6%8F%9B%E5%80%8B%E8%AE%80%E6%B3%95">第 2 課第六節</a>）；UB 是<strong>有號溢位</strong>（第八節），跟這題無關。gcc 警告是因為「−1 被轉成無號，值變了，比較結果可能出乎意料」。</p>
+<details class="answer"><summary>參考答案</summary>
+<p>【<a href="../c/C%E7%9A%84%E8%B3%87%E6%96%99%E5%9C%A8%E8%A8%98%E6%86%B6%E9%AB%94%E8%A3%A1%E9%95%B7%E6%80%8E%E6%A8%A3-%E4%BD%8D%E5%85%83%E7%B5%84%E3%80%81%E6%8C%87%E6%A8%99%E3%80%81%E4%BD%8D%E5%85%83%E7%B5%84%E9%A0%86%E5%BA%8F%E8%88%87%E6%9C%89%E8%99%9F%E7%84%A1%E8%99%9F.html#%E5%9B%9B%E7%84%A1%E8%99%9F%E6%95%B4%E6%95%B8%E4%BA%8C%E9%80%B2%E4%BD%8D%E8%88%87%E5%9B%9E%E7%B9%9E">第 2 課第四節</a>〈怎麼確定一個常數的型別？比較時以誰為準？〉】：</p>
 <ul>
 <li><code>a &lt; b</code>：<code>long</code> 對 <code>unsigned int</code>。無號那邊的等級（rank）比較低，而 <code>long</code> 裝得下所有 <code>unsigned int</code> 的值 → 兩邊轉成 <code>long</code>，−1 &lt; 1 為<strong>真</strong>。</li>
 <li><code>c &lt; d</code>：<code>int</code> 對 <code>unsigned long</code>。無號那邊的等級 ≥ 有號那邊 → 兩邊轉成 <code>unsigned long</code>，−1 變成 18446744073709551615，所以為<strong>假</strong>。</li>
 <li>只有 <code>c &lt; d</code> 警告：只有它把有號的值轉成無號，負數的值會改變；<code>a &lt; b</code> 轉成 <code>long</code>，值不變，不會出事。</li>
 </ul>
-</blockquote>
+</details>
+</details>
 <hr />
 <h2 id="字元字元是什麼-char就是1byte的整數與ascii和utf-8">字元：<a href="../c/%E5%AD%97%E5%85%83%E6%98%AF%E4%BB%80%E9%BA%BC-char%E5%B0%B1%E6%98%AF1byte%E7%9A%84%E6%95%B4%E6%95%B8%E8%88%87ASCII%E5%92%8CUTF-8.html">字元是什麼-char就是1byte的整數與ASCII和UTF-8</a></h2>
 <h3 id="字元-1-char-c--a-和-char-c--65-存進記憶體的東西一樣嗎為什麼-printf-用-c-印出-a用-d-印出-65">字元 1. <code>char c = 'A';</code> 和 <code>char c = 65;</code> 存進記憶體的東西一樣嗎？為什麼 <code>printf</code> 用 <code>%c</code> 印出 <code>A</code>、用 <code>%d</code> 印出 65？</h3>
 <blockquote>
 <p>盒子 2｜過去的作答：<a href="../small-project/s1-02-data-repr/quiz.html#1-char-c--a-%E5%92%8C-char-c--65-%E5%AD%98%E9%80%B2%E8%A8%98%E6%86%B6%E9%AB%94%E7%9A%84%E6%9D%B1%E8%A5%BF%E4%B8%80%E6%A8%A3%E5%97%8E%E7%82%BA%E4%BB%80%E9%BA%BC-printf-%E7%94%A8-c-%E5%8D%B0%E5%87%BA-a%E7%94%A8-d-%E5%8D%B0%E5%87%BA-65">s1-02 quiz.md 字元第 1 題</a></p>
 </blockquote>
-<pre><code>一樣
+<div class="answer-box locked"><textarea readonly spellcheck="false">一樣
 %c 說明要用ASCii讀65
 %d 用整數
-</code></pre>
-<blockquote>
-<p><strong>批改</strong>：<strong>對</strong>（盒子 2 → 3）。記憶體裡都是同一個 byte <code>0x41</code>（65）。<code>%c</code> 把這個數字當成編碼，印出對應的字元 <code>A</code>；<code>%d</code> 把它當整數印成 65。記憶體沒有型別，看你怎麼讀。</p>
-</blockquote>
+</textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+<details class="answer"><summary>批改</summary>
+<p><strong>對</strong>（盒子 2 → 3）。記憶體裡都是同一個 byte <code>0x41</code>（65）。<code>%c</code> 把這個數字當成編碼，印出對應的字元 <code>A</code>；<code>%d</code> 把它當整數印成 65。記憶體沒有型別，看你怎麼讀。</p>
+</details>
 <h3 id="字元-2-使用者輸入的字元是-7你想得到數值-7直接把它當數字用會得到多少該怎麼轉這個方法為什麼成立">字元 2. 使用者輸入的字元是 <code>'7'</code>，你想得到數值 7。直接把它當數字用會得到多少？該怎麼轉，這個方法為什麼成立？</h3>
 <blockquote>
 <p>盒子 2｜過去的作答：<a href="../small-project/s1-02-data-repr/quiz.html#2-%E4%BD%BF%E7%94%A8%E8%80%85%E8%BC%B8%E5%85%A5%E7%9A%84%E5%AD%97%E5%85%83%E6%98%AF-7%E4%BD%A0%E6%83%B3%E5%BE%97%E5%88%B0%E6%95%B8%E5%80%BC-7%E7%9B%B4%E6%8E%A5%E6%8A%8A%E5%AE%83%E7%95%B6%E6%95%B8%E5%AD%97%E7%94%A8%E6%9C%83%E5%BE%97%E5%88%B0%E5%A4%9A%E5%B0%91%E8%A9%B2%E6%80%8E%E9%BA%BC%E8%BD%89%E9%80%99%E5%80%8B%E6%96%B9%E6%B3%95%E7%82%BA%E4%BB%80%E9%BA%BC%E6%88%90%E7%AB%8B">s1-02 quiz.md 字元第 2 題</a></p>
 </blockquote>
-<pre><code>55
+<div class="answer-box locked"><textarea readonly spellcheck="false">55
 
-直接-48, 48代表 '0'
-</code></pre>
-<blockquote>
-<p><strong>批改</strong>：<strong>大致對</strong>（盒子 2 → 2）。55 對，減 48（<code>'0'</code>）對。但「<strong>為什麼成立</strong>」沒講出來：關鍵是 <code>'0'</code>～<code>'9'</code> 在編碼表裡是<strong>連號的</strong>（48～57）。另外建議寫成 <code>c - '0'</code>，不要寫死 48，意思比較清楚。</p>
-<p><strong>參考答案</strong>【<a href="../c/%E5%AD%97%E5%85%83%E6%98%AF%E4%BB%80%E9%BA%BC-char%E5%B0%B1%E6%98%AF1byte%E7%9A%84%E6%95%B4%E6%95%B8%E8%88%87ASCII%E5%92%8CUTF-8.html#%E4%B8%80%E5%AD%97%E5%85%83%E5%B0%B1%E6%98%AF%E4%B8%80%E5%80%8B%E6%95%B8%E5%AD%97">字元是什麼第一節</a>】：<code>'7'</code> 的值是 55（它的 ASCII 編號），不是 7。轉換用 <code>c - '0'</code>：數字字元在編碼表裡是連號的（<code>'0'</code> = 48 … <code>'9'</code> = 57），所以任何數字字元減掉 <code>'0'</code>，就是它跟 <code>'0'</code> 差幾號，也就是它代表的數值。C 標準也保證 <code>'0'</code>～<code>'9'</code> 是連續的。</p>
-</blockquote>
+直接-48, 48代表 &#x27;0&#x27;
+</textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+<details class="answer"><summary>批改</summary>
+<p><strong>大致對</strong>（盒子 2 → 2）。55 對，減 48（<code>'0'</code>）對。但「<strong>為什麼成立</strong>」沒講出來：關鍵是 <code>'0'</code>～<code>'9'</code> 在編碼表裡是<strong>連號的</strong>（48～57）。另外建議寫成 <code>c - '0'</code>，不要寫死 48，意思比較清楚。</p>
+<details class="answer"><summary>參考答案</summary>
+<p>【<a href="../c/%E5%AD%97%E5%85%83%E6%98%AF%E4%BB%80%E9%BA%BC-char%E5%B0%B1%E6%98%AF1byte%E7%9A%84%E6%95%B4%E6%95%B8%E8%88%87ASCII%E5%92%8CUTF-8.html#%E4%B8%80%E5%AD%97%E5%85%83%E5%B0%B1%E6%98%AF%E4%B8%80%E5%80%8B%E6%95%B8%E5%AD%97">字元是什麼第一節</a>】：<code>'7'</code> 的值是 55（它的 ASCII 編號），不是 7。轉換用 <code>c - '0'</code>：數字字元在編碼表裡是連號的（<code>'0'</code> = 48 … <code>'9'</code> = 57），所以任何數字字元減掉 <code>'0'</code>，就是它跟 <code>'0'</code> 差幾號，也就是它代表的數值。C 標準也保證 <code>'0'</code>～<code>'9'</code> 是連續的。</p>
+</details>
+</details>
 
 </main>
 </div>
