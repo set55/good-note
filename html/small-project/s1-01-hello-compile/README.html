@@ -78,6 +78,9 @@
 <code>.o</code> 1.5K → <code>hello</code> 16K：連結器加入啟動碼與動態連結要用的區段（<code>.plt</code>、<code>.got</code>、<code>.dynamic</code>、<code>.interp</code> 等，合計約 2K），但主因是<strong>分頁對齊</strong>——4 個 <code>LOAD</code> 區塊各自從 4096 bytes 的分頁邊界開始，中間補空白（新觀念，第九節）。</p>
 </details>
 </details>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="small-project/s1-01-hello-compile/README.md" data-line="43" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+</details>
 <hr />
 <h2 id="2-刪掉-include-stdioh-再編譯是在哪個階段出錯錯誤或警告訊息是什麼">2. 刪掉 <code>#include &lt;stdio.h&gt;</code> 再編譯。是在<strong>哪個階段</strong>出錯？錯誤（或警告）訊息是什麼？</h2>
 <p><strong>第 1 次（2026-09-22）</strong></p>
@@ -101,6 +104,9 @@
 <p>出錯的是<strong>編譯階段（<code>cc1</code>）</strong>，不是前處理；少了 <code>#include</code> 只是少貼一段文字。沒有宣告時編譯器用 C89 舊規則「猜」函式型別，只發警告；<strong>連結器只比對名字、不比對型別</strong>，所以照名字 <code>printf</code> 仍然接得上 libc，程式能跑。型別猜錯時（例如回傳 <code>double</code> 的函式）會在執行時得到錯誤結果，沒有任何階段會擋下來（新觀念，第九節有 <code>half(10) = 0.000000</code> 的實測）。</p>
 </details>
 </details>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="small-project/s1-01-hello-compile/README.md" data-line="71" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+</details>
 <hr />
 <h2 id="3-把輸出那行改成-printfhi-dn-42再產生-s這次還會變成-puts-嗎為什麼">3. 把輸出那行改成 <code>printf(&quot;hi %d\n&quot;, 42);</code>，再產生 <code>.s</code>。這次還會變成 <code>puts</code> 嗎？為什麼？</h2>
 <p><strong>第 1 次（2026-09-22）</strong></p>
@@ -113,6 +119,9 @@
 <p>不會換成 <code>puts</code>。<code>puts(s)</code> 只能「原封不動印字串再補換行」，不懂任何 <code>%</code> 格式；
 <code>%d</code> 要把 42 轉成字元 <code>'4'</code>、<code>'2'</code>，只有 <code>printf</code> 做得到。gcc 只在效果剛好等於「印現成字串加換行」時才換（新觀念，第九節）。</p>
 </details>
+</details>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="small-project/s1-01-hello-compile/README.md" data-line="86" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <hr />
 <h2 id="4-gcc--static-helloc--o-hello_static比較動態版與靜態版的-ls--lfilelddstrace--c">4. <code>gcc -static hello.c -o hello_static</code>，比較動態版與靜態版的 <code>ls -l</code>、<code>file</code>、<code>ldd</code>、<code>strace -c</code>。</h2>
@@ -184,6 +193,9 @@ hello, world
 <details class="answer"><summary>參考答案</summary>
 <p>靜態版把 libc 用到的程式碼複製進執行檔，所以大約 50 倍大（程式碼區 1375 → 668305 bytes）。動態版的 <code>openat</code> 是動態載入器打開 <code>/etc/ld.so.cache</code> 與 <code>libc.so.6</code>；靜態版沒有 interpreter、libc 已在自己身上，沒有東西要打開，系統呼叫 34 → 16。兩者都只有 1 次 <code>write</code>：連結方式只影響程式碼從哪來，不影響最後請核心做的事（筆記<a href="../../c/hello.c%E6%80%8E%E9%BA%BC%E8%AE%8A%E6%88%90%E8%83%BD%E8%B7%91%E7%9A%84%E7%A8%8B%E5%BC%8F-%E7%B7%A8%E8%AD%AF%E7%9A%84%E5%9B%9B%E5%80%8B%E9%9A%8E%E6%AE%B5.html#%E4%BA%94%E9%80%A3%E7%B5%90%E6%8A%8A%E6%B4%9E%E6%8E%A5%E4%B8%8A%E4%BD%86-puts-%E9%82%84%E6%98%AF%E6%B2%92%E6%8E%A5%E5%AE%8C">第五節</a>、<a href="../../c/hello.c%E6%80%8E%E9%BA%BC%E8%AE%8A%E6%88%90%E8%83%BD%E8%B7%91%E7%9A%84%E7%A8%8B%E5%BC%8F-%E7%B7%A8%E8%AD%AF%E7%9A%84%E5%9B%9B%E5%80%8B%E9%9A%8E%E6%AE%B5.html#%E5%85%AD%E5%9F%B7%E8%A1%8C%E5%BE%9E-execve-%E5%88%B0-write">第六節</a>）。</p>
 </details>
+</details>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="small-project/s1-01-hello-compile/README.md" data-line="161" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 
 </main>

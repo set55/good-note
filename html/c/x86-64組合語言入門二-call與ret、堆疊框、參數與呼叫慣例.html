@@ -12,7 +12,7 @@
 <div class="layout">
 <nav class="side">
 <div class="crumbs"><a href="../index.html">🏠 首頁</a> / <a href="README.html">c</a></div>
-<div class="tools"><button onclick="toggleTheme()">🌓 主題</button></div>
+<div class="tools"><button onclick="toggleTheme()">🌓 主題</button><button onclick="toggleAnswers(true)">展開答案</button><button onclick="toggleAnswers(false)">收起答案</button></div>
 <ul>
 <li class="l2"><a href="#%E7%9B%AE%E9%8C%84">目錄</a></li>
 <li class="l2"><a href="#%E9%9B%B6%E9%96%8B%E8%AA%B2%E8%A4%87%E7%BF%92%E7%AC%AC-4-%E8%AA%B2%E5%8D%A1%E4%BD%8F%E7%9A%84%E4%BA%94%E5%80%8B%E8%A7%80%E5%BF%B5">零、開課複習：第 4 課卡住的五個觀念</a></li>
@@ -380,7 +380,143 @@ rip            0x555555555199      0x555555555199 &lt;main+32&gt;
 <li><strong>5. 停在 <code>ret</code></strong>：<code>pop %rbp</code> 已經執行，<code>%rbp</code> 還原成 <code>main</code> 的 <code>d420</code>，<code>%rsp</code> 回到 <code>d408</code>，頂端又是返回位址。回傳值 6 已經在 <code>%rax</code>。</li>
 <li><strong>6. <code>ret</code> 之後</strong>：<code>%rip</code> 變成 <code>0x555555555199</code>（<code>main+32</code>），<code>%rsp</code> 回到 <strong><code>d410</code>，跟 <code>call</code> 之前一模一樣</strong>。<code>call</code> 推進去的 8 byte 被 <code>ret</code> 拿走了。</li>
 </ul>
-<p><strong>gdb 在第 1 段結尾印的 <code>add3 (a=0, b=0, c=0)</code> 是錯的</strong>：那時 <code>stepi</code> 剛進到 <code>add3</code> 的第一條指令。gdb 照除錯資訊去 <code>-0x18(%rbp)</code> 這些位置讀 <code>a</code>、<code>b</code>、<code>c</code>，可是參數還在暫存器裡、還沒存進去，而且 <code>%rbp</code> 還是 <code>main</code> 的值，所以讀到的是不相干的記憶體。到了第 5 段，堆疊框已經建好、參數也存好了，gdb 就印出正確的 <code>a=1, b=2, c=3</code>。這正是 <code>break add3</code>（不加 <code>*</code>）要跳過開頭準備指令的原因（零、第 2 點）。</p>
+<p><strong>gdb 在第 1 段結尾印的 <code>add3 (a=0, b=0, c=0)</code> 是錯的</strong>：那時 <code>stepi</code> 剛進到 <code>add3</code> 的第一條指令。gdb 照除錯資訊去堆疊上 <code>a</code>、<code>b</code>、<code>c</code> 的位置讀（序言跑完後就是 <code>-0x18(%rbp)</code>、<code>-0x20(%rbp)</code>、<code>-0x28(%rbp)</code> 那三格），可是那時參數還在暫存器裡、還沒存進去，讀到的是那幾格裡原本的舊值。（2026-10-19 更正：原本還寫了「而且 <code>%rbp</code> 還是 <code>main</code> 的值」，這是錯的——gdb 不是用 <code>%rbp</code> 算位置，位址本身是對的，見下方追問補充。）到了第 5 段，堆疊框已經建好、參數也存好了，gdb 就印出正確的 <code>a=1, b=2, c=3</code>。這正是 <code>break add3</code>（不加 <code>*</code>）要跳過開頭準備指令的原因（零、第 2 點）。</p>
+<hr />
+<p><strong>gdb 為什麼去堆疊讀參數，而不是讀暫存器</strong></p>
+<blockquote>
+<p>2026-10-19 課後提問：「gdb 照除錯資訊，去 -0x18(%rbp)、-0x20(%rbp)、-0x28(%rbp) 讀 a、b、c。爲什麼gdb是去讀堆疊上的參數,而不是寄存器?」（指上一段「gdb 在第 1 段結尾印的 <code>add3 (a=0, b=0, c=0)</code> 是錯的」）</p>
+</blockquote>
+<p><strong>1. gdb 不看程式碼，只照除錯資訊說的位置去讀。</strong> <code>-g</code> 產生的除錯資訊（格式叫 DWARF，存在執行檔裡一組 <code>.debug_*</code> 區段）替每個變數記了一筆「它放在哪裡」（<code>DW_AT_location</code>）。
+gdb 印 <code>a</code> 時不會去分析 <code>add3</code> 的指令、推算「現在 <code>a</code> 應該還在 <code>%rdi</code>」，它只照這一筆去讀。所以問題變成：<strong>gcc 為什麼把 <code>a</code> 的位置記成堆疊？</strong></p>
+<p>用 <code>readelf --debug-dump=info</code> 看 <code>frame.c</code>（<code>gcc -g -O0 -o frame frame.c</code>）的除錯資訊，只留名字與位置：</p>
+<pre><code>$ readelf --debug-dump=info frame | grep -A8 &quot;DW_TAG_subprogram\|DW_TAG_formal_parameter\|DW_TAG_variable&quot; | grep -E &quot;DW_TAG|DW_AT_name|DW_AT_location|frame_base&quot;
+...
+ &lt;1&gt;&lt;be&gt;: Abbrev Number: 12 (DW_TAG_subprogram)
+    &lt;bf&gt;   DW_AT_name        : (indirect string, offset: 0x12): add3
+ &lt;2&gt;&lt;dc&gt;: Abbrev Number: 2 (DW_TAG_formal_parameter)
+    &lt;dd&gt;   DW_AT_name        : a
+    &lt;e4&gt;   DW_AT_location    : 2 byte block: 91 58 	(DW_OP_fbreg: -40)
+ &lt;2&gt;&lt;e7&gt;: Abbrev Number: 2 (DW_TAG_formal_parameter)
+    &lt;e8&gt;   DW_AT_name        : b
+    &lt;ef&gt;   DW_AT_location    : 2 byte block: 91 50 	(DW_OP_fbreg: -48)
+ &lt;2&gt;&lt;f2&gt;: Abbrev Number: 2 (DW_TAG_formal_parameter)
+    &lt;f3&gt;   DW_AT_name        : c
+    &lt;fa&gt;   DW_AT_location    : 2 byte block: 91 48 	(DW_OP_fbreg: -56)
+ &lt;2&gt;&lt;fd&gt;: Abbrev Number: 3 (DW_TAG_variable)
+    &lt;fe&gt;   DW_AT_name        : s
+    &lt;105&gt;   DW_AT_location    : 2 byte block: 91 68 	(DW_OP_fbreg: -24)
+</code></pre>
+<p>（<code>DW_TAG_formal_parameter</code> 是參數、<code>DW_TAG_variable</code> 是區域變數；<code>readelf</code> 的 <code>-w</code>／<code>--debug-dump</code> 全部子項見 <a href="readelf%E5%AE%8C%E6%95%B4%E9%81%B8%E9%A0%85%E5%8F%83%E8%80%83.html#26-%E9%99%A4%E9%8C%AF%E8%B3%87%E8%A8%8Adwarf">readelf完整選項參考</a>。）</p>
+<p><code>a</code> 的位置只有<strong>一筆</strong>：<code>DW_OP_fbreg: -40</code>，意思是「堆疊框基準（frame base）往下 40 byte」，整個 <code>add3</code> 從頭到尾都用這一筆。原因是 <code>-O0</code> 的做法：序言一跑完，參數就存進堆疊，之後<strong>每次用 <code>a</code> 都回堆疊讀寫</strong>（第四節的組合語言 <code>mov %rdi,-0x18(%rbp)</code> 之後只用 <code>-0x18(%rbp)</code>），<code>%rdi</code> 隨時可以拿去做別的事。所以堆疊那格才是 <code>a</code> 的「家」，gcc 就只記這一筆；序言前那兩三條指令「<code>a</code> 其實還在 <code>%rdi</code>」的空檔，<code>-O0</code> 不另外記。</p>
+<p><strong>2. 「堆疊框基準」不是 <code>%rbp</code>，是 CFA。</strong> 同一份除錯資訊裡 <code>add3</code> 有一行 <code>DW_AT_frame_base : (DW_OP_call_frame_cfa)</code>：基準是 <strong>CFA</strong>（Canonical Frame Address，標準堆疊框位址），定義是「呼叫者執行 <code>call</code> 之前的 <code>%rsp</code>」。每一條指令的 CFA 怎麼算，記在 <code>.eh_frame</code> 區段（第 4 課 <code>readelf -S</code> 看過這個區段名），<code>readelf --debug-dump=frames-interp</code> 可以看：</p>
+<pre><code>$ readelf --debug-dump=frames-interp frame
+...
+00000088 000000000000001c 0000008c FDE cie=00000000 pc=0000000000001149..0000000000001179
+   LOC           CFA      rbp   ra    
+0000000000001149 rsp+8    u     c-8   
+000000000000114e rsp+16   c-16  c-8   
+0000000000001151 rbp+16   c-16  c-8   
+0000000000001178 rsp+8    c-16  c-8   
+</code></pre>
+<p><code>pc=1149..1179</code> 是 <code>add3</code>。每一列是「從這個位址開始，CFA 怎麼算」：在 <code>1149</code>（第一條指令 <code>endbr64</code>）時 CFA ＝ <code>%rsp + 8</code>（<code>call</code> 推了 8 byte，加回去就是 <code>call</code> 之前的 <code>%rsp</code>）；<code>push %rbp</code> 之後變 <code>%rsp + 16</code>；<code>mov %rsp,%rbp</code> 之後改用 <code>%rbp + 16</code>。（<code>ra</code> 欄 <code>c-8</code> 是返回位址存在 CFA − 8，<code>rbp</code> 欄 <code>c-16</code> 是舊 <code>%rbp</code> 存在 CFA − 16，<code>u</code> 是還沒存。）序言跑完後，<code>a</code> ＝ CFA − 40 ＝ <code>%rbp</code> ＋ 16 − 40 ＝ <code>%rbp</code> − 24 ＝ <strong><code>-0x18(%rbp)</code></strong>，跟組合語言一致。</p>
+<p>所以停在第一條指令時，<strong>gdb 算出的位址是對的</strong>，就是之後 <code>a</code> 會被存進去的那一格；印錯只是因為那格還沒寫進 <code>a</code>，裡面是舊的值。用 <code>where-a.gdb</code>（檔案：<a href="../../small-project/s1-05-asm-calls/where-a.gdb"><code>where-a.gdb</code></a>）確認：</p>
+<pre><code>break *add3
+run
+info registers rsp rbp rdi rsi rdx
+info address a
+info address c
+print &amp;a
+print &amp;c
+print a
+info frame
+</code></pre>
+<pre><code>$ gdb -q -batch -x where-a.gdb ./frame
+Breakpoint 1 at 0x1149: file frame.c, line 4.
+
+Breakpoint 1, add3 (a=0, b=0, c=0) at frame.c:4
+4	{
+rsp            0x7fffffffd448      0x7fffffffd448
+rbp            0x7fffffffd460      0x7fffffffd460
+rdi            0x1                 1
+rsi            0x2                 2
+rdx            0x3                 3
+Symbol &quot;a&quot; is a complex DWARF expression:
+     0: DW_OP_fbreg -40
+.
+Symbol &quot;c&quot; is a complex DWARF expression:
+     0: DW_OP_fbreg -56
+.
+$1 = (long *) 0x7fffffffd428
+$2 = (long *) 0x7fffffffd418
+$3 = 0
+Stack level 0, frame at 0x7fffffffd450:
+ rip = 0x555555555149 in add3 (frame.c:4); saved rip = 0x555555555199
+ called by frame at 0x7fffffffd470
+ source language c.
+ Arglist at 0x7fffffffd440, args: a=0, b=0, c=0
+ Locals at 0x7fffffffd440, Previous frame's sp is 0x7fffffffd450
+ Saved registers:
+  rip at 0x7fffffffd448
+</code></pre>
+<p>（這次執行的堆疊位址跟本節前面差了 <code>0x40</code>，堆疊起點會隨執行環境不同而變，比的是同一次執行裡的相對位置。）</p>
+<ul>
+<li><code>info frame</code> 第一行 <code>frame at 0x7fffffffd450</code> 就是 CFA ＝ <code>%rsp</code>（<code>d448</code>）＋ 8。</li>
+<li><code>&amp;a</code> ＝ <code>d428</code> ＝ <code>d450 − 40</code>，是照 CFA 算的。如果照 <code>%rbp</code>（還是 <code>main</code> 的 <code>d460</code>）算 <code>-0x18(%rbp)</code>，會是 <code>d448</code>——那是返回位址那格，值不是 0。所以 gdb 沒有用 <code>%rbp</code>。</li>
+<li>真正的值在 <code>%rdi</code>／<code>%rsi</code>／<code>%rdx</code>：1、2、3。</li>
+</ul>
+<p><strong>3. 對照：<code>-O2</code> 的除錯資訊就會記暫存器。</strong> 最佳化後變數常常只待在暫存器裡，gcc 會改記「位置清單」（location list）：哪段位址範圍在哪個暫存器。用 <code>-fno-inline</code> 讓 <code>add3</code> 不被併進 <code>main</code>：</p>
+<pre><code>$ gcc -g -O2 -fno-inline -o frame2 frame.c
+$ objdump -d --no-show-raw-insn frame2 | sed -n '/&lt;add3&gt;:/,/ret/p'
+0000000000001190 &lt;add3&gt;:
+    1190:	endbr64
+    1194:	add    %rsi,%rdi
+    1197:	lea    (%rdi,%rdx,1),%rax
+    119b:	ret
+</code></pre>
+<p><code>add3</code> 完全不碰堆疊：<code>add %rsi,%rdi</code> 把 <code>a + b</code> 存回 <code>%rdi</code>（<code>s</code> 跟 <code>a</code> 共用 <code>%rdi</code>），<code>lea (%rdi,%rdx,1),%rax</code> 算 <code>%rdi + %rdx</code> 放進回傳值 <code>%rax</code>（<code>lea</code> 只算位址不讀記憶體，第 4 課教過）。除錯資訊也跟著變：</p>
+<pre><code>$ readelf --debug-dump=info frame2 | sed -n '/DW_AT_name.*add3/,/DW_TAG_variable/p' | grep -E &quot;name|location|frame_base&quot;
+    &lt;12e&gt;   DW_AT_name        : (indirect string, offset: 0xb0): add3
+    &lt;148&gt;   DW_AT_frame_base  : 1 byte block: 9c 	(DW_OP_call_frame_cfa)
+    &lt;14f&gt;   DW_AT_name        : a
+    &lt;158&gt;   DW_AT_location    : 0x40 (location list)
+    &lt;161&gt;   DW_AT_name        : b
+    &lt;168&gt;   DW_AT_location    : 1 byte block: 54 	(DW_OP_reg4 (rsi))
+    &lt;16b&gt;   DW_AT_name        : c
+    &lt;172&gt;   DW_AT_location    : 1 byte block: 51 	(DW_OP_reg1 (rdx))
+</code></pre>
+<p><code>b</code>、<code>c</code> 直接記成暫存器 <code>rsi</code>、<code>rdx</code>（<code>DW_OP_reg4</code> 的 4 是 DWARF 自己替暫存器排的編號，<code>readelf</code> 在括號裡翻成名字）；<code>a</code> 因為 <code>%rdi</code> 在 <code>1194</code> 之後被改成 <code>a + b</code>，記成一張位置清單。<code>where-a-O2.gdb</code>（檔案：<a href="../../small-project/s1-05-asm-calls/where-a-O2.gdb"><code>where-a-O2.gdb</code></a>）：</p>
+<pre><code>break *add3
+run
+info address a
+print a
+print b
+print c
+</code></pre>
+<pre><code>$ gdb -q -batch -x where-a-O2.gdb ./frame2
+Breakpoint 1 at 0x1190: file frame.c, line 4.
+
+Breakpoint 1, add3 (a=a@entry=1, b=b@entry=2, c=c@entry=3) at frame.c:4
+4	{
+Symbol &quot;a&quot; is multi-location:
+  Base address 0x1190  Range 0x555555555190-0x555555555197: a variable in $rdi
+  Range 0x555555555197-0x55555555519c: a complex DWARF expression:
+     0: DW_OP_entry_value
+       2: DW_OP_reg5 [$rdi]
+     3: DW_OP_stack_value
+
+.
+$1 = 1
+$2 = 2
+$3 = 3
+</code></pre>
+<ul>
+<li><code>1190</code>～<code>1197</code>：<code>a</code> 在 <code>$rdi</code>，所以停在第一條指令也印對 <code>a=1</code>。</li>
+<li><code>1197</code> 以後：<code>%rdi</code> 已經變成 <code>a + b</code>，除錯資訊改說「<code>a</code> ＝ 進函式那一刻 <code>%rdi</code> 的值」（<code>DW_OP_entry_value</code>），gdb 要從呼叫者那邊推回來；印出來的 <code>a@entry=1</code> 的 <code>@entry</code> 就是「進函式時的值」。</li>
+</ul>
+<p>結論：gdb 讀哪裡，<strong>完全由編譯器寫的除錯資訊決定</strong>。<code>-O0</code> 只記堆疊那一格（因為那是變數的家），所以序言前讀到舊值；<code>-O2</code> 記了暫存器與位置清單，反而在第一條指令就讀得對。</p>
+<p>（本段用到 gdb 的 <code>info address</code>、<code>info frame</code>，完整的 <code>info</code> 子命令見 <a href="gdb%E5%AE%8C%E6%95%B4%E5%91%BD%E4%BB%A4%E5%8F%83%E8%80%83.html">gdb完整命令參考</a>；<code>readelf</code> 用到 <code>--debug-dump</code> 的 <code>info</code>、<code>frames-interp</code> 兩個子項。）</p>
+<p><em>（追問補充結束，以下回到主線）</em></p>
+<hr />
 <h3 id="停在函式入口時怎麼知道是誰呼叫的">停在函式入口時，怎麼知道是誰呼叫的</h3>
 <p>既然 <code>call</code> 一進來，頂端就是返回位址，那麼停在函式<strong>第一條指令</strong>時，<code>x/gx $rsp</code> 就能看出呼叫者。<code>who.gdb</code>（檔案：<a href="../../small-project/s1-05-asm-calls/who.gdb"><code>who.gdb</code></a>）：</p>
 <pre><code>break *add3
@@ -481,7 +617,7 @@ $2 = (long *) 0x7fffffffd3f8
 <p><code>&amp;a</code> ＝ <code>d3e8</code>、<code>&amp;s</code> ＝ <code>d3f8</code>，都比 <code>%rsp</code>（<code>d400</code>）低；記憶體裡依序是 <code>c</code> ＝ 3、<code>b</code> ＝ 2、<code>a</code> ＝ 1、一格 0、<code>s</code> ＝ 3。</p>
 <p>這是 System V AMD64 ABI 的<strong>紅區</strong>（red zone）規定：<code>%rsp</code> 下方 128 byte 保留給目前這個函式，不會被別人（例如訊號處理函式）蓋掉。
 <code>add3</code> 是<strong>葉函式</strong>（leaf function，不再呼叫別人的函式），用的空間在 128 byte 以內，乾脆不 <code>sub %rsp</code>，省一條指令。
-<code>main</code> 要呼叫 <code>add3</code> 和 <code>printf</code>，<code>call</code> 會把返回位址推到 <code>%rsp</code> 下面，蓋掉那一區，所以 <code>main</code> 必須老老實實 <code>sub $0x10,%rsp</code>。</p>
+<code>main</code> 要呼叫 <code>add3</code> 和 <code>printf</code>，<code>call</code> 會把返回位址推到 <code>%rsp</code> 下面，蓋掉那一區；放在那裡、<code>call</code> 之後還要用的變數就會壞掉，所以 gcc 替會呼叫別人的函式一律 <code>sub $0x10,%rsp</code>，把變數放到 <code>%rsp</code> 上面（<code>frame.c</code> 這個 <code>main</code> 其實拿掉也能跑，見本小節最後第三個追問補充）。</p>
 <blockquote>
 <p>kernel 的程式碼不能用紅區：在 kernel 裡，中斷發生時 CPU 會直接把資料推到目前的堆疊上，會蓋掉 <code>%rsp</code> 下面的東西。所以 kernel 編譯時加了 <code>-mno-red-zone</code>（Linux 原始碼 <code>arch/x86/Makefile</code>；本機未實測）。</p>
 </blockquote>
@@ -498,6 +634,191 @@ $2 = (long *) 0x7fffffffd3f8
 <p>兩條合起來：最晚放進去的那格在 <code>%rsp</code>，比它更晚的東西不存在，所以<strong>比 <code>%rsp</code> 低的位址還沒放任何東西進去</strong>。目前「在堆疊裡」的資料只有從 <code>%rsp</code> 往高位址那一段；<code>%rsp</code> 往下是<strong>空位</strong>，是下一次放東西時要用的地方。</p>
 <p>第二節的 <code>push</code> 表可以直接驗證這點：<code>push %rbp</code> 是先 <code>sub $8, %rsp</code>、再寫進新的 <code>(%rsp)</code>，也就是說<strong>下一次 <code>push</code> 會寫在 <code>%rsp - 8</code></strong>。放在 <code>add3</code> 的情況：<code>%rsp</code> 是 <code>d400</code>，下一次 <code>push</code>（或 <code>call</code> 推返回位址）會寫在 <code>d3f8</code>——正好是 <code>s</code> 所在的那格。照一般規則，這一區隨時可能被下一次 <code>push</code>／<code>call</code> 蓋掉，所以不該拿來放變數；這也是為什麼上面需要「紅區」這條額外規定：
 ABI 保證 <code>%rsp</code> 下方 128 byte 不會被<strong>別人</strong>蓋掉，而 <code>add3</code> 是葉函式，自己也不會再 <code>push</code>／<code>call</code>，那裡才安全。</p>
+<p><em>（追問補充結束，以下回到主線）</em></p>
+<hr />
+<p><strong><code>call</code> 只是把 <code>%rsp</code> 減 8，為什麼算「蓋掉 <code>%rsp</code> 下面」？<code>sub</code> 又怎麼「收進堆疊」</strong></p>
+<blockquote>
+<p>2026-10-19 課後提問：「不好意思我看不懂爲什麼會需要sub, call以後 rsp不是改到rsp - 8 的位址嗎?這能算是蓋掉rsp下面的區域嗎?另外 sub跟收進堆疊裏看不懂」（指本節「<code>main</code> 要呼叫 <code>add3</code> 和 <code>printf</code>，<code>call</code> 會把返回位址推到 <code>%rsp</code> 下面，蓋掉那一區」那段，以及自我測驗 2-3 的參考答案）</p>
+</blockquote>
+<p><strong>1. <code>call</code> 不只是「<code>%rsp</code> 減 8」，還會「寫」。</strong> <code>call</code> ＝ <code>push 返回位址</code> ＋ <code>jmp</code>，而 <code>push</code> 是兩步（<a href="#%E4%BA%8C%E5%A0%86%E7%96%8Arsp-%E6%8C%87%E8%91%97%E9%A0%82%E7%AB%AF%E5%BE%80%E4%BD%8E%E4%BD%8D%E5%9D%80%E9%95%B7">第二節</a>的 <code>push</code> 表）：</p>
+<ol>
+<li><code>%rsp</code> 減 8；</li>
+<li>把返回位址<strong>寫進</strong>新的 <code>%rsp</code> 指的那 8 byte。</li>
+</ol>
+<p>新的 <code>%rsp</code> 就是「舊 <code>%rsp</code> − 8」，所以第 2 步寫進去的地方，正是 <code>call</code> 之前 <code>%rsp</code> <strong>正下方那一格</strong>。減 8 本身不會蓋掉任何東西，蓋掉東西的是第 2 步的<strong>寫入</strong>。第三節的實測就是這樣：<code>call add3</code> 之前 <code>%rsp</code> ＝ <code>d410</code>，之後 <code>%rsp</code> ＝ <code>d408</code>，<code>d408</code> 裡放的是返回位址 <code>0x555555555199</code>——<code>d408</code> 就是 <code>call</code> 之前 <code>d410</code> 正下方那一格。那一格原本如果放著變數，值就沒了。</p>
+<p><strong>2. 「收進堆疊」是什麼意思：讓變數那一格在 <code>%rsp</code> 的「上面」。</strong> 照本節最上面那張圖，<code>main</code> 的 <code>r</code> 放在 <code>-0x8(%rbp)</code> ＝ <code>d418</code>。比較 <code>main</code> 有沒有 <code>sub</code>：</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th><code>push %rbp; mov %rsp,%rbp</code> 之後 <code>%rsp</code></th>
+<th><code>r</code> 那格（<code>d418</code>）在 <code>%rsp</code> 的</th>
+<th><code>call</code> 的返回位址寫在</th>
+<th><code>r</code> 會不會被蓋</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>沒有 <code>sub</code></td>
+<td><code>d420</code></td>
+<td>下面（<code>%rsp − 8</code>）</td>
+<td><code>d420 − 8</code> ＝ <strong><code>d418</code></strong></td>
+<td>那格會被寫入，<code>r</code> 當時若已經有值就被蓋掉</td>
+</tr>
+<tr>
+<td>有 <code>sub $0x10,%rsp</code></td>
+<td><code>d420 − 0x10</code> ＝ <code>d410</code></td>
+<td>上面</td>
+<td><code>d410 − 8</code> ＝ <code>d408</code></td>
+<td>不會</td>
+</tr>
+</tbody>
+</table>
+<p><code>sub $0x10,%rsp</code> 只是把 <code>%rsp</code> 往低位址挪 16 byte，<strong>不寫任何東西</strong>；效果是把「頂端」移到 <code>r</code> 的下面。照第二節的規則，<code>%rsp</code> 以上算「已經放進堆疊裡的東西」，之後的 <code>push</code>／<code>call</code> 只會寫在新的 <code>%rsp</code> 下面，<code>r</code> 那格就安全了。「收進堆疊」指的就是這個：用 <code>sub</code> 把變數的位置圈到 <code>%rsp</code> 以上。函式結束時 <code>leave</code>（<code>mov %rbp,%rsp</code>）再把 <code>%rsp</code> 拉回去，整塊一次丟掉。</p>
+<p><code>add3</code> 不需要這一步，是因為它從頭到尾沒有 <code>push</code>／<code>call</code>，<code>%rsp</code> 下面那一區沒有人會去寫（紅區保證別人不寫，它自己也不寫）。</p>
+<p><strong>3. 實驗：故意不 <code>sub</code>，看變數被蓋掉。</strong> <code>frame.c</code> 的 <code>r</code> 剛好是 <code>call add3</code> <strong>回來之後</strong>才寫進去，不 <code>sub</code> 也看不出問題；所以這裡手寫一個 <code>main</code>，把 <code>x = 42</code> 存在 <code>-8(%rbp)</code>，<strong>中間 <code>call</code> 一個什麼都不做的函式</strong>，再把 <code>x</code> 印出來。同一份檔案用 <code>-DSUB</code> 決定有沒有 <code>sub</code>（<code>.S</code> 大寫副檔名會先經過 C 前置處理器，<code>#ifdef</code> 才有效）。</p>
+<p><code>nosub.S</code>（檔案：<a href="../../small-project/s1-05-asm-calls/nosub.S"><code>nosub.S</code></a>）完整原始碼：</p>
+<pre><code class="language-asm"><span class="cm">/* nosub.S：main 把變數 x 放在 -8(%rbp)，比較「有 sub」和「沒 sub」時，</span>
+<span class="cm">   中間 call 一次 noop 之後 x 還在不在。</span>
+<span class="cm">   編譯：gcc -g -o nosub nosub.S            （沒 sub）</span>
+<span class="cm">         gcc -g -DSUB -o withsub nosub.S    （有 sub） */</span>
+
+<span class="w">        </span><span class="na">.section</span><span class="w"> </span><span class="no">.rodata</span>
+<span class="nl">fmt:</span><span class="w">    </span><span class="na">.string</span><span class="w"> </span><span class="s">&quot;x = %#lx\n&quot;</span>
+
+<span class="w">        </span><span class="na">.text</span>
+<span class="nl">noop:</span><span class="w">                           </span><span class="cm">/* 什麼都不做的函式 */</span>
+<span class="w">        </span><span class="nf">ret</span>
+
+<span class="w">        </span><span class="na">.globl</span><span class="w"> </span><span class="no">main</span>
+<span class="nl">main:</span>
+<span class="w">        </span><span class="nf">push</span><span class="w">    </span><span class="nv">%rbp</span>
+<span class="w">        </span><span class="nf">mov</span><span class="w">     </span><span class="nv">%rsp</span><span class="p">,</span><span class="w"> </span><span class="nv">%rbp</span>
+<span class="c1">#ifdef SUB</span>
+<span class="w">        </span><span class="nf">sub</span><span class="w">     </span><span class="no">$0x10</span><span class="p">,</span><span class="w"> </span><span class="nv">%rsp</span><span class="w">     </span><span class="cm">/* 把 x 那格收進堆疊：%rsp 移到 x 的下面 */</span>
+<span class="c1">#endif</span>
+<span class="w">        </span><span class="nf">movq</span><span class="w">    </span><span class="no">$42</span><span class="p">,</span><span class="w"> </span><span class="mi">-8</span><span class="p">(</span><span class="nv">%rbp</span><span class="p">)</span><span class="w">   </span><span class="cm">/* x = 42，放在 %rbp - 8 */</span>
+<span class="w">        </span><span class="nf">call</span><span class="w">    </span><span class="no">noop</span><span class="w">            </span><span class="cm">/* 推返回位址到 %rsp - 8，再跳去 noop */</span>
+<span class="w">        </span><span class="nf">mov</span><span class="w">     </span><span class="mi">-8</span><span class="p">(</span><span class="nv">%rbp</span><span class="p">),</span><span class="w"> </span><span class="nv">%rsi</span><span class="w">  </span><span class="cm">/* printf 的第 2 個參數 = x */</span>
+<span class="w">        </span><span class="nf">lea</span><span class="w">     </span><span class="no">fmt</span><span class="p">(</span><span class="nv">%rip</span><span class="p">),</span><span class="w"> </span><span class="nv">%rdi</span><span class="w"> </span><span class="cm">/* printf 的第 1 個參數 = 字串位址 */</span>
+<span class="w">        </span><span class="nf">mov</span><span class="w">     </span><span class="no">$0</span><span class="p">,</span><span class="w"> </span><span class="nv">%eax</span><span class="w">        </span><span class="cm">/* 沒有 double 參數（第七節） */</span>
+<span class="w">        </span><span class="nf">call</span><span class="w">    </span><span class="no">printf@PLT</span>
+<span class="w">        </span><span class="nf">mov</span><span class="w">     </span><span class="no">$0</span><span class="p">,</span><span class="w"> </span><span class="nv">%eax</span><span class="w">        </span><span class="cm">/* return 0 */</span>
+<span class="w">        </span><span class="nf">leave</span>
+<span class="w">        </span><span class="nf">ret</span>
+
+<span class="w">        </span><span class="na">.section</span><span class="w"> </span><span class="no">.note.GNU-stack</span><span class="p">,</span><span class="s">&quot;&quot;</span><span class="p">,</span><span class="na">@progbits</span>
+</code></pre>
+<p>最後一行只是告訴連結器「這個檔案不需要可執行的堆疊」，少了它 <code>ld</code> 會印警告，跟本實驗無關。</p>
+<pre><code>$ gcc -g -DSUB -o withsub nosub.S
+$ gcc -g -o nosub nosub.S
+$ ./withsub
+x = 0x2a
+$ ./nosub
+x = 0x55555555514b
+</code></pre>
+<p>有 <code>sub</code> 時印出 <code>0x2a</code>（42）；沒 <code>sub</code> 時 <code>x</code> 變成一個很像位址的數字。用 <code>objdump -d --no-show-raw-insn nosub</code> 看沒 <code>sub</code> 的版本：</p>
+<pre><code>000000000000113a &lt;main&gt;:
+    113a:	push   %rbp
+    113b:	mov    %rsp,%rbp
+    113e:	movq   $0x2a,-0x8(%rbp)
+    1146:	call   1139 &lt;noop&gt;
+    114b:	mov    -0x8(%rbp),%rsi
+    ...
+</code></pre>
+<p><code>call</code> 的下一條指令在 <code>0x114b</code>——<code>x</code> 被換成的就是 <code>call noop</code> 的<strong>返回位址</strong>（執行時再加上載入位址 <code>0x555555554000</code>）。</p>
+<p>用 gdb 停在 <code>call noop</code> 上，比較 <code>call</code> 前後。<code>nosub.gdb</code>（檔案：<a href="../../small-project/s1-05-asm-calls/nosub.gdb"><code>nosub.gdb</code></a>），<code>main+12</code> 是 <code>call noop</code>（<code>0x1146 − 0x113a = 12</code>）：</p>
+<pre><code>break *main+12
+run
+x/i $pc
+info registers rsp rbp
+x/gx $rbp-8
+stepi
+x/i $pc
+info registers rsp
+x/gx $rbp-8
+continue
+</code></pre>
+<pre><code>$ gdb -q -batch -x nosub.gdb ./nosub
+Breakpoint 1 at 0x1146: file nosub.S, line 21.
+
+Breakpoint 1, main () at nosub.S:21
+21	        call    noop            /* 推返回位址到 %rsp - 8，再跳去 noop */
+=&gt; 0x555555555146 &lt;main+12&gt;:	call   0x555555555139 &lt;noop&gt;
+rsp            0x7fffffffd450      0x7fffffffd450
+rbp            0x7fffffffd450      0x7fffffffd450
+0x7fffffffd448:	0x000000000000002a
+noop () at nosub.S:11
+11	        ret
+=&gt; 0x555555555139 &lt;noop&gt;:	ret
+rsp            0x7fffffffd448      0x7fffffffd448
+0x7fffffffd448:	0x000055555555514b
+x = 0x55555555514b
+</code></pre>
+<ul>
+<li><code>call</code> 之前：<code>%rsp</code> ＝ <code>d450</code>，<code>x</code> 在 <code>%rbp − 8</code> ＝ <code>d448</code>，也就是 <code>%rsp</code> 正下方那一格，值是 <code>0x2a</code>。</li>
+<li><code>call</code> 之後：<code>%rsp</code> ＝ <code>d448</code>，返回位址 <code>0x55555555514b</code> 寫進 <code>d448</code>——<code>x</code> 被蓋掉了。</li>
+</ul>
+<p>有 <code>sub</code> 的版本換成 <code>withsub.gdb</code>（檔案：<a href="../../small-project/s1-05-asm-calls/withsub.gdb"><code>withsub.gdb</code></a>，內容只有第一行改成 <code>break *main+16</code>，因為多了 4 byte 的 <code>sub</code> 指令）：</p>
+<pre><code>$ gdb -q -batch -x withsub.gdb ./withsub
+...
+=&gt; 0x55555555514a &lt;main+16&gt;:	call   0x555555555139 &lt;noop&gt;
+rsp            0x7fffffffd430      0x7fffffffd430
+rbp            0x7fffffffd440      0x7fffffffd440
+0x7fffffffd438:	0x000000000000002a
+...
+=&gt; 0x555555555139 &lt;noop&gt;:	ret
+rsp            0x7fffffffd428      0x7fffffffd428
+0x7fffffffd438:	0x000000000000002a
+x = 0x2a
+</code></pre>
+<ul>
+<li><code>sub</code> 之後 <code>%rsp</code> ＝ <code>d430</code>，<code>x</code>（<code>d438</code>）在 <code>%rsp</code> 上面。</li>
+<li><code>call</code> 把返回位址寫在 <code>d430 − 8</code> ＝ <code>d428</code>，<code>x</code> 不受影響。</li>
+</ul>
+<p>（兩個程式的 <code>%rbp</code> 差 <code>0x10</code>，是兩個執行檔被載入時堆疊起點不同，跟 <code>sub</code> 無關；要比的是同一個程式裡 <code>x</code> 和 <code>%rsp</code> 的相對位置。）</p>
+<p>所以 2-3 的完整答案是：<code>%rsp</code> 下面那一區，只有「自己不會 <code>push</code>／<code>call</code>」的葉函式才能放心用（再加上紅區保證別人不寫）；會 <code>call</code> 的函式，每次 <code>call</code> 都會往 <code>%rsp − 8</code> 寫返回位址，所以要先 <code>sub</code>，把變數放到 <code>%rsp</code> 以上。
+<code>frame.c</code> 的 <code>r</code> 雖然剛好是 <code>call</code> 回來才寫，但編譯器不會逐一去算「這個變數在 <code>call</code> 時有沒有在用」，會呼叫別人的函式就一律用 <code>sub</code> 開空間。</p>
+<p><em>（追問補充結束，以下回到主線）</em></p>
+<hr />
+<p><strong>那 <code>frame.c</code> 的 <code>main</code> 拿掉 <code>sub $0x10,%rsp</code> 會怎樣：其實照樣能跑</strong></p>
+<blockquote>
+<p>2026-10-19 課後提問：「我實際去找main的組語了,但是我看不出來sub 0x10的必要性」（指 <code>frame.c</code> 的 <code>main</code>，<code>objdump -d</code> 的那一段）</p>
+</blockquote>
+<p>看得很準：<strong>單看 <code>frame.c</code> 這個 <code>main</code>，<code>sub $0x10,%rsp</code> 不是必要的</strong>，拿掉照樣印出 6。上一段說「<code>call</code> 會蓋掉 <code>%rsp</code> 下面」沒錯，但只有「變數的值在 <code>call</code> 之後還要用」時才會出事，這個 <code>main</code> 剛好沒有這種變數。</p>
+<p><code>nosub-frame.sh</code>（檔案：<a href="../../small-project/s1-05-asm-calls/nosub-frame.sh"><code>nosub-frame.sh</code></a>）完整內容，在 <code>frame.c</code> 所在的資料夾執行 <code>sh nosub-frame.sh</code>：</p>
+<pre><code class="language-sh"><span class="ch">#!/bin/sh</span>
+<span class="c1"># nosub-frame.sh：把 frame.c 編成組合語言，刪掉 main 的 subq $16, %rsp，再組譯、執行</span>
+<span class="c1"># 用法：在 frame.c 所在的資料夾執行 sh nosub-frame.sh</span>
+<span class="nb">set</span><span class="w"> </span>-e
+gcc<span class="w"> </span>-O0<span class="w"> </span>-S<span class="w"> </span>frame.c<span class="w"> </span>-o<span class="w"> </span>frame.s<span class="w">                       </span><span class="c1"># 跟筆記一樣用 -O0，只停在組合語言</span>
+grep<span class="w"> </span>-n<span class="w"> </span><span class="s1">&#39;subq&#39;</span><span class="w"> </span>frame.s<span class="w">                              </span><span class="c1"># 確認整個檔案只有 main 這一條 subq</span>
+sed<span class="w"> </span><span class="s1">&#39;/subq\t\$16, %rsp/d&#39;</span><span class="w"> </span>frame.s<span class="w"> </span>&gt;<span class="w"> </span>frame_nosub.s<span class="w">   </span><span class="c1"># 刪掉那一行，其他不動</span>
+diff<span class="w"> </span>frame.s<span class="w"> </span>frame_nosub.s<span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="nb">true</span><span class="w">                  </span><span class="c1"># 列出差別（diff 有差別時結束狀態是 1）</span>
+gcc<span class="w"> </span>-o<span class="w"> </span>frame_nosub<span class="w"> </span>frame_nosub.s<span class="w">                    </span><span class="c1"># 組譯＋連結</span>
+./frame_nosub
+</code></pre>
+<pre><code>$ sh nosub-frame.sh
+45:	subq	$16, %rsp
+45d44
+&lt; 	subq	$16, %rsp
+6
+</code></pre>
+<p>（<code>gcc -S</code> 產生的是 AT&amp;T 語法加大小字尾的寫法：<code>subq $16, %rsp</code> 就是 objdump 裡的 <code>sub $0x10,%rsp</code>，第 4 課教過字尾 <code>q</code> ＝ 8 byte。）</p>
+<p>照時間順序走一次沒有 <code>sub</code> 的 <code>main</code>（<code>%rbp</code> 那格以下，<code>r</code> 在 <code>-0x8(%rbp)</code>，也就是 <code>%rsp</code> 正下方那格）：</p>
+<ol>
+<li><code>call add3</code>：返回位址寫進 <code>-0x8(%rbp)</code>。這時 <code>r</code> 還沒有值，<strong>沒有東西被蓋掉</strong>；<code>add3</code> 的 <code>ret</code> 把它拿走。</li>
+<li><code>mov %rax,-0x8(%rbp)</code>：<code>r</code> ＝ 6，寫進那格。</li>
+<li><code>mov -0x8(%rbp),%rax</code>、<code>mov %rax,%rsi</code>：<code>r</code> 的值<strong>已經複製到 <code>%rsi</code></strong>（<code>printf</code> 的第 2 個參數）。</li>
+<li><code>call printf</code>：返回位址再寫進 <code>-0x8(%rbp)</code>，<code>r</code> 確實被蓋掉了——但之後 <code>main</code> 再也沒讀過 <code>-0x8(%rbp)</code>，<code>printf</code> 拿的是 <code>%rsi</code> 裡的 6。</li>
+</ol>
+<p>對齊也沒問題：進 <code>main</code> 時 <code>%rsp</code> 是 16 的倍數 ＋ 8，<code>push %rbp</code> 之後剛好是 16 的倍數，不 <code>sub</code> 也滿足<a href="#%E5%85%AD%E8%AA%B0%E8%B2%A0%E8%B2%AC%E4%BF%9D%E5%AD%98%E6%9A%AB%E5%AD%98%E5%99%A8%E4%BB%A5%E5%8F%8A-16-byte-%E5%B0%8D%E9%BD%8A">第六節</a>「<code>call</code> 之前 <code>%rsp</code> 是 16 的倍數」的規定。</p>
+<p><strong>那 gcc 為什麼還是加了 <code>sub</code>？</strong> 因為 <code>-O0</code> 不做這種分析。從本課看到的兩個函式，<code>-O0</code> 的做法是：</p>
+<ul>
+<li>葉函式（<code>add3</code>）：變數放紅區，不 <code>sub</code>；</li>
+<li>會 <code>call</code> 別人的函式（<code>main</code>）：每個區域變數都在 <code>%rsp</code> 上面給一格固定位置，用 <code>sub</code> 開出來（大小湊成 16 的倍數，<code>r</code> 8 byte ＋ 對齊 8 byte ＝ <code>0x10</code>）。</li>
+</ul>
+<p>它不去判斷「<code>r</code> 在哪次 <code>call</code> 時還要用」，一律這樣安排，才能保證<strong>任何</strong>程式都對——像上一段 <code>nosub.S</code> 的 <code>x</code>，在 <code>call</code> 之前寫入、之後還要讀，不 <code>sub</code> 就錯。所以 <code>sub</code> 是 gcc 的「保險做法」，不是這個 <code>main</code> 的值非靠它不可。</p>
 <p><em>（追問補充結束，以下回到主線）</em></p>
 <hr />
 <h2 id="五參數與回傳值放哪裡">五、參數與回傳值放哪裡</h2>
@@ -1002,6 +1323,33 @@ $3 = 8
 <span class="err">1177:</span><span class="w">	</span><span class="nf">pop</span><span class="w">    </span><span class="nv">%rbp</span>
 <span class="err">1178:</span><span class="w">	</span><span class="nf">ret</span>
 </code></pre>
+<details class="answer"><summary>參考答案</summary>
+<p>（核心關鍵＋詳細說明）</p>
+<p><strong>1-1</strong>【<a href="#%E4%B8%89call-%E8%88%87-ret%E7%94%A8-gdb-%E4%B8%80%E6%A2%9D%E4%B8%80%E6%A2%9D%E8%B5%B0">第三節</a>】核心關鍵：</p>
+<ol>
+<li>把<strong>返回位址</strong>（<code>call</code> 下一條指令的位址 <code>0x1199</code>）推進堆疊：<code>%rsp</code> 減 8，寫進新的頂端。</li>
+<li>跳到 <code>add3</code>（<code>%rip</code> 變成 <code>add3</code> 的位址）。</li>
+</ol>
+<p>詳細說明：<code>call add3</code> ＝ <code>push 返回位址</code> ＋ <code>jmp add3</code>。<code>frame.c</code> 實測：<code>call</code> 之後 <code>%rsp</code> 從 <code>d410</code> 變成 <code>d408</code>，<code>d408</code> 裡是 <code>0x555555555199</code>（PIE 載入後的 <code>0x1199</code>）。</p>
+<p><strong>1-2</strong>【<a href="#%E4%B8%89call-%E8%88%87-ret%E7%94%A8-gdb-%E4%B8%80%E6%A2%9D%E4%B8%80%E6%A2%9D%E8%B5%B0">第三節</a>】核心關鍵：</p>
+<ol>
+<li>把堆疊頂端那 8 byte 當成位址，放進 <code>%rip</code>（跳過去）。</li>
+<li><code>%rsp</code> 加 8（返回位址被拿走）。</li>
+</ol>
+<p>詳細說明：<code>ret</code> ＝ <code>pop</code> 到 <code>%rip</code>。沒有指令能直接 <code>mov</code> 到 <code>%rip</code>，<code>ret</code> 就是「從堆疊取一個值放進 <code>%rip</code>」。實測 <code>ret</code> 之後 <code>%rsp</code> 回到 <code>d410</code>，跟 <code>call</code> 之前一模一樣。</p>
+<p><strong>1-3</strong>【<a href="#%E4%B8%89call-%E8%88%87-ret%E7%94%A8-gdb-%E4%B8%80%E6%A2%9D%E4%B8%80%E6%A2%9D%E8%B5%B0">第三節</a>】核心關鍵：</p>
+<ol>
+<li><code>call</code> 把 <code>0x1199</code> 推進堆疊，存在 <code>%rsp</code> 指的那格記憶體裡。</li>
+<li><code>ret</code> 不知道呼叫者是誰，只是取堆疊頂端那 8 byte 當位址。</li>
+</ol>
+<p>詳細說明：所以 <code>add3</code> 在 <code>ret</code> 之前必須把 <code>%rsp</code> 還原到放返回位址的那一格：<code>pop %rbp</code> 把序言推的舊 <code>%rbp</code> 拿走，頂端就又是 <code>0x1199</code>（實測第 5 段：停在 <code>ret</code> 時 <code>%rsp</code> ＝ <code>d408</code>、裡面是 <code>0x555555555199</code>）。函式裡 <code>push</code> 和 <code>pop</code> 沒配好，<code>ret</code> 就會跳錯。</p>
+<p><strong>1-4</strong>【<a href="#%E4%B8%89call-%E8%88%87-ret%E7%94%A8-gdb-%E4%B8%80%E6%A2%9D%E4%B8%80%E6%A2%9D%E8%B5%B0">第三節</a>】核心關鍵：</p>
+<ol>
+<li><code>ret</code> 不檢查，照樣把被蓋掉的值當成位址跳過去。</li>
+<li>跳到亂的地方，通常是 segfault 當掉（那個位址沒有對映，或不能執行）。</li>
+</ol>
+<p>詳細說明：第 3 課實際看過兩種下場：有堆疊保護時，函式返回<strong>之前</strong>檢查金絲雀，印 <code>stack smashing detected</code> 中止；關掉保護（<code>-fno-stack-protector</code>）就真的走到 <code>ret</code>，返回時 segfault（<a href="%E9%99%A3%E5%88%97%E3%80%81%E5%AD%97%E4%B8%B2%E8%88%87%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97-C%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%88%87%E7%94%A8gdb%E6%89%BEsegfault.html#%E4%BA%94c-%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%B6%8A%E7%95%8C%E7%9A%84%E4%B8%89%E7%A8%AE%E4%B8%8B%E5%A0%B4">第 3 課第五節</a>〈關掉保護，看看下面是什麼：返回時 segfault〉）。如果蓋上去的值是攻擊者刻意挑的位址，<code>ret</code> 就會跳去執行攻擊者要的程式碼——這是緩衝區溢位攻擊的原理，也是堆疊保護存在的理由。</p>
+</details>
 </li>
 <li>函式開頭的 <code>push %rbp</code> 和 <code>mov %rsp,%rbp</code> 各在做什麼？<code>main</code> 結尾的 <code>leave</code> 等於哪兩條指令？<code>add3</code> 把區域變數放在 <code>%rsp</code> 下面、沒有 <code>sub %rsp</code>，<code>main</code> 卻要 <code>sub $0x10,%rsp</code>，為什麼？<pre><code class="language-asm"><span class="nl">add3:</span><span class="w">                                 </span><span class="nl">main:</span>
 <span class="w">  </span><span class="nf">push</span><span class="w">   </span><span class="nv">%rbp</span><span class="w">                           </span><span class="no">push</span><span class="w">   </span><span class="nv">%rbp</span>
@@ -1011,6 +1359,27 @@ $3 = 8
 <span class="w">  </span><span class="nf">pop</span><span class="w">    </span><span class="nv">%rbp</span><span class="w">                           </span><span class="no">leave</span>
 <span class="w">  </span><span class="nf">ret</span><span class="w">                                   </span><span class="no">ret</span>
 </code></pre>
+<details class="answer"><summary>參考答案</summary>
+<p>（核心關鍵＋詳細說明）</p>
+<p><strong>2-1</strong>【<a href="#%E5%9B%9B%E5%A0%86%E7%96%8A%E6%A1%86pushq-rbp-movq-rsp-rbp-%E8%88%87-leave">第四節</a>】核心關鍵：</p>
+<ol>
+<li><code>push %rbp</code>：把<strong>呼叫者的</strong> <code>%rbp</code> 存到堆疊上，返回前要還原。</li>
+<li><code>mov %rsp,%rbp</code>：把現在的頂端定成自己堆疊框的<strong>基準點</strong>，之後區域變數用 <code>%rbp</code> 加固定的負偏移存取。</li>
+</ol>
+<p>詳細說明：實測：<code>add3</code> 的 <code>push %rbp</code> 之後，<code>d400</code> 裡是 <code>main</code> 的 <code>%rbp</code>（<code>d420</code>）；<code>mov</code> 之後 <code>%rbp</code> ＝ <code>d400</code>。每個框的 <code>%rbp</code> 那格都存著上一層的 <code>%rbp</code>，串成一條鏈，<code>bt</code> 就是沿著它往回找。</p>
+<p><strong>2-2</strong>【<a href="#%E5%9B%9B%E5%A0%86%E7%96%8A%E6%A1%86pushq-rbp-movq-rsp-rbp-%E8%88%87-leave">第四節</a>〈<code>leave</code>：一條指令做兩件事〉】核心關鍵：</p>
+<ol>
+<li><code>mov %rbp,%rsp</code>：把 <code>%rsp</code> 拉回基準點，<code>sub</code> 開的空間一次丟掉。</li>
+<li><code>pop %rbp</code>：還原呼叫者的 <code>%rbp</code>。</li>
+</ol>
+<p>詳細說明：<code>leave.gdb</code> 實測：<code>leave</code> 前 <code>%rsp</code> ＝ <code>d410</code>、<code>%rbp</code> ＝ <code>d420</code>；之後 <code>%rsp</code> ＝ <code>d428</code>（拉回 <code>d420</code> 再 <code>pop</code> 走 8 byte）、<code>%rbp</code> ＝ <code>d4c0</code>。只 <code>push</code> 沒 <code>sub</code> 的函式（<code>add3</code>）用 <code>pop %rbp</code> 就夠了。</p>
+<p><strong>2-3</strong>【<a href="#%E5%9B%9B%E5%A0%86%E7%96%8A%E6%A1%86pushq-rbp-movq-rsp-rbp-%E8%88%87-leave">第四節</a>〈上圖 <code>add3</code> 的變數在 <code>%rsp</code> 的「下面」：紅區〉】核心關鍵：</p>
+<ol>
+<li><strong>紅區</strong>：ABI 保證 <code>%rsp</code> 下方 128 byte 不會被別人蓋掉；<code>add3</code> 是葉函式，自己也不會 <code>push</code>／<code>call</code>，所以直接用、省一條 <code>sub</code>。</li>
+<li><code>main</code> 要 <code>call</code>：<code>call</code> 推返回位址會寫在 <code>%rsp</code> 下面、蓋掉那一區，<code>call</code> 之後還要用的變數就壞了，所以 gcc 對會 <code>call</code> 的函式一律 <code>sub</code>，把變數空間放進堆疊（<code>%rsp</code> 上面）。</li>
+</ol>
+<p>詳細說明：<code>sub</code> 的大小是 <code>0x10</code> 不是 8，才是 16 byte 對齊的緣故（<a href="#%E5%85%AD%E8%AA%B0%E8%B2%A0%E8%B2%AC%E4%BF%9D%E5%AD%98%E6%9A%AB%E5%AD%98%E5%99%A8%E4%BB%A5%E5%8F%8A-16-byte-%E5%B0%8D%E9%BD%8A">第六節</a>〈上面的 <code>sub $0x8,%rsp</code>：16 byte 對齊〉：進 <code>main</code> 時 <code>d428</code>，<code>push</code> 後 <code>d420</code>，<code>sub $0x10</code> 後 <code>d410</code> 是 16 的倍數）。<code>frame.c</code> 的 <code>r</code> 碰巧在 <code>call add3</code> 回來才寫入、<code>call printf</code> 前已複製到 <code>%rsi</code>，所以拿掉 <code>sub</code> 其實也能跑；gcc <code>-O0</code> 不做這種分析，會 <code>call</code> 的函式一律 <code>sub</code>（<a href="#%E5%9B%9B%E5%A0%86%E7%96%8A%E6%A1%86pushq-rbp-movq-rsp-rbp-%E8%88%87-leave">第四節</a>〈那 <code>frame.c</code> 的 <code>main</code> 拿掉 <code>sub $0x10,%rsp</code> 會怎樣：其實照樣能跑〉）。kernel 不能用紅區（中斷會直接推資料到目前的堆疊上），所以編譯時加 <code>-mno-red-zone</code>。</p>
+</details>
 </li>
 <li><code>args8.c</code> 的 <code>sum8</code> 有 8 個 <code>long</code> 參數。前 6 個參數放在哪裡？第 7、8 個放在哪裡、<code>call8</code> 用什麼順序放？在 <code>sum8</code> 裡第 7 個參數為什麼是 <code>0x10(%rbp)</code>，而不是 <code>0(%rbp)</code>？<code>call8</code> 在 <code>call</code> 之後為什麼要 <code>add $0x10,%rsp</code>？<pre><code class="language-c"><span class="kt">long</span><span class="w"> </span><span class="nf">sum8</span><span class="p">(</span><span class="kt">long</span><span class="w"> </span><span class="n">a</span><span class="p">,</span><span class="w"> </span><span class="kt">long</span><span class="w"> </span><span class="n">b</span><span class="p">,</span><span class="w"> </span><span class="kt">long</span><span class="w"> </span><span class="n">c</span><span class="p">,</span><span class="w"> </span><span class="kt">long</span><span class="w"> </span><span class="n">d</span><span class="p">,</span><span class="w"> </span><span class="kt">long</span><span class="w"> </span><span class="n">e</span><span class="p">,</span><span class="w"> </span><span class="kt">long</span><span class="w"> </span><span class="n">f</span><span class="p">,</span><span class="w"> </span><span class="kt">long</span><span class="w"> </span><span class="n">g</span><span class="p">,</span><span class="w"> </span><span class="kt">long</span><span class="w"> </span><span class="n">h</span><span class="p">)</span>
 <span class="p">{</span>
@@ -1034,6 +1403,32 @@ $3 = 8
 <span class="w">  </span><span class="nf">leave</span>
 <span class="w">  </span><span class="nf">ret</span>
 </code></pre>
+<details class="answer"><summary>參考答案</summary>
+<p>（核心關鍵＋詳細說明）</p>
+<p><strong>3-1</strong>【<a href="#%E4%BA%94%E5%8F%83%E6%95%B8%E8%88%87%E5%9B%9E%E5%82%B3%E5%80%BC%E6%94%BE%E5%93%AA%E8%A3%A1">第五節</a>】核心關鍵：</p>
+<ol>
+<li>照順序放 <code>%rdi</code>、<code>%rsi</code>、<code>%rdx</code>、<code>%rcx</code>、<code>%r8</code>、<code>%r9</code>。</li>
+</ol>
+<p>詳細說明：<code>call8</code> 寫的是 <code>%r9d</code>、<code>%ecx</code> 這些 32 位元的名字：常數小，寫 32 位元會清掉高 32 位元，整個 64 位元就是那個值，指令還比較短。回傳值放 <code>%rax</code>。</p>
+<p><strong>3-2</strong>【<a href="#%E4%BA%94%E5%8F%83%E6%95%B8%E8%88%87%E5%9B%9E%E5%82%B3%E5%80%BC%E6%94%BE%E5%93%AA%E8%A3%A1">第五節</a>〈實驗：8 個參數，第 7、8 個去哪了〉】核心關鍵：</p>
+<ol>
+<li>放在堆疊上（呼叫者用 <code>push</code> 推進去，每個 8 byte）。</li>
+<li>從最後一個開始推：先 <code>push $0x8</code> 再 <code>push $0x7</code>，所以第 7 個在較低的位址。</li>
+</ol>
+<p>詳細說明：倒著推，第 7 個才會離 <code>sum8</code> 的堆疊框最近（在 <code>0x10(%rbp)</code>），第 8 個接在上面（<code>0x18(%rbp)</code>），參數個數不固定時也能從固定位置往上數。</p>
+<p><strong>3-3</strong>【<a href="#%E4%BA%94%E5%8F%83%E6%95%B8%E8%88%87%E5%9B%9E%E5%82%B3%E5%80%BC%E6%94%BE%E5%93%AA%E8%A3%A1">第五節</a>〈實驗：8 個參數，第 7、8 個去哪了〉】核心關鍵：</p>
+<ol>
+<li><code>call8</code> 推完參數後，<code>call</code> 又推了返回位址、<code>sum8</code> 的序言又推了舊 <code>%rbp</code>。</li>
+<li>所以從 <code>sum8</code> 的 <code>%rbp</code> 往上：<code>0(%rbp)</code> 舊 <code>%rbp</code>、<code>0x8(%rbp)</code> 返回位址、<code>0x10(%rbp)</code> 才是第 7 個。</li>
+</ol>
+<p>詳細說明：記法：<strong>參數用正的偏移（在呼叫者那邊），區域變數用負的偏移（在自己這邊）</strong>。作業 2-2 預測成負偏移，這次答對了。</p>
+<p><strong>3-4</strong>【<a href="#%E4%BA%94%E5%8F%83%E6%95%B8%E8%88%87%E5%9B%9E%E5%82%B3%E5%80%BC%E6%94%BE%E5%93%AA%E8%A3%A1">第五節</a>〈實驗：8 個參數，第 7、8 個去哪了〉】核心關鍵：</p>
+<ol>
+<li>第 7、8 個參數是 <code>call8</code> 自己 <code>push</code> 的（2 × 8 ＝ 16 byte）。</li>
+<li><code>sum8</code> 的 <code>ret</code> 只拿走返回位址、不清參數，所以由呼叫者 <code>call8</code> 在 <code>call</code> 回來後用 <code>add $0x10,%rsp</code> 丟掉。</li>
+</ol>
+<p>詳細說明：這裡 <code>add</code> 之後緊接著 <code>leave</code>，其實 <code>leave</code> 的 <code>mov %rbp,%rsp</code> 也會把 <code>%rsp</code> 拉回去；<code>-O0</code> 照規則先清掉參數，不管後面有沒有 <code>leave</code>。如果 <code>call8</code> 接著還要呼叫別人，不清的話推過的參數就會一直堆在堆疊上。</p>
+</details>
 </li>
 <li>下面兩個函式用 <code>-O2</code> 編譯（<code>g</code> 只有宣告）。為什麼 <code>saved.c</code> 的 <code>f</code> 要 <code>push %rbx</code>，而不是讓 <code>x</code> 留在 <code>%rdi</code>？<code>noret.c</code> 的 <code>f</code> 不需要保存任何值，為什麼還要 <code>sub $0x8,%rsp</code>？<pre><code class="language-c"><span class="cm">/* saved.c */</span><span class="w">                          </span><span class="cm">/* noret.c */</span>
 <span class="kt">long</span><span class="w"> </span><span class="nf">g</span><span class="p">(</span><span class="kt">long</span><span class="w"> </span><span class="n">x</span><span class="p">);</span><span class="w">                         </span><span class="kt">long</span><span class="w"> </span><span class="nf">g</span><span class="p">(</span><span class="kt">long</span><span class="w"> </span><span class="n">x</span><span class="p">);</span>
@@ -1052,6 +1447,23 @@ $3 = 8
 <span class="nf">pop</span><span class="w">    </span><span class="nv">%rbx</span><span class="w">                             </span><span class="no">ret</span>
 <span class="nf">ret</span>
 </code></pre>
+<details class="answer"><summary>參考答案</summary>
+<p>（核心關鍵＋詳細說明）</p>
+<p><strong>4-1</strong>【<a href="#%E5%85%AD%E8%AA%B0%E8%B2%A0%E8%B2%AC%E4%BF%9D%E5%AD%98%E6%9A%AB%E5%AD%98%E5%99%A8%E4%BB%A5%E5%8F%8A-16-byte-%E5%B0%8D%E9%BD%8A">第六節</a>〈實驗：要跨過 <code>call</code> 保存的值放哪裡〉】核心關鍵：</p>
+<ol>
+<li><code>x</code> 在 <code>g</code> 回來後還要用，但 <code>%rdi</code> 是 caller-saved，<code>g</code> 可能改掉它。</li>
+<li>所以把 <code>x</code> 搬到 callee-saved 的 <code>%rbx</code>：ABI 保證 <code>g</code> 回來時 <code>%rbx</code> 不變。</li>
+<li><code>f</code> 借用 <code>%rbx</code> 也要對自己的呼叫者負責：開頭 <code>push %rbx</code>、返回前 <code>pop %rbx</code> 還原。</li>
+</ol>
+<p>詳細說明：對照 <code>noret.c</code>：<code>call</code> 之後不再用 <code>x</code>，就不需要 <code>%rbx</code>，也沒有 <code>push</code>／<code>pop %rbx</code>。<code>saved.c</code> 的 <code>push %rbx</code> 還順便把 <code>%rsp</code> 挪了 8 byte，同時滿足 16 byte 對齊，一舉兩得（4-2）。</p>
+<p><strong>4-2</strong>【<a href="#%E5%85%AD%E8%AA%B0%E8%B2%A0%E8%B2%AC%E4%BF%9D%E5%AD%98%E6%9A%AB%E5%AD%98%E5%99%A8%E4%BB%A5%E5%8F%8A-16-byte-%E5%B0%8D%E9%BD%8A">第六節</a>〈上面的 <code>sub $0x8,%rsp</code>：16 byte 對齊〉】核心關鍵：</p>
+<ol>
+<li>ABI 規定：執行 <code>call</code> 的那一刻，<code>%rsp</code> 必須是 16 的倍數。</li>
+<li>呼叫 <code>f</code> 的人照規定對齊，但 <code>call f</code> 推了 8 byte 返回位址，進到 <code>f</code> 時 <code>%rsp</code> 是「16 的倍數 − 8」。</li>
+<li><code>f</code> 要 <code>call g</code>，必須再挪 8 byte：沒東西要存，就用 <code>sub $0x8,%rsp</code> 單純挪。</li>
+</ol>
+<p>詳細說明：<code>saved.c</code> 不需要 <code>sub</code>，因為 <code>push %rbx</code> 剛好也挪了 8 byte。要 16 的原因：有些指令（例如 SSE 的 <code>movaps</code>）要求記憶體位址是 16 的倍數，否則會當掉。</p>
+</details>
 </li>
 <li>情境題：你用 <code>break *add3</code> 停在 <code>add3</code> 的第一條指令（還沒執行 <code>push %rbp</code>），gdb 顯示 <code>add3 (a=0, b=0, c=0)</code>，可是 <code>main</code> 明明傳的是 1、2、3。
 <ul>
@@ -1073,6 +1485,22 @@ $3 = 8
 <span class="w">  </span><span class="nf">mov</span><span class="w">    </span><span class="nv">%rdx</span><span class="p">,-</span><span class="mi">0x28</span><span class="p">(</span><span class="nv">%rbp</span><span class="p">)</span>
 <span class="w">  </span><span class="na">...</span>
 </code></pre>
+<details class="answer"><summary>參考答案</summary>
+<p>（核心關鍵＋詳細說明）</p>
+<p><strong>5-1</strong>【<a href="#%E4%B8%89call-%E8%88%87-ret%E7%94%A8-gdb-%E4%B8%80%E6%A2%9D%E4%B8%80%E6%A2%9D%E8%B5%B0">第三節</a>】核心關鍵：</p>
+<ol>
+<li>gdb 照除錯資訊去堆疊上的 <code>-0x18(%rbp)</code> 等位置讀參數（<code>-O0</code> 的除錯資訊只記堆疊那一格）。</li>
+<li>停在第一條指令時序言還沒跑，參數還沒存進那幾格 → 讀到的是舊值。（2026-10-19 更正：原本寫「<code>%rbp</code> 也還是 <code>main</code> 的」是錯的，gdb 用 CFA 算位址，位址是對的，見<a href="#%E4%B8%89call-%E8%88%87-ret%E7%94%A8-gdb-%E4%B8%80%E6%A2%9D%E4%B8%80%E6%A2%9D%E8%B5%B0">第三節</a>〈gdb 為什麼去堆疊讀參數，而不是讀暫存器〉。）</li>
+<li>真正的參數在 <code>%rdi</code>、<code>%rsi</code>、<code>%rdx</code>（<code>info registers rdi rsi rdx</code>）。</li>
+</ol>
+<p>詳細說明：到序言跑完、參數存好之後（例如停在 <code>ret</code> 前），gdb 就印出正確的 <code>a=1, b=2, c=3</code>。這也是 <code>break add3</code>（不加 <code>*</code>）要跳過開頭準備指令的原因——第 4 課組語 11-3 卡過的同一件事。</p>
+<p><strong>5-2</strong>【<a href="#%E4%B8%89call-%E8%88%87-ret%E7%94%A8-gdb-%E4%B8%80%E6%A2%9D%E4%B8%80%E6%A2%9D%E8%B5%B0">第三節</a>〈停在函式入口時，怎麼知道是誰呼叫的〉】核心關鍵：</p>
+<ol>
+<li>看 <code>%rsp</code> 指的那 8 byte（<code>x/gx $rsp</code>）。</li>
+<li>那是返回位址：<code>ret</code> 會跳回去的地方，也就是呼叫者裡 <code>call</code> 下一條指令的位址。</li>
+</ol>
+<p>詳細說明：要真的查出呼叫者，再看這個位址落在哪個函式（<code>info symbol *(long *)$rsp</code> → <code>main + 32</code>），那個函式就是呼叫者；題目沒有要求寫出這一步（2026-10-19 改判後從核心關鍵移到這裡）。只有停在<strong>第一條指令</strong>時頂端才是返回位址；<code>push %rbp</code> 之後返回位址在 <code>8(%rbp)</code>。<code>bt</code> 做的事本質上一樣：沿著堆疊一層一層找返回位址。</p>
+</details>
 </li>
 </ol>
 

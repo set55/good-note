@@ -39,7 +39,34 @@ def fence_content(lines, start, indent, fence):
     raise SaveError(409, "找不到作答框的結尾，請重新整理頁面")
 
 
-def save_answer(rel, line, original, content):
+def insert_practice(lines, line, content):
+    """在批改區塊後面（第 line 行之前）插入自我練習框；回傳 (行數變化, 作答框開頭的行號)。"""
+    if not 0 < line <= len(lines) or not lines[line - 1].lstrip().startswith(">"):
+        raise SaveError(409, "檔案在別處被改過（例如已經批改），請先把框裡的內容複製起來，再重新整理頁面")
+    k = line
+    while k < len(lines) and not lines[k].strip():
+        k += 1
+    if k < len(lines) and lines[k].strip().startswith(build_html.PRACTICE_LABEL):
+        raise SaveError(409, "這裡已經有自我練習框了，請先把框裡的內容複製起來，再重新整理頁面")
+    indent = re.match(r"\s*", lines[line - 1]).group(0)
+    body = fence_lines(indent, content)
+    new = ["", indent + build_html.PRACTICE_LABEL, ""] + body
+    lines[line:line] = new
+    return len(new), line + 3
+
+
+def fence_lines(indent, content):
+    body = content.replace("\r\n", "\n").rstrip("\n")
+    longest = max((len(r) for r in re.findall(r"`+", body)), default=0)
+    fence = "`" * max(3, longest + 1)  # 答案裡有 ``` 時，外框要比它長
+    out = [indent + fence]
+    if body:
+        out += [indent + l if l else "" for l in body.split("\n")]
+    out.append(indent + fence)
+    return out
+
+
+def save_answer(rel, line, original, content, insert=False):
     path = (ROOT / rel).resolve()
     try:
         rel_path = path.relative_to(ROOT)
@@ -50,6 +77,10 @@ def save_answer(rel, line, original, content):
 
     text = path.read_text(encoding="utf-8")
     lines = text.split("\n")
+    if insert:
+        delta, new_line = insert_practice(lines, line, content)
+        write_lines(path, lines)
+        return delta, new_line
     m = FENCE_OPEN.match(lines[line]) if 0 <= line < len(lines) else None
     if not m:
         raise SaveError(409, "檔案在別處被改過（例如已經批改），請先把框裡的內容複製起來，再重新整理頁面")
@@ -59,13 +90,7 @@ def save_answer(rel, line, original, content):
     if norm(current) != norm(original):
         raise SaveError(409, "這一格在別處被改過（例如直接改了 .md），請先把框裡的內容複製起來，再重新整理頁面")
 
-    body = norm(content)
-    longest = max((len(r) for r in re.findall(r"`+", body)), default=0)
-    new_fence = "`" * max(3, longest + 1)  # 答案裡有 ``` 時，外框要比它長
-    new = [indent + new_fence]
-    if body:
-        new += [indent + l if l else "" for l in body.split("\n")]
-    new.append(indent + new_fence)
+    new = fence_lines(indent, content)
     lines[line:end + 1] = new
 
     # 作答標籤還是 `YYYY-MM-DD` 的，存檔時填上今天
@@ -77,10 +102,14 @@ def save_answer(rel, line, original, content):
             lines[j] = lines[j].replace("YYYY-MM-DD", datetime.date.today().isoformat())
             break
 
+    write_lines(path, lines)
+    return len(new) - (end + 1 - line), None
+
+
+def write_lines(path, lines):
     tmp = path.with_suffix(".md.tmp")
     tmp.write_text("\n".join(lines), encoding="utf-8")
     os.replace(tmp, path)
-    return len(new) - (end + 1 - line)
 
 
 class Handler(SimpleHTTPRequestHandler):
@@ -126,10 +155,14 @@ class Handler(SimpleHTTPRequestHandler):
         try:
             req = json.loads(self.rfile.read(int(self.headers.get("Content-Length", 0))))
             with LOCK:
-                delta = save_answer(req["file"], int(req["line"]), req["original"], req["content"])
+                delta, new_line = save_answer(req["file"], int(req["line"]), req["original"], req["content"],
+                                              bool(req.get("insert")))
                 build_html.main()
             self.log_message("已寫入 %s 第 %d 行", req["file"], int(req["line"]) + 1)
-            self.reply(200, {"ok": True, "delta": delta})
+            reply = {"ok": True, "delta": delta}
+            if new_line is not None:
+                reply["line"] = new_line
+            self.reply(200, reply)
         except SaveError as e:
             self.reply(e.status, {"error": str(e)})
         except (KeyError, ValueError, json.JSONDecodeError) as e:

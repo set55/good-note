@@ -259,6 +259,14 @@ ld.so是interpreter, 在執行時,kernel會把他載入,然後他會根據前面
 <p>詳細說明：<code>ld</code> 也會產生程式標頭表，把同權限的區段打包成載入段；<code>ld.so</code> 載入時會檢查函式庫版本（<code>GLIBC_2.34</code> 這種需求）。「填入程式碼」的誤會：<code>ld.so</code> 不搬程式碼，函式庫的程式碼映射進記憶體就在那裡了；它填的是「去哪裡找那段程式碼」的位址。</p>
 </details>
 </details>
+</p>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="review/2026-10-19-interp-GNU-C資料-ELF-objdump-組語.md" data-line="77"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）">ld 負責把所有的.o的的section 組合起來, 並且爲符號填上位址,然後call的洞也填上對應的符號
+如果有些符號是在別的函式庫,無法給確定的位址,那就是在dynamic section寫上需求單
+
+ld.so在核心啓動的時候載入,他會載入需求單上的函式庫,並且爲原本無法填上位置的符號填上位址到.got,然後跳到_start開始
+</textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+</details>
 <h3 id="interp-3-腳本的-binsh-和-elf-的-interpreter哪裡相同哪裡不同用-bincat-的實驗說明核心把什麼交給直譯器">interp 3. 腳本的 <code>#!/bin/sh</code> 和 ELF 的 interpreter，哪裡相同、哪裡不同？用 <code>#!/bin/cat</code> 的實驗說明「核心把什麼交給直譯器」。</h3>
 <p>題目說的 <code>#!/bin/cat</code> 實驗（筆記<a href="../c/ELF%E7%9A%84interpreter%E6%98%AF%E4%BB%80%E9%BA%BC-%E5%8B%95%E6%85%8B%E8%BC%89%E5%85%A5%E5%99%A8%E8%88%87%E4%BA%95%E5%AD%97%E8%99%9F%E9%A9%9A%E5%98%86%E8%99%9F.html#%E5%9B%9B%E8%B7%9F%E8%85%B3%E6%9C%AC%E7%9A%84--%E6%98%AF%E5%90%8C%E4%B8%80%E5%80%8B%E6%A9%9F%E5%88%B6">第四節</a>開頭）：寫一支第一行是 <code>#!/bin/cat</code> 的腳本，給它執行權限，再用 <code>./</code> 直接執行它。</p>
 <p>腳本 <code>catscript</code> 的完整內容（兩行）：</p>
@@ -296,6 +304,15 @@ chmod<span class="w"> </span>+x<span class="w"> </span>catscript
 <p>詳細說明：兩個實驗可以證明交的是路徑、不是內容：<code>#!/usr/bin/echo</code> 的腳本印出的是 <code>./echoscript.sh</code> 這個路徑（<code>echo</code> 只印參數，不讀檔）；把腳本改成 <code>chmod 111</code>（只能執行、不能讀），錯誤訊息是 <code>/usr/bin/cat: ./catscript.sh: Permission denied</code>——<code>cat</code> 自己開檔被擋。如果核心交的是內容，<code>cat</code> 根本不必開檔，這個錯誤就不會發生。</p>
 </details>
 </details>
+</p>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="review/2026-10-19-interp-GNU-C資料-ELF-objdump-組語.md" data-line="129"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）">相同的點都是核心優先啓動
+不同的點是 sh 他是 #!這個告訴核心先啓動它,而interpreter 是 核心從program header看Interp的路徑
+
+從實驗,我們可以看到核心是這樣執行腳本的: /bin/sh catscript.sh
+所以可以看出他把腳本檔路徑交給了shell
+</textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+</details>
 <hr />
 <h2 id="gnugnu是什麼-linux核心與gnu工具的分工">GNU：<a href="../linux/GNU%E6%98%AF%E4%BB%80%E9%BA%BC-Linux%E6%A0%B8%E5%BF%83%E8%88%87GNU%E5%B7%A5%E5%85%B7%E7%9A%84%E5%88%86%E5%B7%A5.html">GNU是什麼-Linux核心與GNU工具的分工</a></h2>
 <h3 id="gnu-4-gpl-的-copyleft-要求什麼glibc-用-lgpl-而不是-gpl對商業軟體能不能連結-libc有什麼差別">GNU 4. GPL 的 copyleft 要求什麼？glibc 用 LGPL 而不是 GPL，對「商業軟體能不能連結 libc」有什麼差別？</h3>
@@ -319,6 +336,14 @@ chmod<span class="w"> </span>+x<span class="w"> </span>catscript
 <p>詳細說明：copyleft 的目的是讓「自由不能在傳遞途中被拿走」：拿到 GPL 軟體的人，也要拿得到原始碼、有同樣的權利。例子：公司內部改了 GPL 的工具自己用，不必公開；把改過的版本賣給客戶，就要給客戶原始碼，並讓客戶同樣能以 GPL 再散布。</p>
 </details>
 </details>
+</p>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="review/2026-10-19-interp-GNU-C資料-ELF-objdump-組語.md" data-line="164"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）">當你修改並發佈,且傳播給其他人使用的時候,需要以gpl授權發佈,並且公開源代碼
+
+LGPL 如果你是連接了他的代碼,然後把你的程式交給別人,一樣無需公開你的源代碼
+GPL的話你需要公佈源代碼
+</textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+</details>
 <h3 id="gnu-5-你將來送-kernel-patch-時要加的-signed-off-by-跟-gpl-有什麼關係">GNU 5. 你將來送 kernel patch 時要加的 <code>Signed-off-by:</code> 跟 GPL 有什麼關係？</h3>
 <blockquote>
 <p>盒子 1｜過去的作答：<a href="../small-project/s1-01-hello-compile/quiz.html#5-%E4%BD%A0%E5%B0%87%E4%BE%86%E9%80%81-kernel-patch-%E6%99%82%E8%A6%81%E5%8A%A0%E7%9A%84-signed-off-by-%E8%B7%9F-gpl-%E6%9C%89%E4%BB%80%E9%BA%BC%E9%97%9C%E4%BF%82">s1-01 quiz.md 第 5 題</a>、<a href="2026-10-07-GNU-C%E8%B3%87%E6%96%99-hello-objdump-%E5%AD%97%E5%85%83.html">10-07 複習</a>、<a href="2026-10-11-%E5%AD%97%E5%85%83-C%E8%B3%87%E6%96%99-objdump-GNU-%E9%99%A3%E5%88%97.html#gnu-5-%E4%BD%A0%E5%B0%87%E4%BE%86%E9%80%81-kernel-patch-%E6%99%82%E8%A6%81%E5%8A%A0%E7%9A%84-signed-off-by-%E8%B7%9F-gpl-%E6%9C%89%E4%BB%80%E9%BA%BC%E9%97%9C%E4%BF%82">10-11 複習</a></p>
@@ -337,6 +362,9 @@ chmod<span class="w"> </span>+x<span class="w"> </span>catscript
 </ol>
 <p>詳細說明：DCO 是 kernel 社群的規定，不是 GPL 條文本身的要求，GPL 沒有規定發布時要署名。</p>
 </details>
+</details>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="review/2026-10-19-interp-GNU-C資料-ELF-objdump-組語.md" data-line="189" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <hr />
 <h2 id="c資料c的資料在記憶體裡長怎樣-位元組指標位元組順序與有號無號">C資料：<a href="../c/C%E7%9A%84%E8%B3%87%E6%96%99%E5%9C%A8%E8%A8%98%E6%86%B6%E9%AB%94%E8%A3%A1%E9%95%B7%E6%80%8E%E6%A8%A3-%E4%BD%8D%E5%85%83%E7%B5%84%E3%80%81%E6%8C%87%E6%A8%99%E3%80%81%E4%BD%8D%E5%85%83%E7%B5%84%E9%A0%86%E5%BA%8F%E8%88%87%E6%9C%89%E8%99%9F%E7%84%A1%E8%99%9F.html">C的資料在記憶體裡長怎樣-位元組、指標、位元組順序與有號無號</a></h2>
@@ -369,6 +397,12 @@ signed 是有號int
 <p>詳細說明：如果把 <code>char</code> 定義成 <code>signed char</code>，換到 ARM 這種 <code>char</code> 無號的平台就錯了，定成 <code>unsigned char</code> 則在 x86-64 錯，所以標準只好讓它自成一個型別。同一個函式先宣告成吃 <code>char</code>、再定義成吃 <code>signed char</code>，gcc 會報 <code>conflicting types</code>。<code>same.c</code> 實驗裡 <code>unsigned f(unsigned x)</code> 也被 gcc 印成 <code>unsigned int(unsigned int)</code>。</p>
 </details>
 </details>
+</p>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="review/2026-10-19-interp-GNU-C資料-ELF-objdump-組語.md" data-line="223"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）">char在不同平臺有可能是unsigned char,也有可能是signed char
+所以c標準把char視爲一個獨立的第三個型別,因此對c來說他們是不同的型別
+</textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+</details>
 <h3 id="c資料-7-2147483648-和-0x80000000-是同一個數為什麼一個的型別是-long一個是-unsigned-int-1--0x80000000-和--1--2147483648-的結果各是什麼為什麼">C資料 7. <code>2147483648</code> 和 <code>0x80000000</code> 是同一個數，為什麼一個的型別是 <code>long</code>、一個是 <code>unsigned int</code>？<code>-1 &lt; 0x80000000</code> 和 <code>-1 &lt; 2147483648</code> 的結果各是什麼？為什麼？</h3>
 <blockquote>
 <p>盒子 1｜過去的作答：<a href="../small-project/s1-02-data-repr/quiz.html#7-2147483648-%E5%92%8C-0x80000000-%E6%98%AF%E5%90%8C%E4%B8%80%E5%80%8B%E6%95%B8%E7%82%BA%E4%BB%80%E9%BA%BC%E4%B8%80%E5%80%8B%E7%9A%84%E5%9E%8B%E5%88%A5%E6%98%AF-long%E4%B8%80%E5%80%8B%E6%98%AF-unsigned-int-1--0x80000000-%E5%92%8C--1--2147483648-%E7%9A%84%E7%B5%90%E6%9E%9C%E5%90%84%E6%98%AF%E4%BB%80%E9%BA%BC%E7%82%BA%E4%BB%80%E9%BA%BC">s1-02 quiz.md 第 7 題</a>、<a href="2026-10-10-C%E8%B3%87%E6%96%99-GNU-interp-hello-gcc.html#c%E8%B3%87%E6%96%99-7-2147483648-%E5%92%8C-0x80000000-%E6%98%AF%E5%90%8C%E4%B8%80%E5%80%8B%E6%95%B8%E7%82%BA%E4%BB%80%E9%BA%BC%E4%B8%80%E5%80%8B%E7%9A%84%E5%9E%8B%E5%88%A5%E6%98%AF-long%E4%B8%80%E5%80%8B%E6%98%AF-unsigned-int-1--0x80000000-%E5%92%8C--1--2147483648-%E7%9A%84%E7%B5%90%E6%9E%9C%E5%90%84%E6%98%AF%E4%BB%80%E9%BA%BC%E7%82%BA%E4%BB%80%E9%BA%BC">10-10 複習</a></p>
@@ -393,6 +427,9 @@ signed 是有號int
 <p>詳細說明：十六進位清單多放無號型別，是因為寫十六進位的人通常在寫位元樣式（例如遮罩 <code>0x80000000</code>），要的是那個 bit 樣式，不是負數。</p>
 </details>
 </details>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="review/2026-10-19-interp-GNU-C資料-ELF-objdump-組語.md" data-line="251" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+</details>
 <hr />
 <h2 id="elfelf是什麼-可執行與可連結格式的兩種視角">ELF：<a href="../c/ELF%E6%98%AF%E4%BB%80%E9%BA%BC-%E5%8F%AF%E5%9F%B7%E8%A1%8C%E8%88%87%E5%8F%AF%E9%80%A3%E7%B5%90%E6%A0%BC%E5%BC%8F%E7%9A%84%E5%85%A9%E7%A8%AE%E8%A6%96%E8%A7%92.html">ELF是什麼-可執行與可連結格式的兩種視角</a></h2>
 <h3 id="elf-4-區段section和載入段segment差在哪為什麼核心載入時要把很多區段打包成少數幾個載入段">ELF 4. 區段（section）和載入段（segment）差在哪？為什麼核心載入時要把很多區段打包成少數幾個載入段？</h3>
@@ -414,6 +451,14 @@ signed 是有號int
 </ol>
 <p>詳細說明：核心載入時只在乎權限（可讀／可寫／可執行），不在乎區段叫 <code>.text</code> 還是 <code>.rodata</code>。如果不打包，權限不同的小區段擠在同一頁就沒辦法各自設權限；每個區段各占一頁又會浪費記憶體。所以打包的工作在連結時由 <code>ld</code> 做好，核心照程式標頭表映射就好。</p>
 </details>
+</details>
+</p>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="review/2026-10-19-interp-GNU-C資料-ELF-objdump-組語.md" data-line="278"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）">section 是 對ld有用, ld要把section 依照權限整理成 segment 這是連接視角
+而segment是在執行時對kernel,與interpreter有用, 不同的load權限不同
+
+因爲kernel在讀寫記憶體是按分頁讀寫,一個分頁不能同時有兩個權限,如果不整理section,就會變成很多個分頁,造成記憶體的浪費,每個分頁可以放4096byte的內容
+</textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <hr />
 <h2 id="objdumpobjdump能不能代替ldd找依賴庫-需求單與實際載入">objdump：<a href="../c/objdump%E8%83%BD%E4%B8%8D%E8%83%BD%E4%BB%A3%E6%9B%BFldd%E6%89%BE%E4%BE%9D%E8%B3%B4%E5%BA%AB-%E9%9C%80%E6%B1%82%E5%96%AE%E8%88%87%E5%AF%A6%E9%9A%9B%E8%BC%89%E5%85%A5.html">objdump能不能代替ldd找依賴庫-需求單與實際載入</a></h2>
@@ -443,6 +488,11 @@ signed 是有號int
 </ol>
 <p>詳細說明：<code>NEEDED</code> 放在 dynamic section，不在檔頭。另外兩類也不會出現在 <code>curl</code> 的需求單裡：vdso 是核心在執行時直接放進行程的，沒有對應的檔案；載入器的路徑寫在 <code>INTERP</code>，不在 <code>NEEDED</code>。</p>
 </details>
+</details>
+</p>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="review/2026-10-19-interp-GNU-C資料-ELF-objdump-組語.md" data-line="316"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）">objdump -p 只能看到dynamic section裏面記載的需求單函式庫,直接函式庫,他看不到這個函式庫自己的需求單.
+</textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <hr />
 <h2 id="組語x86-64組合語言入門-暫存器mov與leacmp與條件跳躍">組語：<a href="../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80-%E6%9A%AB%E5%AD%98%E5%99%A8%E3%80%81mov%E8%88%87lea%E3%80%81cmp%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D.html">x86-64組合語言入門-暫存器、mov與lea、cmp與條件跳躍</a></h2>
@@ -519,6 +569,9 @@ signed 是有號int
 <p>詳細說明：<code>je</code> 看 ZF：<code>n &amp; 1</code> 是 0（偶數）就跳到 <code>.L3</code>。</p>
 </details>
 </details>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="review/2026-10-19-interp-GNU-C資料-ELF-objdump-組語.md" data-line="404" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+</details>
 <h4 id="組語-4-2-為什麼-gcc-可以這樣排">組語 4-2. 為什麼 gcc 可以這樣排？</h4>
 <div class="answer-box locked"><textarea readonly spellcheck="false">因爲movl不會改動旗標,所以je還是可以判斷andl
 </textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
@@ -533,6 +586,9 @@ signed 是有號int
 <p>詳細說明：<code>mov</code> 系列、<code>lea</code>、跳躍都不改旗標；算術和邏輯指令（<code>add</code>、<code>sub</code>、<code>and</code>、<code>xor</code>、<code>cmp</code>、<code>test</code>）會改。gcc 利用這點把不相干的指令塞進比較和跳躍之間。</p>
 </details>
 </details>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="review/2026-10-19-interp-GNU-C資料-ELF-objdump-組語.md" data-line="419" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+</details>
 <h4 id="組語-4-3-如果中間夾的是-addl-1-eax會怎樣">組語 4-3. 如果中間夾的是 <code>addl $1, %eax</code>，會怎樣？</h4>
 <div class="answer-box locked"><textarea readonly spellcheck="false">那這樣就會變成判斷addl的旗標結果
 </textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
@@ -546,6 +602,9 @@ signed 是有號int
 </ol>
 <p>詳細說明：程式邏輯就錯了，所以 gcc 不會把會改旗標的指令排在 <code>andl</code> 和 <code>je</code> 中間。</p>
 </details>
+</details>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="review/2026-10-19-interp-GNU-C資料-ELF-objdump-組語.md" data-line="434" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h3 id="組語-13-drip-與-dis">組語 13. <code>D(%rip)</code> 與 <code>D(,I,S)</code></h3>
 <blockquote>
@@ -607,6 +666,9 @@ objdump<span class="w"> </span>-d<span class="w"> </span>--no-show-raw-insn<span
 <p>詳細說明：<code>%rip</code> 用的是<strong>下一條</strong>指令的位址，所以筆記的 <code>get_g</code> 實驗要算 <code>$pc + 7 + 0x2db5</code>（<code>mov</code> 是 7 byte）。</p>
 </details>
 </details>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="review/2026-10-19-interp-GNU-C資料-ELF-objdump-組語.md" data-line="502" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+</details>
 <h4 id="組語-13-2-同一個-tbli為什麼非-pie-的程式可以寫成一條-mov-0x404060rdi8rax">組語 13-2. 同一個 <code>tbl[i]</code>，為什麼非 PIE 的程式可以寫成一條 <code>mov 0x404060(,%rdi,8),%rax</code>？</h4>
 <div class="answer-box locked"><textarea readonly spellcheck="false">從這個數字可以看出來tbl的記憶體位址就是0x404060然後隨着index直接決定記憶體要位移多少
 爲什麼?因爲這是非pie的程式,也就是程式碼,常數這些記憶體位址都是固定的,直接拿來用就好
@@ -621,6 +683,9 @@ objdump<span class="w"> </span>-d<span class="w"> </span>--no-show-raw-insn<span
 </ol>
 <p>詳細說明：PIE 的程式不能這樣寫，要先用 <code>lea …(%rip)</code> 算出 <code>tbl</code> 的位址放進暫存器，再用 <code>(B,I,S)</code>，至少兩條指令。</p>
 </details>
+</details>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="review/2026-10-19-interp-GNU-C資料-ELF-objdump-組語.md" data-line="518" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 
 </main>

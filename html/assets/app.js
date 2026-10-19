@@ -14,7 +14,8 @@ window.saveAnswer=function(btn){
   if(location.protocol==='file:'){st.textContent='要存檔請用 python3 tools/serve.py 開啟';return;}
   btn.disabled=true;st.className='status';st.textContent='儲存中…';
   fetch('/api/save',{method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({file:box.dataset.file,line:+box.dataset.line,original:ta.defaultValue,content:ta.value})})
+    body:JSON.stringify({file:box.dataset.file,line:+box.dataset.line,original:ta.defaultValue,content:ta.value,
+      insert:box.dataset.insert==='1'})})
   .then(function(r){return r.json().then(function(j){return {ok:r.ok,j:j};});})
   .then(function(x){
     btn.disabled=false;
@@ -22,6 +23,7 @@ window.saveAnswer=function(btn){
     var line=+box.dataset.line;
     document.querySelectorAll('.answer-box').forEach(function(b){
       if(b!==box&&b.dataset.file===box.dataset.file&&+b.dataset.line>line)b.dataset.line=+b.dataset.line+x.j.delta;});
+    if(x.j.line!==undefined){box.dataset.line=x.j.line;delete box.dataset.insert;}
     ta.defaultValue=ta.value;box.classList.remove('dirty');
     st.textContent='✓ 已儲存 '+new Date().toLocaleTimeString();})
   .catch(function(e){btn.disabled=false;st.className='status err';st.textContent='✗ 連不到 serve.py：'+e;});
@@ -48,6 +50,9 @@ function addCopyButtons(){
 }
 document.addEventListener('DOMContentLoaded',function(){
   addCopyButtons();
+  // 收起時 textarea 量不到高度，打開自我練習框時再算一次
+  document.querySelectorAll('details.self-practice').forEach(function(d){d.addEventListener('toggle',function(){
+    if(d.open)d.querySelectorAll('textarea').forEach(fit);});});
   document.querySelectorAll('main h1[id],main h2[id],main h3[id],main h4[id]').forEach(function(h){
     var a=document.createElement('a');a.className='anchor';a.href='#'+h.id;a.textContent='#';h.appendChild(a);});
   document.querySelectorAll('.answer-box textarea').forEach(function(ta){

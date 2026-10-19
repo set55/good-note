@@ -95,6 +95,11 @@
 <td><code>x/gx $rsp</code> ＋ <code>info symbol</code> 找呼叫者</td>
 </tr>
 <tr>
+<td><a href="../../../small-project/s1-05-asm-calls/where-a.gdb"><code>where-a.gdb</code></a>、<a href="../../../small-project/s1-05-asm-calls/where-a-O2.gdb"><code>where-a-O2.gdb</code></a></td>
+<td>第三節〈gdb 為什麼去堆疊讀參數，而不是讀暫存器〉（2026-10-19 追問）</td>
+<td>除錯資訊記的變數位置：<code>-O0</code> 只記堆疊（CFA − 40），<code>-O2</code> 記暫存器與位置清單</td>
+</tr>
+<tr>
 <td><a href="../../../small-project/s1-05-asm-calls/leave.gdb"><code>leave.gdb</code></a></td>
 <td><a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80%E4%BA%8C-call%E8%88%87ret%E3%80%81%E5%A0%86%E7%96%8A%E6%A1%86%E3%80%81%E5%8F%83%E6%95%B8%E8%88%87%E5%91%BC%E5%8F%AB%E6%85%A3%E4%BE%8B.html#%E5%9B%9B%E5%A0%86%E7%96%8A%E6%A1%86pushq-rbp-movq-rsp-rbp-%E8%88%87-leave">第四節</a>〈<code>leave</code>：一條指令做兩件事〉</td>
 <td><code>leave</code> 前後的 <code>%rsp</code>、<code>%rbp</code></td>
@@ -103,6 +108,16 @@
 <td><a href="../../../small-project/s1-05-asm-calls/redzone.gdb"><code>redzone.gdb</code></a></td>
 <td>第四節〈上圖 <code>add3</code> 的變數在 <code>%rsp</code> 的「下面」：紅區〉</td>
 <td>葉函式的區域變數在 <code>%rsp</code> 下方</td>
+</tr>
+<tr>
+<td><a href="../../../small-project/s1-05-asm-calls/nosub.S"><code>nosub.S</code></a>、<a href="../../../small-project/s1-05-asm-calls/nosub.gdb"><code>nosub.gdb</code></a>、<a href="../../../small-project/s1-05-asm-calls/withsub.gdb"><code>withsub.gdb</code></a></td>
+<td>第四節〈<code>call</code> 只是把 <code>%rsp</code> 減 8，為什麼算「蓋掉 <code>%rsp</code> 下面」？<code>sub</code> 又怎麼「收進堆疊」〉（2026-10-19 追問）</td>
+<td>不 <code>sub</code> 時，<code>call</code> 的返回位址蓋掉 <code>%rsp</code> 下面的變數</td>
+</tr>
+<tr>
+<td><a href="../../../small-project/s1-05-asm-calls/nosub-frame.sh"><code>nosub-frame.sh</code></a></td>
+<td>第四節〈那 <code>frame.c</code> 的 <code>main</code> 拿掉 <code>sub $0x10,%rsp</code> 會怎樣：其實照樣能跑〉（2026-10-19 追問）</td>
+<td>刪掉 <code>frame.c</code> 組合語言裡的 <code>sub</code> 再執行：<code>r</code> 不跨 <code>call</code>，照樣印出 6</td>
 </tr>
 <tr>
 <td><a href="../../../small-project/s1-05-asm-calls/args8.c"><code>args8.c</code></a></td>
@@ -281,6 +296,9 @@ f: r9d
 <p><strong>詳細說明</strong>：看指標參數的大小時，看的是 <code>*</code> 前面那整個型別「指標」，不是它指向的型別：<code>char *</code>、<code>long *</code>、<code>struct foo *</code> 在本機都是 8 byte。</p>
 </details>
 </details>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="small-project/s1-05-asm-calls/README.md" data-line="113" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+</details>
 <h3 id="1-2-編譯貼上-pick-從開頭到第一個-movs-開頭的指令之前的那幾行存參數的部分對照預測每個參數被存到哪個--nrbp這個-mov-一次寫進記憶體幾-byte看它用的暫存器名字dl-是-1-byteax-是-2-byte哪裡跟你預測的不一樣2026-10-12-改寫原本問用的是幾-byte-的-mov使用者反映看不懂">1-2. 編譯，貼上 <code>pick</code> 從開頭到「第一個 <code>movs</code> 開頭的指令」之前的那幾行（存參數的部分）。對照預測：每個參數被存到哪個 <code>-N(%rbp)</code>？這個 <code>mov</code> 一次寫進記憶體幾 byte（看它用的暫存器名字：<code>%dl</code> 是 1 byte、<code>%ax</code> 是 2 byte……）？哪裡跟你預測的不一樣？（2026-10-12 改寫：原本問「用的是幾 byte 的 <code>mov</code>」，使用者反映看不懂）</h3>
 <p><strong>第 1 次（2026-10-12）</strong></p>
 <div class="answer-box locked"><textarea readonly spellcheck="false">0000000000000000 &lt;pick&gt;:
@@ -337,6 +355,9 @@ d:   48 89 4d e8             mov    %rcx,-0x18(%rbp),這個也符合預測,選�
 <p><strong>詳細說明</strong>：每個參數存進去的大小就是它的型別大小。位置不是照參數順序排的：gcc 把每個值放在跟自己大小對齊的位置（8 byte 的 <code>d</code>、<code>e</code> 放在 8 的倍數 <code>-0x18</code>、<code>-0x20</code>）。另外 <code>pick</code> 沒有 <code>sub ...,%rsp</code>，因為它不呼叫別的函式，是葉函式，直接用紅區（筆記第四節〈紅區〉）。</p>
 </details>
 </details>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="small-project/s1-05-asm-calls/README.md" data-line="170" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+</details>
 <h3 id="1-3-e-是指標f-是-unsigned-int為什麼一個用暫存器的-64-位元名字一個用-32-位元名字筆記第五節表下第一段第-2-課筆記第一節型別大小">1-3. <code>e</code> 是指標、<code>f</code> 是 <code>unsigned int</code>，為什麼一個用暫存器的 64 位元名字、一個用 32 位元名字？【筆記<a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80%E4%BA%8C-call%E8%88%87ret%E3%80%81%E5%A0%86%E7%96%8A%E6%A1%86%E3%80%81%E5%8F%83%E6%95%B8%E8%88%87%E5%91%BC%E5%8F%AB%E6%85%A3%E4%BE%8B.html#%E4%BA%94%E5%8F%83%E6%95%B8%E8%88%87%E5%9B%9E%E5%82%B3%E5%80%BC%E6%94%BE%E5%93%AA%E8%A3%A1">第五節</a>表下第一段；<a href="../../c/C%E7%9A%84%E8%B3%87%E6%96%99%E5%9C%A8%E8%A8%98%E6%86%B6%E9%AB%94%E8%A3%A1%E9%95%B7%E6%80%8E%E6%A8%A3-%E4%BD%8D%E5%85%83%E7%B5%84%E3%80%81%E6%8C%87%E6%A8%99%E3%80%81%E4%BD%8D%E5%85%83%E7%B5%84%E9%A0%86%E5%BA%8F%E8%88%87%E6%9C%89%E8%99%9F%E7%84%A1%E8%99%9F.html#%E4%B8%80%E4%BD%8D%E5%85%83%E7%B5%84%E8%88%87%E5%9E%8B%E5%88%A5%E5%A4%A7%E5%B0%8F">第 2 課筆記第一節</a>（型別大小）】</h3>
 <p><strong>第 1 次（2026-10-12）</strong></p>
 <div class="answer-box locked"><textarea readonly spellcheck="false">因爲指標是8byte,e的暫存器要存這個指標的位址
@@ -353,6 +374,9 @@ f只需要存int值,也就是4byte:32位元
 </ol>
 <p><strong>詳細說明</strong>：有號無號不影響用哪個名字（<code>f</code> 是無號，照樣用 <code>%r9d</code>）；名字只跟大小有關。</p>
 </details>
+</details>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="small-project/s1-05-asm-calls/README.md" data-line="189" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h3 id="1-4-把參數加起來之前ab-先經過哪兩個指令變成-32-位元為什麼它們用-movs-開頭而不是-movz-開頭第-4-課筆記第二節寫低位的名字時高位會怎樣的擴展指令表第-2-課筆記第一節unsigned-單獨寫就是-unsigned-int整數型別的所有寫法char-在本機有沒有號">1-4. 把參數加起來之前，<code>a</code>、<code>b</code> 先經過哪兩個指令變成 32 位元？為什麼它們用 <code>movs</code> 開頭，而不是 <code>movz</code> 開頭？【<a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80-%E6%9A%AB%E5%AD%98%E5%99%A8%E3%80%81mov%E8%88%87lea%E3%80%81cmp%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D.html#%E4%BA%8C%E6%9A%AB%E5%AD%98%E5%99%A8cpu-%E8%A3%A1%E7%9A%84-16-%E5%80%8B%E8%AE%8A%E6%95%B8">第 4 課筆記第二節</a>〈寫低位的名字時，高位會怎樣？〉的擴展指令表；<a href="../../c/C%E7%9A%84%E8%B3%87%E6%96%99%E5%9C%A8%E8%A8%98%E6%86%B6%E9%AB%94%E8%A3%A1%E9%95%B7%E6%80%8E%E6%A8%A3-%E4%BD%8D%E5%85%83%E7%B5%84%E3%80%81%E6%8C%87%E6%A8%99%E3%80%81%E4%BD%8D%E5%85%83%E7%B5%84%E9%A0%86%E5%BA%8F%E8%88%87%E6%9C%89%E8%99%9F%E7%84%A1%E8%99%9F.html#%E4%B8%80%E4%BD%8D%E5%85%83%E7%B5%84%E8%88%87%E5%9E%8B%E5%88%A5%E5%A4%A7%E5%B0%8F">第 2 課筆記第一節</a>〈<code>unsigned</code> 單獨寫就是 <code>unsigned int</code>：整數型別的所有寫法〉（<code>char</code> 在本機有沒有號）】</h3>
 <p><strong>第 1 次（2026-10-12）</strong></p>
@@ -372,6 +396,9 @@ f只需要存int值,也就是4byte:32位元
 </ol>
 <p><strong>詳細說明</strong>：對照同一個函式裡的 <code>*e</code>：它是 <code>unsigned char</code>，所以用 <code>movzbl</code>。</p>
 </details>
+</details>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="small-project/s1-05-asm-calls/README.md" data-line="210" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <hr />
 <h2 id="2-9-個參數與-16-byte-對齊">2. 9 個參數與 16 byte 對齊</h2>
@@ -415,6 +442,9 @@ objdump -dr --no-show-raw-insn sum9.o
 <p><strong>詳細說明</strong>：<code>push $0x5a</code> 推的是 8 byte 的立即值 90；<code>sum9</code> 讀的時候用 <code>mov 0x10(%rbp),%eax</code>，只讀那 8 byte 的低 4 byte。「每個堆疊參數佔 8 byte」也是 ABI 的規定，這樣每個參數的位址都是 8 的倍數，偏移也好算（第 7 個 <code>0x10</code>、第 8 個 <code>0x18</code>……一次加 8）。</p>
 </details>
 </details>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="small-project/s1-05-asm-calls/README.md" data-line="264" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+</details>
 <h3 id="2-2-編譯前先預測-sum9第-789-個參數ghi各在-nrbp-的哪裡說明這幾個數字是怎麼算出來的筆記第五節實驗8-個參數第-78-個去哪了的逐點說明第四節">2-2. 編譯前先預測 <code>sum9</code>：第 7、8、9 個參數（<code>g</code>、<code>h</code>、<code>i</code>）各在 <code>N(%rbp)</code> 的哪裡？說明這幾個數字是怎麼算出來的。【筆記第五節〈實驗：8 個參數，第 7、8 個去哪了〉的逐點說明；<a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80%E4%BA%8C-call%E8%88%87ret%E3%80%81%E5%A0%86%E7%96%8A%E6%A1%86%E3%80%81%E5%8F%83%E6%95%B8%E8%88%87%E5%91%BC%E5%8F%AB%E6%85%A3%E4%BE%8B.html#%E5%9B%9B%E5%A0%86%E7%96%8A%E6%A1%86pushq-rbp-movq-rsp-rbp-%E8%88%87-leave">第四節</a>】</h3>
 <p><strong>第 1 次（2026-10-16）</strong></p>
 <div class="answer-box locked"><textarea readonly spellcheck="false">9: -4(%rbp)
@@ -442,6 +472,9 @@ objdump -dr --no-show-raw-insn sum9.o
 </code></pre>
 <p>口訣是筆記那句：<strong>參數用正的偏移（在呼叫者那邊），區域變數用負的偏移（在自己這邊）。</strong></p>
 </details>
+</details>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="small-project/s1-05-asm-calls/README.md" data-line="297" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h3 id="2-3-編譯貼上-call9-和-sum9-的本體跟-2-12-2-的預測對照">2-3. 編譯，貼上 <code>call9</code> 和 <code>sum9</code> 的本體，跟 2-1、2-2 的預測對照。</h3>
 <p><strong>第 1 次（2026-10-16）</strong></p>
@@ -518,6 +551,9 @@ Disassembly of section .text:
 <p><strong>詳細說明</strong>：<code>call9</code> 還多了 <code>sub $0x8,%rsp</code> 和 <code>add $0x20,%rsp</code>，那是 2-4 要問的。</p>
 </details>
 </details>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="small-project/s1-05-asm-calls/README.md" data-line="375" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+</details>
 <h3 id="2-4-call9-在-call-之後用-add-把-rsp-加回去的數字是多少跟推上堆疊的參數總共幾-byte-一樣嗎如果不一樣多出來的是-call9-裡哪一行指令造成的為什麼需要那一行筆記第六節上面的-sub-0x8rsp16-byte-對齊">2-4. <code>call9</code> 在 <code>call</code> 之後用 <code>add</code> 把 <code>%rsp</code> 加回去的數字是多少？跟推上堆疊的參數總共幾 byte 一樣嗎？如果不一樣，多出來的是 <code>call9</code> 裡哪一行指令造成的？為什麼需要那一行？【筆記<a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80%E4%BA%8C-call%E8%88%87ret%E3%80%81%E5%A0%86%E7%96%8A%E6%A1%86%E3%80%81%E5%8F%83%E6%95%B8%E8%88%87%E5%91%BC%E5%8F%AB%E6%85%A3%E4%BE%8B.html#%E5%85%AD%E8%AA%B0%E8%B2%A0%E8%B2%AC%E4%BF%9D%E5%AD%98%E6%9A%AB%E5%AD%98%E5%99%A8%E4%BB%A5%E5%8F%8A-16-byte-%E5%B0%8D%E9%BD%8A">第六節</a>〈上面的 <code>sub $0x8,%rsp</code>：16 byte 對齊〉】</h3>
 <p><strong>第 1 次（2026-10-16）</strong></p>
 <div class="answer-box locked"><textarea readonly spellcheck="false">0x20
@@ -578,6 +614,9 @@ sub    $0x8,%rsp
 <p>沒有 <code>sub</code> 的話，<code>call</code> 時餘 0 + 24 ＝ 24 → 餘 8，不對齊。對照筆記的 <code>args8.c</code>：推 2 個參數（16 byte）本身就是 16 的倍數，所以 <code>call8</code> 不用 <code>sub</code>、只 <code>add $0x10</code>。<strong>推奇數個堆疊參數時才需要補 8。</strong></p>
 </details>
 </details>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="small-project/s1-05-asm-calls/README.md" data-line="410" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+</details>
 <h3 id="2-5-把-ninec-裡-sum9-的宣告換成-sum9c-的完整定義兩個函式放在同一個檔案重新編譯看-call92-4-找到的那一行還在嗎猜猜看為什麼新觀念先猜">2-5. 把 <code>nine.c</code> 裡 <code>sum9</code> 的宣告換成 <code>sum9.c</code> 的完整定義（兩個函式放在同一個檔案），重新編譯，看 <code>call9</code>。2-4 找到的那一行還在嗎？猜猜看為什麼。【新觀念，先猜】</h3>
 <p><strong>第 1 次（2026-10-16）</strong></p>
 <div class="answer-box locked"><textarea readonly spellcheck="false">不在了
@@ -593,6 +632,9 @@ sub    $0x8,%rsp
 <li>這是 gcc 的 <code>-fipa-stack-alignment</code>（<code>-O0</code> 也預設開著），加 <code>-fno-ipa-stack-alignment</code> 重編，<code>sub $0x8,%rsp</code> 和 <code>add $0x20</code> 就回來了（本機實測）。</li>
 </ol>
 <p><strong>詳細說明</strong>：16 byte 對齊不是 CPU 硬性要求，而是為了讓<strong>被呼叫的函式</strong>可以放心用 <code>movaps</code> 這類需要對齊的指令。被呼叫的函式根本不需要時，對齊就沒有用處。只有 gcc 看得到被呼叫者的本體時才能這樣省；<code>sum9</code> 是一般的全域函式，別的檔案呼叫它時，那邊的 gcc 看不到本體，照樣會補齊。完整的程式與輸出見筆記那一小節（範例檔 <a href="../../../small-project/s1-05-asm-calls/align9.c"><code>align9.c</code></a>）。</p>
+</details>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="small-project/s1-05-asm-calls/README.md" data-line="430" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <hr />
 <h2 id="3-用-gdb-沿著堆疊找出兩層呼叫">3. 用 gdb 沿著堆疊找出兩層呼叫</h2>
@@ -675,6 +717,9 @@ outer + 28 in section .text of /home/set/work/Projects/github/good-note/small-pr
 <p><strong>詳細說明</strong>：<code>objdump</code> 的 <code>117b</code> 和 gdb 的 <code>0x55555555517b</code> 差在載入位址：這個執行檔是 PIE，gdb 執行時把它放在 <code>0x555555554000</code>，<code>0x555555554000 + 0x117b ＝ 0x55555555517b</code>（第三節〈實驗：<code>frame.c</code>〉第 1 點講過同一件事）。返回位址是「<code>call</code> 的下一條」：<code>call</code> 這條指令本身 5 byte（<code>1176</code> → <code>117b</code>），<code>call</code> 推的是執行完它之後要接著跑的位址，所以 <code>inner</code> 回來時從 <code>add %eax,%eax</code>（C 的 <code>* 2</code>）繼續。</p>
 </details>
 </details>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="small-project/s1-05-asm-calls/README.md" data-line="520" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+</details>
 <h3 id="3-2-接著-stepi-三次執行完-endbr64push-rbpmov-rsprbp先用-info-registers-rbp-確認-rbp-已經是-inner-的了然後只用-x2gx從-inner-的-rbp-出發沿著-rbp-鏈往上走兩層找出-outer-的返回位址它回到-main-的哪裡貼上命令與輸出說明每一次-x2gx-讀到的兩格各是什麼筆記第四節畫出來停在-add3-裡面時的堆疊">3-2. 接著 <code>stepi</code> 三次（執行完 <code>endbr64</code>、<code>push %rbp</code>、<code>mov %rsp,%rbp</code>），先用 <code>info registers rbp</code> 確認 <code>%rbp</code> 已經是 <code>inner</code> 的了。然後<strong>只用 <code>x/2gx</code></strong>，從 <code>inner</code> 的 <code>%rbp</code> 出發，沿著 <code>%rbp</code> 鏈往上走兩層，找出 <code>outer</code> 的返回位址（它回到 <code>main</code> 的哪裡）。貼上命令與輸出，說明每一次 <code>x/2gx</code> 讀到的兩格各是什麼。【筆記<a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80%E4%BA%8C-call%E8%88%87ret%E3%80%81%E5%A0%86%E7%96%8A%E6%A1%86%E3%80%81%E5%8F%83%E6%95%B8%E8%88%87%E5%91%BC%E5%8F%AB%E6%85%A3%E4%BE%8B.html#%E5%9B%9B%E5%A0%86%E7%96%8A%E6%A1%86pushq-rbp-movq-rsp-rbp-%E8%88%87-leave">第四節</a>〈畫出來：停在 <code>add3</code> 裡面時的堆疊〉】</h3>
 <p><strong>第 1 次（2026-10-17）</strong></p>
 <div class="answer-box locked"><textarea readonly spellcheck="false">(gdb) x/2xg $rbp
@@ -698,6 +743,9 @@ outer + 28 in section .text of /home/set/work/Projects/github/good-note/small-pr
 </ol>
 <p><strong>詳細說明</strong>：為什麼 <code>0(%rbp)</code> 是舊 <code>%rbp</code>、<code>8(%rbp)</code> 是返回位址？進 <code>inner</code> 時順序是：<code>call</code> 推返回位址（<code>%rsp</code> 變 <code>d760</code>）→ <code>push %rbp</code> 推 <code>outer</code> 的 <code>%rbp</code>（<code>%rsp</code> 變 <code>d758</code>）→ <code>mov %rsp,%rbp</code>（<code>%rbp</code> 變 <code>d758</code>）。後推的在低位址，所以 <code>d758</code> 是舊 <code>%rbp</code>、上面的 <code>d760</code> 是返回位址。這跟 2-2 的「參數從 <code>0x10(%rbp)</code> 開始」是同一張圖：<code>0x0</code>、<code>0x8</code> 被這兩格占了。</p>
 </details>
+</details>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="small-project/s1-05-asm-calls/README.md" data-line="546" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h3 id="3-3-把-3-2-找到的東西畫成像筆記畫出來那樣的堆疊圖從-main-的-rbp-那一格往下畫到-inner-的-rbp-那一格每一格寫位址最後-3-位就好內容屬於誰的堆疊框不知道內容的格子寫不知道就好不必每格都填滿筆記第四節畫出來">3-3. 把 3-2 找到的東西畫成像筆記〈畫出來〉那樣的堆疊圖：從 <code>main</code> 的 <code>%rbp</code> 那一格，往下畫到 <code>inner</code> 的 <code>%rbp</code> 那一格。每一格寫位址（最後 3 位就好）、內容、屬於誰的堆疊框。（不知道內容的格子寫「不知道」就好，不必每格都填滿。）【筆記第四節〈畫出來〉】</h3>
 <p><strong>第 1 次（2026-10-17）</strong></p>
@@ -744,6 +792,9 @@ d758   0x7fffffffd770（outer 的 %rbp） ← inner 的 %rbp 和 %rsp ┘
 </ul>
 </details>
 </details>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="small-project/s1-05-asm-calls/README.md" data-line="594" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+</details>
 <h3 id="3-4-在同一個地方下-bt貼上輸出bt-印出的每一層位址跟你在-3-13-2-找到的返回位址一致嗎第-3-課筆記第六節bt筆記第三節停在函式入口時怎麼知道是誰呼叫的最後一段">3-4. 在同一個地方下 <code>bt</code>，貼上輸出。<code>bt</code> 印出的每一層位址，跟你在 3-1、3-2 找到的返回位址一致嗎？【<a href="../../c/%E9%99%A3%E5%88%97%E3%80%81%E5%AD%97%E4%B8%B2%E8%88%87%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97-C%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%88%87%E7%94%A8gdb%E6%89%BEsegfault.html#%E5%85%AD%E7%94%A8-gdb-%E6%89%BE-segfault%E5%AF%A6%E9%9A%9B%E8%B5%B0%E4%B8%80%E6%AC%A1">第 3 課筆記第六節</a>（<code>bt</code>）；筆記第三節〈停在函式入口時，怎麼知道是誰呼叫的〉最後一段】</h3>
 <p><strong>第 1 次（2026-10-17）</strong></p>
 <div class="answer-box locked"><textarea readonly spellcheck="false">(gdb) bt
@@ -768,6 +819,9 @@ d758   0x7fffffffd770（outer 的 %rbp） ← inner 的 %rbp 和 %rsp ┘
 <li><code>inner (y=0)</code> 是錯的，<code>outer (x=4)</code> 是對的：跟筆記<a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80%E4%BA%8C-call%E8%88%87ret%E3%80%81%E5%A0%86%E7%96%8A%E6%A1%86%E3%80%81%E5%8F%83%E6%95%B8%E8%88%87%E5%91%BC%E5%8F%AB%E6%85%A3%E4%BE%8B.html#%E4%B8%89call-%E8%88%87-ret%E7%94%A8-gdb-%E4%B8%80%E6%A2%9D%E4%B8%80%E6%A2%9D%E8%B5%B0">第三節</a>〈gdb 在第 1 段結尾印的 <code>add3 (a=0, b=0, c=0)</code> 是錯的〉同一個原因。gdb 照除錯資訊去 <code>-0x4(%rbp)</code>（<code>d754</code>）讀 <code>y</code>，可是 <code>y</code> 還在 <code>%edi</code>（值是 <code>5</code>），<code>mov %edi,-0x4(%rbp)</code> 還沒執行，讀到的是舊資料；<code>outer</code> 早就把 <code>x</code> 存進 <code>d76c</code> 了，所以印得對。</li>
 </ul>
 </details>
+</details>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="small-project/s1-05-asm-calls/README.md" data-line="620" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <hr />
 <h2 id="4-要撐過兩次-call-的值">4. 要撐過兩次 <code>call</code> 的值</h2>
@@ -824,6 +878,9 @@ b 沒有
 </ul>
 </details>
 </details>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="small-project/s1-05-asm-calls/README.md" data-line="682" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+</details>
 <h3 id="4-2-編譯貼上-h-的本體在每個-callee-saved-暫存器旁邊註明它存的是哪個值跟預測對照">4-2. 編譯，貼上 <code>h</code> 的本體，在每個 callee-saved 暫存器旁邊註明它存的是哪個值，跟預測對照。</h3>
 <p><strong>第 1 次（2026-10-18）</strong></p>
 <div class="answer-box locked"><textarea readonly spellcheck="false">0000000000000000 &lt;h&gt;:
@@ -872,6 +929,9 @@ rdi 有說到 g(a), g(b)都需要用到, 只是方式是用 mov r12, rdi
 <li><code>13</code> 和 <code>16</code> 兩行的順序對結果沒影響，這兩行用到的暫存器不重疊，gcc 可以自由排。<code>21: pop %rbx</code> 排在 <code>22: add %rbp,%rax</code> 前面也一樣：<code>%rbx</code> 裡的 <code>x</code> 在 <code>1e</code> 已經加完了，可以先還原。</li>
 </ul>
 </details>
+</details>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="small-project/s1-05-asm-calls/README.md" data-line="732" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h3 id="4-3-把-return-改成-x--y不加-a重新編譯貼上本體push-的次數有沒有-sub-0x8rsp-各怎麼變用進函式時-rsp-除以-16-餘幾每個-push-挪幾-byte算一次解釋為什麼筆記第六節上面的-sub-0x8rsp16-byte-對齊">4-3. 把 <code>return</code> 改成 <code>x + y</code>（不加 <code>a</code>），重新編譯，貼上本體。<code>push</code> 的次數、有沒有 <code>sub $0x8,%rsp</code> 各怎麼變？用「進函式時 <code>%rsp</code> 除以 16 餘幾、每個 <code>push</code> 挪幾 byte」算一次，解釋為什麼。【筆記第六節〈上面的 <code>sub $0x8,%rsp</code>：16 byte 對齊〉】</h3>
 <p><strong>第 1 次（2026-10-18）</strong></p>
@@ -924,6 +984,9 @@ push rbx, rsp再挪動8byte
 </ul>
 </details>
 </details>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="small-project/s1-05-asm-calls/README.md" data-line="784" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+</details>
 <h3 id="4-4-4-2-的-h-裡pop-的順序跟-push-的順序是什麼關係為什麼一定要這樣筆記第二節">4-4. 4-2 的 <code>h</code> 裡，<code>pop</code> 的順序跟 <code>push</code> 的順序是什麼關係？為什麼一定要這樣？【筆記<a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80%E4%BA%8C-call%E8%88%87ret%E3%80%81%E5%A0%86%E7%96%8A%E6%A1%86%E3%80%81%E5%8F%83%E6%95%B8%E8%88%87%E5%91%BC%E5%8F%AB%E6%85%A3%E4%BE%8B.html#%E4%BA%8C%E5%A0%86%E7%96%8Arsp-%E6%8C%87%E8%91%97%E9%A0%82%E7%AB%AF%E5%BE%80%E4%BD%8E%E4%BD%8D%E5%9D%80%E9%95%B7">第二節</a>】</h3>
 <p><strong>第 1 次（2026-10-18）</strong></p>
 <div class="answer-box locked"><textarea readonly spellcheck="false">先進後出, 因爲stack是從最上面的先移出去,
@@ -941,6 +1004,9 @@ push rbx, rsp再挪動8byte
 </ol>
 <p><strong>詳細說明</strong>：照第二節的定義，<code>pop %rbx</code> ＝ <code>mov (%rsp),%rbx</code> 再 <code>add $8,%rsp</code>。三次 <code>push</code> 後堆疊由頂端往下是 <code>%rbx</code> 原值、<code>%rbp</code> 原值、<code>%r12</code> 原值。中間如果還有 <code>sub $0x8,%rsp</code>（4-3），要先 <code>add $0x8,%rsp</code> 把頂端挪回 <code>%rbx</code> 那格，再開始 <code>pop</code>，也是同一個道理。</p>
 </details>
+</details>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="small-project/s1-05-asm-calls/README.md" data-line="804" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <hr />
 <h2 id="5-可變參數函式的-al">5. 可變參數函式的 <code>%al</code></h2>
@@ -984,6 +1050,9 @@ objdump -d --no-show-raw-insn va
 <p><strong>詳細說明</strong>：判斷方法是<strong>把參數依型別分成兩串，各自照順序排</strong>，不是全部參數一起數。<code>printf(&quot;%d %f %d %f %f\n&quot;, 1, 0.5, 2, 1.5, 2.5)</code> 的整數串是「格式字串、1、2」，浮點串是「0.5、1.5、2.5」。所以 <code>2</code> 雖然是第 4 個參數，卻放 <code>%rdx</code>（整數串的第 3 個），不是 <code>%rcx</code>。<code>1</code>、<code>2</code> 是 <code>int</code>，用 32 位元的名字 <code>%esi</code>、<code>%edx</code>（第五節表下第一段）。</p>
 </details>
 </details>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="small-project/s1-05-asm-calls/README.md" data-line="855" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+</details>
 <h3 id="5-2-編譯前先預測main-在-call-showd-之前會不會設-eax為什麼筆記第七節最後一段">5-2. 編譯前先預測：<code>main</code> 在 <code>call showd</code> 之前會不會設 <code>%eax</code>？為什麼？【筆記第七節最後一段】</h3>
 <p><strong>第 1 次（2026-10-18）</strong></p>
 <div class="answer-box locked"><textarea readonly spellcheck="false">不會,因爲這是可變參數函式才有的規定
@@ -999,6 +1068,9 @@ objdump -d --no-show-raw-insn va
 </ol>
 <p><strong>詳細說明</strong>：反過來看 <code>showd</code> 裡面：它呼叫 <code>printf(&quot;%f\n&quot;, x)</code> 之前會有 <code>mov $0x1,%eax</code>，因為那一次呼叫的是可變參數函式（本機 <code>objdump</code> 的 <code>116d: mov $0x1,%eax</code>）。所以要不要設 <code>%al</code>，看的是<strong>被呼叫的函式</strong>是不是可變參數，跟參數裡有沒有 <code>double</code> 無關。</p>
 </details>
+</details>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="small-project/s1-05-asm-calls/README.md" data-line="873" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h3 id="5-3-編譯貼上-main-裡第一個-printf-和-showd-這兩次呼叫前面設參數的那幾行跟-5-15-2-的預測對照">5-3. 編譯，貼上 <code>main</code> 裡第一個 <code>printf</code> 和 <code>showd</code> 這兩次呼叫前面設參數的那幾行，跟 5-1、5-2 的預測對照。</h3>
 <p><strong>第 1 次（2026-10-19）</strong></p>
@@ -1034,6 +1106,9 @@ objdump -d --no-show-raw-insn va
 </ol>
 <p><strong>詳細說明</strong>：照 <code>.rodata</code> 的內容（<code>objdump -s -j .rodata va</code>），<code>2038</code> ＝ 2.5、<code>2040</code> ＝ 1.5、<code>2048</code> ＝ 0.5、<code>2050</code> ＝ 0.25。gcc 的順序有點繞：2.5 先放 <code>%xmm1</code>、1.5 先放 <code>%xmm0</code>，再用 <code>movapd</code> 搬成 2.5 → <code>%xmm2</code>、1.5 → <code>%xmm1</code>，最後 0.5 從 <code>%rax</code> 搬進 <code>%xmm0</code>。看組合語言時要看<strong><code>call</code> 那一刻</strong>每個暫存器裡是什麼，中間怎麼搬不重要（<code>movsd</code>／<code>movapd</code>／<code>movq</code> 只要看得出「把 <code>double</code> 放進 <code>%xmm</code>」就夠了，筆記第七節）。</p>
 </details>
+</details>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="small-project/s1-05-asm-calls/README.md" data-line="910" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h3 id="5-4-第二個-printf-有-9-個-double可是傳浮點參數的暫存器只有-xmm0xmm7-八個編譯前先猜第-9-個-double-會放在哪裡al-會是多少再對照實際輸出貼上相關的幾行新觀念先猜">5-4. 第二個 <code>printf</code> 有 9 個 <code>double</code>，可是傳浮點參數的暫存器只有 <code>%xmm0</code>～<code>%xmm7</code> 八個。編譯前先猜：第 9 個 <code>double</code> 會放在哪裡？<code>%al</code> 會是多少？再對照實際輸出，貼上相關的幾行。【新觀念，先猜】</h3>
 <p><strong>第 1 次（2026-10-19）</strong></p>
@@ -1081,6 +1156,9 @@ al是9
 <li>你沒貼的下一行 <code>1243: add $0x10,%rsp</code>：呼叫者清掉 8 byte 參數 ＋ 8 byte 對齊。</li>
 </ul>
 </details>
+</details>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="small-project/s1-05-asm-calls/README.md" data-line="958" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 
 </main>

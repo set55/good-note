@@ -158,22 +158,76 @@ DATE = re.compile(r"\d{4}-\d{2}-\d{2}")
 ANSWER_PREV = re.compile(r"^(\*\*.*(次|答).*\*\*|> 盒子|> 過去的作答|> 題目：|#{3,4} )")
 
 
+# 批改完的作答框下面放一個「自我練習」框（2026-10-19 使用者指定）：不批改、只存檔，預設收起。
+# .md 裡的格式是一行 PRACTICE_LABEL 接一個沒標語言的程式碼區塊；還沒寫過的，HTML 上先放空框，第一次儲存時才插進 .md
+PRACTICE_LABEL = "**自我練習**（不批改）"
+RETRY_LABEL = re.compile(r"^\*\*第 ?\d+ ?次")
+
+
+def practice_box(src_rel, line, content, insert=False):
+    attr = ' data-insert="1"' if insert else ""
+    return (f'<details class="answer self-practice"><summary>自我練習（不批改）</summary>\n'
+            f'<div class="answer-box" data-file="{html.escape(src_rel.as_posix())}" data-line="{line}"{attr}>'
+            f'<textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）">'
+            f'{html.escape(content)}</textarea>'
+            '<div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button>'
+            '<span class="status"></span></div></div>\n</details>\n')
+
+
+def practice_slot(tokens, lines, quote_line):
+    """quote_line 是批改引言區塊的第一行。回傳 (插入位置的 token 索引, 插入的行號, 狀態)；
+    狀態是 "ok"，或後面已經有自我練習框的 "exists"、接著是重答框（舊格式）的 "retry"。"""
+    i = next((x for x, t in enumerate(tokens) if t.type == "blockquote_open" and t.map and t.map[0] == quote_line), None)
+    if i is None:
+        return None
+    level, line = tokens[i].level, tokens[i].map[1]
+    x = i + 1
+    while x < len(tokens):
+        t = tokens[x]
+        if t.level < level:  # 離開了外層（例如清單項目）
+            break
+        if t.level == level and t.nesting >= 0 and t.map:
+            if t.type != "blockquote_open":  # 批改後面緊接的參考答案引言也算批改的一部分
+                nxt = lines[t.map[0]].strip()
+                if nxt.startswith(PRACTICE_LABEL):
+                    return x, line, "exists"
+                if RETRY_LABEL.match(nxt) or t.type == "fence":
+                    return x, line, "retry"
+                break
+            line = t.map[1]
+        x += 1
+    return x, line, "ok"
+
+
 def mark_answer_boxes(tokens, src_rel, lines):
     """作答區（small-project、review）裡沒標語言的程式碼區塊，前一行是作答框標籤（或正下方是批改）的，換成輸入框；已批改的唯讀。"""
     if src_rel.parts[0] not in PRACTICE_DIRS:
         return 0
     n = 0
-    for t in tokens:
+    inserts = []
+    for idx, t in enumerate(tokens):
         if t.type != "fence" or t.info.strip() or not t.map:
             continue
         start, end = t.map
         k = start - 1
         while k >= 0 and not lines[k].strip():
             k -= 1
+        if k >= 0 and lines[k].strip().startswith(PRACTICE_LABEL):
+            # 已經寫過的自我練習框：永遠可以改；標籤段落收進 <summary>，不另外顯示
+            for p in tokens[max(0, idx - 3):idx]:
+                if p.map and p.map[0] == k:
+                    p.type, p.tag, p.nesting, p.children, p.content = "html_block", "", 0, None, ""
+            t.type = "html_block"
+            t.content = practice_box(src_rel, start, t.content)
+            continue
         j = end
         while j < len(lines) and not lines[j].strip():
             j += 1
         graded = j < len(lines) and lines[j].strip().startswith("> **批改")
+        if graded:
+            slot = practice_slot(tokens, lines, j)
+            if slot:
+                inserts.append(slot)
         # 沒有作答標籤、但正下方就是批改的（早期複習檔把作答框直接接在題目程式碼後面），也是作答框
         if k < 0 or not (ANSWER_PREV.match(lines[k].strip()) or graded):
             continue
@@ -197,6 +251,21 @@ def mark_answer_boxes(tokens, src_rel, lines):
                      '<div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button>'
                      '<span class="status"></span></div></div>\n')
         n += 1
+    # 一題（到下一個 ###／#### 標題為止）只要有批改，就至少要有一個練習框：
+    # 舊格式的作答串最後常是沒作答的重答／複習框，那題就放在最後一次批改後面
+    heads = [t.map[0] for t in tokens if t.type == "heading_open" and t.tag in ("h3", "h4") and t.map]
+    by_q = {}
+    for slot in inserts:
+        by_q.setdefault(sum(1 for h in heads if h < slot[1]), []).append(slot)
+    chosen = []
+    for slots in by_q.values():
+        ok = [(x, line) for x, line, st in slots if st == "ok"]
+        if not ok and not any(st == "exists" for *_, st in slots):
+            ok = [max(slots)[:2]]
+        chosen += ok
+    for x, line in sorted(chosen, reverse=True):
+        tok = Token("html_block", "", 0, content=practice_box(src_rel, line, "", insert=True))
+        tokens.insert(x, tok)
     return n
 
 
@@ -329,6 +398,8 @@ details.answer details.answer{margin:.8em 0 .4em}
 .code-wrap:hover .copy-btn,.copy-btn:focus{opacity:1}.copy-btn.done{color:var(--accent);border-color:var(--accent)}
 .answer-box{margin:.6em 0 1em;border:1px solid var(--link);border-radius:6px;background:var(--q);padding:8px}
 .answer-box.dirty{border-color:var(--accent)}
+details.self-practice{border-color:var(--link);background:var(--q)}details.self-practice>summary{color:var(--link)}
+details.self-practice[open]>summary{border-bottom-color:var(--link)}details.self-practice .answer-box{margin:.2em 0 .8em}details.self-practice textarea{min-height:10em}
 .answer-box.locked{border-color:var(--line);background:var(--code-bg)}
 .answer-box.locked textarea{resize:none;cursor:default;color:var(--fg);opacity:.9}
 .answer-box textarea{width:100%;min-height:5.5em;resize:vertical;border:1px solid var(--line);border-radius:4px;
@@ -387,7 +458,8 @@ window.saveAnswer=function(btn){
   if(location.protocol==='file:'){st.textContent='要存檔請用 python3 tools/serve.py 開啟';return;}
   btn.disabled=true;st.className='status';st.textContent='儲存中…';
   fetch('/api/save',{method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({file:box.dataset.file,line:+box.dataset.line,original:ta.defaultValue,content:ta.value})})
+    body:JSON.stringify({file:box.dataset.file,line:+box.dataset.line,original:ta.defaultValue,content:ta.value,
+      insert:box.dataset.insert==='1'})})
   .then(function(r){return r.json().then(function(j){return {ok:r.ok,j:j};});})
   .then(function(x){
     btn.disabled=false;
@@ -395,6 +467,7 @@ window.saveAnswer=function(btn){
     var line=+box.dataset.line;
     document.querySelectorAll('.answer-box').forEach(function(b){
       if(b!==box&&b.dataset.file===box.dataset.file&&+b.dataset.line>line)b.dataset.line=+b.dataset.line+x.j.delta;});
+    if(x.j.line!==undefined){box.dataset.line=x.j.line;delete box.dataset.insert;}
     ta.defaultValue=ta.value;box.classList.remove('dirty');
     st.textContent='✓ 已儲存 '+new Date().toLocaleTimeString();})
   .catch(function(e){btn.disabled=false;st.className='status err';st.textContent='✗ 連不到 serve.py：'+e;});
@@ -421,6 +494,9 @@ function addCopyButtons(){
 }
 document.addEventListener('DOMContentLoaded',function(){
   addCopyButtons();
+  // 收起時 textarea 量不到高度，打開自我練習框時再算一次
+  document.querySelectorAll('details.self-practice').forEach(function(d){d.addEventListener('toggle',function(){
+    if(d.open)d.querySelectorAll('textarea').forEach(fit);});});
   document.querySelectorAll('main h1[id],main h2[id],main h3[id],main h4[id]').forEach(function(h){
     var a=document.createElement('a');a.className='anchor';a.href='#'+h.id;a.textContent='#';h.appendChild(a);});
   document.querySelectorAll('.answer-box textarea').forEach(function(ta){

@@ -146,6 +146,9 @@ if (c &gt; 127 || c &lt; 0)
 <p>【<a href="../c/%E5%AD%97%E5%85%83%E6%98%AF%E4%BB%80%E9%BA%BC-char%E5%B0%B1%E6%98%AF1byte%E7%9A%84%E6%95%B4%E6%95%B8%E8%88%87ASCII%E5%92%8CUTF-8.html#%E8%B7%9F%E7%AC%AC-2-%E8%AA%B2%E7%9A%84%E9%80%A3%E7%B5%90char-%E6%9C%89%E8%99%9F%E8%AE%80%E5%88%B0%E4%B8%AD%E6%96%87%E6%9C%83%E8%AE%8A%E8%B2%A0%E6%95%B8">字元第四節</a>〈跟第 2 課的連結〉、〈<a href="../c/%E5%AD%97%E5%85%83%E6%98%AF%E4%BB%80%E9%BA%BC-char%E5%B0%B1%E6%98%AF1byte%E7%9A%84%E6%95%B4%E6%95%B8%E8%88%87ASCII%E5%92%8CUTF-8.html#%E5%88%A4%E6%96%B7%E6%98%AF%E4%B8%8D%E6%98%AF%E9%9D%9E-ascii-%E7%9A%84-byte%E7%94%A8%E5%93%AA%E5%80%8B%E5%9E%8B%E5%88%A5%E7%82%BA%E4%BB%80%E9%BA%BC%E6%98%AF-127">判斷「是不是非 ASCII 的 byte」</a>〉】：不會成立。本機 <code>char</code> 有號（−128～127），UTF-8 的非 ASCII byte 是 <code>0x80</code>～<code>0xff</code>，用 <code>char</code> 讀變成負數（例如 <code>0xe5</code> → −27），<code>c &gt; 127</code> 永遠為假。改成 <code>unsigned char c</code>（或比較時寫 <code>(unsigned char)c &gt; 127</code>），byte 就照 0～255 讀，<code>&gt; 127</code> 的意思才正確。不要改成 <code>unsigned int</code>：會先符號擴展成 <code>0xffffffe5</code>，判斷碰巧對、值卻是錯的。</p>
 </details>
 </details>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="review/2026-10-06-字元-interp-ELF-gcc-GNU.md" data-line="51" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+</details>
 <hr />
 <h2 id="interpelf的interpreter是什麼-動態載入器與井字號驚嘆號">interp：<a href="../c/ELF%E7%9A%84interpreter%E6%98%AF%E4%BB%80%E9%BA%BC-%E5%8B%95%E6%85%8B%E8%BC%89%E5%85%A5%E5%99%A8%E8%88%87%E4%BA%95%E5%AD%97%E8%99%9F%E9%A9%9A%E5%98%86%E8%99%9F.html">ELF的interpreter是什麼-動態載入器與井字號驚嘆號</a></h2>
 <h3 id="interp-1-動態連結的執行檔裡interpreter-的路徑寫在哪裡execve-之後核心先執行的是你的程式還是它為什麼要這樣安排">interp 1. 動態連結的執行檔裡，interpreter 的路徑寫在哪裡？<code>execve</code> 之後，核心先執行的是你的程式還是它？為什麼要這樣安排？</h3>
@@ -163,6 +166,9 @@ if (c &gt; 127 || c &lt; 0)
 <details class="answer"><summary>參考答案</summary>
 <p>【<a href="../c/ELF%E7%9A%84interpreter%E6%98%AF%E4%BB%80%E9%BA%BC-%E5%8B%95%E6%85%8B%E8%BC%89%E5%85%A5%E5%99%A8%E8%88%87%E4%BA%95%E5%AD%97%E8%99%9F%E9%A9%9A%E5%98%86%E8%99%9F.html#%E4%B8%80%E5%AE%83%E5%AF%AB%E5%9C%A8%E5%9F%B7%E8%A1%8C%E6%AA%94%E7%9A%84%E5%93%AA%E8%A3%A1">interp 第一節</a>、<a href="../c/ELF%E7%9A%84interpreter%E6%98%AF%E4%BB%80%E9%BA%BC-%E5%8B%95%E6%85%8B%E8%BC%89%E5%85%A5%E5%99%A8%E8%88%87%E4%BA%95%E5%AD%97%E8%99%9F%E9%A9%9A%E5%98%86%E8%99%9F.html#%E4%BA%8C%E5%9F%B7%E8%A1%8C%E6%99%82%E7%99%BC%E7%94%9F%E4%BB%80%E9%BA%BC%E4%BA%8B">第二節</a>】：路徑寫在程式標頭表的 <code>INTERP</code> 項（指向 <code>.interp</code> 區段，內容是 <code>/lib64/ld-linux-x86-64.so.2</code>）。核心 <code>execve</code> 時把程式和載入器都映射進記憶體，<strong>先執行載入器</strong>；載入器依 <code>NEEDED</code> 找到並映射 <code>libc.so.6</code>、檢查版本、填好 <code>puts</code> 等符號的位址，最後跳到程式的進入點。這樣安排是因為程式一開始就要呼叫函式庫，函式庫必須在程式的第一條指令之前就接好。</p>
 </details>
+</details>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="review/2026-10-06-字元-interp-ELF-gcc-GNU.md" data-line="71" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h3 id="interp-2-ld-和-ldsold-linux-x86-64so2各在什麼時間點做什麼事">interp 2. <code>ld</code> 和 <code>ld.so</code>（<code>ld-linux-x86-64.so.2</code>）各在什麼時間點、做什麼事？</h3>
 <blockquote>
@@ -184,6 +190,9 @@ ld.so: 執行時,kernel把他加載進來,他在根據需求單NEED把需要的�
 <li><strong><code>ld.so</code>（執行時，每次執行都做）</strong>：依 <code>NEEDED</code> 找到函式庫並映射進記憶體、檢查版本、把 <code>puts</code> 等符號的真實位址填進 <code>.got</code>（接線），最後跳到程式的進入點 <code>_start</code>。</li>
 </ul>
 </details>
+</details>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="review/2026-10-06-字元-interp-ELF-gcc-GNU.md" data-line="90" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h3 id="interp-3-腳本的-binsh-和-elf-的-interpreter哪裡相同哪裡不同用-bincat-的實驗說明核心把什麼交給直譯器">interp 3. 腳本的 <code>#!/bin/sh</code> 和 ELF 的 interpreter，哪裡相同、哪裡不同？用 <code>#!/bin/cat</code> 的實驗說明「核心把什麼交給直譯器」。</h3>
 <blockquote>
@@ -216,6 +225,9 @@ ld.so: 執行時,kernel把他加載進來,他在根據需求單NEED把需要的�
 <p>【<a href="../c/ELF%E7%9A%84interpreter%E6%98%AF%E4%BB%80%E9%BA%BC-%E5%8B%95%E6%85%8B%E8%BC%89%E5%85%A5%E5%99%A8%E8%88%87%E4%BA%95%E5%AD%97%E8%99%9F%E9%A9%9A%E5%98%86%E8%99%9F.html#%E5%9B%9B%E8%B7%9F%E8%85%B3%E6%9C%AC%E7%9A%84--%E6%98%AF%E5%90%8C%E4%B8%80%E5%80%8B%E6%A9%9F%E5%88%B6">interp 第四節</a>、〈<a href="../c/ELF%E7%9A%84interpreter%E6%98%AF%E4%BB%80%E9%BA%BC-%E5%8B%95%E6%85%8B%E8%BC%89%E5%85%A5%E5%99%A8%E8%88%87%E4%BA%95%E5%AD%97%E8%99%9F%E9%A9%9A%E5%98%86%E8%99%9F.html#%E4%BA%A4%E7%B5%A6%E7%9B%B4%E8%AD%AF%E5%99%A8%E7%9A%84%E6%98%AF%E8%B7%AF%E5%BE%91%E4%B8%8D%E6%98%AF%E5%85%A7%E5%AE%B9%E4%B8%89%E5%80%8B%E5%AF%A6%E9%A9%97">交給直譯器的是「路徑」，不是內容：三個實驗</a>〉】：相同：都由核心在 <code>execve</code> 時讀到、先啟動那支程式。不同：寫的地方（文字檔第一行的 <code>#!</code> vs 程式標頭的 <code>INTERP</code>）；直譯器拿到檔案後做的事（<code>sh</code> 逐行讀文字、執行命令 vs <code>ld.so</code> 載入函式庫、填好位址後跳進程式本身）。<code>#!/bin/cat</code> 的腳本被執行時，核心實際跑的是 <strong><code>/bin/cat ./catscript</code></strong>，交給直譯器的是<strong>腳本的路徑（當作參數）</strong>；<code>cat</code> 用這個路徑自己打開檔案，把整個檔案（含第一行）印出來。</p>
 </details>
 </details>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="review/2026-10-06-字元-interp-ELF-gcc-GNU.md" data-line="119" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+</details>
 <h3 id="interp-6-情境題一支腳本權限是----x--x--x只有執行權限第一行是-binsh執行時出現-binsh-xsh-permission-denied這個錯誤是誰印的為什麼核心讀得到--那一行直譯器卻讀不到腳本同樣只有執行權限的-elf-執行檔為什麼就能跑">interp 6. 情境題：一支腳本權限是 <code>---x--x--x</code>（只有執行權限），第一行是 <code>#!/bin/sh</code>，執行時出現 <code>/bin/sh: ./x.sh: Permission denied</code>。這個錯誤是誰印的？為什麼核心讀得到 <code>#!</code> 那一行，直譯器卻讀不到腳本？同樣只有執行權限的 ELF 執行檔為什麼就能跑？</h3>
 <blockquote>
 <p>盒子 2｜過去的作答：<a href="../small-project/s1-01-hello-compile/quiz.html#6-%E6%83%85%E5%A2%83%E9%A1%8C%E4%B8%80%E6%94%AF%E8%85%B3%E6%9C%AC%E6%AC%8A%E9%99%90%E6%98%AF----x--x--x%E5%8F%AA%E6%9C%89%E5%9F%B7%E8%A1%8C%E6%AC%8A%E9%99%90%E7%AC%AC%E4%B8%80%E8%A1%8C%E6%98%AF-binsh%E5%9F%B7%E8%A1%8C%E6%99%82%E5%87%BA%E7%8F%BE-binsh-xsh-permission-denied%E9%80%99%E5%80%8B%E9%8C%AF%E8%AA%A4%E6%98%AF%E8%AA%B0%E5%8D%B0%E7%9A%84%E7%82%BA%E4%BB%80%E9%BA%BC%E6%A0%B8%E5%BF%83%E8%AE%80%E5%BE%97%E5%88%B0--%E9%82%A3%E4%B8%80%E8%A1%8C%E7%9B%B4%E8%AD%AF%E5%99%A8%E5%8D%BB%E8%AE%80%E4%B8%8D%E5%88%B0%E8%85%B3%E6%9C%AC%E5%90%8C%E6%A8%A3%E5%8F%AA%E6%9C%89%E5%9F%B7%E8%A1%8C%E6%AC%8A%E9%99%90%E7%9A%84-elf-%E5%9F%B7%E8%A1%8C%E6%AA%94%E7%82%BA%E4%BB%80%E9%BA%BC%E5%B0%B1%E8%83%BD%E8%B7%91">s1-01 quiz.md 第 6 題</a></p>
@@ -236,6 +248,9 @@ ld.so: 執行時,kernel把他加載進來,他在根據需求單NEED把需要的�
 <p>【<a href="../c/ELF%E7%9A%84interpreter%E6%98%AF%E4%BB%80%E9%BA%BC-%E5%8B%95%E6%85%8B%E8%BC%89%E5%85%A5%E5%99%A8%E8%88%87%E4%BA%95%E5%AD%97%E8%99%9F%E9%A9%9A%E5%98%86%E8%99%9F.html#%E4%BA%A4%E7%B5%A6%E7%9B%B4%E8%AD%AF%E5%99%A8%E7%9A%84%E6%98%AF%E8%B7%AF%E5%BE%91%E4%B8%8D%E6%98%AF%E5%85%A7%E5%AE%B9%E4%B8%89%E5%80%8B%E5%AF%A6%E9%A9%97">interp 第四節</a>〈實驗三〉】：錯誤是 <code>/bin/sh</code> 印的。核心在 <code>execve</code> 時自己讀 <code>#!</code> 那一行，核心讀檔不受 <code>r</code> 位元限制（執行只要 <code>x</code>）；但接著核心是把<strong>腳本路徑</strong>交給 <code>sh</code>，<code>sh</code> 是普通行程，要用使用者身分 <code>open</code> 這個檔案，沒有 <code>r</code> 就 <code>Permission denied</code>。只有 <code>x</code> 的 ELF 能跑，是因為程式本身由<strong>核心直接映射進記憶體</strong>，不需要任何使用者行程打開它。所以腳本要 <code>r</code>＋<code>x</code>，ELF 只要 <code>x</code>。</p>
 </details>
 </details>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="review/2026-10-06-字元-interp-ELF-gcc-GNU.md" data-line="137" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+</details>
 <hr />
 <h2 id="elfelf是什麼-可執行與可連結格式的兩種視角">ELF：<a href="../c/ELF%E6%98%AF%E4%BB%80%E9%BA%BC-%E5%8F%AF%E5%9F%B7%E8%A1%8C%E8%88%87%E5%8F%AF%E9%80%A3%E7%B5%90%E6%A0%BC%E5%BC%8F%E7%9A%84%E5%85%A9%E7%A8%AE%E8%A6%96%E8%A7%92.html">ELF是什麼-可執行與可連結格式的兩種視角</a></h2>
 <h3 id="elf-1-elf-三個字母各代表什麼為什麼說executable和linkable對應兩種不同的讀者">ELF 1. ELF 三個字母各代表什麼？為什麼說「Executable」和「Linkable」對應兩種不同的讀者？</h3>
@@ -254,6 +269,9 @@ linkable是給連接器看的(ld),就是section的需求單
 <p>【<a href="../c/ELF%E6%98%AF%E4%BB%80%E9%BA%BC-%E5%8F%AF%E5%9F%B7%E8%A1%8C%E8%88%87%E5%8F%AF%E9%80%A3%E7%B5%90%E6%A0%BC%E5%BC%8F%E7%9A%84%E5%85%A9%E7%A8%AE%E8%A6%96%E8%A7%92.html#%E4%B8%80%E5%90%8D%E5%AD%97%E7%9A%84%E6%84%8F%E6%80%9D">ELF 第一節</a>、<a href="../c/ELF%E6%98%AF%E4%BB%80%E9%BA%BC-%E5%8F%AF%E5%9F%B7%E8%A1%8C%E8%88%87%E5%8F%AF%E9%80%A3%E7%B5%90%E6%A0%BC%E5%BC%8F%E7%9A%84%E5%85%A9%E7%A8%AE%E8%A6%96%E8%A7%92.html#%E5%9B%9B%E5%90%8D%E5%AD%97%E7%9A%84%E9%97%9C%E9%8D%B5%E5%85%A9%E7%A8%AE%E8%A6%96%E8%A7%92">第四節</a>】：Executable and Linkable Format。ELF 有兩張目錄：<strong>程式標頭表</strong>（執行視角，單位是載入段 segment，給核心與動態載入器看：載入時把哪幾塊放進記憶體、權限是什麼）和<strong>區段標頭表</strong>（連結視角，單位是區段 section，給連結器 <code>ld</code>、<code>nm</code>、<code>objdump</code> 看：每個區段叫什麼、在哪、多大）。</p>
 </details>
 </details>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="review/2026-10-06-字元-interp-ELF-gcc-GNU.md" data-line="157" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+</details>
 <h3 id="elf-2-readelf--l-helloo-說-there-are-no-program-headers-in-this-file這代表什麼連結器做了什麼才讓執行檔有程式標頭">ELF 2. <code>readelf -l hello.o</code> 說 <code>There are no program headers in this file</code>，這代表什麼？連結器做了什麼才讓執行檔有程式標頭？</h3>
 <blockquote>
 <p>盒子 2｜過去的作答：<a href="../small-project/s1-01-hello-compile/quiz.html#2-readelf--l-helloo-%E8%AA%AA-there-are-no-program-headers-in-this-file%E9%80%99%E4%BB%A3%E8%A1%A8%E4%BB%80%E9%BA%BC%E9%80%A3%E7%B5%90%E5%99%A8%E5%81%9A%E4%BA%86%E4%BB%80%E9%BA%BC%E6%89%8D%E8%AE%93%E5%9F%B7%E8%A1%8C%E6%AA%94%E6%9C%89%E7%A8%8B%E5%BC%8F%E6%A8%99%E9%A0%AD">s1-01 quiz.md 第 2 題</a></p>
@@ -271,6 +289,9 @@ linkable是給連接器看的(ld),就是section的需求單
 <p>【<a href="../c/ELF%E6%98%AF%E4%BB%80%E9%BA%BC-%E5%8F%AF%E5%9F%B7%E8%A1%8C%E8%88%87%E5%8F%AF%E9%80%A3%E7%B5%90%E6%A0%BC%E5%BC%8F%E7%9A%84%E5%85%A9%E7%A8%AE%E8%A6%96%E8%A7%92.html#%E5%9B%9B%E5%90%8D%E5%AD%97%E7%9A%84%E9%97%9C%E9%8D%B5%E5%85%A9%E7%A8%AE%E8%A6%96%E8%A7%92">ELF 第四節</a>〈最有力的證據：<code>.o</code> 沒有執行視角〉】：<code>.o</code> 沒有程式標頭表，代表它只有連結視角——只給連結器用，還不能被核心載入執行。連結器把一堆 <code>.o</code> 的區段<strong>合併</strong>，再把權限相同的區段打包成載入段（<code>LOAD</code>，依分頁對齊），動態連結時加上 <code>INTERP</code>、<code>DYNAMIC</code> 等項，最後寫出程式標頭表，「可連結的」才變成「可執行的」。</p>
 </details>
 </details>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="review/2026-10-06-字元-interp-ELF-gcc-GNU.md" data-line="172" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+</details>
 <hr />
 <h2 id="gccgcc最佳化等級-o0到o3差在哪">gcc：<a href="../c/gcc%E6%9C%80%E4%BD%B3%E5%8C%96%E7%AD%89%E7%B4%9A-O0%E5%88%B0O3%E5%B7%AE%E5%9C%A8%E5%93%AA.html">gcc最佳化等級-O0到O3差在哪</a></h2>
 <h3 id="gcc-5-情境題你在自己的程式裡用--o2-編譯gdb-印某個變數時顯示-optimized-out你會怎麼處理如果是在-kernel-裡遇到同樣的狀況處理方式又有什麼不同">gcc 5. 情境題：你在自己的程式裡用 <code>-O2</code> 編譯，<code>gdb</code> 印某個變數時顯示 <code>&lt;optimized out&gt;</code>。你會怎麼處理？如果是在 kernel 裡遇到同樣的狀況，處理方式又有什麼不同？</h3>
@@ -287,6 +308,9 @@ linkable是給連接器看的(ld),就是section的需求單
 <p>【<a href="../c/gcc%E6%9C%80%E4%BD%B3%E5%8C%96%E7%AD%89%E7%B4%9A-O0%E5%88%B0O3%E5%B7%AE%E5%9C%A8%E5%93%AA.html#%E4%B8%89%E7%82%BA%E4%BB%80%E9%BA%BC%E9%99%A4%E9%8C%AF%E8%A6%81%E7%94%A8--o0">gcc 第三節</a>、<a href="../c/gcc%E6%9C%80%E4%BD%B3%E5%8C%96%E7%AD%89%E7%B4%9A-O0%E5%88%B0O3%E5%B7%AE%E5%9C%A8%E5%93%AA.html#%E5%9B%9B%E8%B7%9F-kernel-%E7%9A%84%E9%97%9C%E4%BF%82">第四節</a>】：自己的程式：改用 <code>-O0 -g</code>（或 <code>-Og -g</code>）重新編譯，變數就有固定位置；不能重編時加 <code>printf</code> 印出來。kernel：<strong>不能用 <code>-O0</code> 重編</strong>（kernel 依賴編譯器一定會做的內嵌與刪除死碼才編得過），<code>&lt;optimized out&gt;</code> 是常態，只能改用 <code>printk</code>、tracing 等方法觀察，並學會讀最佳化後的組合語言。一句話：自己的程式可以「改編譯方式」，kernel 只能「改觀察方式」。</p>
 </details>
 </details>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="review/2026-10-06-字元-interp-ELF-gcc-GNU.md" data-line="190" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+</details>
 <hr />
 <h2 id="gnugnu是什麼-linux核心與gnu工具的分工">GNU：<a href="../linux/GNU%E6%98%AF%E4%BB%80%E9%BA%BC-Linux%E6%A0%B8%E5%BF%83%E8%88%87GNU%E5%B7%A5%E5%85%B7%E7%9A%84%E5%88%86%E5%B7%A5.html">GNU是什麼-Linux核心與GNU工具的分工</a></h2>
 <h3 id="gnu-3-情境題一支-shell-腳本在你的-ubuntu-上用-bash-測試完全正常放到-openwrt-上卻出錯從本篇的角度最可能的原因是什麼寫腳本時該怎麼預防">GNU 3. 情境題：一支 shell 腳本在你的 Ubuntu 上用 <code>bash</code> 測試完全正常，放到 OpenWrt 上卻出錯。從本篇的角度，最可能的原因是什麼？寫腳本時該怎麼預防？</h3>
@@ -302,6 +326,9 @@ linkable是給連接器看的(ld),就是section的需求單
 <details class="answer"><summary>參考答案</summary>
 <p>【<a href="../linux/GNU%E6%98%AF%E4%BB%80%E9%BA%BC-Linux%E6%A0%B8%E5%BF%83%E8%88%87GNU%E5%B7%A5%E5%85%B7%E7%9A%84%E5%88%86%E5%B7%A5.html#%E5%9B%9B%E4%B8%8D%E6%98%AF-gnu-%E7%9A%84-linux%E4%BD%A0%E5%B7%B2%E7%B6%93%E9%81%87%E9%81%8E%E4%BA%86">GNU 第四節</a>】：OpenWrt 不是 GNU 使用者空間，沒有 bash，<code>/bin/sh</code> 是 BusyBox 的 <code>ash</code>；腳本裡用了 bash 的擴充語法（陣列、<code>[^...]</code> 等）就會出錯。預防：只用 POSIX 規定的語法與選項，並在本機用 <code>busybox sh 腳本</code>（或 <code>dash</code>）測試——本機 <code>/bin/sh</code> 指向 bash，直接執行測不出問題。</p>
 </details>
+</details>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="review/2026-10-06-字元-interp-ELF-gcc-GNU.md" data-line="208" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h3 id="gnu-4-gpl-的-copyleft-要求什麼glibc-用-lgpl-而不是-gpl對商業軟體能不能連結-libc有什麼差別">GNU 4. GPL 的 copyleft 要求什麼？glibc 用 LGPL 而不是 GPL，對「商業軟體能不能連結 libc」有什麼差別？</h3>
 <blockquote>
@@ -320,6 +347,9 @@ linkable是給連接器看的(ld),就是section的需求單
 <details class="answer"><summary>參考答案</summary>
 <p>【<a href="../linux/GNU%E6%98%AF%E4%BB%80%E9%BA%BC-Linux%E6%A0%B8%E5%BF%83%E8%88%87GNU%E5%B7%A5%E5%85%B7%E7%9A%84%E5%88%86%E5%B7%A5.html#%E4%BA%94gplgnu-%E6%9C%80%E6%B7%B1%E9%81%A0%E7%9A%84%E5%BD%B1%E9%9F%BF">GNU 第五節</a>】：copyleft：可以自由使用、修改、散布，但<strong>散布修改後的版本時，必須用同樣的授權（GPL）、並提供原始碼</strong>。glibc 用 LGPL（較寬鬆）：允許非自由的程式<strong>連結</strong>它而不必開放自己的原始碼（只有改了 glibc 本身、再散布時，才要公開對 glibc 的修改）。所以任何商業軟體都能動態連結 <code>libc.so.6</code>；如果 glibc 是 GPL，連結它的程式在散布時就得整個用 GPL 開放。</p>
 </details>
+</details>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="review/2026-10-06-字元-interp-ELF-gcc-GNU.md" data-line="224" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 
 </main>

@@ -337,8 +337,178 @@ rip            0x555555555199      0x555555555199 <main+32>
 - **5. 停在 `ret`**：`pop %rbp` 已經執行，`%rbp` 還原成 `main` 的 `d420`，`%rsp` 回到 `d408`，頂端又是返回位址。回傳值 6 已經在 `%rax`。
 - **6. `ret` 之後**：`%rip` 變成 `0x555555555199`（`main+32`），`%rsp` 回到 **`d410`，跟 `call` 之前一模一樣**。`call` 推進去的 8 byte 被 `ret` 拿走了。
 
-**gdb 在第 1 段結尾印的 `add3 (a=0, b=0, c=0)` 是錯的**：那時 `stepi` 剛進到 `add3` 的第一條指令。gdb 照除錯資訊去 `-0x18(%rbp)` 這些位置讀 `a`、`b`、`c`，可是參數還在暫存器裡、還沒存進去，而且 `%rbp` 還是 `main` 的值，所以讀到的是不相干的記憶體。
+**gdb 在第 1 段結尾印的 `add3 (a=0, b=0, c=0)` 是錯的**：那時 `stepi` 剛進到 `add3` 的第一條指令。gdb 照除錯資訊去堆疊上 `a`、`b`、`c` 的位置讀（序言跑完後就是 `-0x18(%rbp)`、`-0x20(%rbp)`、`-0x28(%rbp)` 那三格），可是那時參數還在暫存器裡、還沒存進去，讀到的是那幾格裡原本的舊值。（2026-10-19 更正：原本還寫了「而且 `%rbp` 還是 `main` 的值」，這是錯的——gdb 不是用 `%rbp` 算位置，位址本身是對的，見下方追問補充。）
 到了第 5 段，堆疊框已經建好、參數也存好了，gdb 就印出正確的 `a=1, b=2, c=3`。這正是 `break add3`（不加 `*`）要跳過開頭準備指令的原因（零、第 2 點）。
+
+---
+
+**gdb 為什麼去堆疊讀參數，而不是讀暫存器**
+
+> 2026-10-19 課後提問：「gdb 照除錯資訊，去 -0x18(%rbp)、-0x20(%rbp)、-0x28(%rbp) 讀 a、b、c。爲什麼gdb是去讀堆疊上的參數,而不是寄存器?」（指上一段「gdb 在第 1 段結尾印的 `add3 (a=0, b=0, c=0)` 是錯的」）
+
+**1. gdb 不看程式碼，只照除錯資訊說的位置去讀。** `-g` 產生的除錯資訊（格式叫 DWARF，存在執行檔裡一組 `.debug_*` 區段）替每個變數記了一筆「它放在哪裡」（`DW_AT_location`）。
+gdb 印 `a` 時不會去分析 `add3` 的指令、推算「現在 `a` 應該還在 `%rdi`」，它只照這一筆去讀。所以問題變成：**gcc 為什麼把 `a` 的位置記成堆疊？**
+
+用 `readelf --debug-dump=info` 看 `frame.c`（`gcc -g -O0 -o frame frame.c`）的除錯資訊，只留名字與位置：
+
+```
+$ readelf --debug-dump=info frame | grep -A8 "DW_TAG_subprogram\|DW_TAG_formal_parameter\|DW_TAG_variable" | grep -E "DW_TAG|DW_AT_name|DW_AT_location|frame_base"
+...
+ <1><be>: Abbrev Number: 12 (DW_TAG_subprogram)
+    <bf>   DW_AT_name        : (indirect string, offset: 0x12): add3
+ <2><dc>: Abbrev Number: 2 (DW_TAG_formal_parameter)
+    <dd>   DW_AT_name        : a
+    <e4>   DW_AT_location    : 2 byte block: 91 58 	(DW_OP_fbreg: -40)
+ <2><e7>: Abbrev Number: 2 (DW_TAG_formal_parameter)
+    <e8>   DW_AT_name        : b
+    <ef>   DW_AT_location    : 2 byte block: 91 50 	(DW_OP_fbreg: -48)
+ <2><f2>: Abbrev Number: 2 (DW_TAG_formal_parameter)
+    <f3>   DW_AT_name        : c
+    <fa>   DW_AT_location    : 2 byte block: 91 48 	(DW_OP_fbreg: -56)
+ <2><fd>: Abbrev Number: 3 (DW_TAG_variable)
+    <fe>   DW_AT_name        : s
+    <105>   DW_AT_location    : 2 byte block: 91 68 	(DW_OP_fbreg: -24)
+```
+
+（`DW_TAG_formal_parameter` 是參數、`DW_TAG_variable` 是區域變數；`readelf` 的 `-w`／`--debug-dump` 全部子項見 [readelf完整選項參考.md](./readelf完整選項參考.md#26-除錯資訊dwarf)。）
+
+`a` 的位置只有**一筆**：`DW_OP_fbreg: -40`，意思是「堆疊框基準（frame base）往下 40 byte」，整個 `add3` 從頭到尾都用這一筆。
+原因是 `-O0` 的做法：序言一跑完，參數就存進堆疊，之後**每次用 `a` 都回堆疊讀寫**（第四節的組合語言 `mov %rdi,-0x18(%rbp)` 之後只用 `-0x18(%rbp)`），`%rdi` 隨時可以拿去做別的事。
+所以堆疊那格才是 `a` 的「家」，gcc 就只記這一筆；序言前那兩三條指令「`a` 其實還在 `%rdi`」的空檔，`-O0` 不另外記。
+
+**2. 「堆疊框基準」不是 `%rbp`，是 CFA。** 同一份除錯資訊裡 `add3` 有一行 `DW_AT_frame_base : (DW_OP_call_frame_cfa)`：基準是 **CFA**（Canonical Frame Address，標準堆疊框位址），定義是「呼叫者執行 `call` 之前的 `%rsp`」。
+每一條指令的 CFA 怎麼算，記在 `.eh_frame` 區段（第 4 課 `readelf -S` 看過這個區段名），`readelf --debug-dump=frames-interp` 可以看：
+
+```
+$ readelf --debug-dump=frames-interp frame
+...
+00000088 000000000000001c 0000008c FDE cie=00000000 pc=0000000000001149..0000000000001179
+   LOC           CFA      rbp   ra    
+0000000000001149 rsp+8    u     c-8   
+000000000000114e rsp+16   c-16  c-8   
+0000000000001151 rbp+16   c-16  c-8   
+0000000000001178 rsp+8    c-16  c-8   
+```
+
+`pc=1149..1179` 是 `add3`。每一列是「從這個位址開始，CFA 怎麼算」：在 `1149`（第一條指令 `endbr64`）時 CFA ＝ `%rsp + 8`（`call` 推了 8 byte，加回去就是 `call` 之前的 `%rsp`）；`push %rbp` 之後變 `%rsp + 16`；`mov %rsp,%rbp` 之後改用 `%rbp + 16`。（`ra` 欄 `c-8` 是返回位址存在 CFA − 8，`rbp` 欄 `c-16` 是舊 `%rbp` 存在 CFA − 16，`u` 是還沒存。）
+序言跑完後，`a` ＝ CFA − 40 ＝ `%rbp` ＋ 16 − 40 ＝ `%rbp` − 24 ＝ **`-0x18(%rbp)`**，跟組合語言一致。
+
+所以停在第一條指令時，**gdb 算出的位址是對的**，就是之後 `a` 會被存進去的那一格；印錯只是因為那格還沒寫進 `a`，裡面是舊的值。用 `where-a.gdb`（檔案：[`where-a.gdb`](../small-project/s1-05-asm-calls/where-a.gdb)）確認：
+
+```
+break *add3
+run
+info registers rsp rbp rdi rsi rdx
+info address a
+info address c
+print &a
+print &c
+print a
+info frame
+```
+
+```
+$ gdb -q -batch -x where-a.gdb ./frame
+Breakpoint 1 at 0x1149: file frame.c, line 4.
+
+Breakpoint 1, add3 (a=0, b=0, c=0) at frame.c:4
+4	{
+rsp            0x7fffffffd448      0x7fffffffd448
+rbp            0x7fffffffd460      0x7fffffffd460
+rdi            0x1                 1
+rsi            0x2                 2
+rdx            0x3                 3
+Symbol "a" is a complex DWARF expression:
+     0: DW_OP_fbreg -40
+.
+Symbol "c" is a complex DWARF expression:
+     0: DW_OP_fbreg -56
+.
+$1 = (long *) 0x7fffffffd428
+$2 = (long *) 0x7fffffffd418
+$3 = 0
+Stack level 0, frame at 0x7fffffffd450:
+ rip = 0x555555555149 in add3 (frame.c:4); saved rip = 0x555555555199
+ called by frame at 0x7fffffffd470
+ source language c.
+ Arglist at 0x7fffffffd440, args: a=0, b=0, c=0
+ Locals at 0x7fffffffd440, Previous frame's sp is 0x7fffffffd450
+ Saved registers:
+  rip at 0x7fffffffd448
+```
+
+（這次執行的堆疊位址跟本節前面差了 `0x40`，堆疊起點會隨執行環境不同而變，比的是同一次執行裡的相對位置。）
+
+- `info frame` 第一行 `frame at 0x7fffffffd450` 就是 CFA ＝ `%rsp`（`d448`）＋ 8。
+- `&a` ＝ `d428` ＝ `d450 − 40`，是照 CFA 算的。如果照 `%rbp`（還是 `main` 的 `d460`）算 `-0x18(%rbp)`，會是 `d448`——那是返回位址那格，值不是 0。所以 gdb 沒有用 `%rbp`。
+- 真正的值在 `%rdi`／`%rsi`／`%rdx`：1、2、3。
+
+**3. 對照：`-O2` 的除錯資訊就會記暫存器。** 最佳化後變數常常只待在暫存器裡，gcc 會改記「位置清單」（location list）：哪段位址範圍在哪個暫存器。用 `-fno-inline` 讓 `add3` 不被併進 `main`：
+
+```
+$ gcc -g -O2 -fno-inline -o frame2 frame.c
+$ objdump -d --no-show-raw-insn frame2 | sed -n '/<add3>:/,/ret/p'
+0000000000001190 <add3>:
+    1190:	endbr64
+    1194:	add    %rsi,%rdi
+    1197:	lea    (%rdi,%rdx,1),%rax
+    119b:	ret
+```
+
+`add3` 完全不碰堆疊：`add %rsi,%rdi` 把 `a + b` 存回 `%rdi`（`s` 跟 `a` 共用 `%rdi`），`lea (%rdi,%rdx,1),%rax` 算 `%rdi + %rdx` 放進回傳值 `%rax`（`lea` 只算位址不讀記憶體，第 4 課教過）。除錯資訊也跟著變：
+
+```
+$ readelf --debug-dump=info frame2 | sed -n '/DW_AT_name.*add3/,/DW_TAG_variable/p' | grep -E "name|location|frame_base"
+    <12e>   DW_AT_name        : (indirect string, offset: 0xb0): add3
+    <148>   DW_AT_frame_base  : 1 byte block: 9c 	(DW_OP_call_frame_cfa)
+    <14f>   DW_AT_name        : a
+    <158>   DW_AT_location    : 0x40 (location list)
+    <161>   DW_AT_name        : b
+    <168>   DW_AT_location    : 1 byte block: 54 	(DW_OP_reg4 (rsi))
+    <16b>   DW_AT_name        : c
+    <172>   DW_AT_location    : 1 byte block: 51 	(DW_OP_reg1 (rdx))
+```
+
+`b`、`c` 直接記成暫存器 `rsi`、`rdx`（`DW_OP_reg4` 的 4 是 DWARF 自己替暫存器排的編號，`readelf` 在括號裡翻成名字）；`a` 因為 `%rdi` 在 `1194` 之後被改成 `a + b`，記成一張位置清單。`where-a-O2.gdb`（檔案：[`where-a-O2.gdb`](../small-project/s1-05-asm-calls/where-a-O2.gdb)）：
+
+```
+break *add3
+run
+info address a
+print a
+print b
+print c
+```
+
+```
+$ gdb -q -batch -x where-a-O2.gdb ./frame2
+Breakpoint 1 at 0x1190: file frame.c, line 4.
+
+Breakpoint 1, add3 (a=a@entry=1, b=b@entry=2, c=c@entry=3) at frame.c:4
+4	{
+Symbol "a" is multi-location:
+  Base address 0x1190  Range 0x555555555190-0x555555555197: a variable in $rdi
+  Range 0x555555555197-0x55555555519c: a complex DWARF expression:
+     0: DW_OP_entry_value
+       2: DW_OP_reg5 [$rdi]
+     3: DW_OP_stack_value
+
+.
+$1 = 1
+$2 = 2
+$3 = 3
+```
+
+- `1190`～`1197`：`a` 在 `$rdi`，所以停在第一條指令也印對 `a=1`。
+- `1197` 以後：`%rdi` 已經變成 `a + b`，除錯資訊改說「`a` ＝ 進函式那一刻 `%rdi` 的值」（`DW_OP_entry_value`），gdb 要從呼叫者那邊推回來；印出來的 `a@entry=1` 的 `@entry` 就是「進函式時的值」。
+
+結論：gdb 讀哪裡，**完全由編譯器寫的除錯資訊決定**。`-O0` 只記堆疊那一格（因為那是變數的家），所以序言前讀到舊值；`-O2` 記了暫存器與位置清單，反而在第一條指令就讀得對。
+
+（本段用到 gdb 的 `info address`、`info frame`，完整的 `info` 子命令見 [gdb完整命令參考.md](./gdb完整命令參考.md)；`readelf` 用到 `--debug-dump` 的 `info`、`frames-interp` 兩個子項。）
+
+*（追問補充結束，以下回到主線）*
+
+---
 
 ### 停在函式入口時，怎麼知道是誰呼叫的
 
@@ -473,7 +643,7 @@ $2 = (long *) 0x7fffffffd3f8
 
 這是 System V AMD64 ABI 的**紅區**（red zone）規定：`%rsp` 下方 128 byte 保留給目前這個函式，不會被別人（例如訊號處理函式）蓋掉。
 `add3` 是**葉函式**（leaf function，不再呼叫別人的函式），用的空間在 128 byte 以內，乾脆不 `sub %rsp`，省一條指令。
-`main` 要呼叫 `add3` 和 `printf`，`call` 會把返回位址推到 `%rsp` 下面，蓋掉那一區，所以 `main` 必須老老實實 `sub $0x10,%rsp`。
+`main` 要呼叫 `add3` 和 `printf`，`call` 會把返回位址推到 `%rsp` 下面，蓋掉那一區；放在那裡、`call` 之後還要用的變數就會壞掉，所以 gcc 替會呼叫別人的函式一律 `sub $0x10,%rsp`，把變數放到 `%rsp` 上面（`frame.c` 這個 `main` 其實拿掉也能跑，見本小節最後第三個追問補充）。
 
 > kernel 的程式碼不能用紅區：在 kernel 裡，中斷發生時 CPU 會直接把資料推到目前的堆疊上，會蓋掉 `%rsp` 下面的東西。所以 kernel 編譯時加了 `-mno-red-zone`（Linux 原始碼 `arch/x86/Makefile`；本機未實測）。
 
@@ -495,6 +665,210 @@ $2 = (long *) 0x7fffffffd3f8
 放在 `add3` 的情況：`%rsp` 是 `d400`，下一次 `push`（或 `call` 推返回位址）會寫在 `d3f8`——正好是 `s` 所在的那格。
 照一般規則，這一區隨時可能被下一次 `push`／`call` 蓋掉，所以不該拿來放變數；這也是為什麼上面需要「紅區」這條額外規定：
 ABI 保證 `%rsp` 下方 128 byte 不會被**別人**蓋掉，而 `add3` 是葉函式，自己也不會再 `push`／`call`，那裡才安全。
+
+*（追問補充結束，以下回到主線）*
+
+---
+
+**`call` 只是把 `%rsp` 減 8，為什麼算「蓋掉 `%rsp` 下面」？`sub` 又怎麼「收進堆疊」**
+
+> 2026-10-19 課後提問：「不好意思我看不懂爲什麼會需要sub, call以後 rsp不是改到rsp - 8 的位址嗎?這能算是蓋掉rsp下面的區域嗎?另外 sub跟收進堆疊裏看不懂」（指本節「`main` 要呼叫 `add3` 和 `printf`，`call` 會把返回位址推到 `%rsp` 下面，蓋掉那一區」那段，以及自我測驗 2-3 的參考答案）
+
+**1. `call` 不只是「`%rsp` 減 8」，還會「寫」。** `call` ＝ `push 返回位址` ＋ `jmp`，而 `push` 是兩步（[第二節](#二堆疊rsp-指著頂端往低位址長)的 `push` 表）：
+
+1. `%rsp` 減 8；
+2. 把返回位址**寫進**新的 `%rsp` 指的那 8 byte。
+
+新的 `%rsp` 就是「舊 `%rsp` − 8」，所以第 2 步寫進去的地方，正是 `call` 之前 `%rsp` **正下方那一格**。減 8 本身不會蓋掉任何東西，蓋掉東西的是第 2 步的**寫入**。
+第三節的實測就是這樣：`call add3` 之前 `%rsp` ＝ `d410`，之後 `%rsp` ＝ `d408`，`d408` 裡放的是返回位址 `0x555555555199`——`d408` 就是 `call` 之前 `d410` 正下方那一格。
+那一格原本如果放著變數，值就沒了。
+
+**2. 「收進堆疊」是什麼意思：讓變數那一格在 `%rsp` 的「上面」。** 照本節最上面那張圖，`main` 的 `r` 放在 `-0x8(%rbp)` ＝ `d418`。比較 `main` 有沒有 `sub`：
+
+| | `push %rbp; mov %rsp,%rbp` 之後 `%rsp` | `r` 那格（`d418`）在 `%rsp` 的 | `call` 的返回位址寫在 | `r` 會不會被蓋 |
+|---|---|---|---|---|
+| 沒有 `sub` | `d420` | 下面（`%rsp − 8`） | `d420 − 8` ＝ **`d418`** | 那格會被寫入，`r` 當時若已經有值就被蓋掉 |
+| 有 `sub $0x10,%rsp` | `d420 − 0x10` ＝ `d410` | 上面 | `d410 − 8` ＝ `d408` | 不會 |
+
+`sub $0x10,%rsp` 只是把 `%rsp` 往低位址挪 16 byte，**不寫任何東西**；效果是把「頂端」移到 `r` 的下面。
+照第二節的規則，`%rsp` 以上算「已經放進堆疊裡的東西」，之後的 `push`／`call` 只會寫在新的 `%rsp` 下面，`r` 那格就安全了。
+「收進堆疊」指的就是這個：用 `sub` 把變數的位置圈到 `%rsp` 以上。函式結束時 `leave`（`mov %rbp,%rsp`）再把 `%rsp` 拉回去，整塊一次丟掉。
+
+`add3` 不需要這一步，是因為它從頭到尾沒有 `push`／`call`，`%rsp` 下面那一區沒有人會去寫（紅區保證別人不寫，它自己也不寫）。
+
+**3. 實驗：故意不 `sub`，看變數被蓋掉。** `frame.c` 的 `r` 剛好是 `call add3` **回來之後**才寫進去，不 `sub` 也看不出問題；所以這裡手寫一個 `main`，把 `x = 42` 存在 `-8(%rbp)`，**中間 `call` 一個什麼都不做的函式**，再把 `x` 印出來。同一份檔案用 `-DSUB` 決定有沒有 `sub`（`.S` 大寫副檔名會先經過 C 前置處理器，`#ifdef` 才有效）。
+
+`nosub.S`（檔案：[`nosub.S`](../small-project/s1-05-asm-calls/nosub.S)）完整原始碼：
+
+```asm
+/* nosub.S：main 把變數 x 放在 -8(%rbp)，比較「有 sub」和「沒 sub」時，
+   中間 call 一次 noop 之後 x 還在不在。
+   編譯：gcc -g -o nosub nosub.S            （沒 sub）
+         gcc -g -DSUB -o withsub nosub.S    （有 sub） */
+
+        .section .rodata
+fmt:    .string "x = %#lx\n"
+
+        .text
+noop:                           /* 什麼都不做的函式 */
+        ret
+
+        .globl main
+main:
+        push    %rbp
+        mov     %rsp, %rbp
+#ifdef SUB
+        sub     $0x10, %rsp     /* 把 x 那格收進堆疊：%rsp 移到 x 的下面 */
+#endif
+        movq    $42, -8(%rbp)   /* x = 42，放在 %rbp - 8 */
+        call    noop            /* 推返回位址到 %rsp - 8，再跳去 noop */
+        mov     -8(%rbp), %rsi  /* printf 的第 2 個參數 = x */
+        lea     fmt(%rip), %rdi /* printf 的第 1 個參數 = 字串位址 */
+        mov     $0, %eax        /* 沒有 double 參數（第七節） */
+        call    printf@PLT
+        mov     $0, %eax        /* return 0 */
+        leave
+        ret
+
+        .section .note.GNU-stack,"",@progbits
+```
+
+最後一行只是告訴連結器「這個檔案不需要可執行的堆疊」，少了它 `ld` 會印警告，跟本實驗無關。
+
+```
+$ gcc -g -DSUB -o withsub nosub.S
+$ gcc -g -o nosub nosub.S
+$ ./withsub
+x = 0x2a
+$ ./nosub
+x = 0x55555555514b
+```
+
+有 `sub` 時印出 `0x2a`（42）；沒 `sub` 時 `x` 變成一個很像位址的數字。用 `objdump -d --no-show-raw-insn nosub` 看沒 `sub` 的版本：
+
+```
+000000000000113a <main>:
+    113a:	push   %rbp
+    113b:	mov    %rsp,%rbp
+    113e:	movq   $0x2a,-0x8(%rbp)
+    1146:	call   1139 <noop>
+    114b:	mov    -0x8(%rbp),%rsi
+    ...
+```
+
+`call` 的下一條指令在 `0x114b`——`x` 被換成的就是 `call noop` 的**返回位址**（執行時再加上載入位址 `0x555555554000`）。
+
+用 gdb 停在 `call noop` 上，比較 `call` 前後。`nosub.gdb`（檔案：[`nosub.gdb`](../small-project/s1-05-asm-calls/nosub.gdb)），`main+12` 是 `call noop`（`0x1146 − 0x113a = 12`）：
+
+```
+break *main+12
+run
+x/i $pc
+info registers rsp rbp
+x/gx $rbp-8
+stepi
+x/i $pc
+info registers rsp
+x/gx $rbp-8
+continue
+```
+
+```
+$ gdb -q -batch -x nosub.gdb ./nosub
+Breakpoint 1 at 0x1146: file nosub.S, line 21.
+
+Breakpoint 1, main () at nosub.S:21
+21	        call    noop            /* 推返回位址到 %rsp - 8，再跳去 noop */
+=> 0x555555555146 <main+12>:	call   0x555555555139 <noop>
+rsp            0x7fffffffd450      0x7fffffffd450
+rbp            0x7fffffffd450      0x7fffffffd450
+0x7fffffffd448:	0x000000000000002a
+noop () at nosub.S:11
+11	        ret
+=> 0x555555555139 <noop>:	ret
+rsp            0x7fffffffd448      0x7fffffffd448
+0x7fffffffd448:	0x000055555555514b
+x = 0x55555555514b
+```
+
+- `call` 之前：`%rsp` ＝ `d450`，`x` 在 `%rbp − 8` ＝ `d448`，也就是 `%rsp` 正下方那一格，值是 `0x2a`。
+- `call` 之後：`%rsp` ＝ `d448`，返回位址 `0x55555555514b` 寫進 `d448`——`x` 被蓋掉了。
+
+有 `sub` 的版本換成 `withsub.gdb`（檔案：[`withsub.gdb`](../small-project/s1-05-asm-calls/withsub.gdb)，內容只有第一行改成 `break *main+16`，因為多了 4 byte 的 `sub` 指令）：
+
+```
+$ gdb -q -batch -x withsub.gdb ./withsub
+...
+=> 0x55555555514a <main+16>:	call   0x555555555139 <noop>
+rsp            0x7fffffffd430      0x7fffffffd430
+rbp            0x7fffffffd440      0x7fffffffd440
+0x7fffffffd438:	0x000000000000002a
+...
+=> 0x555555555139 <noop>:	ret
+rsp            0x7fffffffd428      0x7fffffffd428
+0x7fffffffd438:	0x000000000000002a
+x = 0x2a
+```
+
+- `sub` 之後 `%rsp` ＝ `d430`，`x`（`d438`）在 `%rsp` 上面。
+- `call` 把返回位址寫在 `d430 − 8` ＝ `d428`，`x` 不受影響。
+
+（兩個程式的 `%rbp` 差 `0x10`，是兩個執行檔被載入時堆疊起點不同，跟 `sub` 無關；要比的是同一個程式裡 `x` 和 `%rsp` 的相對位置。）
+
+所以 2-3 的完整答案是：`%rsp` 下面那一區，只有「自己不會 `push`／`call`」的葉函式才能放心用（再加上紅區保證別人不寫）；
+會 `call` 的函式，每次 `call` 都會往 `%rsp − 8` 寫返回位址，所以要先 `sub`，把變數放到 `%rsp` 以上。
+`frame.c` 的 `r` 雖然剛好是 `call` 回來才寫，但編譯器不會逐一去算「這個變數在 `call` 時有沒有在用」，會呼叫別人的函式就一律用 `sub` 開空間。
+
+*（追問補充結束，以下回到主線）*
+
+---
+
+**那 `frame.c` 的 `main` 拿掉 `sub $0x10,%rsp` 會怎樣：其實照樣能跑**
+
+> 2026-10-19 課後提問：「我實際去找main的組語了,但是我看不出來sub 0x10的必要性」（指 `frame.c` 的 `main`，`objdump -d` 的那一段）
+
+看得很準：**單看 `frame.c` 這個 `main`，`sub $0x10,%rsp` 不是必要的**，拿掉照樣印出 6。上一段說「`call` 會蓋掉 `%rsp` 下面」沒錯，但只有「變數的值在 `call` 之後還要用」時才會出事，這個 `main` 剛好沒有這種變數。
+
+`nosub-frame.sh`（檔案：[`nosub-frame.sh`](../small-project/s1-05-asm-calls/nosub-frame.sh)）完整內容，在 `frame.c` 所在的資料夾執行 `sh nosub-frame.sh`：
+
+```sh
+#!/bin/sh
+# nosub-frame.sh：把 frame.c 編成組合語言，刪掉 main 的 subq $16, %rsp，再組譯、執行
+# 用法：在 frame.c 所在的資料夾執行 sh nosub-frame.sh
+set -e
+gcc -O0 -S frame.c -o frame.s                       # 跟筆記一樣用 -O0，只停在組合語言
+grep -n 'subq' frame.s                              # 確認整個檔案只有 main 這一條 subq
+sed '/subq\t\$16, %rsp/d' frame.s > frame_nosub.s   # 刪掉那一行，其他不動
+diff frame.s frame_nosub.s || true                  # 列出差別（diff 有差別時結束狀態是 1）
+gcc -o frame_nosub frame_nosub.s                    # 組譯＋連結
+./frame_nosub
+```
+
+```
+$ sh nosub-frame.sh
+45:	subq	$16, %rsp
+45d44
+< 	subq	$16, %rsp
+6
+```
+
+（`gcc -S` 產生的是 AT&T 語法加大小字尾的寫法：`subq $16, %rsp` 就是 objdump 裡的 `sub $0x10,%rsp`，第 4 課教過字尾 `q` ＝ 8 byte。）
+
+照時間順序走一次沒有 `sub` 的 `main`（`%rbp` 那格以下，`r` 在 `-0x8(%rbp)`，也就是 `%rsp` 正下方那格）：
+
+1. `call add3`：返回位址寫進 `-0x8(%rbp)`。這時 `r` 還沒有值，**沒有東西被蓋掉**；`add3` 的 `ret` 把它拿走。
+2. `mov %rax,-0x8(%rbp)`：`r` ＝ 6，寫進那格。
+3. `mov -0x8(%rbp),%rax`、`mov %rax,%rsi`：`r` 的值**已經複製到 `%rsi`**（`printf` 的第 2 個參數）。
+4. `call printf`：返回位址再寫進 `-0x8(%rbp)`，`r` 確實被蓋掉了——但之後 `main` 再也沒讀過 `-0x8(%rbp)`，`printf` 拿的是 `%rsi` 裡的 6。
+
+對齊也沒問題：進 `main` 時 `%rsp` 是 16 的倍數 ＋ 8，`push %rbp` 之後剛好是 16 的倍數，不 `sub` 也滿足[第六節](#六誰負責保存暫存器以及-16-byte-對齊)「`call` 之前 `%rsp` 是 16 的倍數」的規定。
+
+**那 gcc 為什麼還是加了 `sub`？** 因為 `-O0` 不做這種分析。從本課看到的兩個函式，`-O0` 的做法是：
+
+- 葉函式（`add3`）：變數放紅區，不 `sub`；
+- 會 `call` 別人的函式（`main`）：每個區域變數都在 `%rsp` 上面給一格固定位置，用 `sub` 開出來（大小湊成 16 的倍數，`r` 8 byte ＋ 對齊 8 byte ＝ `0x10`）。
+
+它不去判斷「`r` 在哪次 `call` 時還要用」，一律這樣安排，才能保證**任何**程式都對——像上一段 `nosub.S` 的 `x`，在 `call` 之前寫入、之後還要讀，不 `sub` 就錯。所以 `sub` 是 gcc 的「保險做法」，不是這個 `main` 的值非靠它不可。
 
 *（追問補充結束，以下回到主線）*
 
@@ -1025,6 +1399,35 @@ gdb 的頂層命令共 173 個，本課用到其中 9 個（`info registers`、`
    1177:	pop    %rbp
    1178:	ret
    ```
+   > **參考答案**（核心關鍵＋詳細說明）
+   >
+   > **1-1**【[第三節](../html/c/x86-64組合語言入門二-call與ret、堆疊框、參數與呼叫慣例.html#三call-與-ret用-gdb-一條一條走)】核心關鍵：
+   >
+   > 1. 把**返回位址**（`call` 下一條指令的位址 `0x1199`）推進堆疊：`%rsp` 減 8，寫進新的頂端。
+   > 2. 跳到 `add3`（`%rip` 變成 `add3` 的位址）。
+   >
+   > 詳細說明：`call add3` ＝ `push 返回位址` ＋ `jmp add3`。`frame.c` 實測：`call` 之後 `%rsp` 從 `d410` 變成 `d408`，`d408` 裡是 `0x555555555199`（PIE 載入後的 `0x1199`）。
+   >
+   > **1-2**【[第三節](../html/c/x86-64組合語言入門二-call與ret、堆疊框、參數與呼叫慣例.html#三call-與-ret用-gdb-一條一條走)】核心關鍵：
+   >
+   > 1. 把堆疊頂端那 8 byte 當成位址，放進 `%rip`（跳過去）。
+   > 2. `%rsp` 加 8（返回位址被拿走）。
+   >
+   > 詳細說明：`ret` ＝ `pop` 到 `%rip`。沒有指令能直接 `mov` 到 `%rip`，`ret` 就是「從堆疊取一個值放進 `%rip`」。實測 `ret` 之後 `%rsp` 回到 `d410`，跟 `call` 之前一模一樣。
+   >
+   > **1-3**【[第三節](../html/c/x86-64組合語言入門二-call與ret、堆疊框、參數與呼叫慣例.html#三call-與-ret用-gdb-一條一條走)】核心關鍵：
+   >
+   > 1. `call` 把 `0x1199` 推進堆疊，存在 `%rsp` 指的那格記憶體裡。
+   > 2. `ret` 不知道呼叫者是誰，只是取堆疊頂端那 8 byte 當位址。
+   >
+   > 詳細說明：所以 `add3` 在 `ret` 之前必須把 `%rsp` 還原到放返回位址的那一格：`pop %rbp` 把序言推的舊 `%rbp` 拿走，頂端就又是 `0x1199`（實測第 5 段：停在 `ret` 時 `%rsp` ＝ `d408`、裡面是 `0x555555555199`）。函式裡 `push` 和 `pop` 沒配好，`ret` 就會跳錯。
+   >
+   > **1-4**【[第三節](../html/c/x86-64組合語言入門二-call與ret、堆疊框、參數與呼叫慣例.html#三call-與-ret用-gdb-一條一條走)】核心關鍵：
+   >
+   > 1. `ret` 不檢查，照樣把被蓋掉的值當成位址跳過去。
+   > 2. 跳到亂的地方，通常是 segfault 當掉（那個位址沒有對映，或不能執行）。
+   >
+   > 詳細說明：第 3 課實際看過兩種下場：有堆疊保護時，函式返回**之前**檢查金絲雀，印 `stack smashing detected` 中止；關掉保護（`-fno-stack-protector`）就真的走到 `ret`，返回時 segfault（[第 3 課第五節](../html/c/陣列、字串與指標運算-C不檢查邊界與用gdb找segfault.html#五c-不檢查邊界越界的三種下場)〈關掉保護，看看下面是什麼：返回時 segfault〉）。如果蓋上去的值是攻擊者刻意挑的位址，`ret` 就會跳去執行攻擊者要的程式碼——這是緩衝區溢位攻擊的原理，也是堆疊保護存在的理由。
 2. 函式開頭的 `push %rbp` 和 `mov %rsp,%rbp` 各在做什麼？`main` 結尾的 `leave` 等於哪兩條指令？`add3` 把區域變數放在 `%rsp` 下面、沒有 `sub %rsp`，`main` 卻要 `sub $0x10,%rsp`，為什麼？
    ```asm
    add3:                                 main:
@@ -1035,6 +1438,28 @@ gdb 的頂層命令共 173 個，本課用到其中 9 個（`info registers`、`
      pop    %rbp                           leave
      ret                                   ret
    ```
+   > **參考答案**（核心關鍵＋詳細說明）
+   >
+   > **2-1**【[第四節](../html/c/x86-64組合語言入門二-call與ret、堆疊框、參數與呼叫慣例.html#四堆疊框pushq-rbp-movq-rsp-rbp-與-leave)】核心關鍵：
+   >
+   > 1. `push %rbp`：把**呼叫者的** `%rbp` 存到堆疊上，返回前要還原。
+   > 2. `mov %rsp,%rbp`：把現在的頂端定成自己堆疊框的**基準點**，之後區域變數用 `%rbp` 加固定的負偏移存取。
+   >
+   > 詳細說明：實測：`add3` 的 `push %rbp` 之後，`d400` 裡是 `main` 的 `%rbp`（`d420`）；`mov` 之後 `%rbp` ＝ `d400`。每個框的 `%rbp` 那格都存著上一層的 `%rbp`，串成一條鏈，`bt` 就是沿著它往回找。
+   >
+   > **2-2**【[第四節](../html/c/x86-64組合語言入門二-call與ret、堆疊框、參數與呼叫慣例.html#四堆疊框pushq-rbp-movq-rsp-rbp-與-leave)〈`leave`：一條指令做兩件事〉】核心關鍵：
+   >
+   > 1. `mov %rbp,%rsp`：把 `%rsp` 拉回基準點，`sub` 開的空間一次丟掉。
+   > 2. `pop %rbp`：還原呼叫者的 `%rbp`。
+   >
+   > 詳細說明：`leave.gdb` 實測：`leave` 前 `%rsp` ＝ `d410`、`%rbp` ＝ `d420`；之後 `%rsp` ＝ `d428`（拉回 `d420` 再 `pop` 走 8 byte）、`%rbp` ＝ `d4c0`。只 `push` 沒 `sub` 的函式（`add3`）用 `pop %rbp` 就夠了。
+   >
+   > **2-3**【[第四節](../html/c/x86-64組合語言入門二-call與ret、堆疊框、參數與呼叫慣例.html#四堆疊框pushq-rbp-movq-rsp-rbp-與-leave)〈上圖 `add3` 的變數在 `%rsp` 的「下面」：紅區〉】核心關鍵：
+   >
+   > 1. **紅區**：ABI 保證 `%rsp` 下方 128 byte 不會被別人蓋掉；`add3` 是葉函式，自己也不會 `push`／`call`，所以直接用、省一條 `sub`。
+   > 2. `main` 要 `call`：`call` 推返回位址會寫在 `%rsp` 下面、蓋掉那一區，`call` 之後還要用的變數就壞了，所以 gcc 對會 `call` 的函式一律 `sub`，把變數空間放進堆疊（`%rsp` 上面）。
+   >
+   > 詳細說明：`sub` 的大小是 `0x10` 不是 8，才是 16 byte 對齊的緣故（[第六節](../html/c/x86-64組合語言入門二-call與ret、堆疊框、參數與呼叫慣例.html#六誰負責保存暫存器以及-16-byte-對齊)〈上面的 `sub $0x8,%rsp`：16 byte 對齊〉：進 `main` 時 `d428`，`push` 後 `d420`，`sub $0x10` 後 `d410` 是 16 的倍數）。`frame.c` 的 `r` 碰巧在 `call add3` 回來才寫入、`call printf` 前已複製到 `%rsi`，所以拿掉 `sub` 其實也能跑；gcc `-O0` 不做這種分析，會 `call` 的函式一律 `sub`（[第四節](../html/c/x86-64組合語言入門二-call與ret、堆疊框、參數與呼叫慣例.html#四堆疊框pushq-rbp-movq-rsp-rbp-與-leave)〈那 `frame.c` 的 `main` 拿掉 `sub $0x10,%rsp` 會怎樣：其實照樣能跑〉）。kernel 不能用紅區（中斷會直接推資料到目前的堆疊上），所以編譯時加 `-mno-red-zone`。
 3. `args8.c` 的 `sum8` 有 8 個 `long` 參數。前 6 個參數放在哪裡？第 7、8 個放在哪裡、`call8` 用什麼順序放？在 `sum8` 裡第 7 個參數為什麼是 `0x10(%rbp)`，而不是 `0(%rbp)`？`call8` 在 `call` 之後為什麼要 `add $0x10,%rsp`？
    ```c
    long sum8(long a, long b, long c, long d, long e, long f, long g, long h)
@@ -1060,6 +1485,34 @@ gdb 的頂層命令共 173 個，本課用到其中 9 個（`info registers`、`
      leave
      ret
    ```
+   > **參考答案**（核心關鍵＋詳細說明）
+   >
+   > **3-1**【[第五節](../html/c/x86-64組合語言入門二-call與ret、堆疊框、參數與呼叫慣例.html#五參數與回傳值放哪裡)】核心關鍵：
+   >
+   > 1. 照順序放 `%rdi`、`%rsi`、`%rdx`、`%rcx`、`%r8`、`%r9`。
+   >
+   > 詳細說明：`call8` 寫的是 `%r9d`、`%ecx` 這些 32 位元的名字：常數小，寫 32 位元會清掉高 32 位元，整個 64 位元就是那個值，指令還比較短。回傳值放 `%rax`。
+   >
+   > **3-2**【[第五節](../html/c/x86-64組合語言入門二-call與ret、堆疊框、參數與呼叫慣例.html#五參數與回傳值放哪裡)〈實驗：8 個參數，第 7、8 個去哪了〉】核心關鍵：
+   >
+   > 1. 放在堆疊上（呼叫者用 `push` 推進去，每個 8 byte）。
+   > 2. 從最後一個開始推：先 `push $0x8` 再 `push $0x7`，所以第 7 個在較低的位址。
+   >
+   > 詳細說明：倒著推，第 7 個才會離 `sum8` 的堆疊框最近（在 `0x10(%rbp)`），第 8 個接在上面（`0x18(%rbp)`），參數個數不固定時也能從固定位置往上數。
+   >
+   > **3-3**【[第五節](../html/c/x86-64組合語言入門二-call與ret、堆疊框、參數與呼叫慣例.html#五參數與回傳值放哪裡)〈實驗：8 個參數，第 7、8 個去哪了〉】核心關鍵：
+   >
+   > 1. `call8` 推完參數後，`call` 又推了返回位址、`sum8` 的序言又推了舊 `%rbp`。
+   > 2. 所以從 `sum8` 的 `%rbp` 往上：`0(%rbp)` 舊 `%rbp`、`0x8(%rbp)` 返回位址、`0x10(%rbp)` 才是第 7 個。
+   >
+   > 詳細說明：記法：**參數用正的偏移（在呼叫者那邊），區域變數用負的偏移（在自己這邊）**。作業 2-2 預測成負偏移，這次答對了。
+   >
+   > **3-4**【[第五節](../html/c/x86-64組合語言入門二-call與ret、堆疊框、參數與呼叫慣例.html#五參數與回傳值放哪裡)〈實驗：8 個參數，第 7、8 個去哪了〉】核心關鍵：
+   >
+   > 1. 第 7、8 個參數是 `call8` 自己 `push` 的（2 × 8 ＝ 16 byte）。
+   > 2. `sum8` 的 `ret` 只拿走返回位址、不清參數，所以由呼叫者 `call8` 在 `call` 回來後用 `add $0x10,%rsp` 丟掉。
+   >
+   > 詳細說明：這裡 `add` 之後緊接著 `leave`，其實 `leave` 的 `mov %rbp,%rsp` 也會把 `%rsp` 拉回去；`-O0` 照規則先清掉參數，不管後面有沒有 `leave`。如果 `call8` 接著還要呼叫別人，不清的話推過的參數就會一直堆在堆疊上。
 4. 下面兩個函式用 `-O2` 編譯（`g` 只有宣告）。為什麼 `saved.c` 的 `f` 要 `push %rbx`，而不是讓 `x` 留在 `%rdi`？`noret.c` 的 `f` 不需要保存任何值，為什麼還要 `sub $0x8,%rsp`？
    ```c
    /* saved.c */                          /* noret.c */
@@ -1080,6 +1533,23 @@ gdb 的頂層命令共 173 個，本課用到其中 9 個（`info registers`、`
    pop    %rbx                             ret
    ret
    ```
+   > **參考答案**（核心關鍵＋詳細說明）
+   >
+   > **4-1**【[第六節](../html/c/x86-64組合語言入門二-call與ret、堆疊框、參數與呼叫慣例.html#六誰負責保存暫存器以及-16-byte-對齊)〈實驗：要跨過 `call` 保存的值放哪裡〉】核心關鍵：
+   >
+   > 1. `x` 在 `g` 回來後還要用，但 `%rdi` 是 caller-saved，`g` 可能改掉它。
+   > 2. 所以把 `x` 搬到 callee-saved 的 `%rbx`：ABI 保證 `g` 回來時 `%rbx` 不變。
+   > 3. `f` 借用 `%rbx` 也要對自己的呼叫者負責：開頭 `push %rbx`、返回前 `pop %rbx` 還原。
+   >
+   > 詳細說明：對照 `noret.c`：`call` 之後不再用 `x`，就不需要 `%rbx`，也沒有 `push`／`pop %rbx`。`saved.c` 的 `push %rbx` 還順便把 `%rsp` 挪了 8 byte，同時滿足 16 byte 對齊，一舉兩得（4-2）。
+   >
+   > **4-2**【[第六節](../html/c/x86-64組合語言入門二-call與ret、堆疊框、參數與呼叫慣例.html#六誰負責保存暫存器以及-16-byte-對齊)〈上面的 `sub $0x8,%rsp`：16 byte 對齊〉】核心關鍵：
+   >
+   > 1. ABI 規定：執行 `call` 的那一刻，`%rsp` 必須是 16 的倍數。
+   > 2. 呼叫 `f` 的人照規定對齊，但 `call f` 推了 8 byte 返回位址，進到 `f` 時 `%rsp` 是「16 的倍數 − 8」。
+   > 3. `f` 要 `call g`，必須再挪 8 byte：沒東西要存，就用 `sub $0x8,%rsp` 單純挪。
+   >
+   > 詳細說明：`saved.c` 不需要 `sub`，因為 `push %rbx` 剛好也挪了 8 byte。要 16 的原因：有些指令（例如 SSE 的 `movaps`）要求記憶體位址是 16 的倍數，否則會當掉。
 5. 情境題：你用 `break *add3` 停在 `add3` 的第一條指令（還沒執行 `push %rbp`），gdb 顯示 `add3 (a=0, b=0, c=0)`，可是 `main` 明明傳的是 1、2、3。
    - 為什麼 gdb 印錯？這時候要看真正的參數，該看哪裡？
    - 同一個時間點，你想知道「是誰呼叫了 `add3`」，可是不能用 `bt`。根據本課，你會看哪個暫存器指的位址？看到的值代表什麼？
@@ -1100,3 +1570,19 @@ gdb 的頂層命令共 173 個，本課用到其中 9 個（`info registers`、`
      mov    %rdx,-0x28(%rbp)
      ...
    ```
+   > **參考答案**（核心關鍵＋詳細說明）
+   >
+   > **5-1**【[第三節](../html/c/x86-64組合語言入門二-call與ret、堆疊框、參數與呼叫慣例.html#三call-與-ret用-gdb-一條一條走)】核心關鍵：
+   >
+   > 1. gdb 照除錯資訊去堆疊上的 `-0x18(%rbp)` 等位置讀參數（`-O0` 的除錯資訊只記堆疊那一格）。
+   > 2. 停在第一條指令時序言還沒跑，參數還沒存進那幾格 → 讀到的是舊值。（2026-10-19 更正：原本寫「`%rbp` 也還是 `main` 的」是錯的，gdb 用 CFA 算位址，位址是對的，見[第三節](../html/c/x86-64組合語言入門二-call與ret、堆疊框、參數與呼叫慣例.html#三call-與-ret用-gdb-一條一條走)〈gdb 為什麼去堆疊讀參數，而不是讀暫存器〉。）
+   > 3. 真正的參數在 `%rdi`、`%rsi`、`%rdx`（`info registers rdi rsi rdx`）。
+   >
+   > 詳細說明：到序言跑完、參數存好之後（例如停在 `ret` 前），gdb 就印出正確的 `a=1, b=2, c=3`。這也是 `break add3`（不加 `*`）要跳過開頭準備指令的原因——第 4 課組語 11-3 卡過的同一件事。
+   >
+   > **5-2**【[第三節](../html/c/x86-64組合語言入門二-call與ret、堆疊框、參數與呼叫慣例.html#三call-與-ret用-gdb-一條一條走)〈停在函式入口時，怎麼知道是誰呼叫的〉】核心關鍵：
+   >
+   > 1. 看 `%rsp` 指的那 8 byte（`x/gx $rsp`）。
+   > 2. 那是返回位址：`ret` 會跳回去的地方，也就是呼叫者裡 `call` 下一條指令的位址。
+   >
+   > 詳細說明：要真的查出呼叫者，再看這個位址落在哪個函式（`info symbol *(long *)$rsp` → `main + 32`），那個函式就是呼叫者；題目沒有要求寫出這一步（2026-10-19 改判後從核心關鍵移到這裡）。只有停在**第一條指令**時頂端才是返回位址；`push %rbp` 之後返回位址在 `8(%rbp)`。`bt` 做的事本質上一樣：沿著堆疊一層一層找返回位址。

@@ -32,8 +32,11 @@
 | [`frame.c`](./frame.c) | [第三節](../../html/c/x86-64組合語言入門二-call與ret、堆疊框、參數與呼叫慣例.html#三call-與-ret用-gdb-一條一條走)〈實驗：`frame.c`〉、第四節 | `main` 呼叫 `add3`：`call`／`ret`、堆疊框、紅區 |
 | [`trace.gdb`](./trace.gdb) | 第三節〈實驗：`frame.c`〉 | 用 `stepi` 一條一條看 `call`、`push`、`ret` 時 `%rsp` 的變化 |
 | [`who.gdb`](./who.gdb) | 第三節〈停在函式入口時，怎麼知道是誰呼叫的〉 | `x/gx $rsp` ＋ `info symbol` 找呼叫者 |
+| [`where-a.gdb`](./where-a.gdb)、[`where-a-O2.gdb`](./where-a-O2.gdb) | 第三節〈gdb 為什麼去堆疊讀參數，而不是讀暫存器〉（2026-10-19 追問） | 除錯資訊記的變數位置：`-O0` 只記堆疊（CFA − 40），`-O2` 記暫存器與位置清單 |
 | [`leave.gdb`](./leave.gdb) | [第四節](../../html/c/x86-64組合語言入門二-call與ret、堆疊框、參數與呼叫慣例.html#四堆疊框pushq-rbp-movq-rsp-rbp-與-leave)〈`leave`：一條指令做兩件事〉 | `leave` 前後的 `%rsp`、`%rbp` |
 | [`redzone.gdb`](./redzone.gdb) | 第四節〈上圖 `add3` 的變數在 `%rsp` 的「下面」：紅區〉 | 葉函式的區域變數在 `%rsp` 下方 |
+| [`nosub.S`](./nosub.S)、[`nosub.gdb`](./nosub.gdb)、[`withsub.gdb`](./withsub.gdb) | 第四節〈`call` 只是把 `%rsp` 減 8，為什麼算「蓋掉 `%rsp` 下面」？`sub` 又怎麼「收進堆疊」〉（2026-10-19 追問） | 不 `sub` 時，`call` 的返回位址蓋掉 `%rsp` 下面的變數 |
+| [`nosub-frame.sh`](./nosub-frame.sh) | 第四節〈那 `frame.c` 的 `main` 拿掉 `sub $0x10,%rsp` 會怎樣：其實照樣能跑〉（2026-10-19 追問） | 刪掉 `frame.c` 組合語言裡的 `sub` 再執行：`r` 不跨 `call`，照樣印出 6 |
 | [`args8.c`](./args8.c) | [第五節](../../html/c/x86-64組合語言入門二-call與ret、堆疊框、參數與呼叫慣例.html#五參數與回傳值放哪裡)〈實驗：8 個參數〉 | 前 6 個參數的暫存器、第 7、8 個放堆疊 |
 | [`saved.c`](./saved.c)、[`noret.c`](./noret.c) | [第六節](../../html/c/x86-64組合語言入門二-call與ret、堆疊框、參數與呼叫慣例.html#六誰負責保存暫存器以及-16-byte-對齊) | callee-saved 的 `%rbx`；只為了對齊的 `sub $0x8,%rsp` |
 | [`align9.c`](./align9.c) | [第六節](../../html/c/x86-64組合語言入門二-call與ret、堆疊框、參數與呼叫慣例.html#六誰負責保存暫存器以及-16-byte-對齊)〈補教：被呼叫的函式就在同一個檔案時，`sub $0x8,%rsp` 為什麼不見了〉 | 看得到被呼叫者的本體時，gcc 省掉對齊用的 `sub $0x8,%rsp`（`-fipa-stack-alignment`） |

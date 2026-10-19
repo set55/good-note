@@ -143,6 +143,9 @@ gcc 3、gcc 4（<code>-O0</code>／<code>-O2</code> 會在本課逐行讀到）�
 <p>【<a href="../c/gcc%E6%9C%80%E4%BD%B3%E5%8C%96%E7%AD%89%E7%B4%9A-O0%E5%88%B0O3%E5%B7%AE%E5%9C%A8%E5%93%AA.html#%E4%BA%8C%E5%AF%A6%E9%A9%97%E5%90%8C%E4%B8%80%E6%AE%B5%E7%A8%8B%E5%BC%8F%E4%B8%8D%E5%90%8C%E7%AD%89%E7%B4%9A%E7%B7%A8%E5%87%BA%E4%BB%80%E9%BA%BC">gcc最佳化等級第二節</a>〈「內嵌」是什麼〉】：(1) <strong>內嵌（inline）</strong>：把 <code>sum_to</code> 的本體整段複製進 <code>answer</code>，取代呼叫，<code>n</code> 換成 100；(2) <strong>常數摺疊（constant folding）</strong>：內嵌後迴圈的次數和所有數字在編譯時都已知，直接算出 5050。兩步缺一不可，所以第 4 課看到的 <code>answer:</code> 只剩 <code>movl $5050, %eax</code> 和 <code>ret</code>。</p>
 </details>
 </details>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="review/2026-10-05-gcc-陣列-GNU-C資料-字元.md" data-line="46" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+</details>
 <h3 id="gcc-4-最佳化等級越高程式越小對嗎用本篇的數字說明">gcc 4. 「最佳化等級越高，程式越小」對嗎？用本篇的數字說明。</h3>
 <blockquote>
 <p>盒子 1｜過去的作答：<a href="../small-project/s1-01-hello-compile/quiz.html#4-%E6%9C%80%E4%BD%B3%E5%8C%96%E7%AD%89%E7%B4%9A%E8%B6%8A%E9%AB%98%E7%A8%8B%E5%BC%8F%E8%B6%8A%E5%B0%8F%E5%B0%8D%E5%97%8E%E7%94%A8%E6%9C%AC%E7%AF%87%E7%9A%84%E6%95%B8%E5%AD%97%E8%AA%AA%E6%98%8E">s1-01 quiz.md 第 4 題</a></p>
@@ -155,6 +158,9 @@ gcc 3、gcc 4（<code>-O0</code>／<code>-O2</code> 會在本課逐行讀到）�
 <details class="answer"><summary>參考答案</summary>
 <p>【<a href="../c/gcc%E6%9C%80%E4%BD%B3%E5%8C%96%E7%AD%89%E7%B4%9A-O0%E5%88%B0O3%E5%B7%AE%E5%9C%A8%E5%93%AA.html#%E4%BA%8C%E5%AF%A6%E9%A9%97%E5%90%8C%E4%B8%80%E6%AE%B5%E7%A8%8B%E5%BC%8F%E4%B8%8D%E5%90%8C%E7%AD%89%E7%B4%9A%E7%B7%A8%E5%87%BA%E4%BB%80%E9%BA%BC">gcc最佳化等級第二節</a>〈大小〉】：不對。本機 <code>.text</code> 大小：<code>-Oz</code> 30、<code>-Os</code> 35、<code>-O0</code> 70、<code>-O2</code> 90、<code>-O3</code> 234 byte。<code>-O2</code>、<code>-O3</code> 以速度為目標，會把迴圈展開、改寫（第 4 課看到 <code>-O2</code> 的 <code>sum_to</code> 為了一圈加兩個數，指令從 16 個變成 21 個），是用空間換時間。真的要小，要用 <code>-Os</code>／<code>-Oz</code>。</p>
 </details>
+</details>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="review/2026-10-05-gcc-陣列-GNU-C資料-字元.md" data-line="59" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <hr />
 <h2 id="陣列陣列字串與指標運算-c不檢查邊界與用gdb找segfault">陣列：<a href="../c/%E9%99%A3%E5%88%97%E3%80%81%E5%AD%97%E4%B8%B2%E8%88%87%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97-C%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%88%87%E7%94%A8gdb%E6%89%BEsegfault.html">陣列、字串與指標運算-C不檢查邊界與用gdb找segfault</a></h2>
@@ -169,6 +175,9 @@ gcc 3、gcc 4（<code>-O0</code>／<code>-O2</code> 會在本課逐行讀到）�
 <details class="answer"><summary>批改</summary>
 <p><strong>對</strong>。陣列名稱遇到 <code>sizeof</code> 不會退化，所以是整個陣列 40 byte；函式參數寫成 <code>int a[]</code> 其實就是 <code>int *a</code>，<code>sizeof</code> 量的是指標，8 byte。（錯字：「退化稱」→「成」、「就死」→「就是」。）</p>
 </details>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="review/2026-10-05-gcc-陣列-GNU-C資料-字元.md" data-line="76" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+</details>
 <h4 id="陣列-2-2-這件事對怎麼設計接收陣列的函式有什麼影響">陣列 2-2. 這件事對「怎麼設計接收陣列的函式」有什麼影響？</h4>
 <blockquote>
 <p>過去的作答：<a href="../small-project/s1-03-arrays-pointers/quiz.html#2-2-%E9%80%99%E4%BB%B6%E4%BA%8B%E5%B0%8D%E6%80%8E%E9%BA%BC%E8%A8%AD%E8%A8%88%E6%8E%A5%E6%94%B6%E9%99%A3%E5%88%97%E7%9A%84%E5%87%BD%E5%BC%8F%E6%9C%89%E4%BB%80%E9%BA%BC%E5%BD%B1%E9%9F%BF">s1-03 quiz.md 2-2</a></p>
@@ -177,6 +186,9 @@ gcc 3、gcc 4（<code>-O0</code>／<code>-O2</code> 會在本課逐行讀到）�
 </textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
 <details class="answer"><summary>批改</summary>
 <p><strong>對</strong>。函式只拿到第 0 個元素的位址，長度要用另一個參數傳進去（例如 <code>void f(int *a, size_t n)</code>）。</p>
+</details>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="review/2026-10-05-gcc-陣列-GNU-C資料-字元.md" data-line="86" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h4 id="陣列-2-3-a-和-a-印出來的位址一樣它們差在哪裡">陣列 2-3. <code>a</code> 和 <code>&amp;a</code> 印出來的位址一樣，它們差在哪裡？</h4>
 <blockquote>
@@ -192,6 +204,9 @@ gcc 3、gcc 4（<code>-O0</code>／<code>-O2</code> 會在本課逐行讀到）�
 <p>【<a href="../c/%E9%99%A3%E5%88%97%E3%80%81%E5%AD%97%E4%B8%B2%E8%88%87%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97-C%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%88%87%E7%94%A8gdb%E6%89%BEsegfault.html#%E4%B8%89%E9%99%A3%E5%88%97%E5%90%8D%E7%A8%B1%E4%BB%80%E9%BA%BC%E6%99%82%E5%80%99%E8%AE%8A%E6%88%90%E6%8C%87%E6%A8%99%E4%BB%80%E9%BA%BC%E6%99%82%E5%80%99%E4%B8%8D%E6%9C%83">第 3 課第三節</a>〈<code>a</code> 和 <code>&amp;a</code>：位址一樣，型別不一樣〉】：位址相同，型別不同。<code>a</code> 退化成 <code>int *</code>，指向第 0 個元素，<code>+ 1</code> 走 <code>sizeof(int)</code> = 4 byte；<code>&amp;a</code> 的型別是 <code>int (*)[10]</code>（指向「10 個 <code>int</code> 的陣列」的指標），<code>+ 1</code> 走 <code>sizeof(int[10])</code> = 40 byte。</p>
 </details>
 </details>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="review/2026-10-05-gcc-陣列-GNU-C資料-字元.md" data-line="101" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+</details>
 <h3 id="陣列-3-char-s1-與-char-s2">陣列 3. <code>char s1[]</code> 與 <code>char *s2</code></h3>
 <h4 id="陣列-3-1-char-s1--hi-和-char-s2--hi-的-hi-分別在記憶體的哪裡">陣列 3-1. <code>char s1[] = &quot;hi&quot;;</code> 和 <code>char *s2 = &quot;hi&quot;;</code> 的 <code>&quot;hi&quot;</code> 分別在記憶體的哪裡？</h4>
 <blockquote>
@@ -203,6 +218,9 @@ char* s2 是在.rodata 常數區
 <details class="answer"><summary>批改</summary>
 <p><strong>對</strong>。精確一點的說法：<code>s1</code> 是堆疊上一個 3 byte 的陣列，裡面是 <code>&quot;hi&quot;</code> 的<strong>副本</strong>（<code>h</code>、<code>i</code>、<code>\0</code>）；<code>s2</code> 本身是堆疊上的 8 byte 指標，<code>&quot;hi&quot;</code> 本體在 <code>.rodata</code>。</p>
 </details>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="review/2026-10-05-gcc-陣列-GNU-C資料-字元.md" data-line="114" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+</details>
 <h4 id="陣列-3-2-為什麼改-s10-沒事改-s20-卻-segfault">陣列 3-2. 為什麼改 <code>s1[0]</code> 沒事，改 <code>s2[0]</code> 卻 segfault？</h4>
 <blockquote>
 <p>過去的作答：<a href="../small-project/s1-03-arrays-pointers/quiz.html#3-2-%E7%82%BA%E4%BB%80%E9%BA%BC%E6%94%B9-s10-%E6%B2%92%E4%BA%8B%E6%94%B9-s20-%E5%8D%BB-segfault">s1-03 quiz.md 3-2</a></p>
@@ -211,6 +229,9 @@ char* s2 是在.rodata 常數區
 </textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
 <details class="answer"><summary>批改</summary>
 <p><strong>對</strong>。<code>.rodata</code> 被載入到權限 <code>r--p</code> 的分頁，寫入就觸發 segfault；<code>s1</code> 的副本在堆疊，堆疊是 <code>rw-p</code>，可以寫。</p>
+</details>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="review/2026-10-05-gcc-陣列-GNU-C資料-字元.md" data-line="124" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h4 id="陣列-3-3-你會怎麼在-gdb-裡確認-3-2-的答案">陣列 3-3. 你會怎麼在 gdb 裡確認 3-2 的答案？</h4>
 <blockquote>
@@ -224,6 +245,9 @@ info proc mappings 找出s2是落於哪個位置
 <details class="answer"><summary>參考答案</summary>
 <p>【<a href="../c/%E9%99%A3%E5%88%97%E3%80%81%E5%AD%97%E4%B8%B2%E8%88%87%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97-C%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%88%87%E7%94%A8gdb%E6%89%BEsegfault.html#%E5%9B%9B%E5%AD%97%E4%B8%B2%E4%BB%A5-0-%E7%B5%90%E5%B0%BE%E7%9A%84-char-%E9%99%A3%E5%88%97">第 3 課第四節</a>】：在 gdb 裡 <code>run</code>，讓它當在 <code>s2[0] = 'H';</code>，<code>print s2</code> 得到位址；<code>info proc mappings</code> 找到包含這個位址的那一段，權限是 <code>r--p</code>（沒有 <code>w</code>）。對照 <code>print &amp;s1</code>，落在 <code>[stack]</code>，權限 <code>rw-p</code>。</p>
 </details>
+</details>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="review/2026-10-05-gcc-陣列-GNU-C資料-字元.md" data-line="138" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h3 id="陣列-6-情境題讀懂-asan-的區間">陣列 6. 情境題：讀懂 ASan 的區間</h3>
 <blockquote>
@@ -245,6 +269,9 @@ info proc mappings 找出s2是落於哪個位置
 <details class="answer"><summary>批改（6-1～6-4）</summary>
 <p><strong>全對</strong>。6-1：40 − 16 = 24 byte；6-2：24 ÷ 4 = 6 個；6-3：偏移 40 − 16 = 24 byte，24 ÷ 4 = <strong>索引 6</strong>（上次答成 5，這次對了：半開區間的右端 40 正好是第一個越界的 byte）；6-4：1 個影子 byte 代表 8 byte，24 byte 是 3 組，全部可存取，所以是 <strong>3 個 <code>00</code></strong>。
 <strong>陣列 6 記為對</strong>（盒子 1 → 2）。</p>
+</details>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="review/2026-10-05-gcc-陣列-GNU-C資料-字元.md" data-line="171" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <hr />
 <h2 id="gnugnu是什麼-linux核心與gnu工具的分工">GNU：<a href="../linux/GNU%E6%98%AF%E4%BB%80%E9%BA%BC-Linux%E6%A0%B8%E5%BF%83%E8%88%87GNU%E5%B7%A5%E5%85%B7%E7%9A%84%E5%88%86%E5%B7%A5.html">GNU是什麼-Linux核心與GNU工具的分工</a></h2>
@@ -271,6 +298,9 @@ uname --help
 </ul>
 </details>
 </details>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="review/2026-10-05-gcc-陣列-GNU-C資料-字元.md" data-line="197" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+</details>
 <hr />
 <h2 id="c資料c的資料在記憶體裡長怎樣-位元組指標位元組順序與有號無號">C資料：<a href="../c/C%E7%9A%84%E8%B3%87%E6%96%99%E5%9C%A8%E8%A8%98%E6%86%B6%E9%AB%94%E8%A3%A1%E9%95%B7%E6%80%8E%E6%A8%A3-%E4%BD%8D%E5%85%83%E7%B5%84%E3%80%81%E6%8C%87%E6%A8%99%E3%80%81%E4%BD%8D%E5%85%83%E7%B5%84%E9%A0%86%E5%BA%8F%E8%88%87%E6%9C%89%E8%99%9F%E7%84%A1%E8%99%9F.html">C的資料在記憶體裡長怎樣-位元組、指標、位元組順序與有號無號</a></h2>
 <h3 id="c資料-8-signed-char-c---1-unsigned-int-u--c-之後-u-是多少擴展時新補的高位是-0-還是-1由哪個型別決定如果把-c-改宣告成-unsigned-char-c--0xffu-又是多少">C資料 8. <code>signed char c = -1; unsigned int u = c;</code> 之後 <code>u</code> 是多少？擴展時新補的高位是 0 還是 1，由哪個型別決定？如果把 <code>c</code> 改宣告成 <code>unsigned char c = 0xff;</code>，<code>u</code> 又是多少？</h3>
@@ -283,6 +313,9 @@ uname --help
 </textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
 <details class="answer"><summary>批改</summary>
 <p><strong>對</strong>（盒子 2 → 3）。<code>u</code> = 2³² − 1 = 4294967295；補 1，由<strong>原本的型別</strong>（<code>signed char</code>）決定；改成 <code>unsigned char</code> 補 0，<code>u</code> = <code>0xff</code> = 255。第 4 課的連結：這就是組合語言裡 <code>movsbl</code>（符號擴展）和 <code>movzbl</code>（零擴展）的差別。</p>
+</details>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="review/2026-10-05-gcc-陣列-GNU-C資料-字元.md" data-line="214" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h3 id="c資料-10-long-a---1-unsigned-int-b--1-與-int-c---1-unsigned-long-d--1a--b-和-c--d-各是真還是假兩邊各被轉成什麼型別依據的是哪一條規則為什麼-gcc-只對其中一個發出--wsign-compare-警告">C資料 10. <code>long a = -1; unsigned int b = 1;</code> 與 <code>int c = -1; unsigned long d = 1;</code>，<code>a &lt; b</code> 和 <code>c &lt; d</code> 各是真還是假？兩邊各被轉成什麼型別，依據的是哪一條規則？為什麼 gcc 只對其中一個發出 <code>-Wsign-compare</code> 警告？</h3>
 <blockquote>
@@ -307,6 +340,9 @@ c,d發出警告,因爲c是有號轉無號,c無法確定是否會有溢位,這是
 </ul>
 </details>
 </details>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="review/2026-10-05-gcc-陣列-GNU-C資料-字元.md" data-line="235" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+</details>
 <hr />
 <h2 id="字元字元是什麼-char就是1byte的整數與ascii和utf-8">字元：<a href="../c/%E5%AD%97%E5%85%83%E6%98%AF%E4%BB%80%E9%BA%BC-char%E5%B0%B1%E6%98%AF1byte%E7%9A%84%E6%95%B4%E6%95%B8%E8%88%87ASCII%E5%92%8CUTF-8.html">字元是什麼-char就是1byte的整數與ASCII和UTF-8</a></h2>
 <h3 id="字元-1-char-c--a-和-char-c--65-存進記憶體的東西一樣嗎為什麼-printf-用-c-印出-a用-d-印出-65">字元 1. <code>char c = 'A';</code> 和 <code>char c = 65;</code> 存進記憶體的東西一樣嗎？為什麼 <code>printf</code> 用 <code>%c</code> 印出 <code>A</code>、用 <code>%d</code> 印出 65？</h3>
@@ -319,6 +355,9 @@ c,d發出警告,因爲c是有號轉無號,c無法確定是否會有溢位,這是
 </textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
 <details class="answer"><summary>批改</summary>
 <p><strong>對</strong>（盒子 2 → 3）。記憶體裡都是同一個 byte <code>0x41</code>（65）。<code>%c</code> 把這個數字當成編碼，印出對應的字元 <code>A</code>；<code>%d</code> 把它當整數印成 65。記憶體沒有型別，看你怎麼讀。</p>
+</details>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="review/2026-10-05-gcc-陣列-GNU-C資料-字元.md" data-line="251" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h3 id="字元-2-使用者輸入的字元是-7你想得到數值-7直接把它當數字用會得到多少該怎麼轉這個方法為什麼成立">字元 2. 使用者輸入的字元是 <code>'7'</code>，你想得到數值 7。直接把它當數字用會得到多少？該怎麼轉，這個方法為什麼成立？</h3>
 <blockquote>
@@ -333,6 +372,9 @@ c,d發出警告,因爲c是有號轉無號,c無法確定是否會有溢位,這是
 <details class="answer"><summary>參考答案</summary>
 <p>【<a href="../c/%E5%AD%97%E5%85%83%E6%98%AF%E4%BB%80%E9%BA%BC-char%E5%B0%B1%E6%98%AF1byte%E7%9A%84%E6%95%B4%E6%95%B8%E8%88%87ASCII%E5%92%8CUTF-8.html#%E4%B8%80%E5%AD%97%E5%85%83%E5%B0%B1%E6%98%AF%E4%B8%80%E5%80%8B%E6%95%B8%E5%AD%97">字元是什麼第一節</a>】：<code>'7'</code> 的值是 55（它的 ASCII 編號），不是 7。轉換用 <code>c - '0'</code>：數字字元在編碼表裡是連號的（<code>'0'</code> = 48 … <code>'9'</code> = 57），所以任何數字字元減掉 <code>'0'</code>，就是它跟 <code>'0'</code> 差幾號，也就是它代表的數值。C 標準也保證 <code>'0'</code>～<code>'9'</code> 是連續的。</p>
 </details>
+</details>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="review/2026-10-05-gcc-陣列-GNU-C資料-字元.md" data-line="265" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 
 </main>
