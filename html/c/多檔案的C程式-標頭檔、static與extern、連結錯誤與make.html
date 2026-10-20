@@ -1139,7 +1139,7 @@ square(7) = 49
 <p>（<code>-f 檔名</code> 指定要讀哪個 makefile，不給就找 <code>GNUmakefile</code>、<code>makefile</code>、<code>Makefile</code>。<code>sed -i</code> 直接修改檔案。）</p>
 <p>標頭檔改成 9 了，<code>make</code> 卻說不用做，程式還印 7。因為 <code>make</code> <strong>只看 <code>Makefile</code> 寫的先決條件</strong>，它不會自己去讀 <code>main.c</code> 有 <code>#include</code> 哪些檔案。<code>main.o</code> 的先決條件只有 <code>main.c</code>，<code>main.c</code> 沒變，就不重編。
 <code>DEFAULT_N</code> 是巨集，前處理時就被換成數字寫死在 <code>main.o</code> 裡，不重編就永遠是 7。</p>
-<p>這種錯最難查：程式碼看起來是對的，跑出來的卻是舊版。<strong>先決條件一定要列完整</strong>；但手動維護「每個 <code>.c</code> 引入了哪些 <code>.h</code>」很容易漏，所以讓 gcc 自動產生。</p>
+<p>這種錯最難查：程式碼看起來是對的，跑出來的卻是舊版。<strong>先決條件一定要列完整</strong>；但手動維護「每個 <code>.c</code> 引入了哪些 <code>.h</code>」很容易漏，所以讓 gcc 自動產生<strong>這份相依清單</strong>（不是整個 <code>Makefile</code>：gcc 只寫出「<code>main.o</code> 依賴哪些檔案」的 <code>.d</code> 檔，再由 <code>Makefile</code> 讀進來，見下一小節<a href="#%E5%AF%A6%E7%94%A8%E7%9A%84-makefile%E8%AE%8A%E6%95%B8%E6%A8%A3%E5%BC%8F%E8%A6%8F%E5%89%87%E8%87%AA%E5%8B%95%E7%94%A2%E7%94%9F%E7%9B%B8%E4%BE%9D">〈實用的 <code>Makefile</code>〉</a>第 5、6 點）。</p>
 <h3 id="實用的-makefile變數樣式規則自動產生相依">實用的 <code>Makefile</code>：變數、樣式規則、自動產生相依</h3>
 <p><code>Makefile</code>（檔案：<a href="../../small-project/s1-06-multi-file/examples/make/Makefile"><code>Makefile</code></a>），命令前面是 TAB：</p>
 <pre><code class="language-make"><span class="nv">CC</span><span class="w">     </span><span class="o">=</span><span class="w"> </span>gcc

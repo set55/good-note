@@ -19,6 +19,7 @@
 <li class="l3"><a href="#unsigned-%E5%96%AE%E7%8D%A8%E5%AF%AB%E5%B0%B1%E6%98%AF-unsigned-int%E6%95%B4%E6%95%B8%E5%9E%8B%E5%88%A5%E7%9A%84%E6%89%80%E6%9C%89%E5%AF%AB%E6%B3%95">unsigned 單獨寫就是 unsigned int：整數型別的所有寫法</a></li>
 <li class="l2"><a href="#%E4%BA%8C%E6%8C%87%E6%A8%99%E5%B0%B1%E6%98%AF%E4%BD%8D%E5%9D%80">二、指標就是位址</a></li>
 <li class="l3"><a href="#%E4%BD%8D%E5%9D%80%E7%9C%8B%E8%B5%B7%E4%BE%86%E5%8F%AA%E6%9C%89-6-bytep-%E4%B8%8D%E8%A3%9C%E9%9B%B6%E8%80%8C%E4%B8%94%E6%9C%80%E4%B8%8A%E9%9D%A2-2-byte-%E4%B8%80%E5%AE%9A%E6%98%AF-0">位址看起來只有 6 byte？——%p 不補零，而且最上面 2 byte 一定是 0</a></li>
+<li class="l3"><a href="#%E7%82%BA%E4%BB%80%E9%BA%BC%E4%BD%8D%E5%9D%80%E7%A9%BA%E9%96%93%E8%A6%81%E5%88%87%E6%88%90%E4%BD%BF%E7%94%A8%E8%80%85%E5%92%8C%E6%A0%B8%E5%BF%83%E5%85%A9%E5%8D%8A">為什麼位址空間要切成「使用者」和「核心」兩半？</a></li>
 <li class="l2"><a href="#%E4%B8%89%E4%BD%8D%E5%85%83%E7%B5%84%E9%A0%86%E5%BA%8Fendianness">三、位元組順序（endianness）</a></li>
 <li class="l2"><a href="#%E5%9B%9B%E7%84%A1%E8%99%9F%E6%95%B4%E6%95%B8%E4%BA%8C%E9%80%B2%E4%BD%8D%E8%88%87%E5%9B%9E%E7%B9%9E">四、無號整數：二進位與回繞</a></li>
 <li class="l3"><a href="#%E5%B8%B8%E6%95%B8%E4%B9%9F%E6%9C%89%E5%9E%8B%E5%88%A50u-%E7%9A%84-u-%E6%98%AF%E4%BB%80%E9%BA%BC">常數也有型別：0u 的 u 是什麼</a></li>
@@ -380,6 +381,71 @@ Linux 把位址空間切成兩半：</p>
 </tbody>
 </table>
 <p>所以<strong>使用者程式裡印出的位址最多只有 12 位十六進位</strong>；堆疊放在使用者區的最頂端附近，所以開頭是 <code>0x7ff...</code>。將來在 kernel 的錯誤訊息裡看到 <code>ffff8881...</code> 這種完整 16 位的位址，那就是核心那一半。（較新的 CPU 支援 5 層分頁，虛擬位址可以到 57 bit；本機 <code>/proc/cpuinfo</code> 的 flags 裡沒有 <code>la57</code>，所以是 48 bit。）</p>
+<p><em>（追問補充結束，以下回到主線）</em></p>
+<hr />
+<h3 id="為什麼位址空間要切成使用者和核心兩半">為什麼位址空間要切成「使用者」和「核心」兩半？</h3>
+<blockquote>
+<p>2026-10-20 複習時提問：「爲什麼記憶體空間分成核心的記憶體位址，還有使用者空間的記憶體位址？」（指上一小節「Linux 把位址空間切成兩半」那張表）</p>
+</blockquote>
+<p>（補教，完整機制是第 ③ 站虛擬記憶體的內容，這裡先講結論。）</p>
+<p><strong>先釐清「切成兩半」切的是什麼</strong>：切的是<strong>每個行程自己的虛擬位址空間</strong>，不是實體記憶體（RAM）。每個行程都以為自己擁有 <code>0</code> ～ <code>0xffffffffffffffff</code> 這一整段位址；虛擬位址實際對到 RAM 的哪裡，由核心替每個行程維護的
+<strong>分頁表（page table）<strong>決定。上表的意思是：在</strong>每一個</strong>行程的位址空間裡，下半段放這個行程自己的東西，上半段放核心。</p>
+<pre><code> 行程 A 的位址空間            行程 B 的位址空間
+┌──────────────────┐ 0xffff…  ┌──────────────────┐
+│ 核心（大家都一樣）│ ←───────→ │ 核心（同一份）    │   上半：每個行程都對到同一份核心
+├──────────────────┤          ├──────────────────┤
+│   （不合法的洞）   │          │   （不合法的洞）   │
+├──────────────────┤ 0x00007f…├──────────────────┤
+│ A 的堆疊、程式碼…  │          │ B 的堆疊、程式碼…  │   下半：每個行程各自不同
+└──────────────────┘ 0x0      └──────────────────┘
+</code></pre>
+<p><strong>為什麼核心要放進每個行程的位址空間？</strong> 因為程式隨時都會進核心：每次系統呼叫（<code>write</code>、<code>read</code>，第 1 課用 <code>strace</code> 看到的那些）、每次時鐘中斷、每次缺頁，CPU 都要立刻跳去執行核心的程式碼、讀寫核心的資料。CPU 存取記憶體時用的是<strong>目前這張分頁表</strong>——
+如果核心不在這張表裡，每次進核心都得先換成另一張分頁表、出來再換回去，換分頁表會讓 CPU 的位址翻譯快取（TLB，Translation Lookaside Buffer，轉譯後備緩衝區）失效，很慢。所以 Linux 把核心<strong>固定對應在每個行程的同一段位址</strong>：不管現在跑的是哪個行程，進核心時不用換表，核心的位址也都一樣。</p>
+<p><strong>為什麼要切成兩段固定範圍，而不是混在一起？</strong></p>
+<ol>
+<li><strong>保護</strong>：分頁表的每一項都有一個位元標明「使用者模式能不能碰」。核心那一段全部標成「只有核心模式能存取」，所以它雖然<strong>在</strong>你的位址空間裡，你的程式卻碰不到；碰了 CPU 就產生錯誤，核心送 <code>SIGSEGV</code>。劃一條清楚的界線，這件事才好管理：系統呼叫傳進來的指標，核心只要檢查「它是不是落在使用者那一半」，就能擋掉想騙核心去讀寫核心資料的程式。</li>
+<li><strong>兩邊各自長大不打架</strong>：使用者程式從低位址往上用（程式碼在低處、堆疊在使用者區頂端），核心固定在最高處，兩邊中間隔著 canonical address 規定的那一大段不合法的洞，誰都不會長到對方的範圍裡。</li>
+<li><strong>判斷很便宜</strong>：以 canonical address 來說，看第 47 bit（等於看最上面是 <code>0000</code> 還是 <code>ffff</code>）就知道是哪一半，上一小節「從位址長相判斷是不是 kernel」就是這樣來的。</li>
+</ol>
+<p>（32 位元的 Linux 也是同樣的設計，只是總共只有 4 GB，傳統切法是下面 3 GB 給使用者、<code>0xC0000000</code> 以上 1 GB 給核心。）</p>
+<p><strong>實際跑一次：使用者程式去讀核心那一半的位址。</strong> <code>kaddr.c</code>（檔案：<a href="../../small-project/s1-02-data-repr/kaddr.c"><code>kaddr.c</code></a>）完整原始碼：</p>
+<pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">local</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">42</span><span class="p">;</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;local 的位址：%p</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="kt">void</span><span class="w"> </span><span class="o">*</span><span class="p">)</span><span class="o">&amp;</span><span class="n">local</span><span class="p">);</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;main  的位址：%p</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="kt">void</span><span class="w"> </span><span class="o">*</span><span class="p">)</span><span class="n">main</span><span class="p">);</span>
+
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="o">*</span><span class="n">k</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="o">*</span><span class="p">)</span><span class="mh">0xffff888100000000</span><span class="p">;</span><span class="w">   </span><span class="cm">/* 核心那一半的位址 */</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;準備讀 %p ...</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="kt">void</span><span class="w"> </span><span class="o">*</span><span class="p">)</span><span class="n">k</span><span class="p">);</span>
+<span class="w">    </span><span class="n">fflush</span><span class="p">(</span><span class="n">stdout</span><span class="p">);</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;讀到 %d</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="o">*</span><span class="n">k</span><span class="p">);</span><span class="w">               </span><span class="cm">/* 第 13 行 */</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<pre><code>$ gcc -Wall -Wextra -g -O0 kaddr.c -o kaddr &amp;&amp; ./kaddr; echo &quot;exit=$?&quot;
+local 的位址：0x7fffa2e4259c          ← 使用者那一半（堆疊）
+main  的位址：0x60474b476189          ← 使用者那一半（程式碼）
+準備讀 0xffff888100000000 ...
+exit=139                              ← 128 + 11，被 SIGSEGV（11 號訊號）殺掉，第 13 行沒印出來
+
+$ strace -e trace=none ./kaddr
+準備讀 0xffff888100000000 ...
+--- SIGSEGV {si_signo=SIGSEGV, si_code=SEGV_MAPERR, si_addr=0xffff888100000000} ---
++++ killed by SIGSEGV (core dumped) +++
+</code></pre>
+<p>（<code>strace -e trace=none</code>：不印任何系統呼叫，只印訊號；<code>si_addr</code> 是出錯的那個位址。）
+<code>0xffff888100000000</code> 是核心直接對應實體記憶體的那一段（kernel 錯誤訊息常見的 <code>ffff888...</code> 就在這裡），核心裡那個位址很可能真的有東西，但使用者模式碰不到，程式直接被殺掉。<code>si_code</code> 寫的是 <code>SEGV_MAPERR</code>（「沒有對應」），而不是 <code>SEGV_ACCERR</code>（「有對應但沒權限」）：使用者模式碰核心位址時，核心一律回報成 <code>SEGV_MAPERR</code>，不透露那裡到底有沒有東西。</p>
+<p>用 <code>/proc/self/maps</code> 看一個行程的位址空間，列出來的也幾乎全是使用者那一半，最後一行例外：</p>
+<pre><code>$ tail -3 /proc/self/maps
+7f420243a000-7f420243c000 rw-p 00038000 103:06 16420454   /usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2
+7fff8fb00000-7fff8fb22000 rw-p 00000000 00:00 0           [stack]
+ffffffffff600000-ffffffffff601000 --xp 00000000 00:00 0   [vsyscall]
+</code></pre>
+<p><code>[vsyscall]</code> 是早期為了加速 <code>gettimeofday</code> 這類呼叫、放在核心那一半的一小頁舊機制，為了相容保留著；除了它，核心那一半不會出現在 <code>maps</code> 裡。</p>
+<p><strong>補一個例外：KPTI。</strong> 2018 年公開的 Meltdown 漏洞讓使用者程式能利用 CPU 的推測執行，<strong>偷看</strong>核心那一半的內容（權限檢查擋得住結果，擋不住推測執行留下的痕跡）。受影響的 CPU 上，Linux 改用 KPTI（Kernel Page-Table Isolation，核心分頁表隔離）：使用者模式時換成一張<strong>幾乎不含核心</strong>的分頁表，進核心才換回完整的表——
+等於為了安全，付出上面說的「每次進出核心都換表」的代價。位址的切法不變，核心仍然在上半段。本機 <code>cat /sys/devices/system/cpu/vulnerabilities/meltdown</code> 印出 <code>Not affected</code>（i9-14900HX 不受影響），所以沒有開 KPTI。</p>
 <p><em>（追問補充結束，以下回到主線）</em></p>
 <hr />
 <p><code>p + 1</code> 是什麼、陣列和指標的關係，是第 3 課的內容。</p>
@@ -1480,7 +1546,14 @@ kernel 用哪個選項避免這種情況，代價是什麼？<details class="ans
 </details>
 </li>
 <li><code>signed char c = -1; unsigned int u = c;</code> 之後 <code>u</code> 是多少？擴展時新補的高位是 0 還是 1，由哪個型別決定？如果把 <code>c</code> 改宣告成 <code>unsigned char c = 0xff;</code>，<code>u</code> 又是多少？<details class="answer"><summary>參考答案</summary>
-<p>【<a href="#%E5%85%AD%E6%9C%89%E8%99%9F%E8%88%87%E7%84%A1%E8%99%9F%E4%B9%8B%E9%96%93%E7%9A%84%E8%BD%89%E6%8F%9B%E4%BD%8D%E5%85%83%E4%B8%8D%E8%AE%8A%E6%8F%9B%E5%80%8B%E8%AE%80%E6%B3%95">第六節</a>】<code>u</code> = 4294967295。擴展時補的高位由<strong>原本的型別</strong>決定：<code>signed char</code> 有號、符號位是 1，符號擴展補 1 → <code>0xffffffff</code>，再以無號讀。改成 <code>unsigned char c = 0xff</code>，原本的型別無號 → 零擴展補 0 → <code>0x000000ff</code> = 255。</p>
+<p>【<a href="#%E5%85%AD%E6%9C%89%E8%99%9F%E8%88%87%E7%84%A1%E8%99%9F%E4%B9%8B%E9%96%93%E7%9A%84%E8%BD%89%E6%8F%9B%E4%BD%8D%E5%85%83%E4%B8%8D%E8%AE%8A%E6%8F%9B%E5%80%8B%E8%AE%80%E6%B3%95">第六節</a>】（2026-10-20 改寫成核心關鍵格式）</p>
+<p>核心關鍵：</p>
+<ol>
+<li><code>u</code> = <strong>4294967295</strong>（<code>0xffffffff</code>，2³² − 1）。</li>
+<li>擴展時補什麼由<strong>原本的型別</strong>決定：<code>signed char</code> 是有號的，做符號擴展，符號位是 1 就補 1；補完再以無號讀。</li>
+<li>改成 <code>unsigned char c = 0xff</code>：原本的型別無號 → 零擴展補 0 → <code>0x000000ff</code> = <strong>255</strong>。</li>
+</ol>
+<p>詳細說明：順序是「先依來源型別擴展到 32 bit，再換成目標型別的讀法」。目標型別 <code>unsigned int</code> 是無號的，並不會讓擴展改成補 0——同樣是 <code>-1</code>，來源 <code>signed char</code> 就補 1。n 個 bit 全是 1 ＝ 2ⁿ − 1，所以 32 bit 全 1 是 2³² − 1；2³¹ − 1（<code>0x7fffffff</code>）是有號 <code>int</code> 的最大值，最高位是 0，不是這題的答案。</p>
 </details>
 </li>
 <li>情境題：有人寫了 <code>if (len - used &gt; 0)</code> 判斷「緩衝區還有沒有剩餘空間」，<code>len</code>、<code>used</code> 都是 <code>size_t</code>，用 <code>-Wall -Wextra</code> 編譯沒有任何警告。這個判斷在什麼情況下會出錯？為什麼 gcc 對 <code>len - used &lt; 0</code> 會警告、對 <code>&gt; 0</code> 卻不會？另外，為什麼 <code>int sum = x + y; if (sum &lt; x)</code> 這種溢位檢查在 <code>-O2</code> 下可能完全失效？<details class="answer"><summary>參考答案</summary>
@@ -1516,6 +1589,7 @@ kernel 用哪個選項避免這種情況，代價是什麼？<details class="ans
 <p>詳細說明：如果把 <code>char</code> 定義成 <code>signed char</code>，換到 ARM 這種 <code>char</code> 無號的平台就錯了，定成 <code>unsigned char</code> 則在 x86-64 錯，所以標準只好讓它自成一個型別。同一個函式先宣告成吃 <code>char</code>、再定義成吃 <code>signed char</code>，gcc 會報 <code>conflicting types</code>。<code>same.c</code> 實驗裡 <code>unsigned f(unsigned x)</code> 也被 gcc 印成 <code>unsigned int(unsigned int)</code>。</p>
 </details>
 </li>
+<li>每個行程有自己的位址空間，為什麼 Linux 還要把核心放進<strong>每一個</strong>行程的位址空間（上半段）？既然核心就在你的位址空間裡，為什麼使用者程式讀不到它？情境題：有個程式執行 <code>printf(&quot;%d\n&quot;, *(int *)0xffff888100000000);</code>，結果會怎樣？<code>strace</code> 顯示的 <code>si_code</code> 是 <code>SEGV_MAPERR</code> 還是 <code>SEGV_ACCERR</code>，為什麼？</li>
 </ol>
 
 </main>
