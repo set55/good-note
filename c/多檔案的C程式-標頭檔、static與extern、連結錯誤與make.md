@@ -69,6 +69,149 @@
 關鍵事實只有一個：**gcc 編譯時一次只處理一個 `.c`**（加上它 `#include` 進來的內容），這個範圍叫**編譯單元**（translation unit，C 標準的用語，也譯「轉譯單元」）。
 `gcc -c main.c` 時，gcc 完全不會去讀 `mathx.c`。檔案之間的連繫，要等到**連結**（第 1 課第五節）才發生，而連結器手上只有每個 `.o` 的**符號表**——一串名字。
 
+---
+
+**上面說的「符號」到底是什麼**
+
+> 2026-10-20 提問：「在討論到ld連接時,常會提到符號,符號代表什麼?我只隱約感覺到是變數,function有關」（指上一段「連結器手上只有每個 `.o` 的符號表——一串名字」）
+
+**符號（symbol）＝ 一個名字，加上「這個名字代表的那塊東西在哪裡」**：在哪個區段（`.text`、`.data`、`.bss`）、從區段開頭算第幾個 byte、佔幾個 byte。符號表（symbol table）就是一個 `.o` 裡所有符號的清單，像一本通訊錄：名字 → 地址。
+
+在 C 裡，會變成符號的是**放在函式外面的東西**：
+
+- **函式**（`twice`、`main`）——名字代表「這個函式第一條指令的位址」；
+- **全域變數**（`counter`、`buf`）——名字代表「這個變數在記憶體裡的位址」；
+- 呼叫了、但不在這個檔案裡的函式與變數（`printf`、`extern` 宣告的 `shared`）——也是符號，只是標成「未定義」，意思是「我要用這個名字，請連結器幫我找」。
+
+**區域變數不是符號。** 為什麼？因為連結器的工作是「把機器碼裡對某個名字的參照，換成真正的位址」，只有**位址要等連結才知道**的東西才需要名字。區域變數放在堆疊上（第 5 課），位址是「執行時的 `%rbp` 減某個數」，編譯器自己就能寫成 `-0x4(%rbp)`，用不到連結器，所以不留名字。
+
+實驗：一個檔案裡放函式、兩種全域變數、一個 `extern` 變數和一個區域變數，看哪些變成符號。`sym.c`（檔案：[`sym.c`](../small-project/s1-06-multi-file/examples/symbols/sym.c)）完整原始碼：
+
+```c
+#include <stdio.h>
+
+int counter = 3;          /* 全域變數，有初值 */
+int buf[100];             /* 全域變數，沒有初值 */
+extern int shared;        /* 只有宣告：定義在 other.c */
+
+int twice(int x)          /* 函式定義 */
+{
+    return 2 * x;
+}
+
+int main(void)
+{
+    int local = 5;        /* 區域變數（放在堆疊上） */
+    printf("%d\n", twice(local) + counter + buf[0] + shared);
+    return 0;
+}
+```
+
+`other.c`（檔案：[`other.c`](../small-project/s1-06-multi-file/examples/symbols/other.c)）只有一行：
+
+```c
+int shared = 10;          /* shared 的定義 */
+```
+
+```sh
+gcc -c sym.c -o sym.o
+gcc -c other.c -o other.o
+gcc sym.o other.o -o sym
+readelf -s sym.o          # 符號表（各欄的意思見第四節）
+nm sym.o                  # 同一份符號表的精簡版（第 1 課教過）
+nm sym                    # 連結後的符號表
+objdump -dr sym.o         # 機器碼加上重定位項目
+```
+
+`sym.o` 的符號表：
+
+```
+$ readelf -s sym.o
+   Num:    Value          Size Type    Bind   Vis      Ndx Name
+     0: 0000000000000000     0 NOTYPE  LOCAL  DEFAULT  UND 
+     1: 0000000000000000     0 FILE    LOCAL  DEFAULT  ABS sym.c
+     2: 0000000000000000     0 SECTION LOCAL  DEFAULT    1 .text
+     3: 0000000000000000     0 SECTION LOCAL  DEFAULT    5 .rodata
+     4: 0000000000000000     4 OBJECT  GLOBAL DEFAULT    3 counter
+     5: 0000000000000000   400 OBJECT  GLOBAL DEFAULT    4 buf
+     6: 0000000000000000    18 FUNC    GLOBAL DEFAULT    1 twice
+     7: 0000000000000012    82 FUNC    GLOBAL DEFAULT    1 main
+     8: 0000000000000000     0 NOTYPE  GLOBAL DEFAULT  UND shared
+     9: 0000000000000000     0 NOTYPE  GLOBAL DEFAULT  UND printf
+
+$ nm sym.o
+0000000000000000 B buf
+0000000000000000 D counter
+0000000000000012 T main
+                 U printf
+                 U shared
+0000000000000000 T twice
+```
+
+逐列看（欄位的完整解釋在[第四節](#四符號表o-之間靠名字接起來)，這裡只看「誰變成了符號」）：
+
+| C 原始碼裡的東西 | 在符號表裡 | 這個符號代表什麼 |
+|---|---|---|
+| `int counter = 3;` | 第 4 列 `OBJECT`，4 byte，`nm` 的 `D` | 「`.data` 區段（第 3 個區段）開頭第 0 byte 起的 4 個 byte」 |
+| `int buf[100];` | 第 5 列 `OBJECT`，400 byte（100 個 `int`），`nm` 的 `B` | 「`.bss` 區段開頭起的 400 byte」；沒有初值的全域變數初值是 0，放 `.bss`（第五節〈函式裡的 `static`〉會細講 `.bss`） |
+| `int twice(int x) {...}` | 第 6 列 `FUNC`，18 byte，`nm` 的 `T` | 「`.text` 第 0 byte 起的 18 byte 機器碼」 |
+| `int main(void) {...}` | 第 7 列 `FUNC`，`Value` 是 `0x12` | 「`.text` 第 0x12（18）byte 起」——緊接在 `twice` 後面 |
+| `extern int shared;` | 第 8 列 `UND`，`nm` 的 `U` | 「我要用叫 `shared` 的東西，這個檔案沒有」 |
+| `printf(...)` | 第 9 列 `UND` | 同上，等 libc 提供 |
+| `int local = 5;` | **沒有** | 堆疊上的變數，不需要名字 |
+| `"%d\n"` 字串 | **沒有自己的名字**，用第 3 列的區段符號 `.rodata` 代表 | 下面說明 |
+
+第 0～3 列是 ELF 的記帳用符號：第 0 列固定是空的、`FILE` 記原始檔名、`SECTION` 代表區段本身。
+
+**符號用在哪裡：機器碼的洞上標的就是符號名字。** `objdump -dr sym.o` 看 `main`（只截跟符號有關的幾行；`#` 後面是說明）：
+
+```
+  1e:	c7 45 fc 05 00 00 00 	movl   $0x5,-0x4(%rbp)      # local = 5：直接寫堆疊，沒有洞
+  2a:	e8 00 00 00 00       	call   2f <main+0x1d>       # 呼叫 twice：跳到哪還不知道，填 0
+			2b: R_X86_64_PLT32	twice-0x4                  #   ← 洞上標「twice」
+  2f:	8b 15 00 00 00 00    	mov    0x0(%rip),%edx       # 讀 counter：位址還不知道，填 0
+			31: R_X86_64_PC32	counter-0x4
+  37:	8b 05 00 00 00 00    	mov    0x0(%rip),%eax       # 讀 buf[0]
+			39: R_X86_64_PC32	buf-0x4
+  3f:	8b 05 00 00 00 00    	mov    0x0(%rip),%eax       # 讀 shared
+			41: R_X86_64_PC32	shared-0x4
+  49:	48 8d 05 00 00 00 00 	lea    0x0(%rip),%rax       # 取 "%d\n" 字串的位址
+			4c: R_X86_64_PC32	.rodata-0x4                #   ← 用區段符號 .rodata
+  58:	e8 00 00 00 00       	call   5d <main+0x4b>       # 呼叫 printf
+			59: R_X86_64_PLT32	printf-0x4
+```
+
+每個洞（第 1 課第四節的 `00 00 00 00`）下面那一行重定位項目，寫的都是「這裡要填**某個符號**的位址」。連結器做的事就是：
+
+1. 對每個符號名字找到它的定義（`shared` 在 `other.o` 找到、`printf` 在 libc）——**符號解析**；
+2. 決定每個區段最後放在哪，算出每個符號的最終位址，填進洞裡——**重定位**。
+
+而 `local = 5` 那一行（`movl $0x5,-0x4(%rbp)`）下面沒有重定位項目：沒有洞，也就沒有名字。
+
+（`twice` 明明就在同一個 `.o`，為什麼呼叫它也留洞？因為 `twice` 是 `GLOBAL` 符號，組譯器把它交給連結器決定；這跟共享函式庫裡「同名符號可以被替換」有關，第 7 課再講，這裡不展開。）
+
+連結之後，符號的 `Value` 從「區段裡的偏移」變成**程式裡的位址**，`other.o` 的 `shared` 也接進來了：
+
+```
+$ nm sym | grep -E ' (counter|buf|shared|twice|main|printf)'
+0000000000004040 B buf
+0000000000004010 D counter
+000000000000115b T main
+                 U printf@GLIBC_2.2.5
+0000000000004014 D shared
+0000000000001149 T twice
+```
+
+`main` 是 `0x115b`、`twice` 是 `0x1149`，差 `0x12`，跟 `.o` 裡 `main` 的 `Value` 一樣——整段 `.text` 被搬到 `0x1149` 附近，裡面的相對位置不變。`printf` 仍然是 `U`，原因見第 1 課第五節（動態連結，執行時才接）。
+
+**符號從哪裡來：組合語言的標籤。** `gcc -S sym.c` 看得到每個 C 的函式、全域變數都變成一個標籤（`counter:`、`twice:`、`main:`）加一行 `.globl`（第 1 課第三節看過 `.globl main`）。組譯器把標籤變成符號表裡的符號，`.globl` 讓它變成 `GLOBAL`。字串的標籤叫 `.LC0`：組譯器規定 `.L` 開頭的是**區域標籤（local label）**，只在組譯時用，不寫進符號表，所以上面的符號表裡找不到 `.LC0`，只能用 `.rodata` 加偏移來指它。
+
+一句話：**符號就是「連結器看得到的名字」——函式和全域變數的名字，加上它在哪個區段、哪個位置；區域變數沒有，因為它的位址不用連結器決定。**
+
+*（追問補充結束，以下回到主線）*
+
+---
+
 kernel 也是一樣：每個 `.c` 各自編成 `.o`，大部分函式都寫成 `static`（只給自己的檔案用），要給別的模組用的才特別匯出；kernel 的建置系統（Kbuild）也是建立在 `make` 上的（本課只提一句，K0 才會實際碰到）。
 
 ---
@@ -1292,3 +1435,26 @@ gcc 的選項有上千個，完整見 `man gcc`；`gcc --help=common`、`--help=
    	gcc -Wall -c net.c
    ```
    （`server.c` 和 `net.c` 都 `#include "config.h"`；命令前面是 TAB。）
+6. （2026-10-20 提問「符號代表什麼」追加，出處：[第一節](../html/c/多檔案的C程式-標頭檔、static與extern、連結錯誤與make.html#一本課在做什麼編譯器一次只看一個-c)〈上面說的「符號」到底是什麼〉）下面的 `t.c` 用 `gcc -c t.c` 編成 `t.o`。哪些名字會出現在 `t.o` 的符號表裡？其中哪些是「這個檔案提供」、哪些是「需要別人提供」？`n`、`sum`、`i` 為什麼不在符號表裡？對連結器來說，符號表裡的一個符號代表什麼、拿來做什麼用？
+   ```c
+   #include <stdio.h>
+
+   long total = 0;
+   extern long limit;
+
+   void add(long n)
+   {
+       long sum = total + n;
+       total = sum;
+   }
+
+   int main(void)
+   {
+       for (int i = 0; i < 3; i++)
+           add(i);
+       if (total > limit)
+           puts("big");
+       return 0;
+   }
+   ```
+   編譯：`gcc -c t.c`（只編不連結；`limit` 沒有定義，連結會失敗，這題不用連結）

@@ -98,6 +98,160 @@
 </ul>
 <p>關鍵事實只有一個：<strong>gcc 編譯時一次只處理一個 <code>.c</code></strong>（加上它 <code>#include</code> 進來的內容），這個範圍叫<strong>編譯單元</strong>（translation unit，C 標準的用語，也譯「轉譯單元」）。
 <code>gcc -c main.c</code> 時，gcc 完全不會去讀 <code>mathx.c</code>。檔案之間的連繫，要等到<strong>連結</strong>（第 1 課第五節）才發生，而連結器手上只有每個 <code>.o</code> 的<strong>符號表</strong>——一串名字。</p>
+<hr />
+<p><strong>上面說的「符號」到底是什麼</strong></p>
+<blockquote>
+<p>2026-10-20 提問：「在討論到ld連接時,常會提到符號,符號代表什麼?我只隱約感覺到是變數,function有關」（指上一段「連結器手上只有每個 <code>.o</code> 的符號表——一串名字」）</p>
+</blockquote>
+<p><strong>符號（symbol）＝ 一個名字，加上「這個名字代表的那塊東西在哪裡」</strong>：在哪個區段（<code>.text</code>、<code>.data</code>、<code>.bss</code>）、從區段開頭算第幾個 byte、佔幾個 byte。符號表（symbol table）就是一個 <code>.o</code> 裡所有符號的清單，像一本通訊錄：名字 → 地址。</p>
+<p>在 C 裡，會變成符號的是<strong>放在函式外面的東西</strong>：</p>
+<ul>
+<li><strong>函式</strong>（<code>twice</code>、<code>main</code>）——名字代表「這個函式第一條指令的位址」；</li>
+<li><strong>全域變數</strong>（<code>counter</code>、<code>buf</code>）——名字代表「這個變數在記憶體裡的位址」；</li>
+<li>呼叫了、但不在這個檔案裡的函式與變數（<code>printf</code>、<code>extern</code> 宣告的 <code>shared</code>）——也是符號，只是標成「未定義」，意思是「我要用這個名字，請連結器幫我找」。</li>
+</ul>
+<p><strong>區域變數不是符號。</strong> 為什麼？因為連結器的工作是「把機器碼裡對某個名字的參照，換成真正的位址」，只有<strong>位址要等連結才知道</strong>的東西才需要名字。區域變數放在堆疊上（第 5 課），位址是「執行時的 <code>%rbp</code> 減某個數」，編譯器自己就能寫成 <code>-0x4(%rbp)</code>，用不到連結器，所以不留名字。</p>
+<p>實驗：一個檔案裡放函式、兩種全域變數、一個 <code>extern</code> 變數和一個區域變數，看哪些變成符號。<code>sym.c</code>（檔案：<a href="../../small-project/s1-06-multi-file/examples/symbols/sym.c"><code>sym.c</code></a>）完整原始碼：</p>
+<pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="n">counter</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">3</span><span class="p">;</span><span class="w">          </span><span class="cm">/* 全域變數，有初值 */</span>
+<span class="kt">int</span><span class="w"> </span><span class="n">buf</span><span class="p">[</span><span class="mi">100</span><span class="p">];</span><span class="w">             </span><span class="cm">/* 全域變數，沒有初值 */</span>
+<span class="k">extern</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">shared</span><span class="p">;</span><span class="w">        </span><span class="cm">/* 只有宣告：定義在 other.c */</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">twice</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">x</span><span class="p">)</span><span class="w">          </span><span class="cm">/* 函式定義 */</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">2</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">x</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">local</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">5</span><span class="p">;</span><span class="w">        </span><span class="cm">/* 區域變數（放在堆疊上） */</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;%d</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">twice</span><span class="p">(</span><span class="n">local</span><span class="p">)</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">counter</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">buf</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">shared</span><span class="p">);</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<p><code>other.c</code>（檔案：<a href="../../small-project/s1-06-multi-file/examples/symbols/other.c"><code>other.c</code></a>）只有一行：</p>
+<pre><code class="language-c"><span class="kt">int</span><span class="w"> </span><span class="n">shared</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">10</span><span class="p">;</span><span class="w">          </span><span class="cm">/* shared 的定義 */</span>
+</code></pre>
+<pre><code class="language-sh">gcc<span class="w"> </span>-c<span class="w"> </span>sym.c<span class="w"> </span>-o<span class="w"> </span>sym.o
+gcc<span class="w"> </span>-c<span class="w"> </span>other.c<span class="w"> </span>-o<span class="w"> </span>other.o
+gcc<span class="w"> </span>sym.o<span class="w"> </span>other.o<span class="w"> </span>-o<span class="w"> </span>sym
+readelf<span class="w"> </span>-s<span class="w"> </span>sym.o<span class="w">          </span><span class="c1"># 符號表（各欄的意思見第四節）</span>
+nm<span class="w"> </span>sym.o<span class="w">                  </span><span class="c1"># 同一份符號表的精簡版（第 1 課教過）</span>
+nm<span class="w"> </span>sym<span class="w">                    </span><span class="c1"># 連結後的符號表</span>
+objdump<span class="w"> </span>-dr<span class="w"> </span>sym.o<span class="w">         </span><span class="c1"># 機器碼加上重定位項目</span>
+</code></pre>
+<p><code>sym.o</code> 的符號表：</p>
+<pre><code>$ readelf -s sym.o
+   Num:    Value          Size Type    Bind   Vis      Ndx Name
+     0: 0000000000000000     0 NOTYPE  LOCAL  DEFAULT  UND 
+     1: 0000000000000000     0 FILE    LOCAL  DEFAULT  ABS sym.c
+     2: 0000000000000000     0 SECTION LOCAL  DEFAULT    1 .text
+     3: 0000000000000000     0 SECTION LOCAL  DEFAULT    5 .rodata
+     4: 0000000000000000     4 OBJECT  GLOBAL DEFAULT    3 counter
+     5: 0000000000000000   400 OBJECT  GLOBAL DEFAULT    4 buf
+     6: 0000000000000000    18 FUNC    GLOBAL DEFAULT    1 twice
+     7: 0000000000000012    82 FUNC    GLOBAL DEFAULT    1 main
+     8: 0000000000000000     0 NOTYPE  GLOBAL DEFAULT  UND shared
+     9: 0000000000000000     0 NOTYPE  GLOBAL DEFAULT  UND printf
+
+$ nm sym.o
+0000000000000000 B buf
+0000000000000000 D counter
+0000000000000012 T main
+                 U printf
+                 U shared
+0000000000000000 T twice
+</code></pre>
+<p>逐列看（欄位的完整解釋在<a href="#%E5%9B%9B%E7%AC%A6%E8%99%9F%E8%A1%A8o-%E4%B9%8B%E9%96%93%E9%9D%A0%E5%90%8D%E5%AD%97%E6%8E%A5%E8%B5%B7%E4%BE%86">第四節</a>，這裡只看「誰變成了符號」）：</p>
+<table>
+<thead>
+<tr>
+<th>C 原始碼裡的東西</th>
+<th>在符號表裡</th>
+<th>這個符號代表什麼</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>int counter = 3;</code></td>
+<td>第 4 列 <code>OBJECT</code>，4 byte，<code>nm</code> 的 <code>D</code></td>
+<td>「<code>.data</code> 區段（第 3 個區段）開頭第 0 byte 起的 4 個 byte」</td>
+</tr>
+<tr>
+<td><code>int buf[100];</code></td>
+<td>第 5 列 <code>OBJECT</code>，400 byte（100 個 <code>int</code>），<code>nm</code> 的 <code>B</code></td>
+<td>「<code>.bss</code> 區段開頭起的 400 byte」；沒有初值的全域變數初值是 0，放 <code>.bss</code>（第五節〈函式裡的 <code>static</code>〉會細講 <code>.bss</code>）</td>
+</tr>
+<tr>
+<td><code>int twice(int x) {...}</code></td>
+<td>第 6 列 <code>FUNC</code>，18 byte，<code>nm</code> 的 <code>T</code></td>
+<td>「<code>.text</code> 第 0 byte 起的 18 byte 機器碼」</td>
+</tr>
+<tr>
+<td><code>int main(void) {...}</code></td>
+<td>第 7 列 <code>FUNC</code>，<code>Value</code> 是 <code>0x12</code></td>
+<td>「<code>.text</code> 第 0x12（18）byte 起」——緊接在 <code>twice</code> 後面</td>
+</tr>
+<tr>
+<td><code>extern int shared;</code></td>
+<td>第 8 列 <code>UND</code>，<code>nm</code> 的 <code>U</code></td>
+<td>「我要用叫 <code>shared</code> 的東西，這個檔案沒有」</td>
+</tr>
+<tr>
+<td><code>printf(...)</code></td>
+<td>第 9 列 <code>UND</code></td>
+<td>同上，等 libc 提供</td>
+</tr>
+<tr>
+<td><code>int local = 5;</code></td>
+<td><strong>沒有</strong></td>
+<td>堆疊上的變數，不需要名字</td>
+</tr>
+<tr>
+<td><code>&quot;%d\n&quot;</code> 字串</td>
+<td><strong>沒有自己的名字</strong>，用第 3 列的區段符號 <code>.rodata</code> 代表</td>
+<td>下面說明</td>
+</tr>
+</tbody>
+</table>
+<p>第 0～3 列是 ELF 的記帳用符號：第 0 列固定是空的、<code>FILE</code> 記原始檔名、<code>SECTION</code> 代表區段本身。</p>
+<p><strong>符號用在哪裡：機器碼的洞上標的就是符號名字。</strong> <code>objdump -dr sym.o</code> 看 <code>main</code>（只截跟符號有關的幾行；<code>#</code> 後面是說明）：</p>
+<pre><code>  1e:	c7 45 fc 05 00 00 00 	movl   $0x5,-0x4(%rbp)      # local = 5：直接寫堆疊，沒有洞
+  2a:	e8 00 00 00 00       	call   2f &lt;main+0x1d&gt;       # 呼叫 twice：跳到哪還不知道，填 0
+			2b: R_X86_64_PLT32	twice-0x4                  #   ← 洞上標「twice」
+  2f:	8b 15 00 00 00 00    	mov    0x0(%rip),%edx       # 讀 counter：位址還不知道，填 0
+			31: R_X86_64_PC32	counter-0x4
+  37:	8b 05 00 00 00 00    	mov    0x0(%rip),%eax       # 讀 buf[0]
+			39: R_X86_64_PC32	buf-0x4
+  3f:	8b 05 00 00 00 00    	mov    0x0(%rip),%eax       # 讀 shared
+			41: R_X86_64_PC32	shared-0x4
+  49:	48 8d 05 00 00 00 00 	lea    0x0(%rip),%rax       # 取 &quot;%d\n&quot; 字串的位址
+			4c: R_X86_64_PC32	.rodata-0x4                #   ← 用區段符號 .rodata
+  58:	e8 00 00 00 00       	call   5d &lt;main+0x4b&gt;       # 呼叫 printf
+			59: R_X86_64_PLT32	printf-0x4
+</code></pre>
+<p>每個洞（第 1 課第四節的 <code>00 00 00 00</code>）下面那一行重定位項目，寫的都是「這裡要填<strong>某個符號</strong>的位址」。連結器做的事就是：</p>
+<ol>
+<li>對每個符號名字找到它的定義（<code>shared</code> 在 <code>other.o</code> 找到、<code>printf</code> 在 libc）——<strong>符號解析</strong>；</li>
+<li>決定每個區段最後放在哪，算出每個符號的最終位址，填進洞裡——<strong>重定位</strong>。</li>
+</ol>
+<p>而 <code>local = 5</code> 那一行（<code>movl $0x5,-0x4(%rbp)</code>）下面沒有重定位項目：沒有洞，也就沒有名字。</p>
+<p>（<code>twice</code> 明明就在同一個 <code>.o</code>，為什麼呼叫它也留洞？因為 <code>twice</code> 是 <code>GLOBAL</code> 符號，組譯器把它交給連結器決定；這跟共享函式庫裡「同名符號可以被替換」有關，第 7 課再講，這裡不展開。）</p>
+<p>連結之後，符號的 <code>Value</code> 從「區段裡的偏移」變成<strong>程式裡的位址</strong>，<code>other.o</code> 的 <code>shared</code> 也接進來了：</p>
+<pre><code>$ nm sym | grep -E ' (counter|buf|shared|twice|main|printf)'
+0000000000004040 B buf
+0000000000004010 D counter
+000000000000115b T main
+                 U printf@GLIBC_2.2.5
+0000000000004014 D shared
+0000000000001149 T twice
+</code></pre>
+<p><code>main</code> 是 <code>0x115b</code>、<code>twice</code> 是 <code>0x1149</code>，差 <code>0x12</code>，跟 <code>.o</code> 裡 <code>main</code> 的 <code>Value</code> 一樣——整段 <code>.text</code> 被搬到 <code>0x1149</code> 附近，裡面的相對位置不變。<code>printf</code> 仍然是 <code>U</code>，原因見第 1 課第五節（動態連結，執行時才接）。</p>
+<p><strong>符號從哪裡來：組合語言的標籤。</strong> <code>gcc -S sym.c</code> 看得到每個 C 的函式、全域變數都變成一個標籤（<code>counter:</code>、<code>twice:</code>、<code>main:</code>）加一行 <code>.globl</code>（第 1 課第三節看過 <code>.globl main</code>）。組譯器把標籤變成符號表裡的符號，<code>.globl</code> 讓它變成 <code>GLOBAL</code>。字串的標籤叫 <code>.LC0</code>：組譯器規定 <code>.L</code> 開頭的是<strong>區域標籤（local label）</strong>，只在組譯時用，不寫進符號表，所以上面的符號表裡找不到 <code>.LC0</code>，只能用 <code>.rodata</code> 加偏移來指它。</p>
+<p>一句話：<strong>符號就是「連結器看得到的名字」——函式和全域變數的名字，加上它在哪個區段、哪個位置；區域變數沒有，因為它的位址不用連結器決定。</strong></p>
+<p><em>（追問補充結束，以下回到主線）</em></p>
+<hr />
 <p>kernel 也是一樣：每個 <code>.c</code> 各自編成 <code>.o</code>，大部分函式都寫成 <code>static</code>（只給自己的檔案用），要給別的模組用的才特別匯出；kernel 的建置系統（Kbuild）也是建立在 <code>make</code> 上的（本課只提一句，K0 才會實際碰到）。</p>
 <hr />
 <h2 id="二宣告與定義沒有宣告編譯器只能猜">二、宣告與定義：沒有宣告，編譯器只能猜</h2>
@@ -1486,6 +1640,27 @@ rm -f calc main.o mathx.o main.d mathx.d
 <span class="w">	</span>gcc<span class="w"> </span>-Wall<span class="w"> </span>-c<span class="w"> </span>net.c
 </code></pre>
 （<code>server.c</code> 和 <code>net.c</code> 都 <code>#include &quot;config.h&quot;</code>；命令前面是 TAB。）</li>
+<li>（2026-10-20 提問「符號代表什麼」追加，出處：<a href="#%E4%B8%80%E6%9C%AC%E8%AA%B2%E5%9C%A8%E5%81%9A%E4%BB%80%E9%BA%BC%E7%B7%A8%E8%AD%AF%E5%99%A8%E4%B8%80%E6%AC%A1%E5%8F%AA%E7%9C%8B%E4%B8%80%E5%80%8B-c">第一節</a>〈上面說的「符號」到底是什麼〉）下面的 <code>t.c</code> 用 <code>gcc -c t.c</code> 編成 <code>t.o</code>。哪些名字會出現在 <code>t.o</code> 的符號表裡？其中哪些是「這個檔案提供」、哪些是「需要別人提供」？<code>n</code>、<code>sum</code>、<code>i</code> 為什麼不在符號表裡？對連結器來說，符號表裡的一個符號代表什麼、拿來做什麼用？<pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+
+<span class="kt">long</span><span class="w"> </span><span class="n">total</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="k">extern</span><span class="w"> </span><span class="kt">long</span><span class="w"> </span><span class="n">limit</span><span class="p">;</span>
+
+<span class="kt">void</span><span class="w"> </span><span class="nf">add</span><span class="p">(</span><span class="kt">long</span><span class="w"> </span><span class="n">n</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="kt">long</span><span class="w"> </span><span class="n">sum</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">total</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">n</span><span class="p">;</span>
+<span class="w">    </span><span class="n">total</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">sum</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">3</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="o">++</span><span class="p">)</span>
+<span class="w">        </span><span class="n">add</span><span class="p">(</span><span class="n">i</span><span class="p">);</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">total</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="n">limit</span><span class="p">)</span>
+<span class="w">        </span><span class="n">puts</span><span class="p">(</span><span class="s">&quot;big&quot;</span><span class="p">);</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+編譯：<code>gcc -c t.c</code>（只編不連結；<code>limit</code> 沒有定義，連結會失敗，這題不用連結）</li>
 </ol>
 
 </main>

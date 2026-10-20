@@ -37,6 +37,7 @@
 | [`examples/staticlocal/`](./examples/staticlocal/) | [`nextid.c`](./examples/staticlocal/nextid.c) | 第五節〈函式裡的 `static`〉 | `static` 區域變數在 `.bss`、值留到下一次 |
 | [`examples/extern/`](./examples/extern/)、[`examples/extern/bad/`](./examples/extern/bad/) | `hits.h`、`hits.c`、`hits_main.c` | [第六節](../../html/c/多檔案的C程式-標頭檔、static與extern、連結錯誤與make.html#六extern全域變數的宣告與定義) | 標頭檔寫 `extern`；忘了 `extern` 時 `multiple definition`、`-fcommon` |
 | [`examples/make/`](./examples/make/) | [`Makefile`](./examples/make/Makefile)、[`Makefile.nodeps`](./examples/make/Makefile.nodeps)、[`Makefile.nophony`](./examples/make/Makefile.nophony)、[`mathx.h`](./examples/make/mathx.h)、[`mathx.c`](./examples/make/mathx.c)、[`main.c`](./examples/make/main.c) | [第七節](../../html/c/多檔案的C程式-標頭檔、static與extern、連結錯誤與make.html#七make只重編改過的檔案) | 規則與時間判斷、漏了標頭檔相依、`-MMD -MP`、`.PHONY` |
+| [`examples/symbols/`](./examples/symbols/) | [`sym.c`](./examples/symbols/sym.c)、[`other.c`](./examples/symbols/other.c) | [第一節](../../html/c/多檔案的C程式-標頭檔、static與extern、連結錯誤與make.html#一本課在做什麼編譯器一次只看一個-c)〈上面說的「符號」到底是什麼〉（2026-10-20 提問） | 函式、全域變數、`extern` 變成符號，區域變數不是；機器碼的洞上標的是符號名 |
 
 ---
 

@@ -21,6 +21,7 @@
 <li class="l3"><a href="#3-static-%E7%9A%84%E5%85%A9%E7%A8%AE%E6%84%8F%E6%80%9D">3. static 的兩種意思</a></li>
 <li class="l3"><a href="#4-%E6%A8%99%E9%A0%AD%E6%AA%94%E8%A3%A1%E7%9A%84-long-hits">4. 標頭檔裡的 long hits;</a></li>
 <li class="l3"><a href="#5-%E6%83%85%E5%A2%83%E9%A1%8C%E6%94%B9%E4%BA%86%E6%A8%99%E9%A0%AD%E6%AA%94make-%E8%AA%AA%E4%B8%8D%E7%94%A8%E9%87%8D%E7%B7%A8">5. 情境題：改了標頭檔，make 說不用重編</a></li>
+<li class="l3"><a href="#6-%E7%AC%A6%E8%99%9F%E6%98%AF%E4%BB%80%E9%BA%BCto-%E7%9A%84%E7%AC%A6%E8%99%9F%E8%A1%A8%E8%A3%A1%E6%9C%89%E8%AA%B0">6. 符號是什麼：t.o 的符號表裡有誰</a></li>
 </ul>
 </nav>
 <main>
@@ -207,6 +208,38 @@
 <h4 id="5-3-你會怎麼改這個-makefile讓以後改任何標頭檔都會重編該重編的檔案不必寫出完整的-makefile說明要改哪些地方各自的作用即可">5-3. 你會怎麼改這個 <code>Makefile</code>，讓以後改任何標頭檔都會重編該重編的檔案？（不必寫出完整的 <code>Makefile</code>，說明要改哪些地方、各自的作用即可。）</h4>
 <p><strong>第 1 次（YYYY-MM-DD）</strong></p>
 <div class="answer-box" data-file="small-project/s1-06-multi-file/quiz.md" data-line="244"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<h3 id="6-符號是什麼to-的符號表裡有誰">6. 符號是什麼：<code>t.o</code> 的符號表裡有誰</h3>
+<p>（2026-10-20 提問「符號代表什麼」追加，出處：<a href="../../c/%E5%A4%9A%E6%AA%94%E6%A1%88%E7%9A%84C%E7%A8%8B%E5%BC%8F-%E6%A8%99%E9%A0%AD%E6%AA%94%E3%80%81static%E8%88%87extern%E3%80%81%E9%80%A3%E7%B5%90%E9%8C%AF%E8%AA%A4%E8%88%87make.html#%E4%B8%80%E6%9C%AC%E8%AA%B2%E5%9C%A8%E5%81%9A%E4%BB%80%E9%BA%BC%E7%B7%A8%E8%AD%AF%E5%99%A8%E4%B8%80%E6%AC%A1%E5%8F%AA%E7%9C%8B%E4%B8%80%E5%80%8B-c">第一節</a>〈上面說的「符號」到底是什麼〉）下面的 <code>t.c</code> 用 <code>gcc -c t.c</code> 編成 <code>t.o</code>。哪些名字會出現在 <code>t.o</code> 的符號表裡？其中哪些是「這個檔案提供」、哪些是「需要別人提供」？<code>n</code>、<code>sum</code>、<code>i</code> 為什麼不在符號表裡？對連結器來說，符號表裡的一個符號代表什麼、拿來做什麼用？</p>
+<pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+
+<span class="kt">long</span><span class="w"> </span><span class="n">total</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="k">extern</span><span class="w"> </span><span class="kt">long</span><span class="w"> </span><span class="n">limit</span><span class="p">;</span>
+
+<span class="kt">void</span><span class="w"> </span><span class="nf">add</span><span class="p">(</span><span class="kt">long</span><span class="w"> </span><span class="n">n</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="kt">long</span><span class="w"> </span><span class="n">sum</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">total</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">n</span><span class="p">;</span>
+<span class="w">    </span><span class="n">total</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">sum</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">3</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="o">++</span><span class="p">)</span>
+<span class="w">        </span><span class="n">add</span><span class="p">(</span><span class="n">i</span><span class="p">);</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">total</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="n">limit</span><span class="p">)</span>
+<span class="w">        </span><span class="n">puts</span><span class="p">(</span><span class="s">&quot;big&quot;</span><span class="p">);</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<p>編譯：<code>gcc -c t.c</code>（只編不連結；<code>limit</code> 沒有定義，連結會失敗，這題不用連結）</p>
+<h4 id="6-1-哪些名字會出現在-to-的符號表裡其中哪些是這個檔案提供哪些是需要別人提供">6-1. 哪些名字會出現在 <code>t.o</code> 的符號表裡？其中哪些是「這個檔案提供」、哪些是「需要別人提供」？</h4>
+<p><strong>第 1 次（YYYY-MM-DD）</strong></p>
+<div class="answer-box" data-file="small-project/s1-06-multi-file/quiz.md" data-line="278"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<h4 id="6-2-nsumi-為什麼不在符號表裡">6-2. <code>n</code>、<code>sum</code>、<code>i</code> 為什麼不在符號表裡？</h4>
+<p><strong>第 1 次（YYYY-MM-DD）</strong></p>
+<div class="answer-box" data-file="small-project/s1-06-multi-file/quiz.md" data-line="284"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<h4 id="6-3-對連結器來說符號表裡的一個符號代表什麼拿來做什麼用">6-3. 對連結器來說，符號表裡的一個符號代表什麼、拿來做什麼用？</h4>
+<p><strong>第 1 次（YYYY-MM-DD）</strong></p>
+<div class="answer-box" data-file="small-project/s1-06-multi-file/quiz.md" data-line="290"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 
 </main>
 </div>
