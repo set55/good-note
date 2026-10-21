@@ -42,9 +42,9 @@
 
 ---
 
-## 批改結果（2026-10-21）
+## 批改結果（2026-10-21～22）
 
-第 1～4 題已批改（2026-10-21）；第 5 題還沒作答。
+第 1～4 題 2026-10-21 批改，第 5 題 2026-10-22 批改；全部 5 題已批改完。
 
 | 題目 | 結果 | 錯在哪／缺什麼 |
 |---|---|---|
@@ -64,6 +64,10 @@
 | 4a-3 | 對 | 抓到：能連結、兩個 `clamp` 都是 `LOCAL`、代價是每個 `.o` 各一份。用詞：多的只有這個函式的機器碼，不是整個程式 2 倍 |
 | 4b-1 | 大致對 | 連結階段、名字打成 `print_reprot`、只宣告不定義是合法的，都對；少了 `b_main.o` 的 `UND print_report` 那一半證據 |
 | 4c-1 | 不完整 | 第一問（編譯階段 `too few arguments`）對；第二問猜成編譯錯（隱式宣告在筆記第二節教過）；沒有連結、執行，漏了「連結也過、執行時印出垃圾數字」——跟 1-4 (b)、2-3 一樣，停在沒報錯就下結論 |
+| 5-1 | 不完整 | `Makefile` 本身完全符合要求；但沒貼第一次 `make` 的輸出，`-MMD -MP` 沒說明，`-include` 說成「放到 `.o` 裡」（應是把 `.d` 讀進 `Makefile` 當規則，`-` 是不存在不報錯），`.PHONY` 漏了「有同名檔案也照樣執行」 |
+| 5-2 | 大致對 | 實際輸出、「引入 `worker.h` 的都重編、再連結」、`logger.h` 全部重編都對；沒貼 `worker.d`／`hw2_main.d` 當證據，預測時漏了 `hw2_main.o` |
+| 5-3 | 錯 | 用了 `make logger.o`，那是真的編譯一次；只印不執行是 `make -n`（筆記第七節選項表） |
+| 5-4 | 對 | 新觀念，猜中不會重編，`-B` 對；補教：`make` 只比時間、不記選項；命令列 `CFLAGS=` 會整個換掉，連 `-MMD -MP -g` 一起不見 |
 
 ---
 
@@ -1197,6 +1201,65 @@ clean:  #清除的命令
 [3] Work detail
 ````
 
+
+> **批改（2026-10-22）**：**不完整**。`Makefile` 本身是對的：我讀了你 `hw5/` 裡的檔案，四個要求都做到了，複製到 scratchpad 跑 `make` 也正常。扣分在說明和缺少的輸出：
+> 1. **沒貼第一次 `make` 的輸出**，只貼了 `./logdemo` 的結果。題目要的是 `make` 印出來的三個編譯命令和一個連結命令。
+> 2. **`-MMD -MP` 沒說明**，只寫了「編譯器命令用的 flag」。這兩個是這個 `Makefile` 能自動追蹤標頭檔的關鍵。
+> 3. **`-include` 說錯**：它不是「把 `.d` 放到 `.o` 裡面」，而是把 `.d` 的內容**讀進 `Makefile`**，當成額外的規則（例如 `worker.o: worker.c worker.h logger.h`）；前面的 `-` 是「檔案不存在也不要報錯」。
+> 4. **`.PHONY` 不完整**：重點不是「每次都執行」，而是 `clean` 不是檔案，宣告成假目標後，就算目錄裡剛好有一個叫 `clean` 的檔案，`make clean` 也照樣執行。
+> 5. 樣式規則只寫了「決定要編哪個 `.o`」，要講出 `%` 的意思：**任何** `X.o` 都可以從 `X.c` 用這條命令產生。
+>
+> 另外兩個要小心的地方（你實際的檔案沒有這兩個問題，只出現在貼上來加了說明的版本裡）：
+> - `%.o: %.c 決定要編那個.o` 少了 `#`。在 `Makefile` 裡，冒號後面的字全部都是先決條件，`make` 會去找一個叫 `決定要編那個.o` 的檔案。我實測同樣的寫法（`all: x 說明`），結果是 `No rule to make target 'x', needed by 'all'.  Stop.`。
+> - `.PHONY: clean,` 多了逗號。`make` 的清單用空白分隔，這樣宣告的假目標叫 `clean,`，`clean` 本身沒有被宣告。我實測：先 `touch clean` 再 `make clean`，得到 `make: 'clean' is up to date.`，什麼都沒刪。
+>
+> **參考答案**【[第七節](../../html/c/多檔案的C程式-標頭檔、static與extern、連結錯誤與make.html#實用的-makefile變數樣式規則自動產生相依)〈實用的 `Makefile`〉】
+>
+> 核心關鍵：
+> 1. `Makefile` 符合四個要求：有 `CC`／`CFLAGS`／`OBJS`、`%.o: %.c` 的命令用 `$<`／`$@`、`-MMD -MP` 加上 `-include $(OBJS:.o=.d)`、第一條規則是 `logdemo`，而且 `.PHONY: clean`。
+> 2. 第一次 `make`：三個 `.c` 各編一次，再連結一次；執行結果是 `[1] Work started`、`[1] Work started`、`[3] Work detail`。
+> 3. 說得出三個關鍵行在做什麼：樣式規則（任何 `X.o` 從 `X.c` 產生）、`-MMD -MP`（gcc 編譯時順便寫出 `.d` 相依檔）、`-include`（把 `.d` 讀進來當規則，不存在也不報錯）。
+>
+> 詳細說明：你的 `Makefile`（`hw5/Makefile` 的實際內容，命令前面是 TAB）：
+> ```make
+> CC = gcc
+> CFLAGS = -Wall -g -O0 -MMD -MP
+> OBJS = logger.o worker.o hw2_main.o
+>
+> logdemo: $(OBJS)
+> 	$(CC) $(CFLAGS) -o logdemo $(OBJS)
+>
+> %.o: %.c
+> 	$(CC) $(CFLAGS) -c $< -o $@
+>
+> -include $(OBJS:.o=.d)
+>
+> clean:
+> 	rm -f $(OBJS) logdemo *.d
+>
+> .PHONY: clean
+> ```
+> 逐行說明：
+> - `CC = gcc`：C 編譯器的變數；之後用 `$(CC)` 取用。
+> - `CFLAGS = -Wall -g -O0 -MMD -MP`：編譯選項。`-Wall` 開警告、`-g` 留除錯資訊、`-O0` 不最佳化；`-MMD` 讓 gcc 編譯時另外寫一個 `X.d`，列出 `X.o` 依賴哪些**使用者的**標頭檔；`-MP` 替每個標頭檔多寫一條空規則（`.d` 裡的 `worker.h:`），標頭檔刪掉或改名時 `make` 才不會報 `No rule to make target`。
+> - `OBJS = ...`：要連結的 `.o` 清單。
+> - `logdemo: $(OBJS)`：第一條規則，所以是預設目標（`make` 不加目標就做它）；先決條件是三個 `.o`，任何一個比 `logdemo` 新就重新連結。
+> - 下一行的命令：連結。可以寫成 `$(CC) -o $@ $^`，跟筆記一樣不寫死檔名。連結時帶上 `$(CFLAGS)` 不會出錯，但 `-MMD -MP -O0` 在連結時沒有作用。
+> - `%.o: %.c`：樣式規則，`%` 對到任何字串；`make` 要做 `worker.o` 時，`%` 就是 `worker`，先決條件是 `worker.c`。
+> - 命令 `$(CC) $(CFLAGS) -c $< -o $@`：`$<` 是第一個先決條件（`worker.c`），`$@` 是目標（`worker.o`）。
+> - `-include $(OBJS:.o=.d)`：`$(OBJS:.o=.d)` 把每個 `.o` 換成 `.d`，得到 `logger.d worker.d hw2_main.d`；`include` 把它們的內容讀進來，補上「`.o` 也依賴標頭檔」這些先決條件；`-` 讓第一次 `make`（還沒有 `.d`）不報錯。
+> - `clean:` 和 `rm -f ...`：清掉產物；`-f` 讓檔案不存在時也不報錯。
+> - `.PHONY: clean`：宣告 `clean` 是假目標，不管有沒有叫 `clean` 的檔案都執行。
+>
+> 我在 scratchpad 用你的檔案跑出的第一次 `make`：
+> ```text
+> gcc -Wall -g -O0 -MMD -MP -c logger.c -o logger.o
+> gcc -Wall -g -O0 -MMD -MP -c worker.c -o worker.o
+> gcc -Wall -g -O0 -MMD -MP -c hw2_main.c -o hw2_main.o
+> gcc -Wall -g -O0 -MMD -MP -o logdemo logger.o worker.o hw2_main.o
+> ```
+> 執行結果裡 `[1] Work started` 出現兩次，`[3] Work detail` 只出現一次：第一次 `do_work()` 時 `log_level` 是 2，等級 3 的訊息被擋掉；`main` 把 `log_level` 改成 3 之後，第二次兩則都印。
+
 ### 5-2. 先預測：`touch worker.h` 之後 `make`，哪些 `.o` 會重編、會不會重新連結？再實際跑，貼上輸出，並貼上 `worker.d` 與 `hw2_main.d` 的內容當證據。換成 `touch logger.h` 呢？【筆記第七節〈實驗：第一個 `Makefile`〉的逐點說明、〈`-MMD -MP`〉】
 
 **第 1 次（2026-10-22）**
@@ -1213,6 +1276,40 @@ gcc -Wall -g -O0 -MMD -MP -o logdemo logger.o worker.o hw2_main.o
 換成touch logger.h 那全都會重編,因爲全都有引用
 ```
 
+
+> **批改（2026-10-22）**：**大致對**。實際跑的輸出對；看到 `hw2_main.o` 也重編之後，解釋「有引入 `worker.h` 的都重編、連結產物跟著重做」也對；`touch logger.h` 全部重編的推論也對（三個 `.c` 都引入了 `logger.h`）。缺的地方：
+> 1. **沒貼 `worker.d` 和 `hw2_main.d`**，題目要你拿它們當證據。「哪些 `.o` 會重編」不是看你記得誰 `#include` 了誰，而是看 `.d` 裡寫了什麼，因為 `make` 只知道 `.d` 告訴它的事。
+> 2. 預測漏了 `hw2_main.o`。你的 `hw2_main.c` 第一行就是 `#include "worker.h"`。預測前先看一下每個 `.c` 引入了哪些標頭檔。
+>
+> **參考答案**【[第七節](../../html/c/多檔案的C程式-標頭檔、static與extern、連結錯誤與make.html#實驗第一個-makefile)〈實驗：第一個 `Makefile`〉的逐點說明、[第七節](../../html/c/多檔案的C程式-標頭檔、static與extern、連結錯誤與make.html#實用的-makefile變數樣式規則自動產生相依)〈實用的 `Makefile`〉〈`-MMD -MP`〉】
+>
+> 核心關鍵：
+> 1. `touch worker.h`：`worker.o` 和 `hw2_main.o` 重編（兩個 `.c` 都引入了 `worker.h`），`logger.o` 不動；有 `.o` 變新，所以 `logdemo` 重新連結。
+> 2. 證據是 `.d`：`worker.d` 和 `hw2_main.d` 的規則裡都有 `worker.h`，`logger.d` 沒有。
+> 3. `touch logger.h`：三個 `.d` 都有 `logger.h`，三個 `.o` 全部重編，再重新連結。
+>
+> 詳細說明：你 `hw5/` 裡的 `.d`：
+> ```text
+> $ cat worker.d
+> worker.o: worker.c worker.h logger.h
+> worker.h:
+> logger.h:
+> $ cat hw2_main.d
+> hw2_main.o: hw2_main.c worker.h logger.h
+> worker.h:
+> logger.h:
+> $ cat logger.d
+> logger.o: logger.c logger.h
+> logger.h:
+> ```
+> 每個 `.d` 的第一行就是「這個 `.o` 依賴哪些檔案」，`-include` 把它併進 `%.o: %.c` 那條規則。`touch worker.h` 讓 `worker.h` 比 `worker.o`、`hw2_main.o` 新，這兩個就重編。我實測 `touch logger.h` 後 `make`：
+> ```text
+> gcc -Wall -g -O0 -MMD -MP -c logger.c -o logger.o
+> gcc -Wall -g -O0 -MMD -MP -c worker.c -o worker.o
+> gcc -Wall -g -O0 -MMD -MP -c hw2_main.c -o hw2_main.o
+> gcc -Wall -g -O0 -MMD -MP -o logdemo logger.o worker.o hw2_main.o
+> ```
+
 ### 5-3. `touch logger.c` 之後，用 `make` 的某個選項**只印出會執行的命令、不真的執行**，貼上命令與輸出。接著真的 `make` 一次。【筆記第七節〈命令列〉的選項表】
 
 **第 1 次（2026-10-22）**
@@ -1223,6 +1320,29 @@ gcc -Wall -g -O0 -MMD -MP -c logger.c -o logger.o
 ~/w/Proj/g/good-note/s/s1-06-multi-file/hw/hw5 | on main >4 !4 ?2  make                                                                                                         INT | base py | at 00:58:39
 gcc -Wall -g -O0 -MMD -MP -o logdemo logger.o worker.o hw2_main.o
 ```
+
+
+> **批改（2026-10-22）**：**錯**。`make logger.o` 不是「只印不執行」，它是指定目標 `logger.o`，**真的把 `logger.c` 編譯了一次**。所以接下來的 `make` 只剩連結要做，`logger.o` 已經是新的了。題目要的是 `-n` 選項（也可以寫 `--just-print`、`--dry-run`、`--recon`），筆記第七節〈命令列〉的選項表有這一列：「只印出會執行的命令，不真的執行」。
+>
+> **參考答案**【[第七節](../../html/c/多檔案的C程式-標頭檔、static與extern、連結錯誤與make.html#命令列make-選項-目標-)〈命令列〉的選項表】
+>
+> 核心關鍵：
+> 1. 用 `make -n`（`--just-print`／`--dry-run`／`--recon`）：只印出會執行的命令，不真的執行，所以檔案不會被改到。
+> 2. `touch logger.c` 之後，`-n` 印出兩行：重編 `logger.o`、重新連結 `logdemo`；`worker.o`、`hw2_main.o` 不動。
+> 3. 之後真的 `make`，執行的就是剛剛印出來的那兩行（因為 `-n` 什麼都沒做，`logger.c` 仍然比 `logger.o` 新）。
+>
+> 詳細說明：我實測：
+> ```text
+> $ touch logger.c
+> $ make -n
+> gcc -Wall -g -O0 -MMD -MP -c logger.c -o logger.o
+> gcc -Wall -g -O0 -MMD -MP -o logdemo logger.o worker.o hw2_main.o
+> $ make
+> gcc -Wall -g -O0 -MMD -MP -c logger.c -o logger.o
+> gcc -Wall -g -O0 -MMD -MP -o logdemo logger.o worker.o hw2_main.o
+> ```
+> 兩次印出來的一模一樣，這就是 `-n` 的用處：改 `Makefile` 之後，先看一下它打算做什麼，確定沒問題再真的跑。
+> 你的寫法 `make <目標>` 也有用（例如只想重編一個 `.o`），但它是「做這個目標」，不是「預覽」。
 
 ### 5-4. 先猜再實驗：什麼檔案都不改，直接執行 `make CFLAGS="-Wall -O2"`。`make` 會用 `-O2` 重編嗎？貼上輸出。為什麼？如果你真的想用新的選項全部重編，有什麼辦法？【新觀念，先猜】（第二問可以用筆記第七節〈命令列〉的選項表）
 
@@ -1236,3 +1356,24 @@ make: 'logdemo' is up to date.
 
 用 -B
 ```
+
+
+> **批改（2026-10-22）**：**對**。新觀念先猜：「不會重編」猜對了，輸出也貼了；第二問的 `-B` 對。「為什麼」只寫了「`logdemo` 已經是最新的」，那是 `make` 的說法；背後的原因補在下面（新觀念，不扣分）。
+>
+> **參考答案**【新觀念；第二問用[第七節](../../html/c/多檔案的C程式-標頭檔、static與extern、連結錯誤與make.html#命令列make-選項-目標-)〈命令列〉的選項表】
+>
+> 核心關鍵：
+> 1. 不會重編，輸出 `make: 'logdemo' is up to date.`。
+> 2. 原因：`make` 只比**檔案的修改時間**，不記得上次是用什麼選項編的。所有 `.o` 都比 `.c`／`.h` 新、`logdemo` 比 `.o` 新，所以什麼都不做；`CFLAGS` 變了，它不知道。
+> 3. 要全部重編：`make -B CFLAGS="-Wall -O2"`（`-B` 不管時間，所有目標都重做），或者先 `make clean` 再 `make CFLAGS="-Wall -O2"`。
+>
+> 詳細說明：我實測 `make -B CFLAGS="-Wall -O2"`：
+> ```text
+> gcc -Wall -O2 -c logger.c -o logger.o
+> gcc -Wall -O2 -c worker.c -o worker.o
+> gcc -Wall -O2 -c hw2_main.c -o hw2_main.o
+> gcc -Wall -O2 -o logdemo logger.o worker.o hw2_main.o
+> ```
+> 注意命令裡**不見了 `-g -O0 -MMD -MP`**：命令列的 `CFLAGS=...` 是把整個變數換掉，不是在後面追加（筆記第七節〈1. 變數〉：「命令列優先」）。少了 `-MMD`，這次就沒有重寫 `.d`。我看了時間，三個 `.d` 都比新的 `.o` 舊，裡面還是上一次的內容。少了 `-g`，gdb 也看不到原始碼行號。
+> 所以實務上，自動產生相依的選項不放在 `CFLAGS`，另外放一個變數（例如 `DEPFLAGS = -MMD -MP`，命令寫成 `$(CC) $(CFLAGS) $(DEPFLAGS) -c $< -o $@`），使用者在命令列換 `CFLAGS` 也不會把它弄丟。
+> 想讓 `make` 自動發現「選項變了」也做得到，例如把選項寫進一個檔案，讓每個 `.o` 都依賴它（kernel 的 Kbuild 就是這樣記錄每個 `.o` 的編譯命令，存在 `.X.o.cmd` 檔裡，K0 會看到）。
