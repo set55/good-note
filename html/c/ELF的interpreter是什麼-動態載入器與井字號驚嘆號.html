@@ -359,7 +359,14 @@ dash: 1: ./hello_badinterp: not found                           ← dash 的訊�
 <p>本篇的題目都<strong>不需要組合語言</strong>，答案都在上面的文字裡。</p>
 <ol>
 <li>動態連結的執行檔裡，interpreter 的路徑寫在哪裡？<code>execve</code> 之後，核心先執行的是你的程式還是它？為什麼要這樣安排？<details class="answer"><summary>參考答案</summary>
-<p>【<a href="#%E4%B8%80%E5%AE%83%E5%AF%AB%E5%9C%A8%E5%9F%B7%E8%A1%8C%E6%AA%94%E7%9A%84%E5%93%AA%E8%A3%A1">第一節</a>、<a href="#%E4%BA%8C%E5%9F%B7%E8%A1%8C%E6%99%82%E7%99%BC%E7%94%9F%E4%BB%80%E9%BA%BC%E4%BA%8B">第二節</a>】路徑寫在<strong>程式標頭表</strong>的 <code>INTERP</code> 項（指向 <code>.interp</code> 區段，內容是 <code>/lib64/ld-linux-x86-64.so.2</code>；<code>readelf -l</code> 顯示 <code>Requesting program interpreter</code>）。<code>execve</code> 時核心把程式和載入器都映射進記憶體，<strong>先執行載入器</strong>：載入器依 <code>NEEDED</code> 找到並映射 <code>libc.so.6</code>、檢查版本、填好 <code>puts</code> 等符號的位址，最後跳到程式的進入點。這樣安排是因為程式一開始就要呼叫函式庫裡的函式，函式庫必須在程式的第一條指令之前就接好。</p>
+<p>【<a href="#%E4%B8%80%E5%AE%83%E5%AF%AB%E5%9C%A8%E5%9F%B7%E8%A1%8C%E6%AA%94%E7%9A%84%E5%93%AA%E8%A3%A1">第一節</a>、<a href="#%E4%BA%8C%E5%9F%B7%E8%A1%8C%E6%99%82%E7%99%BC%E7%94%9F%E4%BB%80%E9%BA%BC%E4%BA%8B">第二節</a>】（2026-10-21 改寫成核心關鍵格式）</p>
+<p>核心關鍵：</p>
+<ol>
+<li>路徑寫在<strong>程式標頭表</strong>的 <code>INTERP</code> 項（內容是 <code>/lib64/ld-linux-x86-64.so.2</code>）。</li>
+<li><code>execve</code> 之後核心<strong>先執行 interpreter</strong>（動態載入器），不是你的程式。</li>
+<li>因為程式一開始就要呼叫函式庫裡的函式，那些位址連結時填不了；載入器要先把函式庫映射進來、把位址填好，程式的第一條指令之前就得接好。</li>
+</ol>
+<p>詳細說明：<code>INTERP</code> 指向 <code>.interp</code> 區段，<code>readelf -l</code> 顯示成 <code>Requesting program interpreter</code>。核心把程式和載入器都映射進記憶體，載入器依 <code>NEEDED</code> 找到並映射 <code>libc.so.6</code>、檢查版本、填好 <code>puts</code> 等符號的位址，最後跳到程式的進入點 <code>_start</code>。</p>
 </details>
 </li>
 <li><code>ld</code> 和 <code>ld.so</code>（<code>ld-linux-x86-64.so.2</code>）各在什麼時間點、做什麼事？<details class="answer"><summary>參考答案</summary>
@@ -395,7 +402,14 @@ dash: 1: ./hello_badinterp: not found                           ← dash 的訊�
 </details>
 </li>
 <li>情境題：你把 Ubuntu 上編好的程式複製到一台 Alpine Linux，<code>ls -l</code> 看得到檔案、也有 x 權限，執行卻說 <code>not found</code>。最可能的原因是什麼？你會用哪兩個步驟確認？用第 1 課學過的哪一種編譯方式可以避開這個問題？<details class="answer"><summary>參考答案</summary>
-<p>【<a href="#%E4%BA%94%E7%9B%B4%E8%AD%AF%E5%99%A8%E4%B8%8D%E5%AD%98%E5%9C%A8%E6%99%82%E6%98%8E%E6%98%8E%E6%9C%89%E6%AA%94%E6%A1%88%E5%8D%BB%E8%AA%AA%E6%89%BE%E4%B8%8D%E5%88%B0">第五節</a>】程式在 Ubuntu（glibc）上編譯，interpreter 是 <code>/lib64/ld-linux-x86-64.so.2</code>；Alpine 用 musl，<strong>沒有這個檔案</strong>（它的載入器是 <code>ld-musl-*</code>）。核心找不到 interpreter，回報「檔案不存在」（<code>ENOENT</code>），shell 把它說成你的程式 <code>not found</code>。確認：① <code>readelf -l 程式 | grep interpreter</code>（或 <code>file 程式</code>）看它要求哪個 interpreter；② 在 Alpine 上 <code>ls -l</code> 那個路徑，確認不存在。避開：用 <code>-static</code> 靜態連結，沒有 interpreter、也不依賴外部的 libc。</p>
+<p>【<a href="#%E4%BA%94%E7%9B%B4%E8%AD%AF%E5%99%A8%E4%B8%8D%E5%AD%98%E5%9C%A8%E6%99%82%E6%98%8E%E6%98%8E%E6%9C%89%E6%AA%94%E6%A1%88%E5%8D%BB%E8%AA%AA%E6%89%BE%E4%B8%8D%E5%88%B0">第五節</a>】（2026-10-21 改寫成核心關鍵格式）</p>
+<p>核心關鍵：</p>
+<ol>
+<li>原因：程式要求的 interpreter <code>/lib64/ld-linux-x86-64.so.2</code> 在 Alpine 上<strong>不存在</strong>，核心回報「檔案不存在」，shell 說成你的程式 <code>not found</code>。</li>
+<li>確認：① <code>readelf -l 程式 | grep interpreter</code> 看它要求哪個 interpreter；② 在 Alpine 上 <code>ls -l</code> 那個路徑，確認不存在。</li>
+<li>避開：用 <code>-static</code> 靜態連結，沒有 interpreter。</li>
+</ol>
+<p>詳細說明：Ubuntu 用 glibc，Alpine 用 musl（載入器是 <code>ld-musl-*</code>），所以 glibc 的載入器路徑在 Alpine 上沒有。核心的錯誤碼是 <code>ENOENT</code>，跟「程式檔不存在」是同一個，所以訊息會誤導人。第一步也可以用 <code>file 程式</code>。靜態連結也不依賴外部的 libc。</p>
 </details>
 </li>
 <li>情境題：一支腳本權限是 <code>---x--x--x</code>（只有執行權限），第一行是 <code>#!/bin/sh</code>，執行時出現 <code>/bin/sh: ./x.sh: Permission denied</code>。這個錯誤是誰印的？為什麼核心讀得到 <code>#!</code> 那一行，直譯器卻讀不到腳本？同樣只有執行權限的 ELF 執行檔為什麼就能跑？<details class="answer"><summary>參考答案</summary>

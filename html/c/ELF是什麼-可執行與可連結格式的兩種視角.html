@@ -353,7 +353,14 @@ interpreter 做完事才跳到這個位址。</li>
 <p>本篇的題目都<strong>不需要組合語言</strong>，答案都在上面的文字裡。</p>
 <ol>
 <li>ELF 三個字母各代表什麼？為什麼說「Executable」和「Linkable」對應兩種不同的讀者？<details class="answer"><summary>參考答案</summary>
-<p>【<a href="#%E4%B8%80%E5%90%8D%E5%AD%97%E7%9A%84%E6%84%8F%E6%80%9D">第一節</a>、<a href="#%E5%9B%9B%E5%90%8D%E5%AD%97%E7%9A%84%E9%97%9C%E9%8D%B5%E5%85%A9%E7%A8%AE%E8%A6%96%E8%A7%92">第四節</a>】Executable and Linkable Format（可執行與可連結格式）。ELF 有兩張目錄，各給一種讀者：<strong>程式標頭表</strong>（執行視角，單位是載入段 segment，給核心與動態載入器看：載入時把哪幾塊放進記憶體、權限是什麼）和<strong>區段標頭表</strong>（連結視角，單位是區段 section，給連結器 <code>ld</code>、<code>nm</code>、<code>objdump</code> 看：每個區段叫什麼、在哪、多大）。</p>
+<p>【<a href="#%E4%B8%80%E5%90%8D%E5%AD%97%E7%9A%84%E6%84%8F%E6%80%9D">第一節</a>、<a href="#%E5%9B%9B%E5%90%8D%E5%AD%97%E7%9A%84%E9%97%9C%E9%8D%B5%E5%85%A9%E7%A8%AE%E8%A6%96%E8%A7%92">第四節</a>】（2026-10-21 改寫成核心關鍵格式）</p>
+<p>核心關鍵：</p>
+<ol>
+<li>Executable and Linkable Format（可執行與可連結格式）。</li>
+<li>ELF 有兩張目錄：<strong>程式標頭表</strong>（執行視角，單位是載入段 segment）給核心與動態載入器看——載入時把哪幾塊放進記憶體、權限是什麼。</li>
+<li><strong>區段標頭表</strong>（連結視角，單位是區段 section）給連結器 <code>ld</code> 看——每個區段叫什麼、在哪、多大。</li>
+</ol>
+<p>詳細說明：<code>nm</code>、<code>objdump</code> 也讀區段標頭表。<code>.o</code> 只有區段標頭表、沒有程式標頭表（<code>readelf -l hello.o</code> 說 <code>There are no program headers in this file</code>），所以只能給連結器用、不能執行；連結器把區段合併、打包成載入段，寫出程式標頭表，「可連結的」才變成「可執行的」。</p>
 </details>
 </li>
 <li><code>readelf -l hello.o</code> 說 <code>There are no program headers in this file</code>，這代表什麼？連結器做了什麼才讓執行檔有程式標頭？<details class="answer"><summary>參考答案</summary>

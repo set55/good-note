@@ -287,7 +287,13 @@ GNU 寫了 **GPL**（GNU General Public License，GNU 通用公共授權）來�
    >
    > 詳細說明：OpenWrt 用的是 `aarch64-linux-musl` 這類三元組：核心一樣是 Linux，C 函式庫換成 musl。
 3. 情境題：一支 shell 腳本在你的 Ubuntu 上用 `bash` 測試完全正常，放到 OpenWrt 上卻出錯。從本篇的角度，最可能的原因是什麼？寫腳本時該怎麼預防？
-   > **參考答案**【[第四節](../html/linux/GNU是什麼-Linux核心與GNU工具的分工.html#四不是-gnu-的-linux你已經遇過了)】OpenWrt 不是 GNU 使用者空間，沒有 bash，`/bin/sh` 是 BusyBox 的 `ash`，只支援 POSIX 語法；腳本用了 bash 才有的擴充語法（陣列、`[[ ]]`、`[^...]` 等）就會出錯。預防：只用 POSIX 規定的語法與選項，並在本機用 `busybox sh 腳本` 或 `dash 腳本` 測試。特別注意本機 `/bin/sh -> bash`：第一行寫 `#!/bin/sh` 直接 `./腳本`，跑的仍是 bash，測不出問題。改第一行解決不了：`#!/bin/busybox` 會報 `applet not found`。
+   > **參考答案**【[第四節](../html/linux/GNU是什麼-Linux核心與GNU工具的分工.html#四不是-gnu-的-linux你已經遇過了)】（2026-10-21 改寫成核心關鍵格式）
+   >
+   > 核心關鍵：
+   > 1. 原因：OpenWrt 不是 GNU 使用者空間，沒有 bash，`/bin/sh` 是 BusyBox 的 `ash`；腳本用了 bash 才有的擴充語法（陣列、`[[ ]]` 等）就會出錯。
+   > 2. 預防：只用 POSIX 規定的語法與選項，並在本機用 POSIX 的 shell（`busybox sh 腳本` 或 `dash 腳本`）測試。
+   >
+   > 詳細說明：本機 `/bin/sh -> bash`：第一行寫 `#!/bin/sh` 直接 `./腳本`，跑的仍是 bash，測不出問題。改第一行解決不了：`#!/bin/busybox` 會報 `applet not found`。腳本出錯的例子還有 `[^...]` 這類 bash 擴充寫法。
 4. GPL 的 copyleft 要求什麼？glibc 用 LGPL 而不是 GPL，對「商業軟體能不能連結 libc」有什麼差別？
    > **參考答案**【[第五節](../html/linux/GNU是什麼-Linux核心與GNU工具的分工.html#五gplgnu-最深遠的影響)】（2026-10-10 改寫成核心關鍵格式）
    >

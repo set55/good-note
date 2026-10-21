@@ -382,7 +382,13 @@ glibc 則把兩者分成 <code>ld-linux-x86-64.so.2</code> 和 <code>libc.so.6</
 </details>
 </li>
 <li>情境題：一支 shell 腳本在你的 Ubuntu 上用 <code>bash</code> 測試完全正常，放到 OpenWrt 上卻出錯。從本篇的角度，最可能的原因是什麼？寫腳本時該怎麼預防？<details class="answer"><summary>參考答案</summary>
-<p>【<a href="#%E5%9B%9B%E4%B8%8D%E6%98%AF-gnu-%E7%9A%84-linux%E4%BD%A0%E5%B7%B2%E7%B6%93%E9%81%87%E9%81%8E%E4%BA%86">第四節</a>】OpenWrt 不是 GNU 使用者空間，沒有 bash，<code>/bin/sh</code> 是 BusyBox 的 <code>ash</code>，只支援 POSIX 語法；腳本用了 bash 才有的擴充語法（陣列、<code>[[ ]]</code>、<code>[^...]</code> 等）就會出錯。預防：只用 POSIX 規定的語法與選項，並在本機用 <code>busybox sh 腳本</code> 或 <code>dash 腳本</code> 測試。特別注意本機 <code>/bin/sh -&gt; bash</code>：第一行寫 <code>#!/bin/sh</code> 直接 <code>./腳本</code>，跑的仍是 bash，測不出問題。改第一行解決不了：<code>#!/bin/busybox</code> 會報 <code>applet not found</code>。</p>
+<p>【<a href="#%E5%9B%9B%E4%B8%8D%E6%98%AF-gnu-%E7%9A%84-linux%E4%BD%A0%E5%B7%B2%E7%B6%93%E9%81%87%E9%81%8E%E4%BA%86">第四節</a>】（2026-10-21 改寫成核心關鍵格式）</p>
+<p>核心關鍵：</p>
+<ol>
+<li>原因：OpenWrt 不是 GNU 使用者空間，沒有 bash，<code>/bin/sh</code> 是 BusyBox 的 <code>ash</code>；腳本用了 bash 才有的擴充語法（陣列、<code>[[ ]]</code> 等）就會出錯。</li>
+<li>預防：只用 POSIX 規定的語法與選項，並在本機用 POSIX 的 shell（<code>busybox sh 腳本</code> 或 <code>dash 腳本</code>）測試。</li>
+</ol>
+<p>詳細說明：本機 <code>/bin/sh -&gt; bash</code>：第一行寫 <code>#!/bin/sh</code> 直接 <code>./腳本</code>，跑的仍是 bash，測不出問題。改第一行解決不了：<code>#!/bin/busybox</code> 會報 <code>applet not found</code>。腳本出錯的例子還有 <code>[^...]</code> 這類 bash 擴充寫法。</p>
 </details>
 </li>
 <li>GPL 的 copyleft 要求什麼？glibc 用 LGPL 而不是 GPL，對「商業軟體能不能連結 libc」有什麼差別？<details class="answer"><summary>參考答案</summary>

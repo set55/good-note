@@ -436,7 +436,13 @@ mbstowcs count  = 18446744073709551615   (characters)
 </blockquote>
 <ol>
 <li><code>char c = 'A';</code> 和 <code>char c = 65;</code> 存進記憶體的東西一樣嗎？為什麼 <code>printf</code> 用 <code>%c</code> 印出 <code>A</code>、用 <code>%d</code> 印出 65？<details class="answer"><summary>參考答案</summary>
-<p>【<a href="#%E4%B8%80%E5%AD%97%E5%85%83%E5%B0%B1%E6%98%AF%E4%B8%80%E5%80%8B%E6%95%B8%E5%AD%97">第一節</a>】一樣，記憶體裡都是 65（<code>0x41</code>）。字元只是一個數字；印成什麼由 <code>printf</code> 的格式決定：<code>%c</code> 把數字當編碼查表、印出那個字，<code>%d</code> 印成十進位數字。</p>
+<p>【<a href="#%E4%B8%80%E5%AD%97%E5%85%83%E5%B0%B1%E6%98%AF%E4%B8%80%E5%80%8B%E6%95%B8%E5%AD%97">第一節</a>】（2026-10-21 改寫成核心關鍵格式）</p>
+<p>核心關鍵：</p>
+<ol>
+<li>一樣：記憶體裡都是同一個數字 65（<code>0x41</code>），<code>'A'</code> 只是寫 65 的另一種方式。</li>
+<li>印成什麼由 <code>printf</code> 的格式決定：<code>%c</code> 把這個數字當編碼查表、印出對應的字；<code>%d</code> 把它印成十進位數字。</li>
+</ol>
+<p>詳細說明：<code>char</code> 就是 1 byte 的整數，記憶體裡沒有「這是字元」的標記。同一個 byte 拿去做加減法也可以，<code>'A' + 1</code> 就是 66，用 <code>%c</code> 印是 <code>B</code>。</p>
 </details>
 </li>
 <li>使用者輸入的字元是 <code>'7'</code>，你想得到數值 7。直接把它當數字用會得到多少？該怎麼轉，這個方法為什麼成立？<details class="answer"><summary>參考答案</summary>

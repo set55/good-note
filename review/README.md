@@ -70,7 +70,8 @@
 | 2026-10-16 | [2026-10-16-interp-ELF-gcc-GNU-陣列-C資料.md](./2026-10-16-interp-ELF-gcc-GNU-陣列-C資料.md) | 10 | 對 6（interp 6、ELF 5、陣列 2〔改判〕、GNU 6〔補答後〕、陣列 3〔改判〕、C資料 2〔改判〕）、大致對 2（ELF 2、gcc 2）、不完整 1（gcc 5）、錯 1（C資料 3） |
 | 2026-10-19 | [2026-10-19-interp-GNU-C資料-ELF-objdump-組語.md](./2026-10-19-interp-GNU-C資料-ELF-objdump-組語.md) | 10 | 對 4（GNU 5、C資料 7、組語 4、組語 13）、大致對 3（interp 3、GNU 4、objdump 1）、不完整 3（interp 2、C資料 11、ELF 4） |
 | 2026-10-20 | [2026-10-20-C資料-objdump-字元-陣列-gcc.md](./2026-10-20-C資料-objdump-字元-陣列-gcc.md) | 10 | 對 2（C資料 10、陣列 6）、大致對 5（C資料 6、objdump 3、字元 5、gcc 3、gcc 4）、不完整 2（C資料 9、C資料 8）、錯 1（陣列 5） |
-| 2026-10-21 | [2026-10-21-字元-objdump-陣列-組語-interp-ELF-GNU.md](./2026-10-21-字元-objdump-陣列-組語-interp-ELF-GNU.md) | 10 | （未作答；2026-10-20 先建好） |
+| 2026-10-21 | [2026-10-21-字元-objdump-陣列-組語-interp-ELF-GNU.md](./2026-10-21-字元-objdump-陣列-組語-interp-ELF-GNU.md) | 10 | 對 4（字元 1、interp 1、interp 5、GNU 3）、大致對 4（陣列 4、組語 6、組語 7、ELF 1）、不完整 1（objdump 4）、錯 1（組語 1） |
+| 2026-10-22 | [2026-10-22-組語-C資料-objdump-字元-陣列.md](./2026-10-22-組語-C資料-objdump-字元-陣列.md) | 10 | （未作答；2026-10-21 先建好） |
 
 ---
 > 每天建立新的複習檔時，記得在上面的「每日紀錄」表格加一列。

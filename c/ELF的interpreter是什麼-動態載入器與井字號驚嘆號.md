@@ -328,7 +328,14 @@ dash: 1: ./hello_badinterp: not found                           ← dash 的訊�
 本篇的題目都**不需要組合語言**，答案都在上面的文字裡。
 
 1. 動態連結的執行檔裡，interpreter 的路徑寫在哪裡？`execve` 之後，核心先執行的是你的程式還是它？為什麼要這樣安排？
-   > **參考答案**【[第一節](../html/c/ELF的interpreter是什麼-動態載入器與井字號驚嘆號.html#一它寫在執行檔的哪裡)、[第二節](../html/c/ELF的interpreter是什麼-動態載入器與井字號驚嘆號.html#二執行時發生什麼事)】路徑寫在**程式標頭表**的 `INTERP` 項（指向 `.interp` 區段，內容是 `/lib64/ld-linux-x86-64.so.2`；`readelf -l` 顯示 `Requesting program interpreter`）。`execve` 時核心把程式和載入器都映射進記憶體，**先執行載入器**：載入器依 `NEEDED` 找到並映射 `libc.so.6`、檢查版本、填好 `puts` 等符號的位址，最後跳到程式的進入點。這樣安排是因為程式一開始就要呼叫函式庫裡的函式，函式庫必須在程式的第一條指令之前就接好。
+   > **參考答案**【[第一節](../html/c/ELF的interpreter是什麼-動態載入器與井字號驚嘆號.html#一它寫在執行檔的哪裡)、[第二節](../html/c/ELF的interpreter是什麼-動態載入器與井字號驚嘆號.html#二執行時發生什麼事)】（2026-10-21 改寫成核心關鍵格式）
+   >
+   > 核心關鍵：
+   > 1. 路徑寫在**程式標頭表**的 `INTERP` 項（內容是 `/lib64/ld-linux-x86-64.so.2`）。
+   > 2. `execve` 之後核心**先執行 interpreter**（動態載入器），不是你的程式。
+   > 3. 因為程式一開始就要呼叫函式庫裡的函式，那些位址連結時填不了；載入器要先把函式庫映射進來、把位址填好，程式的第一條指令之前就得接好。
+   >
+   > 詳細說明：`INTERP` 指向 `.interp` 區段，`readelf -l` 顯示成 `Requesting program interpreter`。核心把程式和載入器都映射進記憶體，載入器依 `NEEDED` 找到並映射 `libc.so.6`、檢查版本、填好 `puts` 等符號的位址，最後跳到程式的進入點 `_start`。
 2. `ld` 和 `ld.so`（`ld-linux-x86-64.so.2`）各在什麼時間點、做什麼事？
    > **參考答案**【[第二節](../html/c/ELF的interpreter是什麼-動態載入器與井字號驚嘆號.html#二執行時發生什麼事)〈「跳進程式」是什麼意思：進入點（entry point）〉、[第 1 課第五節](../html/c/hello.c怎麼變成能跑的程式-編譯的四個階段.html#五連結把洞接上但-puts-還是沒接完)】（2026-10-10 改寫成核心關鍵格式）
    >
@@ -355,7 +362,14 @@ dash: 1: ./hello_badinterp: not found                           ← dash 的訊�
    > 1. 靜態連結時，`ld` 已經把需要的函式庫程式碼複製進執行檔，執行時沒有東西要載入，kernel 直接從程式的進入點開始執行。
    > 2. `ld-linux-x86-64.so.2` 自己是靜態的（`file` 顯示 `static-pie linked`），不需要別人載入；它要是也需要 interpreter，就會變成「誰來載入載入器」的無限循環。
 5. 情境題：你把 Ubuntu 上編好的程式複製到一台 Alpine Linux，`ls -l` 看得到檔案、也有 x 權限，執行卻說 `not found`。最可能的原因是什麼？你會用哪兩個步驟確認？用第 1 課學過的哪一種編譯方式可以避開這個問題？
-   > **參考答案**【[第五節](../html/c/ELF的interpreter是什麼-動態載入器與井字號驚嘆號.html#五直譯器不存在時明明有檔案卻說找不到)】程式在 Ubuntu（glibc）上編譯，interpreter 是 `/lib64/ld-linux-x86-64.so.2`；Alpine 用 musl，**沒有這個檔案**（它的載入器是 `ld-musl-*`）。核心找不到 interpreter，回報「檔案不存在」（`ENOENT`），shell 把它說成你的程式 `not found`。確認：① `readelf -l 程式 | grep interpreter`（或 `file 程式`）看它要求哪個 interpreter；② 在 Alpine 上 `ls -l` 那個路徑，確認不存在。避開：用 `-static` 靜態連結，沒有 interpreter、也不依賴外部的 libc。
+   > **參考答案**【[第五節](../html/c/ELF的interpreter是什麼-動態載入器與井字號驚嘆號.html#五直譯器不存在時明明有檔案卻說找不到)】（2026-10-21 改寫成核心關鍵格式）
+   >
+   > 核心關鍵：
+   > 1. 原因：程式要求的 interpreter `/lib64/ld-linux-x86-64.so.2` 在 Alpine 上**不存在**，核心回報「檔案不存在」，shell 說成你的程式 `not found`。
+   > 2. 確認：① `readelf -l 程式 | grep interpreter` 看它要求哪個 interpreter；② 在 Alpine 上 `ls -l` 那個路徑，確認不存在。
+   > 3. 避開：用 `-static` 靜態連結，沒有 interpreter。
+   >
+   > 詳細說明：Ubuntu 用 glibc，Alpine 用 musl（載入器是 `ld-musl-*`），所以 glibc 的載入器路徑在 Alpine 上沒有。核心的錯誤碼是 `ENOENT`，跟「程式檔不存在」是同一個，所以訊息會誤導人。第一步也可以用 `file 程式`。靜態連結也不依賴外部的 libc。
 6. 情境題：一支腳本權限是 `---x--x--x`（只有執行權限），第一行是 `#!/bin/sh`，執行時出現 `/bin/sh: ./x.sh: Permission denied`。
    這個錯誤是誰印的？為什麼核心讀得到 `#!` 那一行，直譯器卻讀不到腳本？同樣只有執行權限的 ELF 執行檔為什麼就能跑？
    > **參考答案**【[第四節](../html/c/ELF的interpreter是什麼-動態載入器與井字號驚嘆號.html#四跟腳本的--是同一個機制)〈交給直譯器的是「路徑」，不是內容：三個實驗〉的實驗三】（2026-10-16 改寫成核心關鍵格式）
