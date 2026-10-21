@@ -44,7 +44,7 @@
 
 ## 批改結果（2026-10-21）
 
-第 1、2 題已批改（2026-10-21）；第 3 題以後還沒作答。
+第 1～3 題已批改（2026-10-21）；第 4 題以後還沒作答。
 
 | 題目 | 結果 | 錯在哪／缺什麼 |
 |---|---|---|
@@ -56,6 +56,9 @@
 | 2-2 | 對 | 預測與確認都對：`logger.o` 的 `Ndx` 3 ＝ `.data`、`hw2_main.o` 是 `UND`；抓到跟 `hits` 不同區段是因為初值 2 vs 0。`worker.o` 沒有 `log_level` 這一列（沒用到就不產生符號）是新觀念，已補教 |
 | 2-3 | 不完整 | 新觀念，「會成功」猜錯不計分；扣在實驗沒做成：照題目做，連結會報 `multiple definition`（`-fcommon` 只合併沒初值的定義），貼上的執行結果是舊的 `dowork`，不是這次編出來的 |
 | 2-4 | 對 | 新觀念先猜，猜中「編譯時就錯」，訊息也貼了，理由（`extern` 與 `static` 互相矛盾）對。補教：沒引入標頭檔時會拖到連結才 `undefined reference` |
+| 3-1 | 對 | 兩個 `static` 變數與初值都對，輸出 5／15／12、1／2／3 實測吻合 |
+| 3-2 | 對 | 抓到：`LOCAL`、`total` 在 `.bss`、`count` 在 `.data`，因為初值 0 vs 100。小地方：名字預測漏了 gcc 加的編號（`total.1`、`count.0`） |
+| 3-3 | 大致對 | `0x0(%rip)` 是固定位址＋連結時填、拿掉 `static` 改放堆疊、結果 5／10／−3 都對；預測的 `mov 0x0, -0x10(%rbp)` 寫錯：常數要 `$0x0`（不加 `$` 是位址 0），且 `mov` 不能兩邊都是記憶體，應為 `movq $0x0,-0x8(%rbp)` |
 
 ---
 
@@ -563,21 +566,167 @@ logger.h:4:12: note: previous declaration of ‘log_level’ with type ‘int’
 
 ### 3-1. 貼上 `total.c` 與執行結果。【筆記[第五節](../../html/c/多檔案的C程式-標頭檔、static與extern、連結錯誤與make.html#五static兩種完全不同的意思)〈函式裡的 `static`〉】
 
-**第 1 次（YYYY-MM-DD）**
+**第 1 次（2026-10-21）**
+````
 ```
+#include <stdio.h>
+long running_total(long x)
+{
+    static long total = 0;
+    total += x;
+    return total;
+}
+
+int calls(void)
+{
+    static int count = 100;
+    count++;
+    return count - 100;
+}
+
+int main(void)
+{
+    printf("running_total(5): %ld\n", running_total(5));
+    printf("running_total(10): %ld\n", running_total(10));
+    printf("running_total(-3): %ld\n", running_total(-3));
+
+    printf("calls(): %d\n", calls());
+    printf("calls(): %d\n", calls());
+    printf("calls(): %d\n", calls());
+    return 0;
+}
 ```
+
+~/w/Proj/g/good-note/s/s1-06-multi-file/hw/hw3 | on main >3 !1  ./total                                                                                                          ok | base py | at 21:55:29
+running_total(5): 5
+running_total(10): 15
+running_total(-3): 12
+calls(): 1
+calls(): 2
+calls(): 3
+````
+
+
+> **批改（2026-10-21）**：**對**。兩個函式都用函式裡的 `static`、初值照題目（`0` 與 `100`），`calls` 回傳 `count - 100`；我在本機用你的 `total.c` 重編（`gcc -Wall -O0 -c total.c && gcc total.o -o total`），沒有警告，輸出跟你貼的一模一樣：5、15、12 與 1、2、3。
+> 小建議：`total.c` 最後一行沒有換行（`git diff` 顯示 `\ No newline at end of file`），C 標準要求原始檔以換行結尾，gcc 不會抱怨，但 `git` 和一些工具會標出來，存檔時補一個換行就好。
+>
+> **參考答案**【[第五節](../../html/c/多檔案的C程式-標頭檔、static與extern、連結錯誤與make.html#函式裡的-static不放堆疊值留到下一次)〈函式裡的 `static`〉】
+>
+> 核心關鍵：
+> 1. 兩個變數都寫成函式裡的 `static`（`static long total = 0;`、`static int count = 100;`），初始化只發生一次，值留到下一次呼叫。
+> 2. 輸出是 `5`、`15`、`12`（累加）與 `1`、`2`、`3`。
+>
+> 詳細說明：`running_total` 第三次是 15 + (−3) = 12；`calls` 的 `count` 依序變成 101、102、103，減 100 得 1、2、3。`static int count = 100;` 這一行**不是每次呼叫都執行的指令**，它是「程式載入時這塊記憶體已經是 100」，所以不會每次被設回 100（3-3 的組合語言會看到函式裡完全沒有設初值的指令）。
 
 ### 3-2. 先預測：兩個 `static` 變數在 `total.o` 的符號表裡叫什麼名字、`Bind` 是什麼、各在哪個區段？用 `readelf -s`、`readelf -S` 確認，貼上相關的列。兩個變數為什麼在不同的區段？【筆記第五節〈函式裡的 `static`〉】
 
-**第 1 次（YYYY-MM-DD）**
+**第 1 次（2026-10-21）**
 ```
+total 與 count
+bind都是 local
+total在.bss
+count 在.data
+
+3: 0000000000000000     0 SECTION LOCAL  DEFAULT    3 .data
+4: 0000000000000000     0 SECTION LOCAL  DEFAULT    4 .bss
+5: 0000000000000000     8 OBJECT  LOCAL  DEFAULT    4 total.1
+6: 0000000000000000     4 OBJECT  LOCAL  DEFAULT    3 count.0
+
+因爲.bss是初始值爲0的全域變數或static
+.data是初始值不爲0的全域變數或static
 ```
+
+
+> **批改（2026-10-21）**：**對**。`LOCAL`、`total` 在 `.bss`、`count` 在 `.data`、原因（初值 0 vs 不是 0）都對；用 `SECTION` 那兩列（`3 .data`、`4 .bss`）對出 `Ndx` 的編號也是有效的證據。
+> 小地方：名字的預測寫成 `total`、`count`，實際是 gcc 加了編號的 `total.1`、`count.0`——筆記第五節的 `n.0` 講過，編號是為了避免跟別的函式裡同名的 `static` 變數撞名。你貼的結果已經看到了，下次預測時記得這一點。
+>
+> **參考答案**【[第五節](../../html/c/多檔案的C程式-標頭檔、static與extern、連結錯誤與make.html#函式裡的-static不放堆疊值留到下一次)〈函式裡的 `static`〉】
+>
+> 核心關鍵：
+> 1. 名字是 gcc 加上編號的 `total.1`、`count.0`，`Bind` 都是 `LOCAL`（名字只在這個檔案內，連結器不拿它跟別的檔案配對）。
+> 2. `total.1` 在 `.bss`（`Ndx` 4）、`count.0` 在 `.data`（`Ndx` 3）。
+> 3. 原因：初值是 0 的放 `.bss`，檔案裡不存內容只記大小（`NOBITS`），載入時配一塊全 0 的記憶體；初值不是 0（100）的放 `.data`，值要存在檔案裡。
+>
+> 詳細說明：本機 `readelf -s total.o` 與 `readelf -S -W total.o` 的相關列：
+> ```text
+>      5: 0000000000000000     8 OBJECT  LOCAL  DEFAULT    4 total.1
+>      6: 0000000000000000     4 OBJECT  LOCAL  DEFAULT    3 count.0
+>   [ 3] .data             PROGBITS        0000000000000000 000154 000004 00  WA  0   0  4
+>   [ 4] .bss              NOBITS          0000000000000000 000158 000008 00  WA  0   0  8
+> ```
+> - `Size` 8 與 4 分別是 `long` 與 `int`；`.data` 的 `Size` 是 4（只有 `count.0` 的 4 byte 內容 `100`），`.bss` 的 `Size` 8 但型別是 `NOBITS`——檔案裡不佔空間。
+> - `.data` 與 `.bss` 的 `Flg` 都是 `WA`（可寫、載入時配記憶體），所以兩個變數都可以在執行時被改。
+> - 編號 `.0`、`.1` 只保證不撞名，**不是照宣告順序**（這裡後宣告的 `count` 反而是 `.0`），不要拿編號推斷任何事。
 
 ### 3-3. 用 `objdump -d --no-show-raw-insn total.o` 看 `running_total`，貼上它的本體。`static` 變數用什麼寫法存取？如果把 `static` 拿掉，你預期這幾行會變成什麼寫法、執行結果變成什麼？（只要預測，不必真的改。）【筆記第五節〈函式裡的 `static`〉的組合語言對照；[第 5 課筆記第四節](../../html/c/x86-64組合語言入門二-call與ret、堆疊框、參數與呼叫慣例.html#四堆疊框pushq-rbp-movq-rsp-rbp-與-leave)】
 
-**第 1 次（YYYY-MM-DD）**
+**第 1 次（2026-10-21）**
 ```
+0000000000000000 <running_total>:
+   0:   endbr64
+   4:   push   %rbp
+   5:   mov    %rsp,%rbp
+   8:   mov    %rdi,-0x8(%rbp)
+   c:   mov    0x0(%rip),%rdx        # 13 <running_total+0x13>
+  13:   mov    -0x8(%rbp),%rax
+  17:   add    %rdx,%rax
+  1a:   mov    %rax,0x0(%rip)        # 21 <running_total+0x21>
+  21:   mov    0x0(%rip),%rax        # 28 <running_total+0x28>
+  28:   pop    %rbp
+  29:   ret
+
+mov    0x0(%rip),%rdx , 這裏的0x0是因爲還沒分配好記憶體位址,但簡而言之,ld把符號的位址填好後,這裏就可以計算出來距離rip,下一個指令的位址距離多少了
+
+變成普通的區域變數,應該會在stack分配記憶體給他
+
+可能會變成
+mov    %rdi,-0x8(%rbp) 這裏放x
+mov    0x0, -0x10(%rbp) 這格放total
+mov    -0x8(%rbp),%rax
+mov    -0x10(%rbp), %rdx
+add    %rdx,%rax
+pop    %rbp
+ret
+
+running_total(5): 5
+running_total(10): 10
+running_total(-3): -3
 ```
+
+
+> **批改（2026-10-21）**：**大致對**。抓到的重點都對：`static` 變數用 `0x0(%rip)` 存取（相對於 `%rip` 的固定位址），`0x0` 是等連結器填的洞；拿掉 `static` 會放到堆疊用 `-N(%rbp)`；執行結果 5、10、−3 也對。
+> 錯在預測的組合語言：`mov    0x0, -0x10(%rbp)` 有兩個錯——(1) 常數要加 `$`，寫成 `$0x0`；不加 `$` 的 `0x0` 在 AT&T 語法裡是「**位址 0 那塊記憶體**」，不是數字 0（[第 4 課第三節](../../html/c/x86-64組合語言入門-暫存器、mov與lea、cmp與條件跳躍.html#三指令的文法助憶符大小後綴運算元)的運算元表〈立即數 `$` 開頭〉）；(2) 這樣寫變成記憶體搬到記憶體，`mov` 不允許兩個運算元都是記憶體（[第 4 課第四節](../../html/c/x86-64組合語言入門-暫存器、mov與lea、cmp與條件跳躍.html#四mov-與-lea搬資料-vs-算位址)〈`mov`：把來源複製到目的〉），組譯器會直接拒絕。另外大小要明確：目的是記憶體、來源是立即數時，要寫 `movq` 才知道是 8 byte。正確寫法是 `movq   $0x0,-0x8(%rbp)`。
+> 偏移量（`-0x10` vs 實際 `-0x8`、`x` 在 `-0x18`）由編譯器決定，預測不到不扣分。
+>
+> **參考答案**【[第五節](../../html/c/多檔案的C程式-標頭檔、static與extern、連結錯誤與make.html#函式裡的-static不放堆疊值留到下一次)〈函式裡的 `static`〉的 `next_id`／`plain_id` 對照；[第 4 課第三節](../../html/c/x86-64組合語言入門-暫存器、mov與lea、cmp與條件跳躍.html#三指令的文法助憶符大小後綴運算元)、[第 5 課第四節](../../html/c/x86-64組合語言入門二-call與ret、堆疊框、參數與呼叫慣例.html#四堆疊框pushq-rbp-movq-rsp-rbp-與-leave)】
+>
+> 核心關鍵：
+> 1. `static` 變數用 `0x0(%rip)` 存取：指向一塊固定的記憶體（`.bss`），不在堆疊上；`0x0` 是連結時才填的洞；函式裡沒有設初值的指令。
+> 2. 拿掉 `static`：變數放在堆疊框，用 `-N(%rbp)` 存取，而且每次呼叫開頭都有一個 `movq $0x0,-N(%rbp)` 把它設回 0。
+> 3. 所以執行結果變成 `5`、`10`、`-3`——每次都是 0 + x。
+>
+> 詳細說明：用 `objdump -dr` 加 `-r` 看得到洞上標的是誰（`#` 後面是說明）：
+> ```text
+>    c:   mov    0x0(%rip),%rdx        # 讀 total：rdx = total
+>             f: R_X86_64_PC32  .bss-0x4
+>   13:   mov    -0x8(%rbp),%rax       # rax = x（x 從 %rdi 存到堆疊的那格）
+>   17:   add    %rdx,%rax             # rax = x + total
+>   1a:   mov    %rax,0x0(%rip)        # 寫回 total
+>             1d: R_X86_64_PC32  .bss-0x4
+>   21:   mov    0x0(%rip),%rax        # 再讀一次 total 當回傳值（-O0 不省）
+>             24: R_X86_64_PC32  .bss-0x4
+> ```
+> 洞上標的是 `.bss`（區段符號）而不是 `total.1`：`LOCAL` 的符號不會被別的檔案用到，組譯器直接寫成「`.bss` 開頭加偏移」，跟筆記第一節 `"%d\n"` 字串用 `.rodata-0x4` 是同一個做法（這是新觀念，不在扣分範圍）。`-0x4` 是因為 `%rip` 指的是**下一個指令**的位址，洞本身離下一個指令還有 4 byte。
+>
+> 我實際把 `static` 拿掉重編（`sed 's/static long total/long total/' total.c > nost.c`，`gcc -O0 -c nost.c`，`objdump -d --no-show-raw-insn nost.o`），`running_total` 變成：
+> ```text
+>    8:   mov    %rdi,-0x18(%rbp)      # x 存到堆疊
+>    c:   movq   $0x0,-0x8(%rbp)       # total = 0：每次呼叫都重設
+>   14:   mov    -0x18(%rbp),%rax      # rax = x
+>   18:   add    %rax,-0x8(%rbp)       # total += x（記憶體當目的、暫存器當來源，合法）
+>   1c:   mov    -0x8(%rbp),%rax       # 回傳 total
+> ```
+> 執行結果 `5`、`10`、`-3`（`calls` 沒動，仍是 1、2、3）。注意 `add %rax,-0x8(%rbp)` 只有一邊是記憶體，所以可以；你寫的 `mov 0x0, -0x10(%rbp)` 兩邊都是記憶體，不行。
 
 ---
 
