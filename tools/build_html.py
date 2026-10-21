@@ -174,6 +174,12 @@ def practice_box(src_rel, line, content, insert=False):
             '<span class="status"></span></div></div>\n</details>\n')
 
 
+# 作答框也包成可收合的區塊（2026-10-21 使用者指定）：還沒批改的預設打開，已批改、舊格式的預設收起
+def answer_fold(box, summary, open_=False):
+    return (f'<details class="answer-fold"{" open" if open_ else ""}><summary>{summary}</summary>\n'
+            f'{box}</details>\n')
+
+
 def practice_slot(tokens, lines, quote_line):
     """quote_line 是批改引言區塊的第一行。回傳 (插入位置的 token 索引, 插入的行號, 狀態)；
     狀態是 "ok"，或後面已經有自我練習框的 "exists"、接著是重答框（舊格式）的 "retry"。"""
@@ -242,14 +248,17 @@ def mark_answer_boxes(tokens, src_rel, lines):
         # 已批改或舊格式的作答框：外觀一樣是輸入框，但唯讀、沒有儲存鈕
         if graded or old:
             note = "已批改，不能再修改" if graded else "2026-10-08 以前的舊格式作答，唯讀"
-            t.content = (f'<div class="answer-box locked"><textarea readonly spellcheck="false">'
-                         f'{html.escape(t.content)}</textarea>'
-                         f'<div class="answer-bar"><span class="status">🔒 {note}</span></div></div>\n')
+            t.content = answer_fold(
+                f'<div class="answer-box locked"><textarea readonly spellcheck="false">'
+                f'{html.escape(t.content)}</textarea>'
+                f'<div class="answer-bar"><span class="status">🔒 {note}</span></div></div>\n',
+                "作答（🔒 已批改）" if graded else "作答（舊格式，唯讀）")
             continue
-        t.content = (f'<div class="answer-box" data-file="{html.escape(src_rel.as_posix())}" data-line="{start}">'
-                     f'<textarea spellcheck="false" placeholder="在這裡作答">{html.escape(t.content)}</textarea>'
-                     '<div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button>'
-                     '<span class="status"></span></div></div>\n')
+        t.content = answer_fold(
+            f'<div class="answer-box" data-file="{html.escape(src_rel.as_posix())}" data-line="{start}">'
+            f'<textarea spellcheck="false" placeholder="在這裡作答">{html.escape(t.content)}</textarea>'
+            '<div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button>'
+            '<span class="status"></span></div></div>\n', "作答", open_=True)
         n += 1
     # 一題（到下一個 ###／#### 標題為止）只要有批改，就至少要有一個練習框：
     # 舊格式的作答串最後常是沒作答的重答／複習框，那題就放在最後一次批改後面
@@ -401,6 +410,8 @@ details.answer details.answer{margin:.8em 0 .4em}
 details.self-practice{border-color:var(--link);background:var(--q)}details.self-practice>summary{color:var(--link)}
 details.self-practice[open]>summary{border-bottom-color:var(--link)}details.self-practice .answer-box{margin:.2em 0 .8em}details.self-practice textarea{min-height:10em}
 .answer-box.locked{border-color:var(--line);background:var(--code-bg)}
+details.answer-fold{margin:.6em 0 1em}details.answer-fold>summary{cursor:pointer;color:var(--link);font-weight:600;padding:4px 0;user-select:none}
+details.answer-fold>.answer-box{margin-top:.2em}
 .answer-box.locked textarea{resize:none;cursor:default;color:var(--fg);opacity:.9}
 .answer-box textarea{width:100%;min-height:5.5em;resize:vertical;border:1px solid var(--line);border-radius:4px;
 padding:8px 10px;background:var(--bg);color:var(--fg);font:14px/1.55 "JetBrains Mono","Fira Code",ui-monospace,
@@ -450,6 +461,7 @@ window.toggleTheme=function(){var dark=root.getAttribute('data-theme')==='dark'|
 (!root.getAttribute('data-theme')&&matchMedia('(prefers-color-scheme: dark)').matches);
 var n=dark?'light':'dark';root.setAttribute('data-theme',n);try{localStorage.setItem('theme',n);}catch(e){}};
 window.toggleAnswers=function(open){document.querySelectorAll('details.answer').forEach(function(d){d.open=open;});};
+window.toggleBoxes=function(open){document.querySelectorAll('details.answer-fold').forEach(function(d){d.open=open;});};
 window.toggleMenu=function(){document.querySelector('nav.side').classList.toggle('open');};
 // 作答框：按「儲存」透過 tools/serve.py 寫回 .md 原稿
 function fit(ta){ta.style.height='auto';ta.style.height=(ta.scrollHeight+2)+'px';}
@@ -494,8 +506,8 @@ function addCopyButtons(){
 }
 document.addEventListener('DOMContentLoaded',function(){
   addCopyButtons();
-  // 收起時 textarea 量不到高度，打開自我練習框時再算一次
-  document.querySelectorAll('details.self-practice').forEach(function(d){d.addEventListener('toggle',function(){
+  // 收起時 textarea 量不到高度，打開自我練習框、作答框時再算一次
+  document.querySelectorAll('details.self-practice,details.answer-fold').forEach(function(d){d.addEventListener('toggle',function(){
     if(d.open)d.querySelectorAll('textarea').forEach(fit);});});
   document.querySelectorAll('main h1[id],main h2[id],main h3[id],main h4[id]').forEach(function(h){
     var a=document.createElement('a');a.className='anchor';a.href='#'+h.id;a.textContent='#';h.appendChild(a);});
@@ -547,7 +559,7 @@ def page(title, side, body, depth):
 """
 
 
-def side_nav(src_rel, toc, has_answers):
+def side_nav(src_rel, toc, has_answers, has_boxes=False):
     """側欄：麵包屑、工具按鈕、本頁目錄。"""
     depth = len(src_rel.parts) - 1
     home = "../" * depth + "index.html"
@@ -565,6 +577,9 @@ def side_nav(src_rel, toc, has_answers):
     if has_answers:
         tools += ('<button onclick="toggleAnswers(true)">展開答案</button>'
                   '<button onclick="toggleAnswers(false)">收起答案</button>')
+    if has_boxes:
+        tools += ('<button onclick="toggleBoxes(true)">展開作答框</button>'
+                  '<button onclick="toggleBoxes(false)">收起作答框</button>')
     items = "\n".join(
         f'<li class="l{lv}"><a href="#{quote(hid)}">{html.escape(text)}</a></li>' for lv, text, hid in toc)
     return f'<div class="crumbs">{crumbs}</div>\n<div class="tools">{tools}</div>\n<ul>\n{items}\n</ul>'
@@ -675,7 +690,7 @@ def main():
         has_answers = 'class="answer"' in body
         out = OUT / rel.with_suffix(".html")
         out.parent.mkdir(parents=True, exist_ok=True)
-        out.write_text(page(title, side_nav(rel, toc, has_answers), body, len(rel.parts) - 1), encoding="utf-8")
+        out.write_text(page(title, side_nav(rel, toc, has_answers, 'class="answer-fold"' in body), body, len(rel.parts) - 1), encoding="utf-8")
 
     missing = sorted({f.parts[0] for f in files} - set(domains) - set(PRACTICE_DIRS))
     if missing:

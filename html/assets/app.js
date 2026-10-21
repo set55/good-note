@@ -6,6 +6,7 @@ window.toggleTheme=function(){var dark=root.getAttribute('data-theme')==='dark'|
 (!root.getAttribute('data-theme')&&matchMedia('(prefers-color-scheme: dark)').matches);
 var n=dark?'light':'dark';root.setAttribute('data-theme',n);try{localStorage.setItem('theme',n);}catch(e){}};
 window.toggleAnswers=function(open){document.querySelectorAll('details.answer').forEach(function(d){d.open=open;});};
+window.toggleBoxes=function(open){document.querySelectorAll('details.answer-fold').forEach(function(d){d.open=open;});};
 window.toggleMenu=function(){document.querySelector('nav.side').classList.toggle('open');};
 // 作答框：按「儲存」透過 tools/serve.py 寫回 .md 原稿
 function fit(ta){ta.style.height='auto';ta.style.height=(ta.scrollHeight+2)+'px';}
@@ -50,8 +51,8 @@ function addCopyButtons(){
 }
 document.addEventListener('DOMContentLoaded',function(){
   addCopyButtons();
-  // 收起時 textarea 量不到高度，打開自我練習框時再算一次
-  document.querySelectorAll('details.self-practice').forEach(function(d){d.addEventListener('toggle',function(){
+  // 收起時 textarea 量不到高度，打開自我練習框、作答框時再算一次
+  document.querySelectorAll('details.self-practice,details.answer-fold').forEach(function(d){d.addEventListener('toggle',function(){
     if(d.open)d.querySelectorAll('textarea').forEach(fit);});});
   document.querySelectorAll('main h1[id],main h2[id],main h3[id],main h4[id]').forEach(function(h){
     var a=document.createElement('a');a.className='anchor';a.href='#'+h.id;a.textContent='#';h.appendChild(a);});

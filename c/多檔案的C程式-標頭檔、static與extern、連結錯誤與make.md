@@ -957,6 +957,126 @@ $ gcc -Q --help=common | grep -- "-fcommon"
 | 恰好一個 `.c` | `long hits = 0;`（定義，這個 `.c` 也引入同一個標頭檔，讓編譯器檢查型別一致） |
 | 只有自己檔案用 | `static long hits = 0;`（第五節，`LOCAL`，不寫進標頭檔） |
 
+### 補充：`extern` 的三個邊界情況（2026-10-21 作業第 2 題批改時補教）
+
+作業第 2 題碰到三件上面沒講的事，用 `examples/extern-rules/` 重做一次。`hits.h`、`hits.c`、`hits_main.c` 跟上面 `examples/extern/` 的一模一樣（檔案：[`hits.h`](../small-project/s1-06-multi-file/examples/extern-rules/hits.h)、[`hits.c`](../small-project/s1-06-multi-file/examples/extern-rules/hits.c)、[`hits_main.c`](../small-project/s1-06-multi-file/examples/extern-rules/hits_main.c)），原始碼見上面。
+
+**1. 只有宣告、沒用到的變數，不會出現在符號表**
+
+`unused.c`（檔案：[`unused.c`](../small-project/s1-06-multi-file/examples/extern-rules/unused.c)）引入了 `hits.h`，但完全沒用到 `hits`：
+
+```c
+#include "hits.h"       /* 看得到 extern long hits; 的宣告，但完全沒用到 hits */
+
+int main(void)
+{
+    return 0;
+}
+```
+
+```
+$ gcc -Wall -c unused.c && readelf -s unused.o
+
+Symbol table '.symtab' contains 4 entries:
+   Num:    Value          Size Type    Bind   Vis      Ndx Name
+     0: 0000000000000000     0 NOTYPE  LOCAL  DEFAULT  UND 
+     1: 0000000000000000     0 FILE    LOCAL  DEFAULT  ABS unused.c
+     2: 0000000000000000     0 SECTION LOCAL  DEFAULT    1 .text
+     3: 0000000000000000    15 FUNC    GLOBAL DEFAULT    1 main
+```
+
+沒有 `hits`，連 `UND` 都沒有。`UND` 是「機器碼裡有個洞要填這個名字」，沒有任何指令用到 `hits`，就沒有洞、也不需要跟連結器要它。**宣告只是告訴編譯器型別，本身不產生符號**；函式的宣告也一樣（`hits.h` 裡的 `hit` 在 `unused.o` 裡也沒有）。
+
+**2. `-fcommon` 只合併「沒有初值」的定義**
+
+`init_main.c`（檔案：[`init_main.c`](../small-project/s1-06-multi-file/examples/extern-rules/init_main.c)）自己又寫了一份有初值的定義：
+
+```c
+#include <stdio.h>
+#include "hits.h"
+
+long hits = 5;          /* 第二份「有初值」的定義：hits.c 已經有 long hits = 0; */
+
+int main(void)
+{
+    hit();
+    printf("hits = %ld\n", hits);
+    return 0;
+}
+```
+
+```
+$ gcc -Wall -fcommon -c hits.c init_main.c
+$ readelf -s hits.o init_main.o | grep -E "File| hits$"
+File: hits.o
+     3: 0000000000000000     8 OBJECT  GLOBAL DEFAULT    4 hits
+File: init_main.o
+     4: 0000000000000000     8 OBJECT  GLOBAL DEFAULT    3 hits
+$ gcc -o x init_main.o hits.o
+/usr/bin/ld: hits.o:(.bss+0x0): multiple definition of `hits'; init_main.o:(.data+0x0): first defined here
+collect2: error: ld returned 1 exit status
+```
+
+加了 `-fcommon`，兩個 `hits` 的 `Ndx` 還是 `4`（`.bss`）、`3`（`.data`），不是 `COM`。上面〈`-fcommon`〉那段的 `COM` 只發生在 `long hits;` 這種**沒寫初值**的暫定定義上；只要寫了初值（就算是 `= 0`），就是一份確定的定義，`-fcommon` 不管它，兩份照樣 `multiple definition`。要合併也合理不了：兩份初值不一樣（5 和 0）時，連結器不知道該用哪個。
+
+**3. 標頭檔說 `extern`、`.c` 又寫 `static`：編譯時就錯**
+
+`static_h.c`（檔案：[`static_h.c`](../small-project/s1-06-multi-file/examples/extern-rules/static_h.c)）：
+
+```c
+#include "hits.h"       /* 標頭檔說 extern long hits;（別的檔案看得到的 hits） */
+
+static long hits = 0;   /* 又說 hits 只在本檔案有效 */
+
+void hit(void)
+{
+    hits = hits + 1;
+}
+```
+
+```
+$ gcc -Wall -c static_h.c
+static_h.c:3:13: error: static declaration of ‘hits’ follows non-static declaration
+    3 | static long hits = 0;   /* 又說 hits 只在本檔案有效 */
+      |             ^~~~
+In file included from static_h.c:1:
+hits.h:4:13: note: previous declaration of ‘hits’ with type ‘long int’
+    4 | extern long hits;       /* 宣告：hits 這個變數存在，定義在別的檔案 */
+      |             ^~~~
+```
+
+同一個編譯單元裡，`hits` 先被宣告成「別的檔案看得到的」，又被定義成「只在本檔案有效」，兩個說法矛盾，編譯器直接拒絕——跟第三節 `conflicting types` 是同一個道理：**定義的 `.c` 引入自己的標頭檔，矛盾在編譯時就抓到**。
+
+如果不引入標頭檔，矛盾就拖到連結時才出現。`static_noh.c`（檔案：[`static_noh.c`](../small-project/s1-06-multi-file/examples/extern-rules/static_noh.c)）：
+
+```c
+void hit(void);         /* 不引入 hits.h，自己寫 hit 的宣告 */
+
+static long hits = 0;   /* 只在本檔案有效 → LOCAL */
+
+void hit(void)
+{
+    hits = hits + 1;
+}
+```
+
+```
+$ gcc -Wall -c static_noh.c hits_main.c
+$ readelf -s static_noh.o hits_main.o | grep -E "File| hits$"
+File: static_noh.o
+     4: 0000000000000000     8 OBJECT  LOCAL  DEFAULT    4 hits
+File: hits_main.o
+     6: 0000000000000000     0 NOTYPE  GLOBAL DEFAULT  UND hits
+$ gcc -o y hits_main.o static_noh.o
+/usr/bin/ld: hits_main.o: warning: relocation against `hits' in read-only section `.text'
+/usr/bin/ld: hits_main.o: in function `main':
+hits_main.c:(.text+0x1a): undefined reference to `hits'
+/usr/bin/ld: warning: creating DT_TEXTREL in a PIE
+collect2: error: ld returned 1 exit status
+```
+
+`static_noh.o` 的 `hits` 是 `LOCAL`，不能拿來配對，`hits_main.o` 的 `UND hits` 找不到 `GLOBAL` 的定義，所以是 `undefined reference`——跟第五節 `callhelper.c` 呼叫不到 `static helper` 是同一件事，只是這次換成變數。（中間兩行 `warning: relocation ... DT_TEXTREL in a PIE` 是連結失敗時順帶出現的，跟位置無關程式碼（PIE）有關，第 7 課講共享函式庫時再說，這裡只看 `undefined reference` 那一行。）
+
 ---
 
 ## 七、`make`：只重編改過的檔案

@@ -421,6 +421,13 @@ gdb -batch -ex 'break *widen_char+4' -ex run -ex 'p/x $rdi' \
 
 > 假設 `widen_char` 改成讀 4 byte 的 `movl %edi, %eax`，在上面的 `gdb` 實驗裡把 `%rdi` 改成 `0x11223344556677ff`。
 
+**自我練習**（不批改）
+
+```
+參數是char 1byte,所以只讀1byte
+剩餘7byte不保證是對的,因此不讀
+```
+
 #### 組語 7-2. 之後 `%eax` 的十六進位是多少？
 
 ```
@@ -474,6 +481,12 @@ gdb -batch -ex 'break *widen_char+4' -ex run -ex 'p/x $rdi' \
 > 1. C 的 `c` 只在最低 1 byte（`0xff`，符號擴展後是 −1）；讀 4 byte 會把高 3 byte 的垃圾 `0x556677` 一起讀進來，得到正的 1432778751，不是 −1。
 >
 > 詳細說明：所以參數有多大，指令就讀多大的名字：`signed char` 讀 `%dil`、`short` 讀 `%di`、`int` 讀 `%edi`、`long` 和指標讀 `%rdi`。
+
+**自我練習**（不批改）
+
+```
+c只讀最後1byte,改成edi,會把3byte的了色一起讀進來,所以自然不是c期待的-1
+```
 
 ---
 
@@ -545,6 +558,16 @@ linkable是給連接器看的,連接器要負責組合.o,建好記憶體區段,�
 > 3. **區段標頭表**（連結視角，單位是區段 section）給連結器 `ld` 看——每個區段叫什麼、在哪、多大。
 >
 > 詳細說明：`nm`、`objdump` 也讀區段標頭表。`.o` 只有區段標頭表、沒有程式標頭表（`readelf -l hello.o` 說 `There are no program headers in this file`），所以只能給連結器用、不能執行；連結器把區段合併、打包成載入段，寫出程式標頭表，「可連結的」才變成「可執行的」。
+
+**自我練習**（不批改）
+
+```
+executable and linkable format
+
+executable: 是給核心個載入器看的,看program header 載入器的位址,記憶體區段與權限等
+
+linkable: 給連接器看的section header,每個區段在哪,叫什麼,多大
+```
 
 ---
 

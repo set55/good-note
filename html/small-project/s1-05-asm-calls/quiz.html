@@ -12,7 +12,7 @@
 <div class="layout">
 <nav class="side">
 <div class="crumbs"><a href="../../index.html">🏠 首頁</a> / <a href="../README.html">small-project</a> / <a href="README.html">s1-05-asm-calls</a></div>
-<div class="tools"><button onclick="toggleTheme()">🌓 主題</button><button onclick="toggleAnswers(true)">展開答案</button><button onclick="toggleAnswers(false)">收起答案</button></div>
+<div class="tools"><button onclick="toggleTheme()">🌓 主題</button><button onclick="toggleAnswers(true)">展開答案</button><button onclick="toggleAnswers(false)">收起答案</button><button onclick="toggleBoxes(true)">展開作答框</button><button onclick="toggleBoxes(false)">收起作答框</button></div>
 <ul>
 <li class="l2"><a href="#%E7%9B%AE%E9%8C%84">目錄</a></li>
 <li class="l2"><a href="#%E5%B7%B2%E7%AD%94%E7%AC%AC-5-%E8%AA%B2%E8%AE%80%E6%87%82-x86-64-%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E4%BA%8C">已答：第 5 課：讀懂 x86-64 組合語言（二）</a></li>
@@ -154,9 +154,11 @@
 </code></pre>
 <h4 id="1-1-call-做了哪兩件事">1-1. <code>call</code> 做了哪兩件事？</h4>
 <p><strong>第 1 次（2026-10-19）</strong></p>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
 <div class="answer-box locked"><textarea readonly spellcheck="false">1. 把rsp-8byte, 讓rsp指向低8byte的位址,空出8byte, 在新的rsp位址寫上了返回位址也就是0x1199
 2. 跳入到add3函式
 </textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
 <details class="answer"><summary>批改</summary>
 <p><strong>對</strong>。兩件事都答到：<code>%rsp</code> 減 8、在新的頂端寫進返回位址 <code>0x1199</code>（<code>call</code> 的下一條指令），再跳進 <code>add3</code>。</p>
 <details class="answer"><summary>參考答案</summary>
@@ -174,8 +176,10 @@
 </details>
 <h4 id="1-2-ret-做了什麼">1-2. <code>ret</code> 做了什麼？</h4>
 <p><strong>第 1 次（2026-10-19）</strong></p>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
 <div class="answer-box locked"><textarea readonly spellcheck="false">根據rsp的上存的返回位址 跳到那個位址,並且rsp要+回8byte(丟棄返回位址)
 </textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
 <details class="answer"><summary>批改</summary>
 <p><strong>對</strong>。取出頂端的返回位址跳過去、<code>%rsp</code> 加回 8，兩點都對。</p>
 <details class="answer"><summary>參考答案</summary>
@@ -193,8 +197,10 @@
 </details>
 <h4 id="1-3-ret-怎麼知道要回到-0x1199">1-3. <code>ret</code> 怎麼知道要回到 <code>0x1199</code>？</h4>
 <p><strong>第 1 次（2026-10-19）</strong></p>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
 <div class="answer-box locked"><textarea readonly spellcheck="false">因爲rsp已經記錄了返回位址
 </textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
 <details class="answer"><summary>批改</summary>
 <p><strong>大致對</strong>。方向對：返回位址就在堆疊頂端。兩點要修：</p>
 <ul>
@@ -219,8 +225,10 @@
 </details>
 <h4 id="1-4-如果-add3-裡有個陣列越界寫入剛好蓋掉了堆疊上的返回位址ret-會發生什麼事">1-4. 如果 <code>add3</code> 裡有個陣列越界寫入，剛好蓋掉了堆疊上的返回位址，<code>ret</code> 會發生什麼事？</h4>
 <p><strong>第 1 次（2026-10-19）</strong></p>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
 <div class="answer-box locked"><textarea readonly spellcheck="false">讀到的返回位址會錯誤,程式不知道會跳到哪裏,可能會造成panic
 </textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
 <details class="answer"><summary>批改</summary>
 <p><strong>對</strong>。兩點都答到：<code>ret</code> 照樣把被蓋掉的值當成位址，跳到不知道哪裡。用詞小修：panic 是 <strong>kernel</strong> 自己當掉的說法；一般程式跳到亂的位址，通常是收到 SIGSEGV（segfault）被 kernel 終止。</p>
 <details class="answer"><summary>參考答案</summary>
@@ -248,9 +256,11 @@
 </code></pre>
 <h4 id="2-1-函式開頭的-push-rbp-和-mov-rsprbp-各在做什麼">2-1. 函式開頭的 <code>push %rbp</code> 和 <code>mov %rsp,%rbp</code> 各在做什麼？</h4>
 <p><strong>第 1 次（2026-10-19）</strong></p>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
 <div class="answer-box locked"><textarea readonly spellcheck="false">push rbp是把 rbp存的記憶體位址 存到堆疊的頂端
 mov rsp rbp則是讓rbp改指向堆疊的頂端
 </textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
 <details class="answer"><summary>批改</summary>
 <p><strong>大致對</strong>。兩條指令的動作都描述對了，但只講了「做什麼」，沒講「為什麼」：</p>
 <ul>
@@ -276,9 +286,11 @@ mov rsp rbp則是改寫rbp的位址爲堆棧頂端的位址,因爲rsp後面還�
 </details>
 <h4 id="2-2-main-結尾的-leave-等於哪兩條指令">2-2. <code>main</code> 結尾的 <code>leave</code> 等於哪兩條指令？</h4>
 <p><strong>第 1 次（2026-10-19）</strong></p>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
 <div class="answer-box locked"><textarea readonly spellcheck="false">mov rbp rsp 直接把rsp 剪掉的所有byte全部捨棄
 pop rbp
 </textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
 <details class="answer"><summary>批改</summary>
 <p><strong>對</strong>。對。AT&amp;T 語法寫成 <code>mov %rbp,%rsp</code>（來源在前、目的在後）；你寫的「mov rbp rsp」沒有 <code>%</code>，照 AT&amp;T 的順序讀是對的。</p>
 <details class="answer"><summary>參考答案</summary>
@@ -296,9 +308,11 @@ pop rbp
 </details>
 <h4 id="2-3-add3-把區域變數放在-rsp-下面沒有-sub-rspmain-卻要-sub-0x10rsp為什麼">2-3. <code>add3</code> 把區域變數放在 <code>%rsp</code> 下面、沒有 <code>sub %rsp</code>，<code>main</code> 卻要 <code>sub $0x10,%rsp</code>，為什麼？</h4>
 <p><strong>第 1 次（2026-10-19）</strong></p>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
 <div class="answer-box locked"><textarea readonly spellcheck="false">因爲add3沒有call任何函式,所以不需要
 而main 有call函式,任何未知的函式根據ABI的協議應該要 函式的堆棧頂端應該是16的整數倍
 </textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
 <details class="answer"><summary>批改</summary>
 <p><strong>不完整</strong>。「<code>add3</code> 沒有 <code>call</code> 所以不需要」方向對，但沒說出兩個關鍵：</p>
 <ul>
@@ -351,8 +365,10 @@ add3 沒有call,或 push所以不用擔心紅區會被蓋掉
 </code></pre>
 <h4 id="3-1-前-6-個參數放在哪裡">3-1. 前 6 個參數放在哪裡？</h4>
 <p><strong>第 1 次（2026-10-19）</strong></p>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
 <div class="answer-box locked"><textarea readonly spellcheck="false">rdi, rsi, rdx, rcx, r8, r9
 </textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
 <details class="answer"><summary>批改</summary>
 <p><strong>對</strong>。對，順序也對。</p>
 <details class="answer"><summary>參考答案</summary>
@@ -369,8 +385,10 @@ add3 沒有call,或 push所以不用擔心紅區會被蓋掉
 </details>
 <h4 id="3-2-第-78-個放在哪裡call8-用什麼順序放">3-2. 第 7、8 個放在哪裡、<code>call8</code> 用什麼順序放？</h4>
 <p><strong>第 1 次（2026-10-19）</strong></p>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
 <div class="answer-box locked"><textarea readonly spellcheck="false">依序放在堆棧的頂端,順序是倒敘,先放8再放7
 </textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
 <details class="answer"><summary>批改</summary>
 <p><strong>對</strong>。對：放在堆疊上，從最後一個開始推，先 8 再 7。</p>
 <details class="answer"><summary>參考答案</summary>
@@ -388,9 +406,11 @@ add3 沒有call,或 push所以不用擔心紅區會被蓋掉
 </details>
 <h4 id="3-3-在-sum8-裡第-7-個參數為什麼是-0x10rbp而不是-0rbp">3-3. 在 <code>sum8</code> 裡第 7 個參數為什麼是 <code>0x10(%rbp)</code>，而不是 <code>0(%rbp)</code>？</h4>
 <p><strong>第 1 次（2026-10-19）</strong></p>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
 <div class="answer-box locked"><textarea readonly spellcheck="false">因爲rsp進到函式後,sum8會push rbp, mov rsp, rbp 所以這個時候rbp會指向-8byte後的rsp,可以說是sum8 stack的頂端,而在sum8 stack的頂端網上8byte就是返回位址, 在往上8個byte才是第7個參數,所以總共是16byte
 因此要+16byte
 </textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
 <details class="answer"><summary>批改</summary>
 <p><strong>對</strong>。對：<code>0(%rbp)</code> 是 <code>sum8</code> 序言推的舊 <code>%rbp</code>，<code>0x8(%rbp)</code> 是返回位址，再上去才是第 7 個參數。推導完整。</p>
 <details class="answer"><summary>參考答案</summary>
@@ -408,8 +428,10 @@ add3 沒有call,或 push所以不用擔心紅區會被蓋掉
 </details>
 <h4 id="3-4-call8-在-call-之後為什麼要-add-0x10rsp">3-4. <code>call8</code> 在 <code>call</code> 之後為什麼要 <code>add $0x10,%rsp</code>？</h4>
 <p><strong>第 1 次（2026-10-19）</strong></p>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
 <div class="answer-box locked"><textarea readonly spellcheck="false">因爲在push兩次以後rsp已經-16byte,所以sum8結束後,call8 要回復rsp(callee saved),所以要加回去
 </textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
 <details class="answer"><summary>批改</summary>
 <p><strong>大致對</strong>。「<code>push</code> 兩次讓 <code>%rsp</code> 少了 16，要加回去」對。兩點要修：</p>
 <ul>
@@ -453,8 +475,10 @@ add3 沒有call,或 push所以不用擔心紅區會被蓋掉
 </code></pre>
 <h4 id="4-1-為什麼-savedc-的-f-要-push-rbx而不是讓-x-留在-rdi">4-1. 為什麼 <code>saved.c</code> 的 <code>f</code> 要 <code>push %rbx</code>，而不是讓 <code>x</code> 留在 <code>%rdi</code>？</h4>
 <p><strong>第 1 次（2026-10-19）</strong></p>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
 <div class="answer-box locked"><textarea readonly spellcheck="false">因爲rdi是caller-saved, 如果我們不存的話,g是可以修改rdi這個寄存器的,用add rdi, rax不見得可以實現x+y
 </textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
 <details class="answer"><summary>批改</summary>
 <p><strong>不完整</strong>。為什麼<strong>不能</strong>留在 <code>%rdi</code> 答對了：<code>%rdi</code> 是 caller-saved，<code>g</code> 可以改掉它。但題目問的是「為什麼要 <code>push %rbx</code>」，這部分沒答：</p>
 <ul>
@@ -480,8 +504,10 @@ add3 沒有call,或 push所以不用擔心紅區會被蓋掉
 </details>
 <h4 id="4-2-noretc-的-f-不需要保存任何值為什麼還要-sub-0x8rsp">4-2. <code>noret.c</code> 的 <code>f</code> 不需要保存任何值，為什麼還要 <code>sub $0x8,%rsp</code>？</h4>
 <p><strong>第 1 次（2026-10-19）</strong></p>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
 <div class="answer-box locked"><textarea readonly spellcheck="false">因爲ABI告訴我們假如不確定g是否16倍數對其,我們要自己對其,f call的時候 已經-8byte了,所以還要在多減8byte g才能對齊16倍數
 </textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
 <details class="answer"><summary>批改</summary>
 <p><strong>大致對</strong>。算法對了：進 <code>f</code> 時 <code>call</code> 已經推了 8 byte，再 <code>sub</code> 8 才會回到 16 的倍數。作業 2-4、4 卡住的就是這個算法，這次答出來了。<br />
 規則講得不準：ABI 規定的是「<strong>執行 <code>call</code> 的那一刻，<code>%rsp</code> 必須是 16 的倍數</strong>」，這是呼叫者 <code>f</code> 的義務，跟「<code>g</code> 有沒有對齊」無關。</p>
@@ -521,8 +547,10 @@ add3 沒有call,或 push所以不用擔心紅區會被蓋掉
 </code></pre>
 <h4 id="5-1-為什麼-gdb-印錯這時候要看真正的參數該看哪裡">5-1. 為什麼 gdb 印錯？這時候要看真正的參數，該看哪裡？</h4>
 <p><strong>第 1 次（2026-10-19）</strong></p>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
 <div class="answer-box locked"><textarea readonly spellcheck="false">要看rdi, rsi, rdx
 </textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
 <details class="answer"><summary>批改</summary>
 <p><strong>不完整</strong>。後半題對：真正的參數在 <code>%rdi</code>、<code>%rsi</code>、<code>%rdx</code>。前半題「為什麼 gdb 印錯」沒答：</p>
 <ul>
@@ -546,9 +574,11 @@ add3 沒有call,或 push所以不用擔心紅區會被蓋掉
 </details>
 <h4 id="5-2-同一個時間點你想知道是誰呼叫了-add3可是不能用-bt根據本課你會看哪個暫存器指的位址看到的值代表什麼">5-2. 同一個時間點，你想知道「是誰呼叫了 <code>add3</code>」，可是不能用 <code>bt</code>。根據本課，你會看哪個暫存器指的位址？看到的值代表什麼？</h4>
 <p><strong>第 1 次（2026-10-19）</strong></p>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
 <div class="answer-box locked"><textarea readonly spellcheck="false">看rsp,這個時候rsp已經存好返回的位址了
 代表add3 ret時會跳回的記憶體位址
 </textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
 <details class="answer"><summary>批改</summary>
 <p><strong>大致對</strong>。看 <code>%rsp</code>、那是 <code>ret</code> 會跳回的位址，都對。兩點要修：</p>
 <ul>

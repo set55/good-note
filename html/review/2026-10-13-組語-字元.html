@@ -12,7 +12,7 @@
 <div class="layout">
 <nav class="side">
 <div class="crumbs"><a href="../index.html">🏠 首頁</a> / <a href="README.html">review</a></div>
-<div class="tools"><button onclick="toggleTheme()">🌓 主題</button><button onclick="toggleAnswers(true)">展開答案</button><button onclick="toggleAnswers(false)">收起答案</button></div>
+<div class="tools"><button onclick="toggleTheme()">🌓 主題</button><button onclick="toggleAnswers(true)">展開答案</button><button onclick="toggleAnswers(false)">收起答案</button><button onclick="toggleBoxes(true)">展開作答框</button><button onclick="toggleBoxes(false)">收起作答框</button></div>
 <ul>
 <li class="l2"><a href="#%E6%89%B9%E6%94%B9%E7%B5%90%E6%9E%9C2026-10-13">批改結果（2026-10-13）</a></li>
 <li class="l2"><a href="#%E4%BB%8A%E5%A4%A9%E7%9A%84%E9%A1%8C%E7%9B%AE">今天的題目</a></li>
@@ -361,8 +361,10 @@ objdump<span class="w"> </span>-d<span class="w"> </span>--no-show-raw-insn<span
 </code></pre>
 <p>（<code>break *widen_char+4</code>：停在 <code>widen_char</code> 開頭往後 4 byte 那條指令；<code>set $rdi = …</code>：改暫存器；<code>stepi</code>：只執行一條機器指令。）</p>
 <h4 id="組語-7-1-在-64-位元的機器上為什麼它只讀-dil而不讀整個-rdi">組語 7-1. 在 64 位元的機器上，為什麼它只讀 <code>%dil</code>，而不讀整個 <code>%rdi</code>？</h4>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
 <div class="answer-box locked"><textarea readonly spellcheck="false">因爲c的參數類型是signed char, 1byte, 因此讀低8位元dil
 </textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
 <details class="answer"><summary>批改</summary>
 <p><strong>大致對</strong>。抓到「<code>c</code> 是 1 byte 的 <code>signed char</code>，所以讀 <code>%dil</code>」。缺第 2 點：<strong>為什麼不能讀整個 <code>%rdi</code></strong>——高 7 byte 不屬於 <code>c</code>，呼叫的人沒有約定要放什麼，內容不保證（跟 10-08 缺同一點）。</p>
 <details class="answer"><summary>參考答案</summary>
@@ -382,8 +384,10 @@ objdump<span class="w"> </span>-d<span class="w"> </span>--no-show-raw-insn<span
 <div class="answer-box" data-file="review/2026-10-13-組語-字元.md" data-line="130" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h4 id="組語-7-2-之後-eax-的十六進位是多少">組語 7-2. 之後 <code>%eax</code> 的十六進位是多少？</h4>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
 <div class="answer-box locked"><textarea readonly spellcheck="false">0x556677ff
 </textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
 <details class="answer"><summary>批改</summary>
 <p><strong>對</strong>。<code>0x556677ff</code>。</p>
 <details class="answer"><summary>參考答案</summary>
@@ -402,8 +406,10 @@ objdump<span class="w"> </span>-d<span class="w"> </span>--no-show-raw-insn<span
 <blockquote>
 <p>題目：（承 7-2）<code>movl %edi, %eax</code> 之後的 <code>%eax</code> 是正數還是負數？</p>
 </blockquote>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
 <div class="answer-box locked"><textarea readonly spellcheck="false">是正數
 </textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
 <details class="answer"><summary>批改</summary>
 <p><strong>對</strong>。正數。理由沒寫，下次補一句：最高位元是 <code>0x5</code> ＝ <code>0101</code> 的第一個 bit，是 0。</p>
 <details class="answer"><summary>參考答案</summary>
@@ -422,11 +428,13 @@ objdump<span class="w"> </span>-d<span class="w"> </span>--no-show-raw-insn<span
 <blockquote>
 <p>題目：（承 7-2）改成 <code>movl %edi, %eax</code> 之後得到的值，跟 C 期望的 −1 差在哪？</p>
 </blockquote>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
 <div class="answer-box locked"><textarea readonly spellcheck="false">因爲rdi已經改成0x11223344556677ff, 因此eax就是0x556677ff
 movl的話高位補0
 
 c期望的-1是由movsbl	%dil, %eax來的, 0xff, 又是signed,高位補1 所以最後的eax是0xffffffff
 </textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
 <details class="answer"><summary>批改</summary>
 <p><strong>大致對</strong>。兩個值都寫對了：<code>movl</code> 得到 <code>0x556677ff</code>，C 期望的 −1 是 <code>movsbl</code> 把 <code>0xff</code> 符號擴展成 <code>0xffffffff</code>。缺的是把差別講出來：<strong>多讀的高 3 byte <code>0x556677</code> 是垃圾，不是 <code>c</code> 的一部分</strong>，讀進來就變成一個正的大數（1432778751），不是 −1。「<code>movl</code> 的話高位補 0」是在講 <code>%rax</code> 的高 32 位元被清掉，跟這題比的 <code>%eax</code> 無關。
 <strong>組語 7 記為大致對</strong>（盒子 1 → 1）。</p>
@@ -460,8 +468,10 @@ c期望的-1是由movsbl	%dil, %eax來的, 0xff, 又是signed,高位補1 所以�
 <span class="w">	</span><span class="nf">ret</span>
 </code></pre>
 <h4 id="組語-8-1-dilc-的組合語言裡只出現-edidil沒有-rdi為什麼-gdb-能印出-rdi">組語 8-1. <code>dil.c</code> 的組合語言裡只出現 <code>%edi</code>、<code>%dil</code>，沒有 <code>%rdi</code>，為什麼 gdb 能印出 <code>$rdi</code>？</h4>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
 <div class="answer-box locked"><textarea readonly spellcheck="false">edi,di,dil,rdi都是相同的暫存器,只是看的位元不同
 </textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
 <details class="answer"><summary>批改</summary>
 <p><strong>大致對</strong>。第 1 點對：<code>%edi</code>、<code>%di</code>、<code>%dil</code> 都是 <code>%rdi</code> 這一個暫存器的一部分的名字。缺第 2 點：gdb 印得出來，是因為程式停下時 gdb 向核心把<strong>整組暫存器</strong>讀出來，跟程式有沒有用到那個名字無關。</p>
 <details class="answer"><summary>參考答案</summary>
@@ -478,8 +488,10 @@ c期望的-1是由movsbl	%dil, %eax來的, 0xff, 又是signed,高位補1 所以�
 <div class="answer-box" data-file="review/2026-10-13-組語-字元.md" data-line="224" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h4 id="組語-8-2-在-gdb-裡-set-edi--0xaabbccddrdi-的高-4-byte-會不會被清成-0">組語 8-2. 在 gdb 裡 <code>set $edi = 0xaabbccdd</code>，<code>$rdi</code> 的高 4 byte 會不會被清成 0？</h4>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
 <div class="answer-box locked"><textarea readonly spellcheck="false">會
 </textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
 <details class="answer"><summary>批改</summary>
 <p><strong>錯</strong>。<strong>不會</strong>清。gdb 的 <code>set $edi = …</code> 只改 <code>%rdi</code> 的低 4 byte，高 4 byte 保留原值（跟 10-08 錯在同一處）。</p>
 <details class="answer"><summary>參考答案</summary>
@@ -498,8 +510,10 @@ c期望的-1是由movsbl	%dil, %eax來的, 0xff, 又是signed,高位補1 所以�
 <blockquote>
 <p>題目：（承 8-2）gdb 的 <code>set $edi = 0xaabbccdd</code> 跟 CPU 執行 <code>movl $0xaabbccdd, %edi</code> 有什麼不同？</p>
 </blockquote>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
 <div class="answer-box locked"><textarea readonly spellcheck="false">用movl, 根據高32位自動補0的規則,到edi時,會自動補0,gdb的話是直接把設定的值寫進rdi
 </textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
 <details class="answer"><summary>批改</summary>
 <p><strong>不完整</strong>。第 1 點對：CPU 執行 <code>movl</code> 會把高 32 位元清成 0。但 gdb 那半說成「直接把設定的值寫進 <code>rdi</code>」，配上 8-2 的「會」，等於認為 gdb 也清高位——兩邊其實相反：<strong>清高位是 CPU 執行指令的規則，gdb 的 <code>set</code> 不是指令，不套用</strong>，只改低 4 byte（跟 10-08 錯在同一處：把 gdb <code>set</code> 與 CPU <code>movl</code> 說反）。
 <strong>組語 8 記為錯</strong>（盒子 1 → 1）。</p>
@@ -522,8 +536,10 @@ c期望的-1是由movsbl	%dil, %eax來的, 0xff, 又是signed,高位補1 所以�
 <p>盒子 1｜過去的作答：<a href="../small-project/s1-04-asm-basics/quiz.html#9-%E7%AC%A6%E8%99%9F%E6%93%B4%E5%B1%95%E8%A3%9C%E7%9A%84%E6%98%AF%E4%BB%80%E9%BA%BC2026-10-06-%E8%AA%B2%E5%BE%8C%E6%8F%90%E5%95%8F%E6%96%B0%E5%A2%9E">s1-04 quiz.md 第 9 題</a></p>
 </blockquote>
 <h4 id="組語-9-1-movsbl-把-1-byte-擴展成-4-byte-時新補的高-3-byte-是照哪一個位元補的">組語 9-1. <code>movsbl</code> 把 1 byte 擴展成 4 byte 時，新補的高 3 byte 是照哪一個位元補的？</h4>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
 <div class="answer-box locked"><textarea readonly spellcheck="false">來源類型(這裏是1byte那個)的最高位符號位
 </textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
 <details class="answer"><summary>批改</summary>
 <p><strong>對</strong>。照來源的最高位（符號位）補。</p>
 <details class="answer"><summary>參考答案</summary>
@@ -539,12 +555,14 @@ c期望的-1是由movsbl	%dil, %eax來的, 0xff, 又是signed,高位補1 所以�
 <div class="answer-box" data-file="review/2026-10-13-組語-字元.md" data-line="281" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h4 id="組語-9-2-為什麼這樣補signed-char-的-1-變成-int-之後才會還是-1用二補數的權重解釋">組語 9-2. 為什麼這樣補，<code>signed char</code> 的 −1 變成 <code>int</code> 之後才會還是 −1（用二補數的權重解釋）？</h4>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
 <div class="answer-box locked"><textarea readonly spellcheck="false">int的權重是 -2^31
 所以 -2^31 + 2^30 + 2^29 .....+ 2^1 + 1 = -1
 所以要補1
 
 
 </textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
 <details class="answer"><summary>批改</summary>
 <p><strong>對</strong>。抓到二補數最高位權重是負的（−2³¹），並用權重算出 32 個 1 ＝ −2³¹ ＋ (2³¹ − 1) ＝ −1，所以補 1 才保持 −1（10-08 缺的權重這次補上了）。可以再補一句一般化的理由（見詳細說明）：前面每多補一個 1，值都不變。
 <strong>組語 9 記為對</strong>（盒子 1 → 2）。</p>
@@ -592,6 +610,7 @@ objdump<span class="w"> </span>-d<span class="w"> </span>--no-show-raw-insn<span
 <span class="w">	</span><span class="nf">ret</span>
 </code></pre>
 <h4 id="組語-10-1-兩個指令各拿-rdi-裡的數字做什麼">組語 10-1. 兩個指令各拿 <code>%rdi</code> 裡的數字做什麼？</h4>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
 <div class="answer-box locked"><textarea readonly spellcheck="false">copy_val:
 	endbr64
 	mov	%rdi,%rax       # 直接拿rdi存的值,複製到rax
@@ -602,6 +621,7 @@ deref:
 	ret
 
 </textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
 <details class="answer"><summary>批改</summary>
 <p><strong>對</strong>。沒括號複製數字本身；有括號把數字當位址去讀。</p>
 <details class="answer"><summary>參考答案</summary>
@@ -621,9 +641,11 @@ deref:
 <blockquote>
 <p>題目：<code>mov %rdi,%rax</code> 和 <code>mov (%rdi),%rax</code> 各對應 C 的什麼寫法？</p>
 </blockquote>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
 <div class="answer-box locked"><textarea readonly spellcheck="false">long f(long a) {return a;}
 long f(long *a) {return *a;}
 </textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
 <details class="answer"><summary>批改</summary>
 <p><strong>對</strong>。<code>return a;</code> 與 <code>return *a;</code>。</p>
 <details class="answer"><summary>參考答案</summary>
@@ -640,8 +662,10 @@ long f(long *a) {return *a;}
 <div class="answer-box" data-file="review/2026-10-13-組語-字元.md" data-line="387" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h4 id="組語-10-3-如果-rdi-裡是-1234哪一個會-segfault為什麼">組語 10-3. 如果 <code>%rdi</code> 裡是 1234，哪一個會 segfault，為什麼？</h4>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
 <div class="answer-box locked"><textarea readonly spellcheck="false">mov (%rdi),%rax 這個,因爲1234這個位址不再整個記憶體分配空間裏
 </textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
 <details class="answer"><summary>批改</summary>
 <p><strong>對</strong>。有括號的那個；1234 這個位址不在行程分配到的空間裡（10-08 缺的「沒有對映」這次答到了）。
 <strong>組語 10 記為對</strong>（盒子 1 → 2）。</p>
@@ -665,8 +689,10 @@ long f(long *a) {return *a;}
 </blockquote>
 <p>（程式同組語 10 的 <code>paren.c</code>、<code>-O2</code> 編出的 <code>paren</code>。）</p>
 <h4 id="組語-11-1--讓-gdb-怎麼理解後面的東西">組語 11-1. <code>*</code> 讓 gdb 怎麼理解後面的東西？</h4>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
 <div class="answer-box locked"><textarea readonly spellcheck="false">找到這個符號的記憶體位址
 </textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
 <details class="answer"><summary>批改</summary>
 <p><strong>大致對</strong>。方向對：<code>*</code> 讓 gdb 把後面當成位址。但不只是「找到這個符號的位址」——<code>*</code> 後面是<strong>一個算出位址的式子</strong>（<code>deref + 4</code>，可以是符號加減數字，也可以是純數字 <code>0x11f4</code>）。另外沒答到題目的對照：沒有 <code>*</code> 時，gdb 把後面當成函式名或行號，<code>deref+4</code> 整串被當成函式名，所以 <code>not defined</code>。</p>
 <details class="answer"><summary>參考答案</summary>
@@ -683,8 +709,10 @@ long f(long *a) {return *a;}
 <div class="answer-box" data-file="review/2026-10-13-組語-字元.md" data-line="430" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h4 id="組語-11-2-這個--跟-c-的-p-是同一個意思嗎">組語 11-2. 這個 <code>*</code> 跟 C 的 <code>*p</code> 是同一個意思嗎？</h4>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
 <div class="answer-box locked"><textarea readonly spellcheck="false">不一樣 一個是符號的記憶體位址,一個是位址上取值
 </textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
 <details class="answer"><summary>批改</summary>
 <p><strong>對</strong>。不一樣：gdb 的 <code>*</code> 是「後面是位址」，C 的 <code>*p</code> 是去那個位址取值。</p>
 <details class="answer"><summary>參考答案</summary>
@@ -715,8 +743,10 @@ gdb<span class="w"> </span>-batch<span class="w"> </span>-ex<span class="w"> </s
 <span class="w">    </span><span class="err">118</span><span class="nl">e:</span><span class="w">	</span><span class="nf">pop</span><span class="w">    </span><span class="nv">%rbp</span><span class="w">             </span><span class="c1"># 還原呼叫者的 %rbp</span>
 <span class="w">    </span><span class="err">118</span><span class="nl">f:</span><span class="w">	</span><span class="nf">ret</span><span class="w">                     </span><span class="c1"># 回傳 %rax</span>
 </code></pre>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
 <div class="answer-box locked"><textarea readonly spellcheck="false">*deref 會停在endbr64前, 而deref會直接做到建立堆棧頂端
 </textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
 <details class="answer"><summary>批改</summary>
 <p><strong>對</strong>（改判，見下方）。抓到主線：<code>break *deref</code> 停在第一條 <code>endbr64</code>，<code>break deref</code> 跳過開頭的準備工作（10-08 說成「取值」，這次對了）。<s>原判：不精確，應是等 <code>1183</code> 也執行完、停在 <code>0x1187</code></s>——這只對 <code>-g</code> 版成立。
 <strong>組語 11 記為大致對</strong>（盒子 1 → 1）。</p>
@@ -748,8 +778,10 @@ gdb<span class="w"> </span>-batch<span class="w"> </span>-ex<span class="w"> </s
 <blockquote>
 <p>題目：<code>break *0x11f4</code> 之後 <code>run</code> 得到 <code>Cannot access memory at address 0x11f4</code>，<code>break *deref+4</code> 卻沒問題，為什麼？</p>
 </blockquote>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
 <div class="answer-box locked"><textarea readonly spellcheck="false">因爲我們的程式是PIE, 程式碼實際的記憶體位址遵守ASLR動態分配,執行檔執行時的記憶體位址才是分配過後的,所以0x11f4是執行前的位置
 </textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
 <details class="answer"><summary>批改</summary>
 <p><strong>大致對</strong>。第 1 點對：PIE 執行時被搬到別的位址，<code>0x11f4</code> 只是檔案裡的位址。缺第 2 點：<strong>為什麼 <code>*deref+4</code> 就沒問題</strong>——式子裡有符號名稱，程式載入後 gdb 用新的位址<strong>重算</strong>成 <code>0x5555555551f4</code>；寫死的數字不會重算（跟 10-08 缺同一點）。<br />
 小修：搬動不是因為 ASLR。gdb 預設<strong>關掉</strong> ASLR，PIE 照樣被放到基底 <code>0x555555554000</code>；ASLR 只是讓基底每次不同。</p>
@@ -767,8 +799,10 @@ gdb<span class="w"> </span>-batch<span class="w"> </span>-ex<span class="w"> </s
 <div class="answer-box" data-file="review/2026-10-13-組語-字元.md" data-line="522" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h4 id="組語-12-2-如果程式是用--no-pie-編的break--加-objdump-查到的位址會不會成功">組語 12-2. 如果程式是用 <code>-no-pie</code> 編的，<code>break *</code> 加 <code>objdump</code> 查到的位址會不會成功？</h4>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
 <div class="answer-box locked"><textarea readonly spellcheck="false">會,因爲這個時候記憶體位址在執行前就決定好了
 </textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
 <details class="answer"><summary>批改</summary>
 <p><strong>對</strong>。非 PIE 的位址在執行前就固定，檔案裡的位址就是執行時的位址。
 <strong>組語 12 記為大致對</strong>（盒子 1 → 1）。</p>
@@ -791,11 +825,13 @@ gdb<span class="w"> </span>-batch<span class="w"> </span>-ex<span class="w"> </s
 </blockquote>
 <p>（<code>cmpb %sil, %dil</code> 算的是 <code>%dil − %sil</code>，只設旗標、不寫回。）</p>
 <h4 id="組語-14-1-寫出做完後-zfsfcfof-各是-0-還是-1並說明-cfof-各是用哪一種解讀無號有號算出來的">組語 14-1. 寫出做完後 ZF、SF、CF、OF 各是 0 還是 1，並說明 CF、OF 各是用哪一種解讀（無號／有號）算出來的。</h4>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
 <div class="answer-box locked"><textarea readonly spellcheck="false">zf =0, sf = 1 cf = 1 of = 0
 
 cf 使用無號解讀算出來的,因爲結果超過無號的範圍,所以是 1
 of 使用有號解讀算出來的,結果沒有查過有號的範圍,所以是 0
 </textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
 <details class="answer"><summary>批改</summary>
 <p><strong>不完整</strong>。ZF ＝ 0、SF ＝ 1、CF ＝ 1 對，「CF 用無號、OF 用有號」也對。<strong>OF 錯</strong>：有號讀法是 127 − (−1) ＝ <strong>128</strong>，超出 −128～127，所以 OF ＝ 1（跟 10-08 錯在同一處）。錯的原因多半是把 <code>0xff</code> 當成 255 去算有號——有號時 <code>0xff</code> 是 <strong>−1</strong>，減負數等於加，127 加 1 就溢位了。</p>
 <details class="answer"><summary>參考答案</summary>
@@ -813,8 +849,10 @@ of 使用有號解讀算出來的,結果沒有查過有號的範圍,所以是 0
 <div class="answer-box" data-file="review/2026-10-13-組語-字元.md" data-line="569" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h4 id="組語-14-2-接著-setl-和-setb-各會得到-1-還是-0">組語 14-2. 接著 <code>setl</code> 和 <code>setb</code> 各會得到 1 還是 0？</h4>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
 <div class="answer-box locked"><textarea readonly spellcheck="false">都是1
 </textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
 <details class="answer"><summary>批改</summary>
 <p><strong>不完整</strong>。<code>setb</code> ＝ 1 對；<code>setl</code> 錯，應是 <strong>0</strong>：SF ＝ 1、OF ＝ 1，SF ≠ OF 不成立（跟 10-08 錯在同一處，是 14-1 的 OF 算錯連帶的）。直接用數字驗算也看得出來：有號 127 &lt; −1 是假的。</p>
 <details class="answer"><summary>參考答案</summary>
@@ -831,9 +869,11 @@ of 使用有號解讀算出來的,結果沒有查過有號的範圍,所以是 0
 <div class="answer-box" data-file="review/2026-10-13-組語-字元.md" data-line="586" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h4 id="組語-14-3-為什麼有號的小於要看-sf--of不能只看-sf">組語 14-3. 為什麼有號的「小於」要看 SF ≠ OF，不能只看 SF？</h4>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
 <div class="answer-box locked"><textarea readonly spellcheck="false">因爲S = 1 代表結果是負的, OF= 0 代表沒有超出範圍 所以是小於
 S=0 代表結果是正的, OF = 1 代表有超出範圍,要翻轉 所以是小於,
 </textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
 <details class="answer"><summary>批改</summary>
 <p><strong>對</strong>。抓到：溢位時結果的正負號是反的，所以 OF ＝ 1 時要把 SF 翻過來看；兩種「小於」情況（SF ＝ 1、OF ＝ 0 與 SF ＝ 0、OF ＝ 1）都列對了。</p>
 <details class="answer"><summary>參考答案</summary>
@@ -850,11 +890,13 @@ S=0 代表結果是正的, OF = 1 代表有超出範圍,要翻轉 所以是小�
 <div class="answer-box" data-file="review/2026-10-13-組語-字元.md" data-line="604" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h4 id="組語-14-4-情境題同學說of--1-就代表這次加法的結果錯了這句話什麼時候對什麼時候不對用-8-位元的-0x7f--0x01-說明">組語 14-4. 情境題：同學說「OF = 1 就代表這次加法的結果錯了」。這句話什麼時候對、什麼時候不對？用 8 位元的 <code>0x7f + 0x01</code> 說明。</h4>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
 <div class="answer-box locked"><textarea readonly spellcheck="false">不一定,要看SF是否也等於1
 
 如果SF = 0 代表相加爲正, OF=1代表超過範圍,那這次就錯了 因爲結果是超過正最大值
 
 </textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
 <details class="answer"><summary>批改</summary>
 <p><strong>錯</strong>。判斷的依據不是 SF，而是<strong>這筆資料是有號還是無號</strong>（跟 10-08 錯在同一處）。<code>0x7f + 0x01</code> ＝ <code>0x80</code>：SF ＝ 1、OF ＝ 1。照你的規則（SF ＝ 1 時不算錯）會判成「沒錯」，但當有號數讀，127 ＋ 1 得到 −128，<strong>確實錯了</strong>；當無號數讀，127 ＋ 1 ＝ 128 完全正確，這時 OF 根本不用看（該看 CF ＝ 0）。
 <strong>組語 14 記為錯</strong>（盒子 1 → 1）。</p>
@@ -877,8 +919,10 @@ S=0 代表結果是正的, OF = 1 代表有超出範圍,要翻轉 所以是小�
 <p>盒子 1｜過去的作答：<a href="../small-project/s1-04-asm-basics/quiz.html#15-%E6%B8%9B%E6%B3%95%E7%9A%84%E5%80%9F%E4%BD%8D%E8%88%87-cf2026-10-07-%E8%AA%B2%E5%BE%8C%E6%8F%90%E5%95%8F%E6%96%B0%E5%A2%9E">s1-04 quiz.md 第 15 題</a></p>
 </blockquote>
 <h4 id="組語-15-1-照直式減法最高位第-7-位元需不需要往外借cf-是多少">組語 15-1. 照直式減法，最高位（第 7 位元）需不需要往外借？CF 是多少？</h4>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
 <div class="answer-box locked"><textarea readonly spellcheck="false">需要, cf是1
 </textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
 <details class="answer"><summary>批改</summary>
 <p><strong>對</strong>。需要往外借，CF ＝ 1。</p>
 <details class="answer"><summary>參考答案</summary>
@@ -894,12 +938,14 @@ S=0 代表結果是正的, OF = 1 代表有超出範圍,要翻轉 所以是小�
 <div class="answer-box" data-file="review/2026-10-13-組語-字元.md" data-line="648" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h4 id="組語-15-2-留下的位元當無號讀是多少它跟數學上的正確答案差了多少為什麼剛好差這麼多">組語 15-2. 留下的位元當無號讀是多少，它跟數學上的正確答案差了多少、為什麼剛好差這麼多？</h4>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
 <div class="answer-box locked"><textarea readonly spellcheck="false">是11
 差16
 -16 + 11 = -5
 
 因爲我們借了1位,就是16, 所以差了16
 </textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
 <details class="answer"><summary>批改</summary>
 <p><strong>錯</strong>。題目是 <strong>8 位元</strong>：留下的位元是 <code>11111011</code> ＝ <code>0xfb</code>，無號讀是 <strong>251</strong>，不是 11；往第 8 位元之外借的 1 價值 2⁸ ＝ <strong>256</strong>，不是 16。你算的 11 和 16 是只看 4 個位元的結果（<code>1011</code> ＝ 11、借 2⁴ ＝ 16）——道理對，位數錯了（跟 10-08 一樣缺「差 256」）。<br />
 驗算：251 − 256 ＝ −5 ＝ 4 − 9。</p>
@@ -920,8 +966,10 @@ S=0 代表結果是正的, OF = 1 代表有超出範圍,要翻轉 所以是小�
 <blockquote>
 <p>題目：（8 位元算 4 − 9）如果 CPU 是用加法器算（D + S 反轉 + 1），加法器有沒有往外進位，跟 CF 是什麼關係？</p>
 </blockquote>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
 <div class="answer-box locked"><textarea readonly spellcheck="false">
 </textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
 <details class="answer"><summary>批改</summary>
 <p><strong>未作答</strong>。
 <strong>組語 15 記為錯</strong>（盒子 1 → 1）。</p>
@@ -943,10 +991,12 @@ S=0 代表結果是正的, OF = 1 代表有超出範圍,要翻轉 所以是小�
 <p>盒子 1｜過去的作答：<a href="../small-project/s1-04-asm-basics/quiz.html#16-and-%E8%88%87-test2026-10-07-%E8%AA%B2%E5%BE%8C%E6%8F%90%E5%95%8F%E6%96%B0%E5%A2%9E">s1-04 quiz.md 第 16 題</a></p>
 </blockquote>
 <h4 id="組語-16-1-andl-1-edi-和-testl-1-edi-做完後旗標有什麼不同edi-有什麼不同">組語 16-1. <code>andl $1, %edi</code> 和 <code>testl $1, %edi</code> 做完後，旗標有什麼不同？<code>%edi</code> 有什麼不同？</h4>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
 <div class="answer-box locked"><textarea readonly spellcheck="false">andl 是算1&amp;edi直接寫進edi = 1&amp;edi
 tesl 是算1&amp;edi的旗標edi = edi
 
 </textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
 <details class="answer"><summary>批改</summary>
 <p><strong>大致對</strong>。<code>%edi</code> 那半對：<code>andl</code> 寫回 <code>n &amp; 1</code>，<code>testl</code> 不改。旗標那半沒答清楚：題目問「旗標有什麼不同」，答案是<strong>沒有不同</strong>——兩個都算 <code>%edi &amp; 1</code>、照同樣的規則設旗標，差別只在結果寫不寫回。</p>
 <details class="answer"><summary>參考答案</summary>
@@ -1014,9 +1064,11 @@ tesl 是算1&amp;edi的旗標edi = edi
 <span class="w">	</span><span class="nf">movl</span><span class="w">	</span><span class="nv">%edx</span><span class="p">,</span><span class="w"> </span><span class="nv">%eax</span><span class="w">            </span><span class="c1"># 回傳 0</span>
 <span class="w">	</span><span class="nf">ret</span>
 </code></pre>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
 <div class="answer-box locked"><textarea readonly spellcheck="false">testl 只是要驗證 edi是否&lt;=0 所以只需要看旗標
 andl只是要用edi去判斷他是不是奇數或偶數,而且後面edi已經沒有用了
 </textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
 <details class="answer"><summary>批改</summary>
 <p><strong>不完整</strong>。中間那半對：<code>andl</code> 之後 <code>%edi</code> 再也沒用到。開頭那半的理由不夠：「只需要看旗標」說明 <code>test</code> <strong>可以</strong>用，沒說明為什麼<strong>一定要</strong>用——關鍵是下一條 <code>leal 1(%rdi), %ecx</code> 還要讀 <code>n</code> 算 <code>n + 1</code>，<code>%edi</code> 被改掉就算錯了（跟 10-08 缺同一點）。
 <strong>組語 16 記為不完整</strong>（盒子 1 → 1）。</p>
@@ -1039,11 +1091,13 @@ andl只是要用edi去判斷他是不是奇數或偶數,而且後面edi已經沒
 <blockquote>
 <p>盒子 2｜過去的作答：<a href="../small-project/s1-02-data-repr/quiz.html#4-%E6%83%85%E5%A2%83%E9%A1%8C%E4%BD%A0%E5%AF%AB%E4%BA%86%E4%B8%80%E5%80%8B%E5%87%BD%E5%BC%8F%E7%94%A8-char-c-%E4%B8%80%E5%80%8B%E4%B8%80%E5%80%8B-byte-%E8%AE%80%E4%B8%80%E6%AE%B5-utf-8-%E6%96%87%E5%AD%97%E4%B8%A6%E7%94%A8-if-c--127-%E5%88%A4%E6%96%B7%E9%80%99%E6%98%AF%E4%B8%8D%E6%98%AF%E9%9D%9E-ascii-%E7%9A%84-byte%E5%9C%A8%E6%9C%AC%E6%A9%9F%E9%80%99%E5%80%8B%E5%88%A4%E6%96%B7%E6%9C%83%E6%88%90%E7%AB%8B%E5%97%8E%E7%82%BA%E4%BB%80%E9%BA%BC%E8%A9%B2%E6%80%8E%E9%BA%BC%E6%94%B9">s1-02 quiz.md 第 4 題</a>、<a href="2026-10-06-%E5%AD%97%E5%85%83-interp-ELF-gcc-GNU.html#%E5%AD%97%E5%85%83-4-%E6%83%85%E5%A2%83%E9%A1%8C%E4%BD%A0%E5%AF%AB%E4%BA%86%E4%B8%80%E5%80%8B%E5%87%BD%E5%BC%8F%E7%94%A8-char-c-%E4%B8%80%E5%80%8B%E4%B8%80%E5%80%8B-byte-%E8%AE%80%E4%B8%80%E6%AE%B5-utf-8-%E6%96%87%E5%AD%97%E4%B8%A6%E7%94%A8-if-c--127-%E5%88%A4%E6%96%B7%E9%80%99%E6%98%AF%E4%B8%8D%E6%98%AF%E9%9D%9E-ascii-%E7%9A%84-byte%E5%9C%A8%E6%9C%AC%E6%A9%9F%E9%80%99%E5%80%8B%E5%88%A4%E6%96%B7%E6%9C%83%E6%88%90%E7%AB%8B%E5%97%8E%E7%82%BA%E4%BB%80%E9%BA%BC%E8%A9%B2%E6%80%8E%E9%BA%BC%E6%94%B9">2026-10-06 複習</a></p>
 </blockquote>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
 <div class="answer-box locked"><textarea readonly spellcheck="false">本機char是signed char
 所以 c不可能大於127, 因爲到128的時候就是-128所以c&gt;127會員永遠爲假
 
 if (c &lt;= -1 &amp;&amp; c &gt;= -128)
 </textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
 <details class="answer"><summary>批改</summary>
 <p><strong>大致對</strong>（盒子 2 → 2）。「不會成立」與理由都對：本機 <code>char</code> 有號，最大 127，<code>c &gt; 127</code> 永遠為假。<strong>改法不對</strong>（跟 10-06 卡在同一處）：<code>c &lt;= -1 &amp;&amp; c &gt;= -128</code> 等於 <code>c &lt; 0</code>（<code>c &gt;= -128</code> 對有號 <code>char</code> 永遠為真，又是一個死條件），它依賴「<code>char</code> 有號」，換到 ARM（<code>char</code> 通常無號）就永遠為假。正解是改<strong>讀法</strong>：用 <code>unsigned char</code>，byte 照 0～255 讀，<code>&gt; 127</code> 才在任何平台上都成立。</p>
 <details class="answer"><summary>參考答案</summary>

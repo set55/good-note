@@ -31,6 +31,7 @@
 <li class="l3"><a href="#%E5%87%BD%E5%BC%8F%E8%A3%A1%E7%9A%84-static%E4%B8%8D%E6%94%BE%E5%A0%86%E7%96%8A%E5%80%BC%E7%95%99%E5%88%B0%E4%B8%8B%E4%B8%80%E6%AC%A1">函式裡的 static：不放堆疊，值留到下一次</a></li>
 <li class="l2"><a href="#%E5%85%ADextern%E5%85%A8%E5%9F%9F%E8%AE%8A%E6%95%B8%E7%9A%84%E5%AE%A3%E5%91%8A%E8%88%87%E5%AE%9A%E7%BE%A9">六、extern：全域變數的宣告與定義</a></li>
 <li class="l3"><a href="#%E5%BF%98%E4%BA%86-extern%E6%AF%8F%E5%80%8B-c-%E9%83%BD%E6%9C%89%E4%B8%80%E4%BB%BD%E5%AE%9A%E7%BE%A9">忘了 extern：每個 .c 都有一份定義</a></li>
+<li class="l3"><a href="#%E8%A3%9C%E5%85%85extern-%E7%9A%84%E4%B8%89%E5%80%8B%E9%82%8A%E7%95%8C%E6%83%85%E6%B3%812026-10-21-%E4%BD%9C%E6%A5%AD%E7%AC%AC-2-%E9%A1%8C%E6%89%B9%E6%94%B9%E6%99%82%E8%A3%9C%E6%95%99">補充：extern 的三個邊界情況（2026-10-21 作業第 2 題批改時補教）</a></li>
 <li class="l2"><a href="#%E4%B8%83make%E5%8F%AA%E9%87%8D%E7%B7%A8%E6%94%B9%E9%81%8E%E7%9A%84%E6%AA%94%E6%A1%88">七、make：只重編改過的檔案</a></li>
 <li class="l3"><a href="#%E6%96%87%E6%B3%95%E8%A6%8F%E5%89%87">文法：規則</a></li>
 <li class="l3"><a href="#%E5%AF%A6%E9%A9%97%E7%AC%AC%E4%B8%80%E5%80%8B-makefile">實驗：第一個 Makefile</a></li>
@@ -1002,6 +1003,97 @@ $ gcc -Q --help=common | grep -- &quot;-fcommon&quot;
 </tr>
 </tbody>
 </table>
+<h3 id="補充extern-的三個邊界情況2026-10-21-作業第-2-題批改時補教">補充：<code>extern</code> 的三個邊界情況（2026-10-21 作業第 2 題批改時補教）</h3>
+<p>作業第 2 題碰到三件上面沒講的事，用 <code>examples/extern-rules/</code> 重做一次。<code>hits.h</code>、<code>hits.c</code>、<code>hits_main.c</code> 跟上面 <code>examples/extern/</code> 的一模一樣（檔案：<a href="../../small-project/s1-06-multi-file/examples/extern-rules/hits.h"><code>hits.h</code></a>、<a href="../../small-project/s1-06-multi-file/examples/extern-rules/hits.c"><code>hits.c</code></a>、<a href="../../small-project/s1-06-multi-file/examples/extern-rules/hits_main.c"><code>hits_main.c</code></a>），原始碼見上面。</p>
+<p><strong>1. 只有宣告、沒用到的變數，不會出現在符號表</strong></p>
+<p><code>unused.c</code>（檔案：<a href="../../small-project/s1-06-multi-file/examples/extern-rules/unused.c"><code>unused.c</code></a>）引入了 <code>hits.h</code>，但完全沒用到 <code>hits</code>：</p>
+<pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;hits.h&quot;</span><span class="c1">       /* 看得到 extern long hits; 的宣告，但完全沒用到 hits */</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<pre><code>$ gcc -Wall -c unused.c &amp;&amp; readelf -s unused.o
+
+Symbol table '.symtab' contains 4 entries:
+   Num:    Value          Size Type    Bind   Vis      Ndx Name
+     0: 0000000000000000     0 NOTYPE  LOCAL  DEFAULT  UND 
+     1: 0000000000000000     0 FILE    LOCAL  DEFAULT  ABS unused.c
+     2: 0000000000000000     0 SECTION LOCAL  DEFAULT    1 .text
+     3: 0000000000000000    15 FUNC    GLOBAL DEFAULT    1 main
+</code></pre>
+<p>沒有 <code>hits</code>，連 <code>UND</code> 都沒有。<code>UND</code> 是「機器碼裡有個洞要填這個名字」，沒有任何指令用到 <code>hits</code>，就沒有洞、也不需要跟連結器要它。<strong>宣告只是告訴編譯器型別，本身不產生符號</strong>；函式的宣告也一樣（<code>hits.h</code> 裡的 <code>hit</code> 在 <code>unused.o</code> 裡也沒有）。</p>
+<p><strong>2. <code>-fcommon</code> 只合併「沒有初值」的定義</strong></p>
+<p><code>init_main.c</code>（檔案：<a href="../../small-project/s1-06-multi-file/examples/extern-rules/init_main.c"><code>init_main.c</code></a>）自己又寫了一份有初值的定義：</p>
+<pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;hits.h&quot;</span>
+
+<span class="kt">long</span><span class="w"> </span><span class="n">hits</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">5</span><span class="p">;</span><span class="w">          </span><span class="cm">/* 第二份「有初值」的定義：hits.c 已經有 long hits = 0; */</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">hit</span><span class="p">();</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;hits = %ld</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">hits</span><span class="p">);</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<pre><code>$ gcc -Wall -fcommon -c hits.c init_main.c
+$ readelf -s hits.o init_main.o | grep -E &quot;File| hits$&quot;
+File: hits.o
+     3: 0000000000000000     8 OBJECT  GLOBAL DEFAULT    4 hits
+File: init_main.o
+     4: 0000000000000000     8 OBJECT  GLOBAL DEFAULT    3 hits
+$ gcc -o x init_main.o hits.o
+/usr/bin/ld: hits.o:(.bss+0x0): multiple definition of `hits'; init_main.o:(.data+0x0): first defined here
+collect2: error: ld returned 1 exit status
+</code></pre>
+<p>加了 <code>-fcommon</code>，兩個 <code>hits</code> 的 <code>Ndx</code> 還是 <code>4</code>（<code>.bss</code>）、<code>3</code>（<code>.data</code>），不是 <code>COM</code>。上面〈<code>-fcommon</code>〉那段的 <code>COM</code> 只發生在 <code>long hits;</code> 這種<strong>沒寫初值</strong>的暫定定義上；只要寫了初值（就算是 <code>= 0</code>），就是一份確定的定義，<code>-fcommon</code> 不管它，兩份照樣 <code>multiple definition</code>。要合併也合理不了：兩份初值不一樣（5 和 0）時，連結器不知道該用哪個。</p>
+<p><strong>3. 標頭檔說 <code>extern</code>、<code>.c</code> 又寫 <code>static</code>：編譯時就錯</strong></p>
+<p><code>static_h.c</code>（檔案：<a href="../../small-project/s1-06-multi-file/examples/extern-rules/static_h.c"><code>static_h.c</code></a>）：</p>
+<pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;hits.h&quot;</span><span class="c1">       /* 標頭檔說 extern long hits;（別的檔案看得到的 hits） */</span>
+
+<span class="k">static</span><span class="w"> </span><span class="kt">long</span><span class="w"> </span><span class="n">hits</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w">   </span><span class="cm">/* 又說 hits 只在本檔案有效 */</span>
+
+<span class="kt">void</span><span class="w"> </span><span class="nf">hit</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">hits</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">hits</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<pre><code>$ gcc -Wall -c static_h.c
+static_h.c:3:13: error: static declaration of ‘hits’ follows non-static declaration
+    3 | static long hits = 0;   /* 又說 hits 只在本檔案有效 */
+      |             ^~~~
+In file included from static_h.c:1:
+hits.h:4:13: note: previous declaration of ‘hits’ with type ‘long int’
+    4 | extern long hits;       /* 宣告：hits 這個變數存在，定義在別的檔案 */
+      |             ^~~~
+</code></pre>
+<p>同一個編譯單元裡，<code>hits</code> 先被宣告成「別的檔案看得到的」，又被定義成「只在本檔案有效」，兩個說法矛盾，編譯器直接拒絕——跟第三節 <code>conflicting types</code> 是同一個道理：<strong>定義的 <code>.c</code> 引入自己的標頭檔，矛盾在編譯時就抓到</strong>。</p>
+<p>如果不引入標頭檔，矛盾就拖到連結時才出現。<code>static_noh.c</code>（檔案：<a href="../../small-project/s1-06-multi-file/examples/extern-rules/static_noh.c"><code>static_noh.c</code></a>）：</p>
+<pre><code class="language-c"><span class="kt">void</span><span class="w"> </span><span class="nf">hit</span><span class="p">(</span><span class="kt">void</span><span class="p">);</span><span class="w">         </span><span class="cm">/* 不引入 hits.h，自己寫 hit 的宣告 */</span>
+
+<span class="k">static</span><span class="w"> </span><span class="kt">long</span><span class="w"> </span><span class="n">hits</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w">   </span><span class="cm">/* 只在本檔案有效 → LOCAL */</span>
+
+<span class="kt">void</span><span class="w"> </span><span class="nf">hit</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">hits</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">hits</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<pre><code>$ gcc -Wall -c static_noh.c hits_main.c
+$ readelf -s static_noh.o hits_main.o | grep -E &quot;File| hits$&quot;
+File: static_noh.o
+     4: 0000000000000000     8 OBJECT  LOCAL  DEFAULT    4 hits
+File: hits_main.o
+     6: 0000000000000000     0 NOTYPE  GLOBAL DEFAULT  UND hits
+$ gcc -o y hits_main.o static_noh.o
+/usr/bin/ld: hits_main.o: warning: relocation against `hits' in read-only section `.text'
+/usr/bin/ld: hits_main.o: in function `main':
+hits_main.c:(.text+0x1a): undefined reference to `hits'
+/usr/bin/ld: warning: creating DT_TEXTREL in a PIE
+collect2: error: ld returned 1 exit status
+</code></pre>
+<p><code>static_noh.o</code> 的 <code>hits</code> 是 <code>LOCAL</code>，不能拿來配對，<code>hits_main.o</code> 的 <code>UND hits</code> 找不到 <code>GLOBAL</code> 的定義，所以是 <code>undefined reference</code>——跟第五節 <code>callhelper.c</code> 呼叫不到 <code>static helper</code> 是同一件事，只是這次換成變數。（中間兩行 <code>warning: relocation ... DT_TEXTREL in a PIE</code> 是連結失敗時順帶出現的，跟位置無關程式碼（PIE）有關，第 7 課講共享函式庫時再說，這裡只看 <code>undefined reference</code> 那一行。）</p>
 <hr />
 <h2 id="七make只重編改過的檔案">七、<code>make</code>：只重編改過的檔案</h2>
 <p>檔案一多，每次都 <code>gcc -c</code> 全部重編很慢（kernel 全部重編要幾十分鐘）。分開編譯的好處是：<strong>改了 <code>mathx.c</code>，只要重編 <code>mathx.o</code> 再重新連結</strong>，<code>main.o</code> 不必動。<code>make</code> 就是自動做這個判斷的工具。</p>

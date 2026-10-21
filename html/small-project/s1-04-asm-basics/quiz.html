@@ -12,7 +12,7 @@
 <div class="layout">
 <nav class="side">
 <div class="crumbs"><a href="../../index.html">🏠 首頁</a> / <a href="../README.html">small-project</a> / <a href="README.html">s1-04-asm-basics</a></div>
-<div class="tools"><button onclick="toggleTheme()">🌓 主題</button><button onclick="toggleAnswers(true)">展開答案</button><button onclick="toggleAnswers(false)">收起答案</button></div>
+<div class="tools"><button onclick="toggleTheme()">🌓 主題</button><button onclick="toggleAnswers(true)">展開答案</button><button onclick="toggleAnswers(false)">收起答案</button><button onclick="toggleBoxes(true)">展開作答框</button><button onclick="toggleBoxes(false)">收起作答框</button></div>
 <ul>
 <li class="l2"><a href="#%E7%9B%AE%E9%8C%84">目錄</a></li>
 <li class="l2"><a href="#%E5%B7%B2%E7%AD%94%E7%AC%AC-4-%E8%AA%B2%E8%AE%80%E6%87%82-x86-64-%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E4%B8%80">已答：第 4 課：讀懂 x86-64 組合語言（一）</a></li>
@@ -310,9 +310,11 @@
 </blockquote>
 <h4 id="1-1-兩個指令做的事差在哪">1-1. 兩個指令做的事差在哪？</h4>
 <p><strong>第 1 次（2026-10-08）</strong></p>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
 <div class="answer-box locked"><textarea readonly spellcheck="false">movl 是把(%rdi,%rsi,4)這個記憶體位址的值 存入eax
 leaq 則是把(%rdi,%rsi,4)這個值 直接塞入 rax
 </textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
 <details class="answer"><summary>批改</summary>
 <p><strong>對</strong>。抓到重點：<code>movl</code> 去記憶體讀那個位址裡的值，<code>leaq</code> 把算出來的位址數字本身放進去。</p>
 <details class="answer"><summary>參考答案</summary>
@@ -330,9 +332,11 @@ leaq 則是把(%rdi,%rsi,4)這個值 直接塞入 rax
 </details>
 <h4 id="1-2-各對應-c-的什麼寫法">1-2. 各對應 C 的什麼寫法？</h4>
 <p><strong>第 1 次（2026-10-08）</strong></p>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
 <div class="answer-box locked"><textarea readonly spellcheck="false">int f(int *a, long n) {return a[n];}
 long f(long a, long b) {return a+4b;}
 </textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
 <details class="answer"><summary>批改</summary>
 <p><strong>大致對</strong>。<code>movl</code> 對應 <code>a[n]</code>，對。<code>leaq</code> 寫成 <code>long</code> 的 <code>a + 4*b</code>：本機 <code>gcc -O2</code> 實測也編成同一行 <code>leaq (%rdi,%rsi,4), %rax</code>，算式沒錯；但這題要的是跟 <code>movl</code> 那一行<strong>對照</strong>——同一組括號，<code>mov</code> 是 <code>a[i]</code>，<code>lea</code> 是 <code>&amp;a[i]</code>（指標），你沒接回指標的寫法。另外 C 不能寫 <code>4b</code>，要寫 <code>4*b</code>。</p>
 <details class="answer"><summary>參考答案</summary>
@@ -355,8 +359,10 @@ long f(long a, long b) {return a+4b;}
 </details>
 <h4 id="1-3-為什麼-gcc-會拿-lea-來算-x--3-這種跟位址無關的東西">1-3. 為什麼 gcc 會拿 <code>lea</code> 來算 <code>x * 3</code> 這種跟位址無關的東西？</h4>
 <p><strong>第 1 次（2026-10-08）</strong></p>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
 <div class="answer-box locked"><textarea readonly spellcheck="false">因爲位址說到底也是數字,數字計算適合用 lea
 </textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
 <details class="answer"><summary>批改</summary>
 <p><strong>大致對</strong>。抓到「位址說到底也是數字」；缺了<strong>怎麼算</strong>：<code>x * 3</code> ＝ <code>x + x×2</code>，剛好是 <code>(%rdi,%rdi,2)</code> 的 B ＋ I × S，一個指令算完。</p>
 <details class="answer"><summary>參考答案</summary>
@@ -378,12 +384,14 @@ long f(long a, long b) {return a+4b;}
 </blockquote>
 <h4 id="2-1-為什麼-movl-就足以完成前者">2-1. 為什麼 <code>movl</code> 就足以完成前者？</h4>
 <p><strong>第 1 次（2026-10-08）</strong></p>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
 <div class="answer-box locked"><textarea readonly spellcheck="false">long widen_u(unsigned x) { return x; }
 因爲unsigned 32位元, 轉64爲,剩32位直接補0就好
 
 long widen_s(int x) { return x; }
 來源是有號int, 根據最高爲補1/0 , 所以要用movslq (s:signed, l: int, q: long)
 </textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
 <details class="answer"><summary>批改</summary>
 <p><strong>不完整</strong>。「<code>unsigned</code> 轉 <code>long</code> 補 0 就好」對，但沒答到題目問的<strong>為什麼一個 <code>movl</code> 就做得到</strong>：寫 <code>%eax</code> 時 CPU 會自動把 <code>%rax</code> 的高 32 位元清成 0。這正是作業還沒弄懂的「寫 32 位元暫存器會清掉高 32 位元」，<strong>跟作業卡在同一處</strong>。（<code>widen_s</code> 的說明是另一半，沒問，不扣分。）</p>
 <details class="answer"><summary>參考答案</summary>
@@ -401,8 +409,10 @@ long widen_s(int x) { return x; }
 </details>
 <h4 id="2-2-如果改寫-16-位元的-ax同樣的理由還成立嗎">2-2. 如果改寫 16 位元的 <code>%ax</code>，同樣的理由還成立嗎？</h4>
 <p><strong>第 1 次（2026-10-08）</strong></p>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
 <div class="answer-box locked"><textarea readonly spellcheck="false">不成立,因爲無號的0xffffffff -&gt; 有號ax = 0xffff 那會變成負的 改用movslw
 </textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
 <details class="answer"><summary>批改</summary>
 <p><strong>不完整</strong>。「不成立」對，理由錯。跟有號無號無關（也沒有 <code>movslw</code> 這個指令：擴展指令是 <code>movs</code>／<code>movz</code> ＋ 來源大小 ＋ 目的大小，來源一定比目的小，例如 <code>movswl</code>）。真正的理由是：寫 16 位元的 <code>%ax</code> 時，<strong>高位不動</strong>，不會被清成 0。</p>
 <details class="answer"><summary>參考答案</summary>
@@ -442,6 +452,7 @@ long widen_s(int x) { return x; }
 </blockquote>
 <h4 id="3-1-為什麼一個回傳-1一個回傳-0">3-1. 為什麼一個回傳 1、一個回傳 0？</h4>
 <p><strong>第 1 次（2026-10-08）</strong></p>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
 <div class="answer-box locked"><textarea readonly spellcheck="false">#lt.c
 int lt_s(int a, int b)           { return a &lt; b; }
 int lt_u(unsigned a, unsigned b) { return a &lt; b; }
@@ -453,6 +464,7 @@ lt_u 都是unsigned 看的是CF
 
 CF = 0 a - b 正確答案裝得下 代表&gt;0 故爲假
 </textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
 <details class="answer"><summary>批改</summary>
 <p><strong>對</strong>。抓到重點：旗標一樣，有號看 SF ≠ OF、無號看 CF，並用這組旗標算出 1 和 0。</p>
 <details class="answer"><summary>參考答案</summary>
@@ -470,8 +482,10 @@ CF = 0 a - b 正確答案裝得下 代表&gt;0 故爲假
 </details>
 <h4 id="3-2-c-的有號還是無號在組合語言裡到底是在哪裡決定的">3-2. C 的「有號還是無號」在組合語言裡到底是在哪裡決定的？</h4>
 <p><strong>第 1 次（2026-10-08）</strong></p>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
 <div class="answer-box locked"><textarea readonly spellcheck="false">c在轉成組合語言 根據自己的定義,決定要用哪個指令,例如movslb 就是因爲來源類型是有號
 </textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
 <details class="answer"><summary>批改</summary>
 <p><strong>大致對</strong>。主線「gcc 依 C 的型別決定用哪個指令」對；但只舉了擴展的例子（而且 <code>movslb</code> 不存在，應為 <code>movsbl</code>），沒提這題本身就是的那一種：<strong>比較之後挑哪個條件碼</strong>。這跟作業 3-2 的「組合語言只有擴展與比較才看得出有號無號」是同一個觀念。</p>
 <details class="answer"><summary>參考答案</summary>
@@ -493,8 +507,10 @@ CF = 0 a - b 正確答案裝得下 代表&gt;0 故爲假
 </blockquote>
 <h4 id="4-1-je-判斷的是哪個指令的結果">4-1. <code>je</code> 判斷的是哪個指令的結果？</h4>
 <p><strong>第 1 次（2026-10-08）</strong></p>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
 <div class="answer-box locked"><textarea readonly spellcheck="false">andl $1, %edi 會改旗標,所有je是用這個判斷
 </textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
 <details class="answer"><summary>批改</summary>
 <p><strong>對</strong>。<code>je</code> 讀的是 <code>andl $1, %edi</code> 設的旗標。</p>
 <details class="answer"><summary>參考答案</summary>
@@ -511,8 +527,10 @@ CF = 0 a - b 正確答案裝得下 代表&gt;0 故爲假
 </details>
 <h4 id="4-2-為什麼-gcc-可以這樣排">4-2. 為什麼 gcc 可以這樣排？</h4>
 <p><strong>第 1 次（2026-10-08）</strong></p>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
 <div class="answer-box locked"><textarea readonly spellcheck="false">因爲movl不會去改旗標
 </textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
 <details class="answer"><summary>批改</summary>
 <p><strong>對</strong>。抓到重點：<code>movl</code> 不改旗標。</p>
 <details class="answer"><summary>參考答案</summary>
@@ -529,8 +547,10 @@ CF = 0 a - b 正確答案裝得下 代表&gt;0 故爲假
 </details>
 <h4 id="4-3-如果中間夾的是-addl-1-eax會怎樣">4-3. 如果中間夾的是 <code>addl $1, %eax</code>，會怎樣？</h4>
 <p><strong>第 1 次（2026-10-08）</strong></p>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
 <div class="answer-box locked"><textarea readonly spellcheck="false">那就會以addl改的旗標來判斷
 </textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
 <details class="answer"><summary>批改</summary>
 <p><strong>對</strong>。抓到重點：旗標會變成 <code>addl</code> 的結果。</p>
 <details class="answer"><summary>參考答案</summary>
@@ -551,10 +571,12 @@ CF = 0 a - b 正確答案裝得下 代表&gt;0 故爲假
 </blockquote>
 <h4 id="5-1-第-1-個參數最可能是指向什麼大小的元素的指標">5-1. 第 1 個參數最可能是指向什麼大小的元素的指標？</h4>
 <p><strong>第 1 次（2026-10-08）</strong></p>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
 <div class="answer-box locked"><textarea readonly spellcheck="false">8byte, 可能是long, 或 long long, 與unsigned long, unsigned long long
 
 
 </textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
 <details class="answer"><summary>批改</summary>
 <p><strong>對</strong>。倍數 8、<code>movq</code> → 8 byte 的元素。</p>
 <details class="answer"><summary>參考答案</summary>
@@ -571,8 +593,10 @@ CF = 0 a - b 正確答案裝得下 代表&gt;0 故爲假
 </details>
 <h4 id="5-2-存取的是第幾個元素用-i-表示">5-2. 存取的是第幾個元素（用 <code>i</code> 表示）？</h4>
 <p><strong>第 1 次（2026-10-08）</strong></p>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
 <div class="answer-box locked"><textarea readonly spellcheck="false">i = %rsi + 3
 </textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
 <details class="answer"><summary>批改</summary>
 <p><strong>對</strong>。24 ÷ 8 ＝ 3，存取第 <code>i + 3</code> 個元素。寫法建議：<code>i</code> 是第 2 個參數本身，元素寫成 <code>a[i + 3]</code>，比「<code>i = %rsi + 3</code>」清楚。</p>
 <details class="answer"><summary>參考答案</summary>
@@ -589,8 +613,10 @@ CF = 0 a - b 正確答案裝得下 代表&gt;0 故爲假
 </details>
 <h4 id="5-3-如果同一個位置看到的是-leaq-而不是-movqc-又會是什麼">5-3. 如果同一個位置看到的是 <code>leaq</code> 而不是 <code>movq</code>，C 又會是什麼？</h4>
 <p><strong>第 1 次（2026-10-08）</strong></p>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
 <div class="answer-box locked"><textarea readonly spellcheck="false">long f(long a, long b) {return a + 8b + 24;}
 </textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
 <details class="answer"><summary>批改</summary>
 <p><strong>大致對</strong>。跟 1-2 一樣：<code>a + 8*b + 24</code> 本機實測也編成 <code>leaq 24(%rdi,%rsi,8), %rax</code>，算式對；但這題接在 5-1、5-2 後面，第 1 個參數是指向 8 byte 元素的指標，要讀成 <code>&amp;a[i + 3]</code>，你沒接回指標的寫法。（同樣，C 要寫 <code>8*b</code>。）</p>
 <details class="answer"><summary>參考答案</summary>
@@ -612,8 +638,10 @@ CF = 0 a - b 正確答案裝得下 代表&gt;0 故爲假
 </blockquote>
 <h4 id="6-1-movsbl-的-l-叫-long為什麼是-4-byte而本機-c-的-long-是-8-byte">6-1. <code>movsbl</code> 的 <code>l</code> 叫 long，為什麼是 4 byte，而本機 C 的 <code>long</code> 是 8 byte？</h4>
 <p><strong>第 1 次（2026-10-08）</strong></p>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
 <div class="answer-box locked"><textarea readonly spellcheck="false">兩邊標準不同
 </textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
 <details class="answer"><summary>批改</summary>
 <p><strong>不完整</strong>。「兩邊標準不同」方向對，但沒說是哪兩套、各自怎麼來的。</p>
 <details class="answer"><summary>參考答案</summary>
@@ -631,8 +659,10 @@ CF = 0 a - b 正確答案裝得下 代表&gt;0 故爲假
 </details>
 <h4 id="6-2-本機-c-的-long-在組合語言裡對到哪個字尾">6-2. 本機 C 的 <code>long</code> 在組合語言裡對到哪個字尾？</h4>
 <p><strong>第 1 次（2026-10-08）</strong></p>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
 <div class="answer-box locked"><textarea readonly spellcheck="false">q
 </textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
 <details class="answer"><summary>批改</summary>
 <p><strong>對</strong>。<code>q</code>。</p>
 <details class="answer"><summary>參考答案</summary>
@@ -652,8 +682,10 @@ CF = 0 a - b 正確答案裝得下 代表&gt;0 故爲假
 <p>情境題：第 5 課你在 <code>gdb</code> 裡想看一個 <code>int</code> 變數的 4 個 byte，同學說「<code>int</code> 在組合語言是 <code>l</code>，所以用 <code>x/1l</code>」。</p>
 </blockquote>
 <p><strong>第 1 次（2026-10-08）</strong></p>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
 <div class="answer-box locked"><textarea readonly spellcheck="false">不對,gdb的標準 4byte是w
 </textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
 <details class="answer"><summary>批改</summary>
 <p><strong>對</strong>。抓到重點：gdb 的大小字母是另一套。</p>
 <details class="answer"><summary>參考答案</summary>
@@ -670,8 +702,10 @@ CF = 0 a - b 正確答案裝得下 代表&gt;0 故爲假
 </details>
 <h4 id="6-4-應該用哪個大小字母為什麼">6-4. 應該用哪個大小字母，為什麼？</h4>
 <p><strong>第 1 次（2026-10-08）</strong></p>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
 <div class="answer-box locked"><textarea readonly spellcheck="false">用w w是4byte
 </textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
 <details class="answer"><summary>批改</summary>
 <p><strong>對</strong>。<code>w</code>，4 byte。</p>
 <details class="answer"><summary>參考答案</summary>
@@ -693,8 +727,10 @@ CF = 0 a - b 正確答案裝得下 代表&gt;0 故爲假
 </blockquote>
 <h4 id="7-1-在-64-位元的機器上為什麼它只讀-dil而不讀整個-rdi">7-1. 在 64 位元的機器上，為什麼它只讀 <code>%dil</code>，而不讀整個 <code>%rdi</code>？</h4>
 <p><strong>第 1 次（2026-10-08）</strong></p>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
 <div class="answer-box locked"><textarea readonly spellcheck="false">因爲char是1byte
 </textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
 <details class="answer"><summary>批改</summary>
 <p><strong>大致對</strong>。抓到「<code>char</code> 只有 1 byte」；缺了「為什麼不能讀整個 <code>%rdi</code>」：另外 7 byte 不是 <code>c</code>，內容不保證。</p>
 <details class="answer"><summary>參考答案</summary>
@@ -715,8 +751,10 @@ CF = 0 a - b 正確答案裝得下 代表&gt;0 故爲假
 </details>
 <h4 id="7-2-之後-eax-的十六進位是多少">7-2. 之後 <code>%eax</code> 的十六進位是多少？</h4>
 <p><strong>第 1 次（2026-10-08）</strong></p>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
 <div class="answer-box locked"><textarea readonly spellcheck="false">0x556677ff
 </textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
 <details class="answer"><summary>批改</summary>
 <p><strong>對</strong>。<code>0x556677ff</code>。</p>
 <details class="answer"><summary>參考答案</summary>
@@ -733,8 +771,10 @@ CF = 0 a - b 正確答案裝得下 代表&gt;0 故爲假
 </details>
 <h4 id="7-3-是正數還是負數">7-3. 是正數還是負數？</h4>
 <p><strong>第 1 次（2026-10-08）</strong></p>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
 <div class="answer-box locked"><textarea readonly spellcheck="false">5 -&gt; 0101 高位補0, 正數
 </textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
 <details class="answer"><summary>批改</summary>
 <p><strong>對</strong>。最高位元是 0（<code>0x5</code> ＝ <code>0101</code>），正數。</p>
 <details class="answer"><summary>參考答案</summary>
@@ -751,9 +791,11 @@ CF = 0 a - b 正確答案裝得下 代表&gt;0 故爲假
 </details>
 <h4 id="7-4-跟-c-期望的-1-差在哪">7-4. 跟 C 期望的 −1 差在哪？</h4>
 <p><strong>第 1 次（2026-10-08）</strong></p>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
 <div class="answer-box locked"><textarea readonly spellcheck="false">edi看4byte 0x556677ff
 dil看 1byte 0xff ,轉成int就是-1
 </textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
 <details class="answer"><summary>批改</summary>
 <p><strong>對</strong>。抓到重點：只看最低 1 byte 才是 −1，讀 4 byte 把垃圾一起讀進來。</p>
 <details class="answer"><summary>參考答案</summary>
@@ -774,8 +816,10 @@ dil看 1byte 0xff ,轉成int就是-1
 </blockquote>
 <h4 id="8-1-dilc-的組合語言裡只出現-edidil沒有-rdi為什麼-gdb-能印出-rdi">8-1. <code>dil.c</code> 的組合語言裡只出現 <code>%edi</code>、<code>%dil</code>，沒有 <code>%rdi</code>，為什麼 gdb 能印出 <code>$rdi</code>？</h4>
 <p><strong>第 1 次（2026-10-08）</strong></p>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
 <div class="answer-box locked"><textarea readonly spellcheck="false">都是相同的寄存器,只是看的位元數不同
 </textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
 <details class="answer"><summary>批改</summary>
 <p><strong>大致對</strong>。抓到「同一個暫存器，只是看的大小不同」；缺了 gdb 那一半：gdb 是把<strong>整組</strong>暫存器讀出來，所以程式沒用到的名字也印得出來。</p>
 <details class="answer"><summary>參考答案</summary>
@@ -793,8 +837,10 @@ dil看 1byte 0xff ,轉成int就是-1
 </details>
 <h4 id="8-2-在-gdb-裡-set-edi--0xaabbccddrdi-的高-4-byte-會不會被清成-0">8-2. 在 gdb 裡 <code>set $edi = 0xaabbccdd</code>，<code>$rdi</code> 的高 4 byte 會不會被清成 0？</h4>
 <p><strong>第 1 次（2026-10-08）</strong></p>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
 <div class="answer-box locked"><textarea readonly spellcheck="false">會,他會直接把這個值更新到寄存器
 </textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
 <details class="answer"><summary>批改</summary>
 <p><strong>錯</strong>。不會。gdb 的 <code>set</code> 不是 CPU 指令，只改你指定的那 4 byte，高 4 byte 保留（筆記實測：<code>$6 = 0x11223344aabbccdd</code>）。</p>
 <details class="answer"><summary>參考答案</summary>
@@ -811,8 +857,10 @@ dil看 1byte 0xff ,轉成int就是-1
 </details>
 <h4 id="8-3-跟-cpu-執行-movl-0xaabbccdd-edi-有什麼不同">8-3. 跟 CPU 執行 <code>movl $0xaabbccdd, %edi</code> 有什麼不同？</h4>
 <p><strong>第 1 次（2026-10-08）</strong></p>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
 <div class="answer-box locked"><textarea readonly spellcheck="false">這個是只更新下32位
 </textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
 <details class="answer"><summary>批改</summary>
 <p><strong>錯</strong>。跟 8-2 剛好說反了：<strong>CPU 執行</strong> <code>movl</code> 寫 32 位元名字時，會把高 32 位元清成 0；只改低 32 位元的是 gdb 的 <code>set</code>。這是作業和本次 2-1 都卡住的「寫 32 位元暫存器清高位」，<strong>跟作業卡在同一處</strong>。</p>
 <details class="answer"><summary>參考答案</summary>
@@ -834,8 +882,10 @@ dil看 1byte 0xff ,轉成int就是-1
 </blockquote>
 <h4 id="9-1-movsbl-把-1-byte-擴展成-4-byte-時新補的高-3-byte-是照哪一個位元補的">9-1. <code>movsbl</code> 把 1 byte 擴展成 4 byte 時，新補的高 3 byte 是照哪一個位元補的？</h4>
 <p><strong>第 1 次（2026-10-08）</strong></p>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
 <div class="answer-box locked"><textarea readonly spellcheck="false">根據來源的值的最高位1/0 來補
 </textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
 <details class="answer"><summary>批改</summary>
 <p><strong>對</strong>。照來源的最高位元補。</p>
 <details class="answer"><summary>參考答案</summary>
@@ -852,8 +902,10 @@ dil看 1byte 0xff ,轉成int就是-1
 </details>
 <h4 id="9-2-為什麼這樣補signed-char-的-1-變成-int-之後才會還是-1用二補數的權重解釋">9-2. 為什麼這樣補，<code>signed char</code> 的 −1 變成 <code>int</code> 之後才會還是 −1（用二補數的權重解釋）？</h4>
 <p><strong>第 1 次（2026-10-08）</strong></p>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
 <div class="answer-box locked"><textarea readonly spellcheck="false">因爲二補數定義負的最大值(-1)就是二進制的最大值,也就是全部位元1
 </textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
 <details class="answer"><summary>批改</summary>
 <p><strong>不完整</strong>。只說出結果「−1 是全部位元 1」，沒有用<strong>權重</strong>解釋為什麼補 1 之後值不變。</p>
 <details class="answer"><summary>參考答案</summary>
@@ -876,10 +928,12 @@ dil看 1byte 0xff ,轉成int就是-1
 </blockquote>
 <h4 id="10-1-兩個指令各拿-rdi-裡的數字做什麼">10-1. 兩個指令各拿 <code>%rdi</code> 裡的數字做什麼？</h4>
 <p><strong>第 1 次（2026-10-08）</strong></p>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
 <div class="answer-box locked"><textarea readonly spellcheck="false">第一個把rdi的值直接寫入rax
 
 第二個 讀rdi的值,再從記憶體位址(rdi)讀值, 得到的值在寫入rax
 </textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
 <details class="answer"><summary>批改</summary>
 <p><strong>對</strong>。抓到重點：一個用數字本身，一個把數字當位址去記憶體讀。</p>
 <details class="answer"><summary>參考答案</summary>
@@ -897,9 +951,11 @@ dil看 1byte 0xff ,轉成int就是-1
 </details>
 <h4 id="10-2-各對應-c-的什麼寫法">10-2. 各對應 C 的什麼寫法？</h4>
 <p><strong>第 1 次（2026-10-08）</strong></p>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
 <div class="answer-box locked"><textarea readonly spellcheck="false">long f(long a){return a;}
 long f(long *a) {return a[0];}
 </textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
 <details class="answer"><summary>批改</summary>
 <p><strong>對</strong>。<code>return a;</code> 與 <code>return a[0];</code>（<code>a[0]</code> 就是 <code>*a</code>）。</p>
 <details class="answer"><summary>參考答案</summary>
@@ -917,8 +973,10 @@ long f(long *a) {return a[0];}
 </details>
 <h4 id="10-3-如果-rdi-裡是-1234哪一個會-segfault為什麼">10-3. 如果 <code>%rdi</code> 裡是 1234，哪一個會 segfault，為什麼？</h4>
 <p><strong>第 1 次（2026-10-08）</strong></p>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
 <div class="answer-box locked"><textarea readonly spellcheck="false">第二個,因爲第二個是記憶體位址 只有它有可能segfault的錯誤
 </textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
 <details class="answer"><summary>批改</summary>
 <p><strong>大致對</strong>。答對是第二個；「因為是記憶體位址」只說它<strong>會</strong>存取記憶體，還缺為什麼 1234 這個位址會出事：那裡<strong>沒有對映任何分頁</strong>。</p>
 <details class="answer"><summary>參考答案</summary>
@@ -941,8 +999,10 @@ long f(long *a) {return a[0];}
 </blockquote>
 <h4 id="11-1--讓-gdb-怎麼理解後面的東西">11-1. <code>*</code> 讓 gdb 怎麼理解後面的東西？</h4>
 <p><strong>第 1 次（2026-10-08）</strong></p>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
 <div class="answer-box locked"><textarea readonly spellcheck="false">gdb 去找widen_char這個符號的記憶體位址
 </textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
 <details class="answer"><summary>批改</summary>
 <p><strong>大致對</strong>。方向對（<code>*</code> 讓 gdb 當成位址）；缺了「後面是一個<strong>會被計算的式子</strong>」：<code>deref</code> 是函式開頭的位址、<code>+4</code> 往後 4 byte，gdb 就停在那個位址的那條機器指令。也沒說沒有 <code>*</code> 時為什麼失敗。</p>
 <details class="answer"><summary>參考答案</summary>
@@ -960,9 +1020,11 @@ long f(long *a) {return a[0];}
 </details>
 <h4 id="11-2-這個--跟-c-的-p-是同一個意思嗎">11-2. 這個 <code>*</code> 跟 C 的 <code>*p</code> 是同一個意思嗎？</h4>
 <p><strong>第 1 次（2026-10-08）</strong></p>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
 <div class="answer-box locked"><textarea readonly spellcheck="false">不是 這是符號的記憶體位址
 *p 是存在記憶體位址上的值
 </textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
 <details class="answer"><summary>批改</summary>
 <p><strong>對</strong>。抓到重點：不是同一個意思。</p>
 <details class="answer"><summary>參考答案</summary>
@@ -979,9 +1041,11 @@ long f(long *a) {return a[0];}
 </details>
 <h4 id="11-3-在--o0-的程式上break-deref-和-break-deref-為什麼會停在不同的位址">11-3. 在 <code>-O0</code> 的程式上，<code>break deref</code> 和 <code>break *deref</code> 為什麼會停在不同的位址？</h4>
 <p><strong>第 1 次（2026-10-08）</strong></p>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
 <div class="answer-box locked"><textarea readonly spellcheck="false">break deref: 是這個符號本身的記憶體位址
 break *deref: 是這個值所向的記憶體位址上的值
 </textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
 <details class="answer"><summary>批改</summary>
 <p><strong>錯</strong>。兩個都<strong>不是</strong>「取值」——跟你在 11-2 說的「<code>*</code> 不是 C 的取值」矛盾。差別在<strong>有沒有跳過函式開頭的準備指令</strong>。</p>
 <details class="answer"><summary>參考答案</summary>
@@ -1003,8 +1067,10 @@ break *deref: 是這個值所向的記憶體位址上的值
 </blockquote>
 <h4 id="12-1-為什麼">12-1. 為什麼？</h4>
 <p><strong>第 1 次（2026-10-08）</strong></p>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
 <div class="answer-box locked"><textarea readonly spellcheck="false">因爲PIE的關係,實際記憶體位址是經過核心分配的,所以0x11f4並不是實際的位址,只能說是相對位址
 </textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
 <details class="answer"><summary>批改</summary>
 <p><strong>大致對</strong>。PIE、執行時被搬、<code>0x11f4</code> 不是執行時的位址——對；缺另一半：為什麼 <code>break *deref+4</code> 就沒問題（用符號寫的，程式載入後 gdb 會重算；寫死的數字不會）。</p>
 <details class="answer"><summary>參考答案</summary>
@@ -1022,8 +1088,10 @@ break *deref: 是這個值所向的記憶體位址上的值
 </details>
 <h4 id="12-2-如果程式是用--no-pie-編的break--加-objdump-查到的位址會不會成功">12-2. 如果程式是用 <code>-no-pie</code> 編的，<code>break *</code> 加 <code>objdump</code> 查到的位址會不會成功？</h4>
 <p><strong>第 1 次（2026-10-08）</strong></p>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
 <div class="answer-box locked"><textarea readonly spellcheck="false">會,因爲這個就是絕對位址
 </textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
 <details class="answer"><summary>批改</summary>
 <p><strong>對</strong>。非 PIE 的位址就是執行時的位址。</p>
 <details class="answer"><summary>參考答案</summary>
@@ -1044,8 +1112,10 @@ break *deref: 是這個值所向的記憶體位址上的值
 </blockquote>
 <h4 id="13-1-get_g-讀全域變數-g-用的是-mov-0x2db5riprax為什麼-pie-程式不能直接把-g-的位址寫進指令而要用-rip--距離">13-1. <code>get_g</code> 讀全域變數 <code>g</code> 用的是 <code>mov 0x2db5(%rip),%rax</code>，為什麼 PIE 程式不能直接把 <code>g</code> 的位址寫進指令，而要用 <code>%rip</code> ＋ 距離？</h4>
 <p><strong>第 1 次（2026-10-08）</strong></p>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
 <div class="answer-box locked"><textarea readonly spellcheck="false">因爲實際執行的時候才會真的決定每個變數的記憶體位址,但是相對距離是不會變得
 </textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
 <details class="answer"><summary>批改</summary>
 <p><strong>對</strong>。抓到兩個重點：執行時才決定位址、相對距離不變。</p>
 <details class="answer"><summary>參考答案</summary>
@@ -1063,8 +1133,10 @@ break *deref: 是這個值所向的記憶體位址上的值
 </details>
 <h4 id="13-2-同一個-tbli為什麼非-pie-的程式可以寫成一條-mov-0x404060rdi8rax">13-2. 同一個 <code>tbl[i]</code>，為什麼非 PIE 的程式可以寫成一條 <code>mov 0x404060(,%rdi,8),%rax</code>？</h4>
 <p><strong>第 1 次（2026-10-08）</strong></p>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
 <div class="answer-box locked"><textarea readonly spellcheck="false">因爲編譯完成的時候已經決定了tbl的記憶體位址了,tbl[0] -&gt; 0x404060
 </textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
 <details class="answer"><summary>批改</summary>
 <p><strong>對</strong>。抓到重點：非 PIE 連結時位址就固定。</p>
 <details class="answer"><summary>參考答案</summary>
@@ -1085,6 +1157,7 @@ break *deref: 是這個值所向的記憶體位址上的值
 </blockquote>
 <h4 id="14-1-寫出做完後-zfsfcfof-各是-0-還是-1並說明-cfof-各是用哪一種解讀無號有號算出來的">14-1. 寫出做完後 ZF、SF、CF、OF 各是 0 還是 1，並說明 CF、OF 各是用哪一種解讀（無號／有號）算出來的。</h4>
 <p><strong>第 1 次（2026-10-08）</strong></p>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
 <div class="answer-box locked"><textarea readonly spellcheck="false">0x7f - 0xff = 127 - 255 = -128
 
 ZF = 0, SF = 1
@@ -1093,6 +1166,7 @@ ZF = 0, SF = 1
 無號 CF = 1 -128 超過無號的範圍了
 有號 OF = 0 有號沒有超過
 </textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
 <details class="answer"><summary>批改</summary>
 <p><strong>不完整</strong>。ZF ＝ 0、SF ＝ 1、CF ＝ 1 對，CF 用無號 127 − 255 算也對；<strong>OF 錯</strong>：有號要把 <code>0xff</code> 讀成 −1，127 − (−1) ＝ 128，超過 127，OF ＝ 1。你寫的 −128 其實是無號的 127 − 255，沒有做有號的解讀。</p>
 <details class="answer"><summary>參考答案</summary>
@@ -1111,6 +1185,7 @@ ZF = 0, SF = 1
 </details>
 <h4 id="14-2-接著-setl-和-setb-各會得到-1-還是-0">14-2. 接著 <code>setl</code> 和 <code>setb</code> 各會得到 1 還是 0？</h4>
 <p><strong>第 1 次（2026-10-08）</strong></p>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
 <div class="answer-box locked"><textarea readonly spellcheck="false">setb 如果是有號/無號都是1
 
 setl 是4byte, 那就是0x0000007f - 0x000000ff = 127 -255 = -128
@@ -1118,6 +1193,7 @@ ZF = 0 SF = 0 CF = 1 OF = 0
 所以setl 無號 是 1
         有號 是 0
 </textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
 <details class="answer"><summary>批改</summary>
 <p><strong>不完整</strong>。<code>setb</code> ＝ 1 對。<code>setl</code> 錯：題目是 8 位元的 <code>cmpb</code>，不需要換成 4 byte；而且 <code>setl</code> 只有一個答案——它固定照<strong>有號</strong>讀（SF ≠ OF），沒有「無號的 <code>setl</code>」。SF ＝ 1、OF ＝ 1，兩者相等 → <code>setl</code> ＝ 0。</p>
 <details class="answer"><summary>參考答案</summary>
@@ -1135,10 +1211,12 @@ ZF = 0 SF = 0 CF = 1 OF = 0
 </details>
 <h4 id="14-3-為什麼有號的小於要看-sf--of不能只看-sf">14-3. 為什麼有號的「小於」要看 SF ≠ OF，不能只看 SF？</h4>
 <p><strong>第 1 次（2026-10-08）</strong></p>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
 <div class="answer-box locked"><textarea readonly spellcheck="false">因爲如果兩個都是1 SF = 1 代表 差值是負的沒錯, 可是OF = 1 代表有爆, 會變正值,那就是大於了
 
 
 </textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
 <details class="answer"><summary>批改</summary>
 <p><strong>對</strong>。抓到重點：溢位時 SF 的正負號是反的，OF ＝ 1 時要把判斷翻過來。14-1 這一組正是你說的情況（SF ＝ 1、OF ＝ 1，真正的差是 +128）。</p>
 <details class="answer"><summary>參考答案</summary>
@@ -1156,9 +1234,11 @@ ZF = 0 SF = 0 CF = 1 OF = 0
 </details>
 <h4 id="14-4-情境題同學說of--1-就代表這次加法的結果錯了這句話什麼時候對什麼時候不對用-8-位元的-0x7f--0x01-說明">14-4. 情境題：同學說「OF = 1 就代表這次加法的結果錯了」。這句話什麼時候對、什麼時候不對？用 8 位元的 <code>0x7f + 0x01</code> 說明。</h4>
 <p><strong>第 1 次（2026-10-08）</strong></p>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
 <div class="answer-box locked"><textarea readonly spellcheck="false">如果類型是1byte類型確實是錯的, 因爲溢位了
 大於1byte的有號類型就ok
 </textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
 <details class="answer"><summary>批改</summary>
 <p><strong>錯</strong>。方向不對：關鍵不是「型別是 1 byte 還是更大」，而是「把這串位元當<strong>有號</strong>還是<strong>無號</strong>」。</p>
 <details class="answer"><summary>參考答案</summary>
@@ -1180,8 +1260,10 @@ ZF = 0 SF = 0 CF = 1 OF = 0
 </blockquote>
 <h4 id="15-1-照直式減法最高位第-7-位元需不需要往外借cf-是多少">15-1. 照直式減法，最高位（第 7 位元）需不需要往外借？CF 是多少？</h4>
 <p><strong>第 1 次（2026-10-08）</strong></p>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
 <div class="answer-box locked"><textarea readonly spellcheck="false">需要, CF = 1
 </textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
 <details class="answer"><summary>批改</summary>
 <p><strong>對</strong>。要往外借，CF ＝ 1。</p>
 <details class="answer"><summary>參考答案</summary>
@@ -1202,8 +1284,10 @@ CPU cmpb：結果 0xfb，CF = 1
 </details>
 <h4 id="15-2-留下的位元當無號讀是多少它跟數學上的正確答案差了多少為什麼剛好差這麼多">15-2. 留下的位元當無號讀是多少，它跟數學上的正確答案差了多少、為什麼剛好差這麼多？</h4>
 <p><strong>第 1 次（2026-10-08）</strong></p>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
 <div class="answer-box locked"><textarea readonly spellcheck="false">251, 兩個在二進制都是一樣的,但有號會用二補數解釋
 </textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
 <details class="answer"><summary>批改</summary>
 <p><strong>不完整</strong>。251 對；缺後半：跟數學答案 −5 <strong>差 256</strong>，因為最高位往外借的那個 1 價值 2⁸。「有號會用二補數解釋」是另一件事。</p>
 <details class="answer"><summary>參考答案</summary>
@@ -1221,8 +1305,10 @@ CPU cmpb：結果 0xfb，CF = 1
 </details>
 <h4 id="15-3-如果-cpu-是用加法器算d--s-反轉--1加法器有沒有往外進位跟-cf-是什麼關係">15-3. 如果 CPU 是用加法器算（D + S 反轉 + 1），加法器有沒有往外進位，跟 CF 是什麼關係？</h4>
 <p><strong>第 1 次（2026-10-08）</strong></p>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
 <div class="answer-box locked"><textarea readonly spellcheck="false">我不會
 </textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
 <details class="answer"><summary>批改</summary>
 <p><strong>錯</strong>。答「我不會」。</p>
 <details class="answer"><summary>參考答案</summary>
@@ -1244,12 +1330,14 @@ CPU cmpb：結果 0xfb，CF = 1
 </blockquote>
 <h4 id="16-1-andl-1-edi-和-testl-1-edi-做完後旗標有什麼不同edi-有什麼不同">16-1. <code>andl $1, %edi</code> 和 <code>testl $1, %edi</code> 做完後，旗標有什麼不同？<code>%edi</code> 有什麼不同？</h4>
 <p><strong>第 1 次（2026-10-08）</strong></p>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
 <div class="answer-box locked"><textarea readonly spellcheck="false">andl 會把$1 &amp; %edi 的結果寫入 edi
 test放棄結果只記錄旗標
 
 andl 的edi是新的值
 test 的edi沒變
 </textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
 <details class="answer"><summary>批改</summary>
 <p><strong>大致對</strong>。<code>%edi</code> 的差別對；旗標只寫「<code>test</code> 只記錄旗標」，沒有明講題目問的答案：兩者的旗標<strong>完全相同</strong>。</p>
 <details class="answer"><summary>參考答案</summary>
@@ -1267,9 +1355,11 @@ test 的edi沒變
 </details>
 <h4 id="16-2-sum_to-的--o2-開頭為什麼一定要用-testl-edi-edi-而不能用-andl-1-edi-之類會改掉-edi-的指令中間的-andl-1-edi-卻可以改掉-edi">16-2. <code>sum_to</code> 的 <code>-O2</code> 開頭為什麼一定要用 <code>testl %edi, %edi</code> 而不能用 <code>andl $1, %edi</code> 之類會改掉 <code>%edi</code> 的指令，中間的 <code>andl $1, %edi</code> 卻可以改掉 <code>%edi</code>？</h4>
 <p><strong>第 1 次（2026-10-08）</strong></p>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
 <div class="answer-box locked"><textarea readonly spellcheck="false">這個只是要檢查 &lt;=0只需要檢查SF != OF 過濾掉小等於0的n
 andl是要跳兩次重新進入循環
 </textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
 <details class="answer"><summary>批改</summary>
 <p><strong>錯</strong>。沒答到關鍵。重點不是「檢查 <code>&lt;= 0</code>」本身，而是 <strong><code>n</code> 之後還要不要用</strong>。</p>
 <details class="answer"><summary>參考答案</summary>
