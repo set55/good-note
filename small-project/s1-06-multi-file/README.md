@@ -44,7 +44,7 @@
 
 ## 批改結果（2026-10-21）
 
-第 1～3 題已批改（2026-10-21）；第 4 題以後還沒作答。
+第 1～4 題已批改（2026-10-21）；第 5 題還沒作答。
 
 | 題目 | 結果 | 錯在哪／缺什麼 |
 |---|---|---|
@@ -59,6 +59,11 @@
 | 3-1 | 對 | 兩個 `static` 變數與初值都對，輸出 5／15／12、1／2／3 實測吻合 |
 | 3-2 | 對 | 抓到：`LOCAL`、`total` 在 `.bss`、`count` 在 `.data`，因為初值 0 vs 100。小地方：名字預測漏了 gcc 加的編號（`total.1`、`count.0`） |
 | 3-3 | 大致對 | `0x0(%rip)` 是固定位址＋連結時填、拿掉 `static` 改放堆疊、結果 5／10／−3 都對；預測的 `mov 0x0, -0x10(%rbp)` 寫錯：常數要 `$0x0`（不加 `$` 是位址 0），且 `mov` 不能兩邊都是記憶體，應為 `movq $0x0,-0x8(%rbp)` |
+| 4a-1 | 不完整 | 連結階段、`multiple definition` 對；原因說成「沒寫 `extern` 所以是定義」是錯的：函式是不是定義看有沒有本體 `{}`，`extern` 是全域變數的規則；include guard 漏了關鍵：只在同一個 `.c` 內有效，兩個 `.c` 分開編譯各貼一次 |
+| 4a-2 | 大致對 | `clamp.h` 只留宣告、結果 `100 0` 對；放定義的檔案沒貼（標成 `volume.c` 的是 `a_main.c`）；照原則應該新增 `clamp.c` 並引入 `clamp.h`，而不是寫進 `volume.c` |
+| 4a-3 | 對 | 抓到：能連結、兩個 `clamp` 都是 `LOCAL`、代價是每個 `.o` 各一份。用詞：多的只有這個函式的機器碼，不是整個程式 2 倍 |
+| 4b-1 | 大致對 | 連結階段、名字打成 `print_reprot`、只宣告不定義是合法的，都對；少了 `b_main.o` 的 `UND print_report` 那一半證據 |
+| 4c-1 | 不完整 | 第一問（編譯階段 `too few arguments`）對；第二問猜成編譯錯（隱式宣告在筆記第二節教過）；沒有連結、執行，漏了「連結也過、執行時印出垃圾數字」——跟 1-4 (b)、2-3 一樣，停在沒報錯就下結論 |
 
 ---
 
@@ -787,21 +792,179 @@ gcc -o a volume.o a_main.o
 
 #### 4a-1. 貼上錯誤訊息。是編譯還是連結階段？原因是什麼？已經有 include guard 了，為什麼沒擋住？【筆記[第四節](../../html/c/多檔案的C程式-標頭檔、static與extern、連結錯誤與make.html#四符號表o-之間靠名字接起來)〈三種錯誤，各發生在哪一步〉、[第三節](../../html/c/多檔案的C程式-標頭檔、static與extern、連結錯誤與make.html#三標頭檔把宣告寫一次讓兩邊都檢查)〈標頭檔放什麼〉、第六節〈忘了 `extern`〉最後一段】
 
-**第 1 次（YYYY-MM-DD）**
+**第 1 次（2026-10-21）**
 ```
+/usr/bin/ld: a_main.o: in function `clamp':
+a_main.c:(.text+0x0): multiple definition of `clamp'; volume.o:volume.c:(.text+0x0): first defined here
+collect2: error: ld returned 1 exit status
+
+是連接階段
+
+clamp重複定義了
+因爲clamp.h沒有宣告 extern在clamp, 所以clamp已經是默認爲定義了,而每個有這個.h的.c都會重複定義他, include guard,只能
+幫助確定有沒有include這個標頭當,他無法不然.c重複定義
+```
+
+
+> **批改（2026-10-21）**：**不完整**。錯誤訊息、連結階段、「每個引入 `.h` 的 `.c` 都有一份定義」都對。兩個問題：
+> 1. 原因講錯：`clamp` 是定義，是因為它**有函式本體 `{ ... }`**，跟有沒有寫 `extern` 無關。函式宣告本來就預設 `extern`（[第八節](../../html/c/多檔案的C程式-標頭檔、static與extern、連結錯誤與make.html#八本課用到的工具選項與完整清單在哪)〈C 語言：本課的關鍵字〉），`extern int clamp(...) { ... }` 照樣是定義、照樣 `multiple definition`。「沒寫 `extern` 就變成定義」是**全域變數**的規則（`long hits;` 是暫定定義，[第六節](../../html/c/多檔案的C程式-標頭檔、static與extern、連結錯誤與make.html#六extern全域變數的宣告與定義)），不要套到函式上。
+> 2. include guard 為什麼擋不住，只寫了「擋不住」，沒說原因：guard 只在**同一個 `.c`（編譯單元）裡**有效。`volume.c` 和 `a_main.c` 是分開編譯的，各自從頭開始，`CLAMP_H` 在兩次編譯裡都還沒定義，所以兩個檔案都各貼了一份。
+>
+> **參考答案**【[第四節](../../html/c/多檔案的C程式-標頭檔、static與extern、連結錯誤與make.html#三種錯誤各發生在哪一步)〈三種錯誤，各發生在哪一步〉、[第三節](../../html/c/多檔案的C程式-標頭檔、static與extern、連結錯誤與make.html#三標頭檔把宣告寫一次讓兩邊都檢查)〈標頭檔放什麼〉、[第六節](../../html/c/多檔案的C程式-標頭檔、static與extern、連結錯誤與make.html#忘了-extern每個-c-都有一份定義)〈忘了 `extern`〉最後一段】
+>
+> 核心關鍵：
+> 1. 連結階段（訊息開頭是 `/usr/bin/ld:`）的 `multiple definition of 'clamp'`。
+> 2. 原因：標頭檔裡放了函式的**定義**（有本體），被貼進 `volume.c` 和 `a_main.c`，兩個 `.o` 各有一個 `GLOBAL` 的 `clamp`，連結器不知道用哪一個。
+> 3. include guard 只防同一個 `.c` 裡貼兩次；兩個 `.c` 分開編譯，各貼一次，guard 管不到。
+>
+> 詳細說明：我照題目重做，`readelf -s volume.o a_main.o | grep -E 'File|clamp'` 看到兩份定義：
+> ```text
+> File: volume.o
+>      3: 0000000000000000    48 FUNC    GLOBAL DEFAULT    1 clamp
+> File: a_main.o
+>      4: 0000000000000000    48 FUNC    GLOBAL DEFAULT    1 clamp
+> ```
+> 兩列都是 `GLOBAL`，`Ndx` 是 1（`.text`，有內容），也就是兩個 `.o` 都說「我提供 `clamp`」。編譯時沒有報錯，因為每個 `.c` 裡都只有一份定義；問題要等連結器把兩個 `.o` 放在一起時才看得到。
+
+**自我練習**（不批改）
+
+```
+連接階段錯誤,原因是因爲重複定義clamp
+
+y因爲他們兩個是分開編譯的,兩個都各自引入標頭檔案,所以都定義到了
 ```
 
 #### 4a-2. 照筆記的原則修好它（要動哪些檔案、各放什麼），貼上修好後的檔案與執行結果。
 
-**第 1 次（YYYY-MM-DD）**
+**第 1 次（2026-10-21）**
+````
+我改動了clamp.h, 不再將完整的定義放在標頭,並且用上了extern
+clamp的定義就寫在volume.c
+
+```volume.c
+#include <stdio.h>
+#include "clamp.h"
+
+int set_volume(int v);
+
+int main(void)
+{
+    printf("%d %d\n", set_volume(150), clamp(-5, 0, 10));
+    return 0;
+}
 ```
+
+```clamp.h
+#ifndef CLAMP_H
+#define CLAMP_H
+
+extern int clamp(int v, int lo, int hi);
+
+#endif
 ```
+
+./a                                                                                                      127 err | base py | at 22:46:21
+100 0
+````
+
+
+> **批改（2026-10-21）**：**大致對**。`clamp.h` 只留宣告是對的，`100 0` 也對。缺的地方：
+> 1. 你標成 `volume.c` 貼上來的那一段其實是 `a_main.c` 的內容（有 `main`、沒有 `clamp` 的定義），所以「`clamp` 的定義放在哪、長什麼樣」沒有貼出來。你資料夾裡的檔案後來已經改成 4a-3 的版本，我也看不到你修好的版本。
+> 2. 定義放在 `volume.c` 可以連結，但不是筆記的做法：`clamp` 是一個通用工具函式，照「一個 `.h` 配一個 `.c`」的原則，應該**新增 `clamp.c`**，在裡面 `#include "clamp.h"` 並寫定義，連結時多加 `clamp.o`。放在 `volume.c` 的話，之後別的程式只想用 `clamp`，也得把整個 `volume.o` 連進來。
+>
+> `extern int clamp(...);` 的 `extern` 沒有錯，只是多寫了，函式宣告本來就預設 `extern`。
+>
+> 另外，題目要求每個小專案各開一個子資料夾（`a/`、`b/`、`c/`）。你全部放在 `hw4/` 裡，結果 4a-3 把 4a-2 修好的檔案蓋掉了，4c 的 `c_main.c` 也只剩註解掉標頭檔的版本。下次分開放，每一題的檔案才會留著。
+>
+> **參考答案**【[第三節](../../html/c/多檔案的C程式-標頭檔、static與extern、連結錯誤與make.html#三標頭檔把宣告寫一次讓兩邊都檢查)〈標頭檔放什麼〉、[第六節](../../html/c/多檔案的C程式-標頭檔、static與extern、連結錯誤與make.html#忘了-extern每個-c-都有一份定義)〈忘了 `extern`〉最後一段】
+>
+> 核心關鍵：
+> 1. `clamp.h` 只放宣告 `int clamp(int v, int lo, int hi);`（保留 include guard）。
+> 2. 定義放在**一個** `.c` 裡（慣例是新增 `clamp.c`），這個 `.c` 也要 `#include "clamp.h"`，讓編譯器檢查宣告和定義一致。
+> 3. 三個 `.o` 一起連結，結果是 `100 0`。
+>
+> 詳細說明：修好後的檔案：
+>
+> `clamp.h`：
+> ```c
+> #ifndef CLAMP_H
+> #define CLAMP_H
+>
+> int clamp(int v, int lo, int hi);
+>
+> #endif
+> ```
+> `clamp.c`：
+> ```c
+> #include "clamp.h"
+>
+> int clamp(int v, int lo, int hi)
+> {
+>     if (v < lo)
+>         return lo;
+>     if (v > hi)
+>         return hi;
+>     return v;
+> }
+> ```
+> `volume.c`、`a_main.c` 不用改。
+> ```text
+> gcc -Wall -c clamp.c volume.c a_main.c
+> gcc -o a clamp.o volume.o a_main.o
+> ./a
+> 100 0
+> ```
+> `set_volume(150)` 被夾到上限 100，`clamp(-5, 0, 10)` 被夾到下限 0。
 
 #### 4a-3. 另一種「修法」：不搬檔案，只在 `clamp.h` 的 `int clamp(...)` 前面加 `static`。先預測能不能連結，再試。如果能，用 `readelf -s` 看兩個 `.o`，說明這樣做的代價是什麼。【筆記第五節〈檔案層級的 `static`〉】
 
-**第 1 次（YYYY-MM-DD）**
+**第 1 次（2026-10-21）**
 ```
+能夠連接,也可以測試
+
+~/w/Proj/g/good-note/s/s1-06-multi-file/hw/hw4 | on main >4 !4 ?1  readelf -s a_main.o                                                                                           ok | base py | at 22:49:35
+
+Symbol table '.symtab' contains 8 entries:
+   Num:    Value          Size Type    Bind   Vis      Ndx Name
+     0: 0000000000000000     0 NOTYPE  LOCAL  DEFAULT  UND
+     1: 0000000000000000     0 FILE    LOCAL  DEFAULT  ABS a_main.c
+     2: 0000000000000000     0 SECTION LOCAL  DEFAULT    1 .text
+     3: 0000000000000000    48 FUNC    LOCAL  DEFAULT    1 clamp
+     4: 0000000000000000     0 SECTION LOCAL  DEFAULT    5 .rodata
+     5: 0000000000000030    80 FUNC    GLOBAL DEFAULT    1 main
+     6: 0000000000000000     0 NOTYPE  GLOBAL DEFAULT  UND set_volume
+     7: 0000000000000000     0 NOTYPE  GLOBAL DEFAULT  UND printf
+
+ ~/w/Proj/g/good-note/s/s1-06-multi-file/hw/hw4 | on main >4 !4 ?1  readelf -s volume.o                                                                                           ok | base py | at 22:49:47
+
+Symbol table '.symtab' contains 5 entries:
+   Num:    Value          Size Type    Bind   Vis      Ndx Name
+     0: 0000000000000000     0 NOTYPE  LOCAL  DEFAULT  UND
+     1: 0000000000000000     0 FILE    LOCAL  DEFAULT  ABS volume.c
+     2: 0000000000000000     0 SECTION LOCAL  DEFAULT    1 .text
+     3: 0000000000000000    48 FUNC    LOCAL  DEFAULT    1 clamp
+     4: 0000000000000030    37 FUNC    GLOBAL DEFAULT    1 set_volume
+
+兩個都變成local自己可以用,但這樣就變成 兩個.o要定義兩次,但因爲是local所以連接時不會有問題,只是佔用記憶體的容量也變2倍了
 ```
+
+
+> **批改（2026-10-21）**：**對**。預測能連結是對的；`readelf -s` 兩個 `.o` 都貼了，也看出兩個 `clamp` 都是 `LOCAL`；代價也講到了：每個 `.o` 各有一份。
+> 用詞修正：不是「記憶體容量變 2 倍」，只有 `clamp` 這個函式的機器碼多了一份（這裡是 48 byte），程式其他部分不會跟著變大。引入的 `.c` 越多，就多越多份。
+>
+> **參考答案**【[第五節](../../html/c/多檔案的C程式-標頭檔、static與extern、連結錯誤與make.html#檔案層級的-static讓名字變成-local)〈檔案層級的 `static`〉】
+>
+> 核心關鍵：
+> 1. 能連結：`static` 讓兩個 `clamp` 都變成 `LOCAL`，連結器不拿 `LOCAL` 的名字去配對，所以不會撞名。
+> 2. 證據：`volume.o` 和 `a_main.o` 各有一列 `48 FUNC LOCAL ... 1 clamp`，兩份都是定義（`Ndx` 1）。
+> 3. 代價：每個引入 `clamp.h` 的 `.c` 都會複製一份 `clamp` 的機器碼，執行檔裡有好幾份同樣的函式。
+>
+> 詳細說明（後兩點是新觀念，不在扣分範圍）：
+> - 我實測執行，結果一樣是 `100 0`。
+> - 引入了但沒用到的 `.c` 會收到警告：只寫 `#include "clamp.h"` 和一個不相干函式的 `unused.c`，`gcc -Wall -c unused.c` 會印
+>   `clamp.h:4:12: warning: 'clamp' defined but not used [-Wunused-function]`。
+> - 兩份是**不同的函式**，位址也不一樣。如果函式裡有 `static` 變數，每個 `.c` 也會各有一份，彼此不共用。
+> - 實務上真的想把小函式放在標頭檔時，寫法是 `static inline`：`inline` 讓編譯器傾向直接展開，沒用到也不警告。kernel 的標頭檔裡很多這種寫法（之後的課才會細講）。
 
 ### 4b：名字打錯
 
@@ -847,9 +1010,45 @@ gcc -o b report.o b_main.o
 
 #### 4b-1. 貼上錯誤訊息。是哪個階段？用 `readelf -s`（或 `nm`）看兩個 `.o`，找出證據說明連結器為什麼配不起來。為什麼 `report.c` 明明 `#include` 了 `report.h`，編譯時卻沒有報錯？【筆記第四節；第二節（宣告與定義）】
 
-**第 1 次（YYYY-MM-DD）**
+**第 1 次（2026-10-21）**
 ```
+/usr/bin/ld: b_main.o: in function `main':
+b_main.c:(.text+0x9): undefined reference to `print_report'
+collect2: error: ld returned 1 exit status
+
+連接的時候出了錯
+
+Symbol table '.symtab' contains 6 entries:
+   Num:    Value          Size Type    Bind   Vis      Ndx Name
+     0: 0000000000000000     0 NOTYPE  LOCAL  DEFAULT  UND
+     1: 0000000000000000     0 FILE    LOCAL  DEFAULT  ABS report.c
+     2: 0000000000000000     0 SECTION LOCAL  DEFAULT    1 .text
+     3: 0000000000000000     0 SECTION LOCAL  DEFAULT    5 .rodata
+     4: 0000000000000000    26 FUNC    GLOBAL DEFAULT    1 print_reprot
+     5: 0000000000000000     0 NOTYPE  GLOBAL DEFAULT  UND puts
+
+可以看到print_report 寫成print_reprot 與b_main自然連接不起來
+
+因爲c 認爲print_reprot 與 print_report是沒有關係的定義與宣告,h的宣告,在.c沒有定義也不會因此有錯
 ```
+
+
+> **批改（2026-10-21）**：**大致對**。連結階段、`undefined reference`、從 `report.o` 看出定義的名字是 `print_reprot`、「只宣告不定義不會錯」都對。缺的地方：題目要求看**兩個** `.o`，你只貼了 `report.o`。另一半證據是 `b_main.o` 裡那一列 `UND print_report`（要的名字），兩邊並排，才看得出「要的」和「給的」差了兩個字母。
+>
+> **參考答案**【[第四節](../../html/c/多檔案的C程式-標頭檔、static與extern、連結錯誤與make.html#三種錯誤各發生在哪一步)〈三種錯誤，各發生在哪一步〉、[第二節](../../html/c/多檔案的C程式-標頭檔、static與extern、連結錯誤與make.html#二宣告與定義沒有宣告編譯器只能猜)】
+>
+> 核心關鍵：
+> 1. 連結階段的 `undefined reference to 'print_report'`。
+> 2. 證據：`b_main.o` 有 `NOTYPE GLOBAL ... UND print_report`（需要），`report.o` 只有 `FUNC GLOBAL ... 1 print_reprot`（提供）；連結器只比對名字，兩個名字不同，所以沒有人提供 `print_report`。
+> 3. 編譯時不會錯：只有宣告、沒有定義是合法的，編譯器以為定義在別的檔案。它一次只看一個 `.c`，不會檢查每個宣告都有對應的定義；`print_reprot` 對它來說只是另一個函式。
+>
+> 詳細說明：本機的兩列：
+> ```text
+> b_main.o:  4: 0000000000000000     0 NOTYPE  GLOBAL DEFAULT  UND print_report
+> report.o:  4: 0000000000000000    26 FUNC    GLOBAL DEFAULT    1 print_reprot
+> ```
+> 引入自己的標頭檔只能抓到「同一個名字、型別不同」（1-4 的 `conflicting types`），抓不到打錯名字，因為打錯的名字就是另一個新的函式。`-Wall` 也不警告，因為 `print_reprot` 沒有 `static`，編譯器無法知道別的檔案不會呼叫它。
+> 另外，你貼的符號表裡是 `UND puts` 而不是 `printf`：`printf("report ok\n")` 的格式字串裡沒有 `%`、又以 `\n` 結尾，gcc 會把它換成比較快的 `puts("report ok")`（新觀念，看到不要以為貼錯了）。
 
 ### 4c：參數個數不對
 
@@ -894,9 +1093,69 @@ gcc -Wall -c area.c c_main.c
 
 #### 4c-1. 貼上錯誤訊息。是哪個階段？如果 `c_main.c` 沒有 `#include "area.h"`（也沒有自己的宣告），先猜：會在哪個階段出問題、還是根本不會報錯？為什麼？（可以實際試試看，`-Wall` 的警告也貼上。）【筆記第二節〈實驗：忘了宣告〉、第四節】
 
-**第 1 次（YYYY-MM-DD）**
+**第 1 次（2026-10-21）**
 ```
+c_main.c: In function ‘main’:
+c_main.c:6:21: error: too few arguments to function ‘area’
+    6 |     printf("%ld\n", area(3));
+      |                     ^~~~
+In file included from c_main.c:2:
+area.h:4:6: note: declared here
+    4 | long area(long w, long h);
+      |      ^~~~
+
+編譯階段就錯了,少了一個參數
+
+一樣編譯階段, 應該是undefined function gcc找不到這個函式
+
+c_main.c: In function ‘main’:
+c_main.c:6:21: warning: implicit declaration of function ‘area’ [-Wimplicit-function-declaration]
+    6 |     printf("%ld\n", area(3));
+      |                     ^~~~
+c_main.c:6:15: warning: format ‘%ld’ expects argument of type ‘long int’, but argument 2 has type ‘int’ [-Wformat=]
+    6 |     printf("%ld\n", area(3));
+      |             ~~^     ~~~~~~~
+      |               |     |
+      |               |     int
+      |               long int
+      |             %d
+
+實際結果,沒有報錯只有警告
+
+看起來他有隱含宣告的意思,而且默認的返回值還是int
 ```
+
+
+> **批改（2026-10-21）**：**不完整**。第一問對：編譯階段的 `too few arguments to function 'area'`，原因是少一個參數。第二問：
+> 1. 猜「編譯階段就錯、找不到函式」是錯的。這不是新觀念：[第二節](../../html/c/多檔案的C程式-標頭檔、static與extern、連結錯誤與make.html#實驗忘了宣告square100000-印出-1410065408)〈實驗：忘了宣告〉的 `square` 就是同一件事，沒有宣告時編譯器會**隱式宣告**成回傳 `int`，照樣編得過，只有警告。
+> 2. 你實際試出「沒報錯、只有警告、預設回傳 `int`」，這個觀察是對的。但只做到 `-c`，沒有連結、沒有執行，所以漏了最重要的部分：**連結也過、執行時印出錯的數字**。這跟 1-4 (b)、2-3 是同一種問題：「沒報錯」不代表結果對，要跑到最後一步才知道。
+>
+> **參考答案**【[第二節](../../html/c/多檔案的C程式-標頭檔、static與extern、連結錯誤與make.html#實驗忘了宣告square100000-印出-1410065408)〈實驗：忘了宣告〉、[第四節](../../html/c/多檔案的C程式-標頭檔、static與extern、連結錯誤與make.html#三種錯誤各發生在哪一步)〈三種錯誤，各發生在哪一步〉】
+>
+> 核心關鍵：
+> 1. 有引入 `area.h`：編譯階段就報 `too few arguments`，因為宣告讓編譯器知道 `area` 要兩個參數。
+> 2. 沒有引入：編譯只有警告（`implicit declaration`，隱式宣告成回傳 `int`、參數不檢查），編譯得過。
+> 3. 連結也會過：連結器只比對名字 `area`，不比對參數個數和型別。
+> 4. 執行時結果是錯的：`area` 照它的定義從 `%rsi` 讀 `h`，但呼叫的那邊沒放 `h`，讀到的是垃圾；回傳值也被當成 `int`，只取低 32 位元。沒有任何一個階段抓得到。
+>
+> 詳細說明：我把你的 `c_main.c`（`#include "area.h"` 註解掉的版本）實際連結、執行：
+> ```text
+> gcc -Wall -c area.c c_main.c      # 跟你一樣的兩個警告
+> gcc -o c area.o c_main.o          # 連結成功，沒有任何訊息
+> ./c
+> 2899668792
+> ./c
+> 3459328120
+> ```
+> 每次執行的數字都不一樣，而且都不是 `3 × 某個數` 的合理面積。`objdump -d --no-show-raw-insn c_main.o` 看呼叫的那邊（`#` 後面是說明）：
+> ```text
+>    8:   mov    $0x3,%edi      # 第一個參數 w = 3
+>    d:   mov    $0x0,%eax      # 沒有原型時，當成可變參數函式呼叫：%al = 0（第 5 課）
+>   12:   call   17 <main+0x17> # 呼叫 area；%rsi 完全沒設，裡面是之前留下的值
+>   17:   mov    %eax,%esi      # 只拿回傳值的低 32 位元（當成 int），放進 printf 的第二個參數
+> ```
+> `area` 那邊照定義算 `%rdi × %rsi`，`%rsi` 是呼叫之前剩下的值（每次執行不同，因為位址隨機化），所以結果每次都變。`mov %eax,%esi` 寫 32 位元暫存器會把高 32 位元清成 0（第 4 課），`printf` 的 `%ld` 讀整個 `%rsi`，所以印出來的一定是 0～4294967295 之間的數。
+> 第二個警告 `format '%ld' expects ... 'int'` 也是同一個原因：編譯器以為 `area` 回傳 `int`。這就是筆記一直強調的：**一定要引入標頭檔**，讓錯誤在編譯時就被抓到。
 
 ---
 
@@ -911,24 +1170,69 @@ gcc -Wall -c area.c c_main.c
 
 ### 5-1. 貼上 `Makefile` 與第一次 `make` 的輸出、執行結果。逐行說明 `Makefile` 每一行在做什麼。【筆記[第七節](../../html/c/多檔案的C程式-標頭檔、static與extern、連結錯誤與make.html#七make只重編改過的檔案)〈實用的 `Makefile`〉】
 
-**第 1 次（YYYY-MM-DD）**
+**第 1 次（2026-10-22）**
+````
 ```
+CC = gcc   # 決定編譯器
+CFLAGS = -Wall -g -O0 -MMD -MP # 編譯器命令用的flag
+OBJS = logger.o worker.o hw2_main.o # 要變出來的.o
+
+logdemo: $(OBJS) # 默認的make指令, 直接就把執行檔變出來 先決條件是objs
+	$(CC) $(CFLAGS) -o logdemo $(OBJS) # 編譯命令
+
+%.o: %.c 決定要編那個.o
+	$(CC) $(CFLAGS) -c $< -o $@ # $<:代表第一個先決條件, $@是目標
+
+-include $(OBJS:.o=.d) #要把產生的.d全部放到make .o裏面
+
+clean:  #清除的命令
+	rm -f $(OBJS) logdemo *.d
+
+.PHONY: clean, #每次都執行
 ```
+
+~/w/Proj/g/good-note/s/s1-06-multi-file/hw/hw5 | on main >4 !4 ?2  ./logdemo                                                                                                     ok | base py | at 00:39:36
+[1] Work started
+[1] Work started
+[3] Work detail
+````
 
 ### 5-2. 先預測：`touch worker.h` 之後 `make`，哪些 `.o` 會重編、會不會重新連結？再實際跑，貼上輸出，並貼上 `worker.d` 與 `hw2_main.d` 的內容當證據。換成 `touch logger.h` 呢？【筆記第七節〈實驗：第一個 `Makefile`〉的逐點說明、〈`-MMD -MP`〉】
 
-**第 1 次（YYYY-MM-DD）**
+**第 1 次（2026-10-22）**
 ```
+應該是worker.o會重編,也會重新連接
+
+~/w/Proj/g/good-note/s/s1-06-multi-file/hw/hw5 | on main >4 !4 ?2  make                                                                                                          ok | base py | at 00:46:00
+gcc -Wall -g -O0 -MMD -MP -c worker.c -o worker.o
+gcc -Wall -g -O0 -MMD -MP -c hw2_main.c -o hw2_main.o
+gcc -Wall -g -O0 -MMD -MP -o logdemo logger.o worker.o hw2_main.o
+
+觀察到實際 worker.o, hw2_main.o, logdemo全都重編了,看來只要有include worker.h都會重編, logdemo因爲是hw2_main跟logger連接的產物,所以重編也正常
+
+換成touch logger.h 那全都會重編,因爲全都有引用
 ```
 
 ### 5-3. `touch logger.c` 之後，用 `make` 的某個選項**只印出會執行的命令、不真的執行**，貼上命令與輸出。接著真的 `make` 一次。【筆記第七節〈命令列〉的選項表】
 
-**第 1 次（YYYY-MM-DD）**
+**第 1 次（2026-10-22）**
 ```
+ ~/w/Proj/g/good-note/s/s1-06-multi-file/hw/hw5 | on main >4 !4 ?2  make logger.o                                                                                                 ok | base py | at 00:57:56
+gcc -Wall -g -O0 -MMD -MP -c logger.c -o logger.o
+
+~/w/Proj/g/good-note/s/s1-06-multi-file/hw/hw5 | on main >4 !4 ?2  make                                                                                                         INT | base py | at 00:58:39
+gcc -Wall -g -O0 -MMD -MP -o logdemo logger.o worker.o hw2_main.o
 ```
 
 ### 5-4. 先猜再實驗：什麼檔案都不改，直接執行 `make CFLAGS="-Wall -O2"`。`make` 會用 `-O2` 重編嗎？貼上輸出。為什麼？如果你真的想用新的選項全部重編，有什麼辦法？【新觀念，先猜】（第二問可以用筆記第七節〈命令列〉的選項表）
 
-**第 1 次（YYYY-MM-DD）**
+**第 1 次（2026-10-22）**
 ```
+不行
+ ~/w/Proj/g/good-note/s/s1-06-multi-file/hw/hw5 | on main >4 !4 ?2  make CFLAGS="-Wall -O2"                                                                                       ok | base py | at 00:58:57
+make: 'logdemo' is up to date.
+
+看輸出似乎是logdemo已經是最新的了
+
+用 -B
 ```

@@ -135,7 +135,7 @@
 </table>
 <hr />
 <h2 id="批改結果2026-10-21">批改結果（2026-10-21）</h2>
-<p>第 1～3 題已批改（2026-10-21）；第 4 題以後還沒作答。</p>
+<p>第 1～4 題已批改（2026-10-21）；第 5 題還沒作答。</p>
 <table>
 <thead>
 <tr>
@@ -199,6 +199,31 @@
 <td>3-3</td>
 <td>大致對</td>
 <td><code>0x0(%rip)</code> 是固定位址＋連結時填、拿掉 <code>static</code> 改放堆疊、結果 5／10／−3 都對；預測的 <code>mov 0x0, -0x10(%rbp)</code> 寫錯：常數要 <code>$0x0</code>（不加 <code>$</code> 是位址 0），且 <code>mov</code> 不能兩邊都是記憶體，應為 <code>movq $0x0,-0x8(%rbp)</code></td>
+</tr>
+<tr>
+<td>4a-1</td>
+<td>不完整</td>
+<td>連結階段、<code>multiple definition</code> 對；原因說成「沒寫 <code>extern</code> 所以是定義」是錯的：函式是不是定義看有沒有本體 <code>{}</code>，<code>extern</code> 是全域變數的規則；include guard 漏了關鍵：只在同一個 <code>.c</code> 內有效，兩個 <code>.c</code> 分開編譯各貼一次</td>
+</tr>
+<tr>
+<td>4a-2</td>
+<td>大致對</td>
+<td><code>clamp.h</code> 只留宣告、結果 <code>100 0</code> 對；放定義的檔案沒貼（標成 <code>volume.c</code> 的是 <code>a_main.c</code>）；照原則應該新增 <code>clamp.c</code> 並引入 <code>clamp.h</code>，而不是寫進 <code>volume.c</code></td>
+</tr>
+<tr>
+<td>4a-3</td>
+<td>對</td>
+<td>抓到：能連結、兩個 <code>clamp</code> 都是 <code>LOCAL</code>、代價是每個 <code>.o</code> 各一份。用詞：多的只有這個函式的機器碼，不是整個程式 2 倍</td>
+</tr>
+<tr>
+<td>4b-1</td>
+<td>大致對</td>
+<td>連結階段、名字打成 <code>print_reprot</code>、只宣告不定義是合法的，都對；少了 <code>b_main.o</code> 的 <code>UND print_report</code> 那一半證據</td>
+</tr>
+<tr>
+<td>4c-1</td>
+<td>不完整</td>
+<td>第一問（編譯階段 <code>too few arguments</code>）對；第二問猜成編譯錯（隱式宣告在筆記第二節教過）；沒有連結、執行，漏了「連結也過、執行時印出垃圾數字」——跟 1-4 (b)、2-3 一樣，停在沒報錯就下結論</td>
 </tr>
 </tbody>
 </table>
@@ -318,7 +343,7 @@ strstat.c有strstat.h,這樣這個標頭的declaration and definition才能夠�
 </details>
 </p>
 <details class="answer self-practice"><summary>自我練習（不批改）</summary>
-<div class="answer-box" data-file="small-project/s1-06-multi-file/README.md" data-line="185"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）">使用static, 這樣這個函式才能變成只有strstat自己能用 local
+<div class="answer-box" data-file="small-project/s1-06-multi-file/README.md" data-line="190"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）">使用static, 這樣這個函式才能變成只有strstat自己能用 local
 
 有, 這樣gcc才能檢查你的定義與宣告的型別是否相同,否則就算編的過,main還是按舊的宣告呼叫
 也就是說重點不是能不能編的過(沒h也能編的過)而是要在編譯時檢查main與strstat是否一致
@@ -373,7 +398,7 @@ count_digits, length, printf 都是global,全域可調用,但是ndx都是und, �
 </details>
 </details>
 <details class="answer self-practice"><summary>自我練習（不批改）</summary>
-<div class="answer-box" data-file="small-project/s1-06-multi-file/README.md" data-line="239" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="small-project/s1-06-multi-file/README.md" data-line="244" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h3 id="1-3-msg-這個字串在-hw1_maino-的符號表裡有沒有一列叫-msg先預測再用-readelf--s-確認為什麼筆記第五節函式裡的-static哪些變數有符號哪些沒有">1-3. <code>msg</code> 這個字串在 <code>hw1_main.o</code> 的符號表裡有沒有一列叫 <code>msg</code>？先預測，再用 <code>readelf -s</code> 確認。為什麼？【筆記第五節〈函式裡的 <code>static</code>〉（哪些變數有符號、哪些沒有）】</h3>
 <p><strong>第 1 次（2026-10-21）</strong></p>
@@ -410,7 +435,7 @@ Symbol table &#x27;.symtab&#x27; contains 8 entries:
 </details>
 </p>
 <details class="answer self-practice"><summary>自我練習（不批改）</summary>
-<div class="answer-box" data-file="small-project/s1-06-multi-file/README.md" data-line="275"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）">沒有
+<div class="answer-box" data-file="small-project/s1-06-multi-file/README.md" data-line="280"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）">沒有
 msg 沒有加static, 這樣msg是存在stack的
 存在stack代表他不需要連接器去把符號跟位址連接起來,編譯器自己就可以算出他的位址 用stack -D(%rbp)這種方式
 </textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
@@ -451,7 +476,7 @@ length = 17, digits = 4
 </details>
 </p>
 <details class="answer self-practice"><summary>自我練習（不批改）</summary>
-<div class="answer-box" data-file="small-project/s1-06-multi-file/README.md" data-line="321"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）">b 編譯連接執行都ok 但實際上main他的型別是用long會正確只是碰巧
+<div class="answer-box" data-file="small-project/s1-06-multi-file/README.md" data-line="326"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）">b 編譯連接執行都ok 但實際上main他的型別是用long會正確只是碰巧
 </textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <hr />
@@ -518,7 +543,7 @@ collect2: error: ld returned 1 exit status
 </details>
 </details>
 <details class="answer self-practice"><summary>自我練習（不批改）</summary>
-<div class="answer-box" data-file="small-project/s1-06-multi-file/README.md" data-line="393" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="small-project/s1-06-multi-file/README.md" data-line="398" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h3 id="2-2-先預測log_level-在-loggero-的符號表裡ndx-是-bss-還是-data-的編號在-workerohw2_maino-裡呢用-readelf--s-與-readelf--s-確認貼上相關的列為什麼跟筆記-hits-的例子在不同的區段筆記第五節函式裡的-static的-bss-說明第六節">2-2. 先預測：<code>log_level</code> 在 <code>logger.o</code> 的符號表裡，<code>Ndx</code> 是 <code>.bss</code> 還是 <code>.data</code> 的編號？在 <code>worker.o</code>、<code>hw2_main.o</code> 裡呢？用 <code>readelf -s</code> 與 <code>readelf -S</code> 確認，貼上相關的列。為什麼跟筆記 <code>hits</code> 的例子在不同的區段？【筆記第五節〈函式裡的 <code>static</code>〉的 <code>.bss</code> 說明、第六節】</h3>
 <p><strong>第 1 次（2026-10-21）</strong></p>
@@ -619,7 +644,7 @@ Symbol table &#x27;.symtab&#x27; contains 6 entries:
 </details>
 </details>
 <details class="answer self-practice"><summary>自我練習（不批改）</summary>
-<div class="answer-box" data-file="small-project/s1-06-multi-file/README.md" data-line="492" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="small-project/s1-06-multi-file/README.md" data-line="497" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h3 id="2-3-先猜再實驗在-workerc-裡也寫一行-int-log_level--1有初值然後用-gcc--fcommon-編譯全部檔案再連結筆記說--fcommon-會合併同名的全域變數這次會成功嗎貼上結果做完把那一行刪掉新觀念先猜">2-3. 先猜再實驗：在 <code>worker.c</code> 裡<strong>也</strong>寫一行 <code>int log_level = 1;</code>（有初值），然後用 <code>gcc -fcommon</code> 編譯全部檔案再連結。筆記說 <code>-fcommon</code> 會合併同名的全域變數，這次會成功嗎？貼上結果。做完把那一行刪掉。【新觀念，先猜】</h3>
 <p><strong>第 1 次（2026-10-21）</strong></p>
@@ -679,7 +704,7 @@ logger.h:4:12: note: previous declaration of ‘log_level’ with type ‘int’
 </details>
 </details>
 <details class="answer self-practice"><summary>自我練習（不批改）</summary>
-<div class="answer-box" data-file="small-project/s1-06-multi-file/README.md" data-line="553" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="small-project/s1-06-multi-file/README.md" data-line="558" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <hr />
 <h2 id="3-函式裡的-static">3. 函式裡的 <code>static</code></h2>
@@ -745,7 +770,7 @@ calls(): 3
 </details>
 </details>
 <details class="answer self-practice"><summary>自我練習（不批改）</summary>
-<div class="answer-box" data-file="small-project/s1-06-multi-file/README.md" data-line="619" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="small-project/s1-06-multi-file/README.md" data-line="624" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h3 id="3-2-先預測兩個-static-變數在-totalo-的符號表裡叫什麼名字bind-是什麼各在哪個區段用-readelf--sreadelf--s-確認貼上相關的列兩個變數為什麼在不同的區段筆記第五節函式裡的-static">3-2. 先預測：兩個 <code>static</code> 變數在 <code>total.o</code> 的符號表裡叫什麼名字、<code>Bind</code> 是什麼、各在哪個區段？用 <code>readelf -s</code>、<code>readelf -S</code> 確認，貼上相關的列。兩個變數為什麼在不同的區段？【筆記第五節〈函式裡的 <code>static</code>〉】</h3>
 <p><strong>第 1 次（2026-10-21）</strong></p>
@@ -789,7 +814,7 @@ count 在.data
 </details>
 </details>
 <details class="answer self-practice"><summary>自我練習（不批改）</summary>
-<div class="answer-box" data-file="small-project/s1-06-multi-file/README.md" data-line="659" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="small-project/s1-06-multi-file/README.md" data-line="664" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h3 id="3-3-用-objdump--d---no-show-raw-insn-totalo-看-running_total貼上它的本體static-變數用什麼寫法存取如果把-static-拿掉你預期這幾行會變成什麼寫法執行結果變成什麼只要預測不必真的改筆記第五節函式裡的-static的組合語言對照第-5-課筆記第四節">3-3. 用 <code>objdump -d --no-show-raw-insn total.o</code> 看 <code>running_total</code>，貼上它的本體。<code>static</code> 變數用什麼寫法存取？如果把 <code>static</code> 拿掉，你預期這幾行會變成什麼寫法、執行結果變成什麼？（只要預測，不必真的改。）【筆記第五節〈函式裡的 <code>static</code>〉的組合語言對照；<a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80%E4%BA%8C-call%E8%88%87ret%E3%80%81%E5%A0%86%E7%96%8A%E6%A1%86%E3%80%81%E5%8F%83%E6%95%B8%E8%88%87%E5%91%BC%E5%8F%AB%E6%85%A3%E4%BE%8B.html#%E5%9B%9B%E5%A0%86%E7%96%8A%E6%A1%86pushq-rbp-movq-rsp-rbp-%E8%88%87-leave">第 5 課筆記第四節</a>】</h3>
 <p><strong>第 1 次（2026-10-21）</strong></p>
@@ -858,7 +883,7 @@ running_total(-3): -3
 </details>
 </details>
 <details class="answer self-practice"><summary>自我練習（不批改）</summary>
-<div class="answer-box" data-file="small-project/s1-06-multi-file/README.md" data-line="729" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="small-project/s1-06-multi-file/README.md" data-line="734" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <hr />
 <h2 id="4-讀連結錯誤">4. 讀連結錯誤</h2>
@@ -903,19 +928,184 @@ running_total(-3): -3
 gcc -o a volume.o a_main.o
 </code></pre>
 <h4 id="4a-1-貼上錯誤訊息是編譯還是連結階段原因是什麼已經有-include-guard-了為什麼沒擋住筆記第四節三種錯誤各發生在哪一步第三節標頭檔放什麼第六節忘了-extern最後一段">4a-1. 貼上錯誤訊息。是編譯還是連結階段？原因是什麼？已經有 include guard 了，為什麼沒擋住？【筆記<a href="../../c/%E5%A4%9A%E6%AA%94%E6%A1%88%E7%9A%84C%E7%A8%8B%E5%BC%8F-%E6%A8%99%E9%A0%AD%E6%AA%94%E3%80%81static%E8%88%87extern%E3%80%81%E9%80%A3%E7%B5%90%E9%8C%AF%E8%AA%A4%E8%88%87make.html#%E5%9B%9B%E7%AC%A6%E8%99%9F%E8%A1%A8o-%E4%B9%8B%E9%96%93%E9%9D%A0%E5%90%8D%E5%AD%97%E6%8E%A5%E8%B5%B7%E4%BE%86">第四節</a>〈三種錯誤，各發生在哪一步〉、<a href="../../c/%E5%A4%9A%E6%AA%94%E6%A1%88%E7%9A%84C%E7%A8%8B%E5%BC%8F-%E6%A8%99%E9%A0%AD%E6%AA%94%E3%80%81static%E8%88%87extern%E3%80%81%E9%80%A3%E7%B5%90%E9%8C%AF%E8%AA%A4%E8%88%87make.html#%E4%B8%89%E6%A8%99%E9%A0%AD%E6%AA%94%E6%8A%8A%E5%AE%A3%E5%91%8A%E5%AF%AB%E4%B8%80%E6%AC%A1%E8%AE%93%E5%85%A9%E9%82%8A%E9%83%BD%E6%AA%A2%E6%9F%A5">第三節</a>〈標頭檔放什麼〉、第六節〈忘了 <code>extern</code>〉最後一段】</h4>
-<p><strong>第 1 次（YYYY-MM-DD）</strong></p>
-<details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="small-project/s1-06-multi-file/README.md" data-line="790"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<p><strong>第 1 次（2026-10-21）</strong></p>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
+<div class="answer-box locked"><textarea readonly spellcheck="false">/usr/bin/ld: a_main.o: in function `clamp&#x27;:
+a_main.c:(.text+0x0): multiple definition of `clamp&#x27;; volume.o:volume.c:(.text+0x0): first defined here
+collect2: error: ld returned 1 exit status
+
+是連接階段
+
+clamp重複定義了
+因爲clamp.h沒有宣告 extern在clamp, 所以clamp已經是默認爲定義了,而每個有這個.h的.c都會重複定義他, include guard,只能
+幫助確定有沒有include這個標頭當,他無法不然.c重複定義
+</textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
+<details class="answer"><summary>批改（2026-10-21）</summary>
+<p><strong>不完整</strong>。錯誤訊息、連結階段、「每個引入 <code>.h</code> 的 <code>.c</code> 都有一份定義」都對。兩個問題：</p>
+<ol>
+<li>原因講錯：<code>clamp</code> 是定義，是因為它<strong>有函式本體 <code>{ ... }</code></strong>，跟有沒有寫 <code>extern</code> 無關。函式宣告本來就預設 <code>extern</code>（<a href="../../c/%E5%A4%9A%E6%AA%94%E6%A1%88%E7%9A%84C%E7%A8%8B%E5%BC%8F-%E6%A8%99%E9%A0%AD%E6%AA%94%E3%80%81static%E8%88%87extern%E3%80%81%E9%80%A3%E7%B5%90%E9%8C%AF%E8%AA%A4%E8%88%87make.html#%E5%85%AB%E6%9C%AC%E8%AA%B2%E7%94%A8%E5%88%B0%E7%9A%84%E5%B7%A5%E5%85%B7%E9%81%B8%E9%A0%85%E8%88%87%E5%AE%8C%E6%95%B4%E6%B8%85%E5%96%AE%E5%9C%A8%E5%93%AA">第八節</a>〈C 語言：本課的關鍵字〉），<code>extern int clamp(...) { ... }</code> 照樣是定義、照樣 <code>multiple definition</code>。「沒寫 <code>extern</code> 就變成定義」是<strong>全域變數</strong>的規則（<code>long hits;</code> 是暫定定義，<a href="../../c/%E5%A4%9A%E6%AA%94%E6%A1%88%E7%9A%84C%E7%A8%8B%E5%BC%8F-%E6%A8%99%E9%A0%AD%E6%AA%94%E3%80%81static%E8%88%87extern%E3%80%81%E9%80%A3%E7%B5%90%E9%8C%AF%E8%AA%A4%E8%88%87make.html#%E5%85%ADextern%E5%85%A8%E5%9F%9F%E8%AE%8A%E6%95%B8%E7%9A%84%E5%AE%A3%E5%91%8A%E8%88%87%E5%AE%9A%E7%BE%A9">第六節</a>），不要套到函式上。</li>
+<li>include guard 為什麼擋不住，只寫了「擋不住」，沒說原因：guard 只在<strong>同一個 <code>.c</code>（編譯單元）裡</strong>有效。<code>volume.c</code> 和 <code>a_main.c</code> 是分開編譯的，各自從頭開始，<code>CLAMP_H</code> 在兩次編譯裡都還沒定義，所以兩個檔案都各貼了一份。</li>
+</ol>
+<details class="answer"><summary>參考答案</summary>
+<p>【<a href="../../c/%E5%A4%9A%E6%AA%94%E6%A1%88%E7%9A%84C%E7%A8%8B%E5%BC%8F-%E6%A8%99%E9%A0%AD%E6%AA%94%E3%80%81static%E8%88%87extern%E3%80%81%E9%80%A3%E7%B5%90%E9%8C%AF%E8%AA%A4%E8%88%87make.html#%E4%B8%89%E7%A8%AE%E9%8C%AF%E8%AA%A4%E5%90%84%E7%99%BC%E7%94%9F%E5%9C%A8%E5%93%AA%E4%B8%80%E6%AD%A5">第四節</a>〈三種錯誤，各發生在哪一步〉、<a href="../../c/%E5%A4%9A%E6%AA%94%E6%A1%88%E7%9A%84C%E7%A8%8B%E5%BC%8F-%E6%A8%99%E9%A0%AD%E6%AA%94%E3%80%81static%E8%88%87extern%E3%80%81%E9%80%A3%E7%B5%90%E9%8C%AF%E8%AA%A4%E8%88%87make.html#%E4%B8%89%E6%A8%99%E9%A0%AD%E6%AA%94%E6%8A%8A%E5%AE%A3%E5%91%8A%E5%AF%AB%E4%B8%80%E6%AC%A1%E8%AE%93%E5%85%A9%E9%82%8A%E9%83%BD%E6%AA%A2%E6%9F%A5">第三節</a>〈標頭檔放什麼〉、<a href="../../c/%E5%A4%9A%E6%AA%94%E6%A1%88%E7%9A%84C%E7%A8%8B%E5%BC%8F-%E6%A8%99%E9%A0%AD%E6%AA%94%E3%80%81static%E8%88%87extern%E3%80%81%E9%80%A3%E7%B5%90%E9%8C%AF%E8%AA%A4%E8%88%87make.html#%E5%BF%98%E4%BA%86-extern%E6%AF%8F%E5%80%8B-c-%E9%83%BD%E6%9C%89%E4%B8%80%E4%BB%BD%E5%AE%9A%E7%BE%A9">第六節</a>〈忘了 <code>extern</code>〉最後一段】</p>
+<p>核心關鍵：</p>
+<ol>
+<li>連結階段（訊息開頭是 <code>/usr/bin/ld:</code>）的 <code>multiple definition of 'clamp'</code>。</li>
+<li>原因：標頭檔裡放了函式的<strong>定義</strong>（有本體），被貼進 <code>volume.c</code> 和 <code>a_main.c</code>，兩個 <code>.o</code> 各有一個 <code>GLOBAL</code> 的 <code>clamp</code>，連結器不知道用哪一個。</li>
+<li>include guard 只防同一個 <code>.c</code> 裡貼兩次；兩個 <code>.c</code> 分開編譯，各貼一次，guard 管不到。</li>
+</ol>
+<p>詳細說明：我照題目重做，<code>readelf -s volume.o a_main.o | grep -E 'File|clamp'</code> 看到兩份定義：</p>
+<pre><code class="language-text">File: volume.o
+     3: 0000000000000000    48 FUNC    GLOBAL DEFAULT    1 clamp
+File: a_main.o
+     4: 0000000000000000    48 FUNC    GLOBAL DEFAULT    1 clamp
+</code></pre>
+<p>兩列都是 <code>GLOBAL</code>，<code>Ndx</code> 是 1（<code>.text</code>，有內容），也就是兩個 <code>.o</code> 都說「我提供 <code>clamp</code>」。編譯時沒有報錯，因為每個 <code>.c</code> 裡都只有一份定義；問題要等連結器把兩個 <code>.o</code> 放在一起時才看得到。</p>
+</details>
+</details>
+</p>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="small-project/s1-06-multi-file/README.md" data-line="830"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）">連接階段錯誤,原因是因爲重複定義clamp
+
+y因爲他們兩個是分開編譯的,兩個都各自引入標頭檔案,所以都定義到了
+</textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h4 id="4a-2-照筆記的原則修好它要動哪些檔案各放什麼貼上修好後的檔案與執行結果">4a-2. 照筆記的原則修好它（要動哪些檔案、各放什麼），貼上修好後的檔案與執行結果。</h4>
-<p><strong>第 1 次（YYYY-MM-DD）</strong></p>
-<details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="small-project/s1-06-multi-file/README.md" data-line="796"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<p><strong>第 1 次（2026-10-21）</strong></p>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
+<div class="answer-box locked"><textarea readonly spellcheck="false">我改動了clamp.h, 不再將完整的定義放在標頭,並且用上了extern
+clamp的定義就寫在volume.c
+
+```volume.c
+#include &lt;stdio.h&gt;
+#include &quot;clamp.h&quot;
+
+int set_volume(int v);
+
+int main(void)
+{
+    printf(&quot;%d %d\n&quot;, set_volume(150), clamp(-5, 0, 10));
+    return 0;
+}
+```
+
+```clamp.h
+#ifndef CLAMP_H
+#define CLAMP_H
+
+extern int clamp(int v, int lo, int hi);
+
+#endif
+```
+
+./a                                                                                                      127 err | base py | at 22:46:21
+100 0
+</textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
+<details class="answer"><summary>批改（2026-10-21）</summary>
+<p><strong>大致對</strong>。<code>clamp.h</code> 只留宣告是對的，<code>100 0</code> 也對。缺的地方：</p>
+<ol>
+<li>你標成 <code>volume.c</code> 貼上來的那一段其實是 <code>a_main.c</code> 的內容（有 <code>main</code>、沒有 <code>clamp</code> 的定義），所以「<code>clamp</code> 的定義放在哪、長什麼樣」沒有貼出來。你資料夾裡的檔案後來已經改成 4a-3 的版本，我也看不到你修好的版本。</li>
+<li>定義放在 <code>volume.c</code> 可以連結，但不是筆記的做法：<code>clamp</code> 是一個通用工具函式，照「一個 <code>.h</code> 配一個 <code>.c</code>」的原則，應該<strong>新增 <code>clamp.c</code></strong>，在裡面 <code>#include &quot;clamp.h&quot;</code> 並寫定義，連結時多加 <code>clamp.o</code>。放在 <code>volume.c</code> 的話，之後別的程式只想用 <code>clamp</code>，也得把整個 <code>volume.o</code> 連進來。</li>
+</ol>
+<p><code>extern int clamp(...);</code> 的 <code>extern</code> 沒有錯，只是多寫了，函式宣告本來就預設 <code>extern</code>。</p>
+<p>另外，題目要求每個小專案各開一個子資料夾（<code>a/</code>、<code>b/</code>、<code>c/</code>）。你全部放在 <code>hw4/</code> 裡，結果 4a-3 把 4a-2 修好的檔案蓋掉了，4c 的 <code>c_main.c</code> 也只剩註解掉標頭檔的版本。下次分開放，每一題的檔案才會留著。</p>
+<details class="answer"><summary>參考答案</summary>
+<p>【<a href="../../c/%E5%A4%9A%E6%AA%94%E6%A1%88%E7%9A%84C%E7%A8%8B%E5%BC%8F-%E6%A8%99%E9%A0%AD%E6%AA%94%E3%80%81static%E8%88%87extern%E3%80%81%E9%80%A3%E7%B5%90%E9%8C%AF%E8%AA%A4%E8%88%87make.html#%E4%B8%89%E6%A8%99%E9%A0%AD%E6%AA%94%E6%8A%8A%E5%AE%A3%E5%91%8A%E5%AF%AB%E4%B8%80%E6%AC%A1%E8%AE%93%E5%85%A9%E9%82%8A%E9%83%BD%E6%AA%A2%E6%9F%A5">第三節</a>〈標頭檔放什麼〉、<a href="../../c/%E5%A4%9A%E6%AA%94%E6%A1%88%E7%9A%84C%E7%A8%8B%E5%BC%8F-%E6%A8%99%E9%A0%AD%E6%AA%94%E3%80%81static%E8%88%87extern%E3%80%81%E9%80%A3%E7%B5%90%E9%8C%AF%E8%AA%A4%E8%88%87make.html#%E5%BF%98%E4%BA%86-extern%E6%AF%8F%E5%80%8B-c-%E9%83%BD%E6%9C%89%E4%B8%80%E4%BB%BD%E5%AE%9A%E7%BE%A9">第六節</a>〈忘了 <code>extern</code>〉最後一段】</p>
+<p>核心關鍵：</p>
+<ol>
+<li><code>clamp.h</code> 只放宣告 <code>int clamp(int v, int lo, int hi);</code>（保留 include guard）。</li>
+<li>定義放在<strong>一個</strong> <code>.c</code> 裡（慣例是新增 <code>clamp.c</code>），這個 <code>.c</code> 也要 <code>#include &quot;clamp.h&quot;</code>，讓編譯器檢查宣告和定義一致。</li>
+<li>三個 <code>.o</code> 一起連結，結果是 <code>100 0</code>。</li>
+</ol>
+<p>詳細說明：修好後的檔案：</p>
+<p><code>clamp.h</code>：</p>
+<pre><code class="language-c"><span class="cp">#ifndef CLAMP_H</span>
+<span class="cp">#define CLAMP_H</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">clamp</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">v</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">lo</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">hi</span><span class="p">);</span>
+
+<span class="cp">#endif</span>
+</code></pre>
+<p><code>clamp.c</code>：</p>
+<pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;clamp.h&quot;</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">clamp</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">v</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">lo</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">hi</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">v</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">lo</span><span class="p">)</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="n">lo</span><span class="p">;</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">v</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="n">hi</span><span class="p">)</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="n">hi</span><span class="p">;</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">v</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<p><code>volume.c</code>、<code>a_main.c</code> 不用改。</p>
+<pre><code class="language-text">gcc -Wall -c clamp.c volume.c a_main.c
+gcc -o a clamp.o volume.o a_main.o
+./a
+100 0
+</code></pre>
+<p><code>set_volume(150)</code> 被夾到上限 100，<code>clamp(-5, 0, 10)</code> 被夾到下限 0。</p>
+</details>
+</details>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="small-project/s1-06-multi-file/README.md" data-line="917" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h4 id="4a-3-另一種修法不搬檔案只在-clamph-的-int-clamp-前面加-static先預測能不能連結再試如果能用-readelf--s-看兩個-o說明這樣做的代價是什麼筆記第五節檔案層級的-static">4a-3. 另一種「修法」：不搬檔案，只在 <code>clamp.h</code> 的 <code>int clamp(...)</code> 前面加 <code>static</code>。先預測能不能連結，再試。如果能，用 <code>readelf -s</code> 看兩個 <code>.o</code>，說明這樣做的代價是什麼。【筆記第五節〈檔案層級的 <code>static</code>〉】</h4>
-<p><strong>第 1 次（YYYY-MM-DD）</strong></p>
-<details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="small-project/s1-06-multi-file/README.md" data-line="802"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<p><strong>第 1 次（2026-10-21）</strong></p>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
+<div class="answer-box locked"><textarea readonly spellcheck="false">能夠連接,也可以測試
+
+~/w/Proj/g/good-note/s/s1-06-multi-file/hw/hw4 | on main &gt;4 !4 ?1  readelf -s a_main.o                                                                                           ok | base py | at 22:49:35
+
+Symbol table &#x27;.symtab&#x27; contains 8 entries:
+   Num:    Value          Size Type    Bind   Vis      Ndx Name
+     0: 0000000000000000     0 NOTYPE  LOCAL  DEFAULT  UND
+     1: 0000000000000000     0 FILE    LOCAL  DEFAULT  ABS a_main.c
+     2: 0000000000000000     0 SECTION LOCAL  DEFAULT    1 .text
+     3: 0000000000000000    48 FUNC    LOCAL  DEFAULT    1 clamp
+     4: 0000000000000000     0 SECTION LOCAL  DEFAULT    5 .rodata
+     5: 0000000000000030    80 FUNC    GLOBAL DEFAULT    1 main
+     6: 0000000000000000     0 NOTYPE  GLOBAL DEFAULT  UND set_volume
+     7: 0000000000000000     0 NOTYPE  GLOBAL DEFAULT  UND printf
+
+ ~/w/Proj/g/good-note/s/s1-06-multi-file/hw/hw4 | on main &gt;4 !4 ?1  readelf -s volume.o                                                                                           ok | base py | at 22:49:47
+
+Symbol table &#x27;.symtab&#x27; contains 5 entries:
+   Num:    Value          Size Type    Bind   Vis      Ndx Name
+     0: 0000000000000000     0 NOTYPE  LOCAL  DEFAULT  UND
+     1: 0000000000000000     0 FILE    LOCAL  DEFAULT  ABS volume.c
+     2: 0000000000000000     0 SECTION LOCAL  DEFAULT    1 .text
+     3: 0000000000000000    48 FUNC    LOCAL  DEFAULT    1 clamp
+     4: 0000000000000030    37 FUNC    GLOBAL DEFAULT    1 set_volume
+
+兩個都變成local自己可以用,但這樣就變成 兩個.o要定義兩次,但因爲是local所以連接時不會有問題,只是佔用記憶體的容量也變2倍了
+</textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
+<details class="answer"><summary>批改（2026-10-21）</summary>
+<p><strong>對</strong>。預測能連結是對的；<code>readelf -s</code> 兩個 <code>.o</code> 都貼了，也看出兩個 <code>clamp</code> 都是 <code>LOCAL</code>；代價也講到了：每個 <code>.o</code> 各有一份。<br />
+用詞修正：不是「記憶體容量變 2 倍」，只有 <code>clamp</code> 這個函式的機器碼多了一份（這裡是 48 byte），程式其他部分不會跟著變大。引入的 <code>.c</code> 越多，就多越多份。</p>
+<details class="answer"><summary>參考答案</summary>
+<p>【<a href="../../c/%E5%A4%9A%E6%AA%94%E6%A1%88%E7%9A%84C%E7%A8%8B%E5%BC%8F-%E6%A8%99%E9%A0%AD%E6%AA%94%E3%80%81static%E8%88%87extern%E3%80%81%E9%80%A3%E7%B5%90%E9%8C%AF%E8%AA%A4%E8%88%87make.html#%E6%AA%94%E6%A1%88%E5%B1%A4%E7%B4%9A%E7%9A%84-static%E8%AE%93%E5%90%8D%E5%AD%97%E8%AE%8A%E6%88%90-local">第五節</a>〈檔案層級的 <code>static</code>〉】</p>
+<p>核心關鍵：</p>
+<ol>
+<li>能連結：<code>static</code> 讓兩個 <code>clamp</code> 都變成 <code>LOCAL</code>，連結器不拿 <code>LOCAL</code> 的名字去配對，所以不會撞名。</li>
+<li>證據：<code>volume.o</code> 和 <code>a_main.o</code> 各有一列 <code>48 FUNC LOCAL ... 1 clamp</code>，兩份都是定義（<code>Ndx</code> 1）。</li>
+<li>代價：每個引入 <code>clamp.h</code> 的 <code>.c</code> 都會複製一份 <code>clamp</code> 的機器碼，執行檔裡有好幾份同樣的函式。</li>
+</ol>
+<p>詳細說明（後兩點是新觀念，不在扣分範圍）：</p>
+<ul>
+<li>我實測執行，結果一樣是 <code>100 0</code>。</li>
+<li>引入了但沒用到的 <code>.c</code> 會收到警告：只寫 <code>#include &quot;clamp.h&quot;</code> 和一個不相干函式的 <code>unused.c</code>，<code>gcc -Wall -c unused.c</code> 會印
+<code>clamp.h:4:12: warning: 'clamp' defined but not used [-Wunused-function]</code>。</li>
+<li>兩份是<strong>不同的函式</strong>，位址也不一樣。如果函式裡有 <code>static</code> 變數，每個 <code>.c</code> 也會各有一份，彼此不共用。</li>
+<li>實務上真的想把小函式放在標頭檔時，寫法是 <code>static inline</code>：<code>inline</code> 讓編譯器傾向直接展開，沒用到也不警告。kernel 的標頭檔裡很多這種寫法（之後的課才會細講）。</li>
+</ul>
+</details>
+</details>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="small-project/s1-06-multi-file/README.md" data-line="967" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h3 id="4b名字打錯">4b：名字打錯</h3>
 <p><code>report.h</code>：</p>
@@ -948,9 +1138,47 @@ gcc -o a volume.o a_main.o
 gcc -o b report.o b_main.o
 </code></pre>
 <h4 id="4b-1-貼上錯誤訊息是哪個階段用-readelf--s或-nm看兩個-o找出證據說明連結器為什麼配不起來為什麼-reportc-明明-include-了-reporth編譯時卻沒有報錯筆記第四節第二節宣告與定義">4b-1. 貼上錯誤訊息。是哪個階段？用 <code>readelf -s</code>（或 <code>nm</code>）看兩個 <code>.o</code>，找出證據說明連結器為什麼配不起來。為什麼 <code>report.c</code> 明明 <code>#include</code> 了 <code>report.h</code>，編譯時卻沒有報錯？【筆記第四節；第二節（宣告與定義）】</h4>
-<p><strong>第 1 次（YYYY-MM-DD）</strong></p>
-<details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="small-project/s1-06-multi-file/README.md" data-line="850"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<p><strong>第 1 次（2026-10-21）</strong></p>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
+<div class="answer-box locked"><textarea readonly spellcheck="false">/usr/bin/ld: b_main.o: in function `main&#x27;:
+b_main.c:(.text+0x9): undefined reference to `print_report&#x27;
+collect2: error: ld returned 1 exit status
+
+連接的時候出了錯
+
+Symbol table &#x27;.symtab&#x27; contains 6 entries:
+   Num:    Value          Size Type    Bind   Vis      Ndx Name
+     0: 0000000000000000     0 NOTYPE  LOCAL  DEFAULT  UND
+     1: 0000000000000000     0 FILE    LOCAL  DEFAULT  ABS report.c
+     2: 0000000000000000     0 SECTION LOCAL  DEFAULT    1 .text
+     3: 0000000000000000     0 SECTION LOCAL  DEFAULT    5 .rodata
+     4: 0000000000000000    26 FUNC    GLOBAL DEFAULT    1 print_reprot
+     5: 0000000000000000     0 NOTYPE  GLOBAL DEFAULT  UND puts
+
+可以看到print_report 寫成print_reprot 與b_main自然連接不起來
+
+因爲c 認爲print_reprot 與 print_report是沒有關係的定義與宣告,h的宣告,在.c沒有定義也不會因此有錯
+</textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
+<details class="answer"><summary>批改（2026-10-21）</summary>
+<p><strong>大致對</strong>。連結階段、<code>undefined reference</code>、從 <code>report.o</code> 看出定義的名字是 <code>print_reprot</code>、「只宣告不定義不會錯」都對。缺的地方：題目要求看<strong>兩個</strong> <code>.o</code>，你只貼了 <code>report.o</code>。另一半證據是 <code>b_main.o</code> 裡那一列 <code>UND print_report</code>（要的名字），兩邊並排，才看得出「要的」和「給的」差了兩個字母。</p>
+<details class="answer"><summary>參考答案</summary>
+<p>【<a href="../../c/%E5%A4%9A%E6%AA%94%E6%A1%88%E7%9A%84C%E7%A8%8B%E5%BC%8F-%E6%A8%99%E9%A0%AD%E6%AA%94%E3%80%81static%E8%88%87extern%E3%80%81%E9%80%A3%E7%B5%90%E9%8C%AF%E8%AA%A4%E8%88%87make.html#%E4%B8%89%E7%A8%AE%E9%8C%AF%E8%AA%A4%E5%90%84%E7%99%BC%E7%94%9F%E5%9C%A8%E5%93%AA%E4%B8%80%E6%AD%A5">第四節</a>〈三種錯誤，各發生在哪一步〉、<a href="../../c/%E5%A4%9A%E6%AA%94%E6%A1%88%E7%9A%84C%E7%A8%8B%E5%BC%8F-%E6%A8%99%E9%A0%AD%E6%AA%94%E3%80%81static%E8%88%87extern%E3%80%81%E9%80%A3%E7%B5%90%E9%8C%AF%E8%AA%A4%E8%88%87make.html#%E4%BA%8C%E5%AE%A3%E5%91%8A%E8%88%87%E5%AE%9A%E7%BE%A9%E6%B2%92%E6%9C%89%E5%AE%A3%E5%91%8A%E7%B7%A8%E8%AD%AF%E5%99%A8%E5%8F%AA%E8%83%BD%E7%8C%9C">第二節</a>】</p>
+<p>核心關鍵：</p>
+<ol>
+<li>連結階段的 <code>undefined reference to 'print_report'</code>。</li>
+<li>證據：<code>b_main.o</code> 有 <code>NOTYPE GLOBAL ... UND print_report</code>（需要），<code>report.o</code> 只有 <code>FUNC GLOBAL ... 1 print_reprot</code>（提供）；連結器只比對名字，兩個名字不同，所以沒有人提供 <code>print_report</code>。</li>
+<li>編譯時不會錯：只有宣告、沒有定義是合法的，編譯器以為定義在別的檔案。它一次只看一個 <code>.c</code>，不會檢查每個宣告都有對應的定義；<code>print_reprot</code> 對它來說只是另一個函式。</li>
+</ol>
+<p>詳細說明：本機的兩列：</p>
+<pre><code class="language-text">b_main.o:  4: 0000000000000000     0 NOTYPE  GLOBAL DEFAULT  UND print_report
+report.o:  4: 0000000000000000    26 FUNC    GLOBAL DEFAULT    1 print_reprot
+</code></pre>
+<p>引入自己的標頭檔只能抓到「同一個名字、型別不同」（1-4 的 <code>conflicting types</code>），抓不到打錯名字，因為打錯的名字就是另一個新的函式。<code>-Wall</code> 也不警告，因為 <code>print_reprot</code> 沒有 <code>static</code>，編譯器無法知道別的檔案不會呼叫它。另外，你貼的符號表裡是 <code>UND puts</code> 而不是 <code>printf</code>：<code>printf(&quot;report ok\n&quot;)</code> 的格式字串裡沒有 <code>%</code>、又以 <code>\n</code> 結尾，gcc 會把它換成比較快的 <code>puts(&quot;report ok&quot;)</code>（新觀念，看到不要以為貼錯了）。</p>
+</details>
+</details>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="small-project/s1-06-multi-file/README.md" data-line="1051" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h3 id="4c參數個數不對">4c：參數個數不對</h3>
 <p><code>area.h</code>：</p>
@@ -982,9 +1210,72 @@ gcc -o b report.o b_main.o
 <pre><code>gcc -Wall -c area.c c_main.c
 </code></pre>
 <h4 id="4c-1-貼上錯誤訊息是哪個階段如果-c_mainc-沒有-include-areah也沒有自己的宣告先猜會在哪個階段出問題還是根本不會報錯為什麼可以實際試試看-wall-的警告也貼上筆記第二節實驗忘了宣告第四節">4c-1. 貼上錯誤訊息。是哪個階段？如果 <code>c_main.c</code> 沒有 <code>#include &quot;area.h&quot;</code>（也沒有自己的宣告），先猜：會在哪個階段出問題、還是根本不會報錯？為什麼？（可以實際試試看，<code>-Wall</code> 的警告也貼上。）【筆記第二節〈實驗：忘了宣告〉、第四節】</h4>
-<p><strong>第 1 次（YYYY-MM-DD）</strong></p>
-<details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="small-project/s1-06-multi-file/README.md" data-line="897"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<p><strong>第 1 次（2026-10-21）</strong></p>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
+<div class="answer-box locked"><textarea readonly spellcheck="false">c_main.c: In function ‘main’:
+c_main.c:6:21: error: too few arguments to function ‘area’
+    6 |     printf(&quot;%ld\n&quot;, area(3));
+      |                     ^~~~
+In file included from c_main.c:2:
+area.h:4:6: note: declared here
+    4 | long area(long w, long h);
+      |      ^~~~
+
+編譯階段就錯了,少了一個參數
+
+一樣編譯階段, 應該是undefined function gcc找不到這個函式
+
+c_main.c: In function ‘main’:
+c_main.c:6:21: warning: implicit declaration of function ‘area’ [-Wimplicit-function-declaration]
+    6 |     printf(&quot;%ld\n&quot;, area(3));
+      |                     ^~~~
+c_main.c:6:15: warning: format ‘%ld’ expects argument of type ‘long int’, but argument 2 has type ‘int’ [-Wformat=]
+    6 |     printf(&quot;%ld\n&quot;, area(3));
+      |             ~~^     ~~~~~~~
+      |               |     |
+      |               |     int
+      |               long int
+      |             %d
+
+實際結果,沒有報錯只有警告
+
+看起來他有隱含宣告的意思,而且默認的返回值還是int
+</textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
+<details class="answer"><summary>批改（2026-10-21）</summary>
+<p><strong>不完整</strong>。第一問對：編譯階段的 <code>too few arguments to function 'area'</code>，原因是少一個參數。第二問：</p>
+<ol>
+<li>猜「編譯階段就錯、找不到函式」是錯的。這不是新觀念：<a href="../../c/%E5%A4%9A%E6%AA%94%E6%A1%88%E7%9A%84C%E7%A8%8B%E5%BC%8F-%E6%A8%99%E9%A0%AD%E6%AA%94%E3%80%81static%E8%88%87extern%E3%80%81%E9%80%A3%E7%B5%90%E9%8C%AF%E8%AA%A4%E8%88%87make.html#%E5%AF%A6%E9%A9%97%E5%BF%98%E4%BA%86%E5%AE%A3%E5%91%8Asquare100000-%E5%8D%B0%E5%87%BA-1410065408">第二節</a>〈實驗：忘了宣告〉的 <code>square</code> 就是同一件事，沒有宣告時編譯器會<strong>隱式宣告</strong>成回傳 <code>int</code>，照樣編得過，只有警告。</li>
+<li>你實際試出「沒報錯、只有警告、預設回傳 <code>int</code>」，這個觀察是對的。但只做到 <code>-c</code>，沒有連結、沒有執行，所以漏了最重要的部分：<strong>連結也過、執行時印出錯的數字</strong>。這跟 1-4 (b)、2-3 是同一種問題：「沒報錯」不代表結果對，要跑到最後一步才知道。</li>
+</ol>
+<details class="answer"><summary>參考答案</summary>
+<p>【<a href="../../c/%E5%A4%9A%E6%AA%94%E6%A1%88%E7%9A%84C%E7%A8%8B%E5%BC%8F-%E6%A8%99%E9%A0%AD%E6%AA%94%E3%80%81static%E8%88%87extern%E3%80%81%E9%80%A3%E7%B5%90%E9%8C%AF%E8%AA%A4%E8%88%87make.html#%E5%AF%A6%E9%A9%97%E5%BF%98%E4%BA%86%E5%AE%A3%E5%91%8Asquare100000-%E5%8D%B0%E5%87%BA-1410065408">第二節</a>〈實驗：忘了宣告〉、<a href="../../c/%E5%A4%9A%E6%AA%94%E6%A1%88%E7%9A%84C%E7%A8%8B%E5%BC%8F-%E6%A8%99%E9%A0%AD%E6%AA%94%E3%80%81static%E8%88%87extern%E3%80%81%E9%80%A3%E7%B5%90%E9%8C%AF%E8%AA%A4%E8%88%87make.html#%E4%B8%89%E7%A8%AE%E9%8C%AF%E8%AA%A4%E5%90%84%E7%99%BC%E7%94%9F%E5%9C%A8%E5%93%AA%E4%B8%80%E6%AD%A5">第四節</a>〈三種錯誤，各發生在哪一步〉】</p>
+<p>核心關鍵：</p>
+<ol>
+<li>有引入 <code>area.h</code>：編譯階段就報 <code>too few arguments</code>，因為宣告讓編譯器知道 <code>area</code> 要兩個參數。</li>
+<li>沒有引入：編譯只有警告（<code>implicit declaration</code>，隱式宣告成回傳 <code>int</code>、參數不檢查），編譯得過。</li>
+<li>連結也會過：連結器只比對名字 <code>area</code>，不比對參數個數和型別。</li>
+<li>執行時結果是錯的：<code>area</code> 照它的定義從 <code>%rsi</code> 讀 <code>h</code>，但呼叫的那邊沒放 <code>h</code>，讀到的是垃圾；回傳值也被當成 <code>int</code>，只取低 32 位元。沒有任何一個階段抓得到。</li>
+</ol>
+<p>詳細說明：我把你的 <code>c_main.c</code>（<code>#include &quot;area.h&quot;</code> 註解掉的版本）實際連結、執行：</p>
+<pre><code class="language-text">gcc -Wall -c area.c c_main.c      # 跟你一樣的兩個警告
+gcc -o c area.o c_main.o          # 連結成功，沒有任何訊息
+./c
+2899668792
+./c
+3459328120
+</code></pre>
+<p>每次執行的數字都不一樣，而且都不是 <code>3 × 某個數</code> 的合理面積。<code>objdump -d --no-show-raw-insn c_main.o</code> 看呼叫的那邊（<code>#</code> 後面是說明）：</p>
+<pre><code class="language-text">   8:   mov    $0x3,%edi      # 第一個參數 w = 3
+   d:   mov    $0x0,%eax      # 沒有原型時，當成可變參數函式呼叫：%al = 0（第 5 課）
+  12:   call   17 &lt;main+0x17&gt; # 呼叫 area；%rsi 完全沒設，裡面是之前留下的值
+  17:   mov    %eax,%esi      # 只拿回傳值的低 32 位元（當成 int），放進 printf 的第二個參數
+</code></pre>
+<p><code>area</code> 那邊照定義算 <code>%rdi × %rsi</code>，<code>%rsi</code> 是呼叫之前剩下的值（每次執行不同，因為位址隨機化），所以結果每次都變。<code>mov %eax,%esi</code> 寫 32 位元暫存器會把高 32 位元清成 0（第 4 課），<code>printf</code> 的 <code>%ld</code> 讀整個 <code>%rsi</code>，所以印出來的一定是 0～4294967295 之間的數。第二個警告 <code>format '%ld' expects ... 'int'</code> 也是同一個原因：編譯器以為 <code>area</code> 回傳 <code>int</code>。這就是筆記一直強調的：<strong>一定要引入標頭檔</strong>，讓錯誤在編譯時就被抓到。</p>
+</details>
+</details>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="small-project/s1-06-multi-file/README.md" data-line="1158" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <hr />
 <h2 id="5-自己寫-makefile">5. 自己寫 <code>Makefile</code></h2>
@@ -996,24 +1287,69 @@ gcc -o b report.o b_main.o
 <li>預設目標是連結出 <code>logdemo</code>；有 <code>clean</code>，而且是假目標。</li>
 </ul>
 <h3 id="5-1-貼上-makefile-與第一次-make-的輸出執行結果逐行說明-makefile-每一行在做什麼筆記第七節實用的-makefile">5-1. 貼上 <code>Makefile</code> 與第一次 <code>make</code> 的輸出、執行結果。逐行說明 <code>Makefile</code> 每一行在做什麼。【筆記<a href="../../c/%E5%A4%9A%E6%AA%94%E6%A1%88%E7%9A%84C%E7%A8%8B%E5%BC%8F-%E6%A8%99%E9%A0%AD%E6%AA%94%E3%80%81static%E8%88%87extern%E3%80%81%E9%80%A3%E7%B5%90%E9%8C%AF%E8%AA%A4%E8%88%87make.html#%E4%B8%83make%E5%8F%AA%E9%87%8D%E7%B7%A8%E6%94%B9%E9%81%8E%E7%9A%84%E6%AA%94%E6%A1%88">第七節</a>〈實用的 <code>Makefile</code>〉】</h3>
-<p><strong>第 1 次（YYYY-MM-DD）</strong></p>
+<p><strong>第 1 次（2026-10-22）</strong></p>
 <details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="small-project/s1-06-multi-file/README.md" data-line="914"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="small-project/s1-06-multi-file/README.md" data-line="1173"><textarea spellcheck="false" placeholder="在這裡作答">```
+CC = gcc   # 決定編譯器
+CFLAGS = -Wall -g -O0 -MMD -MP # 編譯器命令用的flag
+OBJS = logger.o worker.o hw2_main.o # 要變出來的.o
+
+logdemo: $(OBJS) # 默認的make指令, 直接就把執行檔變出來 先決條件是objs
+	$(CC) $(CFLAGS) -o logdemo $(OBJS) # 編譯命令
+
+%.o: %.c 決定要編那個.o
+	$(CC) $(CFLAGS) -c $&lt; -o $@ # $&lt;:代表第一個先決條件, $@是目標
+
+-include $(OBJS:.o=.d) #要把產生的.d全部放到make .o裏面
+
+clean:  #清除的命令
+	rm -f $(OBJS) logdemo *.d
+
+.PHONY: clean, #每次都執行
+```
+
+~/w/Proj/g/good-note/s/s1-06-multi-file/hw/hw5 | on main &gt;4 !4 ?2  ./logdemo                                                                                                     ok | base py | at 00:39:36
+[1] Work started
+[1] Work started
+[3] Work detail
+</textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h3 id="5-2-先預測touch-workerh-之後-make哪些-o-會重編會不會重新連結再實際跑貼上輸出並貼上-workerd-與-hw2_maind-的內容當證據換成-touch-loggerh-呢筆記第七節實驗第一個-makefile的逐點說明-mmd--mp">5-2. 先預測：<code>touch worker.h</code> 之後 <code>make</code>，哪些 <code>.o</code> 會重編、會不會重新連結？再實際跑，貼上輸出，並貼上 <code>worker.d</code> 與 <code>hw2_main.d</code> 的內容當證據。換成 <code>touch logger.h</code> 呢？【筆記第七節〈實驗：第一個 <code>Makefile</code>〉的逐點說明、〈<code>-MMD -MP</code>〉】</h3>
-<p><strong>第 1 次（YYYY-MM-DD）</strong></p>
+<p><strong>第 1 次（2026-10-22）</strong></p>
 <details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="small-project/s1-06-multi-file/README.md" data-line="920"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="small-project/s1-06-multi-file/README.md" data-line="1202"><textarea spellcheck="false" placeholder="在這裡作答">應該是worker.o會重編,也會重新連接
+
+~/w/Proj/g/good-note/s/s1-06-multi-file/hw/hw5 | on main &gt;4 !4 ?2  make                                                                                                          ok | base py | at 00:46:00
+gcc -Wall -g -O0 -MMD -MP -c worker.c -o worker.o
+gcc -Wall -g -O0 -MMD -MP -c hw2_main.c -o hw2_main.o
+gcc -Wall -g -O0 -MMD -MP -o logdemo logger.o worker.o hw2_main.o
+
+觀察到實際 worker.o, hw2_main.o, logdemo全都重編了,看來只要有include worker.h都會重編, logdemo因爲是hw2_main跟logger連接的產物,所以重編也正常
+
+換成touch logger.h 那全都會重編,因爲全都有引用
+</textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h3 id="5-3-touch-loggerc-之後用-make-的某個選項只印出會執行的命令不真的執行貼上命令與輸出接著真的-make-一次筆記第七節命令列的選項表">5-3. <code>touch logger.c</code> 之後，用 <code>make</code> 的某個選項<strong>只印出會執行的命令、不真的執行</strong>，貼上命令與輸出。接著真的 <code>make</code> 一次。【筆記第七節〈命令列〉的選項表】</h3>
-<p><strong>第 1 次（YYYY-MM-DD）</strong></p>
+<p><strong>第 1 次（2026-10-22）</strong></p>
 <details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="small-project/s1-06-multi-file/README.md" data-line="926"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="small-project/s1-06-multi-file/README.md" data-line="1218"><textarea spellcheck="false" placeholder="在這裡作答"> ~/w/Proj/g/good-note/s/s1-06-multi-file/hw/hw5 | on main &gt;4 !4 ?2  make logger.o                                                                                                 ok | base py | at 00:57:56
+gcc -Wall -g -O0 -MMD -MP -c logger.c -o logger.o
+
+~/w/Proj/g/good-note/s/s1-06-multi-file/hw/hw5 | on main &gt;4 !4 ?2  make                                                                                                         INT | base py | at 00:58:39
+gcc -Wall -g -O0 -MMD -MP -o logdemo logger.o worker.o hw2_main.o
+</textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h3 id="5-4-先猜再實驗什麼檔案都不改直接執行-make-cflags-wall--o2make-會用--o2-重編嗎貼上輸出為什麼如果你真的想用新的選項全部重編有什麼辦法新觀念先猜第二問可以用筆記第七節命令列的選項表">5-4. 先猜再實驗：什麼檔案都不改，直接執行 <code>make CFLAGS=&quot;-Wall -O2&quot;</code>。<code>make</code> 會用 <code>-O2</code> 重編嗎？貼上輸出。為什麼？如果你真的想用新的選項全部重編，有什麼辦法？【新觀念，先猜】（第二問可以用筆記第七節〈命令列〉的選項表）</h3>
-<p><strong>第 1 次（YYYY-MM-DD）</strong></p>
+<p><strong>第 1 次（2026-10-22）</strong></p>
 <details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="small-project/s1-06-multi-file/README.md" data-line="932"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="small-project/s1-06-multi-file/README.md" data-line="1229"><textarea spellcheck="false" placeholder="在這裡作答">不行
+ ~/w/Proj/g/good-note/s/s1-06-multi-file/hw/hw5 | on main &gt;4 !4 ?2  make CFLAGS=&quot;-Wall -O2&quot;                                                                                       ok | base py | at 00:58:57
+make: &#x27;logdemo&#x27; is up to date.
+
+看輸出似乎是logdemo已經是最新的了
+
+用 -B
+</textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 
 </main>
