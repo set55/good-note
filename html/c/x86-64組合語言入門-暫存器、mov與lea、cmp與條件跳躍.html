@@ -3885,10 +3885,9 @@ gcc<span class="w"> </span>-S<span class="w"> </span>-O2<span class="w"> </span>
 <p>（核心關鍵＋詳細說明）</p>
 <p><strong>8-1</strong>【<a href="#%E4%B8%89%E6%8C%87%E4%BB%A4%E7%9A%84%E6%96%87%E6%B3%95%E5%8A%A9%E6%86%B6%E7%AC%A6%E5%A4%A7%E5%B0%8F%E5%BE%8C%E7%B6%B4%E9%81%8B%E7%AE%97%E5%85%83">第三節</a>〈組合語言裡只有 <code>%edi</code>、<code>%dil</code>，為什麼 gdb 印得出 <code>$rdi</code>？〉】核心關鍵：</p>
 <ol>
-<li><code>%edi</code>、<code>%di</code>、<code>%dil</code> 不是另外的暫存器，都是 <code>%rdi</code> 這<strong>一個</strong>暫存器的一部分的名字。</li>
-<li>程式停下時，gdb 請核心把整組暫存器讀出來，所以任何暫存器都印得出來，跟程式有沒有用到無關。</li>
+<li><code>%edi</code>、<code>%di</code>、<code>%dil</code> 不是另外的暫存器，都是 <code>%rdi</code> 這<strong>一個</strong>暫存器的一部分的名字；組合語言沒寫出 <code>%rdi</code>，只代表那個指令只碰它的一部分。</li>
 </ol>
-<p>詳細說明：實驗裡 <code>widen_char</code> 沒用到 <code>%rcx</code>，<code>info registers rcx</code> 照樣印得出來，是之前留下來的值。</p>
+<p>詳細說明：延伸：gdb 不只印得出 <code>$rdi</code>，<strong>任何</strong>暫存器都印得出來——程式停下時，gdb 請核心把整組暫存器讀出來，跟程式有沒有用到無關。實驗裡 <code>widen_char</code> 沒用到 <code>%rcx</code>，<code>info registers rcx</code> 照樣印得出來，是之前留下來的值。（2026-10-23 改判：「整組暫存器」原列為第 2 個核心關鍵，但題目問的是 <code>%edi</code>／<code>%dil</code> 與 <code>%rdi</code> 的關係，移到詳細說明。）</p>
 <p><strong>8-2</strong>【<a href="#%E4%B8%89%E6%8C%87%E4%BB%A4%E7%9A%84%E6%96%87%E6%B3%95%E5%8A%A9%E6%86%B6%E7%AC%A6%E5%A4%A7%E5%B0%8F%E5%BE%8C%E7%B6%B4%E9%81%8B%E7%AE%97%E5%85%83">第三節</a>〈組合語言裡只有 <code>%edi</code>、<code>%dil</code>，為什麼 gdb 印得出 <code>$rdi</code>？〉】核心關鍵：</p>
 <ol>
 <li><strong>不會</strong>：gdb 的 <code>set $edi = …</code> 只改 <code>%rdi</code> 的低 4 byte，高 4 byte 保留原值。</li>
