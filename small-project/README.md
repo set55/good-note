@@ -22,7 +22,7 @@
 | [s1-03-arrays-pointers](./s1-03-arrays-pointers/) | [quiz](./s1-03-arrays-pointers/quiz.md) | ① 第 3 課 | 指標運算、陣列退化、自己寫 `strlen`、用 gdb 找 segfault、`size_t` 倒數迴圈與 ASan | [陣列、字串與指標運算](../html/c/陣列、字串與指標運算-C不檢查邊界與用gdb找segfault.html) | 已交、已批改（2026-10-04 作業與測驗完成） |
 | [s1-04-asm-basics](./s1-04-asm-basics/) | [quiz](./s1-04-asm-basics/quiz.md) | ① 第 4 課 | 讀組合語言：`lea` 當乘法、不同型別的陣列存取與擴展、有號／無號的分支、陣列加總迴圈的 `-O0`／`-O2`、從組合語言反推 C | [x86-64組合語言入門](../html/c/x86-64組合語言入門-暫存器、mov與lea、cmp與條件跳躍.html) | 已交、已批改（作業 2026-10-08 含重答；自我測驗 2026-10-08，不重答） |
 | [s1-05-asm-calls](./s1-05-asm-calls/) | [quiz](./s1-05-asm-calls/quiz.md) | ① 第 5 課 | 讀函式呼叫：不同型別參數的暫存器、9 個參數與對齊、用 gdb 沿 `%rbp` 鏈找兩層返回位址、跨兩次 `call` 的 callee-saved、可變參數的 `%al` | [x86-64組合語言入門二](../html/c/x86-64組合語言入門二-call與ret、堆疊框、參數與呼叫慣例.html) | 作業與自我測驗都已交、已批改（2026-10-19） |
-| [s1-06-multi-file](./s1-06-multi-file/) | [quiz](./s1-06-multi-file/quiz.md) | ① 第 6 課 | 把單檔程式拆成三個檔案、三個檔案共用全域變數、函式裡的 `static`、讀三種連結錯誤、自己寫 `Makefile`（`-MMD -MP`） | [多檔案的C程式](../html/c/多檔案的C程式-標頭檔、static與extern、連結錯誤與make.html) | 作業 5 題、自我測驗 5 題（15 小題）未交 |
+| [s1-06-multi-file](./s1-06-multi-file/) | [quiz](./s1-06-multi-file/quiz.md) | ① 第 6 課 | 把單檔程式拆成三個檔案、三個檔案共用全域變數、函式裡的 `static`、讀三種連結錯誤、自己寫 `Makefile`（`-MMD -MP`） | [多檔案的C程式](../html/c/多檔案的C程式-標頭檔、static與extern、連結錯誤與make.html) | 作業 5 題已交、已批改（2026-10-21～22）；自我測驗 6 題（18 小題）已交、已批改（2026-10-22） |
 
 ---
 > 新增練習時，記得把它加進上面的「練習列表」表格；批改完更新「狀態」。
