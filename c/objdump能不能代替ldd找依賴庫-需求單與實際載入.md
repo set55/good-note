@@ -111,6 +111,65 @@ $ /lib64/ld-linux-x86-64.so.2 --list /usr/bin/curl        ← 直接叫載入器
 （`/usr/bin/ldd` 第 159 行），但 man page 的建議仍然是：**對不信任的檔案，不要用 `ldd`**，改用 `objdump -p` 或 `readelf -d`。
 （這個攻擊本機未實測。）
 
+---
+
+**上面「攻擊者寫在 interpreter 欄位的程式會被執行」：本機的 `ldd` 到底會不會照 `INTERP` 啟動載入器？**
+
+> 2026-10-24 提問：「ldd 之所以不安全，不就是因為他會看執行檔的 interpreter 路徑去啟動它嗎？」（上一段的說法）
+
+**要看 `ldd` 的版本，本機（glibc 2.39）不會。** 上一段只引了 man page 的前半句，沒講清楚是哪些版本。`man ldd` 的 Security 一節接著寫：
+
+> (Before glibc 2.27, the upstream ldd implementation did this for example, although most distributions provided a modified version that did not.)
+
+也就是說，「直接執行程式」是**舊版 `ldd`** 的做法：它在設好 `LD_TRACE_LOADED_OBJECTS=1` 之後直接跑 `./程式`，`execve` 由核心照檔案的 `INTERP` 啟動載入器——`INTERP` 寫什麼就跑什麼，這才是那個攻擊。本機的 `ldd` 腳本不這樣做，它只用自己清單裡的**本機載入器**，把檔案當成參數交給它：
+
+```sh
+$ grep -n 'RTLDLIST=\|verify\|try_trace "\$RTLD"' /usr/bin/ldd
+29:RTLDLIST="/lib/ld-linux.so.2 /lib64/ld-linux-x86-64.so.2 /libx32/ld-linux-x32.so.2"
+159:	  verify_out=`${rtld} --verify "$file"`
+176:      try_trace "$RTLD" "$file" || result=1
+```
+
+第 159 行先問清單裡的每個載入器「你處理得了這個檔案嗎」（`--verify`）；第 176 行再用**答應的那個載入器**去跑（`try_trace` 會加上 `LD_TRACE_LOADED_OBJECTS=1`），等於執行 `LD_TRACE_LOADED_OBJECTS=1 /lib64/ld-linux-x86-64.so.2 ./程式`。檔案裡的 `INTERP` 寫什麼，根本沒被拿來啟動。
+
+**實驗：`INTERP` 指向不存在的檔案，`ldd` 照樣列得出來。** 用第 1 課的 `hello.c`（檔案：[`hello.c`](../small-project/s1-01-hello-compile/hello.c)）：
+
+```c
+#include <stdio.h>
+
+#define GREETING "hello, world"
+
+int main(void)
+{
+    printf("%s\n", GREETING);
+    return 0;
+}
+```
+
+連結時用 `-Wl,--dynamic-linker=…` 把 `INTERP` 改成不存在的路徑（跟 [interpreter 筆記第五節](./ELF的interpreter是什麼-動態載入器與井字號驚嘆號.md#五直譯器不存在時明明有檔案卻說找不到)同一個做法），再分別直接執行和用 `ldd`（2026-10-24 本機實測）：
+
+```text
+$ gcc hello.c -o hello_badinterp -Wl,--dynamic-linker=/lib64/nope.so.2
+$ readelf -l hello_badinterp | grep interpreter
+      [Requesting program interpreter: /lib64/nope.so.2]
+$ ./hello_badinterp
+(eval):1: no such file or directory: ./hello_badinterp      ← 核心照 INTERP 找 /lib64/nope.so.2，找不到（開頭是 shell 的名字，實測是在腳本裡跑的）
+$ ldd ./hello_badinterp
+	linux-vdso.so.1 (0x000079d93e1b7000)
+	libc.so.6 => /lib/x86_64-linux-gnu/libc.so.6 (0x000079d93de00000)
+	/lib64/nope.so.2 => /lib64/ld-linux-x86-64.so.2 (0x000079d93e1b9000)   ← 用的是本機的載入器
+```
+
+直接執行會失敗，因為核心真的照 `INTERP` 去找載入器；`ldd` 卻成功，最後一行 `/lib64/nope.so.2 => /lib64/ld-linux-x86-64.so.2` 寫明了：需求的是 `nope.so.2`，實際上場的是本機載入器。如果本機 `ldd` 是照 `INTERP` 啟動，這裡就會跟直接執行一樣失敗。
+
+這也解釋了下面 ARM 的 `busybox` 為什麼印 `not a dynamic executable`：`ldd` 根本沒去找 ARM 的載入器 `ld-musl-aarch64.so.1`，而是拿本機清單裡的 x86-64 載入器去 `--verify`，全部說「處理不了」。
+
+那為什麼還是說「不要對不信任的檔案用 `ldd`」？因為 `ldd` 的行為**隨版本與發行版而不同**（man page 的「some versions」），你不一定知道眼前這台機器的 `ldd` 是哪一種；而且就算是本機這種，它仍然是讓載入器真的去打開、映射檔案和它要的函式庫。只讀檔案的 `objdump -p`／`readelf -d` 不管哪個版本都不會執行任何東西。
+
+*（追問補充結束，以下回到主線）*
+
+---
+
 另外還有兩種情況，`ldd` 根本不能用、只能靠 `objdump`／`readelf`：
 
 - **別的架構的檔案**：本機的載入器沒辦法處理別的架構，`ldd` 給不出結果，而且**錯誤訊息會誤導人**。
@@ -324,7 +383,7 @@ objdump <選項> <檔案>...
    >
    > 核心關鍵：
    > 1. `ldd` 讓動態載入器實際處理這支程式：載入器照常找、載入全部依賴（含間接依賴），在進 `main` 前停下來印清單。
-   > 2. 風險：載入器是誰由檔案的 `INTERP` 決定，攻擊者可以寫成自己的程式，跑 `ldd` 就執行了它。
+   > 2. 風險：`ldd` 要讓載入器真的去處理這個檔案。有些版本的 `ldd`（上游 glibc 2.27 以前）直接執行程式，這時載入器由檔案的 `INTERP` 決定，攻擊者可以寫成自己的程式，跑 `ldd` 就執行了它；你不一定知道眼前的 `ldd` 是哪一種。（2026-10-24 修正：原本寫成所有 `ldd` 都照 `INTERP` 啟動；本機 glibc 2.39 的 `ldd` 只用自己清單裡的本機載入器，見第三節〈本機的 `ldd` 到底會不會照 `INTERP` 啟動載入器？〉）
    > 3. `objdump -p` 只讀檔案裡的 `NEEDED`，不啟動任何東西。
    >
    > 詳細說明：`grep -n LD_TRACE /usr/bin/ldd` 可以看到腳本裡的 `LD_TRACE_LOADED_OBJECTS=1`；直接設這個變數跑程式（`LD_TRACE_LOADED_OBJECTS=1 /usr/bin/curl`）會得到跟 `ldd` 一樣的清單。所以對來路不明的檔案要看依賴，用 `objdump -p` 或 `readelf -d`。
@@ -348,3 +407,22 @@ objdump <選項> <檔案>...
    > 2. `ldd` 要靠**本機的 x86-64 載入器**實際載入，處理不了 ARM 的檔案，於是印出誤導人的 **`not a dynamic executable`**。
    >
    > 詳細說明：`ldd` 平常列出 vdso、間接依賴的那整套機制，都建立在「本機載入器能載入它」上面；架構不同，第一步就失敗。`objdump -p` 平常也行，但開發板上的檔案常被剝掉區段標頭，`readelf -d` 能透過程式標頭的 `DYNAMIC` 找到同一份資料，比較保險。直接執行則會看到核心的 `exec format error`。
+5. （2026-10-24 追問新增）本機（glibc 2.39）的 `ldd` 會不會照執行檔的 `INTERP` 啟動載入器？把 `hello.c` 的 `INTERP` 改成不存在的路徑後，直接執行和用 `ldd` 各會怎樣、為什麼不一樣？既然本機 `ldd` 不照 `INTERP` 啟動，為什麼仍然不建議對不信任的檔案用 `ldd`？
+   `hello.c`（檔案：[`hello.c`](../small-project/s1-01-hello-compile/hello.c)）：
+   ```c
+   #include <stdio.h>
+
+   #define GREETING "hello, world"
+
+   int main(void)
+   {
+       printf("%s\n", GREETING);
+       return 0;
+   }
+   ```
+   建檔與執行的指令（輸出不附，會洩漏答案）：
+   ```sh
+   gcc hello.c -o hello_badinterp -Wl,--dynamic-linker=/lib64/nope.so.2
+   ./hello_badinterp
+   ldd ./hello_badinterp
+   ```

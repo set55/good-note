@@ -136,6 +136,49 @@ $ /lib64/ld-linux-x86-64.so.2 --list /usr/bin/curl        ← 直接叫載入器
 some versions of ldd may attempt to obtain the dependency information by attempting to directly execute the program</p>
 </blockquote>
 <p>意思是：如果一個執行檔在 interpreter 欄位寫的<strong>不是</strong>正常的 <code>ld-linux</code>，而是攻擊者自己寫的程式，那麼對它跑 <code>ldd</code>，就可能執行到攻擊者的程式碼。本機的 <code>ldd</code> 腳本會先用 <code>--verify</code> 檢查載入器（<code>/usr/bin/ldd</code> 第 159 行），但 man page 的建議仍然是：<strong>對不信任的檔案，不要用 <code>ldd</code></strong>，改用 <code>objdump -p</code> 或 <code>readelf -d</code>。（這個攻擊本機未實測。）</p>
+<hr />
+<p><strong>上面「攻擊者寫在 interpreter 欄位的程式會被執行」：本機的 <code>ldd</code> 到底會不會照 <code>INTERP</code> 啟動載入器？</strong></p>
+<blockquote>
+<p>2026-10-24 提問：「ldd 之所以不安全，不就是因為他會看執行檔的 interpreter 路徑去啟動它嗎？」（上一段的說法）</p>
+</blockquote>
+<p><strong>要看 <code>ldd</code> 的版本，本機（glibc 2.39）不會。</strong> 上一段只引了 man page 的前半句，沒講清楚是哪些版本。<code>man ldd</code> 的 Security 一節接著寫：</p>
+<blockquote>
+<p>(Before glibc 2.27, the upstream ldd implementation did this for example, although most distributions provided a modified version that did not.)</p>
+</blockquote>
+<p>也就是說，「直接執行程式」是<strong>舊版 <code>ldd</code></strong> 的做法：它在設好 <code>LD_TRACE_LOADED_OBJECTS=1</code> 之後直接跑 <code>./程式</code>，<code>execve</code> 由核心照檔案的 <code>INTERP</code> 啟動載入器——<code>INTERP</code> 寫什麼就跑什麼，這才是那個攻擊。本機的 <code>ldd</code> 腳本不這樣做，它只用自己清單裡的<strong>本機載入器</strong>，把檔案當成參數交給它：</p>
+<pre><code class="language-sh">$<span class="w"> </span>grep<span class="w"> </span>-n<span class="w"> </span><span class="s1">&#39;RTLDLIST=\|verify\|try_trace &quot;\$RTLD&quot;&#39;</span><span class="w"> </span>/usr/bin/ldd
+<span class="m">29</span>:RTLDLIST<span class="o">=</span><span class="s2">&quot;/lib/ld-linux.so.2 /lib64/ld-linux-x86-64.so.2 /libx32/ld-linux-x32.so.2&quot;</span>
+<span class="m">159</span>:<span class="w">	  </span><span class="nv">verify_out</span><span class="o">=</span><span class="sb">`</span><span class="si">${</span><span class="nv">rtld</span><span class="si">}</span><span class="w"> </span>--verify<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$file</span><span class="s2">&quot;</span><span class="sb">`</span>
+<span class="m">176</span>:<span class="w">      </span>try_trace<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$RTLD</span><span class="s2">&quot;</span><span class="w"> </span><span class="s2">&quot;</span><span class="nv">$file</span><span class="s2">&quot;</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="nv">result</span><span class="o">=</span><span class="m">1</span>
+</code></pre>
+<p>第 159 行先問清單裡的每個載入器「你處理得了這個檔案嗎」（<code>--verify</code>）；第 176 行再用<strong>答應的那個載入器</strong>去跑（<code>try_trace</code> 會加上 <code>LD_TRACE_LOADED_OBJECTS=1</code>），等於執行 <code>LD_TRACE_LOADED_OBJECTS=1 /lib64/ld-linux-x86-64.so.2 ./程式</code>。檔案裡的 <code>INTERP</code> 寫什麼，根本沒被拿來啟動。</p>
+<p><strong>實驗：<code>INTERP</code> 指向不存在的檔案，<code>ldd</code> 照樣列得出來。</strong> 用第 1 課的 <code>hello.c</code>（檔案：<a href="../../small-project/s1-01-hello-compile/hello.c"><code>hello.c</code></a>）：</p>
+<pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+
+<span class="cp">#define GREETING &quot;hello, world&quot;</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;%s</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">GREETING</span><span class="p">);</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<p>連結時用 <code>-Wl,--dynamic-linker=…</code> 把 <code>INTERP</code> 改成不存在的路徑（跟 <a href="ELF%E7%9A%84interpreter%E6%98%AF%E4%BB%80%E9%BA%BC-%E5%8B%95%E6%85%8B%E8%BC%89%E5%85%A5%E5%99%A8%E8%88%87%E4%BA%95%E5%AD%97%E8%99%9F%E9%A9%9A%E5%98%86%E8%99%9F.html#%E4%BA%94%E7%9B%B4%E8%AD%AF%E5%99%A8%E4%B8%8D%E5%AD%98%E5%9C%A8%E6%99%82%E6%98%8E%E6%98%8E%E6%9C%89%E6%AA%94%E6%A1%88%E5%8D%BB%E8%AA%AA%E6%89%BE%E4%B8%8D%E5%88%B0">interpreter 筆記第五節</a>同一個做法），再分別直接執行和用 <code>ldd</code>（2026-10-24 本機實測）：</p>
+<pre><code class="language-text">$ gcc hello.c -o hello_badinterp -Wl,--dynamic-linker=/lib64/nope.so.2
+$ readelf -l hello_badinterp | grep interpreter
+      [Requesting program interpreter: /lib64/nope.so.2]
+$ ./hello_badinterp
+(eval):1: no such file or directory: ./hello_badinterp      ← 核心照 INTERP 找 /lib64/nope.so.2，找不到（開頭是 shell 的名字，實測是在腳本裡跑的）
+$ ldd ./hello_badinterp
+	linux-vdso.so.1 (0x000079d93e1b7000)
+	libc.so.6 =&gt; /lib/x86_64-linux-gnu/libc.so.6 (0x000079d93de00000)
+	/lib64/nope.so.2 =&gt; /lib64/ld-linux-x86-64.so.2 (0x000079d93e1b9000)   ← 用的是本機的載入器
+</code></pre>
+<p>直接執行會失敗，因為核心真的照 <code>INTERP</code> 去找載入器；<code>ldd</code> 卻成功，最後一行 <code>/lib64/nope.so.2 =&gt; /lib64/ld-linux-x86-64.so.2</code> 寫明了：需求的是 <code>nope.so.2</code>，實際上場的是本機載入器。如果本機 <code>ldd</code> 是照 <code>INTERP</code> 啟動，這裡就會跟直接執行一樣失敗。</p>
+<p>這也解釋了下面 ARM 的 <code>busybox</code> 為什麼印 <code>not a dynamic executable</code>：<code>ldd</code> 根本沒去找 ARM 的載入器 <code>ld-musl-aarch64.so.1</code>，而是拿本機清單裡的 x86-64 載入器去 <code>--verify</code>，全部說「處理不了」。</p>
+<p>那為什麼還是說「不要對不信任的檔案用 <code>ldd</code>」？因為 <code>ldd</code> 的行為<strong>隨版本與發行版而不同</strong>（man page 的「some versions」），你不一定知道眼前這台機器的 <code>ldd</code> 是哪一種；而且就算是本機這種，它仍然是讓載入器真的去打開、映射檔案和它要的函式庫。只讀檔案的 <code>objdump -p</code>／<code>readelf -d</code> 不管哪個版本都不會執行任何東西。</p>
+<p><em>（追問補充結束，以下回到主線）</em></p>
+<hr />
 <p>另外還有兩種情況，<code>ldd</code> 根本不能用、只能靠 <code>objdump</code>／<code>readelf</code>：</p>
 <ul>
 <li><strong>別的架構的檔案</strong>：本機的載入器沒辦法處理別的架構，<code>ldd</code> 給不出結果，而且<strong>錯誤訊息會誤導人</strong>。實測：從 OpenWrt 路由器（aarch64，musl）複製 <code>/bin/busybox</code> 回本機（2026-09-23）：</li>
@@ -459,7 +502,7 @@ $ ./app                                     # 實際執行：跟 ldd 說的一�
 <p>核心關鍵：</p>
 <ol>
 <li><code>ldd</code> 讓動態載入器實際處理這支程式：載入器照常找、載入全部依賴（含間接依賴），在進 <code>main</code> 前停下來印清單。</li>
-<li>風險：載入器是誰由檔案的 <code>INTERP</code> 決定，攻擊者可以寫成自己的程式，跑 <code>ldd</code> 就執行了它。</li>
+<li>風險：<code>ldd</code> 要讓載入器真的去處理這個檔案。有些版本的 <code>ldd</code>（上游 glibc 2.27 以前）直接執行程式，這時載入器由檔案的 <code>INTERP</code> 決定，攻擊者可以寫成自己的程式，跑 <code>ldd</code> 就執行了它；你不一定知道眼前的 <code>ldd</code> 是哪一種。（2026-10-24 修正：原本寫成所有 <code>ldd</code> 都照 <code>INTERP</code> 啟動；本機 glibc 2.39 的 <code>ldd</code> 只用自己清單裡的本機載入器，見第三節〈本機的 <code>ldd</code> 到底會不會照 <code>INTERP</code> 啟動載入器？〉）</li>
 <li><code>objdump -p</code> 只讀檔案裡的 <code>NEEDED</code>，不啟動任何東西。</li>
 </ol>
 <p>詳細說明：<code>grep -n LD_TRACE /usr/bin/ldd</code> 可以看到腳本裡的 <code>LD_TRACE_LOADED_OBJECTS=1</code>；直接設這個變數跑程式（<code>LD_TRACE_LOADED_OBJECTS=1 /usr/bin/curl</code>）會得到跟 <code>ldd</code> 一樣的清單。所以對來路不明的檔案要看依賴，用 <code>objdump -p</code> 或 <code>readelf -d</code>。</p>
@@ -485,6 +528,22 @@ $ ./app                                     # 實際執行：跟 ldd 說的一�
 </ol>
 <p>詳細說明：<code>ldd</code> 平常列出 vdso、間接依賴的那整套機制，都建立在「本機載入器能載入它」上面；架構不同，第一步就失敗。<code>objdump -p</code> 平常也行，但開發板上的檔案常被剝掉區段標頭，<code>readelf -d</code> 能透過程式標頭的 <code>DYNAMIC</code> 找到同一份資料，比較保險。直接執行則會看到核心的 <code>exec format error</code>。</p>
 </details>
+</li>
+<li>（2026-10-24 追問新增）本機（glibc 2.39）的 <code>ldd</code> 會不會照執行檔的 <code>INTERP</code> 啟動載入器？把 <code>hello.c</code> 的 <code>INTERP</code> 改成不存在的路徑後，直接執行和用 <code>ldd</code> 各會怎樣、為什麼不一樣？既然本機 <code>ldd</code> 不照 <code>INTERP</code> 啟動，為什麼仍然不建議對不信任的檔案用 <code>ldd</code>？
+<code>hello.c</code>（檔案：<a href="../../small-project/s1-01-hello-compile/hello.c"><code>hello.c</code></a>）：<pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+
+<span class="cp">#define GREETING &quot;hello, world&quot;</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;%s</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">GREETING</span><span class="p">);</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+建檔與執行的指令（輸出不附，會洩漏答案）：<pre><code class="language-sh">gcc<span class="w"> </span>hello.c<span class="w"> </span>-o<span class="w"> </span>hello_badinterp<span class="w"> </span>-Wl,--dynamic-linker<span class="o">=</span>/lib64/nope.so.2
+./hello_badinterp
+ldd<span class="w"> </span>./hello_badinterp
+</code></pre>
 </li>
 </ol>
 

@@ -386,10 +386,10 @@ dash: 1: ./hello_badinterp: not found                           ← dash 的訊�
 <p>核心關鍵：</p>
 <ol>
 <li>相同：核心在 <code>execve</code> 時讀到「請先執行這支程式」，先啟動直譯器，而不是檔案本身。</li>
-<li>不同：寫的地方（文字檔第一行的 <code>#!</code> vs 程式標頭的 <code>INTERP</code>）；直譯器拿到檔案後做的事（<code>sh</code> 逐行讀文字、執行命令 vs <code>ld.so</code> 載入函式庫、接線後跳進程式本身，之後由 CPU 執行程式的指令）。</li>
+<li>不同：寫的地方（文字檔第一行的 <code>#!</code> vs 程式標頭的 <code>INTERP</code>）。（2026-10-24 改判：答出一個正確的不同點即可，「直譯器拿到後做的事」移到詳細說明）</li>
 <li>核心交給直譯器的是<strong>腳本的路徑（當作命令列參數）</strong>：實際執行的是 <code>/bin/cat ./catscript</code>，<code>cat</code> 用這個路徑自己打開檔案，才把整個檔案（含第一行）印出來。</li>
 </ol>
-<p>詳細說明：兩個實驗可以證明交的是路徑、不是內容：<code>#!/usr/bin/echo</code> 的腳本印出的是 <code>./echoscript.sh</code> 這個路徑（<code>echo</code> 只印參數，不讀檔）；把腳本改成 <code>chmod 111</code>（只能執行、不能讀），錯誤訊息是 <code>/usr/bin/cat: ./catscript.sh: Permission denied</code>——<code>cat</code> 自己開檔被擋。如果核心交的是內容，<code>cat</code> 根本不必開檔，這個錯誤就不會發生。</p>
+<p>詳細說明：另一個不同點是直譯器拿到檔案後做的事：<code>sh</code> 逐行讀文字、執行命令；<code>ld.so</code> 載入函式庫、接線後跳進程式本身，之後由 CPU 執行程式的指令。兩個實驗可以證明交的是路徑、不是內容：<code>#!/usr/bin/echo</code> 的腳本印出的是 <code>./echoscript.sh</code> 這個路徑（<code>echo</code> 只印參數，不讀檔）；把腳本改成 <code>chmod 111</code>（只能執行、不能讀），錯誤訊息是 <code>/usr/bin/cat: ./catscript.sh: Permission denied</code>——<code>cat</code> 自己開檔被擋。如果核心交的是內容，<code>cat</code> 根本不必開檔，這個錯誤就不會發生。</p>
 </details>
 </li>
 <li>為什麼靜態連結的程式沒有 interpreter 也能跑？<code>ld-linux-x86-64.so.2</code> 自己又為什麼不需要 interpreter？<details class="answer"><summary>參考答案</summary>

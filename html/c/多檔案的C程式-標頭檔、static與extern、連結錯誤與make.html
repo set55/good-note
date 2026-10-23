@@ -1671,11 +1671,12 @@ gcc 13 對隱式宣告只給 <code>-Wimplicit-function-declaration</code> 警告
 <p>詳細說明：整理成一句：編譯 <code>main.c</code> 時看不到 <code>mathx.c</code>、編譯 <code>mathx.c</code> 時看不到 <code>main.c</code>、連結時看不到型別——<strong>沒有任何一個階段同時看得到兩邊的型別</strong>。標頭檔的作用就是在編譯階段把同一份型別資訊帶到兩邊（第三節）。</p>
 <p><strong>1-3</strong>【<a href="#%E5%AF%A6%E9%A9%97%E5%BF%98%E4%BA%86%E5%AE%A3%E5%91%8Asquare100000-%E5%8D%B0%E5%87%BA-1410065408">第二節</a>〈實驗：忘了宣告〉】核心關鍵：</p>
 <ol>
-<li><code>cltq</code> 把 <code>%eax</code> <strong>符號擴展</strong>成 <code>%rax</code>（＝ <code>movslq %eax,%rax</code>）：只保留低 32 位元，高 32 位元照第 31 位元補。</li>
+<li><code>cltq</code> 把回傳的 <code>%eax</code> 擴展成 <code>%rax</code> 存進 <code>long r</code>：只保留低 32 位元。（2026-10-24 改判：「符號擴展」移到詳細說明，題目的 100000 補 0 補 1 結果一樣）</li>
 <li>所以 <code>square</code> 留在 <code>%rax</code> 高 32 位元的正確結果（<code>0x2</code>）被蓋掉，截斷就發生在這一條；它是「猜成 <code>int</code>」的結果，不是根因。</li>
 </ol>
-<p>詳細說明：為什麼會有這一條：<code>main</code> 以為拿到的是 <code>int</code>，要存進 <code>long r</code>，<code>int</code> 轉 <code>long</code> 要保留數值（含正負號），所以編譯器插一條符號擴展。如果 <code>main</code> 有正確的宣告（回傳 <code>long</code>），就不會有 <code>cltq</code>，直接 <code>mov %rax,-0x8(%rbp)</code>。</p>
+<p>詳細說明：<code>cltq</code> 是<strong>符號擴展</strong>（＝ <code>movslq %eax,%rax</code>），高 32 位元照第 31 位元補。為什麼會有這一條：<code>main</code> 以為拿到的是 <code>int</code>，要存進 <code>long r</code>，<code>int</code> 轉 <code>long</code> 要保留數值（含正負號），所以編譯器插一條符號擴展。如果 <code>main</code> 有正確的宣告（回傳 <code>long</code>），就不會有 <code>cltq</code>，直接 <code>mov %rax,-0x8(%rbp)</code>。</p>
 <p>本機實測：把題目 <code>main.c</code> 的 <code>square(100000)</code> 改成 <code>square(50000)</code>，其餘不變、照題目的指令編譯執行，印出 <code>-1794967296</code>。50000² ＝ 2500000000 ＝ <code>0x9502f900</code>，還沒超過 32 位元，但最高位元是 1（<code>0x9</code> ＝ <code>1001</code>），<code>cltq</code> 補成全 1 → 2500000000 − 2³² ＝ −1794967296。</p>
+<p>（2026-10-24 使用者追問「印出來是負數好像不對」，重新實測確認）負數只出現在這一題的寫法（沒有宣告、有 <code>cltq</code>）。同樣是 <code>square(50000)</code>，換成多檔 2-2 的寫法（<code>main.c</code> 引入 <code>long square(long)</code> 的標頭檔、<code>mathx.c</code> 定義成 <code>int square(int)</code>）印的是 <strong>2500000000</strong>：<code>imul %eax,%eax</code> 留下 <code>0x9502f900</code>，寫 <code>%eax</code> 時高 32 位元被清成 0，<code>main</code> 照 <code>long</code> 讀整個 <code>%rax</code>，沒有 <code>cltq</code> 去補 1。兩個寫法的 <code>100000</code> 都印 1410065408，因為 <code>0x540be400</code> 的第 31 位是 0（<code>0x5</code> ＝ <code>0101</code>），補 0 補 1 結果一樣。差別只有第 31 位是 1 時才看得出來。</p>
 </details>
 </li>
 <li>為什麼「定義函式的那個 <code>.c</code> 也要 <code>#include</code> 自己的標頭檔」？如果 <code>mathx.c</code> 沒有 <code>#include &quot;mathx.h&quot;</code>，有人把 <code>mathx.c</code> 的定義改成 <code>int square(int x)</code> 卻忘了改 <code>mathx.h</code>，會發生什麼事、在哪個階段（編譯、連結、執行）才發現？<pre><code class="language-c"><span class="cm">/* mathx.h */</span>
