@@ -699,11 +699,23 @@ $ nm -D libc.so | grep -w puts          （把路由器的 libc.so 複製回本�
 </blockquote>
 <ol>
 <li><code>gcc hello.c</code> 背後實際是哪幾個程式在接力？為什麼說 <code>gcc</code> 是「總指揮」？<details class="answer"><summary>參考答案</summary>
-<p>【<a href="#%E4%B8%80%E5%9B%9B%E5%80%8B%E9%9A%8E%E6%AE%B5%E7%B8%BD%E8%A6%BD">第一節</a>】本機實際接力的是 <code>cc1</code>（前處理＋編譯，C → 組合語言）→ <code>as</code>（組合語言 → 機器碼的 <code>.o</code>，還有洞、不能執行）→ <code>collect2</code> 呼叫 <code>ld</code>（連結成執行檔）。<code>gcc</code> 自己不做任何轉換，只負責依序呼叫它們、在中間傳遞暫存檔，所以叫總指揮（driver）；<code>gcc -v</code> 看得到它實際執行的每個命令。</p>
+<p>【<a href="#%E4%B8%80%E5%9B%9B%E5%80%8B%E9%9A%8E%E6%AE%B5%E7%B8%BD%E8%A6%BD">第一節</a>】（2026-10-23 改寫成核心關鍵格式）</p>
+<p>核心關鍵：</p>
+<ol>
+<li>接力的是 <code>cc1</code>（前處理＋編譯，C → 組合語言）→ <code>as</code>（組合語言 → 機器碼的 <code>.o</code>）→ <code>ld</code>（由 <code>collect2</code> 呼叫，連結成執行檔）。</li>
+<li><code>gcc</code> 自己不做任何轉換，只依序呼叫它們、在中間傳遞暫存檔，所以叫總指揮（driver）。</li>
+</ol>
+<p>詳細說明：<code>gcc -v hello.c</code> 看得到它實際執行的每個命令。<code>as</code> 產生的 <code>.o</code> 還有洞、不能執行，連結之後才是執行檔。</p>
 </details>
 </li>
 <li><code>hello.i</code> 裡有 <code>printf</code> 的宣告，卻沒有它的程式碼。那它的程式碼在哪？是在哪個時間點、由誰把「呼叫 <code>printf</code>」和「<code>printf</code> 的程式碼」接起來的？<details class="answer"><summary>參考答案</summary>
-<p>【<a href="#%E4%BA%94%E9%80%A3%E7%B5%90%E6%8A%8A%E6%B4%9E%E6%8E%A5%E4%B8%8A%E4%BD%86-puts-%E9%82%84%E6%98%AF%E6%B2%92%E6%8E%A5%E5%AE%8C">第五節</a>〈2026-09-29 補充〉、<a href="#%E5%85%AD%E5%9F%B7%E8%A1%8C%E5%BE%9E-execve-%E5%88%B0-write">第六節</a>、<a href="#%E5%8D%81%E4%B8%89%E5%80%8B%E5%90%8D%E5%AD%97%E5%BE%88%E5%83%8F%E7%9A%84%E6%AA%94%E6%A1%88ldld-linux-x86-64so2libcso6">第十節</a>】<code>puts</code>（<code>printf</code> 在本課被換成 <code>puts</code>）的程式碼在 <strong><code>libc.so.6</code></strong>。<strong>最後把呼叫接到 <code>puts</code> 程式碼的，是執行時的動態載入器 <code>ld-linux-x86-64.so.2</code></strong>：<code>execve</code> 後它先跑，照需求單打開 <code>libc.so.6</code>、<code>mmap</code> 進來，再把 <code>puts</code> 的真正位址填進 <code>.got</code>（<code>LD_DEBUG=bindings ./hello</code> 看得到這一步）。但這一步要成立，<strong>連結時 <code>ld</code></strong> 得先做兩件事：把 <code>call</code> 後面的洞（<code>hello.o</code> 裡的 <code>00 00 00 00</code>）填成跳到 <code>puts@plt</code>，並在執行檔裡寫下需求單（<code>NEEDED libc.so.6</code>、interpreter 路徑、需要的符號版本）。CPU 執行 <code>call</code> 只是照那 4 個 byte 跳，不是「接」。<code>ld</code> 和 <code>ld-linux-x86-64.so.2</code> 是兩個不同的程式。（2026-10-07 複習時使用者爭論後修訂：原本寫成「接起來分兩個時間點」，改為以執行時為主、連結時為前提。）</p>
+<p>【<a href="#%E4%BA%94%E9%80%A3%E7%B5%90%E6%8A%8A%E6%B4%9E%E6%8E%A5%E4%B8%8A%E4%BD%86-puts-%E9%82%84%E6%98%AF%E6%B2%92%E6%8E%A5%E5%AE%8C">第五節</a>〈2026-09-29 補充〉、<a href="#%E5%85%AD%E5%9F%B7%E8%A1%8C%E5%BE%9E-execve-%E5%88%B0-write">第六節</a>、<a href="#%E5%8D%81%E4%B8%89%E5%80%8B%E5%90%8D%E5%AD%97%E5%BE%88%E5%83%8F%E7%9A%84%E6%AA%94%E6%A1%88ldld-linux-x86-64so2libcso6">第十節</a>】（2026-10-23 改寫成核心關鍵格式）</p>
+<p>核心關鍵：</p>
+<ol>
+<li>程式碼在 <strong><code>libc.so.6</code></strong>（<code>printf</code> 在本課被換成 <code>puts</code>）。</li>
+<li><strong>執行時</strong>由動態載入器 <code>ld-linux-x86-64.so.2</code> 接起來：<code>execve</code> 後它先跑，照需求單打開 <code>libc.so.6</code>、映射進記憶體，再把 <code>puts</code> 的真正位址填進 <code>.got</code>。</li>
+</ol>
+<p>詳細說明：這一步要成立，<strong>連結時</strong> <code>ld</code> 得先做好兩件事：把 <code>call</code> 後面的洞（<code>hello.o</code> 裡的 <code>00 00 00 00</code>）填成跳到 <code>puts@plt</code>，並在執行檔裡寫下需求單（<code>NEEDED libc.so.6</code>、interpreter 路徑、需要的符號版本）。CPU 執行 <code>call</code> 只是照那 4 個 byte 跳，不是「接」。<code>LD_DEBUG=bindings ./hello</code> 看得到載入器接線這一步。<code>ld</code> 和 <code>ld-linux-x86-64.so.2</code> 是兩個不同的程式。（2026-10-07 複習時使用者爭論後修訂為「以執行時為主、連結時為前提」，所以連結時那半放在詳細說明。）</p>
 </details>
 </li>
 <li><code>hello.o</code> 裡「呼叫 <code>puts</code>」的地方，要跳去的位址為什麼暫時是 0（空著）？什麼資訊讓連結器知道之後要把它填成什麼？（2026-09-23 改寫：原題要讀懂機器碼 <code>e8 00 00 00 00</code>，屬於第 ① 站第 4、5 課的組合語言範圍，改成不需要讀機器碼的問法。）<details class="answer"><summary>參考答案</summary>
@@ -717,7 +729,13 @@ $ nm -D libc.so | grep -w puts          （把路由器的 libc.so 複製回本�
 </details>
 </li>
 <li>連結完成後 <code>nm hello</code> 仍然顯示 <code>U puts@GLIBC_2.2.5</code>，這是連結失敗嗎？為什麼？<details class="answer"><summary>參考答案</summary>
-<p>【<a href="#%E4%BA%94%E9%80%A3%E7%B5%90%E6%8A%8A%E6%B4%9E%E6%8E%A5%E4%B8%8A%E4%BD%86-puts-%E9%82%84%E6%98%AF%E6%B2%92%E6%8E%A5%E5%AE%8C">第五節</a>】不是連結失敗。這是動態連結：連結器只記下「需要 glibc 提供的 <code>puts</code>」，真正的位址要等執行時由動態載入器載入 <code>libc.so.6</code> 後才填上，所以連結後的執行檔裡 <code>puts</code> 仍是 <code>U</code>（未定義）。</p>
+<p>【<a href="#%E4%BA%94%E9%80%A3%E7%B5%90%E6%8A%8A%E6%B4%9E%E6%8E%A5%E4%B8%8A%E4%BD%86-puts-%E9%82%84%E6%98%AF%E6%B2%92%E6%8E%A5%E5%AE%8C">第五節</a>】（2026-10-23 改寫成核心關鍵格式）</p>
+<p>核心關鍵：</p>
+<ol>
+<li>不是連結失敗：這是動態連結，<code>puts</code> 的程式碼在 <code>libc.so.6</code>、不在 <code>hello</code> 裡，所以 <code>hello</code> 的符號表裡它仍是 <code>U</code>（未定義）。</li>
+<li>連結器只記下「需要 glibc 提供的 <code>puts</code>（版本 <code>GLIBC_2.2.5</code>）」，真正的位址等執行時由動態載入器載入 <code>libc.so.6</code> 後才填上。</li>
+</ol>
+<p>詳細說明：真正連結失敗時，<code>ld</code> 會報 <code>undefined reference</code> 而且不產生執行檔。<code>@GLIBC_2.2.5</code> 是符號版本需求，第 5 題的「找不到版本符號」就是從這裡來的。</p>
 </details>
 </li>
 <li>情境題：你把一支動態連結的程式複製到另一台機器，執行時出現找不到 <code>libc.so.6</code> 某個版本符號的錯誤。從本課的哪個階段可以解釋這件事？如果改用 <code>-static</code> 編譯，這個問題還會發生嗎？<details class="answer"><summary>參考答案</summary>

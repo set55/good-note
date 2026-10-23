@@ -277,7 +277,14 @@ GNU 寫了 **GPL**（GNU General Public License，GNU 通用公共授權）來�
 > 參考答案寫在每題下面（2026-10-06 使用者指定）。作答時先遮住答案、自己想過再對照。
 
 1. 「Linux」這個詞嚴格說指的是什麼？那 `gcc`、`bash`、glibc 屬於誰？為什麼 FSF 主張叫 GNU/Linux？
-   > **參考答案**【[第一節](../html/linux/GNU是什麼-Linux核心與GNU工具的分工.html#一名字與起源)、[第三節](../html/linux/GNU是什麼-Linux核心與GNU工具的分工.html#三gnu-缺的那一塊核心以及gnulinux之爭)】嚴格說「Linux」只指**核心**。`gcc`、`bash`、glibc 都是 GNU 計畫的成果，位在使用者空間。日常說的「Linux 系統」其實是 Linux 核心＋GNU 工具；FSF 認為只叫「Linux」抹去了 GNU 的貢獻，所以主張叫 GNU/Linux。
+   > **參考答案**【[第一節](../html/linux/GNU是什麼-Linux核心與GNU工具的分工.html#一名字與起源)、[第三節](../html/linux/GNU是什麼-Linux核心與GNU工具的分工.html#三gnu-缺的那一塊核心以及gnulinux之爭)】（2026-10-23 改寫成核心關鍵格式）
+   >
+   > 核心關鍵：
+   > 1. 嚴格說「Linux」只指**核心**。
+   > 2. `gcc`、`bash`、glibc 都是 **GNU 計畫**的成果，位在使用者空間。
+   > 3. 日常說的「Linux 系統」其實是 Linux 核心＋GNU 工具；FSF 認為只叫「Linux」抹去了 GNU 的貢獻，所以主張叫 GNU/Linux。
+   >
+   > 詳細說明：反過來，核心是 Linux、使用者空間卻不是 GNU 的系統也存在，例如 OpenWrt（BusyBox＋musl，見[第四節](../html/linux/GNU是什麼-Linux核心與GNU工具的分工.html#四不是-gnu-的-linux你已經遇過了)），所以「Linux」和「GNU」是兩件可以分開的事。
 2. 目標三元組 `x86_64-linux-gnu` 的三段各代表什麼？為什麼說它剛好說明了「核心」和「C 函式庫」是兩件事？
    > **參考答案**【[第二節](../html/linux/GNU是什麼-Linux核心與GNU工具的分工.html#二gnu-做了什麼你這台機器上到處都是)〈那個到處出現的 `x86_64-linux-gnu` 是什麼〉】（2026-10-10 改寫成核心關鍵格式）
    >
