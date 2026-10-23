@@ -1,0 +1,170 @@
+# s1-07 自我測驗作答
+
+> 第 ① 站第 7 課的自我測驗寫在這裡。題目從筆記複製過來；批改完後，最新版的參考答案也寫在筆記每題下面。
+>
+> **怎麼寫**：直接在每題下面的空白區塊裡作答，**闔上筆記、用自己的話**（把 `YYYY-MM-DD` 換成作答日期）。寫完跟 Claude 說「幫我批改」。
+> 批改與參考答案會寫在你的答案下方，**不重答**：答錯或不完整也直接附參考答案，沒弄懂的交給間隔複習再考。
+>
+> **複習**：間隔複習的作答寫在 repo 根目錄的 [`review/`](../../review/README.md)（每天一個檔），排程見 [複習排程](../../learning/複習排程.md)。本檔只放第一次作答。
+
+## 目錄
+
+| 測驗 | 對應筆記 | 狀態 |
+|---|---|---|
+| [第 7 課：靜態與動態函式庫](#未答第-7-課靜態與動態函式庫) | [靜態與動態函式庫-ar與.a、-fPIC與.so、執行時怎麼找到.so](../../html/c/靜態與動態函式庫-ar與.a、-fPIC與.so、執行時怎麼找到.so.html) | 未答 |
+
+---
+
+## 未答：第 7 課：靜態與動態函式庫
+
+> 題目來自 [靜態與動態函式庫-ar與.a、-fPIC與.so、執行時怎麼找到.so.html](../../html/c/靜態與動態函式庫-ar與.a、-fPIC與.so、執行時怎麼找到.so.html)。
+> 每題拆成小題（`N-M`），每個小題各有一個作答框；題目用到的程式碼附在每個大題的開頭。批改寫在該小題的作答框正下方。
+
+### 1. 靜態函式庫：哪些函式會進執行檔
+
+一個靜態函式庫 `libtxt.a` 由三個成員組成，`main.c` 只呼叫 `trim`。最後的執行檔裡會有哪些函式（`to_upper_str`、`to_lower_str`、`trim`、`is_space`）？為什麼？如果把連結指令改成直接寫三個 `.o`（`gcc main.c case.o trim.o space.o`），結果有什麼不同、為什麼？
+
+```c
+/* case.c */
+void to_upper_str(char *s) { for (; *s; s++) if (*s >= 'a' && *s <= 'z') *s -= 32; }
+void to_lower_str(char *s) { for (; *s; s++) if (*s >= 'A' && *s <= 'Z') *s += 32; }
+```
+```c
+/* space.c */
+int is_space(char c) { return c == ' ' || c == '\t' || c == '\n'; }
+```
+```c
+/* trim.c */
+int is_space(char c);
+
+char *trim(char *s)
+{
+    while (is_space(*s))
+        s++;
+    return s;
+}
+```
+```c
+/* main.c */
+#include <stdio.h>
+
+char *trim(char *s);
+
+int main(void)
+{
+    char buf[] = "   hello";
+    printf("[%s]\n", trim(buf));
+    return 0;
+}
+```
+建立與連結：`gcc -Wall -c case.c space.c trim.c && ar rcs libtxt.a case.o space.o trim.o && gcc -Wall main.c -L. -ltxt -o app`
+
+#### 1-1. 最後的執行檔裡會有哪些函式（`to_upper_str`、`to_lower_str`、`trim`、`is_space`）？為什麼？
+
+**第 1 次（YYYY-MM-DD）**
+```
+```
+
+#### 1-2. 如果把連結指令改成直接寫三個 `.o`（`gcc main.c case.o trim.o space.o`），結果有什麼不同、為什麼？
+
+**第 1 次（YYYY-MM-DD）**
+```
+```
+
+### 2. 順序：`-ltxt` 寫在 `main.c` 前面
+
+承上題的檔案（`case.c`、`space.c`、`trim.c`、`main.c` 見第 1 題），`gcc -Wall -L. -ltxt main.c -o app` 會失敗，錯誤訊息是 `undefined reference to 'trim'`。用 `ld` 處理輸入檔的方式解釋為什麼。這個錯誤跟 `cannot find -ltxt` 差在哪（各是什麼東西找不到）？在 Ubuntu 上把 `libtxt.a` 換成 `libtxt.so`、命令一樣寫成 `-L. -ltxt main.c`，也會失敗，原因是什麼？
+
+#### 2-1. `gcc -Wall -L. -ltxt main.c -o app` 會失敗，錯誤訊息是 `undefined reference to 'trim'`。用 `ld` 處理輸入檔的方式解釋為什麼。
+
+**第 1 次（YYYY-MM-DD）**
+```
+```
+
+#### 2-2. 這個錯誤跟 `cannot find -ltxt` 差在哪（各是什麼東西找不到）？
+
+**第 1 次（YYYY-MM-DD）**
+```
+```
+
+#### 2-3. 在 Ubuntu 上把 `libtxt.a` 換成 `libtxt.so`、命令一樣寫成 `-L. -ltxt main.c`，也會失敗，原因是什麼？
+
+**第 1 次（YYYY-MM-DD）**
+```
+```
+
+### 3. `-fPIC`：哪個變數出問題、為什麼要 GOT
+
+下面的 `stats.c` 不加 `-fPIC` 編成 `stats.o`，再用 `gcc -shared stats.o -o libstats.so`。會成功嗎？錯誤訊息會提到哪個變數？為什麼另一個變數不會有問題？為什麼 `.so` 存取全域變數一定要經過 GOT，而不能像執行檔那樣用 `%rip` 加固定距離直接讀（講出兩個理由）？
+
+```c
+/* stats.c */
+int hits = 0;
+static int misses = 0;
+
+void hit(void)  { hits = hits + 1; }
+void miss(void) { misses = misses + 1; }
+```
+編譯：`gcc -Wall -c stats.c -o stats.o && gcc -shared stats.o -o libstats.so`
+
+#### 3-1. 會成功嗎？錯誤訊息會提到哪個變數？
+
+**第 1 次（YYYY-MM-DD）**
+```
+```
+
+#### 3-2. 為什麼另一個變數不會有問題？
+
+**第 1 次（YYYY-MM-DD）**
+```
+```
+
+#### 3-3. 為什麼 `.so` 存取全域變數一定要經過 GOT，而不能像執行檔那樣用 `%rip` 加固定距離直接讀（講出兩個理由）？
+
+**第 1 次（YYYY-MM-DD）**
+```
+```
+
+### 4. 情境：連結成功、執行找不到 `libfoo.so`
+
+情境題：你在 `/home/me/proj/` 下做了 `lib/libfoo.so` 和用它的 `app`，連結指令是 `gcc main.c -Llib -lfoo -o app`。連結成功，`./app` 卻印出 `error while loading shared libraries: libfoo.so: cannot open shared object file`。(1) 這個訊息是誰印的？為什麼連結時找得到、執行時找不到？(2) 你想讓 `app` 和 `lib/` 一起打包給同事，同事解壓到任何地方都能直接執行，連結指令要怎麼改？為什麼要用單引號？(3) 同事想臨時用 `LD_LIBRARY_PATH` 換成他自己編的 `libfoo.so` 來除錯，在你的做法（`RUNPATH`）下換得掉嗎？如果是 `RPATH` 呢？為什麼？
+
+#### 4-1. 這個訊息是誰印的？為什麼連結時找得到、執行時找不到？
+
+**第 1 次（YYYY-MM-DD）**
+```
+```
+
+#### 4-2. 你想讓 `app` 和 `lib/` 一起打包給同事，同事解壓到任何地方都能直接執行，連結指令要怎麼改？為什麼要用單引號？
+
+**第 1 次（YYYY-MM-DD）**
+```
+```
+
+#### 4-3. 同事想臨時用 `LD_LIBRARY_PATH` 換成他自己編的 `libfoo.so` 來除錯，在你的做法（`RUNPATH`）下換得掉嗎？如果是 `RPATH` 呢？為什麼？
+
+**第 1 次（YYYY-MM-DD）**
+```
+```
+
+### 5. SONAME 與函式庫更新
+
+你維護 `libcalc`，SONAME 是 `libcalc.so.1`。系統上有 `libcalc.so -> libcalc.so.1`、`libcalc.so.1 -> libcalc.so.1.0.0` 兩個符號連結。(1) 一支程式動態連結了 `libcalc`，它的 `NEEDED` 寫的是哪個名字？為什麼刪掉 `libcalc.so` 它照樣能跑，刪掉 `libcalc.so.1` 就不行？(2) 你修了一個 bug（介面不變），做成 `libcalc.so.1.0.1`。已經動態連結的程式要怎樣才能用到修正？另一支用 `libcalc.a` 靜態連結的程式呢？(3) 下一版要把 `calc_add` 改成三個參數（不相容），SONAME 該怎麼辦？為什麼這樣舊程式不會壞？
+
+#### 5-1. 一支程式動態連結了 `libcalc`，它的 `NEEDED` 寫的是哪個名字？為什麼刪掉 `libcalc.so` 它照樣能跑，刪掉 `libcalc.so.1` 就不行？
+
+**第 1 次（YYYY-MM-DD）**
+```
+```
+
+#### 5-2. 你修了一個 bug（介面不變），做成 `libcalc.so.1.0.1`。已經動態連結的程式要怎樣才能用到修正？另一支用 `libcalc.a` 靜態連結的程式呢？
+
+**第 1 次（YYYY-MM-DD）**
+```
+```
+
+#### 5-3. 下一版要把 `calc_add` 改成三個參數（不相容），SONAME 該怎麼辦？為什麼這樣舊程式不會壞？
+
+**第 1 次（YYYY-MM-DD）**
+```
+```

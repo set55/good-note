@@ -1,0 +1,1254 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>靜態與動態函式庫 —— ar 與 .a、-fPIC 與 .so、-L／-l、執行時怎麼找到 .so</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/app.js"></script>
+</head>
+<body>
+<button class="menu-btn" onclick="toggleMenu()">☰ 目錄</button>
+<div class="layout">
+<nav class="side">
+<div class="crumbs"><a href="../index.html">🏠 首頁</a> / <a href="README.html">c</a></div>
+<div class="tools"><button onclick="toggleTheme()">🌓 主題</button></div>
+<ul>
+<li class="l2"><a href="#%E7%9B%AE%E9%8C%84">目錄</a></li>
+<li class="l2"><a href="#%E9%9B%B6%E9%96%8B%E8%AA%B2%E8%A4%87%E7%BF%92%E7%AC%AC-6-%E8%AA%B2%E5%8D%A1%E4%BD%8F%E7%9A%84%E8%A7%80%E5%BF%B5">零、開課複習：第 6 課卡住的觀念</a></li>
+<li class="l2"><a href="#%E4%B8%80%E6%9C%AC%E8%AA%B2%E5%9C%A8%E5%81%9A%E4%BB%80%E9%BA%BC%E5%87%BD%E5%BC%8F%E5%BA%AB%E5%B0%B1%E6%98%AF%E5%85%88%E7%B7%A8%E5%A5%BD%E7%9A%84-o">一、本課在做什麼：函式庫就是先編好的 .o</a></li>
+<li class="l2"><a href="#%E4%BA%8C%E9%9D%9C%E6%85%8B%E5%87%BD%E5%BC%8F%E5%BA%AB%E7%94%A8-ar-%E6%8A%8A-o-%E5%8C%85%E6%88%90-a">二、靜態函式庫：用 ar 把 .o 包成 .a</a></li>
+<li class="l3"><a href="#%E5%AF%A6%E9%A9%97%E5%81%9A%E5%87%BA-libcalca">實驗：做出 libcalc.a</a></li>
+<li class="l3"><a href="#%E9%80%A3%E7%B5%90%E5%8F%AA%E6%8B%89%E9%9C%80%E8%A6%81%E7%9A%84%E6%88%90%E5%93%A1">連結：只拉需要的成員</a></li>
+<li class="l3"><a href="#%E9%A0%86%E5%BA%8Fld-%E7%94%B1%E5%B7%A6%E5%BE%80%E5%8F%B3%E5%8F%AA%E6%8E%83%E4%B8%80%E6%AC%A1">順序：ld 由左往右只掃一次</a></li>
+<li class="l2"><a href="#%E4%B8%89-l-%E8%88%87--l%E9%80%A3%E7%B5%90%E6%99%82%E5%8E%BB%E5%93%AA%E8%A3%A1%E6%89%BE%E6%89%BE%E4%BB%80%E9%BA%BC%E5%90%8D%E5%AD%97">三、-L 與 -l：連結時去哪裡找、找什麼名字</a></li>
+<li class="l2"><a href="#%E5%9B%9B%E5%8B%95%E6%85%8B%E5%87%BD%E5%BC%8F%E5%BA%AB-shared-%E8%88%87--fpic">四、動態函式庫：-shared 與 -fPIC</a></li>
+<li class="l3"><a href="#%E5%AF%A6%E9%A9%97%E5%81%9A%E5%87%BA-libcalcso">實驗：做出 libcalc.so</a></li>
+<li class="l3"><a href="#%E7%82%BA%E4%BB%80%E9%BA%BC%E4%B8%80%E5%AE%9A%E8%A6%81--fpic%E5%85%88%E7%9C%8B%E4%B8%8D%E5%8A%A0%E6%9C%83%E6%80%8E%E6%A8%A3">為什麼一定要 -fPIC：先看不加會怎樣</a></li>
+<li class="l3"><a href="#%E7%82%BA%E4%BB%80%E9%BA%BC%E4%B8%8D%E8%83%BD%E7%9B%B4%E6%8E%A5%E7%94%A8%E5%9B%BA%E5%AE%9A%E8%B7%9D%E9%9B%A2counter-%E6%9C%80%E5%BE%8C%E4%B8%8D%E4%B8%80%E5%AE%9A%E6%98%AF%E9%80%99%E4%B8%80%E4%BB%BD">為什麼不能直接用固定距離：counter 最後不一定是這一份</a></li>
+<li class="l3"><a href="#so-%E5%9C%A8-ubuntu-%E4%B8%8A%E4%B9%9F%E6%9C%89%E9%A0%86%E5%BA%8F%E5%95%8F%E9%A1%8C">.so 在 Ubuntu 上也有順序問題</a></li>
+<li class="l2"><a href="#%E4%BA%94%E5%9F%B7%E8%A1%8C%E6%99%82%E6%80%8E%E9%BA%BC%E6%89%BE%E5%88%B0-so">五、執行時怎麼找到 .so</a></li>
+<li class="l3"><a href="#ldso-%E5%8E%BB%E4%BA%86%E5%93%AA%E4%BA%9B%E5%9C%B0%E6%96%B9%E6%89%BE">ld.so 去了哪些地方找</a></li>
+<li class="l3"><a href="#%E6%96%B9%E6%B3%95%E4%B8%80ld_library_path%E8%87%A8%E6%99%82%E7%94%A8">方法一：LD_LIBRARY_PATH（臨時用）</a></li>
+<li class="l3"><a href="#%E6%96%B9%E6%B3%95%E4%BA%8C-wl-rpath%E6%8A%8A%E8%B7%AF%E5%BE%91%E5%AF%AB%E9%80%B2%E5%9F%B7%E8%A1%8C%E6%AA%94">方法二：-Wl,-rpath——把路徑寫進執行檔</a></li>
+<li class="l3"><a href="#rpath-%E5%92%8C-runpath-%E5%B7%AE%E5%9C%A8%E5%93%AA%E8%B7%9F-ld_library_path-%E8%AA%B0%E5%84%AA%E5%85%88">RPATH 和 RUNPATH 差在哪：跟 LD_LIBRARY_PATH 誰優先</a></li>
+<li class="l3"><a href="#%E6%96%B9%E6%B3%95%E4%B8%89%E8%A3%9D%E5%88%B0%E7%B3%BB%E7%B5%B1%E7%9B%AE%E9%8C%84%E8%B7%91-ldconfig">方法三：裝到系統目錄，跑 ldconfig</a></li>
+<li class="l3"><a href="#%E4%B8%89%E7%A8%AE%E6%96%B9%E6%B3%95%E6%80%8E%E9%BA%BC%E9%81%B8">三種方法怎麼選</a></li>
+<li class="l2"><a href="#%E5%85%AD%E6%8F%9B%E6%8E%89-so-%E4%B8%8D%E7%94%A8%E9%87%8D%E6%96%B0%E9%80%A3%E7%B5%90%E4%BB%A5%E5%8F%8A-soname">六、換掉 .so 不用重新連結，以及 SONAME</a></li>
+<li class="l3"><a href="#%E6%8F%9B%E6%8E%89-so%E7%A8%8B%E5%BC%8F%E4%B8%8D%E7%94%A8%E9%87%8D%E6%96%B0%E9%80%A3%E7%B5%90">換掉 .so：程式不用重新連結</a></li>
+<li class="l3"><a href="#sonameneeded-%E8%A8%98%E7%9A%84%E6%98%AF%E5%93%AA%E5%80%8B%E5%90%8D%E5%AD%97">SONAME：NEEDED 記的是哪個名字</a></li>
+<li class="l3"><a href="#%E9%9D%9C%E6%85%8B-vs-%E5%8B%95%E6%85%8B%E6%95%B4%E7%90%86">靜態 vs 動態：整理</a></li>
+<li class="l2"><a href="#%E4%B8%83%E6%9C%AC%E8%AA%B2%E7%94%A8%E5%88%B0%E7%9A%84%E5%B7%A5%E5%85%B7%E9%81%B8%E9%A0%85%E8%88%87%E5%AE%8C%E6%95%B4%E6%B8%85%E5%96%AE%E5%9C%A8%E5%93%AA">七、本課用到的工具、選項與完整清單在哪</a></li>
+<li class="l3"><a href="#ar%E5%85%A8%E9%83%A8%E9%81%B8%E9%A0%85ar---help-%E5%AF%A6%E6%B8%ACgnu-ar-242">ar：全部選項（ar --help 實測，GNU ar 2.42）</a></li>
+<li class="l3"><a href="#gcc%E6%9C%AC%E8%AA%B2%E6%96%B0%E7%94%A8%E5%88%B0%E7%9A%84%E9%81%B8%E9%A0%85">gcc：本課新用到的選項</a></li>
+<li class="l3"><a href="#ld%E6%9C%AC%E8%AA%B2%E9%80%8F%E9%81%8E--wl-%E7%94%A8%E5%88%B0%E7%9A%84%E9%81%B8%E9%A0%85">ld：本課透過 -Wl, 用到的選項</a></li>
+<li class="l3"><a href="#%E5%9F%B7%E8%A1%8C%E6%99%82ldso-%E7%9A%84%E7%92%B0%E5%A2%83%E8%AE%8A%E6%95%B8ld_debugldconfig">執行時：ld.so 的環境變數、LD_DEBUG、ldconfig</a></li>
+<li class="l3"><a href="#%E8%A7%80%E5%AF%9F%E5%B7%A5%E5%85%B7">觀察工具</a></li>
+<li class="l2"><a href="#%E5%85%AB%E5%8B%95%E6%89%8B%E4%BD%9C%E6%A5%AD">八、動手作業</a></li>
+<li class="l2"><a href="#%E8%87%AA%E6%88%91%E6%B8%AC%E9%A9%97">自我測驗</a></li>
+</ul>
+</nav>
+<main>
+<h1 id="靜態與動態函式庫--ar-與-a-fpic-與-so-l-l執行時怎麼找到-so">靜態與動態函式庫 —— <code>ar</code> 與 <code>.a</code>、<code>-fPIC</code> 與 <code>.so</code>、<code>-L</code>／<code>-l</code>、執行時怎麼找到 <code>.so</code></h1>
+<blockquote>
+<p>日期：2026-10-23<br />
+情境：系統化學習路線第 ① 站第 7 課（原本跟第 6 課排在一起，第 6 課份量太多而拆出來）。對應 CS:APP 第 7.6.2 節（與靜態函式庫連結）、7.10～7.12 節（動態連結與共享函式庫、位置無關程式碼 PIC）；執行時的搜尋順序以本機 <code>man ld.so</code>（glibc 2.39）為準。<br />
+適用範圍：實測本機 Ubuntu 24.04、x86-64、gcc 13.3.0、GNU ar／ld 2.42、glibc 2.39；所有輸出都是本機實際產生的。輸出裡很長的實驗資料夾路徑以 <code>…/</code> 省略<br />
+對應檔案：每個實驗的完整原始碼都寫在它出現的那一節；同樣的檔案放在
+<a href="../../small-project/s1-07-libraries/examples/"><code>small-project/s1-07-libraries/examples/</code></a>（會進 git，編譯產物不進），一個實驗一個子資料夾；作業在 <a href="../small-project/s1-07-libraries/README.html"><code>small-project/s1-07-libraries/</code></a><br />
+相關：<a href="hello.c%E6%80%8E%E9%BA%BC%E8%AE%8A%E6%88%90%E8%83%BD%E8%B7%91%E7%9A%84%E7%A8%8B%E5%BC%8F-%E7%B7%A8%E8%AD%AF%E7%9A%84%E5%9B%9B%E5%80%8B%E9%9A%8E%E6%AE%B5.html">hello.c怎麼變成能跑的程式</a>（第 1 課：動態連結、<code>puts@plt</code>、<code>ld</code> 與 <code>ld.so</code> 的分工）、
+<a href="objdump%E8%83%BD%E4%B8%8D%E8%83%BD%E4%BB%A3%E6%9B%BFldd%E6%89%BE%E4%BE%9D%E8%B3%B4%E5%BA%AB-%E9%9C%80%E6%B1%82%E5%96%AE%E8%88%87%E5%AF%A6%E9%9A%9B%E8%BC%89%E5%85%A5.html">objdump能不能代替ldd找依賴庫</a>（<code>NEEDED</code> 需求單、<code>-L</code> 只給 <code>ld</code> 看）、
+<a href="ELF%E7%9A%84interpreter%E6%98%AF%E4%BB%80%E9%BA%BC-%E5%8B%95%E6%85%8B%E8%BC%89%E5%85%A5%E5%99%A8%E8%88%87%E4%BA%95%E5%AD%97%E8%99%9F%E9%A9%9A%E5%98%86%E8%99%9F.html">ELF的interpreter是什麼</a>（<code>ld.so</code> 的全部選項）、
+<a href="%E5%A4%9A%E6%AA%94%E6%A1%88%E7%9A%84C%E7%A8%8B%E5%BC%8F-%E6%A8%99%E9%A0%AD%E6%AA%94%E3%80%81static%E8%88%87extern%E3%80%81%E9%80%A3%E7%B5%90%E9%8C%AF%E8%AA%A4%E8%88%87make.html">多檔案的C程式</a>（第 6 課：符號表、<code>UND</code>／<code>GLOBAL</code>、<code>multiple definition</code>）</p>
+</blockquote>
+<p><strong>一句話結論：函式庫就是「先編好的 <code>.o</code>」。靜態函式庫 <code>.a</code> 只是用 <code>ar</code> 把幾個 <code>.o</code> 包在一起，連結時 <code>ld</code> 由左往右掃，只把「目前還缺的符號」所在的那幾個 <code>.o</code> 整個複製進執行檔，所以 <code>-l</code> 要寫在用到它的檔案後面。動態函式庫 <code>.so</code> 由 <code>gcc -shared</code> 做成，連結時 <code>ld</code> 只寫下 <code>NEEDED libcalc.so</code> 這個名字；真正的程式碼要等</strong>執行時<strong>由 <code>ld.so</code> 找到檔案、載入、接線。
+<code>.so</code> 的程式碼要用 <code>-fPIC</code> 編：它被載入到哪個位址、它的全域變數最後用的是哪一份，都要到載入時才知道，所以要透過可寫的 GOT 間接存取，程式碼本身才能保持唯讀、讓所有行程共用。
+<code>-L</code> 只給連結時的 <code>ld</code> 看；執行時 <code>ld.so</code> 照 <code>RPATH</code> → <code>LD_LIBRARY_PATH</code> → <code>RUNPATH</code> → <code>/etc/ld.so.cache</code> → <code>/lib</code>、<code>/usr/lib</code> 的順序找，所以要嘛把路徑寫進執行檔（<code>-Wl,-rpath,'$ORIGIN'</code>），要嘛裝到系統目錄再跑 <code>ldconfig</code>。</strong></p>
+<hr />
+<h2 id="目錄">目錄</h2>
+<ul>
+<li><a href="#%E9%9B%B6%E9%96%8B%E8%AA%B2%E8%A4%87%E7%BF%92%E7%AC%AC-6-%E8%AA%B2%E5%8D%A1%E4%BD%8F%E7%9A%84%E8%A7%80%E5%BF%B5">零、開課複習：第 6 課卡住的觀念</a></li>
+<li><a href="#%E4%B8%80%E6%9C%AC%E8%AA%B2%E5%9C%A8%E5%81%9A%E4%BB%80%E9%BA%BC%E5%87%BD%E5%BC%8F%E5%BA%AB%E5%B0%B1%E6%98%AF%E5%85%88%E7%B7%A8%E5%A5%BD%E7%9A%84-o">一、本課在做什麼：函式庫就是先編好的 <code>.o</code></a></li>
+<li><a href="#%E4%BA%8C%E9%9D%9C%E6%85%8B%E5%87%BD%E5%BC%8F%E5%BA%AB%E7%94%A8-ar-%E6%8A%8A-o-%E5%8C%85%E6%88%90-a">二、靜態函式庫：用 <code>ar</code> 把 <code>.o</code> 包成 <code>.a</code></a></li>
+<li><a href="#%E4%B8%89-l-%E8%88%87--l%E9%80%A3%E7%B5%90%E6%99%82%E5%8E%BB%E5%93%AA%E8%A3%A1%E6%89%BE%E6%89%BE%E4%BB%80%E9%BA%BC%E5%90%8D%E5%AD%97">三、<code>-L</code> 與 <code>-l</code>：連結時去哪裡找、找什麼名字</a></li>
+<li><a href="#%E5%9B%9B%E5%8B%95%E6%85%8B%E5%87%BD%E5%BC%8F%E5%BA%AB-shared-%E8%88%87--fpic">四、動態函式庫：<code>-shared</code> 與 <code>-fPIC</code></a></li>
+<li><a href="#%E4%BA%94%E5%9F%B7%E8%A1%8C%E6%99%82%E6%80%8E%E9%BA%BC%E6%89%BE%E5%88%B0-so">五、執行時怎麼找到 <code>.so</code></a></li>
+<li><a href="#%E5%85%AD%E6%8F%9B%E6%8E%89-so-%E4%B8%8D%E7%94%A8%E9%87%8D%E6%96%B0%E9%80%A3%E7%B5%90%E4%BB%A5%E5%8F%8A-soname">六、換掉 <code>.so</code> 不用重新連結，以及 SONAME</a></li>
+<li><a href="#%E4%B8%83%E6%9C%AC%E8%AA%B2%E7%94%A8%E5%88%B0%E7%9A%84%E5%B7%A5%E5%85%B7%E9%81%B8%E9%A0%85%E8%88%87%E5%AE%8C%E6%95%B4%E6%B8%85%E5%96%AE%E5%9C%A8%E5%93%AA">七、本課用到的工具、選項與完整清單在哪</a></li>
+<li><a href="#%E5%85%AB%E5%8B%95%E6%89%8B%E4%BD%9C%E6%A5%AD">八、動手作業</a></li>
+<li><a href="#%E8%87%AA%E6%88%91%E6%B8%AC%E9%A9%97">自我測驗</a></li>
+</ul>
+<hr />
+<h2 id="零開課複習第-6-課卡住的觀念">零、開課複習：第 6 課卡住的觀念</h2>
+<p>第 6 課的作業與自我測驗批改後，記成「第 7 課開頭先複習」的觀念如下。這些題目已經排進複習（今天的大複習也有考），這裡只講解、不另外出題。</p>
+<ol>
+<li><strong>定義的 <code>.c</code> 引入自己的標頭檔，是讓「編譯器」檢查，不是把兩邊「連接」起來</strong>：<code>mathx.c</code> 引入 <code>mathx.h</code> 之後，編譯器在同一個編譯單元裡同時看到宣告和定義，兩者不一致就報 <code>conflicting types</code>。連接是連結器的事，而連結器只比名字。出處：<a href="%E5%A4%9A%E6%AA%94%E6%A1%88%E7%9A%84C%E7%A8%8B%E5%BC%8F-%E6%A8%99%E9%A0%AD%E6%AA%94%E3%80%81static%E8%88%87extern%E3%80%81%E9%80%A3%E7%B5%90%E9%8C%AF%E8%AA%A4%E8%88%87make.html#%E4%B8%89%E6%A8%99%E9%A0%AD%E6%AA%94%E6%8A%8A%E5%AE%A3%E5%91%8A%E5%AF%AB%E4%B8%80%E6%AC%A1%E8%AE%93%E5%85%A9%E9%82%8A%E9%83%BD%E6%AA%A2%E6%9F%A5">第 6 課第三節</a>〈定義的那個 <code>.c</code> 為什麼也要 <code>#include</code> 自己的標頭檔〉。</li>
+<li><strong>不報錯 ≠ 型別對</strong>：沒有標頭檔把型別帶到兩邊時，編譯、連結都會過，錯誤要到<strong>執行</strong>才看得到（印出垃圾數字）。所以實驗一定要跑到最後一步、看輸出，不能停在「沒有錯誤訊息」。本課每一題作業都會要求貼上實際輸出。出處：<a href="%E5%A4%9A%E6%AA%94%E6%A1%88%E7%9A%84C%E7%A8%8B%E5%BC%8F-%E6%A8%99%E9%A0%AD%E6%AA%94%E3%80%81static%E8%88%87extern%E3%80%81%E9%80%A3%E7%B5%90%E9%8C%AF%E8%AA%A4%E8%88%87make.html#%E5%9B%9B%E7%AC%A6%E8%99%9F%E8%A1%A8o-%E4%B9%8B%E9%96%93%E9%9D%A0%E5%90%8D%E5%AD%97%E6%8E%A5%E8%B5%B7%E4%BE%86">第 6 課第四節</a>〈三種錯誤，各發生在哪一步〉。</li>
+<li><strong><code>extern</code> 只是宣告，整個程式要「恰好一個」<code>.c</code> 寫定義</strong>：只有 <code>extern int hits;</code> 而沒有任何 <code>.c</code> 寫 <code>int hits = 0;</code>，連結時就是 <code>undefined reference to 'hits'</code>；<code>-fcommon</code> 只會把<strong>沒有初值</strong>的同名定義合併成<strong>一份</strong>（不是各自一份）。出處：<a href="%E5%A4%9A%E6%AA%94%E6%A1%88%E7%9A%84C%E7%A8%8B%E5%BC%8F-%E6%A8%99%E9%A0%AD%E6%AA%94%E3%80%81static%E8%88%87extern%E3%80%81%E9%80%A3%E7%B5%90%E9%8C%AF%E8%AA%A4%E8%88%87make.html#%E5%85%ADextern%E5%85%A8%E5%9F%9F%E8%AE%8A%E6%95%B8%E7%9A%84%E5%AE%A3%E5%91%8A%E8%88%87%E5%AE%9A%E7%BE%A9">第 6 課第六節</a>。</li>
+<li><strong>函式是不是定義，看有沒有本體 <code>{ ... }</code></strong>：<code>extern</code> 那套規則是給全域變數的；函式宣告本來就預設 <code>extern</code>。標頭檔裡寫了函式本體，兩個 <code>.c</code> 都引入就是兩份定義 → <code>multiple definition</code>。</li>
+<li><strong>include guard 只在一個 <code>.c</code> 裡有效</strong>：它擋的是「同一個編譯單元貼兩次」；兩個 <code>.c</code> 是分開編譯的，各貼一次，guard 擋不住。</li>
+<li><strong>區域變數沒有符號</strong>：它的位址是 <code>-0x14(%rbp)</code> 這種「執行時的 <code>%rbp</code> 加偏移」，編譯器自己就寫得出來，不用連結器填，所以不需要名字。</li>
+<li><strong><code>make -n</code> 只印不執行；<code>-MP</code> 為每個標頭檔加一條空規則</strong>：刪掉某個標頭檔時，<code>make</code> 才不會因為 <code>.d</code> 裡還列著它而報「沒有規則可以做出目標」。出處：<a href="%E5%A4%9A%E6%AA%94%E6%A1%88%E7%9A%84C%E7%A8%8B%E5%BC%8F-%E6%A8%99%E9%A0%AD%E6%AA%94%E3%80%81static%E8%88%87extern%E3%80%81%E9%80%A3%E7%B5%90%E9%8C%AF%E8%AA%A4%E8%88%87make.html#%E4%B8%83make%E5%8F%AA%E9%87%8D%E7%B7%A8%E6%94%B9%E9%81%8E%E7%9A%84%E6%AA%94%E6%A1%88">第 6 課第七節</a>。</li>
+<li><strong>連結時的 <code>ld</code> vs 執行時的 <code>ld.so</code></strong>（第 1 課就開始卡的觀念）：本課整課都在講這兩個時間點，第三節講 <code>ld</code> 在找什麼，第五節講 <code>ld.so</code> 在找什麼。</li>
+</ol>
+<hr />
+<h2 id="一本課在做什麼函式庫就是先編好的-o">一、本課在做什麼：函式庫就是先編好的 <code>.o</code></h2>
+<p>第 6 課把程式拆成好幾個 <code>.c</code>，各自編成 <code>.o</code> 再連結。如果有一組函式（例如一套數學函式）很多程式都要用，每個程式都把那些 <code>.c</code> 抄一份、重編一次，太浪費。<strong>函式庫（library）</strong>就是「先編好、讓很多程式拿去連結的一組 <code>.o</code>」。</p>
+<p>有兩種做法，差在<strong>函式的機器碼什麼時候、被放到哪裡</strong>：</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>靜態函式庫（static library）</th>
+<th>動態函式庫／共享函式庫（shared library）</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>檔名</td>
+<td><code>libcalc.a</code>（a ＝ archive，封存檔）</td>
+<td><code>libcalc.so</code>（so ＝ shared object，共享目的檔）</td>
+</tr>
+<tr>
+<td>怎麼做</td>
+<td><code>ar</code> 把幾個 <code>.o</code> 包在一起（第二節）</td>
+<td><code>gcc -shared</code>，<code>.o</code> 要用 <code>-fPIC</code> 編（第四節）</td>
+</tr>
+<tr>
+<td>連結時 <code>ld</code> 做什麼</td>
+<td>把<strong>用得到的 <code>.o</code></strong> 整個複製進執行檔</td>
+<td>只檢查符號找得到，在執行檔寫下 <code>NEEDED libcalc.so</code></td>
+</tr>
+<tr>
+<td>執行時</td>
+<td>不需要 <code>libcalc.a</code>，程式碼已經在執行檔裡</td>
+<td><code>ld.so</code> 要找到 <code>libcalc.so</code>、載入、接線（第五節）</td>
+</tr>
+<tr>
+<td>函式庫修了 bug</td>
+<td>每個程式都要重新連結</td>
+<td>換掉 <code>.so</code>，程式重新執行就生效（第六節）</td>
+</tr>
+</tbody>
+</table>
+<p>第 1 課其實已經用過動態函式庫：<code>hello</code> 用到的 <code>puts</code> 就在 <code>libc.so.6</code> 裡，<code>nm hello</code> 看到 <code>U puts</code>、<code>ldd hello</code> 看到 <code>libc.so.6 =&gt; /lib/x86_64-linux-gnu/libc.so.6</code>（<a href="hello.c%E6%80%8E%E9%BA%BC%E8%AE%8A%E6%88%90%E8%83%BD%E8%B7%91%E7%9A%84%E7%A8%8B%E5%BC%8F-%E7%B7%A8%E8%AD%AF%E7%9A%84%E5%9B%9B%E5%80%8B%E9%9A%8E%E6%AE%B5.html#%E4%BA%94%E9%80%A3%E7%B5%90%E6%8A%8A%E6%B4%9E%E6%8E%A5%E4%B8%8A%E4%BD%86-puts-%E9%82%84%E6%98%AF%E6%B2%92%E6%8E%A5%E5%AE%8C">第 1 課第五節</a>）。<code>gcc -static</code> 則是改用 libc 的靜態版 <code>libc.a</code>。本課自己做一個函式庫，把兩種都從頭走一次。</p>
+<p>本課所有實驗共用同一組原始碼：一個有兩個函式的小函式庫 <code>calc</code>，和一個只用到其中一個函式的 <code>main.c</code>。</p>
+<p><code>calc.h</code>（檔案：<a href="../../small-project/s1-07-libraries/examples/calc/calc.h"><code>calc.h</code></a>）：</p>
+<pre><code class="language-c"><span class="cp">#ifndef CALC_H</span>
+<span class="cp">#define CALC_H</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">calc_add</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">a</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">b</span><span class="p">);</span>
+<span class="kt">int</span><span class="w"> </span><span class="nf">calc_mul</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">a</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">b</span><span class="p">);</span>
+
+<span class="cp">#endif</span>
+</code></pre>
+<p><code>add.c</code>（檔案：<a href="../../small-project/s1-07-libraries/examples/calc/add.c"><code>add.c</code></a>）：</p>
+<pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;calc.h&quot;</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">calc_add</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">a</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">b</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">b</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<p><code>mul.c</code>（檔案：<a href="../../small-project/s1-07-libraries/examples/calc/mul.c"><code>mul.c</code></a>）：</p>
+<pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;calc.h&quot;</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">calc_mul</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">a</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">b</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">b</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<p><code>main.c</code>（檔案：<a href="../../small-project/s1-07-libraries/examples/calc/main.c"><code>main.c</code></a>）——<strong>只用 <code>calc_add</code>，沒用 <code>calc_mul</code></strong>：</p>
+<pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;calc.h&quot;</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;%d</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">calc_add</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="mi">3</span><span class="p">));</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<hr />
+<h2 id="二靜態函式庫用-ar-把-o-包成-a">二、靜態函式庫：用 <code>ar</code> 把 <code>.o</code> 包成 <code>.a</code></h2>
+<h3 id="實驗做出-libcalca">實驗：做出 <code>libcalc.a</code></h3>
+<p>在 <code>examples/calc/</code> 裡：</p>
+<pre><code>$ gcc -Wall -c add.c mul.c            # 一次編兩個，得到 add.o、mul.o
+$ ar rcs libcalc.a add.o mul.o        # 包成 libcalc.a
+$ ls -l libcalc.a add.o mul.o
+-rw-rw-r-- 1 set set 1232 Oct 23 10:47 add.o
+-rw-rw-r-- 1 set set 2682 Oct 23 10:47 libcalc.a
+-rw-rw-r-- 1 set set 1232 Oct 23 10:47 mul.o
+$ file libcalc.a
+libcalc.a: current ar archive
+</code></pre>
+<p><code>ar rcs libcalc.a add.o mul.o</code> 的文法是 <code>ar &lt;操作字母&gt;&lt;修飾字母…&gt; &lt;封存檔&gt; &lt;成員檔…&gt;</code>（全部選項見第七節）：</p>
+<ul>
+<li><code>r</code>（replace，操作）：把後面的檔案放進封存檔；同名的成員已經存在就<strong>取代</strong>它，不存在就加在最後。</li>
+<li><code>c</code>（create，修飾）：封存檔不存在時要建立它，<strong>不要印警告</strong>（沒有 <code>c</code> 也會建立，只是多印一行 <code>ar: creating libcalc.a</code>）。</li>
+<li><code>s</code>（修飾）：順便建立<strong>索引（archive index）</strong>，見下面。</li>
+<li><code>libcalc.a</code>：封存檔的名字。<strong>一定要叫 <code>lib&lt;名字&gt;.a</code></strong>，<code>-l</code> 才找得到（第三節）。</li>
+<li><code>add.o mul.o</code>：要放進去的成員（member）。</li>
+</ul>
+<p><code>.a</code> 的大小 2682 ≈ 1232 × 2 加一點檔頭：它真的只是把兩個 <code>.o</code> 接在一起的封存檔，跟 <code>tar</code> 是同一類東西，<strong>沒有重新編譯、也沒有連結</strong>。看裡面有什麼：</p>
+<pre><code>$ ar t libcalc.a                      # t ＝ 列出成員
+add.o
+mul.o
+$ ar tv libcalc.a                     # v ＝ 詳細
+rw-r--r-- 0/0   1232 Jan  1 08:00 1970 add.o
+rw-r--r-- 0/0   1232 Jan  1 08:00 1970 mul.o
+$ nm -s libcalc.a                     # nm 會逐個成員列符號；-s 多印索引
+Archive index:
+calc_add in add.o
+calc_mul in mul.o
+
+add.o:
+0000000000000000 T calc_add
+
+mul.o:
+0000000000000000 T calc_mul
+</code></pre>
+<ul>
+<li><code>ar tv</code> 的擁有者 <code>0/0</code>、日期 1970：Ubuntu 的 <code>ar</code> 預設用 <code>D</code>（deterministic，確定性）模式，時間與擁有者一律寫 0，同樣的輸入每次產生一模一樣的 <code>.a</code>（方便比對、重現建置）。要記錄真實時間用 <code>U</code>。</li>
+<li><strong><code>Archive index</code>（索引）</strong>就是 <code>s</code> 建的：一張「哪個符號在哪個成員裡」的表。連結器查這張表，就不用把每個成員的符號表都讀一遍。</li>
+</ul>
+<p>沒有索引會怎樣？用大寫 <code>S</code>（不建索引）做一個試試（<code>m2.c</code> 是 <code>main.c</code> 的複本）：</p>
+<pre><code>$ ar rcS libnoidx.a add.o mul.o
+$ gcc -Wall m2.c -L. -lnoidx -o x
+/usr/bin/ld: ./libnoidx.a: error adding symbols: archive has no index; run ranlib to add one
+collect2: error: ld returned 1 exit status
+</code></pre>
+<p>GNU <code>ld</code> 拒絕沒有索引的封存檔。訊息裡的 <code>ranlib</code> 是專門補索引的工具，<code>ranlib libnoidx.a</code> 跟 <code>ar s libnoidx.a</code> 效果一樣（<code>ar --help</code> 對 <code>s</code> 的說明就是 <code>act as ranlib</code>）。</p>
+<h3 id="連結只拉需要的成員">連結：只拉需要的成員</h3>
+<pre><code>$ gcc -Wall main.c -L. -lcalc -o app_static
+$ ./app_static
+5
+$ nm app_static | grep calc
+000000000000117d T calc_add
+</code></pre>
+<p><code>-L.</code> 是「去目前目錄找函式庫」，<code>-lcalc</code> 是「找 <code>libcalc</code>」（第三節詳講）。重點在 <code>nm</code>：<strong>執行檔裡只有 <code>calc_add</code>，沒有 <code>calc_mul</code></strong>。對照把兩個 <code>.o</code> 直接寫在命令列上：</p>
+<pre><code>$ gcc main.c add.o mul.o -o app_objs
+$ nm app_objs | grep calc
+000000000000117d T calc_add
+0000000000001195 T calc_mul
+</code></pre>
+<p>命令列上直接寫的 <code>.o</code> <strong>一律整個放進去</strong>，不管有沒有人用；封存檔裡的成員則是<strong>有人需要才拉進來</strong>。用 <code>-Wl,--verbose</code> 讓 <code>ld</code> 印出它打開了哪些檔案（<code>-Wl,</code> 是「把後面的選項轉交給 <code>ld</code>」，見第七節）：</p>
+<pre><code>$ gcc main.c -L. -lcalc -Wl,--verbose -o app 2&gt;&amp;1 | grep libcalc
+attempt to open ./libcalc.so failed
+attempt to open ./libcalc.a succeeded
+./libcalc.a
+(./libcalc.a)add.o
+</code></pre>
+<p>最後一行 <code>(./libcalc.a)add.o</code>：只從 <code>libcalc.a</code> 拿了 <code>add.o</code>。（第一行是 <code>ld</code> 先找 <code>.so</code>、找不到才用 <code>.a</code>，第三節講。這個輸出是在只放 <code>libcalc.a</code> 的資料夾跑的。）</p>
+<p><strong>拉進來的單位是「整個 <code>.o</code>」，不是單一函式。</strong> 把兩個函式寫在同一個檔案 <code>both.c</code>（檔案：<a href="../../small-project/s1-07-libraries/examples/calc/both.c"><code>both.c</code></a>）：</p>
+<pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;calc.h&quot;</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">calc_add</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">a</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">b</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">b</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">calc_mul</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">a</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">b</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">b</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<pre><code>$ gcc -c both.c
+$ ar rcs libboth.a both.o
+$ gcc main.c -L. -lboth -o app_both
+$ nm app_both | grep calc
+000000000000117d T calc_add
+0000000000001195 T calc_mul
+</code></pre>
+<p><code>main</code> 只要 <code>calc_add</code>，但 <code>calc_add</code> 所在的 <code>both.o</code> 被整個拉進來，<code>calc_mul</code> 也跟著進來了。所以 libc 這種大函式庫的原始碼大多是「一個函式一個 <code>.c</code>」，靜態連結時才不會帶進一堆用不到的東西。</p>
+<h3 id="順序ld-由左往右只掃一次">順序：<code>ld</code> 由左往右只掃一次</h3>
+<p>把 <code>-lcalc</code> 寫到 <code>main.c</code> 前面：</p>
+<pre><code>$ gcc -Wall -L. -lcalc main.c -o app_bad
+/usr/bin/ld: /tmp/ccHsQw8y.o: in function `main':
+main.c:(.text+0x13): undefined reference to `calc_add'
+collect2: error: ld returned 1 exit status
+</code></pre>
+<p><code>ld</code> 照命令列的順序處理輸入檔，手上維持一張「目前還沒找到定義的符號」清單（第 6 課的 <code>UND</code>）：</p>
+<ol>
+<li>先遇到 <code>libcalc.a</code>：這時清單是空的（<code>main.o</code> 還沒讀），沒有人需要 <code>calc_add</code>，所以<strong>一個成員都不拉</strong>，然後就略過了。</li>
+<li>再遇到 <code>main.c</code> 編出來的暫存 <code>.o</code>（訊息裡的 <code>/tmp/ccHsQw8y.o</code>）：清單多了 <code>calc_add</code>。</li>
+<li>命令列結束，<code>calc_add</code> 還在清單上 → <code>undefined reference</code>。<code>ld</code> <strong>不會回頭</strong>重掃 <code>libcalc.a</code>。</li>
+</ol>
+<p>規則：<strong>函式庫要寫在用到它的檔案後面</strong>。函式庫之間也一樣：<code>libA.a</code> 用到 <code>libB.a</code> 的函式，就寫 <code>-lA -lB</code>。</p>
+<p>兩個函式庫<strong>互相</strong>需要對方時（A 的某個成員用到 B，B 的成員又用到 A 裡另一個還沒被拉進來的成員），只掃一次怎麼排都不夠，有兩種解法：</p>
+<ul>
+<li>寫兩次：<code>-lA -lB -lA</code>；</li>
+<li>用群組：<code>-Wl,--start-group -lA -lB -Wl,--end-group</code>，<code>ld</code> 會在群組裡<strong>反覆掃</strong>，直到不再有新的符號被解決。</li>
+</ul>
+<p>（本機實測過；作業第 2 題要你自己做出這個情況。）</p>
+<p><code>.so</code> 在 Ubuntu 上也有順序問題，原因不同，第四節最後講。</p>
+<hr />
+<h2 id="三-l-與--l連結時去哪裡找找什麼名字">三、<code>-L</code> 與 <code>-l</code>：連結時去哪裡找、找什麼名字</h2>
+<p><code>-lcalc</code> 的意思是「找一個叫 <code>libcalc</code> 的函式庫」：<code>ld</code> 自動在前面補 <code>lib</code>、後面補 <code>.so</code> 或 <code>.a</code>。所以：</p>
+<table>
+<thead>
+<tr>
+<th>寫法</th>
+<th>意思</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-lcalc</code></td>
+<td>在每個搜尋目錄裡依序試 <code>libcalc.so</code>、<code>libcalc.a</code>，先找到誰用誰</td>
+</tr>
+<tr>
+<td><code>-l:libcalc.a</code></td>
+<td>冒號後面是<strong>完整檔名</strong>，不補 <code>lib</code> 和副檔名；用來強制選 <code>.a</code></td>
+</tr>
+<tr>
+<td><code>libcalc.a</code>（直接寫路徑）</td>
+<td>當成一般輸入檔；<code>.a</code> 照樣只拉需要的成員</td>
+</tr>
+<tr>
+<td><code>-L 資料夾</code></td>
+<td>把資料夾加進搜尋目錄，<strong>排在系統預設目錄前面</strong>；可以寫很多個，依序搜尋</td>
+</tr>
+</tbody>
+</table>
+<p><code>-L</code> 和 <code>-l</code> 是兩件事：<code>-L</code> 管「去哪裡找」，<code>-l</code> 管「找什麼名字」。</p>
+<pre><code>$ gcc -Wall main.c -lcalc -o app_bad2          # 沒給 -L.
+/usr/bin/ld: cannot find -lcalc: No such file or directory
+collect2: error: ld returned 1 exit status
+$ gcc -Wall main.c libcalc.a -o app_file &amp;&amp; ./app_file
+5
+$ gcc -Wall main.c -L. -l:libcalc.a -o app_colon &amp;&amp; ./app_colon
+5
+</code></pre>
+<p><code>cannot find -lcalc</code> 是<strong>連結時</strong>找不到檔案（跟第 6 課的 <code>undefined reference</code> 不同：那是檔案找到了，但裡面沒有那個符號）。</p>
+<p><strong>沒給 <code>-L</code> 時，<code>ld</code> 去哪裡找？</strong> 去它內建的預設目錄。<code>ld --verbose</code> 會印出它內建的連結腳本，裡面的 <code>SEARCH_DIR</code> 就是：</p>
+<pre><code>$ ld --verbose | grep -o 'SEARCH_DIR(&quot;[^&quot;]*&quot;)' | tr '\n' ' '
+SEARCH_DIR(&quot;=/usr/local/lib/x86_64-linux-gnu&quot;) SEARCH_DIR(&quot;=/lib/x86_64-linux-gnu&quot;) SEARCH_DIR(&quot;=/usr/lib/x86_64-linux-gnu&quot;) SEARCH_DIR(&quot;=/usr/lib/x86_64-linux-gnu64&quot;) SEARCH_DIR(&quot;=/usr/local/lib64&quot;) SEARCH_DIR(&quot;=/lib64&quot;) SEARCH_DIR(&quot;=/usr/lib64&quot;) SEARCH_DIR(&quot;=/usr/local/lib&quot;) SEARCH_DIR(&quot;=/lib&quot;) SEARCH_DIR(&quot;=/usr/lib&quot;) SEARCH_DIR(&quot;=/usr/x86_64-linux-gnu/lib64&quot;) SEARCH_DIR(&quot;=/usr/x86_64-linux-gnu/lib&quot;)
+</code></pre>
+<p>（開頭的 <code>=</code> 代表「相對於 sysroot」，本機的 sysroot 就是 <code>/</code>。）透過 <code>gcc</code> 連結時，gcc 還會再加上自己的目錄（例如 <code>/usr/lib/gcc/x86_64-linux-gnu/13/</code>，<code>libgcc.a</code> 放在那裡），<code>gcc -print-search-dirs</code> 的 <code>libraries:</code> 那一行列出全部。</p>
+<p><strong>同一個目錄裡同時有 <code>.so</code> 和 <code>.a</code> 時，預設選 <code>.so</code>。</strong> 第四節做出 <code>libcalc.so</code> 之後，同一個 <code>-L. -lcalc</code> 就會變成動態連結：</p>
+<pre><code>$ gcc main.c -L. -lcalc -Wl,--verbose -o /dev/null 2&gt;&amp;1 | grep libcalc
+attempt to open ./libcalc.so succeeded
+./libcalc.so
+</code></pre>
+<p>要改用 <code>.a</code> 有三種寫法：<code>-l:libcalc.a</code>、直接寫 <code>libcalc.a</code>，或 <code>-static</code>（<strong>所有</strong>函式庫都改用 <code>.a</code>，連 libc 也是）：</p>
+<pre><code>$ gcc -Wall -static main.c -L. -lcalc -o app_full
+$ file app_full
+app_full: ELF 64-bit LSB executable, x86-64, version 1 (GNU/Linux), statically linked, ...
+$ ls -l app_full app_static
+-rwxrwxr-x 1 set set 785392 Oct 23 10:49 app_full
+-rwxrwxr-x 1 set set  16024 Oct 23 10:47 app_static
+</code></pre>
+<p><code>app_static</code> 只有 <code>libcalc</code> 是靜態的，libc 仍是動態（<code>libc.so.6</code>）；<code>app_full</code> 連 libc 都放進去，785 KB。</p>
+<p>順帶一提：<code>-lc</code>（libc）是 gcc 自動加的，所以平常不用寫。<code>gcc -print-file-name=libc.so</code> 找到的 <code>libc.so</code> 甚至不是 ELF，而是一個<strong>文字檔</strong>（連結腳本），告訴 <code>ld</code>「真正要用的是 <code>libc.so.6</code> 加 <code>libc_nonshared.a</code>」：</p>
+<pre><code>$ cat $(gcc -print-file-name=libc.so) | tail -1
+GROUP ( /lib/x86_64-linux-gnu/libc.so.6 /usr/lib/x86_64-linux-gnu/libc_nonshared.a  AS_NEEDED ( /lib64/ld-linux-x86-64.so.2 ) )
+</code></pre>
+<hr />
+<h2 id="四動態函式庫-shared-與--fpic">四、動態函式庫：<code>-shared</code> 與 <code>-fPIC</code></h2>
+<h3 id="實驗做出-libcalcso">實驗：做出 <code>libcalc.so</code></h3>
+<p>一樣在 <code>examples/calc/</code>：</p>
+<pre><code>$ gcc -Wall -fPIC -c add.c -o add.pic.o
+$ gcc -Wall -fPIC -c mul.c -o mul.pic.o
+$ gcc -shared add.pic.o mul.pic.o -o libcalc.so
+$ file libcalc.so
+libcalc.so: ELF 64-bit LSB shared object, x86-64, version 1 (SYSV), dynamically linked, BuildID[sha1]=862b..., not stripped
+$ nm -D libcalc.so                    # -D：只看「動態符號表」，也就是對外公開的名字
+00000000000010f9 T calc_add
+0000000000001111 T calc_mul
+                 w __cxa_finalize
+                 w __gmon_start__
+                 w _ITM_deregisterTMCloneTable
+                 w _ITM_registerTMCloneTable
+</code></pre>
+<ul>
+<li><code>-fPIC</code>（Position-Independent Code，位置無關程式碼）：產生「不管被載入到哪個位址都能跑」的程式碼，下面詳講為什麼一定要。</li>
+<li><code>-shared</code>：叫 <code>ld</code> 輸出共享函式庫，而不是執行檔。<code>.so</code> 跟執行檔一樣是<strong>連結過</strong>的 ELF（<code>readelf -h</code> 的 Type 是 <code>DYN</code>，<a href="ELF%E6%98%AF%E4%BB%80%E9%BA%BC-%E5%8F%AF%E5%9F%B7%E8%A1%8C%E8%88%87%E5%8F%AF%E9%80%A3%E7%B5%90%E6%A0%BC%E5%BC%8F%E7%9A%84%E5%85%A9%E7%A8%AE%E8%A6%96%E8%A7%92.html">ELF 那篇</a>講過 PIE 執行檔也是 <code>DYN</code>），這點跟 <code>.a</code> 只是封存檔完全不同。</li>
+<li><code>nm -D</code> 的小寫 <code>w</code> 是弱符號（weak），找不到也沒關係；那四個是 gcc 啟動碼帶進來的，跟我們無關。</li>
+</ul>
+<p>用它連結（這時資料夾裡 <code>libcalc.a</code>、<code>libcalc.so</code> 都有，<code>-lcalc</code> 選 <code>.so</code>）：</p>
+<pre><code>$ gcc -Wall main.c -L. -lcalc -o app_dyn
+$ readelf -d app_dyn | grep NEEDED
+ 0x0000000000000001 (NEEDED)             Shared library: [libcalc.so]
+ 0x0000000000000001 (NEEDED)             Shared library: [libc.so.6]
+$ nm app_dyn | grep calc
+                 U calc_add
+$ ./app_dyn
+./app_dyn: error while loading shared libraries: libcalc.so: cannot open shared object file: No such file or directory
+</code></pre>
+<p>對照第二節的 <code>app_static</code>（<code>T calc_add</code>）：動態連結後 <code>calc_add</code> 仍是 <code>U</code>，執行檔裡沒有它的程式碼，只有 <code>NEEDED libcalc.so</code> 這張需求單。連結成功、執行卻失敗——這是 <a href="objdump%E8%83%BD%E4%B8%8D%E8%83%BD%E4%BB%A3%E6%9B%BFldd%E6%89%BE%E4%BE%9D%E8%B3%B4%E5%BA%AB-%E9%9C%80%E6%B1%82%E5%96%AE%E8%88%87%E5%AF%A6%E9%9A%9B%E8%BC%89%E5%85%A5.html#%E5%9B%9B%E6%89%BE%E4%B8%8D%E5%88%B0%E5%87%BD%E5%BC%8F%E5%BA%AB%E6%99%82%E5%85%A9%E8%80%85%E5%90%84%E7%9C%8B%E5%88%B0%E4%BB%80%E9%BA%BC">objdump 那篇第四節</a>看過的情況：<code>-L.</code> 只給 <code>ld</code> 看，執行時的 <code>ld.so</code> 不知道要去目前目錄找。第五節解決它。</p>
+<h3 id="為什麼一定要--fpic先看不加會怎樣">為什麼一定要 <code>-fPIC</code>：先看不加會怎樣</h3>
+<p><code>add.c</code>、<code>mul.c</code> 不加 <code>-fPIC</code> 其實也做得成 <code>.so</code>（原因下面揭曉），要用一個<strong>有全域變數</strong>的檔案才看得出差別。<code>count.c</code>（檔案：<a href="../../small-project/s1-07-libraries/examples/pic/count.c"><code>count.c</code></a>）：</p>
+<pre><code class="language-c"><span class="kt">int</span><span class="w"> </span><span class="n">counter</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">bump</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">counter</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">counter</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">counter</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<pre><code>$ gcc -Wall -c count.c -o count.o            # 沒加 -fPIC
+$ gcc -shared count.o -o libcount.so
+/usr/bin/ld: count.o: warning: relocation against `counter' in read-only section `.text'
+/usr/bin/ld: count.o: relocation R_X86_64_PC32 against symbol `counter' can not be used when making a shared object; recompile with -fPIC
+/usr/bin/ld: final link failed: bad value
+collect2: error: ld returned 1 exit status
+$ gcc -Wall -fPIC -c count.c -o count.pic.o  # 加 -fPIC
+$ gcc -shared count.pic.o -o libcount.so     # 成功
+</code></pre>
+<p>比較兩個 <code>.o</code> 裡 <code>bump</code> 讀 <code>counter</code> 的方式（<code>objdump -dr</code>，第 4、5 課教過；<code>-r</code> 把重定位項目印在指令下面）：</p>
+<pre><code class="language-asm"><span class="c1"># 沒加 -fPIC：count.o</span>
+<span class="w">   </span><span class="err">8:</span><span class="w">	</span><span class="nf">mov</span><span class="w">    </span><span class="mi">0x0</span><span class="p">(</span><span class="nv">%rip</span><span class="p">),</span><span class="nv">%eax</span><span class="w">        </span><span class="c1"># 直接讀「%rip + 某個距離」那 4 byte，就是 counter 本身</span>
+<span class="w">			</span><span class="nl">a:</span><span class="w"> </span><span class="nf">R_X86_64_PC32</span><span class="w">	</span><span class="no">counter-0x4</span><span class="w">     </span><span class="c1"># 洞：連結時填「這裡到 counter 的距離」</span>
+<span class="w">   </span><span class="nl">e:</span><span class="w">	</span><span class="nf">add</span><span class="w">    </span><span class="no">$0x1</span><span class="p">,</span><span class="nv">%eax</span><span class="w">             </span><span class="c1"># %eax + 1</span>
+<span class="w">  </span><span class="err">11:</span><span class="w">	</span><span class="nf">mov</span><span class="w">    </span><span class="nv">%eax</span><span class="p">,</span><span class="mi">0x0</span><span class="p">(</span><span class="nv">%rip</span><span class="p">)</span><span class="w">        </span><span class="c1"># 直接寫回 counter</span>
+<span class="w">			</span><span class="err">13:</span><span class="w"> </span><span class="nf">R_X86_64_PC32</span><span class="w">	</span><span class="no">counter-0x4</span>
+</code></pre>
+<pre><code class="language-asm"><span class="c1"># 加了 -fPIC：count.pic.o</span>
+<span class="w">   </span><span class="err">8:</span><span class="w">	</span><span class="nf">mov</span><span class="w">    </span><span class="mi">0x0</span><span class="p">(</span><span class="nv">%rip</span><span class="p">),</span><span class="nv">%rax</span><span class="w">        </span><span class="c1"># 讀「%rip + 某個距離」那 8 byte——這不是 counter，是「counter 的位址」</span>
+<span class="w">			</span><span class="nl">b:</span><span class="w"> </span><span class="nf">R_X86_64_REX_GOTPCRELX</span><span class="w">	</span><span class="no">counter-0x4</span><span class="w">   </span><span class="c1"># 洞：填「這裡到 GOT 裡 counter 那一格的距離」</span>
+<span class="w">   </span><span class="nl">f:</span><span class="w">	</span><span class="nf">mov</span><span class="w">    </span><span class="p">(</span><span class="nv">%rax</span><span class="p">),</span><span class="nv">%eax</span><span class="w">           </span><span class="c1"># 再照這個位址去讀，才是 counter 的值</span>
+<span class="w">  </span><span class="err">11:</span><span class="w">	</span><span class="nf">lea</span><span class="w">    </span><span class="mi">0x1</span><span class="p">(</span><span class="nv">%rax</span><span class="p">),</span><span class="nv">%edx</span><span class="w">        </span><span class="c1"># %edx = counter + 1（用 lea 做加法，第 4 課）</span>
+<span class="w">  </span><span class="err">14:</span><span class="w">	</span><span class="nf">mov</span><span class="w">    </span><span class="mi">0x0</span><span class="p">(</span><span class="nv">%rip</span><span class="p">),</span><span class="nv">%rax</span><span class="w">        </span><span class="c1"># 再拿一次 counter 的位址</span>
+<span class="w">			</span><span class="err">17:</span><span class="w"> </span><span class="nf">R_X86_64_REX_GOTPCRELX</span><span class="w">	</span><span class="no">counter-0x4</span>
+<span class="w">  </span><span class="err">1</span><span class="nl">b:</span><span class="w">	</span><span class="nf">mov</span><span class="w">    </span><span class="nv">%edx</span><span class="p">,(</span><span class="nv">%rax</span><span class="p">)</span><span class="w">           </span><span class="c1"># 寫回 counter</span>
+</code></pre>
+<p>差別：沒加 <code>-fPIC</code> 時，程式碼假設「<code>counter</code> 就在離這條指令固定距離的地方」，一條 <code>mov</code> 直接讀；加了 <code>-fPIC</code> 時，程式碼先去一張表讀出 <code>counter</code> 的位址，再照位址間接讀。這張表叫 <strong>GOT（Global Offset Table，全域偏移表）</strong>——第 1 課第五節提過「<code>ld.so</code> 把 <code>puts</code> 的真正位址填進 <code>.got</code>」，就是它。</p>
+<p>看做好的 <code>libcount.so</code>：</p>
+<pre><code>$ objdump -d --no-show-raw-insn libcount.so | sed -n '/&lt;bump&gt;:/,/ret/p'
+00000000000010f9 &lt;bump&gt;:
+    10f9:	endbr64
+    10fd:	push   %rbp
+    1101:	mov    0x2ec8(%rip),%rax        # 3fd0 &lt;counter-0x3c&gt;
+    1108:	mov    (%rax),%eax
+    ...
+$ readelf -r libcount.so | grep counter
+000000003fd0  000500000006 R_X86_64_GLOB_DAT 000000000000400c counter + 0
+</code></pre>
+<p><code>ld</code> 把洞填成「到 <code>0x3fd0</code> 的距離」，<code>0x3fd0</code> 就是 GOT 裡 <code>counter</code> 那一格；<code>readelf -r</code> 的 <code>R_X86_64_GLOB_DAT ... counter</code> 是留給 <code>ld.so</code> 的指示：「載入時，把 <code>counter</code> 的真正位址寫進 <code>0x3fd0</code>」。</p>
+<h3 id="為什麼不能直接用固定距離counter-最後不一定是這一份">為什麼不能直接用固定距離：<code>counter</code> 最後不一定是這一份</h3>
+<p><code>.so</code> 被載入到哪個位址每次都不同（ASLR），但這不是主因——<code>%rip</code> 相對定址本來就不管載入位址，<code>counter</code> 跟 <code>bump</code> 在同一個 <code>.so</code> 裡，距離是固定的。真正的原因是：<strong><code>.so</code> 裡的全域符號，最後被使用的可能不是它自己那一份。</strong></p>
+<p>實驗：主程式自己也定義一個 <code>counter</code>。<code>usecount.c</code>（檔案：<a href="../../small-project/s1-07-libraries/examples/pic/usecount.c"><code>usecount.c</code></a>）：</p>
+<pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="n">counter</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">100</span><span class="p">;</span>
+<span class="kt">int</span><span class="w"> </span><span class="nf">bump</span><span class="p">(</span><span class="kt">void</span><span class="p">);</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;bump() = %d</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">bump</span><span class="p">());</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;counter = %d</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">counter</span><span class="p">);</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<pre><code>$ gcc -Wall usecount.c -L. -lcount -Wl,-rpath,'$ORIGIN' -o usecount   # -rpath 第五節講，讓它找得到 libcount.so
+$ ./usecount
+bump() = 101
+counter = 101
+</code></pre>
+<p><code>libcount.so</code> 的 <code>bump</code> 加的是<strong>主程式的</strong> <code>counter</code>（100 → 101），不是自己那份（0）。<code>LD_DEBUG=bindings</code> 讓 <code>ld.so</code> 印出每個符號接到誰（<code>LD_DEBUG</code> 全部選項見第七節）：</p>
+<pre><code>$ LD_DEBUG=bindings ./usecount 2&gt;&amp;1 | grep -E &quot;counter|bump&quot;
+      9705:	binding file …/pic/libcount.so [0] to ./usecount [0]: normal symbol `counter'
+      9705:	binding file ./usecount [0] to …/pic/libcount.so [0]: normal symbol `bump'
+</code></pre>
+<p>第一行：<code>libcount.so</code> 裡對 <code>counter</code> 的參照，接到了 <code>./usecount</code>。<code>ld.so</code> 找符號時<strong>先找執行檔、再依 <code>NEEDED</code> 順序找各個 <code>.so</code></strong>，第一個找到的贏，這叫<strong>符號插入（symbol interposition）</strong>。同樣兩份定義如果是靜態連結，就是第 6 課的錯誤：</p>
+<pre><code>$ gcc usecount.c count.o -o us2
+/usr/bin/ld: count.o:(.bss+0x0): multiple definition of `counter'; /tmp/ccWE88lB.o:(.data+0x0): first defined here
+</code></pre>
+<p>所以 <code>.so</code> 在<strong>做的時候</strong>不知道它的全域變數最後是哪一份，要等<strong>載入時</strong> <code>ld.so</code> 決定，這個決定只能寫在一張表裡——GOT。</p>
+<p>反過來驗證：如果 <code>counter</code> 是 <code>static</code>（<code>LOCAL</code>，第 6 課第五節），別人不可能插入，不加 <code>-fPIC</code> 也做得成 <code>.so</code>。<code>count_static.c</code>（檔案：<a href="../../small-project/s1-07-libraries/examples/pic/count_static.c"><code>count_static.c</code></a>）只差第一行：</p>
+<pre><code class="language-c"><span class="k">static</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">counter</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">bump</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">counter</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">counter</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">counter</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<pre><code>$ gcc -Wall -c count_static.c -o cs.o &amp;&amp; gcc -shared cs.o -o libcs.so
+$                                            # 沒有錯誤
+</code></pre>
+<p><code>add.c</code>、<code>mul.c</code> 不加 <code>-fPIC</code> 也做得成，也是同一個道理：它們沒有存取全域變數，而呼叫函式本來就經過 PLT（第 1 課的 <code>puts@plt</code>），不需要改程式碼。</p>
+<p><strong>那為什麼不讓 <code>ld.so</code> 載入時直接改 <code>.text</code> 裡的距離就好？</strong> 第一行警告 <code>relocation against 'counter' in read-only section '.text'</code> 說的就是這件事：那樣要在載入時改寫程式碼，而 <code>.text</code> 是唯讀的。更重要的是，<strong>共享函式庫的「共享」是指同一份 <code>.text</code> 的實體記憶體分頁，給所有用它的行程共用</strong>；如果每個行程都要把自己的位址寫進 <code>.text</code>，每個行程就得各自複製一份，共享就沒了。PIC 的設計是：程式碼完全不改、大家共用；要因行程而異的位址集中放在<strong>可寫的 GOT</strong>，每個行程一份。</p>
+<p>整理：</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>沒加 <code>-fPIC</code>（Ubuntu 預設是 <code>-fPIE</code>）</th>
+<th><code>-fPIC</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>讀全域變數</td>
+<td><code>%rip</code> 加固定距離，直接讀（假設它就在旁邊）</td>
+<td>先從 GOT 讀出位址，再間接讀</td>
+</tr>
+<tr>
+<td>適合</td>
+<td>執行檔（PIE：執行檔自己的符號不會被別人插入）</td>
+<td>共享函式庫</td>
+</tr>
+<tr>
+<td>拿來做 <code>.so</code></td>
+<td>存取全域變數就失敗：<code>recompile with -fPIC</code></td>
+<td>成功</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>Ubuntu 的 gcc 預設 <code>-fPIE</code>（Position-Independent Executable）：也是位置無關，但假設「全域符號就定義在執行檔自己裡面」，所以可以直接讀。這就是為什麼不加 <code>-fPIC</code> 的 <code>.o</code> 拿來做 <code>.so</code> 會失敗。</li>
+<li><code>-fpic</code>（小寫）與 <code>-fPIC</code>：<code>man gcc</code> 說小寫版在某些架構上 GOT 有大小上限、比較快；<strong>在 x86-64 上兩者產生的程式碼一樣</strong>（本機用 <code>count.c</code> 實測：<code>-fpic</code> 與 <code>-fPIC</code> 編出的 <code>objdump -dr</code> 完全相同）。習慣上寫 <code>-fPIC</code>。</li>
+</ul>
+<h3 id="so-在-ubuntu-上也有順序問題"><code>.so</code> 在 Ubuntu 上也有順序問題</h3>
+<p>把 <code>-lcalc</code>（這時是 <code>.so</code>）寫到 <code>main.c</code> 前面：</p>
+<pre><code>$ gcc -Wall -L. -lcalc main.c -o x_so_order
+/usr/bin/ld: /tmp/ccu0Jn5q.o: in function `main':
+main.c:(.text+0x13): undefined reference to `calc_add'
+collect2: error: ld returned 1 exit status
+</code></pre>
+<p>原因：Ubuntu 的 gcc 預設會傳 <code>--as-needed</code> 給 <code>ld</code>（<code>gcc -v</code> 印出的 <code>collect2</code> 那一行看得到）。它的意思是「<code>.so</code> 只有在<strong>目前有人需要它的符號</strong>時才寫進 <code>NEEDED</code>」；遇到 <code>-lcalc</code> 時還沒有人需要 <code>calc_add</code>，<code>libcalc.so</code> 就被丟掉了。所以不管 <code>.a</code> 還是 <code>.so</code>，一律把 <code>-l</code> 寫在後面。</p>
+<hr />
+<h2 id="五執行時怎麼找到-so">五、執行時怎麼找到 <code>.so</code></h2>
+<h3 id="ldso-去了哪些地方找"><code>ld.so</code> 去了哪些地方找</h3>
+<p>第四節的 <code>app_dyn</code> 執行失敗。<code>LD_DEBUG=libs</code> 讓 <code>ld.so</code> 印出搜尋過程：</p>
+<pre><code>$ LD_DEBUG=libs ./app_dyn
+      9712:	find library=libcalc.so [0]; searching
+      9712:	 search cache=/etc/ld.so.cache
+      9712:	 search path=/lib/x86_64-linux-gnu/glibc-hwcaps/x86-64-v3:/lib/x86_64-linux-gnu/glibc-hwcaps/x86-64-v2:/lib/x86_64-linux-gnu:/usr/lib/x86_64-linux-gnu/glibc-hwcaps/x86-64-v3:/usr/lib/x86_64-linux-gnu/glibc-hwcaps/x86-64-v2:/usr/lib/x86_64-linux-gnu:/lib/glibc-hwcaps/x86-64-v3:/lib/glibc-hwcaps/x86-64-v2:/lib:/usr/lib/glibc-hwcaps/x86-64-v3:/usr/lib/glibc-hwcaps/x86-64-v2:/usr/lib		(system search path)
+      9712:	  trying file=/lib/x86_64-linux-gnu/glibc-hwcaps/x86-64-v3/libcalc.so
+      9712:	  trying file=/lib/x86_64-linux-gnu/glibc-hwcaps/x86-64-v2/libcalc.so
+      9712:	  trying file=/lib/x86_64-linux-gnu/libcalc.so
+      ...（中間 8 行同樣是 trying file=，省略）
+      9712:	  trying file=/usr/lib/libcalc.so
+      9712:	
+./app_dyn: error while loading shared libraries: libcalc.so: cannot open shared object file: No such file or directory
+</code></pre>
+<p>（開頭的 9712 是行程 ID。）讀法：先查快取 <code>/etc/ld.so.cache</code>，沒有；再一個一個試系統目錄，全部沒有 → 放棄。<code>glibc-hwcaps/x86-64-v3</code> 這類子目錄是給「針對新款 CPU 最佳化的版本」放的，<code>ld.so</code> 會先試，這裡用不到。<strong>當前目錄從頭到尾不在名單上</strong>，<code>-L.</code> 也不在。</p>
+<p>完整的搜尋順序（<code>man ld.so</code> 的 DESCRIPTION，本機 glibc 2.39）：</p>
+<ol start="0">
+<li><code>NEEDED</code> 裡的名字<strong>有斜線</strong>（例如連結時直接寫了 <code>./libcalc.so</code> 這種路徑）就直接照那個路徑開，不搜尋。沒有斜線才走下面的順序。</li>
+<li>執行檔的 <strong><code>DT_RPATH</code></strong>（只有在沒有 <code>DT_RUNPATH</code> 時才用；已不建議使用）。</li>
+<li>環境變數 <strong><code>LD_LIBRARY_PATH</code></strong>（setuid 這類程式會忽略它，避免被拿來注入函式庫）。</li>
+<li>執行檔的 <strong><code>DT_RUNPATH</code></strong>。<strong>只用來找這個檔案自己的 <code>NEEDED</code></strong>，不會套用到依賴的依賴；<code>DT_RPATH</code> 則會套用到整棵依賴樹。</li>
+<li>快取檔 <strong><code>/etc/ld.so.cache</code></strong>（<code>ldconfig</code> 產生的，見下面）。</li>
+<li>預設目錄 <code>/lib</code>、<code>/usr/lib</code>（加上本機的多架構目錄 <code>/lib/x86_64-linux-gnu</code> 等）。</li>
+</ol>
+<p><code>DT_RPATH</code>、<code>DT_RUNPATH</code>、<code>DT_NEEDED</code> 是 <code>readelf -d</code> 看到的動態區段項目（<code>readelf -d</code> 顯示時去掉 <code>DT_</code> 前綴，寫成 <code>RPATH</code>、<code>RUNPATH</code>、<code>NEEDED</code>）。下面一個一個試。</p>
+<h3 id="方法一ld_library_path臨時用">方法一：<code>LD_LIBRARY_PATH</code>（臨時用）</h3>
+<pre><code>$ LD_LIBRARY_PATH=. ./app_dyn
+5
+</code></pre>
+<p><code>LD_LIBRARY_PATH</code> 是冒號分隔的目錄清單，<strong>只對這一次執行有效</strong>（寫在命令前面，就只設給這個命令）。開發時測試很方便；但要使用者每次都設它，或寫進 <code>~/.bashrc</code> 讓所有程式都受影響，都不是好的發布方式。</p>
+<h3 id="方法二-wl-rpath把路徑寫進執行檔">方法二：<code>-Wl,-rpath</code>——把路徑寫進執行檔</h3>
+<pre><code>$ gcc -Wall main.c -L. -lcalc -Wl,-rpath,'$ORIGIN' -o app_rp
+$ readelf -d app_rp | grep -E 'NEEDED|RUNPATH|RPATH'
+ 0x0000000000000001 (NEEDED)             Shared library: [libcalc.so]
+ 0x0000000000000001 (NEEDED)             Shared library: [libc.so.6]
+ 0x000000000000001d (RUNPATH)            Library runpath: [$ORIGIN]
+$ ./app_rp
+5
+</code></pre>
+<p>逐段拆 <code>-Wl,-rpath,'$ORIGIN'</code>：</p>
+<ul>
+<li><code>-Wl,</code>：gcc 把逗號後面的東西拆開、轉交給 <code>ld</code>。所以 <code>ld</code> 收到的是 <code>-rpath $ORIGIN</code> 兩個參數。</li>
+<li><code>-rpath 目錄</code>：<code>ld</code> 的選項，把目錄寫進輸出檔的動態區段。Ubuntu 的 <code>ld</code> 預設寫成 <code>RUNPATH</code>（第 3 步）；加 <code>--disable-new-dtags</code> 會寫成舊式的 <code>RPATH</code>（第 1 步），下面比較。</li>
+<li><code>$ORIGIN</code>：<strong>不是 shell 變數</strong>，是 <code>ld.so</code> 認得的字串（man page 叫 dynamic string token）：執行時換成「<strong>寫著這個 <code>RUNPATH</code> 的那個檔案</strong>所在的目錄」。寫在執行檔裡，就是執行檔的目錄；寫在某個 <code>.so</code> 裡，就是那個 <code>.so</code> 的目錄（本機實測：<code>lib/libt.so</code> 帶 <code>RUNPATH $ORIGIN</code>，就能找到同在 <code>lib/</code> 的依賴）。所以一定要用<strong>單引號</strong>包起來，不然 shell 會先把 <code>$ORIGIN</code> 換成空字串。</li>
+</ul>
+<p><code>$ORIGIN</code> 的好處是：程式和函式庫一起搬到別的地方，只要相對位置不變就找得到。</p>
+<pre><code>$ mkdir -p ../moved/bin &amp;&amp; cp app_rp ../moved/bin/
+$ cd ../moved/bin &amp;&amp; ./app_rp            # 只搬了執行檔
+./app_rp: error while loading shared libraries: libcalc.so: cannot open shared object file: No such file or directory
+$ cp …/calc/libcalc.so . &amp;&amp; ./app_rp     # libcalc.so 也放到執行檔旁邊
+5
+</code></pre>
+<p>寫絕對路徑（<code>-Wl,-rpath,/home/.../calc</code>）也可以，但程式只能在那台機器、那個路徑下跑。</p>
+<h3 id="rpath-和-runpath-差在哪跟-ld_library_path-誰優先"><code>RPATH</code> 和 <code>RUNPATH</code> 差在哪：跟 <code>LD_LIBRARY_PATH</code> 誰優先</h3>
+<p>準備兩個版本的函式庫，<code>v1/</code> 是正常的，<code>v2/</code> 的 <code>calc_add</code> 多加 1000，一看輸出就知道用了哪一個（檔案在 <a href="../../small-project/s1-07-libraries/examples/search/"><code>examples/search/</code></a>；<code>calc.h</code>、<code>mul.c</code>、<code>main.c</code> 跟第一節一樣）。</p>
+<p><code>v1/add.c</code>（檔案：<a href="../../small-project/s1-07-libraries/examples/search/v1/add.c"><code>v1/add.c</code></a>）：</p>
+<pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;../calc.h&quot;</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">calc_add</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">a</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">b</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">b</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<p><code>v2/add.c</code>（檔案：<a href="../../small-project/s1-07-libraries/examples/search/v2/add.c"><code>v2/add.c</code></a>）：</p>
+<pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;../calc.h&quot;</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">calc_add</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">a</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">b</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">b</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1000</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<pre><code>$ for v in v1 v2; do gcc -Wall -fPIC -shared $v/add.c mul.c -o $v/libcalc.so; done
+$ gcc -Wall main.c -Lv1 -lcalc -Wl,-rpath,'$ORIGIN/v1' -o app_runpath
+$ gcc -Wall main.c -Lv1 -lcalc -Wl,--disable-new-dtags,-rpath,'$ORIGIN/v1' -o app_rpath
+$ ./app_runpath
+5
+$ LD_LIBRARY_PATH=v2 ./app_runpath
+1005
+$ ./app_rpath
+5
+$ LD_LIBRARY_PATH=v2 ./app_rpath
+5
+</code></pre>
+<p>（<code>gcc -fPIC -shared $v/add.c mul.c</code> 是把「編成 <code>-fPIC</code> 的 <code>.o</code>」和「<code>-shared</code> 連結」合成一步，跟第四節分兩步一樣。）</p>
+<p>兩個執行檔都把 <code>v1</code> 寫進去了，差在設了 <code>LD_LIBRARY_PATH=v2</code> 時：</p>
+<ul>
+<li><code>app_runpath</code>（<code>RUNPATH</code>，第 3 步）：<code>LD_LIBRARY_PATH</code>（第 2 步）排在前面，所以用了 <code>v2</code> → 1005。</li>
+<li><code>app_rpath</code>（<code>RPATH</code>，第 1 步）：排在 <code>LD_LIBRARY_PATH</code> 前面，<code>v1</code> 先被找到 → 5。</li>
+</ul>
+<p><code>LD_DEBUG=libs</code> 直接印出這個順序（只留 <code>libcalc.so</code> 那一段）：</p>
+<pre><code>$ LD_LIBRARY_PATH=v2 LD_DEBUG=libs ./app_runpath 2&gt;&amp;1 | grep -A4 'find library=libcalc'
+      9781:	find library=libcalc.so [0]; searching
+      9781:	 search path=v2/glibc-hwcaps/x86-64-v3:v2/glibc-hwcaps/x86-64-v2:v2		(LD_LIBRARY_PATH)
+      9781:	  trying file=v2/glibc-hwcaps/x86-64-v3/libcalc.so
+      9781:	  trying file=v2/glibc-hwcaps/x86-64-v2/libcalc.so
+      9781:	  trying file=v2/libcalc.so
+$ LD_LIBRARY_PATH=v2 LD_DEBUG=libs ./app_rpath 2&gt;&amp;1 | grep -A4 'find library=libcalc'
+      9783:	find library=libcalc.so [0]; searching
+      9783:	 search path=…/search/v1/glibc-hwcaps/x86-64-v3:…/search/v1/glibc-hwcaps/x86-64-v2:…/search/v1		(RPATH from file ./app_rpath)
+      9783:	  trying file=…/search/v1/glibc-hwcaps/x86-64-v3/libcalc.so
+      9783:	  trying file=…/search/v1/glibc-hwcaps/x86-64-v2/libcalc.so
+      9783:	  trying file=…/search/v1/libcalc.so
+</code></pre>
+<p>每一段 <code>search path=</code> 最後的括號就是它來自哪一步：<code>(LD_LIBRARY_PATH)</code>、<code>(RPATH from file ./app_rpath)</code>。<code>$ORIGIN</code> 已經被換成實際的目錄。</p>
+<p><strong>為什麼新的 <code>RUNPATH</code> 故意排在 <code>LD_LIBRARY_PATH</code> 後面？</strong> <code>RPATH</code> 寫死在執行檔裡、又排第一，使用者完全沒辦法用 <code>LD_LIBRARY_PATH</code> 臨時換一個版本（例如換成有除錯資訊的版本來查 bug）。<code>RUNPATH</code> 讓使用者的設定優先。所以新程式用 <code>RUNPATH</code>（<code>ld</code> 預設），<code>man ld.so</code> 也標明 <code>DT_RPATH</code> 已不建議使用。</p>
+<p><strong><code>RUNPATH</code> 只管直接依賴</strong>（上面第 3 步）：如果 <code>libcalc.so</code> 自己又需要 <code>libhelper.so</code>，執行檔的 <code>RUNPATH</code> <strong>不會</strong>拿來找 <code>libhelper.so</code>；要嘛 <code>libcalc.so</code> 自己也帶 <code>RUNPATH</code>，要嘛用 <code>RPATH</code>（會套用到整棵依賴樹）。這個情況作業第 4 題要你自己做出來。</p>
+<h3 id="方法三裝到系統目錄跑-ldconfig">方法三：裝到系統目錄，跑 <code>ldconfig</code></h3>
+<p>系統上的函式庫（<code>libc.so.6</code>、<code>libz.so.1</code>……）不需要任何設定就找得到，是因為第 4 步的快取。<code>/etc/ld.so.cache</code> 是一個二進位檔，記著「函式庫名字 → 完整路徑」，由 <strong><code>ldconfig</code></strong> 掃描設定檔列出的目錄產生：</p>
+<pre><code>$ cat /etc/ld.so.conf
+include /etc/ld.so.conf.d/*.conf
+$ cat /etc/ld.so.conf.d/libc.conf /etc/ld.so.conf.d/x86_64-linux-gnu.conf
+# libc default configuration
+/usr/local/lib
+# Multiarch support
+/usr/local/lib/x86_64-linux-gnu
+/lib/x86_64-linux-gnu
+/usr/lib/x86_64-linux-gnu
+$ ldconfig -p | head -1
+1639 libs found in cache `/etc/ld.so.cache'
+$ ldconfig -p | grep 'libz\.so'
+	libz.so.1 (libc6,x86-64) =&gt; /lib/x86_64-linux-gnu/libz.so.1
+	libz.so.1 (libc6) =&gt; /lib/i386-linux-gnu/libz.so.1
+	libz.so (libc6,x86-64) =&gt; /lib/x86_64-linux-gnu/libz.so
+</code></pre>
+<p><code>ldconfig -p</code>（print cache）只是讀快取，一般使用者就能跑。自己的函式庫要裝成系統函式庫的步驟是（要 root，<strong>本機未實測</strong>，以免改動系統）：</p>
+<pre><code>$ sudo cp libcalc.so /usr/local/lib/
+$ sudo ldconfig                 # 重新掃描、更新 /etc/ld.so.cache
+</code></pre>
+<p><strong><code>cp</code> 之後忘了跑 <code>ldconfig</code></strong>，快取裡沒有這筆，<code>ld.so</code> 還是會在第 5 步的預設目錄找。<code>/usr/local/lib</code> 不在第 5 步的 <code>/lib</code>、<code>/usr/lib</code> 裡（見上面 <code>LD_DEBUG</code> 的 <code>system search path</code>），所以照樣找不到——裝了函式庫卻 <code>cannot open shared object file</code>，常見原因就是這個。<code>/etc/ld.so.conf.d/</code> 底下可以再加自己的 <code>.conf</code> 檔，把別的目錄加進掃描名單。</p>
+<h3 id="三種方法怎麼選">三種方法怎麼選</h3>
+<table>
+<thead>
+<tr>
+<th>方法</th>
+<th>寫在哪</th>
+<th>影響範圍</th>
+<th>適合</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>LD_LIBRARY_PATH</code></td>
+<td>環境變數</td>
+<td>這次執行（或整個 shell）</td>
+<td>開發、臨時測試另一個版本</td>
+</tr>
+<tr>
+<td><code>-Wl,-rpath,'$ORIGIN/...'</code></td>
+<td>執行檔的 <code>RUNPATH</code></td>
+<td>這個執行檔</td>
+<td>程式和函式庫一起發布、放在相對位置</td>
+</tr>
+<tr>
+<td>裝到 <code>/usr/local/lib</code> ＋ <code>ldconfig</code></td>
+<td>系統快取</td>
+<td>整台機器的所有程式</td>
+<td>系統套件、很多程式共用的函式庫</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="六換掉-so-不用重新連結以及-soname">六、換掉 <code>.so</code> 不用重新連結，以及 SONAME</h2>
+<h3 id="換掉-so程式不用重新連結">換掉 <code>.so</code>：程式不用重新連結</h3>
+<p>接著第五節的 <code>examples/search/</code>：用 <code>v2</code> 的 <code>libcalc.so</code> 蓋掉 <code>v1</code> 那份，<strong><code>app_runpath</code> 不重新連結</strong>，直接再跑一次：</p>
+<pre><code>$ cp v2/libcalc.so v1/libcalc.so
+$ ./app_runpath
+1005
+</code></pre>
+<p>執行檔沒動，行為卻變了：因為 <code>calc_add</code> 的程式碼不在執行檔裡，每次執行時才從 <code>v1/libcalc.so</code> 載入。反過來，第二節的 <code>app_static</code> 已經把 <code>add.o</code> 複製進去了，之後 <code>libcalc.a</code> 怎麼改都影響不到它，要拿到修正必須<strong>重新連結</strong>。</p>
+<p>這就是動態函式庫最大的好處，也是代價：libc 修了安全漏洞，更新套件後所有程式重開就生效；但如果新版 <code>.so</code> 的函式改了參數或行為，所有舊程式也會一起壞掉。下面的 SONAME 就是為了處理「不相容的新版」。</p>
+<h3 id="sonameneeded-記的是哪個名字">SONAME：<code>NEEDED</code> 記的是哪個名字</h3>
+<p>看系統的 <code>libz</code>：</p>
+<pre><code>$ ls -l /usr/lib/x86_64-linux-gnu/libz.so*
+lrwxrwxrwx 1 root root     11 Aug 25 18:41 /usr/lib/x86_64-linux-gnu/libz.so -&gt; libz.so.1.3
+lrwxrwxrwx 1 root root     11 Aug 25 18:41 /usr/lib/x86_64-linux-gnu/libz.so.1 -&gt; libz.so.1.3
+-rw-r--r-- 1 root root 113000 Aug 25 18:41 /usr/lib/x86_64-linux-gnu/libz.so.1.3
+$ readelf -d /usr/lib/x86_64-linux-gnu/libz.so.1 | grep SONAME
+ 0x000000000000000e (SONAME)             Library soname: [libz.so.1]
+</code></pre>
+<p>同一個函式庫有三個名字：</p>
+<table>
+<thead>
+<tr>
+<th>名字</th>
+<th>例子</th>
+<th>是什麼</th>
+<th>誰用它</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>真實名稱（real name）</td>
+<td><code>libz.so.1.3</code></td>
+<td>真正的檔案，版本號最完整</td>
+<td>只有符號連結指向它</td>
+</tr>
+<tr>
+<td><strong>SONAME</strong></td>
+<td><code>libz.so.1</code></td>
+<td>寫在 <code>.so</code> 自己的動態區段裡；<strong>只在不相容時才換數字</strong></td>
+<td>執行時：<code>NEEDED</code> 記的就是它，<code>ld.so</code> 找的也是它</td>
+</tr>
+<tr>
+<td>連結名稱（linker name）</td>
+<td><code>libz.so</code></td>
+<td>給 <code>-lz</code> 用的符號連結</td>
+<td>連結時：<code>ld</code> 照 <code>-lz</code> 找到它</td>
+</tr>
+</tbody>
+</table>
+<p>（本機 <code>dpkg -S</code> 查得：<code>libz.so</code> 屬於開發套件 <code>zlib1g-dev</code>，<code>libz.so.1</code> 屬於執行用的 <code>zlib1g</code>。只裝 <code>zlib1g</code> 時沒有 <code>libz.so</code>，程式能執行，但不能用 <code>-lz</code> 連結。）</p>
+<p>自己做一個帶 SONAME 的版本，在 <a href="../../small-project/s1-07-libraries/examples/soname/"><code>examples/soname/</code></a>（<code>calc.h</code>、<code>add.c</code>、<code>mul.c</code>、<code>main.c</code> 跟第一節一樣）：</p>
+<pre><code>$ gcc -Wall -fPIC -shared -Wl,-soname,libcalc.so.1 add.c mul.c -o libcalc.so.1.0.0
+$ ln -sf libcalc.so.1.0.0 libcalc.so.1       # SONAME → 真實檔案
+$ ln -sf libcalc.so.1 libcalc.so             # 連結名稱 → SONAME
+$ ls -l libcalc*
+lrwxrwxrwx 1 set set    12 Oct 23 10:48 libcalc.so -&gt; libcalc.so.1
+lrwxrwxrwx 1 set set    16 Oct 23 10:48 libcalc.so.1 -&gt; libcalc.so.1.0.0
+-rwxrwxr-x 1 set set 15176 Oct 23 10:48 libcalc.so.1.0.0
+$ readelf -d libcalc.so.1.0.0 | grep SONAME
+ 0x000000000000000e (SONAME)             Library soname: [libcalc.so.1]
+$ gcc -Wall main.c -L. -lcalc -Wl,-rpath,'$ORIGIN' -o app
+$ readelf -d app | grep NEEDED
+ 0x0000000000000001 (NEEDED)             Shared library: [libcalc.so.1]
+ 0x0000000000000001 (NEEDED)             Shared library: [libc.so.6]
+$ ./app
+5
+$ rm libcalc.so &amp;&amp; ./app                     # 刪掉連結名稱
+5
+</code></pre>
+<ul>
+<li><code>-Wl,-soname,libcalc.so.1</code>：叫 <code>ld</code> 在做出來的 <code>.so</code> 裡寫下 <code>SONAME libcalc.so.1</code>。</li>
+<li>連結 <code>app</code> 時，<code>ld</code> 照 <code>-lcalc</code> 打開的是 <code>libcalc.so</code>（一路連到 <code>libcalc.so.1.0.0</code>），但寫進 <code>NEEDED</code> 的<strong>不是檔名，是那個檔案裡的 SONAME</strong> <code>libcalc.so.1</code>。第四節的 <code>libcalc.so</code> 沒有 SONAME，<code>ld</code> 才退而記下檔名 <code>libcalc.so</code>。</li>
+<li>所以執行時只需要 <code>libcalc.so.1</code>；刪掉連結名稱 <code>libcalc.so</code> 照樣能跑（它只在連結時用）。</li>
+</ul>
+<p>這套命名讓<strong>不相容的新版可以跟舊版並存</strong>：新版 SONAME 改成 <code>libcalc.so.2</code>，舊程式的 <code>NEEDED</code> 寫的是 <code>.so.1</code>，繼續用舊檔；重新連結的新程式記下 <code>.so.2</code>。相容的修正（只修 bug、不改介面）則維持 SONAME <code>.so.1</code>，只換真實檔案（<code>.so.1.0.0</code> → <code>.so.1.0.1</code>）並把 <code>libcalc.so.1</code> 指過去，所有舊程式自動用到修正版。（<code>ldconfig</code> 會依各 <code>.so</code> 的 SONAME 自動建立這些 SONAME 符號連結，<code>-X</code> 選項可以關掉這個行為。）</p>
+<h3 id="靜態-vs-動態整理">靜態 vs 動態：整理</h3>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>靜態（<code>.a</code>）</th>
+<th>動態（<code>.so</code>）</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>執行檔大小</td>
+<td>較大（用到的 <code>.o</code> 都複製進去；<code>-static</code> 的 <code>app_full</code> 785 KB）</td>
+<td>較小（<code>app_dyn</code> 16 KB，只有需求單）</td>
+</tr>
+<tr>
+<td>執行時需要函式庫檔案嗎</td>
+<td>不需要，拿到哪台同架構的 Linux 都能跑</td>
+<td>需要，而且要找得到、版本相容</td>
+</tr>
+<tr>
+<td>記憶體</td>
+<td>每個程式各一份</td>
+<td><code>.text</code> 由所有行程共用</td>
+</tr>
+<tr>
+<td>函式庫更新</td>
+<td>要重新連結每個程式</td>
+<td>換掉 <code>.so</code>，重新執行就生效</td>
+</tr>
+<tr>
+<td>連結時找不到符號</td>
+<td><code>undefined reference</code></td>
+<td>一樣（<code>ld</code> 會檢查 <code>.so</code> 裡有沒有這個符號）</td>
+</tr>
+<tr>
+<td>典型錯誤</td>
+<td>順序錯（第二節）</td>
+<td>執行時找不到（第五節）、版本不合（第 1 課第九節的 <code>GLIBC_2.34</code>）</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="七本課用到的工具選項與完整清單在哪">七、本課用到的工具、選項與完整清單在哪</h2>
+<h3 id="ar全部選項ar---help-實測gnu-ar-242"><code>ar</code>：全部選項（<code>ar --help</code> 實測，GNU ar 2.42）</h3>
+<p>文法：<code>ar [-]&lt;一個操作字母&gt;[修飾字母…] [--選項] [成員名] [數量] 封存檔 檔案…</code>。前面的 <code>-</code> 可加可不加（<code>ar rcs</code> ＝ <code>ar -rcs</code>）；<strong>一次只能有一個操作</strong>，修飾字母可以好幾個，黏在操作字母後面。</p>
+<p><strong>操作（8 個，一次選一個）</strong>：</p>
+<table>
+<thead>
+<tr>
+<th>操作</th>
+<th>做什麼</th>
+<th>可配的修飾</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>d</code></td>
+<td>從封存檔刪除成員</td>
+<td></td>
+</tr>
+<tr>
+<td><code>m</code></td>
+<td>搬動成員在封存檔裡的位置</td>
+<td><code>a</code>、<code>b</code></td>
+</tr>
+<tr>
+<td><code>p</code></td>
+<td>把成員的內容印到標準輸出</td>
+<td></td>
+</tr>
+<tr>
+<td><code>q</code></td>
+<td>快速附加（quick append）：直接加在最後，<strong>不檢查</strong>有沒有同名成員</td>
+<td><code>f</code></td>
+</tr>
+<tr>
+<td><code>r</code></td>
+<td>取代或插入：同名就取代，沒有就加入（最常用）</td>
+<td><code>a</code>、<code>b</code>、<code>f</code>、<code>u</code></td>
+</tr>
+<tr>
+<td><code>s</code></td>
+<td>只建立／更新索引（＝ <code>ranlib</code>）</td>
+<td></td>
+</tr>
+<tr>
+<td><code>t</code></td>
+<td>列出成員</td>
+<td><code>O</code>、<code>v</code></td>
+</tr>
+<tr>
+<td><code>x</code></td>
+<td>把成員取出成檔案</td>
+<td><code>o</code></td>
+</tr>
+</tbody>
+</table>
+<p><strong>只對某些操作有效的修飾（command specific modifiers，10 個）</strong>：</p>
+<table>
+<thead>
+<tr>
+<th>修飾</th>
+<th>做什麼</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>a</code></td>
+<td>放在指定成員（命令列的 <code>成員名</code>）<strong>之後</strong></td>
+</tr>
+<tr>
+<td><code>b</code></td>
+<td>放在指定成員<strong>之前</strong>（同 <code>i</code>）</td>
+</tr>
+<tr>
+<td><code>D</code></td>
+<td>時間戳記與 uid／gid 一律寫 0（<strong>本機預設</strong>，第二節 <code>ar tv</code> 看到的 1970、<code>0/0</code>）</td>
+</tr>
+<tr>
+<td><code>U</code></td>
+<td>寫入真實的時間戳記與 uid／gid</td>
+</tr>
+<tr>
+<td><code>N</code></td>
+<td>有好幾個同名成員時，指定第 <code>數量</code> 個</td>
+</tr>
+<tr>
+<td><code>f</code></td>
+<td>截短放進去的檔名</td>
+</tr>
+<tr>
+<td><code>P</code></td>
+<td>比對成員時用完整路徑</td>
+</tr>
+<tr>
+<td><code>o</code></td>
+<td>取出時保留原本的日期</td>
+</tr>
+<tr>
+<td><code>O</code></td>
+<td>列出時顯示每個成員在封存檔裡的位移</td>
+</tr>
+<tr>
+<td><code>u</code></td>
+<td>只取代比封存檔裡更新的檔案</td>
+</tr>
+</tbody>
+</table>
+<p><strong>通用修飾與選項（12 個）</strong>：</p>
+<table>
+<thead>
+<tr>
+<th>修飾／選項</th>
+<th>做什麼</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>c</code></td>
+<td>需要建立封存檔時不印警告</td>
+</tr>
+<tr>
+<td><code>s</code></td>
+<td>建立索引（第二節的 <code>Archive index</code>）</td>
+</tr>
+<tr>
+<td><code>l &lt;文字&gt;</code></td>
+<td>記錄這個函式庫的依賴（同 <code>--record-libdeps</code>）</td>
+</tr>
+<tr>
+<td><code>S</code></td>
+<td><strong>不</strong>建立索引（第二節的 <code>archive has no index</code>）</td>
+</tr>
+<tr>
+<td><code>T</code></td>
+<td>已淘汰，改用 <code>--thin</code></td>
+</tr>
+<tr>
+<td><code>v</code></td>
+<td>詳細輸出</td>
+</tr>
+<tr>
+<td><code>V</code></td>
+<td>印出版本</td>
+</tr>
+<tr>
+<td><code>@&lt;檔案&gt;</code></td>
+<td>從檔案讀取選項</td>
+</tr>
+<tr>
+<td><code>--target=BFDNAME</code></td>
+<td>指定目的檔格式</td>
+</tr>
+<tr>
+<td><code>--output=DIRNAME</code></td>
+<td>取出時放到哪個資料夾</td>
+</tr>
+<tr>
+<td><code>--record-libdeps=&lt;文字&gt;</code></td>
+<td>同 <code>l</code></td>
+</tr>
+<tr>
+<td><code>--thin</code></td>
+<td>做「瘦封存檔」：只記成員的路徑，不複製內容</td>
+</tr>
+</tbody>
+</table>
+<p>另外還有 <code>--plugin &lt;名字&gt;</code>（載入外掛，給 LTO 用）與 <code>-M</code>（從標準輸入讀 MRI 腳本，相容舊工具用）。完整說明見 <code>man ar</code>。</p>
+<p>本課用到：<code>rcs</code>（建立）、<code>rcS</code>（不建索引）、<code>t</code>／<code>tv</code>（列出）。<code>ranlib</code> 只做 <code>ar s</code> 這一件事。</p>
+<h3 id="gcc本課新用到的選項"><code>gcc</code>：本課新用到的選項</h3>
+<p>gcc 的選項有上千個，完整見 <code>man gcc</code>（Link Options、Code Gen Options 兩節）。本課新用到 8 個：</p>
+<table>
+<thead>
+<tr>
+<th>選項</th>
+<th>做什麼</th>
+<th>出處</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-L 資料夾</code></td>
+<td>加進連結時的函式庫搜尋目錄（排在預設目錄前）</td>
+<td>第三節</td>
+</tr>
+<tr>
+<td><code>-l名字</code></td>
+<td>連結 <code>lib名字.so</code> 或 <code>lib名字.a</code>（<code>.so</code> 優先）；<code>-l:檔名</code> 用完整檔名</td>
+<td>第三節</td>
+</tr>
+<tr>
+<td><code>-static</code></td>
+<td>所有函式庫都用靜態版，產生靜態執行檔</td>
+<td>第三節</td>
+</tr>
+<tr>
+<td><code>-shared</code></td>
+<td>輸出共享函式庫</td>
+<td>第四節</td>
+</tr>
+<tr>
+<td><code>-fPIC</code>／<code>-fpic</code></td>
+<td>產生位置無關程式碼，全域符號經 GOT 存取</td>
+<td>第四節</td>
+</tr>
+<tr>
+<td><code>-fPIE</code>（本機預設）</td>
+<td>給執行檔用的位置無關程式碼</td>
+<td>第四節</td>
+</tr>
+<tr>
+<td><code>-Wl,選項,參數</code></td>
+<td>把逗號分開的選項轉交給 <code>ld</code></td>
+<td>第二、五節</td>
+</tr>
+<tr>
+<td><code>-print-search-dirs</code>、<code>-print-file-name=檔名</code></td>
+<td>印出 gcc 的搜尋目錄、找到某個檔案的完整路徑</td>
+<td>第三節</td>
+</tr>
+</tbody>
+</table>
+<p><code>-v</code>（印出每個步驟）第 6 課教過，第四節用它看到 <code>collect2</code> 收到 <code>--as-needed</code>。</p>
+<h3 id="ld本課透過--wl-用到的選項"><code>ld</code>：本課透過 <code>-Wl,</code> 用到的選項</h3>
+<p><code>ld --help</code> 有 407 行選項說明，這裡<strong>只列本課用到的 8 個</strong>，完整見 <code>ld --help</code> 或 <code>info ld</code>（<code>man ld</code> 是同一份內容的精簡版）：</p>
+<table>
+<thead>
+<tr>
+<th><code>ld</code> 選項</th>
+<th>寫成 gcc 參數</th>
+<th>做什麼</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--verbose</code></td>
+<td><code>-Wl,--verbose</code></td>
+<td>印出內建連結腳本（<code>SEARCH_DIR</code>）與每個打開的檔案</td>
+</tr>
+<tr>
+<td><code>-rpath 目錄</code></td>
+<td><code>-Wl,-rpath,'$ORIGIN'</code></td>
+<td>把執行時的搜尋目錄寫進輸出檔（預設成 <code>RUNPATH</code>）</td>
+</tr>
+<tr>
+<td><code>--disable-new-dtags</code></td>
+<td><code>-Wl,--disable-new-dtags</code></td>
+<td><code>-rpath</code> 改寫成舊式 <code>RPATH</code>（<code>--enable-new-dtags</code> 是相反，本機預設）</td>
+</tr>
+<tr>
+<td><code>-soname 名字</code></td>
+<td><code>-Wl,-soname,libcalc.so.1</code></td>
+<td>在做出來的 <code>.so</code> 裡寫下 SONAME</td>
+</tr>
+<tr>
+<td><code>-rpath-link 目錄</code></td>
+<td><code>-Wl,-rpath-link,lib</code></td>
+<td><strong>只給連結時用</strong>：<code>ld</code> 檢查「<code>.so</code> 的依賴的依賴」時去哪裡找；不寫進輸出檔（作業第 4 題用到）</td>
+</tr>
+<tr>
+<td><code>--as-needed</code>／<code>--no-as-needed</code></td>
+<td>（Ubuntu 的 gcc 預設傳 <code>--as-needed</code>）</td>
+<td><code>.so</code> 只在有人用到它的符號時才寫進 <code>NEEDED</code></td>
+</tr>
+<tr>
+<td><code>--start-group … --end-group</code></td>
+<td><code>-Wl,--start-group -lA -lB -Wl,--end-group</code></td>
+<td>群組裡的封存檔反覆掃，解決互相依賴</td>
+</tr>
+</tbody>
+</table>
+<p>（表裡是 7 列、8 個選項：<code>--as-needed</code> 與 <code>--no-as-needed</code> 算兩個。）</p>
+<h3 id="執行時ldso-的環境變數ld_debugldconfig">執行時：<code>ld.so</code> 的環境變數、<code>LD_DEBUG</code>、<code>ldconfig</code></h3>
+<ul>
+<li><code>ld.so</code> 本身的 14 個命令列選項見 <a href="ELF%E7%9A%84interpreter%E6%98%AF%E4%BB%80%E9%BA%BC-%E5%8B%95%E6%85%8B%E8%BC%89%E5%85%A5%E5%99%A8%E8%88%87%E4%BA%95%E5%AD%97%E8%99%9F%E9%A9%9A%E5%98%86%E8%99%9F.html#%E4%B8%89%E5%AE%83%E8%87%AA%E5%B7%B1%E4%B9%9F%E6%98%AF%E4%B8%80%E6%94%AF%E7%A8%8B%E5%BC%8F%E5%8F%AF%E4%BB%A5%E7%9B%B4%E6%8E%A5%E5%9F%B7%E8%A1%8C">ELF的interpreter是什麼第三節</a>。</li>
+<li><strong>環境變數</strong>：<code>man ld.so</code> 的 ENVIRONMENT 一節列了 21 個 <code>LD_*</code> 變數，本課<strong>只用了 2 個</strong>：<code>LD_LIBRARY_PATH</code>（第五節）、<code>LD_DEBUG</code>（第四、五節）；<code>ldd</code> 那篇用過的 <code>LD_TRACE_LOADED_OBJECTS</code> 也在這 21 個裡。其他（<code>LD_PRELOAD</code>、<code>LD_BIND_NOW</code>……）見 <code>man ld.so</code>。</li>
+</ul>
+<p><strong><code>LD_DEBUG</code> 的全部值</strong>（<code>LD_DEBUG=help /bin/true</code> 實測，共 11 個，可以用逗號同時給好幾個）：</p>
+<table>
+<thead>
+<tr>
+<th>值</th>
+<th>印出什麼</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>libs</code></td>
+<td>函式庫的搜尋路徑（第五節）</td>
+</tr>
+<tr>
+<td><code>reloc</code></td>
+<td>重定位的處理過程</td>
+</tr>
+<tr>
+<td><code>files</code></td>
+<td>每個輸入檔的處理進度</td>
+</tr>
+<tr>
+<td><code>symbols</code></td>
+<td>符號表的查詢過程</td>
+</tr>
+<tr>
+<td><code>bindings</code></td>
+<td>每個符號接到哪個檔案（第四節）</td>
+</tr>
+<tr>
+<td><code>versions</code></td>
+<td>版本依賴（例如 <code>GLIBC_2.34</code>）</td>
+</tr>
+<tr>
+<td><code>scopes</code></td>
+<td>符號的查詢範圍</td>
+</tr>
+<tr>
+<td><code>all</code></td>
+<td>以上全部</td>
+</tr>
+<tr>
+<td><code>statistics</code></td>
+<td>重定位的統計</td>
+</tr>
+<tr>
+<td><code>unused</code></td>
+<td>找出沒用到的 <code>.so</code></td>
+</tr>
+<tr>
+<td><code>help</code></td>
+<td>印出這份說明然後結束</td>
+</tr>
+</tbody>
+</table>
+<p>輸出預設印到標準錯誤（所以第四、五節要 <code>2&gt;&amp;1</code> 才能 <code>grep</code>）；設 <code>LD_DEBUG_OUTPUT=檔名</code> 可以改寫進檔案。</p>
+<p><strong><code>ldconfig</code> 的全部選項</strong>（<code>ldconfig --help</code> 實測，共 15 個）：</p>
+<table>
+<thead>
+<tr>
+<th>選項</th>
+<th>做什麼</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-c</code>、<code>--format=FORMAT</code></td>
+<td>快取格式：<code>new</code>（預設）、<code>old</code>、<code>compat</code></td>
+</tr>
+<tr>
+<td><code>-C CACHE</code></td>
+<td>用指定的檔案當快取，而不是 <code>/etc/ld.so.cache</code></td>
+</tr>
+<tr>
+<td><code>-f CONF</code></td>
+<td>用指定的設定檔，而不是 <code>/etc/ld.so.conf</code></td>
+</tr>
+<tr>
+<td><code>-i</code>、<code>--ignore-aux-cache</code></td>
+<td>忽略輔助快取檔</td>
+</tr>
+<tr>
+<td><code>-l</code></td>
+<td>手動處理命令列給的個別函式庫檔案（建立它的 SONAME 符號連結）</td>
+</tr>
+<tr>
+<td><code>-n</code></td>
+<td>只處理命令列給的目錄、不建快取</td>
+</tr>
+<tr>
+<td><code>-N</code></td>
+<td>不建快取（但仍更新符號連結）</td>
+</tr>
+<tr>
+<td><code>-p</code>、<code>--print-cache</code></td>
+<td>印出快取內容（第五節）</td>
+</tr>
+<tr>
+<td><code>-r ROOT</code></td>
+<td>把 ROOT 當成根目錄（給還沒開機的系統映像用）</td>
+</tr>
+<tr>
+<td><code>-v</code>、<code>--verbose</code></td>
+<td>詳細輸出</td>
+</tr>
+<tr>
+<td><code>-X</code></td>
+<td>不更新符號連結</td>
+</tr>
+<tr>
+<td><code>-?</code>、<code>--help</code></td>
+<td>說明</td>
+</tr>
+<tr>
+<td><code>--usage</code></td>
+<td>簡短的用法</td>
+</tr>
+<tr>
+<td><code>-V</code>、<code>--version</code></td>
+<td>版本</td>
+</tr>
+</tbody>
+</table>
+<p>不加選項的 <code>sudo ldconfig</code>：掃描 <code>/etc/ld.so.conf</code> 列出的目錄與預設目錄，更新 SONAME 符號連結、重建快取。</p>
+<h3 id="觀察工具">觀察工具</h3>
+<ul>
+<li><code>nm</code>：第 1、6 課教過（<code>nm --help</code> 共 36 個選項，完整見 <code>man nm</code>）；本課多用了 <code>-s</code>（封存檔的索引）與 <code>-D</code>（動態符號表），以及符號字母 <code>w</code>（弱符號）。</li>
+<li><code>readelf -d</code>：動態區段，本課看的項目是 <code>NEEDED</code>、<code>SONAME</code>、<code>RUNPATH</code>、<code>RPATH</code>；<code>readelf -r</code>：重定位項目（<code>R_X86_64_GLOB_DAT</code>）。<code>readelf</code> 全部選項見 <a href="readelf%E5%AE%8C%E6%95%B4%E9%81%B8%E9%A0%85%E5%8F%83%E8%80%83.html">readelf完整選項參考</a>。</li>
+<li><code>objdump -dr</code>：第 4、5 課教過。</li>
+<li><code>ldd</code>：全部 6 個選項見 <a href="objdump%E8%83%BD%E4%B8%8D%E8%83%BD%E4%BB%A3%E6%9B%BFldd%E6%89%BE%E4%BE%9D%E8%B3%B4%E5%BA%AB-%E9%9C%80%E6%B1%82%E5%96%AE%E8%88%87%E5%AF%A6%E9%9A%9B%E8%BC%89%E5%85%A5.html#%E5%85%AD%E6%9C%AC%E7%AF%87%E7%94%A8%E5%88%B0%E7%9A%84%E5%B7%A5%E5%85%B7%E9%81%B8%E9%A0%85">objdump 那篇第六節</a>。</li>
+<li><code>ln -s 目標 連結名</code>：建立符號連結；<code>-f</code> 是已存在就先刪掉。完整見 <code>ln --help</code>。</li>
+</ul>
+<hr />
+<h2 id="八動手作業">八、動手作業</h2>
+<p>作業在 <a href="../small-project/s1-07-libraries/README.html"><code>small-project/s1-07-libraries/</code></a>，共 5 題。題目、要寫的檔案與作答框都在該資料夾的 <code>README.md</code>。</p>
+<hr />
+<h2 id="自我測驗">自我測驗</h2>
+<blockquote>
+<p>參考答案寫在每題下面，第一次作答批改完才會補上。作答時先遮住答案、自己想過再對照。作答寫在 <a href="../small-project/s1-07-libraries/quiz.html"><code>s1-07-libraries/quiz</code></a>。</p>
+</blockquote>
+<ol>
+<li>一個靜態函式庫 <code>libtxt.a</code> 由三個成員組成，<code>main.c</code> 只呼叫 <code>trim</code>。最後的執行檔裡會有哪些函式（<code>to_upper_str</code>、<code>to_lower_str</code>、<code>trim</code>、<code>is_space</code>）？為什麼？如果把連結指令改成直接寫三個 <code>.o</code>（<code>gcc main.c case.o trim.o space.o</code>），結果有什麼不同、為什麼？<pre><code class="language-c"><span class="cm">/* case.c */</span>
+<span class="kt">void</span><span class="w"> </span><span class="nf">to_upper_str</span><span class="p">(</span><span class="kt">char</span><span class="w"> </span><span class="o">*</span><span class="n">s</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="p">(;</span><span class="w"> </span><span class="o">*</span><span class="n">s</span><span class="p">;</span><span class="w"> </span><span class="n">s</span><span class="o">++</span><span class="p">)</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">*</span><span class="n">s</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="sc">&#39;a&#39;</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="o">*</span><span class="n">s</span><span class="w"> </span><span class="o">&lt;=</span><span class="w"> </span><span class="sc">&#39;z&#39;</span><span class="p">)</span><span class="w"> </span><span class="o">*</span><span class="n">s</span><span class="w"> </span><span class="o">-=</span><span class="w"> </span><span class="mi">32</span><span class="p">;</span><span class="w"> </span><span class="p">}</span>
+<span class="kt">void</span><span class="w"> </span><span class="nf">to_lower_str</span><span class="p">(</span><span class="kt">char</span><span class="w"> </span><span class="o">*</span><span class="n">s</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="p">(;</span><span class="w"> </span><span class="o">*</span><span class="n">s</span><span class="p">;</span><span class="w"> </span><span class="n">s</span><span class="o">++</span><span class="p">)</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">*</span><span class="n">s</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="sc">&#39;A&#39;</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="o">*</span><span class="n">s</span><span class="w"> </span><span class="o">&lt;=</span><span class="w"> </span><span class="sc">&#39;Z&#39;</span><span class="p">)</span><span class="w"> </span><span class="o">*</span><span class="n">s</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="mi">32</span><span class="p">;</span><span class="w"> </span><span class="p">}</span>
+</code></pre>
+<pre><code class="language-c"><span class="cm">/* space.c */</span>
+<span class="kt">int</span><span class="w"> </span><span class="nf">is_space</span><span class="p">(</span><span class="kt">char</span><span class="w"> </span><span class="n">c</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="n">c</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="sc">&#39; &#39;</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="n">c</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="sc">&#39;\t&#39;</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="n">c</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="sc">&#39;\n&#39;</span><span class="p">;</span><span class="w"> </span><span class="p">}</span>
+</code></pre>
+<pre><code class="language-c"><span class="cm">/* trim.c */</span>
+<span class="kt">int</span><span class="w"> </span><span class="nf">is_space</span><span class="p">(</span><span class="kt">char</span><span class="w"> </span><span class="n">c</span><span class="p">);</span>
+
+<span class="kt">char</span><span class="w"> </span><span class="o">*</span><span class="nf">trim</span><span class="p">(</span><span class="kt">char</span><span class="w"> </span><span class="o">*</span><span class="n">s</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="k">while</span><span class="w"> </span><span class="p">(</span><span class="n">is_space</span><span class="p">(</span><span class="o">*</span><span class="n">s</span><span class="p">))</span>
+<span class="w">        </span><span class="n">s</span><span class="o">++</span><span class="p">;</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">s</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<pre><code class="language-c"><span class="cm">/* main.c */</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+
+<span class="kt">char</span><span class="w"> </span><span class="o">*</span><span class="nf">trim</span><span class="p">(</span><span class="kt">char</span><span class="w"> </span><span class="o">*</span><span class="n">s</span><span class="p">);</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="kt">char</span><span class="w"> </span><span class="n">buf</span><span class="p">[]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;   hello&quot;</span><span class="p">;</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;[%s]</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">trim</span><span class="p">(</span><span class="n">buf</span><span class="p">));</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+建立與連結：<code>gcc -Wall -c case.c space.c trim.c &amp;&amp; ar rcs libtxt.a case.o space.o trim.o &amp;&amp; gcc -Wall main.c -L. -ltxt -o app</code></li>
+<li>承上題的檔案，<code>gcc -Wall -L. -ltxt main.c -o app</code> 會失敗，錯誤訊息是 <code>undefined reference to 'trim'</code>。用 <code>ld</code> 處理輸入檔的方式解釋為什麼。這個錯誤跟 <code>cannot find -ltxt</code> 差在哪（各是什麼東西找不到）？在 Ubuntu 上把 <code>libtxt.a</code> 換成 <code>libtxt.so</code>、命令一樣寫成 <code>-L. -ltxt main.c</code>，也會失敗，原因是什麼？</li>
+<li>下面的 <code>stats.c</code> 不加 <code>-fPIC</code> 編成 <code>stats.o</code>，再用 <code>gcc -shared stats.o -o libstats.so</code>。會成功嗎？錯誤訊息會提到哪個變數？為什麼另一個變數不會有問題？為什麼 <code>.so</code> 存取全域變數一定要經過 GOT，而不能像執行檔那樣用 <code>%rip</code> 加固定距離直接讀（講出兩個理由）？<pre><code class="language-c"><span class="cm">/* stats.c */</span>
+<span class="kt">int</span><span class="w"> </span><span class="n">hits</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="k">static</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">misses</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+
+<span class="kt">void</span><span class="w"> </span><span class="nf">hit</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span><span class="w">  </span><span class="p">{</span><span class="w"> </span><span class="n">hits</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">hits</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w"> </span><span class="p">}</span>
+<span class="kt">void</span><span class="w"> </span><span class="nf">miss</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">misses</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">misses</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w"> </span><span class="p">}</span>
+</code></pre>
+編譯：<code>gcc -Wall -c stats.c -o stats.o &amp;&amp; gcc -shared stats.o -o libstats.so</code></li>
+<li>情境題：你在 <code>/home/me/proj/</code> 下做了 <code>lib/libfoo.so</code> 和用它的 <code>app</code>，連結指令是 <code>gcc main.c -Llib -lfoo -o app</code>。連結成功，<code>./app</code> 卻印出 <code>error while loading shared libraries: libfoo.so: cannot open shared object file</code>。(1) 這個訊息是誰印的？為什麼連結時找得到、執行時找不到？(2) 你想讓 <code>app</code> 和 <code>lib/</code> 一起打包給同事，同事解壓到任何地方都能直接執行，連結指令要怎麼改？為什麼要用單引號？(3) 同事想臨時用 <code>LD_LIBRARY_PATH</code> 換成他自己編的 <code>libfoo.so</code> 來除錯，在你的做法（<code>RUNPATH</code>）下換得掉嗎？如果是 <code>RPATH</code> 呢？為什麼？</li>
+<li>你維護 <code>libcalc</code>，SONAME 是 <code>libcalc.so.1</code>。系統上有 <code>libcalc.so -&gt; libcalc.so.1</code>、<code>libcalc.so.1 -&gt; libcalc.so.1.0.0</code> 兩個符號連結。(1) 一支程式動態連結了 <code>libcalc</code>，它的 <code>NEEDED</code> 寫的是哪個名字？為什麼刪掉 <code>libcalc.so</code> 它照樣能跑，刪掉 <code>libcalc.so.1</code> 就不行？(2) 你修了一個 bug（介面不變），做成 <code>libcalc.so.1.0.1</code>。已經動態連結的程式要怎樣才能用到修正？另一支用 <code>libcalc.a</code> 靜態連結的程式呢？(3) 下一版要把 <code>calc_add</code> 改成三個參數（不相容），SONAME 該怎麼辦？為什麼這樣舊程式不會壞？</li>
+</ol>
+
+</main>
+</div>
+</body>
+</html>

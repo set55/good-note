@@ -1,0 +1,398 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>s1-07：靜態與動態函式庫——ar 與 .a、-fPIC 與 .so、-L／-l、執行時怎麼找到 .so</title>
+<link rel="stylesheet" href="../../assets/style.css">
+<script src="../../assets/app.js"></script>
+</head>
+<body>
+<button class="menu-btn" onclick="toggleMenu()">☰ 目錄</button>
+<div class="layout">
+<nav class="side">
+<div class="crumbs"><a href="../../index.html">🏠 首頁</a> / <a href="../README.html">small-project</a> / s1-07-libraries</div>
+<div class="tools"><button onclick="toggleTheme()">🌓 主題</button><button onclick="toggleBoxes(true)">展開作答框</button><button onclick="toggleBoxes(false)">收起作答框</button></div>
+<ul>
+<li class="l2"><a href="#%E8%AA%AA%E6%98%8E">說明</a></li>
+<li class="l2"><a href="#%E7%AD%86%E8%A8%98%E7%9A%84%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F">筆記的範例程式</a></li>
+<li class="l2"><a href="#1-%E5%81%9A%E4%B8%80%E5%80%8B%E9%9D%9C%E6%85%8B%E5%87%BD%E5%BC%8F%E5%BA%AB%E7%9C%8B%E9%80%A3%E7%B5%90%E5%99%A8%E6%8B%89%E4%BA%86%E5%93%AA%E4%BA%9B%E6%88%90%E5%93%A1">1. 做一個靜態函式庫，看連結器拉了哪些成員</a></li>
+<li class="l3"><a href="#1-1-%E8%B2%BC%E4%B8%8A%E4%BD%A0%E5%BB%BA%E7%AB%8B-libtempa-%E8%88%87%E9%80%A3%E7%B5%90-hw1-%E7%9A%84%E6%8C%87%E4%BB%A4hw1-%E7%9A%84%E8%BC%B8%E5%87%BAar-t-libtempa-%E8%88%87-nm--s-libtempa-%E7%9A%84%E8%BC%B8%E5%87%BAnm--s-%E5%8D%B0%E5%87%BA%E7%9A%84-archive-index-%E6%98%AF%E4%BB%80%E9%BA%BC%E8%AA%B0%E6%9C%83%E7%94%A8%E5%88%B0%E5%AE%83%E5%86%8D%E7%94%A8-ar-rcs-libnoidxa-ctofo-ftoco-roundo-%E5%81%9A%E4%B8%80%E5%80%8B%E6%B2%92%E6%9C%89%E7%B4%A2%E5%BC%95%E7%9A%84%E7%89%88%E6%9C%AC%E7%94%A8--l--lnoidx-%E9%80%A3%E7%B5%90%E8%B2%BC%E4%B8%8A%E7%B5%90%E6%9E%9C%E4%B8%A6%E7%94%A8-ranlib-%E4%BF%AE%E5%A5%BD%E5%AE%83%E8%B2%BC%E4%B8%8A%E4%BF%AE%E5%A5%BD%E5%BE%8C%E7%9A%84%E9%80%A3%E7%B5%90%E8%88%87%E5%9F%B7%E8%A1%8C%E7%B5%90%E6%9E%9C%E7%AD%86%E8%A8%98%E7%AC%AC%E4%BA%8C%E7%AF%80%E5%AF%A6%E9%A9%97%E5%81%9A%E5%87%BA-libcalca">1-1. 貼上你建立 libtemp.a 與連結 hw1 的指令、./hw1 的輸出、ar t libtemp.a 與 nm -s libtemp.a 的輸出。nm -s 印出的 Archive index 是什麼、誰會用到它？再用 ar rcS libnoidx.a ctof.o ftoc.o round.o 做一個沒有索引的版本、用 -L. -lnoidx 連結，貼上結果，並用 ranlib 修好它（貼上修好後的連結與執行結果）。【筆記第二節〈實驗：做出 libcalc.a〉】</a></li>
+<li class="l3"><a href="#1-2-%E5%85%88%E9%A0%90%E6%B8%ACnm-hw1--grep--e-c_to_ff_to_ctemp_round-%E6%9C%83%E5%88%97%E5%87%BA%E9%80%99%E4%B8%89%E5%80%8B%E5%87%BD%E5%BC%8F%E8%A3%A1%E7%9A%84%E5%93%AA%E5%B9%BE%E5%80%8B%E5%AF%AB%E4%B8%8B%E9%A0%90%E6%B8%AC%E5%BE%8C%E5%86%8D%E5%9F%B7%E8%A1%8C%E8%B2%BC%E4%B8%8A%E7%B5%90%E6%9E%9C%E4%B8%A6%E8%B2%BC%E4%B8%8A-gcc--wall-hw1_mainc--l--ltemp--wl--verbose--o-hw1-21--grep-libtemp-%E7%9A%84%E8%BC%B8%E5%87%BAhw1_mainc-%E6%B2%92%E6%9C%89%E7%9B%B4%E6%8E%A5%E5%91%BC%E5%8F%AB-temp_round%E5%AE%83%E7%82%BA%E4%BB%80%E9%BA%BC%E6%88%96%E7%82%BA%E4%BB%80%E9%BA%BC%E6%B2%92%E6%9C%89%E5%9C%A8%E5%9F%B7%E8%A1%8C%E6%AA%94%E8%A3%A1c_to_f-%E5%91%A2%E7%AD%86%E8%A8%98%E7%AC%AC%E4%BA%8C%E7%AF%80%E9%80%A3%E7%B5%90%E5%8F%AA%E6%8B%89%E9%9C%80%E8%A6%81%E7%9A%84%E6%88%90%E5%93%A1">1-2. 先預測：nm hw1 | grep -E &#x27;c_to_f|f_to_c|temp_round&#x27; 會列出這三個函式裡的哪幾個？寫下預測後再執行，貼上結果，並貼上 gcc -Wall hw1_main.c -L. -ltemp -Wl,--verbose -o hw1 2&gt;&amp;1 | grep libtemp 的輸出。hw1_main.c 沒有直接呼叫 temp_round，它為什麼（或為什麼沒有）在執行檔裡？c_to_f 呢？【筆記第二節〈連結：只拉需要的成員〉】</a></li>
+<li class="l2"><a href="#2-%E5%85%A9%E5%80%8B%E4%BA%92%E7%9B%B8%E9%9C%80%E8%A6%81%E7%9A%84%E9%9D%9C%E6%85%8B%E5%87%BD%E5%BC%8F%E5%BA%AB%E9%A0%86%E5%BA%8F%E6%80%8E%E9%BA%BC%E6%8E%92">2. 兩個互相需要的靜態函式庫：順序怎麼排</a></li>
+<li class="l3"><a href="#2-1-%E5%85%88%E9%A0%90%E6%B8%AC%E4%B8%8B%E9%9D%A2%E4%B8%89%E5%80%8B%E9%80%A3%E7%B5%90%E6%8C%87%E4%BB%A4%E5%93%AA%E4%BA%9B%E6%9C%83%E6%88%90%E5%8A%9F%E5%A4%B1%E6%95%97%E7%9A%84%E6%9C%83%E8%AA%AA%E5%93%AA%E5%80%8B%E7%AC%A6%E8%99%9F%E6%89%BE%E4%B8%8D%E5%88%B0%E6%98%AF%E5%9C%A8%E5%93%AA%E5%80%8B%E6%AA%94%E6%A1%88%E8%A3%A1%E9%9C%80%E8%A6%81%E5%AE%83%E5%AF%AB%E4%B8%8B%E9%A0%90%E6%B8%AC%E5%BE%8C%E5%86%8D%E9%80%90%E4%B8%80%E5%9F%B7%E8%A1%8C%E8%B2%BC%E4%B8%8A%E6%AF%8F%E4%B8%80%E5%80%8B%E7%9A%84%E5%AE%8C%E6%95%B4%E8%BC%B8%E5%87%BA%E6%88%90%E5%8A%9F%E7%9A%84%E8%A6%81%E5%9F%B7%E8%A1%8C-hw2-%E4%B8%A6%E8%B2%BC%E4%B8%8A%E7%B5%90%E6%9E%9C%E7%94%A8ld-%E7%94%B1%E5%B7%A6%E5%BE%80%E5%8F%B3%E6%8E%83%E6%89%8B%E4%B8%8A%E6%9C%89%E4%B8%80%E5%BC%B5%E9%82%84%E7%BC%BA%E5%93%AA%E4%BA%9B%E7%AC%A6%E8%99%9F%E7%9A%84%E6%B8%85%E5%96%AE%E7%9A%84%E6%96%B9%E5%BC%8F%E9%80%90%E6%AD%A5%E8%AA%AA%E6%98%8E%E6%AF%8F%E5%80%8B%E6%8C%87%E4%BB%A4%E6%8E%83%E5%88%B0%E6%AF%8F%E5%80%8B%E6%AA%94%E6%A1%88%E6%99%82%E6%8B%89%E4%BA%86%E5%93%AA%E4%BA%9B%E6%88%90%E5%93%A1%E6%B8%85%E5%96%AE%E6%80%8E%E9%BA%BC%E8%AE%8A%E7%AD%86%E8%A8%98%E7%AC%AC%E4%BA%8C%E7%AF%80%E9%A0%86%E5%BA%8Fld-%E7%94%B1%E5%B7%A6%E5%BE%80%E5%8F%B3%E5%8F%AA%E6%8E%83%E4%B8%80%E6%AC%A1">2-1. 先預測下面三個連結指令，哪些會成功、失敗的會說哪個符號找不到（是在哪個檔案裡需要它）？寫下預測後再逐一執行，貼上每一個的完整輸出（成功的要執行 ./hw2 並貼上結果）。用「ld 由左往右掃，手上有一張還缺哪些符號的清單」的方式，逐步說明每個指令掃到每個檔案時拉了哪些成員、清單怎麼變。【筆記第二節〈順序：ld 由左往右只掃一次〉】</a></li>
+<li class="l3"><a href="#2-2-%E4%B8%8D%E9%87%8D%E8%A4%87%E5%AF%AB--lconv%E6%94%B9%E7%94%A8--wl--start-group---wl--end-group-%E8%AE%93-b-%E7%9A%84%E9%A0%86%E5%BA%8F%E4%B9%9F%E8%83%BD%E9%80%A3%E7%B5%90%E6%88%90%E5%8A%9F%E8%B2%BC%E4%B8%8A%E6%8C%87%E4%BB%A4%E8%88%87%E5%9F%B7%E8%A1%8C%E7%B5%90%E6%9E%9C%E7%AD%86%E8%A8%98%E7%AC%AC%E4%BA%8C%E7%AF%80%E9%A0%86%E5%BA%8F%E6%9C%80%E5%BE%8C%E4%B8%80%E6%AE%B5">2-2. 不重複寫 -lconv，改用 -Wl,--start-group … -Wl,--end-group 讓 (b) 的順序也能連結成功。貼上指令與執行結果。【筆記第二節〈順序〉最後一段】</a></li>
+<li class="l3"><a href="#2-3-%E5%85%88%E7%8C%9C%E5%86%8D%E5%AF%A6%E9%A9%97%E6%8A%8A%E5%85%A9%E5%80%8B%E5%87%BD%E5%BC%8F%E5%BA%AB%E6%94%B9%E5%81%9A%E6%88%90-so%E6%8C%87%E4%BB%A4%E5%A6%82%E4%B8%8B%E5%86%8D%E7%94%A8-ab-%E5%85%A9%E7%A8%AE%E9%A0%86%E5%BA%8F%E9%80%A3%E7%B5%90%E5%90%84%E6%9C%83%E6%88%90%E5%8A%9F%E9%82%84%E6%98%AF%E5%A4%B1%E6%95%97%E8%B2%BC%E4%B8%8A%E7%B5%90%E6%9E%9C%E6%88%90%E5%8A%9F%E7%9A%84%E8%A6%81%E5%9F%B7%E8%A1%8C%E7%82%BA%E4%BB%80%E9%BA%BC-so-%E7%89%88%E7%9A%84-b-%E4%B8%8D%E5%BF%85%E5%83%8F-a-%E9%82%A3%E6%A8%A3%E6%8A%8A--lconv-%E5%AF%AB%E5%85%A9%E6%AC%A1a-%E7%82%BA%E4%BB%80%E9%BA%BC%E9%82%84%E6%98%AF%E5%A4%B1%E6%95%97%E6%88%96%E7%82%BA%E4%BB%80%E9%BA%BC%E6%88%90%E5%8A%9F%E6%96%B0%E8%A7%80%E5%BF%B5%E5%85%88%E7%8C%9Ca-%E7%9A%84%E9%83%A8%E5%88%86%E5%8F%AF%E4%BB%A5%E7%94%A8%E7%AD%86%E8%A8%98%E7%AC%AC%E5%9B%9B%E7%AF%80so-%E5%9C%A8-ubuntu-%E4%B8%8A%E4%B9%9F%E6%9C%89%E9%A0%86%E5%BA%8F%E5%95%8F%E9%A1%8C%E6%8E%A8">2-3. 先猜再實驗：把兩個函式庫改做成 .so（指令如下），再用 (a)、(b) 兩種順序連結。各會成功還是失敗？貼上結果（成功的要執行）。為什麼 .so 版的 (b) 不必像 .a 那樣把 -lconv 寫兩次？(a) 為什麼還是失敗（或為什麼成功）？【新觀念，先猜；(a) 的部分可以用筆記第四節〈.so 在 Ubuntu 上也有順序問題〉推】</a></li>
+<li class="l2"><a href="#3-%E5%81%9A%E4%B8%80%E5%80%8B-so-fpicgot%E8%AE%93%E5%9F%B7%E8%A1%8C%E6%AA%94%E6%89%BE%E5%BE%97%E5%88%B0%E5%AE%83">3. 做一個 .so：-fPIC、GOT、讓執行檔找得到它</a></li>
+<li class="l3"><a href="#3-1-%E5%85%88%E9%A0%90%E6%B8%AC%E4%B8%89%E5%80%8B%E6%AA%94%E6%A1%88%E9%83%BD%E4%B8%8D%E5%8A%A0--fpic%E5%9F%B7%E8%A1%8C-gcc--wall--c-ctofc-ftocc-roundc--gcc--shared-ctofo-ftoco-roundo--o-libtempso%E6%9C%83%E6%88%90%E5%8A%9F%E5%97%8E%E5%A6%82%E6%9E%9C%E5%A4%B1%E6%95%97%E9%8C%AF%E8%AA%A4%E8%A8%8A%E6%81%AF%E6%9C%83%E6%8C%87%E5%90%91%E5%93%AA%E5%80%8B-o%E5%93%AA%E5%80%8B%E7%AC%A6%E8%99%9F%E5%AF%AB%E4%B8%8B%E9%A0%90%E6%B8%AC%E5%BE%8C%E5%9F%B7%E8%A1%8C%E8%B2%BC%E4%B8%8A%E8%BC%B8%E5%87%BA%E7%82%BA%E4%BB%80%E9%BA%BC-ctofoftoco-%E6%B2%92%E6%9C%89%E8%A2%AB%E9%BB%9E%E5%90%8D%E5%AE%83%E5%80%91%E4%B9%9F%E5%91%BC%E5%8F%AB%E4%BA%86%E5%88%A5%E7%9A%84%E6%AA%94%E6%A1%88%E7%9A%84-temp_round%E7%AD%86%E8%A8%98%E7%AC%AC%E5%9B%9B%E7%AF%80%E7%82%BA%E4%BB%80%E9%BA%BC%E4%B8%80%E5%AE%9A%E8%A6%81--fpic%E7%82%BA%E4%BB%80%E9%BA%BC%E4%B8%8D%E8%83%BD%E7%9B%B4%E6%8E%A5%E7%94%A8%E5%9B%BA%E5%AE%9A%E8%B7%9D%E9%9B%A2">3-1. 先預測：三個檔案都不加 -fPIC，執行 gcc -Wall -c ctof.c ftoc.c round.c &amp;&amp; gcc -shared ctof.o ftoc.o round.o -o libtemp.so，會成功嗎？如果失敗，錯誤訊息會指向哪個 .o、哪個符號？寫下預測後執行，貼上輸出。為什麼 ctof.o、ftoc.o 沒有被點名（它們也呼叫了別的檔案的 temp_round）？【筆記第四節〈為什麼一定要 -fPIC〉、〈為什麼不能直接用固定距離〉】</a></li>
+<li class="l3"><a href="#3-2-%E6%94%B9%E7%94%A8--fpic-%E9%87%8D%E7%B7%A8%E4%B8%89%E5%80%8B%E6%AA%94%E6%A1%88%E5%81%9A%E5%87%BA-libtempso%E8%B2%BC%E4%B8%8A-objdump--dr---no-show-raw-insn-roundo-%E8%A3%A1-temp_round-%E7%9A%84%E5%85%A7%E5%AE%B9%E6%A8%99%E5%87%BA%E5%93%AA%E5%B9%BE%E8%A1%8C%E5%9C%A8%E5%AD%98%E5%8F%96-temp_calls%E9%80%90%E8%A1%8C%E8%AA%AA%E6%98%8E%E9%82%A3%E5%B9%BE%E8%A1%8C%E5%9C%A8%E5%81%9A%E4%BB%80%E9%BA%BC%E4%B8%AD%E9%96%93-imul-0x66666667shrsar-%E9%82%A3%E5%B9%BE%E8%A1%8C%E6%98%AF-gcc-%E7%94%A8%E4%B9%98%E6%B3%95%E4%BB%A3%E6%9B%BF%E9%99%A4%E4%BB%A5-10%E7%9A%84%E5%AF%AB%E6%B3%95%E9%80%99%E9%A1%8C%E4%B8%8D%E7%94%A8%E8%A7%A3%E9%87%8B%E5%86%8D%E8%B2%BC%E4%B8%8A-readelf--r-libtempso--grep-temp_calls%E8%AA%AA%E6%98%8E%E9%82%A3%E4%B8%80%E5%88%97%E6%98%AF%E7%95%99%E7%B5%A6%E8%AA%B0%E8%A6%81%E5%AE%83%E5%81%9A%E4%BB%80%E9%BA%BC%E7%AD%86%E8%A8%98%E7%AC%AC%E5%9B%9B%E7%AF%80%E7%82%BA%E4%BB%80%E9%BA%BC%E4%B8%80%E5%AE%9A%E8%A6%81--fpic">3-2. 改用 -fPIC 重編三個檔案、做出 libtemp.so。貼上 objdump -dr --no-show-raw-insn round.o 裡 temp_round 的內容，標出哪幾行在存取 temp_calls，逐行說明那幾行在做什麼（中間 imul $0x66666667、shr、sar 那幾行是 gcc 用乘法代替「除以 10」的寫法，這題不用解釋）。再貼上 readelf -r libtemp.so | grep temp_calls，說明那一列是留給誰、要它做什麼。【筆記第四節〈為什麼一定要 -fPIC〉】</a></li>
+<li class="l3"><a href="#3-3-%E7%94%A8-gcc--wall-hw3_mainc--l--ltemp--o-hw3-%E9%80%A3%E7%B5%90%E5%9F%B7%E8%A1%8C-hw3%E8%B2%BC%E4%B8%8A%E8%BC%B8%E5%87%BA%E8%88%87-ldd-hw3-%E7%9A%84%E8%BC%B8%E5%87%BA%E9%80%99%E5%80%8B%E9%8C%AF%E8%AA%A4%E6%98%AF%E8%AA%B0%E5%8D%B0%E7%9A%84%E7%82%BA%E4%BB%80%E9%BA%BC%E9%80%A3%E7%B5%90%E6%88%90%E5%8A%9F%E4%BA%86%E5%9F%B7%E8%A1%8C%E5%8D%BB%E6%89%BE%E4%B8%8D%E5%88%B0%E6%8E%A5%E8%91%97%E7%94%A8%E5%85%A9%E7%A8%AE%E6%96%B9%E6%B3%95%E8%AE%93%E5%AE%83%E8%B7%91%E8%B5%B7%E4%BE%86%E5%90%84%E8%B2%BC%E4%B8%8A%E6%8C%87%E4%BB%A4%E8%88%87%E8%BC%B8%E5%87%BAa-ld_library_pathb-%E9%87%8D%E6%96%B0%E9%80%A3%E7%B5%90%E7%94%A8--wl-rpathorigin-%E6%8A%8A%E8%B7%AF%E5%BE%91%E5%AF%AB%E9%80%B2%E5%9F%B7%E8%A1%8C%E6%AA%94%E5%8F%A6%E5%A4%96%E8%B2%BC%E4%B8%8A-readelf--d-hw3--grep--e-neededrunpath%E8%BC%B8%E5%87%BA%E8%A3%A1-temp_calls-%E6%98%AF%E5%B9%BE%E7%82%BA%E4%BB%80%E9%BA%BC%E6%98%AF%E9%80%99%E5%80%8B%E6%95%B8%E5%AD%97%E7%AD%86%E8%A8%98%E7%AC%AC%E4%BA%94%E7%AF%80%E6%96%B9%E6%B3%95%E4%B8%80%E6%96%B9%E6%B3%95%E4%BA%8C">3-3. 用 gcc -Wall hw3_main.c -L. -ltemp -o hw3 連結，執行 ./hw3，貼上輸出與 ldd ./hw3 的輸出。這個錯誤是誰印的？為什麼連結成功了，執行卻找不到？接著用兩種方法讓它跑起來，各貼上指令與輸出：(a) LD_LIBRARY_PATH；(b) 重新連結，用 -Wl,-rpath,&#x27;$ORIGIN&#x27; 把路徑寫進執行檔（另外貼上 readelf -d hw3 | grep -E &#x27;NEEDED|RUNPATH&#x27;）。輸出裡 temp_calls 是幾？為什麼是這個數字？【筆記第五節〈方法一〉、〈方法二〉】</a></li>
+<li class="l3"><a href="#3-4-%E5%85%88%E9%A0%90%E6%B8%AC%E5%9C%A8-hw3_mainc-%E7%9A%84-include-temph-%E4%B8%8B%E9%9D%A2%E5%8A%A0%E4%B8%80%E8%A1%8C-int-temp_calls--1000temph-%E4%B8%8D%E6%94%B9%E7%85%A7-3-3-b-%E7%9A%84%E6%96%B9%E5%BC%8F%E9%87%8D%E6%96%B0%E9%80%A3%E7%B5%90%E5%9F%B7%E8%A1%8Ctemp_calls---%E6%9C%83%E5%8D%B0%E5%87%BA%E5%A4%9A%E5%B0%91%E5%AF%AB%E4%B8%8B%E9%A0%90%E6%B8%AC%E5%BE%8C%E5%9F%B7%E8%A1%8C%E8%B2%BC%E4%B8%8A%E8%BC%B8%E5%87%BA%E8%88%87-ld_debugbindings-hw3-21--grep-temp_calls%E7%82%BA%E4%BB%80%E9%BA%BC%E6%8E%A5%E8%91%97%E6%8A%8A-roundo-%E7%AD%89%E4%B8%89%E5%80%8B--fpic-%E7%9A%84-o-%E7%94%A8-ar-rcs-libtempa-ctofo-ftoco-roundo-%E5%8C%85%E6%88%90-a%E7%94%A8-gcc--wall-hw3_mainc--l--llibtempa--o-hw3s-%E9%9D%9C%E6%85%8B%E9%80%A3%E7%B5%90%E5%85%88%E9%A0%90%E6%B8%AC%E6%9C%83%E6%80%8E%E6%A8%A3%E5%86%8D%E5%9F%B7%E8%A1%8C%E8%B2%BC%E4%B8%8A%E7%B5%90%E6%9E%9C%E7%82%BA%E4%BB%80%E9%BA%BC%E5%90%8C%E6%A8%A3%E5%85%A9%E4%BB%BD-temp_calls%E5%8B%95%E6%85%8B%E5%92%8C%E9%9D%9C%E6%85%8B%E7%9A%84%E7%B5%90%E6%9E%9C%E4%B8%8D%E4%B8%80%E6%A8%A3%E5%81%9A%E5%AE%8C%E6%8A%8A%E5%8A%A0%E7%9A%84%E9%82%A3%E4%B8%80%E8%A1%8C%E5%88%AA%E6%8E%89%E7%AD%86%E8%A8%98%E7%AC%AC%E5%9B%9B%E7%AF%80%E7%82%BA%E4%BB%80%E9%BA%BC%E4%B8%8D%E8%83%BD%E7%9B%B4%E6%8E%A5%E7%94%A8%E5%9B%BA%E5%AE%9A%E8%B7%9D%E9%9B%A2">3-4. 先預測：在 hw3_main.c 的 #include &quot;temp.h&quot; 下面加一行 int temp_calls = 1000;（temp.h 不改），照 3-3 (b) 的方式重新連結、執行，temp_calls =  會印出多少？寫下預測後執行，貼上輸出與 LD_DEBUG=bindings ./hw3 2&gt;&amp;1 | grep temp_calls。為什麼？接著把 round.o 等三個 -fPIC 的 .o 用 ar rcs libtemp.a ctof.o ftoc.o round.o 包成 .a，用 gcc -Wall hw3_main.c -L. -l:libtemp.a -o hw3s 靜態連結，先預測會怎樣再執行、貼上結果；為什麼同樣兩份 temp_calls，動態和靜態的結果不一樣？做完把加的那一行刪掉。【筆記第四節〈為什麼不能直接用固定距離〉】</a></li>
+<li class="l2"><a href="#4-so-%E4%BE%9D%E8%B3%B4%E5%8F%A6%E4%B8%80%E5%80%8B-sorunpath-%E5%8F%AA%E7%AE%A1%E7%9B%B4%E6%8E%A5%E4%BE%9D%E8%B3%B4">4. .so 依賴另一個 .so：RUNPATH 只管直接依賴</a></li>
+<li class="l3"><a href="#4-1-%E5%85%88%E9%A0%90%E6%B8%AC-hw4-%E6%9C%83%E6%88%90%E5%8A%9F%E5%97%8E%E5%AF%AB%E4%B8%8B%E9%A0%90%E6%B8%AC%E5%BE%8C%E5%9F%B7%E8%A1%8C%E8%B2%BC%E4%B8%8A%E8%BC%B8%E5%87%BA%E5%86%8D%E8%B2%BC%E4%B8%8A-readelf--d-hw4--grep--e-neededrunpathreadelf--d-liblibtempso--grep--e-neededrunpath%E4%BB%A5%E5%8F%8A-ld_debuglibs-hw4-21--grep--e-find-librarysearch-pathhw4-%E6%98%8E%E6%98%8E%E6%9C%89-runpathlibroundso-%E4%B9%9F%E8%B7%9F-libtempso-%E6%94%BE%E5%9C%A8%E5%90%8C%E4%B8%80%E5%80%8B%E8%B3%87%E6%96%99%E5%A4%BE%E7%82%BA%E4%BB%80%E9%BA%BC%E6%89%BE%E4%B8%8D%E5%88%B0%E6%88%96%E7%82%BA%E4%BB%80%E9%BA%BC%E6%89%BE%E5%BE%97%E5%88%B0%E7%AD%86%E8%A8%98%E7%AC%AC%E4%BA%94%E7%AF%80ldso-%E5%8E%BB%E4%BA%86%E5%93%AA%E4%BA%9B%E5%9C%B0%E6%96%B9%E6%89%BE%E7%9A%84%E7%AC%AC-3-%E6%AD%A5rpath-%E5%92%8C-runpath-%E5%B7%AE%E5%9C%A8%E5%93%AA%E6%9C%80%E5%BE%8C%E4%B8%80%E6%AE%B5">4-1. 先預測 ./hw4 會成功嗎？寫下預測後執行，貼上輸出；再貼上 readelf -d hw4 | grep -E &#x27;NEEDED|RUNPATH&#x27;、readelf -d lib/libtemp.so | grep -E &#x27;NEEDED|RUNPATH&#x27;，以及 LD_DEBUG=libs ./hw4 2&gt;&amp;1 | grep -E &#x27;find library|search path&#x27;。hw4 明明有 RUNPATH、libround.so 也跟 libtemp.so 放在同一個資料夾，為什麼找不到（或為什麼找得到）？【筆記第五節〈ld.so 去了哪些地方找〉的第 3 步、〈RPATH 和 RUNPATH 差在哪〉最後一段】</a></li>
+<li class="l3"><a href="#4-2-%E7%94%A8%E5%85%A9%E7%A8%AE%E6%96%B9%E6%B3%95%E4%BF%AE%E5%A5%BD%E5%90%84%E8%B2%BC%E4%B8%8A%E4%BD%A0%E6%94%B9%E7%9A%84%E6%8C%87%E4%BB%A4readelf--d-%E7%9B%B8%E9%97%9C%E7%9A%84%E5%88%97%E8%88%87-hw4-%E7%9A%84%E8%BC%B8%E5%87%BAa-%E5%8F%AA%E9%87%8D%E5%81%9A-liblibtempso%E8%AE%93%E5%AE%83%E8%87%AA%E5%B7%B1%E5%B8%B6-runpath%E8%B7%AF%E5%BE%91%E8%A6%81%E7%94%A8-origin-%E5%AF%AB%E6%83%B3%E4%B8%80%E6%83%B3-libtempso-%E7%9A%84-origin-%E6%98%AF%E5%93%AA%E5%80%8B%E8%B3%87%E6%96%99%E5%A4%BEb-%E4%B8%8D%E6%94%B9-libtempso%E5%85%88%E6%8A%8A%E5%AE%83%E5%81%9A%E5%9B%9E%E5%8E%9F%E6%9C%AC%E7%9A%84%E6%A8%A3%E5%AD%90%E6%94%B9%E6%88%90%E9%87%8D%E6%96%B0%E9%80%A3%E7%B5%90-hw4%E7%94%A8-rpath%E5%85%A9%E7%A8%AE%E6%96%B9%E6%B3%95%E4%BD%A0%E6%9C%83%E9%81%B8%E5%93%AA%E4%B8%80%E7%A8%AE%E7%82%BA%E4%BB%80%E9%BA%BC%E7%AD%86%E8%A8%98%E7%AC%AC%E4%BA%94%E7%AF%80rpath-%E5%92%8C-runpath-%E5%B7%AE%E5%9C%A8%E5%93%AA">4-2. 用兩種方法修好，各貼上你改的指令、readelf -d 相關的列與 ./hw4 的輸出：(a) 只重做 lib/libtemp.so、讓它自己帶 RUNPATH（路徑要用 $ORIGIN 寫，想一想 libtemp.so 的 $ORIGIN 是哪個資料夾）；(b) 不改 libtemp.so（先把它做回原本的樣子），改成重新連結 hw4、用 RPATH。兩種方法你會選哪一種？為什麼？【筆記第五節〈RPATH 和 RUNPATH 差在哪〉】</a></li>
+<li class="l3"><a href="#4-3-%E5%85%88%E7%8C%9C%E5%86%8D%E5%AF%A6%E9%A9%97%E6%8A%8A%E9%80%A3%E7%B5%90-hw4-%E7%9A%84%E6%8C%87%E4%BB%A4%E6%8B%BF%E6%8E%89--wl-rpath-linklib%E9%87%8D%E6%96%B0%E9%80%A3%E7%B5%90%E8%B2%BC%E4%B8%8A%E8%BC%B8%E5%87%BAhw4_mainc-%E6%A0%B9%E6%9C%AC%E6%B2%92%E5%91%BC%E5%8F%AB-temp_round%E7%82%BA%E4%BB%80%E9%BA%BC-ld-%E5%9C%A8%E9%80%A3%E7%B5%90%E6%99%82%E5%B0%B1%E8%A6%81%E5%8E%BB%E6%89%BE-libroundso-rpath-link-%E8%B7%9F--rpath-%E5%B7%AE%E5%9C%A8%E5%93%AA-rpath-link-%E7%9A%84%E4%BD%9C%E7%94%A8%E8%A6%8B%E7%AD%86%E8%A8%98%E7%AC%AC%E4%B8%83%E7%AF%80ld%E7%9A%84%E8%A1%A8ld-%E7%82%BA%E4%BB%80%E9%BA%BC%E8%A6%81%E5%9C%A8%E9%80%A3%E7%B5%90%E6%99%82%E6%AA%A2%E6%9F%A5%E6%98%AF%E6%96%B0%E8%A7%80%E5%BF%B5%E5%85%88%E7%8C%9C">4-3. 先猜再實驗：把連結 hw4 的指令拿掉 -Wl,-rpath-link,lib，重新連結，貼上輸出。hw4_main.c 根本沒呼叫 temp_round，為什麼 ld 在連結時就要去找 libround.so？-rpath-link 跟 -rpath 差在哪？【-rpath-link 的作用見筆記第七節〈ld〉的表；ld 為什麼要在連結時檢查是新觀念，先猜】</a></li>
+<li class="l2"><a href="#5-%E5%87%BD%E5%BC%8F%E5%BA%AB%E6%9B%B4%E6%96%B0%E9%9D%9C%E6%85%8B-vs-%E5%8B%95%E6%85%8B%E4%BB%A5%E5%8F%8A-soname">5. 函式庫更新：靜態 vs 動態，以及 SONAME</a></li>
+<li class="l3"><a href="#5-1-%E5%9F%B7%E8%A1%8C%E5%85%A9%E6%94%AF%E7%A8%8B%E5%BC%8F%E8%B2%BC%E4%B8%8A%E8%BC%B8%E5%87%BA100f-%E6%AD%A3%E7%A2%BA%E6%98%AF-378c%E5%9B%9B%E6%8D%A8%E4%BA%94%E5%85%A5%E6%87%89%E8%A9%B2%E6%98%AF-38%E8%B2%BC%E4%B8%8A-ls--l-libtempreadelf--d-hw5_dyn--grep--e-neededrunpathld-%E7%85%A7--ltemp-%E6%89%93%E9%96%8B%E7%9A%84%E6%98%AF-libtempsoneeded-%E5%8D%BB%E5%AF%AB-libtempso1%E7%82%BA%E4%BB%80%E9%BA%BC%E7%AD%86%E8%A8%98%E7%AC%AC%E5%85%AD%E7%AF%80soname">5-1. 執行兩支程式，貼上輸出（100°F 正確是 37.8°C，四捨五入應該是 38）。貼上 ls -l libtemp*、readelf -d hw5_dyn | grep -E &#x27;NEEDED|RUNPATH&#x27;。ld 照 -ltemp 打開的是 libtemp.so，NEEDED 卻寫 libtemp.so.1，為什麼？【筆記第六節〈SONAME〉】</a></li>
+<li class="l3"><a href="#5-2-%E5%85%88%E9%A0%90%E6%B8%AC%E6%8A%8A-roundc-%E6%94%B9%E6%88%90%E6%AD%A3%E7%A2%BA%E7%9A%84%E5%9B%9B%E6%8D%A8%E4%BA%94%E5%85%A5return-x10--5--10%E7%84%B6%E5%BE%8C%E5%8F%AA%E6%9B%B4%E6%96%B0%E5%87%BD%E5%BC%8F%E5%BA%AB%E4%B8%8D%E9%87%8D%E6%96%B0%E9%80%A3%E7%B5%90%E5%85%A9%E6%94%AF%E7%A8%8B%E5%BC%8F">5-2. 先預測：把 round.c 改成正確的四捨五入（return (x10 + 5) / 10;），然後只更新函式庫、不重新連結兩支程式：</a></li>
+<li class="l3"><a href="#5-3-%E5%85%88%E9%A0%90%E6%B8%AC%E4%B8%8B%E4%B8%80%E7%89%88%E6%8A%8A-f_to_c-%E6%94%B9%E6%88%90%E5%9B%9E%E5%82%B3%E5%8D%81%E5%88%86%E4%B9%8B%E4%B8%80%E5%BA%A6%E4%B8%8D%E7%9B%B8%E5%AE%B9%E7%9A%84%E6%94%B9%E8%AE%8A%E6%96%B0%E5%A2%9E-ftoc2c%E5%81%9A%E6%88%90-soname-%E6%98%AF-libtempso2-%E7%9A%84%E6%96%B0%E7%89%88%E4%B8%A6%E6%8A%8A%E9%80%A3%E7%B5%90%E5%90%8D%E7%A8%B1%E6%8C%87%E5%88%B0%E6%96%B0%E7%89%88">5-3. 先預測：下一版把 f_to_c 改成回傳「十分之一度」（不相容的改變），新增 ftoc2.c，做成 SONAME 是 libtemp.so.2 的新版，並把連結名稱指到新版：</a></li>
+</ul>
+</nav>
+<main>
+<h1 id="s1-07靜態與動態函式庫ar-與-a-fpic-與-so-l-l執行時怎麼找到-so">s1-07：靜態與動態函式庫——<code>ar</code> 與 <code>.a</code>、<code>-fPIC</code> 與 <code>.so</code>、<code>-L</code>／<code>-l</code>、執行時怎麼找到 <code>.so</code></h1>
+<blockquote>
+<p>對應課程：第 ① 站第 7 課<br />
+課程筆記：<a href="../../c/%E9%9D%9C%E6%85%8B%E8%88%87%E5%8B%95%E6%85%8B%E5%87%BD%E5%BC%8F%E5%BA%AB-ar%E8%88%87.a%E3%80%81-fPIC%E8%88%87.so%E3%80%81%E5%9F%B7%E8%A1%8C%E6%99%82%E6%80%8E%E9%BA%BC%E6%89%BE%E5%88%B0.so.html">靜態與動態函式庫-ar與.a、-fPIC與.so、執行時怎麼找到.so.html</a><br />
+自我測驗：寫在同資料夾的 <a href="quiz.html">quiz</a></p>
+</blockquote>
+<h2 id="說明">說明</h2>
+<p>這一課要<strong>自己動手做</strong>函式庫：用 <code>ar</code> 包 <code>.a</code>、用 <code>-fPIC -shared</code> 做 <code>.so</code>，然後讓程式在連結時、執行時都找得到它們。</p>
+<ul>
+<li>每一題一個資料夾（<code>hw1/</code>～<code>hw5/</code>），檔案自己建。題目給的程式碼照打；題目給的指令照下，<strong>指令的輸出要貼進作答框</strong>。</li>
+<li>編譯一律加 <code>-Wall</code>，<strong>有警告就要處理</strong>，不能忽略。</li>
+<li>編譯產物（<code>.o</code>、<code>.a</code>、<code>.so</code>、執行檔）不會進 git（白名單），要留的輸出<strong>貼進作答框</strong>。</li>
+<li>筆記裡的範例（<code>calc_add</code>、<code>counter</code>）可以參考，但每一題的檔案、情境都跟範例不同，照抄範例答不出來。</li>
+</ul>
+<p>每題「解釋原因」的地方都標了答案的來源：</p>
+<ul>
+<li>【筆記第 X 節】：本課教過，回筆記那一節找。</li>
+<li>【新觀念，先猜】：還沒教過，寫下你的猜測就好，猜錯不算錯。</li>
+</ul>
+<p><strong>「先預測」的題目，一定要先把預測寫進作答框，再執行。</strong> 預測錯了沒關係，把錯在哪裡寫下來，這才是練習的重點。</p>
+<p><strong>第 6 課反覆卡在同一件事：實驗沒跑到最後一步、沒貼證據就下結論。</strong> 這一課每個小題都寫明「要貼什麼」，缺了就算不完整：</p>
+<ul>
+<li>「沒有錯誤訊息」不代表結果對，一定要<strong>執行</strong>並貼上輸出；</li>
+<li>改了檔案之後，確認你執行的是<strong>這次重新做出來的</strong>檔案（必要時先 <code>rm</code> 舊的產物）。</li>
+</ul>
+<p><strong>怎麼作答</strong>：每個小題下面有作答框，直接寫在裡面（把 <code>YYYY-MM-DD</code> 換成作答日期）。批改與參考答案寫在作答框正下方，不重答。</p>
+<hr />
+<h2 id="筆記的範例程式">筆記的範例程式</h2>
+<p>課程筆記裡每個實驗的原始碼都放在 <a href="../../../small-project/s1-07-libraries/examples/"><code>examples/</code></a>，一個實驗一個子資料夾，可以直接跟著筆記重做。<strong>它們是範例，不是作業</strong>；作業寫在 <code>hw1/</code>～<code>hw5/</code>，檔名跟範例不重複。</p>
+<table>
+<thead>
+<tr>
+<th>資料夾</th>
+<th>檔案</th>
+<th>筆記裡的位置</th>
+<th>示範什麼</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="../../../small-project/s1-07-libraries/examples/calc/"><code>examples/calc/</code></a></td>
+<td><a href="../../../small-project/s1-07-libraries/examples/calc/calc.h"><code>calc.h</code></a>、<a href="../../../small-project/s1-07-libraries/examples/calc/add.c"><code>add.c</code></a>、<a href="../../../small-project/s1-07-libraries/examples/calc/mul.c"><code>mul.c</code></a>、<a href="../../../small-project/s1-07-libraries/examples/calc/main.c"><code>main.c</code></a>、<a href="../../../small-project/s1-07-libraries/examples/calc/both.c"><code>both.c</code></a></td>
+<td><a href="../../c/%E9%9D%9C%E6%85%8B%E8%88%87%E5%8B%95%E6%85%8B%E5%87%BD%E5%BC%8F%E5%BA%AB-ar%E8%88%87.a%E3%80%81-fPIC%E8%88%87.so%E3%80%81%E5%9F%B7%E8%A1%8C%E6%99%82%E6%80%8E%E9%BA%BC%E6%89%BE%E5%88%B0.so.html#%E4%B8%80%E6%9C%AC%E8%AA%B2%E5%9C%A8%E5%81%9A%E4%BB%80%E9%BA%BC%E5%87%BD%E5%BC%8F%E5%BA%AB%E5%B0%B1%E6%98%AF%E5%85%88%E7%B7%A8%E5%A5%BD%E7%9A%84-o">第一節</a>～<a href="../../c/%E9%9D%9C%E6%85%8B%E8%88%87%E5%8B%95%E6%85%8B%E5%87%BD%E5%BC%8F%E5%BA%AB-ar%E8%88%87.a%E3%80%81-fPIC%E8%88%87.so%E3%80%81%E5%9F%B7%E8%A1%8C%E6%99%82%E6%80%8E%E9%BA%BC%E6%89%BE%E5%88%B0.so.html#%E5%9B%9B%E5%8B%95%E6%85%8B%E5%87%BD%E5%BC%8F%E5%BA%AB-shared-%E8%88%87--fpic">第四節</a></td>
+<td><code>ar rcs</code> 做 <code>libcalc.a</code>、只拉需要的成員、<code>both.c</code> 整個 <code>.o</code> 被拉進來、<code>-lcalc</code> 寫在前面的 <code>undefined reference</code>、<code>-L</code>／<code>-l</code>／<code>-l:</code>／<code>-static</code>、做 <code>libcalc.so</code> 與執行時找不到</td>
+</tr>
+<tr>
+<td><a href="../../../small-project/s1-07-libraries/examples/pic/"><code>examples/pic/</code></a></td>
+<td><a href="../../../small-project/s1-07-libraries/examples/pic/count.c"><code>count.c</code></a>、<a href="../../../small-project/s1-07-libraries/examples/pic/count_static.c"><code>count_static.c</code></a>、<a href="../../../small-project/s1-07-libraries/examples/pic/usecount.c"><code>usecount.c</code></a></td>
+<td><a href="../../c/%E9%9D%9C%E6%85%8B%E8%88%87%E5%8B%95%E6%85%8B%E5%87%BD%E5%BC%8F%E5%BA%AB-ar%E8%88%87.a%E3%80%81-fPIC%E8%88%87.so%E3%80%81%E5%9F%B7%E8%A1%8C%E6%99%82%E6%80%8E%E9%BA%BC%E6%89%BE%E5%88%B0.so.html#%E5%9B%9B%E5%8B%95%E6%85%8B%E5%87%BD%E5%BC%8F%E5%BA%AB-shared-%E8%88%87--fpic">第四節</a>〈為什麼一定要 <code>-fPIC</code>〉</td>
+<td>不加 <code>-fPIC</code> 時 <code>recompile with -fPIC</code>、GOT 間接存取、符號插入（主程式的 <code>counter</code> 贏）、<code>static</code> 變數不用 <code>-fPIC</code></td>
+</tr>
+<tr>
+<td><a href="../../../small-project/s1-07-libraries/examples/search/"><code>examples/search/</code></a></td>
+<td><a href="../../../small-project/s1-07-libraries/examples/search/calc.h"><code>calc.h</code></a>、<a href="../../../small-project/s1-07-libraries/examples/search/mul.c"><code>mul.c</code></a>、<a href="../../../small-project/s1-07-libraries/examples/search/main.c"><code>main.c</code></a>、<a href="../../../small-project/s1-07-libraries/examples/search/v1/add.c"><code>v1/add.c</code></a>、<a href="../../../small-project/s1-07-libraries/examples/search/v2/add.c"><code>v2/add.c</code></a></td>
+<td><a href="../../c/%E9%9D%9C%E6%85%8B%E8%88%87%E5%8B%95%E6%85%8B%E5%87%BD%E5%BC%8F%E5%BA%AB-ar%E8%88%87.a%E3%80%81-fPIC%E8%88%87.so%E3%80%81%E5%9F%B7%E8%A1%8C%E6%99%82%E6%80%8E%E9%BA%BC%E6%89%BE%E5%88%B0.so.html#%E4%BA%94%E5%9F%B7%E8%A1%8C%E6%99%82%E6%80%8E%E9%BA%BC%E6%89%BE%E5%88%B0-so">第五節</a>〈<code>RPATH</code> 和 <code>RUNPATH</code> 差在哪〉、<a href="../../c/%E9%9D%9C%E6%85%8B%E8%88%87%E5%8B%95%E6%85%8B%E5%87%BD%E5%BC%8F%E5%BA%AB-ar%E8%88%87.a%E3%80%81-fPIC%E8%88%87.so%E3%80%81%E5%9F%B7%E8%A1%8C%E6%99%82%E6%80%8E%E9%BA%BC%E6%89%BE%E5%88%B0.so.html#%E5%85%AD%E6%8F%9B%E6%8E%89-so-%E4%B8%8D%E7%94%A8%E9%87%8D%E6%96%B0%E9%80%A3%E7%B5%90%E4%BB%A5%E5%8F%8A-soname">第六節</a>〈換掉 <code>.so</code>〉</td>
+<td><code>RUNPATH</code> 讓 <code>LD_LIBRARY_PATH</code> 優先、<code>RPATH</code> 不讓；換掉 <code>.so</code> 不用重新連結</td>
+</tr>
+<tr>
+<td><a href="../../../small-project/s1-07-libraries/examples/soname/"><code>examples/soname/</code></a></td>
+<td><a href="../../../small-project/s1-07-libraries/examples/soname/calc.h"><code>calc.h</code></a>、<a href="../../../small-project/s1-07-libraries/examples/soname/add.c"><code>add.c</code></a>、<a href="../../../small-project/s1-07-libraries/examples/soname/mul.c"><code>mul.c</code></a>、<a href="../../../small-project/s1-07-libraries/examples/soname/main.c"><code>main.c</code></a></td>
+<td>第六節〈SONAME〉</td>
+<td><code>-Wl,-soname</code>、三個名字與符號連結、<code>NEEDED</code> 記的是 SONAME</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="1-做一個靜態函式庫看連結器拉了哪些成員">1. 做一個靜態函式庫，看連結器拉了哪些成員</h2>
+<p>在 <code>hw1/</code> 裡建下面五個檔案。這是一個溫度換算函式庫：溫度先算成「十分之一度」的整數，再由 <code>temp_round</code> 四捨五入成整數度。</p>
+<p><code>temp.h</code>：</p>
+<pre><code class="language-c"><span class="cp">#ifndef TEMP_H</span>
+<span class="cp">#define TEMP_H</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">c_to_f</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">c</span><span class="p">);</span>
+<span class="kt">int</span><span class="w"> </span><span class="nf">f_to_c</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">f</span><span class="p">);</span>
+<span class="kt">int</span><span class="w"> </span><span class="nf">temp_round</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">x10</span><span class="p">);</span>
+
+<span class="cp">#endif</span>
+</code></pre>
+<p><code>ctof.c</code>：</p>
+<pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;temp.h&quot;</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">c_to_f</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">c</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">temp_round</span><span class="p">(</span><span class="n">c</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mi">18</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">320</span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre>
+<p><code>ftoc.c</code>：</p>
+<pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;temp.h&quot;</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">f_to_c</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">f</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">temp_round</span><span class="p">((</span><span class="n">f</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">32</span><span class="p">)</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mi">100</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="mi">18</span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre>
+<p><code>round.c</code>：</p>
+<pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;temp.h&quot;</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">temp_round</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">x10</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="p">(</span><span class="n">x10</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">5</span><span class="p">)</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="mi">10</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<p><code>hw1_main.c</code>（<strong>只呼叫 <code>f_to_c</code></strong>）：</p>
+<pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;temp.h&quot;</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;f_to_c(212) = %d</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">f_to_c</span><span class="p">(</span><span class="mi">212</span><span class="p">));</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<p>把 <code>ctof.c</code>、<code>ftoc.c</code>、<code>round.c</code> 各自 <code>gcc -Wall -c</code> 成 <code>.o</code>，用 <code>ar rcs</code> 包成 <code>libtemp.a</code>，再用 <code>-L. -ltemp</code> 連結成 <code>hw1</code>。</p>
+<h3 id="1-1-貼上你建立-libtempa-與連結-hw1-的指令hw1-的輸出ar-t-libtempa-與-nm--s-libtempa-的輸出nm--s-印出的-archive-index-是什麼誰會用到它再用-ar-rcs-libnoidxa-ctofo-ftoco-roundo-做一個沒有索引的版本用--l--lnoidx-連結貼上結果並用-ranlib-修好它貼上修好後的連結與執行結果筆記第二節實驗做出-libcalca">1-1. 貼上你建立 <code>libtemp.a</code> 與連結 <code>hw1</code> 的指令、<code>./hw1</code> 的輸出、<code>ar t libtemp.a</code> 與 <code>nm -s libtemp.a</code> 的輸出。<code>nm -s</code> 印出的 <code>Archive index</code> 是什麼、誰會用到它？再用 <code>ar rcS libnoidx.a ctof.o ftoc.o round.o</code> 做一個沒有索引的版本、用 <code>-L. -lnoidx</code> 連結，貼上結果，並用 <code>ranlib</code> 修好它（貼上修好後的連結與執行結果）。【筆記<a href="../../c/%E9%9D%9C%E6%85%8B%E8%88%87%E5%8B%95%E6%85%8B%E5%87%BD%E5%BC%8F%E5%BA%AB-ar%E8%88%87.a%E3%80%81-fPIC%E8%88%87.so%E3%80%81%E5%9F%B7%E8%A1%8C%E6%99%82%E6%80%8E%E9%BA%BC%E6%89%BE%E5%88%B0.so.html#%E4%BA%8C%E9%9D%9C%E6%85%8B%E5%87%BD%E5%BC%8F%E5%BA%AB%E7%94%A8-ar-%E6%8A%8A-o-%E5%8C%85%E6%88%90-a">第二節</a>〈實驗：做出 <code>libcalc.a</code>〉】</h3>
+<p><strong>第 1 次（YYYY-MM-DD）</strong></p>
+<details class="answer-fold" open><summary>作答</summary>
+<div class="answer-box" data-file="small-project/s1-07-libraries/README.md" data-line="110"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+</details>
+<h3 id="1-2-先預測nm-hw1--grep--e-c_to_ff_to_ctemp_round-會列出這三個函式裡的哪幾個寫下預測後再執行貼上結果並貼上-gcc--wall-hw1_mainc--l--ltemp--wl--verbose--o-hw1-21--grep-libtemp-的輸出hw1_mainc-沒有直接呼叫-temp_round它為什麼或為什麼沒有在執行檔裡c_to_f-呢筆記第二節連結只拉需要的成員">1-2. 先預測：<code>nm hw1 | grep -E 'c_to_f|f_to_c|temp_round'</code> 會列出這三個函式裡的哪幾個？寫下預測後再執行，貼上結果，並貼上 <code>gcc -Wall hw1_main.c -L. -ltemp -Wl,--verbose -o hw1 2&gt;&amp;1 | grep libtemp</code> 的輸出。<code>hw1_main.c</code> 沒有直接呼叫 <code>temp_round</code>，它為什麼（或為什麼沒有）在執行檔裡？<code>c_to_f</code> 呢？【筆記第二節〈連結：只拉需要的成員〉】</h3>
+<p><strong>第 1 次（YYYY-MM-DD）</strong></p>
+<details class="answer-fold" open><summary>作答</summary>
+<div class="answer-box" data-file="small-project/s1-07-libraries/README.md" data-line="116"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+</details>
+<hr />
+<h2 id="2-兩個互相需要的靜態函式庫順序怎麼排">2. 兩個互相需要的靜態函式庫：順序怎麼排</h2>
+<p>在 <code>hw2/</code> 裡，把函式庫拆成兩個：<code>libconv.a</code> 放換算函式，<code>libround.a</code> 放四捨五入。這次 <code>temp_round</code> 會先呼叫 <code>temp_clamp</code>，把低於絕對零度（−273.2 度，也就是 −2732 個十分之一度）的值夾住，而 <code>temp_clamp</code> 放在 <strong><code>libconv.a</code></strong> 裡。</p>
+<p><code>temp.h</code>：</p>
+<pre><code class="language-c"><span class="cp">#ifndef TEMP_H</span>
+<span class="cp">#define TEMP_H</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">c_to_f</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">c</span><span class="p">);</span>
+<span class="kt">int</span><span class="w"> </span><span class="nf">f_to_c</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">f</span><span class="p">);</span>
+<span class="kt">int</span><span class="w"> </span><span class="nf">temp_round</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">x10</span><span class="p">);</span>
+<span class="kt">int</span><span class="w"> </span><span class="nf">temp_clamp</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">x10</span><span class="p">);</span>
+
+<span class="cp">#endif</span>
+</code></pre>
+<p><code>ctof.c</code>、<code>ftoc.c</code>：跟第 1 題一樣（照第 1 題的內容再建一次）。</p>
+<p><code>limit.c</code>：</p>
+<pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;temp.h&quot;</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">temp_clamp</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">x10</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">x10</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">-2732</span><span class="w"> </span><span class="o">?</span><span class="w"> </span><span class="mi">-2732</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">x10</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<p><code>round.c</code>（跟第 1 題不同：多了一行呼叫 <code>temp_clamp</code>）：</p>
+<pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;temp.h&quot;</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">temp_round</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">x10</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">x10</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">temp_clamp</span><span class="p">(</span><span class="n">x10</span><span class="p">);</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="p">(</span><span class="n">x10</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">5</span><span class="p">)</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="mi">10</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<p><code>hw2_main.c</code>：</p>
+<pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;temp.h&quot;</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;f_to_c(100) = %d</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">f_to_c</span><span class="p">(</span><span class="mi">100</span><span class="p">));</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<p>建立兩個函式庫：</p>
+<pre><code class="language-sh">gcc<span class="w"> </span>-Wall<span class="w"> </span>-c<span class="w"> </span>ctof.c<span class="w"> </span>ftoc.c<span class="w"> </span>limit.c<span class="w"> </span>round.c
+ar<span class="w"> </span>rcs<span class="w"> </span>libconv.a<span class="w"> </span>ctof.o<span class="w"> </span>ftoc.o<span class="w"> </span>limit.o
+ar<span class="w"> </span>rcs<span class="w"> </span>libround.a<span class="w"> </span>round.o
+</code></pre>
+<h3 id="2-1-先預測下面三個連結指令哪些會成功失敗的會說哪個符號找不到是在哪個檔案裡需要它寫下預測後再逐一執行貼上每一個的完整輸出成功的要執行-hw2-並貼上結果用ld-由左往右掃手上有一張還缺哪些符號的清單的方式逐步說明每個指令掃到每個檔案時拉了哪些成員清單怎麼變筆記第二節順序ld-由左往右只掃一次">2-1. 先預測下面三個連結指令，哪些會成功、失敗的會說哪個符號找不到（是在哪個檔案裡需要它）？寫下預測後再逐一執行，貼上每一個的完整輸出（成功的要執行 <code>./hw2</code> 並貼上結果）。用「<code>ld</code> 由左往右掃，手上有一張還缺哪些符號的清單」的方式，<strong>逐步</strong>說明每個指令掃到每個檔案時拉了哪些成員、清單怎麼變。【筆記第二節〈順序：<code>ld</code> 由左往右只掃一次〉】</h3>
+<pre><code class="language-sh">gcc<span class="w"> </span>-Wall<span class="w"> </span>hw2_main.c<span class="w"> </span>-L.<span class="w"> </span>-lround<span class="w"> </span>-lconv<span class="w"> </span>-o<span class="w"> </span>hw2<span class="w">           </span><span class="c1"># (a)</span>
+gcc<span class="w"> </span>-Wall<span class="w"> </span>hw2_main.c<span class="w"> </span>-L.<span class="w"> </span>-lconv<span class="w"> </span>-lround<span class="w"> </span>-o<span class="w"> </span>hw2<span class="w">           </span><span class="c1"># (b)</span>
+gcc<span class="w"> </span>-Wall<span class="w"> </span>hw2_main.c<span class="w"> </span>-L.<span class="w"> </span>-lconv<span class="w"> </span>-lround<span class="w"> </span>-lconv<span class="w"> </span>-o<span class="w"> </span>hw2<span class="w">    </span><span class="c1"># (c)</span>
+</code></pre>
+<p><strong>第 1 次（YYYY-MM-DD）</strong></p>
+<details class="answer-fold" open><summary>作答</summary>
+<div class="answer-box" data-file="small-project/s1-07-libraries/README.md" data-line="194"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+</details>
+<h3 id="2-2-不重複寫--lconv改用--wl--start-group---wl--end-group-讓-b-的順序也能連結成功貼上指令與執行結果筆記第二節順序最後一段">2-2. 不重複寫 <code>-lconv</code>，改用 <code>-Wl,--start-group … -Wl,--end-group</code> 讓 (b) 的順序也能連結成功。貼上指令與執行結果。【筆記第二節〈順序〉最後一段】</h3>
+<p><strong>第 1 次（YYYY-MM-DD）</strong></p>
+<details class="answer-fold" open><summary>作答</summary>
+<div class="answer-box" data-file="small-project/s1-07-libraries/README.md" data-line="200"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+</details>
+<h3 id="2-3-先猜再實驗把兩個函式庫改做成-so指令如下再用-ab-兩種順序連結各會成功還是失敗貼上結果成功的要執行為什麼-so-版的-b-不必像-a-那樣把--lconv-寫兩次a-為什麼還是失敗或為什麼成功新觀念先猜a-的部分可以用筆記第四節so-在-ubuntu-上也有順序問題推">2-3. 先猜再實驗：把兩個函式庫改做成 <code>.so</code>（指令如下），再用 (a)、(b) 兩種順序連結。各會成功還是失敗？貼上結果（成功的要執行）。為什麼 <code>.so</code> 版的 (b) 不必像 <code>.a</code> 那樣把 <code>-lconv</code> 寫兩次？(a) 為什麼還是失敗（或為什麼成功）？【新觀念，先猜；(a) 的部分可以用筆記<a href="../../c/%E9%9D%9C%E6%85%8B%E8%88%87%E5%8B%95%E6%85%8B%E5%87%BD%E5%BC%8F%E5%BA%AB-ar%E8%88%87.a%E3%80%81-fPIC%E8%88%87.so%E3%80%81%E5%9F%B7%E8%A1%8C%E6%99%82%E6%80%8E%E9%BA%BC%E6%89%BE%E5%88%B0.so.html#%E5%9B%9B%E5%8B%95%E6%85%8B%E5%87%BD%E5%BC%8F%E5%BA%AB-shared-%E8%88%87--fpic">第四節</a>〈<code>.so</code> 在 Ubuntu 上也有順序問題〉推】</h3>
+<pre><code class="language-sh">mkdir<span class="w"> </span>-p<span class="w"> </span>so
+gcc<span class="w"> </span>-Wall<span class="w"> </span>-fPIC<span class="w"> </span>-shared<span class="w"> </span>ctof.c<span class="w"> </span>ftoc.c<span class="w"> </span>limit.c<span class="w"> </span>-o<span class="w"> </span>so/libconv.so
+gcc<span class="w"> </span>-Wall<span class="w"> </span>-fPIC<span class="w"> </span>-shared<span class="w"> </span>round.c<span class="w"> </span>-o<span class="w"> </span>so/libround.so
+gcc<span class="w"> </span>-Wall<span class="w"> </span>hw2_main.c<span class="w"> </span>-Lso<span class="w"> </span>-lround<span class="w"> </span>-lconv<span class="w"> </span>-Wl,-rpath,<span class="s1">&#39;$ORIGIN/so&#39;</span><span class="w"> </span>-o<span class="w"> </span>hw2so<span class="w">   </span><span class="c1"># (a)</span>
+gcc<span class="w"> </span>-Wall<span class="w"> </span>hw2_main.c<span class="w"> </span>-Lso<span class="w"> </span>-lconv<span class="w"> </span>-lround<span class="w"> </span>-Wl,-rpath,<span class="s1">&#39;$ORIGIN/so&#39;</span><span class="w"> </span>-o<span class="w"> </span>hw2so<span class="w">   </span><span class="c1"># (b)</span>
+</code></pre>
+<p><strong>第 1 次（YYYY-MM-DD）</strong></p>
+<details class="answer-fold" open><summary>作答</summary>
+<div class="answer-box" data-file="small-project/s1-07-libraries/README.md" data-line="214"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+</details>
+<hr />
+<h2 id="3-做一個-so-fpicgot讓執行檔找得到它">3. 做一個 <code>.so</code>：<code>-fPIC</code>、GOT、讓執行檔找得到它</h2>
+<p>在 <code>hw3/</code> 裡。這次函式庫多了一個全域變數 <code>temp_calls</code>，記錄 <code>temp_round</code> 被呼叫了幾次。</p>
+<p><code>temp.h</code>：</p>
+<pre><code class="language-c"><span class="cp">#ifndef TEMP_H</span>
+<span class="cp">#define TEMP_H</span>
+
+<span class="k">extern</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">temp_calls</span><span class="p">;</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">c_to_f</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">c</span><span class="p">);</span>
+<span class="kt">int</span><span class="w"> </span><span class="nf">f_to_c</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">f</span><span class="p">);</span>
+<span class="kt">int</span><span class="w"> </span><span class="nf">temp_round</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">x10</span><span class="p">);</span>
+
+<span class="cp">#endif</span>
+</code></pre>
+<p><code>ctof.c</code>、<code>ftoc.c</code>：跟第 1 題一樣。</p>
+<p><code>round.c</code>：</p>
+<pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;temp.h&quot;</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="n">temp_calls</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">temp_round</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">x10</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">temp_calls</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">temp_calls</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="p">(</span><span class="n">x10</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">5</span><span class="p">)</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="mi">10</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<p><code>hw3_main.c</code>：</p>
+<pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;temp.h&quot;</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;%d %d</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">f_to_c</span><span class="p">(</span><span class="mi">100</span><span class="p">),</span><span class="w"> </span><span class="n">c_to_f</span><span class="p">(</span><span class="mi">100</span><span class="p">));</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;temp_calls = %d</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">temp_calls</span><span class="p">);</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<h3 id="3-1-先預測三個檔案都不加--fpic執行-gcc--wall--c-ctofc-ftocc-roundc--gcc--shared-ctofo-ftoco-roundo--o-libtempso會成功嗎如果失敗錯誤訊息會指向哪個-o哪個符號寫下預測後執行貼上輸出為什麼-ctofoftoco-沒有被點名它們也呼叫了別的檔案的-temp_round筆記第四節為什麼一定要--fpic為什麼不能直接用固定距離">3-1. 先預測：三個檔案都<strong>不加</strong> <code>-fPIC</code>，執行 <code>gcc -Wall -c ctof.c ftoc.c round.c &amp;&amp; gcc -shared ctof.o ftoc.o round.o -o libtemp.so</code>，會成功嗎？如果失敗，錯誤訊息會指向哪個 <code>.o</code>、哪個符號？寫下預測後執行，貼上輸出。為什麼 <code>ctof.o</code>、<code>ftoc.o</code> 沒有被點名（它們也呼叫了別的檔案的 <code>temp_round</code>）？【筆記第四節〈為什麼一定要 <code>-fPIC</code>〉、〈為什麼不能直接用固定距離〉】</h3>
+<p><strong>第 1 次（YYYY-MM-DD）</strong></p>
+<details class="answer-fold" open><summary>作答</summary>
+<div class="answer-box" data-file="small-project/s1-07-libraries/README.md" data-line="271"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+</details>
+<h3 id="3-2-改用--fpic-重編三個檔案做出-libtempso貼上-objdump--dr---no-show-raw-insn-roundo-裡-temp_round-的內容標出哪幾行在存取-temp_calls逐行說明那幾行在做什麼中間-imul-0x66666667shrsar-那幾行是-gcc-用乘法代替除以-10的寫法這題不用解釋再貼上-readelf--r-libtempso--grep-temp_calls說明那一列是留給誰要它做什麼筆記第四節為什麼一定要--fpic">3-2. 改用 <code>-fPIC</code> 重編三個檔案、做出 <code>libtemp.so</code>。貼上 <code>objdump -dr --no-show-raw-insn round.o</code> 裡 <code>temp_round</code> 的內容，標出<strong>哪幾行在存取 <code>temp_calls</code></strong>，逐行說明那幾行在做什麼（中間 <code>imul $0x66666667</code>、<code>shr</code>、<code>sar</code> 那幾行是 gcc 用乘法代替「除以 10」的寫法，這題不用解釋）。再貼上 <code>readelf -r libtemp.so | grep temp_calls</code>，說明那一列是留給誰、要它做什麼。【筆記第四節〈為什麼一定要 <code>-fPIC</code>〉】</h3>
+<p><strong>第 1 次（YYYY-MM-DD）</strong></p>
+<details class="answer-fold" open><summary>作答</summary>
+<div class="answer-box" data-file="small-project/s1-07-libraries/README.md" data-line="277"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+</details>
+<h3 id="3-3-用-gcc--wall-hw3_mainc--l--ltemp--o-hw3-連結執行-hw3貼上輸出與-ldd-hw3-的輸出這個錯誤是誰印的為什麼連結成功了執行卻找不到接著用兩種方法讓它跑起來各貼上指令與輸出a-ld_library_pathb-重新連結用--wl-rpathorigin-把路徑寫進執行檔另外貼上-readelf--d-hw3--grep--e-neededrunpath輸出裡-temp_calls-是幾為什麼是這個數字筆記第五節方法一方法二">3-3. 用 <code>gcc -Wall hw3_main.c -L. -ltemp -o hw3</code> 連結，執行 <code>./hw3</code>，貼上輸出與 <code>ldd ./hw3</code> 的輸出。這個錯誤是誰印的？為什麼連結成功了，執行卻找不到？接著用兩種方法讓它跑起來，各貼上指令與輸出：(a) <code>LD_LIBRARY_PATH</code>；(b) 重新連結，用 <code>-Wl,-rpath,'$ORIGIN'</code> 把路徑寫進執行檔（另外貼上 <code>readelf -d hw3 | grep -E 'NEEDED|RUNPATH'</code>）。輸出裡 <code>temp_calls</code> 是幾？為什麼是這個數字？【筆記<a href="../../c/%E9%9D%9C%E6%85%8B%E8%88%87%E5%8B%95%E6%85%8B%E5%87%BD%E5%BC%8F%E5%BA%AB-ar%E8%88%87.a%E3%80%81-fPIC%E8%88%87.so%E3%80%81%E5%9F%B7%E8%A1%8C%E6%99%82%E6%80%8E%E9%BA%BC%E6%89%BE%E5%88%B0.so.html#%E4%BA%94%E5%9F%B7%E8%A1%8C%E6%99%82%E6%80%8E%E9%BA%BC%E6%89%BE%E5%88%B0-so">第五節</a>〈方法一〉、〈方法二〉】</h3>
+<p><strong>第 1 次（YYYY-MM-DD）</strong></p>
+<details class="answer-fold" open><summary>作答</summary>
+<div class="answer-box" data-file="small-project/s1-07-libraries/README.md" data-line="283"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+</details>
+<h3 id="3-4-先預測在-hw3_mainc-的-include-temph-下面加一行-int-temp_calls--1000temph-不改照-3-3-b-的方式重新連結執行temp_calls---會印出多少寫下預測後執行貼上輸出與-ld_debugbindings-hw3-21--grep-temp_calls為什麼接著把-roundo-等三個--fpic-的-o-用-ar-rcs-libtempa-ctofo-ftoco-roundo-包成-a用-gcc--wall-hw3_mainc--l--llibtempa--o-hw3s-靜態連結先預測會怎樣再執行貼上結果為什麼同樣兩份-temp_calls動態和靜態的結果不一樣做完把加的那一行刪掉筆記第四節為什麼不能直接用固定距離">3-4. 先預測：在 <code>hw3_main.c</code> 的 <code>#include &quot;temp.h&quot;</code> 下面加一行 <code>int temp_calls = 1000;</code>（<code>temp.h</code> 不改），照 3-3 (b) 的方式重新連結、執行，<code>temp_calls = </code> 會印出多少？寫下預測後執行，貼上輸出與 <code>LD_DEBUG=bindings ./hw3 2&gt;&amp;1 | grep temp_calls</code>。為什麼？接著把 <code>round.o</code> 等三個 <code>-fPIC</code> 的 <code>.o</code> 用 <code>ar rcs libtemp.a ctof.o ftoc.o round.o</code> 包成 <code>.a</code>，用 <code>gcc -Wall hw3_main.c -L. -l:libtemp.a -o hw3s</code> 靜態連結，先預測會怎樣再執行、貼上結果；為什麼同樣兩份 <code>temp_calls</code>，動態和靜態的結果不一樣？做完把加的那一行刪掉。【筆記第四節〈為什麼不能直接用固定距離〉】</h3>
+<p><strong>第 1 次（YYYY-MM-DD）</strong></p>
+<details class="answer-fold" open><summary>作答</summary>
+<div class="answer-box" data-file="small-project/s1-07-libraries/README.md" data-line="289"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+</details>
+<hr />
+<h2 id="4-so-依賴另一個-sorunpath-只管直接依賴">4. <code>.so</code> 依賴另一個 <code>.so</code>：<code>RUNPATH</code> 只管直接依賴</h2>
+<p>在 <code>hw4/</code> 裡。這次 <code>libtemp.so</code> 自己也需要另一個函式庫 <code>libround.so</code>，兩個都放在 <code>hw4/lib/</code>，執行檔 <code>hw4</code> 放在 <code>hw4/</code>。</p>
+<p><code>temp.h</code>、<code>ctof.c</code>、<code>ftoc.c</code>、<code>round.c</code>：跟<strong>第 1 題</strong>一樣（沒有 <code>temp_calls</code>、沒有 <code>temp_clamp</code>）。</p>
+<p><code>hw4_main.c</code>：</p>
+<pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;temp.h&quot;</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;c_to_f(37) = %d</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">c_to_f</span><span class="p">(</span><span class="mi">37</span><span class="p">));</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<p>建立與連結（照打；<code>-Wl,-rpath-link,lib</code> 是什麼見 4-3）：</p>
+<pre><code class="language-sh">mkdir<span class="w"> </span>-p<span class="w"> </span>lib
+gcc<span class="w"> </span>-Wall<span class="w"> </span>-fPIC<span class="w"> </span>-shared<span class="w"> </span>round.c<span class="w"> </span>-o<span class="w"> </span>lib/libround.so
+gcc<span class="w"> </span>-Wall<span class="w"> </span>-fPIC<span class="w"> </span>-shared<span class="w"> </span>ctof.c<span class="w"> </span>ftoc.c<span class="w"> </span>-Llib<span class="w"> </span>-lround<span class="w"> </span>-o<span class="w"> </span>lib/libtemp.so
+gcc<span class="w"> </span>-Wall<span class="w"> </span>hw4_main.c<span class="w"> </span>-Llib<span class="w"> </span>-ltemp<span class="w"> </span>-Wl,-rpath-link,lib<span class="w"> </span>-Wl,-rpath,<span class="s1">&#39;$ORIGIN/lib&#39;</span><span class="w"> </span>-o<span class="w"> </span>hw4
+</code></pre>
+<h3 id="4-1-先預測-hw4-會成功嗎寫下預測後執行貼上輸出再貼上-readelf--d-hw4--grep--e-neededrunpathreadelf--d-liblibtempso--grep--e-neededrunpath以及-ld_debuglibs-hw4-21--grep--e-find-librarysearch-pathhw4-明明有-runpathlibroundso-也跟-libtempso-放在同一個資料夾為什麼找不到或為什麼找得到筆記第五節ldso-去了哪些地方找的第-3-步rpath-和-runpath-差在哪最後一段">4-1. 先預測 <code>./hw4</code> 會成功嗎？寫下預測後執行，貼上輸出；再貼上 <code>readelf -d hw4 | grep -E 'NEEDED|RUNPATH'</code>、<code>readelf -d lib/libtemp.so | grep -E 'NEEDED|RUNPATH'</code>，以及 <code>LD_DEBUG=libs ./hw4 2&gt;&amp;1 | grep -E 'find library|search path'</code>。<code>hw4</code> 明明有 <code>RUNPATH</code>、<code>libround.so</code> 也跟 <code>libtemp.so</code> 放在同一個資料夾，為什麼找不到（或為什麼找得到）？【筆記第五節〈<code>ld.so</code> 去了哪些地方找〉的第 3 步、〈<code>RPATH</code> 和 <code>RUNPATH</code> 差在哪〉最後一段】</h3>
+<p><strong>第 1 次（YYYY-MM-DD）</strong></p>
+<details class="answer-fold" open><summary>作答</summary>
+<div class="answer-box" data-file="small-project/s1-07-libraries/README.md" data-line="325"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+</details>
+<h3 id="4-2-用兩種方法修好各貼上你改的指令readelf--d-相關的列與-hw4-的輸出a-只重做-liblibtempso讓它自己帶-runpath路徑要用-origin-寫想一想-libtempso-的-origin-是哪個資料夾b-不改-libtempso先把它做回原本的樣子改成重新連結-hw4用-rpath兩種方法你會選哪一種為什麼筆記第五節rpath-和-runpath-差在哪">4-2. 用兩種方法修好，各貼上你改的指令、<code>readelf -d</code> 相關的列與 <code>./hw4</code> 的輸出：(a) 只重做 <code>lib/libtemp.so</code>、讓它自己帶 <code>RUNPATH</code>（路徑要用 <code>$ORIGIN</code> 寫，想一想 <code>libtemp.so</code> 的 <code>$ORIGIN</code> 是哪個資料夾）；(b) 不改 <code>libtemp.so</code>（先把它做回原本的樣子），改成重新連結 <code>hw4</code>、用 <code>RPATH</code>。兩種方法你會選哪一種？為什麼？【筆記第五節〈<code>RPATH</code> 和 <code>RUNPATH</code> 差在哪〉】</h3>
+<p><strong>第 1 次（YYYY-MM-DD）</strong></p>
+<details class="answer-fold" open><summary>作答</summary>
+<div class="answer-box" data-file="small-project/s1-07-libraries/README.md" data-line="331"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+</details>
+<h3 id="4-3-先猜再實驗把連結-hw4-的指令拿掉--wl-rpath-linklib重新連結貼上輸出hw4_mainc-根本沒呼叫-temp_round為什麼-ld-在連結時就要去找-libroundso-rpath-link-跟--rpath-差在哪-rpath-link-的作用見筆記第七節ld的表ld-為什麼要在連結時檢查是新觀念先猜">4-3. 先猜再實驗：把連結 <code>hw4</code> 的指令拿掉 <code>-Wl,-rpath-link,lib</code>，重新連結，貼上輸出。<code>hw4_main.c</code> 根本沒呼叫 <code>temp_round</code>，為什麼 <code>ld</code> 在<strong>連結時</strong>就要去找 <code>libround.so</code>？<code>-rpath-link</code> 跟 <code>-rpath</code> 差在哪？【<code>-rpath-link</code> 的作用見筆記<a href="../../c/%E9%9D%9C%E6%85%8B%E8%88%87%E5%8B%95%E6%85%8B%E5%87%BD%E5%BC%8F%E5%BA%AB-ar%E8%88%87.a%E3%80%81-fPIC%E8%88%87.so%E3%80%81%E5%9F%B7%E8%A1%8C%E6%99%82%E6%80%8E%E9%BA%BC%E6%89%BE%E5%88%B0.so.html#%E4%B8%83%E6%9C%AC%E8%AA%B2%E7%94%A8%E5%88%B0%E7%9A%84%E5%B7%A5%E5%85%B7%E9%81%B8%E9%A0%85%E8%88%87%E5%AE%8C%E6%95%B4%E6%B8%85%E5%96%AE%E5%9C%A8%E5%93%AA">第七節</a>〈<code>ld</code>〉的表；<code>ld</code> 為什麼要在連結時檢查是新觀念，先猜】</h3>
+<p><strong>第 1 次（YYYY-MM-DD）</strong></p>
+<details class="answer-fold" open><summary>作答</summary>
+<div class="answer-box" data-file="small-project/s1-07-libraries/README.md" data-line="337"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+</details>
+<hr />
+<h2 id="5-函式庫更新靜態-vs-動態以及-soname">5. 函式庫更新：靜態 vs 動態，以及 SONAME</h2>
+<p>在 <code>hw5/</code> 裡。<code>temp.h</code>、<code>ctof.c</code>、<code>ftoc.c</code> 跟第 1 題一樣，但<strong><code>round.c</code> 先故意寫錯</strong>（無條件捨去，不是四捨五入）：</p>
+<pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;temp.h&quot;</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">temp_round</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">x10</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">x10</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="mi">10</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<p><code>hw5_main.c</code>：</p>
+<pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;temp.h&quot;</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;f_to_c(100) = %d</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">f_to_c</span><span class="p">(</span><span class="mi">100</span><span class="p">));</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<p>做出靜態版與帶 SONAME 的動態版，各連結一支程式：</p>
+<pre><code class="language-sh">gcc<span class="w"> </span>-Wall<span class="w"> </span>-fPIC<span class="w"> </span>-c<span class="w"> </span>ctof.c<span class="w"> </span>ftoc.c<span class="w"> </span>round.c
+ar<span class="w"> </span>rcs<span class="w"> </span>libtemp.a<span class="w"> </span>ctof.o<span class="w"> </span>ftoc.o<span class="w"> </span>round.o
+gcc<span class="w"> </span>-shared<span class="w"> </span>-Wl,-soname,libtemp.so.1<span class="w"> </span>ctof.o<span class="w"> </span>ftoc.o<span class="w"> </span>round.o<span class="w"> </span>-o<span class="w"> </span>libtemp.so.1.0.0
+ln<span class="w"> </span>-sf<span class="w"> </span>libtemp.so.1.0.0<span class="w"> </span>libtemp.so.1
+ln<span class="w"> </span>-sf<span class="w"> </span>libtemp.so.1<span class="w"> </span>libtemp.so
+gcc<span class="w"> </span>-Wall<span class="w"> </span>hw5_main.c<span class="w"> </span>-L.<span class="w"> </span>-l:libtemp.a<span class="w"> </span>-o<span class="w"> </span>hw5_static
+gcc<span class="w"> </span>-Wall<span class="w"> </span>hw5_main.c<span class="w"> </span>-L.<span class="w"> </span>-ltemp<span class="w"> </span>-Wl,-rpath,<span class="s1">&#39;$ORIGIN&#39;</span><span class="w"> </span>-o<span class="w"> </span>hw5_dyn
+</code></pre>
+<h3 id="5-1-執行兩支程式貼上輸出100f-正確是-378c四捨五入應該是-38貼上-ls--l-libtempreadelf--d-hw5_dyn--grep--e-neededrunpathld-照--ltemp-打開的是-libtempsoneeded-卻寫-libtempso1為什麼筆記第六節soname">5-1. 執行兩支程式，貼上輸出（100°F 正確是 37.8°C，四捨五入應該是 38）。貼上 <code>ls -l libtemp*</code>、<code>readelf -d hw5_dyn | grep -E 'NEEDED|RUNPATH'</code>。<code>ld</code> 照 <code>-ltemp</code> 打開的是 <code>libtemp.so</code>，<code>NEEDED</code> 卻寫 <code>libtemp.so.1</code>，為什麼？【筆記<a href="../../c/%E9%9D%9C%E6%85%8B%E8%88%87%E5%8B%95%E6%85%8B%E5%87%BD%E5%BC%8F%E5%BA%AB-ar%E8%88%87.a%E3%80%81-fPIC%E8%88%87.so%E3%80%81%E5%9F%B7%E8%A1%8C%E6%99%82%E6%80%8E%E9%BA%BC%E6%89%BE%E5%88%B0.so.html#%E5%85%AD%E6%8F%9B%E6%8E%89-so-%E4%B8%8D%E7%94%A8%E9%87%8D%E6%96%B0%E9%80%A3%E7%B5%90%E4%BB%A5%E5%8F%8A-soname">第六節</a>〈SONAME〉】</h3>
+<p><strong>第 1 次（YYYY-MM-DD）</strong></p>
+<details class="answer-fold" open><summary>作答</summary>
+<div class="answer-box" data-file="small-project/s1-07-libraries/README.md" data-line="383"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+</details>
+<h3 id="5-2-先預測把-roundc-改成正確的四捨五入return-x10--5--10然後只更新函式庫不重新連結兩支程式">5-2. 先預測：把 <code>round.c</code> 改成正確的四捨五入（<code>return (x10 + 5) / 10;</code>），然後<strong>只更新函式庫、不重新連結兩支程式</strong>：</h3>
+<pre><code class="language-sh">gcc<span class="w"> </span>-Wall<span class="w"> </span>-fPIC<span class="w"> </span>-c<span class="w"> </span>round.c
+ar<span class="w"> </span>rcs<span class="w"> </span>libtemp.a<span class="w"> </span>round.o
+gcc<span class="w"> </span>-shared<span class="w"> </span>-Wl,-soname,libtemp.so.1<span class="w"> </span>ctof.o<span class="w"> </span>ftoc.o<span class="w"> </span>round.o<span class="w"> </span>-o<span class="w"> </span>libtemp.so.1.0.1
+ln<span class="w"> </span>-sf<span class="w"> </span>libtemp.so.1.0.1<span class="w"> </span>libtemp.so.1
+</code></pre>
+<p><code>./hw5_static</code>、<code>./hw5_dyn</code> 各會印出多少？寫下預測後執行，貼上輸出。為什麼兩支結果不同？<code>hw5_static</code> 要怎樣才能拿到修正？<code>ar rcs libtemp.a round.o</code> 之後 <code>ar t libtemp.a</code> 有幾個成員，為什麼？【筆記第六節〈換掉 <code>.so</code>：程式不用重新連結〉、第二節的 <code>ar</code> 文法（<code>r</code>）】</p>
+<p><strong>第 1 次（YYYY-MM-DD）</strong></p>
+<details class="answer-fold" open><summary>作答</summary>
+<div class="answer-box" data-file="small-project/s1-07-libraries/README.md" data-line="398"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+</details>
+<h3 id="5-3-先預測下一版把-f_to_c-改成回傳十分之一度不相容的改變新增-ftoc2c做成-soname-是-libtempso2-的新版並把連結名稱指到新版">5-3. 先預測：下一版把 <code>f_to_c</code> 改成回傳「十分之一度」（不相容的改變），新增 <code>ftoc2.c</code>，做成 SONAME 是 <code>libtemp.so.2</code> 的新版，並把連結名稱指到新版：</h3>
+<pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;temp.h&quot;</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">f_to_c</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">f</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="p">(</span><span class="n">f</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">32</span><span class="p">)</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mi">100</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="mi">18</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<pre><code class="language-sh">gcc<span class="w"> </span>-Wall<span class="w"> </span>-fPIC<span class="w"> </span>-c<span class="w"> </span>ftoc2.c
+gcc<span class="w"> </span>-shared<span class="w"> </span>-Wl,-soname,libtemp.so.2<span class="w"> </span>ctof.o<span class="w"> </span>ftoc2.o<span class="w"> </span>round.o<span class="w"> </span>-o<span class="w"> </span>libtemp.so.2.0.0
+ln<span class="w"> </span>-sf<span class="w"> </span>libtemp.so.2.0.0<span class="w"> </span>libtemp.so.2
+ln<span class="w"> </span>-sf<span class="w"> </span>libtemp.so.2<span class="w"> </span>libtemp.so
+gcc<span class="w"> </span>-Wall<span class="w"> </span>hw5_main.c<span class="w"> </span>-L.<span class="w"> </span>-ltemp<span class="w"> </span>-Wl,-rpath,<span class="s1">&#39;$ORIGIN&#39;</span><span class="w"> </span>-o<span class="w"> </span>hw5_dyn2
+</code></pre>
+<p><strong>不重新連結</strong>舊的 <code>hw5_dyn</code>，<code>./hw5_dyn</code> 和 <code>./hw5_dyn2</code> 各印出多少？寫下預測後執行，貼上輸出、<code>ls -l libtemp*</code> 與兩支程式的 <code>readelf -d … | grep NEEDED</code>。為什麼兩個版本可以同時存在、舊程式沒有被新版弄壞？如果 5-3 偷懶、新版沿用 SONAME <code>libtemp.so.1</code> 並把 <code>libtemp.so.1</code> 指過去，<code>hw5_dyn</code> 會印出什麼？（這一問只要推理，不用做。）【筆記第六節〈SONAME〉最後一段】</p>
+<p><strong>第 1 次（YYYY-MM-DD）</strong></p>
+<details class="answer-fold" open><summary>作答</summary>
+<div class="answer-box" data-file="small-project/s1-07-libraries/README.md" data-line="423"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+</details>
+
+</main>
+</div>
+</body>
+</html>
