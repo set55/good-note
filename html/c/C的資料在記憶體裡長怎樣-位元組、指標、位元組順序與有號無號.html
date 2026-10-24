@@ -826,6 +826,113 @@ common.c:9:48: warning: comparison of integer expressions of different signednes
 0x80000000 = 1000 0000 ... 0000 = −2³¹              = −2147483648 = INT_MIN
 0xffffffff = 1111 1111 ... 1111 = −2³¹ + (2³¹ − 1) = −1
 </code></pre>
+<hr />
+<p><strong>上面說的「權重」是什麼：8 位元的最高位為什麼是 −2⁷，不是 −2⁸</strong></p>
+<blockquote>
+<p>2026-10-25 提問：「可以先請教一下什麼是 2 補數權重嗎？」（批改 10-24 複習組語 9-2 時，作答把 8 位元的最高位權重寫成 −2⁸）</p>
+</blockquote>
+<p><strong>權重（weight）＝ 一個位元「是 1 的時候」代表多少。</strong> 一串位元的值，就是「每個是 1 的位元的權重」加起來；是 0 的位元貢獻 0。跟十進位一樣：<code>523</code> 的 5 在百位，權重是 100，所以代表 500。二進位每往左一位，權重乘 2。</p>
+<p><strong>位元編號從 0 數起，第 i 位的權重是 2ⁱ。</strong> 最右邊（最低位）是第 0 位，權重 2⁰ ＝ 1；8 位元的最左邊是<strong>第 7 位</strong>，權重 2⁷ ＝ 128。所以 n 位元的最高位是第 n − 1 位：8 位元是 2⁷、32 位元是 2³¹。2⁸ ＝ 256 是「第 8 位」的權重，那一位在 8 位元裡根本不存在（它就是減法往外借位時借的那一位，見<a href="x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80-%E6%9A%AB%E5%AD%98%E5%99%A8%E3%80%81mov%E8%88%87lea%E3%80%81cmp%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D.html#%E4%BA%94%E6%97%97%E6%A8%99%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8Dcmp-%E5%8F%AA%E8%B2%A0%E8%B2%AC%E6%AF%94%E8%B7%B3%E4%B8%8D%E8%B7%B3%E7%94%B1%E4%B8%8B%E4%B8%80%E5%80%8B%E6%8C%87%E4%BB%A4%E6%B1%BA%E5%AE%9A">第 4 課第五節</a>〈上面③：3 − 5 在 CPU 裡實際上是怎麼算的？〉）。</p>
+<table>
+<thead>
+<tr>
+<th>位元編號</th>
+<th>7</th>
+<th>6</th>
+<th>5</th>
+<th>4</th>
+<th>3</th>
+<th>2</th>
+<th>1</th>
+<th>0</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>無號的權重</td>
+<td>+128（+2⁷）</td>
+<td>64</td>
+<td>32</td>
+<td>16</td>
+<td>8</td>
+<td>4</td>
+<td>2</td>
+<td>1</td>
+</tr>
+<tr>
+<td>二補數的權重</td>
+<td><strong>−128（−2⁷）</strong></td>
+<td>64</td>
+<td>32</td>
+<td>16</td>
+<td>8</td>
+<td>4</td>
+<td>2</td>
+<td>1</td>
+</tr>
+</tbody>
+</table>
+<p><strong>無號與二補數只差最高位那一格的正負號</strong>，其他位一模一樣。逐列讀這張表：</p>
+<ul>
+<li>無號那一列：8 個全是 1 時是 128 ＋ 64 ＋ … ＋ 1 ＝ 255 ＝ 2⁸ − 1，這就是 <code>unsigned char</code> 的最大值。</li>
+<li>二補數那一列：最高位換成 −128，其他 7 位最多加到 64 ＋ … ＋ 1 ＝ 127 ＝ 2⁷ − 1。所以全 1 是 −128 ＋ 127 ＝ −1；最高位是 1 的時候，後面 7 位最多只能補回 127，結果一定是負的——這就是「最高位是 1 就是負數」的由來。</li>
+</ul>
+<p>實驗：把幾個 byte 拆成位元，用兩列權重各加一次，再跟 C 的 <code>(signed char)</code> 轉換比對。
+<code>weights.c</code>（檔案：<a href="../../small-project/s1-02-data-repr/weights.c"><code>weights.c</code></a>）完整原始碼：</p>
+<pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+
+<span class="cm">/* 把 1 byte 的每一位拆開，用兩種權重各算一次 */</span>
+<span class="k">static</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="nf">show</span><span class="p">(</span><span class="kt">unsigned</span><span class="w"> </span><span class="kt">char</span><span class="w"> </span><span class="n">b</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">as_unsigned</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="n">as_signed</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;0x%02x = &quot;</span><span class="p">,</span><span class="w"> </span><span class="n">b</span><span class="p">);</span>
+<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">7</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="o">--</span><span class="p">)</span>
+<span class="w">        </span><span class="n">putchar</span><span class="p">((</span><span class="n">b</span><span class="w"> </span><span class="o">&gt;&gt;</span><span class="w"> </span><span class="n">i</span><span class="p">)</span><span class="w"> </span><span class="o">&amp;</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="o">?</span><span class="w"> </span><span class="sc">&#39;1&#39;</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="sc">&#39;0&#39;</span><span class="p">);</span>
+
+<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&lt;=</span><span class="w"> </span><span class="mi">7</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="o">++</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">((</span><span class="n">b</span><span class="w"> </span><span class="o">&gt;&gt;</span><span class="w"> </span><span class="n">i</span><span class="p">)</span><span class="w"> </span><span class="o">&amp;</span><span class="w"> </span><span class="mi">1</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="n">as_unsigned</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">i</span><span class="p">;</span><span class="w">                       </span><span class="cm">/* 第 i 位的權重：+2^i */</span>
+<span class="w">            </span><span class="n">as_signed</span><span class="w">   </span><span class="o">+=</span><span class="w"> </span><span class="p">(</span><span class="n">i</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">7</span><span class="p">)</span><span class="w"> </span><span class="o">?</span><span class="w"> </span><span class="o">-</span><span class="p">(</span><span class="mi">1</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="mi">7</span><span class="p">)</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="p">(</span><span class="mi">1</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">i</span><span class="p">);</span><span class="w"> </span><span class="cm">/* 二補數：只有第 7 位是 -2^7 */</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;  無號權重和 = %4d  二補數權重和 = %4d  (signed char) = %4d</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span>
+<span class="w">           </span><span class="n">as_unsigned</span><span class="p">,</span><span class="w"> </span><span class="n">as_signed</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="kt">signed</span><span class="w"> </span><span class="kt">char</span><span class="p">)</span><span class="n">b</span><span class="p">);</span>
+<span class="p">}</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="kt">unsigned</span><span class="w"> </span><span class="kt">char</span><span class="w"> </span><span class="n">samples</span><span class="p">[]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="mh">0x01</span><span class="p">,</span><span class="w"> </span><span class="mh">0x05</span><span class="p">,</span><span class="w"> </span><span class="mh">0x7f</span><span class="p">,</span><span class="w"> </span><span class="mh">0x80</span><span class="p">,</span><span class="w"> </span><span class="mh">0x81</span><span class="p">,</span><span class="w"> </span><span class="mh">0xfb</span><span class="p">,</span><span class="w"> </span><span class="mh">0xff</span><span class="w"> </span><span class="p">};</span>
+
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;bit:   76543210   ← 位元編號，從 0 數起</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">);</span>
+<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kt">unsigned</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="k">sizeof</span><span class="w"> </span><span class="n">samples</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="o">++</span><span class="p">)</span>
+<span class="w">        </span><span class="n">show</span><span class="p">(</span><span class="n">samples</span><span class="p">[</span><span class="n">i</span><span class="p">]);</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<pre><code>$ gcc -Wall -Wextra weights.c -o weights &amp;&amp; ./weights
+bit:   76543210   ← 位元編號，從 0 數起
+0x01 = 00000001  無號權重和 =    1  二補數權重和 =    1  (signed char) =    1
+0x05 = 00000101  無號權重和 =    5  二補數權重和 =    5  (signed char) =    5
+0x7f = 01111111  無號權重和 =  127  二補數權重和 =  127  (signed char) =  127
+0x80 = 10000000  無號權重和 =  128  二補數權重和 = -128  (signed char) = -128
+0x81 = 10000001  無號權重和 =  129  二補數權重和 = -127  (signed char) = -127
+0xfb = 11111011  無號權重和 =  251  二補數權重和 =   -5  (signed char) =   -5
+0xff = 11111111  無號權重和 =  255  二補數權重和 =   -1  (signed char) =   -1
+</code></pre>
+<p>程式第 15 行只對第 7 位用 −2⁷，算出來的「二補數權重和」每一列都跟 C 自己的 <code>(signed char)</code> 一樣，表示 CPU 讀有號 byte 就是這樣算的。逐列看：</p>
+<ul>
+<li><code>0x01</code>、<code>0x05</code>、<code>0x7f</code>：最高位是 0，那一格的正負號用不到，兩種讀法一樣。<code>0x7f</code> ＝ 127 是 <code>signed char</code> 的最大值。</li>
+<li><code>0x80</code>：只有第 7 位是 1，無號讀 ＋128、二補數讀 −128（<code>signed char</code> 的最小值）。兩者剛好差 256 ＝ 2 × 128：同一個位元，從 ＋128 變成 −128。</li>
+<li><code>0x81</code>：−128 ＋ 1 ＝ −127。</li>
+<li><code>0xfb</code>：−128 ＋ 64 ＋ 32 ＋ 16 ＋ 8 ＋ 2 ＋ 1 ＝ −5（第 4 課 4 − 9 留下的那個 byte）。</li>
+<li><code>0xff</code>：−128 ＋ 127 ＝ −1。</li>
+</ul>
+<p><strong>每一列「無號 − 二補數」都是 0 或 256</strong>：最高位是 1 時，同一個位元從 ＋2⁷ 換成 −2⁷，差 2 × 2⁷ ＝ 2⁸。所以<a href="#%E5%85%AD%E6%9C%89%E8%99%9F%E8%88%87%E7%84%A1%E8%99%9F%E4%B9%8B%E9%96%93%E7%9A%84%E8%BD%89%E6%8F%9B%E4%BD%8D%E5%85%83%E4%B8%8D%E8%AE%8A%E6%8F%9B%E5%80%8B%E8%AE%80%E6%B3%95">第六節</a>「位元不變、換個讀法」時，負數換成無號讀會多出 2⁸（32 位元多出 2³²）：<code>int</code> 的 −1 用 <code>%u</code> 讀成 4294967295 ＝ −1 ＋ 2³²，就是這個道理。</p>
+<p>常見寫錯：寫成「−2⁸ ＋ (2⁸ − 1) ＝ −1」。算出來剛好也是 −1，但那是 <strong>9 位元</strong>的權重（第 8 位是 −2⁸，下面 8 位最多 2⁸ − 1）。
+8 位元是 −2⁷ ＋ (2⁷ − 1)、32 位元是 −2³¹ ＋ (2³¹ − 1)。記法：<strong>n 位元，最高位是第 n − 1 位</strong>。</p>
+<p><em>（追問補充結束，以下回到主線）</em></p>
+<hr />
 <p>實測。這支 <code>signs.c</code> 第五、六、七節共用，每一段輸出對應哪幾行，在各節裡說明。<code>signs.c</code> 完整原始碼：</p>
 <pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
 <span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;limits.h&gt;</span>
@@ -1518,7 +1625,7 @@ kernel 用哪個選項避免這種情況，代價是什麼？<details class="ans
 <li>會得到 65536（<code>0x00010000</code>），不是協定要的 256。</li>
 <li>x86-64 是小端序：位址最低的 byte 當最低位，記憶體從低到高的 <code>00 00 01 00</code> 拼回來是 <code>0x00010000</code>。</li>
 </ol>
-<p>詳細說明：網路上的位元組順序（network byte order）是大端序，所以讀網路資料要用 <code>ntohl</code>（network to host long）之類的函式轉換。在大端序的機器上這個函式什麼都不做，在 x86-64 上會把 4 個 byte 反過來。</p>
+<p>詳細說明：反過來排的單位是<strong>整個 byte</strong>（兩個十六進位數字一組），byte 裡面的 <code>01</code> 不會變成 <code>10</code>（2026-10-25 批改 10-24 複習後補上）。網路上的位元組順序（network byte order）是大端序，所以讀網路資料要用 <code>ntohl</code>（network to host long）之類的函式轉換。在大端序的機器上這個函式什麼都不做，在 x86-64 上會把 4 個 byte 反過來。</p>
 </details>
 </li>
 <li><code>printf(&quot;%p&quot;)</code> 印出 <code>0x7ffe50b23624</code>，只有 12 位十六進位。指標到底佔幾個 byte？印出來為什麼比較短？如果在 kernel 的錯誤訊息裡看到 <code>0xffff888102a4c000</code>，從位址的長相你能判斷什麼？<details class="answer"><summary>參考答案</summary>

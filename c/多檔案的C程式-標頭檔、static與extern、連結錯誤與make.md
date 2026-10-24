@@ -1333,6 +1333,131 @@ CC = cc
 
 `main.d` 的第 1 行 `main.o: main.c mathx.h` 就是我們在 `Makefile.nodeps` 漏掉的那條相依。gcc 在前處理時本來就知道 `#include` 了哪些檔案，由它寫出來最準。（gcc 的 `-M` 系列還有 `-M`、`-MM`、`-MF`、`-MT`、`-MQ`、`-MG` 等，完整說明在 `man gcc` 的 *Preprocessor Options*。）
 
+---
+
+**上表 `-MP` 那一列：為什麼一條空規則 `mathx.h:` 就能讓 `make` 不停下來**
+
+> 2026-10-25 提問：「`main.o: main.c mathx.h` ／ `mathx.h:` 多檔 5-3 我不太理解爲什麼這樣可以達成你解釋 MP 的那個效果」（指上表 `-MP` 那一列，以及 `cat main.d` 印出的兩行）
+
+關鍵在 `make` 處理先決條件的順序。要決定 `main.o` 該不該重做，`make` 會**先把 `main.o` 的每個先決條件處理一遍**，再比時間：
+
+1. 先決條件的檔案存在：直接拿它的修改時間來比。
+2. 檔案不存在：去找「能產生它的規則」。**找不到規則**，`make` 就認定這個目標做不出來，報 `No rule to make target 'mathx.h', needed by 'main.o'` 並**停下**，連 `main.o` 都不會重編。
+3. 檔案不存在，但**有規則**：執行那條規則。
+
+`-MP` 加的 `mathx.h:` 讓第 2 種情況變成第 3 種。它是一條**有目標、沒有先決條件、也沒有命令**的規則，意思是「`mathx.h` 這個目標，我有規則可以做，做法是什麼都不用做」。GNU make 手冊 4.7 節〈Rules without Recipes or Prerequisites〉規定：這種規則的目標檔案如果不存在，`make` 就當作它**剛剛被更新過**（本機沒裝 `info` 版手冊，這句是引自線上手冊、未在本機查證；下面 `--debug=b` 的實測行為跟它一致）。所以：
+
+- `mathx.h` 被刪掉時，`make` 不會停，而是當作 `mathx.h`「剛更新」，比 `main.o` 新 → **重編 `main.o`**；
+- 重編時 gcc 照 `main.c` 現在的 `#include` 重新寫一份 `main.d`，舊的 `mathx.h` 就從清單裡消失了，下次 `make` 恢復正常。
+
+**為什麼會碰到這種情況**：`.d` 是**上一次編譯時**寫的。標頭檔改名或刪掉之後，你改了 `main.c` 的 `#include`，但 `main.d` 還是舊的，裡面還寫著 `main.o: main.c mathx.h`。`make` 讀的是這份舊清單，要等重編 `main.o` 才會更新它。沒有 `-MP`，`make` 卡在舊清單上，永遠走不到重編那一步。
+
+實驗：把標頭檔 `config.h` 改名成 `settings.h`，`main.c` 的 `#include` 也跟著改，比較加不加 `-MP`。
+`main.c`（檔案：[`main.c`](../small-project/s1-06-multi-file/examples/mp/main.c)）：
+
+```c
+#include <stdio.h>
+#include "config.h"
+
+int main(void)
+{
+    printf("BUF_SIZE = %d\n", BUF_SIZE);
+    return 0;
+}
+```
+
+`config.h`（檔案：[`config.h`](../small-project/s1-06-multi-file/examples/mp/config.h)）：
+
+```c
+#ifndef CONFIG_H
+#define CONFIG_H
+
+#define BUF_SIZE 64
+
+#endif
+```
+
+`Makefile`（檔案：[`Makefile`](../small-project/s1-06-multi-file/examples/mp/Makefile)，命令前面是 TAB）；`Makefile.nomp`（檔案：[`Makefile.nomp`](../small-project/s1-06-multi-file/examples/mp/Makefile.nomp)）只差在第 2 行沒有 `-MP`（`CFLAGS = -Wall -MMD`）：
+
+```make
+CC     = gcc
+CFLAGS = -Wall -MMD -MP
+OBJS   = main.o
+
+prog: $(OBJS)
+	$(CC) -o $@ $^
+
+%.o: %.c
+	$(CC) $(CFLAGS) -c $< -o $@
+
+-include $(OBJS:.o=.d)
+
+clean:
+	rm -f prog $(OBJS) $(OBJS:.o=.d)
+
+.PHONY: clean
+```
+
+不加 `-MP`：
+
+```
+$ make -f Makefile.nomp
+gcc -Wall -MMD -c main.c -o main.o
+gcc -o prog main.o
+$ cat main.d
+main.o: main.c config.h
+$ mv config.h settings.h
+$ sed -i 's/config.h/settings.h/' main.c
+$ make -f Makefile.nomp
+make: *** No rule to make target 'config.h', needed by 'main.o'.  Stop.
+$ cat main.d
+main.o: main.c config.h
+```
+
+`main.c` 明明已經改好、也找得到 `settings.h`，`make` 卻停在舊 `main.d` 裡的 `config.h`，`main.o` 沒重編，`main.d` 也就一直是舊的。這時只能手動刪掉 `.d`（或 `make clean`）才走得下去。
+
+加 `-MP`（從頭再做一次）：
+
+```
+$ make
+gcc -Wall -MMD -MP -c main.c -o main.o
+gcc -o prog main.o
+$ cat main.d
+main.o: main.c config.h
+config.h:
+$ mv config.h settings.h
+$ sed -i 's/config.h/settings.h/' main.c
+$ make
+gcc -Wall -MMD -MP -c main.c -o main.o
+gcc -o prog main.o
+$ cat main.d
+main.o: main.c settings.h
+settings.h:
+$ ./prog
+BUF_SIZE = 64
+```
+
+`make` 的推理可以用 `--debug=b`（b ＝ basic，印出每個目標為什麼要重做）看到。同一個情境（改名後的第二次 `make`）本機 GNU Make 4.3 實測，節錄：
+
+```
+$ make --debug=b
+     File 'config.h' does not exist.
+    Must remake target 'config.h'.
+    Successfully remade target file 'config.h'.
+   Prerequisite 'main.c' is newer than target 'main.o'.
+   Prerequisite 'config.h' of target 'main.o' does not exist.
+  Must remake target 'main.o'.
+gcc -Wall -MMD -MP -c main.c -o main.o
+```
+
+逐行讀：`config.h` 不存在 → 有那條空規則，所以「必須重做 `config.h`」→ 空規則什麼都不做就算成功 → 接著看 `main.o`：先決條件 `config.h` 不存在（所以要重做）→ 重編 `main.o`，新的 `main.d` 就寫成 `settings.h`。（這裡 `main.c` 也被 `sed` 改過、比 `main.o` 新；只刪標頭檔、不改 `main.c` 時，光是「`config.h` 不存在」這一行也足以讓 `main.o` 重編。）
+
+一句話：**`mathx.h:` 告訴 `make`「這個檔案不見了也沒關係，有規則可以做」，`make` 才走得到重編，重編才會產生新的 `.d`。**
+
+*（追問補充結束，以下回到主線）*
+
+---
+
 **6. `-include $(OBJS:.o=.d)`**：把 `main.d`、`mathx.d` 的內容讀進來，當成 `Makefile` 的一部分。`include` 前面的 `-` 表示「檔案不存在也不要報錯」——第一次 `make` 時 `.d` 還沒產生（那時 `.o` 也不存在，反正都要編）。
 同一個目標可以出現在好幾條規則裡：`%.o: %.c` 給了命令，`main.d` 的 `main.o: main.c mathx.h` 補上更多先決條件，`make` 會把它們合起來。
 

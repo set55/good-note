@@ -649,6 +649,110 @@ $2 = (long *) 0x7fffffffd3f8
 
 ---
 
+**紅區保證的是「誰」不會蓋：`main` 不是不遵守，是保證本來就不包含自己的 `call`**
+
+> 2026-10-25 提問：「紅區的問題我問一下 你說ABI保證紅區不會被覆蓋,也就是rsp下面128byte不會被覆蓋,但是main爲什麼不遵守這個」（指上面「`%rsp` 下方 128 byte 保留給目前這個函式，不會被別人蓋掉」與「`call` 會把返回位址推到 `%rsp` 下面，蓋掉那一區」兩句）
+
+上面兩句看起來互相矛盾，是因為「不會被蓋掉」少講了主詞。ABI（System V AMD64 psABI 第 3.2.2 節〈The Stack Frame〉）的原文是：
+
+> The 128-byte area beyond the location pointed to by %rsp is considered to be reserved and shall not be modified by signal or interrupt handlers. Therefore, functions may use this area for temporary data that is not needed across function calls. In particular, leaf functions may use this area for their entire stack frame.
+
+（引自規格書原文；本機沒有這份文件，未在本機查證。）逐句翻：
+
+1. `%rsp` 下方 128 byte 是保留區，**訊號處理函式或中斷處理函式不可以改它**。
+2. 所以函式可以把「**不需要跨過函式呼叫**」的暫存資料放在這裡。
+3. 特別是葉函式，可以把整個堆疊框都放在這裡。
+
+**保證的對象只有「突然插進來的人」**。訊號（signal）是程式跑到一半、核心強行插入去執行處理函式；如果沒有這條規定，處理函式會從目前的 `%rsp` 往下用堆疊，剛好蓋掉這一區。這種插入什麼時候發生、程式自己控制不了，所以要靠 ABI 約束對方。
+
+**函式自己做的 `push`／`call` 不在保證範圍內**，因為那是函式自己決定要寫的。紅區是「保留給目前這個函式」的空間，函式自己往裡面寫，本來就是它的權利。`main` 執行 `call add3`，等於 `main` 自己往 `%rsp − 8` 寫返回位址，寫的是**自己的**紅區，沒有違反任何規定。
+
+接著進到 `add3` 之後，`%rsp` 已經往下移了。紅區永遠是「**目前** `%rsp` 下方 128 byte」，跟著 `%rsp` 走，所以 `main` 原本那塊紅區，現在變成 `add3` 的堆疊框和紅區。被呼叫的函式本來就會使用呼叫者 `%rsp` 下面的空間，這也不是任何人違規。
+
+所以原文第 2 句才特別寫「not needed across function calls」：
+
+- 放在紅區的值，只要中間**不 `call`**，就不會被任何人蓋掉；
+- 一 `call`，自己寫的返回位址加上被呼叫者的堆疊框，就會把它蓋掉。
+
+`add3` 不呼叫別人，所以整個堆疊框都能放紅區。`main` 會 `call`，而 `call` 之後還要用的變數不能放紅區，所以 gcc 用 `sub` 把它們移到 `%rsp` 上面，那裡才是「已經放進堆疊」、別人不會寫的地方。
+
+一句話：**紅區防的是「別人突然插進來」，不防「自己 `call` 出去」。**
+
+*（追問補充結束，以下回到主線）*
+
+---
+
+**那自我測驗 2-3 為什麼要提紅區：`main` 要 `sub` 跟紅區無關，紅區解釋的是 `add3` 為什麼可以不 `sub`**
+
+> 2026-10-25 提問：「那這樣2-3爲什麼解釋要提到紅區?main要sub的原因跟紅區有關係嗎?」（指自我測驗 2-3 的參考答案把「紅區」列為核心關鍵）
+
+**`main` 要 `sub` 的理由跟紅區沒有關係**：`main` 會 `call`，`call` 會寫 `%rsp` 下面，`call` 之後還要用的變數就得放到 `%rsp` 上面。就算 ABI 沒有紅區這條規定，`main` 一樣要 `sub`。
+
+紅區回答的是 2-3 的**另一半**：`add3` 憑什麼可以**不** `sub`。只說「`add3` 不 `call`，所以 `%rsp` 下面沒人會寫」還不夠，因為訊號隨時可能插進來，處理函式會從目前的 `%rsp` 往下用堆疊。沒有紅區的保證，連葉函式放在 `%rsp` 下面也不安全，每個函式都得 `sub`。所以 2-3 問的是「為什麼一個要、一個不用」，兩邊各需要一個理由：
+
+| | 要不要 `sub` | 理由 |
+|---|---|---|
+| `main` | 要 | 自己會 `call`，`call` 寫 `%rsp` 下面（跟紅區無關） |
+| `add3` | 不用 | 自己不 `push`／`call`，**加上**紅區保證訊號處理函式不寫 `%rsp` 下面 |
+
+實驗：用 `-mno-red-zone` 告訴 gcc「不准使用紅區」（kernel 就是這樣編的，見上面的引言區塊），看兩個函式各有什麼變化。`frame.c`（檔案：[`frame.c`](../small-project/s1-05-asm-calls/frame.c)）完整原始碼：
+
+```c
+#include <stdio.h>
+
+long add3(long a, long b, long c)
+{
+    long s = a + b;
+    return s + c;
+}
+
+int main(void)
+{
+    long r = add3(1, 2, 3);
+    printf("%ld\n", r);
+    return 0;
+}
+```
+
+```sh
+gcc -O0 -g -fno-asynchronous-unwind-tables frame.c -o frame
+gcc -O0 -g -fno-asynchronous-unwind-tables -mno-red-zone frame.c -o frame-norz
+objdump -d --no-show-raw-insn frame        # 再對 frame-norz 做一次
+```
+
+本機實測（節錄序言與結尾，右邊是說明）：
+
+```asm
+# 預設（可以用紅區）                        # -mno-red-zone
+<add3>:                                     <add3>:
+  endbr64                                     endbr64
+  push   %rbp                                 push   %rbp
+  mov    %rsp,%rbp                            mov    %rsp,%rbp
+                                              sub    $0x28,%rsp      # 多了：把變數空間挪到 %rsp 上面
+  mov    %rdi,-0x18(%rbp)                     mov    %rdi,-0x18(%rbp)
+  ...                                         ...
+  pop    %rbp                                 leave                  # 有 sub 就要 leave 拉回 %rsp
+  ret                                         ret
+
+<main>:                                     <main>:
+  endbr64                                     endbr64
+  push   %rbp                                 push   %rbp
+  mov    %rsp,%rbp                            mov    %rsp,%rbp
+  sub    $0x10,%rsp                           sub    $0x10,%rsp      # 一模一樣
+  ...（call add3、call printf）               ...（同左）
+  leave                                       leave
+  ret                                         ret
+```
+
+- **`main` 兩邊完全一樣**，都是 `sub $0x10,%rsp`：拿掉紅區對它沒有影響，證明它 `sub` 的理由不是紅區。
+- **`add3` 只有在不准用紅區時才多了 `sub $0x28,%rsp`**，結尾也從 `pop %rbp` 變成 `leave`：證明 `add3` 可以不 `sub`，靠的就是紅區。`0x28` ＝ 40 byte，剛好涵蓋最低的變數 `-0x28(%rbp)`。
+
+*（追問補充結束，以下回到主線）*
+
+---
+
+---
+
 **「比 `%rsp` 低就不屬於堆疊裡」：第二節哪裡有這個意思**
 
 > 2026-10-10 課後提問：「仔細看上圖：add3 的 %rsp 是 d400，可是 a、b、c、s 放在 d3d8～d3f8，比 %rsp 還低，照第二節的規則那裡不屬於「堆疊裡」。請問第二節的哪裏有這個意思?」
@@ -1425,9 +1529,8 @@ gdb 的頂層命令共 173 個，本課用到其中 9 個（`info registers`、`
    > **1-4**【[第三節](../html/c/x86-64組合語言入門二-call與ret、堆疊框、參數與呼叫慣例.html#三call-與-ret用-gdb-一條一條走)】核心關鍵：
    >
    > 1. `ret` 不檢查，照樣把被蓋掉的值當成位址跳過去。
-   > 2. 跳到亂的地方，通常是 segfault 當掉（那個位址沒有對映，或不能執行）。
    >
-   > 詳細說明：第 3 課實際看過兩種下場：有堆疊保護時，函式返回**之前**檢查金絲雀，印 `stack smashing detected` 中止；關掉保護（`-fno-stack-protector`）就真的走到 `ret`，返回時 segfault（[第 3 課第五節](../html/c/陣列、字串與指標運算-C不檢查邊界與用gdb找segfault.html#五c-不檢查邊界越界的三種下場)〈關掉保護，看看下面是什麼：返回時 segfault〉）。如果蓋上去的值是攻擊者刻意挑的位址，`ret` 就會跳去執行攻擊者要的程式碼——這是緩衝區溢位攻擊的原理，也是堆疊保護存在的理由。
+   > 詳細說明：跳到亂的地方，通常是 segfault 當掉（那個位址沒有對映，或不能執行）；題目只問 `ret` 的行為，這點不列入核心關鍵（2026-10-25 改判後調整）。第 3 課實際看過兩種下場：有堆疊保護時，函式返回**之前**檢查金絲雀，印 `stack smashing detected` 中止；關掉保護（`-fno-stack-protector`）就真的走到 `ret`，返回時 segfault（[第 3 課第五節](../html/c/陣列、字串與指標運算-C不檢查邊界與用gdb找segfault.html#五c-不檢查邊界越界的三種下場)〈關掉保護，看看下面是什麼：返回時 segfault〉）。如果蓋上去的值是攻擊者刻意挑的位址，`ret` 就會跳去執行攻擊者要的程式碼——這是緩衝區溢位攻擊的原理，也是堆疊保護存在的理由。
 2. 函式開頭的 `push %rbp` 和 `mov %rsp,%rbp` 各在做什麼？`main` 結尾的 `leave` 等於哪兩條指令？`add3` 把區域變數放在 `%rsp` 下面、沒有 `sub %rsp`，`main` 卻要 `sub $0x10,%rsp`，為什麼？
    ```asm
    add3:                                 main:
@@ -1459,7 +1562,7 @@ gdb 的頂層命令共 173 個，本課用到其中 9 個（`info registers`、`
    > 1. **紅區**：ABI 保證 `%rsp` 下方 128 byte 不會被別人蓋掉；`add3` 是葉函式，自己也不會 `push`／`call`，所以直接用、省一條 `sub`。
    > 2. `main` 要 `call`：`call` 推返回位址會寫在 `%rsp` 下面、蓋掉那一區，`call` 之後還要用的變數就壞了，所以 gcc 對會 `call` 的函式一律 `sub`，把變數空間放進堆疊（`%rsp` 上面）。
    >
-   > 詳細說明：`sub` 的大小是 `0x10` 不是 8，才是 16 byte 對齊的緣故（[第六節](../html/c/x86-64組合語言入門二-call與ret、堆疊框、參數與呼叫慣例.html#六誰負責保存暫存器以及-16-byte-對齊)〈上面的 `sub $0x8,%rsp`：16 byte 對齊〉：進 `main` 時 `d428`，`push` 後 `d420`，`sub $0x10` 後 `d410` 是 16 的倍數）。`frame.c` 的 `r` 碰巧在 `call add3` 回來才寫入、`call printf` 前已複製到 `%rsi`，所以拿掉 `sub` 其實也能跑；gcc `-O0` 不做這種分析，會 `call` 的函式一律 `sub`（[第四節](../html/c/x86-64組合語言入門二-call與ret、堆疊框、參數與呼叫慣例.html#四堆疊框pushq-rbp-movq-rsp-rbp-與-leave)〈那 `frame.c` 的 `main` 拿掉 `sub $0x10,%rsp` 會怎樣：其實照樣能跑〉）。kernel 不能用紅區（中斷會直接推資料到目前的堆疊上），所以編譯時加 `-mno-red-zone`。
+   > 詳細說明：兩個核心關鍵各管一半：`main` 要 `sub` 跟紅區無關（只因為它會 `call`），紅區解釋的是 `add3` 為什麼可以不 `sub`；用 `-mno-red-zone` 編，`main` 不變、`add3` 多出 `sub $0x28,%rsp`（第四節〈那自我測驗 2-3 為什麼要提紅區〉，2026-10-25 補上）。`sub` 的大小是 `0x10` 不是 8，才是 16 byte 對齊的緣故（[第六節](../html/c/x86-64組合語言入門二-call與ret、堆疊框、參數與呼叫慣例.html#六誰負責保存暫存器以及-16-byte-對齊)〈上面的 `sub $0x8,%rsp`：16 byte 對齊〉：進 `main` 時 `d428`，`push` 後 `d420`，`sub $0x10` 後 `d410` 是 16 的倍數）。`frame.c` 的 `r` 碰巧在 `call add3` 回來才寫入、`call printf` 前已複製到 `%rsi`，所以拿掉 `sub` 其實也能跑；gcc `-O0` 不做這種分析，會 `call` 的函式一律 `sub`（[第四節](../html/c/x86-64組合語言入門二-call與ret、堆疊框、參數與呼叫慣例.html#四堆疊框pushq-rbp-movq-rsp-rbp-與-leave)〈那 `frame.c` 的 `main` 拿掉 `sub $0x10,%rsp` 會怎樣：其實照樣能跑〉）。kernel 不能用紅區（中斷會直接推資料到目前的堆疊上），所以編譯時加 `-mno-red-zone`。
 3. `args8.c` 的 `sum8` 有 8 個 `long` 參數。前 6 個參數放在哪裡？第 7、8 個放在哪裡、`call8` 用什麼順序放？在 `sum8` 裡第 7 個參數為什麼是 `0x10(%rbp)`，而不是 `0(%rbp)`？`call8` 在 `call` 之後為什麼要 `add $0x10,%rsp`？
    ```c
    long sum8(long a, long b, long c, long d, long e, long f, long g, long h)
@@ -1586,3 +1689,34 @@ gdb 的頂層命令共 173 個，本課用到其中 9 個（`info registers`、`
    > 2. 那是返回位址：`ret` 會跳回去的地方，也就是呼叫者裡 `call` 下一條指令的位址。
    >
    > 詳細說明：要真的查出呼叫者，再看這個位址落在哪個函式（`info symbol *(long *)$rsp` → `main + 32`），那個函式就是呼叫者；題目沒有要求寫出這一步（2026-10-19 改判後從核心關鍵移到這裡）。只有停在**第一條指令**時頂端才是返回位址；`push %rbp` 之後返回位址在 `8(%rbp)`。`bt` 做的事本質上一樣：沿著堆疊一層一層找返回位址。
+6. （2026-10-25 提問延伸）ABI 說 `%rsp` 下方 128 byte 的紅區「不會被蓋掉」，可是 `main` 一執行 `call add3`，返回位址就寫在 `%rsp` 下面。這算不算 `main` 違反了紅區的規定？紅區保證的是「誰」不會蓋掉它？為什麼放在紅區的值「不能跨過函式呼叫」？
+   `frame.c`（檔案：[`frame.c`](../small-project/s1-05-asm-calls/frame.c)）完整原始碼與編譯指令：
+   ```c
+   #include <stdio.h>
+
+   long add3(long a, long b, long c)
+   {
+       long s = a + b;
+       return s + c;
+   }
+
+   int main(void)
+   {
+       long r = add3(1, 2, 3);
+       printf("%ld\n", r);
+       return 0;
+   }
+   ```
+   ```sh
+   gcc -O0 -g -fno-asynchronous-unwind-tables frame.c -o frame
+   objdump -d --no-show-raw-insn frame
+   ```
+   ```asm
+   add3:                                 main:
+     push   %rbp                           push   %rbp
+     mov    %rsp,%rbp                      mov    %rsp,%rbp
+     mov    %rdi,-0x18(%rbp)               sub    $0x10,%rsp     # 把 %rsp 往下挪 16 byte
+     ...（變數都放在 %rsp 下面）               ...（有 call add3、call printf）
+     pop    %rbp                           leave
+     ret                                   ret
+   ```

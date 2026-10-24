@@ -1390,6 +1390,106 @@ CC = cc
 </tbody>
 </table>
 <p><code>main.d</code> 的第 1 行 <code>main.o: main.c mathx.h</code> 就是我們在 <code>Makefile.nodeps</code> 漏掉的那條相依。gcc 在前處理時本來就知道 <code>#include</code> 了哪些檔案，由它寫出來最準。（gcc 的 <code>-M</code> 系列還有 <code>-M</code>、<code>-MM</code>、<code>-MF</code>、<code>-MT</code>、<code>-MQ</code>、<code>-MG</code> 等，完整說明在 <code>man gcc</code> 的 <em>Preprocessor Options</em>。）</p>
+<hr />
+<p><strong>上表 <code>-MP</code> 那一列：為什麼一條空規則 <code>mathx.h:</code> 就能讓 <code>make</code> 不停下來</strong></p>
+<blockquote>
+<p>2026-10-25 提問：「<code>main.o: main.c mathx.h</code> ／ <code>mathx.h:</code> 多檔 5-3 我不太理解爲什麼這樣可以達成你解釋 MP 的那個效果」（指上表 <code>-MP</code> 那一列，以及 <code>cat main.d</code> 印出的兩行）</p>
+</blockquote>
+<p>關鍵在 <code>make</code> 處理先決條件的順序。要決定 <code>main.o</code> 該不該重做，<code>make</code> 會<strong>先把 <code>main.o</code> 的每個先決條件處理一遍</strong>，再比時間：</p>
+<ol>
+<li>先決條件的檔案存在：直接拿它的修改時間來比。</li>
+<li>檔案不存在：去找「能產生它的規則」。<strong>找不到規則</strong>，<code>make</code> 就認定這個目標做不出來，報 <code>No rule to make target 'mathx.h', needed by 'main.o'</code> 並<strong>停下</strong>，連 <code>main.o</code> 都不會重編。</li>
+<li>檔案不存在，但<strong>有規則</strong>：執行那條規則。</li>
+</ol>
+<p><code>-MP</code> 加的 <code>mathx.h:</code> 讓第 2 種情況變成第 3 種。它是一條<strong>有目標、沒有先決條件、也沒有命令</strong>的規則，意思是「<code>mathx.h</code> 這個目標，我有規則可以做，做法是什麼都不用做」。GNU make 手冊 4.7 節〈Rules without Recipes or Prerequisites〉規定：這種規則的目標檔案如果不存在，<code>make</code> 就當作它<strong>剛剛被更新過</strong>（本機沒裝 <code>info</code> 版手冊，這句是引自線上手冊、未在本機查證；下面 <code>--debug=b</code> 的實測行為跟它一致）。所以：</p>
+<ul>
+<li><code>mathx.h</code> 被刪掉時，<code>make</code> 不會停，而是當作 <code>mathx.h</code>「剛更新」，比 <code>main.o</code> 新 → <strong>重編 <code>main.o</code></strong>；</li>
+<li>重編時 gcc 照 <code>main.c</code> 現在的 <code>#include</code> 重新寫一份 <code>main.d</code>，舊的 <code>mathx.h</code> 就從清單裡消失了，下次 <code>make</code> 恢復正常。</li>
+</ul>
+<p><strong>為什麼會碰到這種情況</strong>：<code>.d</code> 是<strong>上一次編譯時</strong>寫的。標頭檔改名或刪掉之後，你改了 <code>main.c</code> 的 <code>#include</code>，但 <code>main.d</code> 還是舊的，裡面還寫著 <code>main.o: main.c mathx.h</code>。<code>make</code> 讀的是這份舊清單，要等重編 <code>main.o</code> 才會更新它。沒有 <code>-MP</code>，<code>make</code> 卡在舊清單上，永遠走不到重編那一步。</p>
+<p>實驗：把標頭檔 <code>config.h</code> 改名成 <code>settings.h</code>，<code>main.c</code> 的 <code>#include</code> 也跟著改，比較加不加 <code>-MP</code>。
+<code>main.c</code>（檔案：<a href="../../small-project/s1-06-multi-file/examples/mp/main.c"><code>main.c</code></a>）：</p>
+<pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;config.h&quot;</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;BUF_SIZE = %d</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">BUF_SIZE</span><span class="p">);</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<p><code>config.h</code>（檔案：<a href="../../small-project/s1-06-multi-file/examples/mp/config.h"><code>config.h</code></a>）：</p>
+<pre><code class="language-c"><span class="cp">#ifndef CONFIG_H</span>
+<span class="cp">#define CONFIG_H</span>
+
+<span class="cp">#define BUF_SIZE 64</span>
+
+<span class="cp">#endif</span>
+</code></pre>
+<p><code>Makefile</code>（檔案：<a href="../../small-project/s1-06-multi-file/examples/mp/Makefile"><code>Makefile</code></a>，命令前面是 TAB）；<code>Makefile.nomp</code>（檔案：<a href="../../small-project/s1-06-multi-file/examples/mp/Makefile.nomp"><code>Makefile.nomp</code></a>）只差在第 2 行沒有 <code>-MP</code>（<code>CFLAGS = -Wall -MMD</code>）：</p>
+<pre><code class="language-make"><span class="nv">CC</span><span class="w">     </span><span class="o">=</span><span class="w"> </span>gcc
+<span class="nv">CFLAGS</span><span class="w"> </span><span class="o">=</span><span class="w"> </span>-Wall<span class="w"> </span>-MMD<span class="w"> </span>-MP
+<span class="nv">OBJS</span><span class="w">   </span><span class="o">=</span><span class="w"> </span>main.o
+
+<span class="nf">prog</span><span class="o">:</span><span class="w"> </span><span class="k">$(</span><span class="nv">OBJS</span><span class="k">)</span>
+<span class="w">	</span><span class="k">$(</span>CC<span class="k">)</span><span class="w"> </span>-o<span class="w"> </span><span class="nv">$@</span><span class="w"> </span>$^
+
+<span class="nf">%.o</span><span class="o">:</span><span class="w"> </span>%.<span class="n">c</span>
+<span class="w">	</span><span class="k">$(</span>CC<span class="k">)</span><span class="w"> </span><span class="k">$(</span>CFLAGS<span class="k">)</span><span class="w"> </span>-c<span class="w"> </span>$&lt;<span class="w"> </span>-o<span class="w"> </span><span class="nv">$@</span>
+
+<span class="cp">-include $(OBJS:.o=.d)</span>
+
+<span class="nf">clean</span><span class="o">:</span>
+<span class="w">	</span>rm<span class="w"> </span>-f<span class="w"> </span>prog<span class="w"> </span><span class="k">$(</span>OBJS<span class="k">)</span><span class="w"> </span><span class="k">$(</span>OBJS:.o<span class="o">=</span>.d<span class="k">)</span>
+
+<span class="nf">.PHONY</span><span class="o">:</span><span class="w"> </span><span class="n">clean</span>
+</code></pre>
+<p>不加 <code>-MP</code>：</p>
+<pre><code>$ make -f Makefile.nomp
+gcc -Wall -MMD -c main.c -o main.o
+gcc -o prog main.o
+$ cat main.d
+main.o: main.c config.h
+$ mv config.h settings.h
+$ sed -i 's/config.h/settings.h/' main.c
+$ make -f Makefile.nomp
+make: *** No rule to make target 'config.h', needed by 'main.o'.  Stop.
+$ cat main.d
+main.o: main.c config.h
+</code></pre>
+<p><code>main.c</code> 明明已經改好、也找得到 <code>settings.h</code>，<code>make</code> 卻停在舊 <code>main.d</code> 裡的 <code>config.h</code>，<code>main.o</code> 沒重編，<code>main.d</code> 也就一直是舊的。這時只能手動刪掉 <code>.d</code>（或 <code>make clean</code>）才走得下去。</p>
+<p>加 <code>-MP</code>（從頭再做一次）：</p>
+<pre><code>$ make
+gcc -Wall -MMD -MP -c main.c -o main.o
+gcc -o prog main.o
+$ cat main.d
+main.o: main.c config.h
+config.h:
+$ mv config.h settings.h
+$ sed -i 's/config.h/settings.h/' main.c
+$ make
+gcc -Wall -MMD -MP -c main.c -o main.o
+gcc -o prog main.o
+$ cat main.d
+main.o: main.c settings.h
+settings.h:
+$ ./prog
+BUF_SIZE = 64
+</code></pre>
+<p><code>make</code> 的推理可以用 <code>--debug=b</code>（b ＝ basic，印出每個目標為什麼要重做）看到。同一個情境（改名後的第二次 <code>make</code>）本機 GNU Make 4.3 實測，節錄：</p>
+<pre><code>$ make --debug=b
+     File 'config.h' does not exist.
+    Must remake target 'config.h'.
+    Successfully remade target file 'config.h'.
+   Prerequisite 'main.c' is newer than target 'main.o'.
+   Prerequisite 'config.h' of target 'main.o' does not exist.
+  Must remake target 'main.o'.
+gcc -Wall -MMD -MP -c main.c -o main.o
+</code></pre>
+<p>逐行讀：<code>config.h</code> 不存在 → 有那條空規則，所以「必須重做 <code>config.h</code>」→ 空規則什麼都不做就算成功 → 接著看 <code>main.o</code>：先決條件 <code>config.h</code> 不存在（所以要重做）→ 重編 <code>main.o</code>，新的 <code>main.d</code> 就寫成 <code>settings.h</code>。（這裡 <code>main.c</code> 也被 <code>sed</code> 改過、比 <code>main.o</code> 新；只刪標頭檔、不改 <code>main.c</code> 時，光是「<code>config.h</code> 不存在」這一行也足以讓 <code>main.o</code> 重編。）</p>
+<p>一句話：<strong><code>mathx.h:</code> 告訴 <code>make</code>「這個檔案不見了也沒關係，有規則可以做」，<code>make</code> 才走得到重編，重編才會產生新的 <code>.d</code>。</strong></p>
+<p><em>（追問補充結束，以下回到主線）</em></p>
+<hr />
 <p><strong>6. <code>-include $(OBJS:.o=.d)</code></strong>：把 <code>main.d</code>、<code>mathx.d</code> 的內容讀進來，當成 <code>Makefile</code> 的一部分。<code>include</code> 前面的 <code>-</code> 表示「檔案不存在也不要報錯」——第一次 <code>make</code> 時 <code>.d</code> 還沒產生（那時 <code>.o</code> 也不存在，反正都要編）。同一個目標可以出現在好幾條規則裡：<code>%.o: %.c</code> 給了命令，<code>main.d</code> 的 <code>main.o: main.c mathx.h</code> 補上更多先決條件，<code>make</code> 會把它們合起來。</p>
 <p><strong>7. <code>clean</code> 與 <code>.PHONY</code></strong>：<code>clean</code> 不是檔案，是「清掉產物」這個動作的名字，所以沒有先決條件。<code>.PHONY: clean</code> 宣告它是<strong>假目標</strong>（phony target）：不管有沒有叫 <code>clean</code> 的檔案，<code>make clean</code> 都要執行命令。不宣告會怎樣：<code>Makefile.nophony</code>（檔案：<a href="../../small-project/s1-06-multi-file/examples/make/Makefile.nophony"><code>Makefile.nophony</code></a>，就是上面的 <code>Makefile</code> 拿掉 <code>.PHONY: clean</code> 那一行）</p>
 <pre><code>$ touch clean

@@ -622,6 +622,107 @@ $2 = (long *) 0x7fffffffd3f8
 <p>kernel 的程式碼不能用紅區：在 kernel 裡，中斷發生時 CPU 會直接把資料推到目前的堆疊上，會蓋掉 <code>%rsp</code> 下面的東西。所以 kernel 編譯時加了 <code>-mno-red-zone</code>（Linux 原始碼 <code>arch/x86/Makefile</code>；本機未實測）。</p>
 </blockquote>
 <hr />
+<p><strong>紅區保證的是「誰」不會蓋：<code>main</code> 不是不遵守，是保證本來就不包含自己的 <code>call</code></strong></p>
+<blockquote>
+<p>2026-10-25 提問：「紅區的問題我問一下 你說ABI保證紅區不會被覆蓋,也就是rsp下面128byte不會被覆蓋,但是main爲什麼不遵守這個」（指上面「<code>%rsp</code> 下方 128 byte 保留給目前這個函式，不會被別人蓋掉」與「<code>call</code> 會把返回位址推到 <code>%rsp</code> 下面，蓋掉那一區」兩句）</p>
+</blockquote>
+<p>上面兩句看起來互相矛盾，是因為「不會被蓋掉」少講了主詞。ABI（System V AMD64 psABI 第 3.2.2 節〈The Stack Frame〉）的原文是：</p>
+<blockquote>
+<p>The 128-byte area beyond the location pointed to by %rsp is considered to be reserved and shall not be modified by signal or interrupt handlers. Therefore, functions may use this area for temporary data that is not needed across function calls. In particular, leaf functions may use this area for their entire stack frame.</p>
+</blockquote>
+<p>（引自規格書原文；本機沒有這份文件，未在本機查證。）逐句翻：</p>
+<ol>
+<li><code>%rsp</code> 下方 128 byte 是保留區，<strong>訊號處理函式或中斷處理函式不可以改它</strong>。</li>
+<li>所以函式可以把「<strong>不需要跨過函式呼叫</strong>」的暫存資料放在這裡。</li>
+<li>特別是葉函式，可以把整個堆疊框都放在這裡。</li>
+</ol>
+<p><strong>保證的對象只有「突然插進來的人」</strong>。訊號（signal）是程式跑到一半、核心強行插入去執行處理函式；如果沒有這條規定，處理函式會從目前的 <code>%rsp</code> 往下用堆疊，剛好蓋掉這一區。這種插入什麼時候發生、程式自己控制不了，所以要靠 ABI 約束對方。</p>
+<p><strong>函式自己做的 <code>push</code>／<code>call</code> 不在保證範圍內</strong>，因為那是函式自己決定要寫的。紅區是「保留給目前這個函式」的空間，函式自己往裡面寫，本來就是它的權利。<code>main</code> 執行 <code>call add3</code>，等於 <code>main</code> 自己往 <code>%rsp − 8</code> 寫返回位址，寫的是<strong>自己的</strong>紅區，沒有違反任何規定。</p>
+<p>接著進到 <code>add3</code> 之後，<code>%rsp</code> 已經往下移了。紅區永遠是「<strong>目前</strong> <code>%rsp</code> 下方 128 byte」，跟著 <code>%rsp</code> 走，所以 <code>main</code> 原本那塊紅區，現在變成 <code>add3</code> 的堆疊框和紅區。被呼叫的函式本來就會使用呼叫者 <code>%rsp</code> 下面的空間，這也不是任何人違規。</p>
+<p>所以原文第 2 句才特別寫「not needed across function calls」：</p>
+<ul>
+<li>放在紅區的值，只要中間<strong>不 <code>call</code></strong>，就不會被任何人蓋掉；</li>
+<li>一 <code>call</code>，自己寫的返回位址加上被呼叫者的堆疊框，就會把它蓋掉。</li>
+</ul>
+<p><code>add3</code> 不呼叫別人，所以整個堆疊框都能放紅區。<code>main</code> 會 <code>call</code>，而 <code>call</code> 之後還要用的變數不能放紅區，所以 gcc 用 <code>sub</code> 把它們移到 <code>%rsp</code> 上面，那裡才是「已經放進堆疊」、別人不會寫的地方。</p>
+<p>一句話：<strong>紅區防的是「別人突然插進來」，不防「自己 <code>call</code> 出去」。</strong></p>
+<p><em>（追問補充結束，以下回到主線）</em></p>
+<hr />
+<p><strong>那自我測驗 2-3 為什麼要提紅區：<code>main</code> 要 <code>sub</code> 跟紅區無關，紅區解釋的是 <code>add3</code> 為什麼可以不 <code>sub</code></strong></p>
+<blockquote>
+<p>2026-10-25 提問：「那這樣2-3爲什麼解釋要提到紅區?main要sub的原因跟紅區有關係嗎?」（指自我測驗 2-3 的參考答案把「紅區」列為核心關鍵）</p>
+</blockquote>
+<p><strong><code>main</code> 要 <code>sub</code> 的理由跟紅區沒有關係</strong>：<code>main</code> 會 <code>call</code>，<code>call</code> 會寫 <code>%rsp</code> 下面，<code>call</code> 之後還要用的變數就得放到 <code>%rsp</code> 上面。就算 ABI 沒有紅區這條規定，<code>main</code> 一樣要 <code>sub</code>。</p>
+<p>紅區回答的是 2-3 的<strong>另一半</strong>：<code>add3</code> 憑什麼可以<strong>不</strong> <code>sub</code>。只說「<code>add3</code> 不 <code>call</code>，所以 <code>%rsp</code> 下面沒人會寫」還不夠，因為訊號隨時可能插進來，處理函式會從目前的 <code>%rsp</code> 往下用堆疊。沒有紅區的保證，連葉函式放在 <code>%rsp</code> 下面也不安全，每個函式都得 <code>sub</code>。所以 2-3 問的是「為什麼一個要、一個不用」，兩邊各需要一個理由：</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>要不要 <code>sub</code></th>
+<th>理由</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>main</code></td>
+<td>要</td>
+<td>自己會 <code>call</code>，<code>call</code> 寫 <code>%rsp</code> 下面（跟紅區無關）</td>
+</tr>
+<tr>
+<td><code>add3</code></td>
+<td>不用</td>
+<td>自己不 <code>push</code>／<code>call</code>，<strong>加上</strong>紅區保證訊號處理函式不寫 <code>%rsp</code> 下面</td>
+</tr>
+</tbody>
+</table>
+<p>實驗：用 <code>-mno-red-zone</code> 告訴 gcc「不准使用紅區」（kernel 就是這樣編的，見上面的引言區塊），看兩個函式各有什麼變化。<code>frame.c</code>（檔案：<a href="../../small-project/s1-05-asm-calls/frame.c"><code>frame.c</code></a>）完整原始碼：</p>
+<pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+
+<span class="kt">long</span><span class="w"> </span><span class="nf">add3</span><span class="p">(</span><span class="kt">long</span><span class="w"> </span><span class="n">a</span><span class="p">,</span><span class="w"> </span><span class="kt">long</span><span class="w"> </span><span class="n">b</span><span class="p">,</span><span class="w"> </span><span class="kt">long</span><span class="w"> </span><span class="n">c</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="kt">long</span><span class="w"> </span><span class="n">s</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">b</span><span class="p">;</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">s</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">c</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="kt">long</span><span class="w"> </span><span class="n">r</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">add3</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="mi">3</span><span class="p">);</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;%ld</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">r</span><span class="p">);</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<pre><code class="language-sh">gcc<span class="w"> </span>-O0<span class="w"> </span>-g<span class="w"> </span>-fno-asynchronous-unwind-tables<span class="w"> </span>frame.c<span class="w"> </span>-o<span class="w"> </span>frame
+gcc<span class="w"> </span>-O0<span class="w"> </span>-g<span class="w"> </span>-fno-asynchronous-unwind-tables<span class="w"> </span>-mno-red-zone<span class="w"> </span>frame.c<span class="w"> </span>-o<span class="w"> </span>frame-norz
+objdump<span class="w"> </span>-d<span class="w"> </span>--no-show-raw-insn<span class="w"> </span>frame<span class="w">        </span><span class="c1"># 再對 frame-norz 做一次</span>
+</code></pre>
+<p>本機實測（節錄序言與結尾，右邊是說明）：</p>
+<pre><code class="language-asm"><span class="c1"># 預設（可以用紅區）                        # -mno-red-zone</span>
+<span class="err">&lt;</span><span class="nf">add3</span><span class="err">&gt;</span><span class="p">:</span><span class="w">                                     </span><span class="err">&lt;</span><span class="no">add3</span><span class="err">&gt;</span><span class="p">:</span>
+<span class="w">  </span><span class="nf">endbr64</span><span class="w">                                     </span><span class="no">endbr64</span>
+<span class="w">  </span><span class="nf">push</span><span class="w">   </span><span class="nv">%rbp</span><span class="w">                                 </span><span class="no">push</span><span class="w">   </span><span class="nv">%rbp</span>
+<span class="w">  </span><span class="nf">mov</span><span class="w">    </span><span class="nv">%rsp</span><span class="p">,</span><span class="nv">%rbp</span><span class="w">                            </span><span class="no">mov</span><span class="w">    </span><span class="nv">%rsp</span><span class="p">,</span><span class="nv">%rbp</span>
+<span class="w">                                              </span><span class="nf">sub</span><span class="w">    </span><span class="no">$0x28</span><span class="p">,</span><span class="nv">%rsp</span><span class="w">      </span><span class="c1"># 多了：把變數空間挪到 %rsp 上面</span>
+<span class="w">  </span><span class="nf">mov</span><span class="w">    </span><span class="nv">%rdi</span><span class="p">,-</span><span class="mi">0x18</span><span class="p">(</span><span class="nv">%rbp</span><span class="p">)</span><span class="w">                     </span><span class="no">mov</span><span class="w">    </span><span class="nv">%rdi</span><span class="p">,-</span><span class="mi">0x18</span><span class="p">(</span><span class="nv">%rbp</span><span class="p">)</span>
+<span class="w">  </span><span class="na">...</span><span class="w">                                         </span><span class="no">...</span>
+<span class="w">  </span><span class="nf">pop</span><span class="w">    </span><span class="nv">%rbp</span><span class="w">                                 </span><span class="no">leave</span><span class="w">                  </span><span class="c1"># 有 sub 就要 leave 拉回 %rsp</span>
+<span class="w">  </span><span class="nf">ret</span><span class="w">                                         </span><span class="no">ret</span>
+
+<span class="err">&lt;</span><span class="nf">main</span><span class="err">&gt;</span><span class="p">:</span><span class="w">                                     </span><span class="err">&lt;</span><span class="no">main</span><span class="err">&gt;</span><span class="p">:</span>
+<span class="w">  </span><span class="nf">endbr64</span><span class="w">                                     </span><span class="no">endbr64</span>
+<span class="w">  </span><span class="nf">push</span><span class="w">   </span><span class="nv">%rbp</span><span class="w">                                 </span><span class="no">push</span><span class="w">   </span><span class="nv">%rbp</span>
+<span class="w">  </span><span class="nf">mov</span><span class="w">    </span><span class="nv">%rsp</span><span class="p">,</span><span class="nv">%rbp</span><span class="w">                            </span><span class="no">mov</span><span class="w">    </span><span class="nv">%rsp</span><span class="p">,</span><span class="nv">%rbp</span>
+<span class="w">  </span><span class="nf">sub</span><span class="w">    </span><span class="no">$0x10</span><span class="p">,</span><span class="nv">%rsp</span><span class="w">                           </span><span class="no">sub</span><span class="w">    </span><span class="no">$0x10</span><span class="p">,</span><span class="nv">%rsp</span><span class="w">      </span><span class="c1"># 一模一樣</span>
+<span class="w">  </span><span class="na">...</span><span class="err">（</span><span class="no">call</span><span class="w"> </span><span class="no">add3</span><span class="err">、</span><span class="no">call</span><span class="w"> </span><span class="no">printf</span><span class="err">）</span><span class="w">               </span><span class="no">...</span><span class="err">（同左）</span>
+<span class="w">  </span><span class="nf">leave</span><span class="w">                                       </span><span class="no">leave</span>
+<span class="w">  </span><span class="nf">ret</span><span class="w">                                         </span><span class="no">ret</span>
+</code></pre>
+<ul>
+<li><strong><code>main</code> 兩邊完全一樣</strong>，都是 <code>sub $0x10,%rsp</code>：拿掉紅區對它沒有影響，證明它 <code>sub</code> 的理由不是紅區。</li>
+<li><strong><code>add3</code> 只有在不准用紅區時才多了 <code>sub $0x28,%rsp</code></strong>，結尾也從 <code>pop %rbp</code> 變成 <code>leave</code>：證明 <code>add3</code> 可以不 <code>sub</code>，靠的就是紅區。<code>0x28</code> ＝ 40 byte，剛好涵蓋最低的變數 <code>-0x28(%rbp)</code>。</li>
+</ul>
+<p><em>（追問補充結束，以下回到主線）</em></p>
+<hr />
+<hr />
 <p><strong>「比 <code>%rsp</code> 低就不屬於堆疊裡」：第二節哪裡有這個意思</strong></p>
 <blockquote>
 <p>2026-10-10 課後提問：「仔細看上圖：add3 的 %rsp 是 d400，可是 a、b、c、s 放在 d3d8～d3f8，比 %rsp 還低，照第二節的規則那裡不屬於「堆疊裡」。請問第二節的哪裏有這個意思?」</p>
@@ -1346,9 +1447,8 @@ $3 = 8
 <p><strong>1-4</strong>【<a href="#%E4%B8%89call-%E8%88%87-ret%E7%94%A8-gdb-%E4%B8%80%E6%A2%9D%E4%B8%80%E6%A2%9D%E8%B5%B0">第三節</a>】核心關鍵：</p>
 <ol>
 <li><code>ret</code> 不檢查，照樣把被蓋掉的值當成位址跳過去。</li>
-<li>跳到亂的地方，通常是 segfault 當掉（那個位址沒有對映，或不能執行）。</li>
 </ol>
-<p>詳細說明：第 3 課實際看過兩種下場：有堆疊保護時，函式返回<strong>之前</strong>檢查金絲雀，印 <code>stack smashing detected</code> 中止；關掉保護（<code>-fno-stack-protector</code>）就真的走到 <code>ret</code>，返回時 segfault（<a href="%E9%99%A3%E5%88%97%E3%80%81%E5%AD%97%E4%B8%B2%E8%88%87%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97-C%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%88%87%E7%94%A8gdb%E6%89%BEsegfault.html#%E4%BA%94c-%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%B6%8A%E7%95%8C%E7%9A%84%E4%B8%89%E7%A8%AE%E4%B8%8B%E5%A0%B4">第 3 課第五節</a>〈關掉保護，看看下面是什麼：返回時 segfault〉）。如果蓋上去的值是攻擊者刻意挑的位址，<code>ret</code> 就會跳去執行攻擊者要的程式碼——這是緩衝區溢位攻擊的原理，也是堆疊保護存在的理由。</p>
+<p>詳細說明：跳到亂的地方，通常是 segfault 當掉（那個位址沒有對映，或不能執行）；題目只問 <code>ret</code> 的行為，這點不列入核心關鍵（2026-10-25 改判後調整）。第 3 課實際看過兩種下場：有堆疊保護時，函式返回<strong>之前</strong>檢查金絲雀，印 <code>stack smashing detected</code> 中止；關掉保護（<code>-fno-stack-protector</code>）就真的走到 <code>ret</code>，返回時 segfault（<a href="%E9%99%A3%E5%88%97%E3%80%81%E5%AD%97%E4%B8%B2%E8%88%87%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97-C%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%88%87%E7%94%A8gdb%E6%89%BEsegfault.html#%E4%BA%94c-%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%B6%8A%E7%95%8C%E7%9A%84%E4%B8%89%E7%A8%AE%E4%B8%8B%E5%A0%B4">第 3 課第五節</a>〈關掉保護，看看下面是什麼：返回時 segfault〉）。如果蓋上去的值是攻擊者刻意挑的位址，<code>ret</code> 就會跳去執行攻擊者要的程式碼——這是緩衝區溢位攻擊的原理，也是堆疊保護存在的理由。</p>
 </details>
 </li>
 <li>函式開頭的 <code>push %rbp</code> 和 <code>mov %rsp,%rbp</code> 各在做什麼？<code>main</code> 結尾的 <code>leave</code> 等於哪兩條指令？<code>add3</code> 把區域變數放在 <code>%rsp</code> 下面、沒有 <code>sub %rsp</code>，<code>main</code> 卻要 <code>sub $0x10,%rsp</code>，為什麼？<pre><code class="language-asm"><span class="nl">add3:</span><span class="w">                                 </span><span class="nl">main:</span>
@@ -1378,7 +1478,7 @@ $3 = 8
 <li><strong>紅區</strong>：ABI 保證 <code>%rsp</code> 下方 128 byte 不會被別人蓋掉；<code>add3</code> 是葉函式，自己也不會 <code>push</code>／<code>call</code>，所以直接用、省一條 <code>sub</code>。</li>
 <li><code>main</code> 要 <code>call</code>：<code>call</code> 推返回位址會寫在 <code>%rsp</code> 下面、蓋掉那一區，<code>call</code> 之後還要用的變數就壞了，所以 gcc 對會 <code>call</code> 的函式一律 <code>sub</code>，把變數空間放進堆疊（<code>%rsp</code> 上面）。</li>
 </ol>
-<p>詳細說明：<code>sub</code> 的大小是 <code>0x10</code> 不是 8，才是 16 byte 對齊的緣故（<a href="#%E5%85%AD%E8%AA%B0%E8%B2%A0%E8%B2%AC%E4%BF%9D%E5%AD%98%E6%9A%AB%E5%AD%98%E5%99%A8%E4%BB%A5%E5%8F%8A-16-byte-%E5%B0%8D%E9%BD%8A">第六節</a>〈上面的 <code>sub $0x8,%rsp</code>：16 byte 對齊〉：進 <code>main</code> 時 <code>d428</code>，<code>push</code> 後 <code>d420</code>，<code>sub $0x10</code> 後 <code>d410</code> 是 16 的倍數）。<code>frame.c</code> 的 <code>r</code> 碰巧在 <code>call add3</code> 回來才寫入、<code>call printf</code> 前已複製到 <code>%rsi</code>，所以拿掉 <code>sub</code> 其實也能跑；gcc <code>-O0</code> 不做這種分析，會 <code>call</code> 的函式一律 <code>sub</code>（<a href="#%E5%9B%9B%E5%A0%86%E7%96%8A%E6%A1%86pushq-rbp-movq-rsp-rbp-%E8%88%87-leave">第四節</a>〈那 <code>frame.c</code> 的 <code>main</code> 拿掉 <code>sub $0x10,%rsp</code> 會怎樣：其實照樣能跑〉）。kernel 不能用紅區（中斷會直接推資料到目前的堆疊上），所以編譯時加 <code>-mno-red-zone</code>。</p>
+<p>詳細說明：兩個核心關鍵各管一半：<code>main</code> 要 <code>sub</code> 跟紅區無關（只因為它會 <code>call</code>），紅區解釋的是 <code>add3</code> 為什麼可以不 <code>sub</code>；用 <code>-mno-red-zone</code> 編，<code>main</code> 不變、<code>add3</code> 多出 <code>sub $0x28,%rsp</code>（第四節〈那自我測驗 2-3 為什麼要提紅區〉，2026-10-25 補上）。<code>sub</code> 的大小是 <code>0x10</code> 不是 8，才是 16 byte 對齊的緣故（<a href="#%E5%85%AD%E8%AA%B0%E8%B2%A0%E8%B2%AC%E4%BF%9D%E5%AD%98%E6%9A%AB%E5%AD%98%E5%99%A8%E4%BB%A5%E5%8F%8A-16-byte-%E5%B0%8D%E9%BD%8A">第六節</a>〈上面的 <code>sub $0x8,%rsp</code>：16 byte 對齊〉：進 <code>main</code> 時 <code>d428</code>，<code>push</code> 後 <code>d420</code>，<code>sub $0x10</code> 後 <code>d410</code> 是 16 的倍數）。<code>frame.c</code> 的 <code>r</code> 碰巧在 <code>call add3</code> 回來才寫入、<code>call printf</code> 前已複製到 <code>%rsi</code>，所以拿掉 <code>sub</code> 其實也能跑；gcc <code>-O0</code> 不做這種分析，會 <code>call</code> 的函式一律 <code>sub</code>（<a href="#%E5%9B%9B%E5%A0%86%E7%96%8A%E6%A1%86pushq-rbp-movq-rsp-rbp-%E8%88%87-leave">第四節</a>〈那 <code>frame.c</code> 的 <code>main</code> 拿掉 <code>sub $0x10,%rsp</code> 會怎樣：其實照樣能跑〉）。kernel 不能用紅區（中斷會直接推資料到目前的堆疊上），所以編譯時加 <code>-mno-red-zone</code>。</p>
 </details>
 </li>
 <li><code>args8.c</code> 的 <code>sum8</code> 有 8 個 <code>long</code> 參數。前 6 個參數放在哪裡？第 7、8 個放在哪裡、<code>call8</code> 用什麼順序放？在 <code>sum8</code> 裡第 7 個參數為什麼是 <code>0x10(%rbp)</code>，而不是 <code>0(%rbp)</code>？<code>call8</code> 在 <code>call</code> 之後為什麼要 <code>add $0x10,%rsp</code>？<pre><code class="language-c"><span class="kt">long</span><span class="w"> </span><span class="nf">sum8</span><span class="p">(</span><span class="kt">long</span><span class="w"> </span><span class="n">a</span><span class="p">,</span><span class="w"> </span><span class="kt">long</span><span class="w"> </span><span class="n">b</span><span class="p">,</span><span class="w"> </span><span class="kt">long</span><span class="w"> </span><span class="n">c</span><span class="p">,</span><span class="w"> </span><span class="kt">long</span><span class="w"> </span><span class="n">d</span><span class="p">,</span><span class="w"> </span><span class="kt">long</span><span class="w"> </span><span class="n">e</span><span class="p">,</span><span class="w"> </span><span class="kt">long</span><span class="w"> </span><span class="n">f</span><span class="p">,</span><span class="w"> </span><span class="kt">long</span><span class="w"> </span><span class="n">g</span><span class="p">,</span><span class="w"> </span><span class="kt">long</span><span class="w"> </span><span class="n">h</span><span class="p">)</span>
@@ -1501,6 +1601,34 @@ $3 = 8
 </ol>
 <p>詳細說明：要真的查出呼叫者，再看這個位址落在哪個函式（<code>info symbol *(long *)$rsp</code> → <code>main + 32</code>），那個函式就是呼叫者；題目沒有要求寫出這一步（2026-10-19 改判後從核心關鍵移到這裡）。只有停在<strong>第一條指令</strong>時頂端才是返回位址；<code>push %rbp</code> 之後返回位址在 <code>8(%rbp)</code>。<code>bt</code> 做的事本質上一樣：沿著堆疊一層一層找返回位址。</p>
 </details>
+</li>
+<li>（2026-10-25 提問延伸）ABI 說 <code>%rsp</code> 下方 128 byte 的紅區「不會被蓋掉」，可是 <code>main</code> 一執行 <code>call add3</code>，返回位址就寫在 <code>%rsp</code> 下面。這算不算 <code>main</code> 違反了紅區的規定？紅區保證的是「誰」不會蓋掉它？為什麼放在紅區的值「不能跨過函式呼叫」？
+<code>frame.c</code>（檔案：<a href="../../small-project/s1-05-asm-calls/frame.c"><code>frame.c</code></a>）完整原始碼與編譯指令：<pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+
+<span class="kt">long</span><span class="w"> </span><span class="nf">add3</span><span class="p">(</span><span class="kt">long</span><span class="w"> </span><span class="n">a</span><span class="p">,</span><span class="w"> </span><span class="kt">long</span><span class="w"> </span><span class="n">b</span><span class="p">,</span><span class="w"> </span><span class="kt">long</span><span class="w"> </span><span class="n">c</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="kt">long</span><span class="w"> </span><span class="n">s</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">b</span><span class="p">;</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">s</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">c</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="kt">long</span><span class="w"> </span><span class="n">r</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">add3</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="mi">3</span><span class="p">);</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;%ld</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">r</span><span class="p">);</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<pre><code class="language-sh">gcc<span class="w"> </span>-O0<span class="w"> </span>-g<span class="w"> </span>-fno-asynchronous-unwind-tables<span class="w"> </span>frame.c<span class="w"> </span>-o<span class="w"> </span>frame
+objdump<span class="w"> </span>-d<span class="w"> </span>--no-show-raw-insn<span class="w"> </span>frame
+</code></pre>
+<pre><code class="language-asm"><span class="nl">add3:</span><span class="w">                                 </span><span class="nl">main:</span>
+<span class="w">  </span><span class="nf">push</span><span class="w">   </span><span class="nv">%rbp</span><span class="w">                           </span><span class="no">push</span><span class="w">   </span><span class="nv">%rbp</span>
+<span class="w">  </span><span class="nf">mov</span><span class="w">    </span><span class="nv">%rsp</span><span class="p">,</span><span class="nv">%rbp</span><span class="w">                      </span><span class="no">mov</span><span class="w">    </span><span class="nv">%rsp</span><span class="p">,</span><span class="nv">%rbp</span>
+<span class="w">  </span><span class="nf">mov</span><span class="w">    </span><span class="nv">%rdi</span><span class="p">,-</span><span class="mi">0x18</span><span class="p">(</span><span class="nv">%rbp</span><span class="p">)</span><span class="w">               </span><span class="no">sub</span><span class="w">    </span><span class="no">$0x10</span><span class="p">,</span><span class="nv">%rsp</span><span class="w">     </span><span class="c1"># 把 %rsp 往下挪 16 byte</span>
+<span class="w">  </span><span class="na">...</span><span class="err">（變數都放在</span><span class="w"> </span><span class="nv">%rsp</span><span class="w"> </span><span class="err">下面）</span><span class="w">               </span><span class="no">...</span><span class="err">（有</span><span class="w"> </span><span class="no">call</span><span class="w"> </span><span class="no">add3</span><span class="err">、</span><span class="no">call</span><span class="w"> </span><span class="no">printf</span><span class="err">）</span>
+<span class="w">  </span><span class="nf">pop</span><span class="w">    </span><span class="nv">%rbp</span><span class="w">                           </span><span class="no">leave</span>
+<span class="w">  </span><span class="nf">ret</span><span class="w">                                   </span><span class="no">ret</span>
+</code></pre>
 </li>
 </ol>
 
