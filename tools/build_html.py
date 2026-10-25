@@ -421,6 +421,7 @@ Menlo,Consolas,"Noto Sans Mono CJK TC",monospace}
 .answer-box.dirty .status{color:var(--accent)}
 .practice{display:flex;gap:10px;flex-wrap:wrap;margin:0 0 6px}
 .practice a{border:1px solid var(--line);border-radius:6px;padding:6px 12px}
+.course{display:inline-block;margin-top:3px;font-size:.82em;color:var(--muted)}
 @media (max-width:900px){.layout{display:block}nav.side{position:fixed;z-index:10;left:0;top:0;
 transform:translateX(-100%);transition:transform .2s;box-shadow:2px 0 12px rgba(0,0,0,.25)}
 nav.side.open{transform:none}main{padding:56px 16px 60px}
@@ -618,13 +619,31 @@ def render_readme_part(text, readme_rel, dom, converted, md):
     return body, [(lv, text, f"{dom}-{hid}") for lv, text, hid in toc]
 
 
-def build_index(domains, converted, md):
+def course_label(src):
+    """筆記 metadata 的「> 課程：」那一行，去掉連結語法只留文字；不屬於課程的回傳 None。"""
+    for line in src.splitlines()[:12]:
+        if line.startswith("> 課程："):
+            return re.sub(r"\[([^\]]*)\]\([^)]*\)", r"\1", line[len("> 課程："):]).strip()
+    return None
+
+
+def add_course_tags(list_html, courses):
+    """首頁表格裡，屬於課程的筆記在連結下面加一行課程標籤（搜尋也搜得到）。"""
+    def tag(m):
+        rel = unquote(m.group(1))[:-len(".html")] + ".md"
+        label = courses.get(rel)
+        return m.group(0) + (f'<br><span class="course">📚 {html.escape(label)}</span>' if label else "")
+    return re.sub(r'<td><a href="([^"]+\.html)"[^>]*>.*?</a>', tag, list_html)
+
+
+def build_index(domains, converted, md, courses):
     blocks, side_items, total = [], [], 0
     for dom in domains:
         readme = Path(dom) / "README.md"
         title, intro, section = readme_parts(readme)
         intro_html, _ = render_readme_part(intro, readme, dom, converted, md)
         list_html, toc = render_readme_part(section, readme, dom, converted, md)
+        list_html = add_course_tags(list_html, courses)
         # 每個分類（### 開頭到下一個 ###）包成一個區塊，搜尋時整塊沒命中就藏起來
         pieces = re.split(r"(?=<h3 )", list_html)
         list_html = "".join(f'<div class="cat">{x}</div>' for x in pieces if x.strip())
@@ -641,7 +660,8 @@ def build_index(domains, converted, md):
     side = ('<div class="crumbs">🏠 首頁</div><div class="tools"><button onclick="toggleTheme()">🌓 主題</button></div>'
             "<ul>" + "".join(side_items) + "</ul>")
     reviews = sorted((ROOT / "review").glob("20*.md"))
-    practice = ('<div class="practice"><a href="small-project/README.html">✍️ 課程練習區（small-project）</a>'
+    practice = ('<div class="practice"><a href="learning/%E8%AA%B2%E7%A8%8B%E7%9B%AE%E9%8C%84.html">📚 課程目錄</a>'
+                '<a href="small-project/README.html">✍️ 課程練習區（small-project）</a>'
                 '<a href="review/README.html">🔁 間隔複習（review）</a>'
                 + (f'<a href="review/{quote(reviews[-1].stem)}.html">📅 最新複習：{html.escape(reviews[-1].stem)}</a>'
                    if reviews else "") + "</div>")
@@ -676,9 +696,11 @@ def main():
     (OUT / "assets" / "style.css").write_text(CSS + pyg_css(), encoding="utf-8")
     (OUT / "assets" / "app.js").write_text(JS, encoding="utf-8")
 
-    titles, domains = {}, []
+    titles, domains, courses = {}, [], {}
     for rel in files:
         src = (ROOT / rel).read_text(encoding="utf-8")
+        if (label := course_label(src)):
+            courses[rel.as_posix()] = label
         tokens = md.parse(src)
         mark_answer_boxes(tokens, rel, src.splitlines())
         title, toc = transform(tokens, rel, converted, md)
@@ -695,7 +717,7 @@ def main():
     missing = sorted({f.parts[0] for f in files} - set(domains) - set(PRACTICE_DIRS))
     if missing:
         print("警告：這些領域沒有 README.md：", missing, file=sys.stderr)
-    build_index(sorted(domains), converted, md)
+    build_index(sorted(domains), converted, md, courses)
     print(f"已產生 {len(files)} 篇 → {OUT.relative_to(ROOT)}/（首頁：html/index.html）")
 
 

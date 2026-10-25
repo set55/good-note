@@ -1,5 +1,6 @@
 # 知識點太零散，怎麼從頭系統化學 Linux 與 CS 基礎？—— 一條「系統程式」主線
 
+> 課程：[Linux 與系統程式系統化學習](../learning/課程目錄.md#linux-與系統程式系統化學習)｜課程文件（課程定義）
 > 日期：2026-09-22
 > 情境：累積了幾十篇 Linux／網路筆記（fd、socket、TPROXY、nftables、shell…），但都是遇到問題才學，
 > 覺得太零散；想從頭有系統地學 Linux，並把 process、thread、TCP 等 CS 基礎，搭配 C／C++／Rust 一起學

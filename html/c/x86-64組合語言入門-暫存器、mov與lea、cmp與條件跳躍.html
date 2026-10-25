@@ -60,7 +60,8 @@
 <main>
 <h1 id="讀懂-x86-64-組合語言一-暫存器mov-與-leacmp-與條件跳躍逐行讀懂-sum_to">讀懂 x86-64 組合語言（一）—— 暫存器、<code>mov</code> 與 <code>lea</code>、<code>cmp</code> 與條件跳躍，逐行讀懂 <code>sum_to</code></h1>
 <blockquote>
-<p>日期：2026-10-05<br />
+<p>課程：<a href="../learning/%E8%AA%B2%E7%A8%8B%E7%9B%AE%E9%8C%84.html#linux-%E8%88%87%E7%B3%BB%E7%B5%B1%E7%A8%8B%E5%BC%8F%E7%B3%BB%E7%B5%B1%E5%8C%96%E5%AD%B8%E7%BF%92">Linux 與系統程式系統化學習</a>｜第 ① 站第 4 課<br />
+日期：2026-10-05<br />
 情境：系統化學習路線第 ① 站第 4 課。對應 CS:APP 第 3.1～3.6 節（程式的機器層級表示：資料格式、存取資訊、算術與邏輯運算、控制——條件碼與跳躍、迴圈）；函式呼叫與堆疊框（3.7 節）留到第 5 課<br />
 適用範圍：實測本機 Ubuntu 24.04、x86-64、gcc 13.3.0、GNU as／objdump 2.42（binutils）、gdb 15.1；所有組合語言都是本機 gcc 實際產生的<br />
 對應檔案：每個實驗程式的完整原始碼都寫在它出現的那一節，可以直接複製編譯；同樣的程式也存成檔案放在
@@ -2112,6 +2113,90 @@ gcc<span class="w"> </span>-O0<span class="w"> </span>-g<span class="w"> </span>
 <li>⑧ 255 + 1、⑨ 200 + 100、⑩ 128 + 128：正確答案 256、300、256 都超過 255，最高位元往外進位（carry），CF = 1。</li>
 <li>⑦ 127 + 1 = 128，沒超過 255，CF = 0。</li>
 </ul>
+<hr />
+<p><strong>上面⑦：127 + 1 明明有「進位」，為什麼 CF 還是 0？</strong></p>
+<blockquote>
+<p>2026-10-25 提問：「請教一下 0x01 + 0x7f, 是不是有溢位也有進位, 因爲進位所以CF = 1 因爲溢位所以OF = 1?」（就是上表的⑦，只是兩個數字對調）</p>
+</blockquote>
+<p>不是：<strong>CF = 0、OF = 1</strong>，只有溢位、沒有 CF 意義上的進位。卡住的地方是「進位」這個詞：一次 8 位元加法裡會發生很多次進位，<strong>CF 只記其中一次——從最高位（第 7 位元）往 8 位元外面的那一次</strong>。<code>0x01 + 0x7f</code> 裡面的進位一路傳到第 7 位元，但沒有傳出去。</p>
+<p>用一個程式把每一位「收到的進位」印出來（檔案：<a href="../../small-project/s1-04-asm-basics/carries.c"><code>carries.c</code></a>）。<code>a ^ b ^ sum</code> 的第 i 位元就是第 i 位收到的進位：每一位的和是 a 位 + b 位 + 收到的進位，留下的那一位是三者的 XOR（互斥或，exclusive or：兩個位元不同時是 1），所以把 a、b 再 XOR 掉，剩下的就是收到的進位。</p>
+<pre><code class="language-c"><span class="cm">/* carries.c：8 位元加法逐位列出「每一位收到的進位」，對照 CF 與 OF */</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+
+<span class="k">static</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="nf">bits8</span><span class="p">(</span><span class="kt">unsigned</span><span class="w"> </span><span class="n">v</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">7</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="o">--</span><span class="p">)</span>
+<span class="w">        </span><span class="n">putchar</span><span class="p">((</span><span class="n">v</span><span class="w"> </span><span class="o">&gt;&gt;</span><span class="w"> </span><span class="n">i</span><span class="p">)</span><span class="w"> </span><span class="o">&amp;</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="o">?</span><span class="w"> </span><span class="sc">&#39;1&#39;</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="sc">&#39;0&#39;</span><span class="p">);</span>
+<span class="p">}</span>
+
+<span class="k">static</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="nf">add8</span><span class="p">(</span><span class="kt">unsigned</span><span class="w"> </span><span class="kt">char</span><span class="w"> </span><span class="n">a</span><span class="p">,</span><span class="w"> </span><span class="kt">unsigned</span><span class="w"> </span><span class="kt">char</span><span class="w"> </span><span class="n">b</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="kt">unsigned</span><span class="w"> </span><span class="n">sum</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="kt">unsigned</span><span class="p">)</span><span class="n">a</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">b</span><span class="p">;</span><span class="w">        </span><span class="cm">/* 9 位元的完整和，第 8 位元就是最高位往外的進位 */</span>
+<span class="w">    </span><span class="kt">unsigned</span><span class="w"> </span><span class="n">cin</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">a</span><span class="w"> </span><span class="o">^</span><span class="w"> </span><span class="n">b</span><span class="w"> </span><span class="o">^</span><span class="w"> </span><span class="n">sum</span><span class="p">)</span><span class="w"> </span><span class="o">&amp;</span><span class="w"> </span><span class="mh">0xff</span><span class="p">;</span><span class="w">   </span><span class="cm">/* 第 i 位元 = 第 i 位收到的進位（從第 i-1 位進來的） */</span>
+<span class="w">    </span><span class="kt">unsigned</span><span class="w"> </span><span class="n">c_into7</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">cin</span><span class="w"> </span><span class="o">&gt;&gt;</span><span class="w"> </span><span class="mi">7</span><span class="p">)</span><span class="w"> </span><span class="o">&amp;</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w">     </span><span class="cm">/* 進到第 7 位（最高位）的進位 */</span>
+<span class="w">    </span><span class="kt">unsigned</span><span class="w"> </span><span class="n">c_out7</span><span class="w">  </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">sum</span><span class="w"> </span><span class="o">&gt;&gt;</span><span class="w"> </span><span class="mi">8</span><span class="p">)</span><span class="w"> </span><span class="o">&amp;</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w">     </span><span class="cm">/* 從第 7 位往外的進位 = CF */</span>
+
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;0x%02x + 0x%02x</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">a</span><span class="p">,</span><span class="w"> </span><span class="n">b</span><span class="p">);</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;  收到的進位 &quot;</span><span class="p">);</span><span class="w"> </span><span class="n">bits8</span><span class="p">(</span><span class="n">cin</span><span class="p">);</span><span class="w">        </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">);</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;  a          &quot;</span><span class="p">);</span><span class="w"> </span><span class="n">bits8</span><span class="p">(</span><span class="n">a</span><span class="p">);</span><span class="w">          </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">);</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;  b          &quot;</span><span class="p">);</span><span class="w"> </span><span class="n">bits8</span><span class="p">(</span><span class="n">b</span><span class="p">);</span><span class="w">          </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">);</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;  留下 8 位  &quot;</span><span class="p">);</span><span class="w"> </span><span class="n">bits8</span><span class="p">(</span><span class="n">sum</span><span class="w"> </span><span class="o">&amp;</span><span class="w"> </span><span class="mh">0xff</span><span class="p">);</span><span class="w"> </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;   往外的進位=%u</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">c_out7</span><span class="p">);</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;  進到第 7 位=%u  第 7 位往外=%u  -&gt; CF=%u  OF=%u</span><span class="se">\n\n</span><span class="s">&quot;</span><span class="p">,</span>
+<span class="w">           </span><span class="n">c_into7</span><span class="p">,</span><span class="w"> </span><span class="n">c_out7</span><span class="p">,</span><span class="w"> </span><span class="n">c_out7</span><span class="p">,</span><span class="w"> </span><span class="n">c_into7</span><span class="w"> </span><span class="o">^</span><span class="w"> </span><span class="n">c_out7</span><span class="p">);</span>
+<span class="p">}</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">add8</span><span class="p">(</span><span class="mh">0x01</span><span class="p">,</span><span class="w"> </span><span class="mh">0x7f</span><span class="p">);</span><span class="w">   </span><span class="cm">/* 使用者問的這組 */</span>
+<span class="w">    </span><span class="n">add8</span><span class="p">(</span><span class="mh">0xff</span><span class="p">,</span><span class="w"> </span><span class="mh">0x01</span><span class="p">);</span><span class="w">   </span><span class="cm">/* 筆記⑧：255 + 1 */</span>
+<span class="w">    </span><span class="n">add8</span><span class="p">(</span><span class="mh">0x80</span><span class="p">,</span><span class="w"> </span><span class="mh">0x80</span><span class="p">);</span><span class="w">   </span><span class="cm">/* 筆記⑩：-128 + -128 */</span>
+<span class="w">    </span><span class="n">add8</span><span class="p">(</span><span class="mh">0x05</span><span class="p">,</span><span class="w"> </span><span class="mh">0x03</span><span class="p">);</span><span class="w">   </span><span class="cm">/* 沒有任何裝不下 */</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<pre><code class="language-sh"><span class="nb">cd</span><span class="w"> </span>small-project/s1-04-asm-basics
+gcc<span class="w"> </span>-O0<span class="w"> </span>-Wall<span class="w"> </span>carries.c<span class="w"> </span>-o<span class="w"> </span>carries
+./carries
+</code></pre>
+<p>本機輸出（印出的 CF、OF 是用 C 照公式算的，不是讀 CPU 的旗標；跟上表 <code>flags.s</code> 從 CPU 讀出的⑦⑧⑩逐一對照，結果相同）：</p>
+<pre><code>0x01 + 0x7f
+  收到的進位 11111110
+  a          00000001
+  b          01111111
+  留下 8 位  10000000   往外的進位=0
+  進到第 7 位=1  第 7 位往外=0  -&gt; CF=0  OF=1
+
+0xff + 0x01
+  收到的進位 11111110
+  a          11111111
+  b          00000001
+  留下 8 位  00000000   往外的進位=1
+  進到第 7 位=1  第 7 位往外=1  -&gt; CF=1  OF=0
+
+0x80 + 0x80
+  收到的進位 00000000
+  a          10000000
+  b          10000000
+  留下 8 位  00000000   往外的進位=1
+  進到第 7 位=0  第 7 位往外=1  -&gt; CF=1  OF=1
+
+0x05 + 0x03
+  收到的進位 00001110
+  a          00000101
+  b          00000011
+  留下 8 位  00001000   往外的進位=0
+  進到第 7 位=0  第 7 位往外=0  -&gt; CF=0  OF=0
+</code></pre>
+<p>逐組讀：</p>
+<ul>
+<li><strong><code>0x01 + 0x7f</code></strong>：最右邊 1 + 1 = 10，留 0、進 1；這個 1 一路跟第 1～6 位的 1 相加，每位都「留 0、進 1」，所以「收到的進位」第 1～7 位都是 1——<strong>進位確實一路傳進了第 7 位</strong>。但第 7 位是 0 + 0 + 進來的 1 = 1，<strong>留下 1、不再往外進</strong>，所以往外的進位 = 0 → CF = 0。無號的說法：127 + 1 = 128 ≤ 255，8 位元裝得下。有號的說法：兩個正數相加，留下的 <code>1000 0000</code> 最高位是 1、讀成 −128，正數加正數變負數 → OF = 1。</li>
+<li><strong><code>0xff + 0x01</code></strong>（⑧）：進位一樣傳進第 7 位，但第 7 位是 1 + 0 + 1 = 10，<strong>再往外進一次</strong> → CF = 1。有號是 −1 + 1 = 0，沒溢位 → OF = 0。</li>
+<li><strong><code>0x80 + 0x80</code></strong>（⑩）：低 7 位全是 0，沒有任何進位進到第 7 位；第 7 位 1 + 1 直接往外進 → CF = 1。有號 −128 + −128 = −256 裝不下 → OF = 1。</li>
+<li><strong><code>0x05 + 0x03</code></strong>：中間有進位（第 1～3 位），但都沒碰到第 7 位 → 兩個都是 0。這組說明「有進位」本身什麼都不代表。</li>
+</ul>
+<p>所以四組合起來可以看出一條規則（輸出最後一行的 <code>OF=</code> 就是照它算的，跟 CPU 給的 OF 一致）：<strong>CF = 從第 7 位往外的進位；OF = 「進到第 7 位的進位」和「從第 7 位往外的進位」不一樣（XOR）</strong>。直覺是：有號數的第 7 位是正負號，低 7 位的進位跑進正負號位、卻沒有同時往外送一個進位抵銷，正負號就被改壞了。這跟上面「OF＝當有號算裝不下」是同一件事的電路版說法，判斷時用哪一種都可以。</p>
+<p><em>（追問補充結束，以下回到主線）</em></p>
+<hr />
 <p><strong>上面③：3 − 5 在 CPU 裡實際上是怎麼算的？</strong></p>
 <blockquote>
 <p>2026-10-07 課後提問：「3 − 5 實際上到底是怎麼運作的？」</p>
@@ -4103,6 +4188,9 @@ $ objdump -d --no-show-raw-insn paren0      （節錄 deref）
     118e:	pop    %rbp
     118f:	ret
 </code></pre>
+</li>
+<li>
+<p>（2026-10-25 提問延伸）8 位元的 <code>0x01 + 0x7f</code>：計算過程中有沒有進位傳進第 7 位元（最高位）？有沒有從第 7 位元往外進位？CF、OF 各是多少，為什麼「有進位」不等於 CF = 1？再比較 <code>0x05 + 0x03</code>：它也有進位，為什麼兩個旗標都是 0？最後用「進到第 7 位的進位」和「第 7 位往外的進位」說明 <code>0xff + 0x01</code> 的 OF 為什麼是 0。</p>
 </li>
 </ol>
 

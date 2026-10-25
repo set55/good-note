@@ -1,5 +1,6 @@
 # OpenWrt 上沒有 `readelf`、`file`、`nm`，怎麼觀察 ELF 檔？—— BusyBox 與 `/proc` 的替代方法
 
+> 課程：[Linux 與系統程式系統化學習](../learning/課程目錄.md#linux-與系統程式系統化學習)｜第 ① 站第 1 課・延伸提問
 > 日期：2026-09-24
 > 情境：學完第 ① 站第 1 課的 ELF 相關筆記後，想在 OpenWrt 路由器上用同樣的方法觀察檔案，卻發現 `readelf`、`file`、`nm` 都不存在
 > 適用範圍：OpenWrt 24.10.2（`mediatek/filogic`，aarch64），BusyBox 1.36.1，musl 1.2.5；全部經 `ssh root@192.168.1.1` 實測，**沒有安裝任何套件**

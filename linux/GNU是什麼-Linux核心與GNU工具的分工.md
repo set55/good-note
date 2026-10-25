@@ -1,5 +1,6 @@
 # GNU 是什麼？—— 為什麼 gcc、gdb、glibc 都叫 GNU，而 Linux 只是其中的「核心」
 
+> 課程：[Linux 與系統程式系統化學習](../learning/課程目錄.md#linux-與系統程式系統化學習)｜第 ① 站第 1 課・延伸提問
 > 日期：2026-09-22
 > 情境：第 ① 站第 1 課一路用了 gcc、GNU ld、`gdb`（GNU Debugger）、glibc，追問「GNU 是什麼」
 > 適用範圍：本機 Ubuntu 24.04 的版本輸出為實測；歷史年份與授權條款依 GNU／FSF 公開資料
