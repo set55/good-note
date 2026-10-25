@@ -2195,6 +2195,71 @@ gcc<span class="w"> </span>-O0<span class="w"> </span>-Wall<span class="w"> </sp
 <li><strong><code>0x05 + 0x03</code></strong>：中間有進位（第 1～3 位），但都沒碰到第 7 位 → 兩個都是 0。這組說明「有進位」本身什麼都不代表。</li>
 </ul>
 <p>所以四組合起來可以看出一條規則（輸出最後一行的 <code>OF=</code> 就是照它算的，跟 CPU 給的 OF 一致）：<strong>CF = 從第 7 位往外的進位；OF = 「進到第 7 位的進位」和「從第 7 位往外的進位」不一樣（XOR）</strong>。直覺是：有號數的第 7 位是正負號，低 7 位的進位跑進正負號位、卻沒有同時往外送一個進位抵銷，正負號就被改壞了。這跟上面「OF＝當有號算裝不下」是同一件事的電路版說法，判斷時用哪一種都可以。</p>
+<hr />
+<p><strong>上面那條規則：OF 不是看溢位嗎？為什麼又變成看進位？</strong></p>
+<blockquote>
+<p>2026-10-25 提問：「最後一個不確定爲什麼,of不是看溢位嗎?」（問的是第 18 題最後一問：用進位說明 <code>0xff + 0x01</code> 的 OF 為什麼是 0）</p>
+</blockquote>
+<p>是，<strong>OF 的意思一直都是「當有號數算，8 位元裝不下」</strong>，這是定義。「進到第 7 位的進位 XOR 從第 7 位往外的進位」不是另一個意思，是 CPU <strong>算出</strong>這件事的方法：CPU 只有一個加法器，手上沒有「有號的正確答案」可以比，它看得到的只有每一位的進位，所以用進位來判斷有沒有溢位。兩種說法在每一組數字上都一定給出一樣的答案。</p>
+<p>先用一個程式把全部 256 × 256 組 8 位元加法都算一遍，比較兩種算法（檔案：<a href="../../small-project/s1-04-asm-basics/ofrule.c"><code>ofrule.c</code></a>）：</p>
+<pre><code class="language-c"><span class="cm">/* ofrule.c：窮舉全部 256×256 組 8 位元加法，比較「有號溢位」和「進第 7 位 XOR 出第 7 位」 */</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">mismatch</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">seen</span><span class="p">[</span><span class="mi">2</span><span class="p">][</span><span class="mi">2</span><span class="p">][</span><span class="mi">2</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="mi">0</span><span class="p">};</span><span class="w">     </span><span class="cm">/* [a 的第 7 位][b 的第 7 位][進到第 7 位的進位]，記錄 OF */</span>
+
+<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">256</span><span class="p">;</span><span class="w"> </span><span class="n">a</span><span class="o">++</span><span class="p">)</span>
+<span class="w">        </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">b</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">b</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">256</span><span class="p">;</span><span class="w"> </span><span class="n">b</span><span class="o">++</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="kt">unsigned</span><span class="w"> </span><span class="n">sum</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="kt">unsigned</span><span class="p">)</span><span class="n">a</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="p">(</span><span class="kt">unsigned</span><span class="p">)</span><span class="n">b</span><span class="p">;</span>
+<span class="w">            </span><span class="kt">unsigned</span><span class="w"> </span><span class="n">cin</span><span class="w">  </span><span class="o">=</span><span class="w"> </span><span class="p">((</span><span class="n">a</span><span class="w"> </span><span class="o">^</span><span class="w"> </span><span class="n">b</span><span class="w"> </span><span class="o">^</span><span class="w"> </span><span class="n">sum</span><span class="p">)</span><span class="w"> </span><span class="o">&gt;&gt;</span><span class="w"> </span><span class="mi">7</span><span class="p">)</span><span class="w"> </span><span class="o">&amp;</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w">   </span><span class="cm">/* 進到第 7 位的進位 */</span>
+<span class="w">            </span><span class="kt">unsigned</span><span class="w"> </span><span class="n">cout</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">sum</span><span class="w"> </span><span class="o">&gt;&gt;</span><span class="w"> </span><span class="mi">8</span><span class="p">)</span><span class="w"> </span><span class="o">&amp;</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w">             </span><span class="cm">/* 第 7 位往外的進位 */</span>
+<span class="w">            </span><span class="kt">int</span><span class="w"> </span><span class="n">real</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="kt">signed</span><span class="w"> </span><span class="kt">char</span><span class="p">)</span><span class="n">a</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="p">(</span><span class="kt">signed</span><span class="w"> </span><span class="kt">char</span><span class="p">)</span><span class="n">b</span><span class="p">;</span><span class="w"> </span><span class="cm">/* 有號的正確答案，用 int 算不會溢位 */</span>
+<span class="w">            </span><span class="kt">int</span><span class="w"> </span><span class="n">of_math</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">real</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">-128</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="n">real</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">127</span><span class="p">;</span><span class="w">    </span><span class="cm">/* 定義：當有號數，8 位元裝不下 */</span>
+<span class="w">            </span><span class="kt">int</span><span class="w"> </span><span class="n">of_carry</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">cin</span><span class="w"> </span><span class="o">^</span><span class="w"> </span><span class="n">cout</span><span class="p">;</span><span class="w">                  </span><span class="cm">/* 規則：進來的跟出去的不一樣 */</span>
+<span class="w">            </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">of_math</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="n">of_carry</span><span class="p">)</span>
+<span class="w">                </span><span class="n">mismatch</span><span class="o">++</span><span class="p">;</span>
+<span class="w">            </span><span class="n">seen</span><span class="p">[</span><span class="n">a</span><span class="w"> </span><span class="o">&gt;&gt;</span><span class="w"> </span><span class="mi">7</span><span class="p">][</span><span class="n">b</span><span class="w"> </span><span class="o">&gt;&gt;</span><span class="w"> </span><span class="mi">7</span><span class="p">][</span><span class="n">cin</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">of_math</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w">    </span><span class="cm">/* 存 1 或 2，0 代表沒出現過 */</span>
+<span class="w">        </span><span class="p">}</span>
+
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;兩種算法不一致的組數：%d / 65536</span><span class="se">\n\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">mismatch</span><span class="p">);</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;a7 b7 進第7位 | 第7位留下 出第7位 | OF</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">);</span>
+<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">a7</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">a7</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">2</span><span class="p">;</span><span class="w"> </span><span class="n">a7</span><span class="o">++</span><span class="p">)</span>
+<span class="w">        </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">b7</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">b7</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">2</span><span class="p">;</span><span class="w"> </span><span class="n">b7</span><span class="o">++</span><span class="p">)</span>
+<span class="w">            </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">c</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">c</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">2</span><span class="p">;</span><span class="w"> </span><span class="n">c</span><span class="o">++</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                </span><span class="kt">int</span><span class="w"> </span><span class="n">t</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">a7</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">b7</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">c</span><span class="p">;</span>
+<span class="w">                </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot; %d  %d     %d     |     %d        %d     |  %d</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span>
+<span class="w">                       </span><span class="n">a7</span><span class="p">,</span><span class="w"> </span><span class="n">b7</span><span class="p">,</span><span class="w"> </span><span class="n">c</span><span class="p">,</span><span class="w"> </span><span class="n">t</span><span class="w"> </span><span class="o">&amp;</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="n">t</span><span class="w"> </span><span class="o">&gt;&gt;</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="n">seen</span><span class="p">[</span><span class="n">a7</span><span class="p">][</span><span class="n">b7</span><span class="p">][</span><span class="n">c</span><span class="p">]</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">1</span><span class="p">);</span>
+<span class="w">            </span><span class="p">}</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<pre><code class="language-sh"><span class="nb">cd</span><span class="w"> </span>small-project/s1-04-asm-basics
+gcc<span class="w"> </span>-O0<span class="w"> </span>-Wall<span class="w"> </span>ofrule.c<span class="w"> </span>-o<span class="w"> </span>ofrule
+./ofrule
+</code></pre>
+<p>本機輸出：</p>
+<pre><code>兩種算法不一致的組數：0 / 65536
+
+a7 b7 進第7位 | 第7位留下 出第7位 | OF
+ 0  0     0     |     0        0     |  0
+ 0  0     1     |     1        0     |  1
+ 0  1     0     |     1        0     |  0
+ 0  1     1     |     0        1     |  0
+ 1  0     0     |     1        0     |  0
+ 1  0     1     |     0        1     |  0
+ 1  1     0     |     0        1     |  1
+ 1  1     1     |     1        1     |  0
+</code></pre>
+<p>第一行：65536 組全部一致。下面的表把第 7 位（有號數的正負號位）只會遇到的 8 種情況列出來：<code>a7</code>、<code>b7</code> 是兩個數的正負號（0 正、1 負），「進第7位」是低 7 位送上來的進位；「第7位留下」就是結果的正負號，「出第7位」就是 CF。逐列看：</p>
+<ul>
+<li><strong>兩個正數（<code>a7 b7</code> ＝ <code>0 0</code>）</strong>：第 7 位是 0 + 0 + 進位，往外的進位一定是 0。低 7 位沒送進位上來（第 1 列），結果是正的、沒問題；送了進位上來（第 2 列），結果的正負號變成 1——<strong>正數加正數變負數，就是溢位</strong>。這一列「進 1、出 0」，不一樣 → OF ＝ 1。<code>0x7f + 0x01</code> 就是這一列。</li>
+<li><strong>兩個負數（<code>1 1</code>）</strong>：第 7 位是 1 + 1 + 進位，一定往外進位（出 1）。低 7 位有送進位上來（第 8 列），留下 1、結果還是負的，沒問題；沒送（第 7 列），留下 0——<strong>負數加負數變正數，溢位</strong>。這一列「進 0、出 1」，不一樣 → OF ＝ 1。<code>0x80 + 0x80</code>（−128 + −128）就是這一列。</li>
+<li><strong>一正一負（第 3～6 列）</strong>：數學上一正一負相加，答案一定落在兩數之間，<strong>不可能溢位</strong>。表上也看得到，這四列「進」跟「出」永遠一樣 → OF ＝ 0。</li>
+</ul>
+<p>所以「進 ≠ 出」剛好就是「同號相加、正負號卻變了」，也就是有號溢位。<code>0xff + 0x01</code> 是兩個不同號的數（−1 和 +1），落在第 4 列：進 1、出 1，一樣 → OF ＝ 0；有號的說法是 −1 + 1 ＝ 0，本來就裝得下。CF ＝ 1 只是說「當無號數，255 + 1 裝不下」，跟 OF 無關。</p>
+<p><strong>判斷時用哪一種？</strong> 自己算的時候，用有號的說法最快（把兩個數換成有號，看答案有沒有超出 −128～127）；進位的說法是用來理解 CPU 為什麼不用知道你的資料是有號還是無號，也能同時給出 CF 和 OF。</p>
 <p><em>（追問補充結束，以下回到主線）</em></p>
 <hr />
 <p><strong>上面③：3 − 5 在 CPU 裡實際上是怎麼算的？</strong></p>
@@ -3998,9 +4063,9 @@ gcc<span class="w"> </span>-S<span class="w"> </span>-O2<span class="w"> </span>
 <p><strong>9-2</strong>【<a href="#%E4%B8%89%E6%8C%87%E4%BB%A4%E7%9A%84%E6%96%87%E6%B3%95%E5%8A%A9%E6%86%B6%E7%AC%A6%E5%A4%A7%E5%B0%8F%E5%BE%8C%E7%B6%B4%E9%81%8B%E7%AE%97%E5%85%83">第三節</a>〈<code>%dil</code> 是 <code>0xff</code>，為什麼 <code>%eax</code> 變成 <code>0xffffffff</code>：符號擴展補的是第 7 位元〉】核心關鍵：</p>
 <ol>
 <li>二補數的<strong>最高位權重是負的</strong>：8 位元 <code>0xff</code> ＝ −2⁷ ＋ (2⁷ − 1) ＝ −1；32 位元 <code>0xffffffff</code> ＝ −2³¹ ＋ (2³¹ − 1) ＝ −1。</li>
-<li>所以高位全補 1，值還是 −1；補 0 的話 <code>0x000000ff</code> ＝ 255，值就變了。</li>
+<li>所以高位全補 1，值還是 −1。</li>
 </ol>
-<p>詳細說明：（2026-10-13 複習批改時修正核心關鍵：題目問的是 −1，用權重算出全 1 的 <code>int</code> 是 −1 就答到了；一般化的推導移到這裡）一般化：前面多補一個 1，新的最高位權重是 −2⁸，原本那一位從 −2⁷ 變成 +2⁷，合起來 −2⁸ ＋ 2⁷ ＝ −2⁷，跟原來一樣，<strong>值不變</strong>；補幾個都同理。對照零擴展 <code>movzbl</code>：一律補 0，用在 <code>unsigned char</code>（<code>0x80</code> 才能保持 128）。</p>
+<p>詳細說明：（2026-10-13 複習批改時修正核心關鍵：題目問的是 −1，用權重算出全 1 的 <code>int</code> 是 −1 就答到了；一般化的推導移到這裡。2026-10-25 複習批改時把「補 0 會變 255」也移到這裡，它是對照、不是核心）對照：補 0 的話 <code>0x000000ff</code> ＝ 255，值就變了。一般化：前面多補一個 1，新的最高位權重是 −2⁸，原本那一位從 −2⁷ 變成 +2⁷，合起來 −2⁸ ＋ 2⁷ ＝ −2⁷，跟原來一樣，<strong>值不變</strong>；補幾個都同理。對照零擴展 <code>movzbl</code>：一律補 0，用在 <code>unsigned char</code>（<code>0x80</code> 才能保持 128）。</p>
 </details>
 </li>
 <li>
@@ -4191,6 +4256,30 @@ $ objdump -d --no-show-raw-insn paren0      （節錄 deref）
 </li>
 <li>
 <p>（2026-10-25 提問延伸）8 位元的 <code>0x01 + 0x7f</code>：計算過程中有沒有進位傳進第 7 位元（最高位）？有沒有從第 7 位元往外進位？CF、OF 各是多少，為什麼「有進位」不等於 CF = 1？再比較 <code>0x05 + 0x03</code>：它也有進位，為什麼兩個旗標都是 0？最後用「進到第 7 位的進位」和「第 7 位往外的進位」說明 <code>0xff + 0x01</code> 的 OF 為什麼是 0。</p>
+<details class="answer"><summary>參考答案</summary>
+<p>（核心關鍵＋詳細說明；2026-10-25 第一次作答在對話裡，批改：18-1 對、18-2 大致對、18-3 大致對、18-4 未作答）</p>
+<p><strong>18-1</strong>【<a href="#%E4%BA%94%E6%97%97%E6%A8%99%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8Dcmp-%E5%8F%AA%E8%B2%A0%E8%B2%AC%E6%AF%94%E8%B7%B3%E4%B8%8D%E8%B7%B3%E7%94%B1%E4%B8%8B%E4%B8%80%E5%80%8B%E6%8C%87%E4%BB%A4%E6%B1%BA%E5%AE%9A">第五節</a>〈上面⑦：127 + 1 明明有「進位」，為什麼 CF 還是 0？〉】核心關鍵：</p>
+<ol>
+<li>有：<code>0x01 + 0x7f</code> 從第 0 位起每一位都「留 0、進 1」，進位一路傳進第 7 位。</li>
+<li>沒有：第 7 位是 0 + 0 + 1 ＝ 1，留下 1、不再往外進。</li>
+</ol>
+<p><strong>18-2</strong>【同上】核心關鍵：</p>
+<ol>
+<li>CF ＝ 0：CF 只記<strong>從第 7 位往外</strong>的那一次進位，中間各位的進位不算；無號 127 + 1 ＝ 128 ≤ 255，裝得下。</li>
+<li>OF ＝ 1：當<strong>有號數</strong>算，127 + 1 ＝ +128 超出 −128～127，留下的 <code>0x80</code> 讀成 −128。</li>
+</ol>
+<p><strong>18-3</strong>【同上】核心關鍵：</p>
+<ol>
+<li><code>0x05 + 0x03</code> 的進位只發生在第 1～3 位，<strong>沒有傳到第 7 位</strong>：進第 7 位 0、出第 7 位 0 → CF ＝ 0、OF ＝ 0。</li>
+<li>無號 8、有號 8 都裝得下；「中間有進位」本身不影響任何旗標。</li>
+</ol>
+<p><strong>18-4</strong>【同上〈上面那條規則：OF 不是看溢位嗎？為什麼又變成看進位？〉】核心關鍵：</p>
+<ol>
+<li><code>0xff + 0x01</code>：進到第 7 位的進位是 1，第 7 位 1 + 0 + 1 ＝ 10，往外的進位也是 1；兩個一樣 → OF ＝ 0。</li>
+<li>對照有號的說法：−1 + 1 ＝ 0，裝得下，沒溢位；CF ＝ 1 只代表無號的 255 + 1 裝不下。</li>
+</ol>
+<p>詳細說明：OF 的定義一直是「當有號數裝不下」；「進 XOR 出」是 CPU 算出它的方法。同號相加時「進 ≠ 出」剛好就是正負號被改壞，一正一負相加時「進」和「出」一定相同、也一定不溢位，<code>ofrule.c</code> 窮舉 65536 組全部一致。</p>
+</details>
 </li>
 </ol>
 
