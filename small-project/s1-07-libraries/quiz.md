@@ -228,3 +228,121 @@ void add_sample(long x)
 **第 1 次（YYYY-MM-DD）**
 ```
 ```
+
+### 7. 兩份同名全域變數：接 `.so` 為什麼不算重複定義（10-25 追問新增）
+
+`libconf.so` 和主程式 `app.c` 都定義了 `verbose`。(1) `gcc -Wall app.c -L. -lconf -Wl,-rpath,'$ORIGIN' -o app` 會不會出現 `multiple definition`？為什麼？改成 `gcc -Wall app.c conf.pic.o -o app2` 呢？差別在 `ld` 怎麼處理 `.so` 和 `.o`。(2) 能連結成功的那一個，`./app` 會印出 `get_verbose() = ` 多少？用執行時 `ld.so` 怎麼找符號解釋。(3) 把 `conf.c` 第一行改成 `static int verbose = 0;`，重做 `libconf.so`，不重新連結就執行 `./app`，印出多少？為什麼跟 (2) 不同？
+
+```c
+/* conf.c */
+int verbose = 0;
+
+int get_verbose(void)
+{
+    return verbose;
+}
+```
+```c
+/* app.c */
+#include <stdio.h>
+
+int verbose = 3;
+int get_verbose(void);
+
+int main(void)
+{
+    printf("get_verbose() = %d\n", get_verbose());
+    return 0;
+}
+```
+做函式庫：`gcc -Wall -fPIC -c conf.c -o conf.pic.o && gcc -shared conf.pic.o -o libconf.so`（檔案：[`conf.c`](./examples/pic/conf.c)、[`app.c`](./examples/pic/app.c)）
+
+#### 7-1. `gcc -Wall app.c -L. -lconf -Wl,-rpath,'$ORIGIN' -o app` 會不會出現 `multiple definition`？為什麼？
+
+**第 1 次（YYYY-MM-DD）**
+```
+```
+
+#### 7-2. 改成 `gcc -Wall app.c conf.pic.o -o app2` 呢？差別在 `ld` 怎麼處理 `.so` 和 `.o`。
+
+**第 1 次（YYYY-MM-DD）**
+```
+```
+
+#### 7-3. 能連結成功的那一個，`./app` 會印出 `get_verbose() = ` 多少？用執行時 `ld.so` 怎麼找符號解釋。
+
+**第 1 次（YYYY-MM-DD）**
+```
+```
+
+#### 7-4. 把 `conf.c` 第一行改成 `static int verbose = 0;`，重做 `libconf.so`，不重新連結就執行 `./app`，印出多少？為什麼跟 7-3 不同？
+
+**第 1 次（YYYY-MM-DD）**
+```
+```
+
+### 8. PLT 與 GOT：函式的位址存在哪、延遲綁定（10-26 追問新增）
+
+`liblogger.so` 的 `run()` 呼叫了 `log_msg()` 兩次，主程式 `runner.c` 只呼叫 `run()`。(1) 反組譯裡的 `log_msg@plt` 是一張存位址的表嗎？`log_msg` 的位址存在哪個區段的哪一格？用 `jmp` 那行的數字算出來。(2) 第一次和第二次 `call 1070 <log_msg@plt>`，從 `call` 到進入 `log_msg` 各經過哪些地方？`ld.so` 在哪一次介入、做了什麼？(3) 全域變數為什麼不能用這種「第一次用到才查」的方式，一定要載入時就把 `.got` 那格填好？
+
+```c
+/* logger.c */
+#include <stdio.h>
+
+void log_msg(const char *s)
+{
+    printf("[log] %s\n", s);
+}
+
+void run(void)
+{
+    log_msg("start");
+    log_msg("stop");
+}
+```
+```c
+/* runner.c */
+void run(void);
+
+int main(void)
+{
+    run();
+    return 0;
+}
+```
+編譯：`gcc -Wall -fPIC -c logger.c -o logger.pic.o && gcc -shared logger.pic.o -o liblogger.so && gcc -Wall runner.c -L. -llogger -Wl,-rpath,'$ORIGIN' -o runner`（檔案：[`logger.c`](./examples/pic/logger.c)、[`runner.c`](./examples/pic/runner.c)）。觀察到的反組譯與區段（`objdump -d --no-show-raw-insn liblogger.so`、`readelf -SW liblogger.so`、`readelf -r liblogger.so`）：
+```asm
+    1179:	call   1070 <log_msg@plt>        ← 第一次呼叫 log_msg（參數 "start" 已放進 %rdi）
+    ...
+    1188:	call   1070 <log_msg@plt>        ← 第二次呼叫 log_msg（參數 "stop"）
+
+0000000000001070 <log_msg@plt>:
+    1070:	endbr64                          ← 間接跳躍的保護標記，可以忽略
+    1074:	jmp    *0x2f8e(%rip)        # 4008 <log_msg@@Base+0x2ecf>   ← 跳到「%rip 加 0x2f8e 那格裡存的位址」
+    107a:	nopw   0x0(%rax,%rax,1)        ← 不做事的填充指令
+```
+```text
+  [11] .plt              PROGBITS        0000000000001020 001020 000030 10  AX  0   0 16
+  [13] .plt.sec          PROGBITS        0000000000001060 001060 000020 10  AX  0   0 16
+  [22] .got              PROGBITS        0000000000003fc8 002fc8 000020 08  WA  0   0  8
+  [23] .got.plt          PROGBITS        0000000000003fe8 002fe8 000028 08  WA  0   0  8
+000000004008  000700000007 R_X86_64_JUMP_SLO 0000000000001139 log_msg + 0
+```
+
+#### 8-1. 反組譯裡的 `log_msg@plt` 是一張存位址的表嗎？`log_msg` 的位址存在哪個區段的哪一格？用 `jmp` 那行的數字算出來。
+
+**第 1 次（YYYY-MM-DD）**
+```
+```
+
+#### 8-2. 第一次和第二次 `call 1070 <log_msg@plt>`，從 `call` 到進入 `log_msg` 各經過哪些地方？`ld.so` 在哪一次介入、做了什麼？
+
+**第 1 次（YYYY-MM-DD）**
+```
+```
+
+#### 8-3. 全域變數為什麼不能用這種「第一次用到才查」的方式，一定要載入時就把 `.got` 那格填好？
+
+**第 1 次（YYYY-MM-DD）**
+```
+```

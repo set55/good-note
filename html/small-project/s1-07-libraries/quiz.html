@@ -22,6 +22,8 @@
 <li class="l3"><a href="#4-%E6%83%85%E5%A2%83%E9%80%A3%E7%B5%90%E6%88%90%E5%8A%9F%E5%9F%B7%E8%A1%8C%E6%89%BE%E4%B8%8D%E5%88%B0-libfooso">4. 情境：連結成功、執行找不到 libfoo.so</a></li>
 <li class="l3"><a href="#5-soname-%E8%88%87%E5%87%BD%E5%BC%8F%E5%BA%AB%E6%9B%B4%E6%96%B0">5. SONAME 與函式庫更新</a></li>
 <li class="l3"><a href="#6-gotdrip-%E7%9A%84%E8%B7%9D%E9%9B%A2got-%E9%82%A3%E4%B8%80%E6%A0%BC%E8%88%87%E8%AE%8A%E6%95%B8%E6%9C%AC%E8%BA%AB10-25-%E8%BF%BD%E5%95%8F%E6%96%B0%E5%A2%9E">6. GOT：D(%rip) 的距離、GOT 那一格與變數本身（10-25 追問新增）</a></li>
+<li class="l3"><a href="#7-%E5%85%A9%E4%BB%BD%E5%90%8C%E5%90%8D%E5%85%A8%E5%9F%9F%E8%AE%8A%E6%95%B8%E6%8E%A5-so-%E7%82%BA%E4%BB%80%E9%BA%BC%E4%B8%8D%E7%AE%97%E9%87%8D%E8%A4%87%E5%AE%9A%E7%BE%A910-25-%E8%BF%BD%E5%95%8F%E6%96%B0%E5%A2%9E">7. 兩份同名全域變數：接 .so 為什麼不算重複定義（10-25 追問新增）</a></li>
+<li class="l3"><a href="#8-plt-%E8%88%87-got%E5%87%BD%E5%BC%8F%E7%9A%84%E4%BD%8D%E5%9D%80%E5%AD%98%E5%9C%A8%E5%93%AA%E5%BB%B6%E9%81%B2%E7%B6%81%E5%AE%9A10-26-%E8%BF%BD%E5%95%8F%E6%96%B0%E5%A2%9E">8. PLT 與 GOT：函式的位址存在哪、延遲綁定（10-26 追問新增）</a></li>
 </ul>
 </nav>
 <main>
@@ -219,6 +221,105 @@
 <p><strong>第 1 次（YYYY-MM-DD）</strong></p>
 <details class="answer-fold" open><summary>作答</summary>
 <div class="answer-box" data-file="small-project/s1-07-libraries/quiz.md" data-line="228"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+</details>
+<h3 id="7-兩份同名全域變數接-so-為什麼不算重複定義10-25-追問新增">7. 兩份同名全域變數：接 <code>.so</code> 為什麼不算重複定義（10-25 追問新增）</h3>
+<p><code>libconf.so</code> 和主程式 <code>app.c</code> 都定義了 <code>verbose</code>。(1) <code>gcc -Wall app.c -L. -lconf -Wl,-rpath,'$ORIGIN' -o app</code> 會不會出現 <code>multiple definition</code>？為什麼？改成 <code>gcc -Wall app.c conf.pic.o -o app2</code> 呢？差別在 <code>ld</code> 怎麼處理 <code>.so</code> 和 <code>.o</code>。(2) 能連結成功的那一個，<code>./app</code> 會印出 <code>get_verbose() = </code> 多少？用執行時 <code>ld.so</code> 怎麼找符號解釋。(3) 把 <code>conf.c</code> 第一行改成 <code>static int verbose = 0;</code>，重做 <code>libconf.so</code>，不重新連結就執行 <code>./app</code>，印出多少？為什麼跟 (2) 不同？</p>
+<pre><code class="language-c"><span class="cm">/* conf.c */</span>
+<span class="kt">int</span><span class="w"> </span><span class="n">verbose</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">get_verbose</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">verbose</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<pre><code class="language-c"><span class="cm">/* app.c */</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="n">verbose</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">3</span><span class="p">;</span>
+<span class="kt">int</span><span class="w"> </span><span class="nf">get_verbose</span><span class="p">(</span><span class="kt">void</span><span class="p">);</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;get_verbose() = %d</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">get_verbose</span><span class="p">());</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<p>做函式庫：<code>gcc -Wall -fPIC -c conf.c -o conf.pic.o &amp;&amp; gcc -shared conf.pic.o -o libconf.so</code>（檔案：<a href="../../../small-project/s1-07-libraries/examples/pic/conf.c"><code>conf.c</code></a>、<a href="../../../small-project/s1-07-libraries/examples/pic/app.c"><code>app.c</code></a>）</p>
+<h4 id="7-1-gcc--wall-appc--l--lconf--wl-rpathorigin--o-app-會不會出現-multiple-definition為什麼">7-1. <code>gcc -Wall app.c -L. -lconf -Wl,-rpath,'$ORIGIN' -o app</code> 會不會出現 <code>multiple definition</code>？為什麼？</h4>
+<p><strong>第 1 次（YYYY-MM-DD）</strong></p>
+<details class="answer-fold" open><summary>作答</summary>
+<div class="answer-box" data-file="small-project/s1-07-libraries/quiz.md" data-line="262"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+</details>
+<h4 id="7-2-改成-gcc--wall-appc-confpico--o-app2-呢差別在-ld-怎麼處理-so-和-o">7-2. 改成 <code>gcc -Wall app.c conf.pic.o -o app2</code> 呢？差別在 <code>ld</code> 怎麼處理 <code>.so</code> 和 <code>.o</code>。</h4>
+<p><strong>第 1 次（YYYY-MM-DD）</strong></p>
+<details class="answer-fold" open><summary>作答</summary>
+<div class="answer-box" data-file="small-project/s1-07-libraries/quiz.md" data-line="268"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+</details>
+<h4 id="7-3-能連結成功的那一個app-會印出-get_verbose---多少用執行時-ldso-怎麼找符號解釋">7-3. 能連結成功的那一個，<code>./app</code> 會印出 <code>get_verbose() = </code> 多少？用執行時 <code>ld.so</code> 怎麼找符號解釋。</h4>
+<p><strong>第 1 次（YYYY-MM-DD）</strong></p>
+<details class="answer-fold" open><summary>作答</summary>
+<div class="answer-box" data-file="small-project/s1-07-libraries/quiz.md" data-line="274"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+</details>
+<h4 id="7-4-把-confc-第一行改成-static-int-verbose--0重做-libconfso不重新連結就執行-app印出多少為什麼跟-7-3-不同">7-4. 把 <code>conf.c</code> 第一行改成 <code>static int verbose = 0;</code>，重做 <code>libconf.so</code>，不重新連結就執行 <code>./app</code>，印出多少？為什麼跟 7-3 不同？</h4>
+<p><strong>第 1 次（YYYY-MM-DD）</strong></p>
+<details class="answer-fold" open><summary>作答</summary>
+<div class="answer-box" data-file="small-project/s1-07-libraries/quiz.md" data-line="280"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+</details>
+<h3 id="8-plt-與-got函式的位址存在哪延遲綁定10-26-追問新增">8. PLT 與 GOT：函式的位址存在哪、延遲綁定（10-26 追問新增）</h3>
+<p><code>liblogger.so</code> 的 <code>run()</code> 呼叫了 <code>log_msg()</code> 兩次，主程式 <code>runner.c</code> 只呼叫 <code>run()</code>。(1) 反組譯裡的 <code>log_msg@plt</code> 是一張存位址的表嗎？<code>log_msg</code> 的位址存在哪個區段的哪一格？用 <code>jmp</code> 那行的數字算出來。(2) 第一次和第二次 <code>call 1070 &lt;log_msg@plt&gt;</code>，從 <code>call</code> 到進入 <code>log_msg</code> 各經過哪些地方？<code>ld.so</code> 在哪一次介入、做了什麼？(3) 全域變數為什麼不能用這種「第一次用到才查」的方式，一定要載入時就把 <code>.got</code> 那格填好？</p>
+<pre><code class="language-c"><span class="cm">/* logger.c */</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+
+<span class="kt">void</span><span class="w"> </span><span class="nf">log_msg</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="kt">char</span><span class="w"> </span><span class="o">*</span><span class="n">s</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;[log] %s</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">s</span><span class="p">);</span>
+<span class="p">}</span>
+
+<span class="kt">void</span><span class="w"> </span><span class="nf">run</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">log_msg</span><span class="p">(</span><span class="s">&quot;start&quot;</span><span class="p">);</span>
+<span class="w">    </span><span class="n">log_msg</span><span class="p">(</span><span class="s">&quot;stop&quot;</span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre>
+<pre><code class="language-c"><span class="cm">/* runner.c */</span>
+<span class="kt">void</span><span class="w"> </span><span class="nf">run</span><span class="p">(</span><span class="kt">void</span><span class="p">);</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">run</span><span class="p">();</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<p>編譯：<code>gcc -Wall -fPIC -c logger.c -o logger.pic.o &amp;&amp; gcc -shared logger.pic.o -o liblogger.so &amp;&amp; gcc -Wall runner.c -L. -llogger -Wl,-rpath,'$ORIGIN' -o runner</code>（檔案：<a href="../../../small-project/s1-07-libraries/examples/pic/logger.c"><code>logger.c</code></a>、<a href="../../../small-project/s1-07-libraries/examples/pic/runner.c"><code>runner.c</code></a>）。觀察到的反組譯與區段（<code>objdump -d --no-show-raw-insn liblogger.so</code>、<code>readelf -SW liblogger.so</code>、<code>readelf -r liblogger.so</code>）：</p>
+<pre><code class="language-asm"><span class="w">    </span><span class="err">1179:</span><span class="w">	</span><span class="nf">call</span><span class="w">   </span><span class="mh">1070</span> <span class="p">&lt;</span><span class="no">log_msg@plt</span><span class="p">&gt;</span><span class="w">        </span><span class="err">←</span><span class="w"> </span><span class="err">第一次呼叫</span><span class="w"> </span><span class="no">log_msg</span><span class="err">（參數</span><span class="w"> </span><span class="err">&quot;</span><span class="no">start</span><span class="err">&quot;</span><span class="w"> </span><span class="err">已放進</span><span class="w"> </span><span class="nv">%rdi</span><span class="err">）</span>
+<span class="w">    </span><span class="na">...</span>
+<span class="w">    </span><span class="err">1188:</span><span class="w">	</span><span class="nf">call</span><span class="w">   </span><span class="mh">1070</span> <span class="p">&lt;</span><span class="no">log_msg@plt</span><span class="p">&gt;</span><span class="w">        </span><span class="err">←</span><span class="w"> </span><span class="err">第二次呼叫</span><span class="w"> </span><span class="no">log_msg</span><span class="err">（參數</span><span class="w"> </span><span class="err">&quot;</span><span class="no">stop</span><span class="err">&quot;）</span>
+
+<span class="err">0000000000001070</span><span class="w"> </span><span class="err">&lt;</span><span class="nf">log_msg@plt</span><span class="err">&gt;</span><span class="p">:</span>
+<span class="w">    </span><span class="err">1070:</span><span class="w">	</span><span class="nf">endbr64</span><span class="w">                          </span><span class="err">←</span><span class="w"> </span><span class="err">間接跳躍的保護標記，可以忽略</span>
+<span class="w">    </span><span class="err">1074:</span><span class="w">	</span><span class="nf">jmp</span><span class="w">    </span><span class="p">*</span><span class="mi">0x2f8e</span><span class="p">(</span><span class="nv">%rip</span><span class="p">)</span><span class="w">        </span><span class="c1"># 4008 &lt;log_msg@@Base+0x2ecf&gt;   ← 跳到「%rip 加 0x2f8e 那格裡存的位址」</span>
+<span class="w">    </span><span class="err">107</span><span class="nl">a:</span><span class="w">	</span><span class="nf">nopw</span><span class="w">   </span><span class="mi">0x0</span><span class="p">(</span><span class="nv">%rax</span><span class="p">,</span><span class="nv">%rax</span><span class="p">,</span><span class="mi">1</span><span class="p">)</span><span class="w">        </span><span class="err">←</span><span class="w"> </span><span class="err">不做事的填充指令</span>
+</code></pre>
+<pre><code class="language-text">  [11] .plt              PROGBITS        0000000000001020 001020 000030 10  AX  0   0 16
+  [13] .plt.sec          PROGBITS        0000000000001060 001060 000020 10  AX  0   0 16
+  [22] .got              PROGBITS        0000000000003fc8 002fc8 000020 08  WA  0   0  8
+  [23] .got.plt          PROGBITS        0000000000003fe8 002fe8 000028 08  WA  0   0  8
+000000004008  000700000007 R_X86_64_JUMP_SLO 0000000000001139 log_msg + 0
+</code></pre>
+<h4 id="8-1-反組譯裡的-log_msgplt-是一張存位址的表嗎log_msg-的位址存在哪個區段的哪一格用-jmp-那行的數字算出來">8-1. 反組譯裡的 <code>log_msg@plt</code> 是一張存位址的表嗎？<code>log_msg</code> 的位址存在哪個區段的哪一格？用 <code>jmp</code> 那行的數字算出來。</h4>
+<p><strong>第 1 次（YYYY-MM-DD）</strong></p>
+<details class="answer-fold" open><summary>作答</summary>
+<div class="answer-box" data-file="small-project/s1-07-libraries/quiz.md" data-line="334"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+</details>
+<h4 id="8-2-第一次和第二次-call-1070-log_msgplt從-call-到進入-log_msg-各經過哪些地方ldso-在哪一次介入做了什麼">8-2. 第一次和第二次 <code>call 1070 &lt;log_msg@plt&gt;</code>，從 <code>call</code> 到進入 <code>log_msg</code> 各經過哪些地方？<code>ld.so</code> 在哪一次介入、做了什麼？</h4>
+<p><strong>第 1 次（YYYY-MM-DD）</strong></p>
+<details class="answer-fold" open><summary>作答</summary>
+<div class="answer-box" data-file="small-project/s1-07-libraries/quiz.md" data-line="340"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+</details>
+<h4 id="8-3-全域變數為什麼不能用這種第一次用到才查的方式一定要載入時就把-got-那格填好">8-3. 全域變數為什麼不能用這種「第一次用到才查」的方式，一定要載入時就把 <code>.got</code> 那格填好？</h4>
+<p><strong>第 1 次（YYYY-MM-DD）</strong></p>
+<details class="answer-fold" open><summary>作答</summary>
+<div class="answer-box" data-file="small-project/s1-07-libraries/quiz.md" data-line="346"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 
 </main>

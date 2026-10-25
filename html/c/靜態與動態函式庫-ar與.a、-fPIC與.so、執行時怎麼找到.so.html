@@ -546,6 +546,43 @@ counter = 101
 <pre><code>$ gcc usecount.c count.o -o us2
 /usr/bin/ld: count.o:(.bss+0x0): multiple definition of `counter'; /tmp/ccWE88lB.o:(.data+0x0): first defined here
 </code></pre>
+<hr />
+<p><strong>上面兩份 <code>counter</code>：接 <code>.so</code> 為什麼不算重複定義</strong></p>
+<blockquote>
+<p>2026-10-25 課後提問：「不算重複定義嗎?」（指 <code>usecount.c</code> 自己定義 <code>int counter = 100;</code>，<code>libcount.so</code> 裡也定義了 <code>counter</code>）</p>
+</blockquote>
+<p>上面 <code>gcc usecount.c count.o</code> 的 <code>multiple definition</code> 是連結器 <code>ld</code> 的檢查（第 6 課），它只管<strong>會被放進同一個輸出檔的定義</strong>。<code>ld</code> 對 <code>.o</code> 和 <code>.so</code> 的處理方式不一樣：</p>
+<table>
+<thead>
+<tr>
+<th>連結時給 <code>ld</code> 的東西</th>
+<th><code>ld</code> 怎麼處理</th>
+<th>兩邊都定義 <code>counter</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>.o</code>（或從 <code>.a</code> 拉進來的成員）</td>
+<td>把內容<strong>複製進</strong>輸出檔</td>
+<td>輸出檔裡有兩份 → <code>multiple definition</code></td>
+</tr>
+<tr>
+<td><code>.so</code></td>
+<td><strong>不複製</strong>，只讀它的動態符號表：用來解決還沒定義的符號，並把它的名字記進 <code>NEEDED</code></td>
+<td>輸出檔裡只有執行檔自己那份，<code>.so</code> 那份留在 <code>.so</code> 裡 → 不報錯</td>
+</tr>
+</tbody>
+</table>
+<p>所以連結成功以後，兩份 <code>counter</code> 都還在，各在各的檔案裡（本機實測；<code>nm -D</code> 看的是 <code>.so</code> 的動態符號表）：</p>
+<pre><code>$ nm usecount | grep -w counter
+0000000000004010 D counter      ← 執行檔自己的（.data，初值 100）
+$ nm -D libcount.so | grep -w counter
+000000000000400c B counter      ← .so 自己的（.bss，初值 0）
+</code></pre>
+<p>兩份都在，但只會用到一份：要等<strong>執行時</strong>由 <code>ld.so</code> 照「先執行檔、再依 <code>NEEDED</code> 順序」挑，第一個找到的贏——就是上面講的符號插入。<code>libcount.so</code> 的 GOT 裡 <code>counter</code> 那一格填的是執行檔那份的位址，<code>.so</code> 自己那份初值 0 的 <code>counter</code> 從頭到尾沒人用。</p>
+<p>這是 ELF 刻意允許的：讓執行檔（或 <code>LD_PRELOAD</code> 先載入的函式庫）能蓋掉函式庫裡的同名符號，例如自己寫一個 <code>malloc</code> 取代 glibc 的。代價就是 <code>.so</code> 做的時候不知道最後用哪一份，只能經過 GOT——也就是下一段的結論。</p>
+<p><em>（追問補充結束，以下回到主線）</em></p>
+<hr />
 <p>所以 <code>.so</code> 在<strong>做的時候</strong>不知道它的全域變數最後是哪一份，要等<strong>載入時</strong> <code>ld.so</code> 決定，這個決定只能寫在一張表裡——GOT。</p>
 <p>反過來驗證：如果 <code>counter</code> 是 <code>static</code>（<code>LOCAL</code>，第 6 課第五節），別人不可能插入，不加 <code>-fPIC</code> 也做得成 <code>.so</code>。<code>count_static.c</code>（檔案：<a href="../../small-project/s1-07-libraries/examples/pic/count_static.c"><code>count_static.c</code></a>）只差第一行：</p>
 <pre><code class="language-c"><span class="k">static</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">counter</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
@@ -560,6 +597,118 @@ counter = 101
 $                                            # 沒有錯誤
 </code></pre>
 <p><code>add.c</code>、<code>mul.c</code> 不加 <code>-fPIC</code> 也做得成，也是同一個道理：它們沒有存取全域變數，而呼叫函式本來就經過 PLT（第 1 課的 <code>puts@plt</code>），不需要改程式碼。</p>
+<hr />
+<p><strong>上面「呼叫函式本來就經過 PLT」：PLT 存函式位址、GOT 存變數位址嗎？</strong></p>
+<blockquote>
+<p>2026-10-26 課後提問：「plt是不是專存全域函式的位址,got存全域變數的位址?」</p>
+</blockquote>
+<p>不是。<strong>PLT 不存位址，它是程式碼（每個函式一小段跳板）；變數和函式的位址都存在 GOT 裡</strong>，只是分在兩個區段：</p>
+<table>
+<thead>
+<tr>
+<th>區段</th>
+<th>是什麼</th>
+<th>權限（<code>readelf -S</code> 的 <code>Flg</code>）</th>
+<th>放什麼</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>.plt</code>、<code>.plt.sec</code></td>
+<td><strong>程式碼</strong></td>
+<td><code>AX</code>（可執行、唯讀）</td>
+<td>每個函式一段跳板，例如 <code>say@plt</code></td>
+</tr>
+<tr>
+<td><code>.got</code></td>
+<td><strong>資料</strong>（位址表）</td>
+<td><code>WA</code>（可寫）</td>
+<td>全域<strong>變數</strong>的位址，重定位類型 <code>R_X86_64_GLOB_DAT</code>（上面 <code>counter</code> 那格）</td>
+</tr>
+<tr>
+<td><code>.got.plt</code></td>
+<td><strong>資料</strong>（位址表，也是 GOT 的一部分）</td>
+<td><code>WA</code>（可寫）</td>
+<td><strong>函式</strong>的位址，重定位類型 <code>R_X86_64_JUMP_SLOT</code></td>
+</tr>
+</tbody>
+</table>
+<p>（<code>.plt.got</code> 名字跟 <code>.got.plt</code> 很像，但它是另一種跳板，給不走下面「延遲綁定」的函式用，例如 <code>__cxa_finalize</code>，這裡不展開。）</p>
+<p>實驗：<code>libgreet.so</code> 的 <code>greet()</code> 呼叫 <code>say()</code>。<code>greet.c</code>（檔案：<a href="../../small-project/s1-07-libraries/examples/pic/greet.c"><code>greet.c</code></a>）完整原始碼：</p>
+<pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+
+<span class="kt">void</span><span class="w"> </span><span class="nf">say</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;say() in libgreet.so</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">);</span>
+<span class="p">}</span>
+
+<span class="kt">void</span><span class="w"> </span><span class="nf">greet</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">say</span><span class="p">();</span>
+<span class="p">}</span>
+</code></pre>
+<p>主程式 <code>greet_main.c</code>（檔案：<a href="../../small-project/s1-07-libraries/examples/pic/greet_main.c"><code>greet_main.c</code></a>）也定義一個 <code>say()</code>——順便看到函式也會被符號插入，跟上面的 <code>counter</code> 一樣：</p>
+<pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+
+<span class="kt">void</span><span class="w"> </span><span class="nf">greet</span><span class="p">(</span><span class="kt">void</span><span class="p">);</span>
+
+<span class="kt">void</span><span class="w"> </span><span class="nf">say</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;say() in main</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">);</span>
+<span class="p">}</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">greet</span><span class="p">();</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<pre><code>$ gcc -Wall -fPIC -c greet.c -o greet.pic.o &amp;&amp; gcc -shared greet.pic.o -o libgreet.so
+$ gcc -Wall greet_main.c -L. -lgreet -Wl,-rpath,'$ORIGIN' -o greet_app
+$ ./greet_app
+say() in main                                  ← 函式庫裡的 greet() 呼叫到主程式的 say()
+$ objdump -d --no-show-raw-insn libgreet.so | sed -n '/&lt;greet&gt;:/,/ret/p'
+0000000000001153 &lt;greet&gt;:
+    ...
+    115b:	call   1070 &lt;say@plt&gt;              ← 不是直接 call say，是 call 跳板
+    ...
+$ objdump -d --no-show-raw-insn -j .plt.sec libgreet.so | sed -n '/say@plt&gt;:/,+3p'
+0000000000001070 &lt;say@plt&gt;:
+    1070:	endbr64
+    1074:	jmp    *0x2f8e(%rip)        # 4008 &lt;say@@Base+0x2ecf&gt;
+    107a:	nopw   0x0(%rax,%rax,1)
+$ readelf -SW libgreet.so | grep -E '\.plt|\.got'
+  [ 9] .rela.plt         RELA            0000000000000530 000530 000030 18  AI  4  23  8
+  [11] .plt              PROGBITS        0000000000001020 001020 000030 10  AX  0   0 16
+  [12] .plt.got          PROGBITS        0000000000001050 001050 000010 10  AX  0   0 16
+  [13] .plt.sec          PROGBITS        0000000000001060 001060 000020 10  AX  0   0 16
+  [22] .got              PROGBITS        0000000000003fc8 002fc8 000020 08  WA  0   0  8
+  [23] .got.plt          PROGBITS        0000000000003fe8 002fe8 000028 08  WA  0   0  8
+$ readelf -r libgreet.so | grep say
+000000004008  000700000007 R_X86_64_JUMP_SLO 0000000000001139 say + 0
+</code></pre>
+<p>讀法：</p>
+<ol>
+<li><code>jmp *0x2f8e(%rip)</code>：<code>*</code> 表示「跳到<strong>記憶體裡存的</strong>那個位址」，不是跳到 <code>0x4008</code> 本身。<code>0x2f8e</code> 的算法跟上面 <code>counter</code> 一樣：下一條 <code>0x107a ＋ 0x2f8e ＝ 0x4008</code>。</li>
+<li><code>0x4008</code> 落在 <code>.got.plt</code>（<code>0x3fe8</code> 起，長 <code>0x28</code>），<code>readelf -r</code> 說這格是 <code>JUMP_SLOT</code>、要填 <code>say</code>。</li>
+<li>所以呼叫函式也是兩步：<code>call say@plt</code> 跳到跳板（程式碼）→ 跳板讀 <code>.got.plt</code> 那格存的位址、跳過去。跟變數「先從 <code>.got</code> 讀出位址、再照位址讀」是同一個樣子。</li>
+</ol>
+<p><strong>那為什麼函式要多一層跳板？延遲綁定（lazy binding）。</strong> 用 gdb 看 <code>say</code> 那格在第一次呼叫前後的值（gdb 關掉 ASLR，<code>libgreet.so</code> 載入在 <code>0x7ffff7fb6000</code>，所以那格在 <code>0x7ffff7fb6000 + 0x4008</code>；<code>greet+13</code> 是 <code>call</code> 的下一條 <code>0x1160</code>）：</p>
+<pre><code>$ gdb -q -batch -ex 'break greet' -ex run -ex 'x/gx 0x7ffff7fb6000+0x4008' \
+      -ex 'break *greet+13' -ex c -ex 'x/gx 0x7ffff7fb6000+0x4008' -ex 'p &amp;say' ./greet_app
+0x7ffff7fba008 &lt;say@got.plt&gt;:	0x00007ffff7fb7040     ← 呼叫前：指回 libgreet.so 自己的 .plt（0x1040），不是 say
+0x7ffff7fba008 &lt;say@got.plt&gt;:	0x0000555555555169     ← 呼叫過一次後：變成主程式的 say
+$1 = (&lt;text variable, no debug info&gt; *) 0x555555555169 &lt;say&gt;
+</code></pre>
+<ol>
+<li>一開始那格不放 <code>say</code> 的位址，而是指回 <code>.plt</code> 裡一段「叫 <code>ld.so</code> 去查」的程式碼；</li>
+<li><strong>第一次</strong>呼叫時，<code>ld.so</code> 才去找 <code>say</code> 是哪一份（這裡是主程式的），把答案寫回那格；</li>
+<li>之後再呼叫，跳板讀到的就是 <code>say</code> 的真正位址，直接跳過去，<code>ld.so</code> 不再介入。</li>
+</ol>
+<p>好處是程式啟動時不必一次查完所有函式（很多可能根本沒被呼叫）。<strong>變數做不到</strong>：讀變數就是一條 <code>mov (%rax),%eax</code>，中間沒有跳板可以插入「先去查」的程式碼，所以 <code>.got</code> 裡變數那格一定要在載入時就填好（上面 <code>counter</code> 那格就是載入時填的）。</p>
+<p>反過來驗證：把 <code>greet.c</code> 的 <code>say</code> 改成 <code>static void say(void)</code> 重做 <code>libgreet.so</code>，<code>greet_app</code> 不重新連結，執行印出 <code>say() in libgreet.so</code>，反組譯變成直接 <code>call 1119 &lt;say&gt;</code>、沒有 <code>@plt</code>——<code>LOCAL</code> 的函式不可能被插入，就不必經過 PLT／GOT，跟 <code>static int counter</code> 不需要 GOT 是同一個道理。</p>
+<p><em>（追問補充結束，以下回到主線）</em></p>
+<hr />
 <p><strong>那為什麼不讓 <code>ld.so</code> 載入時直接改 <code>.text</code> 裡的距離就好？</strong> 第一行警告 <code>relocation against 'counter' in read-only section '.text'</code> 說的就是這件事：那樣要在載入時改寫程式碼，而 <code>.text</code> 是唯讀的。更重要的是，<strong>共享函式庫的「共享」是指同一份 <code>.text</code> 的實體記憶體分頁，給所有用它的行程共用</strong>；如果每個行程都要把自己的位址寫進 <code>.text</code>，每個行程就得各自複製一份，共享就沒了。PIC 的設計是：程式碼完全不改、大家共用；要因行程而異的位址集中放在<strong>可寫的 GOT</strong>，每個行程一份。</p>
 <p>整理：</p>
 <table>
@@ -1359,6 +1508,66 @@ $ rm libcalc.so &amp;&amp; ./app                     # 刪掉連結名稱
 000000003fd8  000600000006 R_X86_64_GLOB_DAT 0000000000004010 seen + 0
 </code></pre>
 （檔案：<a href="../../small-project/s1-07-libraries/examples/pic/tally.c"><code>tally.c</code></a>）</li>
+<li><code>libconf.so</code> 和主程式 <code>app.c</code> 都定義了 <code>verbose</code>。(1) <code>gcc -Wall app.c -L. -lconf -Wl,-rpath,'$ORIGIN' -o app</code> 會不會出現 <code>multiple definition</code>？為什麼？改成 <code>gcc -Wall app.c conf.pic.o -o app2</code> 呢？差別在 <code>ld</code> 怎麼處理 <code>.so</code> 和 <code>.o</code>。(2) 能連結成功的那一個，<code>./app</code> 會印出 <code>get_verbose() = </code> 多少？用執行時 <code>ld.so</code> 怎麼找符號解釋。(3) 把 <code>conf.c</code> 第一行改成 <code>static int verbose = 0;</code>，重做 <code>libconf.so</code>，不重新連結就執行 <code>./app</code>，印出多少？為什麼跟 (2) 不同？<pre><code class="language-c"><span class="cm">/* conf.c */</span>
+<span class="kt">int</span><span class="w"> </span><span class="n">verbose</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">get_verbose</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">verbose</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<pre><code class="language-c"><span class="cm">/* app.c */</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="n">verbose</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">3</span><span class="p">;</span>
+<span class="kt">int</span><span class="w"> </span><span class="nf">get_verbose</span><span class="p">(</span><span class="kt">void</span><span class="p">);</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;get_verbose() = %d</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">get_verbose</span><span class="p">());</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+做函式庫：<code>gcc -Wall -fPIC -c conf.c -o conf.pic.o &amp;&amp; gcc -shared conf.pic.o -o libconf.so</code>（檔案：<a href="../../small-project/s1-07-libraries/examples/pic/conf.c"><code>conf.c</code></a>、<a href="../../small-project/s1-07-libraries/examples/pic/app.c"><code>app.c</code></a>）</li>
+<li><code>liblogger.so</code> 的 <code>run()</code> 呼叫了 <code>log_msg()</code> 兩次，主程式 <code>runner.c</code> 只呼叫 <code>run()</code>。(1) 反組譯裡的 <code>log_msg@plt</code> 是一張存位址的表嗎？<code>log_msg</code> 的位址存在哪個區段的哪一格？用 <code>jmp</code> 那行的數字算出來。(2) 第一次和第二次 <code>call 1070 &lt;log_msg@plt&gt;</code>，從 <code>call</code> 到進入 <code>log_msg</code> 各經過哪些地方？<code>ld.so</code> 在哪一次介入、做了什麼？(3) 全域變數為什麼不能用這種「第一次用到才查」的方式，一定要載入時就把 <code>.got</code> 那格填好？<pre><code class="language-c"><span class="cm">/* logger.c */</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+
+<span class="kt">void</span><span class="w"> </span><span class="nf">log_msg</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="kt">char</span><span class="w"> </span><span class="o">*</span><span class="n">s</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;[log] %s</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">s</span><span class="p">);</span>
+<span class="p">}</span>
+
+<span class="kt">void</span><span class="w"> </span><span class="nf">run</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">log_msg</span><span class="p">(</span><span class="s">&quot;start&quot;</span><span class="p">);</span>
+<span class="w">    </span><span class="n">log_msg</span><span class="p">(</span><span class="s">&quot;stop&quot;</span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre>
+<pre><code class="language-c"><span class="cm">/* runner.c */</span>
+<span class="kt">void</span><span class="w"> </span><span class="nf">run</span><span class="p">(</span><span class="kt">void</span><span class="p">);</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">run</span><span class="p">();</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+編譯：<code>gcc -Wall -fPIC -c logger.c -o logger.pic.o &amp;&amp; gcc -shared logger.pic.o -o liblogger.so &amp;&amp; gcc -Wall runner.c -L. -llogger -Wl,-rpath,'$ORIGIN' -o runner</code>（檔案：<a href="../../small-project/s1-07-libraries/examples/pic/logger.c"><code>logger.c</code></a>、<a href="../../small-project/s1-07-libraries/examples/pic/runner.c"><code>runner.c</code></a>）。觀察到的反組譯與區段（<code>objdump -d --no-show-raw-insn liblogger.so</code>、<code>readelf -SW liblogger.so</code>、<code>readelf -r liblogger.so</code>）：<pre><code class="language-asm"><span class="w">    </span><span class="err">1179:</span><span class="w">	</span><span class="nf">call</span><span class="w">   </span><span class="mh">1070</span> <span class="p">&lt;</span><span class="no">log_msg@plt</span><span class="p">&gt;</span><span class="w">        </span><span class="err">←</span><span class="w"> </span><span class="err">第一次呼叫</span><span class="w"> </span><span class="no">log_msg</span><span class="err">（參數</span><span class="w"> </span><span class="err">&quot;</span><span class="no">start</span><span class="err">&quot;</span><span class="w"> </span><span class="err">已放進</span><span class="w"> </span><span class="nv">%rdi</span><span class="err">）</span>
+<span class="w">    </span><span class="na">...</span>
+<span class="w">    </span><span class="err">1188:</span><span class="w">	</span><span class="nf">call</span><span class="w">   </span><span class="mh">1070</span> <span class="p">&lt;</span><span class="no">log_msg@plt</span><span class="p">&gt;</span><span class="w">        </span><span class="err">←</span><span class="w"> </span><span class="err">第二次呼叫</span><span class="w"> </span><span class="no">log_msg</span><span class="err">（參數</span><span class="w"> </span><span class="err">&quot;</span><span class="no">stop</span><span class="err">&quot;）</span>
+
+<span class="err">0000000000001070</span><span class="w"> </span><span class="err">&lt;</span><span class="nf">log_msg@plt</span><span class="err">&gt;</span><span class="p">:</span>
+<span class="w">    </span><span class="err">1070:</span><span class="w">	</span><span class="nf">endbr64</span><span class="w">                          </span><span class="err">←</span><span class="w"> </span><span class="err">間接跳躍的保護標記，可以忽略</span>
+<span class="w">    </span><span class="err">1074:</span><span class="w">	</span><span class="nf">jmp</span><span class="w">    </span><span class="p">*</span><span class="mi">0x2f8e</span><span class="p">(</span><span class="nv">%rip</span><span class="p">)</span><span class="w">        </span><span class="c1"># 4008 &lt;log_msg@@Base+0x2ecf&gt;   ← 跳到「%rip 加 0x2f8e 那格裡存的位址」</span>
+<span class="w">    </span><span class="err">107</span><span class="nl">a:</span><span class="w">	</span><span class="nf">nopw</span><span class="w">   </span><span class="mi">0x0</span><span class="p">(</span><span class="nv">%rax</span><span class="p">,</span><span class="nv">%rax</span><span class="p">,</span><span class="mi">1</span><span class="p">)</span><span class="w">        </span><span class="err">←</span><span class="w"> </span><span class="err">不做事的填充指令</span>
+</code></pre>
+<pre><code class="language-text">  [11] .plt              PROGBITS        0000000000001020 001020 000030 10  AX  0   0 16
+  [13] .plt.sec          PROGBITS        0000000000001060 001060 000020 10  AX  0   0 16
+  [22] .got              PROGBITS        0000000000003fc8 002fc8 000020 08  WA  0   0  8
+  [23] .got.plt          PROGBITS        0000000000003fe8 002fe8 000028 08  WA  0   0  8
+000000004008  000700000007 R_X86_64_JUMP_SLO 0000000000001139 log_msg + 0
+</code></pre>
+</li>
 </ol>
 
 </main>

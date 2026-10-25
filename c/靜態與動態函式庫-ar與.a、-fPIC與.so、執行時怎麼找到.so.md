@@ -570,6 +570,36 @@ $ gcc usecount.c count.o -o us2
 /usr/bin/ld: count.o:(.bss+0x0): multiple definition of `counter'; /tmp/ccWE88lB.o:(.data+0x0): first defined here
 ```
 
+---
+
+**上面兩份 `counter`：接 `.so` 為什麼不算重複定義**
+
+> 2026-10-25 課後提問：「不算重複定義嗎?」（指 `usecount.c` 自己定義 `int counter = 100;`，`libcount.so` 裡也定義了 `counter`）
+
+上面 `gcc usecount.c count.o` 的 `multiple definition` 是連結器 `ld` 的檢查（第 6 課），它只管**會被放進同一個輸出檔的定義**。`ld` 對 `.o` 和 `.so` 的處理方式不一樣：
+
+| 連結時給 `ld` 的東西 | `ld` 怎麼處理 | 兩邊都定義 `counter` |
+|---|---|---|
+| `.o`（或從 `.a` 拉進來的成員） | 把內容**複製進**輸出檔 | 輸出檔裡有兩份 → `multiple definition` |
+| `.so` | **不複製**，只讀它的動態符號表：用來解決還沒定義的符號，並把它的名字記進 `NEEDED` | 輸出檔裡只有執行檔自己那份，`.so` 那份留在 `.so` 裡 → 不報錯 |
+
+所以連結成功以後，兩份 `counter` 都還在，各在各的檔案裡（本機實測；`nm -D` 看的是 `.so` 的動態符號表）：
+
+```
+$ nm usecount | grep -w counter
+0000000000004010 D counter      ← 執行檔自己的（.data，初值 100）
+$ nm -D libcount.so | grep -w counter
+000000000000400c B counter      ← .so 自己的（.bss，初值 0）
+```
+
+兩份都在，但只會用到一份：要等**執行時**由 `ld.so` 照「先執行檔、再依 `NEEDED` 順序」挑，第一個找到的贏——就是上面講的符號插入。`libcount.so` 的 GOT 裡 `counter` 那一格填的是執行檔那份的位址，`.so` 自己那份初值 0 的 `counter` 從頭到尾沒人用。
+
+這是 ELF 刻意允許的：讓執行檔（或 `LD_PRELOAD` 先載入的函式庫）能蓋掉函式庫裡的同名符號，例如自己寫一個 `malloc` 取代 glibc 的。代價就是 `.so` 做的時候不知道最後用哪一份，只能經過 GOT——也就是下一段的結論。
+
+*（追問補充結束，以下回到主線）*
+
+---
+
 所以 `.so` 在**做的時候**不知道它的全域變數最後是哪一份，要等**載入時** `ld.so` 決定，這個決定只能寫在一張表裡——GOT。
 
 反過來驗證：如果 `counter` 是 `static`（`LOCAL`，第 6 課第五節），別人不可能插入，不加 `-fPIC` 也做得成 `.so`。`count_static.c`（檔案：[`count_static.c`](../small-project/s1-07-libraries/examples/pic/count_static.c)）只差第一行：
@@ -590,6 +620,111 @@ $                                            # 沒有錯誤
 ```
 
 `add.c`、`mul.c` 不加 `-fPIC` 也做得成，也是同一個道理：它們沒有存取全域變數，而呼叫函式本來就經過 PLT（第 1 課的 `puts@plt`），不需要改程式碼。
+
+---
+
+**上面「呼叫函式本來就經過 PLT」：PLT 存函式位址、GOT 存變數位址嗎？**
+
+> 2026-10-26 課後提問：「plt是不是專存全域函式的位址,got存全域變數的位址?」
+
+不是。**PLT 不存位址，它是程式碼（每個函式一小段跳板）；變數和函式的位址都存在 GOT 裡**，只是分在兩個區段：
+
+| 區段 | 是什麼 | 權限（`readelf -S` 的 `Flg`） | 放什麼 |
+|---|---|---|---|
+| `.plt`、`.plt.sec` | **程式碼** | `AX`（可執行、唯讀） | 每個函式一段跳板，例如 `say@plt` |
+| `.got` | **資料**（位址表） | `WA`（可寫） | 全域**變數**的位址，重定位類型 `R_X86_64_GLOB_DAT`（上面 `counter` 那格） |
+| `.got.plt` | **資料**（位址表，也是 GOT 的一部分） | `WA`（可寫） | **函式**的位址，重定位類型 `R_X86_64_JUMP_SLOT` |
+
+（`.plt.got` 名字跟 `.got.plt` 很像，但它是另一種跳板，給不走下面「延遲綁定」的函式用，例如 `__cxa_finalize`，這裡不展開。）
+
+實驗：`libgreet.so` 的 `greet()` 呼叫 `say()`。`greet.c`（檔案：[`greet.c`](../small-project/s1-07-libraries/examples/pic/greet.c)）完整原始碼：
+
+```c
+#include <stdio.h>
+
+void say(void)
+{
+    printf("say() in libgreet.so\n");
+}
+
+void greet(void)
+{
+    say();
+}
+```
+
+主程式 `greet_main.c`（檔案：[`greet_main.c`](../small-project/s1-07-libraries/examples/pic/greet_main.c)）也定義一個 `say()`——順便看到函式也會被符號插入，跟上面的 `counter` 一樣：
+
+```c
+#include <stdio.h>
+
+void greet(void);
+
+void say(void)
+{
+    printf("say() in main\n");
+}
+
+int main(void)
+{
+    greet();
+    return 0;
+}
+```
+
+```
+$ gcc -Wall -fPIC -c greet.c -o greet.pic.o && gcc -shared greet.pic.o -o libgreet.so
+$ gcc -Wall greet_main.c -L. -lgreet -Wl,-rpath,'$ORIGIN' -o greet_app
+$ ./greet_app
+say() in main                                  ← 函式庫裡的 greet() 呼叫到主程式的 say()
+$ objdump -d --no-show-raw-insn libgreet.so | sed -n '/<greet>:/,/ret/p'
+0000000000001153 <greet>:
+    ...
+    115b:	call   1070 <say@plt>              ← 不是直接 call say，是 call 跳板
+    ...
+$ objdump -d --no-show-raw-insn -j .plt.sec libgreet.so | sed -n '/say@plt>:/,+3p'
+0000000000001070 <say@plt>:
+    1070:	endbr64
+    1074:	jmp    *0x2f8e(%rip)        # 4008 <say@@Base+0x2ecf>
+    107a:	nopw   0x0(%rax,%rax,1)
+$ readelf -SW libgreet.so | grep -E '\.plt|\.got'
+  [ 9] .rela.plt         RELA            0000000000000530 000530 000030 18  AI  4  23  8
+  [11] .plt              PROGBITS        0000000000001020 001020 000030 10  AX  0   0 16
+  [12] .plt.got          PROGBITS        0000000000001050 001050 000010 10  AX  0   0 16
+  [13] .plt.sec          PROGBITS        0000000000001060 001060 000020 10  AX  0   0 16
+  [22] .got              PROGBITS        0000000000003fc8 002fc8 000020 08  WA  0   0  8
+  [23] .got.plt          PROGBITS        0000000000003fe8 002fe8 000028 08  WA  0   0  8
+$ readelf -r libgreet.so | grep say
+000000004008  000700000007 R_X86_64_JUMP_SLO 0000000000001139 say + 0
+```
+
+讀法：
+
+1. `jmp *0x2f8e(%rip)`：`*` 表示「跳到**記憶體裡存的**那個位址」，不是跳到 `0x4008` 本身。`0x2f8e` 的算法跟上面 `counter` 一樣：下一條 `0x107a ＋ 0x2f8e ＝ 0x4008`。
+2. `0x4008` 落在 `.got.plt`（`0x3fe8` 起，長 `0x28`），`readelf -r` 說這格是 `JUMP_SLOT`、要填 `say`。
+3. 所以呼叫函式也是兩步：`call say@plt` 跳到跳板（程式碼）→ 跳板讀 `.got.plt` 那格存的位址、跳過去。跟變數「先從 `.got` 讀出位址、再照位址讀」是同一個樣子。
+
+**那為什麼函式要多一層跳板？延遲綁定（lazy binding）。** 用 gdb 看 `say` 那格在第一次呼叫前後的值（gdb 關掉 ASLR，`libgreet.so` 載入在 `0x7ffff7fb6000`，所以那格在 `0x7ffff7fb6000 + 0x4008`；`greet+13` 是 `call` 的下一條 `0x1160`）：
+
+```
+$ gdb -q -batch -ex 'break greet' -ex run -ex 'x/gx 0x7ffff7fb6000+0x4008' \
+      -ex 'break *greet+13' -ex c -ex 'x/gx 0x7ffff7fb6000+0x4008' -ex 'p &say' ./greet_app
+0x7ffff7fba008 <say@got.plt>:	0x00007ffff7fb7040     ← 呼叫前：指回 libgreet.so 自己的 .plt（0x1040），不是 say
+0x7ffff7fba008 <say@got.plt>:	0x0000555555555169     ← 呼叫過一次後：變成主程式的 say
+$1 = (<text variable, no debug info> *) 0x555555555169 <say>
+```
+
+1. 一開始那格不放 `say` 的位址，而是指回 `.plt` 裡一段「叫 `ld.so` 去查」的程式碼；
+2. **第一次**呼叫時，`ld.so` 才去找 `say` 是哪一份（這裡是主程式的），把答案寫回那格；
+3. 之後再呼叫，跳板讀到的就是 `say` 的真正位址，直接跳過去，`ld.so` 不再介入。
+
+好處是程式啟動時不必一次查完所有函式（很多可能根本沒被呼叫）。**變數做不到**：讀變數就是一條 `mov (%rax),%eax`，中間沒有跳板可以插入「先去查」的程式碼，所以 `.got` 裡變數那格一定要在載入時就填好（上面 `counter` 那格就是載入時填的）。
+
+反過來驗證：把 `greet.c` 的 `say` 改成 `static void say(void)` 重做 `libgreet.so`，`greet_app` 不重新連結，執行印出 `say() in libgreet.so`，反組譯變成直接 `call 1119 <say>`、沒有 `@plt`——`LOCAL` 的函式不可能被插入，就不必經過 PLT／GOT，跟 `static int counter` 不需要 GOT 是同一個道理。
+
+*（追問補充結束，以下回到主線）*
+
+---
 
 **那為什麼不讓 `ld.so` 載入時直接改 `.text` 裡的距離就好？** 第一行警告 `relocation against 'counter' in read-only section '.text'` 說的就是這件事：那樣要在載入時改寫程式碼，而 `.text` 是唯讀的。更重要的是，**共享函式庫的「共享」是指同一份 `.text` 的實體記憶體分頁，給所有用它的行程共用**；如果每個行程都要把自己的位址寫進 `.text`，每個行程就得各自複製一份，共享就沒了。PIC 的設計是：程式碼完全不改、大家共用；要因行程而異的位址集中放在**可寫的 GOT**，每個行程一份。
 
@@ -1108,3 +1243,71 @@ gcc 的選項有上千個，完整見 `man gcc`（Link Options、Code Gen Option
    000000003fd8  000600000006 R_X86_64_GLOB_DAT 0000000000004010 seen + 0
    ```
    （檔案：[`tally.c`](../small-project/s1-07-libraries/examples/pic/tally.c)）
+7. `libconf.so` 和主程式 `app.c` 都定義了 `verbose`。(1) `gcc -Wall app.c -L. -lconf -Wl,-rpath,'$ORIGIN' -o app` 會不會出現 `multiple definition`？為什麼？改成 `gcc -Wall app.c conf.pic.o -o app2` 呢？差別在 `ld` 怎麼處理 `.so` 和 `.o`。(2) 能連結成功的那一個，`./app` 會印出 `get_verbose() = ` 多少？用執行時 `ld.so` 怎麼找符號解釋。(3) 把 `conf.c` 第一行改成 `static int verbose = 0;`，重做 `libconf.so`，不重新連結就執行 `./app`，印出多少？為什麼跟 (2) 不同？
+   ```c
+   /* conf.c */
+   int verbose = 0;
+
+   int get_verbose(void)
+   {
+       return verbose;
+   }
+   ```
+   ```c
+   /* app.c */
+   #include <stdio.h>
+
+   int verbose = 3;
+   int get_verbose(void);
+
+   int main(void)
+   {
+       printf("get_verbose() = %d\n", get_verbose());
+       return 0;
+   }
+   ```
+   做函式庫：`gcc -Wall -fPIC -c conf.c -o conf.pic.o && gcc -shared conf.pic.o -o libconf.so`（檔案：[`conf.c`](../small-project/s1-07-libraries/examples/pic/conf.c)、[`app.c`](../small-project/s1-07-libraries/examples/pic/app.c)）
+8. `liblogger.so` 的 `run()` 呼叫了 `log_msg()` 兩次，主程式 `runner.c` 只呼叫 `run()`。(1) 反組譯裡的 `log_msg@plt` 是一張存位址的表嗎？`log_msg` 的位址存在哪個區段的哪一格？用 `jmp` 那行的數字算出來。(2) 第一次和第二次 `call 1070 <log_msg@plt>`，從 `call` 到進入 `log_msg` 各經過哪些地方？`ld.so` 在哪一次介入、做了什麼？(3) 全域變數為什麼不能用這種「第一次用到才查」的方式，一定要載入時就把 `.got` 那格填好？
+   ```c
+   /* logger.c */
+   #include <stdio.h>
+
+   void log_msg(const char *s)
+   {
+       printf("[log] %s\n", s);
+   }
+
+   void run(void)
+   {
+       log_msg("start");
+       log_msg("stop");
+   }
+   ```
+   ```c
+   /* runner.c */
+   void run(void);
+
+   int main(void)
+   {
+       run();
+       return 0;
+   }
+   ```
+   編譯：`gcc -Wall -fPIC -c logger.c -o logger.pic.o && gcc -shared logger.pic.o -o liblogger.so && gcc -Wall runner.c -L. -llogger -Wl,-rpath,'$ORIGIN' -o runner`（檔案：[`logger.c`](../small-project/s1-07-libraries/examples/pic/logger.c)、[`runner.c`](../small-project/s1-07-libraries/examples/pic/runner.c)）。觀察到的反組譯與區段（`objdump -d --no-show-raw-insn liblogger.so`、`readelf -SW liblogger.so`、`readelf -r liblogger.so`）：
+   ```asm
+       1179:	call   1070 <log_msg@plt>        ← 第一次呼叫 log_msg（參數 "start" 已放進 %rdi）
+       ...
+       1188:	call   1070 <log_msg@plt>        ← 第二次呼叫 log_msg（參數 "stop"）
+
+   0000000000001070 <log_msg@plt>:
+       1070:	endbr64                          ← 間接跳躍的保護標記，可以忽略
+       1074:	jmp    *0x2f8e(%rip)        # 4008 <log_msg@@Base+0x2ecf>   ← 跳到「%rip 加 0x2f8e 那格裡存的位址」
+       107a:	nopw   0x0(%rax,%rax,1)        ← 不做事的填充指令
+   ```
+   ```text
+     [11] .plt              PROGBITS        0000000000001020 001020 000030 10  AX  0   0 16
+     [13] .plt.sec          PROGBITS        0000000000001060 001060 000020 10  AX  0   0 16
+     [22] .got              PROGBITS        0000000000003fc8 002fc8 000020 08  WA  0   0  8
+     [23] .got.plt          PROGBITS        0000000000003fe8 002fe8 000028 08  WA  0   0  8
+   000000004008  000700000007 R_X86_64_JUMP_SLO 0000000000001139 log_msg + 0
+   ```
