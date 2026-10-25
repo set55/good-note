@@ -426,6 +426,97 @@ $ readelf -r libcount.so | grep counter
 000000003fd0  000500000006 R_X86_64_GLOB_DAT 000000000000400c counter + 0
 </code></pre>
 <p><code>ld</code> 把洞填成「到 <code>0x3fd0</code> 的距離」，<code>0x3fd0</code> 就是 GOT 裡 <code>counter</code> 那一格；<code>readelf -r</code> 的 <code>R_X86_64_GLOB_DAT ... counter</code> 是留給 <code>ld.so</code> 的指示：「載入時，把 <code>counter</code> 的真正位址寫進 <code>0x3fd0</code>」。</p>
+<hr />
+<p><strong>上面 <code>mov 0x2ec8(%rip),%rax  # 3fd0 &lt;counter-0x3c&gt;</code>：<code>0x2ec8</code> 和 <code>0x3fd0</code> 各是什麼</strong></p>
+<blockquote>
+<p>2026-10-25 課後提問：「請問0x3fd0, 跟 0x2ec8 是指$rip到got裏counter的位址的距離嗎?」</p>
+</blockquote>
+<p>只有一個是距離：</p>
+<table>
+<thead>
+<tr>
+<th>數字</th>
+<th>是什麼</th>
+<th>怎麼來的</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>0x2ec8</code></td>
+<td><strong>距離</strong>：從<strong>下一條指令</strong>（<code>0x1108</code>）到 GOT 裡 <code>counter</code> 那一格</td>
+<td>指令本身裡的 <code>D</code>，<code>ld</code> 填的洞</td>
+</tr>
+<tr>
+<td><code>0x3fd0</code></td>
+<td><strong>位址</strong>：GOT 裡 <code>counter</code> 那一格本身在哪（<code>.so</code> 內的位址，執行時再加載入位址）</td>
+<td><code>objdump</code> 幫你算好的 <code>下一條指令 ＋ D</code></td>
+</tr>
+<tr>
+<td><code>0x400c</code></td>
+<td><strong>位址</strong>：<code>counter</code> 本身在哪（<code>.bss</code>）</td>
+<td><code>readelf -r</code> 的 <code>Sym. Value</code></td>
+</tr>
+</tbody>
+</table>
+<p>公式就是<a href="x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80-%E6%9A%AB%E5%AD%98%E5%99%A8%E3%80%81mov%E8%88%87lea%E3%80%81cmp%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D.html#%E4%B8%89%E6%8C%87%E4%BB%A4%E7%9A%84%E6%96%87%E6%B3%95%E5%8A%A9%E6%86%B6%E7%AC%A6%E5%A4%A7%E5%B0%8F%E5%BE%8C%E7%B6%B4%E9%81%8B%E7%AE%97%E5%85%83">第 4 課第三節</a>〈<code>D(%rip)</code>：位址 ＝ 下一條指令的位址 ＋ D。〉那一段：<code>%rip</code> 指的是<strong>下一條</strong>指令（<code>mov</code> 從 <code>0x1101</code> 開始、長 7 byte，下一條在 <code>0x1108</code>），不是這一條：</p>
+<pre><code>0x1108 ＋ 0x2ec8 ＝ 0x3fd0     ← GOT 那一格（右邊註解的 3fd0）
+</code></pre>
+<p>證據是同一個函式裡另外兩次拿 <code>counter</code> 的位址，<code>D</code> 都不一樣，算出來卻都是 <code>0x3fd0</code>——因為指令的位置不同，到同一格的距離自然不同：</p>
+<pre><code>$ objdump -d --no-show-raw-insn libcount.so | sed -n '/&lt;bump&gt;:/,/ret/p'
+00000000000010f9 &lt;bump&gt;:
+    10f9:	endbr64
+    10fd:	push   %rbp
+    10fe:	mov    %rsp,%rbp
+    1101:	mov    0x2ec8(%rip),%rax        # 3fd0 &lt;counter-0x3c&gt;
+    1108:	mov    (%rax),%eax
+    110a:	lea    0x1(%rax),%edx
+    110d:	mov    0x2ebc(%rip),%rax        # 3fd0 &lt;counter-0x3c&gt;
+    1114:	mov    %edx,(%rax)
+    1116:	mov    0x2eb3(%rip),%rax        # 3fd0 &lt;counter-0x3c&gt;
+    111d:	mov    (%rax),%eax
+    111f:	pop    %rbp
+    1120:	ret
+</code></pre>
+<p><code>0x1114 ＋ 0x2ebc ＝ 0x3fd0</code>、<code>0x111d ＋ 0x2eb3 ＝ 0x3fd0</code>。</p>
+<p><strong><code>&lt;counter-0x3c&gt;</code> 不是說「這裡是 <code>counter</code>」</strong>：GOT 的格子沒有自己的符號名字，<code>objdump</code> 只好找一個附近的符號來標，寫成「<code>counter</code> 往前 <code>0x3c</code>」：<code>0x400c − 0x3c ＝ 0x3fd0</code>。它只是<strong>位置的標籤</strong>，跟「這格裝的是 <code>counter</code> 的位址」沒有關係——剛好這個 <code>.so</code> 很小，最近的符號就是 <code>counter</code>。真正說明這格裝什麼的是 <code>readelf -r</code> 那一行：第一欄 <code>000000003fd0</code> 是要被填的格子（Offset），<code>R_X86_64_GLOB_DAT</code> 說「填一個符號的位址」，<code>counter</code> 是要填誰。用 <code>readelf -S</code> 也看得到 <code>0x3fd0</code> 落在 <code>.got</code> 裡，<code>0x400c</code> 落在 <code>.bss</code> 裡：</p>
+<pre><code>$ readelf -S -W libcount.so | grep -E '\.got|\.bss'
+  [ 9] .plt.got          PROGBITS        0000000000001030 001030 000010 10  AX  0   0 16
+  [17] .got              PROGBITS        0000000000003fc0 002fc0 000028 08  WA  0   0  8
+  [18] .got.plt          PROGBITS        0000000000003fe8 002fe8 000018 08  WA  0   0  8
+  [20] .bss              NOBITS          0000000000004008 003008 000008 00  WA  0   0  4
+$ objdump -s -j .got libcount.so          # 檔案裡這幾格全是 0：還沒填
+ 3fc0 00000000 00000000 00000000 00000000  ................
+ 3fd0 00000000 00000000 00000000 00000000  ................
+ 3fe0 00000000 00000000                    ........
+</code></pre>
+<p>所以兩條指令合起來是兩次讀記憶體：</p>
+<ol>
+<li><code>mov 0x2ec8(%rip),%rax</code>：讀 <code>0x3fd0</code> 那格的 8 byte——讀到的是 <strong><code>counter</code> 的位址</strong>，放進 <code>%rax</code>；</li>
+<li><code>mov (%rax),%eax</code>：照這個位址再讀 4 byte——這才是 <strong><code>counter</code> 的值</strong>。</li>
+</ol>
+<p>執行時用 gdb 驗證「<code>ld.so</code> 真的把 <code>counter</code> 的位址填進那一格」。<code>callbump.c</code>（檔案：<a href="../../small-project/s1-07-libraries/examples/pic/callbump.c"><code>callbump.c</code></a>）完整原始碼：</p>
+<pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">bump</span><span class="p">(</span><span class="kt">void</span><span class="p">);</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;%d</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">bump</span><span class="p">());</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<pre><code>$ gcc -Wall -fPIC -c count.c -o count.pic.o &amp;&amp; gcc -shared count.pic.o -o libcount.so
+$ gcc -Wall callbump.c -L. -lcount -Wl,-rpath,'$ORIGIN' -o callbump
+$ gdb -q -batch -ex 'break bump' -ex run -ex 'info proc mappings' -ex 'p &amp;counter' -ex 'x/gx 0x7ffff7fb6000 + 0x3fd0' ./callbump
+Breakpoint 1, 0x00007ffff7fb7101 in bump () from ./libcount.so
+      0x7ffff7fb6000     0x7ffff7fb7000     0x1000        0x0  r--p   ./libcount.so    ← 載入位址（第一段，offset 0）
+      ...
+$1 = (&lt;data variable, no debug info&gt; *) 0x7ffff7fba00c &lt;counter&gt;      ← 0x7ffff7fb6000 ＋ 0x400c
+0x7ffff7fb9fd0:	0x00007ffff7fba00c                                     ← 0x7ffff7fb6000 ＋ 0x3fd0 那格，裝的就是 &amp;counter
+</code></pre>
+<p>（<code>info proc mappings</code> 只留 <code>libcount.so</code> 第一段；gdb 預設關掉 ASLR，所以載入位址每次一樣，才能把 <code>0x7ffff7fb6000</code> 寫死在命令裡。）檔案裡是 0 的格子，載入後變成 <code>0x7ffff7fba00c</code>，正好是 <code>&amp;counter</code>。</p>
+<p><em>（追問補充結束，以下回到主線）</em></p>
+<hr />
 <h3 id="為什麼不能直接用固定距離counter-最後不一定是這一份">為什麼不能直接用固定距離：<code>counter</code> 最後不一定是這一份</h3>
 <p><code>.so</code> 被載入到哪個位址每次都不同（ASLR），但這不是主因——<code>%rip</code> 相對定址本來就不管載入位址，<code>counter</code> 跟 <code>bump</code> 在同一個 <code>.so</code> 裡，距離是固定的。真正的原因是：<strong><code>.so</code> 裡的全域符號，最後被使用的可能不是它自己那一份。</strong></p>
 <p>實驗：主程式自己也定義一個 <code>counter</code>。<code>usecount.c</code>（檔案：<a href="../../small-project/s1-07-libraries/examples/pic/usecount.c"><code>usecount.c</code></a>）：</p>
@@ -1247,6 +1338,27 @@ $ rm libcalc.so &amp;&amp; ./app                     # 刪掉連結名稱
 編譯：<code>gcc -Wall -c stats.c -o stats.o &amp;&amp; gcc -shared stats.o -o libstats.so</code></li>
 <li>情境題：你在 <code>/home/me/proj/</code> 下做了 <code>lib/libfoo.so</code> 和用它的 <code>app</code>，連結指令是 <code>gcc main.c -Llib -lfoo -o app</code>。連結成功，<code>./app</code> 卻印出 <code>error while loading shared libraries: libfoo.so: cannot open shared object file</code>。(1) 這個訊息是誰印的？為什麼連結時找得到、執行時找不到？(2) 你想讓 <code>app</code> 和 <code>lib/</code> 一起打包給同事，同事解壓到任何地方都能直接執行，連結指令要怎麼改？為什麼要用單引號？(3) 同事想臨時用 <code>LD_LIBRARY_PATH</code> 換成他自己編的 <code>libfoo.so</code> 來除錯，在你的做法（<code>RUNPATH</code>）下換得掉嗎？如果是 <code>RPATH</code> 呢？為什麼？</li>
 <li>你維護 <code>libcalc</code>，SONAME 是 <code>libcalc.so.1</code>。系統上有 <code>libcalc.so -&gt; libcalc.so.1</code>、<code>libcalc.so.1 -&gt; libcalc.so.1.0.0</code> 兩個符號連結。(1) 一支程式動態連結了 <code>libcalc</code>，它的 <code>NEEDED</code> 寫的是哪個名字？為什麼刪掉 <code>libcalc.so</code> 它照樣能跑，刪掉 <code>libcalc.so.1</code> 就不行？(2) 你修了一個 bug（介面不變），做成 <code>libcalc.so.1.0.1</code>。已經動態連結的程式要怎樣才能用到修正？另一支用 <code>libcalc.a</code> 靜態連結的程式呢？(3) 下一版要把 <code>calc_add</code> 改成三個參數（不相容），SONAME 該怎麼辦？為什麼這樣舊程式不會壞？</li>
+<li>看下面 <code>libtally.so</code> 的反組譯（<code>total = total + x;</code> 那一段）回答：(1) <code>111a</code> 那一行的 <code>0x2eaf</code> 是從哪裡到哪裡的距離？用這段的數字算出右邊註解的 <code>3fd0</code>。<code>112b</code> 那一行的 <code>D</code> 是 <code>0x2e9e</code>，跟 <code>0x2eaf</code> 不一樣，為什麼算出來還是 <code>3fd0</code>？(2) 註解 <code>&lt;total-0x48&gt;</code> 是說 <code>total</code> 放在 <code>0x3fd0</code> 嗎？<code>0x3fd0</code> 是什麼、<code>total</code> 本身在哪？(3) 執行完 <code>111a</code> 那一行，<code>%rax</code> 裡裝的是什麼？<code>1121</code> 讀到的又是什麼？為什麼用 <code>objdump -s -j .got libtally.so</code> 看，<code>0x3fd0</code> 那格在檔案裡是 0？<pre><code class="language-c"><span class="cm">/* tally.c */</span>
+<span class="kt">int</span><span class="w"> </span><span class="n">seen</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="kt">long</span><span class="w"> </span><span class="n">total</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+
+<span class="kt">void</span><span class="w"> </span><span class="nf">add_sample</span><span class="p">(</span><span class="kt">long</span><span class="w"> </span><span class="n">x</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">seen</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">seen</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+<span class="w">    </span><span class="n">total</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">total</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">x</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+編譯與觀察：<code>gcc -Wall -fPIC -c tally.c -o tally.pic.o &amp;&amp; gcc -shared tally.pic.o -o libtally.so</code>，再 <code>objdump -d --no-show-raw-insn libtally.so</code> 與 <code>readelf -r libtally.so</code>，<code>total = total + x;</code> 那一段是：<pre><code class="language-asm"><span class="w">    </span><span class="err">111</span><span class="nl">a:</span><span class="w">	</span><span class="nf">mov</span><span class="w">    </span><span class="mi">0x2eaf</span><span class="p">(</span><span class="nv">%rip</span><span class="p">),</span><span class="nv">%rax</span><span class="w">        </span><span class="c1"># 3fd0 &lt;total-0x48&gt;   ← 從 %rip 加 0x2eaf 的地方讀 8 byte 放進 %rax</span>
+<span class="w">    </span><span class="err">1121:</span><span class="w">	</span><span class="nf">mov</span><span class="w">    </span><span class="p">(</span><span class="nv">%rax</span><span class="p">),</span><span class="nv">%rdx</span><span class="w">                                  </span><span class="err">←</span><span class="w"> </span><span class="err">照</span><span class="w"> </span><span class="nv">%rax</span><span class="w"> </span><span class="err">裡的位址讀</span><span class="w"> </span><span class="mi">8</span><span class="w"> </span><span class="no">byte</span><span class="w"> </span><span class="err">放進</span><span class="w"> </span><span class="nv">%rdx</span>
+<span class="w">    </span><span class="err">1124:</span><span class="w">	</span><span class="nf">mov</span><span class="w">    </span><span class="mi">-0</span><span class="no">x8</span><span class="p">(</span><span class="nv">%rbp</span><span class="p">),</span><span class="nv">%rax</span><span class="w">                              </span><span class="err">←</span><span class="w"> </span><span class="err">從堆疊取出參數</span><span class="w"> </span><span class="no">x</span><span class="w"> </span><span class="err">放進</span><span class="w"> </span><span class="nv">%rax</span>
+<span class="w">    </span><span class="err">1128:</span><span class="w">	</span><span class="nf">add</span><span class="w">    </span><span class="nv">%rax</span><span class="p">,</span><span class="nv">%rdx</span><span class="w">                                    </span><span class="err">←</span><span class="w"> </span><span class="nv">%rdx</span><span class="w"> </span><span class="err">=</span><span class="w"> </span><span class="nv">%rdx</span><span class="w"> </span><span class="err">+</span><span class="w"> </span><span class="no">x</span>
+<span class="w">    </span><span class="err">112</span><span class="nl">b:</span><span class="w">	</span><span class="nf">mov</span><span class="w">    </span><span class="mi">0x2e9e</span><span class="p">(</span><span class="nv">%rip</span><span class="p">),</span><span class="nv">%rax</span><span class="w">        </span><span class="c1"># 3fd0 &lt;total-0x48&gt;   ← 同第一行，D 不同</span>
+<span class="w">    </span><span class="err">1132:</span><span class="w">	</span><span class="nf">mov</span><span class="w">    </span><span class="nv">%rdx</span><span class="p">,(</span><span class="nv">%rax</span><span class="p">)</span><span class="w">                                  </span><span class="err">←</span><span class="w"> </span><span class="err">把</span><span class="w"> </span><span class="nv">%rdx</span><span class="w"> </span><span class="err">寫到</span><span class="w"> </span><span class="nv">%rax</span><span class="w"> </span><span class="err">裡的位址</span>
+</code></pre>
+<pre><code class="language-text">000000003fd0  000700000006 R_X86_64_GLOB_DAT 0000000000004018 total + 0
+000000003fd8  000600000006 R_X86_64_GLOB_DAT 0000000000004010 seen + 0
+</code></pre>
+（檔案：<a href="../../small-project/s1-07-libraries/examples/pic/tally.c"><code>tally.c</code></a>）</li>
 </ol>
 
 </main>

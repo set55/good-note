@@ -437,6 +437,97 @@ $ readelf -r libcount.so | grep counter
 
 `ld` 把洞填成「到 `0x3fd0` 的距離」，`0x3fd0` 就是 GOT 裡 `counter` 那一格；`readelf -r` 的 `R_X86_64_GLOB_DAT ... counter` 是留給 `ld.so` 的指示：「載入時，把 `counter` 的真正位址寫進 `0x3fd0`」。
 
+---
+
+**上面 `mov 0x2ec8(%rip),%rax  # 3fd0 <counter-0x3c>`：`0x2ec8` 和 `0x3fd0` 各是什麼**
+
+> 2026-10-25 課後提問：「請問0x3fd0, 跟 0x2ec8 是指$rip到got裏counter的位址的距離嗎?」
+
+只有一個是距離：
+
+| 數字 | 是什麼 | 怎麼來的 |
+|---|---|---|
+| `0x2ec8` | **距離**：從**下一條指令**（`0x1108`）到 GOT 裡 `counter` 那一格 | 指令本身裡的 `D`，`ld` 填的洞 |
+| `0x3fd0` | **位址**：GOT 裡 `counter` 那一格本身在哪（`.so` 內的位址，執行時再加載入位址） | `objdump` 幫你算好的 `下一條指令 ＋ D` |
+| `0x400c` | **位址**：`counter` 本身在哪（`.bss`） | `readelf -r` 的 `Sym. Value` |
+
+公式就是[第 4 課第三節](./x86-64組合語言入門-暫存器、mov與lea、cmp與條件跳躍.md#三指令的文法助憶符大小後綴運算元)〈`D(%rip)`：位址 ＝ 下一條指令的位址 ＋ D。〉那一段：`%rip` 指的是**下一條**指令（`mov` 從 `0x1101` 開始、長 7 byte，下一條在 `0x1108`），不是這一條：
+
+```
+0x1108 ＋ 0x2ec8 ＝ 0x3fd0     ← GOT 那一格（右邊註解的 3fd0）
+```
+
+證據是同一個函式裡另外兩次拿 `counter` 的位址，`D` 都不一樣，算出來卻都是 `0x3fd0`——因為指令的位置不同，到同一格的距離自然不同：
+
+```
+$ objdump -d --no-show-raw-insn libcount.so | sed -n '/<bump>:/,/ret/p'
+00000000000010f9 <bump>:
+    10f9:	endbr64
+    10fd:	push   %rbp
+    10fe:	mov    %rsp,%rbp
+    1101:	mov    0x2ec8(%rip),%rax        # 3fd0 <counter-0x3c>
+    1108:	mov    (%rax),%eax
+    110a:	lea    0x1(%rax),%edx
+    110d:	mov    0x2ebc(%rip),%rax        # 3fd0 <counter-0x3c>
+    1114:	mov    %edx,(%rax)
+    1116:	mov    0x2eb3(%rip),%rax        # 3fd0 <counter-0x3c>
+    111d:	mov    (%rax),%eax
+    111f:	pop    %rbp
+    1120:	ret
+```
+
+`0x1114 ＋ 0x2ebc ＝ 0x3fd0`、`0x111d ＋ 0x2eb3 ＝ 0x3fd0`。
+
+**`<counter-0x3c>` 不是說「這裡是 `counter`」**：GOT 的格子沒有自己的符號名字，`objdump` 只好找一個附近的符號來標，寫成「`counter` 往前 `0x3c`」：`0x400c − 0x3c ＝ 0x3fd0`。它只是**位置的標籤**，跟「這格裝的是 `counter` 的位址」沒有關係——剛好這個 `.so` 很小，最近的符號就是 `counter`。真正說明這格裝什麼的是 `readelf -r` 那一行：第一欄 `000000003fd0` 是要被填的格子（Offset），`R_X86_64_GLOB_DAT` 說「填一個符號的位址」，`counter` 是要填誰。用 `readelf -S` 也看得到 `0x3fd0` 落在 `.got` 裡，`0x400c` 落在 `.bss` 裡：
+
+```
+$ readelf -S -W libcount.so | grep -E '\.got|\.bss'
+  [ 9] .plt.got          PROGBITS        0000000000001030 001030 000010 10  AX  0   0 16
+  [17] .got              PROGBITS        0000000000003fc0 002fc0 000028 08  WA  0   0  8
+  [18] .got.plt          PROGBITS        0000000000003fe8 002fe8 000018 08  WA  0   0  8
+  [20] .bss              NOBITS          0000000000004008 003008 000008 00  WA  0   0  4
+$ objdump -s -j .got libcount.so          # 檔案裡這幾格全是 0：還沒填
+ 3fc0 00000000 00000000 00000000 00000000  ................
+ 3fd0 00000000 00000000 00000000 00000000  ................
+ 3fe0 00000000 00000000                    ........
+```
+
+所以兩條指令合起來是兩次讀記憶體：
+
+1. `mov 0x2ec8(%rip),%rax`：讀 `0x3fd0` 那格的 8 byte——讀到的是 **`counter` 的位址**，放進 `%rax`；
+2. `mov (%rax),%eax`：照這個位址再讀 4 byte——這才是 **`counter` 的值**。
+
+執行時用 gdb 驗證「`ld.so` 真的把 `counter` 的位址填進那一格」。`callbump.c`（檔案：[`callbump.c`](../small-project/s1-07-libraries/examples/pic/callbump.c)）完整原始碼：
+
+```c
+#include <stdio.h>
+
+int bump(void);
+
+int main(void)
+{
+    printf("%d\n", bump());
+    return 0;
+}
+```
+
+```
+$ gcc -Wall -fPIC -c count.c -o count.pic.o && gcc -shared count.pic.o -o libcount.so
+$ gcc -Wall callbump.c -L. -lcount -Wl,-rpath,'$ORIGIN' -o callbump
+$ gdb -q -batch -ex 'break bump' -ex run -ex 'info proc mappings' -ex 'p &counter' -ex 'x/gx 0x7ffff7fb6000 + 0x3fd0' ./callbump
+Breakpoint 1, 0x00007ffff7fb7101 in bump () from ./libcount.so
+      0x7ffff7fb6000     0x7ffff7fb7000     0x1000        0x0  r--p   ./libcount.so    ← 載入位址（第一段，offset 0）
+      ...
+$1 = (<data variable, no debug info> *) 0x7ffff7fba00c <counter>      ← 0x7ffff7fb6000 ＋ 0x400c
+0x7ffff7fb9fd0:	0x00007ffff7fba00c                                     ← 0x7ffff7fb6000 ＋ 0x3fd0 那格，裝的就是 &counter
+```
+
+（`info proc mappings` 只留 `libcount.so` 第一段；gdb 預設關掉 ASLR，所以載入位址每次一樣，才能把 `0x7ffff7fb6000` 寫死在命令裡。）檔案裡是 0 的格子，載入後變成 `0x7ffff7fba00c`，正好是 `&counter`。
+
+*（追問補充結束，以下回到主線）*
+
+---
+
 ### 為什麼不能直接用固定距離：`counter` 最後不一定是這一份
 
 `.so` 被載入到哪個位址每次都不同（ASLR），但這不是主因——`%rip` 相對定址本來就不管載入位址，`counter` 跟 `bump` 在同一個 `.so` 裡，距離是固定的。真正的原因是：**`.so` 裡的全域符號，最後被使用的可能不是它自己那一份。**
@@ -991,3 +1082,29 @@ gcc 的選項有上千個，完整見 `man gcc`（Link Options、Code Gen Option
    編譯：`gcc -Wall -c stats.c -o stats.o && gcc -shared stats.o -o libstats.so`
 4. 情境題：你在 `/home/me/proj/` 下做了 `lib/libfoo.so` 和用它的 `app`，連結指令是 `gcc main.c -Llib -lfoo -o app`。連結成功，`./app` 卻印出 `error while loading shared libraries: libfoo.so: cannot open shared object file`。(1) 這個訊息是誰印的？為什麼連結時找得到、執行時找不到？(2) 你想讓 `app` 和 `lib/` 一起打包給同事，同事解壓到任何地方都能直接執行，連結指令要怎麼改？為什麼要用單引號？(3) 同事想臨時用 `LD_LIBRARY_PATH` 換成他自己編的 `libfoo.so` 來除錯，在你的做法（`RUNPATH`）下換得掉嗎？如果是 `RPATH` 呢？為什麼？
 5. 你維護 `libcalc`，SONAME 是 `libcalc.so.1`。系統上有 `libcalc.so -> libcalc.so.1`、`libcalc.so.1 -> libcalc.so.1.0.0` 兩個符號連結。(1) 一支程式動態連結了 `libcalc`，它的 `NEEDED` 寫的是哪個名字？為什麼刪掉 `libcalc.so` 它照樣能跑，刪掉 `libcalc.so.1` 就不行？(2) 你修了一個 bug（介面不變），做成 `libcalc.so.1.0.1`。已經動態連結的程式要怎樣才能用到修正？另一支用 `libcalc.a` 靜態連結的程式呢？(3) 下一版要把 `calc_add` 改成三個參數（不相容），SONAME 該怎麼辦？為什麼這樣舊程式不會壞？
+6. 看下面 `libtally.so` 的反組譯（`total = total + x;` 那一段）回答：(1) `111a` 那一行的 `0x2eaf` 是從哪裡到哪裡的距離？用這段的數字算出右邊註解的 `3fd0`。`112b` 那一行的 `D` 是 `0x2e9e`，跟 `0x2eaf` 不一樣，為什麼算出來還是 `3fd0`？(2) 註解 `<total-0x48>` 是說 `total` 放在 `0x3fd0` 嗎？`0x3fd0` 是什麼、`total` 本身在哪？(3) 執行完 `111a` 那一行，`%rax` 裡裝的是什麼？`1121` 讀到的又是什麼？為什麼用 `objdump -s -j .got libtally.so` 看，`0x3fd0` 那格在檔案裡是 0？
+   ```c
+   /* tally.c */
+   int seen = 0;
+   long total = 0;
+
+   void add_sample(long x)
+   {
+       seen = seen + 1;
+       total = total + x;
+   }
+   ```
+   編譯與觀察：`gcc -Wall -fPIC -c tally.c -o tally.pic.o && gcc -shared tally.pic.o -o libtally.so`，再 `objdump -d --no-show-raw-insn libtally.so` 與 `readelf -r libtally.so`，`total = total + x;` 那一段是：
+   ```asm
+       111a:	mov    0x2eaf(%rip),%rax        # 3fd0 <total-0x48>   ← 從 %rip 加 0x2eaf 的地方讀 8 byte 放進 %rax
+       1121:	mov    (%rax),%rdx                                  ← 照 %rax 裡的位址讀 8 byte 放進 %rdx
+       1124:	mov    -0x8(%rbp),%rax                              ← 從堆疊取出參數 x 放進 %rax
+       1128:	add    %rax,%rdx                                    ← %rdx = %rdx + x
+       112b:	mov    0x2e9e(%rip),%rax        # 3fd0 <total-0x48>   ← 同第一行，D 不同
+       1132:	mov    %rdx,(%rax)                                  ← 把 %rdx 寫到 %rax 裡的位址
+   ```
+   ```text
+   000000003fd0  000700000006 R_X86_64_GLOB_DAT 0000000000004018 total + 0
+   000000003fd8  000600000006 R_X86_64_GLOB_DAT 0000000000004010 seen + 0
+   ```
+   （檔案：[`tally.c`](../small-project/s1-07-libraries/examples/pic/tally.c)）

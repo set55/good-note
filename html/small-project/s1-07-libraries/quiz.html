@@ -21,6 +21,7 @@
 <li class="l3"><a href="#3--fpic%E5%93%AA%E5%80%8B%E8%AE%8A%E6%95%B8%E5%87%BA%E5%95%8F%E9%A1%8C%E7%82%BA%E4%BB%80%E9%BA%BC%E8%A6%81-got">3. -fPIC：哪個變數出問題、為什麼要 GOT</a></li>
 <li class="l3"><a href="#4-%E6%83%85%E5%A2%83%E9%80%A3%E7%B5%90%E6%88%90%E5%8A%9F%E5%9F%B7%E8%A1%8C%E6%89%BE%E4%B8%8D%E5%88%B0-libfooso">4. 情境：連結成功、執行找不到 libfoo.so</a></li>
 <li class="l3"><a href="#5-soname-%E8%88%87%E5%87%BD%E5%BC%8F%E5%BA%AB%E6%9B%B4%E6%96%B0">5. SONAME 與函式庫更新</a></li>
+<li class="l3"><a href="#6-gotdrip-%E7%9A%84%E8%B7%9D%E9%9B%A2got-%E9%82%A3%E4%B8%80%E6%A0%BC%E8%88%87%E8%AE%8A%E6%95%B8%E6%9C%AC%E8%BA%AB10-25-%E8%BF%BD%E5%95%8F%E6%96%B0%E5%A2%9E">6. GOT：D(%rip) 的距離、GOT 那一格與變數本身（10-25 追問新增）</a></li>
 </ul>
 </nav>
 <main>
@@ -169,6 +170,55 @@
 <p><strong>第 1 次（YYYY-MM-DD）</strong></p>
 <details class="answer-fold" open><summary>作答</summary>
 <div class="answer-box" data-file="small-project/s1-07-libraries/quiz.md" data-line="168"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+</details>
+<h3 id="6-gotdrip-的距離got-那一格與變數本身10-25-追問新增">6. GOT：<code>D(%rip)</code> 的距離、GOT 那一格與變數本身（10-25 追問新增）</h3>
+<p>看下面 <code>libtally.so</code> 的反組譯（<code>total = total + x;</code> 那一段）回答：(1) <code>111a</code> 那一行的 <code>0x2eaf</code> 是從哪裡到哪裡的距離？用這段的數字算出右邊註解的 <code>3fd0</code>。<code>112b</code> 那一行的 <code>D</code> 是 <code>0x2e9e</code>，跟 <code>0x2eaf</code> 不一樣，為什麼算出來還是 <code>3fd0</code>？(2) 註解 <code>&lt;total-0x48&gt;</code> 是說 <code>total</code> 放在 <code>0x3fd0</code> 嗎？<code>0x3fd0</code> 是什麼、<code>total</code> 本身在哪？(3) 執行完 <code>111a</code> 那一行，<code>%rax</code> 裡裝的是什麼？<code>1121</code> 讀到的又是什麼？為什麼用 <code>objdump -s -j .got libtally.so</code> 看，<code>0x3fd0</code> 那格在檔案裡是 0？</p>
+<pre><code class="language-c"><span class="cm">/* tally.c */</span>
+<span class="kt">int</span><span class="w"> </span><span class="n">seen</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="kt">long</span><span class="w"> </span><span class="n">total</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+
+<span class="kt">void</span><span class="w"> </span><span class="nf">add_sample</span><span class="p">(</span><span class="kt">long</span><span class="w"> </span><span class="n">x</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">seen</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">seen</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+<span class="w">    </span><span class="n">total</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">total</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">x</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<p>編譯與觀察：<code>gcc -Wall -fPIC -c tally.c -o tally.pic.o &amp;&amp; gcc -shared tally.pic.o -o libtally.so</code>，再 <code>objdump -d --no-show-raw-insn libtally.so</code> 與 <code>readelf -r libtally.so</code>，<code>total = total + x;</code> 那一段是：</p>
+<pre><code class="language-asm"><span class="w">    </span><span class="err">111</span><span class="nl">a:</span><span class="w">	</span><span class="nf">mov</span><span class="w">    </span><span class="mi">0x2eaf</span><span class="p">(</span><span class="nv">%rip</span><span class="p">),</span><span class="nv">%rax</span><span class="w">        </span><span class="c1"># 3fd0 &lt;total-0x48&gt;   ← 從 %rip 加 0x2eaf 的地方讀 8 byte 放進 %rax</span>
+<span class="w">    </span><span class="err">1121:</span><span class="w">	</span><span class="nf">mov</span><span class="w">    </span><span class="p">(</span><span class="nv">%rax</span><span class="p">),</span><span class="nv">%rdx</span><span class="w">                                  </span><span class="err">←</span><span class="w"> </span><span class="err">照</span><span class="w"> </span><span class="nv">%rax</span><span class="w"> </span><span class="err">裡的位址讀</span><span class="w"> </span><span class="mi">8</span><span class="w"> </span><span class="no">byte</span><span class="w"> </span><span class="err">放進</span><span class="w"> </span><span class="nv">%rdx</span>
+<span class="w">    </span><span class="err">1124:</span><span class="w">	</span><span class="nf">mov</span><span class="w">    </span><span class="mi">-0</span><span class="no">x8</span><span class="p">(</span><span class="nv">%rbp</span><span class="p">),</span><span class="nv">%rax</span><span class="w">                              </span><span class="err">←</span><span class="w"> </span><span class="err">從堆疊取出參數</span><span class="w"> </span><span class="no">x</span><span class="w"> </span><span class="err">放進</span><span class="w"> </span><span class="nv">%rax</span>
+<span class="w">    </span><span class="err">1128:</span><span class="w">	</span><span class="nf">add</span><span class="w">    </span><span class="nv">%rax</span><span class="p">,</span><span class="nv">%rdx</span><span class="w">                                    </span><span class="err">←</span><span class="w"> </span><span class="nv">%rdx</span><span class="w"> </span><span class="err">=</span><span class="w"> </span><span class="nv">%rdx</span><span class="w"> </span><span class="err">+</span><span class="w"> </span><span class="no">x</span>
+<span class="w">    </span><span class="err">112</span><span class="nl">b:</span><span class="w">	</span><span class="nf">mov</span><span class="w">    </span><span class="mi">0x2e9e</span><span class="p">(</span><span class="nv">%rip</span><span class="p">),</span><span class="nv">%rax</span><span class="w">        </span><span class="c1"># 3fd0 &lt;total-0x48&gt;   ← 同第一行，D 不同</span>
+<span class="w">    </span><span class="err">1132:</span><span class="w">	</span><span class="nf">mov</span><span class="w">    </span><span class="nv">%rdx</span><span class="p">,(</span><span class="nv">%rax</span><span class="p">)</span><span class="w">                                  </span><span class="err">←</span><span class="w"> </span><span class="err">把</span><span class="w"> </span><span class="nv">%rdx</span><span class="w"> </span><span class="err">寫到</span><span class="w"> </span><span class="nv">%rax</span><span class="w"> </span><span class="err">裡的位址</span>
+</code></pre>
+<pre><code class="language-text">000000003fd0  000700000006 R_X86_64_GLOB_DAT 0000000000004018 total + 0
+000000003fd8  000600000006 R_X86_64_GLOB_DAT 0000000000004010 seen + 0
+</code></pre>
+<p>（檔案：<a href="../../../small-project/s1-07-libraries/examples/pic/tally.c"><code>tally.c</code></a>）</p>
+<h4 id="6-1-111a-那一行的-0x2eaf-是從哪裡到哪裡的距離用這段的數字算出右邊註解的-3fd0">6-1. <code>111a</code> 那一行的 <code>0x2eaf</code> 是從哪裡到哪裡的距離？用這段的數字算出右邊註解的 <code>3fd0</code>。</h4>
+<p><strong>第 1 次（YYYY-MM-DD）</strong></p>
+<details class="answer-fold" open><summary>作答</summary>
+<div class="answer-box" data-file="small-project/s1-07-libraries/quiz.md" data-line="204"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+</details>
+<h4 id="6-2-112b-那一行的-d-是-0x2e9e跟-0x2eaf-不一樣為什麼算出來還是-3fd0">6-2. <code>112b</code> 那一行的 <code>D</code> 是 <code>0x2e9e</code>，跟 <code>0x2eaf</code> 不一樣，為什麼算出來還是 <code>3fd0</code>？</h4>
+<p><strong>第 1 次（YYYY-MM-DD）</strong></p>
+<details class="answer-fold" open><summary>作答</summary>
+<div class="answer-box" data-file="small-project/s1-07-libraries/quiz.md" data-line="210"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+</details>
+<h4 id="6-3-註解-total-0x48-是說-total-放在-0x3fd0-嗎0x3fd0-是什麼total-本身在哪">6-3. 註解 <code>&lt;total-0x48&gt;</code> 是說 <code>total</code> 放在 <code>0x3fd0</code> 嗎？<code>0x3fd0</code> 是什麼、<code>total</code> 本身在哪？</h4>
+<p><strong>第 1 次（YYYY-MM-DD）</strong></p>
+<details class="answer-fold" open><summary>作答</summary>
+<div class="answer-box" data-file="small-project/s1-07-libraries/quiz.md" data-line="216"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+</details>
+<h4 id="6-4-執行完-111a-那一行rax-裡裝的是什麼1121-讀到的又是什麼">6-4. 執行完 <code>111a</code> 那一行，<code>%rax</code> 裡裝的是什麼？<code>1121</code> 讀到的又是什麼？</h4>
+<p><strong>第 1 次（YYYY-MM-DD）</strong></p>
+<details class="answer-fold" open><summary>作答</summary>
+<div class="answer-box" data-file="small-project/s1-07-libraries/quiz.md" data-line="222"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+</details>
+<h4 id="6-5-為什麼用-objdump--s--j-got-libtallyso-看0x3fd0-那格在檔案裡是-0">6-5. 為什麼用 <code>objdump -s -j .got libtally.so</code> 看，<code>0x3fd0</code> 那格在檔案裡是 0？</h4>
+<p><strong>第 1 次（YYYY-MM-DD）</strong></p>
+<details class="answer-fold" open><summary>作答</summary>
+<div class="answer-box" data-file="small-project/s1-07-libraries/quiz.md" data-line="228"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 
 </main>

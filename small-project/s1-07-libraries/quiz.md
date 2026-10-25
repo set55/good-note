@@ -168,3 +168,63 @@ void miss(void) { misses = misses + 1; }
 **第 1 次（YYYY-MM-DD）**
 ```
 ```
+
+### 6. GOT：`D(%rip)` 的距離、GOT 那一格與變數本身（10-25 追問新增）
+
+看下面 `libtally.so` 的反組譯（`total = total + x;` 那一段）回答：(1) `111a` 那一行的 `0x2eaf` 是從哪裡到哪裡的距離？用這段的數字算出右邊註解的 `3fd0`。`112b` 那一行的 `D` 是 `0x2e9e`，跟 `0x2eaf` 不一樣，為什麼算出來還是 `3fd0`？(2) 註解 `<total-0x48>` 是說 `total` 放在 `0x3fd0` 嗎？`0x3fd0` 是什麼、`total` 本身在哪？(3) 執行完 `111a` 那一行，`%rax` 裡裝的是什麼？`1121` 讀到的又是什麼？為什麼用 `objdump -s -j .got libtally.so` 看，`0x3fd0` 那格在檔案裡是 0？
+
+```c
+/* tally.c */
+int seen = 0;
+long total = 0;
+
+void add_sample(long x)
+{
+    seen = seen + 1;
+    total = total + x;
+}
+```
+編譯與觀察：`gcc -Wall -fPIC -c tally.c -o tally.pic.o && gcc -shared tally.pic.o -o libtally.so`，再 `objdump -d --no-show-raw-insn libtally.so` 與 `readelf -r libtally.so`，`total = total + x;` 那一段是：
+```asm
+    111a:	mov    0x2eaf(%rip),%rax        # 3fd0 <total-0x48>   ← 從 %rip 加 0x2eaf 的地方讀 8 byte 放進 %rax
+    1121:	mov    (%rax),%rdx                                  ← 照 %rax 裡的位址讀 8 byte 放進 %rdx
+    1124:	mov    -0x8(%rbp),%rax                              ← 從堆疊取出參數 x 放進 %rax
+    1128:	add    %rax,%rdx                                    ← %rdx = %rdx + x
+    112b:	mov    0x2e9e(%rip),%rax        # 3fd0 <total-0x48>   ← 同第一行，D 不同
+    1132:	mov    %rdx,(%rax)                                  ← 把 %rdx 寫到 %rax 裡的位址
+```
+```text
+000000003fd0  000700000006 R_X86_64_GLOB_DAT 0000000000004018 total + 0
+000000003fd8  000600000006 R_X86_64_GLOB_DAT 0000000000004010 seen + 0
+```
+（檔案：[`tally.c`](./examples/pic/tally.c)）
+
+#### 6-1. `111a` 那一行的 `0x2eaf` 是從哪裡到哪裡的距離？用這段的數字算出右邊註解的 `3fd0`。
+
+**第 1 次（YYYY-MM-DD）**
+```
+```
+
+#### 6-2. `112b` 那一行的 `D` 是 `0x2e9e`，跟 `0x2eaf` 不一樣，為什麼算出來還是 `3fd0`？
+
+**第 1 次（YYYY-MM-DD）**
+```
+```
+
+#### 6-3. 註解 `<total-0x48>` 是說 `total` 放在 `0x3fd0` 嗎？`0x3fd0` 是什麼、`total` 本身在哪？
+
+**第 1 次（YYYY-MM-DD）**
+```
+```
+
+#### 6-4. 執行完 `111a` 那一行，`%rax` 裡裝的是什麼？`1121` 讀到的又是什麼？
+
+**第 1 次（YYYY-MM-DD）**
+```
+```
+
+#### 6-5. 為什麼用 `objdump -s -j .got libtally.so` 看，`0x3fd0` 那格在檔案裡是 0？
+
+**第 1 次（YYYY-MM-DD）**
+```
+```
