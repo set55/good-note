@@ -346,3 +346,73 @@ int main(void)
 **第 1 次（YYYY-MM-DD）**
 ```
 ```
+
+### 9. 兩支程式共用一個 `.so`：哪些是同一份、哪些各一份（10-26 追問新增）
+
+兩支程式 `x`、`y` 都連 `libhits.so`，同時在跑（各自停在 `sleep(5)`）。(1) `x` 印出的 `&hit` 和 `y` 印出的不一樣，這代表記憶體裡有兩份 `hit` 的程式碼嗎？`libhits.so` 的哪些部分兩個行程共用同一份實體記憶體、哪些是各自一份？(2) `y` 印出的 `hit()` 回傳值是多少？為什麼不是 `x`、`y` 加起來的 7？(3) 假設沒有 GOT，改成讓 `ld.so` 載入時把位址直接寫進 `.text`，用「寫入時複製」說明 `.text` 還能不能共用、為什麼。
+
+```c
+/* hits.c */
+int hits = 0;
+
+int hit(void)
+{
+    hits = hits + 1;
+    return hits;
+}
+```
+```c
+/* x.c */
+#include <stdio.h>
+#include <unistd.h>
+
+int hit(void);
+
+int main(void)
+{
+    int r = 0;
+    for (int i = 0; i < 2; i++)               /* x 呼叫 2 次 */
+        r = hit();
+    printf("x: &hit=%p  hit() 回傳 %d\n", (void *)hit, r);
+    fflush(stdout);
+    sleep(5);
+    return 0;
+}
+```
+```c
+/* y.c */
+#include <stdio.h>
+#include <unistd.h>
+
+int hit(void);
+
+int main(void)
+{
+    int r = 0;
+    for (int i = 0; i < 5; i++)               /* y 呼叫 5 次 */
+        r = hit();
+    printf("y: &hit=%p  hit() 回傳 %d\n", (void *)hit, r);
+    fflush(stdout);
+    sleep(5);
+    return 0;
+}
+```
+編譯：`gcc -Wall -fPIC -c hits.c -o hits.pic.o && gcc -shared hits.pic.o -o libhits.so && gcc -Wall x.c -L. -lhits -Wl,-rpath,'$ORIGIN' -o x && gcc -Wall y.c -L. -lhits -Wl,-rpath,'$ORIGIN' -o y`，執行：`./x & ./y & wait`（檔案：[`hits.c`](./examples/share/hits.c)、[`x.c`](./examples/share/x.c)、[`y.c`](./examples/share/y.c)）。
+
+#### 9-1. `x` 印出的 `&hit` 和 `y` 印出的不一樣，這代表記憶體裡有兩份 `hit` 的程式碼嗎？`libhits.so` 的哪些部分兩個行程共用同一份實體記憶體、哪些是各自一份？
+
+**第 1 次（YYYY-MM-DD）**
+```
+```
+
+#### 9-2. `y` 印出的 `hit()` 回傳值是多少？為什麼不是 `x`、`y` 加起來的 7？
+
+**第 1 次（YYYY-MM-DD）**
+```
+```
+
+#### 9-3. 假設沒有 GOT，改成讓 `ld.so` 載入時把位址直接寫進 `.text`，用「寫入時複製」說明 `.text` 還能不能共用、為什麼。
+
+**第 1 次（YYYY-MM-DD）**
+```
+```

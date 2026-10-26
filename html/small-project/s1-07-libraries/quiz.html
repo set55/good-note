@@ -24,6 +24,7 @@
 <li class="l3"><a href="#6-gotdrip-%E7%9A%84%E8%B7%9D%E9%9B%A2got-%E9%82%A3%E4%B8%80%E6%A0%BC%E8%88%87%E8%AE%8A%E6%95%B8%E6%9C%AC%E8%BA%AB10-25-%E8%BF%BD%E5%95%8F%E6%96%B0%E5%A2%9E">6. GOT：D(%rip) 的距離、GOT 那一格與變數本身（10-25 追問新增）</a></li>
 <li class="l3"><a href="#7-%E5%85%A9%E4%BB%BD%E5%90%8C%E5%90%8D%E5%85%A8%E5%9F%9F%E8%AE%8A%E6%95%B8%E6%8E%A5-so-%E7%82%BA%E4%BB%80%E9%BA%BC%E4%B8%8D%E7%AE%97%E9%87%8D%E8%A4%87%E5%AE%9A%E7%BE%A910-25-%E8%BF%BD%E5%95%8F%E6%96%B0%E5%A2%9E">7. 兩份同名全域變數：接 .so 為什麼不算重複定義（10-25 追問新增）</a></li>
 <li class="l3"><a href="#8-plt-%E8%88%87-got%E5%87%BD%E5%BC%8F%E7%9A%84%E4%BD%8D%E5%9D%80%E5%AD%98%E5%9C%A8%E5%93%AA%E5%BB%B6%E9%81%B2%E7%B6%81%E5%AE%9A10-26-%E8%BF%BD%E5%95%8F%E6%96%B0%E5%A2%9E">8. PLT 與 GOT：函式的位址存在哪、延遲綁定（10-26 追問新增）</a></li>
+<li class="l3"><a href="#9-%E5%85%A9%E6%94%AF%E7%A8%8B%E5%BC%8F%E5%85%B1%E7%94%A8%E4%B8%80%E5%80%8B-so%E5%93%AA%E4%BA%9B%E6%98%AF%E5%90%8C%E4%B8%80%E4%BB%BD%E5%93%AA%E4%BA%9B%E5%90%84%E4%B8%80%E4%BB%BD10-26-%E8%BF%BD%E5%95%8F%E6%96%B0%E5%A2%9E">9. 兩支程式共用一個 .so：哪些是同一份、哪些各一份（10-26 追問新增）</a></li>
 </ul>
 </nav>
 <main>
@@ -320,6 +321,67 @@
 <p><strong>第 1 次（YYYY-MM-DD）</strong></p>
 <details class="answer-fold" open><summary>作答</summary>
 <div class="answer-box" data-file="small-project/s1-07-libraries/quiz.md" data-line="346"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+</details>
+<h3 id="9-兩支程式共用一個-so哪些是同一份哪些各一份10-26-追問新增">9. 兩支程式共用一個 <code>.so</code>：哪些是同一份、哪些各一份（10-26 追問新增）</h3>
+<p>兩支程式 <code>x</code>、<code>y</code> 都連 <code>libhits.so</code>，同時在跑（各自停在 <code>sleep(5)</code>）。(1) <code>x</code> 印出的 <code>&amp;hit</code> 和 <code>y</code> 印出的不一樣，這代表記憶體裡有兩份 <code>hit</code> 的程式碼嗎？<code>libhits.so</code> 的哪些部分兩個行程共用同一份實體記憶體、哪些是各自一份？(2) <code>y</code> 印出的 <code>hit()</code> 回傳值是多少？為什麼不是 <code>x</code>、<code>y</code> 加起來的 7？(3) 假設沒有 GOT，改成讓 <code>ld.so</code> 載入時把位址直接寫進 <code>.text</code>，用「寫入時複製」說明 <code>.text</code> 還能不能共用、為什麼。</p>
+<pre><code class="language-c"><span class="cm">/* hits.c */</span>
+<span class="kt">int</span><span class="w"> </span><span class="n">hits</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">hit</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">hits</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">hits</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">hits</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<pre><code class="language-c"><span class="cm">/* x.c */</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;unistd.h&gt;</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">hit</span><span class="p">(</span><span class="kt">void</span><span class="p">);</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">r</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">2</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="o">++</span><span class="p">)</span><span class="w">               </span><span class="cm">/* x 呼叫 2 次 */</span>
+<span class="w">        </span><span class="n">r</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">hit</span><span class="p">();</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;x: &amp;hit=%p  hit() 回傳 %d</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="kt">void</span><span class="w"> </span><span class="o">*</span><span class="p">)</span><span class="n">hit</span><span class="p">,</span><span class="w"> </span><span class="n">r</span><span class="p">);</span>
+<span class="w">    </span><span class="n">fflush</span><span class="p">(</span><span class="n">stdout</span><span class="p">);</span>
+<span class="w">    </span><span class="n">sleep</span><span class="p">(</span><span class="mi">5</span><span class="p">);</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<pre><code class="language-c"><span class="cm">/* y.c */</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;unistd.h&gt;</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">hit</span><span class="p">(</span><span class="kt">void</span><span class="p">);</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">r</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">5</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="o">++</span><span class="p">)</span><span class="w">               </span><span class="cm">/* y 呼叫 5 次 */</span>
+<span class="w">        </span><span class="n">r</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">hit</span><span class="p">();</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;y: &amp;hit=%p  hit() 回傳 %d</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="kt">void</span><span class="w"> </span><span class="o">*</span><span class="p">)</span><span class="n">hit</span><span class="p">,</span><span class="w"> </span><span class="n">r</span><span class="p">);</span>
+<span class="w">    </span><span class="n">fflush</span><span class="p">(</span><span class="n">stdout</span><span class="p">);</span>
+<span class="w">    </span><span class="n">sleep</span><span class="p">(</span><span class="mi">5</span><span class="p">);</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<p>編譯：<code>gcc -Wall -fPIC -c hits.c -o hits.pic.o &amp;&amp; gcc -shared hits.pic.o -o libhits.so &amp;&amp; gcc -Wall x.c -L. -lhits -Wl,-rpath,'$ORIGIN' -o x &amp;&amp; gcc -Wall y.c -L. -lhits -Wl,-rpath,'$ORIGIN' -o y</code>，執行：<code>./x &amp; ./y &amp; wait</code>（檔案：<a href="../../../small-project/s1-07-libraries/examples/share/hits.c"><code>hits.c</code></a>、<a href="../../../small-project/s1-07-libraries/examples/share/x.c"><code>x.c</code></a>、<a href="../../../small-project/s1-07-libraries/examples/share/y.c"><code>y.c</code></a>）。</p>
+<h4 id="9-1-x-印出的-hit-和-y-印出的不一樣這代表記憶體裡有兩份-hit-的程式碼嗎libhitsso-的哪些部分兩個行程共用同一份實體記憶體哪些是各自一份">9-1. <code>x</code> 印出的 <code>&amp;hit</code> 和 <code>y</code> 印出的不一樣，這代表記憶體裡有兩份 <code>hit</code> 的程式碼嗎？<code>libhits.so</code> 的哪些部分兩個行程共用同一份實體記憶體、哪些是各自一份？</h4>
+<p><strong>第 1 次（YYYY-MM-DD）</strong></p>
+<details class="answer-fold" open><summary>作答</summary>
+<div class="answer-box" data-file="small-project/s1-07-libraries/quiz.md" data-line="404"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+</details>
+<h4 id="9-2-y-印出的-hit-回傳值是多少為什麼不是-xy-加起來的-7">9-2. <code>y</code> 印出的 <code>hit()</code> 回傳值是多少？為什麼不是 <code>x</code>、<code>y</code> 加起來的 7？</h4>
+<p><strong>第 1 次（YYYY-MM-DD）</strong></p>
+<details class="answer-fold" open><summary>作答</summary>
+<div class="answer-box" data-file="small-project/s1-07-libraries/quiz.md" data-line="410"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+</details>
+<h4 id="9-3-假設沒有-got改成讓-ldso-載入時把位址直接寫進-text用寫入時複製說明-text-還能不能共用為什麼">9-3. 假設沒有 GOT，改成讓 <code>ld.so</code> 載入時把位址直接寫進 <code>.text</code>，用「寫入時複製」說明 <code>.text</code> 還能不能共用、為什麼。</h4>
+<p><strong>第 1 次（YYYY-MM-DD）</strong></p>
+<details class="answer-fold" open><summary>作答</summary>
+<div class="answer-box" data-file="small-project/s1-07-libraries/quiz.md" data-line="416"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 
 </main>

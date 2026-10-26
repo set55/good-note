@@ -941,6 +941,145 @@ flowchart LR
 
 **那為什麼不讓 `ld.so` 載入時直接改 `.text` 裡的距離就好？** 第一行警告 `relocation against 'counter' in read-only section '.text'` 說的就是這件事：那樣要在載入時改寫程式碼，而 `.text` 是唯讀的。更重要的是，**共享函式庫的「共享」是指同一份 `.text` 的實體記憶體分頁，給所有用它的行程共用**；如果每個行程都要把自己的位址寫進 `.text`，每個行程就得各自複製一份，共享就沒了。PIC 的設計是：程式碼完全不改、大家共用；要因行程而異的位址集中放在**可寫的 GOT**，每個行程一份。
 
+---
+
+**上面「同一份 `.text` 給所有用它的行程共用」：兩支程式都用 `libcount.so`，記憶體裡是同一份嗎？**
+
+> 2026-10-26 課後提問：「這是之每個程式,如果他們都有用libcount.so,那libcount.so在記憶體都一樣嗎?比方說執行檔a 跟 執行檔b 都用用?」
+
+**只有程式碼是同一份；GOT 和 `counter` 每個行程各一份；連共用的程式碼，兩個行程看到的虛擬位址也不一樣。**
+
+實驗：兩支不同的程式 `a`、`b` 同時跑，都連 `libcount.so`（`count.c` 就是上面〈為什麼一定要 `-fPIC`：先看不加會怎樣〉那一份，[檔案](../small-project/s1-07-libraries/examples/pic/count.c)）。`a` 呼叫 `bump()` 1 次、`b` 呼叫 3 次，印完停 5 秒，趁這時候看兩個行程的 `/proc/<pid>/smaps`。
+
+`a.c`（檔案：[`a.c`](../small-project/s1-07-libraries/examples/share/a.c)）完整原始碼：
+
+```c
+#include <stdio.h>
+#include <unistd.h>
+
+int bump(void);
+
+int main(void)
+{
+    int r = bump();                           /* a 只呼叫 1 次 */
+    printf("a: pid=%d  &bump=%p  bump() 回傳 %d\n", getpid(), (void *)bump, r);
+    fflush(stdout);
+    sleep(5);                                 /* 停 5 秒，讓我們看 /proc/<pid>/ */
+    return 0;
+}
+```
+
+`b.c`（檔案：[`b.c`](../small-project/s1-07-libraries/examples/share/b.c)）完整原始碼：
+
+```c
+#include <stdio.h>
+#include <unistd.h>
+
+int bump(void);
+
+int main(void)
+{
+    int r = 0;
+    for (int i = 0; i < 3; i++)               /* b 呼叫 3 次 */
+        r = bump();
+    printf("b: pid=%d  &bump=%p  bump() 回傳 %d\n", getpid(), (void *)bump, r);
+    fflush(stdout);
+    sleep(5);
+    return 0;
+}
+```
+
+建檔與執行（`sync` 先把剛寫好的 `.so` 寫回磁碟，否則頁快取裡的頁還是「髒的」，`smaps` 會顯示成 `Shared_Dirty`，不好讀）：
+
+```sh
+cd small-project/s1-07-libraries/examples/share
+gcc -Wall -fPIC -c ../pic/count.c -o count.pic.o && gcc -shared count.pic.o -o libcount.so
+gcc -Wall a.c -L. -lcount -Wl,-rpath,'$ORIGIN' -o a
+gcc -Wall b.c -L. -lcount -Wl,-rpath,'$ORIGIN' -o b
+sync
+./a & ./b & sleep 1          # 兩支同時在背景跑，等 1 秒讓它們印完、進入 sleep
+for p in $(pgrep -x a) $(pgrep -x b); do
+    echo "== $(cat /proc/$p/comm)"
+    # 只印 libcount.so 的每一段：位址、權限、檔案位移，以及四個共用／私有的計數
+    awk '/libcount.so/{show=1; printf "%s %s %s  ", $1, $2, $3; next} /^[0-9a-f]+-/{show=0}
+         show && /^(Shared_Clean|Shared_Dirty|Private_Clean|Private_Dirty):/{printf "%s%s ", $1, $2}
+         show && /^Private_Dirty/{print ""}' /proc/$p/smaps
+done
+wait
+```
+
+本機輸出（ASLR 開著，每次位址不同）：
+
+```text
+a: pid=26624  &bump=0x76191ad1d0f9  bump() 回傳 1
+b: pid=26625  &bump=0x757e0a65f0f9  bump() 回傳 3
+== a
+76191ad1c000-76191ad1d000 r--p 00000000  Shared_Clean:4 Shared_Dirty:0 Private_Clean:0 Private_Dirty:0
+76191ad1d000-76191ad1e000 r-xp 00001000  Shared_Clean:4 Shared_Dirty:0 Private_Clean:0 Private_Dirty:0
+76191ad1e000-76191ad1f000 r--p 00002000  Shared_Clean:0 Shared_Dirty:0 Private_Clean:0 Private_Dirty:0
+76191ad1f000-76191ad20000 r--p 00002000  Shared_Clean:0 Shared_Dirty:0 Private_Clean:0 Private_Dirty:4
+76191ad20000-76191ad21000 rw-p 00003000  Shared_Clean:0 Shared_Dirty:0 Private_Clean:0 Private_Dirty:4
+== b
+757e0a65e000-757e0a65f000 r--p 00000000  Shared_Clean:4 Shared_Dirty:0 Private_Clean:0 Private_Dirty:0
+757e0a65f000-757e0a660000 r-xp 00001000  Shared_Clean:4 Shared_Dirty:0 Private_Clean:0 Private_Dirty:0
+757e0a660000-757e0a661000 r--p 00002000  Shared_Clean:0 Shared_Dirty:0 Private_Clean:0 Private_Dirty:0
+757e0a661000-757e0a662000 r--p 00002000  Shared_Clean:0 Shared_Dirty:0 Private_Clean:0 Private_Dirty:4
+757e0a662000-757e0a663000 rw-p 00003000  Shared_Clean:0 Shared_Dirty:0 Private_Clean:0 Private_Dirty:4
+```
+
+`smaps` 的四個計數，單位是 kB（一頁 4 kB）：`Shared` 是這一頁**還有別的行程也映射著**，`Private` 是只有這個行程在用；`Clean` 是內容跟檔案一樣、沒被改過，`Dirty` 是被寫過。`libcount.so` 的五段對到哪些區段，可以用 `readelf -lW libcount.so` 的 `Section to Segment mapping` 對照：
+
+| 段（權限） | 裡面是什麼 | `a` | `b` | 意思 |
+|---|---|---|---|---|
+| `r--p` 位移 0 | 檔頭、`.dynsym` 等 | `Shared_Clean:4` | `Shared_Clean:4` | 共用、沒被改過 |
+| `r-xp` | **`.text`（`bump`）** | `Shared_Clean:4` | `Shared_Clean:4` | **兩個行程共用同一個實體頁** |
+| `r--p` 位移 `0x2000` 第一段 | `.eh_frame` | 0 | 0 | 沒用到，還沒讀進記憶體 |
+| `r--p` 位移 `0x2000` 第二段 | **`.got`**（RELRO） | `Private_Dirty:4` | `Private_Dirty:4` | **各自一份**：`ld.so` 載入時寫了 GOT |
+| `rw-p` | **`.data`／`.bss`（`counter`）** | `Private_Dirty:4` | `Private_Dirty:4` | **各自一份**：`a` 的是 1、`b` 的是 3 |
+
+逐列讀：
+
+1. **`.text` 是 `Shared_Clean`**：兩個行程用的是同一個實體頁，而且沒人寫過它。
+2. **`&bump` 不一樣**（`0x76191ad1d0f9` vs `0x757e0a65f0f9`）：載入基底各自隨機（ASLR），所以虛擬位址不同；但尾巴都是 `…0f9`，就是檔案裡的 `0x10f9`。不同的虛擬位址，對到同一個實體頁。
+3. **GOT 那頁是 `Private_Dirty`**：核心映射 `.so` 用的是**私有映射**（`p`），一開始每頁都跟別人共用；某個行程一寫，核心才替它複製一份，叫**寫入時複製（copy-on-write，COW）**。`ld.so` 載入時要把 `&counter` 填進 GOT，一寫就複製，所以每個行程的 GOT 都是自己的。它顯示 `r--p`、跟 `.eh_frame` 的位移一樣是 `0x2000`，是因為這個載入段從 `0x3e60` 開始、跟前一段擠在同一個檔案頁；填完之後 `ld.so` 把這一頁改回唯讀，叫 **RELRO**（Relocation Read-Only，重定位後唯讀），防止之後被竄改。
+4. **`counter` 那頁也是 `Private_Dirty`**：`bump()` 寫了 `counter`，同樣被複製，所以 `a` 的 `counter` 是 1、`b` 的是 3，互不影響。
+
+```mermaid
+flowchart LR
+    subgraph A["行程 a 的虛擬位址"]
+        direction TB
+        at[".text<br/>0x76191ad1d000"]
+        ag[".got<br/>0x76191ad1f000"]
+        ab[".bss<br/>0x76191ad20000"]
+    end
+    subgraph M["實體記憶體"]
+        direction TB
+        text["bump 的程式碼<br/>只有一份（Shared_Clean）"]
+        ga["a 的 GOT<br/>（Private_Dirty）"]
+        gb["b 的 GOT<br/>（Private_Dirty）"]
+        ca["a 的 counter = 1<br/>（Private_Dirty）"]
+        cb["b 的 counter = 3<br/>（Private_Dirty）"]
+    end
+    subgraph B["行程 b 的虛擬位址"]
+        direction TB
+        bt[".text<br/>0x757e0a65f000"]
+        bg[".got<br/>0x757e0a661000"]
+        bb[".bss<br/>0x757e0a662000"]
+    end
+    at --- text
+    ag --- ga
+    ab --- ca
+    text --- bt
+    gb --- bg
+    cb --- bb
+```
+
+這張圖要看的是：**兩邊的 `.text` 都連到中間同一格，`.got` 和 `.bss` 各連到自己的一格**。這也回答了上面那段為什麼要 GOT：共用 `.text` 的前提是沒人改它，只要有一個行程往 `.text` 寫自己的位址，COW 就會替它複製一份，那一頁就不再共用；PIC 把每個行程不同的東西（位址）集中在 GOT，只讓 GOT 那一頁被複製，`.text` 就一直是一份。
+
+*（追問補充結束，以下回到主線）*
+
+---
+
 整理：
 
 | | 沒加 `-fPIC`（Ubuntu 預設是 `-fPIE`） | `-fPIC` |
@@ -1524,3 +1663,51 @@ gcc 的選項有上千個，完整見 `man gcc`（Link Options、Code Gen Option
      [23] .got.plt          PROGBITS        0000000000003fe8 002fe8 000028 08  WA  0   0  8
    000000004008  000700000007 R_X86_64_JUMP_SLO 0000000000001139 log_msg + 0
    ```
+9. （2026-10-26 提問延伸）兩支程式 `x`、`y` 都連 `libhits.so`，同時在跑（各自停在 `sleep(5)`）。(1) `x` 印出的 `&hit` 和 `y` 印出的不一樣，這代表記憶體裡有兩份 `hit` 的程式碼嗎？`libhits.so` 的哪些部分兩個行程共用同一份實體記憶體、哪些是各自一份？(2) `y` 印出的 `hit()` 回傳值是多少？為什麼不是 `x`、`y` 加起來的 7？(3) 假設沒有 GOT，改成讓 `ld.so` 載入時把位址直接寫進 `.text`，用「寫入時複製」說明 `.text` 還能不能共用、為什麼。
+   ```c
+   /* hits.c */
+   int hits = 0;
+
+   int hit(void)
+   {
+       hits = hits + 1;
+       return hits;
+   }
+   ```
+   ```c
+   /* x.c */
+   #include <stdio.h>
+   #include <unistd.h>
+
+   int hit(void);
+
+   int main(void)
+   {
+       int r = 0;
+       for (int i = 0; i < 2; i++)               /* x 呼叫 2 次 */
+           r = hit();
+       printf("x: &hit=%p  hit() 回傳 %d\n", (void *)hit, r);
+       fflush(stdout);
+       sleep(5);
+       return 0;
+   }
+   ```
+   ```c
+   /* y.c */
+   #include <stdio.h>
+   #include <unistd.h>
+
+   int hit(void);
+
+   int main(void)
+   {
+       int r = 0;
+       for (int i = 0; i < 5; i++)               /* y 呼叫 5 次 */
+           r = hit();
+       printf("y: &hit=%p  hit() 回傳 %d\n", (void *)hit, r);
+       fflush(stdout);
+       sleep(5);
+       return 0;
+   }
+   ```
+   編譯：`gcc -Wall -fPIC -c hits.c -o hits.pic.o && gcc -shared hits.pic.o -o libhits.so && gcc -Wall x.c -L. -lhits -Wl,-rpath,'$ORIGIN' -o x && gcc -Wall y.c -L. -lhits -Wl,-rpath,'$ORIGIN' -o y`，執行：`./x & ./y & wait`（檔案：[`hits.c`](../small-project/s1-07-libraries/examples/share/hits.c)、[`x.c`](../small-project/s1-07-libraries/examples/share/x.c)、[`y.c`](../small-project/s1-07-libraries/examples/share/y.c)）。
