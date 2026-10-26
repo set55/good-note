@@ -46,6 +46,13 @@
 <li class="l3"><a href="#%E5%9F%B7%E8%A1%8C%E6%99%82ldso-%E7%9A%84%E7%92%B0%E5%A2%83%E8%AE%8A%E6%95%B8ld_debugldconfig">執行時：ld.so 的環境變數、LD_DEBUG、ldconfig</a></li>
 <li class="l3"><a href="#%E8%A7%80%E5%AF%9F%E5%B7%A5%E5%85%B7">觀察工具</a></li>
 <li class="l2"><a href="#%E5%85%AB%E5%8B%95%E6%89%8B%E4%BD%9C%E6%A5%AD">八、動手作業</a></li>
+<li class="l2"><a href="#%E4%B9%9D%E8%AA%B2%E5%BE%8C%E8%A8%8E%E8%AB%96%E6%95%B4%E7%90%86%E5%85%B1%E4%BA%AB%E5%87%BD%E5%BC%8F%E5%BA%AB%E5%9C%A8%E8%A8%98%E6%86%B6%E9%AB%94%E8%A3%A1extern-%E8%AE%8A%E6%95%B8%E8%88%87%E6%A8%99%E9%A0%AD%E6%AA%94">九、課後討論整理：共享函式庫在記憶體裡、extern 變數與標頭檔</a></li>
+<li class="l3"><a href="#1-%E5%87%BD%E5%BC%8F%E9%82%A3%E9%82%8Aplt-%E8%B7%B3%E6%9D%BF%E5%85%B1%E7%94%A8gotplt-%E6%AF%8F%E5%80%8B%E8%A1%8C%E7%A8%8B%E5%90%84%E4%B8%80%E4%BB%BD">1. 函式那邊：PLT 跳板共用、.got.plt 每個行程各一份</a></li>
+<li class="l3"><a href="#2-ldso-%E5%A1%AB%E9%80%B2%E6%A0%BC%E5%AD%90%E7%9A%84%E6%98%AF%E4%BB%80%E9%BA%BC%E9%80%99%E5%80%8B%E8%A1%8C%E7%A8%8B%E8%A3%A1%E7%9A%84%E8%99%9B%E6%93%AC%E4%BD%8D%E5%9D%80">2. ld.so 填進格子的是什麼：這個行程裡的虛擬位址</a></li>
+<li class="l3"><a href="#3-%E8%99%9B%E6%93%AC%E4%BD%8D%E5%9D%80%E6%80%8E%E9%BA%BC%E8%AE%8A%E6%88%90%E5%AF%A6%E9%AB%94%E4%BD%8D%E5%9D%80%E6%A0%B8%E5%BF%83%E6%BA%96%E5%82%99%E9%A0%81%E8%A1%A8cpu-%E7%9A%84-mmu-%E7%BF%BB%E8%AD%AF">3. 虛擬位址怎麼變成實體位址：核心準備頁表，CPU 的 MMU 翻譯</a></li>
+<li class="l3"><a href="#4-%E6%95%B4%E7%90%86%E5%9B%9B%E5%80%8B%E5%AE%B9%E6%98%93%E6%90%9E%E9%8C%AF%E7%9A%84%E5%9C%B0%E6%96%B9">4. 整理：四個容易搞錯的地方</a></li>
+<li class="l3"><a href="#5-extern-int-counter%E5%8F%AA%E5%89%A9%E4%B8%80%E4%BB%BD%E4%BD%86%E5%AE%83%E6%94%BE%E5%9C%A8%E5%9F%B7%E8%A1%8C%E6%AA%94%E8%A3%A1%E8%A4%87%E8%A3%BD%E9%87%8D%E5%AE%9A%E4%BD%8D">5. extern int counter;：只剩一份，但它放在執行檔裡（複製重定位）</a></li>
+<li class="l3"><a href="#6-%E5%81%9A-so-%E9%9C%80%E8%A6%81-h-%E5%97%8Einclude-%E7%AE%A1%E7%B7%A8%E8%AD%AF-l-%E7%AE%A1%E9%80%A3%E7%B5%90">6. 做 .so 需要 .h 嗎？#include 管編譯、-l 管連結</a></li>
 <li class="l2"><a href="#%E8%87%AA%E6%88%91%E6%B8%AC%E9%A9%97">自我測驗</a></li>
 </ul>
 </nav>
@@ -78,6 +85,7 @@
 <li><a href="#%E5%85%AD%E6%8F%9B%E6%8E%89-so-%E4%B8%8D%E7%94%A8%E9%87%8D%E6%96%B0%E9%80%A3%E7%B5%90%E4%BB%A5%E5%8F%8A-soname">六、換掉 <code>.so</code> 不用重新連結，以及 SONAME</a></li>
 <li><a href="#%E4%B8%83%E6%9C%AC%E8%AA%B2%E7%94%A8%E5%88%B0%E7%9A%84%E5%B7%A5%E5%85%B7%E9%81%B8%E9%A0%85%E8%88%87%E5%AE%8C%E6%95%B4%E6%B8%85%E5%96%AE%E5%9C%A8%E5%93%AA">七、本課用到的工具、選項與完整清單在哪</a></li>
 <li><a href="#%E5%85%AB%E5%8B%95%E6%89%8B%E4%BD%9C%E6%A5%AD">八、動手作業</a></li>
+<li><a href="#%E4%B9%9D%E8%AA%B2%E5%BE%8C%E8%A8%8E%E8%AB%96%E6%95%B4%E7%90%86%E5%85%B1%E4%BA%AB%E5%87%BD%E5%BC%8F%E5%BA%AB%E5%9C%A8%E8%A8%98%E6%86%B6%E9%AB%94%E8%A3%A1extern-%E8%AE%8A%E6%95%B8%E8%88%87%E6%A8%99%E9%A0%AD%E6%AA%94">九、課後討論整理：共享函式庫在記憶體裡、<code>extern</code> 變數與標頭檔</a></li>
 <li><a href="#%E8%87%AA%E6%88%91%E6%B8%AC%E9%A9%97">自我測驗</a></li>
 </ul>
 <hr />
@@ -379,7 +387,7 @@ $ ./app_dyn
 </code></pre>
 <p>對照第二節的 <code>app_static</code>（<code>T calc_add</code>）：動態連結後 <code>calc_add</code> 仍是 <code>U</code>，執行檔裡沒有它的程式碼，只有 <code>NEEDED libcalc.so</code> 這張需求單。連結成功、執行卻失敗——這是 <a href="objdump%E8%83%BD%E4%B8%8D%E8%83%BD%E4%BB%A3%E6%9B%BFldd%E6%89%BE%E4%BE%9D%E8%B3%B4%E5%BA%AB-%E9%9C%80%E6%B1%82%E5%96%AE%E8%88%87%E5%AF%A6%E9%9A%9B%E8%BC%89%E5%85%A5.html#%E5%9B%9B%E6%89%BE%E4%B8%8D%E5%88%B0%E5%87%BD%E5%BC%8F%E5%BA%AB%E6%99%82%E5%85%A9%E8%80%85%E5%90%84%E7%9C%8B%E5%88%B0%E4%BB%80%E9%BA%BC">objdump 那篇第四節</a>看過的情況：<code>-L.</code> 只給 <code>ld</code> 看，執行時的 <code>ld.so</code> 不知道要去目前目錄找。第五節解決它。</p>
 <h3 id="為什麼一定要--fpic先看不加會怎樣">為什麼一定要 <code>-fPIC</code>：先看不加會怎樣</h3>
-<p><code>add.c</code>、<code>mul.c</code> 不加 <code>-fPIC</code> 其實也做得成 <code>.so</code>（原因下面揭曉），要用一個<strong>有全域變數</strong>的檔案才看得出差別。<code>count.c</code>（檔案：<a href="../../small-project/s1-07-libraries/examples/pic/count.c"><code>count.c</code></a>）：</p>
+<p><code>add.c</code>、<code>mul.c</code> 不加 <code>-fPIC</code> 其實也做得成 <code>.so</code>（原因下面揭曉），要用一個<strong>有全域變數</strong>的檔案才看得出差別。（這一節的範例為了短，都不附 <code>.h</code>、由呼叫端自己寫宣告；為什麼可以這樣、正式的函式庫又該怎麼附，見<a href="#%E4%B9%9D%E8%AA%B2%E5%BE%8C%E8%A8%8E%E8%AB%96%E6%95%B4%E7%90%86%E5%85%B1%E4%BA%AB%E5%87%BD%E5%BC%8F%E5%BA%AB%E5%9C%A8%E8%A8%98%E6%86%B6%E9%AB%94%E8%A3%A1extern-%E8%AE%8A%E6%95%B8%E8%88%87%E6%A8%99%E9%A0%AD%E6%AA%94">第九節</a>第 6 小節。）<code>count.c</code>（檔案：<a href="../../small-project/s1-07-libraries/examples/pic/count.c"><code>count.c</code></a>）：</p>
 <pre><code class="language-c"><span class="kt">int</span><span class="w"> </span><span class="n">counter</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
 
 <span class="kt">int</span><span class="w"> </span><span class="nf">bump</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
@@ -582,6 +590,7 @@ $ nm -D libcount.so | grep -w counter
 </code></pre>
 <p>兩份都在，但只會用到一份：要等<strong>執行時</strong>由 <code>ld.so</code> 照「先執行檔、再依 <code>NEEDED</code> 順序」挑，第一個找到的贏——就是上面講的符號插入。<code>libcount.so</code> 的 GOT 裡 <code>counter</code> 那一格填的是執行檔那份的位址，<code>.so</code> 自己那份初值 0 的 <code>counter</code> 從頭到尾沒人用。</p>
 <p>這是 ELF 刻意允許的：讓執行檔（或 <code>LD_PRELOAD</code> 先載入的函式庫）能蓋掉函式庫裡的同名符號，例如自己寫一個 <code>malloc</code> 取代 glibc 的。代價就是 <code>.so</code> 做的時候不知道最後用哪一份，只能經過 GOT——也就是下一段的結論。</p>
+<p>反過來，主程式<strong>不定義</strong>、只寫 <code>extern int counter;</code> 時，<code>counter</code> 會被放進執行檔裡（複製重定位），見<a href="#%E4%B9%9D%E8%AA%B2%E5%BE%8C%E8%A8%8E%E8%AB%96%E6%95%B4%E7%90%86%E5%85%B1%E4%BA%AB%E5%87%BD%E5%BC%8F%E5%BA%AB%E5%9C%A8%E8%A8%98%E6%86%B6%E9%AB%94%E8%A3%A1extern-%E8%AE%8A%E6%95%B8%E8%88%87%E6%A8%99%E9%A0%AD%E6%AA%94">第九節</a>第 5 小節。</p>
 <p><em>（追問補充結束，以下回到主線）</em></p>
 <hr />
 <p>所以 <code>.so</code> 在<strong>做的時候</strong>不知道它的全域變數最後是哪一份，要等<strong>載入時</strong> <code>ld.so</code> 決定，這個決定只能寫在一張表裡——GOT。</p>
@@ -1095,6 +1104,7 @@ b: pid=26625  &amp;bump=0x757e0a65f0f9  bump() 回傳 3
     cb --- bb
 </pre>
 <p>這張圖要看的是：<strong>兩邊的 <code>.text</code> 都連到中間同一格，<code>.got</code> 和 <code>.bss</code> 各連到自己的一格</strong>。這也回答了上面那段為什麼要 GOT：共用 <code>.text</code> 的前提是沒人改它，只要有一個行程往 <code>.text</code> 寫自己的位址，COW 就會替它複製一份，那一頁就不再共用；PIC 把每個行程不同的東西（位址）集中在 GOT，只讓 GOT 那一頁被複製，<code>.text</code> 就一直是一份。</p>
+<p>函式那邊（PLT 跳板共用、<code>.got.plt</code> 各一份）、格子裡記的是誰的位址、虛擬位址怎麼變成實體位址，整理在<a href="#%E4%B9%9D%E8%AA%B2%E5%BE%8C%E8%A8%8E%E8%AB%96%E6%95%B4%E7%90%86%E5%85%B1%E4%BA%AB%E5%87%BD%E5%BC%8F%E5%BA%AB%E5%9C%A8%E8%A8%98%E6%86%B6%E9%AB%94%E8%A3%A1extern-%E8%AE%8A%E6%95%B8%E8%88%87%E6%A8%99%E9%A0%AD%E6%AA%94">第九節</a>第 1～4 小節。</p>
 <p><em>（追問補充結束，以下回到主線）</em></p>
 <hr />
 <p>整理：</p>
@@ -1828,6 +1838,547 @@ $ rm libcalc.so &amp;&amp; ./app                     # 刪掉連結名稱
 <h2 id="八動手作業">八、動手作業</h2>
 <p>作業在 <a href="../small-project/s1-07-libraries/README.html"><code>small-project/s1-07-libraries/</code></a>，共 5 題。題目、要寫的檔案與作答框都在該資料夾的 <code>README.md</code>。</p>
 <hr />
+<h2 id="九課後討論整理共享函式庫在記憶體裡extern-變數與標頭檔">九、課後討論整理：共享函式庫在記憶體裡、<code>extern</code> 變數與標頭檔</h2>
+<blockquote>
+<p>2026-10-26 課後提問（原話，依討論順序）：</p>
+<ul>
+<li>「那如果函式 也就是plt怎麼理解?」（接在第四節〈兩支程式都用 <code>libcount.so</code>，記憶體裡是同一份嗎？〉之後）</li>
+<li>「p,q兩個執行檔,共用了同一個庫,相同的say,他們跳過去的say也是相同的記憶體位址嗎?」</li>
+<li>「p,q兩個行程在各自的got.plt 記錄的say的位址會一樣嗎?」</li>
+<li>「所以你的這步其實是說ld.so查到say在這個行程的虛擬位址,然後把他填入到.got.plt?」</li>
+<li>「那這樣說的話我們在gdb看到的是否都是虛擬記憶體位址,並不是真實的?」</li>
+<li>「usecount.c 我不想用usecount自己的counter 是不是只要改成extern int counter;」</li>
+<li>「greet.c, count.c這個會被main引用的,爲什麼都不加.h了? 做so不需要h嗎?」</li>
+<li>「那爲什麼我在用libc.so.6 要用stdio.h?」</li>
+</ul>
+</blockquote>
+<p>第四節講的是<strong>一支程式</strong>怎麼透過 GOT／PLT 接上 <code>.so</code>；這一節接著問：<strong>好幾支程式同時用同一個 <code>.so</code> 時，記憶體裡到底哪些是同一份</strong>，以及兩個相關的延伸——主程式只宣告不定義的全域變數放在哪裡、<code>.h</code> 在整件事裡扮演什麼角色。1～4 小節接在第四節〈兩支程式都用 <code>libcount.so</code>，記憶體裡是同一份嗎？〉（變數那邊）後面讀，這裡講函式那邊。</p>
+<p><strong>一句話結論：多個行程共用的是「沒被寫過的頁」——程式碼和 PLT 跳板；每個行程各一份的是被寫過的頁——<code>.got</code>、<code>.got.plt</code> 和全域變數。位址表裡記的全是「這個行程自己的虛擬位址」，翻成實體位址是 CPU 照核心準備的頁表做的，程式（包括 <code>ld.so</code>、gdb）看不到實體位址。<code>.h</code> 只在編譯時給宣告、型別和巨集，跟「接上 <code>.so</code>」無關。</strong></p>
+<h3 id="1-函式那邊plt-跳板共用gotplt-每個行程各一份">1. 函式那邊：PLT 跳板共用、<code>.got.plt</code> 每個行程各一份</h3>
+<p>實驗：兩支程式 <code>q</code>、<code>r</code> 同時跑，都連第四節的 <code>libgreet.so</code>（<code>greet()</code> 呼叫 <code>say()</code>，<code>greet.c</code> 的完整原始碼在第四節〈PLT 存函式位址、GOT 存變數位址嗎？〉，<a href="../../small-project/s1-07-libraries/examples/pic/greet.c">檔案</a>），兩支都<strong>沒有</strong>自己的 <code>say</code>，所以接到的都是函式庫的 <code>say</code>。程式自己把 <code>.got.plt</code> 裡 <code>say</code> 那一格讀出來，在呼叫 <code>greet()</code> 前後各印一次，然後停 5 秒讓我們看 <code>/proc/&lt;pid&gt;/smaps</code>。</p>
+<p>那一格在哪裡：<code>readelf -r libgreet.so</code> 說 <code>say</code> 的 <code>JUMP_SLOT</code> 在 <code>0x4008</code>（第四節實測過），所以執行時在「<code>libgreet.so</code> 的載入基底 ＋ <code>0x4008</code>」。載入基底用 <code>dladdr</code> 查：給它函式庫裡任何一個函式的位址（這裡用 <code>greet</code>），它回報這個位址屬於哪個檔案、那個檔案載入在哪裡（<code>dli_fbase</code>）。</p>
+<p><code>slot.h</code>（檔案：<a href="../../small-project/s1-07-libraries/examples/share/slot.h"><code>slot.h</code></a>）完整原始碼：</p>
+<pre><code class="language-c"><span class="cp">#define _GNU_SOURCE</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;dlfcn.h&gt;</span>
+
+<span class="kt">void</span><span class="w"> </span><span class="nf">greet</span><span class="p">(</span><span class="kt">void</span><span class="p">);</span>
+
+<span class="cm">/* 回傳 libgreet.so 裡 .got.plt 中 say 那一格的位址：載入基底 + 0x4008（readelf -r 查到的） */</span>
+<span class="k">static</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="o">**</span><span class="nf">say_slot</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">Dl_info</span><span class="w"> </span><span class="n">info</span><span class="p">;</span>
+<span class="w">    </span><span class="n">dladdr</span><span class="p">((</span><span class="kt">void</span><span class="w"> </span><span class="o">*</span><span class="p">)</span><span class="n">greet</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">info</span><span class="p">);</span><span class="w">          </span><span class="cm">/* dli_fbase = libgreet.so 的載入基底 */</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="p">(</span><span class="kt">void</span><span class="w"> </span><span class="o">**</span><span class="p">)((</span><span class="kt">char</span><span class="w"> </span><span class="o">*</span><span class="p">)</span><span class="n">info</span><span class="p">.</span><span class="n">dli_fbase</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mh">0x4008</span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre>
+<p><code>q.c</code>（檔案：<a href="../../small-project/s1-07-libraries/examples/share/q.c"><code>q.c</code></a>）完整原始碼：</p>
+<pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;slot.h&quot;</span><span class="c1">        /* 要放第一行：裡面的 _GNU_SOURCE 必須在任何 #include 之前 */</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;unistd.h&gt;</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span><span class="w">                                   </span><span class="cm">/* q 沒有定義 say */</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;q: 格子在 %p，呼叫前裝 %p</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="kt">void</span><span class="w"> </span><span class="o">*</span><span class="p">)</span><span class="n">say_slot</span><span class="p">(),</span><span class="w"> </span><span class="o">*</span><span class="n">say_slot</span><span class="p">());</span>
+<span class="w">    </span><span class="n">greet</span><span class="p">();</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;q: 呼叫後裝 %p</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="o">*</span><span class="n">say_slot</span><span class="p">());</span>
+<span class="w">    </span><span class="n">fflush</span><span class="p">(</span><span class="n">stdout</span><span class="p">);</span>
+<span class="w">    </span><span class="n">sleep</span><span class="p">(</span><span class="mi">5</span><span class="p">);</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<p><code>r.c</code>（檔案：<a href="../../small-project/s1-07-libraries/examples/share/r.c"><code>r.c</code></a>）跟 <code>q.c</code> 只差印出的名字：</p>
+<pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;slot.h&quot;</span><span class="c1">        /* 要放第一行：裡面的 _GNU_SOURCE 必須在任何 #include 之前 */</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;unistd.h&gt;</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span><span class="w">                                   </span><span class="cm">/* r 也沒有定義 say */</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;r: 格子在 %p，呼叫前裝 %p</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="kt">void</span><span class="w"> </span><span class="o">*</span><span class="p">)</span><span class="n">say_slot</span><span class="p">(),</span><span class="w"> </span><span class="o">*</span><span class="n">say_slot</span><span class="p">());</span>
+<span class="w">    </span><span class="n">greet</span><span class="p">();</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;r: 呼叫後裝 %p</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="o">*</span><span class="n">say_slot</span><span class="p">());</span>
+<span class="w">    </span><span class="n">fflush</span><span class="p">(</span><span class="n">stdout</span><span class="p">);</span>
+<span class="w">    </span><span class="n">sleep</span><span class="p">(</span><span class="mi">5</span><span class="p">);</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<p>建檔與執行（<code>sync</code> 的理由同第四節〈兩支程式都用 <code>libcount.so</code>〉：讓頁快取裡的頁先變乾淨）：</p>
+<pre><code class="language-sh"><span class="nb">cd</span><span class="w"> </span>small-project/s1-07-libraries/examples/share
+gcc<span class="w"> </span>-Wall<span class="w"> </span>-fPIC<span class="w"> </span>-c<span class="w"> </span>../pic/greet.c<span class="w"> </span>-o<span class="w"> </span>greet.pic.o<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>gcc<span class="w"> </span>-shared<span class="w"> </span>greet.pic.o<span class="w"> </span>-o<span class="w"> </span>libgreet.so
+gcc<span class="w"> </span>-Wall<span class="w"> </span>q.c<span class="w"> </span>-L.<span class="w"> </span>-lgreet<span class="w"> </span>-Wl,-rpath,<span class="s1">&#39;$ORIGIN&#39;</span><span class="w"> </span>-o<span class="w"> </span>q
+gcc<span class="w"> </span>-Wall<span class="w"> </span>r.c<span class="w"> </span>-L.<span class="w"> </span>-lgreet<span class="w"> </span>-Wl,-rpath,<span class="s1">&#39;$ORIGIN&#39;</span><span class="w"> </span>-o<span class="w"> </span>r
+sync
+./q<span class="w"> </span><span class="p">&amp;</span><span class="w"> </span>sleep<span class="w"> </span><span class="m">0</span>.3<span class="p">;</span><span class="w"> </span>./r<span class="w"> </span><span class="p">&amp;</span><span class="w"> </span>sleep<span class="w"> </span><span class="m">1</span><span class="w">       </span><span class="c1"># 兩支都在背景跑，各自停在 sleep(5)</span>
+<span class="k">for</span><span class="w"> </span>x<span class="w"> </span><span class="k">in</span><span class="w"> </span>q<span class="w"> </span>r<span class="p">;</span><span class="w"> </span><span class="k">do</span>
+<span class="w">    </span><span class="nv">pid</span><span class="o">=</span><span class="k">$(</span>pgrep<span class="w"> </span>-x<span class="w"> </span><span class="nv">$x</span><span class="k">)</span><span class="p">;</span><span class="w"> </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;== </span><span class="nv">$x</span><span class="s2">&quot;</span>
+<span class="w">    </span>awk<span class="w"> </span><span class="s1">&#39;/libgreet.so/{show=1; printf &quot;%s %s %s  &quot;, $1, $2, $3; next} /^[0-9a-f]+-/{show=0}</span>
+<span class="s1">         show &amp;&amp; /^(Rss|Pss|Shared_Clean|Private_Clean|Private_Dirty):/{printf &quot;%s%s &quot;, $1, $2}</span>
+<span class="s1">         show &amp;&amp; /^Private_Dirty/{print &quot;&quot;}&#39;</span><span class="w"> </span>/proc/<span class="nv">$pid</span>/smaps
+<span class="k">done</span>
+<span class="nb">wait</span>
+</code></pre>
+<p>本機輸出（ASLR 開著）：</p>
+<pre><code class="language-text">q: 格子在 0x7187194bc008，呼叫前裝 0x7187194b9040
+say() in libgreet.so
+q: 呼叫後裝 0x7187194b9139
+r: 格子在 0x7125ada24008，呼叫前裝 0x7125ada21040
+say() in libgreet.so
+r: 呼叫後裝 0x7125ada21139
+== q
+7187194b8000-7187194b9000 r--p 00000000  Rss:4 Pss:2 Shared_Clean:4 Private_Clean:0 Private_Dirty:0
+7187194b9000-7187194ba000 r-xp 00001000  Rss:4 Pss:2 Shared_Clean:4 Private_Clean:0 Private_Dirty:0
+7187194ba000-7187194bb000 r--p 00002000  Rss:4 Pss:2 Shared_Clean:4 Private_Clean:0 Private_Dirty:0
+7187194bb000-7187194bc000 r--p 00002000  Rss:4 Pss:4 Shared_Clean:0 Private_Clean:0 Private_Dirty:4
+7187194bc000-7187194bd000 rw-p 00003000  Rss:4 Pss:4 Shared_Clean:0 Private_Clean:0 Private_Dirty:4
+== r
+7125ada20000-7125ada21000 r--p 00000000  Rss:4 Pss:2 Shared_Clean:4 Private_Clean:0 Private_Dirty:0
+7125ada21000-7125ada22000 r-xp 00001000  Rss:4 Pss:2 Shared_Clean:4 Private_Clean:0 Private_Dirty:0
+7125ada22000-7125ada23000 r--p 00002000  Rss:4 Pss:2 Shared_Clean:4 Private_Clean:0 Private_Dirty:0
+7125ada23000-7125ada24000 r--p 00002000  Rss:4 Pss:4 Shared_Clean:0 Private_Clean:0 Private_Dirty:4
+7125ada24000-7125ada25000 rw-p 00003000  Rss:4 Pss:4 Shared_Clean:0 Private_Clean:0 Private_Dirty:4
+</code></pre>
+<p>對照組：只讓 <code>q</code> 一個在跑，同一段 <code>r-xp</code> 變成：</p>
+<pre><code class="language-text">730156525000-730156526000 r-xp 00001000  Rss:4 Pss:4 Shared_Clean:0 Private_Clean:4 Private_Dirty:0
+</code></pre>
+<p><code>Rss</code>（Resident Set Size）是這一段實際佔了多少實體記憶體；<code>Pss</code>（Proportional Set Size，按比例分攤的大小）是把共用的頁平均分給共用它的行程——兩個行程共用一頁，各算 2 kB。<code>Shared_*</code>／<code>Private_*</code> 與 <code>Clean</code>／<code>Dirty</code> 的意思同第四節那張表。</p>
+<table>
+<thead>
+<tr>
+<th>段（權限）</th>
+<th>裡面是什麼（<code>readelf -lW libgreet.so</code> 的 <code>Section to Segment mapping</code>）</th>
+<th><code>q</code>、<code>r</code> 同時跑</th>
+<th>只有 <code>q</code></th>
+<th>意思</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>r-xp</code></td>
+<td><strong><code>.plt</code>（<code>0x1020</code>）、<code>.plt.sec</code>（<code>say@plt</code>，<code>0x1070</code>）、<code>.text</code>（<code>greet</code>、<code>say</code>）</strong></td>
+<td><code>Pss:2</code>、<code>Shared_Clean:4</code></td>
+<td><code>Pss:4</code>、<code>Private_Clean:4</code></td>
+<td><strong>跳板和程式碼是同一個實體頁</strong></td>
+</tr>
+<tr>
+<td><code>r--p</code> 位移 <code>0x2000</code> 第二段</td>
+<td><code>.got</code> 等（RELRO）</td>
+<td><code>Private_Dirty:4</code></td>
+<td>—</td>
+<td>各自一份</td>
+</tr>
+<tr>
+<td><code>rw-p</code></td>
+<td><strong><code>.got.plt</code> 的 <code>say</code> 那格（<code>0x4008</code>）</strong>、<code>.data</code>、<code>.bss</code></td>
+<td><code>Private_Dirty:4</code></td>
+<td>—</td>
+<td><strong>各自一份</strong></td>
+</tr>
+</tbody>
+</table>
+<p>逐點讀：</p>
+<ol>
+<li><strong>跳板能共用</strong>：<code>say@plt</code> 只有一條 <code>jmp *0x2f8e(%rip)</code>，用的是「跟自己的距離」，載入到哪個基底都不用改；沒人寫它，所以一直是同一個實體頁。<code>Pss</code> 從只有 <code>q</code> 時的 4 變成兩個一起跑時的 2，就是這一頁被兩個行程分攤的證據。</li>
+<li><strong>格子在檔案裡是 <code>0x1040</code></strong>（<code>objdump -s -j .got.plt libgreet.so</code> 實測 <code>4008</code> 那 8 byte 是 <code>40100000 00000000</code>）：<code>.plt</code> 裡「去叫 <code>ld.so</code> 查」那段程式碼的位置，但只是檔案位址。</li>
+<li><strong>第一次寫：載入時</strong>。<code>ld.so</code> 把它改成「基底 ＋ <code>0x1040</code>」：<code>q</code> 的 <code>0x7187194b9040</code>、<code>r</code> 的 <code>0x7125ada21040</code>。一寫就觸發寫入時複製，所以還沒呼叫函式，這一頁就已經是各自一份。</li>
+<li><strong>第二次寫：第一次呼叫時</strong>（延遲綁定）。<code>ld.so</code> 查到 <code>say</code>，把「基底 ＋ <code>0x1139</code>」寫回格子：<code>q</code> 是 <code>0x7187194b9139</code>、<code>r</code> 是 <code>0x7125ada21139</code>——<strong>兩個行程的格子裡數字不一樣</strong>，但下一小節會看到，它們最後跑的是同一份程式碼。</li>
+</ol>
+<p>這也說明延遲綁定為什麼「改格子」而不是「改跳板」：跳板是大家共用的程式碼，一改就要複製、共用就沒了；格子本來就是每個行程各一份，改了不影響別人。</p>
+<pre class="mermaid">flowchart LR
+    subgraph Q[&quot;行程 q&quot;]
+        direction TB
+        qp[&quot;say@plt 跳板&lt;br/&gt;（r-xp）&quot;]
+        qs[&quot;.got.plt 的 say 那格&lt;br/&gt;0x7187194b9139&quot;]
+    end
+    subgraph M[&quot;實體記憶體&quot;]
+        direction TB
+        code[&quot;跳板 ＋ greet ＋ say&lt;br/&gt;的程式碼只有一份&lt;br/&gt;（兩邊 Pss 各 2 kB）&quot;]
+        sq[&quot;q 的 .got.plt 那頁&lt;br/&gt;（Private_Dirty）&quot;]
+        sr[&quot;r 的 .got.plt 那頁&lt;br/&gt;（Private_Dirty）&quot;]
+    end
+    subgraph R[&quot;行程 r&quot;]
+        direction TB
+        rp[&quot;say@plt 跳板&lt;br/&gt;（r-xp）&quot;]
+        rs[&quot;.got.plt 的 say 那格&lt;br/&gt;0x7125ada21139&quot;]
+    end
+    qp --- code
+    qs --- sq
+    code --- rp
+    sr --- rs
+</pre>
+<p>這張圖要看的是：<strong>兩邊的跳板連到中間同一格，<code>.got.plt</code> 各連到自己的一格</strong>，跟第四節變數那張圖（<code>.text</code> 共用、<code>.got</code>／<code>.bss</code> 各一份）是同一個樣子。</p>
+<h3 id="2-ldso-填進格子的是什麼這個行程裡的虛擬位址">2. <code>ld.so</code> 填進格子的是什麼：這個行程裡的虛擬位址</h3>
+<p>上一小節的第 4 點：「<code>ld.so</code> 查到 <code>say</code>」查的是什麼？它手上只有兩樣東西，兩者相加就是要填的值：</p>
+<pre><code class="language-text">格子要填的值 ＝ 找到 say 的那個檔案在這個行程裡的載入基底 ＋ say 在那個檔案裡的位置
+</code></pre>
+<ul>
+<li><strong><code>say</code> 在檔案裡的位置</strong>：每個 <code>.so</code>、執行檔都有一張動態符號表（<code>.dynsym</code>），記著符號相對於檔案開頭的位置；<code>ld.so</code> 照「先執行檔、再依 <code>NEEDED</code> 順序找各個 <code>.so</code>」一張一張查（第四節〈為什麼不能直接用固定距離〉）。</li>
+<li><strong>那個檔案的載入基底</strong>：<code>.so</code> 是 <code>ld.so</code> 自己映射進來的，它當然知道映射在哪裡。</li>
+</ul>
+<p><code>LD_DEBUG=bindings</code> 讓 <code>ld.so</code> 印出它把 <code>say</code> 接到哪個檔案（<code>LD_DEBUG</code> 全部選項見第七節），對照 <code>nm -D</code> 的位置：</p>
+<pre><code class="language-text">$ nm -D libgreet.so | grep -w say
+0000000000001139 T say
+$ LD_DEBUG=bindings ./q
+     30213:	binding file ./libgreet.so [0] to ./libgreet.so [0]: normal symbol `say&#39;
+q: 格子在 0x7fa4bf07b008，呼叫前裝 0x7fa4bf078040
+q: 呼叫後裝 0x7fa4bf078139
+</code></pre>
+<p><code>binding file A to B</code> 是「A 裡要用的 <code>say</code>，接到 B 定義的那一個」：<code>libgreet.so</code> 用的 <code>say</code> 就在 <code>libgreet.so</code> 自己裡面。這次的基底是 <code>0x7fa4bf078040 − 0x1040 ＝ 0x7fa4bf077000</code>，填進去的 <code>0x7fa4bf078139</code> ＝ <code>0x7fa4bf077000 ＋ 0x1139</code>。</p>
+<p>把第一次呼叫的流程完整寫一次（第四節〈那為什麼函式要多一層跳板？延遲綁定〉的精確版）：</p>
+<ol>
+<li><code>greet</code> 執行 <code>call say@plt</code>，跳到 <code>.plt.sec</code> 的跳板。</li>
+<li>跳板執行 <code>jmp *(.got.plt 那格)</code>：<strong>照格子裡的位址跳</strong>，不判斷格子是不是「空的」。</li>
+<li>第一次時格子裝的是載入時填的「基底 ＋ <code>0x1040</code>」，所以這一跳就跳進 <code>.plt</code> 裡叫 <code>ld.so</code> 的程式碼。</li>
+<li><code>ld.so</code> 算出「基底 ＋ <code>0x1139</code>」，寫回格子，再跳到 <code>say</code>。</li>
+<li>第二次以後，格子裡已經是 <code>say</code> 的位址，跳板一跳就到，<code>ld.so</code> 不再出現。</li>
+</ol>
+<p><code>ld.so</code> 從頭到尾只碰虛擬位址；它不知道、也不需要知道這些位址最後對到哪個實體頁。</p>
+<h3 id="3-虛擬位址怎麼變成實體位址核心準備頁表cpu-的-mmu-翻譯">3. 虛擬位址怎麼變成實體位址：核心準備頁表，CPU 的 MMU 翻譯</h3>
+<p><code>q</code> 跳到 <code>0x7187194b9139</code>、<code>r</code> 跳到 <code>0x7125ada21139</code>，兩個不同的數字最後執行到同一份程式碼，中間的翻譯分兩個角色：</p>
+<table>
+<thead>
+<tr>
+<th>誰</th>
+<th>做什麼</th>
+<th>什麼時候</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>核心（kernel）</strong></td>
+<td>替<strong>每個行程</strong>建立、維護一張頁表（page table）：哪個虛擬頁對到哪個實體頁、權限是什麼（<code>r-x</code>、<code>rw-</code>）。映射檔案、處理分頁錯誤（page fault）、做寫入時複製，都是核心的事</td>
+<td>映射時、第一次碰到某頁時、寫入共用頁時</td>
+</tr>
+<tr>
+<td><strong>CPU 的 MMU</strong>（Memory Management Unit，記憶體管理單元）</td>
+<td><strong>每一次</strong>讀寫記憶體、取指令，都照目前行程的頁表把虛擬位址翻成實體位址；翻過的結果暫存在 TLB（Translation Lookaside Buffer，轉譯後援緩衝區）加速</td>
+<td>每一條存取記憶體或跳躍的指令</td>
+</tr>
+</tbody>
+</table>
+<p>所以 <code>jmp</code> 那一刻是 CPU 自動翻譯，核心不必介入；只有頁表裡查不到（還沒載入的頁）或權限不符（寫到唯讀、要做寫入時複製的頁）時，CPU 觸發分頁錯誤，才交給核心處理。</p>
+<pre class="mermaid">flowchart LR
+    qa[&quot;q 的格子：0x7187194b9139&quot;] --&gt; qt[&quot;q 的頁表&lt;br/&gt;（核心建、MMU 查）&quot;]
+    ra[&quot;r 的格子：0x7125ada21139&quot;] --&gt; rt[&quot;r 的頁表&lt;br/&gt;（核心建、MMU 查）&quot;]
+    qt --&gt; phys[&quot;同一個實體頁：&lt;br/&gt;libgreet.so 的 say&quot;]
+    rt --&gt; phys
+</pre>
+<p><strong>gdb 看到的全都是虛擬位址</strong>：<code>$rip</code>、<code>p &amp;counter</code>、<code>x/gx</code>、<code>info proc mappings</code> 的範圍、<code>break *0x…</code>，全是被除錯那個行程的虛擬位址。但與其說它們「不是真實的」，不如說<strong>虛擬位址就是這個行程唯一看得到、也唯一能用的位址</strong>——每條指令用的都是它。兩個證據：</p>
+<ul>
+<li>
+<p>gdb 預設關掉 ASLR，所以分別用 gdb 跑 <code>q</code> 和 <code>r</code>，<code>p say</code> 都印 <code>0x7ffff7fb7139 &lt;say&gt;</code>——數字一樣，但那是兩個行程各自的位址空間、各自的頁表，只是基底剛好相同：</p>
+<pre><code class="language-text">$ gdb -q -batch -ex &#39;break greet&#39; -ex run -ex &#39;p say&#39; ./q
+$1 = {&lt;text variable, no debug info&gt;} 0x7ffff7fb7139 &lt;say&gt;
+$ gdb -q -batch -ex &#39;break greet&#39; -ex run -ex &#39;p say&#39; ./r
+$1 = {&lt;text variable, no debug info&gt;} 0x7ffff7fb7139 &lt;say&gt;
+</code></pre>
+</li>
+<li>
+<p>一般程式拿不到實體位址。<code>/proc/self/pagemap</code> 每個虛擬頁有一筆 8 byte 的紀錄，第 63 位元是「這頁在不在記憶體」，低 55 位元是實體頁框號（PFN，Page Frame Number）；但沒有 <code>CAP_SYS_ADMIN</code> 權限時，核心把 PFN 遮成 0（Linux 4.0 起，因為實體位址可以被拿來發動 Rowhammer 這類攻擊）。<code>pfn.c</code>（檔案：<a href="../../small-project/s1-07-libraries/examples/share/pfn.c"><code>pfn.c</code></a>）完整原始碼：</p>
+<pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;fcntl.h&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdint.h&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;unistd.h&gt;</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="k">static</span><span class="w"> </span><span class="kt">char</span><span class="w"> </span><span class="n">buf</span><span class="p">[</span><span class="mi">4096</span><span class="p">];</span>
+<span class="w">    </span><span class="n">buf</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="sc">&#39;x&#39;</span><span class="p">;</span><span class="w">                                    </span><span class="cm">/* 寫一下，確保這頁真的配了實體頁 */</span>
+<span class="w">    </span><span class="kt">uintptr_t</span><span class="w"> </span><span class="n">va</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="kt">uintptr_t</span><span class="p">)</span><span class="n">buf</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">uint64_t</span><span class="w"> </span><span class="n">e</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">fd</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">open</span><span class="p">(</span><span class="s">&quot;/proc/self/pagemap&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">O_RDONLY</span><span class="p">);</span><span class="w">   </span><span class="cm">/* 每個虛擬頁一筆 8 byte 的紀錄 */</span>
+<span class="w">    </span><span class="n">pread</span><span class="p">(</span><span class="n">fd</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">e</span><span class="p">,</span><span class="w"> </span><span class="k">sizeof</span><span class="w"> </span><span class="n">e</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="n">va</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="mi">4096</span><span class="p">)</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mi">8</span><span class="p">);</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;虛擬位址 %#lx：present=%lu  PFN=%lu</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span>
+<span class="w">           </span><span class="p">(</span><span class="kt">unsigned</span><span class="w"> </span><span class="kt">long</span><span class="p">)</span><span class="n">va</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="kt">unsigned</span><span class="w"> </span><span class="kt">long</span><span class="p">)(</span><span class="n">e</span><span class="w"> </span><span class="o">&gt;&gt;</span><span class="w"> </span><span class="mi">63</span><span class="p">),</span><span class="w"> </span><span class="p">(</span><span class="kt">unsigned</span><span class="w"> </span><span class="kt">long</span><span class="p">)(</span><span class="n">e</span><span class="w"> </span><span class="o">&amp;</span><span class="w"> </span><span class="p">((</span><span class="mi">1ULL</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="mi">55</span><span class="p">)</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">1</span><span class="p">)));</span>
+<span class="w">    </span><span class="n">close</span><span class="p">(</span><span class="n">fd</span><span class="p">);</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<pre><code class="language-text">$ gcc -Wall pfn.c -o pfn &amp;&amp; ./pfn
+虛擬位址 0x6535b6d71040：present=1  PFN=0
+</code></pre>
+<p><code>present=1</code> 看得到，<code>PFN</code> 卻是 0。（<code>sudo ./pfn</code> 會印出真的頁框號——需要 root，未實測。）</p>
+</li>
+</ul>
+<h3 id="4-整理四個容易搞錯的地方">4. 整理：四個容易搞錯的地方</h3>
+<p>討論過程中出現過的四個說法，對照實驗修正：</p>
+<table>
+<thead>
+<tr>
+<th>說法</th>
+<th>實際上</th>
+<th>證據</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>整個 <code>.so</code> 在實體記憶體裡只有一份，大家共用</td>
+<td>只有<strong>沒被寫過的頁</strong>共用（程式碼、跳板、唯讀資料）；<code>.got</code>、<code>.got.plt</code>、<code>.data</code>／<code>.bss</code> 被寫過，各自一份</td>
+<td><code>smaps</code>：<code>r-xp</code> 是 <code>Shared_Clean</code>，<code>rw-p</code> 是 <code>Private_Dirty</code>；<code>a</code> 的 <code>counter</code> 是 1、<code>b</code> 的是 3（第四節）</td>
+</tr>
+<tr>
+<td><code>ld.so</code> 執行時替 <code>counter</code> 找一個位置放</td>
+<td>位置是<strong>檔案版面</strong>決定的（<code>counter</code> 在 <code>libcount.so</code> 的 <code>0x400c</code>）；<code>ld.so</code> 只決定整個檔案映射到哪個基底，再把「基底 ＋ <code>0x400c</code>」填進 <code>.got</code></td>
+<td><code>nm -D libcount.so</code> 的 <code>000000000000400c B counter</code>；gdb 的 <code>&amp;counter</code> ＝ 基底 ＋ <code>0x400c</code>（第四節）</td>
+</tr>
+<tr>
+<td>第一次呼叫時 <code>.got.plt</code> 那格是空的</td>
+<td>載入時就填了「基底 ＋ <code>0x1040</code>」，指向 <code>.plt</code> 裡叫 <code>ld.so</code> 的程式碼；跳板只是照格子跳</td>
+<td>呼叫前印出的 <code>0x7187194b9040</code></td>
+</tr>
+<tr>
+<td><code>ld.so</code> 把 <code>say</code> 的實體位址寫進格子</td>
+<td>寫的是<strong>這個行程的虛擬位址</strong>；每個行程基底不同，數字就不同；翻成實體位址是 MMU 照頁表做的</td>
+<td><code>q</code>、<code>r</code> 的格子 <code>0x…b9139</code> vs <code>0x…21139</code>；<code>pagemap</code> 的 PFN 是 0</td>
+</tr>
+</tbody>
+</table>
+<h3 id="5-extern-int-counter只剩一份但它放在執行檔裡複製重定位">5. <code>extern int counter;</code>：只剩一份，但它放在執行檔裡（複製重定位）</h3>
+<p>第四節的 <code>usecount.c</code> 自己定義了 <code>int counter = 100;</code>，結果 <code>bump</code> 加的是主程式那一份。如果主程式<strong>不想要</strong>自己的 <code>counter</code>，只要把定義改成宣告 <code>extern int counter;</code>——主程式和 <code>bump</code> 就會用同一個 <code>counter</code>，初值是 <code>count.c</code> 的 0。但實測發現那一份<strong>放在執行檔裡</strong>，不在 <code>libcount.so</code> 裡。</p>
+<p><code>usecount2.c</code>（檔案：<a href="../../small-project/s1-07-libraries/examples/pic/usecount2.c"><code>usecount2.c</code></a>）完整原始碼：</p>
+<pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+
+<span class="k">extern</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">counter</span><span class="p">;</span><span class="w">        </span><span class="cm">/* 只宣告：counter 定義在 libcount.so 裡 */</span>
+<span class="kt">int</span><span class="w"> </span><span class="nf">bump</span><span class="p">(</span><span class="kt">void</span><span class="p">);</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;bump() = %d</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">bump</span><span class="p">());</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;counter = %d</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">counter</span><span class="p">);</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;&amp;counter = %p</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="kt">void</span><span class="w"> </span><span class="o">*</span><span class="p">)</span><span class="o">&amp;</span><span class="n">counter</span><span class="p">);</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<pre><code class="language-text">$ cd small-project/s1-07-libraries/examples/pic
+$ gcc -Wall -fPIC -c count.c -o count.pic.o &amp;&amp; gcc -shared count.pic.o -o libcount.so
+$ gcc -Wall usecount2.c -L. -lcount -Wl,-rpath,&#39;$ORIGIN&#39; -o usecount2
+$ ./usecount2
+bump() = 1
+counter = 1                      ← 主程式讀到的就是 bump 加的那一個
+&amp;counter = 0x6267d9794010        ← 0x62… 開頭：落在執行檔的範圍，不是 libcount.so（0x7…）
+$ nm usecount2 | grep -w counter
+0000000000004010 B counter       ← 原始碼只寫了 extern，執行檔的 .bss 裡卻有一個 counter
+$ nm -D libcount.so | grep -w counter
+000000000000400c B counter       ← libcount.so 自己那一份也還在
+$ readelf -r usecount2 | grep counter
+000000004010  000800000005 R_X86_64_COPY     0000000000004010 counter + 0
+$ objdump -d --no-show-raw-insn usecount2 | grep counter
+    118c:	mov    0x2e7e(%rip),%eax        # 4010 &lt;counter@@Base&gt;     ← main 直接讀，不經過 GOT
+    11a8:	lea    0x2e61(%rip),%rax        # 4010 &lt;counter@@Base&gt;     ← &amp;counter 也是直接算
+$ LD_DEBUG=bindings ./usecount2 2&gt;&amp;1 | grep &quot;counter&#39;&quot;
+binding file …/libcount.so [0] to ./usecount2 [0]: normal symbol `counter&#39;
+binding file ./usecount2 [0] to …/libcount.so [0]: normal symbol `counter&#39;
+</code></pre>
+<p>為什麼會這樣：</p>
+<ol>
+<li><strong>主程式是用 <code>-fPIE</code> 編的</strong>（Ubuntu 的預設，不是 <code>-fPIC</code>）。編譯器假設「執行檔用到的全域變數都在執行檔自己裡面」，所以用 <code>%rip</code> ＋ 固定距離直接讀（<code>mov 0x2e7e(%rip),%eax</code>），不經過 GOT——比較快。</li>
+<li>可是 <code>counter</code> 定義在 <code>.so</code> 裡，距離不可能固定。連結器 <code>ld</code> 的解法：<strong>在執行檔的 <code>.bss</code> 裡替 <code>counter</code> 留一個位置</strong>（<code>0x4010</code>，跟 <code>.so</code> 裡的大小一樣），再寫一個 <code>R_X86_64_COPY</code> 重定位：「載入時，把 <code>.so</code> 裡 <code>counter</code> 的初值複製到這裡」。這叫<strong>複製重定位（copy relocation）</strong>。</li>
+<li>執行時 <code>ld.so</code> 做兩件事，就是 <code>LD_DEBUG</code> 的那兩行：
+<ul>
+<li>第二行（<code>./usecount2 to libcount.so</code>）：處理 <code>COPY</code>，去 <code>libcount.so</code> 找 <code>counter</code>，把它的初值（0）複製進執行檔的 <code>0x4010</code>；</li>
+<li>第一行（<code>libcount.so to ./usecount2</code>）：處理 <code>libcount.so</code> 的 GOT（<code>GLOB_DAT counter</code>），照「先找執行檔」的規則找到執行檔那一份，把<strong>執行檔的 <code>&amp;counter</code></strong> 填進 <code>libcount.so</code> 的 GOT。</li>
+</ul>
+</li>
+<li>結果 <code>bump</code>（經過 GOT）和 <code>main</code>（直接讀）用的都是執行檔的 <code>0x4010</code>；<code>libcount.so</code> 自己的 <code>counter</code>（<code>0x400c</code>）一直在記憶體裡，只是沒人用。</li>
+</ol>
+<pre class="mermaid">flowchart LR
+    subgraph E[&quot;usecount2（執行檔，-fPIE）&quot;]
+        direction TB
+        mainc[&quot;main：mov 0x2e7e(%rip),%eax&lt;br/&gt;直接讀，不經過 GOT&quot;]
+        ec[&quot;.bss 0x4010 counter&lt;br/&gt;載入時由 COPY 複製初值&quot;]
+    end
+    subgraph L[&quot;libcount.so（-fPIC）&quot;]
+        direction TB
+        bumpc[&quot;bump：mov 0x2ec8(%rip),%rax&lt;br/&gt;先讀 GOT 拿位址&quot;]
+        got[&quot;GOT 那格&lt;br/&gt;填的是執行檔的 &amp;counter&quot;]
+        lc[&quot;.bss 0x400c counter&lt;br/&gt;（沒人用）&quot;]
+    end
+    mainc --&gt; ec
+    bumpc --&gt; got
+    got --&gt; ec
+    lc -. &quot;COPY：初值複製一次&quot; .-&gt; ec
+</pre>
+<p>這張圖要看的是：<strong>兩條實線最後都指到執行檔的 <code>counter</code></strong>；<code>.so</code> 自己那一份只在載入時被讀一次初值。這也再一次說明 <code>.so</code> 為什麼一定要經過 GOT（第四節〈為什麼不能直接用固定距離〉）：就算主程式根本沒有定義 <code>counter</code>，最後用的那一份還是可能不在 <code>.so</code> 自己裡面。</p>
+<p><strong>代價：執行檔記住了變數的大小。</strong> 執行檔 <code>.bss</code> 裡留給 <code>counter</code> 的位置，大小是<strong>連結時</strong>照當時的 <code>.so</code> 決定的。把 <code>count.c</code> 改成 <code>long counter</code>（<a href="../../small-project/s1-07-libraries/examples/pic/count_v2.c"><code>count_v2.c</code></a>）重做 <code>libcount.so</code>、<code>usecount2</code> 不重新連結：</p>
+<pre><code class="language-c"><span class="kt">long</span><span class="w"> </span><span class="n">counter</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w">          </span><span class="cm">/* v2：從 int（4 byte）改成 long（8 byte） */</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">bump</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">counter</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">counter</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="p">(</span><span class="kt">int</span><span class="p">)</span><span class="n">counter</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<pre><code class="language-text">$ gcc -Wall -fPIC -c count_v2.c -o count_v2.pic.o &amp;&amp; gcc -shared count_v2.pic.o -o libcount.so
+$ ./usecount2
+./usecount2: Symbol `counter&#39; has different size in shared object, consider re-linking
+bump() = 1
+counter = 1
+&amp;counter = 0x5e82b3c6a010
+</code></pre>
+<p><code>ld.so</code> 發現執行檔留的 4 byte 和 <code>.so</code> 現在的 8 byte 不一樣，警告要重新連結（這次剛好還印對，是因為值很小，高位的 byte 都是 0）。這是函式庫通常<strong>不直接把全域變數給外面用、而是提供函式</strong>（例如 <code>get_counter()</code>）的原因之一：函式走 PLT，執行檔不必知道它的大小。</p>
+<h3 id="6-做-so-需要-h-嗎include-管編譯-l-管連結">6. 做 <code>.so</code> 需要 <code>.h</code> 嗎？<code>#include</code> 管編譯、<code>-l</code> 管連結</h3>
+<p>第四節的 <code>count.c</code>、<code>greet.c</code> 都沒有 <code>.h</code>，呼叫端直接在自己的檔案裡寫宣告（<code>int bump(void);</code>、<code>void greet(void);</code>）。這是為了讓範例短一點——<strong>做 <code>.so</code>、連結、執行時接線都用不到 <code>.h</code></strong>，<code>.h</code> 只在<strong>編譯呼叫端</strong>時派上用場。第 1 課〈<a href="hello.c%E6%80%8E%E9%BA%BC%E8%AE%8A%E6%88%90%E8%83%BD%E8%B7%91%E7%9A%84%E7%A8%8B%E5%BC%8F-%E7%B7%A8%E8%AD%AF%E7%9A%84%E5%9B%9B%E5%80%8B%E9%9A%8E%E6%AE%B5.html#%E7%AC%AC-2-%E9%A1%8C%E5%88%AA%E6%8E%89-include-%E7%82%BA%E4%BB%80%E9%BA%BC%E5%8F%AA%E6%98%AF%E8%AD%A6%E5%91%8A%E7%A8%8B%E5%BC%8F%E9%82%84%E8%83%BD%E8%B7%91%E9%83%A8%E5%88%86%E6%95%99%E9%81%8E%E9%97%9C%E9%8D%B5%E4%B8%80%E5%8F%A5%E6%B2%92%E6%98%8E%E8%AC%9B">第 2 題：刪掉 <code>#include</code> 為什麼只是警告，程式還能跑？</a>〉和第 6 課〈<a href="%E5%A4%9A%E6%AA%94%E6%A1%88%E7%9A%84C%E7%A8%8B%E5%BC%8F-%E6%A8%99%E9%A0%AD%E6%AA%94%E3%80%81static%E8%88%87extern%E3%80%81%E9%80%A3%E7%B5%90%E9%8C%AF%E8%AA%A4%E8%88%87make.html#include-%E5%8F%AA%E6%98%AF%E8%B2%BC%E4%B8%8A"><code>#include</code> 只是貼上</a>〉教過：<code>#include</code> 就是把檔案內容貼進來，所以「自己寫宣告」和「<code>#include</code> 一個寫了同樣宣告的 <code>.h</code>」，編譯器看到的東西一模一樣。</p>
+<table>
+<thead>
+<tr>
+<th>階段</th>
+<th>用到什麼</th>
+<th>用不用 <code>.h</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>gcc -fPIC -c count.c</code></td>
+<td><code>count.c</code> 本身</td>
+<td>不用（它是<strong>定義</strong>的那一邊）</td>
+</tr>
+<tr>
+<td><code>gcc -shared … -o libcount.so</code></td>
+<td><code>.o</code></td>
+<td>不用</td>
+</tr>
+<tr>
+<td>編譯呼叫端</td>
+<td>函式的<strong>宣告</strong>、用到的型別和巨集</td>
+<td>宣告寫在哪都可以，<code>.h</code> 是最好的寫法</td>
+</tr>
+<tr>
+<td>連結、<code>ld.so</code> 執行時接線</td>
+<td>符號的<strong>名字</strong>（<code>.dynsym</code>）</td>
+<td>不用：只認名字（第 6 課〈<a href="%E5%A4%9A%E6%AA%94%E6%A1%88%E7%9A%84C%E7%A8%8B%E5%BC%8F-%E6%A8%99%E9%A0%AD%E6%AA%94%E3%80%81static%E8%88%87extern%E3%80%81%E9%80%A3%E7%B5%90%E9%8C%AF%E8%AA%A4%E8%88%87make.html#%E5%9B%9B%E7%AC%A6%E8%99%9F%E8%A1%A8o-%E4%B9%8B%E9%96%93%E9%9D%A0%E5%90%8D%E5%AD%97%E6%8E%A5%E8%B5%B7%E4%BE%86">符號表</a>〉）</td>
+</tr>
+</tbody>
+</table>
+<p>那為什麼用 <code>libc.so.6</code> 還要 <code>#include &lt;stdio.h&gt;</code>？四個實驗（檔案都在 <a href="../../small-project/s1-07-libraries/examples/headers/"><code>examples/headers/</code></a>）：</p>
+<p><strong>實驗一：只呼叫 <code>printf</code>，自己寫宣告就夠了。</strong> <code>mydecl.c</code>（檔案：<a href="../../small-project/s1-07-libraries/examples/headers/mydecl.c"><code>mydecl.c</code></a>）：</p>
+<pre><code class="language-c"><span class="kt">int</span><span class="w"> </span><span class="nf">printf</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="kt">char</span><span class="w"> </span><span class="o">*</span><span class="n">fmt</span><span class="p">,</span><span class="w"> </span><span class="p">...);</span><span class="w">     </span><span class="cm">/* 自己寫宣告，不 #include &lt;stdio.h&gt; */</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;hi %d</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="mi">42</span><span class="p">);</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<pre><code class="language-text">$ gcc -Wall mydecl.c -o mydecl &amp;&amp; ./mydecl
+hi 42                                     ← 沒有任何警告
+$ readelf -d mydecl | grep NEEDED
+ 0x0000000000000001 (NEEDED)             Shared library: [libc.so.6]
+</code></pre>
+<p>連宣告都不寫（<code>noinc.c</code>，檔案：<a href="../../small-project/s1-07-libraries/examples/headers/noinc.c"><code>noinc.c</code></a>），gcc 13 只給警告、程式照樣跑，但這是在賭編譯器猜對（第 6 課的隱式宣告）：</p>
+<pre><code class="language-c"><span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;hi %d</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="mi">42</span><span class="p">);</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<pre><code class="language-text">$ gcc -Wall noinc.c -o noinc &amp;&amp; ./noinc
+noinc.c:3:5: warning: implicit declaration of function ‘printf’ [-Wimplicit-function-declaration]
+noinc.c:1:1: note: include ‘&lt;stdio.h&gt;’ or provide a declaration of ‘printf’
+noinc.c:3:5: warning: incompatible implicit declaration of built-in function ‘printf’ [-Wbuiltin-declaration-mismatch]
+hi 42
+</code></pre>
+<p><strong>實驗二：用到型別和巨集，就很難自己寫了。</strong> <code>needfile.c</code>（檔案：<a href="../../small-project/s1-07-libraries/examples/headers/needfile.c"><code>needfile.c</code></a>）：</p>
+<pre><code class="language-c"><span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="kt">FILE</span><span class="w"> </span><span class="o">*</span><span class="n">f</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">fopen</span><span class="p">(</span><span class="s">&quot;/etc/hostname&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;r&quot;</span><span class="p">);</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">f</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="nb">NULL</span><span class="p">)</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+<span class="w">    </span><span class="n">fclose</span><span class="p">(</span><span class="n">f</span><span class="p">);</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;EOF = %d</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">EOF</span><span class="p">);</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<pre><code class="language-text">$ gcc -Wall needfile.c -o needfile
+needfile.c:3:5: error: unknown type name ‘FILE’
+needfile.c:1:1: note: ‘FILE’ is defined in header ‘&lt;stdio.h&gt;’; did you forget to ‘#include &lt;stdio.h&gt;’?
+needfile.c:4:14: error: ‘NULL’ undeclared (first use in this function)
+…
+</code></pre>
+<table>
+<thead>
+<tr>
+<th><code>stdio.h</code> 提供的東西</th>
+<th>例子</th>
+<th>為什麼不好自己寫</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>函式宣告</td>
+<td><code>printf</code>、<code>fopen</code>、<code>fclose</code></td>
+<td>可以自己寫，但要一字不差；寫錯了連結器和 <code>ld.so</code> 都抓不到（第 6 課 <code>square(100000)</code> 那種錯）</td>
+</tr>
+<tr>
+<td><strong>型別</strong></td>
+<td><code>FILE</code></td>
+<td>它是 glibc 內部的結構，各版本、各平台可能不同</td>
+</tr>
+<tr>
+<td><strong>巨集</strong></td>
+<td><code>EOF</code>、<code>NULL</code>、<code>BUFSIZ</code>、<code>stdout</code></td>
+<td>數值由 glibc 決定；巨集在前處理時就換掉了，<code>.so</code> 裡根本沒有這些東西</td>
+</tr>
+</tbody>
+</table>
+<p><strong>實驗三：<code>#include</code> 了，不代表會連結。</strong> <code>sq.c</code>（檔案：<a href="../../small-project/s1-07-libraries/examples/headers/sq.c"><code>sq.c</code></a>）：</p>
+<pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;math.h&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">argc</span><span class="p">,</span><span class="w"> </span><span class="kt">char</span><span class="w"> </span><span class="o">**</span><span class="n">argv</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="p">(</span><span class="kt">void</span><span class="p">)</span><span class="n">argv</span><span class="p">;</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;%f</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">sqrt</span><span class="p">((</span><span class="kt">double</span><span class="p">)</span><span class="n">argc</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mf">1.0</span><span class="p">));</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<pre><code class="language-text">$ gcc -Wall sq.c -o sq
+/usr/bin/ld: /tmp/ccy284ne.o: in function `main&#39;:
+sq.c:(.text+0x33): undefined reference to `sqrt&#39;      ← 有 #include &lt;math.h&gt;，連結照樣失敗
+collect2: error: ld returned 1 exit status
+$ gcc -Wall sq.c -o sq -lm &amp;&amp; ./sq
+1.414214
+</code></pre>
+<p><code>#include &lt;math.h&gt;</code> 只讓<strong>編譯器</strong>知道 <code>sqrt</code> 的型別；<code>-lm</code> 才讓<strong>連結器</strong>去找 <code>libm.so</code>。<code>libc.so.6</code> 不用寫 <code>-lc</code>，是因為 gcc 自己會加——<code>gcc -v mydecl.c -o mydecl</code> 印出它塞給連結器的命令列，裡面有 <code>-lc</code>，跟有沒有 <code>#include &lt;stdio.h&gt;</code> 無關。</p>
+<p><strong>實驗四：真實的函式庫怎麼分 <code>.h</code> 和 <code>.so</code>。</strong> 本機的 zlib：</p>
+<pre><code class="language-text">$ dpkg -S /usr/lib/x86_64-linux-gnu/libz.so.1
+zlib1g:amd64: /usr/lib/x86_64-linux-gnu/libz.so.1      ← 執行時用的套件：只有 .so.1
+$ dpkg -L zlib1g-dev | grep -E &#39;\.h$|\.so$|\.a$&#39;
+/usr/include/zconf.h                                    ← 開發用的套件：.h
+/usr/include/zlib.h
+/usr/lib/x86_64-linux-gnu/libz.a                        ←               .a
+/usr/lib/x86_64-linux-gnu/libz.so                       ←               給 -lz 用的連結名（第六節的 SONAME 那三個名字）
+</code></pre>
+<p>只是要<strong>執行</strong>用到 zlib 的程式，裝 <code>zlib1g</code> 就好；要<strong>編譯</strong>呼叫 zlib 的程式，才要裝 <code>zlib1g-dev</code>，拿到 <code>zlib.h</code>（<code>#include &lt;zlib.h&gt;</code>）和 <code>libz.so</code>（<code>-lz</code>）。</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>誰處理</th>
+<th>什麼時候</th>
+<th>你要做什麼</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>宣告、型別、巨集</td>
+<td>前處理器、編譯器</td>
+<td>編譯時</td>
+<td><code>#include</code>（找不到就是 <code>fatal error: xxx.h: No such file or directory</code>，用 <code>-I</code> 指路徑）</td>
+</tr>
+<tr>
+<td>找到 <code>.so</code>、寫下 <code>NEEDED</code></td>
+<td><code>ld</code></td>
+<td>連結時</td>
+<td><code>-l</code>（libc 自動加；找不到符號就是 <code>undefined reference</code>，用 <code>-L</code> 指路徑）</td>
+</tr>
+<tr>
+<td>載入 <code>.so</code>、接上函式與變數</td>
+<td><code>ld.so</code></td>
+<td>執行時</td>
+<td>不用做（找不到 <code>.so</code> 見第五節）</td>
+</tr>
+</tbody>
+</table>
+<p>正式的函式庫一定要附 <code>.h</code>，而且照第 6 課〈<a href="%E5%A4%9A%E6%AA%94%E6%A1%88%E7%9A%84C%E7%A8%8B%E5%BC%8F-%E6%A8%99%E9%A0%AD%E6%AA%94%E3%80%81static%E8%88%87extern%E3%80%81%E9%80%A3%E7%B5%90%E9%8C%AF%E8%AA%A4%E8%88%87make.html#%E5%AE%9A%E7%BE%A9%E7%9A%84%E9%82%A3%E5%80%8B-c-%E7%82%BA%E4%BB%80%E9%BA%BC%E4%B9%9F%E8%A6%81-include-%E8%87%AA%E5%B7%B1%E7%9A%84%E6%A8%99%E9%A0%AD%E6%AA%94">定義的那個 <code>.c</code> 為什麼也要 <code>#include</code> 自己的標頭檔</a>〉：定義的 <code>.c</code> 和呼叫端都引入同一份 <code>.h</code>，宣告寫錯才會在編譯時被抓到——<code>.so</code> 的符號表沒有型別，連結器和 <code>ld.so</code> 幫不了你。本課第一節的 <code>examples/calc/</code> 就是照這個做法寫的（<code>calc.h</code>）。</p>
+<hr />
 <h2 id="自我測驗">自我測驗</h2>
 <blockquote>
 <p>參考答案寫在每題下面，第一次作答批改完才會補上。作答時先遮住答案、自己想過再對照。作答寫在 <a href="../small-project/s1-07-libraries/quiz.html"><code>s1-07-libraries/quiz</code></a>。</p>
@@ -1999,7 +2550,111 @@ $ rm libcalc.so &amp;&amp; ./app                     # 刪掉連結名稱
 <span class="p">}</span>
 </code></pre>
 編譯：<code>gcc -Wall -fPIC -c hits.c -o hits.pic.o &amp;&amp; gcc -shared hits.pic.o -o libhits.so &amp;&amp; gcc -Wall x.c -L. -lhits -Wl,-rpath,'$ORIGIN' -o x &amp;&amp; gcc -Wall y.c -L. -lhits -Wl,-rpath,'$ORIGIN' -o y</code>，執行：<code>./x &amp; ./y &amp; wait</code>（檔案：<a href="../../small-project/s1-07-libraries/examples/share/hits.c"><code>hits.c</code></a>、<a href="../../small-project/s1-07-libraries/examples/share/x.c"><code>x.c</code></a>、<a href="../../small-project/s1-07-libraries/examples/share/y.c"><code>y.c</code></a>）。</li>
+<li>（2026-10-26 提問延伸）兩支程式 <code>m</code>、<code>n</code> 都連 <code>libshape.so</code>（兩支都沒有自己的 <code>area</code>），同時在跑。<code>libshape.so</code> 的 <code>calc()</code> 透過 <code>area@plt</code> 呼叫 <code>area()</code>。(1) 兩個行程第一次呼叫 <code>calc</code> 之後，各自 <code>.got.plt</code> 裡 <code>area</code> 那格裝的數字一樣嗎？那個數字是誰、用哪兩樣東西算出來的？(2) 兩個行程執行的 <code>area</code> 程式碼是同一份實體記憶體嗎？<code>/proc/&lt;pid&gt;/smaps</code> 裡哪個欄位、出現什麼數值可以證明？(3) 跳到那格裡的位址時，虛擬位址由誰翻成實體位址？翻譯用的表又是誰準備的？(4) 同學分別用 gdb 跑 <code>m</code> 和 <code>n</code>，<code>p area</code> 兩邊都印 <code>0x7ffff7fb7119</code>，他說「看吧，兩個行程的 <code>area</code> 在同一個位址」。這個推論哪裡有問題？</li>
 </ol>
+<pre><code class="language-c"><span class="cm">/* shape.c */</span>
+<span class="kt">long</span><span class="w"> </span><span class="nf">area</span><span class="p">(</span><span class="kt">long</span><span class="w"> </span><span class="n">w</span><span class="p">,</span><span class="w"> </span><span class="kt">long</span><span class="w"> </span><span class="n">h</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">w</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">h</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="kt">long</span><span class="w"> </span><span class="nf">calc</span><span class="p">(</span><span class="kt">long</span><span class="w"> </span><span class="n">w</span><span class="p">,</span><span class="w"> </span><span class="kt">long</span><span class="w"> </span><span class="n">h</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">area</span><span class="p">(</span><span class="n">w</span><span class="p">,</span><span class="w"> </span><span class="n">h</span><span class="p">)</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<pre><code class="language-c"><span class="cm">/* m.c */</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;unistd.h&gt;</span>
+
+<span class="kt">long</span><span class="w"> </span><span class="nf">calc</span><span class="p">(</span><span class="kt">long</span><span class="w"> </span><span class="n">w</span><span class="p">,</span><span class="w"> </span><span class="kt">long</span><span class="w"> </span><span class="n">h</span><span class="p">);</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;m: calc(3, 4) = %ld</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">calc</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span><span class="w"> </span><span class="mi">4</span><span class="p">));</span>
+<span class="w">    </span><span class="n">fflush</span><span class="p">(</span><span class="n">stdout</span><span class="p">);</span>
+<span class="w">    </span><span class="n">sleep</span><span class="p">(</span><span class="mi">5</span><span class="p">);</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<pre><code class="language-c"><span class="cm">/* n.c */</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;unistd.h&gt;</span>
+
+<span class="kt">long</span><span class="w"> </span><span class="nf">calc</span><span class="p">(</span><span class="kt">long</span><span class="w"> </span><span class="n">w</span><span class="p">,</span><span class="w"> </span><span class="kt">long</span><span class="w"> </span><span class="n">h</span><span class="p">);</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;n: calc(5, 6) = %ld</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">calc</span><span class="p">(</span><span class="mi">5</span><span class="p">,</span><span class="w"> </span><span class="mi">6</span><span class="p">));</span>
+<span class="w">    </span><span class="n">fflush</span><span class="p">(</span><span class="n">stdout</span><span class="p">);</span>
+<span class="w">    </span><span class="n">sleep</span><span class="p">(</span><span class="mi">5</span><span class="p">);</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<p>編譯與執行：<code>gcc -Wall -fPIC -c shape.c -o shape.pic.o &amp;&amp; gcc -shared shape.pic.o -o libshape.so &amp;&amp; gcc -Wall m.c -L. -lshape -Wl,-rpath,'$ORIGIN' -o m &amp;&amp; gcc -Wall n.c -L. -lshape -Wl,-rpath,'$ORIGIN' -o n &amp;&amp; ./m &amp; ./n &amp; wait</code>（檔案：<a href="../../small-project/s1-07-libraries/examples/share/shape.c"><code>shape.c</code></a>、<a href="../../small-project/s1-07-libraries/examples/share/m.c"><code>m.c</code></a>、<a href="../../small-project/s1-07-libraries/examples/share/n.c"><code>n.c</code></a>）。<code>libshape.so</code> 的反組譯與重定位（<code>objdump -d --no-show-raw-insn libshape.so</code>、<code>readelf -r libshape.so</code>）：</p>
+<pre><code class="language-asm"><span class="w">    </span><span class="err">1156:</span><span class="w">	</span><span class="nf">call</span><span class="w">   </span><span class="mh">1050</span> <span class="p">&lt;</span><span class="no">area@plt</span><span class="p">&gt;</span><span class="w">                  </span><span class="err">←</span><span class="w"> </span><span class="no">calc</span><span class="w"> </span><span class="err">裡呼叫</span><span class="w"> </span><span class="no">area</span>
+<span class="err">0000000000001050</span><span class="w"> </span><span class="err">&lt;</span><span class="nf">area@plt</span><span class="err">&gt;</span><span class="p">:</span>
+<span class="w">    </span><span class="err">1050:</span><span class="w">	</span><span class="nf">endbr64</span><span class="w">                             </span><span class="err">←</span><span class="w"> </span><span class="err">間接跳躍的保護標記，可以忽略</span>
+<span class="w">    </span><span class="err">1054:</span><span class="w">	</span><span class="nf">jmp</span><span class="w">    </span><span class="p">*</span><span class="mi">0x2fa6</span><span class="p">(</span><span class="nv">%rip</span><span class="p">)</span><span class="w">        </span><span class="c1"># 4000 &lt;area+0x2ee7&gt;   ← 照 0x4000 那格裡存的位址跳</span>
+</code></pre>
+<pre><code class="language-text">000000004000  000600000007 R_X86_64_JUMP_SLO 0000000000001119 area + 0
+</code></pre>
+<ol start="11">
+<li>（2026-10-26 提問延伸）<code>libcfg.so</code> 定義了 <code>int level = 3;</code> 與 <code>get_level()</code>，主程式 <code>setlevel.c</code> 只寫了 <code>extern int level;</code>。(1) 執行後兩行各印多少？(2) <code>nm setlevel</code> 會不會看到 <code>level</code>？在哪一種區段？為什麼原始碼只有 <code>extern</code> 卻會有？(3) 第一行印出的值是怎麼放進那裡的？<code>get_level()</code> 讀的是哪一份 <code>level</code>？用重定位的類型和 <code>ld.so</code> 找符號的順序說明。(4) 之後把 <code>cfg.c</code> 改成 <code>long level = 3;</code> 重做 <code>libcfg.so</code>，<code>setlevel</code> 不重新連結就執行，會發生什麼事、為什麼？</li>
+</ol>
+<pre><code class="language-c"><span class="cm">/* cfg.c */</span>
+<span class="kt">int</span><span class="w"> </span><span class="n">level</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">3</span><span class="p">;</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">get_level</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">level</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<pre><code class="language-c"><span class="cm">/* setlevel.c */</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+
+<span class="k">extern</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">level</span><span class="p">;</span>
+<span class="kt">int</span><span class="w"> </span><span class="nf">get_level</span><span class="p">(</span><span class="kt">void</span><span class="p">);</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;一開始 level = %d</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">level</span><span class="p">);</span>
+<span class="w">    </span><span class="n">level</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">7</span><span class="p">;</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;get_level() = %d</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">get_level</span><span class="p">());</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<p>編譯：<code>gcc -Wall -fPIC -c cfg.c -o cfg.pic.o &amp;&amp; gcc -shared cfg.pic.o -o libcfg.so &amp;&amp; gcc -Wall setlevel.c -L. -lcfg -Wl,-rpath,'$ORIGIN' -o setlevel</code>（檔案：<a href="../../small-project/s1-07-libraries/examples/pic/cfg.c"><code>cfg.c</code></a>、<a href="../../small-project/s1-07-libraries/examples/pic/setlevel.c"><code>setlevel.c</code></a>）。主程式是 Ubuntu 預設的 <code>-fPIE</code>。
+12. （2026-10-26 提問延伸）<code>libtemp.so</code> 的宣告放在 <code>include/temp.h</code>（裡面還定義了巨集 <code>FREEZING_C</code>），做好的 <code>libtemp.so</code> 放在 <code>lib/</code>。(1) <code>gcc -Wall main.c -Llib -ltemp -o app</code> 會失敗在哪個階段（前處理、編譯、連結、執行）？錯誤大概長怎樣、要補什麼？(2) <code>gcc -Wall -Iinclude main.c -Llib -o app</code> 呢？(3) 同事說「<code>FREEZING_C</code> 的值存在 <code>libtemp.so</code> 裡，執行時才讀進來」，對嗎？為什麼？(4) 編好的 <code>app</code>（連結時加了 <code>-Wl,-rpath,'$ORIGIN/lib'</code>）要拿給別人執行，<code>include/temp.h</code> 要一起給嗎？<code>lib/libtemp.so</code> 呢？</p>
+<pre><code class="language-c"><span class="cm">/* include/temp.h */</span>
+<span class="cp">#ifndef TEMP_H</span>
+<span class="cp">#define TEMP_H</span>
+
+<span class="cp">#define FREEZING_C 0.0</span>
+
+<span class="kt">double</span><span class="w"> </span><span class="nf">c_to_f</span><span class="p">(</span><span class="kt">double</span><span class="w"> </span><span class="n">c</span><span class="p">);</span>
+
+<span class="cp">#endif</span>
+</code></pre>
+<pre><code class="language-c"><span class="cm">/* temp.c */</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;temp.h&quot;</span>
+
+<span class="kt">double</span><span class="w"> </span><span class="nf">c_to_f</span><span class="p">(</span><span class="kt">double</span><span class="w"> </span><span class="n">c</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">c</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mf">9.0</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="mf">5.0</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mf">32.0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<pre><code class="language-c"><span class="cm">/* main.c */</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;temp.h&quot;</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;%.1f</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">c_to_f</span><span class="p">(</span><span class="n">FREEZING_C</span><span class="p">));</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<p>做 <code>.so</code>：<code>gcc -Wall -fPIC -Iinclude -c temp.c -o temp.pic.o &amp;&amp; gcc -shared temp.pic.o -o lib/libtemp.so</code>（檔案：<a href="../../small-project/s1-07-libraries/examples/headers/temp/include/temp.h"><code>include/temp.h</code></a>、<a href="../../small-project/s1-07-libraries/examples/headers/temp/temp.c"><code>temp.c</code></a>、<a href="../../small-project/s1-07-libraries/examples/headers/temp/main.c"><code>main.c</code></a>）。</p>
 
 </main>
 </div>

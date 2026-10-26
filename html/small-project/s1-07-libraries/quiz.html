@@ -25,6 +25,9 @@
 <li class="l3"><a href="#7-%E5%85%A9%E4%BB%BD%E5%90%8C%E5%90%8D%E5%85%A8%E5%9F%9F%E8%AE%8A%E6%95%B8%E6%8E%A5-so-%E7%82%BA%E4%BB%80%E9%BA%BC%E4%B8%8D%E7%AE%97%E9%87%8D%E8%A4%87%E5%AE%9A%E7%BE%A910-25-%E8%BF%BD%E5%95%8F%E6%96%B0%E5%A2%9E">7. 兩份同名全域變數：接 .so 為什麼不算重複定義（10-25 追問新增）</a></li>
 <li class="l3"><a href="#8-plt-%E8%88%87-got%E5%87%BD%E5%BC%8F%E7%9A%84%E4%BD%8D%E5%9D%80%E5%AD%98%E5%9C%A8%E5%93%AA%E5%BB%B6%E9%81%B2%E7%B6%81%E5%AE%9A10-26-%E8%BF%BD%E5%95%8F%E6%96%B0%E5%A2%9E">8. PLT 與 GOT：函式的位址存在哪、延遲綁定（10-26 追問新增）</a></li>
 <li class="l3"><a href="#9-%E5%85%A9%E6%94%AF%E7%A8%8B%E5%BC%8F%E5%85%B1%E7%94%A8%E4%B8%80%E5%80%8B-so%E5%93%AA%E4%BA%9B%E6%98%AF%E5%90%8C%E4%B8%80%E4%BB%BD%E5%93%AA%E4%BA%9B%E5%90%84%E4%B8%80%E4%BB%BD10-26-%E8%BF%BD%E5%95%8F%E6%96%B0%E5%A2%9E">9. 兩支程式共用一個 .so：哪些是同一份、哪些各一份（10-26 追問新增）</a></li>
+<li class="l3"><a href="#10-%E5%85%B1%E7%94%A8%E7%9A%84-so%E6%A0%BC%E5%AD%90%E8%A3%A1%E7%9A%84%E4%BD%8D%E5%9D%80%E8%88%87%E5%AF%A6%E9%AB%94%E9%A0%8110-26-%E8%BF%BD%E5%95%8F%E6%96%B0%E5%A2%9E">10. 共用的 .so：格子裡的位址與實體頁（10-26 追問新增）</a></li>
+<li class="l3"><a href="#11-%E4%B8%BB%E7%A8%8B%E5%BC%8F%E5%8F%AA%E5%AF%AB-extern%E8%AE%8A%E6%95%B8%E6%94%BE%E5%9C%A8%E5%93%AA%E8%A3%A110-26-%E8%BF%BD%E5%95%8F%E6%96%B0%E5%A2%9E">11. 主程式只寫 extern：變數放在哪裡（10-26 追問新增）</a></li>
+<li class="l3"><a href="#12-h-%E8%88%87--l%E5%90%84%E5%9C%A8%E5%93%AA%E5%80%8B%E9%9A%8E%E6%AE%B5%E7%94%A8%E5%88%B010-26-%E8%BF%BD%E5%95%8F%E6%96%B0%E5%A2%9E">12. .h 與 -l：各在哪個階段用到（10-26 追問新增）</a></li>
 </ul>
 </nav>
 <main>
@@ -382,6 +385,171 @@
 <p><strong>第 1 次（YYYY-MM-DD）</strong></p>
 <details class="answer-fold" open><summary>作答</summary>
 <div class="answer-box" data-file="small-project/s1-07-libraries/quiz.md" data-line="416"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+</details>
+<h3 id="10-共用的-so格子裡的位址與實體頁10-26-追問新增">10. 共用的 <code>.so</code>：格子裡的位址與實體頁（10-26 追問新增）</h3>
+<p>兩支程式 <code>m</code>、<code>n</code> 都連 <code>libshape.so</code>（兩支都沒有自己的 <code>area</code>），同時在跑。<code>libshape.so</code> 的 <code>calc()</code> 透過 <code>area@plt</code> 呼叫 <code>area()</code>。(1) 兩個行程第一次呼叫 <code>calc</code> 之後，各自 <code>.got.plt</code> 裡 <code>area</code> 那格裝的數字一樣嗎？那個數字是誰、用哪兩樣東西算出來的？(2) 兩個行程執行的 <code>area</code> 程式碼是同一份實體記憶體嗎？<code>/proc/&lt;pid&gt;/smaps</code> 裡哪個欄位、出現什麼數值可以證明？(3) 跳到那格裡的位址時，虛擬位址由誰翻成實體位址？翻譯用的表又是誰準備的？(4) 同學分別用 gdb 跑 <code>m</code> 和 <code>n</code>，<code>p area</code> 兩邊都印 <code>0x7ffff7fb7119</code>，他說「看吧，兩個行程的 <code>area</code> 在同一個位址」。這個推論哪裡有問題？</p>
+<pre><code class="language-c"><span class="cm">/* shape.c */</span>
+<span class="kt">long</span><span class="w"> </span><span class="nf">area</span><span class="p">(</span><span class="kt">long</span><span class="w"> </span><span class="n">w</span><span class="p">,</span><span class="w"> </span><span class="kt">long</span><span class="w"> </span><span class="n">h</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">w</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">h</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="kt">long</span><span class="w"> </span><span class="nf">calc</span><span class="p">(</span><span class="kt">long</span><span class="w"> </span><span class="n">w</span><span class="p">,</span><span class="w"> </span><span class="kt">long</span><span class="w"> </span><span class="n">h</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">area</span><span class="p">(</span><span class="n">w</span><span class="p">,</span><span class="w"> </span><span class="n">h</span><span class="p">)</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<pre><code class="language-c"><span class="cm">/* m.c */</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;unistd.h&gt;</span>
+
+<span class="kt">long</span><span class="w"> </span><span class="nf">calc</span><span class="p">(</span><span class="kt">long</span><span class="w"> </span><span class="n">w</span><span class="p">,</span><span class="w"> </span><span class="kt">long</span><span class="w"> </span><span class="n">h</span><span class="p">);</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;m: calc(3, 4) = %ld</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">calc</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span><span class="w"> </span><span class="mi">4</span><span class="p">));</span>
+<span class="w">    </span><span class="n">fflush</span><span class="p">(</span><span class="n">stdout</span><span class="p">);</span>
+<span class="w">    </span><span class="n">sleep</span><span class="p">(</span><span class="mi">5</span><span class="p">);</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<pre><code class="language-c"><span class="cm">/* n.c */</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;unistd.h&gt;</span>
+
+<span class="kt">long</span><span class="w"> </span><span class="nf">calc</span><span class="p">(</span><span class="kt">long</span><span class="w"> </span><span class="n">w</span><span class="p">,</span><span class="w"> </span><span class="kt">long</span><span class="w"> </span><span class="n">h</span><span class="p">);</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;n: calc(5, 6) = %ld</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">calc</span><span class="p">(</span><span class="mi">5</span><span class="p">,</span><span class="w"> </span><span class="mi">6</span><span class="p">));</span>
+<span class="w">    </span><span class="n">fflush</span><span class="p">(</span><span class="n">stdout</span><span class="p">);</span>
+<span class="w">    </span><span class="n">sleep</span><span class="p">(</span><span class="mi">5</span><span class="p">);</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<p>編譯與執行：<code>gcc -Wall -fPIC -c shape.c -o shape.pic.o &amp;&amp; gcc -shared shape.pic.o -o libshape.so &amp;&amp; gcc -Wall m.c -L. -lshape -Wl,-rpath,'$ORIGIN' -o m &amp;&amp; gcc -Wall n.c -L. -lshape -Wl,-rpath,'$ORIGIN' -o n &amp;&amp; ./m &amp; ./n &amp; wait</code>（檔案：<a href="../../../small-project/s1-07-libraries/examples/share/shape.c"><code>shape.c</code></a>、<a href="../../../small-project/s1-07-libraries/examples/share/m.c"><code>m.c</code></a>、<a href="../../../small-project/s1-07-libraries/examples/share/n.c"><code>n.c</code></a>）。<code>libshape.so</code> 的反組譯與重定位（<code>objdump -d --no-show-raw-insn libshape.so</code>、<code>readelf -r libshape.so</code>）：</p>
+<pre><code class="language-asm"><span class="w">    </span><span class="err">1156:</span><span class="w">	</span><span class="nf">call</span><span class="w">   </span><span class="mh">1050</span> <span class="p">&lt;</span><span class="no">area@plt</span><span class="p">&gt;</span><span class="w">                  </span><span class="err">←</span><span class="w"> </span><span class="no">calc</span><span class="w"> </span><span class="err">裡呼叫</span><span class="w"> </span><span class="no">area</span>
+<span class="err">0000000000001050</span><span class="w"> </span><span class="err">&lt;</span><span class="nf">area@plt</span><span class="err">&gt;</span><span class="p">:</span>
+<span class="w">    </span><span class="err">1050:</span><span class="w">	</span><span class="nf">endbr64</span><span class="w">                             </span><span class="err">←</span><span class="w"> </span><span class="err">間接跳躍的保護標記，可以忽略</span>
+<span class="w">    </span><span class="err">1054:</span><span class="w">	</span><span class="nf">jmp</span><span class="w">    </span><span class="p">*</span><span class="mi">0x2fa6</span><span class="p">(</span><span class="nv">%rip</span><span class="p">)</span><span class="w">        </span><span class="c1"># 4000 &lt;area+0x2ee7&gt;   ← 照 0x4000 那格裡存的位址跳</span>
+</code></pre>
+<pre><code class="language-text">000000004000  000600000007 R_X86_64_JUMP_SLO 0000000000001119 area + 0
+</code></pre>
+<h4 id="10-1-兩個行程第一次呼叫-calc-之後各自-gotplt-裡-area-那格裝的數字一樣嗎那個數字是誰用哪兩樣東西算出來的">10-1. 兩個行程第一次呼叫 <code>calc</code> 之後，各自 <code>.got.plt</code> 裡 <code>area</code> 那格裝的數字一樣嗎？那個數字是誰、用哪兩樣東西算出來的？</h4>
+<p><strong>第 1 次（YYYY-MM-DD）</strong></p>
+<details class="answer-fold" open><summary>作答</summary>
+<div class="answer-box" data-file="small-project/s1-07-libraries/quiz.md" data-line="479"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+</details>
+<h4 id="10-2-兩個行程執行的-area-程式碼是同一份實體記憶體嗎procpidsmaps-裡哪個欄位出現什麼數值可以證明">10-2. 兩個行程執行的 <code>area</code> 程式碼是同一份實體記憶體嗎？<code>/proc/&lt;pid&gt;/smaps</code> 裡哪個欄位、出現什麼數值可以證明？</h4>
+<p><strong>第 1 次（YYYY-MM-DD）</strong></p>
+<details class="answer-fold" open><summary>作答</summary>
+<div class="answer-box" data-file="small-project/s1-07-libraries/quiz.md" data-line="485"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+</details>
+<h4 id="10-3-跳到那格裡的位址時虛擬位址由誰翻成實體位址翻譯用的表又是誰準備的">10-3. 跳到那格裡的位址時，虛擬位址由誰翻成實體位址？翻譯用的表又是誰準備的？</h4>
+<p><strong>第 1 次（YYYY-MM-DD）</strong></p>
+<details class="answer-fold" open><summary>作答</summary>
+<div class="answer-box" data-file="small-project/s1-07-libraries/quiz.md" data-line="491"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+</details>
+<h4 id="10-4-同學分別用-gdb-跑-m-和-np-area-兩邊都印-0x7ffff7fb7119他說看吧兩個行程的-area-在同一個位址這個推論哪裡有問題">10-4. 同學分別用 gdb 跑 <code>m</code> 和 <code>n</code>，<code>p area</code> 兩邊都印 <code>0x7ffff7fb7119</code>，他說「看吧，兩個行程的 <code>area</code> 在同一個位址」。這個推論哪裡有問題？</h4>
+<p><strong>第 1 次（YYYY-MM-DD）</strong></p>
+<details class="answer-fold" open><summary>作答</summary>
+<div class="answer-box" data-file="small-project/s1-07-libraries/quiz.md" data-line="497"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+</details>
+<h3 id="11-主程式只寫-extern變數放在哪裡10-26-追問新增">11. 主程式只寫 <code>extern</code>：變數放在哪裡（10-26 追問新增）</h3>
+<p><code>libcfg.so</code> 定義了 <code>int level = 3;</code> 與 <code>get_level()</code>，主程式 <code>setlevel.c</code> 只寫了 <code>extern int level;</code>。(1) 執行後兩行各印多少？(2) <code>nm setlevel</code> 會不會看到 <code>level</code>？在哪一種區段？為什麼原始碼只有 <code>extern</code> 卻會有？(3) 第一行印出的值是怎麼放進那裡的？<code>get_level()</code> 讀的是哪一份 <code>level</code>？用重定位的類型和 <code>ld.so</code> 找符號的順序說明。(4) 之後把 <code>cfg.c</code> 改成 <code>long level = 3;</code> 重做 <code>libcfg.so</code>，<code>setlevel</code> 不重新連結就執行，會發生什麼事、為什麼？</p>
+<pre><code class="language-c"><span class="cm">/* cfg.c */</span>
+<span class="kt">int</span><span class="w"> </span><span class="n">level</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">3</span><span class="p">;</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">get_level</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">level</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<pre><code class="language-c"><span class="cm">/* setlevel.c */</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+
+<span class="k">extern</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">level</span><span class="p">;</span>
+<span class="kt">int</span><span class="w"> </span><span class="nf">get_level</span><span class="p">(</span><span class="kt">void</span><span class="p">);</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;一開始 level = %d</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">level</span><span class="p">);</span>
+<span class="w">    </span><span class="n">level</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">7</span><span class="p">;</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;get_level() = %d</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">get_level</span><span class="p">());</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<p>編譯：<code>gcc -Wall -fPIC -c cfg.c -o cfg.pic.o &amp;&amp; gcc -shared cfg.pic.o -o libcfg.so &amp;&amp; gcc -Wall setlevel.c -L. -lcfg -Wl,-rpath,'$ORIGIN' -o setlevel</code>（檔案：<a href="../../../small-project/s1-07-libraries/examples/pic/cfg.c"><code>cfg.c</code></a>、<a href="../../../small-project/s1-07-libraries/examples/pic/setlevel.c"><code>setlevel.c</code></a>）。主程式是 Ubuntu 預設的 <code>-fPIE</code>。</p>
+<h4 id="11-1-執行後兩行各印多少">11-1. 執行後兩行各印多少？</h4>
+<p><strong>第 1 次（YYYY-MM-DD）</strong></p>
+<details class="answer-fold" open><summary>作答</summary>
+<div class="answer-box" data-file="small-project/s1-07-libraries/quiz.md" data-line="533"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+</details>
+<h4 id="11-2-nm-setlevel-會不會看到-level在哪一種區段為什麼原始碼只有-extern-卻會有">11-2. <code>nm setlevel</code> 會不會看到 <code>level</code>？在哪一種區段？為什麼原始碼只有 <code>extern</code> 卻會有？</h4>
+<p><strong>第 1 次（YYYY-MM-DD）</strong></p>
+<details class="answer-fold" open><summary>作答</summary>
+<div class="answer-box" data-file="small-project/s1-07-libraries/quiz.md" data-line="539"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+</details>
+<h4 id="11-3-第一行印出的值是怎麼放進那裡的get_level-讀的是哪一份-level用重定位的類型和-ldso-找符號的順序說明">11-3. 第一行印出的值是怎麼放進那裡的？<code>get_level()</code> 讀的是哪一份 <code>level</code>？用重定位的類型和 <code>ld.so</code> 找符號的順序說明。</h4>
+<p><strong>第 1 次（YYYY-MM-DD）</strong></p>
+<details class="answer-fold" open><summary>作答</summary>
+<div class="answer-box" data-file="small-project/s1-07-libraries/quiz.md" data-line="545"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+</details>
+<h4 id="11-4-之後把-cfgc-改成-long-level--3-重做-libcfgsosetlevel-不重新連結就執行會發生什麼事為什麼">11-4. 之後把 <code>cfg.c</code> 改成 <code>long level = 3;</code> 重做 <code>libcfg.so</code>，<code>setlevel</code> 不重新連結就執行，會發生什麼事、為什麼？</h4>
+<p><strong>第 1 次（YYYY-MM-DD）</strong></p>
+<details class="answer-fold" open><summary>作答</summary>
+<div class="answer-box" data-file="small-project/s1-07-libraries/quiz.md" data-line="551"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+</details>
+<h3 id="12-h-與--l各在哪個階段用到10-26-追問新增">12. <code>.h</code> 與 <code>-l</code>：各在哪個階段用到（10-26 追問新增）</h3>
+<p><code>libtemp.so</code> 的宣告放在 <code>include/temp.h</code>（裡面還定義了巨集 <code>FREEZING_C</code>），做好的 <code>libtemp.so</code> 放在 <code>lib/</code>。(1) <code>gcc -Wall main.c -Llib -ltemp -o app</code> 會失敗在哪個階段（前處理、編譯、連結、執行）？錯誤大概長怎樣、要補什麼？(2) <code>gcc -Wall -Iinclude main.c -Llib -o app</code> 呢？(3) 同事說「<code>FREEZING_C</code> 的值存在 <code>libtemp.so</code> 裡，執行時才讀進來」，對嗎？為什麼？(4) 編好的 <code>app</code>（連結時加了 <code>-Wl,-rpath,'$ORIGIN/lib'</code>）要拿給別人執行，<code>include/temp.h</code> 要一起給嗎？<code>lib/libtemp.so</code> 呢？</p>
+<pre><code class="language-c"><span class="cm">/* include/temp.h */</span>
+<span class="cp">#ifndef TEMP_H</span>
+<span class="cp">#define TEMP_H</span>
+
+<span class="cp">#define FREEZING_C 0.0</span>
+
+<span class="kt">double</span><span class="w"> </span><span class="nf">c_to_f</span><span class="p">(</span><span class="kt">double</span><span class="w"> </span><span class="n">c</span><span class="p">);</span>
+
+<span class="cp">#endif</span>
+</code></pre>
+<pre><code class="language-c"><span class="cm">/* temp.c */</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;temp.h&quot;</span>
+
+<span class="kt">double</span><span class="w"> </span><span class="nf">c_to_f</span><span class="p">(</span><span class="kt">double</span><span class="w"> </span><span class="n">c</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">c</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mf">9.0</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="mf">5.0</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mf">32.0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<pre><code class="language-c"><span class="cm">/* main.c */</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;temp.h&quot;</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;%.1f</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">c_to_f</span><span class="p">(</span><span class="n">FREEZING_C</span><span class="p">));</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<p>做 <code>.so</code>：<code>gcc -Wall -fPIC -Iinclude -c temp.c -o temp.pic.o &amp;&amp; gcc -shared temp.pic.o -o lib/libtemp.so</code>（檔案：<a href="../../../small-project/s1-07-libraries/examples/headers/temp/include/temp.h"><code>include/temp.h</code></a>、<a href="../../../small-project/s1-07-libraries/examples/headers/temp/temp.c"><code>temp.c</code></a>、<a href="../../../small-project/s1-07-libraries/examples/headers/temp/main.c"><code>main.c</code></a>）。</p>
+<h4 id="12-1-gcc--wall-mainc--llib--ltemp--o-app-會失敗在哪個階段前處理編譯連結執行錯誤大概長怎樣要補什麼">12-1. <code>gcc -Wall main.c -Llib -ltemp -o app</code> 會失敗在哪個階段（前處理、編譯、連結、執行）？錯誤大概長怎樣、要補什麼？</h4>
+<p><strong>第 1 次（YYYY-MM-DD）</strong></p>
+<details class="answer-fold" open><summary>作答</summary>
+<div class="answer-box" data-file="small-project/s1-07-libraries/quiz.md" data-line="594"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+</details>
+<h4 id="12-2-gcc--wall--iinclude-mainc--llib--o-app-呢">12-2. <code>gcc -Wall -Iinclude main.c -Llib -o app</code> 呢？</h4>
+<p><strong>第 1 次（YYYY-MM-DD）</strong></p>
+<details class="answer-fold" open><summary>作答</summary>
+<div class="answer-box" data-file="small-project/s1-07-libraries/quiz.md" data-line="600"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+</details>
+<h4 id="12-3-同事說freezing_c-的值存在-libtempso-裡執行時才讀進來對嗎為什麼">12-3. 同事說「<code>FREEZING_C</code> 的值存在 <code>libtemp.so</code> 裡，執行時才讀進來」，對嗎？為什麼？</h4>
+<p><strong>第 1 次（YYYY-MM-DD）</strong></p>
+<details class="answer-fold" open><summary>作答</summary>
+<div class="answer-box" data-file="small-project/s1-07-libraries/quiz.md" data-line="606"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+</details>
+<h4 id="12-4-編好的-app連結時加了--wl-rpathoriginlib要拿給別人執行includetemph-要一起給嗎liblibtempso-呢">12-4. 編好的 <code>app</code>（連結時加了 <code>-Wl,-rpath,'$ORIGIN/lib'</code>）要拿給別人執行，<code>include/temp.h</code> 要一起給嗎？<code>lib/libtemp.so</code> 呢？</h4>
+<p><strong>第 1 次（YYYY-MM-DD）</strong></p>
+<details class="answer-fold" open><summary>作答</summary>
+<div class="answer-box" data-file="small-project/s1-07-libraries/quiz.md" data-line="612"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 
 </main>

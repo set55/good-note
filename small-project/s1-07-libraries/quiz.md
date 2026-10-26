@@ -416,3 +416,199 @@ int main(void)
 **第 1 次（YYYY-MM-DD）**
 ```
 ```
+
+### 10. 共用的 `.so`：格子裡的位址與實體頁（10-26 追問新增）
+
+兩支程式 `m`、`n` 都連 `libshape.so`（兩支都沒有自己的 `area`），同時在跑。`libshape.so` 的 `calc()` 透過 `area@plt` 呼叫 `area()`。(1) 兩個行程第一次呼叫 `calc` 之後，各自 `.got.plt` 裡 `area` 那格裝的數字一樣嗎？那個數字是誰、用哪兩樣東西算出來的？(2) 兩個行程執行的 `area` 程式碼是同一份實體記憶體嗎？`/proc/<pid>/smaps` 裡哪個欄位、出現什麼數值可以證明？(3) 跳到那格裡的位址時，虛擬位址由誰翻成實體位址？翻譯用的表又是誰準備的？(4) 同學分別用 gdb 跑 `m` 和 `n`，`p area` 兩邊都印 `0x7ffff7fb7119`，他說「看吧，兩個行程的 `area` 在同一個位址」。這個推論哪裡有問題？
+
+```c
+/* shape.c */
+long area(long w, long h)
+{
+    return w * h;
+}
+
+long calc(long w, long h)
+{
+    return area(w, h) + 1;
+}
+```
+```c
+/* m.c */
+#include <stdio.h>
+#include <unistd.h>
+
+long calc(long w, long h);
+
+int main(void)
+{
+    printf("m: calc(3, 4) = %ld\n", calc(3, 4));
+    fflush(stdout);
+    sleep(5);
+    return 0;
+}
+```
+```c
+/* n.c */
+#include <stdio.h>
+#include <unistd.h>
+
+long calc(long w, long h);
+
+int main(void)
+{
+    printf("n: calc(5, 6) = %ld\n", calc(5, 6));
+    fflush(stdout);
+    sleep(5);
+    return 0;
+}
+```
+編譯與執行：`gcc -Wall -fPIC -c shape.c -o shape.pic.o && gcc -shared shape.pic.o -o libshape.so && gcc -Wall m.c -L. -lshape -Wl,-rpath,'$ORIGIN' -o m && gcc -Wall n.c -L. -lshape -Wl,-rpath,'$ORIGIN' -o n && ./m & ./n & wait`（檔案：[`shape.c`](./examples/share/shape.c)、[`m.c`](./examples/share/m.c)、[`n.c`](./examples/share/n.c)）。`libshape.so` 的反組譯與重定位（`objdump -d --no-show-raw-insn libshape.so`、`readelf -r libshape.so`）：
+```asm
+    1156:	call   1050 <area@plt>                  ← calc 裡呼叫 area
+0000000000001050 <area@plt>:
+    1050:	endbr64                             ← 間接跳躍的保護標記，可以忽略
+    1054:	jmp    *0x2fa6(%rip)        # 4000 <area+0x2ee7>   ← 照 0x4000 那格裡存的位址跳
+```
+```text
+000000004000  000600000007 R_X86_64_JUMP_SLO 0000000000001119 area + 0
+```
+
+#### 10-1. 兩個行程第一次呼叫 `calc` 之後，各自 `.got.plt` 裡 `area` 那格裝的數字一樣嗎？那個數字是誰、用哪兩樣東西算出來的？
+
+**第 1 次（YYYY-MM-DD）**
+```
+```
+
+#### 10-2. 兩個行程執行的 `area` 程式碼是同一份實體記憶體嗎？`/proc/<pid>/smaps` 裡哪個欄位、出現什麼數值可以證明？
+
+**第 1 次（YYYY-MM-DD）**
+```
+```
+
+#### 10-3. 跳到那格裡的位址時，虛擬位址由誰翻成實體位址？翻譯用的表又是誰準備的？
+
+**第 1 次（YYYY-MM-DD）**
+```
+```
+
+#### 10-4. 同學分別用 gdb 跑 `m` 和 `n`，`p area` 兩邊都印 `0x7ffff7fb7119`，他說「看吧，兩個行程的 `area` 在同一個位址」。這個推論哪裡有問題？
+
+**第 1 次（YYYY-MM-DD）**
+```
+```
+
+### 11. 主程式只寫 `extern`：變數放在哪裡（10-26 追問新增）
+
+`libcfg.so` 定義了 `int level = 3;` 與 `get_level()`，主程式 `setlevel.c` 只寫了 `extern int level;`。(1) 執行後兩行各印多少？(2) `nm setlevel` 會不會看到 `level`？在哪一種區段？為什麼原始碼只有 `extern` 卻會有？(3) 第一行印出的值是怎麼放進那裡的？`get_level()` 讀的是哪一份 `level`？用重定位的類型和 `ld.so` 找符號的順序說明。(4) 之後把 `cfg.c` 改成 `long level = 3;` 重做 `libcfg.so`，`setlevel` 不重新連結就執行，會發生什麼事、為什麼？
+
+```c
+/* cfg.c */
+int level = 3;
+
+int get_level(void)
+{
+    return level;
+}
+```
+```c
+/* setlevel.c */
+#include <stdio.h>
+
+extern int level;
+int get_level(void);
+
+int main(void)
+{
+    printf("一開始 level = %d\n", level);
+    level = 7;
+    printf("get_level() = %d\n", get_level());
+    return 0;
+}
+```
+編譯：`gcc -Wall -fPIC -c cfg.c -o cfg.pic.o && gcc -shared cfg.pic.o -o libcfg.so && gcc -Wall setlevel.c -L. -lcfg -Wl,-rpath,'$ORIGIN' -o setlevel`（檔案：[`cfg.c`](./examples/pic/cfg.c)、[`setlevel.c`](./examples/pic/setlevel.c)）。主程式是 Ubuntu 預設的 `-fPIE`。
+
+#### 11-1. 執行後兩行各印多少？
+
+**第 1 次（YYYY-MM-DD）**
+```
+```
+
+#### 11-2. `nm setlevel` 會不會看到 `level`？在哪一種區段？為什麼原始碼只有 `extern` 卻會有？
+
+**第 1 次（YYYY-MM-DD）**
+```
+```
+
+#### 11-3. 第一行印出的值是怎麼放進那裡的？`get_level()` 讀的是哪一份 `level`？用重定位的類型和 `ld.so` 找符號的順序說明。
+
+**第 1 次（YYYY-MM-DD）**
+```
+```
+
+#### 11-4. 之後把 `cfg.c` 改成 `long level = 3;` 重做 `libcfg.so`，`setlevel` 不重新連結就執行，會發生什麼事、為什麼？
+
+**第 1 次（YYYY-MM-DD）**
+```
+```
+
+### 12. `.h` 與 `-l`：各在哪個階段用到（10-26 追問新增）
+
+`libtemp.so` 的宣告放在 `include/temp.h`（裡面還定義了巨集 `FREEZING_C`），做好的 `libtemp.so` 放在 `lib/`。(1) `gcc -Wall main.c -Llib -ltemp -o app` 會失敗在哪個階段（前處理、編譯、連結、執行）？錯誤大概長怎樣、要補什麼？(2) `gcc -Wall -Iinclude main.c -Llib -o app` 呢？(3) 同事說「`FREEZING_C` 的值存在 `libtemp.so` 裡，執行時才讀進來」，對嗎？為什麼？(4) 編好的 `app`（連結時加了 `-Wl,-rpath,'$ORIGIN/lib'`）要拿給別人執行，`include/temp.h` 要一起給嗎？`lib/libtemp.so` 呢？
+
+```c
+/* include/temp.h */
+#ifndef TEMP_H
+#define TEMP_H
+
+#define FREEZING_C 0.0
+
+double c_to_f(double c);
+
+#endif
+```
+```c
+/* temp.c */
+#include "temp.h"
+
+double c_to_f(double c)
+{
+    return c * 9.0 / 5.0 + 32.0;
+}
+```
+```c
+/* main.c */
+#include <stdio.h>
+#include "temp.h"
+
+int main(void)
+{
+    printf("%.1f\n", c_to_f(FREEZING_C));
+    return 0;
+}
+```
+做 `.so`：`gcc -Wall -fPIC -Iinclude -c temp.c -o temp.pic.o && gcc -shared temp.pic.o -o lib/libtemp.so`（檔案：[`include/temp.h`](./examples/headers/temp/include/temp.h)、[`temp.c`](./examples/headers/temp/temp.c)、[`main.c`](./examples/headers/temp/main.c)）。
+
+#### 12-1. `gcc -Wall main.c -Llib -ltemp -o app` 會失敗在哪個階段（前處理、編譯、連結、執行）？錯誤大概長怎樣、要補什麼？
+
+**第 1 次（YYYY-MM-DD）**
+```
+```
+
+#### 12-2. `gcc -Wall -Iinclude main.c -Llib -o app` 呢？
+
+**第 1 次（YYYY-MM-DD）**
+```
+```
+
+#### 12-3. 同事說「`FREEZING_C` 的值存在 `libtemp.so` 裡，執行時才讀進來」，對嗎？為什麼？
+
+**第 1 次（YYYY-MM-DD）**
+```
+```
+
+#### 12-4. 編好的 `app`（連結時加了 `-Wl,-rpath,'$ORIGIN/lib'`）要拿給別人執行，`include/temp.h` 要一起給嗎？`lib/libtemp.so` 呢？
+
+**第 1 次（YYYY-MM-DD）**
+```
+```
