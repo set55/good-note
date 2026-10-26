@@ -708,6 +708,7 @@ $1 = (&lt;text variable, no debug info&gt; *) 0x555555555169 &lt;say&gt;
 <p>好處是程式啟動時不必一次查完所有函式（很多可能根本沒被呼叫）。<strong>變數做不到</strong>：讀變數就是一條 <code>mov (%rax),%eax</code>，中間沒有跳板可以插入「先去查」的程式碼，所以 <code>.got</code> 裡變數那格一定要在載入時就填好（上面 <code>counter</code> 那格就是載入時填的）。</p>
 <p>反過來驗證：把 <code>greet.c</code> 的 <code>say</code> 改成 <code>static void say(void)</code> 重做 <code>libgreet.so</code>，<code>greet_app</code> 不重新連結，執行印出 <code>say() in libgreet.so</code>，反組譯變成直接 <code>call 1119 &lt;say&gt;</code>、沒有 <code>@plt</code>——<code>LOCAL</code> 的函式不可能被插入，就不必經過 PLT／GOT，跟 <code>static int counter</code> 不需要 GOT 是同一個道理。</p>
 <p><em>（追問補充結束，以下回到主線）</em></p>
+<hr />
 <p><strong>上面 PLT／GOT 與延遲綁定的那段：用圖表示</strong></p>
 <blockquote>
 <p>2026-10-26 課後提問：「關於這段可以用圖表表示嗎?我比較好理解?」（指上面〈PLT 存函式位址、GOT 存變數位址嗎？〉整段）</p>
@@ -809,7 +810,6 @@ $1 = (&lt;text variable, no debug info&gt; *) 0x555555555169 &lt;say&gt;
 </tbody>
 </table>
 <p><em>（追問補充結束，以下回到主線）</em></p>
-<hr />
 <hr />
 <p><strong>那為什麼不讓 <code>ld.so</code> 載入時直接改 <code>.text</code> 裡的距離就好？</strong> 第一行警告 <code>relocation against 'counter' in read-only section '.text'</code> 說的就是這件事：那樣要在載入時改寫程式碼，而 <code>.text</code> 是唯讀的。更重要的是，<strong>共享函式庫的「共享」是指同一份 <code>.text</code> 的實體記憶體分頁，給所有用它的行程共用</strong>；如果每個行程都要把自己的位址寫進 <code>.text</code>，每個行程就得各自複製一份，共享就沒了。PIC 的設計是：程式碼完全不改、大家共用；要因行程而異的位址集中放在<strong>可寫的 GOT</strong>，每個行程一份。</p>
 <p>整理：</p>
