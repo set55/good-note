@@ -758,50 +758,58 @@ libgreet.so（檔案裡的位址）
 
 **圖二：第一次呼叫 `say()`（延遲綁定）**（對照上面 gdb 第一次 `x/gx` 印出的 `0x00007ffff7fb7040`）
 
-```text
-greet                     say@plt (.plt.sec)        .got.plt 0x4008 那格
-┌──────────────┐          ┌────────────────┐        ┌──────────────────────┐
-│ call say@plt ├─①──────▶│ jmp *(0x4008)  ├─②讀──▶│ 0x7ffff7fb7040        │
-└──────────────┘          └────────────────┘        │ （指回自己的 .plt）    │
-                                                    └──────────┬───────────┘
-                                ③ 跳到 .plt 的「去查」程式碼     │
-                          ┌────────────────────────────────────┘
-                          ▼
-                    ┌────────────────────┐
-                    │ ld.so：say 是哪一份？│
-                    │ → 主程式的 say       │
-                    │   0x555555555169    │
-                    └─────────┬──────────┘
-                              │ ④ 把答案寫回 0x4008 那格
-                              │ ⑤ 跳到 say 執行
-                              ▼
-                    主程式的 say() 印出 "say() in main"
+```mermaid
+sequenceDiagram
+    autonumber
+    participant G as greet（.text）
+    participant P as say@plt 跳板（.plt.sec）
+    participant T as .got.plt 0x4008 那格
+    participant L as .plt 的「去查」程式碼 → ld.so
+    participant S as 主程式的 say
+    G->>P: call say@plt
+    P->>T: jmp *(0x4008)：讀格子
+    T-->>P: 0x7ffff7fb7040（指回自己的 .plt）
+    P->>L: 跳到 0x7ffff7fb7040
+    Note over L: ld.so 查：say 是哪一份？<br/>先找執行檔 → 主程式的 say 0x555555555169
+    L->>T: 把 0x555555555169 寫回格子
+    L->>S: 跳到 say 執行
+    Note over S: 印出 "say() in main"
 ```
 
 `0x7ffff7fb7040` ＝ 載入基底 `0x7ffff7fb6000` ＋ `0x1040`，落在 `.plt`（`0x1020` 起、長 `0x30`）裡。
 
 **圖三：第二次以後**（對照 gdb 第二次 `x/gx` 印出的 `0x0000555555555169`，就是 `p &say`）
 
-```text
-greet                     say@plt                   .got.plt 0x4008 那格
-┌──────────────┐          ┌────────────────┐        ┌──────────────────────┐
-│ call say@plt ├─①──────▶│ jmp *(0x4008)  ├─②讀──▶│ 0x555555555169 (say) │
-└──────────────┘          └───────┬────────┘        └──────────────────────┘
-                                  │ ③ 直接跳過去，ld.so 不再出現
-                                  ▼
-                          主程式的 say()
+```mermaid
+sequenceDiagram
+    autonumber
+    participant G as greet（.text）
+    participant P as say@plt 跳板（.plt.sec）
+    participant T as .got.plt 0x4008 那格
+    participant S as 主程式的 say
+    G->>P: call say@plt
+    P->>T: jmp *(0x4008)：讀格子
+    T-->>P: 0x555555555169（第一次呼叫時填好的）
+    P->>S: 直接跳過去
+    Note over G,S: ld.so 不再出現
 ```
 
 **圖四：函式和變數並排比較**
 
-```text
-呼叫函式 say()：                      讀變數 counter：
-  call say@plt     ← 程式碼（跳板）     mov  距離(%rip),%rax   ← 從 .got 拿位址
-  jmp *(.got.plt)  ← 讀位址再跳         mov  (%rax),%eax       ← 照位址讀值
-        │                                      │
-  中間有跳板，可以先跳去「叫 ld.so 查」      中間沒有跳板，沒地方插「先去查」
-        │                                      │
-  → 可以延遲綁定（第一次呼叫才填）        → 一定要在載入時就填好
+```mermaid
+flowchart TB
+    subgraph F["呼叫函式 say()"]
+        direction TB
+        F1["call say@plt<br/>（跳到跳板：程式碼）"] --> F2["jmp *(.got.plt 那格)<br/>（讀出位址再跳）"]
+        F2 --> F3["中間有跳板，<br/>可以先跳去叫 ld.so 查"]
+        F3 --> F4["可以延遲綁定：<br/>第一次呼叫才填"]
+    end
+    subgraph V["讀變數 counter"]
+        direction TB
+        V1["mov 距離(%rip),%rax<br/>（從 .got 拿到位址）"] --> V2["mov (%rax),%eax<br/>（照位址讀值）"]
+        V2 --> V3["中間沒有跳板，<br/>沒地方插「先去查」"]
+        V3 --> V4["一定要在載入時<br/>就填好"]
+    end
 ```
 
 兩邊是同一個樣子：**先從 GOT 讀出位址，再照位址走**。函式多了一段跳板程式碼，才有辦法把「查位址」延到第一次呼叫。
@@ -871,44 +879,48 @@ libcount.so（檔案裡的位址）
 
 **圖六：載入時，`ld.so` 填格子（在 `main` 之前）**
 
-```text
-                ┌──────────────────────────────────────┐
-                │ ld.so：看到 GLOB_DAT counter          │
-                │ 依序找 counter：先找執行檔，再找 .so  │
-                │ 第一個找到的贏                        │
-                └──────────────┬───────────────────────┘
-                               │ 把找到的位址寫進 GOT 那格
-                               ▼
-  GOT 0x7ffff7fb9fd0 ┌──────────────────────┐
-  (基底+0x3fd0)      │ &counter             │
-                     └──────────────────────┘
+```mermaid
+sequenceDiagram
+    autonumber
+    participant K as 核心
+    participant L as ld.so
+    participant T as GOT 那格<br/>0x7ffff7fb9fd0（基底＋0x3fd0）
+    participant M as main
+    K->>L: 執行 ./callbump：先啟動 ld.so
+    Note over L: 載入 libcount.so，看到重定位<br/>0x3fd0 GLOB_DAT counter
+    Note over L: 找 counter：先找執行檔，再依 NEEDED 找 .so<br/>第一個找到的贏
+    L->>T: 寫入找到的 &counter
+    L->>M: 全部填好才跳進程式（_start → main）
 ```
 
 （gdb 關掉 ASLR，`libcount.so` 的載入基底是 `0x7ffff7fb6000`。）
 
 **圖七：`bump()` 讀 `counter`，分兩步**
 
-```text
-  ① mov 0x2ec8(%rip),%rax      ② mov (%rax),%eax
-  ┌────────────┐  讀格子  ┌──────────────────┐  照位址讀  ┌─────────────┐
-  │ bump 的指令 ├────────▶│ GOT 那格          ├──────────▶│ counter 的值 │
-  └────────────┘          │ 裝的是 &counter   │           └─────────────┘
-                          └──────────────────┘
-       %rax ＝ counter 的「位址」            %eax ＝ counter 的「值」
+```mermaid
+sequenceDiagram
+    autonumber
+    participant B as bump 的指令
+    participant T as GOT 那格（.got 0x3fd0）
+    participant C as counter
+    B->>T: mov 0x2ec8(%rip),%rax：讀格子
+    T-->>B: %rax ＝ counter 的「位址」
+    B->>C: mov (%rax),%eax：照位址讀
+    C-->>B: %eax ＝ counter 的「值」
 ```
 
 **圖八：同一格，填進去的位址不一樣（符號插入）**
 
-```text
-./callbump（主程式沒有定義 counter）
-  GOT 那格 = 0x00007ffff7fba00c ──▶ libcount.so 自己的 counter
-                                    （基底 0x7ffff7fb6000 ＋ 0x400c）
-  輸出：1
-
-./usecount（主程式自己定義 int counter = 100;）
-  GOT 那格 = 0x0000555555558010 ──▶ 主程式的 counter
-                                    （PIE 基底 0x555555554000 ＋ 0x4010，nm usecount 的 counter 在 0x4010）
-  輸出：bump() = 101、counter = 101
+```mermaid
+flowchart LR
+    code["libcount.so 的 bump<br/>mov 0x2ec8(%rip),%rax<br/>（兩支程式完全一樣）"] --> slot1
+    code --> slot2
+    subgraph A["./callbump：主程式沒有定義 counter"]
+        slot1["GOT 那格<br/>0x00007ffff7fba00c"] --> c1["libcount.so 自己的 counter<br/>基底 0x7ffff7fb6000 ＋ 0x400c<br/>輸出：1"]
+    end
+    subgraph B["./usecount：主程式定義 int counter = 100;"]
+        slot2["GOT 那格<br/>0x0000555555558010"] --> c2["主程式的 counter<br/>PIE 基底 0x555555554000 ＋ 0x4010<br/>輸出：bump() = 101、counter = 101"]
+    end
 ```
 
 `libcount.so` 的程式碼一個 byte 都沒變，兩次都是 `mov 0x2ec8(%rip),%rax`，差別只在 **`ld.so` 往那一格填了誰的位址**。這就是要經過 GOT 的原因：直接用固定距離讀的話，`bump` 永遠只會讀到自己那份 `counter`。

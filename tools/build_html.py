@@ -75,6 +75,16 @@ def highlight_code(code, lang, attrs):
 def make_md():
     md = MarkdownIt("commonmark", {"html": False, "highlight": highlight_code, "typographer": False})
     md.enable(["table", "strikethrough"])
+    fence = md.renderer.rules["fence"]
+
+    def fence_mermaid(self, tokens, idx, options, env):
+        # ```mermaid 區塊交給 mermaid.js 在瀏覽器畫成圖（mermaid.js 放在 tools/vendor/，只在有圖的頁面載入）
+        t = tokens[idx]
+        if t.info.strip().split()[:1] == ["mermaid"]:
+            return f'<pre class="mermaid">{html.escape(t.content)}</pre>\n'
+        return fence(tokens, idx, options, env)
+
+    md.add_render_rule("fence", fence_mermaid)
     return md
 
 
@@ -402,6 +412,8 @@ details.answer>summary{cursor:pointer;color:var(--accent);font-weight:600;paddin
 details.answer[open]>summary{border-bottom:1px dashed var(--accent);margin-bottom:6px}
 .menu-btn{display:none}
 details.answer details.answer{margin:.8em 0 .4em}
+pre.mermaid{background:none;border:none;padding:0;text-align:center;font-family:inherit}
+pre.mermaid:not([data-processed]){color:transparent}
 .code-wrap{position:relative}.code-wrap pre{margin:1em 0}
 .copy-btn{position:absolute;top:6px;right:6px;font-size:12px;padding:1px 8px;opacity:.55}
 .code-wrap:hover .copy-btn,.copy-btn:focus{opacity:1}.copy-btn.done{color:var(--accent);border-color:var(--accent)}
@@ -460,7 +472,21 @@ var root=document.documentElement;
 try{var t=localStorage.getItem('theme');if(t)root.setAttribute('data-theme',t);}catch(e){}
 window.toggleTheme=function(){var dark=root.getAttribute('data-theme')==='dark'||
 (!root.getAttribute('data-theme')&&matchMedia('(prefers-color-scheme: dark)').matches);
-var n=dark?'light':'dark';root.setAttribute('data-theme',n);try{localStorage.setItem('theme',n);}catch(e){}};
+var n=dark?'light':'dark';root.setAttribute('data-theme',n);try{localStorage.setItem('theme',n);}catch(e){}
+renderMermaid(true);};
+// ```mermaid 的圖：照目前主題畫；收起的 <details> 裡量不到大小，打開時才畫；換主題時重畫
+function isDark(){var t=root.getAttribute('data-theme');return t?t==='dark':matchMedia('(prefers-color-scheme: dark)').matches;}
+function renderMermaid(redo){
+  if(!window.mermaid)return;
+  mermaid.initialize({startOnLoad:false,securityLevel:'strict',theme:isDark()?'dark':'default'});
+  var nodes=[].slice.call(document.querySelectorAll('pre.mermaid')).filter(function(p){
+    if(p.dataset.src===undefined)p.dataset.src=p.textContent;
+    if(redo&&p.getAttribute('data-processed')){p.removeAttribute('data-processed');p.textContent=p.dataset.src;}
+    if(p.getAttribute('data-processed'))return false;
+    for(var d=p.closest('details');d;d=d.parentElement.closest('details'))if(!d.open)return false;
+    return true;});
+  if(nodes.length)mermaid.run({nodes:nodes});
+}
 window.toggleAnswers=function(open){document.querySelectorAll('details.answer').forEach(function(d){d.open=open;});};
 window.toggleBoxes=function(open){document.querySelectorAll('details.answer-fold').forEach(function(d){d.open=open;});};
 window.toggleMenu=function(){document.querySelector('nav.side').classList.toggle('open');};
@@ -495,7 +521,7 @@ function copyText(text){
     var r=false;try{r=document.execCommand('copy');}catch(e){}document.body.removeChild(ta);r?ok():fail();});
 }
 function addCopyButtons(){
-  document.querySelectorAll('main pre').forEach(function(pre){
+  document.querySelectorAll('main pre:not(.mermaid)').forEach(function(pre){
     var wrap=document.createElement('div');wrap.className='code-wrap';
     pre.parentNode.insertBefore(wrap,pre);wrap.appendChild(pre);
     var b=document.createElement('button');b.className='copy-btn';b.type='button';b.textContent='複製';
@@ -507,6 +533,8 @@ function addCopyButtons(){
 }
 document.addEventListener('DOMContentLoaded',function(){
   addCopyButtons();
+  renderMermaid(false);
+  document.querySelectorAll('details').forEach(function(d){d.addEventListener('toggle',function(){if(d.open)renderMermaid(false);});});
   // 收起時 textarea 量不到高度，打開自我練習框、作答框時再算一次
   document.querySelectorAll('details.self-practice,details.answer-fold').forEach(function(d){d.addEventListener('toggle',function(){
     if(d.open)d.querySelectorAll('textarea').forEach(fit);});});
@@ -536,6 +564,8 @@ document.addEventListener('DOMContentLoaded',function(){
 def page(title, side, body, depth):
     css_href = "../" * depth + "assets/style.css"
     js_href = "../" * depth + "assets/app.js"
+    mermaid = (f'<script src="{"../" * (depth + 1)}tools/vendor/mermaid.min.js"></script>\n'
+               if 'class="mermaid"' in body else "")
     return f"""<!doctype html>
 <html lang="zh-Hant">
 <head>
@@ -543,7 +573,7 @@ def page(title, side, body, depth):
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{html.escape(title)}</title>
 <link rel="stylesheet" href="{css_href}">
-<script src="{js_href}"></script>
+{mermaid}<script src="{js_href}"></script>
 </head>
 <body>
 <button class="menu-btn" onclick="toggleMenu()">☰ 目錄</button>
