@@ -811,6 +811,120 @@ $1 = (&lt;text variable, no debug info&gt; *) 0x555555555169 &lt;say&gt;
 </table>
 <p><em>（追問補充結束，以下回到主線）</em></p>
 <hr />
+<p><strong>上面的圖畫了 PLT：變數的 GOT 流程也用圖表示</strong></p>
+<blockquote>
+<p>2026-10-26 課後提問：「目前畫出plt的流程了,got可以也畫嗎?」（指上面四張圖，問變數 <code>counter</code> 走 <code>.got</code> 的流程）</p>
+</blockquote>
+<p>用的是前面〈為什麼一定要 <code>-fPIC</code>：先看不加會怎樣〉與〈為什麼不能直接用固定距離：<code>counter</code> 最後不一定是這一份〉的 <code>libcount.so</code> 實驗，完整原始碼都在那兩節：<code>count.c</code>（<a href="../../small-project/s1-07-libraries/examples/pic/count.c">檔案</a>）、<code>callbump.c</code>（<a href="../../small-project/s1-07-libraries/examples/pic/callbump.c">檔案</a>）、<code>usecount.c</code>（<a href="../../small-project/s1-07-libraries/examples/pic/usecount.c">檔案</a>）。圖裡的位址是 2026-10-26 重新實測的，建檔與量測的指令：</p>
+<pre><code class="language-sh"><span class="nb">cd</span><span class="w"> </span>small-project/s1-07-libraries/examples/pic
+gcc<span class="w"> </span>-Wall<span class="w"> </span>-fPIC<span class="w"> </span>-c<span class="w"> </span>count.c<span class="w"> </span>-o<span class="w"> </span>count.pic.o<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>gcc<span class="w"> </span>-shared<span class="w"> </span>count.pic.o<span class="w"> </span>-o<span class="w"> </span>libcount.so
+gcc<span class="w"> </span>-Wall<span class="w"> </span>callbump.c<span class="w"> </span>-L.<span class="w"> </span>-lcount<span class="w"> </span>-Wl,-rpath,<span class="s1">&#39;$ORIGIN&#39;</span><span class="w"> </span>-o<span class="w"> </span>callbump
+gcc<span class="w"> </span>-Wall<span class="w"> </span>usecount.c<span class="w"> </span>-L.<span class="w"> </span>-lcount<span class="w"> </span>-Wl,-rpath,<span class="s1">&#39;$ORIGIN&#39;</span><span class="w"> </span>-o<span class="w"> </span>usecount
+objdump<span class="w"> </span>-s<span class="w"> </span>-j<span class="w"> </span>.got<span class="w"> </span>libcount.so<span class="w">                       </span><span class="c1"># 檔案裡 GOT 的內容</span>
+gdb<span class="w"> </span>-q<span class="w"> </span>-batch<span class="w"> </span>-ex<span class="w"> </span><span class="s1">&#39;break bump&#39;</span><span class="w"> </span>-ex<span class="w"> </span>run<span class="w"> </span>-ex<span class="w"> </span><span class="s1">&#39;p &amp;counter&#39;</span><span class="w"> </span>-ex<span class="w"> </span><span class="s1">&#39;x/gx 0x7ffff7fb6000+0x3fd0&#39;</span><span class="w"> </span>./callbump
+gdb<span class="w"> </span>-q<span class="w"> </span>-batch<span class="w"> </span>-ex<span class="w"> </span><span class="s1">&#39;break bump&#39;</span><span class="w"> </span>-ex<span class="w"> </span>run<span class="w"> </span>-ex<span class="w"> </span><span class="s1">&#39;p &amp;counter&#39;</span><span class="w"> </span>-ex<span class="w"> </span><span class="s1">&#39;x/gx 0x7ffff7fb6000+0x3fd0&#39;</span><span class="w"> </span>./usecount
+</code></pre>
+<p>本機輸出（節錄）：</p>
+<pre><code class="language-text">Contents of section .got:
+ 3fc0 00000000 00000000 00000000 00000000  ................
+ 3fd0 00000000 00000000 00000000 00000000  ................      ← 0x3fd0 那 8 byte 在檔案裡是 0
+ 3fe0 00000000 00000000                    ........
+callbump：$1 = (&lt;data variable, no debug info&gt; *) 0x7ffff7fba00c &lt;counter&gt;
+          0x7ffff7fb9fd0:	0x00007ffff7fba00c
+usecount：$1 = (&lt;data variable, no debug info&gt; *) 0x555555558010 &lt;counter&gt;
+          0x7ffff7fb9fd0:	0x0000555555558010
+</code></pre>
+<p>跟 PLT 最大的差別：<strong>變數那格在載入時就填好，<code>bump()</code> 執行時只是去讀它，<code>ld.so</code> 不會在半路插進來</strong>。</p>
+<p><strong>圖五：檔案裡（還沒執行）</strong></p>
+<pre><code class="language-text">libcount.so（檔案裡的位址）
+
+  .text  0x1101  bump:
+                   mov 0x2ec8(%rip),%rax   ← 下一條 0x1108 ＋ 0x2ec8 ＝ 0x3fd0
+                   mov (%rax),%eax
+                         │
+                         │ 指向 GOT 的那一格（ld 連結時就算好距離）
+                         ▼
+  .got   0x3fd0  ┌──────────────────────┐
+                 │ 0x0000000000000000   │  ← 檔案裡是 0，還沒有 counter 的位址
+                 └──────────────────────┘
+                 重定位指示（readelf -r）：
+                   0x3fd0  R_X86_64_GLOB_DAT  counter
+                   ＝「載入時把 counter 的真正位址填進 0x3fd0」
+
+  .bss   0x400c  counter（libcount.so 自己的那份，初值 0）
+</code></pre>
+<p><strong>圖六：載入時，<code>ld.so</code> 填格子（在 <code>main</code> 之前）</strong></p>
+<pre><code class="language-text">                ┌──────────────────────────────────────┐
+                │ ld.so：看到 GLOB_DAT counter          │
+                │ 依序找 counter：先找執行檔，再找 .so  │
+                │ 第一個找到的贏                        │
+                └──────────────┬───────────────────────┘
+                               │ 把找到的位址寫進 GOT 那格
+                               ▼
+  GOT 0x7ffff7fb9fd0 ┌──────────────────────┐
+  (基底+0x3fd0)      │ &amp;counter             │
+                     └──────────────────────┘
+</code></pre>
+<p>（gdb 關掉 ASLR，<code>libcount.so</code> 的載入基底是 <code>0x7ffff7fb6000</code>。）</p>
+<p><strong>圖七：<code>bump()</code> 讀 <code>counter</code>，分兩步</strong></p>
+<pre><code class="language-text">  ① mov 0x2ec8(%rip),%rax      ② mov (%rax),%eax
+  ┌────────────┐  讀格子  ┌──────────────────┐  照位址讀  ┌─────────────┐
+  │ bump 的指令 ├────────▶│ GOT 那格          ├──────────▶│ counter 的值 │
+  └────────────┘          │ 裝的是 &amp;counter   │           └─────────────┘
+                          └──────────────────┘
+       %rax ＝ counter 的「位址」            %eax ＝ counter 的「值」
+</code></pre>
+<p><strong>圖八：同一格，填進去的位址不一樣（符號插入）</strong></p>
+<pre><code class="language-text">./callbump（主程式沒有定義 counter）
+  GOT 那格 = 0x00007ffff7fba00c ──▶ libcount.so 自己的 counter
+                                    （基底 0x7ffff7fb6000 ＋ 0x400c）
+  輸出：1
+
+./usecount（主程式自己定義 int counter = 100;）
+  GOT 那格 = 0x0000555555558010 ──▶ 主程式的 counter
+                                    （PIE 基底 0x555555554000 ＋ 0x4010，nm usecount 的 counter 在 0x4010）
+  輸出：bump() = 101、counter = 101
+</code></pre>
+<p><code>libcount.so</code> 的程式碼一個 byte 都沒變，兩次都是 <code>mov 0x2ec8(%rip),%rax</code>，差別只在 <strong><code>ld.so</code> 往那一格填了誰的位址</strong>。這就是要經過 GOT 的原因：直接用固定距離讀的話，<code>bump</code> 永遠只會讀到自己那份 <code>counter</code>。</p>
+<p>函式與變數對照（圖一～圖四 vs 圖五～圖八）：</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>函式 <code>say</code>（PLT＋<code>.got.plt</code>）</th>
+<th>變數 <code>counter</code>（<code>.got</code>）</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>檔案裡那格裝什麼</td>
+<td>指回 <code>.plt</code> 的「去查」程式碼</td>
+<td>0</td>
+</tr>
+<tr>
+<td>誰、什麼時候填</td>
+<td><code>ld.so</code>，<strong>第一次呼叫時</strong></td>
+<td><code>ld.so</code>，<strong>載入時</strong>（<code>main</code> 之前）</td>
+</tr>
+<tr>
+<td>重定位類型</td>
+<td><code>R_X86_64_JUMP_SLOT</code></td>
+<td><code>R_X86_64_GLOB_DAT</code></td>
+</tr>
+<tr>
+<td>使用時</td>
+<td><code>call</code> 跳板 → 跳板讀格子 → 跳過去</td>
+<td>讀格子拿到位址 → 照位址讀值</td>
+</tr>
+<tr>
+<td>會被符號插入嗎</td>
+<td>會（<code>say() in main</code>）</td>
+<td>會（<code>counter = 101</code>）</td>
+</tr>
+</tbody>
+</table>
+<p><em>（追問補充結束，以下回到主線）</em></p>
+<hr />
 <p><strong>那為什麼不讓 <code>ld.so</code> 載入時直接改 <code>.text</code> 裡的距離就好？</strong> 第一行警告 <code>relocation against 'counter' in read-only section '.text'</code> 說的就是這件事：那樣要在載入時改寫程式碼，而 <code>.text</code> 是唯讀的。更重要的是，<strong>共享函式庫的「共享」是指同一份 <code>.text</code> 的實體記憶體分頁，給所有用它的行程共用</strong>；如果每個行程都要把自己的位址寫進 <code>.text</code>，每個行程就得各自複製一份，共享就沒了。PIC 的設計是：程式碼完全不改、大家共用；要因行程而異的位址集中放在<strong>可寫的 GOT</strong>，每個行程一份。</p>
 <p>整理：</p>
 <table>

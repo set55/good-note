@@ -817,6 +817,116 @@ greet                     say@plt                   .got.plt 0x4008 那格
 
 ---
 
+**上面的圖畫了 PLT：變數的 GOT 流程也用圖表示**
+
+> 2026-10-26 課後提問：「目前畫出plt的流程了,got可以也畫嗎?」（指上面四張圖，問變數 `counter` 走 `.got` 的流程）
+
+用的是前面〈為什麼一定要 `-fPIC`：先看不加會怎樣〉與〈為什麼不能直接用固定距離：`counter` 最後不一定是這一份〉的 `libcount.so` 實驗，完整原始碼都在那兩節：`count.c`（[檔案](../small-project/s1-07-libraries/examples/pic/count.c)）、`callbump.c`（[檔案](../small-project/s1-07-libraries/examples/pic/callbump.c)）、`usecount.c`（[檔案](../small-project/s1-07-libraries/examples/pic/usecount.c)）。圖裡的位址是 2026-10-26 重新實測的，建檔與量測的指令：
+
+```sh
+cd small-project/s1-07-libraries/examples/pic
+gcc -Wall -fPIC -c count.c -o count.pic.o && gcc -shared count.pic.o -o libcount.so
+gcc -Wall callbump.c -L. -lcount -Wl,-rpath,'$ORIGIN' -o callbump
+gcc -Wall usecount.c -L. -lcount -Wl,-rpath,'$ORIGIN' -o usecount
+objdump -s -j .got libcount.so                       # 檔案裡 GOT 的內容
+gdb -q -batch -ex 'break bump' -ex run -ex 'p &counter' -ex 'x/gx 0x7ffff7fb6000+0x3fd0' ./callbump
+gdb -q -batch -ex 'break bump' -ex run -ex 'p &counter' -ex 'x/gx 0x7ffff7fb6000+0x3fd0' ./usecount
+```
+
+本機輸出（節錄）：
+
+```text
+Contents of section .got:
+ 3fc0 00000000 00000000 00000000 00000000  ................
+ 3fd0 00000000 00000000 00000000 00000000  ................      ← 0x3fd0 那 8 byte 在檔案裡是 0
+ 3fe0 00000000 00000000                    ........
+callbump：$1 = (<data variable, no debug info> *) 0x7ffff7fba00c <counter>
+          0x7ffff7fb9fd0:	0x00007ffff7fba00c
+usecount：$1 = (<data variable, no debug info> *) 0x555555558010 <counter>
+          0x7ffff7fb9fd0:	0x0000555555558010
+```
+
+跟 PLT 最大的差別：**變數那格在載入時就填好，`bump()` 執行時只是去讀它，`ld.so` 不會在半路插進來**。
+
+**圖五：檔案裡（還沒執行）**
+
+```text
+libcount.so（檔案裡的位址）
+
+  .text  0x1101  bump:
+                   mov 0x2ec8(%rip),%rax   ← 下一條 0x1108 ＋ 0x2ec8 ＝ 0x3fd0
+                   mov (%rax),%eax
+                         │
+                         │ 指向 GOT 的那一格（ld 連結時就算好距離）
+                         ▼
+  .got   0x3fd0  ┌──────────────────────┐
+                 │ 0x0000000000000000   │  ← 檔案裡是 0，還沒有 counter 的位址
+                 └──────────────────────┘
+                 重定位指示（readelf -r）：
+                   0x3fd0  R_X86_64_GLOB_DAT  counter
+                   ＝「載入時把 counter 的真正位址填進 0x3fd0」
+
+  .bss   0x400c  counter（libcount.so 自己的那份，初值 0）
+```
+
+**圖六：載入時，`ld.so` 填格子（在 `main` 之前）**
+
+```text
+                ┌──────────────────────────────────────┐
+                │ ld.so：看到 GLOB_DAT counter          │
+                │ 依序找 counter：先找執行檔，再找 .so  │
+                │ 第一個找到的贏                        │
+                └──────────────┬───────────────────────┘
+                               │ 把找到的位址寫進 GOT 那格
+                               ▼
+  GOT 0x7ffff7fb9fd0 ┌──────────────────────┐
+  (基底+0x3fd0)      │ &counter             │
+                     └──────────────────────┘
+```
+
+（gdb 關掉 ASLR，`libcount.so` 的載入基底是 `0x7ffff7fb6000`。）
+
+**圖七：`bump()` 讀 `counter`，分兩步**
+
+```text
+  ① mov 0x2ec8(%rip),%rax      ② mov (%rax),%eax
+  ┌────────────┐  讀格子  ┌──────────────────┐  照位址讀  ┌─────────────┐
+  │ bump 的指令 ├────────▶│ GOT 那格          ├──────────▶│ counter 的值 │
+  └────────────┘          │ 裝的是 &counter   │           └─────────────┘
+                          └──────────────────┘
+       %rax ＝ counter 的「位址」            %eax ＝ counter 的「值」
+```
+
+**圖八：同一格，填進去的位址不一樣（符號插入）**
+
+```text
+./callbump（主程式沒有定義 counter）
+  GOT 那格 = 0x00007ffff7fba00c ──▶ libcount.so 自己的 counter
+                                    （基底 0x7ffff7fb6000 ＋ 0x400c）
+  輸出：1
+
+./usecount（主程式自己定義 int counter = 100;）
+  GOT 那格 = 0x0000555555558010 ──▶ 主程式的 counter
+                                    （PIE 基底 0x555555554000 ＋ 0x4010，nm usecount 的 counter 在 0x4010）
+  輸出：bump() = 101、counter = 101
+```
+
+`libcount.so` 的程式碼一個 byte 都沒變，兩次都是 `mov 0x2ec8(%rip),%rax`，差別只在 **`ld.so` 往那一格填了誰的位址**。這就是要經過 GOT 的原因：直接用固定距離讀的話，`bump` 永遠只會讀到自己那份 `counter`。
+
+函式與變數對照（圖一～圖四 vs 圖五～圖八）：
+
+| | 函式 `say`（PLT＋`.got.plt`） | 變數 `counter`（`.got`） |
+|---|---|---|
+| 檔案裡那格裝什麼 | 指回 `.plt` 的「去查」程式碼 | 0 |
+| 誰、什麼時候填 | `ld.so`，**第一次呼叫時** | `ld.so`，**載入時**（`main` 之前） |
+| 重定位類型 | `R_X86_64_JUMP_SLOT` | `R_X86_64_GLOB_DAT` |
+| 使用時 | `call` 跳板 → 跳板讀格子 → 跳過去 | 讀格子拿到位址 → 照位址讀值 |
+| 會被符號插入嗎 | 會（`say() in main`） | 會（`counter = 101`） |
+
+*（追問補充結束，以下回到主線）*
+
+---
+
 **那為什麼不讓 `ld.so` 載入時直接改 `.text` 裡的距離就好？** 第一行警告 `relocation against 'counter' in read-only section '.text'` 說的就是這件事：那樣要在載入時改寫程式碼，而 `.text` 是唯讀的。更重要的是，**共享函式庫的「共享」是指同一份 `.text` 的實體記憶體分頁，給所有用它的行程共用**；如果每個行程都要把自己的位址寫進 `.text`，每個行程就得各自複製一份，共享就沒了。PIC 的設計是：程式碼完全不改、大家共用；要因行程而異的位址集中放在**可寫的 GOT**，每個行程一份。
 
 整理：
