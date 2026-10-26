@@ -110,10 +110,10 @@
 </tr>
 <tr>
 <td>C資料 8</td>
-<td>大致對</td>
-<td>2 → 2</td>
-<td>10-29</td>
-<td>來源型別寫成 <code>int</code>，應是 <code>signed char</code>（10-23 寫對過）；其餘對</td>
+<td>對</td>
+<td>2 → 3</td>
+<td>11-02</td>
+<td>改判：來源型別寫成 <code>int</code> 是筆誤（使用者說明），「由來源型別決定」的觀念對；2³² − 1、補 1、255 都對</td>
 </tr>
 <tr>
 <td>C資料 11</td>
@@ -356,7 +356,7 @@
 </tbody>
 </table>
 <blockquote>
-<p>總計 20 題：對 12、大致對 7（hello 5、GNU 4、objdump 3、C資料 8、陣列 2、組語 6、組語 12）、不完整 1（組語 18）。</p>
+<p>總計 20 題：對 13（C資料 8 改判）、大致對 6（hello 5、GNU 4、objdump 3、陣列 2、組語 6、組語 12）、不完整 1（組語 18）。</p>
 </blockquote>
 <h2 id="今天的題目">今天的題目</h2>
 <table>
@@ -724,7 +724,7 @@ $<span class="w"> </span>./signcmp
 </textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
 </details>
 <details class="answer"><summary>批改</summary>
-<p><strong>大致對</strong>。<code>u</code> ＝ 2³² − 1、補 1、「由來源型別決定」、<code>unsigned char</code> 補 0 得 255，這幾點對。錯在一處：來源型別是 <strong><code>signed char</code></strong>，不是 <code>int</code>——<code>c</code> 宣告成 <code>signed char</code>，擴展是從 1 byte 擴成 4 byte，符號位是 <code>c</code> 自己的第 7 位元。如果來源已經是 <code>int</code>，就沒有「擴展」這回事了（<code>int</code> 轉 <code>unsigned int</code> 位元一個都不動）。10-23 你寫對了「signed char」。</p>
+<p><strong>對</strong>（改判，盒子 2 → 3）。<code>u</code> ＝ 2³² − 1、補 1、「由來源型別決定」、<code>unsigned char</code> 補 0 得 255，核心關鍵都到了。原本判「大致對」，理由是來源型別寫成 <code>int</code>；使用者說明那是誤寫，10-23 也寫對過 <code>signed char</code>，觀念「由來源型別決定」本身沒錯，所以改判為對。原本的說明保留如下：來源型別是 <strong><code>signed char</code></strong>，不是 <code>int</code>——<code>c</code> 宣告成 <code>signed char</code>，擴展是從 1 byte 擴成 4 byte，符號位是 <code>c</code> 自己的第 7 位元。如果來源已經是 <code>int</code>，就沒有「擴展」這回事了（<code>int</code> 轉 <code>unsigned int</code> 位元一個都不動）。10-23 你寫對了「signed char」。</p>
 <details class="answer"><summary>參考答案</summary>
 <p>【<a href="../c/C%E7%9A%84%E8%B3%87%E6%96%99%E5%9C%A8%E8%A8%98%E6%86%B6%E9%AB%94%E8%A3%A1%E9%95%B7%E6%80%8E%E6%A8%A3-%E4%BD%8D%E5%85%83%E7%B5%84%E3%80%81%E6%8C%87%E6%A8%99%E3%80%81%E4%BD%8D%E5%85%83%E7%B5%84%E9%A0%86%E5%BA%8F%E8%88%87%E6%9C%89%E8%99%9F%E7%84%A1%E8%99%9F.html#%E5%85%AD%E6%9C%89%E8%99%9F%E8%88%87%E7%84%A1%E8%99%9F%E4%B9%8B%E9%96%93%E7%9A%84%E8%BD%89%E6%8F%9B%E4%BD%8D%E5%85%83%E4%B8%8D%E8%AE%8A%E6%8F%9B%E5%80%8B%E8%AE%80%E6%B3%95">第六節</a>】</p>
 <p><strong>核心關鍵</strong>：</p>
@@ -1597,8 +1597,13 @@ OF = 1
 <p><strong>詳細說明</strong>：OF 的定義一直是「當有號數裝不下」；「進 XOR 出」是 CPU 算出它的方法。為什麼會一致：同號相加時「進 ≠ 出」剛好就是正負號被改壞（兩個正數 <code>0+0</code> 卻收到進位，第 7 位變 1 ＝ 結果變負；兩個負數 <code>1+1</code> 卻沒收到進位，第 7 位留 0 ＝ 結果變正）；一正一負相加時第 7 位是 <code>1+0</code>，收到進位就往外進、沒收到就不進，「進」和「出」一定相同，也一定不溢位。拿 18 題的三組對一次：<code>0x01+0x7f</code> 進 1 出 0 → OF 1；<code>0x05+0x03</code> 進 0 出 0 → OF 0；<code>0xff+0x01</code> 進 1 出 1 → OF 0。</p>
 </details>
 </details>
+</p>
 <details class="answer self-practice"><summary>自我練習（不批改）</summary>
-<div class="answer-box" data-file="review/2026-10-26-hello-GNU-interp-objdump-C資料-字元-陣列-組語-組語二-多檔.md" data-line="1121" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="review/2026-10-26-hello-GNU-interp-objdump-C資料-字元-陣列-組語-組語二-多檔.md" data-line="1124"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）">進到第7位的進位是1
+第7位往外進位也是1
+1 xor 1 = 0
+所以of = 0
+</textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <hr />
 <h2 id="組語二x86-64組合語言入門二-call與ret堆疊框參數與呼叫慣例">組語二：<a href="../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80%E4%BA%8C-call%E8%88%87ret%E3%80%81%E5%A0%86%E7%96%8A%E6%A1%86%E3%80%81%E5%8F%83%E6%95%B8%E8%88%87%E5%91%BC%E5%8F%AB%E6%85%A3%E4%BE%8B.html">x86-64組合語言入門二-call與ret、堆疊框、參數與呼叫慣例</a></h2>
@@ -1654,7 +1659,7 @@ objdump<span class="w"> </span>-d<span class="w"> </span>--no-show-raw-insn<span
 </details>
 </details>
 <details class="answer self-practice"><summary>自我練習（不批改）</summary>
-<div class="answer-box" data-file="review/2026-10-26-hello-GNU-interp-objdump-C資料-字元-陣列-組語-組語二-多檔.md" data-line="1184" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="review/2026-10-26-hello-GNU-interp-objdump-C資料-字元-陣列-組語-組語二-多檔.md" data-line="1193" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h4 id="組語二-5-2-同一個時間點你想知道是誰呼叫了-add3可是不能用-bt根據本課你會看哪個暫存器指的位址看到的值代表什麼">組語二 5-2. 同一個時間點，你想知道「是誰呼叫了 <code>add3</code>」，可是不能用 <code>bt</code>。根據本課，你會看哪個暫存器指的位址？看到的值代表什麼？</h4>
 <details class="answer-fold"><summary>作答（🔒 已批改）</summary>
@@ -1674,7 +1679,7 @@ objdump<span class="w"> </span>-d<span class="w"> </span>--no-show-raw-insn<span
 </details>
 </details>
 <details class="answer self-practice"><summary>自我練習（不批改）</summary>
-<div class="answer-box" data-file="review/2026-10-26-hello-GNU-interp-objdump-C資料-字元-陣列-組語-組語二-多檔.md" data-line="1201" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="review/2026-10-26-hello-GNU-interp-objdump-C資料-字元-陣列-組語-組語二-多檔.md" data-line="1210" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <hr />
 <h2 id="多檔多檔案的c程式-標頭檔static與extern連結錯誤與make">多檔：<a href="../c/%E5%A4%9A%E6%AA%94%E6%A1%88%E7%9A%84C%E7%A8%8B%E5%BC%8F-%E6%A8%99%E9%A0%AD%E6%AA%94%E3%80%81static%E8%88%87extern%E3%80%81%E9%80%A3%E7%B5%90%E9%8C%AF%E8%AA%A4%E8%88%87make.html">多檔案的C程式-標頭檔、static與extern、連結錯誤與make</a></h2>
@@ -1727,7 +1732,7 @@ objdump<span class="w"> </span>-d<span class="w"> </span>--no-show-raw-insn<span
 </details>
 </details>
 <details class="answer self-practice"><summary>自我練習（不批改）</summary>
-<div class="answer-box" data-file="review/2026-10-26-hello-GNU-interp-objdump-C資料-字元-陣列-組語-組語二-多檔.md" data-line="1258" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="review/2026-10-26-hello-GNU-interp-objdump-C資料-字元-陣列-組語-組語二-多檔.md" data-line="1267" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h4 id="多檔-1-2-為什麼連結器沒有發現兩邊型別不一樣">多檔 1-2. 為什麼連結器沒有發現兩邊型別不一樣？</h4>
 <details class="answer-fold"><summary>作答（🔒 已批改）</summary>
@@ -1748,7 +1753,7 @@ objdump<span class="w"> </span>-d<span class="w"> </span>--no-show-raw-insn<span
 </details>
 </details>
 <details class="answer self-practice"><summary>自我練習（不批改）</summary>
-<div class="answer-box" data-file="review/2026-10-26-hello-GNU-interp-objdump-C資料-字元-陣列-組語-組語二-多檔.md" data-line="1276" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="review/2026-10-26-hello-GNU-interp-objdump-C資料-字元-陣列-組語-組語二-多檔.md" data-line="1285" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h4 id="多檔-1-3-maino-裡的-cltq-在這個錯誤裡扮演什麼角色">多檔 1-3. <code>main.o</code> 裡的 <code>cltq</code> 在這個錯誤裡扮演什麼角色？</h4>
 <details class="answer-fold"><summary>作答（🔒 已批改）</summary>
@@ -1769,7 +1774,7 @@ objdump<span class="w"> </span>-d<span class="w"> </span>--no-show-raw-insn<span
 </details>
 </details>
 <details class="answer self-practice"><summary>自我練習（不批改）</summary>
-<div class="answer-box" data-file="review/2026-10-26-hello-GNU-interp-objdump-C資料-字元-陣列-組語-組語二-多檔.md" data-line="1294" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="review/2026-10-26-hello-GNU-interp-objdump-C資料-字元-陣列-組語-組語二-多檔.md" data-line="1303" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 
 </main>
