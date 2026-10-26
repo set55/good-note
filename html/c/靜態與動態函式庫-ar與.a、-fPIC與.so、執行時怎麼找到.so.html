@@ -708,6 +708,108 @@ $1 = (&lt;text variable, no debug info&gt; *) 0x555555555169 &lt;say&gt;
 <p>好處是程式啟動時不必一次查完所有函式（很多可能根本沒被呼叫）。<strong>變數做不到</strong>：讀變數就是一條 <code>mov (%rax),%eax</code>，中間沒有跳板可以插入「先去查」的程式碼，所以 <code>.got</code> 裡變數那格一定要在載入時就填好（上面 <code>counter</code> 那格就是載入時填的）。</p>
 <p>反過來驗證：把 <code>greet.c</code> 的 <code>say</code> 改成 <code>static void say(void)</code> 重做 <code>libgreet.so</code>，<code>greet_app</code> 不重新連結，執行印出 <code>say() in libgreet.so</code>，反組譯變成直接 <code>call 1119 &lt;say&gt;</code>、沒有 <code>@plt</code>——<code>LOCAL</code> 的函式不可能被插入，就不必經過 PLT／GOT，跟 <code>static int counter</code> 不需要 GOT 是同一個道理。</p>
 <p><em>（追問補充結束，以下回到主線）</em></p>
+<p><strong>上面 PLT／GOT 與延遲綁定的那段：用圖表示</strong></p>
+<blockquote>
+<p>2026-10-26 課後提問：「關於這段可以用圖表表示嗎?我比較好理解?」（指上面〈PLT 存函式位址、GOT 存變數位址嗎？〉整段）</p>
+</blockquote>
+<p>下面四張圖用的都是上面 <code>libgreet.so</code>／<code>greet_app</code> 實驗的實測位址（<code>readelf -SW</code>、<code>objdump</code>、gdb 的輸出）。</p>
+<p><strong>圖一：PLT 和 GOT 各在哪裡、放什麼</strong>（對照上面 <code>readelf -SW libgreet.so</code> 那幾行）</p>
+<pre><code class="language-text">libgreet.so（檔案裡的位址）
+
+  ┌─────────────── 程式碼：唯讀、可執行（AX）───────────────┐
+  │ .plt      0x1020   「去叫 ld.so 查位址」的共用程式碼        │
+  │ .plt.sec  0x1070   say@plt 跳板：                          │
+  │                      jmp *(0x4008)  ← 照 0x4008 那格存的位址跳 │
+  │ .text     0x1153   greet:                                  │
+  │                      call say@plt   ← 不直接 call say        │
+  └────────────────────────────────────────────────────────────┘
+
+  ┌─────────────── 資料：可寫（WA）── 這兩個都是 GOT ──────────┐
+  │ .got      0x3fc8   存「變數」的位址（例如 counter）          │
+  │                    載入時就由 ld.so 填好                     │
+  │ .got.plt  0x3fe8   存「函式」的位址                          │
+  │           └ 0x4008：say 的那格（JUMP_SLOT）                  │
+  │                    第一次呼叫時才填                          │
+  └────────────────────────────────────────────────────────────┘
+</code></pre>
+<p><strong>PLT 是程式碼，不存位址；函式和變數的位址都存在 GOT</strong>，只是函式在 <code>.got.plt</code>、變數在 <code>.got</code>。</p>
+<p><strong>圖二：第一次呼叫 <code>say()</code>（延遲綁定）</strong>（對照上面 gdb 第一次 <code>x/gx</code> 印出的 <code>0x00007ffff7fb7040</code>）</p>
+<pre><code class="language-text">greet                     say@plt (.plt.sec)        .got.plt 0x4008 那格
+┌──────────────┐          ┌────────────────┐        ┌──────────────────────┐
+│ call say@plt ├─①──────▶│ jmp *(0x4008)  ├─②讀──▶│ 0x7ffff7fb7040        │
+└──────────────┘          └────────────────┘        │ （指回自己的 .plt）    │
+                                                    └──────────┬───────────┘
+                                ③ 跳到 .plt 的「去查」程式碼     │
+                          ┌────────────────────────────────────┘
+                          ▼
+                    ┌────────────────────┐
+                    │ ld.so：say 是哪一份？│
+                    │ → 主程式的 say       │
+                    │   0x555555555169    │
+                    └─────────┬──────────┘
+                              │ ④ 把答案寫回 0x4008 那格
+                              │ ⑤ 跳到 say 執行
+                              ▼
+                    主程式的 say() 印出 &quot;say() in main&quot;
+</code></pre>
+<p><code>0x7ffff7fb7040</code> ＝ 載入基底 <code>0x7ffff7fb6000</code> ＋ <code>0x1040</code>，落在 <code>.plt</code>（<code>0x1020</code> 起、長 <code>0x30</code>）裡。</p>
+<p><strong>圖三：第二次以後</strong>（對照 gdb 第二次 <code>x/gx</code> 印出的 <code>0x0000555555555169</code>，就是 <code>p &amp;say</code>）</p>
+<pre><code class="language-text">greet                     say@plt                   .got.plt 0x4008 那格
+┌──────────────┐          ┌────────────────┐        ┌──────────────────────┐
+│ call say@plt ├─①──────▶│ jmp *(0x4008)  ├─②讀──▶│ 0x555555555169 (say) │
+└──────────────┘          └───────┬────────┘        └──────────────────────┘
+                                  │ ③ 直接跳過去，ld.so 不再出現
+                                  ▼
+                          主程式的 say()
+</code></pre>
+<p><strong>圖四：函式和變數並排比較</strong></p>
+<pre><code class="language-text">呼叫函式 say()：                      讀變數 counter：
+  call say@plt     ← 程式碼（跳板）     mov  距離(%rip),%rax   ← 從 .got 拿位址
+  jmp *(.got.plt)  ← 讀位址再跳         mov  (%rax),%eax       ← 照位址讀值
+        │                                      │
+  中間有跳板，可以先跳去「叫 ld.so 查」      中間沒有跳板，沒地方插「先去查」
+        │                                      │
+  → 可以延遲綁定（第一次呼叫才填）        → 一定要在載入時就填好
+</code></pre>
+<p>兩邊是同一個樣子：<strong>先從 GOT 讀出位址，再照位址走</strong>。函式多了一段跳板程式碼，才有辦法把「查位址」延到第一次呼叫。</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>PLT（<code>.plt</code>／<code>.plt.sec</code>）</th>
+<th>GOT：<code>.got</code></th>
+<th>GOT：<code>.got.plt</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>是什麼</td>
+<td>程式碼（跳板）</td>
+<td>資料（位址表）</td>
+<td>資料（位址表）</td>
+</tr>
+<tr>
+<td>權限</td>
+<td><code>AX</code>：可執行、唯讀</td>
+<td><code>WA</code>：可寫</td>
+<td><code>WA</code>：可寫</td>
+</tr>
+<tr>
+<td>放什麼</td>
+<td>每個函式一段 <code>xxx@plt</code></td>
+<td>變數的位址</td>
+<td>函式的位址</td>
+</tr>
+<tr>
+<td>什麼時候填好</td>
+<td>連結時就寫好</td>
+<td>載入時</td>
+<td>第一次呼叫時</td>
+</tr>
+</tbody>
+</table>
+<p><em>（追問補充結束，以下回到主線）</em></p>
+<hr />
 <hr />
 <p><strong>那為什麼不讓 <code>ld.so</code> 載入時直接改 <code>.text</code> 裡的距離就好？</strong> 第一行警告 <code>relocation against 'counter' in read-only section '.text'</code> 說的就是這件事：那樣要在載入時改寫程式碼，而 <code>.text</code> 是唯讀的。更重要的是，<strong>共享函式庫的「共享」是指同一份 <code>.text</code> 的實體記憶體分頁，給所有用它的行程共用</strong>；如果每個行程都要把自己的位址寫進 <code>.text</code>，每個行程就得各自複製一份，共享就沒了。PIC 的設計是：程式碼完全不改、大家共用；要因行程而異的位址集中放在<strong>可寫的 GOT</strong>，每個行程一份。</p>
 <p>整理：</p>
