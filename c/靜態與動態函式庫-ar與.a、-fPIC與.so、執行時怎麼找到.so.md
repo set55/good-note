@@ -30,7 +30,7 @@
 - [六、換掉 `.so` 不用重新連結，以及 SONAME](#六換掉-so-不用重新連結以及-soname)
 - [七、本課用到的工具、選項與完整清單在哪](#七本課用到的工具選項與完整清單在哪)
 - [八、動手作業](#八動手作業)
-- [九、課後討論整理：共享函式庫在記憶體裡、`extern` 變數與標頭檔](#九課後討論整理共享函式庫在記憶體裡extern-變數與標頭檔)
+- [九、課後討論](#九課後討論)
 - [自我測驗](#自我測驗)
 
 ---
@@ -375,7 +375,7 @@ $ ./app_dyn
 
 ### 為什麼一定要 `-fPIC`：先看不加會怎樣
 
-`add.c`、`mul.c` 不加 `-fPIC` 其實也做得成 `.so`（原因下面揭曉），要用一個**有全域變數**的檔案才看得出差別。（這一節的範例為了短，都不附 `.h`、由呼叫端自己寫宣告；為什麼可以這樣、正式的函式庫又該怎麼附，見[第九節](#九課後討論整理共享函式庫在記憶體裡extern-變數與標頭檔)第 6 小節。）`count.c`（檔案：[`count.c`](../small-project/s1-07-libraries/examples/pic/count.c)）：
+`add.c`、`mul.c` 不加 `-fPIC` 其實也做得成 `.so`（原因下面揭曉），要用一個**有全域變數**的檔案才看得出差別。（這一節的範例為了短，都不附 `.h`、由呼叫端自己寫宣告；為什麼可以這樣、正式的函式庫又該怎麼附，見[第九節第 11 章〈做 `.so` 需要 `.h` 嗎？`#include` 管編譯、`-l` 管連結〉](#11-做-so-需要-h-嗎include-管編譯-l-管連結)。）`count.c`（檔案：[`count.c`](../small-project/s1-07-libraries/examples/pic/count.c)）：
 
 ```c
 int counter = 0;
@@ -438,96 +438,7 @@ $ readelf -r libcount.so | grep counter
 
 `ld` 把洞填成「到 `0x3fd0` 的距離」，`0x3fd0` 就是 GOT 裡 `counter` 那一格；`readelf -r` 的 `R_X86_64_GLOB_DAT ... counter` 是留給 `ld.so` 的指示：「載入時，把 `counter` 的真正位址寫進 `0x3fd0`」。
 
----
-
-**上面 `mov 0x2ec8(%rip),%rax  # 3fd0 <counter-0x3c>`：`0x2ec8` 和 `0x3fd0` 各是什麼**
-
-> 2026-10-25 課後提問：「請問0x3fd0, 跟 0x2ec8 是指$rip到got裏counter的位址的距離嗎?」
-
-只有一個是距離：
-
-| 數字 | 是什麼 | 怎麼來的 |
-|---|---|---|
-| `0x2ec8` | **距離**：從**下一條指令**（`0x1108`）到 GOT 裡 `counter` 那一格 | 指令本身裡的 `D`，`ld` 填的洞 |
-| `0x3fd0` | **位址**：GOT 裡 `counter` 那一格本身在哪（`.so` 內的位址，執行時再加載入位址） | `objdump` 幫你算好的 `下一條指令 ＋ D` |
-| `0x400c` | **位址**：`counter` 本身在哪（`.bss`） | `readelf -r` 的 `Sym. Value` |
-
-公式就是[第 4 課第三節](./x86-64組合語言入門-暫存器、mov與lea、cmp與條件跳躍.md#三指令的文法助憶符大小後綴運算元)〈`D(%rip)`：位址 ＝ 下一條指令的位址 ＋ D。〉那一段：`%rip` 指的是**下一條**指令（`mov` 從 `0x1101` 開始、長 7 byte，下一條在 `0x1108`），不是這一條：
-
-```
-0x1108 ＋ 0x2ec8 ＝ 0x3fd0     ← GOT 那一格（右邊註解的 3fd0）
-```
-
-證據是同一個函式裡另外兩次拿 `counter` 的位址，`D` 都不一樣，算出來卻都是 `0x3fd0`——因為指令的位置不同，到同一格的距離自然不同：
-
-```
-$ objdump -d --no-show-raw-insn libcount.so | sed -n '/<bump>:/,/ret/p'
-00000000000010f9 <bump>:
-    10f9:	endbr64
-    10fd:	push   %rbp
-    10fe:	mov    %rsp,%rbp
-    1101:	mov    0x2ec8(%rip),%rax        # 3fd0 <counter-0x3c>
-    1108:	mov    (%rax),%eax
-    110a:	lea    0x1(%rax),%edx
-    110d:	mov    0x2ebc(%rip),%rax        # 3fd0 <counter-0x3c>
-    1114:	mov    %edx,(%rax)
-    1116:	mov    0x2eb3(%rip),%rax        # 3fd0 <counter-0x3c>
-    111d:	mov    (%rax),%eax
-    111f:	pop    %rbp
-    1120:	ret
-```
-
-`0x1114 ＋ 0x2ebc ＝ 0x3fd0`、`0x111d ＋ 0x2eb3 ＝ 0x3fd0`。
-
-**`<counter-0x3c>` 不是說「這裡是 `counter`」**：GOT 的格子沒有自己的符號名字，`objdump` 只好找一個附近的符號來標，寫成「`counter` 往前 `0x3c`」：`0x400c − 0x3c ＝ 0x3fd0`。它只是**位置的標籤**，跟「這格裝的是 `counter` 的位址」沒有關係——剛好這個 `.so` 很小，最近的符號就是 `counter`。真正說明這格裝什麼的是 `readelf -r` 那一行：第一欄 `000000003fd0` 是要被填的格子（Offset），`R_X86_64_GLOB_DAT` 說「填一個符號的位址」，`counter` 是要填誰。用 `readelf -S` 也看得到 `0x3fd0` 落在 `.got` 裡，`0x400c` 落在 `.bss` 裡：
-
-```
-$ readelf -S -W libcount.so | grep -E '\.got|\.bss'
-  [ 9] .plt.got          PROGBITS        0000000000001030 001030 000010 10  AX  0   0 16
-  [17] .got              PROGBITS        0000000000003fc0 002fc0 000028 08  WA  0   0  8
-  [18] .got.plt          PROGBITS        0000000000003fe8 002fe8 000018 08  WA  0   0  8
-  [20] .bss              NOBITS          0000000000004008 003008 000008 00  WA  0   0  4
-$ objdump -s -j .got libcount.so          # 檔案裡這幾格全是 0：還沒填
- 3fc0 00000000 00000000 00000000 00000000  ................
- 3fd0 00000000 00000000 00000000 00000000  ................
- 3fe0 00000000 00000000                    ........
-```
-
-所以兩條指令合起來是兩次讀記憶體：
-
-1. `mov 0x2ec8(%rip),%rax`：讀 `0x3fd0` 那格的 8 byte——讀到的是 **`counter` 的位址**，放進 `%rax`；
-2. `mov (%rax),%eax`：照這個位址再讀 4 byte——這才是 **`counter` 的值**。
-
-執行時用 gdb 驗證「`ld.so` 真的把 `counter` 的位址填進那一格」。`callbump.c`（檔案：[`callbump.c`](../small-project/s1-07-libraries/examples/pic/callbump.c)）完整原始碼：
-
-```c
-#include <stdio.h>
-
-int bump(void);
-
-int main(void)
-{
-    printf("%d\n", bump());
-    return 0;
-}
-```
-
-```
-$ gcc -Wall -fPIC -c count.c -o count.pic.o && gcc -shared count.pic.o -o libcount.so
-$ gcc -Wall callbump.c -L. -lcount -Wl,-rpath,'$ORIGIN' -o callbump
-$ gdb -q -batch -ex 'break bump' -ex run -ex 'info proc mappings' -ex 'p &counter' -ex 'x/gx 0x7ffff7fb6000 + 0x3fd0' ./callbump
-Breakpoint 1, 0x00007ffff7fb7101 in bump () from ./libcount.so
-      0x7ffff7fb6000     0x7ffff7fb7000     0x1000        0x0  r--p   ./libcount.so    ← 載入位址（第一段，offset 0）
-      ...
-$1 = (<data variable, no debug info> *) 0x7ffff7fba00c <counter>      ← 0x7ffff7fb6000 ＋ 0x400c
-0x7ffff7fb9fd0:	0x00007ffff7fba00c                                     ← 0x7ffff7fb6000 ＋ 0x3fd0 那格，裝的就是 &counter
-```
-
-（`info proc mappings` 只留 `libcount.so` 第一段；gdb 預設關掉 ASLR，所以載入位址每次一樣，才能把 `0x7ffff7fb6000` 寫死在命令裡。）檔案裡是 0 的格子，載入後變成 `0x7ffff7fba00c`，正好是 `&counter`。
-
-*（追問補充結束，以下回到主線）*
-
----
+> 課後討論：[第九節第 1 章〈`0x2ec8` 和 `0x3fd0` 各是什麼：`mov 0x2ec8(%rip),%rax` 的兩個數字〉](#1-0x2ec8-和-0x3fd0-各是什麼mov-0x2ec8riprax-的兩個數字)
 
 ### 為什麼不能直接用固定距離：`counter` 最後不一定是這一份
 
@@ -571,37 +482,7 @@ $ gcc usecount.c count.o -o us2
 /usr/bin/ld: count.o:(.bss+0x0): multiple definition of `counter'; /tmp/ccWE88lB.o:(.data+0x0): first defined here
 ```
 
----
-
-**上面兩份 `counter`：接 `.so` 為什麼不算重複定義**
-
-> 2026-10-25 課後提問：「不算重複定義嗎?」（指 `usecount.c` 自己定義 `int counter = 100;`，`libcount.so` 裡也定義了 `counter`）
-
-上面 `gcc usecount.c count.o` 的 `multiple definition` 是連結器 `ld` 的檢查（第 6 課），它只管**會被放進同一個輸出檔的定義**。`ld` 對 `.o` 和 `.so` 的處理方式不一樣：
-
-| 連結時給 `ld` 的東西 | `ld` 怎麼處理 | 兩邊都定義 `counter` |
-|---|---|---|
-| `.o`（或從 `.a` 拉進來的成員） | 把內容**複製進**輸出檔 | 輸出檔裡有兩份 → `multiple definition` |
-| `.so` | **不複製**，只讀它的動態符號表：用來解決還沒定義的符號，並把它的名字記進 `NEEDED` | 輸出檔裡只有執行檔自己那份，`.so` 那份留在 `.so` 裡 → 不報錯 |
-
-所以連結成功以後，兩份 `counter` 都還在，各在各的檔案裡（本機實測；`nm -D` 看的是 `.so` 的動態符號表）：
-
-```
-$ nm usecount | grep -w counter
-0000000000004010 D counter      ← 執行檔自己的（.data，初值 100）
-$ nm -D libcount.so | grep -w counter
-000000000000400c B counter      ← .so 自己的（.bss，初值 0）
-```
-
-兩份都在，但只會用到一份：要等**執行時**由 `ld.so` 照「先執行檔、再依 `NEEDED` 順序」挑，第一個找到的贏——就是上面講的符號插入。`libcount.so` 的 GOT 裡 `counter` 那一格填的是執行檔那份的位址，`.so` 自己那份初值 0 的 `counter` 從頭到尾沒人用。
-
-這是 ELF 刻意允許的：讓執行檔（或 `LD_PRELOAD` 先載入的函式庫）能蓋掉函式庫裡的同名符號，例如自己寫一個 `malloc` 取代 glibc 的。代價就是 `.so` 做的時候不知道最後用哪一份，只能經過 GOT——也就是下一段的結論。
-
-反過來，主程式**不定義**、只寫 `extern int counter;` 時，`counter` 會被放進執行檔裡（複製重定位），見[第九節](#九課後討論整理共享函式庫在記憶體裡extern-變數與標頭檔)第 5 小節。
-
-*（追問補充結束，以下回到主線）*
-
----
+> 課後討論：[第九節第 2 章〈兩份 `counter`：接 `.so` 為什麼不算重複定義〉](#2-兩份-counter接-so-為什麼不算重複定義)、[第九節第 3 章〈主程式只寫 `extern int counter;`：變數放進執行檔（複製重定位）〉](#3-主程式只寫-extern-int-counter變數放進執行檔複製重定位)
 
 所以 `.so` 在**做的時候**不知道它的全域變數最後是哪一份，要等**載入時** `ld.so` 決定，這個決定只能寫在一張表裡——GOT。
 
@@ -624,466 +505,11 @@ $                                            # 沒有錯誤
 
 `add.c`、`mul.c` 不加 `-fPIC` 也做得成，也是同一個道理：它們沒有存取全域變數，而呼叫函式本來就經過 PLT（第 1 課的 `puts@plt`），不需要改程式碼。
 
----
-
-**上面「呼叫函式本來就經過 PLT」：PLT 存函式位址、GOT 存變數位址嗎？**
-
-> 2026-10-26 課後提問：「plt是不是專存全域函式的位址,got存全域變數的位址?」
-
-不是。**PLT 不存位址，它是程式碼（每個函式一小段跳板）；變數和函式的位址都存在 GOT 裡**，只是分在兩個區段：
-
-| 區段 | 是什麼 | 權限（`readelf -S` 的 `Flg`） | 放什麼 |
-|---|---|---|---|
-| `.plt`、`.plt.sec` | **程式碼** | `AX`（可執行、唯讀） | 每個函式一段跳板，例如 `say@plt` |
-| `.got` | **資料**（位址表） | `WA`（可寫） | 全域**變數**的位址，重定位類型 `R_X86_64_GLOB_DAT`（上面 `counter` 那格） |
-| `.got.plt` | **資料**（位址表，也是 GOT 的一部分） | `WA`（可寫） | **函式**的位址，重定位類型 `R_X86_64_JUMP_SLOT` |
-
-（`.plt.got` 名字跟 `.got.plt` 很像，但它是另一種跳板，給不走下面「延遲綁定」的函式用，例如 `__cxa_finalize`，這裡不展開。）
-
-實驗：`libgreet.so` 的 `greet()` 呼叫 `say()`。`greet.c`（檔案：[`greet.c`](../small-project/s1-07-libraries/examples/pic/greet.c)）完整原始碼：
-
-```c
-#include <stdio.h>
-
-void say(void)
-{
-    printf("say() in libgreet.so\n");
-}
-
-void greet(void)
-{
-    say();
-}
-```
-
-主程式 `greet_main.c`（檔案：[`greet_main.c`](../small-project/s1-07-libraries/examples/pic/greet_main.c)）也定義一個 `say()`——順便看到函式也會被符號插入，跟上面的 `counter` 一樣：
-
-```c
-#include <stdio.h>
-
-void greet(void);
-
-void say(void)
-{
-    printf("say() in main\n");
-}
-
-int main(void)
-{
-    greet();
-    return 0;
-}
-```
-
-```
-$ gcc -Wall -fPIC -c greet.c -o greet.pic.o && gcc -shared greet.pic.o -o libgreet.so
-$ gcc -Wall greet_main.c -L. -lgreet -Wl,-rpath,'$ORIGIN' -o greet_app
-$ ./greet_app
-say() in main                                  ← 函式庫裡的 greet() 呼叫到主程式的 say()
-$ objdump -d --no-show-raw-insn libgreet.so | sed -n '/<greet>:/,/ret/p'
-0000000000001153 <greet>:
-    ...
-    115b:	call   1070 <say@plt>              ← 不是直接 call say，是 call 跳板
-    ...
-$ objdump -d --no-show-raw-insn -j .plt.sec libgreet.so | sed -n '/say@plt>:/,+3p'
-0000000000001070 <say@plt>:
-    1070:	endbr64
-    1074:	jmp    *0x2f8e(%rip)        # 4008 <say@@Base+0x2ecf>
-    107a:	nopw   0x0(%rax,%rax,1)
-$ readelf -SW libgreet.so | grep -E '\.plt|\.got'
-  [ 9] .rela.plt         RELA            0000000000000530 000530 000030 18  AI  4  23  8
-  [11] .plt              PROGBITS        0000000000001020 001020 000030 10  AX  0   0 16
-  [12] .plt.got          PROGBITS        0000000000001050 001050 000010 10  AX  0   0 16
-  [13] .plt.sec          PROGBITS        0000000000001060 001060 000020 10  AX  0   0 16
-  [22] .got              PROGBITS        0000000000003fc8 002fc8 000020 08  WA  0   0  8
-  [23] .got.plt          PROGBITS        0000000000003fe8 002fe8 000028 08  WA  0   0  8
-$ readelf -r libgreet.so | grep say
-000000004008  000700000007 R_X86_64_JUMP_SLO 0000000000001139 say + 0
-```
-
-讀法：
-
-1. `jmp *0x2f8e(%rip)`：`*` 表示「跳到**記憶體裡存的**那個位址」，不是跳到 `0x4008` 本身。`0x2f8e` 的算法跟上面 `counter` 一樣：下一條 `0x107a ＋ 0x2f8e ＝ 0x4008`。
-2. `0x4008` 落在 `.got.plt`（`0x3fe8` 起，長 `0x28`），`readelf -r` 說這格是 `JUMP_SLOT`、要填 `say`。
-3. 所以呼叫函式也是兩步：`call say@plt` 跳到跳板（程式碼）→ 跳板讀 `.got.plt` 那格存的位址、跳過去。跟變數「先從 `.got` 讀出位址、再照位址讀」是同一個樣子。
-
-**那為什麼函式要多一層跳板？延遲綁定（lazy binding）。** 用 gdb 看 `say` 那格在第一次呼叫前後的值（gdb 關掉 ASLR，`libgreet.so` 載入在 `0x7ffff7fb6000`，所以那格在 `0x7ffff7fb6000 + 0x4008`；`greet+13` 是 `call` 的下一條 `0x1160`）：
-
-```
-$ gdb -q -batch -ex 'break greet' -ex run -ex 'x/gx 0x7ffff7fb6000+0x4008' \
-      -ex 'break *greet+13' -ex c -ex 'x/gx 0x7ffff7fb6000+0x4008' -ex 'p &say' ./greet_app
-0x7ffff7fba008 <say@got.plt>:	0x00007ffff7fb7040     ← 呼叫前：指回 libgreet.so 自己的 .plt（0x1040），不是 say
-0x7ffff7fba008 <say@got.plt>:	0x0000555555555169     ← 呼叫過一次後：變成主程式的 say
-$1 = (<text variable, no debug info> *) 0x555555555169 <say>
-```
-
-1. 一開始那格不放 `say` 的位址，而是指回 `.plt` 裡一段「叫 `ld.so` 去查」的程式碼；
-2. **第一次**呼叫時，`ld.so` 才去找 `say` 是哪一份（這裡是主程式的），把答案寫回那格；
-3. 之後再呼叫，跳板讀到的就是 `say` 的真正位址，直接跳過去，`ld.so` 不再介入。
-
-好處是程式啟動時不必一次查完所有函式（很多可能根本沒被呼叫）。**變數做不到**：讀變數就是一條 `mov (%rax),%eax`，中間沒有跳板可以插入「先去查」的程式碼，所以 `.got` 裡變數那格一定要在載入時就填好（上面 `counter` 那格就是載入時填的）。
-
-反過來驗證：把 `greet.c` 的 `say` 改成 `static void say(void)` 重做 `libgreet.so`，`greet_app` 不重新連結，執行印出 `say() in libgreet.so`，反組譯變成直接 `call 1119 <say>`、沒有 `@plt`——`LOCAL` 的函式不可能被插入，就不必經過 PLT／GOT，跟 `static int counter` 不需要 GOT 是同一個道理。
-
-*（追問補充結束，以下回到主線）*
-
----
-
-**上面 PLT／GOT 與延遲綁定的那段：用圖表示**
-
-> 2026-10-26 課後提問：「關於這段可以用圖表表示嗎?我比較好理解?」（指上面〈PLT 存函式位址、GOT 存變數位址嗎？〉整段）
-
-下面四張圖用的都是上面 `libgreet.so`／`greet_app` 實驗的實測位址（`readelf -SW`、`objdump`、gdb 的輸出）。
-
-**圖一：PLT 和 GOT 各在哪裡、放什麼**（對照上面 `readelf -SW libgreet.so` 那幾行）
-
-```text
-libgreet.so（檔案裡的位址）
-
-  ┌─────────────── 程式碼：唯讀、可執行（AX）───────────────┐
-  │ .plt      0x1020   「去叫 ld.so 查位址」的共用程式碼        │
-  │ .plt.sec  0x1070   say@plt 跳板：                          │
-  │                      jmp *(0x4008)  ← 照 0x4008 那格存的位址跳 │
-  │ .text     0x1153   greet:                                  │
-  │                      call say@plt   ← 不直接 call say        │
-  └────────────────────────────────────────────────────────────┘
-
-  ┌─────────────── 資料：可寫（WA）── 這兩個都是 GOT ──────────┐
-  │ .got      0x3fc8   存「變數」的位址（例如 counter）          │
-  │                    載入時就由 ld.so 填好                     │
-  │ .got.plt  0x3fe8   存「函式」的位址                          │
-  │           └ 0x4008：say 的那格（JUMP_SLOT）                  │
-  │                    第一次呼叫時才填                          │
-  └────────────────────────────────────────────────────────────┘
-```
-
-**PLT 是程式碼，不存位址；函式和變數的位址都存在 GOT**，只是函式在 `.got.plt`、變數在 `.got`。
-
-**圖二：第一次呼叫 `say()`（延遲綁定）**（對照上面 gdb 第一次 `x/gx` 印出的 `0x00007ffff7fb7040`）
-
-```mermaid
-sequenceDiagram
-    autonumber
-    participant G as greet（.text）
-    participant P as say@plt 跳板（.plt.sec）
-    participant T as .got.plt 0x4008 那格
-    participant L as .plt 的「去查」程式碼 → ld.so
-    participant S as 主程式的 say
-    G->>P: call say@plt
-    P->>T: jmp *(0x4008)：讀格子
-    T-->>P: 0x7ffff7fb7040（指回自己的 .plt）
-    P->>L: 跳到 0x7ffff7fb7040
-    Note over L: ld.so 查：say 是哪一份？<br/>先找執行檔 → 主程式的 say 0x555555555169
-    L->>T: 把 0x555555555169 寫回格子
-    L->>S: 跳到 say 執行
-    Note over S: 印出 "say() in main"
-```
-
-`0x7ffff7fb7040` ＝ 載入基底 `0x7ffff7fb6000` ＋ `0x1040`，落在 `.plt`（`0x1020` 起、長 `0x30`）裡。
-
-**圖三：第二次以後**（對照 gdb 第二次 `x/gx` 印出的 `0x0000555555555169`，就是 `p &say`）
-
-```mermaid
-sequenceDiagram
-    autonumber
-    participant G as greet（.text）
-    participant P as say@plt 跳板（.plt.sec）
-    participant T as .got.plt 0x4008 那格
-    participant S as 主程式的 say
-    G->>P: call say@plt
-    P->>T: jmp *(0x4008)：讀格子
-    T-->>P: 0x555555555169（第一次呼叫時填好的）
-    P->>S: 直接跳過去
-    Note over G,S: ld.so 不再出現
-```
-
-**圖四：函式和變數並排比較**
-
-```mermaid
-flowchart TB
-    subgraph F["呼叫函式 say()"]
-        direction TB
-        F1["call say@plt<br/>（跳到跳板：程式碼）"] --> F2["jmp *(.got.plt 那格)<br/>（讀出位址再跳）"]
-        F2 --> F3["中間有跳板，<br/>可以先跳去叫 ld.so 查"]
-        F3 --> F4["可以延遲綁定：<br/>第一次呼叫才填"]
-    end
-    subgraph V["讀變數 counter"]
-        direction TB
-        V1["mov 距離(%rip),%rax<br/>（從 .got 拿到位址）"] --> V2["mov (%rax),%eax<br/>（照位址讀值）"]
-        V2 --> V3["中間沒有跳板，<br/>沒地方插「先去查」"]
-        V3 --> V4["一定要在載入時<br/>就填好"]
-    end
-```
-
-兩邊是同一個樣子：**先從 GOT 讀出位址，再照位址走**。函式多了一段跳板程式碼，才有辦法把「查位址」延到第一次呼叫。
-
-| | PLT（`.plt`／`.plt.sec`） | GOT：`.got` | GOT：`.got.plt` |
-|---|---|---|---|
-| 是什麼 | 程式碼（跳板） | 資料（位址表） | 資料（位址表） |
-| 權限 | `AX`：可執行、唯讀 | `WA`：可寫 | `WA`：可寫 |
-| 放什麼 | 每個函式一段 `xxx@plt` | 變數的位址 | 函式的位址 |
-| 什麼時候填好 | 連結時就寫好 | 載入時 | 第一次呼叫時 |
-
-*（追問補充結束，以下回到主線）*
-
----
-
-**上面的圖畫了 PLT：變數的 GOT 流程也用圖表示**
-
-> 2026-10-26 課後提問：「目前畫出plt的流程了,got可以也畫嗎?」（指上面四張圖，問變數 `counter` 走 `.got` 的流程）
-
-用的是前面〈為什麼一定要 `-fPIC`：先看不加會怎樣〉與〈為什麼不能直接用固定距離：`counter` 最後不一定是這一份〉的 `libcount.so` 實驗，完整原始碼都在那兩節：`count.c`（[檔案](../small-project/s1-07-libraries/examples/pic/count.c)）、`callbump.c`（[檔案](../small-project/s1-07-libraries/examples/pic/callbump.c)）、`usecount.c`（[檔案](../small-project/s1-07-libraries/examples/pic/usecount.c)）。圖裡的位址是 2026-10-26 重新實測的，建檔與量測的指令：
-
-```sh
-cd small-project/s1-07-libraries/examples/pic
-gcc -Wall -fPIC -c count.c -o count.pic.o && gcc -shared count.pic.o -o libcount.so
-gcc -Wall callbump.c -L. -lcount -Wl,-rpath,'$ORIGIN' -o callbump
-gcc -Wall usecount.c -L. -lcount -Wl,-rpath,'$ORIGIN' -o usecount
-objdump -s -j .got libcount.so                       # 檔案裡 GOT 的內容
-gdb -q -batch -ex 'break bump' -ex run -ex 'p &counter' -ex 'x/gx 0x7ffff7fb6000+0x3fd0' ./callbump
-gdb -q -batch -ex 'break bump' -ex run -ex 'p &counter' -ex 'x/gx 0x7ffff7fb6000+0x3fd0' ./usecount
-```
-
-本機輸出（節錄）：
-
-```text
-Contents of section .got:
- 3fc0 00000000 00000000 00000000 00000000  ................
- 3fd0 00000000 00000000 00000000 00000000  ................      ← 0x3fd0 那 8 byte 在檔案裡是 0
- 3fe0 00000000 00000000                    ........
-callbump：$1 = (<data variable, no debug info> *) 0x7ffff7fba00c <counter>
-          0x7ffff7fb9fd0:	0x00007ffff7fba00c
-usecount：$1 = (<data variable, no debug info> *) 0x555555558010 <counter>
-          0x7ffff7fb9fd0:	0x0000555555558010
-```
-
-跟 PLT 最大的差別：**變數那格在載入時就填好，`bump()` 執行時只是去讀它，`ld.so` 不會在半路插進來**。
-
-**圖五：檔案裡（還沒執行）**
-
-```text
-libcount.so（檔案裡的位址）
-
-  .text  0x1101  bump:
-                   mov 0x2ec8(%rip),%rax   ← 下一條 0x1108 ＋ 0x2ec8 ＝ 0x3fd0
-                   mov (%rax),%eax
-                         │
-                         │ 指向 GOT 的那一格（ld 連結時就算好距離）
-                         ▼
-  .got   0x3fd0  ┌──────────────────────┐
-                 │ 0x0000000000000000   │  ← 檔案裡是 0，還沒有 counter 的位址
-                 └──────────────────────┘
-                 重定位指示（readelf -r）：
-                   0x3fd0  R_X86_64_GLOB_DAT  counter
-                   ＝「載入時把 counter 的真正位址填進 0x3fd0」
-
-  .bss   0x400c  counter（libcount.so 自己的那份，初值 0）
-```
-
-**圖六：載入時，`ld.so` 填格子（在 `main` 之前）**
-
-```mermaid
-sequenceDiagram
-    autonumber
-    participant K as 核心
-    participant L as ld.so
-    participant T as GOT 那格<br/>0x7ffff7fb9fd0（基底＋0x3fd0）
-    participant M as main
-    K->>L: 執行 ./callbump：先啟動 ld.so
-    Note over L: 載入 libcount.so，看到重定位<br/>0x3fd0 GLOB_DAT counter
-    Note over L: 找 counter：先找執行檔，再依 NEEDED 找 .so<br/>第一個找到的贏
-    L->>T: 寫入找到的 &counter
-    L->>M: 全部填好才跳進程式（_start → main）
-```
-
-（gdb 關掉 ASLR，`libcount.so` 的載入基底是 `0x7ffff7fb6000`。）
-
-**圖七：`bump()` 讀 `counter`，分兩步**
-
-```mermaid
-sequenceDiagram
-    autonumber
-    participant B as bump 的指令
-    participant T as GOT 那格（.got 0x3fd0）
-    participant C as counter
-    B->>T: mov 0x2ec8(%rip),%rax：讀格子
-    T-->>B: %rax ＝ counter 的「位址」
-    B->>C: mov (%rax),%eax：照位址讀
-    C-->>B: %eax ＝ counter 的「值」
-```
-
-**圖八：同一格，填進去的位址不一樣（符號插入）**
-
-```mermaid
-flowchart LR
-    code["libcount.so 的 bump<br/>mov 0x2ec8(%rip),%rax<br/>（兩支程式完全一樣）"] --> slot1
-    code --> slot2
-    subgraph A["./callbump：主程式沒有定義 counter"]
-        slot1["GOT 那格<br/>0x00007ffff7fba00c"] --> c1["libcount.so 自己的 counter<br/>基底 0x7ffff7fb6000 ＋ 0x400c<br/>輸出：1"]
-    end
-    subgraph B["./usecount：主程式定義 int counter = 100;"]
-        slot2["GOT 那格<br/>0x0000555555558010"] --> c2["主程式的 counter<br/>PIE 基底 0x555555554000 ＋ 0x4010<br/>輸出：bump() = 101、counter = 101"]
-    end
-```
-
-`libcount.so` 的程式碼一個 byte 都沒變，兩次都是 `mov 0x2ec8(%rip),%rax`，差別只在 **`ld.so` 往那一格填了誰的位址**。這就是要經過 GOT 的原因：直接用固定距離讀的話，`bump` 永遠只會讀到自己那份 `counter`。
-
-函式與變數對照（圖一～圖四 vs 圖五～圖八）：
-
-| | 函式 `say`（PLT＋`.got.plt`） | 變數 `counter`（`.got`） |
-|---|---|---|
-| 檔案裡那格裝什麼 | 指回 `.plt` 的「去查」程式碼 | 0 |
-| 誰、什麼時候填 | `ld.so`，**第一次呼叫時** | `ld.so`，**載入時**（`main` 之前） |
-| 重定位類型 | `R_X86_64_JUMP_SLOT` | `R_X86_64_GLOB_DAT` |
-| 使用時 | `call` 跳板 → 跳板讀格子 → 跳過去 | 讀格子拿到位址 → 照位址讀值 |
-| 會被符號插入嗎 | 會（`say() in main`） | 會（`counter = 101`） |
-
-*（追問補充結束，以下回到主線）*
-
----
+> 課後討論：[第九節第 4 章〈PLT 存函式位址、GOT 存變數位址嗎？PLT 是跳板，以及延遲綁定〉](#4-plt-存函式位址got-存變數位址嗎plt-是跳板以及延遲綁定)、[第九節第 5 章〈用圖看 PLT 與 GOT：函式（圖一～圖四）與變數（圖五～圖八）〉](#5-用圖看-plt-與-got函式圖一圖四與變數圖五圖八)
 
 **那為什麼不讓 `ld.so` 載入時直接改 `.text` 裡的距離就好？** 第一行警告 `relocation against 'counter' in read-only section '.text'` 說的就是這件事：那樣要在載入時改寫程式碼，而 `.text` 是唯讀的。更重要的是，**共享函式庫的「共享」是指同一份 `.text` 的實體記憶體分頁，給所有用它的行程共用**；如果每個行程都要把自己的位址寫進 `.text`，每個行程就得各自複製一份，共享就沒了。PIC 的設計是：程式碼完全不改、大家共用；要因行程而異的位址集中放在**可寫的 GOT**，每個行程一份。
 
----
-
-**上面「同一份 `.text` 給所有用它的行程共用」：兩支程式都用 `libcount.so`，記憶體裡是同一份嗎？**
-
-> 2026-10-26 課後提問：「這是之每個程式,如果他們都有用libcount.so,那libcount.so在記憶體都一樣嗎?比方說執行檔a 跟 執行檔b 都用用?」
-
-**只有程式碼是同一份；GOT 和 `counter` 每個行程各一份；連共用的程式碼，兩個行程看到的虛擬位址也不一樣。**
-
-實驗：兩支不同的程式 `a`、`b` 同時跑，都連 `libcount.so`（`count.c` 就是上面〈為什麼一定要 `-fPIC`：先看不加會怎樣〉那一份，[檔案](../small-project/s1-07-libraries/examples/pic/count.c)）。`a` 呼叫 `bump()` 1 次、`b` 呼叫 3 次，印完停 5 秒，趁這時候看兩個行程的 `/proc/<pid>/smaps`。
-
-`a.c`（檔案：[`a.c`](../small-project/s1-07-libraries/examples/share/a.c)）完整原始碼：
-
-```c
-#include <stdio.h>
-#include <unistd.h>
-
-int bump(void);
-
-int main(void)
-{
-    int r = bump();                           /* a 只呼叫 1 次 */
-    printf("a: pid=%d  &bump=%p  bump() 回傳 %d\n", getpid(), (void *)bump, r);
-    fflush(stdout);
-    sleep(5);                                 /* 停 5 秒，讓我們看 /proc/<pid>/ */
-    return 0;
-}
-```
-
-`b.c`（檔案：[`b.c`](../small-project/s1-07-libraries/examples/share/b.c)）完整原始碼：
-
-```c
-#include <stdio.h>
-#include <unistd.h>
-
-int bump(void);
-
-int main(void)
-{
-    int r = 0;
-    for (int i = 0; i < 3; i++)               /* b 呼叫 3 次 */
-        r = bump();
-    printf("b: pid=%d  &bump=%p  bump() 回傳 %d\n", getpid(), (void *)bump, r);
-    fflush(stdout);
-    sleep(5);
-    return 0;
-}
-```
-
-建檔與執行（`sync` 先把剛寫好的 `.so` 寫回磁碟，否則頁快取裡的頁還是「髒的」，`smaps` 會顯示成 `Shared_Dirty`，不好讀）：
-
-```sh
-cd small-project/s1-07-libraries/examples/share
-gcc -Wall -fPIC -c ../pic/count.c -o count.pic.o && gcc -shared count.pic.o -o libcount.so
-gcc -Wall a.c -L. -lcount -Wl,-rpath,'$ORIGIN' -o a
-gcc -Wall b.c -L. -lcount -Wl,-rpath,'$ORIGIN' -o b
-sync
-./a & ./b & sleep 1          # 兩支同時在背景跑，等 1 秒讓它們印完、進入 sleep
-for p in $(pgrep -x a) $(pgrep -x b); do
-    echo "== $(cat /proc/$p/comm)"
-    # 只印 libcount.so 的每一段：位址、權限、檔案位移，以及四個共用／私有的計數
-    awk '/libcount.so/{show=1; printf "%s %s %s  ", $1, $2, $3; next} /^[0-9a-f]+-/{show=0}
-         show && /^(Shared_Clean|Shared_Dirty|Private_Clean|Private_Dirty):/{printf "%s%s ", $1, $2}
-         show && /^Private_Dirty/{print ""}' /proc/$p/smaps
-done
-wait
-```
-
-本機輸出（ASLR 開著，每次位址不同）：
-
-```text
-a: pid=26624  &bump=0x76191ad1d0f9  bump() 回傳 1
-b: pid=26625  &bump=0x757e0a65f0f9  bump() 回傳 3
-== a
-76191ad1c000-76191ad1d000 r--p 00000000  Shared_Clean:4 Shared_Dirty:0 Private_Clean:0 Private_Dirty:0
-76191ad1d000-76191ad1e000 r-xp 00001000  Shared_Clean:4 Shared_Dirty:0 Private_Clean:0 Private_Dirty:0
-76191ad1e000-76191ad1f000 r--p 00002000  Shared_Clean:0 Shared_Dirty:0 Private_Clean:0 Private_Dirty:0
-76191ad1f000-76191ad20000 r--p 00002000  Shared_Clean:0 Shared_Dirty:0 Private_Clean:0 Private_Dirty:4
-76191ad20000-76191ad21000 rw-p 00003000  Shared_Clean:0 Shared_Dirty:0 Private_Clean:0 Private_Dirty:4
-== b
-757e0a65e000-757e0a65f000 r--p 00000000  Shared_Clean:4 Shared_Dirty:0 Private_Clean:0 Private_Dirty:0
-757e0a65f000-757e0a660000 r-xp 00001000  Shared_Clean:4 Shared_Dirty:0 Private_Clean:0 Private_Dirty:0
-757e0a660000-757e0a661000 r--p 00002000  Shared_Clean:0 Shared_Dirty:0 Private_Clean:0 Private_Dirty:0
-757e0a661000-757e0a662000 r--p 00002000  Shared_Clean:0 Shared_Dirty:0 Private_Clean:0 Private_Dirty:4
-757e0a662000-757e0a663000 rw-p 00003000  Shared_Clean:0 Shared_Dirty:0 Private_Clean:0 Private_Dirty:4
-```
-
-`smaps` 的四個計數，單位是 kB（一頁 4 kB）：`Shared` 是這一頁**還有別的行程也映射著**，`Private` 是只有這個行程在用；`Clean` 是內容跟檔案一樣、沒被改過，`Dirty` 是被寫過。`libcount.so` 的五段對到哪些區段，可以用 `readelf -lW libcount.so` 的 `Section to Segment mapping` 對照：
-
-| 段（權限） | 裡面是什麼 | `a` | `b` | 意思 |
-|---|---|---|---|---|
-| `r--p` 位移 0 | 檔頭、`.dynsym` 等 | `Shared_Clean:4` | `Shared_Clean:4` | 共用、沒被改過 |
-| `r-xp` | **`.text`（`bump`）** | `Shared_Clean:4` | `Shared_Clean:4` | **兩個行程共用同一個實體頁** |
-| `r--p` 位移 `0x2000` 第一段 | `.eh_frame` | 0 | 0 | 沒用到，還沒讀進記憶體 |
-| `r--p` 位移 `0x2000` 第二段 | **`.got`**（RELRO） | `Private_Dirty:4` | `Private_Dirty:4` | **各自一份**：`ld.so` 載入時寫了 GOT |
-| `rw-p` | **`.data`／`.bss`（`counter`）** | `Private_Dirty:4` | `Private_Dirty:4` | **各自一份**：`a` 的是 1、`b` 的是 3 |
-
-逐列讀：
-
-1. **`.text` 是 `Shared_Clean`**：兩個行程用的是同一個實體頁，而且沒人寫過它。
-2. **`&bump` 不一樣**（`0x76191ad1d0f9` vs `0x757e0a65f0f9`）：載入基底各自隨機（ASLR），所以虛擬位址不同；但尾巴都是 `…0f9`，就是檔案裡的 `0x10f9`。不同的虛擬位址，對到同一個實體頁。
-3. **GOT 那頁是 `Private_Dirty`**：核心映射 `.so` 用的是**私有映射**（`p`），一開始每頁都跟別人共用；某個行程一寫，核心才替它複製一份，叫**寫入時複製（copy-on-write，COW）**。`ld.so` 載入時要把 `&counter` 填進 GOT，一寫就複製，所以每個行程的 GOT 都是自己的。它顯示 `r--p`、跟 `.eh_frame` 的位移一樣是 `0x2000`，是因為這個載入段從 `0x3e60` 開始、跟前一段擠在同一個檔案頁；填完之後 `ld.so` 把這一頁改回唯讀，叫 **RELRO**（Relocation Read-Only，重定位後唯讀），防止之後被竄改。
-4. **`counter` 那頁也是 `Private_Dirty`**：`bump()` 寫了 `counter`，同樣被複製，所以 `a` 的 `counter` 是 1、`b` 的是 3，互不影響。
-
-```mermaid
-flowchart LR
-    subgraph A["行程 a 的虛擬位址"]
-        direction TB
-        at[".text<br/>0x76191ad1d000"]
-        ag[".got<br/>0x76191ad1f000"]
-        ab[".bss<br/>0x76191ad20000"]
-    end
-    subgraph M["實體記憶體"]
-        direction TB
-        text["bump 的程式碼<br/>只有一份（Shared_Clean）"]
-        ga["a 的 GOT<br/>（Private_Dirty）"]
-        gb["b 的 GOT<br/>（Private_Dirty）"]
-        ca["a 的 counter = 1<br/>（Private_Dirty）"]
-        cb["b 的 counter = 3<br/>（Private_Dirty）"]
-    end
-    subgraph B["行程 b 的虛擬位址"]
-        direction TB
-        bt[".text<br/>0x757e0a65f000"]
-        bg[".got<br/>0x757e0a661000"]
-        bb[".bss<br/>0x757e0a662000"]
-    end
-    at --- text
-    ag --- ga
-    ab --- ca
-    text --- bt
-    gb --- bg
-    cb --- bb
-```
-
-這張圖要看的是：**兩邊的 `.text` 都連到中間同一格，`.got` 和 `.bss` 各連到自己的一格**。這也回答了上面那段為什麼要 GOT：共用 `.text` 的前提是沒人改它，只要有一個行程往 `.text` 寫自己的位址，COW 就會替它複製一份，那一頁就不再共用；PIC 把每個行程不同的東西（位址）集中在 GOT，只讓 GOT 那一頁被複製，`.text` 就一直是一份。
-
-函式那邊（PLT 跳板共用、`.got.plt` 各一份）、格子裡記的是誰的位址、虛擬位址怎麼變成實體位址，整理在[第九節](#九課後討論整理共享函式庫在記憶體裡extern-變數與標頭檔)第 1～4 小節。
-
-*（追問補充結束，以下回到主線）*
-
----
+> 課後討論：[第九節第 6 章〈兩支程式都用 `libcount.so`，記憶體裡是同一份嗎？〉](#6-兩支程式都用-libcountso記憶體裡是同一份嗎)；函式那邊與虛擬／實體位址接著看第 7～10 章
 
 整理：
 
@@ -1522,280 +948,145 @@ gcc 的選項有上千個，完整見 `man gcc`（Link Options、Code Gen Option
 
 ---
 
-## 九、課後討論整理：共享函式庫在記憶體裡、`extern` 變數與標頭檔
+## 九、課後討論
 
-> 2026-10-26 課後提問（原話，依討論順序）：
+這一節收第 7 課的**課後提問與討論**，一個主題一章。正文裡被問到的地方有一行「課後討論」連結跳到這裡，每章開頭的「正文出處」再連回正文。
+各章最好接在它的正文出處後面讀；第 7～10 章是同一串討論，要照順序讀。
+
+- [第 1 章](#1-0x2ec8-和-0x3fd0-各是什麼mov-0x2ec8riprax-的兩個數字)：`0x2ec8` 和 `0x3fd0` 各是什麼：`mov 0x2ec8(%rip),%rax` 的兩個數字
+- [第 2 章](#2-兩份-counter接-so-為什麼不算重複定義)：兩份 `counter`：接 `.so` 為什麼不算重複定義
+- [第 3 章](#3-主程式只寫-extern-int-counter變數放進執行檔複製重定位)：主程式只寫 `extern int counter;`：變數放進執行檔（複製重定位）
+- [第 4 章](#4-plt-存函式位址got-存變數位址嗎plt-是跳板以及延遲綁定)：PLT 存函式位址、GOT 存變數位址嗎？PLT 是跳板，以及延遲綁定
+- [第 5 章](#5-用圖看-plt-與-got函式圖一圖四與變數圖五圖八)：用圖看 PLT 與 GOT：函式（圖一～圖四）與變數（圖五～圖八）
+- [第 6 章](#6-兩支程式都用-libcountso記憶體裡是同一份嗎)：兩支程式都用 `libcount.so`，記憶體裡是同一份嗎？
+- [第 7 章](#7-函式那邊plt-跳板共用gotplt-每個行程各一份)：函式那邊：PLT 跳板共用、`.got.plt` 每個行程各一份
+- [第 8 章](#8-ldso-填進格子的是什麼這個行程裡的虛擬位址)：`ld.so` 填進格子的是什麼：這個行程裡的虛擬位址
+- [第 9 章](#9-虛擬位址怎麼變成實體位址核心準備頁表cpu-的-mmu-翻譯)：虛擬位址怎麼變成實體位址：核心準備頁表，CPU 的 MMU 翻譯
+- [第 10 章](#10-整理四個容易搞錯的地方)：整理：四個容易搞錯的地方
+- [第 11 章](#11-做-so-需要-h-嗎include-管編譯-l-管連結)：做 `.so` 需要 `.h` 嗎？`#include` 管編譯、`-l` 管連結
+
+### 1. `0x2ec8` 和 `0x3fd0` 各是什麼：`mov 0x2ec8(%rip),%rax` 的兩個數字
+
+> 2026-10-25 課後提問：「請問0x3fd0, 跟 0x2ec8 是指$rip到got裏counter的位址的距離嗎?」
 >
-> - 「那如果函式 也就是plt怎麼理解?」（接在第四節〈兩支程式都用 `libcount.so`，記憶體裡是同一份嗎？〉之後）
-> - 「p,q兩個執行檔,共用了同一個庫,相同的say,他們跳過去的say也是相同的記憶體位址嗎?」
-> - 「p,q兩個行程在各自的got.plt 記錄的say的位址會一樣嗎?」
-> - 「所以你的這步其實是說ld.so查到say在這個行程的虛擬位址,然後把他填入到.got.plt?」
-> - 「那這樣說的話我們在gdb看到的是否都是虛擬記憶體位址,並不是真實的?」
-> - 「usecount.c 我不想用usecount自己的counter 是不是只要改成extern int counter;」
-> - 「greet.c, count.c這個會被main引用的,爲什麼都不加.h了? 做so不需要h嗎?」
-> - 「那爲什麼我在用libc.so.6 要用stdio.h?」
+> 正文出處：[第四節〈為什麼一定要 `-fPIC`：先看不加會怎樣〉](#為什麼一定要--fpic先看不加會怎樣)裡 `libcount.so` 的 `objdump -d` 那段（`1101:	mov    0x2ec8(%rip),%rax        # 3fd0 <counter-0x3c>`）
 
-第四節講的是**一支程式**怎麼透過 GOT／PLT 接上 `.so`；這一節接著問：**好幾支程式同時用同一個 `.so` 時，記憶體裡到底哪些是同一份**，以及兩個相關的延伸——主程式只宣告不定義的全域變數放在哪裡、`.h` 在整件事裡扮演什麼角色。1～4 小節接在第四節〈兩支程式都用 `libcount.so`，記憶體裡是同一份嗎？〉（變數那邊）後面讀，這裡講函式那邊。
+只有一個是距離：
 
-**一句話結論：多個行程共用的是「沒被寫過的頁」——程式碼和 PLT 跳板；每個行程各一份的是被寫過的頁——`.got`、`.got.plt` 和全域變數。位址表裡記的全是「這個行程自己的虛擬位址」，翻成實體位址是 CPU 照核心準備的頁表做的，程式（包括 `ld.so`、gdb）看不到實體位址。`.h` 只在編譯時給宣告、型別和巨集，跟「接上 `.so`」無關。**
+| 數字 | 是什麼 | 怎麼來的 |
+|---|---|---|
+| `0x2ec8` | **距離**：從**下一條指令**（`0x1108`）到 GOT 裡 `counter` 那一格 | 指令本身裡的 `D`，`ld` 填的洞 |
+| `0x3fd0` | **位址**：GOT 裡 `counter` 那一格本身在哪（`.so` 內的位址，執行時再加載入位址） | `objdump` 幫你算好的 `下一條指令 ＋ D` |
+| `0x400c` | **位址**：`counter` 本身在哪（`.bss`） | `readelf -r` 的 `Sym. Value` |
 
-### 1. 函式那邊：PLT 跳板共用、`.got.plt` 每個行程各一份
+公式就是[第 4 課第三節](./x86-64組合語言入門-暫存器、mov與lea、cmp與條件跳躍.md#三指令的文法助憶符大小後綴運算元)〈`D(%rip)`：位址 ＝ 下一條指令的位址 ＋ D。〉那一段：`%rip` 指的是**下一條**指令（`mov` 從 `0x1101` 開始、長 7 byte，下一條在 `0x1108`），不是這一條：
 
-實驗：兩支程式 `q`、`r` 同時跑，都連第四節的 `libgreet.so`（`greet()` 呼叫 `say()`，`greet.c` 的完整原始碼在第四節〈PLT 存函式位址、GOT 存變數位址嗎？〉，[檔案](../small-project/s1-07-libraries/examples/pic/greet.c)），兩支都**沒有**自己的 `say`，所以接到的都是函式庫的 `say`。程式自己把 `.got.plt` 裡 `say` 那一格讀出來，在呼叫 `greet()` 前後各印一次，然後停 5 秒讓我們看 `/proc/<pid>/smaps`。
-
-那一格在哪裡：`readelf -r libgreet.so` 說 `say` 的 `JUMP_SLOT` 在 `0x4008`（第四節實測過），所以執行時在「`libgreet.so` 的載入基底 ＋ `0x4008`」。載入基底用 `dladdr` 查：給它函式庫裡任何一個函式的位址（這裡用 `greet`），它回報這個位址屬於哪個檔案、那個檔案載入在哪裡（`dli_fbase`）。
-
-`slot.h`（檔案：[`slot.h`](../small-project/s1-07-libraries/examples/share/slot.h)）完整原始碼：
-
-```c
-#define _GNU_SOURCE
-#include <dlfcn.h>
-
-void greet(void);
-
-/* 回傳 libgreet.so 裡 .got.plt 中 say 那一格的位址：載入基底 + 0x4008（readelf -r 查到的） */
-static void **say_slot(void)
-{
-    Dl_info info;
-    dladdr((void *)greet, &info);          /* dli_fbase = libgreet.so 的載入基底 */
-    return (void **)((char *)info.dli_fbase + 0x4008);
-}
+```
+0x1108 ＋ 0x2ec8 ＝ 0x3fd0     ← GOT 那一格（右邊註解的 3fd0）
 ```
 
-`q.c`（檔案：[`q.c`](../small-project/s1-07-libraries/examples/share/q.c)）完整原始碼：
+證據是同一個函式裡另外兩次拿 `counter` 的位址，`D` 都不一樣，算出來卻都是 `0x3fd0`——因為指令的位置不同，到同一格的距離自然不同：
+
+```
+$ objdump -d --no-show-raw-insn libcount.so | sed -n '/<bump>:/,/ret/p'
+00000000000010f9 <bump>:
+    10f9:	endbr64
+    10fd:	push   %rbp
+    10fe:	mov    %rsp,%rbp
+    1101:	mov    0x2ec8(%rip),%rax        # 3fd0 <counter-0x3c>
+    1108:	mov    (%rax),%eax
+    110a:	lea    0x1(%rax),%edx
+    110d:	mov    0x2ebc(%rip),%rax        # 3fd0 <counter-0x3c>
+    1114:	mov    %edx,(%rax)
+    1116:	mov    0x2eb3(%rip),%rax        # 3fd0 <counter-0x3c>
+    111d:	mov    (%rax),%eax
+    111f:	pop    %rbp
+    1120:	ret
+```
+
+`0x1114 ＋ 0x2ebc ＝ 0x3fd0`、`0x111d ＋ 0x2eb3 ＝ 0x3fd0`。
+
+**`<counter-0x3c>` 不是說「這裡是 `counter`」**：GOT 的格子沒有自己的符號名字，`objdump` 只好找一個附近的符號來標，寫成「`counter` 往前 `0x3c`」：`0x400c − 0x3c ＝ 0x3fd0`。它只是**位置的標籤**，跟「這格裝的是 `counter` 的位址」沒有關係——剛好這個 `.so` 很小，最近的符號就是 `counter`。真正說明這格裝什麼的是 `readelf -r` 那一行：第一欄 `000000003fd0` 是要被填的格子（Offset），`R_X86_64_GLOB_DAT` 說「填一個符號的位址」，`counter` 是要填誰。用 `readelf -S` 也看得到 `0x3fd0` 落在 `.got` 裡，`0x400c` 落在 `.bss` 裡：
+
+```
+$ readelf -S -W libcount.so | grep -E '\.got|\.bss'
+  [ 9] .plt.got          PROGBITS        0000000000001030 001030 000010 10  AX  0   0 16
+  [17] .got              PROGBITS        0000000000003fc0 002fc0 000028 08  WA  0   0  8
+  [18] .got.plt          PROGBITS        0000000000003fe8 002fe8 000018 08  WA  0   0  8
+  [20] .bss              NOBITS          0000000000004008 003008 000008 00  WA  0   0  4
+$ objdump -s -j .got libcount.so          # 檔案裡這幾格全是 0：還沒填
+ 3fc0 00000000 00000000 00000000 00000000  ................
+ 3fd0 00000000 00000000 00000000 00000000  ................
+ 3fe0 00000000 00000000                    ........
+```
+
+所以兩條指令合起來是兩次讀記憶體：
+
+1. `mov 0x2ec8(%rip),%rax`：讀 `0x3fd0` 那格的 8 byte——讀到的是 **`counter` 的位址**，放進 `%rax`；
+2. `mov (%rax),%eax`：照這個位址再讀 4 byte——這才是 **`counter` 的值**。
+
+執行時用 gdb 驗證「`ld.so` 真的把 `counter` 的位址填進那一格」。`callbump.c`（檔案：[`callbump.c`](../small-project/s1-07-libraries/examples/pic/callbump.c)）完整原始碼：
 
 ```c
-#include "slot.h"        /* 要放第一行：裡面的 _GNU_SOURCE 必須在任何 #include 之前 */
 #include <stdio.h>
-#include <unistd.h>
 
-int main(void)                                   /* q 沒有定義 say */
+int bump(void);
+
+int main(void)
 {
-    printf("q: 格子在 %p，呼叫前裝 %p\n", (void *)say_slot(), *say_slot());
-    greet();
-    printf("q: 呼叫後裝 %p\n", *say_slot());
-    fflush(stdout);
-    sleep(5);
+    printf("%d\n", bump());
     return 0;
 }
 ```
 
-`r.c`（檔案：[`r.c`](../small-project/s1-07-libraries/examples/share/r.c)）跟 `q.c` 只差印出的名字：
-
-```c
-#include "slot.h"        /* 要放第一行：裡面的 _GNU_SOURCE 必須在任何 #include 之前 */
-#include <stdio.h>
-#include <unistd.h>
-
-int main(void)                                   /* r 也沒有定義 say */
-{
-    printf("r: 格子在 %p，呼叫前裝 %p\n", (void *)say_slot(), *say_slot());
-    greet();
-    printf("r: 呼叫後裝 %p\n", *say_slot());
-    fflush(stdout);
-    sleep(5);
-    return 0;
-}
+```
+$ gcc -Wall -fPIC -c count.c -o count.pic.o && gcc -shared count.pic.o -o libcount.so
+$ gcc -Wall callbump.c -L. -lcount -Wl,-rpath,'$ORIGIN' -o callbump
+$ gdb -q -batch -ex 'break bump' -ex run -ex 'info proc mappings' -ex 'p &counter' -ex 'x/gx 0x7ffff7fb6000 + 0x3fd0' ./callbump
+Breakpoint 1, 0x00007ffff7fb7101 in bump () from ./libcount.so
+      0x7ffff7fb6000     0x7ffff7fb7000     0x1000        0x0  r--p   ./libcount.so    ← 載入位址（第一段，offset 0）
+      ...
+$1 = (<data variable, no debug info> *) 0x7ffff7fba00c <counter>      ← 0x7ffff7fb6000 ＋ 0x400c
+0x7ffff7fb9fd0:	0x00007ffff7fba00c                                     ← 0x7ffff7fb6000 ＋ 0x3fd0 那格，裝的就是 &counter
 ```
 
-建檔與執行（`sync` 的理由同第四節〈兩支程式都用 `libcount.so`〉：讓頁快取裡的頁先變乾淨）：
+（`info proc mappings` 只留 `libcount.so` 第一段；gdb 預設關掉 ASLR，所以載入位址每次一樣，才能把 `0x7ffff7fb6000` 寫死在命令裡。）檔案裡是 0 的格子，載入後變成 `0x7ffff7fba00c`，正好是 `&counter`。
 
-```sh
-cd small-project/s1-07-libraries/examples/share
-gcc -Wall -fPIC -c ../pic/greet.c -o greet.pic.o && gcc -shared greet.pic.o -o libgreet.so
-gcc -Wall q.c -L. -lgreet -Wl,-rpath,'$ORIGIN' -o q
-gcc -Wall r.c -L. -lgreet -Wl,-rpath,'$ORIGIN' -o r
-sync
-./q & sleep 0.3; ./r & sleep 1       # 兩支都在背景跑，各自停在 sleep(5)
-for x in q r; do
-    pid=$(pgrep -x $x); echo "== $x"
-    awk '/libgreet.so/{show=1; printf "%s %s %s  ", $1, $2, $3; next} /^[0-9a-f]+-/{show=0}
-         show && /^(Rss|Pss|Shared_Clean|Private_Clean|Private_Dirty):/{printf "%s%s ", $1, $2}
-         show && /^Private_Dirty/{print ""}' /proc/$pid/smaps
-done
-wait
-```
+### 2. 兩份 `counter`：接 `.so` 為什麼不算重複定義
 
-本機輸出（ASLR 開著）：
+> 2026-10-25 課後提問：「不算重複定義嗎?」（指 `usecount.c` 自己定義 `int counter = 100;`，`libcount.so` 裡也定義了 `counter`）
+>
+> 正文出處：[第四節〈為什麼不能直接用固定距離：`counter` 最後不一定是這一份〉](#為什麼不能直接用固定距離counter-最後不一定是這一份)的 `usecount.c` 實驗
 
-```text
-q: 格子在 0x7187194bc008，呼叫前裝 0x7187194b9040
-say() in libgreet.so
-q: 呼叫後裝 0x7187194b9139
-r: 格子在 0x7125ada24008，呼叫前裝 0x7125ada21040
-say() in libgreet.so
-r: 呼叫後裝 0x7125ada21139
-== q
-7187194b8000-7187194b9000 r--p 00000000  Rss:4 Pss:2 Shared_Clean:4 Private_Clean:0 Private_Dirty:0
-7187194b9000-7187194ba000 r-xp 00001000  Rss:4 Pss:2 Shared_Clean:4 Private_Clean:0 Private_Dirty:0
-7187194ba000-7187194bb000 r--p 00002000  Rss:4 Pss:2 Shared_Clean:4 Private_Clean:0 Private_Dirty:0
-7187194bb000-7187194bc000 r--p 00002000  Rss:4 Pss:4 Shared_Clean:0 Private_Clean:0 Private_Dirty:4
-7187194bc000-7187194bd000 rw-p 00003000  Rss:4 Pss:4 Shared_Clean:0 Private_Clean:0 Private_Dirty:4
-== r
-7125ada20000-7125ada21000 r--p 00000000  Rss:4 Pss:2 Shared_Clean:4 Private_Clean:0 Private_Dirty:0
-7125ada21000-7125ada22000 r-xp 00001000  Rss:4 Pss:2 Shared_Clean:4 Private_Clean:0 Private_Dirty:0
-7125ada22000-7125ada23000 r--p 00002000  Rss:4 Pss:2 Shared_Clean:4 Private_Clean:0 Private_Dirty:0
-7125ada23000-7125ada24000 r--p 00002000  Rss:4 Pss:4 Shared_Clean:0 Private_Clean:0 Private_Dirty:4
-7125ada24000-7125ada25000 rw-p 00003000  Rss:4 Pss:4 Shared_Clean:0 Private_Clean:0 Private_Dirty:4
-```
+正文 `gcc usecount.c count.o` 的 `multiple definition` 是連結器 `ld` 的檢查（第 6 課），它只管**會被放進同一個輸出檔的定義**。`ld` 對 `.o` 和 `.so` 的處理方式不一樣：
 
-對照組：只讓 `q` 一個在跑，同一段 `r-xp` 變成：
-
-```text
-730156525000-730156526000 r-xp 00001000  Rss:4 Pss:4 Shared_Clean:0 Private_Clean:4 Private_Dirty:0
-```
-
-`Rss`（Resident Set Size）是這一段實際佔了多少實體記憶體；`Pss`（Proportional Set Size，按比例分攤的大小）是把共用的頁平均分給共用它的行程——兩個行程共用一頁，各算 2 kB。`Shared_*`／`Private_*` 與 `Clean`／`Dirty` 的意思同第四節那張表。
-
-| 段（權限） | 裡面是什麼（`readelf -lW libgreet.so` 的 `Section to Segment mapping`） | `q`、`r` 同時跑 | 只有 `q` | 意思 |
-|---|---|---|---|---|
-| `r-xp` | **`.plt`（`0x1020`）、`.plt.sec`（`say@plt`，`0x1070`）、`.text`（`greet`、`say`）** | `Pss:2`、`Shared_Clean:4` | `Pss:4`、`Private_Clean:4` | **跳板和程式碼是同一個實體頁** |
-| `r--p` 位移 `0x2000` 第二段 | `.got` 等（RELRO） | `Private_Dirty:4` | — | 各自一份 |
-| `rw-p` | **`.got.plt` 的 `say` 那格（`0x4008`）**、`.data`、`.bss` | `Private_Dirty:4` | — | **各自一份** |
-
-逐點讀：
-
-1. **跳板能共用**：`say@plt` 只有一條 `jmp *0x2f8e(%rip)`，用的是「跟自己的距離」，載入到哪個基底都不用改；沒人寫它，所以一直是同一個實體頁。`Pss` 從只有 `q` 時的 4 變成兩個一起跑時的 2，就是這一頁被兩個行程分攤的證據。
-2. **格子在檔案裡是 `0x1040`**（`objdump -s -j .got.plt libgreet.so` 實測 `4008` 那 8 byte 是 `40100000 00000000`）：`.plt` 裡「去叫 `ld.so` 查」那段程式碼的位置，但只是檔案位址。
-3. **第一次寫：載入時**。`ld.so` 把它改成「基底 ＋ `0x1040`」：`q` 的 `0x7187194b9040`、`r` 的 `0x7125ada21040`。一寫就觸發寫入時複製，所以還沒呼叫函式，這一頁就已經是各自一份。
-4. **第二次寫：第一次呼叫時**（延遲綁定）。`ld.so` 查到 `say`，把「基底 ＋ `0x1139`」寫回格子：`q` 是 `0x7187194b9139`、`r` 是 `0x7125ada21139`——**兩個行程的格子裡數字不一樣**，但下一小節會看到，它們最後跑的是同一份程式碼。
-
-這也說明延遲綁定為什麼「改格子」而不是「改跳板」：跳板是大家共用的程式碼，一改就要複製、共用就沒了；格子本來就是每個行程各一份，改了不影響別人。
-
-```mermaid
-flowchart LR
-    subgraph Q["行程 q"]
-        direction TB
-        qp["say@plt 跳板<br/>（r-xp）"]
-        qs[".got.plt 的 say 那格<br/>0x7187194b9139"]
-    end
-    subgraph M["實體記憶體"]
-        direction TB
-        code["跳板 ＋ greet ＋ say<br/>的程式碼只有一份<br/>（兩邊 Pss 各 2 kB）"]
-        sq["q 的 .got.plt 那頁<br/>（Private_Dirty）"]
-        sr["r 的 .got.plt 那頁<br/>（Private_Dirty）"]
-    end
-    subgraph R["行程 r"]
-        direction TB
-        rp["say@plt 跳板<br/>（r-xp）"]
-        rs[".got.plt 的 say 那格<br/>0x7125ada21139"]
-    end
-    qp --- code
-    qs --- sq
-    code --- rp
-    sr --- rs
-```
-
-這張圖要看的是：**兩邊的跳板連到中間同一格，`.got.plt` 各連到自己的一格**，跟第四節變數那張圖（`.text` 共用、`.got`／`.bss` 各一份）是同一個樣子。
-
-### 2. `ld.so` 填進格子的是什麼：這個行程裡的虛擬位址
-
-上一小節的第 4 點：「`ld.so` 查到 `say`」查的是什麼？它手上只有兩樣東西，兩者相加就是要填的值：
-
-```text
-格子要填的值 ＝ 找到 say 的那個檔案在這個行程裡的載入基底 ＋ say 在那個檔案裡的位置
-```
-
-- **`say` 在檔案裡的位置**：每個 `.so`、執行檔都有一張動態符號表（`.dynsym`），記著符號相對於檔案開頭的位置；`ld.so` 照「先執行檔、再依 `NEEDED` 順序找各個 `.so`」一張一張查（第四節〈為什麼不能直接用固定距離〉）。
-- **那個檔案的載入基底**：`.so` 是 `ld.so` 自己映射進來的，它當然知道映射在哪裡。
-
-`LD_DEBUG=bindings` 讓 `ld.so` 印出它把 `say` 接到哪個檔案（`LD_DEBUG` 全部選項見第七節），對照 `nm -D` 的位置：
-
-```text
-$ nm -D libgreet.so | grep -w say
-0000000000001139 T say
-$ LD_DEBUG=bindings ./q
-     30213:	binding file ./libgreet.so [0] to ./libgreet.so [0]: normal symbol `say'
-q: 格子在 0x7fa4bf07b008，呼叫前裝 0x7fa4bf078040
-q: 呼叫後裝 0x7fa4bf078139
-```
-
-`binding file A to B` 是「A 裡要用的 `say`，接到 B 定義的那一個」：`libgreet.so` 用的 `say` 就在 `libgreet.so` 自己裡面。這次的基底是 `0x7fa4bf078040 − 0x1040 ＝ 0x7fa4bf077000`，填進去的 `0x7fa4bf078139` ＝ `0x7fa4bf077000 ＋ 0x1139`。
-
-把第一次呼叫的流程完整寫一次（第四節〈那為什麼函式要多一層跳板？延遲綁定〉的精確版）：
-
-1. `greet` 執行 `call say@plt`，跳到 `.plt.sec` 的跳板。
-2. 跳板執行 `jmp *(.got.plt 那格)`：**照格子裡的位址跳**，不判斷格子是不是「空的」。
-3. 第一次時格子裝的是載入時填的「基底 ＋ `0x1040`」，所以這一跳就跳進 `.plt` 裡叫 `ld.so` 的程式碼。
-4. `ld.so` 算出「基底 ＋ `0x1139`」，寫回格子，再跳到 `say`。
-5. 第二次以後，格子裡已經是 `say` 的位址，跳板一跳就到，`ld.so` 不再出現。
-
-`ld.so` 從頭到尾只碰虛擬位址；它不知道、也不需要知道這些位址最後對到哪個實體頁。
-
-### 3. 虛擬位址怎麼變成實體位址：核心準備頁表，CPU 的 MMU 翻譯
-
-`q` 跳到 `0x7187194b9139`、`r` 跳到 `0x7125ada21139`，兩個不同的數字最後執行到同一份程式碼，中間的翻譯分兩個角色：
-
-| 誰 | 做什麼 | 什麼時候 |
+| 連結時給 `ld` 的東西 | `ld` 怎麼處理 | 兩邊都定義 `counter` |
 |---|---|---|
-| **核心（kernel）** | 替**每個行程**建立、維護一張頁表（page table）：哪個虛擬頁對到哪個實體頁、權限是什麼（`r-x`、`rw-`）。映射檔案、處理分頁錯誤（page fault）、做寫入時複製，都是核心的事 | 映射時、第一次碰到某頁時、寫入共用頁時 |
-| **CPU 的 MMU**（Memory Management Unit，記憶體管理單元） | **每一次**讀寫記憶體、取指令，都照目前行程的頁表把虛擬位址翻成實體位址；翻過的結果暫存在 TLB（Translation Lookaside Buffer，轉譯後援緩衝區）加速 | 每一條存取記憶體或跳躍的指令 |
+| `.o`（或從 `.a` 拉進來的成員） | 把內容**複製進**輸出檔 | 輸出檔裡有兩份 → `multiple definition` |
+| `.so` | **不複製**，只讀它的動態符號表：用來解決還沒定義的符號，並把它的名字記進 `NEEDED` | 輸出檔裡只有執行檔自己那份，`.so` 那份留在 `.so` 裡 → 不報錯 |
 
-所以 `jmp` 那一刻是 CPU 自動翻譯，核心不必介入；只有頁表裡查不到（還沒載入的頁）或權限不符（寫到唯讀、要做寫入時複製的頁）時，CPU 觸發分頁錯誤，才交給核心處理。
+所以連結成功以後，兩份 `counter` 都還在，各在各的檔案裡（本機實測；`nm -D` 看的是 `.so` 的動態符號表）：
 
-```mermaid
-flowchart LR
-    qa["q 的格子：0x7187194b9139"] --> qt["q 的頁表<br/>（核心建、MMU 查）"]
-    ra["r 的格子：0x7125ada21139"] --> rt["r 的頁表<br/>（核心建、MMU 查）"]
-    qt --> phys["同一個實體頁：<br/>libgreet.so 的 say"]
-    rt --> phys
+```
+$ nm usecount | grep -w counter
+0000000000004010 D counter      ← 執行檔自己的（.data，初值 100）
+$ nm -D libcount.so | grep -w counter
+000000000000400c B counter      ← .so 自己的（.bss，初值 0）
 ```
 
-**gdb 看到的全都是虛擬位址**：`$rip`、`p &counter`、`x/gx`、`info proc mappings` 的範圍、`break *0x…`，全是被除錯那個行程的虛擬位址。但與其說它們「不是真實的」，不如說**虛擬位址就是這個行程唯一看得到、也唯一能用的位址**——每條指令用的都是它。兩個證據：
+兩份都在，但只會用到一份：要等**執行時**由 `ld.so` 照「先執行檔、再依 `NEEDED` 順序」挑，第一個找到的贏——就是正文[第四節〈為什麼不能直接用固定距離：`counter` 最後不一定是這一份〉](#為什麼不能直接用固定距離counter-最後不一定是這一份)講的符號插入。`libcount.so` 的 GOT 裡 `counter` 那一格填的是執行檔那份的位址，`.so` 自己那份初值 0 的 `counter` 從頭到尾沒人用。
 
-- gdb 預設關掉 ASLR，所以分別用 gdb 跑 `q` 和 `r`，`p say` 都印 `0x7ffff7fb7139 <say>`——數字一樣，但那是兩個行程各自的位址空間、各自的頁表，只是基底剛好相同：
+這是 ELF 刻意允許的：讓執行檔（或 `LD_PRELOAD` 先載入的函式庫）能蓋掉函式庫裡的同名符號，例如自己寫一個 `malloc` 取代 glibc 的。代價就是 `.so` 做的時候不知道最後用哪一份，只能經過 GOT——也就是下一段的結論。
 
-  ```text
-  $ gdb -q -batch -ex 'break greet' -ex run -ex 'p say' ./q
-  $1 = {<text variable, no debug info>} 0x7ffff7fb7139 <say>
-  $ gdb -q -batch -ex 'break greet' -ex run -ex 'p say' ./r
-  $1 = {<text variable, no debug info>} 0x7ffff7fb7139 <say>
-  ```
+反過來，主程式**不定義**、只寫 `extern int counter;` 時，`counter` 會被放進執行檔裡（複製重定位），見下一章（[第 3 章](#3-主程式只寫-extern-int-counter變數放進執行檔複製重定位)）。
 
-- 一般程式拿不到實體位址。`/proc/self/pagemap` 每個虛擬頁有一筆 8 byte 的紀錄，第 63 位元是「這頁在不在記憶體」，低 55 位元是實體頁框號（PFN，Page Frame Number）；但沒有 `CAP_SYS_ADMIN` 權限時，核心把 PFN 遮成 0（Linux 4.0 起，因為實體位址可以被拿來發動 Rowhammer 這類攻擊）。`pfn.c`（檔案：[`pfn.c`](../small-project/s1-07-libraries/examples/share/pfn.c)）完整原始碼：
+### 3. 主程式只寫 `extern int counter;`：變數放進執行檔（複製重定位）
 
-  ```c
-  #include <fcntl.h>
-  #include <stdint.h>
-  #include <stdio.h>
-  #include <unistd.h>
+> 2026-10-26 課後提問：「usecount.c 我不想用usecount自己的counter 是不是只要改成extern int counter;」
+>
+> 正文出處：[第四節〈為什麼不能直接用固定距離：`counter` 最後不一定是這一份〉](#為什麼不能直接用固定距離counter-最後不一定是這一份)的 `usecount.c` 實驗；接著[第 2 章](#2-兩份-counter接-so-為什麼不算重複定義)
 
-  int main(void)
-  {
-      static char buf[4096];
-      buf[0] = 'x';                                    /* 寫一下，確保這頁真的配了實體頁 */
-      uintptr_t va = (uintptr_t)buf;
-      uint64_t e;
-      int fd = open("/proc/self/pagemap", O_RDONLY);   /* 每個虛擬頁一筆 8 byte 的紀錄 */
-      pread(fd, &e, sizeof e, (va / 4096) * 8);
-      printf("虛擬位址 %#lx：present=%lu  PFN=%lu\n",
-             (unsigned long)va, (unsigned long)(e >> 63), (unsigned long)(e & ((1ULL << 55) - 1)));
-      close(fd);
-      return 0;
-  }
-  ```
-
-  ```text
-  $ gcc -Wall pfn.c -o pfn && ./pfn
-  虛擬位址 0x6535b6d71040：present=1  PFN=0
-  ```
-
-  `present=1` 看得到，`PFN` 卻是 0。（`sudo ./pfn` 會印出真的頁框號——需要 root，未實測。）
-
-### 4. 整理：四個容易搞錯的地方
-
-討論過程中出現過的四個說法，對照實驗修正：
-
-| 說法 | 實際上 | 證據 |
-|---|---|---|
-| 整個 `.so` 在實體記憶體裡只有一份，大家共用 | 只有**沒被寫過的頁**共用（程式碼、跳板、唯讀資料）；`.got`、`.got.plt`、`.data`／`.bss` 被寫過，各自一份 | `smaps`：`r-xp` 是 `Shared_Clean`，`rw-p` 是 `Private_Dirty`；`a` 的 `counter` 是 1、`b` 的是 3（第四節） |
-| `ld.so` 執行時替 `counter` 找一個位置放 | 位置是**檔案版面**決定的（`counter` 在 `libcount.so` 的 `0x400c`）；`ld.so` 只決定整個檔案映射到哪個基底，再把「基底 ＋ `0x400c`」填進 `.got` | `nm -D libcount.so` 的 `000000000000400c B counter`；gdb 的 `&counter` ＝ 基底 ＋ `0x400c`（第四節） |
-| 第一次呼叫時 `.got.plt` 那格是空的 | 載入時就填了「基底 ＋ `0x1040`」，指向 `.plt` 裡叫 `ld.so` 的程式碼；跳板只是照格子跳 | 呼叫前印出的 `0x7187194b9040` |
-| `ld.so` 把 `say` 的實體位址寫進格子 | 寫的是**這個行程的虛擬位址**；每個行程基底不同，數字就不同；翻成實體位址是 MMU 照頁表做的 | `q`、`r` 的格子 `0x…b9139` vs `0x…21139`；`pagemap` 的 PFN 是 0 |
-
-### 5. `extern int counter;`：只剩一份，但它放在執行檔裡（複製重定位）
-
-第四節的 `usecount.c` 自己定義了 `int counter = 100;`，結果 `bump` 加的是主程式那一份。如果主程式**不想要**自己的 `counter`，只要把定義改成宣告 `extern int counter;`——主程式和 `bump` 就會用同一個 `counter`，初值是 `count.c` 的 0。但實測發現那一份**放在執行檔裡**，不在 `libcount.so` 裡。
+正文的 `usecount.c` 自己定義了 `int counter = 100;`，結果 `bump` 加的是主程式那一份。如果主程式**不想要**自己的 `counter`，只要把定義改成宣告 `extern int counter;`——主程式和 `bump` 就會用同一個 `counter`，初值是 `count.c` 的 0。但實測發現那一份**放在執行檔裡**，不在 `libcount.so` 裡。
 
 `usecount2.c`（檔案：[`usecount2.c`](../small-project/s1-07-libraries/examples/pic/usecount2.c)）完整原始碼：
 
@@ -1864,7 +1155,7 @@ flowchart LR
     lc -. "COPY：初值複製一次" .-> ec
 ```
 
-這張圖要看的是：**兩條實線最後都指到執行檔的 `counter`**；`.so` 自己那一份只在載入時被讀一次初值。這也再一次說明 `.so` 為什麼一定要經過 GOT（第四節〈為什麼不能直接用固定距離〉）：就算主程式根本沒有定義 `counter`，最後用的那一份還是可能不在 `.so` 自己裡面。
+這張圖要看的是：**兩條實線最後都指到執行檔的 `counter`**；`.so` 自己那一份只在載入時被讀一次初值。這也再一次說明 `.so` 為什麼一定要經過 GOT（[第四節〈為什麼不能直接用固定距離：`counter` 最後不一定是這一份〉](#為什麼不能直接用固定距離counter-最後不一定是這一份)）：就算主程式根本沒有定義 `counter`，最後用的那一份還是可能不在 `.so` 自己裡面。
 
 **代價：執行檔記住了變數的大小。** 執行檔 `.bss` 裡留給 `counter` 的位置，大小是**連結時**照當時的 `.so` 決定的。把 `count.c` 改成 `long counter`（[`count_v2.c`](../small-project/s1-07-libraries/examples/pic/count_v2.c)）重做 `libcount.so`、`usecount2` 不重新連結：
 
@@ -1889,9 +1180,731 @@ counter = 1
 
 `ld.so` 發現執行檔留的 4 byte 和 `.so` 現在的 8 byte 不一樣，警告要重新連結（這次剛好還印對，是因為值很小，高位的 byte 都是 0）。這是函式庫通常**不直接把全域變數給外面用、而是提供函式**（例如 `get_counter()`）的原因之一：函式走 PLT，執行檔不必知道它的大小。
 
-### 6. 做 `.so` 需要 `.h` 嗎？`#include` 管編譯、`-l` 管連結
+### 4. PLT 存函式位址、GOT 存變數位址嗎？PLT 是跳板，以及延遲綁定
 
-第四節的 `count.c`、`greet.c` 都沒有 `.h`，呼叫端直接在自己的檔案裡寫宣告（`int bump(void);`、`void greet(void);`）。這是為了讓範例短一點——**做 `.so`、連結、執行時接線都用不到 `.h`**，`.h` 只在**編譯呼叫端**時派上用場。第 1 課〈[第 2 題：刪掉 `#include` 為什麼只是警告，程式還能跑？](./hello.c怎麼變成能跑的程式-編譯的四個階段.md#第-2-題刪掉-include-為什麼只是警告程式還能跑部分教過關鍵一句沒明講)〉和第 6 課〈[`#include` 只是貼上](./多檔案的C程式-標頭檔、static與extern、連結錯誤與make.md#include-只是貼上)〉教過：`#include` 就是把檔案內容貼進來，所以「自己寫宣告」和「`#include` 一個寫了同樣宣告的 `.h`」，編譯器看到的東西一模一樣。
+> 2026-10-26 課後提問：「plt是不是專存全域函式的位址,got存全域變數的位址?」
+>
+> 正文出處：[第四節〈為什麼不能直接用固定距離：`counter` 最後不一定是這一份〉](#為什麼不能直接用固定距離counter-最後不一定是這一份)最後「`add.c`、`mul.c` 不加 `-fPIC` 也做得成……呼叫函式本來就經過 PLT」那一段
+
+不是。**PLT 不存位址，它是程式碼（每個函式一小段跳板）；變數和函式的位址都存在 GOT 裡**，只是分在兩個區段：
+
+| 區段 | 是什麼 | 權限（`readelf -S` 的 `Flg`） | 放什麼 |
+|---|---|---|---|
+| `.plt`、`.plt.sec` | **程式碼** | `AX`（可執行、唯讀） | 每個函式一段跳板，例如 `say@plt` |
+| `.got` | **資料**（位址表） | `WA`（可寫） | 全域**變數**的位址，重定位類型 `R_X86_64_GLOB_DAT`（[第 1 章](#1-0x2ec8-和-0x3fd0-各是什麼mov-0x2ec8riprax-的兩個數字) `counter` 那格） |
+| `.got.plt` | **資料**（位址表，也是 GOT 的一部分） | `WA`（可寫） | **函式**的位址，重定位類型 `R_X86_64_JUMP_SLOT` |
+
+（`.plt.got` 名字跟 `.got.plt` 很像，但它是另一種跳板，給不走下面「延遲綁定」的函式用，例如 `__cxa_finalize`，這裡不展開。）
+
+實驗：`libgreet.so` 的 `greet()` 呼叫 `say()`。`greet.c`（檔案：[`greet.c`](../small-project/s1-07-libraries/examples/pic/greet.c)）完整原始碼：
+
+```c
+#include <stdio.h>
+
+void say(void)
+{
+    printf("say() in libgreet.so\n");
+}
+
+void greet(void)
+{
+    say();
+}
+```
+
+主程式 `greet_main.c`（檔案：[`greet_main.c`](../small-project/s1-07-libraries/examples/pic/greet_main.c)）也定義一個 `say()`——順便看到函式也會被符號插入，跟正文的 `counter` 一樣：
+
+```c
+#include <stdio.h>
+
+void greet(void);
+
+void say(void)
+{
+    printf("say() in main\n");
+}
+
+int main(void)
+{
+    greet();
+    return 0;
+}
+```
+
+```
+$ gcc -Wall -fPIC -c greet.c -o greet.pic.o && gcc -shared greet.pic.o -o libgreet.so
+$ gcc -Wall greet_main.c -L. -lgreet -Wl,-rpath,'$ORIGIN' -o greet_app
+$ ./greet_app
+say() in main                                  ← 函式庫裡的 greet() 呼叫到主程式的 say()
+$ objdump -d --no-show-raw-insn libgreet.so | sed -n '/<greet>:/,/ret/p'
+0000000000001153 <greet>:
+    ...
+    115b:	call   1070 <say@plt>              ← 不是直接 call say，是 call 跳板
+    ...
+$ objdump -d --no-show-raw-insn -j .plt.sec libgreet.so | sed -n '/say@plt>:/,+3p'
+0000000000001070 <say@plt>:
+    1070:	endbr64
+    1074:	jmp    *0x2f8e(%rip)        # 4008 <say@@Base+0x2ecf>
+    107a:	nopw   0x0(%rax,%rax,1)
+$ readelf -SW libgreet.so | grep -E '\.plt|\.got'
+  [ 9] .rela.plt         RELA            0000000000000530 000530 000030 18  AI  4  23  8
+  [11] .plt              PROGBITS        0000000000001020 001020 000030 10  AX  0   0 16
+  [12] .plt.got          PROGBITS        0000000000001050 001050 000010 10  AX  0   0 16
+  [13] .plt.sec          PROGBITS        0000000000001060 001060 000020 10  AX  0   0 16
+  [22] .got              PROGBITS        0000000000003fc8 002fc8 000020 08  WA  0   0  8
+  [23] .got.plt          PROGBITS        0000000000003fe8 002fe8 000028 08  WA  0   0  8
+$ readelf -r libgreet.so | grep say
+000000004008  000700000007 R_X86_64_JUMP_SLO 0000000000001139 say + 0
+```
+
+讀法：
+
+1. `jmp *0x2f8e(%rip)`：`*` 表示「跳到**記憶體裡存的**那個位址」，不是跳到 `0x4008` 本身。`0x2f8e` 的算法跟 [第 1 章](#1-0x2ec8-和-0x3fd0-各是什麼mov-0x2ec8riprax-的兩個數字) 的 `counter` 一樣：下一條 `0x107a ＋ 0x2f8e ＝ 0x4008`。
+2. `0x4008` 落在 `.got.plt`（`0x3fe8` 起，長 `0x28`），`readelf -r` 說這格是 `JUMP_SLOT`、要填 `say`。
+3. 所以呼叫函式也是兩步：`call say@plt` 跳到跳板（程式碼）→ 跳板讀 `.got.plt` 那格存的位址、跳過去。跟變數「先從 `.got` 讀出位址、再照位址讀」是同一個樣子。
+
+**那為什麼函式要多一層跳板？延遲綁定（lazy binding）。** 用 gdb 看 `say` 那格在第一次呼叫前後的值（gdb 關掉 ASLR，`libgreet.so` 載入在 `0x7ffff7fb6000`，所以那格在 `0x7ffff7fb6000 + 0x4008`；`greet+13` 是 `call` 的下一條 `0x1160`）：
+
+```
+$ gdb -q -batch -ex 'break greet' -ex run -ex 'x/gx 0x7ffff7fb6000+0x4008' \
+      -ex 'break *greet+13' -ex c -ex 'x/gx 0x7ffff7fb6000+0x4008' -ex 'p &say' ./greet_app
+0x7ffff7fba008 <say@got.plt>:	0x00007ffff7fb7040     ← 呼叫前：指回 libgreet.so 自己的 .plt（0x1040），不是 say
+0x7ffff7fba008 <say@got.plt>:	0x0000555555555169     ← 呼叫過一次後：變成主程式的 say
+$1 = (<text variable, no debug info> *) 0x555555555169 <say>
+```
+
+1. 一開始那格不放 `say` 的位址，而是指回 `.plt` 裡一段「叫 `ld.so` 去查」的程式碼；
+2. **第一次**呼叫時，`ld.so` 才去找 `say` 是哪一份（這裡是主程式的），把答案寫回那格；
+3. 之後再呼叫，跳板讀到的就是 `say` 的真正位址，直接跳過去，`ld.so` 不再介入。
+
+好處是程式啟動時不必一次查完所有函式（很多可能根本沒被呼叫）。**變數做不到**：讀變數就是一條 `mov (%rax),%eax`，中間沒有跳板可以插入「先去查」的程式碼，所以 `.got` 裡變數那格一定要在載入時就填好（[第 1 章](#1-0x2ec8-和-0x3fd0-各是什麼mov-0x2ec8riprax-的兩個數字) `counter` 那格就是載入時填的）。
+
+反過來驗證：把 `greet.c` 的 `say` 改成 `static void say(void)` 重做 `libgreet.so`，`greet_app` 不重新連結，執行印出 `say() in libgreet.so`，反組譯變成直接 `call 1119 <say>`、沒有 `@plt`——`LOCAL` 的函式不可能被插入，就不必經過 PLT／GOT，跟 `static int counter` 不需要 GOT 是同一個道理。
+
+### 5. 用圖看 PLT 與 GOT：函式（圖一～圖四）與變數（圖五～圖八）
+
+> 2026-10-26 課後提問：「關於這段可以用圖表表示嗎?我比較好理解?」（指[第 4 章](#4-plt-存函式位址got-存變數位址嗎plt-是跳板以及延遲綁定)整段）
+
+圖一～圖四用的都是[第 4 章](#4-plt-存函式位址got-存變數位址嗎plt-是跳板以及延遲綁定) `libgreet.so`／`greet_app` 實驗的實測位址（`readelf -SW`、`objdump`、gdb 的輸出）。
+
+**圖一：PLT 和 GOT 各在哪裡、放什麼**（對照[第 4 章](#4-plt-存函式位址got-存變數位址嗎plt-是跳板以及延遲綁定)的 `readelf -SW libgreet.so` 那幾行）
+
+```text
+libgreet.so（檔案裡的位址）
+
+  ┌─────────────── 程式碼：唯讀、可執行（AX）───────────────┐
+  │ .plt      0x1020   「去叫 ld.so 查位址」的共用程式碼        │
+  │ .plt.sec  0x1070   say@plt 跳板：                          │
+  │                      jmp *(0x4008)  ← 照 0x4008 那格存的位址跳 │
+  │ .text     0x1153   greet:                                  │
+  │                      call say@plt   ← 不直接 call say        │
+  └────────────────────────────────────────────────────────────┘
+
+  ┌─────────────── 資料：可寫（WA）── 這兩個都是 GOT ──────────┐
+  │ .got      0x3fc8   存「變數」的位址（例如 counter）          │
+  │                    載入時就由 ld.so 填好                     │
+  │ .got.plt  0x3fe8   存「函式」的位址                          │
+  │           └ 0x4008：say 的那格（JUMP_SLOT）                  │
+  │                    第一次呼叫時才填                          │
+  └────────────────────────────────────────────────────────────┘
+```
+
+**PLT 是程式碼，不存位址；函式和變數的位址都存在 GOT**，只是函式在 `.got.plt`、變數在 `.got`。
+
+**圖二：第一次呼叫 `say()`（延遲綁定）**（對照[第 4 章](#4-plt-存函式位址got-存變數位址嗎plt-是跳板以及延遲綁定) gdb 第一次 `x/gx` 印出的 `0x00007ffff7fb7040`）
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant G as greet（.text）
+    participant P as say@plt 跳板（.plt.sec）
+    participant T as .got.plt 0x4008 那格
+    participant L as .plt 的「去查」程式碼 → ld.so
+    participant S as 主程式的 say
+    G->>P: call say@plt
+    P->>T: jmp *(0x4008)：讀格子
+    T-->>P: 0x7ffff7fb7040（指回自己的 .plt）
+    P->>L: 跳到 0x7ffff7fb7040
+    Note over L: ld.so 查：say 是哪一份？<br/>先找執行檔 → 主程式的 say 0x555555555169
+    L->>T: 把 0x555555555169 寫回格子
+    L->>S: 跳到 say 執行
+    Note over S: 印出 "say() in main"
+```
+
+`0x7ffff7fb7040` ＝ 載入基底 `0x7ffff7fb6000` ＋ `0x1040`，落在 `.plt`（`0x1020` 起、長 `0x30`）裡。
+
+**圖三：第二次以後**（對照 gdb 第二次 `x/gx` 印出的 `0x0000555555555169`，就是 `p &say`）
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant G as greet（.text）
+    participant P as say@plt 跳板（.plt.sec）
+    participant T as .got.plt 0x4008 那格
+    participant S as 主程式的 say
+    G->>P: call say@plt
+    P->>T: jmp *(0x4008)：讀格子
+    T-->>P: 0x555555555169（第一次呼叫時填好的）
+    P->>S: 直接跳過去
+    Note over G,S: ld.so 不再出現
+```
+
+**圖四：函式和變數並排比較**
+
+```mermaid
+flowchart TB
+    subgraph F["呼叫函式 say()"]
+        direction TB
+        F1["call say@plt<br/>（跳到跳板：程式碼）"] --> F2["jmp *(.got.plt 那格)<br/>（讀出位址再跳）"]
+        F2 --> F3["中間有跳板，<br/>可以先跳去叫 ld.so 查"]
+        F3 --> F4["可以延遲綁定：<br/>第一次呼叫才填"]
+    end
+    subgraph V["讀變數 counter"]
+        direction TB
+        V1["mov 距離(%rip),%rax<br/>（從 .got 拿到位址）"] --> V2["mov (%rax),%eax<br/>（照位址讀值）"]
+        V2 --> V3["中間沒有跳板，<br/>沒地方插「先去查」"]
+        V3 --> V4["一定要在載入時<br/>就填好"]
+    end
+```
+
+兩邊是同一個樣子：**先從 GOT 讀出位址，再照位址走**。函式多了一段跳板程式碼，才有辦法把「查位址」延到第一次呼叫。
+
+| | PLT（`.plt`／`.plt.sec`） | GOT：`.got` | GOT：`.got.plt` |
+|---|---|---|---|
+| 是什麼 | 程式碼（跳板） | 資料（位址表） | 資料（位址表） |
+| 權限 | `AX`：可執行、唯讀 | `WA`：可寫 | `WA`：可寫 |
+| 放什麼 | 每個函式一段 `xxx@plt` | 變數的位址 | 函式的位址 |
+| 什麼時候填好 | 連結時就寫好 | 載入時 | 第一次呼叫時 |
+
+**變數那邊：圖五～圖八**
+
+> 2026-10-26 課後提問：「目前畫出plt的流程了,got可以也畫嗎?」（指圖一～圖四，問變數 `counter` 走 `.got` 的流程）
+
+用的是[第四節〈為什麼一定要 `-fPIC`：先看不加會怎樣〉](#為什麼一定要--fpic先看不加會怎樣)與[第四節〈為什麼不能直接用固定距離：`counter` 最後不一定是這一份〉](#為什麼不能直接用固定距離counter-最後不一定是這一份)的 `libcount.so` 實驗，完整原始碼都在那兩節：`count.c`（[檔案](../small-project/s1-07-libraries/examples/pic/count.c)）、`callbump.c`（[檔案](../small-project/s1-07-libraries/examples/pic/callbump.c)）、`usecount.c`（[檔案](../small-project/s1-07-libraries/examples/pic/usecount.c)）。圖裡的位址是 2026-10-26 重新實測的，建檔與量測的指令：
+
+```sh
+cd small-project/s1-07-libraries/examples/pic
+gcc -Wall -fPIC -c count.c -o count.pic.o && gcc -shared count.pic.o -o libcount.so
+gcc -Wall callbump.c -L. -lcount -Wl,-rpath,'$ORIGIN' -o callbump
+gcc -Wall usecount.c -L. -lcount -Wl,-rpath,'$ORIGIN' -o usecount
+objdump -s -j .got libcount.so                       # 檔案裡 GOT 的內容
+gdb -q -batch -ex 'break bump' -ex run -ex 'p &counter' -ex 'x/gx 0x7ffff7fb6000+0x3fd0' ./callbump
+gdb -q -batch -ex 'break bump' -ex run -ex 'p &counter' -ex 'x/gx 0x7ffff7fb6000+0x3fd0' ./usecount
+```
+
+本機輸出（節錄）：
+
+```text
+Contents of section .got:
+ 3fc0 00000000 00000000 00000000 00000000  ................
+ 3fd0 00000000 00000000 00000000 00000000  ................      ← 0x3fd0 那 8 byte 在檔案裡是 0
+ 3fe0 00000000 00000000                    ........
+callbump：$1 = (<data variable, no debug info> *) 0x7ffff7fba00c <counter>
+          0x7ffff7fb9fd0:	0x00007ffff7fba00c
+usecount：$1 = (<data variable, no debug info> *) 0x555555558010 <counter>
+          0x7ffff7fb9fd0:	0x0000555555558010
+```
+
+跟 PLT 最大的差別：**變數那格在載入時就填好，`bump()` 執行時只是去讀它，`ld.so` 不會在半路插進來**。
+
+**圖五：檔案裡（還沒執行）**
+
+```text
+libcount.so（檔案裡的位址）
+
+  .text  0x1101  bump:
+                   mov 0x2ec8(%rip),%rax   ← 下一條 0x1108 ＋ 0x2ec8 ＝ 0x3fd0
+                   mov (%rax),%eax
+                         │
+                         │ 指向 GOT 的那一格（ld 連結時就算好距離）
+                         ▼
+  .got   0x3fd0  ┌──────────────────────┐
+                 │ 0x0000000000000000   │  ← 檔案裡是 0，還沒有 counter 的位址
+                 └──────────────────────┘
+                 重定位指示（readelf -r）：
+                   0x3fd0  R_X86_64_GLOB_DAT  counter
+                   ＝「載入時把 counter 的真正位址填進 0x3fd0」
+
+  .bss   0x400c  counter（libcount.so 自己的那份，初值 0）
+```
+
+**圖六：載入時，`ld.so` 填格子（在 `main` 之前）**
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant K as 核心
+    participant L as ld.so
+    participant T as GOT 那格<br/>0x7ffff7fb9fd0（基底＋0x3fd0）
+    participant M as main
+    K->>L: 執行 ./callbump：先啟動 ld.so
+    Note over L: 載入 libcount.so，看到重定位<br/>0x3fd0 GLOB_DAT counter
+    Note over L: 找 counter：先找執行檔，再依 NEEDED 找 .so<br/>第一個找到的贏
+    L->>T: 寫入找到的 &counter
+    L->>M: 全部填好才跳進程式（_start → main）
+```
+
+（gdb 關掉 ASLR，`libcount.so` 的載入基底是 `0x7ffff7fb6000`。）
+
+**圖七：`bump()` 讀 `counter`，分兩步**
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant B as bump 的指令
+    participant T as GOT 那格（.got 0x3fd0）
+    participant C as counter
+    B->>T: mov 0x2ec8(%rip),%rax：讀格子
+    T-->>B: %rax ＝ counter 的「位址」
+    B->>C: mov (%rax),%eax：照位址讀
+    C-->>B: %eax ＝ counter 的「值」
+```
+
+**圖八：同一格，填進去的位址不一樣（符號插入）**
+
+```mermaid
+flowchart LR
+    code["libcount.so 的 bump<br/>mov 0x2ec8(%rip),%rax<br/>（兩支程式完全一樣）"] --> slot1
+    code --> slot2
+    subgraph A["./callbump：主程式沒有定義 counter"]
+        slot1["GOT 那格<br/>0x00007ffff7fba00c"] --> c1["libcount.so 自己的 counter<br/>基底 0x7ffff7fb6000 ＋ 0x400c<br/>輸出：1"]
+    end
+    subgraph B["./usecount：主程式定義 int counter = 100;"]
+        slot2["GOT 那格<br/>0x0000555555558010"] --> c2["主程式的 counter<br/>PIE 基底 0x555555554000 ＋ 0x4010<br/>輸出：bump() = 101、counter = 101"]
+    end
+```
+
+`libcount.so` 的程式碼一個 byte 都沒變，兩次都是 `mov 0x2ec8(%rip),%rax`，差別只在 **`ld.so` 往那一格填了誰的位址**。這就是要經過 GOT 的原因：直接用固定距離讀的話，`bump` 永遠只會讀到自己那份 `counter`。
+
+函式與變數對照（圖一～圖四 vs 圖五～圖八）：
+
+| | 函式 `say`（PLT＋`.got.plt`） | 變數 `counter`（`.got`） |
+|---|---|---|
+| 檔案裡那格裝什麼 | 指回 `.plt` 的「去查」程式碼 | 0 |
+| 誰、什麼時候填 | `ld.so`，**第一次呼叫時** | `ld.so`，**載入時**（`main` 之前） |
+| 重定位類型 | `R_X86_64_JUMP_SLOT` | `R_X86_64_GLOB_DAT` |
+| 使用時 | `call` 跳板 → 跳板讀格子 → 跳過去 | 讀格子拿到位址 → 照位址讀值 |
+| 會被符號插入嗎 | 會（`say() in main`） | 會（`counter = 101`） |
+
+### 6. 兩支程式都用 `libcount.so`，記憶體裡是同一份嗎？
+
+> 2026-10-26 課後提問：「這是之每個程式,如果他們都有用libcount.so,那libcount.so在記憶體都一樣嗎?比方說執行檔a 跟 執行檔b 都用用?」
+>
+> 正文出處：[第四節〈為什麼不能直接用固定距離：`counter` 最後不一定是這一份〉](#為什麼不能直接用固定距離counter-最後不一定是這一份)裡〈那為什麼不讓 `ld.so` 載入時直接改 `.text` 裡的距離就好？〉那段（「同一份 `.text` 給所有用它的行程共用」）
+
+**只有程式碼是同一份；GOT 和 `counter` 每個行程各一份；連共用的程式碼，兩個行程看到的虛擬位址也不一樣。**
+
+實驗：兩支不同的程式 `a`、`b` 同時跑，都連 `libcount.so`（`count.c` 就是[第四節〈為什麼一定要 `-fPIC`：先看不加會怎樣〉](#為什麼一定要--fpic先看不加會怎樣)那一份，[檔案](../small-project/s1-07-libraries/examples/pic/count.c)）。`a` 呼叫 `bump()` 1 次、`b` 呼叫 3 次，印完停 5 秒，趁這時候看兩個行程的 `/proc/<pid>/smaps`。
+
+`a.c`（檔案：[`a.c`](../small-project/s1-07-libraries/examples/share/a.c)）完整原始碼：
+
+```c
+#include <stdio.h>
+#include <unistd.h>
+
+int bump(void);
+
+int main(void)
+{
+    int r = bump();                           /* a 只呼叫 1 次 */
+    printf("a: pid=%d  &bump=%p  bump() 回傳 %d\n", getpid(), (void *)bump, r);
+    fflush(stdout);
+    sleep(5);                                 /* 停 5 秒，讓我們看 /proc/<pid>/ */
+    return 0;
+}
+```
+
+`b.c`（檔案：[`b.c`](../small-project/s1-07-libraries/examples/share/b.c)）完整原始碼：
+
+```c
+#include <stdio.h>
+#include <unistd.h>
+
+int bump(void);
+
+int main(void)
+{
+    int r = 0;
+    for (int i = 0; i < 3; i++)               /* b 呼叫 3 次 */
+        r = bump();
+    printf("b: pid=%d  &bump=%p  bump() 回傳 %d\n", getpid(), (void *)bump, r);
+    fflush(stdout);
+    sleep(5);
+    return 0;
+}
+```
+
+建檔與執行（`sync` 先把剛寫好的 `.so` 寫回磁碟，否則頁快取裡的頁還是「髒的」，`smaps` 會顯示成 `Shared_Dirty`，不好讀）：
+
+```sh
+cd small-project/s1-07-libraries/examples/share
+gcc -Wall -fPIC -c ../pic/count.c -o count.pic.o && gcc -shared count.pic.o -o libcount.so
+gcc -Wall a.c -L. -lcount -Wl,-rpath,'$ORIGIN' -o a
+gcc -Wall b.c -L. -lcount -Wl,-rpath,'$ORIGIN' -o b
+sync
+./a & ./b & sleep 1          # 兩支同時在背景跑，等 1 秒讓它們印完、進入 sleep
+for p in $(pgrep -x a) $(pgrep -x b); do
+    echo "== $(cat /proc/$p/comm)"
+    # 只印 libcount.so 的每一段：位址、權限、檔案位移，以及四個共用／私有的計數
+    awk '/libcount.so/{show=1; printf "%s %s %s  ", $1, $2, $3; next} /^[0-9a-f]+-/{show=0}
+         show && /^(Shared_Clean|Shared_Dirty|Private_Clean|Private_Dirty):/{printf "%s%s ", $1, $2}
+         show && /^Private_Dirty/{print ""}' /proc/$p/smaps
+done
+wait
+```
+
+本機輸出（ASLR 開著，每次位址不同）：
+
+```text
+a: pid=26624  &bump=0x76191ad1d0f9  bump() 回傳 1
+b: pid=26625  &bump=0x757e0a65f0f9  bump() 回傳 3
+== a
+76191ad1c000-76191ad1d000 r--p 00000000  Shared_Clean:4 Shared_Dirty:0 Private_Clean:0 Private_Dirty:0
+76191ad1d000-76191ad1e000 r-xp 00001000  Shared_Clean:4 Shared_Dirty:0 Private_Clean:0 Private_Dirty:0
+76191ad1e000-76191ad1f000 r--p 00002000  Shared_Clean:0 Shared_Dirty:0 Private_Clean:0 Private_Dirty:0
+76191ad1f000-76191ad20000 r--p 00002000  Shared_Clean:0 Shared_Dirty:0 Private_Clean:0 Private_Dirty:4
+76191ad20000-76191ad21000 rw-p 00003000  Shared_Clean:0 Shared_Dirty:0 Private_Clean:0 Private_Dirty:4
+== b
+757e0a65e000-757e0a65f000 r--p 00000000  Shared_Clean:4 Shared_Dirty:0 Private_Clean:0 Private_Dirty:0
+757e0a65f000-757e0a660000 r-xp 00001000  Shared_Clean:4 Shared_Dirty:0 Private_Clean:0 Private_Dirty:0
+757e0a660000-757e0a661000 r--p 00002000  Shared_Clean:0 Shared_Dirty:0 Private_Clean:0 Private_Dirty:0
+757e0a661000-757e0a662000 r--p 00002000  Shared_Clean:0 Shared_Dirty:0 Private_Clean:0 Private_Dirty:4
+757e0a662000-757e0a663000 rw-p 00003000  Shared_Clean:0 Shared_Dirty:0 Private_Clean:0 Private_Dirty:4
+```
+
+`smaps` 的四個計數，單位是 kB（一頁 4 kB）：`Shared` 是這一頁**還有別的行程也映射著**，`Private` 是只有這個行程在用；`Clean` 是內容跟檔案一樣、沒被改過，`Dirty` 是被寫過。`libcount.so` 的五段對到哪些區段，可以用 `readelf -lW libcount.so` 的 `Section to Segment mapping` 對照：
+
+| 段（權限） | 裡面是什麼 | `a` | `b` | 意思 |
+|---|---|---|---|---|
+| `r--p` 位移 0 | 檔頭、`.dynsym` 等 | `Shared_Clean:4` | `Shared_Clean:4` | 共用、沒被改過 |
+| `r-xp` | **`.text`（`bump`）** | `Shared_Clean:4` | `Shared_Clean:4` | **兩個行程共用同一個實體頁** |
+| `r--p` 位移 `0x2000` 第一段 | `.eh_frame` | 0 | 0 | 沒用到，還沒讀進記憶體 |
+| `r--p` 位移 `0x2000` 第二段 | **`.got`**（RELRO） | `Private_Dirty:4` | `Private_Dirty:4` | **各自一份**：`ld.so` 載入時寫了 GOT |
+| `rw-p` | **`.data`／`.bss`（`counter`）** | `Private_Dirty:4` | `Private_Dirty:4` | **各自一份**：`a` 的是 1、`b` 的是 3 |
+
+逐列讀：
+
+1. **`.text` 是 `Shared_Clean`**：兩個行程用的是同一個實體頁，而且沒人寫過它。
+2. **`&bump` 不一樣**（`0x76191ad1d0f9` vs `0x757e0a65f0f9`）：載入基底各自隨機（ASLR），所以虛擬位址不同；但尾巴都是 `…0f9`，就是檔案裡的 `0x10f9`。不同的虛擬位址，對到同一個實體頁。
+3. **GOT 那頁是 `Private_Dirty`**：核心映射 `.so` 用的是**私有映射**（`p`），一開始每頁都跟別人共用；某個行程一寫，核心才替它複製一份，叫**寫入時複製（copy-on-write，COW）**。`ld.so` 載入時要把 `&counter` 填進 GOT，一寫就複製，所以每個行程的 GOT 都是自己的。它顯示 `r--p`、跟 `.eh_frame` 的位移一樣是 `0x2000`，是因為這個載入段從 `0x3e60` 開始、跟前一段擠在同一個檔案頁；填完之後 `ld.so` 把這一頁改回唯讀，叫 **RELRO**（Relocation Read-Only，重定位後唯讀），防止之後被竄改。
+4. **`counter` 那頁也是 `Private_Dirty`**：`bump()` 寫了 `counter`，同樣被複製，所以 `a` 的 `counter` 是 1、`b` 的是 3，互不影響。
+
+```mermaid
+flowchart LR
+    subgraph A["行程 a 的虛擬位址"]
+        direction TB
+        at[".text<br/>0x76191ad1d000"]
+        ag[".got<br/>0x76191ad1f000"]
+        ab[".bss<br/>0x76191ad20000"]
+    end
+    subgraph M["實體記憶體"]
+        direction TB
+        text["bump 的程式碼<br/>只有一份（Shared_Clean）"]
+        ga["a 的 GOT<br/>（Private_Dirty）"]
+        gb["b 的 GOT<br/>（Private_Dirty）"]
+        ca["a 的 counter = 1<br/>（Private_Dirty）"]
+        cb["b 的 counter = 3<br/>（Private_Dirty）"]
+    end
+    subgraph B["行程 b 的虛擬位址"]
+        direction TB
+        bt[".text<br/>0x757e0a65f000"]
+        bg[".got<br/>0x757e0a661000"]
+        bb[".bss<br/>0x757e0a662000"]
+    end
+    at --- text
+    ag --- ga
+    ab --- ca
+    text --- bt
+    gb --- bg
+    cb --- bb
+```
+
+這張圖要看的是：**兩邊的 `.text` 都連到中間同一格，`.got` 和 `.bss` 各連到自己的一格**。這也回答了正文那段為什麼要 GOT：共用 `.text` 的前提是沒人改它，只要有一個行程往 `.text` 寫自己的位址，COW 就會替它複製一份，那一頁就不再共用；PIC 把每個行程不同的東西（位址）集中在 GOT，只讓 GOT 那一頁被複製，`.text` 就一直是一份。
+
+函式那邊（PLT 跳板共用、`.got.plt` 各一份）、格子裡記的是誰的位址、虛擬位址怎麼變成實體位址，接著看[第 7 章](#7-函式那邊plt-跳板共用gotplt-每個行程各一份)～[第 10 章](#10-整理四個容易搞錯的地方)。
+
+### 7. 函式那邊：PLT 跳板共用、`.got.plt` 每個行程各一份
+
+> 2026-10-26 課後提問：
+>
+> - 「那如果函式 也就是plt怎麼理解?」（接在第 6 章之後）
+> - 「p,q兩個執行檔,共用了同一個庫,相同的say,他們跳過去的say也是相同的記憶體位址嗎?」
+> - 「p,q兩個行程在各自的got.plt 記錄的say的位址會一樣嗎?」
+>
+> 正文出處：同[第 6 章](#6-兩支程式都用-libcountso記憶體裡是同一份嗎)；函式怎麼經過 PLT 見[第 4 章](#4-plt-存函式位址got-存變數位址嗎plt-是跳板以及延遲綁定)
+
+第 1～6 章講的是**一支程式**怎麼透過 GOT／PLT 接上 `.so`，以及變數在記憶體裡的樣子；這一章到第 10 章接著問：**好幾支程式同時用同一個 `.so` 時，函式那邊哪些是同一份**。
+
+實驗：兩支程式 `q`、`r` 同時跑，都連第四節的 `libgreet.so`（`greet()` 呼叫 `say()`，`greet.c` 的完整原始碼在[第 4 章](#4-plt-存函式位址got-存變數位址嗎plt-是跳板以及延遲綁定)，[檔案](../small-project/s1-07-libraries/examples/pic/greet.c)），兩支都**沒有**自己的 `say`，所以接到的都是函式庫的 `say`。程式自己把 `.got.plt` 裡 `say` 那一格讀出來，在呼叫 `greet()` 前後各印一次，然後停 5 秒讓我們看 `/proc/<pid>/smaps`。
+
+那一格在哪裡：`readelf -r libgreet.so` 說 `say` 的 `JUMP_SLOT` 在 `0x4008`（[第 4 章](#4-plt-存函式位址got-存變數位址嗎plt-是跳板以及延遲綁定)實測過），所以執行時在「`libgreet.so` 的載入基底 ＋ `0x4008`」。載入基底用 `dladdr` 查：給它函式庫裡任何一個函式的位址（這裡用 `greet`），它回報這個位址屬於哪個檔案、那個檔案載入在哪裡（`dli_fbase`）。
+
+`slot.h`（檔案：[`slot.h`](../small-project/s1-07-libraries/examples/share/slot.h)）完整原始碼：
+
+```c
+#define _GNU_SOURCE
+#include <dlfcn.h>
+
+void greet(void);
+
+/* 回傳 libgreet.so 裡 .got.plt 中 say 那一格的位址：載入基底 + 0x4008（readelf -r 查到的） */
+static void **say_slot(void)
+{
+    Dl_info info;
+    dladdr((void *)greet, &info);          /* dli_fbase = libgreet.so 的載入基底 */
+    return (void **)((char *)info.dli_fbase + 0x4008);
+}
+```
+
+`q.c`（檔案：[`q.c`](../small-project/s1-07-libraries/examples/share/q.c)）完整原始碼：
+
+```c
+#include "slot.h"        /* 要放第一行：裡面的 _GNU_SOURCE 必須在任何 #include 之前 */
+#include <stdio.h>
+#include <unistd.h>
+
+int main(void)                                   /* q 沒有定義 say */
+{
+    printf("q: 格子在 %p，呼叫前裝 %p\n", (void *)say_slot(), *say_slot());
+    greet();
+    printf("q: 呼叫後裝 %p\n", *say_slot());
+    fflush(stdout);
+    sleep(5);
+    return 0;
+}
+```
+
+`r.c`（檔案：[`r.c`](../small-project/s1-07-libraries/examples/share/r.c)）跟 `q.c` 只差印出的名字：
+
+```c
+#include "slot.h"        /* 要放第一行：裡面的 _GNU_SOURCE 必須在任何 #include 之前 */
+#include <stdio.h>
+#include <unistd.h>
+
+int main(void)                                   /* r 也沒有定義 say */
+{
+    printf("r: 格子在 %p，呼叫前裝 %p\n", (void *)say_slot(), *say_slot());
+    greet();
+    printf("r: 呼叫後裝 %p\n", *say_slot());
+    fflush(stdout);
+    sleep(5);
+    return 0;
+}
+```
+
+建檔與執行（`sync` 的理由同[第 6 章](#6-兩支程式都用-libcountso記憶體裡是同一份嗎)：讓頁快取裡的頁先變乾淨）：
+
+```sh
+cd small-project/s1-07-libraries/examples/share
+gcc -Wall -fPIC -c ../pic/greet.c -o greet.pic.o && gcc -shared greet.pic.o -o libgreet.so
+gcc -Wall q.c -L. -lgreet -Wl,-rpath,'$ORIGIN' -o q
+gcc -Wall r.c -L. -lgreet -Wl,-rpath,'$ORIGIN' -o r
+sync
+./q & sleep 0.3; ./r & sleep 1       # 兩支都在背景跑，各自停在 sleep(5)
+for x in q r; do
+    pid=$(pgrep -x $x); echo "== $x"
+    awk '/libgreet.so/{show=1; printf "%s %s %s  ", $1, $2, $3; next} /^[0-9a-f]+-/{show=0}
+         show && /^(Rss|Pss|Shared_Clean|Private_Clean|Private_Dirty):/{printf "%s%s ", $1, $2}
+         show && /^Private_Dirty/{print ""}' /proc/$pid/smaps
+done
+wait
+```
+
+本機輸出（ASLR 開著）：
+
+```text
+q: 格子在 0x7187194bc008，呼叫前裝 0x7187194b9040
+say() in libgreet.so
+q: 呼叫後裝 0x7187194b9139
+r: 格子在 0x7125ada24008，呼叫前裝 0x7125ada21040
+say() in libgreet.so
+r: 呼叫後裝 0x7125ada21139
+== q
+7187194b8000-7187194b9000 r--p 00000000  Rss:4 Pss:2 Shared_Clean:4 Private_Clean:0 Private_Dirty:0
+7187194b9000-7187194ba000 r-xp 00001000  Rss:4 Pss:2 Shared_Clean:4 Private_Clean:0 Private_Dirty:0
+7187194ba000-7187194bb000 r--p 00002000  Rss:4 Pss:2 Shared_Clean:4 Private_Clean:0 Private_Dirty:0
+7187194bb000-7187194bc000 r--p 00002000  Rss:4 Pss:4 Shared_Clean:0 Private_Clean:0 Private_Dirty:4
+7187194bc000-7187194bd000 rw-p 00003000  Rss:4 Pss:4 Shared_Clean:0 Private_Clean:0 Private_Dirty:4
+== r
+7125ada20000-7125ada21000 r--p 00000000  Rss:4 Pss:2 Shared_Clean:4 Private_Clean:0 Private_Dirty:0
+7125ada21000-7125ada22000 r-xp 00001000  Rss:4 Pss:2 Shared_Clean:4 Private_Clean:0 Private_Dirty:0
+7125ada22000-7125ada23000 r--p 00002000  Rss:4 Pss:2 Shared_Clean:4 Private_Clean:0 Private_Dirty:0
+7125ada23000-7125ada24000 r--p 00002000  Rss:4 Pss:4 Shared_Clean:0 Private_Clean:0 Private_Dirty:4
+7125ada24000-7125ada25000 rw-p 00003000  Rss:4 Pss:4 Shared_Clean:0 Private_Clean:0 Private_Dirty:4
+```
+
+對照組：只讓 `q` 一個在跑，同一段 `r-xp` 變成：
+
+```text
+730156525000-730156526000 r-xp 00001000  Rss:4 Pss:4 Shared_Clean:0 Private_Clean:4 Private_Dirty:0
+```
+
+`Rss`（Resident Set Size）是這一段實際佔了多少實體記憶體；`Pss`（Proportional Set Size，按比例分攤的大小）是把共用的頁平均分給共用它的行程——兩個行程共用一頁，各算 2 kB。`Shared_*`／`Private_*` 與 `Clean`／`Dirty` 的意思同[第 6 章](#6-兩支程式都用-libcountso記憶體裡是同一份嗎)那張表。
+
+| 段（權限） | 裡面是什麼（`readelf -lW libgreet.so` 的 `Section to Segment mapping`） | `q`、`r` 同時跑 | 只有 `q` | 意思 |
+|---|---|---|---|---|
+| `r-xp` | **`.plt`（`0x1020`）、`.plt.sec`（`say@plt`，`0x1070`）、`.text`（`greet`、`say`）** | `Pss:2`、`Shared_Clean:4` | `Pss:4`、`Private_Clean:4` | **跳板和程式碼是同一個實體頁** |
+| `r--p` 位移 `0x2000` 第二段 | `.got` 等（RELRO） | `Private_Dirty:4` | — | 各自一份 |
+| `rw-p` | **`.got.plt` 的 `say` 那格（`0x4008`）**、`.data`、`.bss` | `Private_Dirty:4` | — | **各自一份** |
+
+逐點讀：
+
+1. **跳板能共用**：`say@plt` 只有一條 `jmp *0x2f8e(%rip)`，用的是「跟自己的距離」，載入到哪個基底都不用改；沒人寫它，所以一直是同一個實體頁。`Pss` 從只有 `q` 時的 4 變成兩個一起跑時的 2，就是這一頁被兩個行程分攤的證據。
+2. **格子在檔案裡是 `0x1040`**（`objdump -s -j .got.plt libgreet.so` 實測 `4008` 那 8 byte 是 `40100000 00000000`）：`.plt` 裡「去叫 `ld.so` 查」那段程式碼的位置，但只是檔案位址。
+3. **第一次寫：載入時**。`ld.so` 把它改成「基底 ＋ `0x1040`」：`q` 的 `0x7187194b9040`、`r` 的 `0x7125ada21040`。一寫就觸發寫入時複製，所以還沒呼叫函式，這一頁就已經是各自一份。
+4. **第二次寫：第一次呼叫時**（延遲綁定）。`ld.so` 查到 `say`，把「基底 ＋ `0x1139`」寫回格子：`q` 是 `0x7187194b9139`、`r` 是 `0x7125ada21139`——**兩個行程的格子裡數字不一樣**，但[第 9 章](#9-虛擬位址怎麼變成實體位址核心準備頁表cpu-的-mmu-翻譯)會看到，它們最後跑的是同一份程式碼。
+
+這也說明延遲綁定為什麼「改格子」而不是「改跳板」：跳板是大家共用的程式碼，一改就要複製、共用就沒了；格子本來就是每個行程各一份，改了不影響別人。
+
+```mermaid
+flowchart LR
+    subgraph Q["行程 q"]
+        direction TB
+        qp["say@plt 跳板<br/>（r-xp）"]
+        qs[".got.plt 的 say 那格<br/>0x7187194b9139"]
+    end
+    subgraph M["實體記憶體"]
+        direction TB
+        code["跳板 ＋ greet ＋ say<br/>的程式碼只有一份<br/>（兩邊 Pss 各 2 kB）"]
+        sq["q 的 .got.plt 那頁<br/>（Private_Dirty）"]
+        sr["r 的 .got.plt 那頁<br/>（Private_Dirty）"]
+    end
+    subgraph R["行程 r"]
+        direction TB
+        rp["say@plt 跳板<br/>（r-xp）"]
+        rs[".got.plt 的 say 那格<br/>0x7125ada21139"]
+    end
+    qp --- code
+    qs --- sq
+    code --- rp
+    sr --- rs
+```
+
+這張圖要看的是：**兩邊的跳板連到中間同一格，`.got.plt` 各連到自己的一格**，跟[第 6 章](#6-兩支程式都用-libcountso記憶體裡是同一份嗎)變數那張圖（`.text` 共用、`.got`／`.bss` 各一份）是同一個樣子。
+
+### 8. `ld.so` 填進格子的是什麼：這個行程裡的虛擬位址
+
+> 2026-10-26 課後提問：「所以你的這步其實是說ld.so查到say在這個行程的虛擬位址,然後把他填入到.got.plt?」（指第 7 章第 4 點與第一次呼叫的流程）
+
+[第 7 章](#7-函式那邊plt-跳板共用gotplt-每個行程各一份)的第 4 點：「`ld.so` 查到 `say`」查的是什麼？它手上只有兩樣東西，兩者相加就是要填的值：
+
+```text
+格子要填的值 ＝ 找到 say 的那個檔案在這個行程裡的載入基底 ＋ say 在那個檔案裡的位置
+```
+
+- **`say` 在檔案裡的位置**：每個 `.so`、執行檔都有一張動態符號表（`.dynsym`），記著符號相對於檔案開頭的位置；`ld.so` 照「先執行檔、再依 `NEEDED` 順序找各個 `.so`」一張一張查（[第四節〈為什麼不能直接用固定距離：`counter` 最後不一定是這一份〉](#為什麼不能直接用固定距離counter-最後不一定是這一份)）。
+- **那個檔案的載入基底**：`.so` 是 `ld.so` 自己映射進來的，它當然知道映射在哪裡。
+
+`LD_DEBUG=bindings` 讓 `ld.so` 印出它把 `say` 接到哪個檔案（`LD_DEBUG` 全部選項見第七節），對照 `nm -D` 的位置：
+
+```text
+$ nm -D libgreet.so | grep -w say
+0000000000001139 T say
+$ LD_DEBUG=bindings ./q
+     30213:	binding file ./libgreet.so [0] to ./libgreet.so [0]: normal symbol `say'
+q: 格子在 0x7fa4bf07b008，呼叫前裝 0x7fa4bf078040
+q: 呼叫後裝 0x7fa4bf078139
+```
+
+`binding file A to B` 是「A 裡要用的 `say`，接到 B 定義的那一個」：`libgreet.so` 用的 `say` 就在 `libgreet.so` 自己裡面。這次的基底是 `0x7fa4bf078040 − 0x1040 ＝ 0x7fa4bf077000`，填進去的 `0x7fa4bf078139` ＝ `0x7fa4bf077000 ＋ 0x1139`。
+
+把第一次呼叫的流程完整寫一次（[第 4 章](#4-plt-存函式位址got-存變數位址嗎plt-是跳板以及延遲綁定)〈那為什麼函式要多一層跳板？延遲綁定〉的精確版）：
+
+1. `greet` 執行 `call say@plt`，跳到 `.plt.sec` 的跳板。
+2. 跳板執行 `jmp *(.got.plt 那格)`：**照格子裡的位址跳**，不判斷格子是不是「空的」。
+3. 第一次時格子裝的是載入時填的「基底 ＋ `0x1040`」，所以這一跳就跳進 `.plt` 裡叫 `ld.so` 的程式碼。
+4. `ld.so` 算出「基底 ＋ `0x1139`」，寫回格子，再跳到 `say`。
+5. 第二次以後，格子裡已經是 `say` 的位址，跳板一跳就到，`ld.so` 不再出現。
+
+`ld.so` 從頭到尾只碰虛擬位址；它不知道、也不需要知道這些位址最後對到哪個實體頁。
+
+### 9. 虛擬位址怎麼變成實體位址：核心準備頁表，CPU 的 MMU 翻譯
+
+> 2026-10-26 課後提問：「那這樣說的話我們在gdb看到的是否都是虛擬記憶體位址,並不是真實的?」（另外問：虛擬位址轉成實體位址「這個轉換由kernel或是cpu來做?」）
+
+`q` 跳到 `0x7187194b9139`、`r` 跳到 `0x7125ada21139`，兩個不同的數字最後執行到同一份程式碼，中間的翻譯分兩個角色：
+
+| 誰 | 做什麼 | 什麼時候 |
+|---|---|---|
+| **核心（kernel）** | 替**每個行程**建立、維護一張頁表（page table）：哪個虛擬頁對到哪個實體頁、權限是什麼（`r-x`、`rw-`）。映射檔案、處理分頁錯誤（page fault）、做寫入時複製，都是核心的事 | 映射時、第一次碰到某頁時、寫入共用頁時 |
+| **CPU 的 MMU**（Memory Management Unit，記憶體管理單元） | **每一次**讀寫記憶體、取指令，都照目前行程的頁表把虛擬位址翻成實體位址；翻過的結果暫存在 TLB（Translation Lookaside Buffer，轉譯後援緩衝區）加速 | 每一條存取記憶體或跳躍的指令 |
+
+所以 `jmp` 那一刻是 CPU 自動翻譯，核心不必介入；只有頁表裡查不到（還沒載入的頁）或權限不符（寫到唯讀、要做寫入時複製的頁）時，CPU 觸發分頁錯誤，才交給核心處理。
+
+```mermaid
+flowchart LR
+    qa["q 的格子：0x7187194b9139"] --> qt["q 的頁表<br/>（核心建、MMU 查）"]
+    ra["r 的格子：0x7125ada21139"] --> rt["r 的頁表<br/>（核心建、MMU 查）"]
+    qt --> phys["同一個實體頁：<br/>libgreet.so 的 say"]
+    rt --> phys
+```
+
+**gdb 看到的全都是虛擬位址**：`$rip`、`p &counter`、`x/gx`、`info proc mappings` 的範圍、`break *0x…`，全是被除錯那個行程的虛擬位址。但與其說它們「不是真實的」，不如說**虛擬位址就是這個行程唯一看得到、也唯一能用的位址**——每條指令用的都是它。兩個證據：
+
+- gdb 預設關掉 ASLR，所以分別用 gdb 跑 `q` 和 `r`，`p say` 都印 `0x7ffff7fb7139 <say>`——數字一樣，但那是兩個行程各自的位址空間、各自的頁表，只是基底剛好相同：
+
+  ```text
+  $ gdb -q -batch -ex 'break greet' -ex run -ex 'p say' ./q
+  $1 = {<text variable, no debug info>} 0x7ffff7fb7139 <say>
+  $ gdb -q -batch -ex 'break greet' -ex run -ex 'p say' ./r
+  $1 = {<text variable, no debug info>} 0x7ffff7fb7139 <say>
+  ```
+
+- 一般程式拿不到實體位址。`/proc/self/pagemap` 每個虛擬頁有一筆 8 byte 的紀錄，第 63 位元是「這頁在不在記憶體」，低 55 位元是實體頁框號（PFN，Page Frame Number）；但沒有 `CAP_SYS_ADMIN` 權限時，核心把 PFN 遮成 0（Linux 4.0 起，因為實體位址可以被拿來發動 Rowhammer 這類攻擊）。`pfn.c`（檔案：[`pfn.c`](../small-project/s1-07-libraries/examples/share/pfn.c)）完整原始碼：
+
+  ```c
+  #include <fcntl.h>
+  #include <stdint.h>
+  #include <stdio.h>
+  #include <unistd.h>
+
+  int main(void)
+  {
+      static char buf[4096];
+      buf[0] = 'x';                                    /* 寫一下，確保這頁真的配了實體頁 */
+      uintptr_t va = (uintptr_t)buf;
+      uint64_t e;
+      int fd = open("/proc/self/pagemap", O_RDONLY);   /* 每個虛擬頁一筆 8 byte 的紀錄 */
+      pread(fd, &e, sizeof e, (va / 4096) * 8);
+      printf("虛擬位址 %#lx：present=%lu  PFN=%lu\n",
+             (unsigned long)va, (unsigned long)(e >> 63), (unsigned long)(e & ((1ULL << 55) - 1)));
+      close(fd);
+      return 0;
+  }
+  ```
+
+  ```text
+  $ gcc -Wall pfn.c -o pfn && ./pfn
+  虛擬位址 0x6535b6d71040：present=1  PFN=0
+  ```
+
+  `present=1` 看得到，`PFN` 卻是 0。（`sudo ./pfn` 會印出真的頁框號——需要 root，未實測。）
+
+### 10. 整理：四個容易搞錯的地方
+
+> 2026-10-26 課後提問（使用者整理自己的理解，請 Claude 檢查）：「我解釋一下你看對不對,在so 裏有 全域變數counter, 也有 函式bump 這個so存在某個實體記憶體位址,不管是 p 還是 q都共用他……是這個意思吧」
+
+討論過程中出現過的四個說法，對照實驗修正：
+
+| 說法 | 實際上 | 證據 |
+|---|---|---|
+| 整個 `.so` 在實體記憶體裡只有一份，大家共用 | 只有**沒被寫過的頁**共用（程式碼、跳板、唯讀資料）；`.got`、`.got.plt`、`.data`／`.bss` 被寫過，各自一份 | `smaps`：`r-xp` 是 `Shared_Clean`，`rw-p` 是 `Private_Dirty`；`a` 的 `counter` 是 1、`b` 的是 3（[第 6 章](#6-兩支程式都用-libcountso記憶體裡是同一份嗎)） |
+| `ld.so` 執行時替 `counter` 找一個位置放 | 位置是**檔案版面**決定的（`counter` 在 `libcount.so` 的 `0x400c`）；`ld.so` 只決定整個檔案映射到哪個基底，再把「基底 ＋ `0x400c`」填進 `.got` | `nm -D libcount.so` 的 `000000000000400c B counter`；gdb 的 `&counter` ＝ 基底 ＋ `0x400c`（[第 1 章](#1-0x2ec8-和-0x3fd0-各是什麼mov-0x2ec8riprax-的兩個數字)） |
+| 第一次呼叫時 `.got.plt` 那格是空的 | 載入時就填了「基底 ＋ `0x1040`」，指向 `.plt` 裡叫 `ld.so` 的程式碼；跳板只是照格子跳 | 呼叫前印出的 `0x7187194b9040` |
+| `ld.so` 把 `say` 的實體位址寫進格子 | 寫的是**這個行程的虛擬位址**；每個行程基底不同，數字就不同；翻成實體位址是 MMU 照頁表做的 | `q`、`r` 的格子 `0x…b9139` vs `0x…21139`；`pagemap` 的 PFN 是 0 |
+
+**一句話結論：多個行程共用的是「沒被寫過的頁」——程式碼和 PLT 跳板；每個行程各一份的是被寫過的頁——`.got`、`.got.plt` 和全域變數。位址表裡記的全是「這個行程自己的虛擬位址」，翻成實體位址是 CPU 照核心準備的頁表做的，程式（包括 `ld.so`、gdb）看不到實體位址。`.h` 只在編譯時給宣告、型別和巨集，跟「接上 `.so`」無關。**
+
+### 11. 做 `.so` 需要 `.h` 嗎？`#include` 管編譯、`-l` 管連結
+
+> 2026-10-26 課後提問：
+>
+> - 「greet.c, count.c這個會被main引用的,爲什麼都不加.h了? 做so不需要h嗎?」
+> - 「那爲什麼我在用libc.so.6 要用stdio.h?」
+>
+> 正文出處：[第四節〈為什麼一定要 `-fPIC`：先看不加會怎樣〉](#為什麼一定要--fpic先看不加會怎樣)的 `count.c`
+
+正文的 `count.c`、[第 4 章](#4-plt-存函式位址got-存變數位址嗎plt-是跳板以及延遲綁定)的 `greet.c` 都沒有 `.h`，呼叫端直接在自己的檔案裡寫宣告（`int bump(void);`、`void greet(void);`）。這是為了讓範例短一點——**做 `.so`、連結、執行時接線都用不到 `.h`**，`.h` 只在**編譯呼叫端**時派上用場。第 1 課〈[第 2 題：刪掉 `#include` 為什麼只是警告，程式還能跑？](./hello.c怎麼變成能跑的程式-編譯的四個階段.md#第-2-題刪掉-include-為什麼只是警告程式還能跑部分教過關鍵一句沒明講)〉和第 6 課〈[`#include` 只是貼上](./多檔案的C程式-標頭檔、static與extern、連結錯誤與make.md#include-只是貼上)〉教過：`#include` 就是把檔案內容貼進來，所以「自己寫宣告」和「`#include` 一個寫了同樣宣告的 `.h`」，編譯器看到的東西一模一樣。
 
 | 階段 | 用到什麼 | 用不用 `.h` |
 |---|---|---|
