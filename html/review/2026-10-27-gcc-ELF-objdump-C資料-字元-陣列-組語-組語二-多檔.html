@@ -12,8 +12,9 @@
 <div class="layout">
 <nav class="side">
 <div class="crumbs"><a href="../index.html">🏠 首頁</a> / <a href="README.html">review</a></div>
-<div class="tools"><button onclick="toggleTheme()">🌓 主題</button><button onclick="toggleBoxes(true)">展開作答框</button><button onclick="toggleBoxes(false)">收起作答框</button></div>
+<div class="tools"><button onclick="toggleTheme()">🌓 主題</button><button onclick="toggleAnswers(true)">展開答案</button><button onclick="toggleAnswers(false)">收起答案</button><button onclick="toggleBoxes(true)">展開作答框</button><button onclick="toggleBoxes(false)">收起作答框</button></div>
 <ul>
+<li class="l2"><a href="#%E6%89%B9%E6%94%B9%E7%B5%90%E6%9E%9C2026-10-27">批改結果（2026-10-27）</a></li>
 <li class="l2"><a href="#%E4%BB%8A%E5%A4%A9%E7%9A%84%E9%A1%8C%E7%9B%AE">今天的題目</a></li>
 <li class="l2"><a href="#gccgcc%E6%9C%80%E4%BD%B3%E5%8C%96%E7%AD%89%E7%B4%9A-o0%E5%88%B0o3%E5%B7%AE%E5%9C%A8%E5%93%AA">gcc：gcc最佳化等級-O0到O3差在哪</a></li>
 <li class="l3"><a href="#gcc-2-%E7%82%BA%E4%BB%80%E9%BA%BC--o0-%E7%9A%84%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E6%AF%8F%E4%B8%80%E5%9C%88%E9%83%BD%E5%9C%A8%E8%AE%80%E5%AF%AB%E8%A8%98%E6%86%B6%E9%AB%94-4rbp%E8%80%8C--o2-%E4%B8%8D%E6%9C%83%E9%80%99%E5%80%8B%E5%B7%AE%E5%88%A5%E5%B0%8D-gdb-%E6%9C%89%E4%BB%80%E9%BA%BC%E5%BD%B1%E9%9F%BF">gcc 2. 為什麼 -O0 的組合語言每一圈都在讀寫記憶體（-4(%rbp)），而 -O2 不會？這個差別對 gdb 有什麼影響？</a></li>
@@ -51,6 +52,314 @@
 <p>依<a href="../learning/%E8%A4%87%E7%BF%92%E6%8E%92%E7%A8%8B.html">複習排程</a>出今天到期的全部題目（每天出完所有到期題，2026-10-23 起的規則），共 <strong>19 題</strong>（55 個作答框），沒有過期的。其中 17 題是 10-24 答對、排在今天的盒子 2；C資料 10 是 10-20 答對、排在今天的盒子 3；組語 18 是 10-26 不完整、回到盒子 1（18-4 用兩個進位說明 OF）。題目依筆記分節、節內照題號排；每題照原題複製，用到的程式碼與實驗步驟都附在題目裡，「過去的作答」連到之前每一次作答（含批改與參考答案）。</p>
 <p><strong>怎麼寫</strong>：闔上筆記，每題寫 1～2 句關鍵句就好。可以分幾次寫，寫完一部分就可以先說「幫我批改」。複習不重答，批改會直接附參考答案。已拆小題的題目，每個小題一個作答框；以大題為單位排程，小題全對才算對。</p>
 </blockquote>
+<h2 id="批改結果2026-10-27">批改結果（2026-10-27）</h2>
+<table>
+<thead>
+<tr>
+<th>題目</th>
+<th>結果</th>
+<th>盒子</th>
+<th>下次</th>
+<th>錯在哪／缺什麼</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>gcc 2</td>
+<td>對</td>
+<td>2 → 3</td>
+<td>11-03</td>
+<td>抓到：堆疊每圈讀寫 vs 暫存器、gdb 行號跳與 <code>&lt;optimized out&gt;</code></td>
+</tr>
+<tr>
+<td>gcc 5</td>
+<td>對</td>
+<td>2 → 3</td>
+<td>11-03</td>
+<td>抓到：<code>-O0</code> 重編；kernel 不能 <code>-O0</code>、用 <code>printk</code>（理由寫成「迴圈擴展」不準，應是依賴內嵌與刪除死碼）</td>
+</tr>
+<tr>
+<td>ELF 4</td>
+<td>對</td>
+<td>2 → 3</td>
+<td>11-03</td>
+<td>抓到：區段給 <code>ld</code>、載入段給核心；權限以分頁為單位</td>
+</tr>
+<tr>
+<td>objdump 4</td>
+<td>對</td>
+<td>2 → 3</td>
+<td>11-03</td>
+<td>抓到：<code>objdump -p</code>；本機載入器處理不了 ARM → <code>not a dynamic executable</code></td>
+</tr>
+<tr>
+<td>C資料 4</td>
+<td>大致對</td>
+<td>2 → 2</td>
+<td>10-30</td>
+<td>UB、兩種結果、不是 bug、選項名對；<code>-fno-strict-overflow</code> 的作用寫錯：不是「打標籤」，是讓有號溢位照二補數回繞、變成有定義</td>
+</tr>
+<tr>
+<td>C資料 6</td>
+<td>對</td>
+<td>2 → 3</td>
+<td>11-03</td>
+<td>抓到：8 byte、上面 16 bit 是 0 不印、<code>ffff</code> 是 kernel</td>
+</tr>
+<tr>
+<td>C資料 9</td>
+<td>大致對</td>
+<td>2 → 2</td>
+<td>10-30</td>
+<td>第一、二問對（改判：第一問的後果改當補充）；第三問改寫 <code>y &lt; 0</code> 對，缺「UB → gcc 假設不溢位才能改寫」</td>
+</tr>
+<tr>
+<td>C資料 10</td>
+<td>大致對</td>
+<td>3 → 3</td>
+<td>11-03</td>
+<td>真假、型別、警告都對；轉 <code>long</code> 的依據說成「等級高」，缺「<code>long</code> 裝得下所有 <code>unsigned int</code>」（跟 10-20 小提醒同一點）</td>
+</tr>
+<tr>
+<td>字元 5</td>
+<td>對</td>
+<td>2 → 3</td>
+<td>11-03</td>
+<td>抓到：3／1、<code>strlen</code> 3、<code>mbstowcs</code> 1、<code>(size_t)-1</code></td>
+</tr>
+<tr>
+<td>陣列 4-1</td>
+<td>對</td>
+<td></td>
+<td></td>
+<td>抓到：三種下場與各自的條件</td>
+</tr>
+<tr>
+<td>陣列 4-2</td>
+<td>對</td>
+<td>2 → 3（整題）</td>
+<td>11-03</td>
+<td>抓到：沒人檢查、結果錯照樣跑完</td>
+</tr>
+<tr>
+<td>陣列 7-1</td>
+<td>對（補登）</td>
+<td></td>
+<td></td>
+<td>抓到：22（作答時沒存到，批改後補貼）</td>
+</tr>
+<tr>
+<td>陣列 7-2</td>
+<td>對</td>
+<td></td>
+<td></td>
+<td>抓到：只有前 6 個能碰</td>
+</tr>
+<tr>
+<td>陣列 7-3</td>
+<td>對</td>
+<td></td>
+<td></td>
+<td>抓到：21</td>
+</tr>
+<tr>
+<td>陣列 7-4</td>
+<td>對</td>
+<td>2 → 3（整題）</td>
+<td>11-03</td>
+<td>抓到：全能碰已寫成 <code>00</code>（整題原記大致對，7-1 補登後改為對）</td>
+</tr>
+<tr>
+<td>組語 7-1</td>
+<td>對</td>
+<td></td>
+<td></td>
+<td>抓到：高 7 byte 是垃圾</td>
+</tr>
+<tr>
+<td>組語 7-2</td>
+<td>對</td>
+<td></td>
+<td></td>
+<td>抓到：<code>0x556677ff</code></td>
+</tr>
+<tr>
+<td>組語 7-3</td>
+<td>對</td>
+<td></td>
+<td></td>
+<td>抓到：正數</td>
+</tr>
+<tr>
+<td>組語 7-4</td>
+<td>對</td>
+<td>2 → 3（整題）</td>
+<td>11-03</td>
+<td>抓到：高 3 byte 的垃圾讓結果不是 −1</td>
+</tr>
+<tr>
+<td>組語 11-1</td>
+<td>對</td>
+<td></td>
+<td></td>
+<td>抓到：<code>*</code> 後面是算位址的式子</td>
+</tr>
+<tr>
+<td>組語 11-2</td>
+<td>對</td>
+<td></td>
+<td></td>
+<td>抓到：不是 C 的取值</td>
+</tr>
+<tr>
+<td>組語 11-3</td>
+<td>對</td>
+<td>2 → 3（整題）</td>
+<td>11-03</td>
+<td>抓到：<code>endbr64</code> vs 跳過準備工作</td>
+</tr>
+<tr>
+<td>組語 15-1</td>
+<td>對</td>
+<td></td>
+<td></td>
+<td>抓到：要借、CF ＝ 1</td>
+</tr>
+<tr>
+<td>組語 15-2</td>
+<td>對</td>
+<td></td>
+<td></td>
+<td>抓到：251、差 256</td>
+</tr>
+<tr>
+<td>組語 15-3</td>
+<td>對</td>
+<td>2 → 3（整題）</td>
+<td>11-03</td>
+<td>抓到：沒進位 ＝ 有借位 ＝ CF 1（最後一句易誤讀，見小修）</td>
+</tr>
+<tr>
+<td>組語 18-1</td>
+<td>對</td>
+<td></td>
+<td></td>
+<td>抓到：進位傳進第 7 位、沒有往外</td>
+</tr>
+<tr>
+<td>組語 18-2</td>
+<td>對（改判）</td>
+<td></td>
+<td></td>
+<td>抓到：CF 只看第 7 位往外、OF ＝ 1。原判缺 OF 的理由；題目只問 CF 的為什麼，改判</td>
+</tr>
+<tr>
+<td>組語 18-3</td>
+<td>對</td>
+<td></td>
+<td></td>
+<td>抓到：沒往外進位、沒溢位</td>
+</tr>
+<tr>
+<td>組語 18-4</td>
+<td>對</td>
+<td>1 → 2（整題）</td>
+<td>10-30</td>
+<td>抓到：進 1、出 1，XOR 得 0（10-26 不完整的這次對了）</td>
+</tr>
+<tr>
+<td>組語二 1-1</td>
+<td>對</td>
+<td></td>
+<td></td>
+<td>抓到：推返回位址＋跳</td>
+</tr>
+<tr>
+<td>組語二 1-2</td>
+<td>對</td>
+<td></td>
+<td></td>
+<td>抓到：頂端當位址跳、<code>%rsp</code> 加 8</td>
+</tr>
+<tr>
+<td>組語二 1-3</td>
+<td>對</td>
+<td></td>
+<td></td>
+<td>抓到：<code>ret</code> 不知道，只拿頂端</td>
+</tr>
+<tr>
+<td>組語二 1-4</td>
+<td>對</td>
+<td>2 → 3（整題）</td>
+<td>11-03</td>
+<td>抓到：照跳、通常 segfault</td>
+</tr>
+<tr>
+<td>組語二 4-1</td>
+<td>對</td>
+<td></td>
+<td></td>
+<td>抓到：caller-saved／callee-saved、備份 <code>%rbx</code></td>
+</tr>
+<tr>
+<td>組語二 4-2</td>
+<td>對</td>
+<td>2 → 3（整題）</td>
+<td>11-03</td>
+<td>抓到：<code>call f</code> 推的 8 byte、再補 8（第 1 點跟這題無關）</td>
+</tr>
+<tr>
+<td>多檔 3-1</td>
+<td>對</td>
+<td></td>
+<td></td>
+<td>抓到：<code>LOCAL</code>；<code>.bss</code>／<code>.data</code>、不消失</td>
+</tr>
+<tr>
+<td>多檔 3-2</td>
+<td>對</td>
+<td></td>
+<td></td>
+<td>抓到：<code>LOCAL</code> 不配對、拿掉後兩個 <code>GLOBAL</code></td>
+</tr>
+<tr>
+<td>多檔 3-3</td>
+<td>對</td>
+<td>2 → 3（整題）</td>
+<td>11-03</td>
+<td>抓到：<code>.bss</code> vs 堆疊</td>
+</tr>
+<tr>
+<td>多檔 4-1</td>
+<td>對</td>
+<td></td>
+<td></td>
+<td>抓到：兩個 <code>.o</code> 各一份定義</td>
+</tr>
+<tr>
+<td>多檔 4-2</td>
+<td>對</td>
+<td></td>
+<td></td>
+<td>抓到：guard 只管一個編譯單元</td>
+</tr>
+<tr>
+<td>多檔 4-3</td>
+<td>對</td>
+<td></td>
+<td></td>
+<td>抓到：<code>extern</code> 宣告＋<code>hits.c</code> 定義</td>
+</tr>
+<tr>
+<td>多檔 4-4</td>
+<td>對</td>
+<td>2 → 3（整題）</td>
+<td>11-03</td>
+<td>抓到：<code>-fcommon</code>、合併成一份（筆誤 <code>helper</code> → <code>hits</code>）</td>
+</tr>
+</tbody>
+</table>
 <h2 id="今天的題目">今天的題目</h2>
 <table>
 <thead>
@@ -257,15 +566,55 @@
 <blockquote>
 <p>題目：為什麼 <code>-O0</code> 的組合語言每一圈都在讀寫記憶體（<code>-4(%rbp)</code>），而 <code>-O2</code> 不會？這個差別對 <code>gdb</code> 有什麼影響？</p>
 </blockquote>
-<details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="review/2026-10-27-gcc-ELF-objdump-C資料-字元-陣列-組語-組語二-多檔.md" data-line="123"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
+<div class="answer-box locked"><textarea readonly spellcheck="false">-O0就是沒有做任何最佳化,所以會把區域變數存在堆疊裏(記憶體),每個迴圈都在更新-4(%rbp)
+但-O2 就是針對速度做了最佳化,把迴圈擴展,並把區域變數存在了寄存器
+
+-O0 因爲變數存在記憶體內,所以gdb可以打印出變數,而且每一行程式碼可以找到對應一段的組合語言
+-O2 因爲使用寄存器的關係,打印變數遇到optimized out是常態,因爲寄存器存的東西常常變化
+而且行數會亂跳
+</textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
+<details class="answer"><summary>批改</summary>
+<p><strong>對</strong>。抓到：<code>-O0</code> 區域變數放在堆疊、每圈都讀寫 <code>-4(%rbp)</code>；<code>-O2</code> 放在暫存器；gdb 上 <code>-O0</code> 每一行對得到一段指令、變數印得出來，<code>-O2</code> 行號亂跳、<code>&lt;optimized out&gt;</code> 是常態。小修（不扣分）：<code>&lt;optimized out&gt;</code> 不是因為「暫存器的內容常變」本身，而是變數<strong>沒有固定的家</strong>——值只在某一段指令裡待在某個暫存器，之後那個暫存器拿去放別的、或整個被算掉，除錯資訊在那個位置就說不出它在哪。</p>
+<details class="answer"><summary>參考答案</summary>
+<p>【<a href="../c/gcc%E6%9C%80%E4%BD%B3%E5%8C%96%E7%AD%89%E7%B4%9A-O0%E5%88%B0O3%E5%B7%AE%E5%9C%A8%E5%93%AA.html#%E4%BA%8C%E5%AF%A6%E9%A9%97%E5%90%8C%E4%B8%80%E6%AE%B5%E7%A8%8B%E5%BC%8F%E4%B8%8D%E5%90%8C%E7%AD%89%E7%B4%9A%E7%B7%A8%E5%87%BA%E4%BB%80%E9%BA%BC">第二節</a>、<a href="../c/gcc%E6%9C%80%E4%BD%B3%E5%8C%96%E7%AD%89%E7%B4%9A-O0%E5%88%B0O3%E5%B7%AE%E5%9C%A8%E5%93%AA.html#%E4%B8%89%E7%82%BA%E4%BB%80%E9%BA%BC%E9%99%A4%E9%8C%AF%E8%A6%81%E7%94%A8--o0">第三節</a>】</p>
+<p><strong>核心關鍵</strong>：</p>
+<ol>
+<li><code>-O0</code> 不最佳化、照字面翻譯：每個變數都有<strong>固定的記憶體位置</strong>（<code>i</code> 是 <code>-4(%rbp)</code>、<code>total</code> 是 <code>-8(%rbp)</code>），每條語句都從記憶體讀、再寫回記憶體。</li>
+<li><code>-O2</code> 把變數留在<strong>暫存器</strong>（<code>i</code> 在 <code>%eax</code>、<code>total</code> 在 <code>%edx</code>），迴圈裡完全不碰記憶體。</li>
+<li>對 gdb 的影響：<code>-O0</code> 原始碼的每一行都對得到一段指令，變數隨時印得出來；<code>-O2</code> 行號會跳、指令被重排，變數可能顯示 <code>&lt;optimized out&gt;</code>。</li>
+</ol>
+<p><strong>詳細說明</strong>：<code>-O2</code> 版裡的 <code>andl $1, %edi</code> 不是計數，是在進迴圈前判斷 <code>n</code> 的奇偶，好讓迴圈一圈加兩個數。第三節的實測：<code>-O2</code> 停下來時跳過了第 3 行；只走兩行，<code>total</code> 就已經是 3；被內嵌進 <code>main</code> 的那一份變數全是 <code>&lt;optimized out&gt;</code>。所以學習、單步除錯用 <code>-O0 -g</code>，日常開發用 <code>-Og -g</code>。</p>
+</details>
+</details>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="review/2026-10-27-gcc-ELF-objdump-C資料-字元-陣列-組語-組語二-多檔.md" data-line="190" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h3 id="gcc-5-情境題你在自己的程式裡用--o2-編譯gdb-印某個變數時顯示-optimized-out你會怎麼處理如果是在-kernel-裡遇到同樣的狀況處理方式又有什麼不同">gcc 5. 情境題：你在自己的程式裡用 <code>-O2</code> 編譯，<code>gdb</code> 印某個變數時顯示 <code>&lt;optimized out&gt;</code>。你會怎麼處理？如果是在 kernel 裡遇到同樣的狀況，處理方式又有什麼不同？</h3>
 <blockquote>
 <p>盒子 2｜過去的作答：<a href="../small-project/s1-01-hello-compile/quiz.html#5-%E6%83%85%E5%A2%83%E9%A1%8C%E4%BD%A0%E5%9C%A8%E8%87%AA%E5%B7%B1%E7%9A%84%E7%A8%8B%E5%BC%8F%E8%A3%A1%E7%94%A8--o2-%E7%B7%A8%E8%AD%AFgdb-%E5%8D%B0%E6%9F%90%E5%80%8B%E8%AE%8A%E6%95%B8%E6%99%82%E9%A1%AF%E7%A4%BA-optimized-out%E4%BD%A0%E6%9C%83%E6%80%8E%E9%BA%BC%E8%99%95%E7%90%86%E5%A6%82%E6%9E%9C%E6%98%AF%E5%9C%A8-kernel-%E8%A3%A1%E9%81%87%E5%88%B0%E5%90%8C%E6%A8%A3%E7%9A%84%E7%8B%80%E6%B3%81%E8%99%95%E7%90%86%E6%96%B9%E5%BC%8F%E5%8F%88%E6%9C%89%E4%BB%80%E9%BA%BC%E4%B8%8D%E5%90%8C">s1-01 quiz.md 第 5 題</a>、<a href="2026-10-06-%E5%AD%97%E5%85%83-interp-ELF-gcc-GNU.html">10-06 複習</a>、<a href="2026-10-16-interp-ELF-gcc-GNU-%E9%99%A3%E5%88%97-C%E8%B3%87%E6%96%99.html">10-16 複習</a>、<a href="2026-10-23-%E5%A4%A7%E8%A4%87%E7%BF%92-hello-gcc-GNU-interp-ELF-objdump-C%E8%B3%87%E6%96%99-%E5%AD%97%E5%85%83-%E9%99%A3%E5%88%97-%E7%B5%84%E8%AA%9E-%E7%B5%84%E8%AA%9E%E4%BA%8C-%E5%A4%9A%E6%AA%94.html">10-23 複習</a>、<a href="2026-10-24-gcc-GNU-ELF-objdump-C%E8%B3%87%E6%96%99-%E5%AD%97%E5%85%83-%E9%99%A3%E5%88%97-%E7%B5%84%E8%AA%9E-%E7%B5%84%E8%AA%9E%E4%BA%8C-%E5%A4%9A%E6%AA%94.html">10-24 複習</a></p>
 </blockquote>
-<details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="review/2026-10-27-gcc-ELF-objdump-C資料-字元-陣列-組語-組語二-多檔.md" data-line="130"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
+<div class="answer-box locked"><textarea readonly spellcheck="false">改成用-O0編譯,因爲這樣變數就會存在記憶體了,能夠打印出來
+
+kernel不能用-O0編譯,他裏面有太多的死碼與迴圈擴展,所以只能用printk的方法直接把想看的變數print出來
+</textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
+<details class="answer"><summary>批改</summary>
+<p><strong>對</strong>。抓到：自己的程式改用 <code>-O0</code> 重編；kernel 不能 <code>-O0</code>，改用 <code>printk</code>。小修（不扣分）：kernel 不能 <code>-O0</code> 的理由寫成「太多死碼與迴圈擴展」不準——是 kernel <strong>依賴</strong>編譯器做內嵌（inline）與刪除死碼才編得過，跟迴圈展開無關（10-24 也是這句寫歪）。</p>
+<details class="answer"><summary>參考答案</summary>
+<p>【<a href="../c/gcc%E6%9C%80%E4%BD%B3%E5%8C%96%E7%AD%89%E7%B4%9A-O0%E5%88%B0O3%E5%B7%AE%E5%9C%A8%E5%93%AA.html#%E4%B8%89%E7%82%BA%E4%BB%80%E9%BA%BC%E9%99%A4%E9%8C%AF%E8%A6%81%E7%94%A8--o0">第三節</a>、<a href="../c/gcc%E6%9C%80%E4%BD%B3%E5%8C%96%E7%AD%89%E7%B4%9A-O0%E5%88%B0O3%E5%B7%AE%E5%9C%A8%E5%93%AA.html#%E5%9B%9B%E8%B7%9F-kernel-%E7%9A%84%E9%97%9C%E4%BF%82">第四節</a>】</p>
+<p><strong>核心關鍵</strong>：</p>
+<ol>
+<li>自己的程式：用 <code>-O0 -g</code>（或 <code>-Og -g</code>）重編，變數有固定位置，gdb 就印得出來；不能重編時，加 <code>printf</code> 把值印出來。</li>
+<li>kernel：<strong>不能用 <code>-O0</code> 編</strong>（kernel 依賴編譯器一定會做的內嵌與刪除死碼才編得過），<code>&lt;optimized out&gt;</code> 是常態；只能改用 <code>printk</code>、tracing 這類方法觀察，並學會讀最佳化後的組合語言。</li>
+</ol>
+<p><strong>詳細說明</strong>：kernel 不連結 libc，沒有 <code>printf</code>，也沒有 stdout；<code>printk</code> 的訊息寫進 kernel 的紀錄緩衝區，用 <code>dmesg</code> 看。一句話：自己的程式可以「改編譯方式」，kernel 只能「改觀察方式」。</p>
+</details>
+</details>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="review/2026-10-27-gcc-ELF-objdump-C資料-字元-陣列-組語-組語二-多檔.md" data-line="211" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <hr />
 <h2 id="elfelf是什麼-可執行與可連結格式的兩種視角">ELF：<a href="../c/ELF%E6%98%AF%E4%BB%80%E9%BA%BC-%E5%8F%AF%E5%9F%B7%E8%A1%8C%E8%88%87%E5%8F%AF%E9%80%A3%E7%B5%90%E6%A0%BC%E5%BC%8F%E7%9A%84%E5%85%A9%E7%A8%AE%E8%A6%96%E8%A7%92.html">ELF是什麼-可執行與可連結格式的兩種視角</a></h2>
@@ -273,8 +622,27 @@
 <blockquote>
 <p>盒子 2｜過去的作答：<a href="../small-project/s1-01-hello-compile/quiz.html#4-%E5%8D%80%E6%AE%B5section%E5%92%8C%E8%BC%89%E5%85%A5%E6%AE%B5segment%E5%B7%AE%E5%9C%A8%E5%93%AA%E7%82%BA%E4%BB%80%E9%BA%BC%E6%A0%B8%E5%BF%83%E8%BC%89%E5%85%A5%E6%99%82%E8%A6%81%E6%8A%8A%E5%BE%88%E5%A4%9A%E5%8D%80%E6%AE%B5%E6%89%93%E5%8C%85%E6%88%90%E5%B0%91%E6%95%B8%E5%B9%BE%E5%80%8B%E8%BC%89%E5%85%A5%E6%AE%B5">s1-01 quiz.md 第 4 題</a>、<a href="2026-10-04-%E5%AD%97%E5%85%83-C%E8%B3%87%E6%96%99-objdump-hello-ELF.html">10-04 複習</a>、<a href="2026-10-08-%E5%AD%97%E5%85%83-C%E8%B3%87%E6%96%99-objdump-hello-ELF-%E9%99%A3%E5%88%97.html#elf-4-%E5%8D%80%E6%AE%B5section%E5%92%8C%E8%BC%89%E5%85%A5%E6%AE%B5segment%E5%B7%AE%E5%9C%A8%E5%93%AA%E7%82%BA%E4%BB%80%E9%BA%BC%E6%A0%B8%E5%BF%83%E8%BC%89%E5%85%A5%E6%99%82%E8%A6%81%E6%8A%8A%E5%BE%88%E5%A4%9A%E5%8D%80%E6%AE%B5%E6%89%93%E5%8C%85%E6%88%90%E5%B0%91%E6%95%B8%E5%B9%BE%E5%80%8B%E8%BC%89%E5%85%A5%E6%AE%B5">10-08 複習</a>、<a href="2026-10-19-interp-GNU-C%E8%B3%87%E6%96%99-ELF-objdump-%E7%B5%84%E8%AA%9E.html">10-19 複習</a>、<a href="2026-10-23-%E5%A4%A7%E8%A4%87%E7%BF%92-hello-gcc-GNU-interp-ELF-objdump-C%E8%B3%87%E6%96%99-%E5%AD%97%E5%85%83-%E9%99%A3%E5%88%97-%E7%B5%84%E8%AA%9E-%E7%B5%84%E8%AA%9E%E4%BA%8C-%E5%A4%9A%E6%AA%94.html">10-23 複習</a>、<a href="2026-10-24-gcc-GNU-ELF-objdump-C%E8%B3%87%E6%96%99-%E5%AD%97%E5%85%83-%E9%99%A3%E5%88%97-%E7%B5%84%E8%AA%9E-%E7%B5%84%E8%AA%9E%E4%BA%8C-%E5%A4%9A%E6%AA%94.html">10-24 複習</a></p>
 </blockquote>
-<details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="review/2026-10-27-gcc-ELF-objdump-C資料-字元-陣列-組語-組語二-多檔.md" data-line="141"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
+<div class="answer-box locked"><textarea readonly spellcheck="false">區段是給連接視角的人看的,像是ld,連接器會看每個區段的大小,偏移,權限,來決定怎麼組合載入段
+載入段是給執行者看的,例如kernel, interpreter,核心看載入段的權限
+
+因爲區段很多,而且大家在記憶體的權限不同,但核心讀記憶體 每頁4096byte 必須是相同權限,假如不打包成載入段,那有可能每個區段都只能放一個分頁,因爲相鄰的兩個區段權限可能不一致,那就要開兩頁.這樣很容易造成記憶體的浪費
+</textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
+<details class="answer"><summary>批改</summary>
+<p><strong>對</strong>。抓到：區段給連結器（<code>ld</code>）看，載入段給核心與 interpreter 看；權限以 4096 byte 的分頁為單位，同權限的區段打包，才不會每個區段各占一頁浪費記憶體。小修（不扣分）：不是「核心讀記憶體每頁」，而是「權限最小只能以分頁為單位設定」。</p>
+<details class="answer"><summary>參考答案</summary>
+<p>【<a href="../c/ELF%E6%98%AF%E4%BB%80%E9%BA%BC-%E5%8F%AF%E5%9F%B7%E8%A1%8C%E8%88%87%E5%8F%AF%E9%80%A3%E7%B5%90%E6%A0%BC%E5%BC%8F%E7%9A%84%E5%85%A9%E7%A8%AE%E8%A6%96%E8%A7%92.html#%E5%9B%9B%E5%90%8D%E5%AD%97%E7%9A%84%E9%97%9C%E9%8D%B5%E5%85%A9%E7%A8%AE%E8%A6%96%E8%A7%92">第四節</a>】</p>
+<p><strong>核心關鍵</strong>：</p>
+<ol>
+<li>區段（section）是<strong>連結視角</strong>的單位，切得很細（<code>hello</code> 有 31 個），給 <code>ld</code>、<code>nm</code>、<code>objdump</code> 用；載入段（segment）是<strong>執行視角</strong>的單位，數量很少（4 個 <code>LOAD</code>），給核心與動態載入器用，描述「哪一塊放進記憶體、權限是什麼」。</li>
+<li>記憶體權限<strong>最小只能以分頁（本機 4096 byte）為單位</strong>設定，同一頁不能一半可執行、一半可寫；所以 <code>ld</code> 把權限相同的區段排在一起、打包成一個載入段，核心每塊映射一次、設一種權限就能把程式放進記憶體。</li>
+</ol>
+<p><strong>詳細說明</strong>：核心載入時只在乎權限（可讀／可寫／可執行），不在乎區段叫 <code>.text</code> 還是 <code>.rodata</code>。如果不打包，權限不同的小區段擠在同一頁就沒辦法各自設權限；每個區段各占一頁又會浪費記憶體。</p>
+</details>
+</details>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="review/2026-10-27-gcc-ELF-objdump-C資料-字元-陣列-組語-組語二-多檔.md" data-line="237" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <hr />
 <h2 id="objdumpobjdump能不能代替ldd找依賴庫-需求單與實際載入">objdump：<a href="../c/objdump%E8%83%BD%E4%B8%8D%E8%83%BD%E4%BB%A3%E6%9B%BFldd%E6%89%BE%E4%BE%9D%E8%B3%B4%E5%BA%AB-%E9%9C%80%E6%B1%82%E5%96%AE%E8%88%87%E5%AF%A6%E9%9A%9B%E8%BC%89%E5%85%A5.html">objdump能不能代替ldd找依賴庫-需求單與實際載入</a></h2>
@@ -282,8 +650,25 @@
 <blockquote>
 <p>盒子 2｜過去的作答：<a href="../small-project/s1-01-hello-compile/quiz.html#4-%E6%83%85%E5%A2%83%E9%A1%8C%E5%90%8C%E4%BA%8B%E5%82%B3%E4%BE%86%E4%B8%80%E6%94%AF-arm-%E9%96%8B%E7%99%BC%E6%9D%BF%E7%94%A8%E7%9A%84%E5%9F%B7%E8%A1%8C%E6%AA%94%E5%95%8F%E4%BD%A0%E5%AE%83%E9%9C%80%E8%A6%81%E5%93%AA%E4%BA%9B%E5%87%BD%E5%BC%8F%E5%BA%AB%E4%BD%A0%E5%9C%A8%E8%87%AA%E5%B7%B1%E7%9A%84-x86-64-%E9%9B%BB%E8%85%A6%E4%B8%8A%E8%A9%B2%E7%94%A8%E5%93%AA%E5%80%8B%E5%B7%A5%E5%85%B7%E7%94%A8-ldd-%E6%9C%83%E7%99%BC%E7%94%9F%E4%BB%80%E9%BA%BC%E4%BA%8B%E7%82%BA%E4%BB%80%E9%BA%BC">s1-01 quiz.md 第 4 題</a>、<a href="2026-10-04-%E5%AD%97%E5%85%83-C%E8%B3%87%E6%96%99-objdump-hello-ELF.html">10-04 複習</a>、<a href="2026-10-08-%E5%AD%97%E5%85%83-C%E8%B3%87%E6%96%99-objdump-hello-ELF-%E9%99%A3%E5%88%97.html">10-08 複習</a>、<a href="2026-10-12-objdump-hello-ELF-%E9%99%A3%E5%88%97-%E7%B5%84%E8%AA%9E.html">10-12 複習</a>、<a href="2026-10-21-%E5%AD%97%E5%85%83-objdump-%E9%99%A3%E5%88%97-%E7%B5%84%E8%AA%9E-interp-ELF-GNU.html">10-21 複習</a>、<a href="2026-10-23-%E5%A4%A7%E8%A4%87%E7%BF%92-hello-gcc-GNU-interp-ELF-objdump-C%E8%B3%87%E6%96%99-%E5%AD%97%E5%85%83-%E9%99%A3%E5%88%97-%E7%B5%84%E8%AA%9E-%E7%B5%84%E8%AA%9E%E4%BA%8C-%E5%A4%9A%E6%AA%94.html">10-23 複習</a>、<a href="2026-10-24-gcc-GNU-ELF-objdump-C%E8%B3%87%E6%96%99-%E5%AD%97%E5%85%83-%E9%99%A3%E5%88%97-%E7%B5%84%E8%AA%9E-%E7%B5%84%E8%AA%9E%E4%BA%8C-%E5%A4%9A%E6%AA%94.html">10-24 複習</a></p>
 </blockquote>
-<details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="review/2026-10-27-gcc-ELF-objdump-C資料-字元-陣列-組語-組語二-多檔.md" data-line="152"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
+<div class="answer-box locked"><textarea readonly spellcheck="false">可以用objdump -p 這個命令可以看這個執行檔需要哪些庫,庫版本
+ldd新版本無法看,因爲預設的interpreter 是x86_64的,載入arm的庫會有問題,報not a dynamic executable file這種讓人誤會的錯誤
+</textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
+<details class="answer"><summary>批改</summary>
+<p><strong>對</strong>。抓到：<code>objdump -p</code> 看需要的函式庫（<code>NEEDED</code>）；<code>ldd</code> 靠本機 x86-64 的載入器，處理不了 ARM 的檔案，印出誤導人的 <code>not a dynamic executable</code>。小修（不扣分）：(1) 卡住的不是「載入 ARM 的庫」，是本機載入器連這支 ARM 執行檔本身都載不了，第一步就失敗；(2) 開發板上的檔案常被剝掉區段標頭，那時 <code>readelf -d</code> 比 <code>objdump -p</code> 保險（見下面詳細說明）。</p>
+<details class="answer"><summary>參考答案</summary>
+<p>【<a href="../c/objdump%E8%83%BD%E4%B8%8D%E8%83%BD%E4%BB%A3%E6%9B%BFldd%E6%89%BE%E4%BE%9D%E8%B3%B4%E5%BA%AB-%E9%9C%80%E6%B1%82%E5%96%AE%E8%88%87%E5%AF%A6%E9%9A%9B%E8%BC%89%E5%85%A5.html#%E4%B8%89ldd-%E6%9C%83%E5%9F%B7%E8%A1%8C%E6%9D%B1%E8%A5%BF%E9%80%99%E6%98%AF%E5%AE%83%E7%9A%84%E4%BB%A3%E5%83%B9">第三節</a>、<a href="../c/objdump%E8%83%BD%E4%B8%8D%E8%83%BD%E4%BB%A3%E6%9B%BFldd%E6%89%BE%E4%BE%9D%E8%B3%B4%E5%BA%AB-%E9%9C%80%E6%B1%82%E5%96%AE%E8%88%87%E5%AF%A6%E9%9A%9B%E8%BC%89%E5%85%A5.html#%E4%BA%94%E6%80%8E%E9%BA%BC%E9%81%B8">第五節</a>】</p>
+<p><strong>核心關鍵</strong>：</p>
+<ol>
+<li>用 <strong><code>readelf -d</code></strong> 看 <code>NEEDED</code>：只讀檔案、不執行，任何架構的 ELF 都讀得了。</li>
+<li><code>ldd</code> 要靠<strong>本機的 x86-64 載入器</strong>實際載入，處理不了 ARM 的檔案，於是印出誤導人的 <strong><code>not a dynamic executable</code></strong>。</li>
+</ol>
+<p><strong>詳細說明</strong>：<code>ldd</code> 平常列出 vdso、間接依賴的那整套機制，都建立在「本機載入器能載入它」上面；架構不同，第一步就失敗。<code>objdump -p</code> 平常也行，但開發板上的檔案常被剝掉區段標頭，<code>readelf -d</code> 能透過程式標頭的 <code>DYNAMIC</code> 找到同一份資料，比較保險。直接執行則會看到核心的 <code>exec format error</code>。</p>
+</details>
+</details>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="review/2026-10-27-gcc-ELF-objdump-C資料-字元-陣列-組語-組語二-多檔.md" data-line="261" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <hr />
 <h2 id="c資料c的資料在記憶體裡長怎樣-位元組指標位元組順序與有號無號">C資料：<a href="../c/C%E7%9A%84%E8%B3%87%E6%96%99%E5%9C%A8%E8%A8%98%E6%86%B6%E9%AB%94%E8%A3%A1%E9%95%B7%E6%80%8E%E6%A8%A3-%E4%BD%8D%E5%85%83%E7%B5%84%E3%80%81%E6%8C%87%E6%A8%99%E3%80%81%E4%BD%8D%E5%85%83%E7%B5%84%E9%A0%86%E5%BA%8F%E8%88%87%E6%9C%89%E8%99%9F%E7%84%A1%E8%99%9F.html">C的資料在記憶體裡長怎樣-位元組、指標、位元組順序與有號無號</a></h2>
@@ -311,22 +696,104 @@
 <blockquote>
 <p>題目：<code>int y = x + 1; return y &gt; x;</code> 在 <code>x = INT_MAX</code> 時，<code>-O0</code> 回傳 0、<code>-O2</code> 回傳 1。為什麼會這樣？這算不算 gcc 的 bug？kernel 用哪個選項避免這種情況，代價是什麼？</p>
 </blockquote>
-<details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="review/2026-10-27-gcc-ELF-objdump-C資料-字元-陣列-組語-組語二-多檔.md" data-line="186"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
+<div class="answer-box locked"><textarea readonly spellcheck="false">-O0: 實際計算出INT_MAX + 1 會溢位變成INT_MIN 所以return 0
+-O2: 因爲溢位是未定義的,O2 認爲溢位不會發生,所以 y&gt;x -&gt; x+1 &gt; x 溢位不會發生,此爲真.
+
+不算是,因爲對gcc來說溢位是未定義的
+
+-fno-strict-overflow 這可以在所有可能發生溢位的地方打一個標籤,算到這個地方會實際計算,
+代價就是計算量會增加,可能會拖延到一點時間
+</textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
+<details class="answer"><summary>批改</summary>
+<p><strong>大致對</strong>。抓到：<code>-O0</code> 照算、回繞成 <code>INT_MIN</code> → 0；<code>-O2</code> 因為溢位未定義、假設不會發生 → 1；不是 bug；選項是 <code>-fno-strict-overflow</code>。核心關鍵 4 的「這個選項做了什麼」寫錯：它不是「在可能溢位的地方打標籤、算到那裡實際計算」，而是<strong>改掉語言規則</strong>——讓有號溢位一律照二補數回繞、變成有定義的行為，編譯器就不能再用「不會溢位」去推論；代價也不是「計算量增加」，是少了依賴這個假設的最佳化。另一個小修（同 10-24）：未定義是 <strong>C 標準</strong>規定的，不是「對 gcc 來說」。</p>
+<details class="answer"><summary>參考答案</summary>
+<p>【<a href="../c/C%E7%9A%84%E8%B3%87%E6%96%99%E5%9C%A8%E8%A8%98%E6%86%B6%E9%AB%94%E8%A3%A1%E9%95%B7%E6%80%8E%E6%A8%A3-%E4%BD%8D%E5%85%83%E7%B5%84%E3%80%81%E6%8C%87%E6%A8%99%E3%80%81%E4%BD%8D%E5%85%83%E7%B5%84%E9%A0%86%E5%BA%8F%E8%88%87%E6%9C%89%E8%99%9F%E7%84%A1%E8%99%9F.html#%E5%85%AB%E6%BA%A2%E4%BD%8D%E7%84%A1%E8%99%9F%E5%9B%9E%E7%B9%9E%E6%9C%89%E8%99%9F%E6%98%AF%E6%9C%AA%E5%AE%9A%E7%BE%A9%E8%A1%8C%E7%82%BA">第八節</a>】</p>
+<p><strong>核心關鍵</strong>：</p>
+<ol>
+<li>有號溢位是未定義行為（UB），C 標準允許編譯器<strong>假設它不會發生</strong>。</li>
+<li><code>-O0</code> 照字面算，<code>INT_MAX + 1</code> 回繞成 <code>INT_MIN</code>，<code>y &gt; x</code> 為假 → 0；<code>-O2</code> 依這個假設推論 <code>x + 1</code> 一定大於 <code>x</code>，直接回傳 1。</li>
+<li>不是 gcc 的 bug：標準對發生 UB 的程式沒有任何要求，兩種結果都合法。</li>
+<li>kernel 用 <code>-fno-strict-overflow</code>（等於 <code>-fwrapv -fwrapv-pointer</code>），讓溢位照二補數回繞、變成有定義的行為；代價是少了依賴「不會溢位」的最佳化，程式可能稍慢。</li>
+</ol>
+<p><strong>詳細說明</strong>：連 <code>-O0</code> 也不保證照字面算：把同一件事寫成一行 <code>return x + 1 &gt; x;</code>，<code>-O0</code> 也回傳 1，因為 gcc 在最佳化之前的化簡階段就把它改掉了。所以本題的 <code>bigger</code> 才故意拆成兩行。</p>
+</details>
+</details>
+</p>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="review/2026-10-27-gcc-ELF-objdump-C資料-字元-陣列-組語-組語二-多檔.md" data-line="318"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）">-O0: INT_MAX+1 = INT_MIN因爲溢位,所以回傳0
+-O2: 溢位在C默認未定義,所以gcc認爲不會發生溢位,如果溢位不發生,y &gt; x -&gt; x + 1 &gt; x 爲 1
+
+不算, 因爲溢位在gcc是未定義
+
+-fno-strict-overflow, 讓溢位變成有定義,這樣在可能溢位的地方就會去計算, 代價是會失去把溢位當作未定義的最佳化(就是省略溢位計算)
+</textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h3 id="c資料-6-printfp-印出-0x7ffe50b23624只有-12-位十六進位指標到底佔幾個-byte印出來為什麼比較短如果在-kernel-的錯誤訊息裡看到-0xffff888102a4c000從位址的長相你能判斷什麼">C資料 6. <code>printf(&quot;%p&quot;)</code> 印出 <code>0x7ffe50b23624</code>，只有 12 位十六進位。指標到底佔幾個 byte？印出來為什麼比較短？如果在 kernel 的錯誤訊息裡看到 <code>0xffff888102a4c000</code>，從位址的長相你能判斷什麼？</h3>
 <blockquote>
 <p>盒子 2｜過去的作答：<a href="../small-project/s1-02-data-repr/quiz.html#6-printfp-%E5%8D%B0%E5%87%BA-0x7ffe50b23624%E5%8F%AA%E6%9C%89-12-%E4%BD%8D%E5%8D%81%E5%85%AD%E9%80%B2%E4%BD%8D%E6%8C%87%E6%A8%99%E5%88%B0%E5%BA%95%E4%BD%94%E5%B9%BE%E5%80%8B-byte%E5%8D%B0%E5%87%BA%E4%BE%86%E7%82%BA%E4%BB%80%E9%BA%BC%E6%AF%94%E8%BC%83%E7%9F%AD%E5%A6%82%E6%9E%9C%E5%9C%A8-kernel-%E7%9A%84%E9%8C%AF%E8%AA%A4%E8%A8%8A%E6%81%AF%E8%A3%A1%E7%9C%8B%E5%88%B0-0xffff888102a4c000%E5%BE%9E%E4%BD%8D%E5%9D%80%E7%9A%84%E9%95%B7%E7%9B%B8%E4%BD%A0%E8%83%BD%E5%88%A4%E6%96%B7%E4%BB%80%E9%BA%BC">s1-02 quiz.md 第 6 題</a>、<a href="2026-10-07-GNU-C%E8%B3%87%E6%96%99-hello-objdump-%E5%AD%97%E5%85%83.html">10-07 複習</a>、<a href="2026-10-11-%E5%AD%97%E5%85%83-C%E8%B3%87%E6%96%99-objdump-GNU-%E9%99%A3%E5%88%97.html">10-11 複習</a>、<a href="2026-10-20-C%E8%B3%87%E6%96%99-objdump-%E5%AD%97%E5%85%83-%E9%99%A3%E5%88%97-gcc.html">10-20 複習</a>、<a href="2026-10-23-%E5%A4%A7%E8%A4%87%E7%BF%92-hello-gcc-GNU-interp-ELF-objdump-C%E8%B3%87%E6%96%99-%E5%AD%97%E5%85%83-%E9%99%A3%E5%88%97-%E7%B5%84%E8%AA%9E-%E7%B5%84%E8%AA%9E%E4%BA%8C-%E5%A4%9A%E6%AA%94.html">10-23 複習</a>、<a href="2026-10-24-gcc-GNU-ELF-objdump-C%E8%B3%87%E6%96%99-%E5%AD%97%E5%85%83-%E9%99%A3%E5%88%97-%E7%B5%84%E8%AA%9E-%E7%B5%84%E8%AA%9E%E4%BA%8C-%E5%A4%9A%E6%AA%94.html">10-24 複習</a></p>
 </blockquote>
-<details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="review/2026-10-27-gcc-ELF-objdump-C資料-字元-陣列-組語-組語二-多檔.md" data-line="193"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
+<div class="answer-box locked"><textarea readonly spellcheck="false">8byte
+
+因爲在userspace裏前16位元 必爲0, 這是userspace 0 與 kernelspace 1記憶體空間的區分,而爲0的話顯示會被忽略
+
+ffff 最上面16位元爲1,代表這個位址屬於kernel的記憶體空間
+</textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
+<details class="answer"><summary>批改</summary>
+<p><strong>對</strong>。抓到：8 byte；使用者空間位址的上面 16 bit 一定是 0、<code>%p</code> 不印前導零；<code>0xffff…</code> 上面 16 bit 全是 1，是 kernel 的位址。小修（不扣分）：上面 16 bit 不是另外規定「user 0、kernel 1」，而是 canonical address 規定它們要<strong>跟第 47 bit 一樣</strong>（只用 48 bit），結果就是使用者那半全 0、核心那半全 1。</p>
+<details class="answer"><summary>參考答案</summary>
+<p>【<a href="../c/C%E7%9A%84%E8%B3%87%E6%96%99%E5%9C%A8%E8%A8%98%E6%86%B6%E9%AB%94%E8%A3%A1%E9%95%B7%E6%80%8E%E6%A8%A3-%E4%BD%8D%E5%85%83%E7%B5%84%E3%80%81%E6%8C%87%E6%A8%99%E3%80%81%E4%BD%8D%E5%85%83%E7%B5%84%E9%A0%86%E5%BA%8F%E8%88%87%E6%9C%89%E8%99%9F%E7%84%A1%E8%99%9F.html#%E4%BA%8C%E6%8C%87%E6%A8%99%E5%B0%B1%E6%98%AF%E4%BD%8D%E5%9D%80">第二節</a>〈位址看起來只有 6 byte？——<code>%p</code> 不補零，而且最上面 2 byte 一定是 0〉】</p>
+<p><strong>核心關鍵</strong>：</p>
+<ol>
+<li>指標佔 8 byte。</li>
+<li>x86-64 虛擬位址只用 48 bit，使用者空間的位址上面 2 byte 一定是 <code>00 00</code>，<code>%p</code> 不補前導零，所以只印出 12 位。</li>
+<li><code>0xffff888102a4c000</code> 整個是一個位址；上面 16 bit 全是 1，表示它在位址空間的核心那一半，所以是 kernel 的位址。</li>
+</ol>
+<p><strong>詳細說明</strong>：canonical address 規定上面 16 bit 必須跟第 47 bit 相同，所以合法的位址只有兩段：<code>0x0000000000000000</code>～<code>0x00007fffffffffff</code>（使用者空間）與 <code>0xffff800000000000</code>～<code>0xffffffffffffffff</code>（核心），中間那一大段不合法。</p>
+</details>
+</details>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="review/2026-10-27-gcc-ELF-objdump-C資料-字元-陣列-組語-組語二-多檔.md" data-line="350" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h3 id="c資料-9-情境題有人寫了-if-len---used--0-判斷緩衝區還有沒有剩餘空間lenused-都是-size_t用--wall--wextra-編譯沒有任何警告這個判斷在什麼情況下會出錯為什麼-gcc-對-len---used--0-會警告對--0-卻不會另外為什麼-int-sum--x--y-if-sum--x-這種溢位檢查在--o2-下可能完全失效">C資料 9. 情境題：有人寫了 <code>if (len - used &gt; 0)</code> 判斷「緩衝區還有沒有剩餘空間」，<code>len</code>、<code>used</code> 都是 <code>size_t</code>，用 <code>-Wall -Wextra</code> 編譯沒有任何警告。這個判斷在什麼情況下會出錯？為什麼 gcc 對 <code>len - used &lt; 0</code> 會警告、對 <code>&gt; 0</code> 卻不會？另外，為什麼 <code>int sum = x + y; if (sum &lt; x)</code> 這種溢位檢查在 <code>-O2</code> 下可能完全失效？</h3>
 <blockquote>
 <p>盒子 2｜過去的作答：<a href="../small-project/s1-02-data-repr/quiz.html#9-%E6%83%85%E5%A2%83%E9%A1%8C%E6%9C%89%E4%BA%BA%E5%AF%AB%E4%BA%86-if-len---used--0-%E5%88%A4%E6%96%B7%E7%B7%A9%E8%A1%9D%E5%8D%80%E9%82%84%E6%9C%89%E6%B2%92%E6%9C%89%E5%89%A9%E9%A4%98%E7%A9%BA%E9%96%93lenused-%E9%83%BD%E6%98%AF-size_t%E7%94%A8--wall--wextra-%E7%B7%A8%E8%AD%AF%E6%B2%92%E6%9C%89%E4%BB%BB%E4%BD%95%E8%AD%A6%E5%91%8A%E9%80%99%E5%80%8B%E5%88%A4%E6%96%B7%E5%9C%A8%E4%BB%80%E9%BA%BC%E6%83%85%E6%B3%81%E4%B8%8B%E6%9C%83%E5%87%BA%E9%8C%AF%E7%82%BA%E4%BB%80%E9%BA%BC-gcc-%E5%B0%8D-len---used--0-%E6%9C%83%E8%AD%A6%E5%91%8A%E5%B0%8D--0-%E5%8D%BB%E4%B8%8D%E6%9C%83%E5%8F%A6%E5%A4%96%E7%82%BA%E4%BB%80%E9%BA%BC-int-sum--x--y-if-sum--x-%E9%80%99%E7%A8%AE%E6%BA%A2%E4%BD%8D%E6%AA%A2%E6%9F%A5%E5%9C%A8--o2-%E4%B8%8B%E5%8F%AF%E8%83%BD%E5%AE%8C%E5%85%A8%E5%A4%B1%E6%95%88">s1-02 quiz.md 第 9 題</a>、<a href="2026-10-04-%E5%AD%97%E5%85%83-C%E8%B3%87%E6%96%99-objdump-hello-ELF.html">10-04 複習</a>、<a href="2026-10-08-%E5%AD%97%E5%85%83-C%E8%B3%87%E6%96%99-objdump-hello-ELF-%E9%99%A3%E5%88%97.html">10-08 複習</a>、<a href="2026-10-11-%E5%AD%97%E5%85%83-C%E8%B3%87%E6%96%99-objdump-GNU-%E9%99%A3%E5%88%97.html">10-11 複習</a>、<a href="2026-10-20-C%E8%B3%87%E6%96%99-objdump-%E5%AD%97%E5%85%83-%E9%99%A3%E5%88%97-gcc.html">10-20 複習</a>、<a href="2026-10-23-%E5%A4%A7%E8%A4%87%E7%BF%92-hello-gcc-GNU-interp-ELF-objdump-C%E8%B3%87%E6%96%99-%E5%AD%97%E5%85%83-%E9%99%A3%E5%88%97-%E7%B5%84%E8%AA%9E-%E7%B5%84%E8%AA%9E%E4%BA%8C-%E5%A4%9A%E6%AA%94.html">10-23 複習</a>、<a href="2026-10-24-gcc-GNU-ELF-objdump-C%E8%B3%87%E6%96%99-%E5%AD%97%E5%85%83-%E9%99%A3%E5%88%97-%E7%B5%84%E8%AA%9E-%E7%B5%84%E8%AA%9E%E4%BA%8C-%E5%A4%9A%E6%AA%94.html">10-24 複習</a></p>
 </blockquote>
-<details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="review/2026-10-27-gcc-ELF-objdump-C資料-字元-陣列-組語-組語二-多檔.md" data-line="200"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
+<div class="answer-box locked"><textarea readonly spellcheck="false">在len - used &lt; 0 會出問題,size_t是unsigned long,無號減無號,最後還是無號,也就是len -used &lt; 0 的判斷不會出現
+
+因爲兩者都是無號算出來的類型還是無號,所以gcc對小於0會警告,對於無號來說&gt;0 就是 != 0,所以gcc沒有警告
+
+因爲sum &lt; x -&gt; x+y &lt; x -&gt; y&lt;0  也就是溢位在y&gt;0的時候,這個判斷就會判斷失敗
+</textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
+<details class="answer"><summary>批改</summary>
+<p><strong>大致對</strong>（2026-10-27 使用者爭論後部分改判，結果不變）。第一問對：題目問「什麼情況下會出錯」，答 <code>len &lt; used</code>、無號減無號結果還是無號，就是那個情況；原本扣的「沒講回繞成大正數 → 誤以為有空間」是後果，改當補充、不扣分。第二問對：無號 <code>&lt; 0</code> 永遠為假所以警告，<code>&gt; 0</code> 等於 <code>!= 0</code> 所以不警告。第三問的改寫 <code>y &lt; 0</code>、<code>y &gt; 0</code> 又溢位時抓不到也對，但缺核心關鍵 3 的「為什麼」：題目問的是<strong>在 <code>-O2</code> 下</strong>為什麼失效，<code>x + y &lt; x</code> 只有在「假設不會溢位」時才等於 <code>y &lt; 0</code>；照二補數回繞時，<code>y &gt; 0</code> 又溢位，<code>sum</code> 會變成負的，<code>sum &lt; x</code> 成立、抓得到。gcc 憑「有號溢位是 UB」才能做這個假設、把它改寫掉。實測（<code>ovf.c</code>：<code>overflowed(INT_MAX, 1)</code>）：<code>-O0</code> 回傳 1（抓到），<code>-O2</code> 回傳 0（組合語言只剩 <code>shrl $31</code> 取 <code>y</code> 的符號位，也就是 <code>y &lt; 0</code>），<code>-O2 -fwrapv</code> 又回傳 1。「<code>y &lt; 0</code> 抓不到 <code>y &gt; 0</code> 的溢位」是改寫之後的結果，不能解釋為什麼 <code>-O0</code> 抓得到、<code>-O2</code> 抓不到。這串討論（含 <code>sum &lt; x</code> 的前提是 <code>y ≥ 0</code>、為什麼能化簡、<code>-fdump-tree-all</code> 看到改寫的那一關）整理在筆記<a href="../c/C%E7%9A%84%E8%B3%87%E6%96%99%E5%9C%A8%E8%A8%98%E6%86%B6%E9%AB%94%E8%A3%A1%E9%95%B7%E6%80%8E%E6%A8%A3-%E4%BD%8D%E5%85%83%E7%B5%84%E3%80%81%E6%8C%87%E6%A8%99%E3%80%81%E4%BD%8D%E5%85%83%E7%B5%84%E9%A0%86%E5%BA%8F%E8%88%87%E6%9C%89%E8%99%9F%E7%84%A1%E8%99%9F.html#1-sum--x-%E9%80%99%E5%80%8B%E6%BA%A2%E4%BD%8D%E6%AA%A2%E6%9F%A5%E5%89%8D%E6%8F%90%E5%8C%96%E7%B0%A1%E7%9A%84%E6%A0%B9%E6%93%9A%E6%80%8E%E9%BA%BC%E7%A2%BA%E5%AE%9A-gcc-%E5%8C%96%E7%B0%A1%E4%BA%86">第十一節第 1 章</a>。</p>
+<details class="answer"><summary>參考答案</summary>
+<p>【<a href="../c/C%E7%9A%84%E8%B3%87%E6%96%99%E5%9C%A8%E8%A8%98%E6%86%B6%E9%AB%94%E8%A3%A1%E9%95%B7%E6%80%8E%E6%A8%A3-%E4%BD%8D%E5%85%83%E7%B5%84%E3%80%81%E6%8C%87%E6%A8%99%E3%80%81%E4%BD%8D%E5%85%83%E7%B5%84%E9%A0%86%E5%BA%8F%E8%88%87%E6%9C%89%E8%99%9F%E7%84%A1%E8%99%9F.html#%E4%B8%83%E9%99%B7%E9%98%B1%E6%9C%89%E8%99%9F%E5%92%8C%E7%84%A1%E8%99%9F%E6%B7%B7%E5%9C%A8%E4%B8%80%E8%B5%B7%E6%AF%94%E8%BC%83">第七節</a>〈<code>-Wtype-limits</code> 只抓「永遠成立／永遠不成立」的比較〉、<a href="../c/C%E7%9A%84%E8%B3%87%E6%96%99%E5%9C%A8%E8%A8%98%E6%86%B6%E9%AB%94%E8%A3%A1%E9%95%B7%E6%80%8E%E6%A8%A3-%E4%BD%8D%E5%85%83%E7%B5%84%E3%80%81%E6%8C%87%E6%A8%99%E3%80%81%E4%BD%8D%E5%85%83%E7%B5%84%E9%A0%86%E5%BA%8F%E8%88%87%E6%9C%89%E8%99%9F%E7%84%A1%E8%99%9F.html#%E5%85%AB%E6%BA%A2%E4%BD%8D%E7%84%A1%E8%99%9F%E5%9B%9E%E7%B9%9E%E6%9C%89%E8%99%9F%E6%98%AF%E6%9C%AA%E5%AE%9A%E7%BE%A9%E8%A1%8C%E7%82%BA">第八節</a>〈另一種寫法：<code>x + y &lt; x</code> 被改寫成 <code>y &lt; 0</code>〉】</p>
+<p><strong>核心關鍵</strong>：</p>
+<ol>
+<li><code>len &lt; used</code> 時，<code>len - used</code> 回繞成很大的正數，判斷誤以為「還有空間」。</li>
+<li>無號數 <code>&lt; 0</code> 永遠為假，所以 gcc 警告；<code>&gt; 0</code> 等於 <code>!= 0</code>，結果不固定，是合法寫法，所以不警告。</li>
+<li>有號溢位是 UB，gcc 假設它不會發生，把 <code>x + y &lt; x</code> 改寫成 <strong><code>y &lt; 0</code></strong>；真的溢位時（<code>y</code> 是正的），這個檢查抓不到。</li>
+</ol>
+<p><strong>詳細說明</strong>：<code>len == used</code> 時結果是 0，<code>&gt; 0</code> 為假，所以不是「永遠為真」，只有 <code>len &lt; used</code> 會出錯。警告來自 <code>-Wtype-limits</code>（<code>-Wextra</code> 會開啟）。正確的溢位檢查要在運算<strong>之前</strong>，用不會溢位的式子判斷，例如 <code>y &gt; 0 &amp;&amp; x &gt; INT_MAX - y</code>。</p>
+</details>
+</details>
+</p>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="review/2026-10-27-gcc-ELF-objdump-C資料-字元-陣列-組語-組語二-多檔.md" data-line="377"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）">在len &lt; used時會出錯,因爲兩者相減 會溢位回補變成&gt;0,也就是說會以爲還有空間反而出錯
+
+對小於0警告是因爲兩個類別都是無號,不可能是小於0,所以永遠爲假
+對大於0不警告是因爲無號相減不是大於0,就是等於0,所以有真有假 不需要警告
+
+sum &lt; x當成溢位的前提是 y必須大於0,因爲y小於0的話就不會加到溢位導致sum小於x
+而-O2因爲把溢位當成UB不會發生,所以他們可以直接用數學定理消去x 把不等式化簡成 y&lt;0,但這個溢位條件是發生在y&gt;0的
+所以這個條件失效,不成立了 
+</textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h3 id="c資料-10-long-a---1-unsigned-int-b--1-與-int-c---1-unsigned-long-d--1a--b-和-c--d-各是真還是假兩邊各被轉成什麼型別依據的是哪一條規則為什麼-gcc-只對其中一個發出--wsign-compare-警告">C資料 10. <code>long a = -1; unsigned int b = 1;</code> 與 <code>int c = -1; unsigned long d = 1;</code>，<code>a &lt; b</code> 和 <code>c &lt; d</code> 各是真還是假？兩邊各被轉成什麼型別，依據的是哪一條規則？為什麼 gcc 只對其中一個發出 <code>-Wsign-compare</code> 警告？</h3>
 <p><strong>題目用到的程式</strong>（把題目的兩組宣告寫成可以編譯的完整程式 <code>cmp.c</code>，<code>-Wall -Wextra</code> 編譯）：</p>
@@ -350,8 +817,33 @@
 <blockquote>
 <p>盒子 3｜過去的作答：<a href="../small-project/s1-02-data-repr/quiz.html#10-long-a---1-unsigned-int-b--1-%E8%88%87-int-c---1-unsigned-long-d--1a--b-%E5%92%8C-c--d-%E5%90%84%E6%98%AF%E7%9C%9F%E9%82%84%E6%98%AF%E5%81%87%E5%85%A9%E9%82%8A%E5%90%84%E8%A2%AB%E8%BD%89%E6%88%90%E4%BB%80%E9%BA%BC%E5%9E%8B%E5%88%A5%E4%BE%9D%E6%93%9A%E7%9A%84%E6%98%AF%E5%93%AA%E4%B8%80%E6%A2%9D%E8%A6%8F%E5%89%87%E7%82%BA%E4%BB%80%E9%BA%BC-gcc-%E5%8F%AA%E5%B0%8D%E5%85%B6%E4%B8%AD%E4%B8%80%E5%80%8B%E7%99%BC%E5%87%BA--wsign-compare-%E8%AD%A6%E5%91%8A">s1-02 quiz.md 第 10 題</a>、<a href="2026-10-05-gcc-%E9%99%A3%E5%88%97-GNU-C%E8%B3%87%E6%96%99-%E5%AD%97%E5%85%83.html">10-05 複習</a>、<a href="2026-10-09-%E9%99%A3%E5%88%97-gcc-GNU-C%E8%B3%87%E6%96%99-interp-ELF.html">10-09 複習</a>、<a href="2026-10-20-C%E8%B3%87%E6%96%99-objdump-%E5%AD%97%E5%85%83-%E9%99%A3%E5%88%97-gcc.html">10-20 複習</a></p>
 </blockquote>
-<details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="review/2026-10-27-gcc-ELF-objdump-C資料-字元-陣列-組語-組語二-多檔.md" data-line="230"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
+<div class="answer-box locked"><textarea readonly spellcheck="false">a &lt; b爲真,轉成long, 因爲long的層級高於int,轉成long a還是-1,故爲真
+c &lt; d 爲假, 轉成unsigned long, 一樣因爲long等級高 轉成unsigned long -1 變成 2^64 - 1 最大,故爲假
+
+因爲c &lt;d c轉成unsigned long 的來源類型是 int 有號的,所以會發出警告
+</textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
+<details class="answer"><summary>批改</summary>
+<p><strong>大致對</strong>（盒子 3 留在 3）。真假、轉成的型別、只對 <code>c &lt; d</code> 警告（有號的 <code>int</code> 被轉成無號）都對。缺核心關鍵 1 的依據：<code>a &lt; b</code> 轉成 <code>long</code> 不是因為「<code>long</code> 層級高於 <code>int</code>」（<code>b</code> 是 <code>unsigned int</code>），而是 <code>long</code> <strong>裝得下所有 <code>unsigned int</code> 的值</strong>——光看等級不夠：在 <code>long</code> 只有 4 byte 的 32 位元平台，<code>long</code> 等級一樣比較高，卻裝不下 <code>unsigned int</code> 的最大值，<code>a &lt; b</code> 就改成兩邊轉 <code>unsigned long</code>、變成假。10-20 的小提醒是同一點，這次再缺就記成缺核心。</p>
+<details class="answer"><summary>參考答案</summary>
+<p>【<a href="../c/C%E7%9A%84%E8%B3%87%E6%96%99%E5%9C%A8%E8%A8%98%E6%86%B6%E9%AB%94%E8%A3%A1%E9%95%B7%E6%80%8E%E6%A8%A3-%E4%BD%8D%E5%85%83%E7%B5%84%E3%80%81%E6%8C%87%E6%A8%99%E3%80%81%E4%BD%8D%E5%85%83%E7%B5%84%E9%A0%86%E5%BA%8F%E8%88%87%E6%9C%89%E8%99%9F%E7%84%A1%E8%99%9F.html#%E5%9B%9B%E7%84%A1%E8%99%9F%E6%95%B4%E6%95%B8%E4%BA%8C%E9%80%B2%E4%BD%8D%E8%88%87%E5%9B%9E%E7%B9%9E">第四節</a>〈怎麼確定一個常數的型別？比較時以誰為準？〉】</p>
+<p>核心關鍵：</p>
+<ol>
+<li><code>a &lt; b</code> 為<strong>真</strong>：<code>long</code> 裝得下所有 <code>unsigned int</code> 的值 → 兩邊轉成 <code>long</code>，值不變，−1 &lt; 1。</li>
+<li><code>c &lt; d</code> 為<strong>假</strong>：無號那邊（<code>unsigned long</code>）的等級 ≥ 有號那邊（<code>int</code>）→ 兩邊轉成 <code>unsigned long</code>，−1 變成 18446744073709551615。</li>
+<li>只對 <code>c &lt; d</code> 警告：只有它<strong>把有號的值轉成無號</strong>，負數的值會變；<code>a &lt; b</code> 轉成 <code>long</code>，值不變。</li>
+</ol>
+<p>詳細說明：要看的是<strong>轉換的方向</strong>，不是「<code>&lt;</code> 兩邊有一邊是 signed」（<code>a &lt; b</code> 的 <code>a</code> 也是 signed，卻沒有警告）。有號轉無號不是 UB：位元不變，換成無號的讀法（<a href="../c/C%E7%9A%84%E8%B3%87%E6%96%99%E5%9C%A8%E8%A8%98%E6%86%B6%E9%AB%94%E8%A3%A1%E9%95%B7%E6%80%8E%E6%A8%A3-%E4%BD%8D%E5%85%83%E7%B5%84%E3%80%81%E6%8C%87%E6%A8%99%E3%80%81%E4%BD%8D%E5%85%83%E7%B5%84%E9%A0%86%E5%BA%8F%E8%88%87%E6%9C%89%E8%99%9F%E7%84%A1%E8%99%9F.html#%E5%85%AD%E6%9C%89%E8%99%9F%E8%88%87%E7%84%A1%E8%99%9F%E4%B9%8B%E9%96%93%E7%9A%84%E8%BD%89%E6%8F%9B%E4%BD%8D%E5%85%83%E4%B8%8D%E8%AE%8A%E6%8F%9B%E5%80%8B%E8%AE%80%E6%B3%95">第六節</a>）；UB 是有號溢位。</p>
+</details>
+</details>
+</p>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="review/2026-10-27-gcc-ELF-objdump-C資料-字元-陣列-組語-組語二-多檔.md" data-line="435"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）">a&lt;b: long裝得下unsigned int , b -&gt; long, 還是1, 故爲真
+c&lt;d: 無號等級高,轉無號, c, int -&gt; unsigend long-&gt; 最大的unsigend long 故爲假
+
+因爲只有c是來源類型有號轉無號
+</textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <hr />
 <h2 id="字元字元是什麼-char就是1byte的整數與ascii和utf-8">字元：<a href="../c/%E5%AD%97%E5%85%83%E6%98%AF%E4%BB%80%E9%BA%BC-char%E5%B0%B1%E6%98%AF1byte%E7%9A%84%E6%95%B4%E6%95%B8%E8%88%87ASCII%E5%92%8CUTF-8.html">字元是什麼-char就是1byte的整數與ASCII和UTF-8</a></h2>
@@ -359,8 +851,30 @@
 <blockquote>
 <p>盒子 2｜過去的作答：<a href="../small-project/s1-02-data-repr/quiz.html#5-%E6%9C%89%E4%BA%BA%E8%AA%AA%E5%AD%97%E6%98%AF-3-%E5%80%8B%E5%AD%97%E5%85%83%E5%8F%A6%E4%B8%80%E5%80%8B%E4%BA%BA%E8%AA%AA%E6%98%AF-1-%E5%80%8B%E5%AD%97%E5%85%83%E8%AA%B0%E5%B0%8Dstrlen%E5%AD%97-%E5%92%8C-mbstowcsnull-%E5%AD%97-0-%E5%90%84%E6%9C%83%E5%BE%97%E5%88%B0%E5%A4%9A%E5%B0%91%E5%A6%82%E6%9E%9C%E7%A8%8B%E5%BC%8F%E5%BF%98%E4%BA%86%E5%91%BC%E5%8F%AB-setlocale%E5%BE%8C%E8%80%85%E6%9C%83%E5%BE%97%E5%88%B0%E4%BB%80%E9%BA%BC%E9%82%A3%E5%80%8B%E6%95%B8%E5%AD%97%E6%98%AF%E6%80%8E%E9%BA%BC%E4%BE%86%E7%9A%84">s1-02 quiz.md 第 5 題</a>、<a href="2026-10-04-%E5%AD%97%E5%85%83-C%E8%B3%87%E6%96%99-objdump-hello-ELF.html">10-04 複習</a>、<a href="2026-10-08-%E5%AD%97%E5%85%83-C%E8%B3%87%E6%96%99-objdump-hello-ELF-%E9%99%A3%E5%88%97.html">10-08 複習</a>、<a href="2026-10-11-%E5%AD%97%E5%85%83-C%E8%B3%87%E6%96%99-objdump-GNU-%E9%99%A3%E5%88%97.html">10-11 複習</a>、<a href="2026-10-20-C%E8%B3%87%E6%96%99-objdump-%E5%AD%97%E5%85%83-%E9%99%A3%E5%88%97-gcc.html">10-20 複習</a>、<a href="2026-10-23-%E5%A4%A7%E8%A4%87%E7%BF%92-hello-gcc-GNU-interp-ELF-objdump-C%E8%B3%87%E6%96%99-%E5%AD%97%E5%85%83-%E9%99%A3%E5%88%97-%E7%B5%84%E8%AA%9E-%E7%B5%84%E8%AA%9E%E4%BA%8C-%E5%A4%9A%E6%AA%94.html">10-23 複習</a>、<a href="2026-10-24-gcc-GNU-ELF-objdump-C%E8%B3%87%E6%96%99-%E5%AD%97%E5%85%83-%E9%99%A3%E5%88%97-%E7%B5%84%E8%AA%9E-%E7%B5%84%E8%AA%9E%E4%BA%8C-%E5%A4%9A%E6%AA%94.html">10-24 複習</a></p>
 </blockquote>
-<details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="review/2026-10-27-gcc-ELF-objdump-C資料-字元-陣列-組語-組語二-多檔.md" data-line="241"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
+<div class="answer-box locked"><textarea readonly spellcheck="false">都對,如果字元是char, 3對, 如果字元是unicode字元 1對
+
+strlen(&quot;字&quot;) = 3
+mbstowcs: 1
+
+那就是用c預設的C locale 是ascii, ascii找不到字這個,所以最後會返回size_t -1也就是2^64 -1
+</textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
+<details class="answer"><summary>批改</summary>
+<p><strong>對</strong>。抓到：兩人都對（byte 算 3、Unicode 字元算 1）；<code>strlen</code> 3、<code>mbstowcs</code> 1；沒 <code>setlocale</code> 用 <code>&quot;C&quot;</code> locale、只認 ASCII，回傳 <code>(size_t)-1</code> ＝ 2⁶⁴ − 1。寫法小修（同 10-24）：「size_t -1」要寫成 <code>(size_t)-1</code>，意思是「−1 轉成 <code>size_t</code>」。</p>
+<details class="answer"><summary>參考答案</summary>
+<p>【<a href="../c/%E5%AD%97%E5%85%83%E6%98%AF%E4%BB%80%E9%BA%BC-char%E5%B0%B1%E6%98%AF1byte%E7%9A%84%E6%95%B4%E6%95%B8%E8%88%87ASCII%E5%92%8CUTF-8.html#%E4%BA%94%E9%82%A3%E5%AD%97%E6%98%AF-3-%E5%80%8B%E5%AD%97%E5%85%83%E5%97%8E%E7%9C%8B%E4%BD%A0%E8%AA%AA%E7%9A%84%E6%98%AF%E5%93%AA%E4%B8%80%E7%A8%AE%E5%AD%97%E5%85%83">第五節</a>】</p>
+<p><strong>核心關鍵</strong>：</p>
+<ol>
+<li>兩個人都對：以 <code>char</code>（byte）算是 <strong>3</strong> 個，以 Unicode 字元算是 <strong>1</strong> 個。</li>
+<li><code>strlen(&quot;字&quot;)</code> = 3；呼叫 <code>setlocale</code> 之後 <code>mbstowcs</code> = 1。</li>
+<li>忘了 <code>setlocale</code> → 用 <code>&quot;C&quot;</code> locale，看不懂 UTF-8 → 回傳 <code>(size_t)-1</code>，也就是 <strong>18446744073709551615</strong>（2⁶⁴ − 1）。</li>
+</ol>
+<p><strong>詳細說明</strong>：<code>mbstowcs</code> 要先知道編碼，必須呼叫 <code>setlocale(LC_ALL, &quot;&quot;)</code> 讀進環境變數 <code>LANG</code>。沒呼叫時，不管 <code>LANG</code> 設什麼，程式都用預設的 <code>&quot;C&quot;</code> locale，只認 ASCII，看到 <code>0xe5</code> 就判定是無效的多位元組序列。<code>size_t</code> 在本機是 8 byte 無號，<code>-1</code> 轉成無號就是全部位元為 1。</p>
+</details>
+</details>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="review/2026-10-27-gcc-ELF-objdump-C資料-字元-陣列-組語-組語二-多檔.md" data-line="470" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <hr />
 <h2 id="陣列陣列字串與指標運算-c不檢查邊界與用gdb找segfault">陣列：<a href="../c/%E9%99%A3%E5%88%97%E3%80%81%E5%AD%97%E4%B8%B2%E8%88%87%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97-C%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%88%87%E7%94%A8gdb%E6%89%BEsegfault.html">陣列、字串與指標運算-C不檢查邊界與用gdb找segfault</a></h2>
@@ -369,12 +883,45 @@
 <blockquote>
 <p>盒子 2｜過去的作答：<a href="../small-project/s1-03-arrays-pointers/quiz.html#4-1-%E8%B6%8A%E7%95%8C%E5%AD%98%E5%8F%96%E6%9C%89%E4%B8%89%E7%A8%AE%E4%B8%8B%E5%A0%B4%E5%AE%89%E9%9D%9C%E5%87%BA%E9%8C%AFstack-smashing-detectedsegfault%E5%88%86%E5%88%A5%E6%98%AF%E4%BB%80%E9%BA%BC%E6%B1%BA%E5%AE%9A%E6%9C%83%E8%90%BD%E5%88%B0%E5%93%AA%E4%B8%80%E7%A8%AE">s1-03 quiz.md 4-1</a>、<a href="2026-10-08-%E5%AD%97%E5%85%83-C%E8%B3%87%E6%96%99-objdump-hello-ELF-%E9%99%A3%E5%88%97.html">10-08 複習</a>、<a href="2026-10-12-objdump-hello-ELF-%E9%99%A3%E5%88%97-%E7%B5%84%E8%AA%9E.html">10-12 複習</a>、<a href="2026-10-21-%E5%AD%97%E5%85%83-objdump-%E9%99%A3%E5%88%97-%E7%B5%84%E8%AA%9E-interp-ELF-GNU.html">10-21 複習</a>、<a href="2026-10-23-%E5%A4%A7%E8%A4%87%E7%BF%92-hello-gcc-GNU-interp-ELF-objdump-C%E8%B3%87%E6%96%99-%E5%AD%97%E5%85%83-%E9%99%A3%E5%88%97-%E7%B5%84%E8%AA%9E-%E7%B5%84%E8%AA%9E%E4%BA%8C-%E5%A4%9A%E6%AA%94.html">10-23 複習</a>、<a href="2026-10-24-gcc-GNU-ELF-objdump-C%E8%B3%87%E6%96%99-%E5%AD%97%E5%85%83-%E9%99%A3%E5%88%97-%E7%B5%84%E8%AA%9E-%E7%B5%84%E8%AA%9E%E4%BA%8C-%E5%A4%9A%E6%AA%94.html">10-24 複習</a></p>
 </blockquote>
-<details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="review/2026-10-27-gcc-ELF-objdump-C資料-字元-陣列-組語-組語二-多檔.md" data-line="254"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
+<div class="answer-box locked"><textarea readonly spellcheck="false">安靜的出錯: 在合法的記憶體段,越界寫入不該寫的段,例如區域變數被垃圾信息改到
+stack smashing detected: 在陣列後面的位址塞入一個金絲雀位址,在函式返回的時候檢查是否有被修改,如果那就會報這個錯
+segfault: 越界到權限不允許的記憶體段,或沒有對映的記憶體段
+</textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
+<details class="answer"><summary>批改</summary>
+<p><strong>對</strong>。抓到：還在合法記憶體 → 安靜出錯；寫壞金絲雀、返回時檢查 → <code>stack smashing detected</code>；權限不允許或沒有對映 → segfault。小修（同 10-24）：金絲雀是一個<strong>檢查值</strong>，不是位址。</p>
+<details class="answer"><summary>參考答案</summary>
+<p>【<a href="../c/%E9%99%A3%E5%88%97%E3%80%81%E5%AD%97%E4%B8%B2%E8%88%87%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97-C%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%88%87%E7%94%A8gdb%E6%89%BEsegfault.html#%E4%BA%94c-%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%B6%8A%E7%95%8C%E7%9A%84%E4%B8%89%E7%A8%AE%E4%B8%8B%E5%A0%B4">第五節</a>開頭的表格、〈下場一：安靜地出錯〉、〈下場二：被堆疊保護抓到〉】</p>
+<p><strong>核心關鍵</strong>：</p>
+<ol>
+<li>位址還在可存取的記憶體 → <strong>安靜出錯</strong>；越界<strong>寫入</strong>改掉金絲雀、函式返回前檢查 → <strong><code>stack smashing detected</code></strong>；分頁<strong>沒有對映或權限不允許</strong> → <strong>segfault</strong>。</li>
+</ol>
+<p><strong>詳細說明</strong>：金絲雀是 gcc 放在區域陣列後面的檢查值，返回前才檢查，所以發現得比犯錯晚；只讀不寫不會改到它。segfault 是核心送出的 <code>SIGSEGV</code>。</p>
+</details>
+</details>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="review/2026-10-27-gcc-ELF-objdump-C資料-字元-陣列-組語-組語二-多檔.md" data-line="496" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h4 id="陣列-4-2-為什麼程式沒當掉不能證明沒有越界">陣列 4-2. 為什麼「程式沒當掉」不能證明沒有越界？</h4>
-<details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="review/2026-10-27-gcc-ELF-objdump-C資料-字元-陣列-組語-組語二-多檔.md" data-line="259"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
+<div class="answer-box locked"><textarea readonly spellcheck="false">因爲除了金絲雀與segfault, C 與 kernel並不會報越界的錯誤
+對於kernel來說只要是在合法的記憶體段,你怎麼做都行,那就有可能導致安靜的出錯,程式沒有當掉,但是結果是錯的
+</textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
+<details class="answer"><summary>批改</summary>
+<p><strong>對</strong>。抓到：C 不檢查邊界，落在合法記憶體裡沒有人報錯，結果錯了程式照樣跑完。小修（不扣分）：kernel 管的是分頁（有沒有對映、權限），根本不知道陣列的邊界在哪，所以它只抓得到 segfault 那一種。</p>
+<details class="answer"><summary>參考答案</summary>
+<p>【<a href="../c/%E9%99%A3%E5%88%97%E3%80%81%E5%AD%97%E4%B8%B2%E8%88%87%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97-C%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%88%87%E7%94%A8gdb%E6%89%BEsegfault.html#%E4%BA%94c-%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%B6%8A%E7%95%8C%E7%9A%84%E4%B8%89%E7%A8%AE%E4%B8%8B%E5%A0%B4">第五節</a>〈下場一：安靜地出錯〉】</p>
+<p><strong>核心關鍵</strong>：</p>
+<ol>
+<li>「沒當掉」不能證明沒越界：C 不檢查邊界（越界是未定義行為），落在還能存取的記憶體時沒有任何機制會報錯。</li>
+</ol>
+<p><strong>詳細說明</strong>：「沒當掉」的時候可能讀到垃圾、寫壞別人的資料，程式照常結束（<code>oob.c</code> 結束狀態 0），錯誤很久以後才在別處出現。</p>
+</details>
+</details>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="review/2026-10-27-gcc-ELF-objdump-C資料-字元-陣列-組語-組語二-多檔.md" data-line="513" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h3 id="陣列-7-情境題讀懂-asan-的影子-byte">陣列 7. 情境題：讀懂 ASan 的影子 byte</h3>
 <blockquote>
@@ -382,26 +929,85 @@
 <p>盒子 2｜過去的作答：2026-10-11 在對話裡作答（筆記<a href="../c/%E9%99%A3%E5%88%97%E3%80%81%E5%AD%97%E4%B8%B2%E8%88%87%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97-C%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%88%87%E7%94%A8gdb%E6%89%BEsegfault.html#%E4%B8%83addresssanitizer%E5%9C%A8%E7%AC%AC%E4%B8%80%E6%AC%A1%E8%B6%8A%E7%95%8C%E7%9A%84%E7%95%B6%E4%B8%8B%E6%8A%93%E5%88%B0%E5%AE%83">第七節</a>〈上圖的 <code>01</code>：影子 byte 的值是「個數」，不是資料〉的追問）、<a href="2026-10-22-%E7%B5%84%E8%AA%9E-C%E8%B3%87%E6%96%99-objdump-%E5%AD%97%E5%85%83-%E9%99%A3%E5%88%97.html">10-22 複習</a>、<a href="2026-10-23-%E5%A4%A7%E8%A4%87%E7%BF%92-hello-gcc-GNU-interp-ELF-objdump-C%E8%B3%87%E6%96%99-%E5%AD%97%E5%85%83-%E9%99%A3%E5%88%97-%E7%B5%84%E8%AA%9E-%E7%B5%84%E8%AA%9E%E4%BA%8C-%E5%A4%9A%E6%AA%94.html">10-23 複習</a>、<a href="2026-10-24-gcc-GNU-ELF-objdump-C%E8%B3%87%E6%96%99-%E5%AD%97%E5%85%83-%E9%99%A3%E5%88%97-%E7%B5%84%E8%AA%9E-%E7%B5%84%E8%AA%9E%E4%BA%8C-%E5%A4%9A%E6%AA%94.html">10-24 複習</a></p>
 </blockquote>
 <h4 id="陣列-7-1-這個陣列佔幾個-byte">陣列 7-1. 這個陣列佔幾個 byte？</h4>
-<details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="review/2026-10-27-gcc-ELF-objdump-C資料-字元-陣列-組語-組語二-多檔.md" data-line="270"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
+<div class="answer-box locked"><textarea readonly spellcheck="false">22 byte
+</textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
+<details class="answer"><summary>批改</summary>
+<p><strong>對</strong>（2026-10-27 補登：使用者作答時沒存到，批改後貼在對話裡，照原文補進作答框）。抓到：22 byte。</p>
+<details class="answer"><summary>參考答案</summary>
+<p>【<a href="../c/%E9%99%A3%E5%88%97%E3%80%81%E5%AD%97%E4%B8%B2%E8%88%87%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97-C%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%88%87%E7%94%A8gdb%E6%89%BEsegfault.html#%E4%B8%83addresssanitizer%E5%9C%A8%E7%AC%AC%E4%B8%80%E6%AC%A1%E8%B6%8A%E7%95%8C%E7%9A%84%E7%95%B6%E4%B8%8B%E6%8A%93%E5%88%B0%E5%AE%83">第七節</a>〈上圖的 <code>01</code>：影子 byte 的值是「個數」，不是資料〉】</p>
+<p><strong>核心關鍵</strong>：</p>
+<ol>
+<li><code>00 00 06</code> ＝ 8 ＋ 8 ＋ 6 ＝ <strong>22 byte</strong>。</li>
+</ol>
+</details>
+</details>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="review/2026-10-27-gcc-ELF-objdump-C資料-字元-陣列-組語-組語二-多檔.md" data-line="533" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h4 id="陣列-7-2-06-的-6-是什麼意思">陣列 7-2. <code>06</code> 的 6 是什麼意思？</h4>
 <blockquote>
 <p>題目：（影子 byte 是 <code>00 00 06</code>，前後都是 <code>f2</code>）<code>06</code> 的 6 是什麼意思？</p>
 </blockquote>
-<details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="review/2026-10-27-gcc-ELF-objdump-C資料-字元-陣列-組語-組語二-多檔.md" data-line="277"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
+<div class="answer-box locked"><textarea readonly spellcheck="false">前6個可以存取
+</textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
+<details class="answer"><summary>批改</summary>
+<p><strong>對</strong>。抓到：只有前 6 個可以碰。小修（不扣分）：要講明是「最後那一組 8 byte 裡」的前 6 個，後 2 個是禁區。</p>
+<details class="answer"><summary>參考答案</summary>
+<p>【<a href="../c/%E9%99%A3%E5%88%97%E3%80%81%E5%AD%97%E4%B8%B2%E8%88%87%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97-C%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%88%87%E7%94%A8gdb%E6%89%BEsegfault.html#%E4%B8%83addresssanitizer%E5%9C%A8%E7%AC%AC%E4%B8%80%E6%AC%A1%E8%B6%8A%E7%95%8C%E7%9A%84%E7%95%B6%E4%B8%8B%E6%8A%93%E5%88%B0%E5%AE%83">第七節</a>〈上圖的 <code>01</code>：影子 byte 的值是「個數」，不是資料〉】</p>
+<p><strong>核心關鍵</strong>：</p>
+<ol>
+<li>最後那一組 8 個 byte 裡，<strong>只有前 6 個</strong>可以碰，後 2 個是禁區。</li>
+</ol>
+<p><strong>詳細說明</strong>：影子 byte 存的是計數，不是記憶體內容。可以碰的部分一定從一組的開頭算起，因為 ASan 把每個變數的起點對齊到 8 的倍數。</p>
+</details>
+</details>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="review/2026-10-27-gcc-ELF-objdump-C資料-字元-陣列-組語-組語二-多檔.md" data-line="551" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h4 id="陣列-7-3-如果它是-char-s---這樣用字串初始化的字串本身不含-0有幾個字元">陣列 7-3. 如果它是 <code>char s[] = &quot;…&quot;;</code> 這樣用字串初始化的，字串本身（不含 <code>'\0'</code>）有幾個字元？</h4>
 <blockquote>
 <p>題目：（影子 byte 是 <code>00 00 06</code>）如果它是 <code>char s[] = &quot;…&quot;;</code> 這樣用字串初始化的，字串本身（不含 <code>'\0'</code>）有幾個字元？</p>
 </blockquote>
-<details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="review/2026-10-27-gcc-ELF-objdump-C資料-字元-陣列-組語-組語二-多檔.md" data-line="284"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
+<div class="answer-box locked"><textarea readonly spellcheck="false">去除\0 1個char
+就是22 -1 = 21byte = 21 char
+</textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
+<details class="answer"><summary>批改</summary>
+<p><strong>對</strong>。抓到：22 − 1（<code>'\0'</code>）＝ 21。</p>
+<details class="answer"><summary>參考答案</summary>
+<p>【<a href="../c/%E9%99%A3%E5%88%97%E3%80%81%E5%AD%97%E4%B8%B2%E8%88%87%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97-C%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%88%87%E7%94%A8gdb%E6%89%BEsegfault.html#%E4%B8%83addresssanitizer%E5%9C%A8%E7%AC%AC%E4%B8%80%E6%AC%A1%E8%B6%8A%E7%95%8C%E7%9A%84%E7%95%B6%E4%B8%8B%E6%8A%93%E5%88%B0%E5%AE%83">第七節</a>〈上圖的 <code>01</code>：影子 byte 的值是「個數」，不是資料〉】</p>
+<p><strong>核心關鍵</strong>：</p>
+<ol>
+<li><code>char s[] = &quot;…&quot;</code> 的大小是字串長度 ＋ 1（<code>'\0'</code>），所以字串有 <strong>21 個字元</strong>。</li>
+</ol>
+</details>
+</details>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="review/2026-10-27-gcc-ELF-objdump-C資料-字元-陣列-組語-組語二-多檔.md" data-line="568" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h4 id="陣列-7-4-為什麼影子-byte-裡不會出現-08">陣列 7-4. 為什麼影子 byte 裡不會出現 <code>08</code>？</h4>
-<details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="review/2026-10-27-gcc-ELF-objdump-C資料-字元-陣列-組語-組語二-多檔.md" data-line="289"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
+<div class="answer-box locked"><textarea readonly spellcheck="false">因爲00 跟 08意思相同都是8byte都可以用,所以用00即可
+</textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
+<details class="answer"><summary>批改</summary>
+<p><strong>對</strong>。抓到：8 個 byte 全部可以碰已經寫成 <code>00</code>，不需要 <code>08</code>。</p>
+<details class="answer"><summary>參考答案</summary>
+<p>【<a href="../c/%E9%99%A3%E5%88%97%E3%80%81%E5%AD%97%E4%B8%B2%E8%88%87%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97-C%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%88%87%E7%94%A8gdb%E6%89%BEsegfault.html#%E4%B8%83addresssanitizer%E5%9C%A8%E7%AC%AC%E4%B8%80%E6%AC%A1%E8%B6%8A%E7%95%8C%E7%9A%84%E7%95%B6%E4%B8%8B%E6%8A%93%E5%88%B0%E5%AE%83">第七節</a>〈上圖的 <code>01</code>：影子 byte 的值是「個數」，不是資料〉】</p>
+<p><strong>核心關鍵</strong>：</p>
+<ol>
+<li>8 個 byte 全部可以碰已經寫成 <code>00</code>；<code>01</code>～<code>07</code> 只用來表示「不滿 8 個」，所以不需要 <code>08</code>。</li>
+</ol>
+<p><strong>詳細說明</strong>：前後的 <code>f2</code> 是變數之間的中間禁區。反過來，宣告 <code>char s[22]</code> 就能預測影子 byte 是 <code>00 00 06</code>。</p>
+</details>
+</details>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="review/2026-10-27-gcc-ELF-objdump-C資料-字元-陣列-組語-組語二-多檔.md" data-line="584" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <hr />
 <h2 id="組語x86-64組合語言入門-暫存器mov與leacmp與條件跳躍">組語：<a href="../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80-%E6%9A%AB%E5%AD%98%E5%99%A8%E3%80%81mov%E8%88%87lea%E3%80%81cmp%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D.html">x86-64組合語言入門-暫存器、mov與lea、cmp與條件跳躍</a></h2>
@@ -437,29 +1043,89 @@ objdump<span class="w"> </span>-d<span class="w"> </span>--no-show-raw-insn<span
 </code></pre>
 <p>（<code>break *widen_char+4</code>：停在 <code>widen_char</code> 開頭往後 4 byte 那條指令；<code>set $rdi = …</code>：改暫存器；<code>stepi</code>：只執行一條機器指令。）</p>
 <h4 id="組語-7-1-在-64-位元的機器上為什麼它只讀-dil而不讀整個-rdi">組語 7-1. 在 64 位元的機器上，為什麼它只讀 <code>%dil</code>，而不讀整個 <code>%rdi</code>？</h4>
-<details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="review/2026-10-27-gcc-ELF-objdump-C資料-字元-陣列-組語-組語二-多檔.md" data-line="342"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
+<div class="answer-box locked"><textarea readonly spellcheck="false">因爲我們的參數是char 1byte, 你要是用rdi 8byte,有可能讀到7byte的垃圾信息
+</textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
+<details class="answer"><summary>批改</summary>
+<p><strong>對</strong>。抓到：參數只有 1 byte，讀整個 <code>%rdi</code> 會把高 7 byte 的垃圾讀進來。</p>
+<details class="answer"><summary>參考答案</summary>
+<p>【<a href="../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80-%E6%9A%AB%E5%AD%98%E5%99%A8%E3%80%81mov%E8%88%87lea%E3%80%81cmp%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D.html#%E4%B8%89%E6%8C%87%E4%BB%A4%E7%9A%84%E6%96%87%E6%B3%95%E5%8A%A9%E6%86%B6%E7%AC%A6%E5%A4%A7%E5%B0%8F%E5%BE%8C%E7%B6%B4%E9%81%8B%E7%AE%97%E5%85%83">第三節</a>〈讀懂實驗一的範例：為什麼寫 <code>1(%rdi)</code>、為什麼用 <code>%dil</code>〉】</p>
+<p><strong>核心關鍵</strong>：</p>
+<ol>
+<li>參數是 1 byte 的 <code>signed char</code>，只放在 <code>%rdi</code> 最低的 1 byte（<code>%dil</code>）。</li>
+<li>高 7 byte 呼叫的人沒有約定，<strong>內容不保證</strong>；讀整個 <code>%rdi</code> 會把垃圾一起讀進來。</li>
+</ol>
+<p><strong>詳細說明</strong>：實例：<code>main</code> 寫 <code>%edi</code> 傳 −1，<code>%rdi</code> 是 <code>0x00000000ffffffff</code>，整個讀會得到 4294967295。</p>
+</details>
+</details>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="review/2026-10-27-gcc-ELF-objdump-C資料-字元-陣列-組語-組語二-多檔.md" data-line="649" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h4 id="組語-7-2-之後-eax-的十六進位是多少">組語 7-2. 之後 <code>%eax</code> 的十六進位是多少？</h4>
 <blockquote>
 <p>題目：假設 <code>widen_char</code> 改成讀 4 byte 的 <code>movl %edi, %eax</code>，在上面的 <code>gdb</code> 實驗裡把 <code>%rdi</code> 改成 <code>0x11223344556677ff</code>。之後 <code>%eax</code> 的十六進位是多少？</p>
 </blockquote>
-<details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="review/2026-10-27-gcc-ELF-objdump-C資料-字元-陣列-組語-組語二-多檔.md" data-line="349"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
+<div class="answer-box locked"><textarea readonly spellcheck="false">0x556677ff
+</textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
+<details class="answer"><summary>批改</summary>
+<p><strong>對</strong>。</p>
+<details class="answer"><summary>參考答案</summary>
+<p>【<a href="../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80-%E6%9A%AB%E5%AD%98%E5%99%A8%E3%80%81mov%E8%88%87lea%E3%80%81cmp%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D.html#%E4%B8%89%E6%8C%87%E4%BB%A4%E7%9A%84%E6%96%87%E6%B3%95%E5%8A%A9%E6%86%B6%E7%AC%A6%E5%A4%A7%E5%B0%8F%E5%BE%8C%E7%B6%B4%E9%81%8B%E7%AE%97%E5%85%83">第三節</a>〈組合語言裡只有 <code>%edi</code>、<code>%dil</code>，為什麼 gdb 印得出 <code>$rdi</code>？〉】</p>
+<p><strong>核心關鍵</strong>：</p>
+<ol>
+<li><code>0x556677ff</code>（<code>%rdi</code> 的低 4 byte）。</li>
+</ol>
+</details>
+</details>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="review/2026-10-27-gcc-ELF-objdump-C資料-字元-陣列-組語-組語二-多檔.md" data-line="665" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h4 id="組語-7-3-是正數還是負數">組語 7-3. 是正數還是負數？</h4>
 <blockquote>
 <p>題目：（承 7-2）<code>movl %edi, %eax</code> 之後的 <code>%eax</code> 是正數還是負數？</p>
 </blockquote>
-<details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="review/2026-10-27-gcc-ELF-objdump-C資料-字元-陣列-組語-組語二-多檔.md" data-line="356"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
+<div class="answer-box locked"><textarea readonly spellcheck="false">正
+</textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
+<details class="answer"><summary>批改</summary>
+<p><strong>對</strong>。</p>
+<details class="answer"><summary>參考答案</summary>
+<p>【<a href="../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80-%E6%9A%AB%E5%AD%98%E5%99%A8%E3%80%81mov%E8%88%87lea%E3%80%81cmp%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D.html#%E4%B8%89%E6%8C%87%E4%BB%A4%E7%9A%84%E6%96%87%E6%B3%95%E5%8A%A9%E6%86%B6%E7%AC%A6%E5%A4%A7%E5%B0%8F%E5%BE%8C%E7%B6%B4%E9%81%8B%E7%AE%97%E5%85%83">第三節</a>〈<code>%dil</code> 是 <code>0xff</code>，為什麼 <code>%eax</code> 變成 <code>0xffffffff</code>〉】</p>
+<p><strong>核心關鍵</strong>：</p>
+<ol>
+<li>正數：最高位元（<code>0x5</code> ＝ <code>0101</code> 的第一個 bit）是 0。</li>
+</ol>
+<p><strong>詳細說明</strong>：十進位是 1432778751。</p>
+</details>
+</details>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="review/2026-10-27-gcc-ELF-objdump-C資料-字元-陣列-組語-組語二-多檔.md" data-line="683" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h4 id="組語-7-4-跟-c-期望的-1-差在哪">組語 7-4. 跟 C 期望的 −1 差在哪？</h4>
 <blockquote>
 <p>題目：（承 7-2）改成 <code>movl %edi, %eax</code> 之後得到的值，跟 C 期望的 −1 差在哪？</p>
 </blockquote>
-<details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="review/2026-10-27-gcc-ELF-objdump-C資料-字元-陣列-組語-組語二-多檔.md" data-line="363"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
+<div class="answer-box locked"><textarea readonly spellcheck="false">因爲eax上面3byte都被塞入垃圾信息,所以被污染的數據無法正確的返回-1的值
+</textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
+<details class="answer"><summary>批改</summary>
+<p><strong>對</strong>。抓到：高 3 byte 是垃圾（<code>0x556677</code>），讀進來得到的不是 −1。小修（不扣分）：可以補一句結果是正的 1432778751（7-3 已答正數）。</p>
+<details class="answer"><summary>參考答案</summary>
+<p>【<a href="../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80-%E6%9A%AB%E5%AD%98%E5%99%A8%E3%80%81mov%E8%88%87lea%E3%80%81cmp%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D.html#%E4%B8%89%E6%8C%87%E4%BB%A4%E7%9A%84%E6%96%87%E6%B3%95%E5%8A%A9%E6%86%B6%E7%AC%A6%E5%A4%A7%E5%B0%8F%E5%BE%8C%E7%B6%B4%E9%81%8B%E7%AE%97%E5%85%83">第三節</a>〈讀懂實驗一的範例：為什麼寫 <code>1(%rdi)</code>、為什麼用 <code>%dil</code>〉】</p>
+<p><strong>核心關鍵</strong>：</p>
+<ol>
+<li>C 的 <code>c</code> 只在最低 1 byte（<code>0xff</code>，符號擴展後是 −1）；讀 4 byte 會把高 3 byte 的垃圾 <code>0x556677</code> 一起讀進來，得到正的 1432778751，不是 −1。</li>
+</ol>
+<p><strong>詳細說明</strong>：所以參數有多大，指令就讀多大的名字：<code>signed char</code> 讀 <code>%dil</code>、<code>short</code> 讀 <code>%di</code>、<code>int</code> 讀 <code>%edi</code>、<code>long</code> 和指標讀 <code>%rdi</code>。</p>
+</details>
+</details>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="review/2026-10-27-gcc-ELF-objdump-C資料-字元-陣列-組語-組語二-多檔.md" data-line="701" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h3 id="組語-11-gdb-的-break-位址">組語 11. gdb 的 <code>break *位址</code></h3>
 <blockquote>
@@ -489,12 +1155,41 @@ objdump<span class="w"> </span>-d<span class="w"> </span>--no-show-raw-insn<span
 <span class="w">	</span><span class="nf">ret</span><span class="w">                     </span><span class="c1"># 回傳 %rax</span>
 </code></pre>
 <h4 id="組語-11-1--讓-gdb-怎麼理解後面的東西">組語 11-1. <code>*</code> 讓 gdb 怎麼理解後面的東西？</h4>
-<details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="review/2026-10-27-gcc-ELF-objdump-C資料-字元-陣列-組語-組語二-多檔.md" data-line="404"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
+<div class="answer-box locked"><textarea readonly spellcheck="false">gdb 會把*理解爲位址的計算 比如*deref+4, 就是符號deref的位址 + 4byte,那就可以找到斷點在哪個位址上了
+</textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
+<details class="answer"><summary>批改</summary>
+<p><strong>對</strong>。抓到：<code>*</code> 表示後面是算位址的式子，<code>deref</code> 的位址 ＋ 4。</p>
+<details class="answer"><summary>參考答案</summary>
+<p>【<a href="../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80-%E6%9A%AB%E5%AD%98%E5%99%A8%E3%80%81mov%E8%88%87lea%E3%80%81cmp%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D.html#%E4%B8%89%E6%8C%87%E4%BB%A4%E7%9A%84%E6%96%87%E6%B3%95%E5%8A%A9%E6%86%B6%E7%AC%A6%E5%A4%A7%E5%B0%8F%E5%BE%8C%E7%B6%B4%E9%81%8B%E7%AE%97%E5%85%83">第三節</a>〈上面 <code>break *widen_char+4</code> 的 <code>*</code>：為什麼要加？〉】</p>
+<p><strong>核心關鍵</strong>：</p>
+<ol>
+<li><code>*</code> 表示後面是<strong>一個算出位址的式子</strong>：gdb 計算 <code>deref + 4</code>（函式開頭往後 4 byte），停在那個位址的機器指令。</li>
+<li>沒有 <code>*</code> 時，後面被當成函式名或行號（linespec），<code>deref+4</code> 整串被當成函式名，所以 <code>not defined</code>。</li>
+</ol>
+</details>
+</details>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="review/2026-10-27-gcc-ELF-objdump-C資料-字元-陣列-組語-組語二-多檔.md" data-line="752" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h4 id="組語-11-2-這個--跟-c-的-p-是同一個意思嗎">組語 11-2. 這個 <code>*</code> 跟 C 的 <code>*p</code> 是同一個意思嗎？</h4>
-<details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="review/2026-10-27-gcc-ELF-objdump-C資料-字元-陣列-組語-組語二-多檔.md" data-line="409"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
+<div class="answer-box locked"><textarea readonly spellcheck="false">不是, C的*p 是指 讀 p這個指標指的位址那格的值
+</textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
+<details class="answer"><summary>批改</summary>
+<p><strong>對</strong>。抓到：不同；C 的 <code>*p</code> 是讀指標指向的那格的值。</p>
+<details class="answer"><summary>參考答案</summary>
+<p>【<a href="../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80-%E6%9A%AB%E5%AD%98%E5%99%A8%E3%80%81mov%E8%88%87lea%E3%80%81cmp%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D.html#%E4%B8%89%E6%8C%87%E4%BB%A4%E7%9A%84%E6%96%87%E6%B3%95%E5%8A%A9%E6%86%B6%E7%AC%A6%E5%A4%A7%E5%B0%8F%E5%BE%8C%E7%B6%B4%E9%81%8B%E7%AE%97%E5%85%83">第三節</a>〈上面 <code>break *widen_char+4</code> 的 <code>*</code>：為什麼要加？〉】</p>
+<p><strong>核心關鍵</strong>：</p>
+<ol>
+<li>不是：<code>break</code> 的 <code>*</code> 是 gdb 的語法記號，意思是「後面是位址」；C 的 <code>*p</code> 是取出指標指向的值。</li>
+</ol>
+</details>
+</details>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="review/2026-10-27-gcc-ELF-objdump-C資料-字元-陣列-組語-組語二-多檔.md" data-line="766" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h4 id="組語-11-3-在--o0-的程式上break-deref-和-break-deref-為什麼會停在不同的位址">組語 11-3. 在 <code>-O0</code> 的程式上，<code>break deref</code> 和 <code>break *deref</code> 為什麼會停在不同的位址？</h4>
 <p>同一個 <code>paren.c</code> 改用 <code>-O0</code> 編，<code>deref</code> 的組合語言：</p>
@@ -515,8 +1210,24 @@ gdb<span class="w"> </span>-batch<span class="w"> </span>-ex<span class="w"> </s
 <blockquote>
 <p>題目：在 <code>-O0</code> 的程式上，<code>break deref</code> 和 <code>break *deref</code> 為什麼會停在不同的位址？</p>
 </blockquote>
-<details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="review/2026-10-27-gcc-ELF-objdump-C資料-字元-陣列-組語-組語二-多檔.md" data-line="436"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
+<div class="answer-box locked"><textarea readonly spellcheck="false">break deref 是會停在 函式前置工作都處理完成的地方,也就是rbp指向堆疊頂端後
+而break *deref 則是會停在endbr64, 前面有說過*後面會去找符號的位址計算
+</textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
+<details class="answer"><summary>批改</summary>
+<p><strong>對</strong>。抓到：<code>break *deref</code> 停在第一條 <code>endbr64</code>；<code>break deref</code> 跳過開頭的準備工作。小修（不扣分，同 10-24）：題目用 <code>-g</code> 編，<code>break deref</code> 連 <code>mov %rdi,-0x8(%rbp)</code>（把參數存進堆疊）也跳過，停在 <code>0x1187</code>，不是 <code>%rbp</code> 剛設好的 <code>0x1183</code>。</p>
+<details class="answer"><summary>參考答案</summary>
+<p>【<a href="../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80-%E6%9A%AB%E5%AD%98%E5%99%A8%E3%80%81mov%E8%88%87lea%E3%80%81cmp%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D.html#%E4%B8%89%E6%8C%87%E4%BB%A4%E7%9A%84%E6%96%87%E6%B3%95%E5%8A%A9%E6%86%B6%E7%AC%A6%E5%A4%A7%E5%B0%8F%E5%BE%8C%E7%B6%B4%E9%81%8B%E7%AE%97%E5%85%83">第三節</a>〈上面 <code>break *widen_char+4</code> 的 <code>*</code>：為什麼要加？〉的「<code>break 函式名</code> 和 <code>break *函式名</code> 不一定停在同一個地方」】</p>
+<p><strong>核心關鍵</strong>：</p>
+<ol>
+<li><code>break deref</code>（函式名）會把中斷點<strong>下在函式開頭的準備工作之後</strong>（<code>-O0</code> 的 <code>push %rbp</code>、<code>mov %rsp,%rbp</code> 等；這些指令照常執行，停下時已經跑完）。有 <code>-g</code> 照行號表，連「把參數存進堆疊」也算進去，停在 <code>0x1187</code>；沒有 <code>-g</code> 停在 <code>0x1183</code>。</li>
+<li><code>break *deref</code> 不跳過任何東西，停在函式的<strong>第一條指令</strong> <code>endbr64</code>（實測 <code>0x117b</code>）。</li>
+</ol>
+</details>
+</details>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="review/2026-10-27-gcc-ELF-objdump-C資料-字元-陣列-組語-組語二-多檔.md" data-line="804" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h3 id="組語-15-減法的借位與-cf">組語 15. 減法的借位與 CF</h3>
 <blockquote>
@@ -524,45 +1235,166 @@ gdb<span class="w"> </span>-batch<span class="w"> </span>-ex<span class="w"> </s
 <p>盒子 2｜過去的作答：<a href="../small-project/s1-04-asm-basics/quiz.html#15-%E6%B8%9B%E6%B3%95%E7%9A%84%E5%80%9F%E4%BD%8D%E8%88%87-cf2026-10-07-%E8%AA%B2%E5%BE%8C%E6%8F%90%E5%95%8F%E6%96%B0%E5%A2%9E">s1-04 quiz.md 第 15 題</a>、<a href="2026-10-13-%E7%B5%84%E8%AA%9E-%E5%AD%97%E5%85%83.html">10-13 複習</a>、<a href="2026-10-22-%E7%B5%84%E8%AA%9E-C%E8%B3%87%E6%96%99-objdump-%E5%AD%97%E5%85%83-%E9%99%A3%E5%88%97.html">10-22 複習</a>、<a href="2026-10-23-%E5%A4%A7%E8%A4%87%E7%BF%92-hello-gcc-GNU-interp-ELF-objdump-C%E8%B3%87%E6%96%99-%E5%AD%97%E5%85%83-%E9%99%A3%E5%88%97-%E7%B5%84%E8%AA%9E-%E7%B5%84%E8%AA%9E%E4%BA%8C-%E5%A4%9A%E6%AA%94.html">10-23 複習</a>、<a href="2026-10-24-gcc-GNU-ELF-objdump-C%E8%B3%87%E6%96%99-%E5%AD%97%E5%85%83-%E9%99%A3%E5%88%97-%E7%B5%84%E8%AA%9E-%E7%B5%84%E8%AA%9E%E4%BA%8C-%E5%A4%9A%E6%AA%94.html">10-24 複習</a></p>
 </blockquote>
 <h4 id="組語-15-1-照直式減法最高位第-7-位元需不需要往外借cf-是多少">組語 15-1. 照直式減法，最高位（第 7 位元）需不需要往外借？CF 是多少？</h4>
-<details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="review/2026-10-27-gcc-ELF-objdump-C資料-字元-陣列-組語-組語二-多檔.md" data-line="447"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
+<div class="answer-box locked"><textarea readonly spellcheck="false">需要
+CF = 1
+</textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
+<details class="answer"><summary>批改</summary>
+<p><strong>對</strong>。</p>
+<details class="answer"><summary>參考答案</summary>
+<p>【<a href="../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80-%E6%9A%AB%E5%AD%98%E5%99%A8%E3%80%81mov%E8%88%87lea%E3%80%81cmp%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D.html#%E4%BA%94%E6%97%97%E6%A8%99%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8Dcmp-%E5%8F%AA%E8%B2%A0%E8%B2%AC%E6%AF%94%E8%B7%B3%E4%B8%8D%E8%B7%B3%E7%94%B1%E4%B8%8B%E4%B8%80%E5%80%8B%E6%8C%87%E4%BB%A4%E6%B1%BA%E5%AE%9A">第五節</a>〈上面③：3 − 5 在 CPU 裡實際上是怎麼算的？〉】</p>
+<p><strong>核心關鍵</strong>：</p>
+<ol>
+<li>需要：4 &lt; 9（無號），最高位要往第 8 位元之外借 → CF ＝ 1。</li>
+</ol>
+</details>
+</details>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="review/2026-10-27-gcc-ELF-objdump-C資料-字元-陣列-組語-組語二-多檔.md" data-line="825" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h4 id="組語-15-2-留下的位元當無號讀是多少它跟數學上的正確答案差了多少為什麼剛好差這麼多">組語 15-2. 留下的位元當無號讀是多少，它跟數學上的正確答案差了多少、為什麼剛好差這麼多？</h4>
 <blockquote>
 <p>題目：（8 位元算 4 − 9）留下的位元當無號讀是多少，它跟數學上的正確答案差了多少、為什麼剛好差這麼多？</p>
 </blockquote>
-<details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="review/2026-10-27-gcc-ELF-objdump-C資料-字元-陣列-組語-組語二-多檔.md" data-line="454"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
+<div class="answer-box locked"><textarea readonly spellcheck="false">0xfb = 251
+
+差了256
+
+因爲外借的那一位第8位,也就是2^8 = 256
+</textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
+<details class="answer"><summary>批改</summary>
+<p><strong>對</strong>。抓到：<code>0xfb</code> ＝ 251，差 256 ＝ 往第 8 位元外借的 2⁸。</p>
+<details class="answer"><summary>參考答案</summary>
+<p>【<a href="../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80-%E6%9A%AB%E5%AD%98%E5%99%A8%E3%80%81mov%E8%88%87lea%E3%80%81cmp%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D.html#%E4%BA%94%E6%97%97%E6%A8%99%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8Dcmp-%E5%8F%AA%E8%B2%A0%E8%B2%AC%E6%AF%94%E8%B7%B3%E4%B8%8D%E8%B7%B3%E7%94%B1%E4%B8%8B%E4%B8%80%E5%80%8B%E6%8C%87%E4%BB%A4%E6%B1%BA%E5%AE%9A">第五節</a>〈上面③：3 − 5 在 CPU 裡實際上是怎麼算的？〉】</p>
+<p><strong>核心關鍵</strong>：</p>
+<ol>
+<li>留下 <code>0xfb</code>，無號讀是 <strong>251</strong>。</li>
+<li>數學答案是 −5，<strong>差 256</strong>：往第 8 位元之外借的 1 價值 2⁸ ＝ 256，結果多了 256（251 ＝ 4 − 9 ＋ 256）。</li>
+</ol>
+<p><strong>詳細說明</strong>：<code>0xfb</code> 當有號讀正好是 −5：同一串位元，有號讀法剛好把多出來的 256 扣回去。</p>
+</details>
+</details>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="review/2026-10-27-gcc-ELF-objdump-C資料-字元-陣列-組語-組語二-多檔.md" data-line="848" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h4 id="組語-15-3-如果-cpu-是用加法器算d--s-反轉--1加法器有沒有往外進位跟-cf-是什麼關係">組語 15-3. 如果 CPU 是用加法器算（D + S 反轉 + 1），加法器有沒有往外進位，跟 CF 是什麼關係？</h4>
 <blockquote>
 <p>題目：（8 位元算 4 − 9）如果 CPU 是用加法器算（D + S 反轉 + 1），加法器有沒有往外進位，跟 CF 是什麼關係？</p>
 </blockquote>
-<details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="review/2026-10-27-gcc-ELF-objdump-C資料-字元-陣列-組語-組語二-多檔.md" data-line="461"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
+<div class="answer-box locked"><textarea readonly spellcheck="false">0x4 + 反轉(0x9) + 1 = 0x4 + 反轉(00001001) + 1 = 0x4 + 11110110 + 1 = 0x4 + 0xf6 + 1 = 0xfb
+沒有往外進位, 故可得知 有借位 , 沒往外進位 CF 1
+
+CF是否爲1的判斷就看是否有借位 或 是否有往外進位
+</textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
+<details class="answer"><summary>批改</summary>
+<p><strong>對</strong>。抓到：4 ＋ <code>0xf6</code> ＋ 1 ＝ <code>0xfb</code>，沒有往外進位 → 有借位 → CF ＝ 1。小修（不扣分）：最後一句「看是否有借位或是否有往外進位」容易讀成「有進位也是 CF 1」——<strong>減法</strong>時兩者相反：沒進位 ＝ 有借位 ＝ CF 1，有進位 ＝ 沒借位 ＝ CF 0；「有進位 ＝ CF 1」只在加法成立。</p>
+<details class="answer"><summary>參考答案</summary>
+<p>【<a href="../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80-%E6%9A%AB%E5%AD%98%E5%99%A8%E3%80%81mov%E8%88%87lea%E3%80%81cmp%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D.html#%E4%BA%94%E6%97%97%E6%A8%99%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8Dcmp-%E5%8F%AA%E8%B2%A0%E8%B2%AC%E6%AF%94%E8%B7%B3%E4%B8%8D%E8%B7%B3%E7%94%B1%E4%B8%8B%E4%B8%80%E5%80%8B%E6%8C%87%E4%BB%A4%E6%B1%BA%E5%AE%9A">第五節</a>〈上面③：3 − 5 在 CPU 裡實際上是怎麼算的？〉的「電路上其實是用加法做的」】</p>
+<p><strong>核心關鍵</strong>：</p>
+<ol>
+<li>4 ＋ (9 反轉 ＝ 246) ＋ 1 ＝ 251，沒超過 255 → 加法器<strong>沒有</strong>往外進位。</li>
+<li>減法時進位跟借位<strong>相反</strong>：x86 把加法器的進位反過來存進 CF，所以「沒進位」→ CF ＝ 1（借位了）。</li>
+</ol>
+<p><strong>詳細說明</strong>：對照 5 − 3：5 ＋ 252 ＋ 1 ＝ 258，有進位 → CF ＝ 0（不用借）。ARM 等架構減法時直接存加法器的進位，CF 的意思剛好相反。</p>
+</details>
+</details>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="review/2026-10-27-gcc-ELF-objdump-C資料-字元-陣列-組語-組語二-多檔.md" data-line="870" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h3 id="組語-18-0x01--0x7f-的進位與-cfof">組語 18. <code>0x01 + 0x7f</code> 的進位與 CF、OF</h3>
 <blockquote>
 <p>盒子 1｜過去的作答：2026-10-25 在對話裡作答（18-1 對、18-2 大致對、18-3 大致對、18-4 未作答），批改後的參考答案寫在<a href="../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80-%E6%9A%AB%E5%AD%98%E5%99%A8%E3%80%81mov%E8%88%87lea%E3%80%81cmp%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D.html#%E8%87%AA%E6%88%91%E6%B8%AC%E9%A9%97">筆記第 18 題</a>、<a href="2026-10-26-hello-GNU-interp-objdump-C%E8%B3%87%E6%96%99-%E5%AD%97%E5%85%83-%E9%99%A3%E5%88%97-%E7%B5%84%E8%AA%9E-%E7%B5%84%E8%AA%9E%E4%BA%8C-%E5%A4%9A%E6%AA%94.html">10-26 複習</a></p>
 </blockquote>
 <h4 id="組語-18-1-8-位元的-0x01--0x7f計算過程中有沒有進位傳進第-7-位元最高位有沒有從第-7-位元往外進位">組語 18-1. 8 位元的 <code>0x01 + 0x7f</code>：計算過程中有沒有進位傳進第 7 位元（最高位）？有沒有從第 7 位元往外進位？</h4>
-<details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="review/2026-10-27-gcc-ELF-objdump-C資料-字元-陣列-組語-組語二-多檔.md" data-line="470"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
+<div class="answer-box locked"><textarea readonly spellcheck="false">有
+沒有
+</textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
+<details class="answer"><summary>批改</summary>
+<p><strong>對</strong>。抓到：進位一路傳進第 7 位；第 7 位沒有再往外進。</p>
+<details class="answer"><summary>參考答案</summary>
+<p>【<a href="../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80-%E6%9A%AB%E5%AD%98%E5%99%A8%E3%80%81mov%E8%88%87lea%E3%80%81cmp%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D.html#%E4%BA%94%E6%97%97%E6%A8%99%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8Dcmp-%E5%8F%AA%E8%B2%A0%E8%B2%AC%E6%AF%94%E8%B7%B3%E4%B8%8D%E8%B7%B3%E7%94%B1%E4%B8%8B%E4%B8%80%E5%80%8B%E6%8C%87%E4%BB%A4%E6%B1%BA%E5%AE%9A">第五節</a>〈上面⑦：127 + 1 明明有「進位」，為什麼 CF 還是 0？〉】</p>
+<p><strong>核心關鍵</strong>：</p>
+<ol>
+<li>有：<code>0x01 + 0x7f</code> 從第 0 位起每一位都「留 0、進 1」，進位一路傳進第 7 位。</li>
+<li>沒有：第 7 位是 0 + 0 + 1 ＝ 1，留下 1、不再往外進。</li>
+</ol>
+</details>
+</details>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="review/2026-10-27-gcc-ELF-objdump-C資料-字元-陣列-組語-組語二-多檔.md" data-line="890" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h4 id="組語-18-2-cfof-各是多少為什麼有進位不等於-cf--1">組語 18-2. CF、OF 各是多少，為什麼「有進位」不等於 CF = 1？</h4>
 <blockquote>
 <p>題目：（承 18-1，8 位元的 <code>0x01 + 0x7f</code>）CF、OF 各是多少，為什麼「有進位」不等於 CF = 1？</p>
 </blockquote>
-<details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="review/2026-10-27-gcc-ELF-objdump-C資料-字元-陣列-組語-組語二-多檔.md" data-line="477"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
+<div class="answer-box locked"><textarea readonly spellcheck="false">CF = 0, 因爲他沒有借位 也沒有往外進位,有進位是有,但沒有往更高第8委員進位
+OF = 1, 因爲有溢位
+</textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
+<details class="answer"><summary>批改</summary>
+<p><strong>對</strong>（2026-10-27 改判：原判大致對，扣在「OF ＝ 1 只寫有溢位、沒寫 127 ＋ 1 超出範圍」；使用者指出題目的「為什麼」只問 CF，OF 只問值，改判為對，OF 的理由移到詳細說明）。抓到：CF ＝ 0，因為 CF 只看從第 7 位往外的那一次進位，中間的進位不算；OF ＝ 1。小修（不扣分）：加法沒有「借位」，CF 這裡寫「沒有從第 7 位往外進位」就夠了。</p>
+<details class="answer"><summary>參考答案</summary>
+<p>【<a href="../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80-%E6%9A%AB%E5%AD%98%E5%99%A8%E3%80%81mov%E8%88%87lea%E3%80%81cmp%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D.html#%E4%BA%94%E6%97%97%E6%A8%99%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8Dcmp-%E5%8F%AA%E8%B2%A0%E8%B2%AC%E6%AF%94%E8%B7%B3%E4%B8%8D%E8%B7%B3%E7%94%B1%E4%B8%8B%E4%B8%80%E5%80%8B%E6%8C%87%E4%BB%A4%E6%B1%BA%E5%AE%9A">第五節</a>〈上面⑦：127 + 1 明明有「進位」，為什麼 CF 還是 0？〉】</p>
+<p><strong>核心關鍵</strong>：</p>
+<ol>
+<li>CF ＝ 0：CF 只記<strong>從第 7 位往外</strong>的那一次進位，中間各位的進位不算；無號 127 + 1 ＝ 128 ≤ 255，裝得下。</li>
+<li>OF ＝ 1。</li>
+</ol>
+<p><strong>詳細說明</strong>：題目的「為什麼」只問 CF，OF 只問值（2026-10-27 改判後把 OF 的理由移出核心關鍵）。OF ＝ 1 的理由：當<strong>有號數</strong>算，127 + 1 ＝ +128 超出 −128～127，留下的 <code>0x80</code> 讀成 −128。</p>
+</details>
+</details>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="review/2026-10-27-gcc-ELF-objdump-C資料-字元-陣列-組語-組語二-多檔.md" data-line="910" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h4 id="組語-18-3-再比較-0x05--0x03它也有進位為什麼兩個旗標都是-0">組語 18-3. 再比較 <code>0x05 + 0x03</code>：它也有進位，為什麼兩個旗標都是 0？</h4>
-<details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="review/2026-10-27-gcc-ELF-objdump-C資料-字元-陣列-組語-組語二-多檔.md" data-line="482"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
+<div class="answer-box locked"><textarea readonly spellcheck="false">CF要往外進位纔會是1, 所以05 + 03 沒有 故 0
+OF要有溢位,一樣沒有 所以0
+</textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
+<details class="answer"><summary>批改</summary>
+<p><strong>對</strong>。抓到：沒有從第 7 位往外進位 → CF ＝ 0；當有號數也沒溢位 → OF ＝ 0。小修（不扣分，同 10-26）：可以點出 <code>0x05 + 0x03</code> 的進位只在低位，<strong>根本沒傳到第 7 位</strong>，這是它跟 18-1 不同的地方。</p>
+<details class="answer"><summary>參考答案</summary>
+<p>【<a href="../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80-%E6%9A%AB%E5%AD%98%E5%99%A8%E3%80%81mov%E8%88%87lea%E3%80%81cmp%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D.html#%E4%BA%94%E6%97%97%E6%A8%99%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8Dcmp-%E5%8F%AA%E8%B2%A0%E8%B2%AC%E6%AF%94%E8%B7%B3%E4%B8%8D%E8%B7%B3%E7%94%B1%E4%B8%8B%E4%B8%80%E5%80%8B%E6%8C%87%E4%BB%A4%E6%B1%BA%E5%AE%9A">第五節</a>〈上面⑦：127 + 1 明明有「進位」，為什麼 CF 還是 0？〉】</p>
+<p><strong>核心關鍵</strong>：</p>
+<ol>
+<li><code>0x05 + 0x03</code> 的進位只發生在第 1～3 位，<strong>沒有傳到第 7 位</strong>：進第 7 位 0、出第 7 位 0 → CF ＝ 0、OF ＝ 0。</li>
+<li>無號 8、有號 8 都裝得下；「中間有進位」本身不影響任何旗標。</li>
+</ol>
+</details>
+</details>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="review/2026-10-27-gcc-ELF-objdump-C資料-字元-陣列-組語-組語二-多檔.md" data-line="926" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h4 id="組語-18-4-最後用進到第-7-位的進位和第-7-位往外的進位說明-0xff--0x01-的-of-為什麼是-0">組語 18-4. 最後用「進到第 7 位的進位」和「第 7 位往外的進位」說明 <code>0xff + 0x01</code> 的 OF 為什麼是 0。</h4>
-<details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="review/2026-10-27-gcc-ELF-objdump-C資料-字元-陣列-組語-組語二-多檔.md" data-line="487"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
+<div class="answer-box locked"><textarea readonly spellcheck="false">OF爲0 就是有號沒有產生溢位
+現在看 進到第7位的進位是1, 第7爲往外進位也是 1
+1xor1 = 0算出來of也是0, 而且他也沒有溢位
+</textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
+<details class="answer"><summary>批改</summary>
+<p><strong>對</strong>（10-26 不完整的這次對了）。抓到：進到第 7 位的進位 1、第 7 位往外的進位 1，1 XOR 1 ＝ 0 → OF ＝ 0；對照有號的說法也沒溢位。小修（不扣分）：有號那邊寫出算式 −1 ＋ 1 ＝ 0 更清楚。</p>
+<details class="answer"><summary>參考答案</summary>
+<p>【<a href="../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80-%E6%9A%AB%E5%AD%98%E5%99%A8%E3%80%81mov%E8%88%87lea%E3%80%81cmp%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D.html#%E4%BA%94%E6%97%97%E6%A8%99%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8Dcmp-%E5%8F%AA%E8%B2%A0%E8%B2%AC%E6%AF%94%E8%B7%B3%E4%B8%8D%E8%B7%B3%E7%94%B1%E4%B8%8B%E4%B8%80%E5%80%8B%E6%8C%87%E4%BB%A4%E6%B1%BA%E5%AE%9A">第五節</a>〈上面那條規則：OF 不是看溢位嗎？為什麼又變成看進位？〉】</p>
+<p><strong>核心關鍵</strong>：</p>
+<ol>
+<li><code>0xff + 0x01</code>：進到第 7 位的進位是 1，第 7 位 1 + 0 + 1 ＝ 10，往外的進位也是 1；兩個一樣 → OF ＝ 0。</li>
+<li>對照有號的說法：−1 + 1 ＝ 0，裝得下，沒溢位；CF ＝ 1 只代表無號的 255 + 1 裝不下。</li>
+</ol>
+<p><strong>詳細說明</strong>：OF 的定義一直是「當有號數裝不下」；「進 XOR 出」是 CPU 算出它的方法。為什麼會一致：同號相加時「進 ≠ 出」剛好就是正負號被改壞（兩個正數 <code>0+0</code> 卻收到進位，第 7 位變 1 ＝ 結果變負；兩個負數 <code>1+1</code> 卻沒收到進位，第 7 位留 0 ＝ 結果變正）；一正一負相加時第 7 位是 <code>1+0</code>，收到進位就往外進、沒收到就不進，「進」和「出」一定相同，也一定不溢位。拿 18 題的三組對一次：<code>0x01+0x7f</code> 進 1 出 0 → OF 1；<code>0x05+0x03</code> 進 0 出 0 → OF 0；<code>0xff+0x01</code> 進 1 出 1 → OF 0。</p>
+</details>
+</details>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="review/2026-10-27-gcc-ELF-objdump-C資料-字元-陣列-組語-組語二-多檔.md" data-line="945" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <hr />
 <h2 id="組語二x86-64組合語言入門二-call與ret堆疊框參數與呼叫慣例">組語二：<a href="../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80%E4%BA%8C-call%E8%88%87ret%E3%80%81%E5%A0%86%E7%96%8A%E6%A1%86%E3%80%81%E5%8F%83%E6%95%B8%E8%88%87%E5%91%BC%E5%8F%AB%E6%85%A3%E4%BE%8B.html">x86-64組合語言入門二-call與ret、堆疊框、參數與呼叫慣例</a></h2>
@@ -598,20 +1430,85 @@ objdump<span class="w"> </span>-d<span class="w"> </span>--no-show-raw-insn<span
 <span class="err">1178:</span><span class="w">	</span><span class="nf">ret</span>
 </code></pre>
 <h4 id="組語二-1-1-call-做了哪兩件事">組語二 1-1. <code>call</code> 做了哪兩件事？</h4>
-<details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="review/2026-10-27-gcc-ELF-objdump-C資料-字元-陣列-組語-組語二-多檔.md" data-line="535"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
+<div class="answer-box locked"><textarea readonly spellcheck="false">%rsp 減了8byte,存上add3的返回位址
+然後跳到add3
+</textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
+<details class="answer"><summary>批改</summary>
+<p><strong>對</strong>。抓到：<code>%rsp</code> 減 8、寫進返回位址，再跳到 <code>add3</code>。</p>
+<details class="answer"><summary>參考答案</summary>
+<p>【<a href="../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80%E4%BA%8C-call%E8%88%87ret%E3%80%81%E5%A0%86%E7%96%8A%E6%A1%86%E3%80%81%E5%8F%83%E6%95%B8%E8%88%87%E5%91%BC%E5%8F%AB%E6%85%A3%E4%BE%8B.html#%E4%B8%89call-%E8%88%87-ret%E7%94%A8-gdb-%E4%B8%80%E6%A2%9D%E4%B8%80%E6%A2%9D%E8%B5%B0">第三節</a>】</p>
+<p><strong>核心關鍵</strong>：</p>
+<ol>
+<li>把<strong>返回位址</strong>（<code>call</code> 下一條指令的位址 <code>0x1199</code>）推進堆疊：<code>%rsp</code> 減 8，寫進新的頂端。</li>
+<li>跳到 <code>add3</code>（<code>%rip</code> 變成 <code>add3</code> 的位址）。</li>
+</ol>
+<p><strong>詳細說明</strong>：<code>frame.c</code> 實測：<code>call</code> 之後 <code>%rsp</code> 從 <code>d410</code> 變成 <code>d408</code>，<code>d408</code> 裡是 <code>0x555555555199</code>（PIE 載入後的 <code>0x1199</code>）。</p>
+</details>
+</details>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="review/2026-10-27-gcc-ELF-objdump-C資料-字元-陣列-組語-組語二-多檔.md" data-line="1006" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h4 id="組語二-1-2-ret-做了什麼">組語二 1-2. <code>ret</code> 做了什麼？</h4>
-<details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="review/2026-10-27-gcc-ELF-objdump-C資料-字元-陣列-組語-組語二-多檔.md" data-line="540"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
+<div class="answer-box locked"><textarea readonly spellcheck="false">ret 讀了 %rsp那格的返回位址,然後rsp清除返回位址(+8byte)
+然後跳到返回位址
+</textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
+<details class="answer"><summary>批改</summary>
+<p><strong>對</strong>。抓到：取 <code>%rsp</code> 指的那格當位址跳過去、<code>%rsp</code> 加 8。小修（同 10-24）：返回位址沒有被「清除」，那格內容還在，只是 <code>%rsp</code> 移過去、之後會被覆蓋。</p>
+<details class="answer"><summary>參考答案</summary>
+<p>【<a href="../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80%E4%BA%8C-call%E8%88%87ret%E3%80%81%E5%A0%86%E7%96%8A%E6%A1%86%E3%80%81%E5%8F%83%E6%95%B8%E8%88%87%E5%91%BC%E5%8F%AB%E6%85%A3%E4%BE%8B.html#%E4%B8%89call-%E8%88%87-ret%E7%94%A8-gdb-%E4%B8%80%E6%A2%9D%E4%B8%80%E6%A2%9D%E8%B5%B0">第三節</a>】</p>
+<p><strong>核心關鍵</strong>：</p>
+<ol>
+<li>把堆疊頂端那 8 byte 當成位址，放進 <code>%rip</code>（跳過去）。</li>
+<li><code>%rsp</code> 加 8（返回位址被拿走）。</li>
+</ol>
+<p><strong>詳細說明</strong>：<code>ret</code> ＝ <code>pop</code> 到 <code>%rip</code>。實測 <code>ret</code> 之後 <code>%rsp</code> 回到 <code>d410</code>，跟 <code>call</code> 之前一模一樣。</p>
+</details>
+</details>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="review/2026-10-27-gcc-ELF-objdump-C資料-字元-陣列-組語-組語二-多檔.md" data-line="1024" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h4 id="組語二-1-3-ret-怎麼知道要回到-0x1199">組語二 1-3. <code>ret</code> 怎麼知道要回到 <code>0x1199</code>？</h4>
-<details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="review/2026-10-27-gcc-ELF-objdump-C資料-字元-陣列-組語-組語二-多檔.md" data-line="545"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
+<div class="answer-box locked"><textarea readonly spellcheck="false">ret不知道,ret只負責從%rsp那格拿值,不管值是什麼他都會當作返回位址跳過去
+</textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
+<details class="answer"><summary>批改</summary>
+<p><strong>對</strong>。抓到：<code>ret</code> 不知道，只拿 <code>%rsp</code> 指的那格。</p>
+<details class="answer"><summary>參考答案</summary>
+<p>【<a href="../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80%E4%BA%8C-call%E8%88%87ret%E3%80%81%E5%A0%86%E7%96%8A%E6%A1%86%E3%80%81%E5%8F%83%E6%95%B8%E8%88%87%E5%91%BC%E5%8F%AB%E6%85%A3%E4%BE%8B.html#%E4%B8%89call-%E8%88%87-ret%E7%94%A8-gdb-%E4%B8%80%E6%A2%9D%E4%B8%80%E6%A2%9D%E8%B5%B0">第三節</a>】</p>
+<p><strong>核心關鍵</strong>：</p>
+<ol>
+<li><code>call</code> 把 <code>0x1199</code> 推進堆疊，存在 <code>%rsp</code> 指的那格記憶體裡。</li>
+<li><code>ret</code> 不知道呼叫者是誰，只是取堆疊頂端那 8 byte 當位址。</li>
+</ol>
+<p><strong>詳細說明</strong>：所以 <code>add3</code> 在 <code>ret</code> 之前必須把 <code>%rsp</code> 還原到放返回位址的那一格：<code>pop %rbp</code> 把序言推的舊 <code>%rbp</code> 拿走，頂端就又是 <code>0x1199</code>。函式裡 <code>push</code> 和 <code>pop</code> 沒配好，<code>ret</code> 就會跳錯。</p>
+</details>
+</details>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="review/2026-10-27-gcc-ELF-objdump-C資料-字元-陣列-組語-組語二-多檔.md" data-line="1041" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h4 id="組語二-1-4-如果-add3-裡有個陣列越界寫入剛好蓋掉了堆疊上的返回位址ret-會發生什麼事">組語二 1-4. 如果 <code>add3</code> 裡有個陣列越界寫入，剛好蓋掉了堆疊上的返回位址，<code>ret</code> 會發生什麼事？</h4>
-<details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="review/2026-10-27-gcc-ELF-objdump-C資料-字元-陣列-組語-組語二-多檔.md" data-line="550"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
+<div class="answer-box locked"><textarea readonly spellcheck="false">有可能會跳到沒有權限 的記憶體區,甚至根本沒有對應的區段,報segfault
+</textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
+<details class="answer"><summary>批改</summary>
+<p><strong>對</strong>。抓到：<code>ret</code> 照樣把被蓋掉的值當位址跳過去，通常 segfault。</p>
+<details class="answer"><summary>參考答案</summary>
+<p>【<a href="../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80%E4%BA%8C-call%E8%88%87ret%E3%80%81%E5%A0%86%E7%96%8A%E6%A1%86%E3%80%81%E5%8F%83%E6%95%B8%E8%88%87%E5%91%BC%E5%8F%AB%E6%85%A3%E4%BE%8B.html#%E4%B8%89call-%E8%88%87-ret%E7%94%A8-gdb-%E4%B8%80%E6%A2%9D%E4%B8%80%E6%A2%9D%E8%B5%B0">第三節</a>】</p>
+<p><strong>核心關鍵</strong>：</p>
+<ol>
+<li><code>ret</code> 不檢查，照樣把被蓋掉的值當成位址跳過去。</li>
+</ol>
+<p><strong>詳細說明</strong>：跳到亂的地方，通常是 segfault 當掉（那個位址沒有對映，或不能執行）。有堆疊保護時，函式返回<strong>之前</strong>檢查金絲雀，印 <code>stack smashing detected</code> 中止；關掉保護就真的走到 <code>ret</code>，返回時 segfault。如果蓋上去的值是攻擊者刻意挑的位址，<code>ret</code> 就會跳去執行攻擊者要的程式碼——這是緩衝區溢位攻擊的原理。</p>
+</details>
+</details>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="review/2026-10-27-gcc-ELF-objdump-C資料-字元-陣列-組語-組語二-多檔.md" data-line="1057" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h3 id="組語二-4-callee-saved-與對齊">組語二 4. callee-saved 與對齊</h3>
 <blockquote>
@@ -641,12 +1538,51 @@ objdump<span class="w"> </span>-d<span class="w"> </span>--no-show-raw-insn<span
 <span class="nf">ret</span>
 </code></pre>
 <h4 id="組語二-4-1-為什麼-savedc-的-f-要-push-rbx而不是讓-x-留在-rdi">組語二 4-1. 為什麼 <code>saved.c</code> 的 <code>f</code> 要 <code>push %rbx</code>，而不是讓 <code>x</code> 留在 <code>%rdi</code>？</h4>
-<details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="review/2026-10-27-gcc-ELF-objdump-C資料-字元-陣列-組語-組語二-多檔.md" data-line="590"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
+<div class="answer-box locked"><textarea readonly spellcheck="false">1. rdi是caller-saved,因爲進g以後有可能被改,所以f找rbx存他
+2. 但rbx本身是callee-saved,而f本身也是callee,所以他也要存rbx,因此存到堆疊上
+3. x(rdi)在f返回還要用,因爲存好了,這個時候就可以直接從rbx拿,而不用擔心rdi被改掉
+</textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
+<details class="answer"><summary>批改</summary>
+<p><strong>對</strong>。抓到：<code>%rdi</code> 是 caller-saved、<code>g</code> 可能改掉；<code>x</code> 搬到 callee-saved 的 <code>%rbx</code>；<code>f</code> 借用 <code>%rbx</code> 也要先備份。</p>
+<details class="answer"><summary>參考答案</summary>
+<p>【<a href="../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80%E4%BA%8C-call%E8%88%87ret%E3%80%81%E5%A0%86%E7%96%8A%E6%A1%86%E3%80%81%E5%8F%83%E6%95%B8%E8%88%87%E5%91%BC%E5%8F%AB%E6%85%A3%E4%BE%8B.html#%E5%85%AD%E8%AA%B0%E8%B2%A0%E8%B2%AC%E4%BF%9D%E5%AD%98%E6%9A%AB%E5%AD%98%E5%99%A8%E4%BB%A5%E5%8F%8A-16-byte-%E5%B0%8D%E9%BD%8A">第六節</a>〈實驗：要跨過 <code>call</code> 保存的值放哪裡〉】</p>
+<p><strong>核心關鍵</strong>：</p>
+<ol>
+<li><code>x</code> 在 <code>g</code> 回來後還要用，但 <code>%rdi</code> 是 caller-saved，<code>g</code> 可能改掉它。</li>
+<li>所以把 <code>x</code> 搬到 callee-saved 的 <code>%rbx</code>：ABI 保證 <code>g</code> 回來時 <code>%rbx</code> 不變。</li>
+<li><code>f</code> 借用 <code>%rbx</code> 也要對自己的呼叫者負責：開頭 <code>push %rbx</code>、返回前 <code>pop %rbx</code> 還原。</li>
+</ol>
+<p><strong>詳細說明</strong>：對照 <code>noret.c</code>：<code>call</code> 之後不再用 <code>x</code>，就不需要 <code>%rbx</code>。<code>saved.c</code> 的 <code>push %rbx</code> 還順便把 <code>%rsp</code> 挪了 8 byte，同時滿足 16 byte 對齊（4-2）。</p>
+</details>
+</details>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="review/2026-10-27-gcc-ELF-objdump-C資料-字元-陣列-組語-組語二-多檔.md" data-line="1112" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h4 id="組語二-4-2-noretc-的-f-不需要保存任何值為什麼還要-sub-0x8rsp">組語二 4-2. <code>noret.c</code> 的 <code>f</code> 不需要保存任何值，為什麼還要 <code>sub $0x8,%rsp</code>？</h4>
-<details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="review/2026-10-27-gcc-ELF-objdump-C資料-字元-陣列-組語-組語二-多檔.md" data-line="595"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
+<div class="answer-box locked"><textarea readonly spellcheck="false">1. 首先call本身會空出rsp的空間存返回位址,要是rsp一開始沒有push或sub預留空間 區域變數有可能被返回位址改掉
+2. save.c有push,而noret有sub
+3. 另外之所以-8byte,是因爲 g是未知定義的,根據ABI, 在進入call之前rsp的位址需要是16的倍數,f本身是被人call的,所以他已經
+-8byte了,還需要-8byte纔會是16byte的倍數
+</textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
+<details class="answer"><summary>批改</summary>
+<p><strong>對</strong>。抓到：ABI 規定 <code>call</code> 時 <code>%rsp</code> 要是 16 的倍數；<code>call f</code> 推了 8 byte，再補 8 才對齊。兩處要修（不扣分）：(1) 第 1 點這裡用不上：<code>f</code> 沒有區域變數，沒有東西會被 <code>call g</code> 推的返回位址蓋掉（那是組語二 2-3 紅區的情況）；(2)「因為 <code>g</code> 是未知定義的」跟對齊無關，<strong>每一次</strong> <code>call</code> 都要對齊（10-24 同一個小修）。</p>
+<details class="answer"><summary>參考答案</summary>
+<p>【<a href="../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80%E4%BA%8C-call%E8%88%87ret%E3%80%81%E5%A0%86%E7%96%8A%E6%A1%86%E3%80%81%E5%8F%83%E6%95%B8%E8%88%87%E5%91%BC%E5%8F%AB%E6%85%A3%E4%BE%8B.html#%E5%85%AD%E8%AA%B0%E8%B2%A0%E8%B2%AC%E4%BF%9D%E5%AD%98%E6%9A%AB%E5%AD%98%E5%99%A8%E4%BB%A5%E5%8F%8A-16-byte-%E5%B0%8D%E9%BD%8A">第六節</a>〈上面的 <code>sub $0x8,%rsp</code>：16 byte 對齊〉】</p>
+<p><strong>核心關鍵</strong>：</p>
+<ol>
+<li>ABI 規定：執行 <code>call</code> 的那一刻，<code>%rsp</code> 必須是 16 的倍數。</li>
+<li>呼叫 <code>f</code> 的人照規定對齊，但 <code>call f</code> 推了 8 byte 返回位址，進到 <code>f</code> 時 <code>%rsp</code> 是「16 的倍數 − 8」。</li>
+<li><code>f</code> 要 <code>call g</code>，必須再挪 8 byte：沒東西要存，就用 <code>sub $0x8,%rsp</code> 單純挪。</li>
+</ol>
+<p><strong>詳細說明</strong>：要 16 的原因：有些指令（例如 SSE 的 <code>movaps</code>）要求記憶體位址是 16 的倍數，否則會當掉。</p>
+</details>
+</details>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="review/2026-10-27-gcc-ELF-objdump-C資料-字元-陣列-組語-組語二-多檔.md" data-line="1133" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <hr />
 <h2 id="多檔多檔案的c程式-標頭檔static與extern連結錯誤與make">多檔：<a href="../c/%E5%A4%9A%E6%AA%94%E6%A1%88%E7%9A%84C%E7%A8%8B%E5%BC%8F-%E6%A8%99%E9%A0%AD%E6%AA%94%E3%80%81static%E8%88%87extern%E3%80%81%E9%80%A3%E7%B5%90%E9%8C%AF%E8%AA%A4%E8%88%87make.html">多檔案的C程式-標頭檔、static與extern、連結錯誤與make</a></h2>
@@ -682,16 +1618,66 @@ objdump<span class="w"> </span>-d<span class="w"> </span>--no-show-raw-insn<span
 <span class="p">}</span>
 </code></pre>
 <h4 id="多檔-3-1-static-寫在函式外面和寫在函式裡面各改變了什麼">多檔 3-1. <code>static</code> 寫在函式外面和寫在函式裡面，各改變了什麼？</h4>
-<details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="review/2026-10-27-gcc-ELF-objdump-C資料-字元-陣列-組語-組語二-多檔.md" data-line="639"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
+<div class="answer-box locked"><textarea readonly spellcheck="false">static 在函式外面: 這個函式變成只有當前這個檔案能調用,用readelf -s 看bind會是local,不可以外面的符號鏈接
+static 在函式內部: 這個變數不能像是區域變數一樣可以直接在函式的堆疊處理,而是要用.bss或.data儲存,並且不會在函式結束後被清除
+</textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
+<details class="answer"><summary>批改</summary>
+<p><strong>對</strong>。抓到：外面 → <code>LOCAL</code>、只在這個檔案；裡面 → 放 <code>.bss</code>／<code>.data</code>、函式結束後不消失。小修（不扣分）：函式裡的 <code>static</code>，名字仍然只有那個函式看得到。</p>
+<details class="answer"><summary>參考答案</summary>
+<p>【<a href="../c/%E5%A4%9A%E6%AA%94%E6%A1%88%E7%9A%84C%E7%A8%8B%E5%BC%8F-%E6%A8%99%E9%A0%AD%E6%AA%94%E3%80%81static%E8%88%87extern%E3%80%81%E9%80%A3%E7%B5%90%E9%8C%AF%E8%AA%A4%E8%88%87make.html#%E4%BA%94static%E5%85%A9%E7%A8%AE%E5%AE%8C%E5%85%A8%E4%B8%8D%E5%90%8C%E7%9A%84%E6%84%8F%E6%80%9D">第五節</a>】</p>
+<p><strong>核心關鍵</strong>：</p>
+<ol>
+<li>函式外面：改的是名字的<strong>可見範圍</strong>——只在這個 <code>.c</code> 有效，符號變成 <code>LOCAL</code>，連結器不拿它跟別的檔案配對。</li>
+<li>函式裡面：改的是<strong>儲存期間</strong>——不放堆疊，放在固定記憶體（<code>.bss</code>／<code>.data</code>），整個程式執行期間只有一份，值留到下一次呼叫；名字仍然只在那個函式裡看得到。</li>
+</ol>
+</details>
+</details>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="review/2026-10-27-gcc-ELF-objdump-C資料-字元-陣列-組語-組語二-多檔.md" data-line="1188" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h4 id="多檔-3-2-a-acbc-各有一個-static-int-helpervoid為什麼能一起連結拿掉-static-為什麼就-multiple-definition">多檔 3-2. (a) <code>a.c</code>、<code>b.c</code> 各有一個 <code>static int helper(void)</code>，為什麼能一起連結，拿掉 <code>static</code> 為什麼就 <code>multiple definition</code>？</h4>
-<details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="review/2026-10-27-gcc-ELF-objdump-C資料-字元-陣列-組語-組語二-多檔.md" data-line="644"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
+<div class="answer-box locked"><textarea readonly spellcheck="false">因爲這兩個的bind都是local,也就是他們不會跟彼此連接,應該說他們根本不會連接,只有本檔範圍可以使用.
+
+因爲兩個的bind會變global,也就是ld真的會把他們連接,結果發現兩個都有定義了就報了multiple definition的問題
+</textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
+<details class="answer"><summary>批改</summary>
+<p><strong>對</strong>。抓到：<code>LOCAL</code> 不拿去配對；拿掉後兩個 <code>GLOBAL</code> 定義 → <code>multiple definition</code>。</p>
+<details class="answer"><summary>參考答案</summary>
+<p>【<a href="../c/%E5%A4%9A%E6%AA%94%E6%A1%88%E7%9A%84C%E7%A8%8B%E5%BC%8F-%E6%A8%99%E9%A0%AD%E6%AA%94%E3%80%81static%E8%88%87extern%E3%80%81%E9%80%A3%E7%B5%90%E9%8C%AF%E8%AA%A4%E8%88%87make.html#%E6%AA%94%E6%A1%88%E5%B1%A4%E7%B4%9A%E7%9A%84-static%E8%AE%93%E5%90%8D%E5%AD%97%E8%AE%8A%E6%88%90-local">第五節</a>〈檔案層級的 <code>static</code>〉】</p>
+<p><strong>核心關鍵</strong>：</p>
+<ol>
+<li>有 <code>static</code>：兩個 <code>helper</code> 都是 <code>LOCAL</code>，連結器做符號解析時只用 <code>GLOBAL</code> 配對，所以同名也不衝突。</li>
+<li>拿掉 <code>static</code>：兩個 <code>.o</code> 各有一個 <code>GLOBAL</code> 的 <code>helper</code> 定義 → 同名的 <code>GLOBAL</code> 定義有兩個 → <code>multiple definition</code>。</li>
+</ol>
+<p><strong>詳細說明</strong>：兩份內容不一樣（回傳 1 和 2）不是重點；就算一模一樣，有兩個同名的 <code>GLOBAL</code> 定義也是錯。</p>
+</details>
+</details>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="review/2026-10-27-gcc-ELF-objdump-C資料-字元-陣列-組語-組語二-多檔.md" data-line="1207" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h4 id="多檔-3-3-b-next_id-呼叫三次回傳-123plain_id-每次都是-1兩個-n-各放在記憶體的哪裡">多檔 3-3. (b) <code>next_id()</code> 呼叫三次回傳 1、2、3，<code>plain_id()</code> 每次都是 1，兩個 <code>n</code> 各放在記憶體的哪裡？</h4>
-<details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="review/2026-10-27-gcc-ELF-objdump-C資料-字元-陣列-組語-組語二-多檔.md" data-line="649"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
+<div class="answer-box locked"><textarea readonly spellcheck="false">next_id的n放在.bss裏面 因爲他的初值是0, 如果是非0會放在.data
+plain_id的n是放在函式堆疊裏,也就是stack,所以每次函式重call, n都會被刷新
+</textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
+<details class="answer"><summary>批改</summary>
+<p><strong>對</strong>。抓到：<code>.bss</code>（初值 0；非 0 放 <code>.data</code>）vs 堆疊。</p>
+<details class="answer"><summary>參考答案</summary>
+<p>【<a href="../c/%E5%A4%9A%E6%AA%94%E6%A1%88%E7%9A%84C%E7%A8%8B%E5%BC%8F-%E6%A8%99%E9%A0%AD%E6%AA%94%E3%80%81static%E8%88%87extern%E3%80%81%E9%80%A3%E7%B5%90%E9%8C%AF%E8%AA%A4%E8%88%87make.html#%E5%87%BD%E5%BC%8F%E8%A3%A1%E7%9A%84-static%E4%B8%8D%E6%94%BE%E5%A0%86%E7%96%8A%E5%80%BC%E7%95%99%E5%88%B0%E4%B8%8B%E4%B8%80%E6%AC%A1">第五節</a>〈函式裡的 <code>static</code>〉】</p>
+<p><strong>核心關鍵</strong>：</p>
+<ol>
+<li><code>next_id</code> 的 <code>n</code>：固定記憶體 <code>.bss</code>（初值 0），只初始化一次、值留著，所以 1、2、3。</li>
+<li><code>plain_id</code> 的 <code>n</code>：堆疊框裡（<code>-0x4(%rbp)</code>），每次呼叫都重新設成 0，所以每次都是 1。</li>
+</ol>
+</details>
+</details>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="review/2026-10-27-gcc-ELF-objdump-C資料-字元-陣列-組語-組語二-多檔.md" data-line="1223" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h3 id="多檔-4-標頭檔裡的-long-hits">多檔 4. 標頭檔裡的 <code>long hits;</code></h3>
 <blockquote>
@@ -730,20 +1716,85 @@ objdump<span class="w"> </span>-d<span class="w"> </span>--no-show-raw-insn<span
 </code></pre>
 <p>編譯與連結：<code>gcc -c hits.c hits_main.c &amp;&amp; gcc -o hits hits_main.o hits.o</code></p>
 <h4 id="多檔-4-1-為什麼">多檔 4-1. 為什麼？</h4>
-<details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="review/2026-10-27-gcc-ELF-objdump-C資料-字元-陣列-組語-組語二-多檔.md" data-line="695"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
+<div class="answer-box locked"><textarea readonly spellcheck="false">因爲他們都是各自編譯成object file, 所以兩個都include hits.h 裏面的hits也被定義了.所以當ld在連接兩個.o檔的時候自然就發現hits被重複定義了.
+</textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
+<details class="answer"><summary>批改</summary>
+<p><strong>對</strong>。抓到：兩個 <code>.c</code> 都貼進 <code>long hits;</code>，各有一份定義，連結時重複。</p>
+<details class="answer"><summary>參考答案</summary>
+<p>【<a href="../c/%E5%A4%9A%E6%AA%94%E6%A1%88%E7%9A%84C%E7%A8%8B%E5%BC%8F-%E6%A8%99%E9%A0%AD%E6%AA%94%E3%80%81static%E8%88%87extern%E3%80%81%E9%80%A3%E7%B5%90%E9%8C%AF%E8%AA%A4%E8%88%87make.html#%E5%BF%98%E4%BA%86-extern%E6%AF%8F%E5%80%8B-c-%E9%83%BD%E6%9C%89%E4%B8%80%E4%BB%BD%E5%AE%9A%E7%BE%A9">第六節</a>〈忘了 <code>extern</code>：每個 <code>.c</code> 都有一份定義〉】</p>
+<p><strong>核心關鍵</strong>：</p>
+<ol>
+<li><code>long hits;</code>（沒有 <code>extern</code>、沒有初值）是暫定定義，實際上就是<strong>定義</strong>。</li>
+<li>標頭檔被貼進兩個 <code>.c</code>，兩個 <code>.o</code> 各有一個 <code>GLOBAL</code> 的 <code>hits</code> → 連結器看到兩個同名定義 → <code>multiple definition</code>。</li>
+</ol>
+</details>
+</details>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="review/2026-10-27-gcc-ELF-objdump-C資料-字元-陣列-組語-組語二-多檔.md" data-line="1279" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h4 id="多檔-4-2-已經有-include-guard-了為什麼沒擋住">多檔 4-2. 已經有 include guard 了，為什麼沒擋住？</h4>
-<details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="review/2026-10-27-gcc-ELF-objdump-C資料-字元-陣列-組語-組語二-多檔.md" data-line="700"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
+<div class="answer-box locked"><textarea readonly spellcheck="false">include只能防止單一檔案編譯成object 重複引用.h, 所以include 自然沒擋住.話說重複定義是發生在ld連結時,本來就與include無關
+</textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
+<details class="answer"><summary>批改</summary>
+<p><strong>對</strong>。抓到：guard 只管同一個編譯單元；重複定義發生在連結時。</p>
+<details class="answer"><summary>參考答案</summary>
+<p>【<a href="../c/%E5%A4%9A%E6%AA%94%E6%A1%88%E7%9A%84C%E7%A8%8B%E5%BC%8F-%E6%A8%99%E9%A0%AD%E6%AA%94%E3%80%81static%E8%88%87extern%E3%80%81%E9%80%A3%E7%B5%90%E9%8C%AF%E8%AA%A4%E8%88%87make.html#%E5%BF%98%E4%BA%86-extern%E6%AF%8F%E5%80%8B-c-%E9%83%BD%E6%9C%89%E4%B8%80%E4%BB%BD%E5%AE%9A%E7%BE%A9">第六節</a>〈忘了 <code>extern</code>：每個 <code>.c</code> 都有一份定義〉最後一段】</p>
+<p><strong>核心關鍵</strong>：</p>
+<ol>
+<li>include guard 只防止<strong>同一個編譯單元</strong>裡被貼兩次（<code>HITS_H</code> 這個巨集只在編譯這一個 <code>.c</code> 的期間有效）。</li>
+<li><code>hits.c</code> 和 <code>hits_main.c</code> 是分開編譯的兩個編譯單元，各貼一次是正常的；錯誤發生在連結時兩個 <code>.o</code> 之間，guard 管不到。</li>
+</ol>
+</details>
+</details>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="review/2026-10-27-gcc-ELF-objdump-C資料-字元-陣列-組語-組語二-多檔.md" data-line="1294" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h4 id="多檔-4-3-該怎麼改標頭檔寫什麼哪裡寫什麼">多檔 4-3. 該怎麼改（標頭檔寫什麼、哪裡寫什麼）？</h4>
-<details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="review/2026-10-27-gcc-ELF-objdump-C資料-字元-陣列-組語-組語二-多檔.md" data-line="705"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
+<div class="answer-box locked"><textarea readonly spellcheck="false">hits.h 改成用extern ,代表全域宣告
+extern long hits;
+
+hits.c 增加 hits的定義
+long hits = 0;
+</textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
+<details class="answer"><summary>批改</summary>
+<p><strong>對</strong>。</p>
+<details class="answer"><summary>參考答案</summary>
+<p>【<a href="../c/%E5%A4%9A%E6%AA%94%E6%A1%88%E7%9A%84C%E7%A8%8B%E5%BC%8F-%E6%A8%99%E9%A0%AD%E6%AA%94%E3%80%81static%E8%88%87extern%E3%80%81%E9%80%A3%E7%B5%90%E9%8C%AF%E8%AA%A4%E8%88%87make.html#%E5%85%ADextern%E5%85%A8%E5%9F%9F%E8%AE%8A%E6%95%B8%E7%9A%84%E5%AE%A3%E5%91%8A%E8%88%87%E5%AE%9A%E7%BE%A9">第六節</a>〈整理：全域變數放哪裡〉】</p>
+<p><strong>核心關鍵</strong>：</p>
+<ol>
+<li>標頭檔寫 <code>extern long hits;</code>：宣告，不配置空間，幾個 <code>.c</code> 引入都沒關係。</li>
+<li><strong>恰好一個 <code>.c</code></strong>（<code>hits.c</code>）寫定義 <code>long hits = 0;</code>，而且這個 <code>.c</code> 也引入 <code>hits.h</code>，讓編譯器檢查宣告與定義的型別一致。</li>
+</ol>
+</details>
+</details>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="review/2026-10-27-gcc-ELF-objdump-C資料-字元-陣列-組語-組語二-多檔.md" data-line="1313" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h4 id="多檔-4-4-為什麼同樣的程式碼在舊版-gcc-上可以連結">多檔 4-4. 為什麼同樣的程式碼在舊版 gcc 上可以連結？</h4>
-<details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="review/2026-10-27-gcc-ELF-objdump-C資料-字元-陣列-組語-組語二-多檔.md" data-line="710"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
+<div class="answer-box locked"><textarea readonly spellcheck="false">這是因爲舊版本的gcc默認打開-fcommon, 可以讓helper符號變成com, 這樣所有相同符號的定義就可以統一 
+</textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
+<details class="answer"><summary>批改</summary>
+<p><strong>對</strong>。抓到：舊版 gcc（10 以前）預設 <code>-fcommon</code>，變成 common 符號（<code>COM</code>）、合併成一份。筆誤：「helper 符號」應是 <code>hits</code>。</p>
+<details class="answer"><summary>參考答案</summary>
+<p>【<a href="../c/%E5%A4%9A%E6%AA%94%E6%A1%88%E7%9A%84C%E7%A8%8B%E5%BC%8F-%E6%A8%99%E9%A0%AD%E6%AA%94%E3%80%81static%E8%88%87extern%E3%80%81%E9%80%A3%E7%B5%90%E9%8C%AF%E8%AA%A4%E8%88%87make.html#%E5%BF%98%E4%BA%86-extern%E6%AF%8F%E5%80%8B-c-%E9%83%BD%E6%9C%89%E4%B8%80%E4%BB%BD%E5%AE%9A%E7%BE%A9">第六節</a>〈<code>-fcommon</code>：舊程式為什麼這樣寫也能動〉】</p>
+<p><strong>核心關鍵</strong>：</p>
+<ol>
+<li>gcc 10 以前預設 <code>-fcommon</code>：沒有初值的全域變數被標成 <strong>common 符號</strong>（<code>Ndx</code> 是 <code>COM</code>，<code>nm</code> 印 <code>C</code>），不是一般的定義。</li>
+<li>連結器遇到好幾個同名的 common 符號會<strong>合併成一份</strong>，不報錯，兩個檔案共用同一個 <code>hits</code>。</li>
+</ol>
+<p><strong>詳細說明</strong>：gcc 10 起預設改成 <code>-fno-common</code>。正確修法是補 <code>extern</code>（4-3），不是加 <code>-fcommon</code>。</p>
+</details>
+</details>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="review/2026-10-27-gcc-ELF-objdump-C資料-字元-陣列-組語-組語二-多檔.md" data-line="1330" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 
 </main>

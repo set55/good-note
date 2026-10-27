@@ -30,6 +30,7 @@
 - [八、溢位：無號回繞，有號是未定義行為](#八溢位無號回繞有號是未定義行為)
 - [九、本課用到的工具與選項](#九本課用到的工具與選項)
 - [十、動手作業](#十動手作業)
+- [十一、課後討論](#十一課後討論)
 
 ---
 
@@ -1144,6 +1145,8 @@ tl.c:8:15: warning: comparison of unsigned expression in ‘>= 0’ is always tr
 所以編譯器抓得到「寫出來就一定錯」的比較，抓不到「寫出來合法、但意思跟你想的不一樣」的比較。
 無號數比大小的正確寫法是直接比 `a > b`，不要相減再跟 0 比。
 
+> 課後討論：[第十一節第 1 章〈`sum < x` 這個溢位檢查：前提、化簡的根據、怎麼確定 gcc 化簡了〉](#1-sum--x-這個溢位檢查前提化簡的根據怎麼確定-gcc-化簡了)（第 (6) 小節：`>= 0` 也會被警告）
+
 ---
 
 ## 八、溢位：無號回繞，有號是未定義行為
@@ -1278,6 +1281,8 @@ int main ()
 結論：**溢位檢查要在做運算之前、用不會溢位的式子判斷**，例如 `y > 0 && x > INT_MAX - y`。
 寫這種檢查時，還要注意**檢查式本身**會不會溢位：`INT_MAX - y` 在 `y` 是正數時安全，但 `INT_MAX - x` 在 `x` 是負數時就溢位了。
 
+> 課後討論：[第十一節第 1 章〈`sum < x` 這個溢位檢查：前提、化簡的根據、怎麼確定 gcc 化簡了〉](#1-sum--x-這個溢位檢查前提化簡的根據怎麼確定-gcc-化簡了)
+
 **UBSan 在 `-O1`、`-O2` 下報不報錯，不能預測。** 上一段的 `ub.c` 在 `-O2 -fsanitize=undefined` 下沒有報錯，
 這支 `overflow_check.c` 卻在 `-O0`、`-O1`、`-O2` 都有報錯（輸出都是 `overflow_check.c:6:9: runtime error: signed integer overflow: 2147483647 + 1 cannot be represented in type 'int'`，
 而且 `-O2` 印出的結果是 1，不是沒加 UBSan 時的 0）。`-fdump-tree-optimized` 顯示差別在 `main`：`ub.c` 的 `main` 已經被算成 `printf(..., 0)`，
@@ -1407,6 +1412,255 @@ $ gcc -Q --help=warnings -Wall -Wextra | grep -c '\[enabled\]' → 172
 
 ---
 
+## 十一、課後討論
+
+課堂與複習之後的追問整理在這裡，一個主題一章，新的章加在最後。正文被問到的地方有一行「課後討論」連過來。
+
+- [第 1 章](#1-sum--x-這個溢位檢查前提化簡的根據怎麼確定-gcc-化簡了)：`sum < x` 這個溢位檢查：前提、化簡的根據、怎麼確定 gcc 化簡了
+
+### 1. `sum < x` 這個溢位檢查：前提、化簡的根據、怎麼確定 gcc 化簡了
+
+> 2026-10-27 課後提問（10-27 複習批改[自我測驗](#自我測驗)第 9 題之後的一連串追問）：
+> - 「另外第二個原因,我覺得你強調溢位在o2是Ub這樣沒什麼不好,但是這個理由感覺不是用來判斷y<0的憑據 題目之所以會用sum < x判斷已經意味這寫code的人知道溢位不會發生,所以他用這個判斷是來判斷溢位是否發生 最強而有力的證據就是sum < x的溢位判斷是在y <0的前提,所以當y>0發生溢位他自然無法抓到」
+> - 「好像還是不對, sum < x爲什麼可以當作溢位檢查? 加入x = 5, y = -2那不就是sum < x嗎?這怎麼算是溢位?」
+> - 「那我完全不理解這個問題在問什麼」
+> - 「那我的問題就是爲什麼假設溢位不會發生的前提下,可以做x+y < x 化簡爲 y<0?」
+> - 「你怎麼確定gcc有做化簡的?」
+> - 「另外第二小題一定要強調大於0相當於不等於0嗎?無號運算結果是>= 0 不是很正常,gcc不警告就很正常」
+>
+> 正文出處：[第八節〈另一種寫法：`x + y < x` 被改寫成 `y < 0`〉](#另一種寫法x--y--x-被改寫成-y--0)（前五則）、[第七節〈`-Wtype-limits` 只抓「永遠成立／永遠不成立」的比較〉](#-wtype-limits-只抓永遠成立永遠不成立的比較)（最後一則）。
+
+**一句話整理：`sum < x` 只在 `y ≥ 0` 時才是溢位檢查；它跟 `y < 0` 唯一的差別就是「有沒有溢位」，gcc 假設溢位不會發生，就把這個差別、連同整個檢查一起化簡掉了。**
+
+以下照討論的順序排。用到的 `overflow_check.c` 就是正文〈另一種寫法〉那一支（檔案：[`overflow_check.c`](../small-project/s1-02-data-repr/examples/fold-dump/overflow_check.c)），為了閱讀方便再貼一次：
+
+```c
+#include <stdio.h>
+#include <limits.h>
+
+int will_overflow(int x, int y)
+{
+    int sum = x + y;          /* 第 6 行 */
+    return sum < x;           /* 加了正數反而變小，就代表溢位了？ */
+}
+
+int main(void)
+{
+    printf("will_overflow(INT_MAX, 1): %d\n", will_overflow(INT_MAX, 1));
+    return 0;
+}
+```
+
+#### (1) 為什麼「只有 `-O2`」抓不到：不能只用「`y < 0` 抓不到 `y > 0`」解釋
+
+第一則追問的論點是：`sum < x` 本身就是「`y < 0`」的判斷，所以 `y > 0` 又溢位時自然抓不到。這句描述的是 gcc **改寫之後**的樣子，但解釋不了正文的實測：
+
+```
+$ gcc -O0 overflow_check.c -o oc && ./oc
+will_overflow(INT_MAX, 1): 1
+$ gcc -O2 overflow_check.c -o oc && ./oc
+will_overflow(INT_MAX, 1): 0
+$ gcc -O2 -fwrapv overflow_check.c -o oc && ./oc
+will_overflow(INT_MAX, 1): 1
+```
+
+如果 `sum < x` 本來就只能判斷 `y < 0`，`-O0` 也應該回傳 0；實際上 `-O0` 抓到了（`INT_MAX + 1` 回繞成 `INT_MIN`，`INT_MIN < INT_MAX` 成立）。
+同一份程式碼，**只有**「`-O2` 而且溢位是未定義行為」時才抓不到，加了 `-fwrapv`（把有號溢位定義成二補數回繞）又抓得到。
+所以這個差別要用 [第八節〈有號溢位在 C 標準裡是「未定義行為」〉](#有號溢位在-c-標準裡是未定義行為) 解釋：gcc 憑 UB 假設溢位不會發生，才能把 `sum < x` 改寫成 `y < 0`。
+`-O2` 編出來的 `will_overflow` 只剩三行（本機 gcc 13.3，`gcc -O2 -S -fno-asynchronous-unwind-tables overflow_check.c`）：
+
+```asm
+will_overflow:
+	endbr64                # 控制流程保護標記，跟計算無關
+	movl	%esi, %eax     # %eax = y（第二個參數在 %esi）
+	shrl	$31, %eax      # 右移 31 位，只留下 y 的符號位：y 是負的得 1，否則得 0
+	ret                    # 回傳的就是 y < 0；加法和 x 都不見了
+```
+
+#### (2) `sum < x` 只在 `y ≥ 0` 時才是溢位檢查
+
+`x = 5, y = -2`：`sum = 3`，`sum < x` 成立，可是根本沒有溢位。所以 `sum < x` **不是通用的溢位檢查**，它有一個沒寫出來的前提：寫的人知道 `y ≥ 0`（例如 `y` 是長度、個數）。
+正文範例的註解寫的就是「**加了正數**反而變小」。在這個前提下，推理是：加一個非負數，數學上只會變大或不變，所以 `sum < x` 只可能是溢位回繞造成的。
+
+`y` 可以是負數時，這招從頭就不對：
+
+- `y < 0` 時，`sum < x` 本來就是正常結果（5 + (−2) = 3）；
+- 往負的方向溢位（`INT_MIN + (−1)`）會回繞成 `INT_MAX`，結果反而變**大**，`sum < x` 抓不到。
+
+`naive_builtin.c`（檔案：[`naive_builtin.c`](../small-project/s1-02-data-repr/examples/premise/naive_builtin.c)）把這種寫法跟 gcc 的內建函式 `__builtin_add_overflow`（真的溢位才回傳 1，結果寫進第三個參數）放在一起比：
+
+```c
+#include <stdio.h>
+#include <limits.h>
+
+__attribute__((noinline)) int naive(int x, int y)
+{
+    int sum = x + y;
+    return sum < x;                         /* 只在 y >= 0 時才是溢位檢查 */
+}
+
+__attribute__((noinline)) int builtin(int x, int y)
+{
+    int sum;
+    return __builtin_add_overflow(x, y, &sum);   /* 真的溢位才回傳 1 */
+}
+
+int main(void)
+{
+    int xs[] = { 5, INT_MAX, INT_MIN };
+    int ys[] = { -2, 1, -1 };
+    for (int i = 0; i < 3; i++)
+        printf("x=%d y=%d  naive=%d  builtin=%d\n",
+               xs[i], ys[i], naive(xs[i], ys[i]), builtin(xs[i], ys[i]));
+    return 0;
+}
+```
+
+（`__attribute__((noinline))`：不准 gcc 把函式內嵌進 `main`，否則 `-O2` 會在編譯時就把結果算好。）
+
+```
+$ gcc -O0 naive_builtin.c -o nb && ./nb
+x=5 y=-2  naive=1  builtin=0
+x=2147483647 y=1  naive=1  builtin=1
+x=-2147483648 y=-1  naive=0  builtin=1
+$ gcc -O2 naive_builtin.c -o nb && ./nb
+x=5 y=-2  naive=1  builtin=0
+x=2147483647 y=1  naive=0  builtin=1
+x=-2147483648 y=-1  naive=1  builtin=1
+```
+
+| 這一列 | `naive` 錯在哪 |
+|---|---|
+| `5, -2`（兩種等級） | 沒溢位卻回傳 1：`y` 是負的，不符合前提 |
+| `INT_MAX, 1`，`-O0` | 對：符合前提，照字面算、回繞，抓到 |
+| `INT_MAX, 1`，`-O2` | 抓不到：被改寫成 `y < 0`，`y` 是 1 |
+| `INT_MIN, -1`，`-O0` | 抓不到：往負的方向溢位，結果變大 |
+| `INT_MIN, -1`，`-O2` | 回傳 1 是**碰巧**：改寫後只看 `y < 0`，`y` 剛好是負的 |
+
+所以第一則追問說的「前提」方向反了：前提是 **`y ≥ 0`**，不是 `y < 0`。在 `y ≥ 0` 的前提下，`-O2` 改寫出來的 `y < 0` **永遠為假**，檢查一次都不會觸發，這就是自我測驗第 9 題說的「完全失效」。
+兩個方向都要顧的正確寫法是在運算**之前**判斷：`(y > 0 && x > INT_MAX - y) || (y < 0 && x < INT_MIN - y)`，或直接用 `__builtin_add_overflow`。
+
+#### (3) 這題到底在問什麼
+
+自我測驗第 9 題第三問（當時的題目是「為什麼 `int sum = x + y; if (sum < x)` 這種溢位檢查在 `-O2` 下可能完全失效？」，沒寫出 `y` 是正數；這次討論後補上了這個前提），拆開來是這樣：
+
+1. **寫的人想做什麼**：`y` 是正數，他擔心 `x + y` 超過 `INT_MAX`。他知道 `int` 溢位會繞回負數，所以想「加了正數反而變小，就是溢位了」，寫出 `if (sum < x)`。照二補數算，`INT_MAX + 1` 變成 `INT_MIN`，檢查成立，這個想法本身沒錯。
+2. **gcc 在 `-O2` 怎麼看**：C 標準說有號溢位是 UB，gcc 可以假設它**不會發生**。在這個假設下，`x + y` 就是數學上的加法，`x + y < x` 等於 `y < 0`，gcc 就改寫成 `if (y < 0)`。
+3. **結果**：寫的人的 `y` 一定是正的，`y < 0` 永遠為假，檢查還在原始碼裡，編出來卻等於沒寫。
+
+一句話：**用來抓溢位的檢查，被「溢位不會發生」這個假設刪掉了。**
+
+#### (4) 為什麼「不會溢位」就能把 `x + y < x` 化簡成 `y < 0`
+
+靠的是數學上的規則：**不等式兩邊同時減同一個數，大小關係不變**。
+
+```text
+x + y < x
+  兩邊同減 x
+y < 0
+```
+
+白話：「`x` 加上 `y` 之後比 `x` 小」等於「`y` 是負的」——加正數只會變大、加 0 不變、只有加負數才變小。
+這條規則的前提是 `x + y` 真的是**數學上的和**。有回繞時就不是：`INT_MAX + 1` 數學上是 2147483648，回繞後是 −2147483648，於是 `x + y < x` 為真、`y < 0` 為假，兩邊不一樣了。
+「不會溢位」保證 C 算出來的 `x + y` 等於數學上的和，規則就能用。
+
+`simp8.c`（檔案：[`simp8.c`](../small-project/s1-02-data-repr/examples/simplify8/simp8.c)）用 8 位元有號數（−128～127）把全部 65536 組 `x`、`y` 都試一次，用回繞後的結果比較兩個式子：
+
+```c
+#include <stdio.h>
+
+/* 用 8 位元有號數（-128～127）把所有 x、y 組合都試一次 */
+int main(void)
+{
+    int total = 0, overflow = 0, differ = 0, differ_no_ovf = 0;
+    for (int x = -128; x <= 127; x++)
+        for (int y = -128; y <= 127; y++) {
+            int math = x + y;                    /* 數學上的和（int 夠大，不會溢位） */
+            signed char wrapped = (signed char)math;  /* 8 位元 CPU 實際留下的結果（回繞） */
+            int ovf = (math < -128 || math > 127);
+            int a = wrapped < x;                 /* 原本的檢查 x + y < x */
+            int b = y < 0;                       /* 化簡後的 y < 0 */
+            total++;
+            overflow += ovf;
+            if (a != b) {
+                differ++;
+                if (!ovf) differ_no_ovf++;
+            }
+        }
+    printf("全部組合: %d\n", total);
+    printf("會溢位的組合: %d\n", overflow);
+    printf("x+y<x 與 y<0 結果不同的組合: %d\n", differ);
+    printf("其中「沒溢位」卻不同的: %d\n", differ_no_ovf);
+    return 0;
+}
+```
+
+```
+$ gcc -O0 simp8.c -o simp8 && ./simp8
+全部組合: 65536
+會溢位的組合: 16384
+x+y<x 與 y<0 結果不同的組合: 16384
+其中「沒溢位」卻不同的: 0
+```
+
+- 沒溢位的組合，兩個式子**全部一樣**（0 組不同）：只要不溢位，化簡永遠正確。
+- 會溢位的 16384 組，兩個式子**全部不同**：差別剛好就是「有沒有溢位」。
+
+寫檢查的人要的正是這個差別；gcc 假設溢位不會發生，等於把這個差別當成不存在，化簡後就只剩 `y < 0`。
+
+#### (5) 怎麼確定 gcc 真的化簡了：用 `-fdump-tree-all` 看每一關
+
+(1) 的組合語言只證明了**結果**是 `y < 0`。要看到 gcc 在哪一步改的，用正文〈另一種寫法〉用過的 `-fdump-tree-…`：gcc 先把程式轉成內部的中間表示（GIMPLE），再一關一關（pass）做最佳化；
+`-fdump-tree-all` 把**每一關之後**的樣子各存成一個檔，`-fdump-tree-<關卡名>`（例如 `-fdump-tree-optimized`）只存那一關。
+這裡只用到這兩種寫法；`-fdump-tree-` 後面還能接 `-details` 這類修飾、gcc 還有 `-fdump-rtl-*`、`-fdump-ipa-*` 等其他傾印，完整清單見 `man gcc` 的〈GCC Developer Options〉。
+
+```
+$ gcc -O2 -c -fdump-tree-all overflow_check.c -o /dev/null
+$ ls overflow_check.c.* | wc -l
+122
+```
+
+122 個檔，檔名中間的數字是關卡順序（`overflow_check.c.034t.ccp1`、`overflow_check.c.035t.forwprop1`……）。逐檔找 `y < 0` 第一次出現在哪一關，是第 35 關 `forwprop1`。跟前一關並排（`sum_4`、`x_2(D)` 後面的 `_4`、`(D)` 是 gcc 內部的編號）：
+
+```text
+=== 第 34 關 ccp1 之後（還是原樣）      === 第 35 關 forwprop1 之後
+sum_4 = x_2(D) + y_3(D);               sum_4 = x_2(D) + y_3(D);
+_1 = sum_4 < x_2(D);                   _1 = y_3(D) < 0;          ← 在這一關被改寫
+_5 = (int) _1;                         _5 = (int) _1;
+return _5;                             return _5;
+```
+
+`forwprop` 是 forward propagation（往前代入）：把 `sum_4` 的定義 `x + y` 代進 `sum_4 < x`，得到 `x + y < x`，再化簡成 `y < 0`。
+改寫後 `sum_4` 沒人用了，後面的關卡把它當死碼刪掉，最後一關 `optimized` 就是正文印過的樣子（`_1 = y_3(D) < 0;`，加法不見了）。
+
+對照組：加 `-fwrapv`，同一關不化簡。
+
+```
+$ gcc -O2 -fwrapv -c -fdump-tree-forwprop1 -fdump-tree-optimized overflow_check.c -o /dev/null
+```
+
+```text
+=== forwprop1 之後                       === optimized
+sum_4 = x_2(D) + y_3(D);               sum_4 = x_2(D) + y_3(D);
+_1 = x_2(D) > sum_4;                   _1 = x_2(D) > sum_4;
+```
+
+`-fwrapv` 下 `forwprop1` 只把 `sum < x` 換成等價的 `x > sum`，加法保留到最後。同一個 `-O2`、同一關，只差在溢位有沒有定義，所以是**因為溢位是 UB** 才化簡，不是因為 `-O2` 本身。
+
+#### (6) 為什麼 `> 0` 不警告：不是因為「無號的結果 ≥ 0 很正常」
+
+自我測驗第 9 題第二問（為什麼 gcc 對 `len - used < 0` 警告、對 `> 0` 不警告），最後一則追問的理由是「無號運算結果 ≥ 0 很正常，所以不警告」。這個理由分不出 `> 0` 和 `>= 0`：
+正文〈`-Wtype-limits` 只抓…〉的 `tl.c` 實測，gcc 對 `a - b >= 0` **一樣警告**（`comparison of unsigned expression in '>= 0' is always true`）。
+
+`-Wtype-limits` 只看一件事：**比較的結果是不是在編譯時就決定了**。
+
+- 「無號結果不可能是負的」解釋的是 `< 0`（永遠假）和 `>= 0`（永遠真）為什麼被警告；
+- `> 0` 不被警告，是因為它的結果**不固定**：值是 0 時為假，其他時候為真，是一個有意義的判斷。
+
+「`> 0` 等於 `!= 0`」只是這件事的一種講法；寫成「`> 0` 在值為 0 時是假的，不是恆真」也一樣算答到。
+
+---
+
 ## 自我測驗
 
 > 參考答案寫在每題下面（2026-10-06 使用者指定）。作答時先遮住答案、自己想過再對照。
@@ -1490,7 +1744,7 @@ $ gcc -Q --help=warnings -Wall -Wextra | grep -c '\[enabled\]' → 172
    > 詳細說明：順序是「先依來源型別擴展到 32 bit，再換成目標型別的讀法」。目標型別 `unsigned int` 是無號的，並不會讓擴展改成補 0——同樣是 `-1`，來源 `signed char` 就補 1。n 個 bit 全是 1 ＝ 2ⁿ − 1，所以 32 bit 全 1 是 2³² − 1；2³¹ − 1（`0x7fffffff`）是有號 `int` 的最大值，最高位是 0，不是這題的答案。
 9. 情境題：有人寫了 `if (len - used > 0)` 判斷「緩衝區還有沒有剩餘空間」，`len`、`used` 都是 `size_t`，用 `-Wall -Wextra` 編譯沒有任何警告。
    這個判斷在什麼情況下會出錯？為什麼 gcc 對 `len - used < 0` 會警告、對 `> 0` 卻不會？
-   另外，為什麼 `int sum = x + y; if (sum < x)` 這種溢位檢查在 `-O2` 下可能完全失效？
+   另外，有人用 `int sum = x + y; if (sum < x)` 檢查「`x` 加上一個**正數** `y` 會不會溢位」，為什麼這個檢查在 `-O2` 下可能完全失效？
    > **參考答案**【[第七節](../html/c/C的資料在記憶體裡長怎樣-位元組、指標、位元組順序與有號無號.html#七陷阱有號和無號混在一起比較)〈`-Wtype-limits` 只抓「永遠成立／永遠不成立」的比較〉、[第八節](../html/c/C的資料在記憶體裡長怎樣-位元組、指標、位元組順序與有號無號.html#八溢位無號回繞有號是未定義行為)〈另一種寫法：`x + y < x` 被改寫成 `y < 0`〉】（2026-10-11 改寫成核心關鍵格式）
    >
    > 核心關鍵：
@@ -1498,7 +1752,7 @@ $ gcc -Q --help=warnings -Wall -Wextra | grep -c '\[enabled\]' → 172
    > 2. 無號數 `< 0` 永遠為假，所以 gcc 警告；`> 0` 等於 `!= 0`，結果不固定，是合法寫法，所以不警告。
    > 3. 有號溢位是 UB，gcc 假設它不會發生，把 `x + y < x` 改寫成 **`y < 0`**；真的溢位時（`y` 是正的），這個檢查抓不到。
    >
-   > 詳細說明：`len == used` 時結果是 0，`> 0` 為假，所以不是「永遠為真」，只有 `len < used` 會出錯。警告來自 `-Wtype-limits`（`-Wextra` 會開啟）。溢位那一問的記法：「`x + y < x`」在數學上（沒有溢位）跟「`y < 0`」完全等價，gcc 只是做了這個代數化簡，而這個化簡只在「不會溢位」時才成立。正確的溢位檢查要在運算**之前**，用不會溢位的式子判斷，例如 `y > 0 && x > INT_MAX - y`。
+   > 詳細說明：`len == used` 時結果是 0，`> 0` 為假，所以不是「永遠為真」，只有 `len < used` 會出錯。警告來自 `-Wtype-limits`（`-Wextra` 會開啟）。溢位那一問的記法：「`x + y < x`」在數學上（沒有溢位）跟「`y < 0`」完全等價，gcc 只是做了這個代數化簡，而這個化簡只在「不會溢位」時才成立。`sum < x` 這個寫法只在 `y ≥ 0` 時才是溢位檢查（`y` 是負數時，沒溢位也會成立；2026-10-27 題目補上了「正數」的前提），見[第十一節第 1 章](../html/c/C的資料在記憶體裡長怎樣-位元組、指標、位元組順序與有號無號.html#1-sum--x-這個溢位檢查前提化簡的根據怎麼確定-gcc-化簡了)。正確的溢位檢查要在運算**之前**，用不會溢位的式子判斷，例如 `y > 0 && x > INT_MAX - y`。
 10. `long a = -1; unsigned int b = 1;` 與 `int c = -1; unsigned long d = 1;`，`a < b` 和 `c < d` 各是真還是假？兩邊各被轉成什麼型別，依據的是哪一條規則？為什麼 gcc 只對其中一個發出 `-Wsign-compare` 警告？
     > **參考答案**【[第四節](../html/c/C的資料在記憶體裡長怎樣-位元組、指標、位元組順序與有號無號.html#四無號整數二進位與回繞)〈怎麼確定一個常數的型別？比較時以誰為準？〉】（2026-10-09 改寫成核心關鍵格式）
     >

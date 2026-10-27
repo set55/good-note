@@ -39,6 +39,8 @@
 <li class="l3"><a href="#limitsh%E6%9C%AC%E8%AA%B2%E7%94%A8%E5%88%B0%E7%9A%84%E5%B8%B8%E6%95%B8">&lt;limits.h&gt;：本課用到的常數</a></li>
 <li class="l3"><a href="#%E8%A7%80%E5%AF%9F%E5%B7%A5%E5%85%B7">觀察工具</a></li>
 <li class="l2"><a href="#%E5%8D%81%E5%8B%95%E6%89%8B%E4%BD%9C%E6%A5%AD">十、動手作業</a></li>
+<li class="l2"><a href="#%E5%8D%81%E4%B8%80%E8%AA%B2%E5%BE%8C%E8%A8%8E%E8%AB%96">十一、課後討論</a></li>
+<li class="l3"><a href="#1-sum--x-%E9%80%99%E5%80%8B%E6%BA%A2%E4%BD%8D%E6%AA%A2%E6%9F%A5%E5%89%8D%E6%8F%90%E5%8C%96%E7%B0%A1%E7%9A%84%E6%A0%B9%E6%93%9A%E6%80%8E%E9%BA%BC%E7%A2%BA%E5%AE%9A-gcc-%E5%8C%96%E7%B0%A1%E4%BA%86">1. sum &lt; x 這個溢位檢查：前提、化簡的根據、怎麼確定 gcc 化簡了</a></li>
 <li class="l2"><a href="#%E8%87%AA%E6%88%91%E6%B8%AC%E9%A9%97">自我測驗</a></li>
 </ul>
 </nav>
@@ -68,6 +70,7 @@
 <li><a href="#%E5%85%AB%E6%BA%A2%E4%BD%8D%E7%84%A1%E8%99%9F%E5%9B%9E%E7%B9%9E%E6%9C%89%E8%99%9F%E6%98%AF%E6%9C%AA%E5%AE%9A%E7%BE%A9%E8%A1%8C%E7%82%BA">八、溢位：無號回繞，有號是未定義行為</a></li>
 <li><a href="#%E4%B9%9D%E6%9C%AC%E8%AA%B2%E7%94%A8%E5%88%B0%E7%9A%84%E5%B7%A5%E5%85%B7%E8%88%87%E9%81%B8%E9%A0%85">九、本課用到的工具與選項</a></li>
 <li><a href="#%E5%8D%81%E5%8B%95%E6%89%8B%E4%BD%9C%E6%A5%AD">十、動手作業</a></li>
+<li><a href="#%E5%8D%81%E4%B8%80%E8%AA%B2%E5%BE%8C%E8%A8%8E%E8%AB%96">十一、課後討論</a></li>
 </ul>
 <hr />
 <h2 id="一位元組與型別大小">一、位元組與型別大小</h2>
@@ -1232,6 +1235,9 @@ tl.c:8:15: warning: comparison of unsigned expression in ‘&gt;= 0’ is always
 </tbody>
 </table>
 <p><code>a - b &gt; 0</code> 在語法上是完全正常的程式碼（「<code>u</code> 不是 0 嗎？」），gcc 無從知道你<strong>心裡想的</strong>是「a 比 b 大」。所以編譯器抓得到「寫出來就一定錯」的比較，抓不到「寫出來合法、但意思跟你想的不一樣」的比較。無號數比大小的正確寫法是直接比 <code>a &gt; b</code>，不要相減再跟 0 比。</p>
+<blockquote>
+<p>課後討論：<a href="#1-sum--x-%E9%80%99%E5%80%8B%E6%BA%A2%E4%BD%8D%E6%AA%A2%E6%9F%A5%E5%89%8D%E6%8F%90%E5%8C%96%E7%B0%A1%E7%9A%84%E6%A0%B9%E6%93%9A%E6%80%8E%E9%BA%BC%E7%A2%BA%E5%AE%9A-gcc-%E5%8C%96%E7%B0%A1%E4%BA%86">第十一節第 1 章〈<code>sum &lt; x</code> 這個溢位檢查：前提、化簡的根據、怎麼確定 gcc 化簡了〉</a>（第 (6) 小節：<code>&gt;= 0</code> 也會被警告）</p>
+</blockquote>
 <hr />
 <h2 id="八溢位無號回繞有號是未定義行為">八、溢位：無號回繞，有號是未定義行為</h2>
 <h3 id="有號溢位在-c-標準裡是未定義行為">有號溢位在 C 標準裡是「未定義行為」</h3>
@@ -1351,6 +1357,9 @@ int main ()
 </code></pre>
 <p>（<code>y_3(D)</code> 就是參數 <code>y</code>，後面的 <code>_3</code>、<code>(D)</code> 是 gcc 內部的編號，不用管。）</p>
 <p>推理過程：<strong>假設有號溢位不會發生</strong>，<code>x + y</code> 就是數學上的加法，那麼 <code>x + y &lt; x</code> 兩邊同減 <code>x</code> 就等於 <code>y &lt; 0</code>。在數學上這完全正確，可是這個檢查<strong>本來就是要抓溢位</strong>——編譯器用「溢位不會發生」當前提，檢查就被改寫成一個永遠抓不到溢位的式子。結論：<strong>溢位檢查要在做運算之前、用不會溢位的式子判斷</strong>，例如 <code>y &gt; 0 &amp;&amp; x &gt; INT_MAX - y</code>。寫這種檢查時，還要注意<strong>檢查式本身</strong>會不會溢位：<code>INT_MAX - y</code> 在 <code>y</code> 是正數時安全，但 <code>INT_MAX - x</code> 在 <code>x</code> 是負數時就溢位了。</p>
+<blockquote>
+<p>課後討論：<a href="#1-sum--x-%E9%80%99%E5%80%8B%E6%BA%A2%E4%BD%8D%E6%AA%A2%E6%9F%A5%E5%89%8D%E6%8F%90%E5%8C%96%E7%B0%A1%E7%9A%84%E6%A0%B9%E6%93%9A%E6%80%8E%E9%BA%BC%E7%A2%BA%E5%AE%9A-gcc-%E5%8C%96%E7%B0%A1%E4%BA%86">第十一節第 1 章〈<code>sum &lt; x</code> 這個溢位檢查：前提、化簡的根據、怎麼確定 gcc 化簡了〉</a></p>
+</blockquote>
 <p><strong>UBSan 在 <code>-O1</code>、<code>-O2</code> 下報不報錯，不能預測。</strong> 上一段的 <code>ub.c</code> 在 <code>-O2 -fsanitize=undefined</code> 下沒有報錯，這支 <code>overflow_check.c</code> 卻在 <code>-O0</code>、<code>-O1</code>、<code>-O2</code> 都有報錯（輸出都是 <code>overflow_check.c:6:9: runtime error: signed integer overflow: 2147483647 + 1 cannot be represented in type 'int'</code>，而且 <code>-O2</code> 印出的結果是 1，不是沒加 UBSan 時的 0）。<code>-fdump-tree-optimized</code> 顯示差別在 <code>main</code>：<code>ub.c</code> 的 <code>main</code> 已經被算成 <code>printf(..., 0)</code>，這支的 <code>main</code> 還保留著 <code>.UBSAN_CHECK_ADD (2147483647, 1)</code>，檢查會真的執行。兩支程式都是 <code>INT_MAX + 1</code>，最佳化器有沒有把檢查一起算掉，要看程式的寫法，使用者無法預先判斷。所以結論不變：<strong>用 UBSan 找錯時固定用 <code>-O0</code> 或 <code>-Og</code></strong>，高最佳化等級沒報錯不代表沒有 UB。</p>
 <h3 id="kernel-怎麼處理-fno-strict-overflow">kernel 怎麼處理：<code>-fno-strict-overflow</code></h3>
 <p>本機裝的 kernel 標頭裡就有 kernel 的頂層 <code>Makefile</code>：</p>
@@ -1570,6 +1579,218 @@ $ gcc -Q --help=warnings -Wall -Wextra | grep -c '\[enabled\]' → 172
 <h2 id="十動手作業">十、動手作業</h2>
 <p>作業在 <a href="../small-project/s1-02-data-repr/README.html"><code>small-project/s1-02-data-repr/</code></a>：比 <code>int</code> 小的型別的範圍、<code>long</code> 的 8 byte 位元組順序、一組轉換的先預測後驗證、另外兩種有號無號比較陷阱、一個錯誤的溢位檢查。題目刻意跟本篇範例不同，要用本篇的觀念推理，照抄範例答不出來。</p>
 <hr />
+<h2 id="十一課後討論">十一、課後討論</h2>
+<p>課堂與複習之後的追問整理在這裡，一個主題一章，新的章加在最後。正文被問到的地方有一行「課後討論」連過來。</p>
+<ul>
+<li><a href="#1-sum--x-%E9%80%99%E5%80%8B%E6%BA%A2%E4%BD%8D%E6%AA%A2%E6%9F%A5%E5%89%8D%E6%8F%90%E5%8C%96%E7%B0%A1%E7%9A%84%E6%A0%B9%E6%93%9A%E6%80%8E%E9%BA%BC%E7%A2%BA%E5%AE%9A-gcc-%E5%8C%96%E7%B0%A1%E4%BA%86">第 1 章</a>：<code>sum &lt; x</code> 這個溢位檢查：前提、化簡的根據、怎麼確定 gcc 化簡了</li>
+</ul>
+<h3 id="1-sum--x-這個溢位檢查前提化簡的根據怎麼確定-gcc-化簡了">1. <code>sum &lt; x</code> 這個溢位檢查：前提、化簡的根據、怎麼確定 gcc 化簡了</h3>
+<blockquote>
+<p>2026-10-27 課後提問（10-27 複習批改<a href="#%E8%87%AA%E6%88%91%E6%B8%AC%E9%A9%97">自我測驗</a>第 9 題之後的一連串追問）：</p>
+<ul>
+<li>「另外第二個原因,我覺得你強調溢位在o2是Ub這樣沒什麼不好,但是這個理由感覺不是用來判斷y&lt;0的憑據 題目之所以會用sum &lt; x判斷已經意味這寫code的人知道溢位不會發生,所以他用這個判斷是來判斷溢位是否發生 最強而有力的證據就是sum &lt; x的溢位判斷是在y &lt;0的前提,所以當y&gt;0發生溢位他自然無法抓到」</li>
+<li>「好像還是不對, sum &lt; x爲什麼可以當作溢位檢查? 加入x = 5, y = -2那不就是sum &lt; x嗎?這怎麼算是溢位?」</li>
+<li>「那我完全不理解這個問題在問什麼」</li>
+<li>「那我的問題就是爲什麼假設溢位不會發生的前提下,可以做x+y &lt; x 化簡爲 y&lt;0?」</li>
+<li>「你怎麼確定gcc有做化簡的?」</li>
+<li>「另外第二小題一定要強調大於0相當於不等於0嗎?無號運算結果是&gt;= 0 不是很正常,gcc不警告就很正常」</li>
+</ul>
+<p>正文出處：<a href="#%E5%8F%A6%E4%B8%80%E7%A8%AE%E5%AF%AB%E6%B3%95x--y--x-%E8%A2%AB%E6%94%B9%E5%AF%AB%E6%88%90-y--0">第八節〈另一種寫法：<code>x + y &lt; x</code> 被改寫成 <code>y &lt; 0</code>〉</a>（前五則）、<a href="#-wtype-limits-%E5%8F%AA%E6%8A%93%E6%B0%B8%E9%81%A0%E6%88%90%E7%AB%8B%E6%B0%B8%E9%81%A0%E4%B8%8D%E6%88%90%E7%AB%8B%E7%9A%84%E6%AF%94%E8%BC%83">第七節〈<code>-Wtype-limits</code> 只抓「永遠成立／永遠不成立」的比較〉</a>（最後一則）。</p>
+</blockquote>
+<p><strong>一句話整理：<code>sum &lt; x</code> 只在 <code>y ≥ 0</code> 時才是溢位檢查；它跟 <code>y &lt; 0</code> 唯一的差別就是「有沒有溢位」，gcc 假設溢位不會發生，就把這個差別、連同整個檢查一起化簡掉了。</strong></p>
+<p>以下照討論的順序排。用到的 <code>overflow_check.c</code> 就是正文〈另一種寫法〉那一支（檔案：<a href="../../small-project/s1-02-data-repr/examples/fold-dump/overflow_check.c"><code>overflow_check.c</code></a>），為了閱讀方便再貼一次：</p>
+<pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;limits.h&gt;</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">will_overflow</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">x</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">y</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">sum</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">y</span><span class="p">;</span><span class="w">          </span><span class="cm">/* 第 6 行 */</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">sum</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">x</span><span class="p">;</span><span class="w">           </span><span class="cm">/* 加了正數反而變小，就代表溢位了？ */</span>
+<span class="p">}</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;will_overflow(INT_MAX, 1): %d</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">will_overflow</span><span class="p">(</span><span class="n">INT_MAX</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">));</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<h4 id="1-為什麼只有--o2抓不到不能只用y--0-抓不到-y--0解釋">(1) 為什麼「只有 <code>-O2</code>」抓不到：不能只用「<code>y &lt; 0</code> 抓不到 <code>y &gt; 0</code>」解釋</h4>
+<p>第一則追問的論點是：<code>sum &lt; x</code> 本身就是「<code>y &lt; 0</code>」的判斷，所以 <code>y &gt; 0</code> 又溢位時自然抓不到。這句描述的是 gcc <strong>改寫之後</strong>的樣子，但解釋不了正文的實測：</p>
+<pre><code>$ gcc -O0 overflow_check.c -o oc &amp;&amp; ./oc
+will_overflow(INT_MAX, 1): 1
+$ gcc -O2 overflow_check.c -o oc &amp;&amp; ./oc
+will_overflow(INT_MAX, 1): 0
+$ gcc -O2 -fwrapv overflow_check.c -o oc &amp;&amp; ./oc
+will_overflow(INT_MAX, 1): 1
+</code></pre>
+<p>如果 <code>sum &lt; x</code> 本來就只能判斷 <code>y &lt; 0</code>，<code>-O0</code> 也應該回傳 0；實際上 <code>-O0</code> 抓到了（<code>INT_MAX + 1</code> 回繞成 <code>INT_MIN</code>，<code>INT_MIN &lt; INT_MAX</code> 成立）。同一份程式碼，<strong>只有</strong>「<code>-O2</code> 而且溢位是未定義行為」時才抓不到，加了 <code>-fwrapv</code>（把有號溢位定義成二補數回繞）又抓得到。所以這個差別要用 <a href="#%E6%9C%89%E8%99%9F%E6%BA%A2%E4%BD%8D%E5%9C%A8-c-%E6%A8%99%E6%BA%96%E8%A3%A1%E6%98%AF%E6%9C%AA%E5%AE%9A%E7%BE%A9%E8%A1%8C%E7%82%BA">第八節〈有號溢位在 C 標準裡是「未定義行為」〉</a> 解釋：gcc 憑 UB 假設溢位不會發生，才能把 <code>sum &lt; x</code> 改寫成 <code>y &lt; 0</code>。
+<code>-O2</code> 編出來的 <code>will_overflow</code> 只剩三行（本機 gcc 13.3，<code>gcc -O2 -S -fno-asynchronous-unwind-tables overflow_check.c</code>）：</p>
+<pre><code class="language-asm"><span class="nl">will_overflow:</span>
+<span class="w">	</span><span class="nf">endbr64</span><span class="w">                </span><span class="c1"># 控制流程保護標記，跟計算無關</span>
+<span class="w">	</span><span class="nf">movl</span><span class="w">	</span><span class="nv">%esi</span><span class="p">,</span><span class="w"> </span><span class="nv">%eax</span><span class="w">     </span><span class="c1"># %eax = y（第二個參數在 %esi）</span>
+<span class="w">	</span><span class="nf">shrl</span><span class="w">	</span><span class="no">$31</span><span class="p">,</span><span class="w"> </span><span class="nv">%eax</span><span class="w">      </span><span class="c1"># 右移 31 位，只留下 y 的符號位：y 是負的得 1，否則得 0</span>
+<span class="w">	</span><span class="nf">ret</span><span class="w">                    </span><span class="c1"># 回傳的就是 y &lt; 0；加法和 x 都不見了</span>
+</code></pre>
+<h4 id="2-sum--x-只在-y--0-時才是溢位檢查">(2) <code>sum &lt; x</code> 只在 <code>y ≥ 0</code> 時才是溢位檢查</h4>
+<p><code>x = 5, y = -2</code>：<code>sum = 3</code>，<code>sum &lt; x</code> 成立，可是根本沒有溢位。所以 <code>sum &lt; x</code> <strong>不是通用的溢位檢查</strong>，它有一個沒寫出來的前提：寫的人知道 <code>y ≥ 0</code>（例如 <code>y</code> 是長度、個數）。正文範例的註解寫的就是「<strong>加了正數</strong>反而變小」。在這個前提下，推理是：加一個非負數，數學上只會變大或不變，所以 <code>sum &lt; x</code> 只可能是溢位回繞造成的。</p>
+<p><code>y</code> 可以是負數時，這招從頭就不對：</p>
+<ul>
+<li><code>y &lt; 0</code> 時，<code>sum &lt; x</code> 本來就是正常結果（5 + (−2) = 3）；</li>
+<li>往負的方向溢位（<code>INT_MIN + (−1)</code>）會回繞成 <code>INT_MAX</code>，結果反而變<strong>大</strong>，<code>sum &lt; x</code> 抓不到。</li>
+</ul>
+<p><code>naive_builtin.c</code>（檔案：<a href="../../small-project/s1-02-data-repr/examples/premise/naive_builtin.c"><code>naive_builtin.c</code></a>）把這種寫法跟 gcc 的內建函式 <code>__builtin_add_overflow</code>（真的溢位才回傳 1，結果寫進第三個參數）放在一起比：</p>
+<pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;limits.h&gt;</span>
+
+<span class="n">__attribute__</span><span class="p">((</span><span class="n">noinline</span><span class="p">))</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">naive</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">x</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">y</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">sum</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">y</span><span class="p">;</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">sum</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">x</span><span class="p">;</span><span class="w">                         </span><span class="cm">/* 只在 y &gt;= 0 時才是溢位檢查 */</span>
+<span class="p">}</span>
+
+<span class="n">__attribute__</span><span class="p">((</span><span class="n">noinline</span><span class="p">))</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">builtin</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">x</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">y</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">sum</span><span class="p">;</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">__builtin_add_overflow</span><span class="p">(</span><span class="n">x</span><span class="p">,</span><span class="w"> </span><span class="n">y</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">sum</span><span class="p">);</span><span class="w">   </span><span class="cm">/* 真的溢位才回傳 1 */</span>
+<span class="p">}</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="n">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">xs</span><span class="p">[]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="mi">5</span><span class="p">,</span><span class="w"> </span><span class="n">INT_MAX</span><span class="p">,</span><span class="w"> </span><span class="n">INT_MIN</span><span class="w"> </span><span class="p">};</span>
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">ys</span><span class="p">[]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="mi">-2</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">-1</span><span class="w"> </span><span class="p">};</span>
+<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">3</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="o">++</span><span class="p">)</span>
+<span class="w">        </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;x=%d y=%d  naive=%d  builtin=%d</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span>
+<span class="w">               </span><span class="n">xs</span><span class="p">[</span><span class="n">i</span><span class="p">],</span><span class="w"> </span><span class="n">ys</span><span class="p">[</span><span class="n">i</span><span class="p">],</span><span class="w"> </span><span class="n">naive</span><span class="p">(</span><span class="n">xs</span><span class="p">[</span><span class="n">i</span><span class="p">],</span><span class="w"> </span><span class="n">ys</span><span class="p">[</span><span class="n">i</span><span class="p">]),</span><span class="w"> </span><span class="n">builtin</span><span class="p">(</span><span class="n">xs</span><span class="p">[</span><span class="n">i</span><span class="p">],</span><span class="w"> </span><span class="n">ys</span><span class="p">[</span><span class="n">i</span><span class="p">]));</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<p>（<code>__attribute__((noinline))</code>：不准 gcc 把函式內嵌進 <code>main</code>，否則 <code>-O2</code> 會在編譯時就把結果算好。）</p>
+<pre><code>$ gcc -O0 naive_builtin.c -o nb &amp;&amp; ./nb
+x=5 y=-2  naive=1  builtin=0
+x=2147483647 y=1  naive=1  builtin=1
+x=-2147483648 y=-1  naive=0  builtin=1
+$ gcc -O2 naive_builtin.c -o nb &amp;&amp; ./nb
+x=5 y=-2  naive=1  builtin=0
+x=2147483647 y=1  naive=0  builtin=1
+x=-2147483648 y=-1  naive=1  builtin=1
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>這一列</th>
+<th><code>naive</code> 錯在哪</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>5, -2</code>（兩種等級）</td>
+<td>沒溢位卻回傳 1：<code>y</code> 是負的，不符合前提</td>
+</tr>
+<tr>
+<td><code>INT_MAX, 1</code>，<code>-O0</code></td>
+<td>對：符合前提，照字面算、回繞，抓到</td>
+</tr>
+<tr>
+<td><code>INT_MAX, 1</code>，<code>-O2</code></td>
+<td>抓不到：被改寫成 <code>y &lt; 0</code>，<code>y</code> 是 1</td>
+</tr>
+<tr>
+<td><code>INT_MIN, -1</code>，<code>-O0</code></td>
+<td>抓不到：往負的方向溢位，結果變大</td>
+</tr>
+<tr>
+<td><code>INT_MIN, -1</code>，<code>-O2</code></td>
+<td>回傳 1 是<strong>碰巧</strong>：改寫後只看 <code>y &lt; 0</code>，<code>y</code> 剛好是負的</td>
+</tr>
+</tbody>
+</table>
+<p>所以第一則追問說的「前提」方向反了：前提是 <strong><code>y ≥ 0</code></strong>，不是 <code>y &lt; 0</code>。在 <code>y ≥ 0</code> 的前提下，<code>-O2</code> 改寫出來的 <code>y &lt; 0</code> <strong>永遠為假</strong>，檢查一次都不會觸發，這就是自我測驗第 9 題說的「完全失效」。兩個方向都要顧的正確寫法是在運算<strong>之前</strong>判斷：<code>(y &gt; 0 &amp;&amp; x &gt; INT_MAX - y) || (y &lt; 0 &amp;&amp; x &lt; INT_MIN - y)</code>，或直接用 <code>__builtin_add_overflow</code>。</p>
+<h4 id="3-這題到底在問什麼">(3) 這題到底在問什麼</h4>
+<p>自我測驗第 9 題第三問（當時的題目是「為什麼 <code>int sum = x + y; if (sum &lt; x)</code> 這種溢位檢查在 <code>-O2</code> 下可能完全失效？」，沒寫出 <code>y</code> 是正數；這次討論後補上了這個前提），拆開來是這樣：</p>
+<ol>
+<li><strong>寫的人想做什麼</strong>：<code>y</code> 是正數，他擔心 <code>x + y</code> 超過 <code>INT_MAX</code>。他知道 <code>int</code> 溢位會繞回負數，所以想「加了正數反而變小，就是溢位了」，寫出 <code>if (sum &lt; x)</code>。照二補數算，<code>INT_MAX + 1</code> 變成 <code>INT_MIN</code>，檢查成立，這個想法本身沒錯。</li>
+<li><strong>gcc 在 <code>-O2</code> 怎麼看</strong>：C 標準說有號溢位是 UB，gcc 可以假設它<strong>不會發生</strong>。在這個假設下，<code>x + y</code> 就是數學上的加法，<code>x + y &lt; x</code> 等於 <code>y &lt; 0</code>，gcc 就改寫成 <code>if (y &lt; 0)</code>。</li>
+<li><strong>結果</strong>：寫的人的 <code>y</code> 一定是正的，<code>y &lt; 0</code> 永遠為假，檢查還在原始碼裡，編出來卻等於沒寫。</li>
+</ol>
+<p>一句話：<strong>用來抓溢位的檢查，被「溢位不會發生」這個假設刪掉了。</strong></p>
+<h4 id="4-為什麼不會溢位就能把-x--y--x-化簡成-y--0">(4) 為什麼「不會溢位」就能把 <code>x + y &lt; x</code> 化簡成 <code>y &lt; 0</code></h4>
+<p>靠的是數學上的規則：<strong>不等式兩邊同時減同一個數，大小關係不變</strong>。</p>
+<pre><code class="language-text">x + y &lt; x
+  兩邊同減 x
+y &lt; 0
+</code></pre>
+<p>白話：「<code>x</code> 加上 <code>y</code> 之後比 <code>x</code> 小」等於「<code>y</code> 是負的」——加正數只會變大、加 0 不變、只有加負數才變小。這條規則的前提是 <code>x + y</code> 真的是<strong>數學上的和</strong>。有回繞時就不是：<code>INT_MAX + 1</code> 數學上是 2147483648，回繞後是 −2147483648，於是 <code>x + y &lt; x</code> 為真、<code>y &lt; 0</code> 為假，兩邊不一樣了。「不會溢位」保證 C 算出來的 <code>x + y</code> 等於數學上的和，規則就能用。</p>
+<p><code>simp8.c</code>（檔案：<a href="../../small-project/s1-02-data-repr/examples/simplify8/simp8.c"><code>simp8.c</code></a>）用 8 位元有號數（−128～127）把全部 65536 組 <code>x</code>、<code>y</code> 都試一次，用回繞後的結果比較兩個式子：</p>
+<pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+
+<span class="cm">/* 用 8 位元有號數（-128～127）把所有 x、y 組合都試一次 */</span>
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">total</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="n">overflow</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="n">differ</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="n">differ_no_ovf</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">-128</span><span class="p">;</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="o">&lt;=</span><span class="w"> </span><span class="mi">127</span><span class="p">;</span><span class="w"> </span><span class="n">x</span><span class="o">++</span><span class="p">)</span>
+<span class="w">        </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">y</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">-128</span><span class="p">;</span><span class="w"> </span><span class="n">y</span><span class="w"> </span><span class="o">&lt;=</span><span class="w"> </span><span class="mi">127</span><span class="p">;</span><span class="w"> </span><span class="n">y</span><span class="o">++</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="kt">int</span><span class="w"> </span><span class="n">math</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">y</span><span class="p">;</span><span class="w">                    </span><span class="cm">/* 數學上的和（int 夠大，不會溢位） */</span>
+<span class="w">            </span><span class="kt">signed</span><span class="w"> </span><span class="kt">char</span><span class="w"> </span><span class="n">wrapped</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="kt">signed</span><span class="w"> </span><span class="kt">char</span><span class="p">)</span><span class="n">math</span><span class="p">;</span><span class="w">  </span><span class="cm">/* 8 位元 CPU 實際留下的結果（回繞） */</span>
+<span class="w">            </span><span class="kt">int</span><span class="w"> </span><span class="n">ovf</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">math</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">-128</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="n">math</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">127</span><span class="p">);</span>
+<span class="w">            </span><span class="kt">int</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">wrapped</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">x</span><span class="p">;</span><span class="w">                 </span><span class="cm">/* 原本的檢查 x + y &lt; x */</span>
+<span class="w">            </span><span class="kt">int</span><span class="w"> </span><span class="n">b</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">y</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w">                       </span><span class="cm">/* 化簡後的 y &lt; 0 */</span>
+<span class="w">            </span><span class="n">total</span><span class="o">++</span><span class="p">;</span>
+<span class="w">            </span><span class="n">overflow</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="n">ovf</span><span class="p">;</span>
+<span class="w">            </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">a</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="n">b</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                </span><span class="n">differ</span><span class="o">++</span><span class="p">;</span>
+<span class="w">                </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">ovf</span><span class="p">)</span><span class="w"> </span><span class="n">differ_no_ovf</span><span class="o">++</span><span class="p">;</span>
+<span class="w">            </span><span class="p">}</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;全部組合: %d</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">total</span><span class="p">);</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;會溢位的組合: %d</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">overflow</span><span class="p">);</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;x+y&lt;x 與 y&lt;0 結果不同的組合: %d</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">differ</span><span class="p">);</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;其中「沒溢位」卻不同的: %d</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">differ_no_ovf</span><span class="p">);</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<pre><code>$ gcc -O0 simp8.c -o simp8 &amp;&amp; ./simp8
+全部組合: 65536
+會溢位的組合: 16384
+x+y&lt;x 與 y&lt;0 結果不同的組合: 16384
+其中「沒溢位」卻不同的: 0
+</code></pre>
+<ul>
+<li>沒溢位的組合，兩個式子<strong>全部一樣</strong>（0 組不同）：只要不溢位，化簡永遠正確。</li>
+<li>會溢位的 16384 組，兩個式子<strong>全部不同</strong>：差別剛好就是「有沒有溢位」。</li>
+</ul>
+<p>寫檢查的人要的正是這個差別；gcc 假設溢位不會發生，等於把這個差別當成不存在，化簡後就只剩 <code>y &lt; 0</code>。</p>
+<h4 id="5-怎麼確定-gcc-真的化簡了用--fdump-tree-all-看每一關">(5) 怎麼確定 gcc 真的化簡了：用 <code>-fdump-tree-all</code> 看每一關</h4>
+<p>(1) 的組合語言只證明了<strong>結果</strong>是 <code>y &lt; 0</code>。要看到 gcc 在哪一步改的，用正文〈另一種寫法〉用過的 <code>-fdump-tree-…</code>：gcc 先把程式轉成內部的中間表示（GIMPLE），再一關一關（pass）做最佳化；
+<code>-fdump-tree-all</code> 把<strong>每一關之後</strong>的樣子各存成一個檔，<code>-fdump-tree-&lt;關卡名&gt;</code>（例如 <code>-fdump-tree-optimized</code>）只存那一關。這裡只用到這兩種寫法；<code>-fdump-tree-</code> 後面還能接 <code>-details</code> 這類修飾、gcc 還有 <code>-fdump-rtl-*</code>、<code>-fdump-ipa-*</code> 等其他傾印，完整清單見 <code>man gcc</code> 的〈GCC Developer Options〉。</p>
+<pre><code>$ gcc -O2 -c -fdump-tree-all overflow_check.c -o /dev/null
+$ ls overflow_check.c.* | wc -l
+122
+</code></pre>
+<p>122 個檔，檔名中間的數字是關卡順序（<code>overflow_check.c.034t.ccp1</code>、<code>overflow_check.c.035t.forwprop1</code>……）。逐檔找 <code>y &lt; 0</code> 第一次出現在哪一關，是第 35 關 <code>forwprop1</code>。跟前一關並排（<code>sum_4</code>、<code>x_2(D)</code> 後面的 <code>_4</code>、<code>(D)</code> 是 gcc 內部的編號）：</p>
+<pre><code class="language-text">=== 第 34 關 ccp1 之後（還是原樣）      === 第 35 關 forwprop1 之後
+sum_4 = x_2(D) + y_3(D);               sum_4 = x_2(D) + y_3(D);
+_1 = sum_4 &lt; x_2(D);                   _1 = y_3(D) &lt; 0;          ← 在這一關被改寫
+_5 = (int) _1;                         _5 = (int) _1;
+return _5;                             return _5;
+</code></pre>
+<p><code>forwprop</code> 是 forward propagation（往前代入）：把 <code>sum_4</code> 的定義 <code>x + y</code> 代進 <code>sum_4 &lt; x</code>，得到 <code>x + y &lt; x</code>，再化簡成 <code>y &lt; 0</code>。改寫後 <code>sum_4</code> 沒人用了，後面的關卡把它當死碼刪掉，最後一關 <code>optimized</code> 就是正文印過的樣子（<code>_1 = y_3(D) &lt; 0;</code>，加法不見了）。</p>
+<p>對照組：加 <code>-fwrapv</code>，同一關不化簡。</p>
+<pre><code>$ gcc -O2 -fwrapv -c -fdump-tree-forwprop1 -fdump-tree-optimized overflow_check.c -o /dev/null
+</code></pre>
+<pre><code class="language-text">=== forwprop1 之後                       === optimized
+sum_4 = x_2(D) + y_3(D);               sum_4 = x_2(D) + y_3(D);
+_1 = x_2(D) &gt; sum_4;                   _1 = x_2(D) &gt; sum_4;
+</code></pre>
+<p><code>-fwrapv</code> 下 <code>forwprop1</code> 只把 <code>sum &lt; x</code> 換成等價的 <code>x &gt; sum</code>，加法保留到最後。同一個 <code>-O2</code>、同一關，只差在溢位有沒有定義，所以是<strong>因為溢位是 UB</strong> 才化簡，不是因為 <code>-O2</code> 本身。</p>
+<h4 id="6-為什麼--0-不警告不是因為無號的結果--0-很正常">(6) 為什麼 <code>&gt; 0</code> 不警告：不是因為「無號的結果 ≥ 0 很正常」</h4>
+<p>自我測驗第 9 題第二問（為什麼 gcc 對 <code>len - used &lt; 0</code> 警告、對 <code>&gt; 0</code> 不警告），最後一則追問的理由是「無號運算結果 ≥ 0 很正常，所以不警告」。這個理由分不出 <code>&gt; 0</code> 和 <code>&gt;= 0</code>：正文〈<code>-Wtype-limits</code> 只抓…〉的 <code>tl.c</code> 實測，gcc 對 <code>a - b &gt;= 0</code> <strong>一樣警告</strong>（<code>comparison of unsigned expression in '&gt;= 0' is always true</code>）。</p>
+<p><code>-Wtype-limits</code> 只看一件事：<strong>比較的結果是不是在編譯時就決定了</strong>。</p>
+<ul>
+<li>「無號結果不可能是負的」解釋的是 <code>&lt; 0</code>（永遠假）和 <code>&gt;= 0</code>（永遠真）為什麼被警告；</li>
+<li><code>&gt; 0</code> 不被警告，是因為它的結果<strong>不固定</strong>：值是 0 時為假，其他時候為真，是一個有意義的判斷。</li>
+</ul>
+<p>「<code>&gt; 0</code> 等於 <code>!= 0</code>」只是這件事的一種講法；寫成「<code>&gt; 0</code> 在值為 0 時是假的，不是恆真」也一樣算答到。</p>
+<hr />
 <h2 id="自我測驗">自我測驗</h2>
 <blockquote>
 <p>參考答案寫在每題下面（2026-10-06 使用者指定）。作答時先遮住答案、自己想過再對照。</p>
@@ -1664,7 +1885,7 @@ kernel 用哪個選項避免這種情況，代價是什麼？<details class="ans
 <p>詳細說明：順序是「先依來源型別擴展到 32 bit，再換成目標型別的讀法」。目標型別 <code>unsigned int</code> 是無號的，並不會讓擴展改成補 0——同樣是 <code>-1</code>，來源 <code>signed char</code> 就補 1。n 個 bit 全是 1 ＝ 2ⁿ − 1，所以 32 bit 全 1 是 2³² − 1；2³¹ − 1（<code>0x7fffffff</code>）是有號 <code>int</code> 的最大值，最高位是 0，不是這題的答案。</p>
 </details>
 </li>
-<li>情境題：有人寫了 <code>if (len - used &gt; 0)</code> 判斷「緩衝區還有沒有剩餘空間」，<code>len</code>、<code>used</code> 都是 <code>size_t</code>，用 <code>-Wall -Wextra</code> 編譯沒有任何警告。這個判斷在什麼情況下會出錯？為什麼 gcc 對 <code>len - used &lt; 0</code> 會警告、對 <code>&gt; 0</code> 卻不會？另外，為什麼 <code>int sum = x + y; if (sum &lt; x)</code> 這種溢位檢查在 <code>-O2</code> 下可能完全失效？<details class="answer"><summary>參考答案</summary>
+<li>情境題：有人寫了 <code>if (len - used &gt; 0)</code> 判斷「緩衝區還有沒有剩餘空間」，<code>len</code>、<code>used</code> 都是 <code>size_t</code>，用 <code>-Wall -Wextra</code> 編譯沒有任何警告。這個判斷在什麼情況下會出錯？為什麼 gcc 對 <code>len - used &lt; 0</code> 會警告、對 <code>&gt; 0</code> 卻不會？另外，有人用 <code>int sum = x + y; if (sum &lt; x)</code> 檢查「<code>x</code> 加上一個<strong>正數</strong> <code>y</code> 會不會溢位」，為什麼這個檢查在 <code>-O2</code> 下可能完全失效？<details class="answer"><summary>參考答案</summary>
 <p>【<a href="#%E4%B8%83%E9%99%B7%E9%98%B1%E6%9C%89%E8%99%9F%E5%92%8C%E7%84%A1%E8%99%9F%E6%B7%B7%E5%9C%A8%E4%B8%80%E8%B5%B7%E6%AF%94%E8%BC%83">第七節</a>〈<code>-Wtype-limits</code> 只抓「永遠成立／永遠不成立」的比較〉、<a href="#%E5%85%AB%E6%BA%A2%E4%BD%8D%E7%84%A1%E8%99%9F%E5%9B%9E%E7%B9%9E%E6%9C%89%E8%99%9F%E6%98%AF%E6%9C%AA%E5%AE%9A%E7%BE%A9%E8%A1%8C%E7%82%BA">第八節</a>〈另一種寫法：<code>x + y &lt; x</code> 被改寫成 <code>y &lt; 0</code>〉】（2026-10-11 改寫成核心關鍵格式）</p>
 <p>核心關鍵：</p>
 <ol>
@@ -1672,7 +1893,7 @@ kernel 用哪個選項避免這種情況，代價是什麼？<details class="ans
 <li>無號數 <code>&lt; 0</code> 永遠為假，所以 gcc 警告；<code>&gt; 0</code> 等於 <code>!= 0</code>，結果不固定，是合法寫法，所以不警告。</li>
 <li>有號溢位是 UB，gcc 假設它不會發生，把 <code>x + y &lt; x</code> 改寫成 <strong><code>y &lt; 0</code></strong>；真的溢位時（<code>y</code> 是正的），這個檢查抓不到。</li>
 </ol>
-<p>詳細說明：<code>len == used</code> 時結果是 0，<code>&gt; 0</code> 為假，所以不是「永遠為真」，只有 <code>len &lt; used</code> 會出錯。警告來自 <code>-Wtype-limits</code>（<code>-Wextra</code> 會開啟）。溢位那一問的記法：「<code>x + y &lt; x</code>」在數學上（沒有溢位）跟「<code>y &lt; 0</code>」完全等價，gcc 只是做了這個代數化簡，而這個化簡只在「不會溢位」時才成立。正確的溢位檢查要在運算<strong>之前</strong>，用不會溢位的式子判斷，例如 <code>y &gt; 0 &amp;&amp; x &gt; INT_MAX - y</code>。</p>
+<p>詳細說明：<code>len == used</code> 時結果是 0，<code>&gt; 0</code> 為假，所以不是「永遠為真」，只有 <code>len &lt; used</code> 會出錯。警告來自 <code>-Wtype-limits</code>（<code>-Wextra</code> 會開啟）。溢位那一問的記法：「<code>x + y &lt; x</code>」在數學上（沒有溢位）跟「<code>y &lt; 0</code>」完全等價，gcc 只是做了這個代數化簡，而這個化簡只在「不會溢位」時才成立。<code>sum &lt; x</code> 這個寫法只在 <code>y ≥ 0</code> 時才是溢位檢查（<code>y</code> 是負數時，沒溢位也會成立；2026-10-27 題目補上了「正數」的前提），見<a href="#1-sum--x-%E9%80%99%E5%80%8B%E6%BA%A2%E4%BD%8D%E6%AA%A2%E6%9F%A5%E5%89%8D%E6%8F%90%E5%8C%96%E7%B0%A1%E7%9A%84%E6%A0%B9%E6%93%9A%E6%80%8E%E9%BA%BC%E7%A2%BA%E5%AE%9A-gcc-%E5%8C%96%E7%B0%A1%E4%BA%86">第十一節第 1 章</a>。正確的溢位檢查要在運算<strong>之前</strong>，用不會溢位的式子判斷，例如 <code>y &gt; 0 &amp;&amp; x &gt; INT_MAX - y</code>。</p>
 </details>
 </li>
 <li><code>long a = -1; unsigned int b = 1;</code> 與 <code>int c = -1; unsigned long d = 1;</code>，<code>a &lt; b</code> 和 <code>c &lt; d</code> 各是真還是假？兩邊各被轉成什麼型別，依據的是哪一條規則？為什麼 gcc 只對其中一個發出 <code>-Wsign-compare</code> 警告？<details class="answer"><summary>參考答案</summary>

@@ -472,3 +472,15 @@ safe_will_overflow 沒有真的去加, 他用減去迴避溢位的問題
 > 程式裡沒有任何一個運算真的溢位，UBSan 就沒有東西可報。
 >
 > 補充（實測）：這支程式在 `-O2 -fsanitize=undefined` 下也會報錯，跟筆記 `ub.c` 在 `-O2` 不報錯不同，已寫進筆記[第八節](../../html/c/C的資料在記憶體裡長怎樣-位元組、指標、位元組順序與有號無號.html#八溢位無號回繞有號是未定義行為)。結論：UBSan 固定搭配 `-O0` 或 `-Og`。
+
+---
+
+## 筆記的範例程式
+
+第 2 課當時的範例只寫在筆記裡；2026-10-27 起筆記〈課後討論〉新增的範例放在 `examples/<實驗名>/`。
+
+| 檔案 | 在筆記的位置 |
+|---|---|
+| [`examples/fold-dump/overflow_check.c`](examples/fold-dump/overflow_check.c) | 第八節〈另一種寫法：`x + y < x` 被改寫成 `y < 0`〉的範例；第十一節第 1 章 (1)、(5) 用它看 `-O2` 組合語言與 `-fdump-tree-all` |
+| [`examples/premise/naive_builtin.c`](examples/premise/naive_builtin.c) | 第十一節第 1 章 (2)：`sum < x` 只在 `y ≥ 0` 時才是溢位檢查，對照 `__builtin_add_overflow` |
+| [`examples/simplify8/simp8.c`](examples/simplify8/simp8.c) | 第十一節第 1 章 (4)：8 位元全部組合比較 `x + y < x` 與 `y < 0` |
