@@ -42,6 +42,15 @@
 
 ---
 
+## 批改結果（2026-10-27）
+
+第 1 題 2026-10-27 批改；第 2～5 題還沒交。
+
+| 題目 | 結果 | 錯在哪／缺什麼 |
+|---|---|---|
+| 1-1 | 對 | 指令、輸出全部正確（我用你的檔案重做一次，結果一樣）；抓到索引是「符號 → 在哪個成員」的表、`ld` 靠它決定拉哪個成員；沒有索引時 `ld` 拒絕、`ranlib` 補上後就能連結 |
+| 1-2 | 對 | 預測對；抓到 `ftoc.o` 被拉進來後帶來新的缺口 `temp_round`，所以 `round.o` 也被拉進來；沒有人要 `c_to_f`，`ctof.o` 就不拉。用詞小提醒：「`f_to_c` 與 `temp_round` 連結」要說成「`ftoc.o` 裡有未定義的 `temp_round`（`nm` 的 `U`）」 |
+
 ## 1. 做一個靜態函式庫，看連結器拉了哪些成員
 
 在 `hw1/` 裡建下面五個檔案。這是一個溫度換算函式庫：溫度先算成「十分之一度」的整數，再由 `temp_round` 四捨五入成整數度。
@@ -109,15 +118,120 @@ int main(void)
 
 ### 1-1. 貼上你建立 `libtemp.a` 與連結 `hw1` 的指令、`./hw1` 的輸出、`ar t libtemp.a` 與 `nm -s libtemp.a` 的輸出。`nm -s` 印出的 `Archive index` 是什麼、誰會用到它？再用 `ar rcS libnoidx.a ctof.o ftoc.o round.o` 做一個沒有索引的版本、用 `-L. -lnoidx` 連結，貼上結果，並用 `ranlib` 修好它（貼上修好後的連結與執行結果）。【筆記[第二節](../../html/c/靜態與動態函式庫-ar與.a、-fPIC與.so、執行時怎麼找到.so.html#二靜態函式庫用-ar-把-o-包成-a)〈實驗：做出 `libcalc.a`〉】
 
-**第 1 次（YYYY-MM-DD）**
+**第 1 次（2026-10-27）**
 ```
+gcc -Wall -Wextra -c ctof.c ftoc.c round.c
+ar rcs libtemp.a ctof.o ftoc.o round.o
+gcc -Wall -Wextra hw1_main.c -L. -ltemp -o hw1
+
+f_to_c(212) = 100
+
+ar t libtemp.a
+ctof.o
+ftoc.o
+round.o
+
+nm -s libtemp.a
+Archive index:
+c_to_f in ctof.o
+f_to_c in ftoc.o
+temp_round in round.o
+
+ctof.o:
+0000000000000000 T c_to_f
+                 U temp_round
+
+ftoc.o:
+0000000000000000 T f_to_c
+                 U temp_round
+
+round.o:
+0000000000000000 T temp_round
+
+archive index就是一個符號的索引,連接的時候ld會根據這個索引決定要把命中索引的object file加入到執行檔
+
+gcc -Wall -Wextra hw1_main.c -L. -lnoidx -o hw1noidx
+/usr/bin/ld: ./libnoidx.a: error adding symbols: archive has no index; run ranlib to add one
+collect2: error: ld returned 1 exit status
+
+ranlib libnoidx.a
+
+nm -s libnoidx.a
+Archive index:
+c_to_f in ctof.o
+f_to_c in ftoc.o
+temp_round in round.o
+
+ctof.o:
+0000000000000000 T c_to_f
+                 U temp_round
+
+ftoc.o:
+0000000000000000 T f_to_c
+                 U temp_round
+
+round.o:
+0000000000000000 T temp_round
+
+gcc -Wall -Wextra hw1_main.c -L. -lnoidx -o hw1noidx
+
+./hw1noidx
+f_to_c(212) = 100
 ```
+
+> **批改**：**對**。我在 scratchpad 用你的五個檔案照樣重做：`gcc -Wall -c` 沒有警告，`./hw1` 印 `f_to_c(212) = 100`；`ar t`、`nm -s` 的輸出，`libnoidx.a` 的 `archive has no index; run ranlib to add one`，以及 `ranlib` 之後能連結、能執行，全都跟你貼的一樣。
+> 「索引就是符號的索引，`ld` 根據它決定要把哪個 object file 加進執行檔」：索引是什麼、誰用它，兩點都答到了。可以再精確一點：索引的每一列是「符號 → 定義它的成員」（`f_to_c in ftoc.o`），`ld` 拿手上「還缺的符號」去查這張表，就知道要拉哪個成員，不必把每個成員的符號表讀一遍。
+> 小建議：`ranlib` 前也可以先跑一次 `nm -s libnoidx.a`，看到開頭**沒有** `Archive index:`，前後對照會更清楚（題目沒要求，不扣分）。
+>
+> **參考答案**【筆記[第二節](../../html/c/靜態與動態函式庫-ar與.a、-fPIC與.so、執行時怎麼找到.so.html#二靜態函式庫用-ar-把-o-包成-a)〈[實驗：做出 `libcalc.a`](../../html/c/靜態與動態函式庫-ar與.a、-fPIC與.so、執行時怎麼找到.so.html#實驗做出-libcalca)〉】
+>
+> **核心關鍵**（答到這幾點就算對）：
+>
+> 1. 指令與輸出：`gcc -Wall -c` 三個 `.c` → `ar rcs libtemp.a ctof.o ftoc.o round.o` → `gcc -Wall hw1_main.c -L. -ltemp -o hw1`，`./hw1` 印 `f_to_c(212) = 100`；`ar t` 列出三個成員。
+> 2. `Archive index` 是 `ar` 的 `s` 建的一張表：「哪個符號定義在哪個成員裡」。
+> 3. 用它的是連結器 `ld`：查這張表就知道缺的符號要從哪個成員拉，不用逐一讀每個成員的符號表。
+> 4. 用 `S` 做出沒有索引的 `.a`，GNU `ld` 直接拒絕（`archive has no index; run ranlib to add one`）；`ranlib libnoidx.a`（等於 `ar s`）補上索引後就能連結、執行。
+>
+> **詳細說明**：`.a` 只是把幾個 `.o` 接在一起的封存檔，跟 `tar` 是同一類東西，`ar` 不會重新編譯、也不會連結。索引放在封存檔開頭，所以 `nm -s` 先印 `Archive index:`，再逐個成員印各自的符號表；`U temp_round` 那兩列表示 `ctof.o`、`ftoc.o` 都**需要** `temp_round`，但這個符號不是它們定義的，所以索引裡只有 `temp_round in round.o`。索引只收「有定義」的符號（`T`），沒收 `U`，因為它要回答的是「這個符號去哪裡拿」。
 
 ### 1-2. 先預測：`nm hw1 | grep -E 'c_to_f|f_to_c|temp_round'` 會列出這三個函式裡的哪幾個？寫下預測後再執行，貼上結果，並貼上 `gcc -Wall hw1_main.c -L. -ltemp -Wl,--verbose -o hw1 2>&1 | grep libtemp` 的輸出。`hw1_main.c` 沒有直接呼叫 `temp_round`，它為什麼（或為什麼沒有）在執行檔裡？`c_to_f` 呢？【筆記第二節〈連結：只拉需要的成員〉】
 
-**第 1 次（YYYY-MM-DD）**
+**第 1 次（2026-10-27）**
 ```
+我預測有:f_to_c, temp_round
+
+nm hw1 | grep -E 'c_to_f|f_to_c|temp_round'
+0000000000001178 T f_to_c
+00000000000011b1 T temp_round
+
+gcc -Wall hw1_main.c -L. -ltemp -Wl,--verbose -o hw1 2>&1 | grep libtemp
+attempt to open ./libtemp.so failed
+attempt to open ./libtemp.a succeeded
+./libtemp.a
+(./libtemp.a)ftoc.o
+(./libtemp.a)round.o
+
+他雖然沒有直接與temp_round連結,但是有與f_to_c連接,而f_to_c又與temp_round連結,所以最後還是是出現在了執行檔裏
+
+main一開始的符號就沒有他了,所以也不會去把ctof.o拉入執行檔,自然不會有這個符號
 ```
+
+> **批改**：**對**。預測 `f_to_c`、`temp_round` 正確，`nm` 和 `--verbose` 的輸出我重做後也一樣：只拉了 `ftoc.o`、`round.o`。
+> 兩個理由的主線都對：`temp_round` 是被 `f_to_c` 間接帶進來的；`main` 沒用到 `c_to_f`，所以 `ctof.o` 不拉。
+> 用詞要改準一點：「`f_to_c` 與 `temp_round` 連結」講得不清楚，`ld` 看的不是「誰跟誰連結」，而是**還缺哪些符號**。精確的說法是：`ftoc.o` 被拉進來以後，它自己的符號表裡有 `U temp_round`（你在 1-1 的 `nm -s` 看過），於是 `temp_round` 被加進「還缺」的清單，`ld` 查索引找到 `round.o`，也把它拉進來。
+>
+> **參考答案**【筆記[第二節](../../html/c/靜態與動態函式庫-ar與.a、-fPIC與.so、執行時怎麼找到.so.html#二靜態函式庫用-ar-把-o-包成-a)〈[連結：只拉需要的成員](../../html/c/靜態與動態函式庫-ar與.a、-fPIC與.so、執行時怎麼找到.so.html#連結只拉需要的成員)〉、〈[順序：`ld` 由左往右只掃一次](../../html/c/靜態與動態函式庫-ar與.a、-fPIC與.so、執行時怎麼找到.so.html#順序ld-由左往右只掃一次)〉的「還沒找到定義的符號」清單】
+>
+> **核心關鍵**（答到這幾點就算對）：
+>
+> 1. 執行檔裡有 `f_to_c`、`temp_round`，沒有 `c_to_f`；`--verbose` 證明 `libtemp.a` 裡只拉了 `ftoc.o`、`round.o`。
+> 2. `temp_round` 在執行檔裡：`main` 缺 `f_to_c` → 拉進 `ftoc.o`；`ftoc.o` 自己有未定義的 `temp_round`，成了新的缺口 → 再拉進 `round.o`。
+> 3. `c_to_f` 不在：沒有任何已拉進來的檔案需要它，`ctof.o` 就不拉（封存檔的成員是有人需要才拉，拉的單位是整個 `.o`）。
+>
+> **詳細說明**：
+> - 逐步看 `ld` 手上的「還缺」清單：讀 `hw1_main.c` 編出的 `.o` → 清單 `{f_to_c, printf}`；掃到 `libtemp.a`，查索引得到 `f_to_c in ftoc.o` → 拉 `ftoc.o`，`f_to_c` 解決，但多了 `temp_round`；查索引得到 `temp_round in round.o` → 拉 `round.o`。`c_to_f` 從頭到尾都沒進過清單。`printf` 最後由 libc 解決。
+> - `ctof.o` 也有 `U temp_round`，但那不重要：成員自己「需要什麼」只有在它被拉進來之後才算數。`ctof.o` 沒被拉進來，它的需求就不存在。
+> - 補充（筆記沒寫，我實測過）：**同一個 `.a` 裡面**，`ld` 會反覆查索引，直到再也拉不出新成員才離開，所以成員在 `.a` 裡的順序沒有影響。我用 `ar rcs librev.a round.o ctof.o ftoc.o` 把 `round.o` 放在最前面，連結照樣成功，`--verbose` 一樣印出 `(./librev.a)ftoc.o`、`(./librev.a)round.o`。筆記講的「由左往右只掃一次、不回頭」，指的是命令列上**不同的檔案**之間；第 2 題會碰到兩個 `.a` 互相需要的情況。
 
 ---
 
