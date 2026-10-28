@@ -9,7 +9,7 @@
 - [核心與驅動](#核心與驅動)（6 篇）
 - [網路基礎與設定](#網路基礎與設定)（18 篇）
 - [網路查詢與追蹤](#網路查詢與追蹤)（4 篇）
-- [Shell 與重新導向](#shell-與重新導向)（11 篇）
+- [Shell 與重新導向](#shell-與重新導向)（12 篇）
 - [終端機與 tmux](#終端機與-tmux)（5 篇）
 - [桌面環境（GNOME）](#桌面環境gnome)（1 篇）
 - [系統組成（核心與使用者空間）](#系統組成核心與使用者空間)（1 篇）
@@ -99,6 +99,7 @@ shell 的語法真相與 fd 0／1／2 這三條線怎麼接。
 | [root執行腳本也Permission-denied-缺執行位元.md](./root執行腳本也Permission-denied-缺執行位元.md) | 新檔案（scp、編輯器建立）預設 `rw-r--r--` 沒有 x，`./檔名` 要核心 `execve` 所以被擋；root 的 `CAP_DAC_OVERRIDE` 對執行有例外——至少要有一個 x 位元；`sh 檔名` 只需 r 所以繞得過但會忽略 `#!`；含 `chmod` 三種形式、符號模式 `[ugoa][+-=][rwxXst]` 逐段與省略時受 umask 影響、八進位、完整選項，以及 `noexec` 掛載、`#!` 直譯器不存在／CRLF（回 `not found`）等相似錯誤的對照 | `Permission denied` `chmod +x` `chmod 755` `x bit` `CAP_DAC_OVERRIDE` `execve` `shebang` `sh script.sh` `umask` `scp -p` `noexec` `CRLF` `not found` `BusyBox ash` |
 | [在終端機怎麼計算-shell算術bc與printf.md](./在終端機怎麼計算-shell算術bc與printf.md) | 整數與進位換算用 shell 內建的 `$(( ))`（到處都有，含路由器 ash），小數與大數用 `bc`（`-l` 才有小數），印成十六／八進位用 `printf`；四個陷阱：bash 只有整數（zsh 例外）、`^` 是 XOR 不是次方（`bc` 的 `^` 才是）、`010` 在 bash 是八進位（`08` 報 value too great for base）、超過 64 位元默默溢位成負數；`bc` 要先設 `obase` 再設 `ibase`；`expr 3 * 4` 的 `*` 會被展開；含 `$(( ))` 全部運算子、`bc` 全部選項與函式 | `$(( ))` `(( ))` `arithmetic expansion` `**` `^ XOR` `0x` `base#n` `octalzeroes` `[#16]` `bc -l` `scale` `ibase` `obase` `printf %x` `awk BEGIN` `expr` `overflow` |
 | [分號與結束狀態-命令串接與錢字號問號.md](./分號與結束狀態-命令串接與錢字號問號.md) | `./oob; echo "exit=$?"` 是兩個命令：`;` 不論成敗都接著跑（用 `&&` 的話程式當掉時 `echo` 根本不跑），`$?` 只記得**上一個**命令、每跑一個就被覆蓋，所以要緊接著印或先存 `rc=$?`；結束狀態只有 8 bit（`return 300` → 44、`-1` → 255，同 C 的截斷）、被訊號殺掉是 128+N、126 不能執行、127 找不到；背景 `&` 的 `$?` 是 0 要 `wait`、管線只看最後一個（`PIPESTATUS`／zsh `pipestatus`／`pipefail`）；含串列運算子與 bash 8 個特殊參數的完整清單、單雙引號差別、`echo` 全部選項與 bash／zsh 預設解不解讀 `\t` 的差異（實測 zsh 非互動時連 segfault 訊息都不印，只能靠 `$?`） | `;` `&&` `\|\|` `&` `$?` `exit status` `128+N` `126` `127` `PATH` `./` `PIPESTATUS` `pipestatus` `pipefail` `wait $!` `$status` `special parameters` `$#` `$@` `$$` `$!` `echo -n -e -E` `printf` `zsh vs bash` |
+| [sed怎麼用-逐行處理的串流編輯器與插入指定行.md](./sed怎麼用-逐行處理的串流編輯器與插入指定行.md) | `sed` 一次讀一行進模式空間、跑完腳本自動印出（`-n` 關掉），所以 `2p` 會印兩次；插入指定行用 `3i`（之前）／`3a`（之後）／`3c`（取代），只插第一個符合用 `0,/re/`，空檔案插不進去；`-i` 是寫新檔再改名（inode 變、symlink 被換掉）；位址 11 種、命令 34 個、選項 15 個全列 | `sed` `-i` `-n` `-E` `s///g` `i` `a` `c` `0,/re/` `hold space` |
 
 ### 終端機與 tmux
 

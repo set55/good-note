@@ -1,0 +1,1082 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>sed 怎麼用？—— 一次讀一行、跑一遍腳本、印出來；插入指定行用 i／a</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../../tools/vendor/mermaid.min.js"></script>
+<script src="../assets/app.js"></script>
+</head>
+<body>
+<button class="menu-btn" onclick="toggleMenu()">☰ 目錄</button>
+<div class="layout">
+<nav class="side">
+<div class="crumbs"><a href="../index.html">🏠 首頁</a> / <a href="README.html">linux</a></div>
+<div class="tools"><button onclick="toggleTheme()">🌓 主題</button></div>
+<ul>
+<li class="l2"><a href="#%E7%9B%AE%E9%8C%84">目錄</a></li>
+<li class="l2"><a href="#%E4%B8%80%E5%85%88%E5%9B%9E%E7%AD%94%E6%8F%92%E5%85%A5%E6%8C%87%E5%AE%9A%E8%A1%8C">一、先回答：插入指定行</a></li>
+<li class="l2"><a href="#%E4%BA%8Csed-%E6%80%8E%E9%BA%BC%E9%81%8B%E4%BD%9C%E4%B8%80%E8%A1%8C%E4%B8%80%E5%80%8B%E5%BE%AA%E7%92%B0">二、sed 怎麼運作：一行一個循環</a></li>
+<li class="l2"><a href="#%E4%B8%89%E6%96%87%E6%B3%95%E9%AA%A8%E6%9E%B6">三、文法骨架</a></li>
+<li class="l2"><a href="#%E5%9B%9B%E4%BD%8D%E5%9D%80%E9%81%B8%E5%93%AA%E5%B9%BE%E8%A1%8C%E5%85%A8%E9%83%A8-11-%E7%A8%AE%E5%AF%AB%E6%B3%95">四、位址：選哪幾行（全部 11 種寫法）</a></li>
+<li class="l2"><a href="#%E4%BA%94%E5%91%BD%E4%BB%A4%E5%85%A8%E9%83%A8-34-%E5%80%8B">五、命令：全部 34 個</a></li>
+<li class="l2"><a href="#%E5%85%ADs-%E5%91%BD%E4%BB%A4%E5%8F%96%E4%BB%A3">六、s 命令：取代</a></li>
+<li class="l2"><a href="#%E4%B8%83%E6%8F%92%E5%85%A5%E7%9A%84%E7%B4%B0%E7%AF%80%E8%88%87%E9%99%B7%E9%98%B1">七、插入的細節與陷阱</a></li>
+<li class="l2"><a href="#%E5%85%AB%E9%81%B8%E9%A0%85%E5%85%A8%E9%83%A8-15-%E5%80%8B">八、選項：全部 15 個</a></li>
+<li class="l2"><a href="#%E4%B9%9D%E9%8C%AF%E8%AA%A4%E8%A8%8A%E6%81%AF%E8%88%87%E7%B5%90%E6%9D%9F%E7%8B%80%E6%85%8B">九、錯誤訊息與結束狀態</a></li>
+<li class="l2"><a href="#%E5%8D%81%E6%96%87%E6%B3%95%E5%8F%AF%E4%BB%A5%E5%95%8F%E5%B7%A5%E5%85%B7">十、文法可以問工具</a></li>
+<li class="l2"><a href="#%E8%87%AA%E6%88%91%E6%B8%AC%E9%A9%97">自我測驗</a></li>
+</ul>
+</nav>
+<main>
+<h1 id="sed-怎麼用-一次讀一行跑一遍腳本印出來插入指定行用-ia">sed 怎麼用？—— 一次讀一行、跑一遍腳本、印出來；插入指定行用 <code>i</code>／<code>a</code></h1>
+<blockquote>
+<p>日期：2026-10-28<br />
+情境：課程筆記裡常順手用 <code>sed -n '/&lt;bump&gt;:/,/ret/p'</code>、<code>sed -i 's/64/128/' config.h</code>，但從沒解釋過 <code>sed</code>；使用者問「有沒有筆記教 <code>sed</code>」「<code>sed</code> 可以插入指定行嗎」。<br />
+適用範圍：GNU sed 4.9（Ubuntu 24.04 實測）。macOS／BSD 的 <code>sed</code> 在 <code>-i</code> 與單行 <code>i text</code> 的寫法上不同，見第七節。</p>
+</blockquote>
+<p><strong>一句話結論：<code>sed</code> 把輸入一行一行讀進「模式空間（pattern space）」，對每一行從頭跑一遍腳本，跑完自動印出；所以 <code>3i 文字</code> 是「輪到第 3 行時先印出文字」、<code>3a 文字</code> 是「第 3 行印完再印文字」，加 <code>-i</code> 就把結果寫回檔案。</strong></p>
+<hr />
+<h2 id="目錄">目錄</h2>
+<ul>
+<li><a href="#%E4%B8%80%E5%85%88%E5%9B%9E%E7%AD%94%E6%8F%92%E5%85%A5%E6%8C%87%E5%AE%9A%E8%A1%8C">一、先回答：插入指定行</a></li>
+<li><a href="#%E4%BA%8Csed-%E6%80%8E%E9%BA%BC%E9%81%8B%E4%BD%9C%E4%B8%80%E8%A1%8C%E4%B8%80%E5%80%8B%E5%BE%AA%E7%92%B0">二、sed 怎麼運作：一行一個循環</a></li>
+<li><a href="#%E4%B8%89%E6%96%87%E6%B3%95%E9%AA%A8%E6%9E%B6">三、文法骨架</a></li>
+<li><a href="#%E5%9B%9B%E4%BD%8D%E5%9D%80%E9%81%B8%E5%93%AA%E5%B9%BE%E8%A1%8C%E5%85%A8%E9%83%A8-11-%E7%A8%AE%E5%AF%AB%E6%B3%95">四、位址：選哪幾行（全部 11 種寫法）</a></li>
+<li><a href="#%E4%BA%94%E5%91%BD%E4%BB%A4%E5%85%A8%E9%83%A8-34-%E5%80%8B">五、命令：全部 34 個</a></li>
+<li><a href="#%E5%85%ADs-%E5%91%BD%E4%BB%A4%E5%8F%96%E4%BB%A3">六、<code>s</code> 命令：取代</a></li>
+<li><a href="#%E4%B8%83%E6%8F%92%E5%85%A5%E7%9A%84%E7%B4%B0%E7%AF%80%E8%88%87%E9%99%B7%E9%98%B1">七、插入的細節與陷阱</a></li>
+<li><a href="#%E5%85%AB%E9%81%B8%E9%A0%85%E5%85%A8%E9%83%A8-15-%E5%80%8B">八、選項：全部 15 個</a></li>
+<li><a href="#%E4%B9%9D%E9%8C%AF%E8%AA%A4%E8%A8%8A%E6%81%AF%E8%88%87%E7%B5%90%E6%9D%9F%E7%8B%80%E6%85%8B">九、錯誤訊息與結束狀態</a></li>
+<li><a href="#%E5%8D%81%E6%96%87%E6%B3%95%E5%8F%AF%E4%BB%A5%E5%95%8F%E5%B7%A5%E5%85%B7">十、文法可以問工具</a></li>
+<li><a href="#%E8%87%AA%E6%88%91%E6%B8%AC%E9%A9%97">自我測驗</a></li>
+</ul>
+<hr />
+<h2 id="一先回答插入指定行">一、先回答：插入指定行</h2>
+<p>可以。插入用 <code>i</code>（insert，插在這一行<strong>前面</strong>）、<code>a</code>（append，接在這一行<strong>後面</strong>），取代整行用 <code>c</code>（change）。</p>
+<p>實驗用的檔案（下面所有例子都用它，除非另外說明）：</p>
+<pre><code class="language-sh"><span class="nb">printf</span><span class="w"> </span><span class="s1">&#39;apple\nbanana\ncherry\ndate\nelder\n&#39;</span><span class="w"> </span>&gt;<span class="w"> </span>fruits.txt
+<span class="nb">printf</span><span class="w"> </span><span class="s1">&#39;X1\nX2\n&#39;</span><span class="w"> </span>&gt;<span class="w"> </span>ins.txt
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>想做什麼</th>
+<th>指令</th>
+<th>結果（實測）</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>第 3 行<strong>前面</strong>插一行</td>
+<td><code>sed '3i NEW' fruits.txt</code></td>
+<td><code>apple</code> <code>banana</code> <strong><code>NEW</code></strong> <code>cherry</code> <code>date</code> <code>elder</code></td>
+</tr>
+<tr>
+<td>第 3 行<strong>後面</strong>插一行</td>
+<td><code>sed '3a NEW' fruits.txt</code></td>
+<td><code>apple</code> <code>banana</code> <code>cherry</code> <strong><code>NEW</code></strong> <code>date</code> <code>elder</code></td>
+</tr>
+<tr>
+<td>第 3 行整行換掉</td>
+<td><code>sed '3c REPLACED' fruits.txt</code></td>
+<td><code>apple</code> <code>banana</code> <strong><code>REPLACED</code></strong> <code>date</code> <code>elder</code></td>
+</tr>
+<tr>
+<td>檔案開頭加一行</td>
+<td><code>sed '1i # header' fruits.txt</code></td>
+<td><strong><code># header</code></strong> <code>apple</code> …</td>
+</tr>
+<tr>
+<td>檔案結尾加一行</td>
+<td><code>sed '$a # footer' fruits.txt</code></td>
+<td>… <code>elder</code> <strong><code># footer</code></strong></td>
+</tr>
+<tr>
+<td>最後一行前面插</td>
+<td><code>sed '$i NEW' fruits.txt</code></td>
+<td>… <code>date</code> <strong><code>NEW</code></strong> <code>elder</code></td>
+</tr>
+<tr>
+<td>符合某字串的行前面插</td>
+<td><code>sed '/cherry/i &gt;&gt;&gt; before cherry' fruits.txt</code></td>
+<td><code>apple</code> <code>banana</code> <strong><code>&gt;&gt;&gt; before cherry</code></strong> <code>cherry</code> …</td>
+</tr>
+<tr>
+<td>一次插好幾行</td>
+<td><code>sed '2i line A\nline B' fruits.txt</code></td>
+<td><code>apple</code> <strong><code>line A</code></strong> <strong><code>line B</code></strong> <code>banana</code> …</td>
+</tr>
+<tr>
+<td>插入另一個檔案的內容</td>
+<td><code>sed '2r ins.txt' fruits.txt</code></td>
+<td><code>apple</code> <code>banana</code> <strong><code>X1</code></strong> <strong><code>X2</code></strong> <code>cherry</code> …</td>
+</tr>
+<tr>
+<td>直接改檔案</td>
+<td><code>sed -i '3i NEW' fruits.txt</code></td>
+<td>不印出，<code>fruits.txt</code> 被改成上面第一列的內容</td>
+</tr>
+<tr>
+<td>改檔案並留備份</td>
+<td><code>sed -i.bak '3i NEW' fruits.txt</code></td>
+<td>多一個 <code>fruits.txt.bak</code>，是改之前的內容</td>
+</tr>
+</tbody>
+</table>
+<p>沒加 <code>-i</code> 時 <code>sed</code> <strong>不會改檔案</strong>，只把結果印到標準輸出——先不加 <code>-i</code> 看結果對不對，再加 <code>-i</code> 寫回去，是最安全的用法。</p>
+<p>縮排、只插第一個符合的、空檔案插不進去等細節在<a href="#%E4%B8%83%E6%8F%92%E5%85%A5%E7%9A%84%E7%B4%B0%E7%AF%80%E8%88%87%E9%99%B7%E9%98%B1">第七節</a>。</p>
+<h2 id="二sed-怎麼運作一行一個循環">二、sed 怎麼運作：一行一個循環</h2>
+<p><code>sed</code> 是串流編輯器（stream editor）：它不像 <code>vim</code> 把整個檔案載入再讓你編輯，而是<strong>一行一行流過去</strong>。每一行都走一次同樣的循環（cycle）：</p>
+<pre class="mermaid">flowchart TD
+    A[&quot;讀下一行（去掉結尾的換行）&lt;br/&gt;放進模式空間&quot;] --&gt; B[&quot;從腳本第一個命令開始&lt;br/&gt;逐個檢查位址、執行&quot;]
+    B --&gt; C{&quot;沒加 -n？&quot;}
+    C -- 是 --&gt; D[&quot;印出模式空間（補回換行）&quot;]
+    C -- 否 --&gt; E[&quot;不印&quot;]
+    D --&gt; F{&quot;還有下一行？&quot;}
+    E --&gt; F
+    F -- 有 --&gt; A
+    F -- 沒有 --&gt; G[&quot;結束&quot;]
+</pre>
+<p>圖要看的重點：<strong>腳本對每一行都從頭跑一次</strong>，跑完那一行「自動印出」。由這個模型可以推出幾個常讓人意外的結果：</p>
+<ul>
+<li><code>sed '2p' fruits.txt</code> 會把 <code>banana</code> 印<strong>兩次</strong>：<code>p</code> 印一次，循環結束又自動印一次。只想印第 2 行要加 <code>-n</code> 關掉自動印出：<code>sed -n '2p'</code>。</li>
+<li><code>sed '2,4d'</code> 刪掉第 2～4 行：<code>d</code> 清空模式空間並<strong>直接開始下一個循環</strong>，跳過自動印出。</li>
+<li><code>i</code> 的文字在執行到 <code>i</code> 時立刻印出，<code>a</code> 的文字排在「循環結束、自動印出之後」才印，所以一個在前、一個在後。這些文字<strong>不放進模式空間</strong>，後面的 <code>s</code> 改不到它（<a href="#%E4%B8%83%E6%8F%92%E5%85%A5%E7%9A%84%E7%B4%B0%E7%AF%80%E8%88%87%E9%99%B7%E9%98%B1">第七節</a>有實測）。</li>
+</ul>
+<p>除了模式空間，還有一個<strong>保留空間（hold space）</strong>：跨行暫存用的第二個緩衝區，一開始是空的，循環之間不會被清掉。<code>h</code>／<code>H</code>／<code>g</code>／<code>G</code>／<code>x</code> 在兩者之間搬資料（<a href="#%E4%BA%94%E5%91%BD%E4%BB%A4%E5%85%A8%E9%83%A8-34-%E5%80%8B">第五節</a>）。例如把整個檔案倒過來印：</p>
+<pre><code class="language-text">$ sed -n &#39;1!G;h;$p&#39; fruits.txt
+elder
+date
+cherry
+banana
+apple
+</code></pre>
+<p>逐步看：每一行（第 1 行除外，<code>1!</code>）先 <code>G</code> 把保留空間接到模式空間後面，再 <code>h</code> 把結果存回保留空間；所以保留空間一路累積成「目前這行＋之前所有行（倒序）」；最後一行（<code>$</code>）才 <code>p</code> 印出。</p>
+<h2 id="三文法骨架">三、文法骨架</h2>
+<pre><code class="language-text">sed [選項]... &#39;腳本&#39; [輸入檔]...
+sed [選項]... -e &#39;腳本&#39; [-e &#39;腳本&#39;]... [輸入檔]...
+sed [選項]... -f 腳本檔 [輸入檔]...
+</code></pre>
+<ul>
+<li><strong>腳本</strong>：沒有 <code>-e</code>／<code>-f</code> 時，第一個非選項參數就是腳本（<code>sed --help</code> 最後一段：<code>If no -e, --expression, -f, or --file option is given, then the first non-option argument is taken as the sed script</code>）。有了 <code>-e</code>／<code>-f</code>，所有非選項參數都是檔案。</li>
+<li><strong>輸入檔</strong>：可以給好幾個，<strong>預設接成一條長串流</strong>（行號跨檔累加，見<a href="#%E5%85%AB%E9%81%B8%E9%A0%85%E5%85%A8%E9%83%A8-15-%E5%80%8B">第八節</a> <code>-s</code>）；不給就讀標準輸入，所以能接在管線（pipe）後面：<code>objdump -d x | sed -n '/&lt;f&gt;:/,/ret/p'</code>。</li>
+<li>腳本要用<strong>單引號</strong>包起來，否則 shell 會先處理裡面的 <code>$</code>、<code>!</code>、<code>\</code>（例如 <code>$a</code> 會被 shell 當成變數 <code>$a</code> 展開成空字串）。</li>
+</ul>
+<p>腳本由一個或多個命令組成，每個命令的形式：</p>
+<pre><code class="language-text">[位址[,位址]][!]命令[參數]
+ └─ 選哪幾行 ─┘ │  └─ 對它們做什麼
+               └─ 反過來：選「不符合」的行
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>位置</th>
+<th>可省略嗎</th>
+<th>說明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>位址</td>
+<td>可以</td>
+<td>省略 ＝ <strong>每一行</strong>都執行。一個位址選一行（或符合的行），兩個位址用 <code>,</code> 隔開選一個範圍。</td>
+</tr>
+<tr>
+<td><code>!</code></td>
+<td>可以</td>
+<td>加了就是「不在這個位址的行才執行」：<code>sed -n '/an/!p'</code> 印出不含 <code>an</code> 的行。</td>
+</tr>
+<tr>
+<td>命令</td>
+<td>不可以</td>
+<td>一個字母（<code>s</code>、<code>d</code>、<code>p</code>、<code>i</code>…）或 <code>=</code>、<code>#</code>、<code>{</code>、<code>}</code>、<code>:</code>。全部見第五節。</td>
+</tr>
+<tr>
+<td>參數</td>
+<td>看命令</td>
+<td><code>s/re/取代/旗標</code>、<code>i 文字</code>、<code>r 檔名</code>、<code>q 結束碼</code>……</td>
+</tr>
+</tbody>
+</table>
+<p>好幾個命令的串法：</p>
+<table>
+<thead>
+<tr>
+<th>寫法</th>
+<th>例子</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>用 <code>;</code> 隔開</td>
+<td><code>sed -n 'h;n;G;p'</code></td>
+</tr>
+<tr>
+<td>多個 <code>-e</code></td>
+<td><code>sed -e '2i A' -e '4a B'</code></td>
+</tr>
+<tr>
+<td>換行</td>
+<td>腳本裡直接換行，或寫進 <code>-f</code> 的腳本檔</td>
+</tr>
+<tr>
+<td><code>{}</code> 把好幾個命令套用到同一個位址</td>
+<td><code>sed -n '2{p;p}'</code> → <code>banana</code> 印兩次</td>
+</tr>
+</tbody>
+</table>
+<p>例外：<code>a</code>、<code>i</code>、<code>c</code> 的文字、<code>r</code>／<code>w</code> 的檔名會<strong>吃到這一行結尾</strong>，後面不能再用 <code>;</code> 接命令（<code>;</code> 會被當成文字或檔名的一部分），只能換行或另開一個 <code>-e</code>。</p>
+<h2 id="四位址選哪幾行全部-11-種寫法">四、位址：選哪幾行（全部 11 種寫法）</h2>
+<p><code>man sed</code> 的 Addresses 一節＋<code>info sed</code> 第 4 章，GNU sed 4.9 共這些：</p>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>寫法</th>
+<th>選到</th>
+<th>實測（<code>sed -n '&lt;位址&gt;p' fruits.txt</code>）</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td><code>N</code>（數字）</td>
+<td>第 N 行</td>
+<td><code>2p</code> → <code>banana</code></td>
+</tr>
+<tr>
+<td>2</td>
+<td><code>$</code></td>
+<td>最後一行</td>
+<td><code>$=</code> → <code>5</code>（<code>=</code> 印行號，所以這是數行數）</td>
+</tr>
+<tr>
+<td>3</td>
+<td><code>/regex/</code></td>
+<td>內容符合正規表示式（regular expression）的行</td>
+<td><code>/an/p</code> → <code>banana</code></td>
+</tr>
+<tr>
+<td>4</td>
+<td><code>\%regex%</code></td>
+<td>同上，<code>%</code> 可換成任何字元；regex 裡有 <code>/</code> 時用，免得一直跳脫</td>
+<td><code>\%/usr%p</code></td>
+</tr>
+<tr>
+<td>5</td>
+<td><code>/regex/I</code></td>
+<td>不分大小寫比對（GNU）</td>
+<td></td>
+</tr>
+<tr>
+<td>6</td>
+<td><code>/regex/M</code></td>
+<td>多行模式：<code>^</code>／<code>$</code> 也對模式空間中間的換行生效（GNU，配 <code>N</code> 用）</td>
+<td></td>
+</tr>
+<tr>
+<td>7</td>
+<td><code>first~step</code></td>
+<td>從第 first 行起每 step 行一次（GNU）</td>
+<td><code>1~2p</code> → <code>apple</code> <code>cherry</code> <code>elder</code>（奇數行）</td>
+</tr>
+<tr>
+<td>8</td>
+<td><code>位址1,位址2</code></td>
+<td>從符合位址 1 的行，到符合位址 2 的行（含頭尾）</td>
+<td><code>/b/,/d/p</code> → <code>banana</code> <code>cherry</code> <code>date</code></td>
+</tr>
+<tr>
+<td>9</td>
+<td><code>位址1,+N</code></td>
+<td>位址 1 那行加後面 N 行（GNU）</td>
+<td><code>2,+1p</code> → <code>banana</code> <code>cherry</code></td>
+</tr>
+<tr>
+<td>10</td>
+<td><code>位址1,~N</code></td>
+<td>位址 1 那行到下一個「行號是 N 的倍數」的行（GNU）</td>
+<td><code>2,~4p</code> → <code>banana</code> <code>cherry</code> <code>date</code></td>
+</tr>
+<tr>
+<td>11</td>
+<td><code>0,/regex/</code></td>
+<td>跟 <code>1,/regex/</code> 一樣，但第 1 行就符合時範圍在第 1 行結束（GNU，位址 2 只能是 regex）</td>
+<td>見下面</td>
+</tr>
+</tbody>
+</table>
+<p>再加上第三節的 <code>!</code>，可以接在任何一種後面反過來選。</p>
+<p>範圍的三個規則（<code>man sed</code>：<code>Three things to note about address ranges</code>）：</p>
+<ol>
+<li><strong>位址 1 那一行一定被選</strong>，即使位址 2 是更前面的行號：<code>sed -n '3,1p'</code> 只印 <code>cherry</code>。</li>
+<li>位址 2 是 regex 時，<strong>不會拿位址 1 那一行去比</strong>，從下一行才開始找結束。</li>
+<li>範圍結束後如果又遇到符合位址 1 的行，會<strong>再開一個範圍</strong>。</li>
+</ol>
+<p>規則 2 正好是第 11 種 <code>0,/regex/</code> 存在的理由：</p>
+<pre><code class="language-text">$ printf &#39;x\ny\nx\n&#39; | sed &#39;1,/x/s/^/&gt;/&#39;
+&gt;x
+&gt;y
+&gt;x
+$ printf &#39;x\ny\nx\n&#39; | sed &#39;0,/x/s/^/&gt;/&#39;
+&gt;x
+y
+x
+</code></pre>
+<p><code>1,/x/</code>：第 1 行 <code>x</code> 是起點，規則 2 讓它不跟結束條件比，往下找到第 3 行的 <code>x</code> 才結束，三行全選。<code>0,/x/</code>：從「第 0 行」就進入範圍，第 1 行拿去跟 <code>/x/</code> 比，符合，範圍就在第 1 行結束——這是「<strong>只對第一個符合的行</strong>做事」的標準寫法（<a href="#%E4%B8%83%E6%8F%92%E5%85%A5%E7%9A%84%E7%B4%B0%E7%AF%80%E8%88%87%E9%99%B7%E9%98%B1">第七節</a>用它只插一次）。</p>
+<h2 id="五命令全部-34-個">五、命令：全部 34 個</h2>
+<p>以 <code>info sed</code> 第 3.2 節〈sed commands summary〉為準，依用途分組。「位址」欄：0 ＝ 不能加位址、1 ＝ 最多一個、2 ＝ 可以是範圍。GNU 4.9 實際上讓 <code>a</code>／<code>i</code>／<code>c</code>／<code>=</code>／<code>r</code> 等也接受範圍（<code>sed '2,3i X'</code> 在第 2、3 行前各插一次），表裡照 <code>man sed</code> 的標準寫。</p>
+<p><strong>輸出與刪除</strong></p>
+<table>
+<thead>
+<tr>
+<th>命令</th>
+<th>位址</th>
+<th>做什麼</th>
+<th>實測</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>p</code></td>
+<td>2</td>
+<td>印出模式空間</td>
+<td><code>sed -n 2p</code> → <code>banana</code></td>
+</tr>
+<tr>
+<td><code>P</code></td>
+<td>2</td>
+<td>只印模式空間到第一個換行（配 <code>N</code> 用）</td>
+<td></td>
+</tr>
+<tr>
+<td><code>d</code></td>
+<td>2</td>
+<td>刪掉模式空間，<strong>直接開始下一循環</strong>（不自動印出）</td>
+<td><code>sed 2,4d</code> → <code>apple</code> <code>elder</code></td>
+</tr>
+<tr>
+<td><code>D</code></td>
+<td>2</td>
+<td>模式空間沒有換行時同 <code>d</code>；有的話只刪到第一個換行，用剩下的內容重跑循環、不讀新行</td>
+<td><code>sed '$!N;P;D'</code> 是經典的「兩行視窗」寫法</td>
+</tr>
+<tr>
+<td><code>=</code></td>
+<td>1</td>
+<td>印出目前行號</td>
+<td><code>sed -n '/cherry/='</code> → <code>3</code></td>
+</tr>
+<tr>
+<td><code>l</code> ／ <code>l 寬度</code></td>
+<td>2</td>
+<td>用看得到的形式印出（<code>\t</code>、結尾 <code>$</code>），可指定折行寬度</td>
+<td><code>printf 'a\tb\n' | sed -n l</code> → <code>a\tb$</code></td>
+</tr>
+</tbody>
+</table>
+<p><strong>插入文字</strong></p>
+<table>
+<thead>
+<tr>
+<th>命令</th>
+<th>位址</th>
+<th>做什麼</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>i 文字</code> ／ <code>i\</code>＋換行＋文字</td>
+<td>1</td>
+<td>在這一行<strong>之前</strong>印出文字</td>
+</tr>
+<tr>
+<td><code>a 文字</code> ／ <code>a\</code>＋換行＋文字</td>
+<td>1</td>
+<td>在這一行<strong>之後</strong>（循環結束時）印出文字</td>
+</tr>
+<tr>
+<td><code>c 文字</code> ／ <code>c\</code>＋換行＋文字</td>
+<td>2</td>
+<td>刪掉這一行（範圍的話是整段），印出文字代替</td>
+</tr>
+<tr>
+<td><code>r 檔名</code></td>
+<td>1</td>
+<td>循環結束時印出整個檔案的內容（檔案不存在就安靜地什麼都不做，實測不報錯）</td>
+</tr>
+<tr>
+<td><code>R 檔名</code></td>
+<td>1</td>
+<td>每執行一次，從那個檔案讀<strong>下一行</strong>印出（GNU）</td>
+</tr>
+</tbody>
+</table>
+<p><strong>取代與轉換</strong></p>
+<table>
+<thead>
+<tr>
+<th>命令</th>
+<th>位址</th>
+<th>做什麼</th>
+<th>實測</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>s/regex/取代/旗標</code></td>
+<td>2</td>
+<td>取代；詳見第六節</td>
+<td><code>echo 'aaa bbb aaa' | sed 's/aaa/X/'</code> → <code>X bbb aaa</code></td>
+</tr>
+<tr>
+<td><code>y/來源字元/目的字元/</code></td>
+<td>2</td>
+<td>逐字元對應轉換（像 <code>tr</code>），兩邊長度要一樣</td>
+<td><code>echo hello | sed 'y/abc…z/ABC…Z/'</code> → <code>HELLO</code></td>
+</tr>
+<tr>
+<td><code>z</code></td>
+<td>2</td>
+<td>清空模式空間（GNU，跟 <code>d</code> 不同：不結束循環）</td>
+<td><code>printf 'a\nb\n' | sed 'z;s/^$/(empty)/'</code> → 兩行 <code>(empty)</code></td>
+</tr>
+</tbody>
+</table>
+<p><strong>讀下一行</strong></p>
+<table>
+<thead>
+<tr>
+<th>命令</th>
+<th>位址</th>
+<th>做什麼</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>n</code></td>
+<td>2</td>
+<td>（沒 <code>-n</code> 時先印出目前的模式空間）讀下一行<strong>取代</strong>模式空間</td>
+</tr>
+<tr>
+<td><code>N</code></td>
+<td>2</td>
+<td>讀下一行<strong>接在</strong>模式空間後面，中間放一個換行</td>
+</tr>
+</tbody>
+</table>
+<p><code>sed 'N;s/\n/ + /' fruits.txt</code> → <code>apple + banana</code>、<code>cherry + date</code>、<code>elder</code>：每兩行併成一行。</p>
+<p><strong>保留空間</strong></p>
+<table>
+<thead>
+<tr>
+<th>命令</th>
+<th>位址</th>
+<th>做什麼</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>h</code></td>
+<td>2</td>
+<td>模式空間<strong>複製到</strong>保留空間（覆蓋）</td>
+</tr>
+<tr>
+<td><code>H</code></td>
+<td>2</td>
+<td>模式空間<strong>接到</strong>保留空間後面（中間加換行）</td>
+</tr>
+<tr>
+<td><code>g</code></td>
+<td>2</td>
+<td>保留空間<strong>複製到</strong>模式空間（覆蓋）</td>
+</tr>
+<tr>
+<td><code>G</code></td>
+<td>2</td>
+<td>保留空間<strong>接到</strong>模式空間後面（中間加換行）</td>
+</tr>
+<tr>
+<td><code>x</code></td>
+<td>2</td>
+<td>兩個空間<strong>交換</strong></td>
+</tr>
+</tbody>
+</table>
+<p><code>sed -n 'h;n;G;p' fruits.txt</code> → <code>banana</code> <code>apple</code> <code>date</code> <code>cherry</code>：存一行、讀下一行、把存的接在後面，兩兩對調。</p>
+<p><strong>流程控制</strong></p>
+<table>
+<thead>
+<tr>
+<th>命令</th>
+<th>位址</th>
+<th>做什麼</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>: 標籤</code></td>
+<td>0</td>
+<td>定義跳躍目標</td>
+</tr>
+<tr>
+<td><code>b [標籤]</code></td>
+<td>2</td>
+<td>無條件跳到標籤；省略標籤 ＝ 跳到腳本結尾（結束這個循環）</td>
+</tr>
+<tr>
+<td><code>t [標籤]</code></td>
+<td>2</td>
+<td>這一行讀進來後（或上次 <code>t</code>／<code>T</code> 之後）<strong>有</strong> <code>s</code> 成功取代過才跳</td>
+</tr>
+<tr>
+<td><code>T [標籤]</code></td>
+<td>2</td>
+<td><strong>沒有</strong> <code>s</code> 成功過才跳（GNU）</td>
+</tr>
+<tr>
+<td><code>{ 命令;… }</code></td>
+<td>2</td>
+<td>把好幾個命令綁在同一個位址</td>
+</tr>
+<tr>
+<td><code>}</code></td>
+<td>0</td>
+<td>區塊結尾</td>
+</tr>
+<tr>
+<td><code>q [結束碼]</code></td>
+<td>1</td>
+<td>（沒 <code>-n</code> 時先印出目前這行）結束，不再讀；可指定結束碼（GNU）</td>
+</tr>
+<tr>
+<td><code>Q [結束碼]</code></td>
+<td>1</td>
+<td>直接結束、<strong>不印</strong>目前這行（GNU）</td>
+</tr>
+</tbody>
+</table>
+<pre><code class="language-text">$ echo &#39;one two&#39; | sed &#39;:a;s/o/0/;ta&#39;          # 每次只換一個，換成功就跳回 a 再換
+0ne tw0
+$ echo &#39;one two&#39; | sed &#39;s/o/0/;T;s/$/ (changed)/&#39;   # 沒換成功就跳到結尾
+0ne two (changed)
+$ sed 3q fruits.txt          # 印到第 3 行就停（像 head -3）
+apple
+banana
+cherry
+$ sed 3Q fruits.txt          # 第 3 行不印
+apple
+banana
+$ sed &#39;/cherry/q 5&#39; fruits.txt; echo exit=$?
+apple
+banana
+cherry
+exit=5
+</code></pre>
+<p><strong>檔案與外部命令</strong></p>
+<table>
+<thead>
+<tr>
+<th>命令</th>
+<th>位址</th>
+<th>做什麼</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>w 檔名</code></td>
+<td>2</td>
+<td>把模式空間寫進檔案（檔案在 <code>sed</code> 開始時就被清空建立）</td>
+</tr>
+<tr>
+<td><code>W 檔名</code></td>
+<td>2</td>
+<td>只寫模式空間的第一行（GNU）</td>
+</tr>
+<tr>
+<td><code>e</code></td>
+<td>2</td>
+<td>把模式空間當成 shell 命令執行，用輸出<strong>取代</strong>模式空間（GNU）</td>
+</tr>
+<tr>
+<td><code>e 命令</code></td>
+<td>2</td>
+<td>執行指定的命令，輸出印在目前這行前面（GNU）</td>
+</tr>
+<tr>
+<td><code>F</code></td>
+<td>1</td>
+<td>印出目前輸入檔的檔名（GNU；標準輸入印 <code>-</code>）</td>
+</tr>
+</tbody>
+</table>
+<pre><code class="language-text">$ sed -n &#39;/an/w out.txt&#39; fruits.txt; cat out.txt
+banana
+$ echo &#39;x&#39; | sed &#39;e echo from-e&#39;
+from-e
+x
+$ sed -n &#39;F;=&#39; ins.txt
+ins.txt
+1
+ins.txt
+2
+</code></pre>
+<p><strong>其他</strong></p>
+<table>
+<thead>
+<tr>
+<th>命令</th>
+<th>位址</th>
+<th>做什麼</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>#註解</code></td>
+<td>0</td>
+<td>註解到行尾。特例：腳本檔的<strong>前兩個字元</strong>是 <code>#n</code> 時，等於加了 <code>-n</code>（實測 <code>printf '#n\n2p\n' &gt; n.sed; sed -f n.sed fruits.txt</code> 只印 <code>banana</code>）</td>
+</tr>
+<tr>
+<td><code>v [版本]</code></td>
+<td>0</td>
+<td>什麼都不做；只是宣告「這個腳本需要 GNU sed（至少這個版本）」，版本不夠就報錯（GNU；實測 <code>sed 'v 9.0'</code> → <code>expected newer version of sed</code>）</td>
+</tr>
+</tbody>
+</table>
+<p>數一下：輸出與刪除 6、插入 5、取代 3、讀行 2、保留空間 5、流程 8、檔案 4（<code>e</code> 兩種形式算一個）、其他 2，共 35 列；<code>info sed</code> 3.2 節把 <code>{ … }</code> 算成一個，上表把 <code>{</code>、<code>}</code> 分開列，所以命令是 <strong>34</strong> 個。</p>
+<h2 id="六s-命令取代">六、<code>s</code> 命令：取代</h2>
+<pre><code class="language-text">s/regex/取代/旗標
+│└─分隔符：s 後面的第一個字元就是分隔符，不一定要 /
+</code></pre>
+<p><strong>分隔符</strong>：路徑裡一堆 <code>/</code> 時換一個比較好讀：<code>echo '/usr/lib' | sed 's#/usr#/opt#'</code> → <code>/opt/lib</code>。</p>
+<p><strong>取代字串裡的特殊寫法</strong>：</p>
+<table>
+<thead>
+<tr>
+<th>寫法</th>
+<th>意思</th>
+<th>實測</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>&amp;</code></td>
+<td>整個符合的部分</td>
+<td><code>echo abc | sed 's/b/[&amp;]/'</code> → <code>a[b]c</code></td>
+</tr>
+<tr>
+<td><code>\1</code>～<code>\9</code></td>
+<td>第 N 個括號群組</td>
+<td><code>echo key=value | sed 's/\(.*\)=\(.*\)/\2=\1/'</code> → <code>value=key</code></td>
+</tr>
+<tr>
+<td><code>\n</code></td>
+<td>換行</td>
+<td><code>echo 'a b' | sed 's/ /\n/'</code> → 兩行 <code>a</code>、<code>b</code></td>
+</tr>
+<tr>
+<td><code>\L</code> ／ <code>\U</code></td>
+<td>之後全部轉小寫／大寫，直到 <code>\E</code> 或 <code>\U</code>／<code>\L</code>（GNU）</td>
+<td><code>echo 'ABC def' | sed -E 's/(\w+) (\w+)/\L\1\E \U\2/'</code> → <code>abc DEF</code></td>
+</tr>
+<tr>
+<td><code>\l</code> ／ <code>\u</code></td>
+<td>只把下一個字元轉小寫／大寫（GNU）</td>
+<td><code>echo 'hello world' | sed 's/\w\+/\u&amp;/g'</code> → <code>Hello World</code></td>
+</tr>
+<tr>
+<td><code>\E</code></td>
+<td>結束 <code>\L</code>／<code>\U</code></td>
+<td></td>
+</tr>
+<tr>
+<td><code>\&amp;</code>、<code>\/</code></td>
+<td>字面上的 <code>&amp;</code>、<code>/</code></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p><strong>旗標（全部 7 種，<code>info sed</code> 3.3 節）</strong>：</p>
+<table>
+<thead>
+<tr>
+<th>旗標</th>
+<th>做什麼</th>
+<th>實測</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>（不加）</td>
+<td>只換每行<strong>第一個</strong></td>
+<td><code>s/aaa/X/</code> → <code>X bbb aaa</code></td>
+</tr>
+<tr>
+<td><code>g</code></td>
+<td>換掉每行<strong>全部</strong></td>
+<td><code>s/aaa/X/g</code> → <code>X bbb X</code></td>
+</tr>
+<tr>
+<td>數字 N</td>
+<td>只換第 N 個；跟 <code>g</code> 一起用（<code>2g</code>）是第 N 個以後全換</td>
+<td><code>s/aaa/X/2</code> → <code>aaa bbb X</code></td>
+</tr>
+<tr>
+<td><code>p</code></td>
+<td>有換成功就印出（配 <code>-n</code> 只看改到的行）</td>
+<td><code>sed -n 's/x/y/p'</code></td>
+</tr>
+<tr>
+<td><code>w 檔名</code></td>
+<td>有換成功就把結果寫進檔案</td>
+<td><code>sed 's/a/A/w changed.txt' fruits.txt</code> → <code>changed.txt</code> 是 <code>Apple</code> <code>bAnana</code> <code>dAte</code></td>
+</tr>
+<tr>
+<td><code>e</code></td>
+<td>換完把模式空間當命令執行，輸出取代它（GNU）</td>
+<td><code>echo 'echo hi' | sed 's/.*/&amp;/e'</code> → <code>hi</code></td>
+</tr>
+<tr>
+<td><code>I</code> 或 <code>i</code></td>
+<td>不分大小寫（GNU）</td>
+<td><code>echo Hello | sed 's/hello/X/I'</code> → <code>X</code></td>
+</tr>
+<tr>
+<td><code>M</code> 或 <code>m</code></td>
+<td>多行模式，<code>^</code>／<code>$</code> 對中間的換行也生效（GNU）</td>
+<td><code>printf 'foo\nbar\n' | sed 'N;s/^bar/X/M'</code> → <code>foo</code> <code>X</code></td>
+</tr>
+</tbody>
+</table>
+<p>（<code>I</code>／<code>i</code>、<code>M</code>／<code>m</code> 是同一個旗標的兩種寫法，所以是 7 種。）</p>
+<p><strong>正規表示式：BRE 與 ERE</strong></p>
+<p><code>sed</code> 預設用 BRE（Basic Regular Expression，基本正規表示式），<code>-E</code> 改成 ERE（Extended Regular Expression，延伸正規表示式）。差別在 <code>+ ? ( ) { } |</code> 這幾個符號：BRE 裡它們是<strong>普通字元</strong>，要加反斜線才有特殊意義（<code>\+ \? \( \) \{ \} \|</code> 是 GNU 的擴充）；ERE 剛好相反。</p>
+<pre><code class="language-text">$ echo &#39;x&#39; | sed -E &#39;s/(x)+/y/&#39;
+y
+$ echo &#39;x&#39; | sed &#39;s/(x)+/y/&#39;        # BRE：找字面上的 &quot;(x)+&quot;，找不到，不換
+x
+$ echo &#39;aaa&#39; | sed &#39;s/a\{2\}/X/&#39;    # BRE 的次數
+Xa
+$ echo &#39;aaa&#39; | sed -E &#39;s/a{2}/X/&#39;   # ERE 的次數
+Xa
+$ echo &#39;cat dog&#39; | sed &#39;s/cat\|dog/pet/g&#39;
+pet pet
+$ echo &#39;a1b22&#39; | sed &#39;s/[[:digit:]]\+/&lt;&amp;&gt;/g&#39;
+a&lt;1&gt;b&lt;22&gt;
+</code></pre>
+<p>這裡只列了最常用的部分。正規表示式的完整語法（字元類別 <code>[[:alpha:]]</code> 全表、<code>\w</code> <code>\s</code> <code>\b</code> <code>\&lt;</code> <code>\&gt;</code> 等 GNU 擴充、跳脫序列、多位元組字元）見 <code>info sed</code> 第 5 章〈Regular Expressions: selecting text〉。</p>
+<h2 id="七插入的細節與陷阱">七、插入的細節與陷阱</h2>
+<p><strong>1. 單行寫法會吃掉開頭的空白，要保留縮排用 <code>i\</code></strong></p>
+<pre><code class="language-text">$ sed &#39;2i    indented&#39; fruits.txt     # 前面的空白被吃掉
+apple
+indented
+banana
+...
+$ sed &#39;2i\    indented&#39; fruits.txt    # 加反斜線，空白保留
+apple
+    indented
+banana
+...
+</code></pre>
+<p><strong>2. 單行寫法是 GNU 擴充；POSIX 的寫法是 <code>i\</code> 換行再寫文字</strong></p>
+<pre><code class="language-text">$ sed --posix &#39;2i NEW&#39; fruits.txt
+sed: -e expression #1, char 4: expected \ after `a&#39;, `c&#39; or `i&#39;
+</code></pre>
+<p>POSIX 寫法（各家 <code>sed</code> 都吃）：</p>
+<pre><code class="language-sh">sed<span class="w"> </span><span class="s1">&#39;2i\</span>
+<span class="s1">line A\</span>
+<span class="s1">line B&#39;</span><span class="w"> </span>fruits.txt
+</code></pre>
+<p>除了最後一行，每行文字結尾都要 <code>\</code>，表示「文字還沒完」。macOS 的 BSD <code>sed</code> 只認這種寫法，而且 <code>-i</code> 一定要給備份副檔名（不要備份寫 <code>-i ''</code>），跟 GNU 不同（本機未實測 BSD）。</p>
+<p><strong>3. 插入的文字不在模式空間，後面的命令改不到</strong></p>
+<pre><code class="language-text">$ sed -e &#39;2a foo&#39; -e &#39;s/foo/X/&#39; fruits.txt | head -4
+apple
+banana
+foo
+cherry
+</code></pre>
+<p><code>a</code> 只是把 <code>foo</code> 排進「待印出」的佇列，<code>s</code> 處理的是模式空間裡的 <code>banana</code>，碰不到 <code>foo</code>。</p>
+<p><strong>4. regex 位址會在每個符合的行都插；只插第一個用 <code>0,/regex/</code></strong></p>
+<pre><code class="language-text">$ printf &#39;a=1\nb=2\na=3\n&#39; | sed &#39;/^a=/a INSERTED&#39;
+a=1
+INSERTED
+b=2
+a=3
+INSERTED
+$ printf &#39;a=1\nb=2\na=3\n&#39; | sed &#39;0,/^a=/{/^a=/a INSERTED
+}&#39;
+a=1
+INSERTED
+b=2
+a=3
+</code></pre>
+<p><code>0,/^a=/</code> 選出「開頭到第一個 <code>a=</code>」這個範圍（第四節第 11 種），<code>{}</code> 裡再用 <code>/^a=/</code> 從範圍中挑出那一行。<code>a</code> 的文字吃到行尾，所以 <code>}</code> 要換行寫。</p>
+<p><strong>5. 空檔案插不進去；超過最後一行的行號也沒反應</strong></p>
+<pre><code class="language-text">$ : &gt; empty.txt; sed -i &#39;1i first&#39; empty.txt; cat empty.txt
+                          # 什麼都沒有
+$ sed &#39;7i X&#39; fruits.txt | wc -l
+5
+</code></pre>
+<p><code>sed</code> 的命令是「輪到某一行時」才執行；空檔案沒有任何一行，<code>1i</code> 永遠輪不到；檔案只有 5 行，第 7 行也輪不到。要給空檔案加內容就不是 <code>sed</code> 的工作了，直接 <code>echo first &gt; empty.txt</code>。</p>
+<p><strong>6. 好幾個檔案時，行號預設跨檔累加；<code>-i</code> 會自動改成每個檔案分開算</strong></p>
+<pre><code class="language-text">$ sed &#39;1i ==&#39; fruits.txt ins.txt       # 只在整串的第 1 行前面插
+==
+apple
+...
+elder
+X1
+X2
+$ sed -s &#39;1i ==&#39; fruits.txt ins.txt    # -s：每個檔案各自從第 1 行算
+==
+apple
+...
+elder
+==
+X1
+X2
+</code></pre>
+<p><code>-i</code> 隱含 <code>-s</code>：<code>printf 'a\n' &gt; a1; printf 'b\n' &gt; b1; sed -i '1i X' a1 b1</code> 之後兩個檔案開頭都有 <code>X</code>。</p>
+<p><strong>7. <code>-i</code> 其實是「寫新檔、再換名字」：inode 會變，符號連結會被換成一般檔案</strong></p>
+<pre><code class="language-text">$ cp fruits.txt t.txt; stat -c %i t.txt; sed -i &#39;1i x&#39; t.txt; stat -c %i t.txt
+18481492
+18481493
+</code></pre>
+<p>inode（索引節點，檔案在檔案系統裡的編號）換了：<code>sed -i</code> 把結果寫進同一個資料夾的暫存檔，再用 <code>rename</code> 蓋掉原檔名，並不是在原檔上就地改。所以：</p>
+<pre><code class="language-text">$ cp fruits.txt t2.txt; ln -sf t2.txt lk; sed -i &#39;s/apple/APPLE/&#39; lk
+$ ls -l lk | cut -c1
+-                        # lk 原本是符號連結（l），現在變成一般檔案（-）
+$ head -1 t2.txt
+apple                    # 連結指向的原檔根本沒改
+$ head -1 lk
+APPLE
+</code></pre>
+<p>要改連結指向的檔案，加 <code>--follow-symlinks</code>（同樣的實驗，<code>lk</code> 還是 <code>l</code>、原檔第一行變成 <code>APPLE</code>）。另外，其他程式如果還開著舊檔（拿著舊 inode），看到的仍是舊內容；檔案的擁有者與權限 <code>sed</code> 會盡量照抄，但要在那個資料夾有寫入權才能建暫存檔。</p>
+<h2 id="八選項全部-15-個">八、選項：全部 15 個</h2>
+<p>以 <code>sed --help</code>（GNU sed 4.9）為準，照它列的順序：</p>
+<table>
+<thead>
+<tr>
+<th>選項</th>
+<th>做什麼</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-n</code>、<code>--quiet</code>、<code>--silent</code></td>
+<td>關掉每個循環結束時的自動印出；只有 <code>p</code> 等命令明確印的才出現</td>
+</tr>
+<tr>
+<td><code>--debug</code></td>
+<td>印出解析後的腳本，並逐行顯示每個命令執行前後的模式空間（除錯用，見下面）</td>
+</tr>
+<tr>
+<td><code>-e 腳本</code>、<code>--expression=腳本</code></td>
+<td>加一段腳本；可以給好幾次，依序串起來</td>
+</tr>
+<tr>
+<td><code>-f 腳本檔</code>、<code>--file=腳本檔</code></td>
+<td>從檔案讀腳本（一行一個命令，<code>a</code>/<code>i</code>/<code>c</code> 不用煩惱 <code>;</code>）</td>
+</tr>
+<tr>
+<td><code>--follow-symlinks</code></td>
+<td><code>-i</code> 時跟著符號連結去改真正的檔案（第七節第 7 點）</td>
+</tr>
+<tr>
+<td><code>-i[後綴]</code>、<code>--in-place[=後綴]</code></td>
+<td>把結果寫回檔案；給了後綴就把原檔留成「原檔名＋後綴」的備份。後綴要<strong>緊貼</strong> <code>-i</code>（<code>-i.bak</code>），中間有空白會被當成別的參數。隱含 <code>-s</code></td>
+</tr>
+<tr>
+<td><code>-l N</code>、<code>--line-length=N</code></td>
+<td>設定 <code>l</code> 命令的折行寬度（<code>sed -n -l 10 l</code> 每 9 個字元加 <code>\</code> 折行）</td>
+</tr>
+<tr>
+<td><code>--posix</code></td>
+<td>關掉所有 GNU 擴充，用來檢查腳本能不能在別的 <code>sed</code> 跑（第七節第 2 點）</td>
+</tr>
+<tr>
+<td><code>-E</code>、<code>-r</code>、<code>--regexp-extended</code></td>
+<td>用 ERE（第六節）；<code>-E</code> 是 POSIX 標準寫法，建議用它</td>
+</tr>
+<tr>
+<td><code>-s</code>、<code>--separate</code></td>
+<td>把每個輸入檔當成獨立的串流：行號、<code>$</code> 各檔分開算（第七節第 6 點）</td>
+</tr>
+<tr>
+<td><code>--sandbox</code></td>
+<td>禁用 <code>e</code>／<code>r</code>／<code>w</code> 這些會碰到檔案或執行命令的功能，處理別人給的腳本時用</td>
+</tr>
+<tr>
+<td><code>-u</code>、<code>--unbuffered</code></td>
+<td>讀少一點、更常把輸出沖出去（例如接在 <code>tail -f</code> 後面要即時看到結果）</td>
+</tr>
+<tr>
+<td><code>-z</code>、<code>--null-data</code></td>
+<td>用 NUL（<code>\0</code>）而不是換行來切「行」，配 <code>find -print0</code> 處理含換行的檔名</td>
+</tr>
+<tr>
+<td><code>--help</code></td>
+<td>印出用法</td>
+</tr>
+<tr>
+<td><code>--version</code></td>
+<td>印出版本</td>
+</tr>
+</tbody>
+</table>
+<pre><code class="language-text">$ sed --sandbox &#39;w x.txt&#39; fruits.txt
+sed: -e expression #1, char 1: e/r/w commands disabled in sandbox mode
+$ printf &#39;a\0b\0&#39; | sed -z &#39;s/^/&gt;/&#39; | tr &#39;\0&#39; &#39;\n&#39;
+&gt;a
+&gt;b
+$ echo &#39;abc&#39; | sed --debug &#39;s/b/B/&#39;
+SED PROGRAM:
+  s/b/B/
+INPUT:   &#39;STDIN&#39; line 1
+PATTERN: abc
+COMMAND: s/b/B/
+MATCHED REGEX REGISTERS
+  regex[0] = 1-2 &#39;b&#39;
+PATTERN: aBc
+END-OF-CYCLE:
+aBc
+</code></pre>
+<p><code>--debug</code> 的輸出正好就是第二節那張圖：<code>PATTERN</code> 是模式空間、<code>COMMAND</code> 是正在跑的命令、<code>END-OF-CYCLE</code> 之後是自動印出的結果。腳本不照預期跑時，先加 <code>--debug</code> 看模式空間在哪一步變了。</p>
+<h2 id="九錯誤訊息與結束狀態">九、錯誤訊息與結束狀態</h2>
+<p>錯誤訊息都長這樣：<code>sed: -e expression #第幾段, char 第幾個字元: 原因</code>，<code>char</code> 指到出錯的位置。</p>
+<table>
+<thead>
+<tr>
+<th>寫錯的方式</th>
+<th>錯誤訊息</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>sed 'k'</code>（沒有這個命令）</td>
+<td><code>unknown command: </code>k'`</td>
+</tr>
+<tr>
+<td><code>sed 's/a/b'</code>（少了最後的 <code>/</code>）</td>
+<td><code>unterminated </code>s' command`</td>
+</tr>
+<tr>
+<td><code>sed 's/a/b/z'</code>（沒有這個旗標）</td>
+<td><code>unknown option to </code>s'`</td>
+</tr>
+<tr>
+<td><code>sed '2i'</code>（<code>i</code> 後面沒文字），或 <code>--posix</code> 下用單行 <code>i 文字</code></td>
+<td><code>expected \ after </code>a', <code>c' or </code>i'`</td>
+</tr>
+<tr>
+<td><code>sed '/x/,'</code>（範圍少了位址 2）</td>
+<td><code>unexpected </code>,'`</td>
+</tr>
+<tr>
+<td><code>sed '2{p'</code>（沒關 <code>{</code>）</td>
+<td><code>unmatched </code>{'`</td>
+</tr>
+<tr>
+<td><code>sed '0a NEW'</code>（<code>0</code> 只能用在 <code>0,/regex/</code>）</td>
+<td><code>invalid usage of line address 0</code></td>
+</tr>
+<tr>
+<td><code>sed p nofile</code>（檔案不存在）</td>
+<td><code>can't read nofile: No such file or directory</code>，<strong>繼續處理其他檔案</strong></td>
+</tr>
+</tbody>
+</table>
+<p>結束狀態（<code>info sed</code> 2.3 節）：</p>
+<table>
+<thead>
+<tr>
+<th>值</th>
+<th>意思</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0</td>
+<td>成功</td>
+</tr>
+<tr>
+<td>1</td>
+<td>命令、語法、正規表示式不對，或 <code>--posix</code> 下用了 GNU 擴充（實測 <code>sed 'k'</code> → 1）</td>
+</tr>
+<tr>
+<td>2</td>
+<td>有輸入檔打不開（實測 <code>sed p nofile fruits.txt</code> → 2，但 <code>fruits.txt</code> 照樣處理了）</td>
+</tr>
+<tr>
+<td>4</td>
+<td>I/O 錯誤或執行中的嚴重錯誤，立刻中止</td>
+</tr>
+<tr>
+<td>自訂</td>
+<td><code>q 結束碼</code>／<code>Q 結束碼</code>（第五節）</td>
+</tr>
+</tbody>
+</table>
+<p>注意：<strong>沒有任何一行符合位址，結束狀態仍是 0</strong>。<code>sed</code> 不像 <code>grep</code> 會用結束狀態告訴你「有沒有找到」；要判斷有沒有改到，用 <code>s///w</code> 寫檔，或 <code>/regex/q 1</code> 這類寫法自己設結束碼。</p>
+<h2 id="十文法可以問工具">十、文法可以問工具</h2>
+<table>
+<thead>
+<tr>
+<th>查法</th>
+<th>內容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>sed --help</code></td>
+<td>全部 15 個選項（第八節就是照它）</td>
+</tr>
+<tr>
+<td><code>man sed</code></td>
+<td>選項＋命令的<strong>簡表</strong>（<code>COMMAND SYNOPSIS</code>）＋位址；它自己寫明只是給熟手的提示，完整說明要看 texinfo 文件。注意 <code>man sed</code> 的命令表沒列 <code>e</code>、<code>F</code>、<code>v</code>、<code>z</code></td>
+</tr>
+<tr>
+<td><code>info sed</code></td>
+<td>完整手冊（本機檔案是 <code>/usr/share/info/sed.info.gz</code>）：第 3 章命令（3.2 節是全部命令的摘要）、第 4 章位址、第 5 章正規表示式、第 6 章模式空間與保留空間、第 7 章範例腳本</td>
+</tr>
+<tr>
+<td><code>sed --debug '腳本'</code></td>
+<td>看腳本實際被怎麼解析、每一步模式空間長怎樣</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="自我測驗">自我測驗</h2>
+<blockquote>
+<p>參考答案寫在每題下面（第一次作答批改後才補上），作答時先遮住答案。</p>
+</blockquote>
+<ol>
+<li>
+<p><code>sed '2p' fruits.txt</code> 為什麼會把第 2 行印兩次？用 <code>sed</code> 處理每一行的流程解釋，並說明 <code>-n</code> 改變了流程的哪一步。</p>
+</li>
+<li>
+<p><code>sed '3i NEW'</code>、<code>sed '3a NEW'</code>、<code>sed '3c NEW'</code> 各把 <code>NEW</code> 放在哪裡？下面這個指令為什麼輸出裡還是 <code>foo</code>，沒有變成 <code>X</code>？</p>
+<pre><code class="language-sh"><span class="nb">printf</span><span class="w"> </span><span class="s1">&#39;apple\nbanana\ncherry\ndate\nelder\n&#39;</span><span class="w"> </span>&gt;<span class="w"> </span>fruits.txt
+sed<span class="w"> </span>-e<span class="w"> </span><span class="s1">&#39;2a foo&#39;</span><span class="w"> </span>-e<span class="w"> </span><span class="s1">&#39;s/foo/X/&#39;</span><span class="w"> </span>fruits.txt
+</code></pre>
+</li>
+<li>
+<p>情境題：設定檔 <code>app.conf</code> 內容如下，你想只在<strong>第一個</strong> <code>server=</code> 那一行後面插入 <code>timeout=30</code>。同事寫的 <code>sed -i '/^server=/a timeout=30' app.conf</code> 結果插了兩次。為什麼？要怎麼改？</p>
+<pre><code class="language-text">server=10.0.0.1
+port=80
+server=10.0.0.2
+</code></pre>
+</li>
+<li>
+<p>情境題：你對一個符號連結 <code>config</code> 執行 <code>sed -i 's/debug=0/debug=1/' config</code>，之後發現連結指向的原檔沒有改、<code>config</code> 自己變成一般檔案。從 <code>-i</code> 的實作方式解釋為什麼，要怎麼避免？</p>
+</li>
+<li>
+<p>情境題：腳本裡用 <code>sed -i '1i #!/bin/sh' &quot;$f&quot;</code> 替檔案加第一行，對大部分檔案都正常，只有一個剛用 <code>touch</code> 建出來的檔案沒有被加上。為什麼？</p>
+</li>
+</ol>
+
+</main>
+</div>
+</body>
+</html>
