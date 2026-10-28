@@ -58,6 +58,7 @@
 <li class="l3"><a href="#9-%E8%99%9B%E6%93%AC%E4%BD%8D%E5%9D%80%E6%80%8E%E9%BA%BC%E8%AE%8A%E6%88%90%E5%AF%A6%E9%AB%94%E4%BD%8D%E5%9D%80%E6%A0%B8%E5%BF%83%E6%BA%96%E5%82%99%E9%A0%81%E8%A1%A8cpu-%E7%9A%84-mmu-%E7%BF%BB%E8%AD%AF">9. 虛擬位址怎麼變成實體位址：核心準備頁表，CPU 的 MMU 翻譯</a></li>
 <li class="l3"><a href="#10-%E6%95%B4%E7%90%86%E5%9B%9B%E5%80%8B%E5%AE%B9%E6%98%93%E6%90%9E%E9%8C%AF%E7%9A%84%E5%9C%B0%E6%96%B9">10. 整理：四個容易搞錯的地方</a></li>
 <li class="l3"><a href="#11-%E5%81%9A-so-%E9%9C%80%E8%A6%81-h-%E5%97%8Einclude-%E7%AE%A1%E7%B7%A8%E8%AD%AF-l-%E7%AE%A1%E9%80%A3%E7%B5%90">11. 做 .so 需要 .h 嗎？#include 管編譯、-l 管連結</a></li>
+<li class="l3"><a href="#12-so-%E4%B9%8B%E9%96%93%E7%82%BA%E4%BB%80%E9%BA%BC%E9%A0%86%E5%BA%8F%E5%B9%BE%E4%B9%8E%E4%B8%8D%E9%87%8D%E8%A6%81a-%E7%82%BA%E4%BB%80%E9%BA%BC%E9%82%84%E6%98%AF%E5%A4%B1%E6%95%97%E4%BD%9C%E6%A5%AD-2-3">12. .so 之間為什麼順序幾乎不重要、(a) 為什麼還是失敗（作業 2-3）</a></li>
 <li class="l2"><a href="#%E8%87%AA%E6%88%91%E6%B8%AC%E9%A9%97">自我測驗</a></li>
 </ul>
 </nav>
@@ -535,6 +536,9 @@ main.c:(.text+0x13): undefined reference to `calc_add'
 collect2: error: ld returned 1 exit status
 </code></pre>
 <p>原因：Ubuntu 的 gcc 預設會傳 <code>--as-needed</code> 給 <code>ld</code>（<code>gcc -v</code> 印出的 <code>collect2</code> 那一行看得到）。它的意思是「<code>.so</code> 只有在<strong>目前有人需要它的符號</strong>時才寫進 <code>NEEDED</code>」；遇到 <code>-lcalc</code> 時還沒有人需要 <code>calc_add</code>，<code>libcalc.so</code> 就被丟掉了。所以不管 <code>.a</code> 還是 <code>.so</code>，一律把 <code>-l</code> 寫在後面。</p>
+<blockquote>
+<p>課後討論：<a href="#12-so-%E4%B9%8B%E9%96%93%E7%82%BA%E4%BB%80%E9%BA%BC%E9%A0%86%E5%BA%8F%E5%B9%BE%E4%B9%8E%E4%B8%8D%E9%87%8D%E8%A6%81a-%E7%82%BA%E4%BB%80%E9%BA%BC%E9%82%84%E6%98%AF%E5%A4%B1%E6%95%97%E4%BD%9C%E6%A5%AD-2-3">第九節第 12 章〈<code>.so</code> 之間為什麼順序幾乎不重要、(a) 為什麼還是失敗（作業 2-3）〉</a></p>
+</blockquote>
 <hr />
 <h2 id="五執行時怎麼找到-so">五、執行時怎麼找到 <code>.so</code></h2>
 <h3 id="ldso-去了哪些地方找"><code>ld.so</code> 去了哪些地方找</h3>
@@ -1038,7 +1042,7 @@ $ rm libcalc.so &amp;&amp; ./app                     # 刪掉連結名稱
 </table>
 <p><code>-v</code>（印出每個步驟）第 6 課教過，第四節用它看到 <code>collect2</code> 收到 <code>--as-needed</code>。</p>
 <h3 id="ld本課透過--wl-用到的選項"><code>ld</code>：本課透過 <code>-Wl,</code> 用到的選項</h3>
-<p><code>ld --help</code> 有 407 行選項說明，這裡<strong>只列本課用到的 8 個</strong>，完整見 <code>ld --help</code> 或 <code>info ld</code>（<code>man ld</code> 是同一份內容的精簡版）：</p>
+<p><code>ld --help</code> 有 407 行選項說明，這裡<strong>只列本課用到的 10 個</strong>，完整見 <code>ld --help</code> 或 <code>info ld</code>（<code>man ld</code> 是同一份內容的精簡版）：</p>
 <table>
 <thead>
 <tr>
@@ -1083,9 +1087,14 @@ $ rm libcalc.so &amp;&amp; ./app                     # 刪掉連結名稱
 <td><code>-Wl,--start-group -lA -lB -Wl,--end-group</code></td>
 <td>群組裡的封存檔反覆掃，解決互相依賴</td>
 </tr>
+<tr>
+<td><code>--allow-shlib-undefined</code>／<code>--no-allow-shlib-undefined</code></td>
+<td><code>-Wl,--allow-shlib-undefined</code></td>
+<td>允許／不允許 <code>.so</code> 裡有找不到定義的符號；做執行檔時預設是不允許（第九節第 12 章，作業 2-3 補教）</td>
+</tr>
 </tbody>
 </table>
-<p>（表裡是 7 列、8 個選項：<code>--as-needed</code> 與 <code>--no-as-needed</code> 算兩個。）</p>
+<p>（表裡是 8 列、10 個選項：<code>--as-needed</code> 與 <code>--no-as-needed</code>、<code>--allow-shlib-undefined</code> 與 <code>--no-allow-shlib-undefined</code> 各算兩個。<code>ld --help</code> 的 407 行是以 <code>  -</code> 開頭的選項行，整份輸出含各模擬器（emulation）的專用選項共 506 行。）</p>
 <h3 id="執行時ldso-的環境變數ld_debugldconfig">執行時：<code>ld.so</code> 的環境變數、<code>LD_DEBUG</code>、<code>ldconfig</code></h3>
 <ul>
 <li><code>ld.so</code> 本身的 14 個命令列選項見 <a href="ELF%E7%9A%84interpreter%E6%98%AF%E4%BB%80%E9%BA%BC-%E5%8B%95%E6%85%8B%E8%BC%89%E5%85%A5%E5%99%A8%E8%88%87%E4%BA%95%E5%AD%97%E8%99%9F%E9%A9%9A%E5%98%86%E8%99%9F.html#%E4%B8%89%E5%AE%83%E8%87%AA%E5%B7%B1%E4%B9%9F%E6%98%AF%E4%B8%80%E6%94%AF%E7%A8%8B%E5%BC%8F%E5%8F%AF%E4%BB%A5%E7%9B%B4%E6%8E%A5%E5%9F%B7%E8%A1%8C">ELF的interpreter是什麼第三節</a>。</li>
@@ -1241,6 +1250,7 @@ $ rm libcalc.so &amp;&amp; ./app                     # 刪掉連結名稱
 <li><a href="#9-%E8%99%9B%E6%93%AC%E4%BD%8D%E5%9D%80%E6%80%8E%E9%BA%BC%E8%AE%8A%E6%88%90%E5%AF%A6%E9%AB%94%E4%BD%8D%E5%9D%80%E6%A0%B8%E5%BF%83%E6%BA%96%E5%82%99%E9%A0%81%E8%A1%A8cpu-%E7%9A%84-mmu-%E7%BF%BB%E8%AD%AF">第 9 章</a>：虛擬位址怎麼變成實體位址：核心準備頁表，CPU 的 MMU 翻譯</li>
 <li><a href="#10-%E6%95%B4%E7%90%86%E5%9B%9B%E5%80%8B%E5%AE%B9%E6%98%93%E6%90%9E%E9%8C%AF%E7%9A%84%E5%9C%B0%E6%96%B9">第 10 章</a>：整理：四個容易搞錯的地方</li>
 <li><a href="#11-%E5%81%9A-so-%E9%9C%80%E8%A6%81-h-%E5%97%8Einclude-%E7%AE%A1%E7%B7%A8%E8%AD%AF-l-%E7%AE%A1%E9%80%A3%E7%B5%90">第 11 章</a>：做 <code>.so</code> 需要 <code>.h</code> 嗎？<code>#include</code> 管編譯、<code>-l</code> 管連結</li>
+<li><a href="#12-so-%E4%B9%8B%E9%96%93%E7%82%BA%E4%BB%80%E9%BA%BC%E9%A0%86%E5%BA%8F%E5%B9%BE%E4%B9%8E%E4%B8%8D%E9%87%8D%E8%A6%81a-%E7%82%BA%E4%BB%80%E9%BA%BC%E9%82%84%E6%98%AF%E5%A4%B1%E6%95%97%E4%BD%9C%E6%A5%AD-2-3">第 12 章</a>：<code>.so</code> 之間為什麼順序幾乎不重要、(a) 為什麼還是失敗（作業 2-3）</li>
 </ul>
 <h3 id="1-0x2ec8-和-0x3fd0-各是什麼mov-0x2ec8riprax-的兩個數字">1. <code>0x2ec8</code> 和 <code>0x3fd0</code> 各是什麼：<code>mov 0x2ec8(%rip),%rax</code> 的兩個數字</h3>
 <blockquote>
@@ -2414,6 +2424,188 @@ $ dpkg -L zlib1g-dev | grep -E &#39;\.h$|\.so$|\.a$&#39;
 </tbody>
 </table>
 <p>正式的函式庫一定要附 <code>.h</code>，而且照第 6 課〈<a href="%E5%A4%9A%E6%AA%94%E6%A1%88%E7%9A%84C%E7%A8%8B%E5%BC%8F-%E6%A8%99%E9%A0%AD%E6%AA%94%E3%80%81static%E8%88%87extern%E3%80%81%E9%80%A3%E7%B5%90%E9%8C%AF%E8%AA%A4%E8%88%87make.html#%E5%AE%9A%E7%BE%A9%E7%9A%84%E9%82%A3%E5%80%8B-c-%E7%82%BA%E4%BB%80%E9%BA%BC%E4%B9%9F%E8%A6%81-include-%E8%87%AA%E5%B7%B1%E7%9A%84%E6%A8%99%E9%A0%AD%E6%AA%94">定義的那個 <code>.c</code> 為什麼也要 <code>#include</code> 自己的標頭檔</a>〉：定義的 <code>.c</code> 和呼叫端都引入同一份 <code>.h</code>，宣告寫錯才會在編譯時被抓到——<code>.so</code> 的符號表沒有型別，連結器和 <code>ld.so</code> 幫不了你。本課第一節的 <code>examples/calc/</code> 就是照這個做法寫的（<code>calc.h</code>）。</p>
+<h3 id="12-so-之間為什麼順序幾乎不重要a-為什麼還是失敗作業-2-3">12. <code>.so</code> 之間為什麼順序幾乎不重要、(a) 為什麼還是失敗（作業 2-3）</h3>
+<blockquote>
+<p>2026-10-27 作業 2-3 批改補教（新觀念）：題目問「為什麼 <code>.so</code> 版的 (b) 不必像 <code>.a</code> 那樣把 <code>-lconv</code> 寫兩次？(a) 為什麼還是失敗？」，使用者的猜測：</p>
+<ul>
+<li>「a 一開始找了 libround，main 沒有用到 round，接下來他去找 libconv，找到了加到記憶體，又要回去找 libround，但他不在記憶體，所以就沒了」</li>
+<li>「b 一開始就找了 libconv，存到了記憶體，再找 round，然後再從記憶體去找 libconv，我們不用重寫兩次」</li>
+</ul>
+<p>正文出處：<a href="#so-%E5%9C%A8-ubuntu-%E4%B8%8A%E4%B9%9F%E6%9C%89%E9%A0%86%E5%BA%8F%E5%95%8F%E9%A1%8C">第四節〈<code>.so</code> 在 Ubuntu 上也有順序問題〉</a>；<code>.a</code> 的對照在<a href="#%E9%A0%86%E5%BA%8Fld-%E7%94%B1%E5%B7%A6%E5%BE%80%E5%8F%B3%E5%8F%AA%E6%8E%83%E4%B8%80%E6%AC%A1">第二節〈順序：<code>ld</code> 由左往右只掃一次〉</a></p>
+</blockquote>
+<p><strong>一句話：<code>.a</code> 是「當下缺什麼才拉哪個 <code>.o</code>」，<code>.so</code> 是「整份符號一次進來」，所以 <code>.so</code> 不必寫兩次；<code>.so</code> 之間剩下的順序問題只來自 <code>--as-needed</code>——讀到它的當下沒人需要它，就不寫進 <code>NEEDED</code>。</strong></p>
+<h4 id="實驗用的檔案">實驗用的檔案</h4>
+<p>跟作業第 2 題同一組：<code>libconv</code> 放 <code>c_to_f</code>、<code>f_to_c</code>、<code>temp_clamp</code>，<code>libround</code> 放 <code>temp_round</code>，而 <code>temp_round</code> 又呼叫 <code>libconv</code> 的 <code>temp_clamp</code>——兩個函式庫互相需要。檔案在 <a href="../../small-project/s1-07-libraries/examples/order/"><code>examples/order/</code></a>。</p>
+<p><code>temp.h</code>（檔案：<a href="../../small-project/s1-07-libraries/examples/order/temp.h"><code>temp.h</code></a>）：</p>
+<pre><code class="language-c"><span class="cp">#ifndef TEMP_H</span>
+<span class="cp">#define TEMP_H</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">c_to_f</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">c</span><span class="p">);</span>
+<span class="kt">int</span><span class="w"> </span><span class="nf">f_to_c</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">f</span><span class="p">);</span>
+<span class="kt">int</span><span class="w"> </span><span class="nf">temp_round</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">x10</span><span class="p">);</span>
+<span class="kt">int</span><span class="w"> </span><span class="nf">temp_clamp</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">x10</span><span class="p">);</span>
+
+<span class="cp">#endif</span>
+</code></pre>
+<p><code>ctof.c</code>（檔案：<a href="../../small-project/s1-07-libraries/examples/order/ctof.c"><code>ctof.c</code></a>）：</p>
+<pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;temp.h&quot;</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">c_to_f</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">c</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">temp_round</span><span class="p">(</span><span class="n">c</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mi">18</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">320</span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre>
+<p><code>ftoc.c</code>（檔案：<a href="../../small-project/s1-07-libraries/examples/order/ftoc.c"><code>ftoc.c</code></a>）：</p>
+<pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;temp.h&quot;</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">f_to_c</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">f</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">temp_round</span><span class="p">((</span><span class="n">f</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">32</span><span class="p">)</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mi">100</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="mi">18</span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre>
+<p><code>limit.c</code>（檔案：<a href="../../small-project/s1-07-libraries/examples/order/limit.c"><code>limit.c</code></a>）：</p>
+<pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;temp.h&quot;</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">temp_clamp</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">x10</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">x10</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">-2732</span><span class="w"> </span><span class="o">?</span><span class="w"> </span><span class="mi">-2732</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">x10</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<p><code>round.c</code>（檔案：<a href="../../small-project/s1-07-libraries/examples/order/round.c"><code>round.c</code></a>）：</p>
+<pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;temp.h&quot;</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">temp_round</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">x10</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">x10</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">temp_clamp</span><span class="p">(</span><span class="n">x10</span><span class="p">);</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="p">(</span><span class="n">x10</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">5</span><span class="p">)</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="mi">10</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<p><code>main.c</code>（檔案：<a href="../../small-project/s1-07-libraries/examples/order/main.c"><code>main.c</code></a>）：</p>
+<pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;temp.h&quot;</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;f_to_c(100) = %d</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">f_to_c</span><span class="p">(</span><span class="mi">100</span><span class="p">));</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<p>做成兩個 <code>.so</code>（注意做 <code>libconv.so</code> 時<strong>沒有</strong>寫 <code>-lround</code>，所以它不知道 <code>temp_round</code> 要去哪裡找）：</p>
+<pre><code class="language-text">$ mkdir -p so
+$ gcc -Wall -fPIC -shared ctof.c ftoc.c limit.c -o so/libconv.so
+$ gcc -Wall -fPIC -shared round.c -o so/libround.so
+$ nm -D so/libconv.so | grep temp_
+000000000000117b T temp_clamp
+                 U temp_round          ← libconv.so 需要 temp_round
+$ nm -D so/libround.so | grep temp_
+                 U temp_clamp          ← libround.so 需要 temp_clamp
+0000000000001119 T temp_round
+$ readelf -d so/libconv.so | grep NEEDED
+                                       ← 沒有輸出：libconv.so 沒記任何依賴（libc 也沒用到）
+</code></pre>
+<h4 id="b--lconv--lround為什麼不必寫兩次">(b) <code>-lconv -lround</code>：為什麼不必寫兩次</h4>
+<pre><code class="language-text">$ gcc -Wall main.c -Lso -lconv -lround -Wl,-rpath,&#39;$ORIGIN/so&#39; -o app_b
+$ ./app_b
+f_to_c(100) = 38
+$ readelf -d app_b | grep -E &#39;NEEDED|RUNPATH&#39;
+ 0x0000000000000001 (NEEDED)             Shared library: [libconv.so]
+ 0x0000000000000001 (NEEDED)             Shared library: [libround.so]
+ 0x0000000000000001 (NEEDED)             Shared library: [libc.so.6]
+ 0x000000000000001d (RUNPATH)            Library runpath: [$ORIGIN/so]
+</code></pre>
+<p>同樣的順序換成 <code>.a</code> 會失敗（作業 2-1 (b)：<code>round.o</code> 帶來的 <code>temp_clamp</code> 找不到），<code>.so</code> 卻成功。差別在 <code>ld</code> 讀到兩種檔案時做的事：</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>讀到 <code>libconv.a</code> 時</th>
+<th>讀到 <code>libconv.so</code> 時</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>拿進來什麼</td>
+<td>只拉<strong>當下清單上缺的</strong>符號所在的成員：清單只有 <code>f_to_c</code>，所以只拉 <code>ftoc.o</code>，<code>limit.o</code> 留在 <code>.a</code> 裡</td>
+<td>沒有「成員」可以挑，<code>.so</code> 是一個連結好的整體：<code>nm -D</code> 看到的所有 <code>T</code>（<code>c_to_f</code>、<code>f_to_c</code>、<code>temp_clamp</code>）<strong>一次全部</strong>記進 <code>ld</code> 的符號表</td>
+</tr>
+<tr>
+<td>之後才出現的需求</td>
+<td><code>round.o</code> 後來需要 <code>temp_clamp</code>，但 <code>libconv.a</code> 已經掃過、不回頭 → <code>undefined reference</code></td>
+<td><code>libround.so</code> 後來需要 <code>temp_clamp</code>，<code>ld</code> 在符號表裡一查，<code>libconv.so</code> 早就提供了 → 沒問題</td>
+</tr>
+</tbody>
+</table>
+<p>使用者猜的「<code>libconv</code> 存到記憶體，之後再從那裡找」方向是對的，只是那個「記住」發生在<strong>連結時</strong> <code>ld</code> 的符號表裡，不是程式的記憶體——這時程式根本還沒跑。</p>
+<p>真正<strong>執行</strong>時，接上符號的是 <code>ld.so</code>，它也是在所有載入的 <code>.so</code> 裡找，不管 <code>NEEDED</code> 的先後（<code>LD_DEBUG=bindings</code> 的輸出很長，這裡只留跟本例有關的三列，行首的行程編號拿掉、路徑縮短）：</p>
+<pre><code class="language-text">$ LD_DEBUG=bindings ./app_b 2&gt;&amp;1 | grep -E &quot;f_to_c|temp_&quot;
+binding file ./app_b [0] to so/libconv.so [0]: normal symbol `f_to_c&#39;
+binding file so/libconv.so [0] to so/libround.so [0]: normal symbol `temp_round&#39;
+binding file so/libround.so [0] to so/libconv.so [0]: normal symbol `temp_clamp&#39;    ← libround.so 回頭用 libconv.so 的函式
+</code></pre>
+<p>最後一列就是 <code>.a</code> 做不到的事：<code>libround.so</code> 排在 <code>libconv.so</code> 後面，照樣用到 <code>libconv.so</code> 的 <code>temp_clamp</code>。</p>
+<h4 id="a--lround--lconv為什麼還是失敗">(a) <code>-lround -lconv</code>：為什麼還是失敗</h4>
+<pre><code class="language-text">$ gcc -Wall main.c -Lso -lround -lconv -Wl,-rpath,&#39;$ORIGIN/so&#39; -o app_a
+/usr/bin/ld: so/libconv.so: undefined reference to `temp_round&#39;
+collect2: error: ld returned 1 exit status
+</code></pre>
+<p><code>.so</code> 都是整份進來，照理 <code>libround.so</code> 的 <code>temp_round</code> 也被記下了，為什麼還說找不到？逐步看：</p>
+<ol>
+<li>讀 <code>main.c</code> 的 <code>.o</code>：清單上缺 <code>f_to_c</code>（和 <code>printf</code>）。</li>
+<li>讀到 <code>libround.so</code>：它只提供 <code>temp_round</code>，<strong>現在沒有人缺</strong> <code>temp_round</code>。Ubuntu 的 gcc 預設傳 <code>--as-needed</code>（<a href="#so-%E5%9C%A8-ubuntu-%E4%B8%8A%E4%B9%9F%E6%9C%89%E9%A0%86%E5%BA%8F%E5%95%8F%E9%A1%8C">第四節〈<code>.so</code> 在 Ubuntu 上也有順序問題〉</a>），所以 <code>libround.so</code> <strong>不寫進 <code>NEEDED</code></strong>，被丟掉了。</li>
+<li>讀到 <code>libconv.so</code>：提供了 <code>f_to_c</code>，寫進 <code>NEEDED</code>；但它自己有 <code>U temp_round</code>。</li>
+<li>命令列結束，<code>ld</code> 檢查：留下來的 <code>.so</code>（<code>libconv.so</code>）裡未定義的 <code>temp_round</code>，有沒有哪個留下來的檔案提供？<code>libround.so</code> 已經被丟了 → 報錯。注意訊息的開頭是 <code>so/libconv.so:</code>，表示「是 <code>libconv.so</code> 需要它」，跟 <code>.a</code> 時的 <code>./libconv.a(ftoc.o): in function ...</code> 不一樣。</li>
+</ol>
+<p>用兩個選項各拿掉一個條件，證明是這兩件事造成的：</p>
+<pre><code class="language-text">$ gcc -Wall main.c -Lso -Wl,--no-as-needed -lround -lconv -Wl,-rpath,&#39;$ORIGIN/so&#39; -o app_a2
+$ ./app_a2
+f_to_c(100) = 38
+$ readelf -d app_a2 | grep NEEDED
+ 0x0000000000000001 (NEEDED)             Shared library: [libround.so]     ← 沒被丟掉
+ 0x0000000000000001 (NEEDED)             Shared library: [libconv.so]
+ 0x0000000000000001 (NEEDED)             Shared library: [libc.so.6]
+</code></pre>
+<p>關掉 <code>--as-needed</code>，<code>libround.so</code> 就留下來了，(a) 的順序也能成功——所以<strong>跟 <code>.so</code> 之間的先後無關</strong>，只跟「讀到它的當下有沒有人需要它」有關。</p>
+<pre><code class="language-text">$ gcc -Wall main.c -Lso -lround -lconv -Wl,--allow-shlib-undefined -Wl,-rpath,&#39;$ORIGIN/so&#39; -o app_a3
+$ readelf -d app_a3 | grep NEEDED
+ 0x0000000000000001 (NEEDED)             Shared library: [libconv.so]      ← libround.so 還是被丟掉
+ 0x0000000000000001 (NEEDED)             Shared library: [libc.so.6]
+$ ./app_a3
+./app_a3: symbol lookup error: ./so/libconv.so: undefined symbol: temp_round
+</code></pre>
+<p><code>--allow-shlib-undefined</code> 叫 <code>ld</code> 不要檢查「<code>.so</code> 裡找不到定義的符號」，連結就過了；但 <code>libround.so</code> 沒進 <code>NEEDED</code>，執行時 <code>ld.so</code> 不會載入它，呼叫到 <code>temp_round</code> 時才在執行期爆掉（訊息是 <code>ld.so</code> 印的）。<code>man ld</code> 寫明：做<strong>執行檔</strong>時預設會檢查（<code>--no-allow-shlib-undefined</code>），做 <code>.so</code> 時預設不檢查——所以第 4 步那道檢查，就是在擋這種「連結過了、跑起來才壞」。</p>
+<h4 id="整理a-和-so-的順序規則">整理：<code>.a</code> 和 <code>.so</code> 的順序規則</h4>
+<table>
+<thead>
+<tr>
+<th></th>
+<th><code>.a</code></th>
+<th><code>.so</code>（Ubuntu，預設 <code>--as-needed</code>）</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>讀進來的單位</td>
+<td>成員（<code>.o</code>），當下缺什麼才拉什麼</td>
+<td>整份</td>
+</tr>
+<tr>
+<td>被依賴的要寫在後面嗎</td>
+<td>要：寫在前面時，當時還不缺，就一個成員都不拉</td>
+<td>要：寫在前面時，當時沒人需要，就不寫進 <code>NEEDED</code></td>
+</tr>
+<tr>
+<td>互相依賴（A 需要 B，B 又需要 A 的<strong>別的</strong>東西）</td>
+<td>寫兩次 <code>-lA -lB -lA</code>，或用 <code>--start-group</code></td>
+<td>照「被依賴的在後」排一次就好：A 整份已經在符號表裡</td>
+</tr>
+<tr>
+<td>錯誤訊息的開頭</td>
+<td><code>./libA.a(成員.o): in function ...</code></td>
+<td><code>libA.so: undefined reference to ...</code></td>
+</tr>
+</tbody>
+</table>
+<p>正式的做法是讓每個 <code>.so</code> 自己記住依賴：做 <code>libconv.so</code> 時加 <code>-Lso -lround</code>，<code>libconv.so</code> 的 <code>NEEDED</code> 就有 <code>libround.so</code>，主程式只寫 <code>-lconv</code> 也找得到（依賴的依賴在執行時怎麼找，見<a href="#ldso-%E5%8E%BB%E4%BA%86%E5%93%AA%E4%BA%9B%E5%9C%B0%E6%96%B9%E6%89%BE">第五節〈<code>ld.so</code> 去了哪些地方找〉</a>與作業第 4 題）。作業故意不加，才看得到上面這些現象。</p>
 <hr />
 <h2 id="自我測驗">自我測驗</h2>
 <blockquote>

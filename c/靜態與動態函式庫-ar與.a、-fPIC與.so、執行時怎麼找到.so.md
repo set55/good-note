@@ -535,6 +535,8 @@ collect2: error: ld returned 1 exit status
 
 原因：Ubuntu 的 gcc 預設會傳 `--as-needed` 給 `ld`（`gcc -v` 印出的 `collect2` 那一行看得到）。它的意思是「`.so` 只有在**目前有人需要它的符號**時才寫進 `NEEDED`」；遇到 `-lcalc` 時還沒有人需要 `calc_add`，`libcalc.so` 就被丟掉了。所以不管 `.a` 還是 `.so`，一律把 `-l` 寫在後面。
 
+> 課後討論：[第九節第 12 章〈`.so` 之間為什麼順序幾乎不重要、(a) 為什麼還是失敗（作業 2-3）〉](#12-so-之間為什麼順序幾乎不重要a-為什麼還是失敗作業-2-3)
+
 ---
 
 ## 五、執行時怎麼找到 `.so`
@@ -874,7 +876,7 @@ gcc 的選項有上千個，完整見 `man gcc`（Link Options、Code Gen Option
 
 ### `ld`：本課透過 `-Wl,` 用到的選項
 
-`ld --help` 有 407 行選項說明，這裡**只列本課用到的 8 個**，完整見 `ld --help` 或 `info ld`（`man ld` 是同一份內容的精簡版）：
+`ld --help` 有 407 行選項說明，這裡**只列本課用到的 10 個**，完整見 `ld --help` 或 `info ld`（`man ld` 是同一份內容的精簡版）：
 
 | `ld` 選項 | 寫成 gcc 參數 | 做什麼 |
 |---|---|---|
@@ -885,8 +887,9 @@ gcc 的選項有上千個，完整見 `man gcc`（Link Options、Code Gen Option
 | `-rpath-link 目錄` | `-Wl,-rpath-link,lib` | **只給連結時用**：`ld` 檢查「`.so` 的依賴的依賴」時去哪裡找；不寫進輸出檔（作業第 4 題用到） |
 | `--as-needed`／`--no-as-needed` | （Ubuntu 的 gcc 預設傳 `--as-needed`） | `.so` 只在有人用到它的符號時才寫進 `NEEDED` |
 | `--start-group … --end-group` | `-Wl,--start-group -lA -lB -Wl,--end-group` | 群組裡的封存檔反覆掃，解決互相依賴 |
+| `--allow-shlib-undefined`／`--no-allow-shlib-undefined` | `-Wl,--allow-shlib-undefined` | 允許／不允許 `.so` 裡有找不到定義的符號；做執行檔時預設是不允許（第九節第 12 章，作業 2-3 補教） |
 
-（表裡是 7 列、8 個選項：`--as-needed` 與 `--no-as-needed` 算兩個。）
+（表裡是 8 列、10 個選項：`--as-needed` 與 `--no-as-needed`、`--allow-shlib-undefined` 與 `--no-allow-shlib-undefined` 各算兩個。`ld --help` 的 407 行是以 `  -` 開頭的選項行，整份輸出含各模擬器（emulation）的專用選項共 506 行。）
 
 ### 執行時：`ld.so` 的環境變數、`LD_DEBUG`、`ldconfig`
 
@@ -964,6 +967,7 @@ gcc 的選項有上千個，完整見 `man gcc`（Link Options、Code Gen Option
 - [第 9 章](#9-虛擬位址怎麼變成實體位址核心準備頁表cpu-的-mmu-翻譯)：虛擬位址怎麼變成實體位址：核心準備頁表，CPU 的 MMU 翻譯
 - [第 10 章](#10-整理四個容易搞錯的地方)：整理：四個容易搞錯的地方
 - [第 11 章](#11-做-so-需要-h-嗎include-管編譯-l-管連結)：做 `.so` 需要 `.h` 嗎？`#include` 管編譯、`-l` 管連結
+- [第 12 章](#12-so-之間為什麼順序幾乎不重要a-為什麼還是失敗作業-2-3)：`.so` 之間為什麼順序幾乎不重要、(a) 為什麼還是失敗（作業 2-3）
 
 ### 1. `0x2ec8` 和 `0x3fd0` 各是什麼：`mov 0x2ec8(%rip),%rax` 的兩個數字
 
@@ -2026,6 +2030,193 @@ $ dpkg -L zlib1g-dev | grep -E '\.h$|\.so$|\.a$'
 | 載入 `.so`、接上函式與變數 | `ld.so` | 執行時 | 不用做（找不到 `.so` 見第五節） |
 
 正式的函式庫一定要附 `.h`，而且照第 6 課〈[定義的那個 `.c` 為什麼也要 `#include` 自己的標頭檔](./多檔案的C程式-標頭檔、static與extern、連結錯誤與make.md#定義的那個-c-為什麼也要-include-自己的標頭檔)〉：定義的 `.c` 和呼叫端都引入同一份 `.h`，宣告寫錯才會在編譯時被抓到——`.so` 的符號表沒有型別，連結器和 `ld.so` 幫不了你。本課第一節的 `examples/calc/` 就是照這個做法寫的（`calc.h`）。
+
+### 12. `.so` 之間為什麼順序幾乎不重要、(a) 為什麼還是失敗（作業 2-3）
+
+> 2026-10-27 作業 2-3 批改補教（新觀念）：題目問「為什麼 `.so` 版的 (b) 不必像 `.a` 那樣把 `-lconv` 寫兩次？(a) 為什麼還是失敗？」，使用者的猜測：
+>
+> - 「a 一開始找了 libround，main 沒有用到 round，接下來他去找 libconv，找到了加到記憶體，又要回去找 libround，但他不在記憶體，所以就沒了」
+> - 「b 一開始就找了 libconv，存到了記憶體，再找 round，然後再從記憶體去找 libconv，我們不用重寫兩次」
+>
+> 正文出處：[第四節〈`.so` 在 Ubuntu 上也有順序問題〉](#so-在-ubuntu-上也有順序問題)；`.a` 的對照在[第二節〈順序：`ld` 由左往右只掃一次〉](#順序ld-由左往右只掃一次)
+
+**一句話：`.a` 是「當下缺什麼才拉哪個 `.o`」，`.so` 是「整份符號一次進來」，所以 `.so` 不必寫兩次；`.so` 之間剩下的順序問題只來自 `--as-needed`——讀到它的當下沒人需要它，就不寫進 `NEEDED`。**
+
+#### 實驗用的檔案
+
+跟作業第 2 題同一組：`libconv` 放 `c_to_f`、`f_to_c`、`temp_clamp`，`libround` 放 `temp_round`，而 `temp_round` 又呼叫 `libconv` 的 `temp_clamp`——兩個函式庫互相需要。檔案在 [`examples/order/`](../small-project/s1-07-libraries/examples/order/)。
+
+`temp.h`（檔案：[`temp.h`](../small-project/s1-07-libraries/examples/order/temp.h)）：
+
+```c
+#ifndef TEMP_H
+#define TEMP_H
+
+int c_to_f(int c);
+int f_to_c(int f);
+int temp_round(int x10);
+int temp_clamp(int x10);
+
+#endif
+```
+
+`ctof.c`（檔案：[`ctof.c`](../small-project/s1-07-libraries/examples/order/ctof.c)）：
+
+```c
+#include "temp.h"
+
+int c_to_f(int c)
+{
+    return temp_round(c * 18 + 320);
+}
+```
+
+`ftoc.c`（檔案：[`ftoc.c`](../small-project/s1-07-libraries/examples/order/ftoc.c)）：
+
+```c
+#include "temp.h"
+
+int f_to_c(int f)
+{
+    return temp_round((f - 32) * 100 / 18);
+}
+```
+
+`limit.c`（檔案：[`limit.c`](../small-project/s1-07-libraries/examples/order/limit.c)）：
+
+```c
+#include "temp.h"
+
+int temp_clamp(int x10)
+{
+    return x10 < -2732 ? -2732 : x10;
+}
+```
+
+`round.c`（檔案：[`round.c`](../small-project/s1-07-libraries/examples/order/round.c)）：
+
+```c
+#include "temp.h"
+
+int temp_round(int x10)
+{
+    x10 = temp_clamp(x10);
+    return (x10 + 5) / 10;
+}
+```
+
+`main.c`（檔案：[`main.c`](../small-project/s1-07-libraries/examples/order/main.c)）：
+
+```c
+#include <stdio.h>
+#include "temp.h"
+
+int main(void)
+{
+    printf("f_to_c(100) = %d\n", f_to_c(100));
+    return 0;
+}
+```
+
+做成兩個 `.so`（注意做 `libconv.so` 時**沒有**寫 `-lround`，所以它不知道 `temp_round` 要去哪裡找）：
+
+```text
+$ mkdir -p so
+$ gcc -Wall -fPIC -shared ctof.c ftoc.c limit.c -o so/libconv.so
+$ gcc -Wall -fPIC -shared round.c -o so/libround.so
+$ nm -D so/libconv.so | grep temp_
+000000000000117b T temp_clamp
+                 U temp_round          ← libconv.so 需要 temp_round
+$ nm -D so/libround.so | grep temp_
+                 U temp_clamp          ← libround.so 需要 temp_clamp
+0000000000001119 T temp_round
+$ readelf -d so/libconv.so | grep NEEDED
+                                       ← 沒有輸出：libconv.so 沒記任何依賴（libc 也沒用到）
+```
+
+#### (b) `-lconv -lround`：為什麼不必寫兩次
+
+```text
+$ gcc -Wall main.c -Lso -lconv -lround -Wl,-rpath,'$ORIGIN/so' -o app_b
+$ ./app_b
+f_to_c(100) = 38
+$ readelf -d app_b | grep -E 'NEEDED|RUNPATH'
+ 0x0000000000000001 (NEEDED)             Shared library: [libconv.so]
+ 0x0000000000000001 (NEEDED)             Shared library: [libround.so]
+ 0x0000000000000001 (NEEDED)             Shared library: [libc.so.6]
+ 0x000000000000001d (RUNPATH)            Library runpath: [$ORIGIN/so]
+```
+
+同樣的順序換成 `.a` 會失敗（作業 2-1 (b)：`round.o` 帶來的 `temp_clamp` 找不到），`.so` 卻成功。差別在 `ld` 讀到兩種檔案時做的事：
+
+| | 讀到 `libconv.a` 時 | 讀到 `libconv.so` 時 |
+|---|---|---|
+| 拿進來什麼 | 只拉**當下清單上缺的**符號所在的成員：清單只有 `f_to_c`，所以只拉 `ftoc.o`，`limit.o` 留在 `.a` 裡 | 沒有「成員」可以挑，`.so` 是一個連結好的整體：`nm -D` 看到的所有 `T`（`c_to_f`、`f_to_c`、`temp_clamp`）**一次全部**記進 `ld` 的符號表 |
+| 之後才出現的需求 | `round.o` 後來需要 `temp_clamp`，但 `libconv.a` 已經掃過、不回頭 → `undefined reference` | `libround.so` 後來需要 `temp_clamp`，`ld` 在符號表裡一查，`libconv.so` 早就提供了 → 沒問題 |
+
+使用者猜的「`libconv` 存到記憶體，之後再從那裡找」方向是對的，只是那個「記住」發生在**連結時** `ld` 的符號表裡，不是程式的記憶體——這時程式根本還沒跑。
+
+真正**執行**時，接上符號的是 `ld.so`，它也是在所有載入的 `.so` 裡找，不管 `NEEDED` 的先後（`LD_DEBUG=bindings` 的輸出很長，這裡只留跟本例有關的三列，行首的行程編號拿掉、路徑縮短）：
+
+```text
+$ LD_DEBUG=bindings ./app_b 2>&1 | grep -E "f_to_c|temp_"
+binding file ./app_b [0] to so/libconv.so [0]: normal symbol `f_to_c'
+binding file so/libconv.so [0] to so/libround.so [0]: normal symbol `temp_round'
+binding file so/libround.so [0] to so/libconv.so [0]: normal symbol `temp_clamp'    ← libround.so 回頭用 libconv.so 的函式
+```
+
+最後一列就是 `.a` 做不到的事：`libround.so` 排在 `libconv.so` 後面，照樣用到 `libconv.so` 的 `temp_clamp`。
+
+#### (a) `-lround -lconv`：為什麼還是失敗
+
+```text
+$ gcc -Wall main.c -Lso -lround -lconv -Wl,-rpath,'$ORIGIN/so' -o app_a
+/usr/bin/ld: so/libconv.so: undefined reference to `temp_round'
+collect2: error: ld returned 1 exit status
+```
+
+`.so` 都是整份進來，照理 `libround.so` 的 `temp_round` 也被記下了，為什麼還說找不到？逐步看：
+
+1. 讀 `main.c` 的 `.o`：清單上缺 `f_to_c`（和 `printf`）。
+2. 讀到 `libround.so`：它只提供 `temp_round`，**現在沒有人缺** `temp_round`。Ubuntu 的 gcc 預設傳 `--as-needed`（[第四節〈`.so` 在 Ubuntu 上也有順序問題〉](#so-在-ubuntu-上也有順序問題)），所以 `libround.so` **不寫進 `NEEDED`**，被丟掉了。
+3. 讀到 `libconv.so`：提供了 `f_to_c`，寫進 `NEEDED`；但它自己有 `U temp_round`。
+4. 命令列結束，`ld` 檢查：留下來的 `.so`（`libconv.so`）裡未定義的 `temp_round`，有沒有哪個留下來的檔案提供？`libround.so` 已經被丟了 → 報錯。注意訊息的開頭是 `so/libconv.so:`，表示「是 `libconv.so` 需要它」，跟 `.a` 時的 `./libconv.a(ftoc.o): in function ...` 不一樣。
+
+用兩個選項各拿掉一個條件，證明是這兩件事造成的：
+
+```text
+$ gcc -Wall main.c -Lso -Wl,--no-as-needed -lround -lconv -Wl,-rpath,'$ORIGIN/so' -o app_a2
+$ ./app_a2
+f_to_c(100) = 38
+$ readelf -d app_a2 | grep NEEDED
+ 0x0000000000000001 (NEEDED)             Shared library: [libround.so]     ← 沒被丟掉
+ 0x0000000000000001 (NEEDED)             Shared library: [libconv.so]
+ 0x0000000000000001 (NEEDED)             Shared library: [libc.so.6]
+```
+
+關掉 `--as-needed`，`libround.so` 就留下來了，(a) 的順序也能成功——所以**跟 `.so` 之間的先後無關**，只跟「讀到它的當下有沒有人需要它」有關。
+
+```text
+$ gcc -Wall main.c -Lso -lround -lconv -Wl,--allow-shlib-undefined -Wl,-rpath,'$ORIGIN/so' -o app_a3
+$ readelf -d app_a3 | grep NEEDED
+ 0x0000000000000001 (NEEDED)             Shared library: [libconv.so]      ← libround.so 還是被丟掉
+ 0x0000000000000001 (NEEDED)             Shared library: [libc.so.6]
+$ ./app_a3
+./app_a3: symbol lookup error: ./so/libconv.so: undefined symbol: temp_round
+```
+
+`--allow-shlib-undefined` 叫 `ld` 不要檢查「`.so` 裡找不到定義的符號」，連結就過了；但 `libround.so` 沒進 `NEEDED`，執行時 `ld.so` 不會載入它，呼叫到 `temp_round` 時才在執行期爆掉（訊息是 `ld.so` 印的）。`man ld` 寫明：做**執行檔**時預設會檢查（`--no-allow-shlib-undefined`），做 `.so` 時預設不檢查——所以第 4 步那道檢查，就是在擋這種「連結過了、跑起來才壞」。
+
+#### 整理：`.a` 和 `.so` 的順序規則
+
+| | `.a` | `.so`（Ubuntu，預設 `--as-needed`） |
+|---|---|---|
+| 讀進來的單位 | 成員（`.o`），當下缺什麼才拉什麼 | 整份 |
+| 被依賴的要寫在後面嗎 | 要：寫在前面時，當時還不缺，就一個成員都不拉 | 要：寫在前面時，當時沒人需要，就不寫進 `NEEDED` |
+| 互相依賴（A 需要 B，B 又需要 A 的**別的**東西） | 寫兩次 `-lA -lB -lA`，或用 `--start-group` | 照「被依賴的在後」排一次就好：A 整份已經在符號表裡 |
+| 錯誤訊息的開頭 | `./libA.a(成員.o): in function ...` | `libA.so: undefined reference to ...` |
+
+正式的做法是讓每個 `.so` 自己記住依賴：做 `libconv.so` 時加 `-Lso -lround`，`libconv.so` 的 `NEEDED` 就有 `libround.so`，主程式只寫 `-lconv` 也找得到（依賴的依賴在執行時怎麼找，見[第五節〈`ld.so` 去了哪些地方找〉](#ldso-去了哪些地方找)與作業第 4 題）。作業故意不加，才看得到上面這些現象。
 
 ---
 
