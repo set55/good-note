@@ -125,7 +125,7 @@
 </table>
 <hr />
 <h2 id="批改結果2026-10-27">批改結果（2026-10-27）</h2>
-<p>第 1、2 題 2026-10-27 批改；第 3 題 3-1 2026-10-28 批改；其他還沒交。</p>
+<p>第 1、2 題 2026-10-27 批改；第 3 題 2026-10-28 批改；其他還沒交。</p>
 <table>
 <thead>
 <tr>
@@ -164,6 +164,21 @@
 <td>3-1</td>
 <td>不完整</td>
 <td>輸出對、<code>-fPIE</code> 直接用 <code>%rip</code> 加距離讀 <code>temp_calls</code>、要經 GOT 的理由（變數最後可能是別人那份）都抓到了；「為什麼 <code>ctof.o</code>、<code>ftoc.o</code> 沒被點名」（最後一段）只說「出問題的是 <code>temp_round</code>」，沒解釋它們同樣參照別的檔案的 <code>temp_round</code> 為什麼沒事：它們是<strong>呼叫函式</strong>，重定位是 <code>R_X86_64_PLT32</code>，<code>ld</code> 讓 <code>call</code> 改指向自己做的 PLT 跳板，不必改程式碼。另有兩處錯：<code>.so</code> 載入位址不固定（ASLR），問題不在這；警告說的是「要填的洞在唯讀的 <code>.text</code>」，不是「找到了 <code>.text</code>」。（10-28 使用者說明最後一段就是在答這一問，批改描述已更正，結果維持不完整）</td>
+</tr>
+<tr>
+<td>3-2</td>
+<td>不完整</td>
+<td>讀的那一半對（<code>b</code> 從 GOT 讀位址、<code>12</code> 讀值、<code>14</code> 加 1）；漏了寫回的 <code>17</code>、<code>1e</code>（再讀一次 GOT、照位址寫回），說成「下面都是計算」；<code>readelf -r</code> 那列只描述 GOT 的結果，沒講出是留給 <code>ld.so</code>、載入時把 <code>temp_calls</code> 真正的位址寫進 <code>0x3fd8</code></td>
+</tr>
+<tr>
+<td>3-3</td>
+<td>對</td>
+<td>抓到：<code>ld.so</code> 印的錯、<code>-L</code> 只給 <code>ld</code>、(a)(b) 兩種方法與 <code>RUNPATH [$ORIGIN]</code>、<code>temp_calls = 2</code> 是兩個函式各呼叫一次（可補：<code>NEEDED</code> 只記名字不記路徑）</td>
+</tr>
+<tr>
+<td>3-4</td>
+<td>大致對</td>
+<td>動態 1002、<code>LD_DEBUG</code> 綁到 <code>./hw3</code>、執行檔先找；靜態 <code>round.o</code> 被拉進來撞名都對；缺「<code>.so</code> 不合併進執行檔，<code>ld</code> 不把它的定義算重複、留給 <code>ld.so</code> 選」（自己也寫了不確定，第九節第 2 章教過）</td>
 </tr>
 </tbody>
 </table>
@@ -292,7 +307,7 @@ f_to_c(212) = 100
 </details>
 </details>
 <details class="answer self-practice"><summary>自我練習（不批改）</summary>
-<div class="answer-box" data-file="small-project/s1-07-libraries/README.md" data-line="200" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="small-project/s1-07-libraries/README.md" data-line="203" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h3 id="1-2-先預測nm-hw1--grep--e-c_to_ff_to_ctemp_round-會列出這三個函式裡的哪幾個寫下預測後再執行貼上結果並貼上-gcc--wall-hw1_mainc--l--ltemp--wl--verbose--o-hw1-21--grep-libtemp-的輸出hw1_mainc-沒有直接呼叫-temp_round它為什麼或為什麼沒有在執行檔裡c_to_f-呢筆記第二節連結只拉需要的成員">1-2. 先預測：<code>nm hw1 | grep -E 'c_to_f|f_to_c|temp_round'</code> 會列出這三個函式裡的哪幾個？寫下預測後再執行，貼上結果，並貼上 <code>gcc -Wall hw1_main.c -L. -ltemp -Wl,--verbose -o hw1 2&gt;&amp;1 | grep libtemp</code> 的輸出。<code>hw1_main.c</code> 沒有直接呼叫 <code>temp_round</code>，它為什麼（或為什麼沒有）在執行檔裡？<code>c_to_f</code> 呢？【筆記第二節〈連結：只拉需要的成員〉】</h3>
 <p><strong>第 1 次（2026-10-27）</strong></p>
@@ -336,7 +351,7 @@ main一開始的符號就沒有他了,所以也不會去把ctof.o拉入執行檔
 </details>
 </details>
 <details class="answer self-practice"><summary>自我練習（不批改）</summary>
-<div class="answer-box" data-file="small-project/s1-07-libraries/README.md" data-line="239" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="small-project/s1-07-libraries/README.md" data-line="242" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <hr />
 <h2 id="2-兩個互相需要的靜態函式庫順序怎麼排">2. 兩個互相需要的靜態函式庫：順序怎麼排</h2>
@@ -481,7 +496,7 @@ hw2 在libconv連到f_to_c, f_to_c 在 libround 連到了temp_round, temp_round�
 </details>
 </details>
 <details class="answer self-practice"><summary>自我練習（不批改）</summary>
-<div class="answer-box" data-file="small-project/s1-07-libraries/README.md" data-line="364" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="small-project/s1-07-libraries/README.md" data-line="367" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h3 id="2-2-不重複寫--lconv改用--wl--start-group---wl--end-group-讓-b-的順序也能連結成功貼上指令與執行結果筆記第二節順序最後一段">2-2. 不重複寫 <code>-lconv</code>，改用 <code>-Wl,--start-group … -Wl,--end-group</code> 讓 (b) 的順序也能連結成功。貼上指令與執行結果。【筆記第二節〈順序〉最後一段】</h3>
 <p><strong>第 1 次（2026-10-27）</strong></p>
@@ -505,7 +520,7 @@ f_to_c(100) = 38
 </details>
 </details>
 <details class="answer self-practice"><summary>自我練習（不批改）</summary>
-<div class="answer-box" data-file="small-project/s1-07-libraries/README.md" data-line="386" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="small-project/s1-07-libraries/README.md" data-line="389" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h3 id="2-3-先猜再實驗把兩個函式庫改做成-so指令如下再用-ab-兩種順序連結各會成功還是失敗貼上結果成功的要執行為什麼-so-版的-b-不必像-a-那樣把--lconv-寫兩次a-為什麼還是失敗或為什麼成功新觀念先猜a-的部分可以用筆記第四節so-在-ubuntu-上也有順序問題推">2-3. 先猜再實驗：把兩個函式庫改做成 <code>.so</code>（指令如下），再用 (a)、(b) 兩種順序連結。各會成功還是失敗？貼上結果（成功的要執行）。為什麼 <code>.so</code> 版的 (b) 不必像 <code>.a</code> 那樣把 <code>-lconv</code> 寫兩次？(a) 為什麼還是失敗（或為什麼成功）？【新觀念，先猜；(a) 的部分可以用筆記<a href="../../c/%E9%9D%9C%E6%85%8B%E8%88%87%E5%8B%95%E6%85%8B%E5%87%BD%E5%BC%8F%E5%BA%AB-ar%E8%88%87.a%E3%80%81-fPIC%E8%88%87.so%E3%80%81%E5%9F%B7%E8%A1%8C%E6%99%82%E6%80%8E%E9%BA%BC%E6%89%BE%E5%88%B0.so.html#%E5%9B%9B%E5%8B%95%E6%85%8B%E5%87%BD%E5%BC%8F%E5%BA%AB-shared-%E8%88%87--fpic">第四節</a>〈<code>.so</code> 在 Ubuntu 上也有順序問題〉推】</h3>
 <pre><code class="language-sh">mkdir<span class="w"> </span>-p<span class="w"> </span>so
@@ -571,7 +586,7 @@ b的順序成功了
 </details>
 </details>
 <details class="answer self-practice"><summary>自我練習（不批改）</summary>
-<div class="answer-box" data-file="small-project/s1-07-libraries/README.md" data-line="447" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="small-project/s1-07-libraries/README.md" data-line="450" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <hr />
 <h2 id="3-做一個-so-fpicgot讓執行檔找得到它">3. 做一個 <code>.so</code>：<code>-fPIC</code>、GOT、讓執行檔找得到它</h2>
@@ -694,22 +709,305 @@ $ gcc -shared ctof.o ftoc.o -o libcf.so &amp;&amp; objdump -d --no-show-raw-insn
 </details>
 </details>
 <details class="answer self-practice"><summary>自我練習（不批改）</summary>
-<div class="answer-box" data-file="small-project/s1-07-libraries/README.md" data-line="570" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="small-project/s1-07-libraries/README.md" data-line="573" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h3 id="3-2-改用--fpic-重編三個檔案做出-libtempso貼上-objdump--dr---no-show-raw-insn-roundo-裡-temp_round-的內容標出哪幾行在存取-temp_calls逐行說明那幾行在做什麼中間-imul-0x66666667shrsar-那幾行是-gcc-用乘法代替除以-10的寫法這題不用解釋再貼上-readelf--r-libtempso--grep-temp_calls說明那一列是留給誰要它做什麼筆記第四節為什麼一定要--fpic">3-2. 改用 <code>-fPIC</code> 重編三個檔案、做出 <code>libtemp.so</code>。貼上 <code>objdump -dr --no-show-raw-insn round.o</code> 裡 <code>temp_round</code> 的內容，標出<strong>哪幾行在存取 <code>temp_calls</code></strong>，逐行說明那幾行在做什麼（中間 <code>imul $0x66666667</code>、<code>shr</code>、<code>sar</code> 那幾行是 gcc 用乘法代替「除以 10」的寫法，這題不用解釋）。再貼上 <code>readelf -r libtemp.so | grep temp_calls</code>，說明那一列是留給誰、要它做什麼。【筆記第四節〈為什麼一定要 <code>-fPIC</code>〉】</h3>
-<p><strong>第 1 次（YYYY-MM-DD）</strong></p>
-<details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="small-project/s1-07-libraries/README.md" data-line="574"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<p><strong>第 1 次（2026-10-28）</strong></p>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
+<div class="answer-box locked"><textarea readonly spellcheck="false">0:   endbr64
+   4:   push   %rbp
+   5:   mov    %rsp,%rbp
+   8:   mov    %edi,-0x4(%rbp)
+   b:   mov    0x0(%rip),%rax        # 12 &lt;temp_round+0x12&gt;
+                        e: R_X86_64_REX_GOTPCRELX       temp_calls-0x4
+  12:   mov    (%rax),%eax
+  14:   lea    0x1(%rax),%edx
+  17:   mov    0x0(%rip),%rax        # 1e &lt;temp_round+0x1e&gt;
+                        1a: R_X86_64_REX_GOTPCRELX      temp_calls-0x4
+  1e:   mov    %edx,(%rax)
+  20:   mov    -0x4(%rbp),%eax
+  23:   add    $0x5,%eax
+  26:   movslq %eax,%rdx
+  29:   imul   $0x66666667,%rdx,%rdx
+  30:   shr    $0x20,%rdx
+  34:   sar    $0x2,%edx
+  37:   sar    $0x1f,%eax
+  3a:   sub    %eax,%edx
+  3c:   mov    %edx,%eax
+  3e:   pop    %rbp
+  3f:   ret
+
+mov    0x0(%rip),%rax        # 12 &lt;temp_round+0x12&gt;
+                 e: R_X86_64_REX_GOTPCRELX       temp_calls-0x4
+這行是把got位址那格存的位址 複製到rax
+
+
+mov    (%rax),%eax 取位址那格的值 也就是temp_calls 覆寫到eax
+lea    0x1(%rax),%edx temp_calls + 1
+大概是這些,下面都是一些計算
+
+
+
+000000003fd8  000500000006 R_X86_64_GLOB_DAT 0000000000004014 temp_calls + 0
+應該是got裏面存着指向實際temp_calls的位址
+</textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
+<details class="answer"><summary>批改</summary>
+<p><strong>不完整</strong>。我用你 <code>hw3/</code> 的 <code>round.o</code>、<code>libtemp.so</code> 重跑，輸出跟你貼的一模一樣。</p>
+<ul>
+<li><strong>答到的</strong>：<code>b</code> 那行從 GOT 那一格讀出 <code>temp_calls</code> 的<strong>位址</strong>放進 <code>%rax</code>；<code>12</code> 照這個位址讀出值；<code>14</code> 算 +1；<code>readelf -r</code> 那一列跟 GOT 有關，那一格最後放的是 <code>temp_calls</code> 的位址。讀的那一半是對的。</li>
+<li><strong>漏的 1：寫回的兩行沒標出來</strong>。<code>temp_calls = temp_calls + 1</code> 除了讀還要寫：<code>17: mov 0x0(%rip),%rax</code> 再從 GOT 拿一次 <code>temp_calls</code> 的位址，<code>1e: mov %edx,(%rax)</code> 照位址把 +1 的結果寫回去。你寫「下面都是一些計算」把這兩行跳過了；真正的計算（<code>(x10 + 5) / 10</code>）是從 <code>20</code> 開始。</li>
+<li><strong>漏的 2：那一列是「留給誰、要它做什麼」沒答到</strong>。你寫的是 GOT 那格「最後的樣子」，題目問的是這一列是<strong>給誰的指示</strong>：它在 <code>.rela.dyn</code>（動態重定位表）裡，是留給<strong>動態載入器 <code>ld.so</code></strong> 的，意思是「<strong>載入時</strong>，查出 <code>temp_calls</code> 最後用的是哪一份，把它的真正位址寫進 GOT 的 <code>0x3fd8</code> 那一格」。做 <code>.so</code> 時 <code>ld</code> 還不知道這格該填什麼（<code>temp_calls</code> 可能被別人那一份取代），所以才留下這筆給執行時處理。</li>
+<li>小修（不扣分）：<code>b</code> 那行可以講得更準：洞的型別是 <code>R_X86_64_REX_GOTPCRELX</code>，<code>ld</code> 填進去的是「到 GOT 那一格的距離」，不是到 <code>temp_calls</code> 的距離，所以讀到的 8 byte 是位址、不是值（<code>libtemp.so</code> 裡這行變成 <code>mov 0x2e4b(%rip),%rax  # 3fd8</code>）。另外 <code>mov (%rax),%eax</code> 寫的是 32 位元的 <code>%eax</code>，會把 <code>%rax</code> 的高 32 位元清成 0，所以下一行 <code>lea 0x1(%rax),%edx</code> 拿 <code>%rax</code> 來算也沒問題（第 4 課〈寫低位的名字時，高位會怎樣？〉）。</li>
+</ul>
+<details class="answer"><summary>參考答案</summary>
+<p>【筆記<a href="../../c/%E9%9D%9C%E6%85%8B%E8%88%87%E5%8B%95%E6%85%8B%E5%87%BD%E5%BC%8F%E5%BA%AB-ar%E8%88%87.a%E3%80%81-fPIC%E8%88%87.so%E3%80%81%E5%9F%B7%E8%A1%8C%E6%99%82%E6%80%8E%E9%BA%BC%E6%89%BE%E5%88%B0.so.html#%E5%9B%9B%E5%8B%95%E6%85%8B%E5%87%BD%E5%BC%8F%E5%BA%AB-shared-%E8%88%87--fpic">第四節</a>〈<a href="../../c/%E9%9D%9C%E6%85%8B%E8%88%87%E5%8B%95%E6%85%8B%E5%87%BD%E5%BC%8F%E5%BA%AB-ar%E8%88%87.a%E3%80%81-fPIC%E8%88%87.so%E3%80%81%E5%9F%B7%E8%A1%8C%E6%99%82%E6%80%8E%E9%BA%BC%E6%89%BE%E5%88%B0.so.html#%E7%82%BA%E4%BB%80%E9%BA%BC%E4%B8%80%E5%AE%9A%E8%A6%81--fpic%E5%85%88%E7%9C%8B%E4%B8%8D%E5%8A%A0%E6%9C%83%E6%80%8E%E6%A8%A3">為什麼一定要 <code>-fPIC</code>：先看不加會怎樣</a>〉（<code>count.pic.o</code> 的組語對照與 <code>readelf -r libcount.so</code> 那段）】</p>
+<p><strong>核心關鍵</strong>（答到這幾點就算對）：</p>
+<ol>
+<li>存取 <code>temp_calls</code> 的是 <code>b</code>、<code>12</code>、<code>17</code>、<code>1e</code>（加上中間算 +1 的 <code>14</code>）：<code>b</code> 從 GOT 讀出 <code>temp_calls</code> 的位址 → <code>12</code> 照位址讀出值 → <code>14</code> 加 1 → <code>17</code> 再從 GOT 讀一次位址 → <code>1e</code> 照位址寫回。</li>
+<li>兩次都是<strong>先讀 GOT 那一格、再照位址間接存取</strong>：<code>R_X86_64_REX_GOTPCRELX</code> 的洞填的是「到 GOT 那一格的距離」，程式碼裡沒有任何「到 <code>temp_calls</code> 本身的距離」。</li>
+<li><code>readelf -r</code> 的 <code>R_X86_64_GLOB_DAT ... temp_calls</code> 是留給 <strong><code>ld.so</code></strong> 的：<strong>載入時</strong>把 <code>temp_calls</code> 最後選定那一份的真正位址寫進 GOT 的 <code>0x3fd8</code>。</li>
+</ol>
+<p><strong>詳細說明</strong>：</p>
+<ul>
+<li>
+<p>實測（你 <code>hw3/</code> 的檔案）：做成 <code>libtemp.so</code> 之後，洞被 <code>ld</code> 填好了：</p>
+<pre><code class="language-text">$ objdump -d --no-show-raw-insn libtemp.so | sed -n &#39;/&lt;temp_round&gt;:/,/ret/p&#39;
+    1186:	mov    0x2e4b(%rip),%rax        # 3fd8 &lt;temp_calls-0x3c&gt;
+    118d:	mov    (%rax),%eax
+    118f:	lea    0x1(%rax),%edx
+    1192:	mov    0x2e3f(%rip),%rax        # 3fd8 &lt;temp_calls-0x3c&gt;
+    1199:	mov    %edx,(%rax)
+$ readelf -S libtemp.so | grep -E &#39;\.got |\.bss&#39;
+  [19] .got              PROGBITS         0000000000003fc0  00002fc0
+  [22] .bss              NOBITS           0000000000004010  00003010
+$ readelf -s libtemp.so | grep &#39; temp_calls&#39;
+   26: 0000000000004014     4 OBJECT  GLOBAL DEFAULT   22 temp_calls
+</code></pre>
+<p><code>%rip</code> 是下一條指令的位址：<code>0x118d + 0x2e4b = 0x3fd8</code>、<code>0x1199 + 0x2e3f = 0x3fd8</code>，兩次都指到 <code>.got</code>（從 <code>0x3fc0</code> 開始）裡同一格。<code>temp_calls</code> 自己在 <code>0x4014</code>，第 22 個區段 <code>.bss</code>。程式碼只知道「GOT 在離我固定距離的地方」，<code>temp_calls</code> 實際在哪由 GOT 那格決定。</p>
+</li>
+<li>
+<p><strong><code>GLOB_DAT</code> 那一列每一欄是什麼、<code>ld.so</code> 怎麼用</strong>（2026-10-28 使用者指出原本的說明沒講 <code>0x4014</code> 跟 <code>ld.so</code> 的關係，補上；原本寫「別的地方也有 <code>temp_calls</code> 時，3-4 會實際做」也不對——你的 <code>hw3</code> 本身就是那種情況，見下面實測）：</p>
+<table>
+<thead>
+<tr>
+<th>欄</th>
+<th>值</th>
+<th>意思</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Offset</code></td>
+<td><code>0x3fd8</code></td>
+<td><strong>要寫到哪裡</strong>：GOT 那一格（相對 <code>.so</code> 載入基址）</td>
+</tr>
+<tr>
+<td><code>Info</code></td>
+<td><code>0x000500000006</code></td>
+<td>高 32 位元 <code>5</code> ＝ <code>.dynsym</code> 第 5 個符號（<code>temp_calls</code>）；低 32 位元 <code>6</code> ＝ 型別 <code>GLOB_DAT</code>：「把這個符號的位址整個寫進去」</td>
+</tr>
+<tr>
+<td><code>Sym. Value</code></td>
+<td><code>0x4014</code></td>
+<td><code>readelf</code> 順手印出第 5 個符號在 <code>.dynsym</code> 裡的值：<strong>這個 <code>.so</code> 自己那一份</strong> <code>temp_calls</code> 的位置（相對基址，在 <code>.bss</code>）。它不是「答案」，只是候選之一</td>
+</tr>
+<tr>
+<td><code>Addend</code></td>
+<td><code>+ 0</code></td>
+<td>位址再加多少</td>
+</tr>
+</tbody>
+</table>
+<p><code>ld.so</code> 處理這列時，拿的是<strong>符號名字</strong> <code>temp_calls</code>，照搜尋順序（執行檔先、再依載入順序的各個 <code>.so</code>）找第一個定義：找到的是 <code>libtemp.so</code> 自己那一份，才寫「<code>libtemp.so</code> 的基址 ＋ <code>0x4014</code>」；找到的是別人的，就寫別人那一份的位址，<code>0x4014</code> 用不到。</p>
+</li>
+<li>
+<p><strong>實測：<code>0x3fd8</code> 最後被寫成什麼</strong>（<code>libtemp.so</code> 照 3-2 用 <code>-fPIC</code> 做；在 <code>temp_round</code> 讀完 GOT 那一行之後停下來，<code>%rax</code> 就是 GOT <code>0x3fd8</code> 裡的值）。兩支程式：<code>hw3</code>（你的 <code>hw3_main.c</code>，有用到 <code>temp_calls</code>）和 <code>nouse</code>（沒用到 <code>temp_calls</code>）：</p>
+<pre><code class="language-c"><span class="cm">/* nouse.c：不碰 temp_calls */</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;temp.h&quot;</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;%d</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">f_to_c</span><span class="p">(</span><span class="mi">100</span><span class="p">));</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<pre><code class="language-text">$ gcc -Wall -g hw3_main.c -L. -ltemp -Wl,-rpath,&#39;$ORIGIN&#39; -o hw3
+$ gcc -Wall -g nouse.c    -L. -ltemp -Wl,-rpath,&#39;$ORIGIN&#39; -o nouse
+$ readelf -r hw3 | grep temp_calls
+000000004010  000900000005 R_X86_64_COPY     0000000000004010 temp_calls + 0
+$ readelf -r nouse | grep temp_calls          ← 沒有輸出
+$ gdb -q -batch -ex start -ex &#39;break *temp_round+18&#39; -ex continue -ex &#39;p/x $rax&#39; -ex &#39;p &amp;temp_calls&#39; ./hw3
+$1 = 0x555555558010                          ← GOT 0x3fd8 裡的值
+$2 = (int *) 0x555555558010 &lt;temp_calls&gt;     ← 執行檔 .bss 那一份
+$ gdb -q -batch -ex start -ex &#39;break *temp_round+18&#39; -ex continue -ex &#39;p/x $rax&#39; -ex &#39;p &amp;temp_calls&#39; ./nouse
+$1 = 0x7ffff7fba014                          ← GOT 0x3fd8 裡的值
+$2 = (...) 0x7ffff7fba014 &lt;temp_calls&gt;       ← libtemp.so 那一份
+</code></pre>
+<p>（<code>gdb</code> 關掉了位址隨機化：<code>info sharedlibrary</code> 顯示 <code>libtemp.so</code> 的 <code>.text</code>（檔案裡從 <code>0x1060</code> 開始）在 <code>0x7ffff7fb7060</code>，所以基址是 <code>0x7ffff7fb6000</code>。<code>temp_round+18</code> 是 <code>mov (%rax),%eax</code> 那一行，停在它執行之前。）</p>
+<ul>
+<li><code>nouse</code>：<code>0x7ffff7fb6000 + 0x4014 = 0x7ffff7fba014</code>，<strong>這時才用到 <code>0x4014</code></strong>。</li>
+<li><code>hw3</code>：<code>hw3_main.c</code> 直接讀了 <code>temp_calls</code>，<code>ld</code> 替它做了<strong>複製重定位</strong>（<code>R_X86_64_COPY</code>，執行檔 <code>.bss</code> 的 <code>0x4010</code> 放一份），執行檔先被搜尋，所以 <code>ld.so</code> 把<strong>執行檔那一份</strong>的位址 <code>0x555555558010</code> 寫進 <code>libtemp.so</code> 的 GOT，<code>libtemp.so</code> 自己 <code>0x4014</code> 那一份從此沒人用。這就是 <code>-fPIC</code> 經過 GOT 的理由：<code>temp_round</code> 的程式碼不用改，就能改去讀寫執行檔那一份。複製重定位見筆記<a href="../../c/%E9%9D%9C%E6%85%8B%E8%88%87%E5%8B%95%E6%85%8B%E5%87%BD%E5%BC%8F%E5%BA%AB-ar%E8%88%87.a%E3%80%81-fPIC%E8%88%87.so%E3%80%81%E5%9F%B7%E8%A1%8C%E6%99%82%E6%80%8E%E9%BA%BC%E6%89%BE%E5%88%B0.so.html#3-%E4%B8%BB%E7%A8%8B%E5%BC%8F%E5%8F%AA%E5%AF%AB-extern-int-counter%E8%AE%8A%E6%95%B8%E6%94%BE%E9%80%B2%E5%9F%B7%E8%A1%8C%E6%AA%94%E8%A4%87%E8%A3%BD%E9%87%8D%E5%AE%9A%E4%BD%8D">第九節第 3 章</a>。</li>
+</ul>
+</li>
+<li>
+<p>為什麼 <code>17</code> 要再讀一次 GOT：<code>-O0</code> 不把值留在暫存器裡重用，每次用到 <code>temp_calls</code> 都重新照規矩取一次位址；<code>-O2</code> 會只讀一次。</p>
+</li>
+<li>
+<p>不加 <code>-fPIC</code> 時（3-1）這兩處是 <code>mov 0x0(%rip),%eax</code> 配 <code>R_X86_64_PC32</code>，直接讀寫 <code>temp_calls</code> 本身，所以做不成 <code>.so</code>。</p>
+</li>
+</ul>
+</details>
+</details>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="small-project/s1-07-libraries/README.md" data-line="691" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h3 id="3-3-用-gcc--wall-hw3_mainc--l--ltemp--o-hw3-連結執行-hw3貼上輸出與-ldd-hw3-的輸出這個錯誤是誰印的為什麼連結成功了執行卻找不到接著用兩種方法讓它跑起來各貼上指令與輸出a-ld_library_pathb-重新連結用--wl-rpathorigin-把路徑寫進執行檔另外貼上-readelf--d-hw3--grep--e-neededrunpath輸出裡-temp_calls-是幾為什麼是這個數字筆記第五節方法一方法二">3-3. 用 <code>gcc -Wall hw3_main.c -L. -ltemp -o hw3</code> 連結，執行 <code>./hw3</code>，貼上輸出與 <code>ldd ./hw3</code> 的輸出。這個錯誤是誰印的？為什麼連結成功了，執行卻找不到？接著用兩種方法讓它跑起來，各貼上指令與輸出：(a) <code>LD_LIBRARY_PATH</code>；(b) 重新連結，用 <code>-Wl,-rpath,'$ORIGIN'</code> 把路徑寫進執行檔（另外貼上 <code>readelf -d hw3 | grep -E 'NEEDED|RUNPATH'</code>）。輸出裡 <code>temp_calls</code> 是幾？為什麼是這個數字？【筆記<a href="../../c/%E9%9D%9C%E6%85%8B%E8%88%87%E5%8B%95%E6%85%8B%E5%87%BD%E5%BC%8F%E5%BA%AB-ar%E8%88%87.a%E3%80%81-fPIC%E8%88%87.so%E3%80%81%E5%9F%B7%E8%A1%8C%E6%99%82%E6%80%8E%E9%BA%BC%E6%89%BE%E5%88%B0.so.html#%E4%BA%94%E5%9F%B7%E8%A1%8C%E6%99%82%E6%80%8E%E9%BA%BC%E6%89%BE%E5%88%B0-so">第五節</a>〈方法一〉、〈方法二〉】</h3>
-<p><strong>第 1 次（YYYY-MM-DD）</strong></p>
-<details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="small-project/s1-07-libraries/README.md" data-line="580"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<p><strong>第 1 次（2026-10-28）</strong></p>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
+<div class="answer-box locked"><textarea readonly spellcheck="false">./hw3: error while loading shared libraries: libtemp.so: cannot open shared object file: No such file or directory
+ linux-vdso.so.1 (0x000072faf7ac1000)
+        libtemp.so =&gt; not found
+        libc.so.6 =&gt; /lib/x86_64-linux-gnu/libc.so.6 (0x000072faf7800000)
+        /lib64/ld-linux-x86-64.so.2 (0x000072faf7ac3000)
+這個錯誤是ld.so印的
+
+因爲ld.so的搜尋路徑沒有-L.,這個參數是給ld看的,ld.so不知道
+
+(a)
+LD_LIBRARY_PATH=. ./hw3
+38 212
+temp_calls = 2
+
+(b)
+ gcc -Wall hw3_main.c -L. -ltemp -Wl,-rpath,&#x27;$ORIGIN&#x27; -o hw3
+38 212
+temp_calls = 2
+0x0000000000000001 (NEEDED)             Shared library: [libtemp.so]
+ 0x0000000000000001 (NEEDED)             Shared library: [libc.so.6]
+ 0x000000000000001d (RUNPATH)            Library runpath: [$ORIGIN]
+
+temp_calls 是2
+因爲c_to_f, f_to_c都各自用temp_round+1一次
+</textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
+<details class="answer"><summary>批改</summary>
+<p><strong>對</strong>。我用你 <code>hw3/</code> 的檔案重做，沒加 <code>-rpath</code> 的版本同樣是 <code>cannot open shared object file</code>、<code>ldd</code> 顯示 <code>libtemp.so =&gt; not found</code>；(b) 的 <code>RUNPATH [$ORIGIN]</code> 與兩次輸出都一樣。</p>
+<ul>
+<li>抓到：錯誤是 <code>ld.so</code> 印的；<code>-L.</code> 只給連結時的 <code>ld</code> 看，<code>ld.so</code> 不知道；(a)、(b) 兩種方法的指令與輸出都對；<code>temp_calls = 2</code> 是 <code>f_to_c</code>、<code>c_to_f</code> 各呼叫 <code>temp_round</code> 一次。</li>
+<li>小修（不扣分）：
+<ol>
+<li>「為什麼找不到」可以再補一句 <code>ld.so</code> 手上有什麼：執行檔的 <code>NEEDED</code> 只記了名字 <code>libtemp.so</code>、<strong>沒有記路徑</strong>，<code>ld.so</code> 只能照自己的順序找（<code>LD_LIBRARY_PATH</code> → <code>RUNPATH</code> → <code>/etc/ld.so.cache</code> → 預設資料夾），裡面沒有目前這個資料夾。</li>
+<li><code>temp_calls</code> 是 2，前提是它從 0 開始（<code>round.c</code> 的 <code>int temp_calls = 0;</code>）。另外 3-2 補的實測說過：<code>hw3_main.c</code> 讀 <code>temp_calls</code>，執行檔裡有一份複製重定位來的 <code>temp_calls</code>，<code>libtemp.so</code> 的 GOT 也指向它，所以 <code>temp_round</code> 加的和 <code>main</code> 印的是<strong>同一份</strong>，才會剛好是 2。</li>
+</ol>
+</li>
+</ul>
+<details class="answer"><summary>參考答案</summary>
+<p>【筆記<a href="../../c/%E9%9D%9C%E6%85%8B%E8%88%87%E5%8B%95%E6%85%8B%E5%87%BD%E5%BC%8F%E5%BA%AB-ar%E8%88%87.a%E3%80%81-fPIC%E8%88%87.so%E3%80%81%E5%9F%B7%E8%A1%8C%E6%99%82%E6%80%8E%E9%BA%BC%E6%89%BE%E5%88%B0.so.html#%E4%BA%94%E5%9F%B7%E8%A1%8C%E6%99%82%E6%80%8E%E9%BA%BC%E6%89%BE%E5%88%B0-so">第五節</a>〈<a href="../../c/%E9%9D%9C%E6%85%8B%E8%88%87%E5%8B%95%E6%85%8B%E5%87%BD%E5%BC%8F%E5%BA%AB-ar%E8%88%87.a%E3%80%81-fPIC%E8%88%87.so%E3%80%81%E5%9F%B7%E8%A1%8C%E6%99%82%E6%80%8E%E9%BA%BC%E6%89%BE%E5%88%B0.so.html#ldso-%E5%8E%BB%E4%BA%86%E5%93%AA%E4%BA%9B%E5%9C%B0%E6%96%B9%E6%89%BE"><code>ld.so</code> 去了哪些地方找</a>〉、〈<a href="../../c/%E9%9D%9C%E6%85%8B%E8%88%87%E5%8B%95%E6%85%8B%E5%87%BD%E5%BC%8F%E5%BA%AB-ar%E8%88%87.a%E3%80%81-fPIC%E8%88%87.so%E3%80%81%E5%9F%B7%E8%A1%8C%E6%99%82%E6%80%8E%E9%BA%BC%E6%89%BE%E5%88%B0.so.html#%E6%96%B9%E6%B3%95%E4%B8%80ld_library_path%E8%87%A8%E6%99%82%E7%94%A8">方法一：<code>LD_LIBRARY_PATH</code>（臨時用）</a>〉、〈<a href="../../c/%E9%9D%9C%E6%85%8B%E8%88%87%E5%8B%95%E6%85%8B%E5%87%BD%E5%BC%8F%E5%BA%AB-ar%E8%88%87.a%E3%80%81-fPIC%E8%88%87.so%E3%80%81%E5%9F%B7%E8%A1%8C%E6%99%82%E6%80%8E%E9%BA%BC%E6%89%BE%E5%88%B0.so.html#%E6%96%B9%E6%B3%95%E4%BA%8C-wl-rpath%E6%8A%8A%E8%B7%AF%E5%BE%91%E5%AF%AB%E9%80%B2%E5%9F%B7%E8%A1%8C%E6%AA%94">方法二：<code>-Wl,-rpath</code>——把路徑寫進執行檔</a>〉】</p>
+<p><strong>核心關鍵</strong>（答到這幾點就算對）：</p>
+<ol>
+<li>錯誤是動態載入器 <code>ld.so</code> 在執行時印的（<code>ldd</code> 也顯示 <code>libtemp.so =&gt; not found</code>）。</li>
+<li><code>-L.</code> 只告訴連結時的 <code>ld</code> 去哪找；執行檔的 <code>NEEDED</code> 只記名字 <code>libtemp.so</code>，<code>ld.so</code> 照自己的搜尋順序找，裡面沒有 <code>.</code>，所以找不到。</li>
+<li>(a) <code>LD_LIBRARY_PATH=. ./hw3</code>；(b) 用 <code>-Wl,-rpath,'$ORIGIN'</code> 重新連結，<code>readelf -d</code> 多出 <code>RUNPATH [$ORIGIN]</code>，<code>$ORIGIN</code> 在執行時代表執行檔所在的資料夾。</li>
+<li><code>temp_calls = 2</code>：從 0 開始，<code>f_to_c(100)</code>、<code>c_to_f(100)</code> 各呼叫 <code>temp_round</code> 一次。</li>
+</ol>
+<p><strong>詳細說明</strong>：</p>
+<ul>
+<li>
+<p><code>LD_DEBUG=libs</code> 可以看到 <code>ld.so</code> 實際找了哪裡（沒加 <code>-rpath</code> 的版本）：</p>
+<pre><code class="language-text">$ LD_DEBUG=libs ./hw3 2&gt;&amp;1 | grep -E &#39;find library|search&#39;
+      find library=libtemp.so [0]; searching
+       search cache=/etc/ld.so.cache
+       search path=/lib/x86_64-linux-gnu/glibc-hwcaps/x86-64-v3:...:/lib:/usr/lib		(system search path)
+</code></pre>
+<p>沒有 <code>LD_LIBRARY_PATH</code>、也沒有 <code>RUNPATH</code>，所以直接查快取再查系統資料夾，都沒有 <code>libtemp.so</code>。</p>
+</li>
+<li>
+<p>(a) 只對這一次執行有效；(b) 寫進執行檔，而且用 <code>$ORIGIN</code> 而不是絕對路徑，整個資料夾搬到別處也還找得到。</p>
+</li>
+</ul>
+</details>
+</details>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="small-project/s1-07-libraries/README.md" data-line="749" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h3 id="3-4-先預測在-hw3_mainc-的-include-temph-下面加一行-int-temp_calls--1000temph-不改照-3-3-b-的方式重新連結執行temp_calls---會印出多少寫下預測後執行貼上輸出與-ld_debugbindings-hw3-21--grep-temp_calls為什麼接著把-roundo-等三個--fpic-的-o-用-ar-rcs-libtempa-ctofo-ftoco-roundo-包成-a用-gcc--wall-hw3_mainc--l--llibtempa--o-hw3s-靜態連結先預測會怎樣再執行貼上結果為什麼同樣兩份-temp_calls動態和靜態的結果不一樣做完把加的那一行刪掉筆記第四節為什麼不能直接用固定距離">3-4. 先預測：在 <code>hw3_main.c</code> 的 <code>#include &quot;temp.h&quot;</code> 下面加一行 <code>int temp_calls = 1000;</code>（<code>temp.h</code> 不改），照 3-3 (b) 的方式重新連結、執行，<code>temp_calls = </code> 會印出多少？寫下預測後執行，貼上輸出與 <code>LD_DEBUG=bindings ./hw3 2&gt;&amp;1 | grep temp_calls</code>。為什麼？接著把 <code>round.o</code> 等三個 <code>-fPIC</code> 的 <code>.o</code> 用 <code>ar rcs libtemp.a ctof.o ftoc.o round.o</code> 包成 <code>.a</code>，用 <code>gcc -Wall hw3_main.c -L. -l:libtemp.a -o hw3s</code> 靜態連結，先預測會怎樣再執行、貼上結果；為什麼同樣兩份 <code>temp_calls</code>，動態和靜態的結果不一樣？做完把加的那一行刪掉。【筆記第四節〈為什麼不能直接用固定距離〉】</h3>
-<p><strong>第 1 次（YYYY-MM-DD）</strong></p>
-<details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="small-project/s1-07-libraries/README.md" data-line="586"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<p><strong>第 1 次（2026-10-28）</strong></p>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
+<div class="answer-box locked"><textarea readonly spellcheck="false">1002
+
+38 212
+temp_calls = 1002
+15125:     binding file /home/set/work/Projects/github/good-note/small-project/s1-07-libraries/hw3/libtemp.so [0] to ./hw3 [0]: normal symbol `temp_calls&#x27;
+temp_calls = 1002
+因爲動態載入器選擇temp_calls在got的位址是從執行檔,然後才在so選,所以會選到執行檔的temp_calls
+
+從hw3_main可以看到ctof,ftoc, round全都會用到,所以三個.o都會被加入執行檔,然後選擇執行檔比較近的int temp_calls=1000
+結果會是1002
+
+/usr/bin/ld: ./libtemp.a(round.o):(.bss+0x0): multiple definition of `temp_calls&#x27;; /tmp/cco7GIjT.o:(.data+0x0): first defined here
+collect2: error: ld returned 1 exit status
+
+結果是連結錯誤了,temp_calls重複定義
+
+動態是執行時,動態載入器選擇符號的時候,按照執行檔.so的順序重定位temp calls,但我不確定這是否就是hw3_main.c不跟so做符號連接?
+靜態是連結是,ld在連結符號的時候發現兩個符號重複定義
+</textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
+<details class="answer"><summary>批改</summary>
+<p><strong>大致對</strong>。我用你 <code>hw3/</code> 的原始碼（<code>hw3_main.c.bak</code> 裡加了那一行的版本）重做，動態 <code>temp_calls = 1002</code>、<code>LD_DEBUG</code> 那一行、靜態的 <code>multiple definition</code> 都跟你貼的一樣。動態的預測 1002 對；靜態預測成 1002（實際是連結錯誤），預測錯不扣分。</p>
+<ul>
+<li><strong>抓到的</strong>：動態印 1002；<code>LD_DEBUG</code> 顯示 <code>libtemp.so</code> 的 <code>temp_calls</code> 被綁到 <code>./hw3</code>；原因是 <code>ld.so</code> 先找執行檔、再找 <code>.so</code>，所以 <code>libtemp.so</code> 經 GOT 存取的是執行檔那一份（初值 1000），<code>temp_round</code> 被呼叫兩次 → 1002。靜態：<code>f_to_c</code>、<code>c_to_f</code> 需要 <code>temp_round</code>，所以 <code>round.o</code> 被整個拉進來，連同它的 <code>temp_calls</code> 定義，跟 <code>hw3_main.o</code> 的定義撞在一起 → <code>multiple definition</code>。</li>
+<li><strong>缺的（最後一問的動態那一半）</strong>：你自己也寫了不確定——為什麼動態時 <code>ld</code> <strong>不報</strong>重複定義？關鍵是 <strong><code>.so</code> 不會被合併進執行檔</strong>：<code>.a</code> 的成員 <code>round.o</code> 是被<strong>複製進</strong>執行檔，兩個 <code>GLOBAL</code> 定義放進同一個檔案，<code>ld</code> 只能報錯；<code>.so</code> 只是被「記下名字」（<code>NEEDED</code>），它裡面的 <code>temp_calls</code> 留在 <code>.so</code> 自己的檔案裡，<code>ld</code> 不把它算成第二個定義，選哪一份延到執行時由 <code>ld.so</code> 照搜尋順序挑第一個（符號插入）。這在筆記第九節第 2 章〈<a href="../../c/%E9%9D%9C%E6%85%8B%E8%88%87%E5%8B%95%E6%85%8B%E5%87%BD%E5%BC%8F%E5%BA%AB-ar%E8%88%87.a%E3%80%81-fPIC%E8%88%87.so%E3%80%81%E5%9F%B7%E8%A1%8C%E6%99%82%E6%80%8E%E9%BA%BC%E6%89%BE%E5%88%B0.so.html#2-%E5%85%A9%E4%BB%BD-counter%E6%8E%A5-so-%E7%82%BA%E4%BB%80%E9%BA%BC%E4%B8%8D%E7%AE%97%E9%87%8D%E8%A4%87%E5%AE%9A%E7%BE%A9">兩份 <code>counter</code>：接 <code>.so</code> 為什麼不算重複定義</a>〉教過。至於你問的「是不是 <code>hw3_main.c</code> 不跟 <code>.so</code> 做符號連結」：有做——<code>hw3_main.c</code> 要用的 <code>f_to_c</code>、<code>c_to_f</code> 就是從 <code>libtemp.so</code> 解析來的；只是 <code>temp_calls</code> 執行檔自己有定義，用自己的，反過來是 <code>libtemp.so</code> 的參照被綁到執行檔。</li>
+<li>小修（不扣分）：
+<ol>
+<li>錯誤訊息裡兩份的位置不一樣：<code>hw3_main.o</code> 的在 <code>.data</code>（初值 1000 不是 0），<code>round.o</code> 的在 <code>.bss</code>（初值 0）——這兩份都是有初值的「定義」，所以就算 <code>-fcommon</code> 也救不了（第 6 課多檔 4-4 的 <code>-fcommon</code> 只對沒有初值的暫定定義有用）。</li>
+<li>「選擇執行檔比較近的」：<code>ld.so</code> 選的依據是<strong>搜尋順序</strong>（執行檔排第一），不是距離遠近。</li>
+<li>3-3 是複製重定位（<code>R_X86_64_COPY</code>）把 <code>temp_calls</code> 放進執行檔；這次執行檔自己定義了它，<code>readelf -r hw3 | grep temp_calls</code> 什麼都沒有，因為不需要複製，<code>libtemp.so</code> 的 GOT 一樣指向執行檔那一份。</li>
+</ol>
+</li>
+</ul>
+<details class="answer"><summary>參考答案</summary>
+<p>【筆記第四節〈<a href="../../c/%E9%9D%9C%E6%85%8B%E8%88%87%E5%8B%95%E6%85%8B%E5%87%BD%E5%BC%8F%E5%BA%AB-ar%E8%88%87.a%E3%80%81-fPIC%E8%88%87.so%E3%80%81%E5%9F%B7%E8%A1%8C%E6%99%82%E6%80%8E%E9%BA%BC%E6%89%BE%E5%88%B0.so.html#%E7%82%BA%E4%BB%80%E9%BA%BC%E4%B8%8D%E8%83%BD%E7%9B%B4%E6%8E%A5%E7%94%A8%E5%9B%BA%E5%AE%9A%E8%B7%9D%E9%9B%A2counter-%E6%9C%80%E5%BE%8C%E4%B8%8D%E4%B8%80%E5%AE%9A%E6%98%AF%E9%80%99%E4%B8%80%E4%BB%BD">為什麼不能直接用固定距離：<code>counter</code> 最後不一定是這一份</a>〉、第二節〈<a href="../../c/%E9%9D%9C%E6%85%8B%E8%88%87%E5%8B%95%E6%85%8B%E5%87%BD%E5%BC%8F%E5%BA%AB-ar%E8%88%87.a%E3%80%81-fPIC%E8%88%87.so%E3%80%81%E5%9F%B7%E8%A1%8C%E6%99%82%E6%80%8E%E9%BA%BC%E6%89%BE%E5%88%B0.so.html#%E9%80%A3%E7%B5%90%E5%8F%AA%E6%8B%89%E9%9C%80%E8%A6%81%E7%9A%84%E6%88%90%E5%93%A1">連結：只拉需要的成員</a>〉、第九節第 2 章〈<a href="../../c/%E9%9D%9C%E6%85%8B%E8%88%87%E5%8B%95%E6%85%8B%E5%87%BD%E5%BC%8F%E5%BA%AB-ar%E8%88%87.a%E3%80%81-fPIC%E8%88%87.so%E3%80%81%E5%9F%B7%E8%A1%8C%E6%99%82%E6%80%8E%E9%BA%BC%E6%89%BE%E5%88%B0.so.html#2-%E5%85%A9%E4%BB%BD-counter%E6%8E%A5-so-%E7%82%BA%E4%BB%80%E9%BA%BC%E4%B8%8D%E7%AE%97%E9%87%8D%E8%A4%87%E5%AE%9A%E7%BE%A9">兩份 <code>counter</code>：接 <code>.so</code> 為什麼不算重複定義</a>〉】</p>
+<p><strong>核心關鍵</strong>（答到這幾點就算對）：</p>
+<ol>
+<li>動態印 <code>temp_calls = 1002</code>；<code>LD_DEBUG=bindings</code> 顯示 <code>libtemp.so</code> 的 <code>temp_calls</code> 被綁到 <code>./hw3</code>。</li>
+<li>原因：<code>ld.so</code> 照搜尋順序先找執行檔，<code>libtemp.so</code> 的 GOT 填的是執行檔那一份（初值 1000）的位址，<code>temp_round</code> 被呼叫兩次都加在它上面（符號插入）。</li>
+<li>靜態：<code>round.o</code> 因為 <code>temp_round</code> 被拉進執行檔，連同它的 <code>temp_calls</code> 定義，跟 <code>hw3_main.o</code> 的定義在同一次連結裡撞名 → <code>multiple definition</code>，連結失敗。</li>
+<li>差別：<code>.a</code> 的成員被<strong>合併</strong>進同一個執行檔，兩個定義只能二選一而報錯；<code>.so</code> <strong>不合併</strong>，<code>ld</code> 不把它的定義算成重複，留到執行時由 <code>ld.so</code> 選第一個找到的。</li>
+</ol>
+<p><strong>詳細說明</strong>：</p>
+<ul>
+<li>
+<p>實測（<code>gcc -Wall -fPIC -c ctof.c ftoc.c round.c</code>、<code>gcc -shared … -o libtemp.so</code>、<code>gcc -Wall hw3_main.c -L. -ltemp -Wl,-rpath,'$ORIGIN' -o hw3</code>）：</p>
+<pre><code class="language-text">$ ./hw3
+38 212
+temp_calls = 1002
+$ LD_DEBUG=bindings ./hw3 2&gt;&amp;1 | grep temp_calls
+binding file …/libtemp.so [0] to ./hw3 [0]: normal symbol `temp_calls&#39;
+$ gcc -Wall hw3_main.c -L. -l:libtemp.a -Wl,--verbose -o hw3s 2&gt;&amp;1 | grep &#39;libtemp.a)&#39;
+(./libtemp.a)ctof.o
+(./libtemp.a)ftoc.o
+(./libtemp.a)round.o
+$ readelf -s hw3_main.o | grep temp_calls
+     4: 0000000000000000     4 OBJECT  GLOBAL DEFAULT    3 temp_calls      ← 區段 3 是 .data
+$ readelf -s round.o | grep temp_calls
+     3: 0000000000000000     4 OBJECT  GLOBAL DEFAULT    4 temp_calls      ← 區段 4 是 .bss
+</code></pre>
+<p><code>binding file A to B</code> 讀作「A（<code>libtemp.so</code>）裡對 <code>temp_calls</code> 的參照，綁到 B（<code>./hw3</code>）的定義」。</p>
+</li>
+<li>
+<p>同一件事的兩面：動態時「多一份同名定義」不是錯，而是<strong>刻意可用的功能</strong>（<code>LD_PRELOAD</code> 換掉 <code>malloc</code> 就是靠它）；靜態時兩份定義被放進同一個檔案，沒有「先找誰」可言，只能報錯。</p>
+</li>
+<li>
+<p>如果 <code>round.o</code> 沒被拉進來（例如 <code>hw3_main.c</code> 完全不呼叫 <code>f_to_c</code>、<code>c_to_f</code>），靜態連結就不會撞名——<code>ld</code> 只拉需要的成員（第二節）。</p>
+</li>
+</ul>
+</details>
+</details>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="small-project/s1-07-libraries/README.md" data-line="812" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <hr />
 <h2 id="4-so-依賴另一個-sorunpath-只管直接依賴">4. <code>.so</code> 依賴另一個 <code>.so</code>：<code>RUNPATH</code> 只管直接依賴</h2>
@@ -734,17 +1032,17 @@ gcc<span class="w"> </span>-Wall<span class="w"> </span>hw4_main.c<span class="w
 <h3 id="4-1-先預測-hw4-會成功嗎寫下預測後執行貼上輸出再貼上-readelf--d-hw4--grep--e-neededrunpathreadelf--d-liblibtempso--grep--e-neededrunpath以及-ld_debuglibs-hw4-21--grep--e-find-librarysearch-pathhw4-明明有-runpathlibroundso-也跟-libtempso-放在同一個資料夾為什麼找不到或為什麼找得到筆記第五節ldso-去了哪些地方找的第-3-步rpath-和-runpath-差在哪最後一段">4-1. 先預測 <code>./hw4</code> 會成功嗎？寫下預測後執行，貼上輸出；再貼上 <code>readelf -d hw4 | grep -E 'NEEDED|RUNPATH'</code>、<code>readelf -d lib/libtemp.so | grep -E 'NEEDED|RUNPATH'</code>，以及 <code>LD_DEBUG=libs ./hw4 2&gt;&amp;1 | grep -E 'find library|search path'</code>。<code>hw4</code> 明明有 <code>RUNPATH</code>、<code>libround.so</code> 也跟 <code>libtemp.so</code> 放在同一個資料夾，為什麼找不到（或為什麼找得到）？【筆記第五節〈<code>ld.so</code> 去了哪些地方找〉的第 3 步、〈<code>RPATH</code> 和 <code>RUNPATH</code> 差在哪〉最後一段】</h3>
 <p><strong>第 1 次（YYYY-MM-DD）</strong></p>
 <details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="small-project/s1-07-libraries/README.md" data-line="622"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="small-project/s1-07-libraries/README.md" data-line="845"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h3 id="4-2-用兩種方法修好各貼上你改的指令readelf--d-相關的列與-hw4-的輸出a-只重做-liblibtempso讓它自己帶-runpath路徑要用-origin-寫想一想-libtempso-的-origin-是哪個資料夾b-不改-libtempso先把它做回原本的樣子改成重新連結-hw4用-rpath兩種方法你會選哪一種為什麼筆記第五節rpath-和-runpath-差在哪">4-2. 用兩種方法修好，各貼上你改的指令、<code>readelf -d</code> 相關的列與 <code>./hw4</code> 的輸出：(a) 只重做 <code>lib/libtemp.so</code>、讓它自己帶 <code>RUNPATH</code>（路徑要用 <code>$ORIGIN</code> 寫，想一想 <code>libtemp.so</code> 的 <code>$ORIGIN</code> 是哪個資料夾）；(b) 不改 <code>libtemp.so</code>（先把它做回原本的樣子），改成重新連結 <code>hw4</code>、用 <code>RPATH</code>。兩種方法你會選哪一種？為什麼？【筆記第五節〈<code>RPATH</code> 和 <code>RUNPATH</code> 差在哪〉】</h3>
 <p><strong>第 1 次（YYYY-MM-DD）</strong></p>
 <details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="small-project/s1-07-libraries/README.md" data-line="628"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="small-project/s1-07-libraries/README.md" data-line="851"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h3 id="4-3-先猜再實驗把連結-hw4-的指令拿掉--wl-rpath-linklib重新連結貼上輸出hw4_mainc-根本沒呼叫-temp_round為什麼-ld-在連結時就要去找-libroundso-rpath-link-跟--rpath-差在哪-rpath-link-的作用見筆記第七節ld的表ld-為什麼要在連結時檢查是新觀念先猜">4-3. 先猜再實驗：把連結 <code>hw4</code> 的指令拿掉 <code>-Wl,-rpath-link,lib</code>，重新連結，貼上輸出。<code>hw4_main.c</code> 根本沒呼叫 <code>temp_round</code>，為什麼 <code>ld</code> 在<strong>連結時</strong>就要去找 <code>libround.so</code>？<code>-rpath-link</code> 跟 <code>-rpath</code> 差在哪？【<code>-rpath-link</code> 的作用見筆記<a href="../../c/%E9%9D%9C%E6%85%8B%E8%88%87%E5%8B%95%E6%85%8B%E5%87%BD%E5%BC%8F%E5%BA%AB-ar%E8%88%87.a%E3%80%81-fPIC%E8%88%87.so%E3%80%81%E5%9F%B7%E8%A1%8C%E6%99%82%E6%80%8E%E9%BA%BC%E6%89%BE%E5%88%B0.so.html#%E4%B8%83%E6%9C%AC%E8%AA%B2%E7%94%A8%E5%88%B0%E7%9A%84%E5%B7%A5%E5%85%B7%E9%81%B8%E9%A0%85%E8%88%87%E5%AE%8C%E6%95%B4%E6%B8%85%E5%96%AE%E5%9C%A8%E5%93%AA">第七節</a>〈<code>ld</code>〉的表；<code>ld</code> 為什麼要在連結時檢查是新觀念，先猜】</h3>
 <p><strong>第 1 次（YYYY-MM-DD）</strong></p>
 <details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="small-project/s1-07-libraries/README.md" data-line="634"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="small-project/s1-07-libraries/README.md" data-line="857"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <hr />
 <h2 id="5-函式庫更新靜態-vs-動態以及-soname">5. 函式庫更新：靜態 vs 動態，以及 SONAME</h2>
@@ -778,7 +1076,7 @@ gcc<span class="w"> </span>-Wall<span class="w"> </span>hw5_main.c<span class="w
 <h3 id="5-1-執行兩支程式貼上輸出100f-正確是-378c四捨五入應該是-38貼上-ls--l-libtempreadelf--d-hw5_dyn--grep--e-neededrunpathld-照--ltemp-打開的是-libtempsoneeded-卻寫-libtempso1為什麼筆記第六節soname">5-1. 執行兩支程式，貼上輸出（100°F 正確是 37.8°C，四捨五入應該是 38）。貼上 <code>ls -l libtemp*</code>、<code>readelf -d hw5_dyn | grep -E 'NEEDED|RUNPATH'</code>。<code>ld</code> 照 <code>-ltemp</code> 打開的是 <code>libtemp.so</code>，<code>NEEDED</code> 卻寫 <code>libtemp.so.1</code>，為什麼？【筆記<a href="../../c/%E9%9D%9C%E6%85%8B%E8%88%87%E5%8B%95%E6%85%8B%E5%87%BD%E5%BC%8F%E5%BA%AB-ar%E8%88%87.a%E3%80%81-fPIC%E8%88%87.so%E3%80%81%E5%9F%B7%E8%A1%8C%E6%99%82%E6%80%8E%E9%BA%BC%E6%89%BE%E5%88%B0.so.html#%E5%85%AD%E6%8F%9B%E6%8E%89-so-%E4%B8%8D%E7%94%A8%E9%87%8D%E6%96%B0%E9%80%A3%E7%B5%90%E4%BB%A5%E5%8F%8A-soname">第六節</a>〈SONAME〉】</h3>
 <p><strong>第 1 次（YYYY-MM-DD）</strong></p>
 <details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="small-project/s1-07-libraries/README.md" data-line="680"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="small-project/s1-07-libraries/README.md" data-line="903"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h3 id="5-2-先預測把-roundc-改成正確的四捨五入return-x10--5--10然後只更新函式庫不重新連結兩支程式">5-2. 先預測：把 <code>round.c</code> 改成正確的四捨五入（<code>return (x10 + 5) / 10;</code>），然後<strong>只更新函式庫、不重新連結兩支程式</strong>：</h3>
 <pre><code class="language-sh">gcc<span class="w"> </span>-Wall<span class="w"> </span>-fPIC<span class="w"> </span>-c<span class="w"> </span>round.c
@@ -789,7 +1087,7 @@ ln<span class="w"> </span>-sf<span class="w"> </span>libtemp.so.1.0.1<span class
 <p><code>./hw5_static</code>、<code>./hw5_dyn</code> 各會印出多少？寫下預測後執行，貼上輸出。為什麼兩支結果不同？<code>hw5_static</code> 要怎樣才能拿到修正？<code>ar rcs libtemp.a round.o</code> 之後 <code>ar t libtemp.a</code> 有幾個成員，為什麼？【筆記第六節〈換掉 <code>.so</code>：程式不用重新連結〉、第二節的 <code>ar</code> 文法（<code>r</code>）】</p>
 <p><strong>第 1 次（YYYY-MM-DD）</strong></p>
 <details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="small-project/s1-07-libraries/README.md" data-line="695"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="small-project/s1-07-libraries/README.md" data-line="918"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h3 id="5-3-先預測下一版把-f_to_c-改成回傳十分之一度不相容的改變新增-ftoc2c做成-soname-是-libtempso2-的新版並把連結名稱指到新版">5-3. 先預測：下一版把 <code>f_to_c</code> 改成回傳「十分之一度」（不相容的改變），新增 <code>ftoc2.c</code>，做成 SONAME 是 <code>libtemp.so.2</code> 的新版，並把連結名稱指到新版：</h3>
 <pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;temp.h&quot;</span>
@@ -808,7 +1106,7 @@ gcc<span class="w"> </span>-Wall<span class="w"> </span>hw5_main.c<span class="w
 <p><strong>不重新連結</strong>舊的 <code>hw5_dyn</code>，<code>./hw5_dyn</code> 和 <code>./hw5_dyn2</code> 各印出多少？寫下預測後執行，貼上輸出、<code>ls -l libtemp*</code> 與兩支程式的 <code>readelf -d … | grep NEEDED</code>。為什麼兩個版本可以同時存在、舊程式沒有被新版弄壞？如果 5-3 偷懶、新版沿用 SONAME <code>libtemp.so.1</code> 並把 <code>libtemp.so.1</code> 指過去，<code>hw5_dyn</code> 會印出什麼？（這一問只要推理，不用做。）【筆記第六節〈SONAME〉最後一段】</p>
 <p><strong>第 1 次（YYYY-MM-DD）</strong></p>
 <details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="small-project/s1-07-libraries/README.md" data-line="720"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="small-project/s1-07-libraries/README.md" data-line="943"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 
 </main>

@@ -45,7 +45,7 @@
 
 ## 批改結果（2026-10-27）
 
-第 1、2 題 2026-10-27 批改；第 3 題 3-1 2026-10-28 批改；其他還沒交。
+第 1、2 題 2026-10-27 批改；第 3 題 2026-10-28 批改；其他還沒交。
 
 | 題目 | 結果 | 錯在哪／缺什麼 |
 |---|---|---|
@@ -55,6 +55,9 @@
 | 2-2 | 對 | 群組指令正確，(a)(b) 兩種順序都能連結、`./hw2` 印 `f_to_c(100) = 38` |
 | 2-3 | 大致對 | 結果都對（(a) 失敗、(b) 成功並執行）。(a) 抓到「掃到 `libround` 時沒人要它，就被丟掉」，但沒講出原因是 Ubuntu 預設的 `--as-needed`（筆記第四節），而且丟掉的是 `NEEDED` 名單、不是「記憶體」。(b) 的「`libconv` 整份留著，後面還找得到」是新觀念的猜測，方向對，已補教：`.so` 整份符號一次進來，不是拉成員 |
 | 3-1 | 不完整 | 輸出對、`-fPIE` 直接用 `%rip` 加距離讀 `temp_calls`、要經 GOT 的理由（變數最後可能是別人那份）都抓到了；「為什麼 `ctof.o`、`ftoc.o` 沒被點名」（最後一段）只說「出問題的是 `temp_round`」，沒解釋它們同樣參照別的檔案的 `temp_round` 為什麼沒事：它們是**呼叫函式**，重定位是 `R_X86_64_PLT32`，`ld` 讓 `call` 改指向自己做的 PLT 跳板，不必改程式碼。另有兩處錯：`.so` 載入位址不固定（ASLR），問題不在這；警告說的是「要填的洞在唯讀的 `.text`」，不是「找到了 `.text`」。（10-28 使用者說明最後一段就是在答這一問，批改描述已更正，結果維持不完整） |
+| 3-2 | 不完整 | 讀的那一半對（`b` 從 GOT 讀位址、`12` 讀值、`14` 加 1）；漏了寫回的 `17`、`1e`（再讀一次 GOT、照位址寫回），說成「下面都是計算」；`readelf -r` 那列只描述 GOT 的結果，沒講出是留給 `ld.so`、載入時把 `temp_calls` 真正的位址寫進 `0x3fd8` |
+| 3-3 | 對 | 抓到：`ld.so` 印的錯、`-L` 只給 `ld`、(a)(b) 兩種方法與 `RUNPATH [$ORIGIN]`、`temp_calls = 2` 是兩個函式各呼叫一次（可補：`NEEDED` 只記名字不記路徑） |
+| 3-4 | 大致對 | 動態 1002、`LD_DEBUG` 綁到 `./hw3`、執行檔先找；靜態 `round.o` 被拉進來撞名都對；缺「`.so` 不合併進執行檔，`ld` 不把它的定義算重複、留給 `ld.so` 選」（自己也寫了不確定，第九節第 2 章教過） |
 
 ## 1. 做一個靜態函式庫，看連結器拉了哪些成員
 
@@ -571,22 +574,242 @@ collect2: error: ld returned 1 exit status
 
 ### 3-2. 改用 `-fPIC` 重編三個檔案、做出 `libtemp.so`。貼上 `objdump -dr --no-show-raw-insn round.o` 裡 `temp_round` 的內容，標出**哪幾行在存取 `temp_calls`**，逐行說明那幾行在做什麼（中間 `imul $0x66666667`、`shr`、`sar` 那幾行是 gcc 用乘法代替「除以 10」的寫法，這題不用解釋）。再貼上 `readelf -r libtemp.so | grep temp_calls`，說明那一列是留給誰、要它做什麼。【筆記第四節〈為什麼一定要 `-fPIC`〉】
 
-**第 1 次（YYYY-MM-DD）**
+**第 1 次（2026-10-28）**
 ```
+0:   endbr64
+   4:   push   %rbp
+   5:   mov    %rsp,%rbp
+   8:   mov    %edi,-0x4(%rbp)
+   b:   mov    0x0(%rip),%rax        # 12 <temp_round+0x12>
+                        e: R_X86_64_REX_GOTPCRELX       temp_calls-0x4
+  12:   mov    (%rax),%eax
+  14:   lea    0x1(%rax),%edx
+  17:   mov    0x0(%rip),%rax        # 1e <temp_round+0x1e>
+                        1a: R_X86_64_REX_GOTPCRELX      temp_calls-0x4
+  1e:   mov    %edx,(%rax)
+  20:   mov    -0x4(%rbp),%eax
+  23:   add    $0x5,%eax
+  26:   movslq %eax,%rdx
+  29:   imul   $0x66666667,%rdx,%rdx
+  30:   shr    $0x20,%rdx
+  34:   sar    $0x2,%edx
+  37:   sar    $0x1f,%eax
+  3a:   sub    %eax,%edx
+  3c:   mov    %edx,%eax
+  3e:   pop    %rbp
+  3f:   ret
+
+mov    0x0(%rip),%rax        # 12 <temp_round+0x12>
+                 e: R_X86_64_REX_GOTPCRELX       temp_calls-0x4
+這行是把got位址那格存的位址 複製到rax
+
+
+mov    (%rax),%eax 取位址那格的值 也就是temp_calls 覆寫到eax
+lea    0x1(%rax),%edx temp_calls + 1
+大概是這些,下面都是一些計算
+
+
+
+000000003fd8  000500000006 R_X86_64_GLOB_DAT 0000000000004014 temp_calls + 0
+應該是got裏面存着指向實際temp_calls的位址
 ```
+
+> **批改**：**不完整**。我用你 `hw3/` 的 `round.o`、`libtemp.so` 重跑，輸出跟你貼的一模一樣。
+> - **答到的**：`b` 那行從 GOT 那一格讀出 `temp_calls` 的**位址**放進 `%rax`；`12` 照這個位址讀出值；`14` 算 +1；`readelf -r` 那一列跟 GOT 有關，那一格最後放的是 `temp_calls` 的位址。讀的那一半是對的。
+> - **漏的 1：寫回的兩行沒標出來**。`temp_calls = temp_calls + 1` 除了讀還要寫：`17: mov 0x0(%rip),%rax` 再從 GOT 拿一次 `temp_calls` 的位址，`1e: mov %edx,(%rax)` 照位址把 +1 的結果寫回去。你寫「下面都是一些計算」把這兩行跳過了；真正的計算（`(x10 + 5) / 10`）是從 `20` 開始。
+> - **漏的 2：那一列是「留給誰、要它做什麼」沒答到**。你寫的是 GOT 那格「最後的樣子」，題目問的是這一列是**給誰的指示**：它在 `.rela.dyn`（動態重定位表）裡，是留給**動態載入器 `ld.so`** 的，意思是「**載入時**，查出 `temp_calls` 最後用的是哪一份，把它的真正位址寫進 GOT 的 `0x3fd8` 那一格」。做 `.so` 時 `ld` 還不知道這格該填什麼（`temp_calls` 可能被別人那一份取代），所以才留下這筆給執行時處理。
+> - 小修（不扣分）：`b` 那行可以講得更準：洞的型別是 `R_X86_64_REX_GOTPCRELX`，`ld` 填進去的是「到 GOT 那一格的距離」，不是到 `temp_calls` 的距離，所以讀到的 8 byte 是位址、不是值（`libtemp.so` 裡這行變成 `mov 0x2e4b(%rip),%rax  # 3fd8`）。另外 `mov (%rax),%eax` 寫的是 32 位元的 `%eax`，會把 `%rax` 的高 32 位元清成 0，所以下一行 `lea 0x1(%rax),%edx` 拿 `%rax` 來算也沒問題（第 4 課〈寫低位的名字時，高位會怎樣？〉）。
+>
+> **參考答案**【筆記[第四節](../../html/c/靜態與動態函式庫-ar與.a、-fPIC與.so、執行時怎麼找到.so.html#四動態函式庫-shared-與--fpic)〈[為什麼一定要 `-fPIC`：先看不加會怎樣](../../html/c/靜態與動態函式庫-ar與.a、-fPIC與.so、執行時怎麼找到.so.html#為什麼一定要--fpic先看不加會怎樣)〉（`count.pic.o` 的組語對照與 `readelf -r libcount.so` 那段）】
+>
+> **核心關鍵**（答到這幾點就算對）：
+>
+> 1. 存取 `temp_calls` 的是 `b`、`12`、`17`、`1e`（加上中間算 +1 的 `14`）：`b` 從 GOT 讀出 `temp_calls` 的位址 → `12` 照位址讀出值 → `14` 加 1 → `17` 再從 GOT 讀一次位址 → `1e` 照位址寫回。
+> 2. 兩次都是**先讀 GOT 那一格、再照位址間接存取**：`R_X86_64_REX_GOTPCRELX` 的洞填的是「到 GOT 那一格的距離」，程式碼裡沒有任何「到 `temp_calls` 本身的距離」。
+> 3. `readelf -r` 的 `R_X86_64_GLOB_DAT ... temp_calls` 是留給 **`ld.so`** 的：**載入時**把 `temp_calls` 最後選定那一份的真正位址寫進 GOT 的 `0x3fd8`。
+>
+> **詳細說明**：
+> - 實測（你 `hw3/` 的檔案）：做成 `libtemp.so` 之後，洞被 `ld` 填好了：
+>
+>   ```text
+>   $ objdump -d --no-show-raw-insn libtemp.so | sed -n '/<temp_round>:/,/ret/p'
+>       1186:	mov    0x2e4b(%rip),%rax        # 3fd8 <temp_calls-0x3c>
+>       118d:	mov    (%rax),%eax
+>       118f:	lea    0x1(%rax),%edx
+>       1192:	mov    0x2e3f(%rip),%rax        # 3fd8 <temp_calls-0x3c>
+>       1199:	mov    %edx,(%rax)
+>   $ readelf -S libtemp.so | grep -E '\.got |\.bss'
+>     [19] .got              PROGBITS         0000000000003fc0  00002fc0
+>     [22] .bss              NOBITS           0000000000004010  00003010
+>   $ readelf -s libtemp.so | grep ' temp_calls'
+>      26: 0000000000004014     4 OBJECT  GLOBAL DEFAULT   22 temp_calls
+>   ```
+>
+>   `%rip` 是下一條指令的位址：`0x118d + 0x2e4b = 0x3fd8`、`0x1199 + 0x2e3f = 0x3fd8`，兩次都指到 `.got`（從 `0x3fc0` 開始）裡同一格。`temp_calls` 自己在 `0x4014`，第 22 個區段 `.bss`。程式碼只知道「GOT 在離我固定距離的地方」，`temp_calls` 實際在哪由 GOT 那格決定。
+> - **`GLOB_DAT` 那一列每一欄是什麼、`ld.so` 怎麼用**（2026-10-28 使用者指出原本的說明沒講 `0x4014` 跟 `ld.so` 的關係，補上；原本寫「別的地方也有 `temp_calls` 時，3-4 會實際做」也不對——你的 `hw3` 本身就是那種情況，見下面實測）：
+>
+>   | 欄 | 值 | 意思 |
+>   |---|---|---|
+>   | `Offset` | `0x3fd8` | **要寫到哪裡**：GOT 那一格（相對 `.so` 載入基址） |
+>   | `Info` | `0x000500000006` | 高 32 位元 `5` ＝ `.dynsym` 第 5 個符號（`temp_calls`）；低 32 位元 `6` ＝ 型別 `GLOB_DAT`：「把這個符號的位址整個寫進去」 |
+>   | `Sym. Value` | `0x4014` | `readelf` 順手印出第 5 個符號在 `.dynsym` 裡的值：**這個 `.so` 自己那一份** `temp_calls` 的位置（相對基址，在 `.bss`）。它不是「答案」，只是候選之一 |
+>   | `Addend` | `+ 0` | 位址再加多少 |
+>
+>   `ld.so` 處理這列時，拿的是**符號名字** `temp_calls`，照搜尋順序（執行檔先、再依載入順序的各個 `.so`）找第一個定義：找到的是 `libtemp.so` 自己那一份，才寫「`libtemp.so` 的基址 ＋ `0x4014`」；找到的是別人的，就寫別人那一份的位址，`0x4014` 用不到。
+> - **實測：`0x3fd8` 最後被寫成什麼**（`libtemp.so` 照 3-2 用 `-fPIC` 做；在 `temp_round` 讀完 GOT 那一行之後停下來，`%rax` 就是 GOT `0x3fd8` 裡的值）。兩支程式：`hw3`（你的 `hw3_main.c`，有用到 `temp_calls`）和 `nouse`（沒用到 `temp_calls`）：
+>
+>   ```c
+>   /* nouse.c：不碰 temp_calls */
+>   #include <stdio.h>
+>   #include "temp.h"
+>
+>   int main(void)
+>   {
+>       printf("%d\n", f_to_c(100));
+>       return 0;
+>   }
+>   ```
+>
+>   ```text
+>   $ gcc -Wall -g hw3_main.c -L. -ltemp -Wl,-rpath,'$ORIGIN' -o hw3
+>   $ gcc -Wall -g nouse.c    -L. -ltemp -Wl,-rpath,'$ORIGIN' -o nouse
+>   $ readelf -r hw3 | grep temp_calls
+>   000000004010  000900000005 R_X86_64_COPY     0000000000004010 temp_calls + 0
+>   $ readelf -r nouse | grep temp_calls          ← 沒有輸出
+>   $ gdb -q -batch -ex start -ex 'break *temp_round+18' -ex continue -ex 'p/x $rax' -ex 'p &temp_calls' ./hw3
+>   $1 = 0x555555558010                          ← GOT 0x3fd8 裡的值
+>   $2 = (int *) 0x555555558010 <temp_calls>     ← 執行檔 .bss 那一份
+>   $ gdb -q -batch -ex start -ex 'break *temp_round+18' -ex continue -ex 'p/x $rax' -ex 'p &temp_calls' ./nouse
+>   $1 = 0x7ffff7fba014                          ← GOT 0x3fd8 裡的值
+>   $2 = (...) 0x7ffff7fba014 <temp_calls>       ← libtemp.so 那一份
+>   ```
+>
+>   （`gdb` 關掉了位址隨機化：`info sharedlibrary` 顯示 `libtemp.so` 的 `.text`（檔案裡從 `0x1060` 開始）在 `0x7ffff7fb7060`，所以基址是 `0x7ffff7fb6000`。`temp_round+18` 是 `mov (%rax),%eax` 那一行，停在它執行之前。）
+>   - `nouse`：`0x7ffff7fb6000 + 0x4014 = 0x7ffff7fba014`，**這時才用到 `0x4014`**。
+>   - `hw3`：`hw3_main.c` 直接讀了 `temp_calls`，`ld` 替它做了**複製重定位**（`R_X86_64_COPY`，執行檔 `.bss` 的 `0x4010` 放一份），執行檔先被搜尋，所以 `ld.so` 把**執行檔那一份**的位址 `0x555555558010` 寫進 `libtemp.so` 的 GOT，`libtemp.so` 自己 `0x4014` 那一份從此沒人用。這就是 `-fPIC` 經過 GOT 的理由：`temp_round` 的程式碼不用改，就能改去讀寫執行檔那一份。複製重定位見筆記[第九節第 3 章](../../html/c/靜態與動態函式庫-ar與.a、-fPIC與.so、執行時怎麼找到.so.html#3-主程式只寫-extern-int-counter變數放進執行檔複製重定位)。
+> - 為什麼 `17` 要再讀一次 GOT：`-O0` 不把值留在暫存器裡重用，每次用到 `temp_calls` 都重新照規矩取一次位址；`-O2` 會只讀一次。
+> - 不加 `-fPIC` 時（3-1）這兩處是 `mov 0x0(%rip),%eax` 配 `R_X86_64_PC32`，直接讀寫 `temp_calls` 本身，所以做不成 `.so`。
 
 ### 3-3. 用 `gcc -Wall hw3_main.c -L. -ltemp -o hw3` 連結，執行 `./hw3`，貼上輸出與 `ldd ./hw3` 的輸出。這個錯誤是誰印的？為什麼連結成功了，執行卻找不到？接著用兩種方法讓它跑起來，各貼上指令與輸出：(a) `LD_LIBRARY_PATH`；(b) 重新連結，用 `-Wl,-rpath,'$ORIGIN'` 把路徑寫進執行檔（另外貼上 `readelf -d hw3 | grep -E 'NEEDED|RUNPATH'`）。輸出裡 `temp_calls` 是幾？為什麼是這個數字？【筆記[第五節](../../html/c/靜態與動態函式庫-ar與.a、-fPIC與.so、執行時怎麼找到.so.html#五執行時怎麼找到-so)〈方法一〉、〈方法二〉】
 
-**第 1 次（YYYY-MM-DD）**
+**第 1 次（2026-10-28）**
 ```
+./hw3: error while loading shared libraries: libtemp.so: cannot open shared object file: No such file or directory
+ linux-vdso.so.1 (0x000072faf7ac1000)
+        libtemp.so => not found
+        libc.so.6 => /lib/x86_64-linux-gnu/libc.so.6 (0x000072faf7800000)
+        /lib64/ld-linux-x86-64.so.2 (0x000072faf7ac3000)
+這個錯誤是ld.so印的
+
+因爲ld.so的搜尋路徑沒有-L.,這個參數是給ld看的,ld.so不知道
+
+(a)
+LD_LIBRARY_PATH=. ./hw3
+38 212
+temp_calls = 2
+
+(b)
+ gcc -Wall hw3_main.c -L. -ltemp -Wl,-rpath,'$ORIGIN' -o hw3
+38 212
+temp_calls = 2
+0x0000000000000001 (NEEDED)             Shared library: [libtemp.so]
+ 0x0000000000000001 (NEEDED)             Shared library: [libc.so.6]
+ 0x000000000000001d (RUNPATH)            Library runpath: [$ORIGIN]
+
+temp_calls 是2
+因爲c_to_f, f_to_c都各自用temp_round+1一次
 ```
 
+> **批改**：**對**。我用你 `hw3/` 的檔案重做，沒加 `-rpath` 的版本同樣是 `cannot open shared object file`、`ldd` 顯示 `libtemp.so => not found`；(b) 的 `RUNPATH [$ORIGIN]` 與兩次輸出都一樣。
+> - 抓到：錯誤是 `ld.so` 印的；`-L.` 只給連結時的 `ld` 看，`ld.so` 不知道；(a)、(b) 兩種方法的指令與輸出都對；`temp_calls = 2` 是 `f_to_c`、`c_to_f` 各呼叫 `temp_round` 一次。
+> - 小修（不扣分）：
+>   1. 「為什麼找不到」可以再補一句 `ld.so` 手上有什麼：執行檔的 `NEEDED` 只記了名字 `libtemp.so`、**沒有記路徑**，`ld.so` 只能照自己的順序找（`LD_LIBRARY_PATH` → `RUNPATH` → `/etc/ld.so.cache` → 預設資料夾），裡面沒有目前這個資料夾。
+>   2. `temp_calls` 是 2，前提是它從 0 開始（`round.c` 的 `int temp_calls = 0;`）。另外 3-2 補的實測說過：`hw3_main.c` 讀 `temp_calls`，執行檔裡有一份複製重定位來的 `temp_calls`，`libtemp.so` 的 GOT 也指向它，所以 `temp_round` 加的和 `main` 印的是**同一份**，才會剛好是 2。
+>
+> **參考答案**【筆記[第五節](../../html/c/靜態與動態函式庫-ar與.a、-fPIC與.so、執行時怎麼找到.so.html#五執行時怎麼找到-so)〈[`ld.so` 去了哪些地方找](../../html/c/靜態與動態函式庫-ar與.a、-fPIC與.so、執行時怎麼找到.so.html#ldso-去了哪些地方找)〉、〈[方法一：`LD_LIBRARY_PATH`（臨時用）](../../html/c/靜態與動態函式庫-ar與.a、-fPIC與.so、執行時怎麼找到.so.html#方法一ld_library_path臨時用)〉、〈[方法二：`-Wl,-rpath`——把路徑寫進執行檔](../../html/c/靜態與動態函式庫-ar與.a、-fPIC與.so、執行時怎麼找到.so.html#方法二-wl-rpath把路徑寫進執行檔)〉】
+>
+> **核心關鍵**（答到這幾點就算對）：
+>
+> 1. 錯誤是動態載入器 `ld.so` 在執行時印的（`ldd` 也顯示 `libtemp.so => not found`）。
+> 2. `-L.` 只告訴連結時的 `ld` 去哪找；執行檔的 `NEEDED` 只記名字 `libtemp.so`，`ld.so` 照自己的搜尋順序找，裡面沒有 `.`，所以找不到。
+> 3. (a) `LD_LIBRARY_PATH=. ./hw3`；(b) 用 `-Wl,-rpath,'$ORIGIN'` 重新連結，`readelf -d` 多出 `RUNPATH [$ORIGIN]`，`$ORIGIN` 在執行時代表執行檔所在的資料夾。
+> 4. `temp_calls = 2`：從 0 開始，`f_to_c(100)`、`c_to_f(100)` 各呼叫 `temp_round` 一次。
+>
+> **詳細說明**：
+> - `LD_DEBUG=libs` 可以看到 `ld.so` 實際找了哪裡（沒加 `-rpath` 的版本）：
+>
+>   ```text
+>   $ LD_DEBUG=libs ./hw3 2>&1 | grep -E 'find library|search'
+>         find library=libtemp.so [0]; searching
+>          search cache=/etc/ld.so.cache
+>          search path=/lib/x86_64-linux-gnu/glibc-hwcaps/x86-64-v3:...:/lib:/usr/lib		(system search path)
+>   ```
+>
+>   沒有 `LD_LIBRARY_PATH`、也沒有 `RUNPATH`，所以直接查快取再查系統資料夾，都沒有 `libtemp.so`。
+> - (a) 只對這一次執行有效；(b) 寫進執行檔，而且用 `$ORIGIN` 而不是絕對路徑，整個資料夾搬到別處也還找得到。
 ### 3-4. 先預測：在 `hw3_main.c` 的 `#include "temp.h"` 下面加一行 `int temp_calls = 1000;`（`temp.h` 不改），照 3-3 (b) 的方式重新連結、執行，`temp_calls = ` 會印出多少？寫下預測後執行，貼上輸出與 `LD_DEBUG=bindings ./hw3 2>&1 | grep temp_calls`。為什麼？接著把 `round.o` 等三個 `-fPIC` 的 `.o` 用 `ar rcs libtemp.a ctof.o ftoc.o round.o` 包成 `.a`，用 `gcc -Wall hw3_main.c -L. -l:libtemp.a -o hw3s` 靜態連結，先預測會怎樣再執行、貼上結果；為什麼同樣兩份 `temp_calls`，動態和靜態的結果不一樣？做完把加的那一行刪掉。【筆記第四節〈為什麼不能直接用固定距離〉】
 
-**第 1 次（YYYY-MM-DD）**
+**第 1 次（2026-10-28）**
 ```
+1002
+
+38 212
+temp_calls = 1002
+15125:     binding file /home/set/work/Projects/github/good-note/small-project/s1-07-libraries/hw3/libtemp.so [0] to ./hw3 [0]: normal symbol `temp_calls'
+temp_calls = 1002
+因爲動態載入器選擇temp_calls在got的位址是從執行檔,然後才在so選,所以會選到執行檔的temp_calls
+
+從hw3_main可以看到ctof,ftoc, round全都會用到,所以三個.o都會被加入執行檔,然後選擇執行檔比較近的int temp_calls=1000
+結果會是1002
+
+/usr/bin/ld: ./libtemp.a(round.o):(.bss+0x0): multiple definition of `temp_calls'; /tmp/cco7GIjT.o:(.data+0x0): first defined here
+collect2: error: ld returned 1 exit status
+
+結果是連結錯誤了,temp_calls重複定義
+
+動態是執行時,動態載入器選擇符號的時候,按照執行檔.so的順序重定位temp calls,但我不確定這是否就是hw3_main.c不跟so做符號連接?
+靜態是連結是,ld在連結符號的時候發現兩個符號重複定義
 ```
 
+> **批改**：**大致對**。我用你 `hw3/` 的原始碼（`hw3_main.c.bak` 裡加了那一行的版本）重做，動態 `temp_calls = 1002`、`LD_DEBUG` 那一行、靜態的 `multiple definition` 都跟你貼的一樣。動態的預測 1002 對；靜態預測成 1002（實際是連結錯誤），預測錯不扣分。
+> - **抓到的**：動態印 1002；`LD_DEBUG` 顯示 `libtemp.so` 的 `temp_calls` 被綁到 `./hw3`；原因是 `ld.so` 先找執行檔、再找 `.so`，所以 `libtemp.so` 經 GOT 存取的是執行檔那一份（初值 1000），`temp_round` 被呼叫兩次 → 1002。靜態：`f_to_c`、`c_to_f` 需要 `temp_round`，所以 `round.o` 被整個拉進來，連同它的 `temp_calls` 定義，跟 `hw3_main.o` 的定義撞在一起 → `multiple definition`。
+> - **缺的（最後一問的動態那一半）**：你自己也寫了不確定——為什麼動態時 `ld` **不報**重複定義？關鍵是 **`.so` 不會被合併進執行檔**：`.a` 的成員 `round.o` 是被**複製進**執行檔，兩個 `GLOBAL` 定義放進同一個檔案，`ld` 只能報錯；`.so` 只是被「記下名字」（`NEEDED`），它裡面的 `temp_calls` 留在 `.so` 自己的檔案裡，`ld` 不把它算成第二個定義，選哪一份延到執行時由 `ld.so` 照搜尋順序挑第一個（符號插入）。這在筆記第九節第 2 章〈[兩份 `counter`：接 `.so` 為什麼不算重複定義](../../html/c/靜態與動態函式庫-ar與.a、-fPIC與.so、執行時怎麼找到.so.html#2-兩份-counter接-so-為什麼不算重複定義)〉教過。至於你問的「是不是 `hw3_main.c` 不跟 `.so` 做符號連結」：有做——`hw3_main.c` 要用的 `f_to_c`、`c_to_f` 就是從 `libtemp.so` 解析來的；只是 `temp_calls` 執行檔自己有定義，用自己的，反過來是 `libtemp.so` 的參照被綁到執行檔。
+> - 小修（不扣分）：
+>   1. 錯誤訊息裡兩份的位置不一樣：`hw3_main.o` 的在 `.data`（初值 1000 不是 0），`round.o` 的在 `.bss`（初值 0）——這兩份都是有初值的「定義」，所以就算 `-fcommon` 也救不了（第 6 課多檔 4-4 的 `-fcommon` 只對沒有初值的暫定定義有用）。
+>   2. 「選擇執行檔比較近的」：`ld.so` 選的依據是**搜尋順序**（執行檔排第一），不是距離遠近。
+>   3. 3-3 是複製重定位（`R_X86_64_COPY`）把 `temp_calls` 放進執行檔；這次執行檔自己定義了它，`readelf -r hw3 | grep temp_calls` 什麼都沒有，因為不需要複製，`libtemp.so` 的 GOT 一樣指向執行檔那一份。
+>
+> **參考答案**【筆記第四節〈[為什麼不能直接用固定距離：`counter` 最後不一定是這一份](../../html/c/靜態與動態函式庫-ar與.a、-fPIC與.so、執行時怎麼找到.so.html#為什麼不能直接用固定距離counter-最後不一定是這一份)〉、第二節〈[連結：只拉需要的成員](../../html/c/靜態與動態函式庫-ar與.a、-fPIC與.so、執行時怎麼找到.so.html#連結只拉需要的成員)〉、第九節第 2 章〈[兩份 `counter`：接 `.so` 為什麼不算重複定義](../../html/c/靜態與動態函式庫-ar與.a、-fPIC與.so、執行時怎麼找到.so.html#2-兩份-counter接-so-為什麼不算重複定義)〉】
+>
+> **核心關鍵**（答到這幾點就算對）：
+>
+> 1. 動態印 `temp_calls = 1002`；`LD_DEBUG=bindings` 顯示 `libtemp.so` 的 `temp_calls` 被綁到 `./hw3`。
+> 2. 原因：`ld.so` 照搜尋順序先找執行檔，`libtemp.so` 的 GOT 填的是執行檔那一份（初值 1000）的位址，`temp_round` 被呼叫兩次都加在它上面（符號插入）。
+> 3. 靜態：`round.o` 因為 `temp_round` 被拉進執行檔，連同它的 `temp_calls` 定義，跟 `hw3_main.o` 的定義在同一次連結裡撞名 → `multiple definition`，連結失敗。
+> 4. 差別：`.a` 的成員被**合併**進同一個執行檔，兩個定義只能二選一而報錯；`.so` **不合併**，`ld` 不把它的定義算成重複，留到執行時由 `ld.so` 選第一個找到的。
+>
+> **詳細說明**：
+> - 實測（`gcc -Wall -fPIC -c ctof.c ftoc.c round.c`、`gcc -shared … -o libtemp.so`、`gcc -Wall hw3_main.c -L. -ltemp -Wl,-rpath,'$ORIGIN' -o hw3`）：
+>
+>   ```text
+>   $ ./hw3
+>   38 212
+>   temp_calls = 1002
+>   $ LD_DEBUG=bindings ./hw3 2>&1 | grep temp_calls
+>   binding file …/libtemp.so [0] to ./hw3 [0]: normal symbol `temp_calls'
+>   $ gcc -Wall hw3_main.c -L. -l:libtemp.a -Wl,--verbose -o hw3s 2>&1 | grep 'libtemp.a)'
+>   (./libtemp.a)ctof.o
+>   (./libtemp.a)ftoc.o
+>   (./libtemp.a)round.o
+>   $ readelf -s hw3_main.o | grep temp_calls
+>        4: 0000000000000000     4 OBJECT  GLOBAL DEFAULT    3 temp_calls      ← 區段 3 是 .data
+>   $ readelf -s round.o | grep temp_calls
+>        3: 0000000000000000     4 OBJECT  GLOBAL DEFAULT    4 temp_calls      ← 區段 4 是 .bss
+>   ```
+>
+>   `binding file A to B` 讀作「A（`libtemp.so`）裡對 `temp_calls` 的參照，綁到 B（`./hw3`）的定義」。
+> - 同一件事的兩面：動態時「多一份同名定義」不是錯，而是**刻意可用的功能**（`LD_PRELOAD` 換掉 `malloc` 就是靠它）；靜態時兩份定義被放進同一個檔案，沒有「先找誰」可言，只能報錯。
+> - 如果 `round.o` 沒被拉進來（例如 `hw3_main.c` 完全不呼叫 `f_to_c`、`c_to_f`），靜態連結就不會撞名——`ld` 只拉需要的成員（第二節）。
 ---
 
 ## 4. `.so` 依賴另一個 `.so`：`RUNPATH` 只管直接依賴
