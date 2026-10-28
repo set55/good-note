@@ -121,11 +121,17 @@
 <td>第六節〈SONAME〉</td>
 <td><code>-Wl,-soname</code>、三個名字與符號連結、<code>NEEDED</code> 記的是 SONAME</td>
 </tr>
+<tr>
+<td><a href="../../../small-project/s1-07-libraries/examples/rpathlink/"><code>examples/rpathlink/</code></a></td>
+<td><a href="../../../small-project/s1-07-libraries/examples/rpathlink/temp.h"><code>temp.h</code></a>、<a href="../../../small-project/s1-07-libraries/examples/rpathlink/round.c"><code>round.c</code></a>、<a href="../../../small-project/s1-07-libraries/examples/rpathlink/ctof.c"><code>ctof.c</code></a>、<a href="../../../small-project/s1-07-libraries/examples/rpathlink/ftoc.c"><code>ftoc.c</code></a>、<a href="../../../small-project/s1-07-libraries/examples/rpathlink/main.c"><code>main.c</code></a></td>
+<td><a href="../../c/%E9%9D%9C%E6%85%8B%E8%88%87%E5%8B%95%E6%85%8B%E5%87%BD%E5%BC%8F%E5%BA%AB-ar%E8%88%87.a%E3%80%81-fPIC%E8%88%87.so%E3%80%81%E5%9F%B7%E8%A1%8C%E6%99%82%E6%80%8E%E9%BA%BC%E6%89%BE%E5%88%B0.so.html#13-%E9%80%A3%E7%B5%90%E6%99%82-ld-%E7%82%BA%E4%BB%80%E9%BA%BC%E8%A6%81%E6%89%BE%E4%BE%9D%E8%B3%B4%E7%9A%84%E4%BE%9D%E8%B3%B4-rpath-link-%E8%88%87--rpath%E4%BD%9C%E6%A5%AD-4-3">第九節第 13 章</a></td>
+<td>連結時 <code>ld</code> 找「依賴的依賴」：<code>-rpath-link</code> vs <code>-rpath</code>、<code>--allow-shlib-undefined</code>、<code>.so</code> 自己的 <code>RUNPATH</code></td>
+</tr>
 </tbody>
 </table>
 <hr />
 <h2 id="批改結果2026-10-27">批改結果（2026-10-27）</h2>
-<p>第 1、2 題 2026-10-27 批改；第 3 題 2026-10-28 批改；其他還沒交。</p>
+<p>第 1、2 題 2026-10-27 批改；第 1～5 題全部批改完（第 1、2 題 2026-10-27，其餘 2026-10-28）。</p>
 <table>
 <thead>
 <tr>
@@ -179,6 +185,36 @@
 <td>3-4</td>
 <td>大致對</td>
 <td>動態 1002、<code>LD_DEBUG</code> 綁到 <code>./hw3</code>、執行檔先找；靜態 <code>round.o</code> 被拉進來撞名都對；缺「<code>.so</code> 不合併進執行檔，<code>ld</code> 不把它的定義算重複、留給 <code>ld.so</code> 選」（自己也寫了不確定，第九節第 2 章教過）</td>
+</tr>
+<tr>
+<td>4-1</td>
+<td>大致對</td>
+<td>抓到：找不到的是 <code>libround.so</code>、它是 <code>libtemp.so</code> 的依賴、<code>libtemp.so</code> 沒有 <code>RUNPATH</code>；缺「<code>RUNPATH</code> 只管自己的 <code>NEEDED</code>」的規則與「同資料夾不會自動找」，<code>LD_DEBUG</code> 寫成沒有輸出（實際有，正是證據）</td>
+</tr>
+<tr>
+<td>4-2</td>
+<td>大致對</td>
+<td>兩種方法的指令都對（含 <code>--disable-new-dtags</code>）、選 (a) 理由對；缺 (b) 為什麼能修好：<code>RPATH</code> 套用到整棵依賴樹、<code>RUNPATH</code> 只管自己的 <code>NEEDED</code>（自己寫了不清楚，第五節第 3 步教過）；沒貼 <code>readelf -d</code></td>
+</tr>
+<tr>
+<td>4-3</td>
+<td>大致對</td>
+<td>輸出對、注意到變成連結時就出錯；「<code>ld</code> 替 <code>libtemp.so</code> 找它的依賴」是新觀念，猜對方向（補教寫進筆記第九節第 13 章）；<code>-rpath</code> 只說「執行檔的依賴位置」，缺核心：<code>-rpath-link</code> 只給連結時用、不寫進輸出檔，<code>-rpath</code> 寫進輸出檔給執行時的 <code>ld.so</code></td>
+</tr>
+<tr>
+<td>5-1</td>
+<td>對</td>
+<td>抓到：兩支都 37、<code>NEEDED</code> 寫 SONAME <code>libtemp.so.1</code>（可補：<code>ld</code> 打開的是 <code>libtemp.so</code>，寫進去的是檔案裡的 SONAME）</td>
+</tr>
+<tr>
+<td>5-2</td>
+<td>不完整</td>
+<td>預測與輸出都對、<code>hw5_static</code> 要重新連結；缺「為什麼不同」：靜態是連結時把 <code>round.o</code> 複製進執行檔、動態是執行時才載入 <code>libtemp.so.1</code>（現在指向 <code>1.0.1</code>）；缺 <code>ar t</code> 仍是 3 個的理由：<code>r</code> 遇到同名就取代</td>
+</tr>
+<tr>
+<td>5-3</td>
+<td>對</td>
+<td>抓到：38／377、兩支 <code>NEEDED</code> 不同所以各載各的、偷懶時印 377（可補：換 SONAME 才是不同檔名可並存；<code>ld.so</code> 只比名字，偷懶會靜靜地算錯）</td>
 </tr>
 </tbody>
 </table>
@@ -307,7 +343,7 @@ f_to_c(212) = 100
 </details>
 </details>
 <details class="answer self-practice"><summary>自我練習（不批改）</summary>
-<div class="answer-box" data-file="small-project/s1-07-libraries/README.md" data-line="203" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="small-project/s1-07-libraries/README.md" data-line="210" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h3 id="1-2-先預測nm-hw1--grep--e-c_to_ff_to_ctemp_round-會列出這三個函式裡的哪幾個寫下預測後再執行貼上結果並貼上-gcc--wall-hw1_mainc--l--ltemp--wl--verbose--o-hw1-21--grep-libtemp-的輸出hw1_mainc-沒有直接呼叫-temp_round它為什麼或為什麼沒有在執行檔裡c_to_f-呢筆記第二節連結只拉需要的成員">1-2. 先預測：<code>nm hw1 | grep -E 'c_to_f|f_to_c|temp_round'</code> 會列出這三個函式裡的哪幾個？寫下預測後再執行，貼上結果，並貼上 <code>gcc -Wall hw1_main.c -L. -ltemp -Wl,--verbose -o hw1 2&gt;&amp;1 | grep libtemp</code> 的輸出。<code>hw1_main.c</code> 沒有直接呼叫 <code>temp_round</code>，它為什麼（或為什麼沒有）在執行檔裡？<code>c_to_f</code> 呢？【筆記第二節〈連結：只拉需要的成員〉】</h3>
 <p><strong>第 1 次（2026-10-27）</strong></p>
@@ -351,7 +387,7 @@ main一開始的符號就沒有他了,所以也不會去把ctof.o拉入執行檔
 </details>
 </details>
 <details class="answer self-practice"><summary>自我練習（不批改）</summary>
-<div class="answer-box" data-file="small-project/s1-07-libraries/README.md" data-line="242" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="small-project/s1-07-libraries/README.md" data-line="249" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <hr />
 <h2 id="2-兩個互相需要的靜態函式庫順序怎麼排">2. 兩個互相需要的靜態函式庫：順序怎麼排</h2>
@@ -496,7 +532,7 @@ hw2 在libconv連到f_to_c, f_to_c 在 libround 連到了temp_round, temp_round�
 </details>
 </details>
 <details class="answer self-practice"><summary>自我練習（不批改）</summary>
-<div class="answer-box" data-file="small-project/s1-07-libraries/README.md" data-line="367" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="small-project/s1-07-libraries/README.md" data-line="374" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h3 id="2-2-不重複寫--lconv改用--wl--start-group---wl--end-group-讓-b-的順序也能連結成功貼上指令與執行結果筆記第二節順序最後一段">2-2. 不重複寫 <code>-lconv</code>，改用 <code>-Wl,--start-group … -Wl,--end-group</code> 讓 (b) 的順序也能連結成功。貼上指令與執行結果。【筆記第二節〈順序〉最後一段】</h3>
 <p><strong>第 1 次（2026-10-27）</strong></p>
@@ -520,7 +556,7 @@ f_to_c(100) = 38
 </details>
 </details>
 <details class="answer self-practice"><summary>自我練習（不批改）</summary>
-<div class="answer-box" data-file="small-project/s1-07-libraries/README.md" data-line="389" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="small-project/s1-07-libraries/README.md" data-line="396" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h3 id="2-3-先猜再實驗把兩個函式庫改做成-so指令如下再用-ab-兩種順序連結各會成功還是失敗貼上結果成功的要執行為什麼-so-版的-b-不必像-a-那樣把--lconv-寫兩次a-為什麼還是失敗或為什麼成功新觀念先猜a-的部分可以用筆記第四節so-在-ubuntu-上也有順序問題推">2-3. 先猜再實驗：把兩個函式庫改做成 <code>.so</code>（指令如下），再用 (a)、(b) 兩種順序連結。各會成功還是失敗？貼上結果（成功的要執行）。為什麼 <code>.so</code> 版的 (b) 不必像 <code>.a</code> 那樣把 <code>-lconv</code> 寫兩次？(a) 為什麼還是失敗（或為什麼成功）？【新觀念，先猜；(a) 的部分可以用筆記<a href="../../c/%E9%9D%9C%E6%85%8B%E8%88%87%E5%8B%95%E6%85%8B%E5%87%BD%E5%BC%8F%E5%BA%AB-ar%E8%88%87.a%E3%80%81-fPIC%E8%88%87.so%E3%80%81%E5%9F%B7%E8%A1%8C%E6%99%82%E6%80%8E%E9%BA%BC%E6%89%BE%E5%88%B0.so.html#%E5%9B%9B%E5%8B%95%E6%85%8B%E5%87%BD%E5%BC%8F%E5%BA%AB-shared-%E8%88%87--fpic">第四節</a>〈<code>.so</code> 在 Ubuntu 上也有順序問題〉推】</h3>
 <pre><code class="language-sh">mkdir<span class="w"> </span>-p<span class="w"> </span>so
@@ -586,7 +622,7 @@ b的順序成功了
 </details>
 </details>
 <details class="answer self-practice"><summary>自我練習（不批改）</summary>
-<div class="answer-box" data-file="small-project/s1-07-libraries/README.md" data-line="450" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="small-project/s1-07-libraries/README.md" data-line="457" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <hr />
 <h2 id="3-做一個-so-fpicgot讓執行檔找得到它">3. 做一個 <code>.so</code>：<code>-fPIC</code>、GOT、讓執行檔找得到它</h2>
@@ -709,7 +745,7 @@ $ gcc -shared ctof.o ftoc.o -o libcf.so &amp;&amp; objdump -d --no-show-raw-insn
 </details>
 </details>
 <details class="answer self-practice"><summary>自我練習（不批改）</summary>
-<div class="answer-box" data-file="small-project/s1-07-libraries/README.md" data-line="573" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="small-project/s1-07-libraries/README.md" data-line="580" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h3 id="3-2-改用--fpic-重編三個檔案做出-libtempso貼上-objdump--dr---no-show-raw-insn-roundo-裡-temp_round-的內容標出哪幾行在存取-temp_calls逐行說明那幾行在做什麼中間-imul-0x66666667shrsar-那幾行是-gcc-用乘法代替除以-10的寫法這題不用解釋再貼上-readelf--r-libtempso--grep-temp_calls說明那一列是留給誰要它做什麼筆記第四節為什麼一定要--fpic">3-2. 改用 <code>-fPIC</code> 重編三個檔案、做出 <code>libtemp.so</code>。貼上 <code>objdump -dr --no-show-raw-insn round.o</code> 裡 <code>temp_round</code> 的內容，標出<strong>哪幾行在存取 <code>temp_calls</code></strong>，逐行說明那幾行在做什麼（中間 <code>imul $0x66666667</code>、<code>shr</code>、<code>sar</code> 那幾行是 gcc 用乘法代替「除以 10」的寫法，這題不用解釋）。再貼上 <code>readelf -r libtemp.so | grep temp_calls</code>，說明那一列是留給誰、要它做什麼。【筆記第四節〈為什麼一定要 <code>-fPIC</code>〉】</h3>
 <p><strong>第 1 次（2026-10-28）</strong></p>
@@ -861,7 +897,7 @@ $2 = (...) 0x7ffff7fba014 &lt;temp_calls&gt;       ← libtemp.so 那一份
 </details>
 </details>
 <details class="answer self-practice"><summary>自我練習（不批改）</summary>
-<div class="answer-box" data-file="small-project/s1-07-libraries/README.md" data-line="691" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="small-project/s1-07-libraries/README.md" data-line="698" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h3 id="3-3-用-gcc--wall-hw3_mainc--l--ltemp--o-hw3-連結執行-hw3貼上輸出與-ldd-hw3-的輸出這個錯誤是誰印的為什麼連結成功了執行卻找不到接著用兩種方法讓它跑起來各貼上指令與輸出a-ld_library_pathb-重新連結用--wl-rpathorigin-把路徑寫進執行檔另外貼上-readelf--d-hw3--grep--e-neededrunpath輸出裡-temp_calls-是幾為什麼是這個數字筆記第五節方法一方法二">3-3. 用 <code>gcc -Wall hw3_main.c -L. -ltemp -o hw3</code> 連結，執行 <code>./hw3</code>，貼上輸出與 <code>ldd ./hw3</code> 的輸出。這個錯誤是誰印的？為什麼連結成功了，執行卻找不到？接著用兩種方法讓它跑起來，各貼上指令與輸出：(a) <code>LD_LIBRARY_PATH</code>；(b) 重新連結，用 <code>-Wl,-rpath,'$ORIGIN'</code> 把路徑寫進執行檔（另外貼上 <code>readelf -d hw3 | grep -E 'NEEDED|RUNPATH'</code>）。輸出裡 <code>temp_calls</code> 是幾？為什麼是這個數字？【筆記<a href="../../c/%E9%9D%9C%E6%85%8B%E8%88%87%E5%8B%95%E6%85%8B%E5%87%BD%E5%BC%8F%E5%BA%AB-ar%E8%88%87.a%E3%80%81-fPIC%E8%88%87.so%E3%80%81%E5%9F%B7%E8%A1%8C%E6%99%82%E6%80%8E%E9%BA%BC%E6%89%BE%E5%88%B0.so.html#%E4%BA%94%E5%9F%B7%E8%A1%8C%E6%99%82%E6%80%8E%E9%BA%BC%E6%89%BE%E5%88%B0-so">第五節</a>〈方法一〉、〈方法二〉】</h3>
 <p><strong>第 1 次（2026-10-28）</strong></p>
@@ -930,7 +966,7 @@ temp_calls 是2
 </details>
 </details>
 <details class="answer self-practice"><summary>自我練習（不批改）</summary>
-<div class="answer-box" data-file="small-project/s1-07-libraries/README.md" data-line="749" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="small-project/s1-07-libraries/README.md" data-line="756" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h3 id="3-4-先預測在-hw3_mainc-的-include-temph-下面加一行-int-temp_calls--1000temph-不改照-3-3-b-的方式重新連結執行temp_calls---會印出多少寫下預測後執行貼上輸出與-ld_debugbindings-hw3-21--grep-temp_calls為什麼接著把-roundo-等三個--fpic-的-o-用-ar-rcs-libtempa-ctofo-ftoco-roundo-包成-a用-gcc--wall-hw3_mainc--l--llibtempa--o-hw3s-靜態連結先預測會怎樣再執行貼上結果為什麼同樣兩份-temp_calls動態和靜態的結果不一樣做完把加的那一行刪掉筆記第四節為什麼不能直接用固定距離">3-4. 先預測：在 <code>hw3_main.c</code> 的 <code>#include &quot;temp.h&quot;</code> 下面加一行 <code>int temp_calls = 1000;</code>（<code>temp.h</code> 不改），照 3-3 (b) 的方式重新連結、執行，<code>temp_calls = </code> 會印出多少？寫下預測後執行，貼上輸出與 <code>LD_DEBUG=bindings ./hw3 2&gt;&amp;1 | grep temp_calls</code>。為什麼？接著把 <code>round.o</code> 等三個 <code>-fPIC</code> 的 <code>.o</code> 用 <code>ar rcs libtemp.a ctof.o ftoc.o round.o</code> 包成 <code>.a</code>，用 <code>gcc -Wall hw3_main.c -L. -l:libtemp.a -o hw3s</code> 靜態連結，先預測會怎樣再執行、貼上結果；為什麼同樣兩份 <code>temp_calls</code>，動態和靜態的結果不一樣？做完把加的那一行刪掉。【筆記第四節〈為什麼不能直接用固定距離〉】</h3>
 <p><strong>第 1 次（2026-10-28）</strong></p>
@@ -1007,7 +1043,7 @@ $ readelf -s round.o | grep temp_calls
 </details>
 </details>
 <details class="answer self-practice"><summary>自我練習（不批改）</summary>
-<div class="answer-box" data-file="small-project/s1-07-libraries/README.md" data-line="812" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="small-project/s1-07-libraries/README.md" data-line="819" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <hr />
 <h2 id="4-so-依賴另一個-sorunpath-只管直接依賴">4. <code>.so</code> 依賴另一個 <code>.so</code>：<code>RUNPATH</code> 只管直接依賴</h2>
@@ -1030,19 +1066,196 @@ gcc<span class="w"> </span>-Wall<span class="w"> </span>-fPIC<span class="w"> </
 gcc<span class="w"> </span>-Wall<span class="w"> </span>hw4_main.c<span class="w"> </span>-Llib<span class="w"> </span>-ltemp<span class="w"> </span>-Wl,-rpath-link,lib<span class="w"> </span>-Wl,-rpath,<span class="s1">&#39;$ORIGIN/lib&#39;</span><span class="w"> </span>-o<span class="w"> </span>hw4
 </code></pre>
 <h3 id="4-1-先預測-hw4-會成功嗎寫下預測後執行貼上輸出再貼上-readelf--d-hw4--grep--e-neededrunpathreadelf--d-liblibtempso--grep--e-neededrunpath以及-ld_debuglibs-hw4-21--grep--e-find-librarysearch-pathhw4-明明有-runpathlibroundso-也跟-libtempso-放在同一個資料夾為什麼找不到或為什麼找得到筆記第五節ldso-去了哪些地方找的第-3-步rpath-和-runpath-差在哪最後一段">4-1. 先預測 <code>./hw4</code> 會成功嗎？寫下預測後執行，貼上輸出；再貼上 <code>readelf -d hw4 | grep -E 'NEEDED|RUNPATH'</code>、<code>readelf -d lib/libtemp.so | grep -E 'NEEDED|RUNPATH'</code>，以及 <code>LD_DEBUG=libs ./hw4 2&gt;&amp;1 | grep -E 'find library|search path'</code>。<code>hw4</code> 明明有 <code>RUNPATH</code>、<code>libround.so</code> 也跟 <code>libtemp.so</code> 放在同一個資料夾，為什麼找不到（或為什麼找得到）？【筆記第五節〈<code>ld.so</code> 去了哪些地方找〉的第 3 步、〈<code>RPATH</code> 和 <code>RUNPATH</code> 差在哪〉最後一段】</h3>
-<p><strong>第 1 次（YYYY-MM-DD）</strong></p>
-<details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="small-project/s1-07-libraries/README.md" data-line="845"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<p><strong>第 1 次（2026-10-28）</strong></p>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
+<div class="answer-box locked"><textarea readonly spellcheck="false">可以成功
+
+./hw4: error while loading shared libraries: libround.so: cannot open shared object file: No such file or directory
+
+0x0000000000000001 (NEEDED)             Shared library: [libtemp.so]
+ 0x0000000000000001 (NEEDED)             Shared library: [libc.so.6]
+ 0x000000000000001d (RUNPATH)            Library runpath: [$ORIGIN/lib]
+
+0x0000000000000001 (NEEDED)             Shared library: [libround.so]
+
+沒有輸出
+
+hw4可以找得到libtemp.so, 但問題處在libtemp.so找不到libround.so,他沒有runpath
+</textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
+<details class="answer"><summary>批改</summary>
+<p><strong>大致對</strong>。我在你的 <code>hw4/</code> 直接執行，錯誤訊息、兩個 <code>readelf -d</code> 的輸出都跟你貼的一樣。預測「可以成功」錯了，不扣分。</p>
+<ul>
+<li><strong>抓到的</strong>：失敗的是 <code>libround.so</code>；<code>hw4</code> 靠自己的 <code>RUNPATH</code>（<code>$ORIGIN/lib</code>）找到了 <code>libtemp.so</code>，但 <code>libround.so</code> 是 <strong><code>libtemp.so</code> 的</strong> <code>NEEDED</code>，要看 <code>libtemp.so</code> 自己的 <code>RUNPATH</code>，而它沒有。主線對。</li>
+<li><strong>缺的 1：<code>LD_DEBUG</code> 那一行不是「沒有輸出」</strong>。我在你的 <code>hw4/</code> 跑同一行，有 6 行輸出（見下面詳細說明）；你那邊沒輸出，可能是不在 <code>hw4/</code> 裡執行（<code>./hw4</code> 找不到，錯誤訊息不含 <code>find library</code>），或指令打錯——我沒辦法從作答看出是哪一個。這段輸出正是這題的<strong>證據</strong>：找 <code>libtemp.so</code> 時括號寫 <code>(RUNPATH from file ./hw4)</code>，找 <code>libround.so</code> 時只剩 <code>search cache</code> 與 <code>(system search path)</code>，<code>hw4</code> 的 <code>RUNPATH</code> 完全沒被拿來用。</li>
+<li><strong>缺的 2：沒有講明規則本身</strong>。你寫「它（<code>libtemp.so</code>）沒有 <code>RUNPATH</code>」，等於默認了規則，但沒說出來：<strong><code>DT_RUNPATH</code> 只用來找「這個檔案自己」的 <code>NEEDED</code>，不會套用到依賴的依賴</strong>（<code>RPATH</code> 才會套用到整棵依賴樹）。題目括號裡「<code>libround.so</code> 也跟 <code>libtemp.so</code> 放在同一個資料夾」的疑問也要回答：<code>ld.so</code> <strong>不會</strong>自動去「某個 <code>.so</code> 所在的資料夾」找它的依賴，除非那個 <code>.so</code> 的 <code>RUNPATH</code> 寫了 <code>$ORIGIN</code>（4-2 (a) 就是這樣修）。</li>
+</ul>
+<details class="answer"><summary>參考答案</summary>
+<p>【筆記<a href="../../c/%E9%9D%9C%E6%85%8B%E8%88%87%E5%8B%95%E6%85%8B%E5%87%BD%E5%BC%8F%E5%BA%AB-ar%E8%88%87.a%E3%80%81-fPIC%E8%88%87.so%E3%80%81%E5%9F%B7%E8%A1%8C%E6%99%82%E6%80%8E%E9%BA%BC%E6%89%BE%E5%88%B0.so.html#%E4%BA%94%E5%9F%B7%E8%A1%8C%E6%99%82%E6%80%8E%E9%BA%BC%E6%89%BE%E5%88%B0-so">第五節</a>〈<a href="../../c/%E9%9D%9C%E6%85%8B%E8%88%87%E5%8B%95%E6%85%8B%E5%87%BD%E5%BC%8F%E5%BA%AB-ar%E8%88%87.a%E3%80%81-fPIC%E8%88%87.so%E3%80%81%E5%9F%B7%E8%A1%8C%E6%99%82%E6%80%8E%E9%BA%BC%E6%89%BE%E5%88%B0.so.html#ldso-%E5%8E%BB%E4%BA%86%E5%93%AA%E4%BA%9B%E5%9C%B0%E6%96%B9%E6%89%BE"><code>ld.so</code> 去了哪些地方找</a>〉的第 3 步、〈<a href="../../c/%E9%9D%9C%E6%85%8B%E8%88%87%E5%8B%95%E6%85%8B%E5%87%BD%E5%BC%8F%E5%BA%AB-ar%E8%88%87.a%E3%80%81-fPIC%E8%88%87.so%E3%80%81%E5%9F%B7%E8%A1%8C%E6%99%82%E6%80%8E%E9%BA%BC%E6%89%BE%E5%88%B0.so.html#rpath-%E5%92%8C-runpath-%E5%B7%AE%E5%9C%A8%E5%93%AA%E8%B7%9F-ld_library_path-%E8%AA%B0%E5%84%AA%E5%85%88"><code>RPATH</code> 和 <code>RUNPATH</code> 差在哪：跟 <code>LD_LIBRARY_PATH</code> 誰優先</a>〉最後一段「<code>RUNPATH</code> 只管直接依賴」】</p>
+<p><strong>核心關鍵</strong>（答到這幾點就算對）：</p>
+<ol>
+<li>失敗：<code>error while loading shared libraries: libround.so: cannot open shared object file</code>；找不到的是 <code>libround.so</code>，不是 <code>libtemp.so</code>。</li>
+<li><code>DT_RUNPATH</code> 只用來找<strong>這個檔案自己的</strong> <code>NEEDED</code>：<code>hw4</code> 的 <code>RUNPATH</code> 只負責 <code>libtemp.so</code>；<code>libround.so</code> 是 <code>libtemp.so</code> 的 <code>NEEDED</code>，要用 <code>libtemp.so</code> 的 <code>RUNPATH</code>，它沒有，所以只查快取與系統資料夾。放在同一個資料夾不會自動被找到。</li>
+<li>證據：<code>LD_DEBUG=libs</code> 找 <code>libtemp.so</code> 的那行標 <code>(RUNPATH from file ./hw4)</code>，找 <code>libround.so</code> 只有 <code>search cache</code> 和 <code>(system search path)</code>。</li>
+</ol>
+<p><strong>詳細說明</strong>：</p>
+<ul>
+<li>
+<p>實測（在你的 <code>hw4/</code> 執行，路徑縮寫成 <code>…/hw4</code>）：</p>
+<pre><code class="language-text">$ LD_DEBUG=libs ./hw4 2&gt;&amp;1 | grep -E &#39;find library|search path&#39;
+find library=libtemp.so [0]; searching
+ search path=…/hw4/lib/glibc-hwcaps/x86-64-v3:…/hw4/lib/glibc-hwcaps/x86-64-v2:…/hw4/lib		(RUNPATH from file ./hw4)
+find library=libc.so.6 [0]; searching
+ search path=…/hw4/lib		(RUNPATH from file ./hw4)
+find library=libround.so [0]; searching
+ search path=/lib/x86_64-linux-gnu/glibc-hwcaps/x86-64-v3:…:/usr/lib		(system search path)
+</code></pre>
+<p><code>libc.so.6</code> 也是 <code>hw4</code> 自己的 <code>NEEDED</code>，所以同樣先試 <code>hw4</code> 的 <code>RUNPATH</code>（<code>…/hw4/lib</code> 裡沒有，再去快取找到）。<code>libround.so</code> 的 <code>find library</code> 是在載入 <code>libtemp.so</code> 之後、處理<strong>它的</strong> <code>NEEDED</code> 時發生的，括號裡完全沒有 <code>RUNPATH</code>。</p>
+</li>
+<li>
+<p>為什麼這樣設計：<code>RUNPATH</code> 是每個檔案替<strong>自己</strong>負責——函式庫作者知道自己的依賴放哪，執行檔作者只管自己直接用的。舊的 <code>RPATH</code> 會往下傳到整棵樹，執行檔的路徑會影響到它根本不知道的間接依賴，所以被新的 <code>RUNPATH</code> 取代（<code>ld</code> 現在預設寫 <code>RUNPATH</code>）。</p>
+</li>
+<li>
+<p>修法就是 4-2 的兩種：讓 <code>libtemp.so</code> 自己帶 <code>RUNPATH</code>，或讓 <code>hw4</code> 改用會往下傳的 <code>RPATH</code>。</p>
+</li>
+</ul>
+</details>
+</details>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="small-project/s1-07-libraries/README.md" data-line="897" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h3 id="4-2-用兩種方法修好各貼上你改的指令readelf--d-相關的列與-hw4-的輸出a-只重做-liblibtempso讓它自己帶-runpath路徑要用-origin-寫想一想-libtempso-的-origin-是哪個資料夾b-不改-libtempso先把它做回原本的樣子改成重新連結-hw4用-rpath兩種方法你會選哪一種為什麼筆記第五節rpath-和-runpath-差在哪">4-2. 用兩種方法修好，各貼上你改的指令、<code>readelf -d</code> 相關的列與 <code>./hw4</code> 的輸出：(a) 只重做 <code>lib/libtemp.so</code>、讓它自己帶 <code>RUNPATH</code>（路徑要用 <code>$ORIGIN</code> 寫，想一想 <code>libtemp.so</code> 的 <code>$ORIGIN</code> 是哪個資料夾）；(b) 不改 <code>libtemp.so</code>（先把它做回原本的樣子），改成重新連結 <code>hw4</code>、用 <code>RPATH</code>。兩種方法你會選哪一種？為什麼？【筆記第五節〈<code>RPATH</code> 和 <code>RUNPATH</code> 差在哪〉】</h3>
-<p><strong>第 1 次（YYYY-MM-DD）</strong></p>
-<details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="small-project/s1-07-libraries/README.md" data-line="851"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<p><strong>第 1 次（2026-10-28）</strong></p>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
+<div class="answer-box locked"><textarea readonly spellcheck="false">我先做(b)
+gcc -Wall hw4_main.c -Llib -ltemp -Wl,-rpath-link,lib -Wl,--disable-new-dtags,-rpath,&#x27;$ORIGIN/lib&#x27; -o hw4 
+./hw4
+c_to_f(37) = 99
+
+再做(a)
+gcc -Wall -shared -fPIC ctof.c ftoc.c -Llib -lround -Wl,-rpath,&#x27;$ORIGIN&#x27; -o lib/libtemp.so
+gcc -Wall hw4_main.c -Llib -ltemp -Wl,-rpath-link,lib -Wl,-rpath,&#x27;$ORIGIN/lib&#x27; -o hw4
+./hw4
+c_to_f(37) = 99
+
+libtemp 的 ORIGIN要用lib, origin是編譯出來的so或執行檔的路徑
+
+我會選擇a
+a.不論是執行檔,還是so都是用runpath, 在so標記runpath解決了剛剛執行時libtemp找不到libround的問題
+b. 用了rpath,但我不清楚爲什麼rpath可以不管so沒有rpath的問題
+
+我選a純粹是覺得libtemp既然有用到libround他理應把round在哪裏的路徑記住
+</textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
+<details class="answer"><summary>批改</summary>
+<p><strong>大致對</strong>。我看了你 <code>hw4/</code> 現在的檔案（(a) 做完的狀態）：<code>lib/libtemp.so</code> 有 <code>RUNPATH [$ORIGIN]</code>、<code>./hw4</code> 印 <code>c_to_f(37) = 99</code>；(b) 我用你的指令在 scratchpad 重做，<code>hw4</code> 是 <code>RPATH [$ORIGIN/lib]</code>，也能跑。兩個方法的指令都對。</p>
+<ul>
+<li><strong>抓到的</strong>：(a) 在 <code>libtemp.so</code> 加 <code>-Wl,-rpath,'$ORIGIN'</code>；(b) 用 <code>--disable-new-dtags</code> 讓 <code>-rpath</code> 寫成舊式 <code>RPATH</code>（這個選項筆記第五節〈方法二〉的 <code>app_rpath</code> 例子和第七節 <code>ld</code> 表有）；選 (a)，理由「<code>libtemp.so</code> 用到 <code>libround.so</code>，理應自己記住它在哪」就是重點——每個檔案替自己的依賴負責。</li>
+<li><strong>缺的：(b) 為什麼能修好</strong>。你寫「不清楚為什麼 <code>RPATH</code> 可以不管 <code>.so</code> 沒有 <code>RPATH</code>」——這是本題要考的差別，筆記教過：<code>DT_RUNPATH</code> <strong>只用來找這個檔案自己的 <code>NEEDED</code></strong>，<code>DT_RPATH</code> 則<strong>套用到整棵依賴樹</strong>（第五節〈<code>ld.so</code> 去了哪些地方找〉第 3 步）。所以 <code>hw4</code> 的 <code>RPATH</code> 在載入 <code>libtemp.so</code> 之後、找<strong>它的</strong> <code>NEEDED</code> <code>libround.so</code> 時也會被拿來用。<code>LD_DEBUG</code> 看得到：找 <code>libround.so</code> 那一行標的是 <code>(RPATH from file ./hw4)</code>，跟 4-1 的 <code>(system search path)</code> 對照。</li>
+<li><strong>缺的：沒貼 <code>readelf -d</code></strong>。題目要兩種方法各貼 <code>readelf -d</code> 相關的列，這是證明「真的寫進去了、寫的是 <code>RUNPATH</code> 還是 <code>RPATH</code>」的證據（下面詳細說明有我重做的輸出）。</li>
+<li>小修（不扣分）：「<code>$ORIGIN</code> 是編譯出來的 <code>.so</code> 或執行檔的路徑」——是<strong>執行時</strong>那個檔案<strong>所在的資料夾</strong>，不是編譯時的位置；<code>$ORIGIN</code> 原封不動寫進檔案（<code>readelf</code> 印出來就是字面上的 <code>$ORIGIN</code>），<code>ld.so</code> 載入時才換掉。<code>libtemp.so</code> 在 <code>hw4/lib/</code>，所以它的 <code>$ORIGIN</code> 就是 <code>lib/</code>，寫 <code>'$ORIGIN'</code> 就夠，你的指令是對的；「要用 lib」那句意思對但說得含糊。</li>
+</ul>
+<details class="answer"><summary>參考答案</summary>
+<p>【筆記第五節〈<a href="../../c/%E9%9D%9C%E6%85%8B%E8%88%87%E5%8B%95%E6%85%8B%E5%87%BD%E5%BC%8F%E5%BA%AB-ar%E8%88%87.a%E3%80%81-fPIC%E8%88%87.so%E3%80%81%E5%9F%B7%E8%A1%8C%E6%99%82%E6%80%8E%E9%BA%BC%E6%89%BE%E5%88%B0.so.html#rpath-%E5%92%8C-runpath-%E5%B7%AE%E5%9C%A8%E5%93%AA%E8%B7%9F-ld_library_path-%E8%AA%B0%E5%84%AA%E5%85%88"><code>RPATH</code> 和 <code>RUNPATH</code> 差在哪：跟 <code>LD_LIBRARY_PATH</code> 誰優先</a>〉、〈<a href="../../c/%E9%9D%9C%E6%85%8B%E8%88%87%E5%8B%95%E6%85%8B%E5%87%BD%E5%BC%8F%E5%BA%AB-ar%E8%88%87.a%E3%80%81-fPIC%E8%88%87.so%E3%80%81%E5%9F%B7%E8%A1%8C%E6%99%82%E6%80%8E%E9%BA%BC%E6%89%BE%E5%88%B0.so.html#ldso-%E5%8E%BB%E4%BA%86%E5%93%AA%E4%BA%9B%E5%9C%B0%E6%96%B9%E6%89%BE"><code>ld.so</code> 去了哪些地方找</a>〉第 1、3 步】</p>
+<p><strong>核心關鍵</strong>（答到這幾點就算對）：</p>
+<ol>
+<li>(a)：重做 <code>libtemp.so</code> 時加 <code>-Wl,-rpath,'$ORIGIN'</code>；<code>$ORIGIN</code> 是 <code>libtemp.so</code> 執行時所在的資料夾（<code>hw4/lib/</code>），<code>readelf -d lib/libtemp.so</code> 多一列 <code>RUNPATH [$ORIGIN]</code>，<code>./hw4</code> 成功。</li>
+<li>(b)：重新連結 <code>hw4</code> 時加 <code>-Wl,--disable-new-dtags,-rpath,'$ORIGIN/lib'</code>，<code>readelf -d hw4</code> 是 <code>RPATH [$ORIGIN/lib]</code>；能修好是因為 <strong><code>RPATH</code> 會套用到整棵依賴樹</strong>（<code>RUNPATH</code> 只管自己的 <code>NEEDED</code>），找 <code>libround.so</code> 時也用得到。</li>
+<li>選 (a)：函式庫自己記住自己的依賴，誰用這個 <code>.so</code> 都不必知道它的間接依賴；<code>RPATH</code> 已不建議使用（而且優先於 <code>LD_LIBRARY_PATH</code>，臨時換函式庫測試時蓋不過它）。</li>
+</ol>
+<p><strong>詳細說明</strong>：</p>
+<ul>
+<li>
+<p>(b) 重做（scratchpad，用原本沒有 <code>RUNPATH</code> 的 <code>libtemp.so</code>）：</p>
+<pre><code class="language-text">$ gcc -Wall hw4_main.c -Llib -ltemp -Wl,-rpath-link,lib -Wl,--disable-new-dtags,-rpath,&#39;$ORIGIN/lib&#39; -o hw4
+$ ./hw4
+c_to_f(37) = 99
+$ readelf -d hw4 | grep -E &#39;NEEDED|RPATH|RUNPATH&#39;
+ 0x0000000000000001 (NEEDED)             Shared library: [libtemp.so]
+ 0x0000000000000001 (NEEDED)             Shared library: [libc.so.6]
+ 0x000000000000000f (RPATH)              Library rpath: [$ORIGIN/lib]
+$ readelf -d lib/libtemp.so | grep -E &#39;NEEDED|RPATH|RUNPATH&#39;
+ 0x0000000000000001 (NEEDED)             Shared library: [libround.so]
+$ LD_DEBUG=libs ./hw4 2&gt;&amp;1 | grep -A1 &#39;find library=libround&#39;
+find library=libround.so [0]; searching
+ search path=…/lib		(RPATH from file ./hw4)
+</code></pre>
+<p>型別編號也不同：<code>RPATH</code> 是 <code>0xf</code>（<code>DT_RPATH</code>），<code>RUNPATH</code> 是 <code>0x1d</code>（<code>DT_RUNPATH</code>）。</p>
+</li>
+<li>
+<p>(a) 你 <code>hw4/</code> 現在的狀態：</p>
+<pre><code class="language-text">$ readelf -d lib/libtemp.so | grep -E &#39;NEEDED|RUNPATH|RPATH&#39;
+ 0x0000000000000001 (NEEDED)             Shared library: [libround.so]
+ 0x000000000000001d (RUNPATH)            Library runpath: [$ORIGIN]
+$ readelf -d hw4 | grep -E &#39;NEEDED|RUNPATH|RPATH&#39;
+ 0x0000000000000001 (NEEDED)             Shared library: [libtemp.so]
+ 0x0000000000000001 (NEEDED)             Shared library: [libc.so.6]
+ 0x000000000000001d (RUNPATH)            Library runpath: [$ORIGIN/lib]
+</code></pre>
+</li>
+<li>
+<p><code>RPATH</code> 的另一個缺點，(b) 實測：設 <code>LD_LIBRARY_PATH=elsewhere</code>，<code>LD_DEBUG</code> 顯示找 <code>libtemp.so</code> 時<strong>第一個</strong>查的還是 <code>(RPATH from file ./hw4)</code>——<code>RPATH</code> 排在 <code>LD_LIBRARY_PATH</code> 前面（第五節的搜尋順序第 1 步），使用者想臨時換一版函式庫測試也蓋不過它；<code>RUNPATH</code> 排在 <code>LD_LIBRARY_PATH</code> 後面，就沒這個問題。</p>
+</li>
+</ul>
+</details>
+</details>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="small-project/s1-07-libraries/README.md" data-line="967" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h3 id="4-3-先猜再實驗把連結-hw4-的指令拿掉--wl-rpath-linklib重新連結貼上輸出hw4_mainc-根本沒呼叫-temp_round為什麼-ld-在連結時就要去找-libroundso-rpath-link-跟--rpath-差在哪-rpath-link-的作用見筆記第七節ld的表ld-為什麼要在連結時檢查是新觀念先猜">4-3. 先猜再實驗：把連結 <code>hw4</code> 的指令拿掉 <code>-Wl,-rpath-link,lib</code>，重新連結，貼上輸出。<code>hw4_main.c</code> 根本沒呼叫 <code>temp_round</code>，為什麼 <code>ld</code> 在<strong>連結時</strong>就要去找 <code>libround.so</code>？<code>-rpath-link</code> 跟 <code>-rpath</code> 差在哪？【<code>-rpath-link</code> 的作用見筆記<a href="../../c/%E9%9D%9C%E6%85%8B%E8%88%87%E5%8B%95%E6%85%8B%E5%87%BD%E5%BC%8F%E5%BA%AB-ar%E8%88%87.a%E3%80%81-fPIC%E8%88%87.so%E3%80%81%E5%9F%B7%E8%A1%8C%E6%99%82%E6%80%8E%E9%BA%BC%E6%89%BE%E5%88%B0.so.html#%E4%B8%83%E6%9C%AC%E8%AA%B2%E7%94%A8%E5%88%B0%E7%9A%84%E5%B7%A5%E5%85%B7%E9%81%B8%E9%A0%85%E8%88%87%E5%AE%8C%E6%95%B4%E6%B8%85%E5%96%AE%E5%9C%A8%E5%93%AA">第七節</a>〈<code>ld</code>〉的表；<code>ld</code> 為什麼要在連結時檢查是新觀念，先猜】</h3>
-<p><strong>第 1 次（YYYY-MM-DD）</strong></p>
-<details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="small-project/s1-07-libraries/README.md" data-line="857"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<p><strong>第 1 次（2026-10-28）</strong></p>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
+<div class="answer-box locked"><textarea readonly spellcheck="false"> 應該跟沒有幫libtemp.so做runpath的情況一樣,找不到libround.so
+gcc -Wall -shared ctof.c ftoc.c -Llib -lround -o ./lib/libtemp.so 
+gcc -Wall hw4_main.c -Llib -ltemp -Wl,-rpath,&#x27;$ORIGIN/lib&#x27; -o hw4 
+/usr/bin/ld: warning: libround.so, needed by lib/libtemp.so, not found (try using -rpath or -rpath-link)
+/usr/bin/ld: lib/libtemp.so: undefined reference to `temp_round&#x27;
+collect2: error: ld returned 1 exit status
+似乎變成了在連接的時候就出錯了,而不是執行時發現找不到libround.so
+
+我猜ld不是幫hw4_main.c找,而是幫libtemp.so找,感覺ld在連結的時候不會只連結hw4_main.c與libtemp.so,而是也會去看libtemp.so的依賴libround.so
+所以這個rpath-link應該就是告訴ld libround.so的資料夾位置
+rpath 是執行檔的依賴位置
+</textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
+<details class="answer"><summary>批改</summary>
+<p><strong>大致對</strong>。我照你的兩行指令重做，輸出跟你貼的一模一樣（<code>warning: libround.so, needed by lib/libtemp.so, not found</code> ＋ <code>lib/libtemp.so: undefined reference to 'temp_round'</code>）。預測「跟沒有 <code>RUNPATH</code> 一樣找不到」方向對，而且你注意到這次是<strong>連結時</strong>就出錯，不是執行時。</p>
+<ul>
+<li><strong>「為什麼連結時要找」（新觀念，先猜，不計對錯）</strong>：你猜「<code>ld</code> 不是幫 <code>hw4_main.c</code> 找，而是幫 <code>libtemp.so</code> 找，也會去看 <code>libtemp.so</code> 的依賴」——方向完全對。補教：做執行檔時 <code>ld</code> 預設要確認每個 <code>.so</code> <strong>自己缺的符號</strong>都有人提供（<code>--no-allow-shlib-undefined</code>）；<code>libtemp.so</code> 有 <code>U temp_round</code>，所以 <code>ld</code> 要把它的 <code>NEEDED</code> <code>libround.so</code> 找來看。第二行錯誤的開頭是 <code>lib/libtemp.so:</code>，就是在說「<code>libtemp.so</code> 缺的」。現在不查，這個洞要到執行時才爆。另外 <code>-Llib</code> 明明寫了也沒用：<strong><code>ld</code> 找間接依賴時不看 <code>-L</code></strong>。這段補教連同實驗寫進了筆記第九節第 13 章〈<a href="../../c/%E9%9D%9C%E6%85%8B%E8%88%87%E5%8B%95%E6%85%8B%E5%87%BD%E5%BC%8F%E5%BA%AB-ar%E8%88%87.a%E3%80%81-fPIC%E8%88%87.so%E3%80%81%E5%9F%B7%E8%A1%8C%E6%99%82%E6%80%8E%E9%BA%BC%E6%89%BE%E5%88%B0.so.html#13-%E9%80%A3%E7%B5%90%E6%99%82-ld-%E7%82%BA%E4%BB%80%E9%BA%BC%E8%A6%81%E6%89%BE%E4%BE%9D%E8%B3%B4%E7%9A%84%E4%BE%9D%E8%B3%B4-rpath-link-%E8%88%87--rpath%E4%BD%9C%E6%A5%AD-4-3">連結時 <code>ld</code> 為什麼要找「依賴的依賴」：<code>-rpath-link</code> 與 <code>-rpath</code>（作業 4-3）</a>〉。</li>
+<li><strong><code>-rpath-link</code> 跟 <code>-rpath</code> 的差別（第七節 <code>ld</code> 表教過）缺一半</strong>：你寫「<code>-rpath-link</code> 告訴 <code>ld</code> <code>libround.so</code> 在哪」對；「<code>-rpath</code> 是執行檔的依賴位置」太含糊，沒講出差別的核心——<strong><code>-rpath-link</code> 只在連結時給 <code>ld</code> 用、不寫進輸出檔；<code>-rpath</code> 寫進輸出檔（<code>RUNPATH</code>／<code>RPATH</code>），給執行時的 <code>ld.so</code> 用</strong>。實測只加 <code>-rpath-link</code> 的執行檔，<code>readelf -d</code> 看不到任何路徑，執行時連 <code>libtemp.so</code> 都找不到。</li>
+</ul>
+<details class="answer"><summary>參考答案</summary>
+<p>【<code>-rpath-link</code>：筆記<a href="../../c/%E9%9D%9C%E6%85%8B%E8%88%87%E5%8B%95%E6%85%8B%E5%87%BD%E5%BC%8F%E5%BA%AB-ar%E8%88%87.a%E3%80%81-fPIC%E8%88%87.so%E3%80%81%E5%9F%B7%E8%A1%8C%E6%99%82%E6%80%8E%E9%BA%BC%E6%89%BE%E5%88%B0.so.html#%E4%B8%83%E6%9C%AC%E8%AA%B2%E7%94%A8%E5%88%B0%E7%9A%84%E5%B7%A5%E5%85%B7%E9%81%B8%E9%A0%85%E8%88%87%E5%AE%8C%E6%95%B4%E6%B8%85%E5%96%AE%E5%9C%A8%E5%93%AA">第七節</a>〈<a href="../../c/%E9%9D%9C%E6%85%8B%E8%88%87%E5%8B%95%E6%85%8B%E5%87%BD%E5%BC%8F%E5%BA%AB-ar%E8%88%87.a%E3%80%81-fPIC%E8%88%87.so%E3%80%81%E5%9F%B7%E8%A1%8C%E6%99%82%E6%80%8E%E9%BA%BC%E6%89%BE%E5%88%B0.so.html#ld%E6%9C%AC%E8%AA%B2%E9%80%8F%E9%81%8E--wl-%E7%94%A8%E5%88%B0%E7%9A%84%E9%81%B8%E9%A0%85"><code>ld</code>：本課透過 <code>-Wl,</code> 用到的選項</a>〉的表；為什麼連結時要找（補教）：第九節第 13 章〈<a href="../../c/%E9%9D%9C%E6%85%8B%E8%88%87%E5%8B%95%E6%85%8B%E5%87%BD%E5%BC%8F%E5%BA%AB-ar%E8%88%87.a%E3%80%81-fPIC%E8%88%87.so%E3%80%81%E5%9F%B7%E8%A1%8C%E6%99%82%E6%80%8E%E9%BA%BC%E6%89%BE%E5%88%B0.so.html#13-%E9%80%A3%E7%B5%90%E6%99%82-ld-%E7%82%BA%E4%BB%80%E9%BA%BC%E8%A6%81%E6%89%BE%E4%BE%9D%E8%B3%B4%E7%9A%84%E4%BE%9D%E8%B3%B4-rpath-link-%E8%88%87--rpath%E4%BD%9C%E6%A5%AD-4-3">連結時 <code>ld</code> 為什麼要找「依賴的依賴」</a>〉】</p>
+<p><strong>核心關鍵</strong>（答到這幾點就算對）：</p>
+<ol>
+<li>拿掉後<strong>連結時</strong>就失敗：<code>warning: libround.so, needed by lib/libtemp.so, not found</code> 和 <code>lib/libtemp.so: undefined reference to 'temp_round'</code>。</li>
+<li>（新觀念，先猜）<code>ld</code> 做執行檔時要確認每個 <code>.so</code> 自己未定義的符號都找得到（<code>libtemp.so</code> 的 <code>U temp_round</code>），所以要找 <code>libtemp.so</code> 的 <code>NEEDED</code> <code>libround.so</code>；找間接依賴時不看 <code>-L</code>。</li>
+<li><code>-rpath-link</code>：只給連結時的 <code>ld</code> 找間接依賴，<strong>不寫進輸出檔</strong>；<code>-rpath</code>：<strong>寫進輸出檔</strong>成為 <code>RUNPATH</code>／<code>RPATH</code>，給執行時的 <code>ld.so</code> 用。</li>
+</ol>
+<p><strong>詳細說明</strong>：</p>
+<ul>
+<li>
+<p>實測（筆記第 13 章，<code>examples/rpathlink/</code>）：</p>
+<pre><code class="language-text">$ gcc -Wall main.c -Llib -ltemp -Wl,-rpath-link,lib -o app &amp;&amp; echo 連結成功
+連結成功
+$ readelf -d app | grep -E &#39;NEEDED|RUNPATH|RPATH&#39;
+ 0x0000000000000001 (NEEDED)             Shared library: [libtemp.so]
+ 0x0000000000000001 (NEEDED)             Shared library: [libc.so.6]
+$ ./app
+./app: error while loading shared libraries: libtemp.so: cannot open shared object file: No such file or directory
+</code></pre>
+</li>
+<li>
+<p><code>-rpath</code> 在連結時也會被 <code>ld</code> 拿來找間接依賴（<code>man ld</code> 的搜尋順序第 2 步）：<code>-Wl,-rpath,lib</code> 不加 <code>-rpath-link</code> 也連結成功。但第 4 題用的 <code>-rpath,'$ORIGIN/lib'</code> 在連結時沒被用上（本機實測，原因沒查證），所以才要另外寫 <code>-rpath-link</code>。</p>
+</li>
+<li>
+<p>用 4-2 (a) 的修法（<code>libtemp.so</code> 自己帶 <code>RUNPATH [$ORIGIN]</code>）時，<code>ld</code> 會看那個 <code>.so</code> 自己的 <code>RUNPATH</code>（搜尋順序第 6 步），連結時也不必再加 <code>-rpath-link</code>——實測連結成功、執行也成功。</p>
+</li>
+</ul>
+</details>
+</details>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="small-project/s1-07-libraries/README.md" data-line="1011" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <hr />
 <h2 id="5-函式庫更新靜態-vs-動態以及-soname">5. 函式庫更新：靜態 vs 動態，以及 SONAME</h2>
@@ -1074,9 +1287,44 @@ gcc<span class="w"> </span>-Wall<span class="w"> </span>hw5_main.c<span class="w
 gcc<span class="w"> </span>-Wall<span class="w"> </span>hw5_main.c<span class="w"> </span>-L.<span class="w"> </span>-ltemp<span class="w"> </span>-Wl,-rpath,<span class="s1">&#39;$ORIGIN&#39;</span><span class="w"> </span>-o<span class="w"> </span>hw5_dyn
 </code></pre>
 <h3 id="5-1-執行兩支程式貼上輸出100f-正確是-378c四捨五入應該是-38貼上-ls--l-libtempreadelf--d-hw5_dyn--grep--e-neededrunpathld-照--ltemp-打開的是-libtempsoneeded-卻寫-libtempso1為什麼筆記第六節soname">5-1. 執行兩支程式，貼上輸出（100°F 正確是 37.8°C，四捨五入應該是 38）。貼上 <code>ls -l libtemp*</code>、<code>readelf -d hw5_dyn | grep -E 'NEEDED|RUNPATH'</code>。<code>ld</code> 照 <code>-ltemp</code> 打開的是 <code>libtemp.so</code>，<code>NEEDED</code> 卻寫 <code>libtemp.so.1</code>，為什麼？【筆記<a href="../../c/%E9%9D%9C%E6%85%8B%E8%88%87%E5%8B%95%E6%85%8B%E5%87%BD%E5%BC%8F%E5%BA%AB-ar%E8%88%87.a%E3%80%81-fPIC%E8%88%87.so%E3%80%81%E5%9F%B7%E8%A1%8C%E6%99%82%E6%80%8E%E9%BA%BC%E6%89%BE%E5%88%B0.so.html#%E5%85%AD%E6%8F%9B%E6%8E%89-so-%E4%B8%8D%E7%94%A8%E9%87%8D%E6%96%B0%E9%80%A3%E7%B5%90%E4%BB%A5%E5%8F%8A-soname">第六節</a>〈SONAME〉】</h3>
-<p><strong>第 1 次（YYYY-MM-DD）</strong></p>
-<details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="small-project/s1-07-libraries/README.md" data-line="903"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<p><strong>第 1 次（2026-10-28）</strong></p>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
+<div class="answer-box locked"><textarea readonly spellcheck="false">./hw5_static
+f_to_c(100) = 37
+
+./hw5_dyn
+f_to_c(100) = 37
+
+-rw-rw-r-- 1 set set  4330 Oct 28 17:17 libtemp.a
+lrwxrwxrwx 1 set set    12 Oct 28 17:18 libtemp.so -&gt; libtemp.so.1
+lrwxrwxrwx 1 set set    16 Oct 28 17:18 libtemp.so.1 -&gt; libtemp.so.1.0.0
+-rwxrwxr-x 1 set set 15392 Oct 28 17:17 libtemp.so.1.0.0
+
+0x0000000000000001 (NEEDED)             Shared library: [libtemp.so.1]
+ 0x0000000000000001 (NEEDED)             Shared library: [libc.so.6]
+ 0x000000000000001d (RUNPATH)            Library runpath: [$ORIGIN]
+
+因爲solname是libtemp.so.1
+</textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
+<details class="answer"><summary>批改</summary>
+<p><strong>對</strong>。我在你的 <code>hw5/</code> 看過：兩個輸出、<code>ls -l</code> 的三個名字、<code>NEEDED [libtemp.so.1]</code> 都對。</p>
+<ul>
+<li>抓到：<code>NEEDED</code> 寫 <code>libtemp.so.1</code> 是因為那個 <code>.so</code> 的 SONAME 是 <code>libtemp.so.1</code>。</li>
+<li>小修（不扣分）：把因果講完整會更好——SONAME 是做 <code>.so</code> 時用 <code>-Wl,-soname,libtemp.so.1</code> <strong>寫進 <code>.so</code> 檔案裡</strong>的（<code>readelf -d libtemp.so.1.0.0 | grep SONAME</code> 看得到）；<code>ld</code> 照 <code>-ltemp</code> 打開 <code>libtemp.so</code>、一路跟著符號連結讀到 <code>libtemp.so.1.0.0</code>，寫進 <code>NEEDED</code> 的是<strong>檔案裡的 SONAME</strong>，不是它打開的檔名。所以執行時只需要 <code>libtemp.so.1</code> 這個名字，<code>libtemp.so</code> 只在連結時用（5-2 換成 <code>1.0.1</code> 不用重新連結，靠的就是這一點）。另外是 SONAME，不是 solname。</li>
+</ul>
+<details class="answer"><summary>參考答案</summary>
+<p>【筆記第六節〈<a href="../../c/%E9%9D%9C%E6%85%8B%E8%88%87%E5%8B%95%E6%85%8B%E5%87%BD%E5%BC%8F%E5%BA%AB-ar%E8%88%87.a%E3%80%81-fPIC%E8%88%87.so%E3%80%81%E5%9F%B7%E8%A1%8C%E6%99%82%E6%80%8E%E9%BA%BC%E6%89%BE%E5%88%B0.so.html#sonameneeded-%E8%A8%98%E7%9A%84%E6%98%AF%E5%93%AA%E5%80%8B%E5%90%8D%E5%AD%97">SONAME：<code>NEEDED</code> 記的是哪個名字</a>〉】</p>
+<p><strong>核心關鍵</strong>（答到這幾點就算對）：</p>
+<ol>
+<li>兩支都印 <code>f_to_c(100) = 37</code>（<code>round.c</code> 故意無條件捨去）。</li>
+<li><code>ld</code> 照 <code>-ltemp</code> 打開的是連結名稱 <code>libtemp.so</code>（→ <code>libtemp.so.1</code> → <code>libtemp.so.1.0.0</code>），但寫進 <code>NEEDED</code> 的是那個檔案裡記的 <strong>SONAME</strong> <code>libtemp.so.1</code>（<code>-Wl,-soname</code> 寫進去的），不是打開的檔名。</li>
+</ol>
+<p><strong>詳細說明</strong>：三個名字各有用途——<code>libtemp.so.1.0.0</code> 是真實檔案；<code>libtemp.so.1</code> 是 SONAME，執行時 <code>ld.so</code> 找它；<code>libtemp.so</code> 是連結名稱，只給 <code>-ltemp</code> 用。沒有 SONAME 的 <code>.so</code>（例如第四節的 <code>libcalc.so</code>），<code>ld</code> 才退而把檔名寫進 <code>NEEDED</code>。</p>
+</details>
+</details>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="small-project/s1-07-libraries/README.md" data-line="1085" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h3 id="5-2-先預測把-roundc-改成正確的四捨五入return-x10--5--10然後只更新函式庫不重新連結兩支程式">5-2. 先預測：把 <code>round.c</code> 改成正確的四捨五入（<code>return (x10 + 5) / 10;</code>），然後<strong>只更新函式庫、不重新連結兩支程式</strong>：</h3>
 <pre><code class="language-sh">gcc<span class="w"> </span>-Wall<span class="w"> </span>-fPIC<span class="w"> </span>-c<span class="w"> </span>round.c
@@ -1085,9 +1333,74 @@ gcc<span class="w"> </span>-shared<span class="w"> </span>-Wl,-soname,libtemp.so
 ln<span class="w"> </span>-sf<span class="w"> </span>libtemp.so.1.0.1<span class="w"> </span>libtemp.so.1
 </code></pre>
 <p><code>./hw5_static</code>、<code>./hw5_dyn</code> 各會印出多少？寫下預測後執行，貼上輸出。為什麼兩支結果不同？<code>hw5_static</code> 要怎樣才能拿到修正？<code>ar rcs libtemp.a round.o</code> 之後 <code>ar t libtemp.a</code> 有幾個成員，為什麼？【筆記第六節〈換掉 <code>.so</code>：程式不用重新連結〉、第二節的 <code>ar</code> 文法（<code>r</code>）】</p>
-<p><strong>第 1 次（YYYY-MM-DD）</strong></p>
-<details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="small-project/s1-07-libraries/README.md" data-line="918"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<p><strong>第 1 次（2026-10-28）</strong></p>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
+<div class="answer-box locked"><textarea readonly spellcheck="false">預測 .a 會是37, .so是38
+
+./hw5_static
+f_to_c(100) = 37
+
+./hw5_dyn
+f_to_c(100) = 38
+
+hw5_static需要重編, 否則就一直是舊的
+
+3個成員,本來就只有ctof, ftoc round
+</textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
+<details class="answer"><summary>批改</summary>
+<p><strong>不完整</strong>。我在你的 <code>hw5/</code> 執行，<code>hw5_static</code> 37、<code>hw5_dyn</code> 38，跟你貼的一樣；預測兩個都對。</p>
+<ul>
+<li><strong>抓到的</strong>：輸出與預測；<code>hw5_static</code> 要重新產生才拿得到修正；<code>ar t</code> 有 3 個成員。</li>
+<li><strong>缺的 1：「為什麼兩支結果不同」沒回答</strong>。要講出機制：<code>hw5_static</code> 連結時 <code>ld</code> 把 <code>libtemp.a</code> 裡的 <code>round.o</code> 等成員<strong>複製進執行檔</strong>，之後 <code>libtemp.a</code> 怎麼改都跟它無關；<code>hw5_dyn</code> 的執行檔裡<strong>沒有</strong> <code>temp_round</code> 的程式碼，只記了 <code>NEEDED libtemp.so.1</code>，每次執行時 <code>ld.so</code> 去載入 <code>libtemp.so.1</code>——它現在指向 <code>libtemp.so.1.0.1</code>，所以拿到新版。新版的 SONAME 還是 <code>libtemp.so.1</code>，<code>NEEDED</code> 對得上，所以不用重新連結。</li>
+<li><strong>缺的 2：<code>ar t</code> 為什麼是 3 個</strong>。「本來就只有 ctof、ftoc、round」沒解釋「再放一次 <code>round.o</code> 為什麼沒變成 4 個」：<code>ar</code> 的 <strong><code>r</code>（replace）遇到同名成員就取代</strong>，不是加一份（第二節 <code>ar rcs</code> 的文法逐字母說明）。</li>
+<li>小修（不扣分）：<code>hw5_static</code> 是要「<strong>重新連結</strong>」（再跑一次 <code>gcc -Wall hw5_main.c -L. -l:libtemp.a -o hw5_static</code>），不必重新編譯 <code>hw5_main.c</code>；它的機器碼沒變，變的是要被複製進來的 <code>round.o</code>。</li>
+</ul>
+<details class="answer"><summary>參考答案</summary>
+<p>【筆記第六節〈<a href="../../c/%E9%9D%9C%E6%85%8B%E8%88%87%E5%8B%95%E6%85%8B%E5%87%BD%E5%BC%8F%E5%BA%AB-ar%E8%88%87.a%E3%80%81-fPIC%E8%88%87.so%E3%80%81%E5%9F%B7%E8%A1%8C%E6%99%82%E6%80%8E%E9%BA%BC%E6%89%BE%E5%88%B0.so.html#%E6%8F%9B%E6%8E%89-so%E7%A8%8B%E5%BC%8F%E4%B8%8D%E7%94%A8%E9%87%8D%E6%96%B0%E9%80%A3%E7%B5%90">換掉 <code>.so</code>：程式不用重新連結</a>〉；<code>ar</code> 的 <code>r</code>：第二節〈<a href="../../c/%E9%9D%9C%E6%85%8B%E8%88%87%E5%8B%95%E6%85%8B%E5%87%BD%E5%BC%8F%E5%BA%AB-ar%E8%88%87.a%E3%80%81-fPIC%E8%88%87.so%E3%80%81%E5%9F%B7%E8%A1%8C%E6%99%82%E6%80%8E%E9%BA%BC%E6%89%BE%E5%88%B0.so.html#%E5%AF%A6%E9%A9%97%E5%81%9A%E5%87%BA-libcalca">實驗：做出 <code>libcalc.a</code></a>〉的 <code>ar rcs</code> 文法說明、第七節〈<a href="../../c/%E9%9D%9C%E6%85%8B%E8%88%87%E5%8B%95%E6%85%8B%E5%87%BD%E5%BC%8F%E5%BA%AB-ar%E8%88%87.a%E3%80%81-fPIC%E8%88%87.so%E3%80%81%E5%9F%B7%E8%A1%8C%E6%99%82%E6%80%8E%E9%BA%BC%E6%89%BE%E5%88%B0.so.html#ar%E5%85%A8%E9%83%A8%E9%81%B8%E9%A0%85ar---help-%E5%AF%A6%E6%B8%ACgnu-ar-242"><code>ar</code>：全部選項</a>〉】</p>
+<p><strong>核心關鍵</strong>（答到這幾點就算對）：</p>
+<ol>
+<li><code>hw5_static</code> 還是 37、<code>hw5_dyn</code> 變成 38。</li>
+<li>靜態：連結時 <code>round.o</code> 的程式碼已被<strong>複製進</strong>執行檔，換掉 <code>libtemp.a</code> 影響不到它；動態：執行檔裡沒有那段程式碼，每次執行由 <code>ld.so</code> 載入 <code>libtemp.so.1</code>，它現在指向 <code>1.0.1</code>（SONAME 沒變，所以不用重新連結）。</li>
+<li><code>hw5_static</code> 要用新的 <code>libtemp.a</code> <strong>重新連結</strong>才拿得到修正。</li>
+<li><code>ar t</code> 還是 3 個：<code>r</code> 遇到同名成員 <code>round.o</code> 就<strong>取代</strong>，不會多加一份。</li>
+</ol>
+<p><strong>詳細說明</strong>：</p>
+<ul>
+<li>
+<p>實測（scratchpad 重做，先用舊的 <code>round.c</code>）：</p>
+<pre><code class="language-text">$ ar tv libtemp.a                 # 舊版
+rw-r--r-- 0/0   1384 Jan  1 08:00 1970 ctof.o
+rw-r--r-- 0/0   1400 Jan  1 08:00 1970 ftoc.o
+rw-r--r-- 0/0   1256 Jan  1 08:00 1970 round.o
+$ gcc -Wall -fPIC -c round.c; ar rcs libtemp.a round.o     # 改成四捨五入後
+$ ar tv libtemp.a
+rw-r--r-- 0/0   1384 Jan  1 08:00 1970 ctof.o
+rw-r--r-- 0/0   1400 Jan  1 08:00 1970 ftoc.o
+rw-r--r-- 0/0   1264 Jan  1 08:00 1970 round.o          ← 同一個位置，大小 1256 → 1264，被取代了
+$ cp libtemp.a dup.a; ar q dup.a round.o; ar t dup.a     # 對照：q（quick append）不檢查同名，直接加在最後
+ctof.o
+ftoc.o
+round.o
+round.o
+$ ./hw5_static                   # 沒重新連結
+f_to_c(100) = 37
+$ gcc -Wall hw5_main.c -L. -l:libtemp.a -o hw5_static &amp;&amp; ./hw5_static
+f_to_c(100) = 38
+</code></pre>
+<p>（<code>ar tv</code> 的時間都是 1970，是 Ubuntu 的 <code>ar</code> 預設 <code>D</code>（deterministic，決定性）模式，把時間、擁有者都寫成 0，讓同樣的輸入做出一模一樣的 <code>.a</code>。）</p>
+</li>
+<li>
+<p><code>nm hw5_static | grep temp_round</code> 看得到 <code>T temp_round</code>：函式本身就在執行檔的 <code>.text</code> 裡；<code>nm -D hw5_dyn</code> 只會看到 <code>U f_to_c</code>，程式碼在 <code>.so</code> 裡。</p>
+</li>
+<li>
+<p>這就是第六節說的「最大的好處，也是代價」：動態的修正一換就全部生效，但不相容的改變也會一起生效——5-3 的 SONAME 換號就是為了處理後者。</p>
+</li>
+</ul>
+</details>
+</details>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="small-project/s1-07-libraries/README.md" data-line="1153" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h3 id="5-3-先預測下一版把-f_to_c-改成回傳十分之一度不相容的改變新增-ftoc2c做成-soname-是-libtempso2-的新版並把連結名稱指到新版">5-3. 先預測：下一版把 <code>f_to_c</code> 改成回傳「十分之一度」（不相容的改變），新增 <code>ftoc2.c</code>，做成 SONAME 是 <code>libtemp.so.2</code> 的新版，並把連結名稱指到新版：</h3>
 <pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;temp.h&quot;</span>
@@ -1104,9 +1417,74 @@ ln<span class="w"> </span>-sf<span class="w"> </span>libtemp.so.2<span class="w"
 gcc<span class="w"> </span>-Wall<span class="w"> </span>hw5_main.c<span class="w"> </span>-L.<span class="w"> </span>-ltemp<span class="w"> </span>-Wl,-rpath,<span class="s1">&#39;$ORIGIN&#39;</span><span class="w"> </span>-o<span class="w"> </span>hw5_dyn2
 </code></pre>
 <p><strong>不重新連結</strong>舊的 <code>hw5_dyn</code>，<code>./hw5_dyn</code> 和 <code>./hw5_dyn2</code> 各印出多少？寫下預測後執行，貼上輸出、<code>ls -l libtemp*</code> 與兩支程式的 <code>readelf -d … | grep NEEDED</code>。為什麼兩個版本可以同時存在、舊程式沒有被新版弄壞？如果 5-3 偷懶、新版沿用 SONAME <code>libtemp.so.1</code> 並把 <code>libtemp.so.1</code> 指過去，<code>hw5_dyn</code> 會印出什麼？（這一問只要推理，不用做。）【筆記第六節〈SONAME〉最後一段】</p>
-<p><strong>第 1 次（YYYY-MM-DD）</strong></p>
-<details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="small-project/s1-07-libraries/README.md" data-line="943"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<p><strong>第 1 次（2026-10-28）</strong></p>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
+<div class="answer-box locked"><textarea readonly spellcheck="false">預測 38, 377
+./hw5_dyn
+f_to_c(100) = 38
+
+./hw5_dyn2
+f_to_c(100) = 377
+
+-rw-rw-r-- 1 set set  4338 Oct 28 22:48 libtemp.a
+lrwxrwxrwx 1 set set    12 Oct 28 23:13 libtemp.so -&gt; libtemp.so.2
+lrwxrwxrwx 1 set set    16 Oct 28 22:34 libtemp.so.1 -&gt; libtemp.so.1.0.1
+-rwxrwxr-x 1 set set 15392 Oct 28 17:17 libtemp.so.1.0.0
+-rwxrwxr-x 1 set set 15392 Oct 28 22:36 libtemp.so.1.0.1
+lrwxrwxrwx 1 set set    16 Oct 28 23:12 libtemp.so.2 -&gt; libtemp.so.2.0.0
+-rwxrwxr-x 1 set set 15392 Oct 28 23:12 libtemp.so.2.0.0
+
+readelf -dW hw5_dyn
+0x0000000000000001 (NEEDED)             Shared library: [libtemp.so.1]
+0x0000000000000001 (NEEDED)             Shared library: [libc.so.6]
+
+readelf -dW hw5_dyn2
+0x0000000000000001 (NEEDED)             Shared library: [libtemp.so.2]
+0x0000000000000001 (NEEDED)             Shared library: [libc.so.6]
+
+因爲兩個程式NEEDED的庫不同,不會被新版弄壞的
+
+377
+</textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
+<details class="answer"><summary>批改</summary>
+<p><strong>對</strong>。我在你的 <code>hw5/</code> 執行，<code>hw5_dyn</code> 38、<code>hw5_dyn2</code> 377，<code>ls -l</code> 與兩個 <code>NEEDED</code> 都跟你貼的一樣；預測兩個都對。「偷懶」那一問我也在 scratchpad 實際做了（新版沿用 SONAME <code>libtemp.so.1</code>、把 <code>libtemp.so.1</code> 指過去），<code>hw5_dyn</code> 印 <code>f_to_c(100) = 377</code>，結束狀態 0，跟你推的一樣。</p>
+<ul>
+<li>抓到：兩支程式的 <code>NEEDED</code> 不同（<code>libtemp.so.1</code> vs <code>libtemp.so.2</code>），所以各自載入各自的版本；偷懶時舊程式會印 377。</li>
+<li>小修（不扣分）：
+<ol>
+<li>「為什麼能同時存在」可以多講一層：<strong>SONAME 換了號，兩版就是不同的檔名</strong>（<code>libtemp.so.1</code> → <code>1.0.1</code>、<code>libtemp.so.2</code> → <code>2.0.0</code>），可以並排放在同一個資料夾；改掉的只有連結名稱 <code>libtemp.so</code>，它只影響<strong>之後的連結</strong>（<code>hw5_dyn2</code> 連到 <code>.so.2</code>），已經連結好的 <code>hw5_dyn</code> 的 <code>NEEDED</code> 寫死 <code>libtemp.so.1</code>，執行時照樣找到舊版。</li>
+<li>「377」最好附上理由並點出危險：<code>ld.so</code> 只比對<strong>名字</strong> <code>libtemp.so.1</code>，對得上就載入，不會檢查函式的意義變了；舊程式照「回傳攝氏度」的理解去用，把 377 當成 377°C——<strong>沒有任何錯誤訊息、結束狀態也是 0</strong>，靜靜地算錯。這就是「不相容就要換 SONAME」的理由。</li>
+</ol>
+</li>
+</ul>
+<details class="answer"><summary>參考答案</summary>
+<p>【筆記第六節〈<a href="../../c/%E9%9D%9C%E6%85%8B%E8%88%87%E5%8B%95%E6%85%8B%E5%87%BD%E5%BC%8F%E5%BA%AB-ar%E8%88%87.a%E3%80%81-fPIC%E8%88%87.so%E3%80%81%E5%9F%B7%E8%A1%8C%E6%99%82%E6%80%8E%E9%BA%BC%E6%89%BE%E5%88%B0.so.html#sonameneeded-%E8%A8%98%E7%9A%84%E6%98%AF%E5%93%AA%E5%80%8B%E5%90%8D%E5%AD%97">SONAME：<code>NEEDED</code> 記的是哪個名字</a>〉最後一段】</p>
+<p><strong>核心關鍵</strong>（答到這幾點就算對）：</p>
+<ol>
+<li><code>hw5_dyn</code> 印 38、<code>hw5_dyn2</code> 印 377；<code>NEEDED</code> 分別是 <code>libtemp.so.1</code>、<code>libtemp.so.2</code>。</li>
+<li>不相容的新版換了 SONAME，兩版是不同的檔名可以並存；舊程式的 <code>NEEDED</code> 寫死 <code>libtemp.so.1</code>，執行時仍載入 <code>1.0.1</code>；連結名稱 <code>libtemp.so</code> 改指新版只影響之後新連結的程式。</li>
+<li>偷懶沿用 <code>libtemp.so.1</code>：<code>hw5_dyn</code> 會載入新版、印 377，而且不會有任何錯誤（<code>ld.so</code> 只比對名字）。</li>
+</ol>
+<p><strong>詳細說明</strong>：</p>
+<ul>
+<li>
+<p>偷懶版實測（scratchpad，複製你的 <code>hw5_dyn</code> 與 <code>.o</code>）：</p>
+<pre><code class="language-text">$ gcc -shared -Wl,-soname,libtemp.so.1 ctof.o ftoc2.o round.o -o libtemp.so.1.9.9
+$ ln -sf libtemp.so.1.9.9 libtemp.so.1
+$ ./hw5_dyn; echo &quot;exit=$?&quot;
+f_to_c(100) = 377
+exit=0
+</code></pre>
+</li>
+<li>
+<p>5-2 和 5-3 合起來就是 SONAME 的規則：<strong>相容的修正</strong>（5-2 的四捨五入）沿用 SONAME、只換真實檔名（<code>1.0.0</code> → <code>1.0.1</code>），舊程式不用重新連結就拿到修正；<strong>不相容的改變</strong>（5-3 的單位改了）換 SONAME（<code>.so.1</code> → <code>.so.2</code>），舊程式繼續用舊版，新程式連結到新版。系統上常看到同一個函式庫的兩個大版本並存（例如兩個不同大版本號的 <code>.so</code>），就是這個原因。</p>
+</li>
+</ul>
+</details>
+</details>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="small-project/s1-07-libraries/README.md" data-line="1230" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 
 </main>

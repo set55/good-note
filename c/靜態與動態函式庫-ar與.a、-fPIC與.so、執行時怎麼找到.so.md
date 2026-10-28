@@ -681,6 +681,8 @@ $ LD_LIBRARY_PATH=v2 LD_DEBUG=libs ./app_rpath 2>&1 | grep -A4 'find library=lib
 
 **`RUNPATH` 只管直接依賴**（上面第 3 步）：如果 `libcalc.so` 自己又需要 `libhelper.so`，執行檔的 `RUNPATH` **不會**拿來找 `libhelper.so`；要嘛 `libcalc.so` 自己也帶 `RUNPATH`，要嘛用 `RPATH`（會套用到整棵依賴樹）。這個情況作業第 4 題要你自己做出來。
 
+> 課後討論：[第九節第 13 章〈連結時 `ld` 為什麼要找「依賴的依賴」：`-rpath-link` 與 `-rpath`（作業 4-3）〉](#13-連結時-ld-為什麼要找依賴的依賴-rpath-link-與--rpath作業-4-3)
+
 ### 方法三：裝到系統目錄，跑 `ldconfig`
 
 系統上的函式庫（`libc.so.6`、`libz.so.1`……）不需要任何設定就找得到，是因為第 4 步的快取。`/etc/ld.so.cache` 是一個二進位檔，記著「函式庫名字 → 完整路徑」，由 **`ldconfig`** 掃描設定檔列出的目錄產生：
@@ -968,6 +970,7 @@ gcc 的選項有上千個，完整見 `man gcc`（Link Options、Code Gen Option
 - [第 10 章](#10-整理四個容易搞錯的地方)：整理：四個容易搞錯的地方
 - [第 11 章](#11-做-so-需要-h-嗎include-管編譯-l-管連結)：做 `.so` 需要 `.h` 嗎？`#include` 管編譯、`-l` 管連結
 - [第 12 章](#12-so-之間為什麼順序幾乎不重要a-為什麼還是失敗作業-2-3)：`.so` 之間為什麼順序幾乎不重要、(a) 為什麼還是失敗（作業 2-3）
+- [第 13 章](#13-連結時-ld-為什麼要找依賴的依賴-rpath-link-與--rpath作業-4-3)：連結時 `ld` 為什麼要找「依賴的依賴」：`-rpath-link` 與 `-rpath`（作業 4-3）
 
 ### 1. `0x2ec8` 和 `0x3fd0` 各是什麼：`mov 0x2ec8(%rip),%rax` 的兩個數字
 
@@ -2217,6 +2220,159 @@ $ ./app_a3
 | 錯誤訊息的開頭 | `./libA.a(成員.o): in function ...` | `libA.so: undefined reference to ...` |
 
 正式的做法是讓每個 `.so` 自己記住依賴：做 `libconv.so` 時加 `-Lso -lround`，`libconv.so` 的 `NEEDED` 就有 `libround.so`，主程式只寫 `-lconv` 也找得到（依賴的依賴在執行時怎麼找，見[第五節〈`ld.so` 去了哪些地方找〉](#ldso-去了哪些地方找)與作業第 4 題）。作業故意不加，才看得到上面這些現象。
+
+
+### 13. 連結時 `ld` 為什麼要找「依賴的依賴」：`-rpath-link` 與 `-rpath`（作業 4-3）
+
+> 2026-10-28 作業 4-3 批改補教（「`ld` 為什麼要在連結時檢查」是新觀念）：題目把連結 `hw4` 的指令拿掉 `-Wl,-rpath-link,lib`，問「`hw4_main.c` 根本沒呼叫 `temp_round`，為什麼 `ld` 在連結時就要去找 `libround.so`？」使用者的猜測：
+>
+> - 「我猜 `ld` 不是幫 `hw4_main.c` 找，而是幫 `libtemp.so` 找……也會去看 `libtemp.so` 的依賴 `libround.so`」
+>
+> 正文出處：[第五節〈`RPATH` 和 `RUNPATH` 差在哪〉](#rpath-和-runpath-差在哪跟-ld_library_path-誰優先)最後一段「`RUNPATH` 只管直接依賴」；`-rpath-link` 在[第七節〈`ld`：本課透過 `-Wl,` 用到的選項〉](#ld本課透過--wl-用到的選項)的表
+
+**一句話：做執行檔時，`ld` 要確認每個 `.so` 自己缺的符號（`libtemp.so` 的 `U temp_round`）都有人提供，所以要把 `.so` 的 `NEEDED` 也找出來看；它找這些間接依賴時不看 `-L`，而是看 `-rpath-link`、`-rpath`、`LD_LIBRARY_PATH`、那個 `.so` 自己的 `RUNPATH` 等。`-rpath-link` 只在連結時用、不寫進執行檔；`-rpath` 寫進執行檔給 `ld.so` 用，連結時也會順便參考。**
+
+#### 實驗用的檔案
+
+跟作業第 4 題同一組，檔案在 [`examples/rpathlink/`](../small-project/s1-07-libraries/examples/rpathlink/)：`libround.so` 放 `temp_round`，`libtemp.so` 放 `c_to_f`、`f_to_c`，它們呼叫 `temp_round`。
+
+`temp.h`（檔案：[`temp.h`](../small-project/s1-07-libraries/examples/rpathlink/temp.h)）：
+
+```c
+#ifndef TEMP_H
+#define TEMP_H
+
+int c_to_f(int c);
+int f_to_c(int f);
+int temp_round(int x10);
+
+#endif
+```
+
+`round.c`（檔案：[`round.c`](../small-project/s1-07-libraries/examples/rpathlink/round.c)）：
+
+```c
+#include "temp.h"
+
+int temp_round(int x10)
+{
+    return (x10 + 5) / 10;
+}
+```
+
+`ctof.c`（檔案：[`ctof.c`](../small-project/s1-07-libraries/examples/rpathlink/ctof.c)）：
+
+```c
+#include "temp.h"
+
+int c_to_f(int c)
+{
+    return temp_round(c * 18 + 320);
+}
+```
+
+`ftoc.c`（檔案：[`ftoc.c`](../small-project/s1-07-libraries/examples/rpathlink/ftoc.c)）：
+
+```c
+#include "temp.h"
+
+int f_to_c(int f)
+{
+    return temp_round((f - 32) * 100 / 18);
+}
+```
+
+`main.c`（檔案：[`main.c`](../small-project/s1-07-libraries/examples/rpathlink/main.c)）：
+
+```c
+#include <stdio.h>
+#include "temp.h"
+
+int main(void)
+{
+    printf("c_to_f(37) = %d\n", c_to_f(37));
+    return 0;
+}
+```
+
+先做兩個 `.so`（`libtemp.so` 自己記住依賴 `libround.so`，但**沒有** `RUNPATH`）：
+
+```text
+$ mkdir -p lib
+$ gcc -Wall -fPIC -shared round.c -o lib/libround.so
+$ gcc -Wall -fPIC -shared ctof.c ftoc.c -Llib -lround -o lib/libtemp.so
+$ nm -D lib/libtemp.so | grep temp_round
+                 U temp_round                    ← libtemp.so 自己缺 temp_round
+$ readelf -d lib/libtemp.so | grep NEEDED
+ 0x0000000000000001 (NEEDED)             Shared library: [libround.so]
+```
+
+#### `ld` 在檢查什麼
+
+```text
+$ gcc -Wall main.c -Llib -ltemp -o app
+/usr/bin/ld: warning: libround.so, needed by lib/libtemp.so, not found (try using -rpath or -rpath-link)
+/usr/bin/ld: lib/libtemp.so: undefined reference to `temp_round'
+collect2: error: ld returned 1 exit status
+```
+
+兩行訊息分開讀：
+
+1. **`libround.so, needed by lib/libtemp.so, not found`**：`ld` 讀了 `libtemp.so` 的 `NEEDED`，想把 `libround.so` 也找來看，找不到。注意 `-Llib` 明明寫了，`libround.so` 也在 `lib/`——**找間接依賴時不看 `-L`**（`man ld` 的 `-rpath-link` 一節列了搜尋順序，`-L` 只在 SunOS 才算）。
+2. **`lib/libtemp.so: undefined reference to 'temp_round'`**：開頭是 `lib/libtemp.so:`，表示缺的是 **`libtemp.so`** 的符號，不是 `main.c` 的。做執行檔時 `ld` 預設 `--no-allow-shlib-undefined`：每個留下來的 `.so` 裡未定義的符號都要有人提供（跟[第 12 章](#12-so-之間為什麼順序幾乎不重要a-為什麼還是失敗作業-2-3)〈(a) 為什麼還是失敗〉第 4 步是同一個檢查），`libround.so` 找不到，這個檢查就過不了。
+
+所以使用者猜的方向對：`ld` 是**替 `libtemp.so`** 找。為什麼要在連結時就查？因為這是執行檔的最後一關——現在不查，`libtemp.so` 的洞要到執行時（甚至呼叫到那個函式時）才爆。第 12 章的 `app_a3` 就是關掉檢查（`--allow-shlib-undefined`）、執行時才出錯的例子。
+
+這個檢查可以關掉，關掉後連結成功；本例 `libtemp.so` 的 `NEEDED` 有寫 `libround.so`，執行時 `ld.so` 會照常載入，所以也能跑：
+
+```text
+$ gcc -Wall main.c -Llib -ltemp -Wl,--allow-shlib-undefined -o app4 && echo 連結成功
+連結成功
+$ LD_LIBRARY_PATH=lib ./app4
+c_to_f(37) = 99
+```
+
+但正常不要這樣做——它會連「真的沒有人提供」的情況一起放過。
+
+#### 告訴 `ld` 去哪裡找：幾種方法實測
+
+| 指令 | 連結 | 寫進 `app` 的 | 說明 |
+|---|---|---|---|
+| `-Wl,-rpath-link,lib` | 成功 | 什麼都沒寫 | 只給連結時的 `ld` 用 |
+| `-Wl,-rpath,lib` | 成功 | `RUNPATH [lib]` | `-rpath` 在連結時也被拿來找間接依賴（`man ld` 搜尋順序第 2 步） |
+| `-Wl,-rpath,'$ORIGIN/lib'` | **失敗**（同上面的兩行錯誤） | — | 本機實測連結時沒用上 `$ORIGIN/lib`；原因我沒查證，所以第 4 題才另外加 `-rpath-link` |
+| `LD_LIBRARY_PATH=lib gcc …` | 成功 | 什麼都沒寫 | `ld` 也會參考這個環境變數（第 5 步） |
+| `libtemp.so` 自己帶 `RUNPATH [$ORIGIN]` | 成功 | — | `ld` 會看那個 `.so` 自己的 `RUNPATH`（第 6 步），`$ORIGIN` 換成 `libtemp.so` 所在的資料夾 |
+
+```text
+$ gcc -Wall main.c -Llib -ltemp -Wl,-rpath-link,lib -o app && echo 連結成功
+連結成功
+$ readelf -d app | grep -E 'NEEDED|RUNPATH|RPATH'
+ 0x0000000000000001 (NEEDED)             Shared library: [libtemp.so]
+ 0x0000000000000001 (NEEDED)             Shared library: [libc.so.6]
+$ ./app
+./app: error while loading shared libraries: libtemp.so: cannot open shared object file: No such file or directory
+$ gcc -Wall main.c -Llib -ltemp -Wl,-rpath,lib -o app2 && echo 連結成功
+連結成功
+$ readelf -d app2 | grep -E 'RUNPATH|RPATH'
+ 0x000000000000001d (RUNPATH)            Library runpath: [lib]
+$ gcc -Wall -fPIC -shared ctof.c ftoc.c -Llib -lround -Wl,-rpath,'$ORIGIN' -o lib/libtemp.so
+$ gcc -Wall main.c -Llib -ltemp -Wl,-rpath,'$ORIGIN/lib' -o app6 && echo 連結成功
+連結成功
+$ ./app6
+c_to_f(37) = 99
+```
+
+`app` 只用 `-rpath-link`：連結過了，但執行檔裡沒有任何路徑，執行時連 `libtemp.so` 都找不到——**`-rpath-link` 完全不影響執行時**。`app2` 的 `RUNPATH [lib]` 是相對路徑，會照**目前工作目錄**解讀，換個資料夾執行就失效，所以實務上用 `$ORIGIN`。最後一組說明：讓函式庫自己帶 `RUNPATH`（作業 4-2 (a)）不只修好執行時，連結時也不必再加 `-rpath-link`。
+
+#### 整理：`-rpath-link` 與 `-rpath`
+
+| | `-rpath-link 目錄` | `-rpath 目錄` |
+|---|---|---|
+| 誰用 | 只有連結時的 `ld` | 執行時的 `ld.so`（連結時 `ld` 也會參考） |
+| 寫進輸出檔嗎 | 不寫 | 寫成 `RUNPATH`（加 `--disable-new-dtags` 是 `RPATH`） |
+| 用來找什麼 | `.so` 的 `NEEDED`（間接依賴） | 執行時：這個檔案的 `NEEDED`（`RPATH` 則是整棵樹）；連結時：同左 |
+| 常見寫法 | `-Wl,-rpath-link,lib` | `-Wl,-rpath,'$ORIGIN/lib'` |
 
 ---
 

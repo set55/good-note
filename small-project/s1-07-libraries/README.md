@@ -40,12 +40,13 @@
 | [`examples/search/`](./examples/search/) | [`calc.h`](./examples/search/calc.h)、[`mul.c`](./examples/search/mul.c)、[`main.c`](./examples/search/main.c)、[`v1/add.c`](./examples/search/v1/add.c)、[`v2/add.c`](./examples/search/v2/add.c) | [第五節](../../html/c/靜態與動態函式庫-ar與.a、-fPIC與.so、執行時怎麼找到.so.html#五執行時怎麼找到-so)〈`RPATH` 和 `RUNPATH` 差在哪〉、[第六節](../../html/c/靜態與動態函式庫-ar與.a、-fPIC與.so、執行時怎麼找到.so.html#六換掉-so-不用重新連結以及-soname)〈換掉 `.so`〉 | `RUNPATH` 讓 `LD_LIBRARY_PATH` 優先、`RPATH` 不讓；換掉 `.so` 不用重新連結 |
 | [`examples/order/`](./examples/order/) | [`temp.h`](./examples/order/temp.h)、[`ctof.c`](./examples/order/ctof.c)、[`ftoc.c`](./examples/order/ftoc.c)、[`limit.c`](./examples/order/limit.c)、[`round.c`](./examples/order/round.c)、[`main.c`](./examples/order/main.c) | [第九節](../../html/c/靜態與動態函式庫-ar與.a、-fPIC與.so、執行時怎麼找到.so.html#九課後討論)第 12 章 | 作業第 2 題批改的補教：`.so` 整份符號一次進來、`--as-needed` 丟掉 `libround.so`、`--no-as-needed` 與 `--allow-shlib-undefined` 的對照 |
 | [`examples/soname/`](./examples/soname/) | [`calc.h`](./examples/soname/calc.h)、[`add.c`](./examples/soname/add.c)、[`mul.c`](./examples/soname/mul.c)、[`main.c`](./examples/soname/main.c) | 第六節〈SONAME〉 | `-Wl,-soname`、三個名字與符號連結、`NEEDED` 記的是 SONAME |
+| [`examples/rpathlink/`](./examples/rpathlink/) | [`temp.h`](./examples/rpathlink/temp.h)、[`round.c`](./examples/rpathlink/round.c)、[`ctof.c`](./examples/rpathlink/ctof.c)、[`ftoc.c`](./examples/rpathlink/ftoc.c)、[`main.c`](./examples/rpathlink/main.c) | [第九節第 13 章](../../html/c/靜態與動態函式庫-ar與.a、-fPIC與.so、執行時怎麼找到.so.html#13-連結時-ld-為什麼要找依賴的依賴-rpath-link-與--rpath作業-4-3) | 連結時 `ld` 找「依賴的依賴」：`-rpath-link` vs `-rpath`、`--allow-shlib-undefined`、`.so` 自己的 `RUNPATH` |
 
 ---
 
 ## 批改結果（2026-10-27）
 
-第 1、2 題 2026-10-27 批改；第 3 題 2026-10-28 批改；其他還沒交。
+第 1、2 題 2026-10-27 批改；第 1～5 題全部批改完（第 1、2 題 2026-10-27，其餘 2026-10-28）。
 
 | 題目 | 結果 | 錯在哪／缺什麼 |
 |---|---|---|
@@ -58,6 +59,12 @@
 | 3-2 | 不完整 | 讀的那一半對（`b` 從 GOT 讀位址、`12` 讀值、`14` 加 1）；漏了寫回的 `17`、`1e`（再讀一次 GOT、照位址寫回），說成「下面都是計算」；`readelf -r` 那列只描述 GOT 的結果，沒講出是留給 `ld.so`、載入時把 `temp_calls` 真正的位址寫進 `0x3fd8` |
 | 3-3 | 對 | 抓到：`ld.so` 印的錯、`-L` 只給 `ld`、(a)(b) 兩種方法與 `RUNPATH [$ORIGIN]`、`temp_calls = 2` 是兩個函式各呼叫一次（可補：`NEEDED` 只記名字不記路徑） |
 | 3-4 | 大致對 | 動態 1002、`LD_DEBUG` 綁到 `./hw3`、執行檔先找；靜態 `round.o` 被拉進來撞名都對；缺「`.so` 不合併進執行檔，`ld` 不把它的定義算重複、留給 `ld.so` 選」（自己也寫了不確定，第九節第 2 章教過） |
+| 4-1 | 大致對 | 抓到：找不到的是 `libround.so`、它是 `libtemp.so` 的依賴、`libtemp.so` 沒有 `RUNPATH`；缺「`RUNPATH` 只管自己的 `NEEDED`」的規則與「同資料夾不會自動找」，`LD_DEBUG` 寫成沒有輸出（實際有，正是證據） |
+| 4-2 | 大致對 | 兩種方法的指令都對（含 `--disable-new-dtags`）、選 (a) 理由對；缺 (b) 為什麼能修好：`RPATH` 套用到整棵依賴樹、`RUNPATH` 只管自己的 `NEEDED`（自己寫了不清楚，第五節第 3 步教過）；沒貼 `readelf -d` |
+| 4-3 | 大致對 | 輸出對、注意到變成連結時就出錯；「`ld` 替 `libtemp.so` 找它的依賴」是新觀念，猜對方向（補教寫進筆記第九節第 13 章）；`-rpath` 只說「執行檔的依賴位置」，缺核心：`-rpath-link` 只給連結時用、不寫進輸出檔，`-rpath` 寫進輸出檔給執行時的 `ld.so` |
+| 5-1 | 對 | 抓到：兩支都 37、`NEEDED` 寫 SONAME `libtemp.so.1`（可補：`ld` 打開的是 `libtemp.so`，寫進去的是檔案裡的 SONAME） |
+| 5-2 | 不完整 | 預測與輸出都對、`hw5_static` 要重新連結；缺「為什麼不同」：靜態是連結時把 `round.o` 複製進執行檔、動態是執行時才載入 `libtemp.so.1`（現在指向 `1.0.1`）；缺 `ar t` 仍是 3 個的理由：`r` 遇到同名就取代 |
+| 5-3 | 對 | 抓到：38／377、兩支 `NEEDED` 不同所以各載各的、偷懶時印 377（可補：換 SONAME 才是不同檔名可並存；`ld.so` 只比名字，偷懶會靜靜地算錯） |
 
 ## 1. 做一個靜態函式庫，看連結器拉了哪些成員
 
@@ -842,22 +849,166 @@ gcc -Wall hw4_main.c -Llib -ltemp -Wl,-rpath-link,lib -Wl,-rpath,'$ORIGIN/lib' -
 
 ### 4-1. 先預測 `./hw4` 會成功嗎？寫下預測後執行，貼上輸出；再貼上 `readelf -d hw4 | grep -E 'NEEDED|RUNPATH'`、`readelf -d lib/libtemp.so | grep -E 'NEEDED|RUNPATH'`，以及 `LD_DEBUG=libs ./hw4 2>&1 | grep -E 'find library|search path'`。`hw4` 明明有 `RUNPATH`、`libround.so` 也跟 `libtemp.so` 放在同一個資料夾，為什麼找不到（或為什麼找得到）？【筆記第五節〈`ld.so` 去了哪些地方找〉的第 3 步、〈`RPATH` 和 `RUNPATH` 差在哪〉最後一段】
 
-**第 1 次（YYYY-MM-DD）**
+**第 1 次（2026-10-28）**
 ```
+可以成功
+
+./hw4: error while loading shared libraries: libround.so: cannot open shared object file: No such file or directory
+
+0x0000000000000001 (NEEDED)             Shared library: [libtemp.so]
+ 0x0000000000000001 (NEEDED)             Shared library: [libc.so.6]
+ 0x000000000000001d (RUNPATH)            Library runpath: [$ORIGIN/lib]
+
+0x0000000000000001 (NEEDED)             Shared library: [libround.so]
+
+沒有輸出
+
+hw4可以找得到libtemp.so, 但問題處在libtemp.so找不到libround.so,他沒有runpath
 ```
 
+> **批改**：**大致對**。我在你的 `hw4/` 直接執行，錯誤訊息、兩個 `readelf -d` 的輸出都跟你貼的一樣。預測「可以成功」錯了，不扣分。
+> - **抓到的**：失敗的是 `libround.so`；`hw4` 靠自己的 `RUNPATH`（`$ORIGIN/lib`）找到了 `libtemp.so`，但 `libround.so` 是 **`libtemp.so` 的** `NEEDED`，要看 `libtemp.so` 自己的 `RUNPATH`，而它沒有。主線對。
+> - **缺的 1：`LD_DEBUG` 那一行不是「沒有輸出」**。我在你的 `hw4/` 跑同一行，有 6 行輸出（見下面詳細說明）；你那邊沒輸出，可能是不在 `hw4/` 裡執行（`./hw4` 找不到，錯誤訊息不含 `find library`），或指令打錯——我沒辦法從作答看出是哪一個。這段輸出正是這題的**證據**：找 `libtemp.so` 時括號寫 `(RUNPATH from file ./hw4)`，找 `libround.so` 時只剩 `search cache` 與 `(system search path)`，`hw4` 的 `RUNPATH` 完全沒被拿來用。
+> - **缺的 2：沒有講明規則本身**。你寫「它（`libtemp.so`）沒有 `RUNPATH`」，等於默認了規則，但沒說出來：**`DT_RUNPATH` 只用來找「這個檔案自己」的 `NEEDED`，不會套用到依賴的依賴**（`RPATH` 才會套用到整棵依賴樹）。題目括號裡「`libround.so` 也跟 `libtemp.so` 放在同一個資料夾」的疑問也要回答：`ld.so` **不會**自動去「某個 `.so` 所在的資料夾」找它的依賴，除非那個 `.so` 的 `RUNPATH` 寫了 `$ORIGIN`（4-2 (a) 就是這樣修）。
+>
+> **參考答案**【筆記[第五節](../../html/c/靜態與動態函式庫-ar與.a、-fPIC與.so、執行時怎麼找到.so.html#五執行時怎麼找到-so)〈[`ld.so` 去了哪些地方找](../../html/c/靜態與動態函式庫-ar與.a、-fPIC與.so、執行時怎麼找到.so.html#ldso-去了哪些地方找)〉的第 3 步、〈[`RPATH` 和 `RUNPATH` 差在哪：跟 `LD_LIBRARY_PATH` 誰優先](../../html/c/靜態與動態函式庫-ar與.a、-fPIC與.so、執行時怎麼找到.so.html#rpath-和-runpath-差在哪跟-ld_library_path-誰優先)〉最後一段「`RUNPATH` 只管直接依賴」】
+>
+> **核心關鍵**（答到這幾點就算對）：
+>
+> 1. 失敗：`error while loading shared libraries: libround.so: cannot open shared object file`；找不到的是 `libround.so`，不是 `libtemp.so`。
+> 2. `DT_RUNPATH` 只用來找**這個檔案自己的** `NEEDED`：`hw4` 的 `RUNPATH` 只負責 `libtemp.so`；`libround.so` 是 `libtemp.so` 的 `NEEDED`，要用 `libtemp.so` 的 `RUNPATH`，它沒有，所以只查快取與系統資料夾。放在同一個資料夾不會自動被找到。
+> 3. 證據：`LD_DEBUG=libs` 找 `libtemp.so` 的那行標 `(RUNPATH from file ./hw4)`，找 `libround.so` 只有 `search cache` 和 `(system search path)`。
+>
+> **詳細說明**：
+> - 實測（在你的 `hw4/` 執行，路徑縮寫成 `…/hw4`）：
+>
+>   ```text
+>   $ LD_DEBUG=libs ./hw4 2>&1 | grep -E 'find library|search path'
+>   find library=libtemp.so [0]; searching
+>    search path=…/hw4/lib/glibc-hwcaps/x86-64-v3:…/hw4/lib/glibc-hwcaps/x86-64-v2:…/hw4/lib		(RUNPATH from file ./hw4)
+>   find library=libc.so.6 [0]; searching
+>    search path=…/hw4/lib		(RUNPATH from file ./hw4)
+>   find library=libround.so [0]; searching
+>    search path=/lib/x86_64-linux-gnu/glibc-hwcaps/x86-64-v3:…:/usr/lib		(system search path)
+>   ```
+>
+>   `libc.so.6` 也是 `hw4` 自己的 `NEEDED`，所以同樣先試 `hw4` 的 `RUNPATH`（`…/hw4/lib` 裡沒有，再去快取找到）。`libround.so` 的 `find library` 是在載入 `libtemp.so` 之後、處理**它的** `NEEDED` 時發生的，括號裡完全沒有 `RUNPATH`。
+> - 為什麼這樣設計：`RUNPATH` 是每個檔案替**自己**負責——函式庫作者知道自己的依賴放哪，執行檔作者只管自己直接用的。舊的 `RPATH` 會往下傳到整棵樹，執行檔的路徑會影響到它根本不知道的間接依賴，所以被新的 `RUNPATH` 取代（`ld` 現在預設寫 `RUNPATH`）。
+> - 修法就是 4-2 的兩種：讓 `libtemp.so` 自己帶 `RUNPATH`，或讓 `hw4` 改用會往下傳的 `RPATH`。
 ### 4-2. 用兩種方法修好，各貼上你改的指令、`readelf -d` 相關的列與 `./hw4` 的輸出：(a) 只重做 `lib/libtemp.so`、讓它自己帶 `RUNPATH`（路徑要用 `$ORIGIN` 寫，想一想 `libtemp.so` 的 `$ORIGIN` 是哪個資料夾）；(b) 不改 `libtemp.so`（先把它做回原本的樣子），改成重新連結 `hw4`、用 `RPATH`。兩種方法你會選哪一種？為什麼？【筆記第五節〈`RPATH` 和 `RUNPATH` 差在哪〉】
 
-**第 1 次（YYYY-MM-DD）**
+**第 1 次（2026-10-28）**
 ```
+我先做(b)
+gcc -Wall hw4_main.c -Llib -ltemp -Wl,-rpath-link,lib -Wl,--disable-new-dtags,-rpath,'$ORIGIN/lib' -o hw4 
+./hw4
+c_to_f(37) = 99
+
+再做(a)
+gcc -Wall -shared -fPIC ctof.c ftoc.c -Llib -lround -Wl,-rpath,'$ORIGIN' -o lib/libtemp.so
+gcc -Wall hw4_main.c -Llib -ltemp -Wl,-rpath-link,lib -Wl,-rpath,'$ORIGIN/lib' -o hw4
+./hw4
+c_to_f(37) = 99
+
+libtemp 的 ORIGIN要用lib, origin是編譯出來的so或執行檔的路徑
+
+我會選擇a
+a.不論是執行檔,還是so都是用runpath, 在so標記runpath解決了剛剛執行時libtemp找不到libround的問題
+b. 用了rpath,但我不清楚爲什麼rpath可以不管so沒有rpath的問題
+
+我選a純粹是覺得libtemp既然有用到libround他理應把round在哪裏的路徑記住
 ```
 
+> **批改**：**大致對**。我看了你 `hw4/` 現在的檔案（(a) 做完的狀態）：`lib/libtemp.so` 有 `RUNPATH [$ORIGIN]`、`./hw4` 印 `c_to_f(37) = 99`；(b) 我用你的指令在 scratchpad 重做，`hw4` 是 `RPATH [$ORIGIN/lib]`，也能跑。兩個方法的指令都對。
+> - **抓到的**：(a) 在 `libtemp.so` 加 `-Wl,-rpath,'$ORIGIN'`；(b) 用 `--disable-new-dtags` 讓 `-rpath` 寫成舊式 `RPATH`（這個選項筆記第五節〈方法二〉的 `app_rpath` 例子和第七節 `ld` 表有）；選 (a)，理由「`libtemp.so` 用到 `libround.so`，理應自己記住它在哪」就是重點——每個檔案替自己的依賴負責。
+> - **缺的：(b) 為什麼能修好**。你寫「不清楚為什麼 `RPATH` 可以不管 `.so` 沒有 `RPATH`」——這是本題要考的差別，筆記教過：`DT_RUNPATH` **只用來找這個檔案自己的 `NEEDED`**，`DT_RPATH` 則**套用到整棵依賴樹**（第五節〈`ld.so` 去了哪些地方找〉第 3 步）。所以 `hw4` 的 `RPATH` 在載入 `libtemp.so` 之後、找**它的** `NEEDED` `libround.so` 時也會被拿來用。`LD_DEBUG` 看得到：找 `libround.so` 那一行標的是 `(RPATH from file ./hw4)`，跟 4-1 的 `(system search path)` 對照。
+> - **缺的：沒貼 `readelf -d`**。題目要兩種方法各貼 `readelf -d` 相關的列，這是證明「真的寫進去了、寫的是 `RUNPATH` 還是 `RPATH`」的證據（下面詳細說明有我重做的輸出）。
+> - 小修（不扣分）：「`$ORIGIN` 是編譯出來的 `.so` 或執行檔的路徑」——是**執行時**那個檔案**所在的資料夾**，不是編譯時的位置；`$ORIGIN` 原封不動寫進檔案（`readelf` 印出來就是字面上的 `$ORIGIN`），`ld.so` 載入時才換掉。`libtemp.so` 在 `hw4/lib/`，所以它的 `$ORIGIN` 就是 `lib/`，寫 `'$ORIGIN'` 就夠，你的指令是對的；「要用 lib」那句意思對但說得含糊。
+>
+> **參考答案**【筆記第五節〈[`RPATH` 和 `RUNPATH` 差在哪：跟 `LD_LIBRARY_PATH` 誰優先](../../html/c/靜態與動態函式庫-ar與.a、-fPIC與.so、執行時怎麼找到.so.html#rpath-和-runpath-差在哪跟-ld_library_path-誰優先)〉、〈[`ld.so` 去了哪些地方找](../../html/c/靜態與動態函式庫-ar與.a、-fPIC與.so、執行時怎麼找到.so.html#ldso-去了哪些地方找)〉第 1、3 步】
+>
+> **核心關鍵**（答到這幾點就算對）：
+>
+> 1. (a)：重做 `libtemp.so` 時加 `-Wl,-rpath,'$ORIGIN'`；`$ORIGIN` 是 `libtemp.so` 執行時所在的資料夾（`hw4/lib/`），`readelf -d lib/libtemp.so` 多一列 `RUNPATH [$ORIGIN]`，`./hw4` 成功。
+> 2. (b)：重新連結 `hw4` 時加 `-Wl,--disable-new-dtags,-rpath,'$ORIGIN/lib'`，`readelf -d hw4` 是 `RPATH [$ORIGIN/lib]`；能修好是因為 **`RPATH` 會套用到整棵依賴樹**（`RUNPATH` 只管自己的 `NEEDED`），找 `libround.so` 時也用得到。
+> 3. 選 (a)：函式庫自己記住自己的依賴，誰用這個 `.so` 都不必知道它的間接依賴；`RPATH` 已不建議使用（而且優先於 `LD_LIBRARY_PATH`，臨時換函式庫測試時蓋不過它）。
+>
+> **詳細說明**：
+> - (b) 重做（scratchpad，用原本沒有 `RUNPATH` 的 `libtemp.so`）：
+>
+>   ```text
+>   $ gcc -Wall hw4_main.c -Llib -ltemp -Wl,-rpath-link,lib -Wl,--disable-new-dtags,-rpath,'$ORIGIN/lib' -o hw4
+>   $ ./hw4
+>   c_to_f(37) = 99
+>   $ readelf -d hw4 | grep -E 'NEEDED|RPATH|RUNPATH'
+>    0x0000000000000001 (NEEDED)             Shared library: [libtemp.so]
+>    0x0000000000000001 (NEEDED)             Shared library: [libc.so.6]
+>    0x000000000000000f (RPATH)              Library rpath: [$ORIGIN/lib]
+>   $ readelf -d lib/libtemp.so | grep -E 'NEEDED|RPATH|RUNPATH'
+>    0x0000000000000001 (NEEDED)             Shared library: [libround.so]
+>   $ LD_DEBUG=libs ./hw4 2>&1 | grep -A1 'find library=libround'
+>   find library=libround.so [0]; searching
+>    search path=…/lib		(RPATH from file ./hw4)
+>   ```
+>
+>   型別編號也不同：`RPATH` 是 `0xf`（`DT_RPATH`），`RUNPATH` 是 `0x1d`（`DT_RUNPATH`）。
+> - (a) 你 `hw4/` 現在的狀態：
+>
+>   ```text
+>   $ readelf -d lib/libtemp.so | grep -E 'NEEDED|RUNPATH|RPATH'
+>    0x0000000000000001 (NEEDED)             Shared library: [libround.so]
+>    0x000000000000001d (RUNPATH)            Library runpath: [$ORIGIN]
+>   $ readelf -d hw4 | grep -E 'NEEDED|RUNPATH|RPATH'
+>    0x0000000000000001 (NEEDED)             Shared library: [libtemp.so]
+>    0x0000000000000001 (NEEDED)             Shared library: [libc.so.6]
+>    0x000000000000001d (RUNPATH)            Library runpath: [$ORIGIN/lib]
+>   ```
+>
+> - `RPATH` 的另一個缺點，(b) 實測：設 `LD_LIBRARY_PATH=elsewhere`，`LD_DEBUG` 顯示找 `libtemp.so` 時**第一個**查的還是 `(RPATH from file ./hw4)`——`RPATH` 排在 `LD_LIBRARY_PATH` 前面（第五節的搜尋順序第 1 步），使用者想臨時換一版函式庫測試也蓋不過它；`RUNPATH` 排在 `LD_LIBRARY_PATH` 後面，就沒這個問題。
 ### 4-3. 先猜再實驗：把連結 `hw4` 的指令拿掉 `-Wl,-rpath-link,lib`，重新連結，貼上輸出。`hw4_main.c` 根本沒呼叫 `temp_round`，為什麼 `ld` 在**連結時**就要去找 `libround.so`？`-rpath-link` 跟 `-rpath` 差在哪？【`-rpath-link` 的作用見筆記[第七節](../../html/c/靜態與動態函式庫-ar與.a、-fPIC與.so、執行時怎麼找到.so.html#七本課用到的工具選項與完整清單在哪)〈`ld`〉的表；`ld` 為什麼要在連結時檢查是新觀念，先猜】
 
-**第 1 次（YYYY-MM-DD）**
+**第 1 次（2026-10-28）**
 ```
+ 應該跟沒有幫libtemp.so做runpath的情況一樣,找不到libround.so
+gcc -Wall -shared ctof.c ftoc.c -Llib -lround -o ./lib/libtemp.so 
+gcc -Wall hw4_main.c -Llib -ltemp -Wl,-rpath,'$ORIGIN/lib' -o hw4 
+/usr/bin/ld: warning: libround.so, needed by lib/libtemp.so, not found (try using -rpath or -rpath-link)
+/usr/bin/ld: lib/libtemp.so: undefined reference to `temp_round'
+collect2: error: ld returned 1 exit status
+似乎變成了在連接的時候就出錯了,而不是執行時發現找不到libround.so
+
+我猜ld不是幫hw4_main.c找,而是幫libtemp.so找,感覺ld在連結的時候不會只連結hw4_main.c與libtemp.so,而是也會去看libtemp.so的依賴libround.so
+所以這個rpath-link應該就是告訴ld libround.so的資料夾位置
+rpath 是執行檔的依賴位置
 ```
 
+> **批改**：**大致對**。我照你的兩行指令重做，輸出跟你貼的一模一樣（`warning: libround.so, needed by lib/libtemp.so, not found` ＋ `lib/libtemp.so: undefined reference to 'temp_round'`）。預測「跟沒有 `RUNPATH` 一樣找不到」方向對，而且你注意到這次是**連結時**就出錯，不是執行時。
+> - **「為什麼連結時要找」（新觀念，先猜，不計對錯）**：你猜「`ld` 不是幫 `hw4_main.c` 找，而是幫 `libtemp.so` 找，也會去看 `libtemp.so` 的依賴」——方向完全對。補教：做執行檔時 `ld` 預設要確認每個 `.so` **自己缺的符號**都有人提供（`--no-allow-shlib-undefined`）；`libtemp.so` 有 `U temp_round`，所以 `ld` 要把它的 `NEEDED` `libround.so` 找來看。第二行錯誤的開頭是 `lib/libtemp.so:`，就是在說「`libtemp.so` 缺的」。現在不查，這個洞要到執行時才爆。另外 `-Llib` 明明寫了也沒用：**`ld` 找間接依賴時不看 `-L`**。這段補教連同實驗寫進了筆記第九節第 13 章〈[連結時 `ld` 為什麼要找「依賴的依賴」：`-rpath-link` 與 `-rpath`（作業 4-3）](../../html/c/靜態與動態函式庫-ar與.a、-fPIC與.so、執行時怎麼找到.so.html#13-連結時-ld-為什麼要找依賴的依賴-rpath-link-與--rpath作業-4-3)〉。
+> - **`-rpath-link` 跟 `-rpath` 的差別（第七節 `ld` 表教過）缺一半**：你寫「`-rpath-link` 告訴 `ld` `libround.so` 在哪」對；「`-rpath` 是執行檔的依賴位置」太含糊，沒講出差別的核心——**`-rpath-link` 只在連結時給 `ld` 用、不寫進輸出檔；`-rpath` 寫進輸出檔（`RUNPATH`／`RPATH`），給執行時的 `ld.so` 用**。實測只加 `-rpath-link` 的執行檔，`readelf -d` 看不到任何路徑，執行時連 `libtemp.so` 都找不到。
+>
+> **參考答案**【`-rpath-link`：筆記[第七節](../../html/c/靜態與動態函式庫-ar與.a、-fPIC與.so、執行時怎麼找到.so.html#七本課用到的工具選項與完整清單在哪)〈[`ld`：本課透過 `-Wl,` 用到的選項](../../html/c/靜態與動態函式庫-ar與.a、-fPIC與.so、執行時怎麼找到.so.html#ld本課透過--wl-用到的選項)〉的表；為什麼連結時要找（補教）：第九節第 13 章〈[連結時 `ld` 為什麼要找「依賴的依賴」](../../html/c/靜態與動態函式庫-ar與.a、-fPIC與.so、執行時怎麼找到.so.html#13-連結時-ld-為什麼要找依賴的依賴-rpath-link-與--rpath作業-4-3)〉】
+>
+> **核心關鍵**（答到這幾點就算對）：
+>
+> 1. 拿掉後**連結時**就失敗：`warning: libround.so, needed by lib/libtemp.so, not found` 和 `lib/libtemp.so: undefined reference to 'temp_round'`。
+> 2. （新觀念，先猜）`ld` 做執行檔時要確認每個 `.so` 自己未定義的符號都找得到（`libtemp.so` 的 `U temp_round`），所以要找 `libtemp.so` 的 `NEEDED` `libround.so`；找間接依賴時不看 `-L`。
+> 3. `-rpath-link`：只給連結時的 `ld` 找間接依賴，**不寫進輸出檔**；`-rpath`：**寫進輸出檔**成為 `RUNPATH`／`RPATH`，給執行時的 `ld.so` 用。
+>
+> **詳細說明**：
+> - 實測（筆記第 13 章，`examples/rpathlink/`）：
+>
+>   ```text
+>   $ gcc -Wall main.c -Llib -ltemp -Wl,-rpath-link,lib -o app && echo 連結成功
+>   連結成功
+>   $ readelf -d app | grep -E 'NEEDED|RUNPATH|RPATH'
+>    0x0000000000000001 (NEEDED)             Shared library: [libtemp.so]
+>    0x0000000000000001 (NEEDED)             Shared library: [libc.so.6]
+>   $ ./app
+>   ./app: error while loading shared libraries: libtemp.so: cannot open shared object file: No such file or directory
+>   ```
+>
+> - `-rpath` 在連結時也會被 `ld` 拿來找間接依賴（`man ld` 的搜尋順序第 2 步）：`-Wl,-rpath,lib` 不加 `-rpath-link` 也連結成功。但第 4 題用的 `-rpath,'$ORIGIN/lib'` 在連結時沒被用上（本機實測，原因沒查證），所以才要另外寫 `-rpath-link`。
+> - 用 4-2 (a) 的修法（`libtemp.so` 自己帶 `RUNPATH [$ORIGIN]`）時，`ld` 會看那個 `.so` 自己的 `RUNPATH`（搜尋順序第 6 步），連結時也不必再加 `-rpath-link`——實測連結成功、執行也成功。
 ---
 
 ## 5. 函式庫更新：靜態 vs 動態，以及 SONAME
@@ -900,10 +1051,38 @@ gcc -Wall hw5_main.c -L. -ltemp -Wl,-rpath,'$ORIGIN' -o hw5_dyn
 
 ### 5-1. 執行兩支程式，貼上輸出（100°F 正確是 37.8°C，四捨五入應該是 38）。貼上 `ls -l libtemp*`、`readelf -d hw5_dyn | grep -E 'NEEDED|RUNPATH'`。`ld` 照 `-ltemp` 打開的是 `libtemp.so`，`NEEDED` 卻寫 `libtemp.so.1`，為什麼？【筆記[第六節](../../html/c/靜態與動態函式庫-ar與.a、-fPIC與.so、執行時怎麼找到.so.html#六換掉-so-不用重新連結以及-soname)〈SONAME〉】
 
-**第 1 次（YYYY-MM-DD）**
+**第 1 次（2026-10-28）**
 ```
+./hw5_static
+f_to_c(100) = 37
+
+./hw5_dyn
+f_to_c(100) = 37
+
+-rw-rw-r-- 1 set set  4330 Oct 28 17:17 libtemp.a
+lrwxrwxrwx 1 set set    12 Oct 28 17:18 libtemp.so -> libtemp.so.1
+lrwxrwxrwx 1 set set    16 Oct 28 17:18 libtemp.so.1 -> libtemp.so.1.0.0
+-rwxrwxr-x 1 set set 15392 Oct 28 17:17 libtemp.so.1.0.0
+
+0x0000000000000001 (NEEDED)             Shared library: [libtemp.so.1]
+ 0x0000000000000001 (NEEDED)             Shared library: [libc.so.6]
+ 0x000000000000001d (RUNPATH)            Library runpath: [$ORIGIN]
+
+因爲solname是libtemp.so.1
 ```
 
+> **批改**：**對**。我在你的 `hw5/` 看過：兩個輸出、`ls -l` 的三個名字、`NEEDED [libtemp.so.1]` 都對。
+> - 抓到：`NEEDED` 寫 `libtemp.so.1` 是因為那個 `.so` 的 SONAME 是 `libtemp.so.1`。
+> - 小修（不扣分）：把因果講完整會更好——SONAME 是做 `.so` 時用 `-Wl,-soname,libtemp.so.1` **寫進 `.so` 檔案裡**的（`readelf -d libtemp.so.1.0.0 | grep SONAME` 看得到）；`ld` 照 `-ltemp` 打開 `libtemp.so`、一路跟著符號連結讀到 `libtemp.so.1.0.0`，寫進 `NEEDED` 的是**檔案裡的 SONAME**，不是它打開的檔名。所以執行時只需要 `libtemp.so.1` 這個名字，`libtemp.so` 只在連結時用（5-2 換成 `1.0.1` 不用重新連結，靠的就是這一點）。另外是 SONAME，不是 solname。
+>
+> **參考答案**【筆記第六節〈[SONAME：`NEEDED` 記的是哪個名字](../../html/c/靜態與動態函式庫-ar與.a、-fPIC與.so、執行時怎麼找到.so.html#sonameneeded-記的是哪個名字)〉】
+>
+> **核心關鍵**（答到這幾點就算對）：
+>
+> 1. 兩支都印 `f_to_c(100) = 37`（`round.c` 故意無條件捨去）。
+> 2. `ld` 照 `-ltemp` 打開的是連結名稱 `libtemp.so`（→ `libtemp.so.1` → `libtemp.so.1.0.0`），但寫進 `NEEDED` 的是那個檔案裡記的 **SONAME** `libtemp.so.1`（`-Wl,-soname` 寫進去的），不是打開的檔名。
+>
+> **詳細說明**：三個名字各有用途——`libtemp.so.1.0.0` 是真實檔案；`libtemp.so.1` 是 SONAME，執行時 `ld.so` 找它；`libtemp.so` 是連結名稱，只給 `-ltemp` 用。沒有 SONAME 的 `.so`（例如第四節的 `libcalc.so`），`ld` 才退而把檔名寫進 `NEEDED`。
 ### 5-2. 先預測：把 `round.c` 改成正確的四捨五入（`return (x10 + 5) / 10;`），然後**只更新函式庫、不重新連結兩支程式**：
 
 ```sh
@@ -915,10 +1094,63 @@ ln -sf libtemp.so.1.0.1 libtemp.so.1
 
 `./hw5_static`、`./hw5_dyn` 各會印出多少？寫下預測後執行，貼上輸出。為什麼兩支結果不同？`hw5_static` 要怎樣才能拿到修正？`ar rcs libtemp.a round.o` 之後 `ar t libtemp.a` 有幾個成員，為什麼？【筆記第六節〈換掉 `.so`：程式不用重新連結〉、第二節的 `ar` 文法（`r`）】
 
-**第 1 次（YYYY-MM-DD）**
+**第 1 次（2026-10-28）**
 ```
+預測 .a 會是37, .so是38
+
+./hw5_static
+f_to_c(100) = 37
+
+./hw5_dyn
+f_to_c(100) = 38
+
+hw5_static需要重編, 否則就一直是舊的
+
+3個成員,本來就只有ctof, ftoc round
 ```
 
+> **批改**：**不完整**。我在你的 `hw5/` 執行，`hw5_static` 37、`hw5_dyn` 38，跟你貼的一樣；預測兩個都對。
+> - **抓到的**：輸出與預測；`hw5_static` 要重新產生才拿得到修正；`ar t` 有 3 個成員。
+> - **缺的 1：「為什麼兩支結果不同」沒回答**。要講出機制：`hw5_static` 連結時 `ld` 把 `libtemp.a` 裡的 `round.o` 等成員**複製進執行檔**，之後 `libtemp.a` 怎麼改都跟它無關；`hw5_dyn` 的執行檔裡**沒有** `temp_round` 的程式碼，只記了 `NEEDED libtemp.so.1`，每次執行時 `ld.so` 去載入 `libtemp.so.1`——它現在指向 `libtemp.so.1.0.1`，所以拿到新版。新版的 SONAME 還是 `libtemp.so.1`，`NEEDED` 對得上，所以不用重新連結。
+> - **缺的 2：`ar t` 為什麼是 3 個**。「本來就只有 ctof、ftoc、round」沒解釋「再放一次 `round.o` 為什麼沒變成 4 個」：`ar` 的 **`r`（replace）遇到同名成員就取代**，不是加一份（第二節 `ar rcs` 的文法逐字母說明）。
+> - 小修（不扣分）：`hw5_static` 是要「**重新連結**」（再跑一次 `gcc -Wall hw5_main.c -L. -l:libtemp.a -o hw5_static`），不必重新編譯 `hw5_main.c`；它的機器碼沒變，變的是要被複製進來的 `round.o`。
+>
+> **參考答案**【筆記第六節〈[換掉 `.so`：程式不用重新連結](../../html/c/靜態與動態函式庫-ar與.a、-fPIC與.so、執行時怎麼找到.so.html#換掉-so程式不用重新連結)〉；`ar` 的 `r`：第二節〈[實驗：做出 `libcalc.a`](../../html/c/靜態與動態函式庫-ar與.a、-fPIC與.so、執行時怎麼找到.so.html#實驗做出-libcalca)〉的 `ar rcs` 文法說明、第七節〈[`ar`：全部選項](../../html/c/靜態與動態函式庫-ar與.a、-fPIC與.so、執行時怎麼找到.so.html#ar全部選項ar---help-實測gnu-ar-242)〉】
+>
+> **核心關鍵**（答到這幾點就算對）：
+>
+> 1. `hw5_static` 還是 37、`hw5_dyn` 變成 38。
+> 2. 靜態：連結時 `round.o` 的程式碼已被**複製進**執行檔，換掉 `libtemp.a` 影響不到它；動態：執行檔裡沒有那段程式碼，每次執行由 `ld.so` 載入 `libtemp.so.1`，它現在指向 `1.0.1`（SONAME 沒變，所以不用重新連結）。
+> 3. `hw5_static` 要用新的 `libtemp.a` **重新連結**才拿得到修正。
+> 4. `ar t` 還是 3 個：`r` 遇到同名成員 `round.o` 就**取代**，不會多加一份。
+>
+> **詳細說明**：
+> - 實測（scratchpad 重做，先用舊的 `round.c`）：
+>
+>   ```text
+>   $ ar tv libtemp.a                 # 舊版
+>   rw-r--r-- 0/0   1384 Jan  1 08:00 1970 ctof.o
+>   rw-r--r-- 0/0   1400 Jan  1 08:00 1970 ftoc.o
+>   rw-r--r-- 0/0   1256 Jan  1 08:00 1970 round.o
+>   $ gcc -Wall -fPIC -c round.c; ar rcs libtemp.a round.o     # 改成四捨五入後
+>   $ ar tv libtemp.a
+>   rw-r--r-- 0/0   1384 Jan  1 08:00 1970 ctof.o
+>   rw-r--r-- 0/0   1400 Jan  1 08:00 1970 ftoc.o
+>   rw-r--r-- 0/0   1264 Jan  1 08:00 1970 round.o          ← 同一個位置，大小 1256 → 1264，被取代了
+>   $ cp libtemp.a dup.a; ar q dup.a round.o; ar t dup.a     # 對照：q（quick append）不檢查同名，直接加在最後
+>   ctof.o
+>   ftoc.o
+>   round.o
+>   round.o
+>   $ ./hw5_static                   # 沒重新連結
+>   f_to_c(100) = 37
+>   $ gcc -Wall hw5_main.c -L. -l:libtemp.a -o hw5_static && ./hw5_static
+>   f_to_c(100) = 38
+>   ```
+>
+>   （`ar tv` 的時間都是 1970，是 Ubuntu 的 `ar` 預設 `D`（deterministic，決定性）模式，把時間、擁有者都寫成 0，讓同樣的輸入做出一模一樣的 `.a`。）
+> - `nm hw5_static | grep temp_round` 看得到 `T temp_round`：函式本身就在執行檔的 `.text` 裡；`nm -D hw5_dyn` 只會看到 `U f_to_c`，程式碼在 `.so` 裡。
+> - 這就是第六節說的「最大的好處，也是代價」：動態的修正一換就全部生效，但不相容的改變也會一起生效——5-3 的 SONAME 換號就是為了處理後者。
 ### 5-3. 先預測：下一版把 `f_to_c` 改成回傳「十分之一度」（不相容的改變），新增 `ftoc2.c`，做成 SONAME 是 `libtemp.so.2` 的新版，並把連結名稱指到新版：
 
 ```c
@@ -940,6 +1172,59 @@ gcc -Wall hw5_main.c -L. -ltemp -Wl,-rpath,'$ORIGIN' -o hw5_dyn2
 
 **不重新連結**舊的 `hw5_dyn`，`./hw5_dyn` 和 `./hw5_dyn2` 各印出多少？寫下預測後執行，貼上輸出、`ls -l libtemp*` 與兩支程式的 `readelf -d … | grep NEEDED`。為什麼兩個版本可以同時存在、舊程式沒有被新版弄壞？如果 5-3 偷懶、新版沿用 SONAME `libtemp.so.1` 並把 `libtemp.so.1` 指過去，`hw5_dyn` 會印出什麼？（這一問只要推理，不用做。）【筆記第六節〈SONAME〉最後一段】
 
-**第 1 次（YYYY-MM-DD）**
+**第 1 次（2026-10-28）**
 ```
+預測 38, 377
+./hw5_dyn
+f_to_c(100) = 38
+
+./hw5_dyn2
+f_to_c(100) = 377
+
+-rw-rw-r-- 1 set set  4338 Oct 28 22:48 libtemp.a
+lrwxrwxrwx 1 set set    12 Oct 28 23:13 libtemp.so -> libtemp.so.2
+lrwxrwxrwx 1 set set    16 Oct 28 22:34 libtemp.so.1 -> libtemp.so.1.0.1
+-rwxrwxr-x 1 set set 15392 Oct 28 17:17 libtemp.so.1.0.0
+-rwxrwxr-x 1 set set 15392 Oct 28 22:36 libtemp.so.1.0.1
+lrwxrwxrwx 1 set set    16 Oct 28 23:12 libtemp.so.2 -> libtemp.so.2.0.0
+-rwxrwxr-x 1 set set 15392 Oct 28 23:12 libtemp.so.2.0.0
+
+readelf -dW hw5_dyn
+0x0000000000000001 (NEEDED)             Shared library: [libtemp.so.1]
+0x0000000000000001 (NEEDED)             Shared library: [libc.so.6]
+
+readelf -dW hw5_dyn2
+0x0000000000000001 (NEEDED)             Shared library: [libtemp.so.2]
+0x0000000000000001 (NEEDED)             Shared library: [libc.so.6]
+
+因爲兩個程式NEEDED的庫不同,不會被新版弄壞的
+
+377
 ```
+
+> **批改**：**對**。我在你的 `hw5/` 執行，`hw5_dyn` 38、`hw5_dyn2` 377，`ls -l` 與兩個 `NEEDED` 都跟你貼的一樣；預測兩個都對。「偷懶」那一問我也在 scratchpad 實際做了（新版沿用 SONAME `libtemp.so.1`、把 `libtemp.so.1` 指過去），`hw5_dyn` 印 `f_to_c(100) = 377`，結束狀態 0，跟你推的一樣。
+> - 抓到：兩支程式的 `NEEDED` 不同（`libtemp.so.1` vs `libtemp.so.2`），所以各自載入各自的版本；偷懶時舊程式會印 377。
+> - 小修（不扣分）：
+>   1. 「為什麼能同時存在」可以多講一層：**SONAME 換了號，兩版就是不同的檔名**（`libtemp.so.1` → `1.0.1`、`libtemp.so.2` → `2.0.0`），可以並排放在同一個資料夾；改掉的只有連結名稱 `libtemp.so`，它只影響**之後的連結**（`hw5_dyn2` 連到 `.so.2`），已經連結好的 `hw5_dyn` 的 `NEEDED` 寫死 `libtemp.so.1`，執行時照樣找到舊版。
+>   2. 「377」最好附上理由並點出危險：`ld.so` 只比對**名字** `libtemp.so.1`，對得上就載入，不會檢查函式的意義變了；舊程式照「回傳攝氏度」的理解去用，把 377 當成 377°C——**沒有任何錯誤訊息、結束狀態也是 0**，靜靜地算錯。這就是「不相容就要換 SONAME」的理由。
+>
+> **參考答案**【筆記第六節〈[SONAME：`NEEDED` 記的是哪個名字](../../html/c/靜態與動態函式庫-ar與.a、-fPIC與.so、執行時怎麼找到.so.html#sonameneeded-記的是哪個名字)〉最後一段】
+>
+> **核心關鍵**（答到這幾點就算對）：
+>
+> 1. `hw5_dyn` 印 38、`hw5_dyn2` 印 377；`NEEDED` 分別是 `libtemp.so.1`、`libtemp.so.2`。
+> 2. 不相容的新版換了 SONAME，兩版是不同的檔名可以並存；舊程式的 `NEEDED` 寫死 `libtemp.so.1`，執行時仍載入 `1.0.1`；連結名稱 `libtemp.so` 改指新版只影響之後新連結的程式。
+> 3. 偷懶沿用 `libtemp.so.1`：`hw5_dyn` 會載入新版、印 377，而且不會有任何錯誤（`ld.so` 只比對名字）。
+>
+> **詳細說明**：
+> - 偷懶版實測（scratchpad，複製你的 `hw5_dyn` 與 `.o`）：
+>
+>   ```text
+>   $ gcc -shared -Wl,-soname,libtemp.so.1 ctof.o ftoc2.o round.o -o libtemp.so.1.9.9
+>   $ ln -sf libtemp.so.1.9.9 libtemp.so.1
+>   $ ./hw5_dyn; echo "exit=$?"
+>   f_to_c(100) = 377
+>   exit=0
+>   ```
+>
+> - 5-2 和 5-3 合起來就是 SONAME 的規則：**相容的修正**（5-2 的四捨五入）沿用 SONAME、只換真實檔名（`1.0.0` → `1.0.1`），舊程式不用重新連結就拿到修正；**不相容的改變**（5-3 的單位改了）換 SONAME（`.so.1` → `.so.2`），舊程式繼續用舊版，新程式連結到新版。系統上常看到同一個函式庫的兩個大版本並存（例如兩個不同大版本號的 `.so`），就是這個原因。

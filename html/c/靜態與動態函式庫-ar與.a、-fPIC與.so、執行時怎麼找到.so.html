@@ -59,6 +59,7 @@
 <li class="l3"><a href="#10-%E6%95%B4%E7%90%86%E5%9B%9B%E5%80%8B%E5%AE%B9%E6%98%93%E6%90%9E%E9%8C%AF%E7%9A%84%E5%9C%B0%E6%96%B9">10. 整理：四個容易搞錯的地方</a></li>
 <li class="l3"><a href="#11-%E5%81%9A-so-%E9%9C%80%E8%A6%81-h-%E5%97%8Einclude-%E7%AE%A1%E7%B7%A8%E8%AD%AF-l-%E7%AE%A1%E9%80%A3%E7%B5%90">11. 做 .so 需要 .h 嗎？#include 管編譯、-l 管連結</a></li>
 <li class="l3"><a href="#12-so-%E4%B9%8B%E9%96%93%E7%82%BA%E4%BB%80%E9%BA%BC%E9%A0%86%E5%BA%8F%E5%B9%BE%E4%B9%8E%E4%B8%8D%E9%87%8D%E8%A6%81a-%E7%82%BA%E4%BB%80%E9%BA%BC%E9%82%84%E6%98%AF%E5%A4%B1%E6%95%97%E4%BD%9C%E6%A5%AD-2-3">12. .so 之間為什麼順序幾乎不重要、(a) 為什麼還是失敗（作業 2-3）</a></li>
+<li class="l3"><a href="#13-%E9%80%A3%E7%B5%90%E6%99%82-ld-%E7%82%BA%E4%BB%80%E9%BA%BC%E8%A6%81%E6%89%BE%E4%BE%9D%E8%B3%B4%E7%9A%84%E4%BE%9D%E8%B3%B4-rpath-link-%E8%88%87--rpath%E4%BD%9C%E6%A5%AD-4-3">13. 連結時 ld 為什麼要找「依賴的依賴」：-rpath-link 與 -rpath（作業 4-3）</a></li>
 <li class="l2"><a href="#%E8%87%AA%E6%88%91%E6%B8%AC%E9%A9%97">自我測驗</a></li>
 </ul>
 </nav>
@@ -647,6 +648,9 @@ $ LD_LIBRARY_PATH=v2 LD_DEBUG=libs ./app_rpath 2&gt;&amp;1 | grep -A4 'find libr
 <p>每一段 <code>search path=</code> 最後的括號就是它來自哪一步：<code>(LD_LIBRARY_PATH)</code>、<code>(RPATH from file ./app_rpath)</code>。<code>$ORIGIN</code> 已經被換成實際的目錄。</p>
 <p><strong>為什麼新的 <code>RUNPATH</code> 故意排在 <code>LD_LIBRARY_PATH</code> 後面？</strong> <code>RPATH</code> 寫死在執行檔裡、又排第一，使用者完全沒辦法用 <code>LD_LIBRARY_PATH</code> 臨時換一個版本（例如換成有除錯資訊的版本來查 bug）。<code>RUNPATH</code> 讓使用者的設定優先。所以新程式用 <code>RUNPATH</code>（<code>ld</code> 預設），<code>man ld.so</code> 也標明 <code>DT_RPATH</code> 已不建議使用。</p>
 <p><strong><code>RUNPATH</code> 只管直接依賴</strong>（上面第 3 步）：如果 <code>libcalc.so</code> 自己又需要 <code>libhelper.so</code>，執行檔的 <code>RUNPATH</code> <strong>不會</strong>拿來找 <code>libhelper.so</code>；要嘛 <code>libcalc.so</code> 自己也帶 <code>RUNPATH</code>，要嘛用 <code>RPATH</code>（會套用到整棵依賴樹）。這個情況作業第 4 題要你自己做出來。</p>
+<blockquote>
+<p>課後討論：<a href="#13-%E9%80%A3%E7%B5%90%E6%99%82-ld-%E7%82%BA%E4%BB%80%E9%BA%BC%E8%A6%81%E6%89%BE%E4%BE%9D%E8%B3%B4%E7%9A%84%E4%BE%9D%E8%B3%B4-rpath-link-%E8%88%87--rpath%E4%BD%9C%E6%A5%AD-4-3">第九節第 13 章〈連結時 <code>ld</code> 為什麼要找「依賴的依賴」：<code>-rpath-link</code> 與 <code>-rpath</code>（作業 4-3）〉</a></p>
+</blockquote>
 <h3 id="方法三裝到系統目錄跑-ldconfig">方法三：裝到系統目錄，跑 <code>ldconfig</code></h3>
 <p>系統上的函式庫（<code>libc.so.6</code>、<code>libz.so.1</code>……）不需要任何設定就找得到，是因為第 4 步的快取。<code>/etc/ld.so.cache</code> 是一個二進位檔，記著「函式庫名字 → 完整路徑」，由 <strong><code>ldconfig</code></strong> 掃描設定檔列出的目錄產生：</p>
 <pre><code>$ cat /etc/ld.so.conf
@@ -1251,6 +1255,7 @@ $ rm libcalc.so &amp;&amp; ./app                     # 刪掉連結名稱
 <li><a href="#10-%E6%95%B4%E7%90%86%E5%9B%9B%E5%80%8B%E5%AE%B9%E6%98%93%E6%90%9E%E9%8C%AF%E7%9A%84%E5%9C%B0%E6%96%B9">第 10 章</a>：整理：四個容易搞錯的地方</li>
 <li><a href="#11-%E5%81%9A-so-%E9%9C%80%E8%A6%81-h-%E5%97%8Einclude-%E7%AE%A1%E7%B7%A8%E8%AD%AF-l-%E7%AE%A1%E9%80%A3%E7%B5%90">第 11 章</a>：做 <code>.so</code> 需要 <code>.h</code> 嗎？<code>#include</code> 管編譯、<code>-l</code> 管連結</li>
 <li><a href="#12-so-%E4%B9%8B%E9%96%93%E7%82%BA%E4%BB%80%E9%BA%BC%E9%A0%86%E5%BA%8F%E5%B9%BE%E4%B9%8E%E4%B8%8D%E9%87%8D%E8%A6%81a-%E7%82%BA%E4%BB%80%E9%BA%BC%E9%82%84%E6%98%AF%E5%A4%B1%E6%95%97%E4%BD%9C%E6%A5%AD-2-3">第 12 章</a>：<code>.so</code> 之間為什麼順序幾乎不重要、(a) 為什麼還是失敗（作業 2-3）</li>
+<li><a href="#13-%E9%80%A3%E7%B5%90%E6%99%82-ld-%E7%82%BA%E4%BB%80%E9%BA%BC%E8%A6%81%E6%89%BE%E4%BE%9D%E8%B3%B4%E7%9A%84%E4%BE%9D%E8%B3%B4-rpath-link-%E8%88%87--rpath%E4%BD%9C%E6%A5%AD-4-3">第 13 章</a>：連結時 <code>ld</code> 為什麼要找「依賴的依賴」：<code>-rpath-link</code> 與 <code>-rpath</code>（作業 4-3）</li>
 </ul>
 <h3 id="1-0x2ec8-和-0x3fd0-各是什麼mov-0x2ec8riprax-的兩個數字">1. <code>0x2ec8</code> 和 <code>0x3fd0</code> 各是什麼：<code>mov 0x2ec8(%rip),%rax</code> 的兩個數字</h3>
 <blockquote>
@@ -2606,6 +2611,182 @@ $ ./app_a3
 </tbody>
 </table>
 <p>正式的做法是讓每個 <code>.so</code> 自己記住依賴：做 <code>libconv.so</code> 時加 <code>-Lso -lround</code>，<code>libconv.so</code> 的 <code>NEEDED</code> 就有 <code>libround.so</code>，主程式只寫 <code>-lconv</code> 也找得到（依賴的依賴在執行時怎麼找，見<a href="#ldso-%E5%8E%BB%E4%BA%86%E5%93%AA%E4%BA%9B%E5%9C%B0%E6%96%B9%E6%89%BE">第五節〈<code>ld.so</code> 去了哪些地方找〉</a>與作業第 4 題）。作業故意不加，才看得到上面這些現象。</p>
+<h3 id="13-連結時-ld-為什麼要找依賴的依賴-rpath-link-與--rpath作業-4-3">13. 連結時 <code>ld</code> 為什麼要找「依賴的依賴」：<code>-rpath-link</code> 與 <code>-rpath</code>（作業 4-3）</h3>
+<blockquote>
+<p>2026-10-28 作業 4-3 批改補教（「<code>ld</code> 為什麼要在連結時檢查」是新觀念）：題目把連結 <code>hw4</code> 的指令拿掉 <code>-Wl,-rpath-link,lib</code>，問「<code>hw4_main.c</code> 根本沒呼叫 <code>temp_round</code>，為什麼 <code>ld</code> 在連結時就要去找 <code>libround.so</code>？」使用者的猜測：</p>
+<ul>
+<li>「我猜 <code>ld</code> 不是幫 <code>hw4_main.c</code> 找，而是幫 <code>libtemp.so</code> 找……也會去看 <code>libtemp.so</code> 的依賴 <code>libround.so</code>」</li>
+</ul>
+<p>正文出處：<a href="#rpath-%E5%92%8C-runpath-%E5%B7%AE%E5%9C%A8%E5%93%AA%E8%B7%9F-ld_library_path-%E8%AA%B0%E5%84%AA%E5%85%88">第五節〈<code>RPATH</code> 和 <code>RUNPATH</code> 差在哪〉</a>最後一段「<code>RUNPATH</code> 只管直接依賴」；<code>-rpath-link</code> 在<a href="#ld%E6%9C%AC%E8%AA%B2%E9%80%8F%E9%81%8E--wl-%E7%94%A8%E5%88%B0%E7%9A%84%E9%81%B8%E9%A0%85">第七節〈<code>ld</code>：本課透過 <code>-Wl,</code> 用到的選項〉</a>的表</p>
+</blockquote>
+<p><strong>一句話：做執行檔時，<code>ld</code> 要確認每個 <code>.so</code> 自己缺的符號（<code>libtemp.so</code> 的 <code>U temp_round</code>）都有人提供，所以要把 <code>.so</code> 的 <code>NEEDED</code> 也找出來看；它找這些間接依賴時不看 <code>-L</code>，而是看 <code>-rpath-link</code>、<code>-rpath</code>、<code>LD_LIBRARY_PATH</code>、那個 <code>.so</code> 自己的 <code>RUNPATH</code> 等。<code>-rpath-link</code> 只在連結時用、不寫進執行檔；<code>-rpath</code> 寫進執行檔給 <code>ld.so</code> 用，連結時也會順便參考。</strong></p>
+<h4 id="實驗用的檔案-1">實驗用的檔案</h4>
+<p>跟作業第 4 題同一組，檔案在 <a href="../../small-project/s1-07-libraries/examples/rpathlink/"><code>examples/rpathlink/</code></a>：<code>libround.so</code> 放 <code>temp_round</code>，<code>libtemp.so</code> 放 <code>c_to_f</code>、<code>f_to_c</code>，它們呼叫 <code>temp_round</code>。</p>
+<p><code>temp.h</code>（檔案：<a href="../../small-project/s1-07-libraries/examples/rpathlink/temp.h"><code>temp.h</code></a>）：</p>
+<pre><code class="language-c"><span class="cp">#ifndef TEMP_H</span>
+<span class="cp">#define TEMP_H</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">c_to_f</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">c</span><span class="p">);</span>
+<span class="kt">int</span><span class="w"> </span><span class="nf">f_to_c</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">f</span><span class="p">);</span>
+<span class="kt">int</span><span class="w"> </span><span class="nf">temp_round</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">x10</span><span class="p">);</span>
+
+<span class="cp">#endif</span>
+</code></pre>
+<p><code>round.c</code>（檔案：<a href="../../small-project/s1-07-libraries/examples/rpathlink/round.c"><code>round.c</code></a>）：</p>
+<pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;temp.h&quot;</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">temp_round</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">x10</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="p">(</span><span class="n">x10</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">5</span><span class="p">)</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="mi">10</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<p><code>ctof.c</code>（檔案：<a href="../../small-project/s1-07-libraries/examples/rpathlink/ctof.c"><code>ctof.c</code></a>）：</p>
+<pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;temp.h&quot;</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">c_to_f</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">c</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">temp_round</span><span class="p">(</span><span class="n">c</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mi">18</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">320</span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre>
+<p><code>ftoc.c</code>（檔案：<a href="../../small-project/s1-07-libraries/examples/rpathlink/ftoc.c"><code>ftoc.c</code></a>）：</p>
+<pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;temp.h&quot;</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">f_to_c</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">f</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">temp_round</span><span class="p">((</span><span class="n">f</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">32</span><span class="p">)</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mi">100</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="mi">18</span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre>
+<p><code>main.c</code>（檔案：<a href="../../small-project/s1-07-libraries/examples/rpathlink/main.c"><code>main.c</code></a>）：</p>
+<pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;temp.h&quot;</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;c_to_f(37) = %d</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">c_to_f</span><span class="p">(</span><span class="mi">37</span><span class="p">));</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<p>先做兩個 <code>.so</code>（<code>libtemp.so</code> 自己記住依賴 <code>libround.so</code>，但<strong>沒有</strong> <code>RUNPATH</code>）：</p>
+<pre><code class="language-text">$ mkdir -p lib
+$ gcc -Wall -fPIC -shared round.c -o lib/libround.so
+$ gcc -Wall -fPIC -shared ctof.c ftoc.c -Llib -lround -o lib/libtemp.so
+$ nm -D lib/libtemp.so | grep temp_round
+                 U temp_round                    ← libtemp.so 自己缺 temp_round
+$ readelf -d lib/libtemp.so | grep NEEDED
+ 0x0000000000000001 (NEEDED)             Shared library: [libround.so]
+</code></pre>
+<h4 id="ld-在檢查什麼"><code>ld</code> 在檢查什麼</h4>
+<pre><code class="language-text">$ gcc -Wall main.c -Llib -ltemp -o app
+/usr/bin/ld: warning: libround.so, needed by lib/libtemp.so, not found (try using -rpath or -rpath-link)
+/usr/bin/ld: lib/libtemp.so: undefined reference to `temp_round&#39;
+collect2: error: ld returned 1 exit status
+</code></pre>
+<p>兩行訊息分開讀：</p>
+<ol>
+<li><strong><code>libround.so, needed by lib/libtemp.so, not found</code></strong>：<code>ld</code> 讀了 <code>libtemp.so</code> 的 <code>NEEDED</code>，想把 <code>libround.so</code> 也找來看，找不到。注意 <code>-Llib</code> 明明寫了，<code>libround.so</code> 也在 <code>lib/</code>——<strong>找間接依賴時不看 <code>-L</code></strong>（<code>man ld</code> 的 <code>-rpath-link</code> 一節列了搜尋順序，<code>-L</code> 只在 SunOS 才算）。</li>
+<li><strong><code>lib/libtemp.so: undefined reference to 'temp_round'</code></strong>：開頭是 <code>lib/libtemp.so:</code>，表示缺的是 <strong><code>libtemp.so</code></strong> 的符號，不是 <code>main.c</code> 的。做執行檔時 <code>ld</code> 預設 <code>--no-allow-shlib-undefined</code>：每個留下來的 <code>.so</code> 裡未定義的符號都要有人提供（跟<a href="#12-so-%E4%B9%8B%E9%96%93%E7%82%BA%E4%BB%80%E9%BA%BC%E9%A0%86%E5%BA%8F%E5%B9%BE%E4%B9%8E%E4%B8%8D%E9%87%8D%E8%A6%81a-%E7%82%BA%E4%BB%80%E9%BA%BC%E9%82%84%E6%98%AF%E5%A4%B1%E6%95%97%E4%BD%9C%E6%A5%AD-2-3">第 12 章</a>〈(a) 為什麼還是失敗〉第 4 步是同一個檢查），<code>libround.so</code> 找不到，這個檢查就過不了。</li>
+</ol>
+<p>所以使用者猜的方向對：<code>ld</code> 是<strong>替 <code>libtemp.so</code></strong> 找。為什麼要在連結時就查？因為這是執行檔的最後一關——現在不查，<code>libtemp.so</code> 的洞要到執行時（甚至呼叫到那個函式時）才爆。第 12 章的 <code>app_a3</code> 就是關掉檢查（<code>--allow-shlib-undefined</code>）、執行時才出錯的例子。</p>
+<p>這個檢查可以關掉，關掉後連結成功；本例 <code>libtemp.so</code> 的 <code>NEEDED</code> 有寫 <code>libround.so</code>，執行時 <code>ld.so</code> 會照常載入，所以也能跑：</p>
+<pre><code class="language-text">$ gcc -Wall main.c -Llib -ltemp -Wl,--allow-shlib-undefined -o app4 &amp;&amp; echo 連結成功
+連結成功
+$ LD_LIBRARY_PATH=lib ./app4
+c_to_f(37) = 99
+</code></pre>
+<p>但正常不要這樣做——它會連「真的沒有人提供」的情況一起放過。</p>
+<h4 id="告訴-ld-去哪裡找幾種方法實測">告訴 <code>ld</code> 去哪裡找：幾種方法實測</h4>
+<table>
+<thead>
+<tr>
+<th>指令</th>
+<th>連結</th>
+<th>寫進 <code>app</code> 的</th>
+<th>說明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-Wl,-rpath-link,lib</code></td>
+<td>成功</td>
+<td>什麼都沒寫</td>
+<td>只給連結時的 <code>ld</code> 用</td>
+</tr>
+<tr>
+<td><code>-Wl,-rpath,lib</code></td>
+<td>成功</td>
+<td><code>RUNPATH [lib]</code></td>
+<td><code>-rpath</code> 在連結時也被拿來找間接依賴（<code>man ld</code> 搜尋順序第 2 步）</td>
+</tr>
+<tr>
+<td><code>-Wl,-rpath,'$ORIGIN/lib'</code></td>
+<td><strong>失敗</strong>（同上面的兩行錯誤）</td>
+<td>—</td>
+<td>本機實測連結時沒用上 <code>$ORIGIN/lib</code>；原因我沒查證，所以第 4 題才另外加 <code>-rpath-link</code></td>
+</tr>
+<tr>
+<td><code>LD_LIBRARY_PATH=lib gcc …</code></td>
+<td>成功</td>
+<td>什麼都沒寫</td>
+<td><code>ld</code> 也會參考這個環境變數（第 5 步）</td>
+</tr>
+<tr>
+<td><code>libtemp.so</code> 自己帶 <code>RUNPATH [$ORIGIN]</code></td>
+<td>成功</td>
+<td>—</td>
+<td><code>ld</code> 會看那個 <code>.so</code> 自己的 <code>RUNPATH</code>（第 6 步），<code>$ORIGIN</code> 換成 <code>libtemp.so</code> 所在的資料夾</td>
+</tr>
+</tbody>
+</table>
+<pre><code class="language-text">$ gcc -Wall main.c -Llib -ltemp -Wl,-rpath-link,lib -o app &amp;&amp; echo 連結成功
+連結成功
+$ readelf -d app | grep -E &#39;NEEDED|RUNPATH|RPATH&#39;
+ 0x0000000000000001 (NEEDED)             Shared library: [libtemp.so]
+ 0x0000000000000001 (NEEDED)             Shared library: [libc.so.6]
+$ ./app
+./app: error while loading shared libraries: libtemp.so: cannot open shared object file: No such file or directory
+$ gcc -Wall main.c -Llib -ltemp -Wl,-rpath,lib -o app2 &amp;&amp; echo 連結成功
+連結成功
+$ readelf -d app2 | grep -E &#39;RUNPATH|RPATH&#39;
+ 0x000000000000001d (RUNPATH)            Library runpath: [lib]
+$ gcc -Wall -fPIC -shared ctof.c ftoc.c -Llib -lround -Wl,-rpath,&#39;$ORIGIN&#39; -o lib/libtemp.so
+$ gcc -Wall main.c -Llib -ltemp -Wl,-rpath,&#39;$ORIGIN/lib&#39; -o app6 &amp;&amp; echo 連結成功
+連結成功
+$ ./app6
+c_to_f(37) = 99
+</code></pre>
+<p><code>app</code> 只用 <code>-rpath-link</code>：連結過了，但執行檔裡沒有任何路徑，執行時連 <code>libtemp.so</code> 都找不到——<strong><code>-rpath-link</code> 完全不影響執行時</strong>。<code>app2</code> 的 <code>RUNPATH [lib]</code> 是相對路徑，會照<strong>目前工作目錄</strong>解讀，換個資料夾執行就失效，所以實務上用 <code>$ORIGIN</code>。最後一組說明：讓函式庫自己帶 <code>RUNPATH</code>（作業 4-2 (a)）不只修好執行時，連結時也不必再加 <code>-rpath-link</code>。</p>
+<h4 id="整理-rpath-link-與--rpath">整理：<code>-rpath-link</code> 與 <code>-rpath</code></h4>
+<table>
+<thead>
+<tr>
+<th></th>
+<th><code>-rpath-link 目錄</code></th>
+<th><code>-rpath 目錄</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>誰用</td>
+<td>只有連結時的 <code>ld</code></td>
+<td>執行時的 <code>ld.so</code>（連結時 <code>ld</code> 也會參考）</td>
+</tr>
+<tr>
+<td>寫進輸出檔嗎</td>
+<td>不寫</td>
+<td>寫成 <code>RUNPATH</code>（加 <code>--disable-new-dtags</code> 是 <code>RPATH</code>）</td>
+</tr>
+<tr>
+<td>用來找什麼</td>
+<td><code>.so</code> 的 <code>NEEDED</code>（間接依賴）</td>
+<td>執行時：這個檔案的 <code>NEEDED</code>（<code>RPATH</code> 則是整棵樹）；連結時：同左</td>
+</tr>
+<tr>
+<td>常見寫法</td>
+<td><code>-Wl,-rpath-link,lib</code></td>
+<td><code>-Wl,-rpath,'$ORIGIN/lib'</code></td>
+</tr>
+</tbody>
+</table>
 <hr />
 <h2 id="自我測驗">自我測驗</h2>
 <blockquote>
