@@ -77,6 +77,7 @@
 <th>題目</th>
 <th>結果</th>
 <th>錯在哪／缺什麼</th>
+<th>過關</th>
 </tr>
 </thead>
 <tbody>
@@ -84,206 +85,247 @@
 <td>1-1</td>
 <td>對</td>
 <td>抓到重點：<code>main</code> 要 <code>trim</code> → 拉 <code>trim.o</code>，<code>trim.o</code> 要 <code>is_space</code> → 拉 <code>space.o</code>，<code>case.o</code> 沒人要</td>
+<td>—</td>
 </tr>
 <tr>
 <td>1-2</td>
 <td>對</td>
 <td>抓到重點：命令列直接寫的 <code>.o</code> 一律整個放進去，<code>case.o</code> 的兩個函式也進來</td>
+<td>—</td>
 </tr>
 <tr>
 <td>2-1</td>
 <td>對</td>
 <td>抓到重點：遇到 <code>libtxt.a</code> 時清單是空的、一個成員都不拉，之後不回頭</td>
+<td>—</td>
 </tr>
 <tr>
 <td>2-2</td>
 <td>對</td>
 <td>抓到重點：一個是檔案本身找不到，一個是檔案找到了但符號沒被解決</td>
+<td>—</td>
 </tr>
 <tr>
 <td>2-3</td>
 <td>不完整</td>
 <td>沒講出原因：Ubuntu 的 gcc 預設傳 <code>--as-needed</code>，遇到 <code>-ltxt</code> 時還沒人需要它，<code>.so</code> 被丟掉</td>
+<td>✅ 過關（10-30）</td>
 </tr>
 <tr>
 <td>3-1</td>
 <td>對</td>
 <td>抓到重點：失敗，錯誤提到 <code>hits</code>（沒 <code>-fPIC</code> 時用 <code>%rip</code> 加固定距離直接讀）</td>
+<td>—</td>
 </tr>
 <tr>
 <td>3-2</td>
 <td>對</td>
 <td>抓到重點：<code>misses</code> 是 <code>static</code>，只有本檔用得到，距離固定</td>
+<td>—</td>
 </tr>
 <tr>
 <td>3-3</td>
 <td>大致對</td>
 <td>理由一（符號插入，最後用的可能是執行檔那份）對；理由二「規則簡單」不是，缺「不能改 <code>.text</code>：唯讀、改了就不能共用」</td>
+<td>未過關</td>
 </tr>
 <tr>
 <td>4-1</td>
 <td>對</td>
 <td>抓到重點：<code>ld.so</code> 印的；連結時命令列給了位置，執行時只拿到名字、只找預設路徑</td>
+<td>—</td>
 </tr>
 <tr>
 <td>4-2</td>
 <td>大致對</td>
 <td>指令對；單引號的理由沒答出：雙引號裡 shell 還是會展開 <code>$ORIGIN</code>（變成空字串）</td>
+<td>未過關</td>
 </tr>
 <tr>
 <td>4-3</td>
 <td>大致對</td>
 <td>結論對（<code>RUNPATH</code> 換得掉、<code>RPATH</code> 換不掉）；原因沒答出：搜尋順序 <code>RPATH</code> → <code>LD_LIBRARY_PATH</code> → <code>RUNPATH</code></td>
+<td>未過關</td>
 </tr>
 <tr>
 <td>5-1</td>
 <td>對</td>
 <td>抓到重點：<code>NEEDED</code> 記 SONAME <code>libcalc.so.1</code>，<code>libcalc.so</code> 只在連結時用</td>
+<td>—</td>
 </tr>
 <tr>
 <td>5-2</td>
 <td>對</td>
 <td>抓到重點：把 <code>libcalc.so.1</code> 指到 <code>.1.0.1</code>；靜態的要重新連結</td>
+<td>—</td>
 </tr>
 <tr>
 <td>5-3</td>
 <td>對</td>
 <td>抓到重點：SONAME 改成 <code>libcalc.so.2</code>，舊程式的 <code>NEEDED</code> 還是 <code>.so.1</code></td>
+<td>—</td>
 </tr>
 <tr>
 <td>6-1</td>
 <td>對</td>
 <td>抓到重點：下一條指令 <code>0x1121</code> 到 GOT 裡 <code>total</code> 那格，<code>0x1121 + 0x2eaf = 0x3fd0</code></td>
+<td>—</td>
 </tr>
 <tr>
 <td>6-2</td>
 <td>對</td>
 <td>抓到重點：目標格子固定，<code>%rip</code> 是下一條指令、位置不同，距離就不同</td>
+<td>—</td>
 </tr>
 <tr>
 <td>6-3</td>
 <td>大致對</td>
 <td><code>0x3fd0</code> 是 GOT 那格、裝 <code>total</code> 的位址、<code>total</code> 在 <code>.bss</code> 都對；<code>-0x48</code> 不知道：它只是用附近符號標位置（<code>0x4018 − 0x48</code>）</td>
+<td>未過關</td>
 </tr>
 <tr>
 <td>6-4</td>
 <td>錯</td>
 <td>把 <code>%rax</code> 說成 <code>0x3fd0</code>（格子的位址），差了一層：<code>mov</code> 是<strong>讀</strong> <code>0x3fd0</code> 那格，<code>%rax</code> ＝ <code>total</code> 的位址；<code>1121</code> 讀到 <code>total</code> 的值</td>
+<td>未過關</td>
 </tr>
 <tr>
 <td>6-5</td>
 <td>對</td>
 <td>抓到重點：那格要等執行時由 <code>ld.so</code> 填，而且 <code>total</code> 最後可能是執行檔那份</td>
+<td>—</td>
 </tr>
 <tr>
 <td>7-1</td>
 <td>對</td>
 <td>抓到重點：<code>ld</code> 只把 <code>.so</code> 記成需求單，不複製它的定義</td>
+<td>—</td>
 </tr>
 <tr>
 <td>7-2</td>
 <td>對</td>
 <td>抓到重點：<code>.o</code> 整個放進輸出檔，兩份定義在同一個檔裡</td>
+<td>—</td>
 </tr>
 <tr>
 <td>7-3</td>
 <td>對</td>
 <td>抓到重點：印 3，<code>ld.so</code> 先找執行檔，把執行檔的 <code>&amp;verbose</code> 填進 <code>libconf.so</code> 的 GOT</td>
+<td>—</td>
 </tr>
 <tr>
 <td>7-4</td>
 <td>對</td>
 <td>抓到重點：印 0，<code>static</code> 不經 GOT、直接用 <code>%rip</code> 加固定距離讀自己那份</td>
+<td>—</td>
 </tr>
 <tr>
 <td>8-1</td>
 <td>對</td>
 <td>抓到重點：PLT 是跳板程式碼；位址存在 <code>.got.plt</code> 的 <code>0x4008</code>，<code>0x107a + 0x2f8e</code></td>
+<td>—</td>
 </tr>
 <tr>
 <td>8-2</td>
 <td>對</td>
 <td>抓到重點：第一次經過叫 <code>ld.so</code> 的程式碼、<code>ld.so</code> 把位址寫回格子；第二次直接跳</td>
+<td>—</td>
 </tr>
 <tr>
 <td>8-3</td>
 <td>錯</td>
 <td>理由不對：延遲綁定一樣照「先執行檔」找；真正原因是讀變數只是一條 <code>mov</code>，中間沒有跳板可以插入「先去查」</td>
+<td>未過關</td>
 </tr>
 <tr>
 <td>9-1</td>
 <td>不完整</td>
 <td>「不是兩份、<code>.text</code> 共用、<code>.got</code>／<code>.bss</code> 各一份」對；錯：<code>hits</code> 沒有被複製進 <code>x</code>、<code>y</code> 的 <code>.bss</code>；缺：<code>&amp;hit</code> 不同是因為載入基底不同（ASLR）</td>
+<td>未過關</td>
 </tr>
 <tr>
 <td>9-2</td>
 <td>大致對</td>
 <td>5、各自一份都對；但 <code>hits</code> 在 <code>libhits.so</code> 的 <code>.bss</code>（各自一份是因為寫入時複製），不是在執行檔的 <code>.bss</code>（跟 9-1 同一處）</td>
+<td>未過關</td>
 </tr>
 <tr>
 <td>9-3</td>
 <td>不完整</td>
 <td>方向對（各行程要的內容不同，<code>.text</code> 就不能同一份），但沒用寫入時複製說明：<code>ld.so</code> 一寫，核心就替該行程複製那頁</td>
+<td>未過關</td>
 </tr>
 <tr>
 <td>10-1</td>
 <td>錯</td>
 <td>說成一樣；實際不一樣：那格是「這個行程的載入基底 ＋ <code>0x1119</code>」，兩個行程基底不同。<code>objdump -s</code> 看到的 <code>0x1030</code> 是檔案裡的初值</td>
+<td>未過關</td>
 </tr>
 <tr>
 <td>10-2</td>
 <td>不完整</td>
 <td>「是」對；證據沒答出：<code>smaps</code> 裡 <code>r-xp</code> 那段兩個行程都是 <code>Shared_Clean:4</code>、<code>Pss:2</code></td>
+<td>未過關</td>
 </tr>
 <tr>
 <td>10-3</td>
 <td>不完整</td>
 <td>只答「kernel」：頁表是核心準備的對，但每次翻譯的是 CPU 的 MMU</td>
+<td>未過關</td>
 </tr>
 <tr>
 <td>10-4</td>
 <td>不完整</td>
 <td>「gdb 下基底一樣」對到一半；缺：兩個行程各有位址空間和頁表，同一個虛擬位址不代表同一個東西。「同時啟動」不是解法</td>
+<td>未過關</td>
 </tr>
 <tr>
 <td>11-1</td>
 <td>對</td>
 <td>抓到重點：3 與 7</td>
+<td>—</td>
 </tr>
 <tr>
 <td>11-2</td>
 <td>不完整</td>
 <td>會看到對；區段錯：你貼的 <code>nm</code> 是 <code>B</code> ＝ <code>.bss</code>，不是 <code>.data</code>；原因只猜對一半：<code>ld</code> 只留位置、寫 <code>R_X86_64_COPY</code>，初值是載入時才複製</td>
+<td>未過關</td>
 </tr>
 <tr>
 <td>11-3</td>
 <td>不完整</td>
 <td>「<code>get_level</code> 讀主程式那份」對；誰在何時填 GOT 說錯：是 <code>ld.so</code> 載入時、不是 <code>ld</code> 連結時；主程式讀 <code>level</code> 不經 GOT；<code>COPY</code> 沒講</td>
+<td>未過關</td>
 </tr>
 <tr>
 <td>11-4</td>
 <td>錯</td>
 <td>猜成「改用 GOT」；實際：執行檔已經照舊大小留了 4 byte，<code>ld.so</code> 警告 <code>Symbol 'level' has different size in shared object, consider re-linking</code></td>
+<td>未過關</td>
 </tr>
 <tr>
 <td>12-1</td>
 <td>錯</td>
 <td>說成執行階段；其實是前處理：<code>fatal error: temp.h: No such file or directory</code>，要補 <code>-Iinclude</code></td>
+<td>未過關</td>
 </tr>
 <tr>
 <td>12-2</td>
 <td>錯</td>
 <td>說成執行階段；其實是連結：<code>undefined reference to 'c_to_f'</code>，要補 <code>-ltemp</code></td>
+<td>未過關</td>
 </tr>
 <tr>
 <td>12-3</td>
 <td>對</td>
 <td>抓到重點：<code>temp.h</code> 的內容在編 <code>main.c</code> 時就進了執行檔；精確說巨集是前處理換掉的</td>
+<td>—</td>
 </tr>
 <tr>
 <td>12-4</td>
 <td>對</td>
 <td>抓到重點：<code>.h</code> 只在編譯時用，<code>.so</code> 執行時要載入</td>
+<td>—</td>
 </tr>
 </tbody>
 </table>
