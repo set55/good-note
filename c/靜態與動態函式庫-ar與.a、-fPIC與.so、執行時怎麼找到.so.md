@@ -252,9 +252,11 @@ collect2: error: ld returned 1 exit status
 
 `ld` 照命令列的順序處理輸入檔，手上維持一張「目前還沒找到定義的符號」清單（第 6 課的 `UND`）：
 
-1. 先遇到 `libcalc.a`：這時清單是空的（`main.o` 還沒讀），沒有人需要 `calc_add`，所以**一個成員都不拉**，然後就略過了。
+1. 先遇到 `libcalc.a`：這時清單裡沒有 `calc_add`（`main.o` 還沒讀；清單裡只有 gcc 自動放在前面的啟動檔帶進來的 `main` 等幾個符號），沒有人需要 `calc_add`，所以**一個成員都不拉**，然後就略過了。
 2. 再遇到 `main.c` 編出來的暫存 `.o`（訊息裡的 `/tmp/ccHsQw8y.o`）：清單多了 `calc_add`。
 3. 命令列結束，`calc_add` 還在清單上 → `undefined reference`。`ld` **不會回頭**重掃 `libcalc.a`。
+
+> 課後討論：[第九節第 15 章〈`ld` 還沒讀到 `main.o`，怎麼知道誰需要什麼：未定義符號清單與 `--as-needed`〉](#15-ld-還沒讀到-maino怎麼知道誰需要什麼未定義符號清單與---as-needed)
 
 規則：**函式庫要寫在用到它的檔案後面**。函式庫之間也一樣：`libA.a` 用到 `libB.a` 的函式，就寫 `-lA -lB`。
 
@@ -535,7 +537,7 @@ collect2: error: ld returned 1 exit status
 
 原因：Ubuntu 的 gcc 預設會傳 `--as-needed` 給 `ld`（`gcc -v` 印出的 `collect2` 那一行看得到）。它的意思是「`.so` 只有在**目前有人需要它的符號**時才寫進 `NEEDED`」；遇到 `-lcalc` 時還沒有人需要 `calc_add`，`libcalc.so` 就被丟掉了。所以不管 `.a` 還是 `.so`，一律把 `-l` 寫在後面。
 
-> 課後討論：[第九節第 12 章〈`.so` 之間為什麼順序幾乎不重要、(a) 為什麼還是失敗（作業 2-3）〉](#12-so-之間為什麼順序幾乎不重要a-為什麼還是失敗作業-2-3)
+> 課後討論：[第九節第 12 章〈`.so` 之間為什麼順序幾乎不重要、(a) 為什麼還是失敗（作業 2-3）〉](#12-so-之間為什麼順序幾乎不重要a-為什麼還是失敗作業-2-3)、[第九節第 15 章〈`ld` 還沒讀到 `main.o`，怎麼知道誰需要什麼：未定義符號清單與 `--as-needed`〉](#15-ld-還沒讀到-maino怎麼知道誰需要什麼未定義符號清單與---as-needed)
 
 ---
 
@@ -939,7 +941,7 @@ gcc 的選項有上千個，完整見 `man gcc`（Link Options、Code Gen Option
 
 ### 觀察工具
 
-- `nm`：第 1、6 課教過（`nm --help` 共 36 個選項，完整見 `man nm`）；本課多用了 `-s`（封存檔的索引）與 `-D`（動態符號表），以及符號字母 `w`（弱符號）。
+- `nm`：第 1、6 課教過（`nm --help` 共 36 個選項，完整見 `man nm`）；本課多用了 `-s`（封存檔的索引）與 `-D`（動態符號表），以及符號字母 `w`（弱符號）；第九節第 15 章用了 `-u`（只列未定義的）與 `--defined-only`（只列有定義的）。
 - `readelf -d`：動態區段，本課看的項目是 `NEEDED`、`SONAME`、`RUNPATH`、`RPATH`；`readelf -r`：重定位項目（`R_X86_64_GLOB_DAT`）。`readelf` 全部選項見 [readelf完整選項參考](./readelf完整選項參考.md)。
 - `objdump -dr`：第 4、5 課教過。
 - `ldd`：全部 6 個選項見 [objdump 那篇第六節](./objdump能不能代替ldd找依賴庫-需求單與實際載入.md#六本篇用到的工具選項)。
@@ -971,6 +973,8 @@ gcc 的選項有上千個，完整見 `man gcc`（Link Options、Code Gen Option
 - [第 11 章](#11-做-so-需要-h-嗎include-管編譯-l-管連結)：做 `.so` 需要 `.h` 嗎？`#include` 管編譯、`-l` 管連結
 - [第 12 章](#12-so-之間為什麼順序幾乎不重要a-為什麼還是失敗作業-2-3)：`.so` 之間為什麼順序幾乎不重要、(a) 為什麼還是失敗（作業 2-3）
 - [第 13 章](#13-連結時-ld-為什麼要找依賴的依賴-rpath-link-與--rpath作業-4-3)：連結時 `ld` 為什麼要找「依賴的依賴」：`-rpath-link` 與 `-rpath`（作業 4-3）
+- [第 14 章](#14-fflushstdout-是什麼printf-先寫進緩衝區)：`fflush(stdout)` 是什麼：`printf` 先寫進緩衝區
+- [第 15 章](#15-ld-還沒讀到-maino怎麼知道誰需要什麼未定義符號清單與---as-needed)：`ld` 還沒讀到 `main.o`，怎麼知道誰需要什麼：未定義符號清單與 `--as-needed`
 
 ### 1. `0x2ec8` 和 `0x3fd0` 各是什麼：`mov 0x2ec8(%rip),%rax` 的兩個數字
 
@@ -1540,6 +1544,8 @@ int main(void)
     return 0;
 }
 ```
+
+> 課後討論：[第九節第 14 章〈`fflush(stdout)` 是什麼：`printf` 先寫進緩衝區〉](#14-fflushstdout-是什麼printf-先寫進緩衝區)（`a.c`、`b.c` 裡的 `fflush(stdout);` 在做什麼）
 
 建檔與執行（`sync` 先把剛寫好的 `.so` 寫回磁碟，否則頁快取裡的頁還是「髒的」，`smaps` 會顯示成 `Shared_Dirty`，不好讀）：
 
@@ -2374,6 +2380,341 @@ c_to_f(37) = 99
 | 用來找什麼 | `.so` 的 `NEEDED`（間接依賴） | 執行時：這個檔案的 `NEEDED`（`RPATH` 則是整棵樹）；連結時：同左 |
 | 常見寫法 | `-Wl,-rpath-link,lib` | `-Wl,-rpath,'$ORIGIN/lib'` |
 
+
+### 14. `fflush(stdout)` 是什麼：`printf` 先寫進緩衝區
+
+> 2026-10-29 課後提問（做自我測驗第 9 題時）：「可以幫我註解一下fflush這是什麼東西嗎?」
+>
+> 正文出處：本課正文沒有用到 `fflush`；它第一次出現在[第 6 章](#6-兩支程式都用-libcountso記憶體裡是同一份嗎)的 `a.c`、`b.c`（`printf` 之後、`sleep(5)` 之前那一行），之後第 7 章與自我測驗第 9、10 題的程式也照抄。
+
+**一句話：`printf` 不會直接把字寫出去，而是先存進程式自己記憶體裡的緩衝區（buffer），累積一批才用一次 `write` 系統呼叫寫出去；`fflush(stdout)` 是「現在就把緩衝區裡的東西寫出去」。它跟本課的函式庫主題無關，本課的程式加它，只是為了讓結果在 `sleep` 之前就出現。**
+
+#### 為什麼要先存起來
+
+把字真正寫到終端機或檔案的是系統呼叫 `write`（要進 kernel，比一般函式呼叫慢得多）。如果每個 `printf` 都 `write` 一次，印很多小字串時就很浪費，所以 C 標準函式庫（glibc）的 stdio 在每個 `FILE`（`stdout` 的型別是 `FILE *`）裡放一塊緩衝區，先寫進去，等時機到了再一次寫出。名字的由來：`f` 是 file（作用在一個 `FILE`），`flush` 是「沖掉、清空」。
+
+「時機」看 `stdout` 接到哪裡：
+
+| `stdout` 接到 | 緩衝方式 | 什麼時候真的 `write` 出去 |
+|---|---|---|
+| 終端機 | 行緩衝（line buffered） | 遇到 `\n`、緩衝區滿、程式正常結束、呼叫 `fflush` |
+| 檔案或管線（`> out.txt`、`\| cat`） | 全緩衝（fully buffered） | 緩衝區滿、程式正常結束、呼叫 `fflush`——**遇到 `\n` 不會寫** |
+
+- 「程式正常結束」指 `main` `return` 或呼叫 `exit()`：`exit()` 會先把所有 `FILE` 的緩衝區寫出去再結束行程。
+- 行程被訊號（signal）砍掉（例如 `kill`、segfault）不會經過 `exit()`，**緩衝區裡還沒寫出去的字就直接消失**。
+- `stderr` 預設不緩衝（unbuffered），每次都馬上寫，所以錯誤訊息通常寫到 `stderr`。
+
+`fflush` 本身：宣告在 `stdio.h`（`extern int fflush (FILE *__stream);`），成功回傳 0、失敗回傳 `EOF`；參數給 `NULL` 時（`fflush(NULL)`）會清空所有輸出用的 `FILE`。
+
+#### 實驗：有沒有 `fflush`，`write` 發生在 `sleep` 之前還是之後
+
+兩支程式只差一行。`nf.c`（檔案：[`nf.c`](../small-project/s1-07-libraries/examples/fflush/nf.c)）完整原始碼：
+
+```c
+#include <stdio.h>
+#include <unistd.h>
+int main(void)
+{
+    printf("hello\n");
+    /* 沒有 fflush */
+    sleep(3);
+    return 0;
+}
+```
+
+`wf.c`（檔案：[`wf.c`](../small-project/s1-07-libraries/examples/fflush/wf.c)）完整原始碼：
+
+```c
+#include <stdio.h>
+#include <unistd.h>
+int main(void)
+{
+    printf("hello\n");
+    fflush(stdout);
+    sleep(3);
+    return 0;
+}
+```
+
+**實驗一：輸出導向檔案，在程式還在 `sleep` 時偷看檔案。** `kill` 那一組在 `sleep` 時把 `nf` 砍掉：
+
+```sh
+cd small-project/s1-07-libraries/examples/fflush
+gcc nf.c -o nf && gcc wf.c -o wf
+for p in nf wf; do
+    ./$p > out.$p & sleep 1
+    echo "$p 第1秒 out 的內容: [$(cat out.$p)]"
+    wait
+    echo "$p 結束後: [$(cat out.$p)]"
+done
+./nf > out.kill & pid=$!; sleep 1; kill $pid; wait; echo "nf 被 kill 後: [$(cat out.kill)]"
+```
+
+```
+nf 第1秒 out 的內容: []
+nf 結束後: [hello]
+wf 第1秒 out 的內容: [hello]
+wf 結束後: [hello]
+nf 被 kill 後: []
+```
+
+- `nf` 第 1 秒時檔案是空的：`hello\n` 還在 `nf` 自己的緩衝區裡（導向檔案是全緩衝，`\n` 不會觸發寫出），等 `main` `return` 時才寫出去。
+- `wf` 第 1 秒就看得到 `hello`：`fflush` 在 `sleep` 之前就把它寫出去了。
+- `nf` 在 `sleep` 時被 `kill`：行程沒走到 `exit()`，緩衝區連同 `hello` 一起消失，檔案是空的。[第 3 課第四節](./陣列、字串與指標運算-C不檢查邊界與用gdb找segfault.md#四字串以-0-結尾的-char-陣列)〈補充一個 I/O 的陷阱〉講的「當掉的程式什麼都看不到」就是這個原因。
+
+**實驗二：用 `strace` 看 `write` 和 `sleep` 的先後。** `strace -e trace=write,clock_nanosleep,exit_group` 只列出這三個系統呼叫（`sleep()` 在 glibc 裡是用 `clock_nanosleep` 做的）；這裡只用到 `strace` 的 `-e trace=`（只追蹤指定的系統呼叫）一個選項，完整選項見 `man strace`（`strace -h` 列出全部選項的摘要）。終端機那一組用 `script -qc "<指令>" /dev/null` 讓程式的 `stdout` 接到一個假終端機（pseudo-terminal）：`-q` 是不印開始／結束訊息，`-c` 是要執行的指令，`/dev/null` 是把 `script` 本來要寫的紀錄檔丟掉（`script` 的完整選項見 `man script`）。
+
+```sh
+strace -e trace=write,clock_nanosleep,exit_group ./nf > out.s 2>&1; cat out.s     # 導向檔案，nf
+strace -e trace=write,clock_nanosleep,exit_group ./wf > out.s2 2>&1; cat out.s2   # 導向檔案，wf
+script -qc "strace -e trace=write,clock_nanosleep,exit_group ./nf" /dev/null        # 終端機，nf
+```
+
+```
+--- 導向檔案 nf
+clock_nanosleep(CLOCK_REALTIME, 0, {tv_sec=3, tv_nsec=0}, 0x7ffd7ef80020) = 0
+write(1, "hello\n", 6hello
+)                  = 6
+exit_group(0)                           = ?
+--- 導向檔案 wf
+write(1, "hello\n", 6hello
+)                  = 6
+clock_nanosleep(CLOCK_REALTIME, 0, {tv_sec=3, tv_nsec=0}, 0x7ffe3be96b60) = 0
+exit_group(0)                           = ?
+--- 終端機 nf
+write(1, "hello\n", 6hello
+)                  = 6
+clock_nanosleep(CLOCK_REALTIME, 0, {tv_sec=3, tv_nsec=0}, 0x7ffcc108bf50) = 0
+exit_group(0)                           = ?
+```
+
+（`write` 那一列被拆成兩行，是因為 `strace` 的紀錄和程式寫出的 `hello\n` 進了同一個檔案，交錯在一起。）
+
+- 導向檔案的 `nf`：先 `clock_nanosleep` 睡 3 秒，**醒來、`main` 結束時才 `write`**——這就是緩衝區在 `exit()` 時被寫出去。
+- 導向檔案的 `wf`：`write` 在睡之前，是 `fflush` 觸發的。
+- 終端機的 `nf`：沒有 `fflush`，`write` 照樣在睡之前——行緩衝遇到 `\n` 就寫。
+
+#### 回到本課的程式
+
+第 6 章的 `a.c`、`b.c` 和自我測驗第 9 題的 `x.c`、`y.c` 都是「`printf` 之後 `sleep(5)`」：實驗要讓兩個行程同時活著，再趁它們睡覺時去看 `/proc/<pid>/smaps`，所以結果一定要在 `sleep` 之前印出來。直接在終端機跑時，`printf` 字串結尾的 `\n` 就會觸發寫出，`fflush` 其實可有可無；它是保險——輸出被導向檔案或管線時（例如 `(./x & ./y & wait) | cat`），結果照樣會在 `sleep` 之前出現，不會等 5 秒、程式結束才一起冒出來。stdio 緩衝在第 ⑤ 站（I/O）會正式講。
+
+### 15. `ld` 還沒讀到 `main.o`，怎麼知道誰需要什麼：未定義符號清單與 `--as-needed`
+
+> 2026-10-29 課後提問（批改自我測驗 2-3 之後）：
+>
+> - 「看「目前還沒找到定義的符號」,你這句我不理解,這個時候都還沒有到main.o他要怎麼看還沒找到定義的符號?」
+> - 「那就是說--no-as-needed的話,ld也不管現在手頭上的清單有沒有trim,他就直接把trim加入清單嗎?」
+>
+> 正文出處：[第二節〈順序：`ld` 由左往右只掃一次〉](#順序ld-由左往右只掃一次)的三個步驟（「先遇到 `libcalc.a`：這時清單裡……」）、[第四節〈`.so` 在 Ubuntu 上也有順序問題〉](#so-在-ubuntu-上也有順序問題)；自我測驗第 2 題的 2-3
+
+**一句話：`ld` 不往後看——讀到一個函式庫時，只拿「到這一刻為止」的未定義符號清單來決定要不要它。`.a` 只拉此刻需要的成員，其餘不記；`.so` 在 `--as-needed`（Ubuntu 預設）下此刻沒人需要就丟掉，在 `--no-as-needed` 下一律留下、記住它提供的定義，等後面的檔案來用。清單裡放的永遠是「還沒找到定義的符號」，函式庫提供的是定義，不會被「加進清單」。**
+
+#### 實驗用的檔案
+
+用自我測驗第 1、2 題的 `libtxt`，另外加一支什麼都不呼叫的 `none.c`。檔案都在 [`examples/asneeded/`](../small-project/s1-07-libraries/examples/asneeded/)。
+
+`case.c`（檔案：[`case.c`](../small-project/s1-07-libraries/examples/asneeded/case.c)）：
+
+```c
+/* case.c */
+void to_upper_str(char *s) { for (; *s; s++) if (*s >= 'a' && *s <= 'z') *s -= 32; }
+void to_lower_str(char *s) { for (; *s; s++) if (*s >= 'A' && *s <= 'Z') *s += 32; }
+```
+
+`space.c`（檔案：[`space.c`](../small-project/s1-07-libraries/examples/asneeded/space.c)）：
+
+```c
+/* space.c */
+int is_space(char c) { return c == ' ' || c == '\t' || c == '\n'; }
+```
+
+`trim.c`（檔案：[`trim.c`](../small-project/s1-07-libraries/examples/asneeded/trim.c)）：
+
+```c
+/* trim.c */
+int is_space(char c);
+
+char *trim(char *s)
+{
+    while (is_space(*s))
+        s++;
+    return s;
+}
+```
+
+`main.c`（檔案：[`main.c`](../small-project/s1-07-libraries/examples/asneeded/main.c)）：
+
+```c
+/* main.c */
+#include <stdio.h>
+
+char *trim(char *s);
+
+int main(void)
+{
+    char buf[] = "   hello";
+    printf("[%s]\n", trim(buf));
+    return 0;
+}
+```
+
+`none.c`（檔案：[`none.c`](../small-project/s1-07-libraries/examples/asneeded/none.c)）：
+
+```c
+int main(void)
+{
+    return 0;            /* 完全不呼叫 libtxt 的函式 */
+}
+```
+
+做 `.so`：
+
+```sh
+cd small-project/s1-07-libraries/examples/asneeded
+gcc -Wall -fPIC -shared case.c space.c trim.c -o libtxt.so
+```
+
+#### 清單是怎麼長出來的
+
+`ld` 從頭到尾維持一張「還沒找到定義的符號」清單（第 6 課的 `UND`），每讀一個輸入檔就照兩條規則更新：
+
+1. 這個檔案**定義**了清單上的某個符號 → 從清單劃掉；
+2. 這個檔案**用到**、但目前還沒有人定義的符號 → 加進清單。
+
+讀到函式庫（`.a`、`.so`）時，它只拿**此刻的清單**比對：這個函式庫能不能解決清單上的某個符號？之後**不會回頭**再看。所以問題「還沒讀到 `main.o`，怎麼知道誰需要 `trim`」的答案就是：**它不知道**，也不去猜，就用當下不完整的清單做決定。這正是順序會出事的原因。
+
+而且讀到 `-ltxt` 時清單**不是空的**。用 `gcc -v` 看 gcc 交給 `ld`（`collect2`）的完整命令列，把每個參數拆成一行，只留相關的：
+
+```text
+$ gcc -v -Wall -L. -ltxt main.c -o app_bad 2>&1 | grep collect2 | tr ' ' '\n' \
+      | grep -nE 'crt[^/]*\.o$|^-ltxt$|/tmp/cc.*\.o$|^-lc$|as-needed'
+17:--as-needed
+27:/usr/lib/gcc/x86_64-linux-gnu/13/../../../x86_64-linux-gnu/Scrt1.o
+28:/usr/lib/gcc/x86_64-linux-gnu/13/../../../x86_64-linux-gnu/crti.o
+29:/usr/lib/gcc/x86_64-linux-gnu/13/crtbeginS.o
+39:-ltxt
+40:/tmp/cccq3MAT.o                ← main.c 編出來的暫存 .o
+43:--as-needed
+46:-lc
+49:--as-needed
+52:/usr/lib/gcc/x86_64-linux-gnu/13/crtendS.o
+53:/usr/lib/gcc/x86_64-linux-gnu/13/../../../x86_64-linux-gnu/crtn.o
+```
+
+（行號是拆開後的第幾個參數。第 17 行的 `--as-needed` 在所有輸入檔之前，所以整條命令列都在它的作用下；`-lc` 附近另外幾個是 gcc 處理 `libgcc` 時切換狀態用的。）
+
+`-ltxt` 前面還有 gcc 自己塞的三個啟動檔。`Scrt1.o` 裡是程式真正的進入點 `_start`，它要呼叫你的 `main`。`nm -u`（只列未定義的符號）看它們帶進清單的符號：
+
+```text
+$ nm -u $(gcc -print-file-name=Scrt1.o)
+                 U _GLOBAL_OFFSET_TABLE_
+                 U __libc_start_main
+                 U main
+$ nm -u $(gcc -print-file-name=crti.o) $(gcc -print-file-name=crtbeginS.o)
+…/crti.o:
+                 U _GLOBAL_OFFSET_TABLE_
+                 w __gmon_start__
+…/crtbeginS.o:
+                 w __cxa_finalize
+                 U _GLOBAL_OFFSET_TABLE_
+                 w _ITM_deregisterTMCloneTable
+                 w _ITM_registerTMCloneTable
+                 U __TMC_END__
+```
+
+（`U` 是未定義；`w` 是弱符號，找不到定義也不算錯。`-print-file-name=` 讓 gcc 印出它會用的那個檔案的完整路徑，見第七節的 gcc 表。）
+
+所以讀到 `-ltxt` 那一刻，清單裡是 `main`、`__libc_start_main`、`__TMC_END__` 這些，**沒有 `trim`**。逐步看（預設 `--as-needed`）：
+
+| 步驟 | 讀到 | 清單的變化 | 結果 |
+|---|---|---|---|
+| 1 | `Scrt1.o`、`crti.o`、`crtbeginS.o` | 加進 `main`、`__libc_start_main` 等 | 一般 `.o`，整個放進輸出檔 |
+| 2 | `-ltxt` → `libtxt.so` | 不變 | `libtxt.so` 提供的 `trim` 等，清單上一個都沒有 → **丟掉** |
+| 3 | `main.c` 的 `.o` | 劃掉 `main`；加進 `trim`、`printf` | — |
+| 4 | `-lc` → `libc.so.6` | 劃掉 `printf`、`__libc_start_main` | 有人需要 → 留下、記進 `NEEDED` |
+| 5 | 命令列結束 | `trim` 還在 | `undefined reference to 'trim'` |
+
+```text
+$ gcc -Wall -L. -ltxt main.c -o app_bad
+/usr/bin/ld: /tmp/ccbG2eFO.o: in function `main':
+main.c:(.text+0x35): undefined reference to `trim'
+collect2: error: ld returned 1 exit status
+```
+
+正文第二節的 `libcalc.a` 例子也一樣：「這時清單裡沒有 `calc_add`」，不是嚴格意義的空清單。
+
+#### `--as-needed` 與 `--no-as-needed`：讀到 `.so` 那一刻的差別
+
+把 `-Wl,--no-as-needed` 放在 `-ltxt` 前面，順序完全不變，卻成功了：
+
+```text
+$ gcc -Wall -L. -Wl,--no-as-needed -ltxt main.c -o app_no
+$ LD_LIBRARY_PATH=. ./app_no
+[hello]
+$ readelf -d app_no | grep NEEDED
+ 0x0000000000000001 (NEEDED)             Shared library: [libtxt.so]
+ 0x0000000000000001 (NEEDED)             Shared library: [libc.so.6]
+```
+
+（`LD_LIBRARY_PATH=.` 是第五節的方法一，讓執行時找得到 `libtxt.so`。）
+
+`--no-as-needed` 並不是「把 `trim` 加進清單」——清單只放還沒找到定義的符號，`libtxt.so` 提供的是**定義**。它做的是：讀到 `libtxt.so` 時**不看清單**，一律把它留下（記進 `NEEDED`），並記住它的動態符號表裡有哪些定義：
+
+```text
+$ nm -D --defined-only libtxt.so
+00000000000011ad T is_space
+0000000000001163 T to_lower_str
+0000000000001119 T to_upper_str
+00000000000011da T trim
+```
+
+接著讀到 `main.o`，它要 `trim`：`ld` 發現手上已經記著 `libtxt.so` 有這個定義，當場就解決了，`trim` 不會留在清單上。
+
+`.so` 本來就有「先記住、後面再用」的能力，順序問題完全是 `--as-needed` 那一刻的「丟掉」造成的：
+
+| | 讀到 `-ltxt`（`libtxt.so`）那一刻 | 後面的 `main.o` 要 `trim` |
+|---|---|---|
+| `--as-needed`（Ubuntu 預設） | 看此刻的清單：沒人需要它的符號 → 丟掉，不記進 `NEEDED` | 沒人提供 → `undefined reference` |
+| `--no-as-needed` | 不看清單：一律留下、記進 `NEEDED`，記住它的定義 | 用記住的定義解決 → 成功 |
+
+**那為什麼 Ubuntu 預設要 `--as-needed`？** `--no-as-needed` 的代價是「用不到也留下」。拿完全不呼叫 `libtxt` 的 `none.c` 各連一次：
+
+```text
+$ gcc -Wall none.c -L. -Wl,--no-as-needed -ltxt -o none_no
+$ readelf -d none_no | grep NEEDED
+ 0x0000000000000001 (NEEDED)             Shared library: [libtxt.so]      ← 沒用到也記進需求單
+ 0x0000000000000001 (NEEDED)             Shared library: [libc.so.6]
+$ gcc -Wall none.c -L. -ltxt -o none_as
+$ readelf -d none_as | grep NEEDED
+ 0x0000000000000001 (NEEDED)             Shared library: [libc.so.6]      ← 沒人需要就丟掉
+```
+
+多一個用不到的 `NEEDED`，執行時 `ld.so` 就得多找、多載入一個 `.so`；找不到時（例如換到沒裝這個函式庫的機器），程式會整個跑不起來，即使它根本沒用到。建置系統常常把一長串 `-l` 套到每個程式上，`--as-needed` 讓沒用到的自動消失；代價就是 `-l` 一定要寫在用到它的檔案後面。
+
+#### 對照：`.a` 加 `--no-as-needed` 沒有用
+
+`--as-needed` 只管 `.so`。把 `libtxt.so` 換成同樣三個 `.o` 做成的 `libtxt.a`：
+
+```text
+$ gcc -Wall -c case.c space.c trim.c && ar rcs libtxt.a case.o space.o trim.o && rm libtxt.so
+$ gcc -Wall -L. -Wl,--no-as-needed -ltxt main.c -o app_a
+/usr/bin/ld: /tmp/ccWceYGf.o: in function `main':
+main.c:(.text+0x35): undefined reference to `trim'
+collect2: error: ld returned 1 exit status
+```
+
+（`rm libtxt.so` 是因為 `-ltxt` 會先找 `.so`，第三節。）`.a` 沒有「先記住、後面再用」這回事：讀到它時只拉此刻清單需要的成員，沒拉的就略過、不記，之後也不回頭。所以 `.a` 的順序問題不管加什麼都存在，只能把 `-l` 寫在後面，或用 `--start-group … --end-group` 讓群組反覆掃（正文第二節）。
+
+#### 整理
+
+| | 讀到函式庫那一刻看什麼 | 沒被選中的部分 | 寫在前面會怎樣 |
+|---|---|---|---|
+| `.a` | 此刻的清單 | 略過、不記 | 失敗（加 `--no-as-needed` 也一樣） |
+| `.so`＋`--as-needed`（Ubuntu 預設） | 此刻的清單 | 整個 `.so` 丟掉 | 失敗 |
+| `.so`＋`--no-as-needed` | 不看清單 | 沒有，一律留下、記住定義 | 成功，但用不到也會記進 `NEEDED` |
+
+本章用到的 `nm` 選項是 `-u`（`--undefined-only`，只列未定義的）與 `--defined-only`（`-U`，只列有定義的），是 `nm --help` 36 個選項裡的 2 個，完整見 `man nm`；`ld` 的 `--as-needed`／`--no-as-needed` 在第七節的 `ld` 表裡。
+
 ---
 
 ## 自我測驗
@@ -2415,7 +2756,45 @@ c_to_f(37) = 99
    }
    ```
    建立與連結：`gcc -Wall -c case.c space.c trim.c && ar rcs libtxt.a case.o space.o trim.o && gcc -Wall main.c -L. -ltxt -o app`
+   > **參考答案**（核心關鍵＋詳細說明）
+   >
+   > **1-1**【[第二節](../html/c/靜態與動態函式庫-ar與.a、-fPIC與.so、執行時怎麼找到.so.html#連結只拉需要的成員)〈連結：只拉需要的成員〉】核心關鍵：
+   >
+   > 1. 執行檔裡只有 `trim` 和 `is_space`。
+   > 2. `ld` 從 `.a` 只拉能解決「目前還沒定義的符號」的成員：`main` 要 `trim` → 拉 `trim.o`；`trim.o` 要 `is_space` → 再拉 `space.o`；`case.o` 沒人要，整個不拉。
+   >
+   > 詳細說明：拉的單位是**整個 `.o`**：如果有人用到 `to_upper_str`，同在 `case.o` 的 `to_lower_str` 也會跟著進來（筆記的 `both.c`）。成員在封存檔裡的順序不影響：本機實測 `ar t libtxt.a` 是 `case.o space.o trim.o`，`space.o` 排在 `trim.o` 前面，照樣拉得到——`ld` 在**同一個** `.a` 裡會反覆看成員，直到沒有新的符號被解決；「只掃一次、不回頭」是對命令列上前後不同的輸入檔而言（第 2 題）。驗證：`nm app | grep -E 'trim|is_space|to_'` 只列出 `trim`、`is_space`。
+   >
+   > **1-2**【[第二節](../html/c/靜態與動態函式庫-ar與.a、-fPIC與.so、執行時怎麼找到.so.html#連結只拉需要的成員)〈連結：只拉需要的成員〉】核心關鍵：
+   >
+   > 1. 執行檔多了 `to_upper_str`、`to_lower_str`（執行結果一樣，檔案變大）。
+   > 2. 命令列上直接寫的 `.o` 一律整個放進輸出檔，不管有沒有人用；只有封存檔裡的成員才是「有人需要才拉」。
+   >
+   > 詳細說明：本機實測：`nm app2` 四個函式都在；`app` 16136 byte、`app2` 16240 byte。
 2. 承上題的檔案，`gcc -Wall -L. -ltxt main.c -o app` 會失敗，錯誤訊息是 `undefined reference to 'trim'`。用 `ld` 處理輸入檔的方式解釋為什麼。這個錯誤跟 `cannot find -ltxt` 差在哪（各是什麼東西找不到）？在 Ubuntu 上把 `libtxt.a` 換成 `libtxt.so`、命令一樣寫成 `-L. -ltxt main.c`，也會失敗，原因是什麼？
+   > **參考答案**（核心關鍵＋詳細說明）
+   >
+   > **2-1**【[第二節](../html/c/靜態與動態函式庫-ar與.a、-fPIC與.so、執行時怎麼找到.so.html#順序ld-由左往右只掃一次)〈順序：`ld` 由左往右只掃一次〉】核心關鍵：
+   >
+   > 1. `ld` 照命令列順序處理輸入檔，手上維持一張「還沒找到定義的符號」清單。
+   > 2. 遇到 `libtxt.a` 時 `main` 的 `.o` 還沒讀，清單裡沒有 `trim`（只有啟動檔帶進來的 `main` 等，第九節第 15 章），一個成員都不拉就略過。
+   > 3. 讀到 `main` 才多了 `trim`，命令列結束時還在清單上，`ld` 不會回頭重掃 `libtxt.a` → `undefined reference`。
+   >
+   > 詳細說明：規則：函式庫寫在用到它的檔案後面（`main.c -L. -ltxt`）。函式庫之間互相需要時，寫兩次或用 `-Wl,--start-group … -Wl,--end-group`。
+   >
+   > **2-2**【[第三節](../html/c/靜態與動態函式庫-ar與.a、-fPIC與.so、執行時怎麼找到.so.html#三-l-與--l連結時去哪裡找找什麼名字)、[第二節](../html/c/靜態與動態函式庫-ar與.a、-fPIC與.so、執行時怎麼找到.so.html#順序ld-由左往右只掃一次)〈順序：`ld` 由左往右只掃一次〉】核心關鍵：
+   >
+   > 1. `cannot find -ltxt`：連結時在搜尋目錄裡找不到 `libtxt.so`／`libtxt.a` **這個檔案**（例如沒給 `-L.`、名字拼錯）。
+   > 2. `undefined reference to 'trim'`：檔案找到了，但 `trim` 這個**符號**到最後都沒有被解決（這題是因為順序，一個成員都沒拉）。
+   >
+   > 詳細說明：兩者都是連結時 `ld` 的錯。對照第五節的 `cannot open shared object file`：那是**執行時** `ld.so` 找不到 `.so` 檔，第 4 題會用到。
+   >
+   > **2-3**【[第四節](../html/c/靜態與動態函式庫-ar與.a、-fPIC與.so、執行時怎麼找到.so.html#so-在-ubuntu-上也有順序問題)〈`.so` 在 Ubuntu 上也有順序問題〉】核心關鍵：
+   >
+   > 1. Ubuntu 的 gcc 預設傳 `--as-needed` 給 `ld`：`.so` 只有在**目前有人需要它的符號**時才寫進 `NEEDED`、才拿來解決符號。
+   > 2. 遇到 `-ltxt` 時 `main` 還沒讀、沒人需要 `trim`，`libtxt.so` 就被丟掉 → 之後 `main` 的 `trim` 沒人提供 → `undefined reference`。
+   >
+   > 詳細說明：本機實測：`gcc -Wall -fPIC -shared case.c space.c trim.c -o libtxt.so && gcc -Wall -L. -ltxt main.c -o app3` 得到 `undefined reference to 'trim'`；把 `-Wl,--no-as-needed` 放在 `-ltxt` 前面（`gcc -Wall -L. -Wl,--no-as-needed -ltxt main.c -o app4`）就成功，`readelf -d app4` 有 `NEEDED libtxt.so`。`gcc -v` 印出的 `collect2` 那一行看得到 `--as-needed`。所以 `.a` 和 `.so` 一律把 `-l` 寫在後面。你寫的「`.a` 把要用的 `.o` 合併進執行檔、`.so` 只寫進動態區段給執行時用」是對的，只是不是這題的原因。
 3. 下面的 `stats.c` 不加 `-fPIC` 編成 `stats.o`，再用 `gcc -shared stats.o -o libstats.so`。會成功嗎？錯誤訊息會提到哪個變數？為什麼另一個變數不會有問題？為什麼 `.so` 存取全域變數一定要經過 GOT，而不能像執行檔那樣用 `%rip` 加固定距離直接讀（講出兩個理由）？
    ```c
    /* stats.c */
@@ -2426,8 +2805,75 @@ c_to_f(37) = 99
    void miss(void) { misses = misses + 1; }
    ```
    編譯：`gcc -Wall -c stats.c -o stats.o && gcc -shared stats.o -o libstats.so`
+   > **參考答案**（核心關鍵＋詳細說明）
+   >
+   > **3-1**【[第四節](../html/c/靜態與動態函式庫-ar與.a、-fPIC與.so、執行時怎麼找到.so.html#為什麼一定要--fpic先看不加會怎樣)〈為什麼一定要 `-fPIC`：先看不加會怎樣〉】核心關鍵：
+   >
+   > 1. 不會成功。
+   > 2. 錯誤提到 `hits`：`relocation R_X86_64_PC32 against symbol 'hits' can not be used when making a shared object; recompile with -fPIC`。
+   >
+   > 詳細說明：本機實測輸出：`warning: relocation against 'hits' in read-only section '.text'`、`relocation R_X86_64_PC32 against symbol 'hits' can not be used when making a shared object; recompile with -fPIC`、`final link failed: bad value`。沒加 `-fPIC`（Ubuntu 預設 `-fPIE`）時，編譯器假設 `hits` 就在附近、用 `R_X86_64_PC32` 直接讀；做 `.so` 時 `ld` 不接受對全域符號用這種重定位。
+   >
+   > **3-2**【[第四節](../html/c/靜態與動態函式庫-ar與.a、-fPIC與.so、執行時怎麼找到.so.html#為什麼不能直接用固定距離counter-最後不一定是這一份)〈為什麼不能直接用固定距離：`counter` 最後不一定是這一份〉】核心關鍵：
+   >
+   > 1. `misses` 是 `static`（`LOCAL`），別的檔案不可能用到它、也不可能用同名定義插入。
+   > 2. 所以它一定是這個 `.so` 自己那一份，跟程式碼在同一個 `.so` 裡、距離固定，`%rip` 加固定距離就讀得到，不需要 GOT。
+   >
+   > 詳細說明：筆記的 `count_static.c`（`static int counter`）不加 `-fPIC` 也做得成 `.so`，是同一個道理。
+   >
+   > **3-3**【[第四節](../html/c/靜態與動態函式庫-ar與.a、-fPIC與.so、執行時怎麼找到.so.html#為什麼不能直接用固定距離counter-最後不一定是這一份)〈為什麼不能直接用固定距離：`counter` 最後不一定是這一份〉】核心關鍵：
+   >
+   > 1. 符號插入：`.so` 的全域變數最後被使用的可能不是它自己那份（執行檔或先載入的 `.so` 有同名定義，`ld.so` 先找執行檔），做 `.so` 時不知道它在哪 → 只能等載入時由 `ld.so` 把真正位址填進 GOT。
+   > 2. 不能讓 `ld.so` 載入時直接改 `.text` 裡的距離：`.text` 是唯讀的，而且每個行程寫進自己的位址就得各複製一份，同一份 `.text` 實體頁給所有行程共用的好處就沒了；所以把要因行程而異的位址集中在可寫的 GOT。
+   >
+   > 詳細說明：正文〈為什麼不能直接用固定距離〉的 `usecount` 實驗：主程式自己定義 `counter = 100`，`libcount.so` 的 `bump()` 加的是主程式那份，印出 `counter = 101`。第二個理由在同一節〈那為什麼不讓 `ld.so` 載入時直接改 `.text` 裡的距離就好？〉那段，第 9 題會再考到。
 4. 情境題：你在 `/home/me/proj/` 下做了 `lib/libfoo.so` 和用它的 `app`，連結指令是 `gcc main.c -Llib -lfoo -o app`。連結成功，`./app` 卻印出 `error while loading shared libraries: libfoo.so: cannot open shared object file`。(1) 這個訊息是誰印的？為什麼連結時找得到、執行時找不到？(2) 你想讓 `app` 和 `lib/` 一起打包給同事，同事解壓到任何地方都能直接執行，連結指令要怎麼改？為什麼要用單引號？(3) 同事想臨時用 `LD_LIBRARY_PATH` 換成他自己編的 `libfoo.so` 來除錯，在你的做法（`RUNPATH`）下換得掉嗎？如果是 `RPATH` 呢？為什麼？
+   > **參考答案**（核心關鍵＋詳細說明）
+   >
+   > **4-1**【[第五節](../html/c/靜態與動態函式庫-ar與.a、-fPIC與.so、執行時怎麼找到.so.html#ldso-去了哪些地方找)〈`ld.so` 去了哪些地方找〉】核心關鍵：
+   >
+   > 1. 是動態連結器 `ld.so`（執行檔的 interpreter）在執行時印的。
+   > 2. `-Llib` 只告訴**連結時**的 `ld` 去哪找，不會寫進執行檔；執行檔的 `NEEDED` 只記名字 `libfoo.so`。
+   > 3. 執行時 `ld.so` 只找 `RPATH`、`LD_LIBRARY_PATH`、`RUNPATH`、`/etc/ld.so.cache`、預設目錄，`lib/`（和當前目錄）都不在裡面。
+   >
+   > 詳細說明：`LD_DEBUG=libs ./app` 會印出它試過的每個路徑，最後放棄。
+   >
+   > **4-2**【[第五節](../html/c/靜態與動態函式庫-ar與.a、-fPIC與.so、執行時怎麼找到.so.html#方法二-wl-rpath把路徑寫進執行檔)〈方法二：`-Wl,-rpath`——把路徑寫進執行檔〉】核心關鍵：
+   >
+   > 1. `gcc main.c -Llib -lfoo -Wl,-rpath,'$ORIGIN/lib' -o app`：把 `$ORIGIN/lib` 寫進執行檔的 `RUNPATH`，`ld.so` 執行時把 `$ORIGIN` 換成執行檔所在的目錄。
+   > 2. `$ORIGIN` 不是 shell 變數，要**原封不動**寫進執行檔給 `ld.so` 換；不用單引號（包括用雙引號）時 shell 會先把 `$ORIGIN` 換成空字串，寫進去的就變成 `/lib`。
+   >
+   > 詳細說明：單引號裡 shell 什麼都不展開；一定要用雙引號時寫成 `"\$ORIGIN/lib"`。用 `readelf -d app | grep RUNPATH` 檢查實際寫進去的是什麼。只要 `app` 和 `lib/` 的相對位置不變，解壓到哪裡都找得到。
+   >
+   > **4-3**【[第五節](../html/c/靜態與動態函式庫-ar與.a、-fPIC與.so、執行時怎麼找到.so.html#rpath-和-runpath-差在哪跟-ld_library_path-誰優先)〈`RPATH` 和 `RUNPATH` 差在哪：跟 `LD_LIBRARY_PATH` 誰優先〉、[第五節](../html/c/靜態與動態函式庫-ar與.a、-fPIC與.so、執行時怎麼找到.so.html#ldso-去了哪些地方找)〈`ld.so` 去了哪些地方找〉】核心關鍵：
+   >
+   > 1. `RUNPATH` 換得掉：`ld.so` 的搜尋順序裡 `LD_LIBRARY_PATH`（第 2 步）排在 `RUNPATH`（第 3 步）前面，先找到同事自己的版本。
+   > 2. `RPATH` 換不掉：`RPATH`（第 1 步，只在沒有 `RUNPATH` 時用）排在 `LD_LIBRARY_PATH` 前面，先找到原本 `lib/` 裡的版本。
+   >
+   > 詳細說明：筆記的 `v1`／`v2` 實驗：`LD_LIBRARY_PATH=v2 ./app_runpath` 印 1005（用了 v2），`./app_rpath` 印 5（還是 v1）。`RUNPATH` 是故意排在後面的：讓使用者能臨時換版本來除錯；所以 `ld` 預設寫 `RUNPATH`，加 `--disable-new-dtags` 才寫舊式的 `RPATH`，`man ld.so` 也標明 `DT_RPATH` 不建議使用。`LD_DEBUG=libs` 每段 `search path=` 後面的括號會寫來源（`(LD_LIBRARY_PATH)`、`(RPATH from file …)`）。
 5. 你維護 `libcalc`，SONAME 是 `libcalc.so.1`。系統上有 `libcalc.so -> libcalc.so.1`、`libcalc.so.1 -> libcalc.so.1.0.0` 兩個符號連結。(1) 一支程式動態連結了 `libcalc`，它的 `NEEDED` 寫的是哪個名字？為什麼刪掉 `libcalc.so` 它照樣能跑，刪掉 `libcalc.so.1` 就不行？(2) 你修了一個 bug（介面不變），做成 `libcalc.so.1.0.1`。已經動態連結的程式要怎樣才能用到修正？另一支用 `libcalc.a` 靜態連結的程式呢？(3) 下一版要把 `calc_add` 改成三個參數（不相容），SONAME 該怎麼辦？為什麼這樣舊程式不會壞？
+   > **參考答案**（核心關鍵＋詳細說明）
+   >
+   > **5-1**【[第六節](../html/c/靜態與動態函式庫-ar與.a、-fPIC與.so、執行時怎麼找到.so.html#sonameneeded-記的是哪個名字)〈SONAME：`NEEDED` 記的是哪個名字〉】核心關鍵：
+   >
+   > 1. `NEEDED` 寫的是 SONAME `libcalc.so.1`：`ld` 照 `-lcalc` 打開 `libcalc.so`，但記下的是那個檔案裡寫的 SONAME，不是檔名。
+   > 2. `libcalc.so`（連結名稱）只在連結時給 `-lcalc` 用；執行時 `ld.so` 找的是 `libcalc.so.1`，所以刪掉它就找不到。
+   >
+   > 詳細說明：這就是開發套件（`zlib1g-dev`，有 `libz.so`）和執行套件（`zlib1g`，只有 `libz.so.1`）分開的原因：只裝執行套件，程式能跑，但不能 `-lz` 連結。
+   >
+   > **5-2**【[第六節](../html/c/靜態與動態函式庫-ar與.a、-fPIC與.so、執行時怎麼找到.so.html#sonameneeded-記的是哪個名字)〈SONAME：`NEEDED` 記的是哪個名字〉、[第六節](../html/c/靜態與動態函式庫-ar與.a、-fPIC與.so、執行時怎麼找到.so.html#換掉-so程式不用重新連結)〈換掉 `.so`：程式不用重新連結〉】核心關鍵：
+   >
+   > 1. 動態：SONAME 不變（`libcalc.so.1`），把 `libcalc.so.1` 改指向 `libcalc.so.1.0.1`；程式不必重新連結，重新執行就用到修正。
+   > 2. 靜態：`libcalc.a` 的 `.o` 已經複製進執行檔，換函式庫影響不到它，要用新的 `libcalc.a` 重新連結。
+   >
+   > 詳細說明：`ldconfig` 會照各 `.so` 的 SONAME 自動建立 SONAME 符號連結。已經在跑的行程要重開才會載入新檔。
+   >
+   > **5-3**【[第六節](../html/c/靜態與動態函式庫-ar與.a、-fPIC與.so、執行時怎麼找到.so.html#sonameneeded-記的是哪個名字)〈SONAME：`NEEDED` 記的是哪個名字〉】核心關鍵：
+   >
+   > 1. 新版 SONAME 改成 `libcalc.so.2`（`-Wl,-soname,libcalc.so.2`，真實檔例如 `libcalc.so.2.0.0`，`libcalc.so.2` 指向它，`libcalc.so` 改指向新版給新程式連結）。
+   > 2. 舊程式的 `NEEDED` 寫的是 `libcalc.so.1`，執行時照樣找到舊檔（舊檔留著、兩版並存），不會拿到參數不相容的新版；重新連結的新程式才記下 `libcalc.so.2`。
+   >
+   > 詳細說明：反過來，如果不相容卻沒換 SONAME，舊程式會載入新版、用兩個參數呼叫三個參數的 `calc_add`，第三個參數是暫存器裡的垃圾值。
 6. 看下面 `libtally.so` 的反組譯（`total = total + x;` 那一段）回答：(1) `111a` 那一行的 `0x2eaf` 是從哪裡到哪裡的距離？用這段的數字算出右邊註解的 `3fd0`。`112b` 那一行的 `D` 是 `0x2e9e`，跟 `0x2eaf` 不一樣，為什麼算出來還是 `3fd0`？(2) 註解 `<total-0x48>` 是說 `total` 放在 `0x3fd0` 嗎？`0x3fd0` 是什麼、`total` 本身在哪？(3) 執行完 `111a` 那一行，`%rax` 裡裝的是什麼？`1121` 讀到的又是什麼？為什麼用 `objdump -s -j .got libtally.so` 看，`0x3fd0` 那格在檔案裡是 0？
    ```c
    /* tally.c */
@@ -2454,6 +2900,43 @@ c_to_f(37) = 99
    000000003fd8  000600000006 R_X86_64_GLOB_DAT 0000000000004010 seen + 0
    ```
    （檔案：[`tally.c`](../small-project/s1-07-libraries/examples/pic/tally.c)）
+   > **參考答案**（核心關鍵＋詳細說明）
+   >
+   > **6-1**【[第九節第 1 章](../html/c/靜態與動態函式庫-ar與.a、-fPIC與.so、執行時怎麼找到.so.html#1-0x2ec8-和-0x3fd0-各是什麼mov-0x2ec8riprax-的兩個數字)〈`0x2ec8` 和 `0x3fd0` 各是什麼：`mov 0x2ec8(%rip),%rax` 的兩個數字〉】核心關鍵：
+   >
+   > 1. 從**下一條指令**（`0x1121`）到 GOT 裡 `total` 那一格的距離。
+   > 2. `0x1121 ＋ 0x2eaf ＝ 0x3fd0`。
+   >
+   > 詳細說明：公式是第 4 課的 `D(%rip)`：位址 ＝ 下一條指令的位址 ＋ D。
+   >
+   > **6-2**【[第九節第 1 章](../html/c/靜態與動態函式庫-ar與.a、-fPIC與.so、執行時怎麼找到.so.html#1-0x2ec8-和-0x3fd0-各是什麼mov-0x2ec8riprax-的兩個數字)〈`0x2ec8` 和 `0x3fd0` 各是什麼：`mov 0x2ec8(%rip),%rax` 的兩個數字〉】核心關鍵：
+   >
+   > 1. 兩行都是去 `0x3fd0` 那一格，但 `%rip` 是各自的下一條指令：`112b` 的下一條是 `0x1132`。
+   > 2. 起點不同，到同一格的距離自然不同：`0x1132 ＋ 0x2e9e ＝ 0x3fd0`。
+   >
+   > 詳細說明：同一個函式裡每次拿 `total` 的位址，`D` 都不一樣、算出來都是同一格，這正好證明 `0x3fd0` 是位址、`D` 是距離。
+   >
+   > **6-3**【[第九節第 1 章](../html/c/靜態與動態函式庫-ar與.a、-fPIC與.so、執行時怎麼找到.so.html#1-0x2ec8-和-0x3fd0-各是什麼mov-0x2ec8riprax-的兩個數字)〈`0x2ec8` 和 `0x3fd0` 各是什麼：`mov 0x2ec8(%rip),%rax` 的兩個數字〉】核心關鍵：
+   >
+   > 1. 不是：`<total-0x48>` 只是位置標籤，意思是「`total` 往前 `0x48`」：`0x4018 − 0x48 ＝ 0x3fd0`。GOT 的格子沒有自己的符號名，`objdump` 只好找附近的符號來標。
+   > 2. `0x3fd0` 是 `.got` 裡的一格，裡面裝的是 `total` 的位址（`readelf -r` 那行 `R_X86_64_GLOB_DAT … total`）。
+   > 3. `total` 本身在 `.bss` 的 `0x4018`（`readelf -r` 的 `Sym. Value`）。
+   >
+   > 詳細說明：標籤跟「這格裝什麼」沒關係，只是剛好這個 `.so` 很小、最近的符號就是 `total`。真正說明那格裝什麼的是 `readelf -r`：第一欄 `3fd0` 是要被填的格子，`GLOB_DAT` 是「填一個符號的位址」，`total` 是填誰。
+   >
+   > **6-4**【[第九節第 1 章](../html/c/靜態與動態函式庫-ar與.a、-fPIC與.so、執行時怎麼找到.so.html#1-0x2ec8-和-0x3fd0-各是什麼mov-0x2ec8riprax-的兩個數字)〈`0x2ec8` 和 `0x3fd0` 各是什麼：`mov 0x2ec8(%rip),%rax` 的兩個數字〉】核心關鍵：
+   >
+   > 1. `111a` 去 `0x3fd0` 那格讀 8 byte，所以 `%rax` 裝的是格子的**內容**——`total` 的位址（載入時 `ld.so` 填的）。
+   > 2. `1121` 的 `mov (%rax),%rdx` 照這個位址再讀 8 byte，讀到的是 **`total` 的值**。
+   >
+   > 詳細說明：兩條指令＝兩次讀記憶體：先讀 GOT 拿到位址，再照位址讀變數。對照第 4 課〈[`lea`：只算位址，不碰記憶體](../html/c/x86-64組合語言入門-暫存器、mov與lea、cmp與條件跳躍.html#lea只算位址不碰記憶體)〉：如果寫成 `lea 0x2eaf(%rip),%rax`，`%rax` 才會是 `0x3fd0`（加上載入基底）這個格子的位址。筆記第 1 章用 gdb 實測：`libcount.so` 的 GOT 那格（`0x7ffff7fb6000 + 0x3fd0`）裡裝的是 `0x7ffff7fba00c`，正是 `&counter`。
+   >
+   > **6-5**【[第九節第 1 章](../html/c/靜態與動態函式庫-ar與.a、-fPIC與.so、執行時怎麼找到.so.html#1-0x2ec8-和-0x3fd0-各是什麼mov-0x2ec8riprax-的兩個數字)〈`0x2ec8` 和 `0x3fd0` 各是什麼：`mov 0x2ec8(%rip),%rax` 的兩個數字〉】核心關鍵：
+   >
+   > 1. 檔案裡那格還沒填：要等**載入時** `ld.so` 照 `R_X86_64_GLOB_DAT total` 把 `total` 的真正位址寫進去。
+   > 2. 做 `.so` 時填不了：載入基底每次不同，而且最後用的 `total` 可能是別人那份（符號插入）。
+   >
+   > 詳細說明：你貼的 `.got` 全是 0 就是證據；用 gdb 停在函式裡看同一格，就會看到填好的位址。
 7. `libconf.so` 和主程式 `app.c` 都定義了 `verbose`。(1) `gcc -Wall app.c -L. -lconf -Wl,-rpath,'$ORIGIN' -o app` 會不會出現 `multiple definition`？為什麼？改成 `gcc -Wall app.c conf.pic.o -o app2` 呢？差別在 `ld` 怎麼處理 `.so` 和 `.o`。(2) 能連結成功的那一個，`./app` 會印出 `get_verbose() = ` 多少？用執行時 `ld.so` 怎麼找符號解釋。(3) 把 `conf.c` 第一行改成 `static int verbose = 0;`，重做 `libconf.so`，不重新連結就執行 `./app`，印出多少？為什麼跟 (2) 不同？
    ```c
    /* conf.c */
@@ -2478,6 +2961,35 @@ c_to_f(37) = 99
    }
    ```
    做函式庫：`gcc -Wall -fPIC -c conf.c -o conf.pic.o && gcc -shared conf.pic.o -o libconf.so`（檔案：[`conf.c`](../small-project/s1-07-libraries/examples/pic/conf.c)、[`app.c`](../small-project/s1-07-libraries/examples/pic/app.c)）
+   > **參考答案**（核心關鍵＋詳細說明）
+   >
+   > **7-1**【[第九節第 2 章](../html/c/靜態與動態函式庫-ar與.a、-fPIC與.so、執行時怎麼找到.so.html#2-兩份-counter接-so-為什麼不算重複定義)〈兩份 `counter`：接 `.so` 為什麼不算重複定義〉】核心關鍵：
+   >
+   > 1. 不會。
+   > 2. `ld` 不把 `.so` 的內容複製進輸出檔，只讀它的動態符號表（解決未定義符號）並記進 `NEEDED`；輸出檔裡只有 `app.c` 那份 `verbose`，`multiple definition` 只檢查放進同一個輸出檔的定義。
+   >
+   > 詳細說明：連結成功後兩份 `verbose` 都還在，各在各的檔案裡，要到執行時才由 `ld.so` 挑一份。
+   >
+   > **7-2**【[第九節第 2 章](../html/c/靜態與動態函式庫-ar與.a、-fPIC與.so、執行時怎麼找到.so.html#2-兩份-counter接-so-為什麼不算重複定義)〈兩份 `counter`：接 `.so` 為什麼不算重複定義〉】核心關鍵：
+   >
+   > 1. 會出現 `multiple definition of 'verbose'`。
+   > 2. `.o` 的內容會被整個**複製進**輸出檔，`app.c` 和 `conf.pic.o` 的 `verbose` 都進了 `app2`，同一個輸出檔裡兩份定義。
+   >
+   > 詳細說明：同樣兩份定義，接 `.o` 是連結錯誤、接 `.so` 是執行時的符號插入。
+   >
+   > **7-3**【[第四節](../html/c/靜態與動態函式庫-ar與.a、-fPIC與.so、執行時怎麼找到.so.html#為什麼不能直接用固定距離counter-最後不一定是這一份)〈為什麼不能直接用固定距離：`counter` 最後不一定是這一份〉、[第九節第 2 章](../html/c/靜態與動態函式庫-ar與.a、-fPIC與.so、執行時怎麼找到.so.html#2-兩份-counter接-so-為什麼不算重複定義)〈兩份 `counter`：接 `.so` 為什麼不算重複定義〉】核心關鍵：
+   >
+   > 1. 印 `get_verbose() = 3`。
+   > 2. `ld.so` 找符號**先找執行檔、再依 `NEEDED` 順序找各個 `.so`**，第一個找到的贏（符號插入）；所以 `libconf.so` 的 GOT 裡 `verbose` 那格填的是執行檔那份的位址，`get_verbose` 經過 GOT 讀到 3。
+   >
+   > 詳細說明：`LD_DEBUG=bindings ./app` 會看到 `binding file …/libconf.so to ./app: normal symbol 'verbose'`。`libconf.so` 自己那份（初值 0）一直在記憶體裡，只是沒人用。
+   >
+   > **7-4**【[第四節](../html/c/靜態與動態函式庫-ar與.a、-fPIC與.so、執行時怎麼找到.so.html#為什麼不能直接用固定距離counter-最後不一定是這一份)〈為什麼不能直接用固定距離：`counter` 最後不一定是這一份〉】核心關鍵：
+   >
+   > 1. 印 `get_verbose() = 0`。
+   > 2. `static` 讓 `verbose` 變成 `LOCAL`，別人不可能插入：編譯器直接用 `%rip` 加固定距離讀 `.so` 自己那份，不經過 GOT，`ld.so` 也不會把它接到執行檔的 `verbose`。
+   >
+   > 詳細說明：執行檔不用重新連結也會變：`get_verbose` 的程式碼在 `.so` 裡，換掉 `.so` 就換了讀法。
 8. `liblogger.so` 的 `run()` 呼叫了 `log_msg()` 兩次，主程式 `runner.c` 只呼叫 `run()`。(1) 反組譯裡的 `log_msg@plt` 是一張存位址的表嗎？`log_msg` 的位址存在哪個區段的哪一格？用 `jmp` 那行的數字算出來。(2) 第一次和第二次 `call 1070 <log_msg@plt>`，從 `call` 到進入 `log_msg` 各經過哪些地方？`ld.so` 在哪一次介入、做了什麼？(3) 全域變數為什麼不能用這種「第一次用到才查」的方式，一定要載入時就把 `.got` 那格填好？
    ```c
    /* logger.c */
@@ -2522,6 +3034,29 @@ c_to_f(37) = 99
      [23] .got.plt          PROGBITS        0000000000003fe8 002fe8 000028 08  WA  0   0  8
    000000004008  000700000007 R_X86_64_JUMP_SLO 0000000000001139 log_msg + 0
    ```
+   > **參考答案**（核心關鍵＋詳細說明）
+   >
+   > **8-1**【[第九節第 4 章](../html/c/靜態與動態函式庫-ar與.a、-fPIC與.so、執行時怎麼找到.so.html#4-plt-存函式位址got-存變數位址嗎plt-是跳板以及延遲綁定)〈PLT 存函式位址、GOT 存變數位址嗎？PLT 是跳板，以及延遲綁定〉】核心關鍵：
+   >
+   > 1. 不是：`log_msg@plt` 是**程式碼**（`.plt.sec` 裡的跳板，權限 `AX`），不存位址。
+   > 2. `log_msg` 的位址存在 `.got.plt`（`0x3fe8` 起）的 `0x4008` 那格（`R_X86_64_JUMP_SLOT`）。
+   > 3. `jmp *0x2f8e(%rip)` 的下一條是 `0x107a`：`0x107a ＋ 0x2f8e ＝ 0x4008`。
+   >
+   > 詳細說明：`*` 表示「跳到記憶體裡存的那個位址」。函式和變數的位址都在 GOT 裡，只是函式那些放在 `.got.plt`。
+   >
+   > **8-2**【[第九節第 4 章](../html/c/靜態與動態函式庫-ar與.a、-fPIC與.so、執行時怎麼找到.so.html#4-plt-存函式位址got-存變數位址嗎plt-是跳板以及延遲綁定)〈PLT 存函式位址、GOT 存變數位址嗎？PLT 是跳板，以及延遲綁定〉、[第九節第 8 章](../html/c/靜態與動態函式庫-ar與.a、-fPIC與.so、執行時怎麼找到.so.html#8-ldso-填進格子的是什麼這個行程裡的虛擬位址)〈`ld.so` 填進格子的是什麼：這個行程裡的虛擬位址〉】核心關鍵：
+   >
+   > 1. 第一次：`call` → `log_msg@plt` 跳板 → `jmp *(0x4008 那格)`，那格載入時填的是 `.plt` 裡「叫 `ld.so` 去查」的程式碼 → `ld.so` 查出 `log_msg` 的位址、寫回 `0x4008`、跳進 `log_msg`。
+   > 2. 第二次：`call` → 跳板 → 照 `0x4008`（已經是 `log_msg` 的位址）直接跳進去，`ld.so` 不再介入。
+   >
+   > 詳細說明：這叫延遲綁定（lazy binding）：好處是啟動時不必查完所有函式。跳板只是照格子跳，不判斷格子「空不空」。
+   >
+   > **8-3**【[第九節第 4 章](../html/c/靜態與動態函式庫-ar與.a、-fPIC與.so、執行時怎麼找到.so.html#4-plt-存函式位址got-存變數位址嗎plt-是跳板以及延遲綁定)〈PLT 存函式位址、GOT 存變數位址嗎？PLT 是跳板，以及延遲綁定〉】核心關鍵：
+   >
+   > 1. 延遲綁定靠跳板：呼叫函式時一定先經過 PLT 這段程式碼，第一次才有機會轉去叫 `ld.so` 查。
+   > 2. 讀變數就是一條 `mov`（從 GOT 拿位址、再照位址讀），中間沒有程式碼可以攔下來「先去查」，所以 `.got` 裡變數那格一定要在載入時就填好。
+   >
+   > 詳細說明：如果 `.got` 那格沒填，`mov (%rax),…` 會直接拿檔案裡的 0 當位址去讀，當場 segfault。
 9. （2026-10-26 提問延伸）兩支程式 `x`、`y` 都連 `libhits.so`，同時在跑（各自停在 `sleep(5)`）。(1) `x` 印出的 `&hit` 和 `y` 印出的不一樣，這代表記憶體裡有兩份 `hit` 的程式碼嗎？`libhits.so` 的哪些部分兩個行程共用同一份實體記憶體、哪些是各自一份？(2) `y` 印出的 `hit()` 回傳值是多少？為什麼不是 `x`、`y` 加起來的 7？(3) 假設沒有 GOT，改成讓 `ld.so` 載入時把位址直接寫進 `.text`，用「寫入時複製」說明 `.text` 還能不能共用、為什麼。
    ```c
    /* hits.c */
@@ -2570,6 +3105,29 @@ c_to_f(37) = 99
    }
    ```
    編譯：`gcc -Wall -fPIC -c hits.c -o hits.pic.o && gcc -shared hits.pic.o -o libhits.so && gcc -Wall x.c -L. -lhits -Wl,-rpath,'$ORIGIN' -o x && gcc -Wall y.c -L. -lhits -Wl,-rpath,'$ORIGIN' -o y`，執行：`./x & ./y & wait`（檔案：[`hits.c`](../small-project/s1-07-libraries/examples/share/hits.c)、[`x.c`](../small-project/s1-07-libraries/examples/share/x.c)、[`y.c`](../small-project/s1-07-libraries/examples/share/y.c)）。
+   > **參考答案**（核心關鍵＋詳細說明）
+   >
+   > **9-1**【[第九節第 6 章](../html/c/靜態與動態函式庫-ar與.a、-fPIC與.so、執行時怎麼找到.so.html#6-兩支程式都用-libcountso記憶體裡是同一份嗎)〈兩支程式都用 `libcount.so`，記憶體裡是同一份嗎？〉】核心關鍵：
+   >
+   > 1. 不是兩份程式碼：`&hit` 不同是因為兩個行程把 `libhits.so` 載入在不同的基底（ASLR），虛擬位址不同，但對到同一個實體頁（尾巴都是檔案裡的 `0x10f9`）。
+   > 2. 共用同一份實體記憶體的是沒被寫過的頁：`.text`（`r-xp`，`smaps` 是 `Shared_Clean`）、唯讀資料。
+   > 3. 各自一份的是被寫過的頁：`.got`（`ld.so` 載入時寫）和 `.data`／`.bss`（`hits` 被寫）——私有映射一寫就寫入時複製（`Private_Dirty`）。
+   >
+   > 詳細說明：本機實測：`x: &hit=0x7ace937850f9  hit() 回傳 2`、`y: &hit=0x713b714f10f9  hit() 回傳 5`。`x`、`y` 是兩個獨立的行程，各有自己的位址空間；`libhits.so` 映射進來時是私有映射（`smaps` 權限欄的 `p`），沒人寫的頁大家共用，誰寫了核心就替誰複製一份。
+   >
+   > **9-2**【[第九節第 6 章](../html/c/靜態與動態函式庫-ar與.a、-fPIC與.so、執行時怎麼找到.so.html#6-兩支程式都用-libcountso記憶體裡是同一份嗎)〈兩支程式都用 `libcount.so`，記憶體裡是同一份嗎？〉】核心關鍵：
+   >
+   > 1. 印 5。
+   > 2. `hits` 那一頁（`libhits.so` 的 `.bss`）每個行程各一份：`hit()` 一寫就觸發寫入時複製，`x` 改的是 `x` 的那頁、`y` 改的是 `y` 的那頁，所以 `x` 算到 2、`y` 算到 5，不會加成 7。
+   >
+   > 詳細說明：共用的只有沒被寫過的頁。要讓兩個行程真的共用一個計數器，得用共享記憶體（例如 `mmap` 的 `MAP_SHARED`）這類明確的機制，函式庫本身做不到。
+   >
+   > **9-3**【[第九節第 6 章](../html/c/靜態與動態函式庫-ar與.a、-fPIC與.so、執行時怎麼找到.so.html#6-兩支程式都用-libcountso記憶體裡是同一份嗎)〈兩支程式都用 `libcount.so`，記憶體裡是同一份嗎？〉、[第四節](../html/c/靜態與動態函式庫-ar與.a、-fPIC與.so、執行時怎麼找到.so.html#為什麼不能直接用固定距離counter-最後不一定是這一份)〈為什麼不能直接用固定距離：`counter` 最後不一定是這一份〉】核心關鍵：
+   >
+   > 1. `ld.so` 載入時要把**這個行程自己的位址**寫進 `.text` 那一頁。
+   > 2. `.so` 是私有映射，一寫就觸發寫入時複製：核心替這個行程複製一份那頁 → 每個行程各一份，`.text` 不再共用（何況 `.text` 是唯讀的，還得先改權限）。
+   >
+   > 詳細說明：PIC 的設計正是為了避免這件事：程式碼完全不改、大家共用；要因行程而異的位址集中在可寫的 GOT，只讓 GOT 那一頁被複製。
 10. （2026-10-26 提問延伸）兩支程式 `m`、`n` 都連 `libshape.so`（兩支都沒有自己的 `area`），同時在跑。`libshape.so` 的 `calc()` 透過 `area@plt` 呼叫 `area()`。(1) 兩個行程第一次呼叫 `calc` 之後，各自 `.got.plt` 裡 `area` 那格裝的數字一樣嗎？那個數字是誰、用哪兩樣東西算出來的？(2) 兩個行程執行的 `area` 程式碼是同一份實體記憶體嗎？`/proc/<pid>/smaps` 裡哪個欄位、出現什麼數值可以證明？(3) 跳到那格裡的位址時，虛擬位址由誰翻成實體位址？翻譯用的表又是誰準備的？(4) 同學分別用 gdb 跑 `m` 和 `n`，`p area` 兩邊都印 `0x7ffff7fb7119`，他說「看吧，兩個行程的 `area` 在同一個位址」。這個推論哪裡有問題？
    ```c
    /* shape.c */
@@ -2623,6 +3181,36 @@ c_to_f(37) = 99
    ```text
    000000004000  000600000007 R_X86_64_JUMP_SLO 0000000000001119 area + 0
    ```
+    > **參考答案**（核心關鍵＋詳細說明）
+    >
+    > **10-1**【[第九節第 7 章](../html/c/靜態與動態函式庫-ar與.a、-fPIC與.so、執行時怎麼找到.so.html#7-函式那邊plt-跳板共用gotplt-每個行程各一份)〈函式那邊：PLT 跳板共用、`.got.plt` 每個行程各一份〉、[第九節第 8 章](../html/c/靜態與動態函式庫-ar與.a、-fPIC與.so、執行時怎麼找到.so.html#8-ldso-填進格子的是什麼這個行程裡的虛擬位址)〈`ld.so` 填進格子的是什麼：這個行程裡的虛擬位址〉】核心關鍵：
+    >
+    > 1. 不一樣。
+    > 2. 那格裝的是**這個行程裡的虛擬位址**：`libshape.so` 在這個行程的載入基底 ＋ `area` 在檔案裡的位置 `0x1119`（`.dynsym`，也就是 `R_X86_64_JUMP_SLOT` 那行的 `0x1119`）。
+    > 3. 兩個行程的載入基底不同（ASLR），所以數字不同。
+    >
+    > 詳細說明：`0x1119` 確實在做 `.so` 時就定了，但它只是「檔案內的位置」，還要加上基底；基底要到 `ld.so` 把檔案映射進來時才知道，每個行程不同。那格一共被寫兩次：載入時寫「基底 ＋ `0x1030`」，第一次呼叫時改成「基底 ＋ `0x1119`」。筆記第 7 章的 `q`、`r` 實測兩個行程的格子分別是 `0x7187194b9139`、`0x7125ada21139`。
+    >
+    > **10-2**【[第九節第 7 章](../html/c/靜態與動態函式庫-ar與.a、-fPIC與.so、執行時怎麼找到.so.html#7-函式那邊plt-跳板共用gotplt-每個行程各一份)〈函式那邊：PLT 跳板共用、`.got.plt` 每個行程各一份〉、[第九節第 6 章](../html/c/靜態與動態函式庫-ar與.a、-fPIC與.so、執行時怎麼找到.so.html#6-兩支程式都用-libcountso記憶體裡是同一份嗎)〈兩支程式都用 `libcount.so`，記憶體裡是同一份嗎？〉】核心關鍵：
+    >
+    > 1. 是同一份實體記憶體。
+    > 2. `/proc/<pid>/smaps` 裡 `libshape.so` 的 `r-xp`（程式碼）那段，兩個行程都是 `Shared_Clean:4`（共用、沒被寫過），`Pss:2`（4 kB 由兩個行程分攤）。
+    >
+    > 詳細說明：本機實測（`./m & ./n` 同時跑，用筆記第 6 章的 `awk` 印 `smaps`）：兩個行程的 `r-xp 00001000` 都是 `Pss:2 Shared_Clean:4 Private_Clean:0 Private_Dirty:0`；而 `.got` 那段和 `rw-p` 那段是 `Pss:4 … Private_Dirty:4`，各自一份。`Shared` ＝ 還有別的行程映射著這頁、`Private` ＝ 只有自己；`Clean` ＝ 沒被寫過；`Pss` 把共用的頁平均分給共用它的行程，只有一個行程在跑時同一段會是 `Pss:4`、`Private_Clean:4`。
+    >
+    > **10-3**【[第九節第 9 章](../html/c/靜態與動態函式庫-ar與.a、-fPIC與.so、執行時怎麼找到.so.html#9-虛擬位址怎麼變成實體位址核心準備頁表cpu-的-mmu-翻譯)〈虛擬位址怎麼變成實體位址：核心準備頁表，CPU 的 MMU 翻譯〉】核心關鍵：
+    >
+    > 1. 翻譯由 **CPU 的 MMU** 做：每一次讀寫記憶體、取指令、跳躍，都照目前行程的頁表把虛擬位址翻成實體位址（翻過的結果暫存在 TLB）。
+    > 2. 頁表由**核心**替每個行程建立、維護（哪個虛擬頁對到哪個實體頁、權限）。
+    >
+    > 詳細說明：核心只在 MMU 翻不下去時介入：頁表裡查不到（頁還沒載入）或權限不符（寫到要做寫入時複製的頁），CPU 觸發分頁錯誤（page fault），交給核心處理。`ld.so`、gdb 都只碰虛擬位址。
+    >
+    > **10-4**【[第九節第 9 章](../html/c/靜態與動態函式庫-ar與.a、-fPIC與.so、執行時怎麼找到.so.html#9-虛擬位址怎麼變成實體位址核心準備頁表cpu-的-mmu-翻譯)〈虛擬位址怎麼變成實體位址：核心準備頁表，CPU 的 MMU 翻譯〉】核心關鍵：
+    >
+    > 1. gdb 預設關掉 ASLR，所以兩次的載入基底一樣，印出同一個數字只是巧合。
+    > 2. 兩個行程各有自己的位址空間和頁表，虛擬位址只在自己的行程裡有意義；數字一樣不代表是同一個東西或同一個實體頁（反過來，數字不同也可能是同一個實體頁，像 9-1）。
+    >
+    > 詳細說明：要證明兩個行程用的是同一份實體記憶體，看 `smaps` 的 `Shared_Clean`、`Pss`（10-2）。一般程式拿不到實體位址：`/proc/self/pagemap` 沒有 `CAP_SYS_ADMIN` 時 PFN 會被遮成 0（筆記第 9 章 `pfn.c`）。
 11. （2026-10-26 提問延伸）`libcfg.so` 定義了 `int level = 3;` 與 `get_level()`，主程式 `setlevel.c` 只寫了 `extern int level;`。(1) 執行後兩行各印多少？(2) `nm setlevel` 會不會看到 `level`？在哪一種區段？為什麼原始碼只有 `extern` 卻會有？(3) 第一行印出的值是怎麼放進那裡的？`get_level()` 讀的是哪一份 `level`？用重定位的類型和 `ld.so` 找符號的順序說明。(4) 之後把 `cfg.c` 改成 `long level = 3;` 重做 `libcfg.so`，`setlevel` 不重新連結就執行，會發生什麼事、為什麼？
    ```c
    /* cfg.c */
@@ -2649,6 +3237,36 @@ c_to_f(37) = 99
    }
    ```
    編譯：`gcc -Wall -fPIC -c cfg.c -o cfg.pic.o && gcc -shared cfg.pic.o -o libcfg.so && gcc -Wall setlevel.c -L. -lcfg -Wl,-rpath,'$ORIGIN' -o setlevel`（檔案：[`cfg.c`](../small-project/s1-07-libraries/examples/pic/cfg.c)、[`setlevel.c`](../small-project/s1-07-libraries/examples/pic/setlevel.c)）。主程式是 Ubuntu 預設的 `-fPIE`。
+    > **參考答案**（核心關鍵＋詳細說明）
+    >
+    > **11-1**【[第九節第 3 章](../html/c/靜態與動態函式庫-ar與.a、-fPIC與.so、執行時怎麼找到.so.html#3-主程式只寫-extern-int-counter變數放進執行檔複製重定位)〈主程式只寫 `extern int counter;`：變數放進執行檔（複製重定位）〉】核心關鍵：
+    >
+    > 1. 第一行 `一開始 level = 3`，第二行 `get_level() = 7`。
+    >
+    > 詳細說明：主程式和 `get_level()` 用的是同一份 `level`（11-3），所以主程式改成 7，`get_level()` 讀到 7。
+    >
+    > **11-2**【[第九節第 3 章](../html/c/靜態與動態函式庫-ar與.a、-fPIC與.so、執行時怎麼找到.so.html#3-主程式只寫-extern-int-counter變數放進執行檔複製重定位)〈主程式只寫 `extern int counter;`：變數放進執行檔（複製重定位）〉】核心關鍵：
+    >
+    > 1. 會看到，類型 `B`，在執行檔的 `.bss`。
+    > 2. 主程式是 `-fPIE`：編譯器假設全域變數都在執行檔自己裡面，用 `%rip` 加固定距離直接讀，不經 GOT。
+    > 3. 但 `level` 定義在 `.so`，距離不可能固定；`ld` 只好在執行檔的 `.bss` 替它留一個同樣大小的位置，並寫一個 `R_X86_64_COPY` 重定位（複製重定位）。
+    >
+    > 詳細說明：本機實測：`nm setlevel` → `0000000000004010 B level`；`readelf -SW setlevel` 的 `.bss` 從 `0x4010` 開始；`readelf -r setlevel` → `000000004010 … R_X86_64_COPY … level + 0`。
+    >
+    > **11-3**【[第九節第 3 章](../html/c/靜態與動態函式庫-ar與.a、-fPIC與.so、執行時怎麼找到.so.html#3-主程式只寫-extern-int-counter變數放進執行檔複製重定位)〈主程式只寫 `extern int counter;`：變數放進執行檔（複製重定位）〉】核心關鍵：
+    >
+    > 1. 第一行的 3：載入時 `ld.so` 處理執行檔的 `R_X86_64_COPY`，去 `libcfg.so` 找到 `level`，把初值 3 複製進執行檔 `.bss` 的 `level`；`main` 直接讀它。
+    > 2. `get_level()` 經過 `libcfg.so` 的 GOT 讀 `level`，那格是 `R_X86_64_GLOB_DAT level`；`ld.so` 照「先找執行檔、再找 `.so`」找到**執行檔那份**，把執行檔的 `&level` 填進去。
+    > 3. 所以兩邊用的都是執行檔那份；`main` 改成 7，`get_level()` 讀到 7。`libcfg.so` 自己那份 `level` 只在載入時被讀一次初值。
+    >
+    > 詳細說明：本機實測 `LD_DEBUG=bindings ./setlevel` 的兩行就是這兩件事：`binding file ./setlevel to …/libcfg.so: normal symbol 'level'`（處理 `COPY`：去 `.so` 拿初值）、`binding file …/libcfg.so to ./setlevel: normal symbol 'level'`（處理 `GLOB_DAT`：`.so` 的 GOT 接到執行檔）。
+    >
+    > **11-4**【[第九節第 3 章](../html/c/靜態與動態函式庫-ar與.a、-fPIC與.so、執行時怎麼找到.so.html#3-主程式只寫-extern-int-counter變數放進執行檔複製重定位)〈主程式只寫 `extern int counter;`：變數放進執行檔（複製重定位）〉】核心關鍵：
+    >
+    > 1. 執行時 `ld.so` 印警告 `Symbol 'level' has different size in shared object, consider re-linking`，程式照樣跑。
+    > 2. 原因：執行檔 `.bss` 留給 `level` 的大小（4 byte）是**連結時**照當時的 `.so` 決定的；現在 `.so` 裡的 `level` 是 8 byte，大小對不上，要重新連結。
+    >
+    > 詳細說明：本機實測（`cfg.c` 改成 `long level = 3;` 重做 `libcfg.so`，`setlevel` 不動）：先印那行警告，接著照樣印 `一開始 level = 3`、`get_level() = 7`。印對是運氣：`get_level()` 經過 GOT 到執行檔那格讀 8 byte，多讀的 4 byte 是執行檔 `.bss` 裡 `level` 後面的空間，剛好是 0；值一大、或後面放了別的變數，就會讀寫到別人。這是函式庫通常**不直接給外面用全域變數、而是提供函式**（`get_level()`）的原因之一：函式走 PLT，執行檔不必知道它的大小。
 12. （2026-10-26 提問延伸）`libtemp.so` 的宣告放在 `include/temp.h`（裡面還定義了巨集 `FREEZING_C`），做好的 `libtemp.so` 放在 `lib/`。(1) `gcc -Wall main.c -Llib -ltemp -o app` 會失敗在哪個階段（前處理、編譯、連結、執行）？錯誤大概長怎樣、要補什麼？(2) `gcc -Wall -Iinclude main.c -Llib -o app` 呢？(3) 同事說「`FREEZING_C` 的值存在 `libtemp.so` 裡，執行時才讀進來」，對嗎？為什麼？(4) 編好的 `app`（連結時加了 `-Wl,-rpath,'$ORIGIN/lib'`）要拿給別人執行，`include/temp.h` 要一起給嗎？`lib/libtemp.so` 呢？
    ```c
    /* include/temp.h */
@@ -2682,3 +3300,74 @@ c_to_f(37) = 99
    }
    ```
    做 `.so`：`gcc -Wall -fPIC -Iinclude -c temp.c -o temp.pic.o && gcc -shared temp.pic.o -o lib/libtemp.so`（檔案：[`include/temp.h`](../small-project/s1-07-libraries/examples/headers/temp/include/temp.h)、[`temp.c`](../small-project/s1-07-libraries/examples/headers/temp/temp.c)、[`main.c`](../small-project/s1-07-libraries/examples/headers/temp/main.c)）。
+    > **參考答案**（核心關鍵＋詳細說明）
+    >
+    > **12-1**【[第九節第 11 章](../html/c/靜態與動態函式庫-ar與.a、-fPIC與.so、執行時怎麼找到.so.html#11-做-so-需要-h-嗎include-管編譯-l-管連結)〈做 `.so` 需要 `.h` 嗎？`#include` 管編譯、`-l` 管連結〉】核心關鍵：
+    >
+    > 1. 失敗在**前處理**：`fatal error: temp.h: No such file or directory`。
+    > 2. `#include "temp.h"` 先找 `main.c` 所在的目錄、再找 `-I` 指定的目錄；`temp.h` 在 `include/`，要補 `-Iinclude`。
+    >
+    > 詳細說明：本機實測輸出：`main.c:2:10: fatal error: temp.h: No such file or directory`、`compilation terminated.`。四個階段的錯誤長相不同：前處理是 `fatal error: xxx.h`、連結是 `undefined reference`／`cannot find -l`、執行是 `error while loading shared libraries`。
+    >
+    > **12-2**【[第九節第 11 章](../html/c/靜態與動態函式庫-ar與.a、-fPIC與.so、執行時怎麼找到.so.html#11-做-so-需要-h-嗎include-管編譯-l-管連結)〈做 `.so` 需要 `.h` 嗎？`#include` 管編譯、`-l` 管連結〉】核心關鍵：
+    >
+    > 1. 失敗在**連結**：`undefined reference to 'c_to_f'`。
+    > 2. `.h` 只讓編譯器知道 `c_to_f` 的型別；要 `-ltemp`（寫在 `main.c` 後面）`ld` 才會去 `-Llib` 找 `libtemp.so`、解決 `c_to_f`。
+    >
+    > 詳細說明：本機實測輸出：`main.c:(.text+0x15): undefined reference to 'c_to_f'`。對照筆記第 11 章的 `sq.c`：有 `#include <math.h>`、沒 `-lm`，一樣是 `undefined reference to 'sqrt'`。
+    >
+    > **12-3**【[第九節第 11 章](../html/c/靜態與動態函式庫-ar與.a、-fPIC與.so、執行時怎麼找到.so.html#11-做-so-需要-h-嗎include-管編譯-l-管連結)〈做 `.so` 需要 `.h` 嗎？`#include` 管編譯、`-l` 管連結〉】核心關鍵：
+    >
+    > 1. 不對。
+    > 2. `FREEZING_C` 是巨集，前處理時就被換成 `0.0`，寫進 `main.c` 編出來的程式碼；`libtemp.so` 裡根本沒有這個東西。
+    >
+    > 詳細說明：本機實測：`gcc -E -Iinclude main.c` 的最後幾行是 `printf("%.1f\n", c_to_f(0.0));`。所以改了 `temp.h` 的 `FREEZING_C`，只換 `.so` 沒用，要重新編譯 `main.c`。
+    >
+    > **12-4**【[第九節第 11 章](../html/c/靜態與動態函式庫-ar與.a、-fPIC與.so、執行時怎麼找到.so.html#11-做-so-需要-h-嗎include-管編譯-l-管連結)〈做 `.so` 需要 `.h` 嗎？`#include` 管編譯、`-l` 管連結〉】核心關鍵：
+    >
+    > 1. `include/temp.h` 不用給：它只在編譯呼叫端時用，內容已經編進 `app`。
+    > 2. `lib/libtemp.so` 要給：`c_to_f` 的程式碼在裡面，執行時 `ld.so` 照 `NEEDED` 和 `RUNPATH $ORIGIN/lib` 載入它，所以要放在 `app` 旁邊的 `lib/`。
+    >
+    > 詳細說明：這就是 `zlib1g`（執行用，只有 `.so.1`）和 `zlib1g-dev`（開發用，`.h`、`.a`、`.so`）分成兩個套件的原因。
+13. （2026-10-29 提問延伸）`libtxt.so` 由下面的 `case.c`、`space.c`、`trim.c` 做成；`main.c` 只呼叫 `trim`，`none.c` 什麼都不呼叫。(1) `gcc -v` 顯示 gcc 交給 `ld` 的順序是 `Scrt1.o crti.o crtbeginS.o … -ltxt <main.c 的 .o> … -lc …`。讀到 `-ltxt` 那一刻，「還沒找到定義的符號」清單是空的嗎？裡面有 `trim` 嗎？為什麼？(2) 預設下 `gcc -Wall -L. -ltxt main.c -o app_bad` 失敗；把 `-Wl,--no-as-needed` 放在 `-ltxt` 前面（`gcc -Wall -L. -Wl,--no-as-needed -ltxt main.c -o app_no`）就成功。讀到 `libtxt.so` 時兩種模式各做了什麼？`main.o` 要的 `trim` 最後是怎麼被解決的——是 `libtxt.so` 把 `trim` 加進了清單嗎？(3) `none.c` 用 `gcc -Wall none.c -L. -Wl,--no-as-needed -ltxt -o none_no` 和 `gcc -Wall none.c -L. -ltxt -o none_as` 各連結一次，`readelf -d` 的 `NEEDED` 會差在哪？Ubuntu 為什麼預設開 `--as-needed`？(4) 把 `libtxt.so` 換成同樣三個 `.o` 做成的 `libtxt.a`（並刪掉 `libtxt.so`），`gcc -Wall -L. -Wl,--no-as-needed -ltxt main.c -o app_a` 會成功嗎？為什麼？
+    ```c
+    /* case.c */
+    void to_upper_str(char *s) { for (; *s; s++) if (*s >= 'a' && *s <= 'z') *s -= 32; }
+    void to_lower_str(char *s) { for (; *s; s++) if (*s >= 'A' && *s <= 'Z') *s += 32; }
+    ```
+    ```c
+    /* space.c */
+    int is_space(char c) { return c == ' ' || c == '\t' || c == '\n'; }
+    ```
+    ```c
+    /* trim.c */
+    int is_space(char c);
+
+    char *trim(char *s)
+    {
+        while (is_space(*s))
+            s++;
+        return s;
+    }
+    ```
+    ```c
+    /* main.c */
+    #include <stdio.h>
+
+    char *trim(char *s);
+
+    int main(void)
+    {
+        char buf[] = "   hello";
+        printf("[%s]\n", trim(buf));
+        return 0;
+    }
+    ```
+    ```c
+    /* none.c */
+    int main(void)
+    {
+        return 0;            /* 完全不呼叫 libtxt 的函式 */
+    }
+    ```
+    做 `.so`：`gcc -Wall -fPIC -shared case.c space.c trim.c -o libtxt.so`；做 `.a`：`gcc -Wall -c case.c space.c trim.c && ar rcs libtxt.a case.o space.o trim.o && rm libtxt.so`（檔案都在 [`examples/asneeded/`](../small-project/s1-07-libraries/examples/asneeded/)）。啟動檔 `Scrt1.o` 未定義的符號可以用 `nm -u $(gcc -print-file-name=Scrt1.o)` 看。

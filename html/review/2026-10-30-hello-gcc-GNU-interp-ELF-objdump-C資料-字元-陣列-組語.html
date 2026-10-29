@@ -1,0 +1,610 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>2026-10-30 複習：hello、gcc、GNU、interp、ELF、objdump、C資料、字元、陣列、組語</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../assets/app.js"></script>
+</head>
+<body>
+<button class="menu-btn" onclick="toggleMenu()">☰ 目錄</button>
+<div class="layout">
+<nav class="side">
+<div class="crumbs"><a href="../index.html">🏠 首頁</a> / <a href="README.html">review</a></div>
+<div class="tools"><button onclick="toggleTheme()">🌓 主題</button><button onclick="toggleBoxes(true)">展開作答框</button><button onclick="toggleBoxes(false)">收起作答框</button></div>
+<ul>
+<li class="l2"><a href="#%E4%BB%8A%E5%A4%A9%E7%9A%84%E9%A1%8C%E7%9B%AE">今天的題目</a></li>
+<li class="l2"><a href="#hellohelloc%E6%80%8E%E9%BA%BC%E8%AE%8A%E6%88%90%E8%83%BD%E8%B7%91%E7%9A%84%E7%A8%8B%E5%BC%8F-%E7%B7%A8%E8%AD%AF%E7%9A%84%E5%9B%9B%E5%80%8B%E9%9A%8E%E6%AE%B5">hello：hello.c怎麼變成能跑的程式-編譯的四個階段</a></li>
+<li class="l3"><a href="#hello-2-helloi-%E8%A3%A1%E6%9C%89-printf-%E7%9A%84%E5%AE%A3%E5%91%8A%E5%8D%BB%E6%B2%92%E6%9C%89%E5%AE%83%E7%9A%84%E7%A8%8B%E5%BC%8F%E7%A2%BC%E9%82%A3%E5%AE%83%E7%9A%84%E7%A8%8B%E5%BC%8F%E7%A2%BC%E5%9C%A8%E5%93%AA%E6%98%AF%E5%9C%A8%E5%93%AA%E5%80%8B%E6%99%82%E9%96%93%E9%BB%9E%E7%94%B1%E8%AA%B0%E6%8A%8A%E5%91%BC%E5%8F%AB-printf%E5%92%8Cprintf-%E7%9A%84%E7%A8%8B%E5%BC%8F%E7%A2%BC%E6%8E%A5%E8%B5%B7%E4%BE%86%E7%9A%84">hello 2. hello.i 裡有 printf 的宣告，卻沒有它的程式碼。那它的程式碼在哪？是在哪個時間點、由誰把「呼叫 printf」和「printf 的程式碼」接起來的？</a></li>
+<li class="l3"><a href="#hello-3-helloo-%E8%A3%A1%E5%91%BC%E5%8F%AB-puts%E7%9A%84%E5%9C%B0%E6%96%B9%E8%A6%81%E8%B7%B3%E5%8E%BB%E7%9A%84%E4%BD%8D%E5%9D%80%E7%82%BA%E4%BB%80%E9%BA%BC%E6%9A%AB%E6%99%82%E6%98%AF-0%E7%A9%BA%E8%91%97%E4%BB%80%E9%BA%BC%E8%B3%87%E8%A8%8A%E8%AE%93%E9%80%A3%E7%B5%90%E5%99%A8%E7%9F%A5%E9%81%93%E4%B9%8B%E5%BE%8C%E8%A6%81%E6%8A%8A%E5%AE%83%E5%A1%AB%E6%88%90%E4%BB%80%E9%BA%BC">hello 3. hello.o 裡「呼叫 puts」的地方，要跳去的位址為什麼暫時是 0（空著）？什麼資訊讓連結器知道之後要把它填成什麼？</a></li>
+<li class="l2"><a href="#gccgcc%E6%9C%80%E4%BD%B3%E5%8C%96%E7%AD%89%E7%B4%9A-o0%E5%88%B0o3%E5%B7%AE%E5%9C%A8%E5%93%AA">gcc：gcc最佳化等級-O0到O3差在哪</a></li>
+<li class="l3"><a href="#gcc-3-%E5%9C%A8--o2-%E4%B8%8Banswer-%E9%80%A3%E5%91%BC%E5%8F%AB-sum_to-%E9%80%99%E4%BB%B6%E4%BA%8B%E9%83%BD%E4%B8%8D%E8%A6%8B%E4%BA%86%E7%9B%B4%E6%8E%A5%E5%9B%9E%E5%82%B3-5050%E7%B7%A8%E8%AD%AF%E5%99%A8%E5%81%9A%E4%BA%86%E5%93%AA%E5%85%A9%E4%BB%B6%E4%BA%8B%E6%89%8D%E8%83%BD%E5%81%9A%E5%88%B0">gcc 3. 在 -O2 下，answer() 連呼叫 sum_to 這件事都不見了，直接回傳 5050。編譯器做了哪兩件事才能做到？</a></li>
+<li class="l3"><a href="#gcc-4-%E6%9C%80%E4%BD%B3%E5%8C%96%E7%AD%89%E7%B4%9A%E8%B6%8A%E9%AB%98%E7%A8%8B%E5%BC%8F%E8%B6%8A%E5%B0%8F%E5%B0%8D%E5%97%8E-o2-o3-%E5%92%8C--os-oz-%E7%9A%84%E7%9B%AE%E6%A8%99%E5%90%84%E6%98%AF%E4%BB%80%E9%BA%BC%E7%82%BA%E4%BB%80%E9%BA%BC%E8%BF%BD%E6%B1%82%E9%80%9F%E5%BA%A6%E5%8F%8D%E8%80%8C%E5%8F%AF%E8%83%BD%E8%AE%93%E7%A8%8B%E5%BC%8F%E8%AE%8A%E5%A4%A7">gcc 4. 「最佳化等級越高，程式越小」對嗎？-O2／-O3 和 -Os／-Oz 的目標各是什麼？為什麼追求速度反而可能讓程式變大？</a></li>
+<li class="l2"><a href="#gnugnu%E6%98%AF%E4%BB%80%E9%BA%BC-linux%E6%A0%B8%E5%BF%83%E8%88%87gnu%E5%B7%A5%E5%85%B7%E7%9A%84%E5%88%86%E5%B7%A5">GNU：GNU是什麼-Linux核心與GNU工具的分工</a></li>
+<li class="l3"><a href="#gnu-5-%E4%BD%A0%E5%B0%87%E4%BE%86%E9%80%81-kernel-patch-%E6%99%82%E8%A6%81%E5%8A%A0%E7%9A%84-signed-off-by-%E8%B7%9F-gpl-%E6%9C%89%E4%BB%80%E9%BA%BC%E9%97%9C%E4%BF%82">GNU 5. 你將來送 kernel patch 時要加的 Signed-off-by: 跟 GPL 有什麼關係？</a></li>
+<li class="l3"><a href="#gnu-6-%E6%83%85%E5%A2%83%E9%A1%8C%E5%90%8C%E4%BA%8B%E8%AA%AA%E6%88%91%E5%9C%A8%E9%80%99%E5%8F%B0%E6%A9%9F%E5%99%A8%E4%B8%8A%E6%89%93-uname--o-%E7%9C%8B%E5%88%B0-gnulinux%E6%89%80%E4%BB%A5%E5%AE%83%E4%B8%80%E5%AE%9A%E7%94%A8-glibc%E9%80%99%E5%80%8B%E6%8E%A8%E8%AB%96%E9%8C%AF%E5%9C%A8%E5%93%AAuname-%E7%9A%84%E5%93%AA%E4%BA%9B%E6%AC%84%E4%BD%8D%E5%8F%AF%E4%BB%A5%E4%BF%A1%E5%93%AA%E4%B8%80%E6%AC%84%E4%B8%8D%E8%A1%8C%E7%82%BA%E4%BB%80%E9%BA%BC%E4%BD%A0%E6%9C%83%E6%94%B9%E7%9C%8B%E4%BB%80%E9%BA%BC%E4%BE%86%E5%88%A4%E6%96%B7">GNU 6. 情境題：同事說「我在這台機器上打 uname -o 看到 GNU/Linux，所以它一定用 glibc」。這個推論錯在哪？uname 的哪些欄位可以信、哪一欄不行，為什麼？你會改看什麼來判斷？</a></li>
+<li class="l2"><a href="#interpelf%E7%9A%84interpreter%E6%98%AF%E4%BB%80%E9%BA%BC-%E5%8B%95%E6%85%8B%E8%BC%89%E5%85%A5%E5%99%A8%E8%88%87%E4%BA%95%E5%AD%97%E8%99%9F%E9%A9%9A%E5%98%86%E8%99%9F">interp：ELF的interpreter是什麼-動態載入器與井字號驚嘆號</a></li>
+<li class="l3"><a href="#interp-6-%E6%83%85%E5%A2%83%E9%A1%8C%E4%B8%80%E6%94%AF%E8%85%B3%E6%9C%AC%E6%AC%8A%E9%99%90%E6%98%AF----x--x--x%E5%8F%AA%E6%9C%89%E5%9F%B7%E8%A1%8C%E6%AC%8A%E9%99%90%E7%AC%AC%E4%B8%80%E8%A1%8C%E6%98%AF-binsh%E5%9F%B7%E8%A1%8C%E6%99%82%E5%87%BA%E7%8F%BE-binsh-xsh-permission-denied%E9%80%99%E5%80%8B%E9%8C%AF%E8%AA%A4%E6%98%AF%E8%AA%B0%E5%8D%B0%E7%9A%84%E7%82%BA%E4%BB%80%E9%BA%BC%E6%A0%B8%E5%BF%83%E8%AE%80%E5%BE%97%E5%88%B0--%E9%82%A3%E4%B8%80%E8%A1%8C%E7%9B%B4%E8%AD%AF%E5%99%A8%E5%8D%BB%E8%AE%80%E4%B8%8D%E5%88%B0%E8%85%B3%E6%9C%AC%E5%90%8C%E6%A8%A3%E5%8F%AA%E6%9C%89%E5%9F%B7%E8%A1%8C%E6%AC%8A%E9%99%90%E7%9A%84-elf-%E5%9F%B7%E8%A1%8C%E6%AA%94%E7%82%BA%E4%BB%80%E9%BA%BC%E5%B0%B1%E8%83%BD%E8%B7%91">interp 6. 情境題：一支腳本權限是 ---x--x--x（只有執行權限），第一行是 #!/bin/sh，執行時出現 /bin/sh: ./x.sh: Permission denied。這個錯誤是誰印的？為什麼核心讀得到 #! 那一行，直譯器卻讀不到腳本？同樣只有執行權限的 ELF 執行檔為什麼就能跑？</a></li>
+<li class="l2"><a href="#elfelf%E6%98%AF%E4%BB%80%E9%BA%BC-%E5%8F%AF%E5%9F%B7%E8%A1%8C%E8%88%87%E5%8F%AF%E9%80%A3%E7%B5%90%E6%A0%BC%E5%BC%8F%E7%9A%84%E5%85%A9%E7%A8%AE%E8%A6%96%E8%A7%92">ELF：ELF是什麼-可執行與可連結格式的兩種視角</a></li>
+<li class="l3"><a href="#elf-2-readelf--l-helloo-%E8%AA%AA-there-are-no-program-headers-in-this-file%E9%80%99%E4%BB%A3%E8%A1%A8%E4%BB%80%E9%BA%BC%E9%80%A3%E7%B5%90%E5%99%A8%E5%81%9A%E4%BA%86%E4%BB%80%E9%BA%BC%E6%89%8D%E8%AE%93%E5%9F%B7%E8%A1%8C%E6%AA%94%E6%9C%89%E7%A8%8B%E5%BC%8F%E6%A8%99%E9%A0%AD">ELF 2. readelf -l hello.o 說 There are no program headers in this file，這代表什麼？連結器做了什麼才讓執行檔有程式標頭？</a></li>
+<li class="l3"><a href="#elf-3-%E6%9C%AC%E6%A9%9F%E4%B8%80%E8%88%AC-gcc-%E7%B7%A8%E5%87%BA%E7%9A%84%E5%9F%B7%E8%A1%8C%E6%AA%94type-%E7%82%BA%E4%BB%80%E9%BA%BC%E6%98%AF-dyn%E8%B7%9F-libcso6-%E5%90%8C%E4%B8%80%E9%A1%9E%E8%80%8C%E9%9D%9C%E6%85%8B%E7%89%88%E6%98%AF-exec">ELF 3. 本機一般 gcc 編出的執行檔，Type 為什麼是 DYN，跟 libc.so.6 同一類，而靜態版是 EXEC？</a></li>
+<li class="l3"><a href="#elf-5-%E6%83%85%E5%A2%83%E9%A1%8C%E4%BD%A0%E6%8A%8A-ubuntux86-64%E4%B8%8A%E7%B7%A8%E5%A5%BD%E7%9A%84%E7%A8%8B%E5%BC%8F%E8%A4%87%E8%A3%BD%E5%88%B0%E8%B7%AF%E7%94%B1%E5%99%A8armfile-%E9%A1%AF%E7%A4%BA%E5%AE%83%E6%98%AF-elf%E5%9F%B7%E8%A1%8C%E5%8D%BB%E5%A4%B1%E6%95%97%E9%80%99%E8%B7%9F-interpreter-%E9%82%A3%E7%AF%87-%E7%AC%AC%E4%BA%94%E7%AF%80interpreter-%E4%B8%8D%E5%AD%98%E5%9C%A8%E6%98%AF%E4%B8%8D%E6%98%AF%E5%90%8C%E4%B8%80%E7%A8%AE%E5%95%8F%E9%A1%8C%E5%BE%9E%E6%AA%94%E9%A0%AD%E7%9A%84%E5%93%AA%E4%B8%80%E6%AC%84%E5%8F%AF%E4%BB%A5%E7%9C%8B%E5%87%BA%E4%BE%86">ELF 5. 情境題：你把 Ubuntu（x86-64）上編好的程式複製到路由器（ARM），file 顯示它是 ELF，執行卻失敗。這跟 interpreter 那篇 第五節「interpreter 不存在」是不是同一種問題？從檔頭的哪一欄可以看出來？</a></li>
+<li class="l2"><a href="#objdumpobjdump%E8%83%BD%E4%B8%8D%E8%83%BD%E4%BB%A3%E6%9B%BFldd%E6%89%BE%E4%BE%9D%E8%B3%B4%E5%BA%AB-%E9%9C%80%E6%B1%82%E5%96%AE%E8%88%87%E5%AF%A6%E9%9A%9B%E8%BC%89%E5%85%A5">objdump：objdump能不能代替ldd找依賴庫-需求單與實際載入</a></li>
+<li class="l3"><a href="#objdump-1-objdump--p-usrbincurl-%E5%8F%AA%E5%88%97%E5%87%BA-3-%E5%80%8B-neededldd-%E5%8D%BB%E5%88%97%E5%87%BA-33-%E8%A1%8C%E5%A4%9A%E5%87%BA%E4%BE%86%E7%9A%84%E6%98%AF%E5%93%AA%E5%B9%BE%E9%A1%9E%E6%9D%B1%E8%A5%BF%E7%82%BA%E4%BB%80%E9%BA%BC-objdump-%E7%9C%8B%E4%B8%8D%E5%88%B0">objdump 1. objdump -p /usr/bin/curl 只列出 3 個 NEEDED，ldd 卻列出 33 行。多出來的是哪幾類東西？為什麼 objdump 看不到？</a></li>
+<li class="l2"><a href="#c%E8%B3%87%E6%96%99c%E7%9A%84%E8%B3%87%E6%96%99%E5%9C%A8%E8%A8%98%E6%86%B6%E9%AB%94%E8%A3%A1%E9%95%B7%E6%80%8E%E6%A8%A3-%E4%BD%8D%E5%85%83%E7%B5%84%E6%8C%87%E6%A8%99%E4%BD%8D%E5%85%83%E7%B5%84%E9%A0%86%E5%BA%8F%E8%88%87%E6%9C%89%E8%99%9F%E7%84%A1%E8%99%9F">C資料：C的資料在記憶體裡長怎樣-位元組、指標、位元組順序與有號無號</a></li>
+<li class="l3"><a href="#c%E8%B3%87%E6%96%99-4-int-y--x--1-return-y--x-%E5%9C%A8-x--int_max-%E6%99%82-o0-%E5%9B%9E%E5%82%B3-0-o2-%E5%9B%9E%E5%82%B3-1%E7%82%BA%E4%BB%80%E9%BA%BC%E6%9C%83%E9%80%99%E6%A8%A3%E9%80%99%E7%AE%97%E4%B8%8D%E7%AE%97-gcc-%E7%9A%84-bugkernel-%E7%94%A8%E5%93%AA%E5%80%8B%E9%81%B8%E9%A0%85%E9%81%BF%E5%85%8D%E9%80%99%E7%A8%AE%E6%83%85%E6%B3%81%E4%BB%A3%E5%83%B9%E6%98%AF%E4%BB%80%E9%BA%BC">C資料 4. int y = x + 1; return y &gt; x; 在 x = INT_MAX 時，-O0 回傳 0、-O2 回傳 1。為什麼會這樣？這算不算 gcc 的 bug？kernel 用哪個選項避免這種情況，代價是什麼？</a></li>
+<li class="l3"><a href="#c%E8%B3%87%E6%96%99-7-2147483648-%E5%92%8C-0x80000000-%E6%98%AF%E5%90%8C%E4%B8%80%E5%80%8B%E6%95%B8%E7%82%BA%E4%BB%80%E9%BA%BC%E4%B8%80%E5%80%8B%E7%9A%84%E5%9E%8B%E5%88%A5%E6%98%AF-long%E4%B8%80%E5%80%8B%E6%98%AF-unsigned-int-1--0x80000000-%E5%92%8C--1--2147483648-%E7%9A%84%E7%B5%90%E6%9E%9C%E5%90%84%E6%98%AF%E4%BB%80%E9%BA%BC%E7%82%BA%E4%BB%80%E9%BA%BC">C資料 7. 2147483648 和 0x80000000 是同一個數，為什麼一個的型別是 long、一個是 unsigned int？-1 &lt; 0x80000000 和 -1 &lt; 2147483648 的結果各是什麼？為什麼？</a></li>
+<li class="l3"><a href="#c%E8%B3%87%E6%96%99-9-%E6%83%85%E5%A2%83%E9%A1%8C%E6%9C%89%E4%BA%BA%E5%AF%AB%E4%BA%86-if-len---used--0-%E5%88%A4%E6%96%B7%E7%B7%A9%E8%A1%9D%E5%8D%80%E9%82%84%E6%9C%89%E6%B2%92%E6%9C%89%E5%89%A9%E9%A4%98%E7%A9%BA%E9%96%93lenused-%E9%83%BD%E6%98%AF-size_t%E7%94%A8--wall--wextra-%E7%B7%A8%E8%AD%AF%E6%B2%92%E6%9C%89%E4%BB%BB%E4%BD%95%E8%AD%A6%E5%91%8A%E9%80%99%E5%80%8B%E5%88%A4%E6%96%B7%E5%9C%A8%E4%BB%80%E9%BA%BC%E6%83%85%E6%B3%81%E4%B8%8B%E6%9C%83%E5%87%BA%E9%8C%AF%E7%82%BA%E4%BB%80%E9%BA%BC-gcc-%E5%B0%8D-len---used--0-%E6%9C%83%E8%AD%A6%E5%91%8A%E5%B0%8D--0-%E5%8D%BB%E4%B8%8D%E6%9C%83%E5%8F%A6%E5%A4%96%E7%82%BA%E4%BB%80%E9%BA%BC-int-sum--x--y-if-sum--x-%E9%80%99%E7%A8%AE%E6%BA%A2%E4%BD%8D%E6%AA%A2%E6%9F%A5%E5%9C%A8--o2-%E4%B8%8B%E5%8F%AF%E8%83%BD%E5%AE%8C%E5%85%A8%E5%A4%B1%E6%95%88">C資料 9. 情境題：有人寫了 if (len - used &gt; 0) 判斷「緩衝區還有沒有剩餘空間」，len、used 都是 size_t，用 -Wall -Wextra 編譯沒有任何警告。這個判斷在什麼情況下會出錯？為什麼 gcc 對 len - used &lt; 0 會警告、對 &gt; 0 卻不會？另外，為什麼 int sum = x + y; if (sum &lt; x) 這種溢位檢查在 -O2 下可能完全失效？</a></li>
+<li class="l2"><a href="#%E5%AD%97%E5%85%83%E5%AD%97%E5%85%83%E6%98%AF%E4%BB%80%E9%BA%BC-char%E5%B0%B1%E6%98%AF1byte%E7%9A%84%E6%95%B4%E6%95%B8%E8%88%87ascii%E5%92%8Cutf-8">字元：字元是什麼-char就是1byte的整數與ASCII和UTF-8</a></li>
+<li class="l3"><a href="#%E5%AD%97%E5%85%83-4-%E6%83%85%E5%A2%83%E9%A1%8C%E4%BD%A0%E5%AF%AB%E4%BA%86%E4%B8%80%E5%80%8B%E5%87%BD%E5%BC%8F%E7%94%A8-char-c-%E4%B8%80%E5%80%8B%E4%B8%80%E5%80%8B-byte-%E8%AE%80%E4%B8%80%E6%AE%B5-utf-8-%E6%96%87%E5%AD%97%E4%B8%A6%E7%94%A8-if-c--127-%E5%88%A4%E6%96%B7%E9%80%99%E6%98%AF%E4%B8%8D%E6%98%AF%E9%9D%9E-ascii-%E7%9A%84-byte%E5%9C%A8%E6%9C%AC%E6%A9%9F%E9%80%99%E5%80%8B%E5%88%A4%E6%96%B7%E6%9C%83%E6%88%90%E7%AB%8B%E5%97%8E%E7%82%BA%E4%BB%80%E9%BA%BC%E8%A9%B2%E6%80%8E%E9%BA%BC%E6%94%B9">字元 4. 情境題：你寫了一個函式，用 char c 一個一個 byte 讀一段 UTF-8 文字，並用 if (c &gt; 127) 判斷「這是不是非 ASCII 的 byte」。在本機這個判斷會成立嗎？為什麼？該怎麼改？</a></li>
+<li class="l2"><a href="#%E9%99%A3%E5%88%97%E9%99%A3%E5%88%97%E5%AD%97%E4%B8%B2%E8%88%87%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97-c%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%88%87%E7%94%A8gdb%E6%89%BEsegfault">陣列：陣列、字串與指標運算-C不檢查邊界與用gdb找segfault</a></li>
+<li class="l3"><a href="#%E9%99%A3%E5%88%97-1-%E6%8C%87%E6%A8%99%E7%9A%84%E5%9E%8B%E5%88%A5%E8%88%87%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97">陣列 1. 指標的型別與指標運算</a></li>
+<li class="l3"><a href="#%E9%99%A3%E5%88%97-6-%E6%83%85%E5%A2%83%E9%A1%8C%E8%AE%80%E6%87%82-asan-%E7%9A%84%E5%8D%80%E9%96%93">陣列 6. 情境題：讀懂 ASan 的區間</a></li>
+<li class="l2"><a href="#%E7%B5%84%E8%AA%9Ex86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80-%E6%9A%AB%E5%AD%98%E5%99%A8mov%E8%88%87leacmp%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D">組語：x86-64組合語言入門-暫存器、mov與lea、cmp與條件跳躍</a></li>
+<li class="l3"><a href="#%E7%B5%84%E8%AA%9E-2-%E5%AF%AB-32-%E4%BD%8D%E5%85%83%E6%9A%AB%E5%AD%98%E5%99%A8%E8%88%87%E6%93%B4%E5%B1%95">組語 2. 寫 32 位元暫存器與擴展</a></li>
+<li class="l3"><a href="#%E7%B5%84%E8%AA%9E-3-%E6%9C%89%E8%99%9F%E8%88%87%E7%84%A1%E8%99%9F%E5%9C%A8%E5%93%AA%E8%A3%A1%E6%B1%BA%E5%AE%9A">組語 3. 有號與無號在哪裡決定</a></li>
+<li class="l3"><a href="#%E7%B5%84%E8%AA%9E-5-%E6%83%85%E5%A2%83%E9%A1%8C%E5%BE%9E%E4%B8%80%E8%A1%8C%E5%8F%8D%E7%B5%84%E8%AD%AF%E6%8E%A8%E5%9B%9E-c">組語 5. 情境題：從一行反組譯推回 C</a></li>
+<li class="l3"><a href="#%E7%B5%84%E8%AA%9E-18-0x01--0x7f-%E7%9A%84%E9%80%B2%E4%BD%8D%E8%88%87-cfof">組語 18. 0x01 + 0x7f 的進位與 CF、OF</a></li>
+</ul>
+</nav>
+<main>
+<h1 id="2026-10-30-複習hellogccgnuinterpelfobjdumpc資料字元陣列組語">2026-10-30 複習：hello、gcc、GNU、interp、ELF、objdump、C資料、字元、陣列、組語</h1>
+<blockquote>
+<p>依<a href="../learning/%E8%A4%87%E7%BF%92%E6%8E%92%E7%A8%8B.html">複習排程</a>出今天到期的全部題目（每天出完所有到期題，2026-10-23 起的規則），共 <strong>21 題</strong>（33 個作答框），沒有過期的。其中 3 題在盒子 2（C資料 4、C資料 9 是 10-27 大致對留在盒子 2；組語 18 是 10-27 改判為對、升到盒子 2）；其餘 18 題是 10-23 大複習後排在盒子 3 的題目（含 3 題大致對留在盒子 3：hello 2、hello 3、interp 6）。題目依筆記分節、節內照題號排；每題照原題複製，用到的程式碼與實驗步驟都附在題目裡，「過去的作答」連到之前每一次作答（含批改與參考答案）。</p>
+<p><strong>怎麼寫</strong>：闔上筆記，每題寫 1～2 句關鍵句就好。可以分幾次寫，寫完一部分就可以先說「幫我批改」。複習不重答，批改會直接附參考答案。已拆小題的題目，每個小題一個作答框；以大題為單位排程，小題全對才算對。</p>
+</blockquote>
+<h2 id="今天的題目">今天的題目</h2>
+<p>排序：盒子小的在前（盒子 2 的 3 題），其餘依上次作答日期；同一天的照筆記順序。</p>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>題目</th>
+<th>盒子</th>
+<th>原本該考的日期</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>C資料 4</td>
+<td>2</td>
+<td>2026-10-30</td>
+</tr>
+<tr>
+<td>2</td>
+<td>C資料 9</td>
+<td>2</td>
+<td>2026-10-30</td>
+</tr>
+<tr>
+<td>3</td>
+<td>組語 18（4 小題）</td>
+<td>2</td>
+<td>2026-10-30</td>
+</tr>
+<tr>
+<td>4</td>
+<td>hello 2</td>
+<td>3</td>
+<td>2026-10-30</td>
+</tr>
+<tr>
+<td>5</td>
+<td>hello 3</td>
+<td>3</td>
+<td>2026-10-30</td>
+</tr>
+<tr>
+<td>6</td>
+<td>gcc 3</td>
+<td>3</td>
+<td>2026-10-30</td>
+</tr>
+<tr>
+<td>7</td>
+<td>gcc 4</td>
+<td>3</td>
+<td>2026-10-30</td>
+</tr>
+<tr>
+<td>8</td>
+<td>GNU 5</td>
+<td>3</td>
+<td>2026-10-30</td>
+</tr>
+<tr>
+<td>9</td>
+<td>GNU 6</td>
+<td>3</td>
+<td>2026-10-30</td>
+</tr>
+<tr>
+<td>10</td>
+<td>interp 6</td>
+<td>3</td>
+<td>2026-10-30</td>
+</tr>
+<tr>
+<td>11</td>
+<td>ELF 2</td>
+<td>3</td>
+<td>2026-10-30</td>
+</tr>
+<tr>
+<td>12</td>
+<td>ELF 3</td>
+<td>3</td>
+<td>2026-10-30</td>
+</tr>
+<tr>
+<td>13</td>
+<td>ELF 5</td>
+<td>3</td>
+<td>2026-10-30</td>
+</tr>
+<tr>
+<td>14</td>
+<td>objdump 1</td>
+<td>3</td>
+<td>2026-10-30</td>
+</tr>
+<tr>
+<td>15</td>
+<td>C資料 7</td>
+<td>3</td>
+<td>2026-10-30</td>
+</tr>
+<tr>
+<td>16</td>
+<td>字元 4</td>
+<td>3</td>
+<td>2026-10-30</td>
+</tr>
+<tr>
+<td>17</td>
+<td>陣列 1（3 小題）</td>
+<td>3</td>
+<td>2026-10-30</td>
+</tr>
+<tr>
+<td>18</td>
+<td>陣列 6（4 小題）</td>
+<td>3</td>
+<td>2026-10-30</td>
+</tr>
+<tr>
+<td>19</td>
+<td>組語 2（2 小題）</td>
+<td>3</td>
+<td>2026-10-30</td>
+</tr>
+<tr>
+<td>20</td>
+<td>組語 3（2 小題）</td>
+<td>3</td>
+<td>2026-10-30</td>
+</tr>
+<tr>
+<td>21</td>
+<td>組語 5（3 小題）</td>
+<td>3</td>
+<td>2026-10-30</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="hellohelloc怎麼變成能跑的程式-編譯的四個階段">hello：<a href="../c/hello.c%E6%80%8E%E9%BA%BC%E8%AE%8A%E6%88%90%E8%83%BD%E8%B7%91%E7%9A%84%E7%A8%8B%E5%BC%8F-%E7%B7%A8%E8%AD%AF%E7%9A%84%E5%9B%9B%E5%80%8B%E9%9A%8E%E6%AE%B5.html">hello.c怎麼變成能跑的程式-編譯的四個階段</a></h2>
+<h3 id="hello-2-helloi-裡有-printf-的宣告卻沒有它的程式碼那它的程式碼在哪是在哪個時間點由誰把呼叫-printf和printf-的程式碼接起來的">hello 2. <code>hello.i</code> 裡有 <code>printf</code> 的宣告，卻沒有它的程式碼。那它的程式碼在哪？是在哪個時間點、由誰把「呼叫 <code>printf</code>」和「<code>printf</code> 的程式碼」接起來的？</h3>
+<blockquote>
+<p>盒子 3｜過去的作答：<a href="../small-project/s1-01-hello-compile/quiz.html#2-helloi-%E8%A3%A1%E6%9C%89-printf-%E7%9A%84%E5%AE%A3%E5%91%8A%E5%8D%BB%E6%B2%92%E6%9C%89%E5%AE%83%E7%9A%84%E7%A8%8B%E5%BC%8F%E7%A2%BC%E9%82%A3%E5%AE%83%E7%9A%84%E7%A8%8B%E5%BC%8F%E7%A2%BC%E5%9C%A8%E5%93%AA%E6%98%AF%E5%9C%A8%E5%93%AA%E5%80%8B%E6%99%82%E9%96%93%E9%BB%9E%E7%94%B1%E8%AA%B0%E6%8A%8A%E5%91%BC%E5%8F%AB-printf%E5%92%8Cprintf-%E7%9A%84%E7%A8%8B%E5%BC%8F%E7%A2%BC%E6%8E%A5%E8%B5%B7%E4%BE%86%E7%9A%84">s1-01 quiz.md 第 2 題</a>、<a href="2026-10-07-GNU-C%E8%B3%87%E6%96%99-hello-objdump-%E5%AD%97%E5%85%83.html">10-07 複習</a>、<a href="2026-10-23-%E5%A4%A7%E8%A4%87%E7%BF%92-hello-gcc-GNU-interp-ELF-objdump-C%E8%B3%87%E6%96%99-%E5%AD%97%E5%85%83-%E9%99%A3%E5%88%97-%E7%B5%84%E8%AA%9E-%E7%B5%84%E8%AA%9E%E4%BA%8C-%E5%A4%9A%E6%AA%94.html">10-23 複習</a></p>
+</blockquote>
+<details class="answer-fold" open><summary>作答</summary>
+<div class="answer-box" data-file="review/2026-10-30-hello-gcc-GNU-interp-ELF-objdump-C資料-字元-陣列-組語.md" data-line="45"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+</details>
+<h3 id="hello-3-helloo-裡呼叫-puts的地方要跳去的位址為什麼暫時是-0空著什麼資訊讓連結器知道之後要把它填成什麼">hello 3. <code>hello.o</code> 裡「呼叫 <code>puts</code>」的地方，要跳去的位址為什麼暫時是 0（空著）？什麼資訊讓連結器知道之後要把它填成什麼？</h3>
+<blockquote>
+<p>盒子 3｜過去的作答：<a href="../small-project/s1-01-hello-compile/quiz.html#3-helloo-%E8%A3%A1-call-%E6%8C%87%E4%BB%A4%E5%BE%8C%E9%9D%A2%E7%9A%84%E5%9B%9B%E5%80%8B-byte-%E7%82%BA%E4%BB%80%E9%BA%BC%E6%98%AF-00-00-00-00%E4%BB%80%E9%BA%BC%E8%B3%87%E8%A8%8A%E8%AE%93%E9%80%A3%E7%B5%90%E5%99%A8%E7%9F%A5%E9%81%93%E8%A6%81%E6%8A%8A%E5%AE%83%E5%A1%AB%E6%88%90%E4%BB%80%E9%BA%BC">s1-01 quiz.md 第 3 題</a>（舊題目文字）、<a href="2026-10-04-%E5%AD%97%E5%85%83-C%E8%B3%87%E6%96%99-objdump-hello-ELF.html#hello-3-helloo-%E8%A3%A1-call-%E6%8C%87%E4%BB%A4%E5%BE%8C%E9%9D%A2%E7%9A%84%E5%9B%9B%E5%80%8B-byte-%E7%82%BA%E4%BB%80%E9%BA%BC%E6%98%AF-00-00-00-00%E4%BB%80%E9%BA%BC%E8%B3%87%E8%A8%8A%E8%AE%93%E9%80%A3%E7%B5%90%E5%99%A8%E7%9F%A5%E9%81%93%E8%A6%81%E6%8A%8A%E5%AE%83%E5%A1%AB%E6%88%90%E4%BB%80%E9%BA%BC">10-04 複習</a>、<a href="2026-10-10-C%E8%B3%87%E6%96%99-GNU-interp-hello-gcc.html">10-10 複習</a>、<a href="2026-10-23-%E5%A4%A7%E8%A4%87%E7%BF%92-hello-gcc-GNU-interp-ELF-objdump-C%E8%B3%87%E6%96%99-%E5%AD%97%E5%85%83-%E9%99%A3%E5%88%97-%E7%B5%84%E8%AA%9E-%E7%B5%84%E8%AA%9E%E4%BA%8C-%E5%A4%9A%E6%AA%94.html">10-23 複習</a></p>
+</blockquote>
+<p>題目用到的程式 <code>hello.c</code>（檔案：<a href="../../small-project/s1-01-hello-compile/hello.c"><code>hello.c</code></a>）完整原始碼：</p>
+<pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+
+<span class="cp">#define GREETING &quot;hello, world&quot;</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;%s</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">GREETING</span><span class="p">);</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<p>產生 <code>hello.o</code> 的指令（只編譯＋組譯、不連結）：</p>
+<pre><code class="language-sh">gcc<span class="w"> </span>-c<span class="w"> </span>hello.c<span class="w"> </span>-o<span class="w"> </span>hello.o
+</code></pre>
+<p>（原始碼寫的是 <code>printf</code>，gcc 把「<code>printf(&quot;%s\n&quot;, 字串)</code>」換成了 <code>puts(字串)</code>，所以 <code>hello.o</code> 裡呼叫的是 <code>puts</code>——見筆記第三節。）</p>
+<blockquote>
+<p>題目：<code>hello.o</code> 裡「呼叫 <code>puts</code>」的地方，要跳去的位址為什麼暫時是 0（空著）？什麼資訊讓連結器知道之後要把它填成什麼？</p>
+</blockquote>
+<details class="answer-fold" open><summary>作答</summary>
+<div class="answer-box" data-file="review/2026-10-30-hello-gcc-GNU-interp-ELF-objdump-C資料-字元-陣列-組語.md" data-line="76"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+</details>
+<hr />
+<h2 id="gccgcc最佳化等級-o0到o3差在哪">gcc：<a href="../c/gcc%E6%9C%80%E4%BD%B3%E5%8C%96%E7%AD%89%E7%B4%9A-O0%E5%88%B0O3%E5%B7%AE%E5%9C%A8%E5%93%AA.html">gcc最佳化等級-O0到O3差在哪</a></h2>
+<h3 id="gcc-3-在--o2-下answer-連呼叫-sum_to-這件事都不見了直接回傳-5050編譯器做了哪兩件事才能做到">gcc 3. 在 <code>-O2</code> 下，<code>answer()</code> 連呼叫 <code>sum_to</code> 這件事都不見了，直接回傳 5050。編譯器做了哪兩件事才能做到？</h3>
+<p><strong>題目用到的程式</strong>：<code>sumto.c</code>（檔案：<a href="../../small-project/s1-01-hello-compile/sumto.c"><code>sumto.c</code></a>），用 <code>gcc -O0 -S sumto.c</code> 與 <code>gcc -O2 -S sumto.c</code> 產生組合語言（<code>-S</code>：只編譯到組合語言 <code>.s</code> 就停）。</p>
+<pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">sum_to</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">n</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">total</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&lt;=</span><span class="w"> </span><span class="n">n</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="o">++</span><span class="p">)</span>
+<span class="w">        </span><span class="n">total</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="n">i</span><span class="p">;</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">total</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">answer</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">sum_to</span><span class="p">(</span><span class="mi">100</span><span class="p">);</span>
+<span class="p">}</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">	</span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;answer:%d</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">answer</span><span class="p">());</span>
+<span class="w">	</span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<p><code>-O0</code> 與 <code>-O2</code> 的 <code>answer</code>（本機 gcc 13.3 實際輸出，刪掉組譯指示）：</p>
+<pre><code class="language-asm"><span class="c1"># -O0</span>
+<span class="nl">answer:</span>
+<span class="w">	</span><span class="nf">endbr64</span>
+<span class="w">	</span><span class="nf">pushq</span><span class="w">	</span><span class="nv">%rbp</span>
+<span class="w">	</span><span class="nf">movq</span><span class="w">	</span><span class="nv">%rsp</span><span class="p">,</span><span class="w"> </span><span class="nv">%rbp</span>
+<span class="w">	</span><span class="nf">movl</span><span class="w">	</span><span class="no">$100</span><span class="p">,</span><span class="w"> </span><span class="nv">%edi</span><span class="w">         </span><span class="c1"># 第一個參數 = 100</span>
+<span class="w">	</span><span class="nf">call</span><span class="w">	</span><span class="no">sum_to</span><span class="w">             </span><span class="c1"># 呼叫 sum_to</span>
+<span class="w">	</span><span class="nf">popq</span><span class="w">	</span><span class="nv">%rbp</span>
+<span class="w">	</span><span class="nf">ret</span><span class="w">                        </span><span class="c1"># 回傳值就是 sum_to 留在 %eax 的結果</span>
+
+<span class="c1"># -O2</span>
+<span class="nl">answer:</span>
+<span class="w">	</span><span class="nf">endbr64</span>
+<span class="w">	</span><span class="nf">movl</span><span class="w">	</span><span class="no">$5050</span><span class="p">,</span><span class="w"> </span><span class="nv">%eax</span><span class="w">        </span><span class="c1"># 回傳值直接設成 5050</span>
+<span class="w">	</span><span class="nf">ret</span>
+</code></pre>
+<blockquote>
+<p>盒子 3｜過去的作答：<a href="../small-project/s1-01-hello-compile/quiz.html#3--o2-%E4%B8%8B-answer-%E7%9B%B4%E6%8E%A5%E8%AE%8A%E6%88%90-movl-5050-eax%E7%B7%A8%E8%AD%AF%E5%99%A8%E5%81%9A%E4%BA%86%E5%93%AA%E5%85%A9%E4%BB%B6%E4%BA%8B%E6%89%8D%E8%83%BD%E5%81%9A%E5%88%B0">s1-01 quiz.md 第 3 題</a>、<a href="2026-10-05-gcc-%E9%99%A3%E5%88%97-GNU-C%E8%B3%87%E6%96%99-%E5%AD%97%E5%85%83.html">10-05 複習</a>、<a href="2026-10-09-%E9%99%A3%E5%88%97-gcc-GNU-C%E8%B3%87%E6%96%99-interp-ELF.html">10-09 複習</a>、<a href="2026-10-20-C%E8%B3%87%E6%96%99-objdump-%E5%AD%97%E5%85%83-%E9%99%A3%E5%88%97-gcc.html">10-20 複習</a>、<a href="2026-10-23-%E5%A4%A7%E8%A4%87%E7%BF%92-hello-gcc-GNU-interp-ELF-objdump-C%E8%B3%87%E6%96%99-%E5%AD%97%E5%85%83-%E9%99%A3%E5%88%97-%E7%B5%84%E8%AA%9E-%E7%B5%84%E8%AA%9E%E4%BA%8C-%E5%A4%9A%E6%AA%94.html">10-23 複習</a></p>
+</blockquote>
+<details class="answer-fold" open><summary>作答</summary>
+<div class="answer-box" data-file="review/2026-10-30-hello-gcc-GNU-interp-ELF-objdump-C資料-字元-陣列-組語.md" data-line="133"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+</details>
+<h3 id="gcc-4-最佳化等級越高程式越小對嗎-o2-o3-和--os-oz-的目標各是什麼為什麼追求速度反而可能讓程式變大">gcc 4. 「最佳化等級越高，程式越小」對嗎？<code>-O2</code>／<code>-O3</code> 和 <code>-Os</code>／<code>-Oz</code> 的目標各是什麼？為什麼追求速度反而可能讓程式變大？</h3>
+<p>（2026-10-09 改寫的題目：原題「用本篇的數字說明」要求背數字，闔上筆記作答時無從引用。不用寫出確切的 byte 數。）</p>
+<p><strong>題目用到的程式</strong>：同上一題 gcc 3 的 <code>sumto.c</code>。同一份 <code>sumto.c</code> 用不同的最佳化等級各編成 <code>.o</code>，比 <code>.text</code> 區段（放機器碼的區段）的大小，例如：</p>
+<pre><code class="language-sh">gcc<span class="w"> </span>-O2<span class="w"> </span>-c<span class="w"> </span>sumto.c<span class="w"> </span>-o<span class="w"> </span>sumto_O2.o<span class="w">   </span><span class="c1"># -c：編譯成目的檔就停，不連結</span>
+size<span class="w"> </span>-A<span class="w"> </span>sumto_O2.o<span class="w">                 </span><span class="c1"># -A：逐個區段列出大小，看 .text 那一列</span>
+</code></pre>
+<blockquote>
+<p>盒子 3｜過去的作答：<a href="../small-project/s1-01-hello-compile/quiz.html#4-%E6%9C%80%E4%BD%B3%E5%8C%96%E7%AD%89%E7%B4%9A%E8%B6%8A%E9%AB%98%E7%A8%8B%E5%BC%8F%E8%B6%8A%E5%B0%8F%E5%B0%8D%E5%97%8E%E7%94%A8%E6%9C%AC%E7%AF%87%E7%9A%84%E6%95%B8%E5%AD%97%E8%AA%AA%E6%98%8E">s1-01 quiz.md 第 4 題</a>、<a href="2026-10-05-gcc-%E9%99%A3%E5%88%97-GNU-C%E8%B3%87%E6%96%99-%E5%AD%97%E5%85%83.html">10-05 複習</a>、<a href="2026-10-09-%E9%99%A3%E5%88%97-gcc-GNU-C%E8%B3%87%E6%96%99-interp-ELF.html">10-09 複習</a>、<a href="2026-10-20-C%E8%B3%87%E6%96%99-objdump-%E5%AD%97%E5%85%83-%E9%99%A3%E5%88%97-gcc.html">10-20 複習</a>、<a href="2026-10-23-%E5%A4%A7%E8%A4%87%E7%BF%92-hello-gcc-GNU-interp-ELF-objdump-C%E8%B3%87%E6%96%99-%E5%AD%97%E5%85%83-%E9%99%A3%E5%88%97-%E7%B5%84%E8%AA%9E-%E7%B5%84%E8%AA%9E%E4%BA%8C-%E5%A4%9A%E6%AA%94.html">10-23 複習</a></p>
+</blockquote>
+<details class="answer-fold" open><summary>作答</summary>
+<div class="answer-box" data-file="review/2026-10-30-hello-gcc-GNU-interp-ELF-objdump-C資料-字元-陣列-組語.md" data-line="149"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+</details>
+<hr />
+<h2 id="gnugnu是什麼-linux核心與gnu工具的分工">GNU：<a href="../linux/GNU%E6%98%AF%E4%BB%80%E9%BA%BC-Linux%E6%A0%B8%E5%BF%83%E8%88%87GNU%E5%B7%A5%E5%85%B7%E7%9A%84%E5%88%86%E5%B7%A5.html">GNU是什麼-Linux核心與GNU工具的分工</a></h2>
+<h3 id="gnu-5-你將來送-kernel-patch-時要加的-signed-off-by-跟-gpl-有什麼關係">GNU 5. 你將來送 kernel patch 時要加的 <code>Signed-off-by:</code> 跟 GPL 有什麼關係？</h3>
+<blockquote>
+<p>盒子 3｜過去的作答：<a href="../small-project/s1-01-hello-compile/quiz.html#5-%E4%BD%A0%E5%B0%87%E4%BE%86%E9%80%81-kernel-patch-%E6%99%82%E8%A6%81%E5%8A%A0%E7%9A%84-signed-off-by-%E8%B7%9F-gpl-%E6%9C%89%E4%BB%80%E9%BA%BC%E9%97%9C%E4%BF%82">s1-01 quiz.md 第 5 題</a>、<a href="2026-10-07-GNU-C%E8%B3%87%E6%96%99-hello-objdump-%E5%AD%97%E5%85%83.html">10-07 複習</a>、<a href="2026-10-11-%E5%AD%97%E5%85%83-C%E8%B3%87%E6%96%99-objdump-GNU-%E9%99%A3%E5%88%97.html#gnu-5-%E4%BD%A0%E5%B0%87%E4%BE%86%E9%80%81-kernel-patch-%E6%99%82%E8%A6%81%E5%8A%A0%E7%9A%84-signed-off-by-%E8%B7%9F-gpl-%E6%9C%89%E4%BB%80%E9%BA%BC%E9%97%9C%E4%BF%82">10-11 複習</a>、<a href="2026-10-19-interp-GNU-C%E8%B3%87%E6%96%99-ELF-objdump-%E7%B5%84%E8%AA%9E.html">10-19 複習</a>、<a href="2026-10-23-%E5%A4%A7%E8%A4%87%E7%BF%92-hello-gcc-GNU-interp-ELF-objdump-C%E8%B3%87%E6%96%99-%E5%AD%97%E5%85%83-%E9%99%A3%E5%88%97-%E7%B5%84%E8%AA%9E-%E7%B5%84%E8%AA%9E%E4%BA%8C-%E5%A4%9A%E6%AA%94.html">10-23 複習</a></p>
+</blockquote>
+<details class="answer-fold" open><summary>作答</summary>
+<div class="answer-box" data-file="review/2026-10-30-hello-gcc-GNU-interp-ELF-objdump-C資料-字元-陣列-組語.md" data-line="160"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+</details>
+<h3 id="gnu-6-情境題同事說我在這台機器上打-uname--o-看到-gnulinux所以它一定用-glibc這個推論錯在哪uname-的哪些欄位可以信哪一欄不行為什麼你會改看什麼來判斷">GNU 6. 情境題：同事說「我在這台機器上打 <code>uname -o</code> 看到 <code>GNU/Linux</code>，所以它一定用 glibc」。這個推論錯在哪？<code>uname</code> 的哪些欄位可以信、哪一欄不行，為什麼？你會改看什麼來判斷？</h3>
+<blockquote>
+<p>盒子 3｜過去的作答：<a href="../small-project/s1-01-hello-compile/quiz.html#6-%E6%83%85%E5%A2%83%E9%A1%8C%E5%90%8C%E4%BA%8B%E8%AA%AA%E6%88%91%E5%9C%A8%E9%80%99%E5%8F%B0%E6%A9%9F%E5%99%A8%E4%B8%8A%E6%89%93-uname--o-%E7%9C%8B%E5%88%B0-gnulinux%E6%89%80%E4%BB%A5%E5%AE%83%E4%B8%80%E5%AE%9A%E7%94%A8-glibc%E9%80%99%E5%80%8B%E6%8E%A8%E8%AB%96%E9%8C%AF%E5%9C%A8%E5%93%AAuname-%E7%9A%84%E5%93%AA%E4%BA%9B%E6%AC%84%E4%BD%8D%E5%8F%AF%E4%BB%A5%E4%BF%A1%E5%93%AA%E4%B8%80%E6%AC%84%E4%B8%8D%E8%A1%8C%E7%82%BA%E4%BB%80%E9%BA%BC%E4%BD%A0%E6%9C%83%E6%94%B9%E7%9C%8B%E4%BB%80%E9%BA%BC%E4%BE%86%E5%88%A4%E6%96%B7">s1-01 quiz.md GNU 第 6 題</a>、<a href="2026-10-09-%E9%99%A3%E5%88%97-gcc-GNU-C%E8%B3%87%E6%96%99-interp-ELF.html">10-09 複習</a>、<a href="2026-10-16-interp-ELF-gcc-GNU-%E9%99%A3%E5%88%97-C%E8%B3%87%E6%96%99.html">10-16 複習</a>、<a href="2026-10-23-%E5%A4%A7%E8%A4%87%E7%BF%92-hello-gcc-GNU-interp-ELF-objdump-C%E8%B3%87%E6%96%99-%E5%AD%97%E5%85%83-%E9%99%A3%E5%88%97-%E7%B5%84%E8%AA%9E-%E7%B5%84%E8%AA%9E%E4%BA%8C-%E5%A4%9A%E6%AA%94.html">10-23 複習</a></p>
+</blockquote>
+<details class="answer-fold" open><summary>作答</summary>
+<div class="answer-box" data-file="review/2026-10-30-hello-gcc-GNU-interp-ELF-objdump-C資料-字元-陣列-組語.md" data-line="167"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+</details>
+<hr />
+<h2 id="interpelf的interpreter是什麼-動態載入器與井字號驚嘆號">interp：<a href="../c/ELF%E7%9A%84interpreter%E6%98%AF%E4%BB%80%E9%BA%BC-%E5%8B%95%E6%85%8B%E8%BC%89%E5%85%A5%E5%99%A8%E8%88%87%E4%BA%95%E5%AD%97%E8%99%9F%E9%A9%9A%E5%98%86%E8%99%9F.html">ELF的interpreter是什麼-動態載入器與井字號驚嘆號</a></h2>
+<h3 id="interp-6-情境題一支腳本權限是----x--x--x只有執行權限第一行是-binsh執行時出現-binsh-xsh-permission-denied這個錯誤是誰印的為什麼核心讀得到--那一行直譯器卻讀不到腳本同樣只有執行權限的-elf-執行檔為什麼就能跑">interp 6. 情境題：一支腳本權限是 <code>---x--x--x</code>（只有執行權限），第一行是 <code>#!/bin/sh</code>，執行時出現 <code>/bin/sh: ./x.sh: Permission denied</code>。這個錯誤是誰印的？為什麼核心讀得到 <code>#!</code> 那一行，直譯器卻讀不到腳本？同樣只有執行權限的 ELF 執行檔為什麼就能跑？</h3>
+<blockquote>
+<p>盒子 3｜過去的作答：<a href="../small-project/s1-01-hello-compile/quiz.html#6-%E6%83%85%E5%A2%83%E9%A1%8C%E4%B8%80%E6%94%AF%E8%85%B3%E6%9C%AC%E6%AC%8A%E9%99%90%E6%98%AF----x--x--x%E5%8F%AA%E6%9C%89%E5%9F%B7%E8%A1%8C%E6%AC%8A%E9%99%90%E7%AC%AC%E4%B8%80%E8%A1%8C%E6%98%AF-binsh%E5%9F%B7%E8%A1%8C%E6%99%82%E5%87%BA%E7%8F%BE-binsh-xsh-permission-denied%E9%80%99%E5%80%8B%E9%8C%AF%E8%AA%A4%E6%98%AF%E8%AA%B0%E5%8D%B0%E7%9A%84%E7%82%BA%E4%BB%80%E9%BA%BC%E6%A0%B8%E5%BF%83%E8%AE%80%E5%BE%97%E5%88%B0--%E9%82%A3%E4%B8%80%E8%A1%8C%E7%9B%B4%E8%AD%AF%E5%99%A8%E5%8D%BB%E8%AE%80%E4%B8%8D%E5%88%B0%E8%85%B3%E6%9C%AC%E5%90%8C%E6%A8%A3%E5%8F%AA%E6%9C%89%E5%9F%B7%E8%A1%8C%E6%AC%8A%E9%99%90%E7%9A%84-elf-%E5%9F%B7%E8%A1%8C%E6%AA%94%E7%82%BA%E4%BB%80%E9%BA%BC%E5%B0%B1%E8%83%BD%E8%B7%91">s1-01 quiz.md 第 6 題</a>、<a href="2026-10-06-%E5%AD%97%E5%85%83-interp-ELF-gcc-GNU.html">10-06 複習</a>、<a href="2026-10-16-interp-ELF-gcc-GNU-%E9%99%A3%E5%88%97-C%E8%B3%87%E6%96%99.html">10-16 複習</a>、<a href="2026-10-23-%E5%A4%A7%E8%A4%87%E7%BF%92-hello-gcc-GNU-interp-ELF-objdump-C%E8%B3%87%E6%96%99-%E5%AD%97%E5%85%83-%E9%99%A3%E5%88%97-%E7%B5%84%E8%AA%9E-%E7%B5%84%E8%AA%9E%E4%BA%8C-%E5%A4%9A%E6%AA%94.html">10-23 複習</a></p>
+</blockquote>
+<details class="answer-fold" open><summary>作答</summary>
+<div class="answer-box" data-file="review/2026-10-30-hello-gcc-GNU-interp-ELF-objdump-C資料-字元-陣列-組語.md" data-line="178"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+</details>
+<hr />
+<h2 id="elfelf是什麼-可執行與可連結格式的兩種視角">ELF：<a href="../c/ELF%E6%98%AF%E4%BB%80%E9%BA%BC-%E5%8F%AF%E5%9F%B7%E8%A1%8C%E8%88%87%E5%8F%AF%E9%80%A3%E7%B5%90%E6%A0%BC%E5%BC%8F%E7%9A%84%E5%85%A9%E7%A8%AE%E8%A6%96%E8%A7%92.html">ELF是什麼-可執行與可連結格式的兩種視角</a></h2>
+<h3 id="elf-2-readelf--l-helloo-說-there-are-no-program-headers-in-this-file這代表什麼連結器做了什麼才讓執行檔有程式標頭">ELF 2. <code>readelf -l hello.o</code> 說 <code>There are no program headers in this file</code>，這代表什麼？連結器做了什麼才讓執行檔有程式標頭？</h3>
+<blockquote>
+<p>盒子 3｜過去的作答：<a href="../small-project/s1-01-hello-compile/quiz.html#2-readelf--l-helloo-%E8%AA%AA-there-are-no-program-headers-in-this-file%E9%80%99%E4%BB%A3%E8%A1%A8%E4%BB%80%E9%BA%BC%E9%80%A3%E7%B5%90%E5%99%A8%E5%81%9A%E4%BA%86%E4%BB%80%E9%BA%BC%E6%89%8D%E8%AE%93%E5%9F%B7%E8%A1%8C%E6%AA%94%E6%9C%89%E7%A8%8B%E5%BC%8F%E6%A8%99%E9%A0%AD">s1-01 quiz.md 第 2 題</a>、<a href="2026-10-06-%E5%AD%97%E5%85%83-interp-ELF-gcc-GNU.html">10-06 複習</a>、<a href="2026-10-16-interp-ELF-gcc-GNU-%E9%99%A3%E5%88%97-C%E8%B3%87%E6%96%99.html">10-16 複習</a>、<a href="2026-10-23-%E5%A4%A7%E8%A4%87%E7%BF%92-hello-gcc-GNU-interp-ELF-objdump-C%E8%B3%87%E6%96%99-%E5%AD%97%E5%85%83-%E9%99%A3%E5%88%97-%E7%B5%84%E8%AA%9E-%E7%B5%84%E8%AA%9E%E4%BA%8C-%E5%A4%9A%E6%AA%94.html">10-23 複習</a></p>
+</blockquote>
+<p><strong>題目用到的實驗</strong>（<a href="../c/ELF%E6%98%AF%E4%BB%80%E9%BA%BC-%E5%8F%AF%E5%9F%B7%E8%A1%8C%E8%88%87%E5%8F%AF%E9%80%A3%E7%B5%90%E6%A0%BC%E5%BC%8F%E7%9A%84%E5%85%A9%E7%A8%AE%E8%A6%96%E8%A7%92.html#%E5%9B%9B%E5%90%8D%E5%AD%97%E7%9A%84%E9%97%9C%E9%8D%B5%E5%85%A9%E7%A8%AE%E8%A6%96%E8%A7%92">ELF 第四節</a>）：把 <code>hello.c</code> 只編譯不連結得到 <code>hello.o</code>，對它跑 <code>readelf -l</code>（<code>-l</code>：印程式標頭表）；再連結成執行檔，對執行檔跑同一個命令對照。</p>
+<p><code>hello.c</code>（檔案：<a href="../../small-project/s1-01-hello-compile/hello.c"><code>hello.c</code></a>）：</p>
+<pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+
+<span class="cp">#define GREETING &quot;hello, world&quot;</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">	</span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;%s</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">GREETING</span><span class="p">);</span>
+<span class="w">	</span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<pre><code class="language-sh">$<span class="w"> </span>gcc<span class="w"> </span>-c<span class="w"> </span>hello.c<span class="w">          </span><span class="c1"># -c：編譯＋組譯，停在 .o，不連結</span>
+$<span class="w"> </span>readelf<span class="w"> </span>-l<span class="w"> </span>hello.o<span class="w">      </span><span class="c1"># 題目裡的訊息就是這一步印的</span>
+$<span class="w"> </span>gcc<span class="w"> </span>-o<span class="w"> </span>hello<span class="w"> </span>hello.o<span class="w">    </span><span class="c1"># 連結成執行檔</span>
+$<span class="w"> </span>readelf<span class="w"> </span>-l<span class="w"> </span>hello<span class="w">        </span><span class="c1"># 對照</span>
+</code></pre>
+<blockquote>
+<p>題目：<code>readelf -l hello.o</code> 說 <code>There are no program headers in this file</code>，這代表什麼？連結器做了什麼才讓執行檔有程式標頭？</p>
+</blockquote>
+<details class="answer-fold" open><summary>作答</summary>
+<div class="answer-box" data-file="review/2026-10-30-hello-gcc-GNU-interp-ELF-objdump-C資料-字元-陣列-組語.md" data-line="214"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+</details>
+<h3 id="elf-3-本機一般-gcc-編出的執行檔type-為什麼是-dyn跟-libcso6-同一類而靜態版是-exec">ELF 3. 本機一般 <code>gcc</code> 編出的執行檔，<code>Type</code> 為什麼是 DYN，跟 <code>libc.so.6</code> 同一類，而靜態版是 EXEC？</h3>
+<blockquote>
+<p>盒子 3｜過去的作答：<a href="../small-project/s1-01-hello-compile/quiz.html#3-%E6%9C%AC%E6%A9%9F%E4%B8%80%E8%88%AC-gcc-%E7%B7%A8%E5%87%BA%E7%9A%84%E5%9F%B7%E8%A1%8C%E6%AA%94type-%E7%82%BA%E4%BB%80%E9%BA%BC%E6%98%AF-dyn%E8%B7%9F-libcso6-%E5%90%8C%E4%B8%80%E9%A1%9E%E8%80%8C%E9%9D%9C%E6%85%8B%E7%89%88%E6%98%AF-exec">s1-01 quiz.md 第 3 題</a>、<a href="2026-10-04-%E5%AD%97%E5%85%83-C%E8%B3%87%E6%96%99-objdump-hello-ELF.html">10-04 複習</a>、<a href="2026-10-08-%E5%AD%97%E5%85%83-C%E8%B3%87%E6%96%99-objdump-hello-ELF-%E9%99%A3%E5%88%97.html#elf-3-%E6%9C%AC%E6%A9%9F%E4%B8%80%E8%88%AC-gcc-%E7%B7%A8%E5%87%BA%E7%9A%84%E5%9F%B7%E8%A1%8C%E6%AA%94type-%E7%82%BA%E4%BB%80%E9%BA%BC%E6%98%AF-dyn%E8%B7%9F-libcso6-%E5%90%8C%E4%B8%80%E9%A1%9E%E8%80%8C%E9%9D%9C%E6%85%8B%E7%89%88%E6%98%AF-exec">10-08 複習</a>、<a href="2026-10-12-objdump-hello-ELF-%E9%99%A3%E5%88%97-%E7%B5%84%E8%AA%9E.html">10-12 複習</a>、<a href="2026-10-23-%E5%A4%A7%E8%A4%87%E7%BF%92-hello-gcc-GNU-interp-ELF-objdump-C%E8%B3%87%E6%96%99-%E5%AD%97%E5%85%83-%E9%99%A3%E5%88%97-%E7%B5%84%E8%AA%9E-%E7%B5%84%E8%AA%9E%E4%BA%8C-%E5%A4%9A%E6%AA%94.html">10-23 複習</a></p>
+</blockquote>
+<details class="answer-fold" open><summary>作答</summary>
+<div class="answer-box" data-file="review/2026-10-30-hello-gcc-GNU-interp-ELF-objdump-C資料-字元-陣列-組語.md" data-line="221"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+</details>
+<h3 id="elf-5-情境題你把-ubuntux86-64上編好的程式複製到路由器armfile-顯示它是-elf執行卻失敗這跟-interpreter-那篇-第五節interpreter-不存在是不是同一種問題從檔頭的哪一欄可以看出來">ELF 5. 情境題：你把 Ubuntu（x86-64）上編好的程式複製到路由器（ARM），<code>file</code> 顯示它是 ELF，執行卻失敗。這跟 <a href="../c/ELF%E7%9A%84interpreter%E6%98%AF%E4%BB%80%E9%BA%BC-%E5%8B%95%E6%85%8B%E8%BC%89%E5%85%A5%E5%99%A8%E8%88%87%E4%BA%95%E5%AD%97%E8%99%9F%E9%A9%9A%E5%98%86%E8%99%9F.html">interpreter 那篇</a> 第五節「interpreter 不存在」是不是同一種問題？從檔頭的哪一欄可以看出來？</h3>
+<blockquote>
+<p>盒子 3｜過去的作答：<a href="../small-project/s1-01-hello-compile/quiz.html#5-%E6%83%85%E5%A2%83%E9%A1%8C%E4%BD%A0%E6%8A%8A-ubuntux86-64%E4%B8%8A%E7%B7%A8%E5%A5%BD%E7%9A%84%E7%A8%8B%E5%BC%8F%E8%A4%87%E8%A3%BD%E5%88%B0%E8%B7%AF%E7%94%B1%E5%99%A8armfile-%E9%A1%AF%E7%A4%BA%E5%AE%83%E6%98%AF-elf%E5%9F%B7%E8%A1%8C%E5%8D%BB%E5%A4%B1%E6%95%97%E9%80%99%E8%B7%9F-interpreter-%E9%82%A3%E7%AF%87-%E7%AC%AC%E4%BA%94%E7%AF%80interpreter-%E4%B8%8D%E5%AD%98%E5%9C%A8%E6%98%AF%E4%B8%8D%E6%98%AF%E5%90%8C%E4%B8%80%E7%A8%AE%E5%95%8F%E9%A1%8C%E5%BE%9E%E6%AA%94%E9%A0%AD%E7%9A%84%E5%93%AA%E4%B8%80%E6%AC%84%E5%8F%AF%E4%BB%A5%E7%9C%8B%E5%87%BA%E4%BE%86">s1-01 quiz.md ELF 第 5 題</a>、<a href="2026-10-09-%E9%99%A3%E5%88%97-gcc-GNU-C%E8%B3%87%E6%96%99-interp-ELF.html">10-09 複習</a>、<a href="2026-10-16-interp-ELF-gcc-GNU-%E9%99%A3%E5%88%97-C%E8%B3%87%E6%96%99.html">10-16 複習</a>、<a href="2026-10-23-%E5%A4%A7%E8%A4%87%E7%BF%92-hello-gcc-GNU-interp-ELF-objdump-C%E8%B3%87%E6%96%99-%E5%AD%97%E5%85%83-%E9%99%A3%E5%88%97-%E7%B5%84%E8%AA%9E-%E7%B5%84%E8%AA%9E%E4%BA%8C-%E5%A4%9A%E6%AA%94.html">10-23 複習</a></p>
+</blockquote>
+<p>題目提到的「interpreter 不存在」實驗（interp 筆記<a href="../c/ELF%E7%9A%84interpreter%E6%98%AF%E4%BB%80%E9%BA%BC-%E5%8B%95%E6%85%8B%E8%BC%89%E5%85%A5%E5%99%A8%E8%88%87%E4%BA%95%E5%AD%97%E8%99%9F%E9%A9%9A%E5%98%86%E8%99%9F.html#%E4%BA%94%E7%9B%B4%E8%AD%AF%E5%99%A8%E4%B8%8D%E5%AD%98%E5%9C%A8%E6%99%82%E6%98%8E%E6%98%8E%E6%9C%89%E6%AA%94%E6%A1%88%E5%8D%BB%E8%AA%AA%E6%89%BE%E4%B8%8D%E5%88%B0">第五節</a>）：把 <code>hello.c</code>（同上面 ELF 2）連結時故意把 interpreter 路徑改成不存在的檔案，再執行。
+<code>-Wl,</code> 把後面的選項轉交給連結器 <code>ld</code>，<code>--dynamic-linker</code> 就是設定 <code>INTERP</code> 的選項：</p>
+<pre><code class="language-sh">$<span class="w"> </span>gcc<span class="w"> </span>hello.c<span class="w"> </span>-o<span class="w"> </span>hello_badinterp<span class="w"> </span>-Wl,--dynamic-linker<span class="o">=</span>/lib64/nope.so.2
+$<span class="w"> </span>./hello_badinterp
+</code></pre>
+<blockquote>
+<p>題目：情境題：你把 Ubuntu（x86-64）上編好的程式複製到路由器（ARM），<code>file</code> 顯示它是 ELF，執行卻失敗。這跟 <a href="../c/ELF%E7%9A%84interpreter%E6%98%AF%E4%BB%80%E9%BA%BC-%E5%8B%95%E6%85%8B%E8%BC%89%E5%85%A5%E5%99%A8%E8%88%87%E4%BA%95%E5%AD%97%E8%99%9F%E9%A9%9A%E5%98%86%E8%99%9F.html">interpreter 那篇</a> 第五節「interpreter 不存在」是不是同一種問題？從檔頭的哪一欄可以看出來？</p>
+</blockquote>
+<details class="answer-fold" open><summary>作答</summary>
+<div class="answer-box" data-file="review/2026-10-30-hello-gcc-GNU-interp-ELF-objdump-C資料-字元-陣列-組語.md" data-line="238"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+</details>
+<hr />
+<h2 id="objdumpobjdump能不能代替ldd找依賴庫-需求單與實際載入">objdump：<a href="../c/objdump%E8%83%BD%E4%B8%8D%E8%83%BD%E4%BB%A3%E6%9B%BFldd%E6%89%BE%E4%BE%9D%E8%B3%B4%E5%BA%AB-%E9%9C%80%E6%B1%82%E5%96%AE%E8%88%87%E5%AF%A6%E9%9A%9B%E8%BC%89%E5%85%A5.html">objdump能不能代替ldd找依賴庫-需求單與實際載入</a></h2>
+<h3 id="objdump-1-objdump--p-usrbincurl-只列出-3-個-neededldd-卻列出-33-行多出來的是哪幾類東西為什麼-objdump-看不到">objdump 1. <code>objdump -p /usr/bin/curl</code> 只列出 3 個 <code>NEEDED</code>，<code>ldd</code> 卻列出 33 行。多出來的是哪幾類東西？為什麼 <code>objdump</code> 看不到？</h3>
+<blockquote>
+<p>盒子 3｜過去的作答：<a href="../small-project/s1-01-hello-compile/quiz.html#1-objdump--p-usrbincurl-%E5%8F%AA%E5%88%97%E5%87%BA-3-%E5%80%8B-neededldd-%E5%8D%BB%E5%88%97%E5%87%BA-33-%E8%A1%8C%E5%A4%9A%E5%87%BA%E4%BE%86%E7%9A%84%E6%98%AF%E5%93%AA%E5%B9%BE%E9%A1%9E%E6%9D%B1%E8%A5%BF%E7%82%BA%E4%BB%80%E9%BA%BC-objdump-%E7%9C%8B%E4%B8%8D%E5%88%B0">s1-01 quiz.md 第 1 題</a>、<a href="2026-10-04-%E5%AD%97%E5%85%83-C%E8%B3%87%E6%96%99-objdump-hello-ELF.html">10-04 複習</a>、<a href="2026-10-08-%E5%AD%97%E5%85%83-C%E8%B3%87%E6%96%99-objdump-hello-ELF-%E9%99%A3%E5%88%97.html#objdump-1-objdump--p-usrbincurl-%E5%8F%AA%E5%88%97%E5%87%BA-3-%E5%80%8B-neededldd-%E5%8D%BB%E5%88%97%E5%87%BA-33-%E8%A1%8C%E5%A4%9A%E5%87%BA%E4%BE%86%E7%9A%84%E6%98%AF%E5%93%AA%E5%B9%BE%E9%A1%9E%E6%9D%B1%E8%A5%BF%E7%82%BA%E4%BB%80%E9%BA%BC-objdump-%E7%9C%8B%E4%B8%8D%E5%88%B0">10-08 複習</a>、<a href="2026-10-19-interp-GNU-C%E8%B3%87%E6%96%99-ELF-objdump-%E7%B5%84%E8%AA%9E.html">10-19 複習</a>、<a href="2026-10-23-%E5%A4%A7%E8%A4%87%E7%BF%92-hello-gcc-GNU-interp-ELF-objdump-C%E8%B3%87%E6%96%99-%E5%AD%97%E5%85%83-%E9%99%A3%E5%88%97-%E7%B5%84%E8%AA%9E-%E7%B5%84%E8%AA%9E%E4%BA%8C-%E5%A4%9A%E6%AA%94.html">10-23 複習</a></p>
+</blockquote>
+<details class="answer-fold" open><summary>作答</summary>
+<div class="answer-box" data-file="review/2026-10-30-hello-gcc-GNU-interp-ELF-objdump-C資料-字元-陣列-組語.md" data-line="249"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+</details>
+<hr />
+<h2 id="c資料c的資料在記憶體裡長怎樣-位元組指標位元組順序與有號無號">C資料：<a href="../c/C%E7%9A%84%E8%B3%87%E6%96%99%E5%9C%A8%E8%A8%98%E6%86%B6%E9%AB%94%E8%A3%A1%E9%95%B7%E6%80%8E%E6%A8%A3-%E4%BD%8D%E5%85%83%E7%B5%84%E3%80%81%E6%8C%87%E6%A8%99%E3%80%81%E4%BD%8D%E5%85%83%E7%B5%84%E9%A0%86%E5%BA%8F%E8%88%87%E6%9C%89%E8%99%9F%E7%84%A1%E8%99%9F.html">C的資料在記憶體裡長怎樣-位元組、指標、位元組順序與有號無號</a></h2>
+<h3 id="c資料-4-int-y--x--1-return-y--x-在-x--int_max-時-o0-回傳-0-o2-回傳-1為什麼會這樣這算不算-gcc-的-bugkernel-用哪個選項避免這種情況代價是什麼">C資料 4. <code>int y = x + 1; return y &gt; x;</code> 在 <code>x = INT_MAX</code> 時，<code>-O0</code> 回傳 0、<code>-O2</code> 回傳 1。為什麼會這樣？這算不算 gcc 的 bug？kernel 用哪個選項避免這種情況，代價是什麼？</h3>
+<blockquote>
+<p>盒子 2｜過去的作答：<a href="../small-project/s1-02-data-repr/quiz.html#4-int-y--x--1-return-y--x-%E5%9C%A8-x--int_max-%E6%99%82-o0-%E5%9B%9E%E5%82%B3-0-o2-%E5%9B%9E%E5%82%B3-1%E7%82%BA%E4%BB%80%E9%BA%BC%E6%9C%83%E9%80%99%E6%A8%A3%E9%80%99%E7%AE%97%E4%B8%8D%E7%AE%97-gcc-%E7%9A%84-bugkernel-%E7%94%A8%E5%93%AA%E5%80%8B%E9%81%B8%E9%A0%85%E9%81%BF%E5%85%8D%E9%80%99%E7%A8%AE%E6%83%85%E6%B3%81%E4%BB%A3%E5%83%B9%E6%98%AF%E4%BB%80%E9%BA%BC">s1-02 quiz.md 第 4 題</a>、<a href="2026-10-07-GNU-C%E8%B3%87%E6%96%99-hello-objdump-%E5%AD%97%E5%85%83.html">10-07 複習</a>、<a href="2026-10-11-%E5%AD%97%E5%85%83-C%E8%B3%87%E6%96%99-objdump-GNU-%E9%99%A3%E5%88%97.html">10-11 複習</a>、<a href="2026-10-22-%E7%B5%84%E8%AA%9E-C%E8%B3%87%E6%96%99-objdump-%E5%AD%97%E5%85%83-%E9%99%A3%E5%88%97.html">10-22 複習</a>、<a href="2026-10-23-%E5%A4%A7%E8%A4%87%E7%BF%92-hello-gcc-GNU-interp-ELF-objdump-C%E8%B3%87%E6%96%99-%E5%AD%97%E5%85%83-%E9%99%A3%E5%88%97-%E7%B5%84%E8%AA%9E-%E7%B5%84%E8%AA%9E%E4%BA%8C-%E5%A4%9A%E6%AA%94.html">10-23 複習</a>、<a href="2026-10-24-gcc-GNU-ELF-objdump-C%E8%B3%87%E6%96%99-%E5%AD%97%E5%85%83-%E9%99%A3%E5%88%97-%E7%B5%84%E8%AA%9E-%E7%B5%84%E8%AA%9E%E4%BA%8C-%E5%A4%9A%E6%AA%94.html">10-24 複習</a>、<a href="2026-10-27-gcc-ELF-objdump-C%E8%B3%87%E6%96%99-%E5%AD%97%E5%85%83-%E9%99%A3%E5%88%97-%E7%B5%84%E8%AA%9E-%E7%B5%84%E8%AA%9E%E4%BA%8C-%E5%A4%9A%E6%AA%94.html">10-27 複習</a></p>
+</blockquote>
+<p>題目用到的程式是筆記<a href="../c/C%E7%9A%84%E8%B3%87%E6%96%99%E5%9C%A8%E8%A8%98%E6%86%B6%E9%AB%94%E8%A3%A1%E9%95%B7%E6%80%8E%E6%A8%A3-%E4%BD%8D%E5%85%83%E7%B5%84%E3%80%81%E6%8C%87%E6%A8%99%E3%80%81%E4%BD%8D%E5%85%83%E7%B5%84%E9%A0%86%E5%BA%8F%E8%88%87%E6%9C%89%E8%99%9F%E7%84%A1%E8%99%9F.html#%E5%85%AB%E6%BA%A2%E4%BD%8D%E7%84%A1%E8%99%9F%E5%9B%9E%E7%B9%9E%E6%9C%89%E8%99%9F%E6%98%AF%E6%9C%AA%E5%AE%9A%E7%BE%A9%E8%A1%8C%E7%82%BA">第八節</a>的 <code>ub.c</code>，完整原始碼：</p>
+<pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;limits.h&gt;</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">bigger</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">x</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">y</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">y</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="n">x</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;bigger(INT_MAX) = %d</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">bigger</span><span class="p">(</span><span class="n">INT_MAX</span><span class="p">));</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<p>編譯與執行：<code>gcc -O0 ub.c -o ub &amp;&amp; ./ub</code>、<code>gcc -O2 ub.c -o ub &amp;&amp; ./ub</code>（結果如題目所述，分別印 0 與 1）。</p>
+<blockquote>
+<p>題目：<code>int y = x + 1; return y &gt; x;</code> 在 <code>x = INT_MAX</code> 時，<code>-O0</code> 回傳 0、<code>-O2</code> 回傳 1。為什麼會這樣？這算不算 gcc 的 bug？kernel 用哪個選項避免這種情況，代價是什麼？</p>
+</blockquote>
+<details class="answer-fold" open><summary>作答</summary>
+<div class="answer-box" data-file="review/2026-10-30-hello-gcc-GNU-interp-ELF-objdump-C資料-字元-陣列-組語.md" data-line="283"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+</details>
+<h3 id="c資料-7-2147483648-和-0x80000000-是同一個數為什麼一個的型別是-long一個是-unsigned-int-1--0x80000000-和--1--2147483648-的結果各是什麼為什麼">C資料 7. <code>2147483648</code> 和 <code>0x80000000</code> 是同一個數，為什麼一個的型別是 <code>long</code>、一個是 <code>unsigned int</code>？<code>-1 &lt; 0x80000000</code> 和 <code>-1 &lt; 2147483648</code> 的結果各是什麼？為什麼？</h3>
+<blockquote>
+<p>盒子 3｜過去的作答：<a href="../small-project/s1-02-data-repr/quiz.html#7-2147483648-%E5%92%8C-0x80000000-%E6%98%AF%E5%90%8C%E4%B8%80%E5%80%8B%E6%95%B8%E7%82%BA%E4%BB%80%E9%BA%BC%E4%B8%80%E5%80%8B%E7%9A%84%E5%9E%8B%E5%88%A5%E6%98%AF-long%E4%B8%80%E5%80%8B%E6%98%AF-unsigned-int-1--0x80000000-%E5%92%8C--1--2147483648-%E7%9A%84%E7%B5%90%E6%9E%9C%E5%90%84%E6%98%AF%E4%BB%80%E9%BA%BC%E7%82%BA%E4%BB%80%E9%BA%BC">s1-02 quiz.md 第 7 題</a>、<a href="2026-10-10-C%E8%B3%87%E6%96%99-GNU-interp-hello-gcc.html#c%E8%B3%87%E6%96%99-7-2147483648-%E5%92%8C-0x80000000-%E6%98%AF%E5%90%8C%E4%B8%80%E5%80%8B%E6%95%B8%E7%82%BA%E4%BB%80%E9%BA%BC%E4%B8%80%E5%80%8B%E7%9A%84%E5%9E%8B%E5%88%A5%E6%98%AF-long%E4%B8%80%E5%80%8B%E6%98%AF-unsigned-int-1--0x80000000-%E5%92%8C--1--2147483648-%E7%9A%84%E7%B5%90%E6%9E%9C%E5%90%84%E6%98%AF%E4%BB%80%E9%BA%BC%E7%82%BA%E4%BB%80%E9%BA%BC">10-10 複習</a>、<a href="2026-10-19-interp-GNU-C%E8%B3%87%E6%96%99-ELF-objdump-%E7%B5%84%E8%AA%9E.html">10-19 複習</a>、<a href="2026-10-23-%E5%A4%A7%E8%A4%87%E7%BF%92-hello-gcc-GNU-interp-ELF-objdump-C%E8%B3%87%E6%96%99-%E5%AD%97%E5%85%83-%E9%99%A3%E5%88%97-%E7%B5%84%E8%AA%9E-%E7%B5%84%E8%AA%9E%E4%BA%8C-%E5%A4%9A%E6%AA%94.html">10-23 複習</a></p>
+</blockquote>
+<details class="answer-fold" open><summary>作答</summary>
+<div class="answer-box" data-file="review/2026-10-30-hello-gcc-GNU-interp-ELF-objdump-C資料-字元-陣列-組語.md" data-line="290"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+</details>
+<h3 id="c資料-9-情境題有人寫了-if-len---used--0-判斷緩衝區還有沒有剩餘空間lenused-都是-size_t用--wall--wextra-編譯沒有任何警告這個判斷在什麼情況下會出錯為什麼-gcc-對-len---used--0-會警告對--0-卻不會另外為什麼-int-sum--x--y-if-sum--x-這種溢位檢查在--o2-下可能完全失效">C資料 9. 情境題：有人寫了 <code>if (len - used &gt; 0)</code> 判斷「緩衝區還有沒有剩餘空間」，<code>len</code>、<code>used</code> 都是 <code>size_t</code>，用 <code>-Wall -Wextra</code> 編譯沒有任何警告。這個判斷在什麼情況下會出錯？為什麼 gcc 對 <code>len - used &lt; 0</code> 會警告、對 <code>&gt; 0</code> 卻不會？另外，為什麼 <code>int sum = x + y; if (sum &lt; x)</code> 這種溢位檢查在 <code>-O2</code> 下可能完全失效？</h3>
+<blockquote>
+<p>盒子 2｜過去的作答：<a href="../small-project/s1-02-data-repr/quiz.html#9-%E6%83%85%E5%A2%83%E9%A1%8C%E6%9C%89%E4%BA%BA%E5%AF%AB%E4%BA%86-if-len---used--0-%E5%88%A4%E6%96%B7%E7%B7%A9%E8%A1%9D%E5%8D%80%E9%82%84%E6%9C%89%E6%B2%92%E6%9C%89%E5%89%A9%E9%A4%98%E7%A9%BA%E9%96%93lenused-%E9%83%BD%E6%98%AF-size_t%E7%94%A8--wall--wextra-%E7%B7%A8%E8%AD%AF%E6%B2%92%E6%9C%89%E4%BB%BB%E4%BD%95%E8%AD%A6%E5%91%8A%E9%80%99%E5%80%8B%E5%88%A4%E6%96%B7%E5%9C%A8%E4%BB%80%E9%BA%BC%E6%83%85%E6%B3%81%E4%B8%8B%E6%9C%83%E5%87%BA%E9%8C%AF%E7%82%BA%E4%BB%80%E9%BA%BC-gcc-%E5%B0%8D-len---used--0-%E6%9C%83%E8%AD%A6%E5%91%8A%E5%B0%8D--0-%E5%8D%BB%E4%B8%8D%E6%9C%83%E5%8F%A6%E5%A4%96%E7%82%BA%E4%BB%80%E9%BA%BC-int-sum--x--y-if-sum--x-%E9%80%99%E7%A8%AE%E6%BA%A2%E4%BD%8D%E6%AA%A2%E6%9F%A5%E5%9C%A8--o2-%E4%B8%8B%E5%8F%AF%E8%83%BD%E5%AE%8C%E5%85%A8%E5%A4%B1%E6%95%88">s1-02 quiz.md 第 9 題</a>、<a href="2026-10-04-%E5%AD%97%E5%85%83-C%E8%B3%87%E6%96%99-objdump-hello-ELF.html">10-04 複習</a>、<a href="2026-10-08-%E5%AD%97%E5%85%83-C%E8%B3%87%E6%96%99-objdump-hello-ELF-%E9%99%A3%E5%88%97.html">10-08 複習</a>、<a href="2026-10-11-%E5%AD%97%E5%85%83-C%E8%B3%87%E6%96%99-objdump-GNU-%E9%99%A3%E5%88%97.html">10-11 複習</a>、<a href="2026-10-20-C%E8%B3%87%E6%96%99-objdump-%E5%AD%97%E5%85%83-%E9%99%A3%E5%88%97-gcc.html">10-20 複習</a>、<a href="2026-10-23-%E5%A4%A7%E8%A4%87%E7%BF%92-hello-gcc-GNU-interp-ELF-objdump-C%E8%B3%87%E6%96%99-%E5%AD%97%E5%85%83-%E9%99%A3%E5%88%97-%E7%B5%84%E8%AA%9E-%E7%B5%84%E8%AA%9E%E4%BA%8C-%E5%A4%9A%E6%AA%94.html">10-23 複習</a>、<a href="2026-10-24-gcc-GNU-ELF-objdump-C%E8%B3%87%E6%96%99-%E5%AD%97%E5%85%83-%E9%99%A3%E5%88%97-%E7%B5%84%E8%AA%9E-%E7%B5%84%E8%AA%9E%E4%BA%8C-%E5%A4%9A%E6%AA%94.html">10-24 複習</a>、<a href="2026-10-27-gcc-ELF-objdump-C%E8%B3%87%E6%96%99-%E5%AD%97%E5%85%83-%E9%99%A3%E5%88%97-%E7%B5%84%E8%AA%9E-%E7%B5%84%E8%AA%9E%E4%BA%8C-%E5%A4%9A%E6%AA%94.html">10-27 複習</a></p>
+</blockquote>
+<details class="answer-fold" open><summary>作答</summary>
+<div class="answer-box" data-file="review/2026-10-30-hello-gcc-GNU-interp-ELF-objdump-C資料-字元-陣列-組語.md" data-line="297"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+</details>
+<hr />
+<h2 id="字元字元是什麼-char就是1byte的整數與ascii和utf-8">字元：<a href="../c/%E5%AD%97%E5%85%83%E6%98%AF%E4%BB%80%E9%BA%BC-char%E5%B0%B1%E6%98%AF1byte%E7%9A%84%E6%95%B4%E6%95%B8%E8%88%87ASCII%E5%92%8CUTF-8.html">字元是什麼-char就是1byte的整數與ASCII和UTF-8</a></h2>
+<h3 id="字元-4-情境題你寫了一個函式用-char-c-一個一個-byte-讀一段-utf-8-文字並用-if-c--127-判斷這是不是非-ascii-的-byte在本機這個判斷會成立嗎為什麼該怎麼改">字元 4. 情境題：你寫了一個函式，用 <code>char c</code> 一個一個 byte 讀一段 UTF-8 文字，並用 <code>if (c &gt; 127)</code> 判斷「這是不是非 ASCII 的 byte」。在本機這個判斷會成立嗎？為什麼？該怎麼改？</h3>
+<blockquote>
+<p>盒子 3｜過去的作答：<a href="../small-project/s1-02-data-repr/quiz.html#4-%E6%83%85%E5%A2%83%E9%A1%8C%E4%BD%A0%E5%AF%AB%E4%BA%86%E4%B8%80%E5%80%8B%E5%87%BD%E5%BC%8F%E7%94%A8-char-c-%E4%B8%80%E5%80%8B%E4%B8%80%E5%80%8B-byte-%E8%AE%80%E4%B8%80%E6%AE%B5-utf-8-%E6%96%87%E5%AD%97%E4%B8%A6%E7%94%A8-if-c--127-%E5%88%A4%E6%96%B7%E9%80%99%E6%98%AF%E4%B8%8D%E6%98%AF%E9%9D%9E-ascii-%E7%9A%84-byte%E5%9C%A8%E6%9C%AC%E6%A9%9F%E9%80%99%E5%80%8B%E5%88%A4%E6%96%B7%E6%9C%83%E6%88%90%E7%AB%8B%E5%97%8E%E7%82%BA%E4%BB%80%E9%BA%BC%E8%A9%B2%E6%80%8E%E9%BA%BC%E6%94%B9">s1-02 quiz.md 第 4 題</a>、<a href="2026-10-06-%E5%AD%97%E5%85%83-interp-ELF-gcc-GNU.html#%E5%AD%97%E5%85%83-4-%E6%83%85%E5%A2%83%E9%A1%8C%E4%BD%A0%E5%AF%AB%E4%BA%86%E4%B8%80%E5%80%8B%E5%87%BD%E5%BC%8F%E7%94%A8-char-c-%E4%B8%80%E5%80%8B%E4%B8%80%E5%80%8B-byte-%E8%AE%80%E4%B8%80%E6%AE%B5-utf-8-%E6%96%87%E5%AD%97%E4%B8%A6%E7%94%A8-if-c--127-%E5%88%A4%E6%96%B7%E9%80%99%E6%98%AF%E4%B8%8D%E6%98%AF%E9%9D%9E-ascii-%E7%9A%84-byte%E5%9C%A8%E6%9C%AC%E6%A9%9F%E9%80%99%E5%80%8B%E5%88%A4%E6%96%B7%E6%9C%83%E6%88%90%E7%AB%8B%E5%97%8E%E7%82%BA%E4%BB%80%E9%BA%BC%E8%A9%B2%E6%80%8E%E9%BA%BC%E6%94%B9">2026-10-06 複習</a>、<a href="2026-10-13-%E7%B5%84%E8%AA%9E-%E5%AD%97%E5%85%83.html">10-13 複習</a>、<a href="2026-10-23-%E5%A4%A7%E8%A4%87%E7%BF%92-hello-gcc-GNU-interp-ELF-objdump-C%E8%B3%87%E6%96%99-%E5%AD%97%E5%85%83-%E9%99%A3%E5%88%97-%E7%B5%84%E8%AA%9E-%E7%B5%84%E8%AA%9E%E4%BA%8C-%E5%A4%9A%E6%AA%94.html">10-23 複習</a></p>
+</blockquote>
+<details class="answer-fold" open><summary>作答</summary>
+<div class="answer-box" data-file="review/2026-10-30-hello-gcc-GNU-interp-ELF-objdump-C資料-字元-陣列-組語.md" data-line="308"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+</details>
+<hr />
+<h2 id="陣列陣列字串與指標運算-c不檢查邊界與用gdb找segfault">陣列：<a href="../c/%E9%99%A3%E5%88%97%E3%80%81%E5%AD%97%E4%B8%B2%E8%88%87%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97-C%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%88%87%E7%94%A8gdb%E6%89%BEsegfault.html">陣列、字串與指標運算-C不檢查邊界與用gdb找segfault</a></h2>
+<h3 id="陣列-1-指標的型別與指標運算">陣列 1. 指標的型別與指標運算</h3>
+<h4 id="陣列-1-1-int-p-和-unsigned-char-c-存著同一個位址為什麼-p--1-和-c--1-不一樣">陣列 1-1. <code>int *p</code> 和 <code>unsigned char *c</code> 存著同一個位址，為什麼 <code>p + 1</code> 和 <code>c + 1</code> 不一樣？</h4>
+<blockquote>
+<p>盒子 3｜過去的作答：<a href="../small-project/s1-03-arrays-pointers/quiz.html#1-1-int-p-%E5%92%8C-unsigned-char-c-%E5%AD%98%E8%91%97%E5%90%8C%E4%B8%80%E5%80%8B%E4%BD%8D%E5%9D%80%E7%82%BA%E4%BB%80%E9%BA%BC-p--1-%E5%92%8C-c--1-%E4%B8%8D%E4%B8%80%E6%A8%A3">s1-03 quiz.md 1-1</a>、<a href="2026-10-08-%E5%AD%97%E5%85%83-C%E8%B3%87%E6%96%99-objdump-hello-ELF-%E9%99%A3%E5%88%97.html#%E9%99%A3%E5%88%97-1-1-int-p-%E5%92%8C-unsigned-char-c-%E5%AD%98%E8%91%97%E5%90%8C%E4%B8%80%E5%80%8B%E4%BD%8D%E5%9D%80%E7%82%BA%E4%BB%80%E9%BA%BC-p--1-%E5%92%8C-c--1-%E4%B8%8D%E4%B8%80%E6%A8%A3">10-08 複習</a>、<a href="2026-10-12-objdump-hello-ELF-%E9%99%A3%E5%88%97-%E7%B5%84%E8%AA%9E.html">10-12 複習</a>、<a href="2026-10-23-%E5%A4%A7%E8%A4%87%E7%BF%92-hello-gcc-GNU-interp-ELF-objdump-C%E8%B3%87%E6%96%99-%E5%AD%97%E5%85%83-%E9%99%A3%E5%88%97-%E7%B5%84%E8%AA%9E-%E7%B5%84%E8%AA%9E%E4%BA%8C-%E5%A4%9A%E6%AA%94.html">10-23 複習</a></p>
+</blockquote>
+<details class="answer-fold" open><summary>作答</summary>
+<div class="answer-box" data-file="review/2026-10-30-hello-gcc-GNU-interp-ELF-objdump-C資料-字元-陣列-組語.md" data-line="321"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+</details>
+<h4 id="陣列-1-2-p3-在-c-標準裡是怎麼定義的">陣列 1-2. <code>p[3]</code> 在 C 標準裡是怎麼定義的？</h4>
+<details class="answer-fold" open><summary>作答</summary>
+<div class="answer-box" data-file="review/2026-10-30-hello-gcc-GNU-interp-ELF-objdump-C資料-字元-陣列-組語.md" data-line="326"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+</details>
+<h4 id="陣列-1-3-為什麼-3p-也能編譯而且值跟-p3-一樣">陣列 1-3. 為什麼 <code>3[p]</code> 也能編譯，而且值跟 <code>p[3]</code> 一樣？</h4>
+<details class="answer-fold" open><summary>作答</summary>
+<div class="answer-box" data-file="review/2026-10-30-hello-gcc-GNU-interp-ELF-objdump-C資料-字元-陣列-組語.md" data-line="331"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+</details>
+<h3 id="陣列-6-情境題讀懂-asan-的區間">陣列 6. 情境題：讀懂 ASan 的區間</h3>
+<blockquote>
+<p>ASan 報告裡有一行 <code>[16, 40) 'buf' (line 7) &lt;== Memory access at offset 40 overflows this variable</code>，上面寫著 <code>WRITE of size 4</code>。</p>
+<p>盒子 3｜過去的作答：<a href="../small-project/s1-03-arrays-pointers/quiz.html#6-%E6%83%85%E5%A2%83%E9%A1%8C%E8%AE%80%E6%87%82-asan-%E7%9A%84%E5%8D%80%E9%96%932026-09-30-%E6%96%B0%E5%A2%9E">s1-03 quiz.md 第 6 題</a>、<a href="2026-10-05-gcc-%E9%99%A3%E5%88%97-GNU-C%E8%B3%87%E6%96%99-%E5%AD%97%E5%85%83.html">10-05 複習</a>、<a href="2026-10-11-%E5%AD%97%E5%85%83-C%E8%B3%87%E6%96%99-objdump-GNU-%E9%99%A3%E5%88%97.html">10-11 複習</a>、<a href="2026-10-20-C%E8%B3%87%E6%96%99-objdump-%E5%AD%97%E5%85%83-%E9%99%A3%E5%88%97-gcc.html">10-20 複習</a>、<a href="2026-10-23-%E5%A4%A7%E8%A4%87%E7%BF%92-hello-gcc-GNU-interp-ELF-objdump-C%E8%B3%87%E6%96%99-%E5%AD%97%E5%85%83-%E9%99%A3%E5%88%97-%E7%B5%84%E8%AA%9E-%E7%B5%84%E8%AA%9E%E4%BA%8C-%E5%A4%9A%E6%AA%94.html">10-23 複習</a></p>
+</blockquote>
+<h4 id="陣列-6-1-buf-佔幾個-byte">陣列 6-1. <code>buf</code> 佔幾個 byte？</h4>
+<details class="answer-fold" open><summary>作答</summary>
+<div class="answer-box" data-file="review/2026-10-30-hello-gcc-GNU-interp-ELF-objdump-C資料-字元-陣列-組語.md" data-line="342"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+</details>
+<h4 id="陣列-6-2-如果它是-int-陣列有幾個元素">陣列 6-2. 如果它是 <code>int</code> 陣列，有幾個元素？</h4>
+<blockquote>
+<p>題目：ASan 報告 <code>[16, 40) 'buf' (line 7) &lt;== Memory access at offset 40 overflows this variable</code>，<code>WRITE of size 4</code>。如果它是 <code>int</code> 陣列，有幾個元素？</p>
+</blockquote>
+<details class="answer-fold" open><summary>作答</summary>
+<div class="answer-box" data-file="review/2026-10-30-hello-gcc-GNU-interp-ELF-objdump-C資料-字元-陣列-組語.md" data-line="349"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+</details>
+<h4 id="陣列-6-3-這次寫到的是-buf-的第幾格索引多少">陣列 6-3. 這次寫到的是 <code>buf</code> 的第幾格（索引多少）？</h4>
+<blockquote>
+<p>題目：同上的 ASan 報告。這次寫到的是 <code>buf</code> 的第幾格（索引多少）？</p>
+</blockquote>
+<details class="answer-fold" open><summary>作答</summary>
+<div class="answer-box" data-file="review/2026-10-30-hello-gcc-GNU-interp-ELF-objdump-C資料-字元-陣列-組語.md" data-line="356"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+</details>
+<h4 id="陣列-6-4-影子-byte-那一列裡buf-會是幾個什麼樣的影子-byte">陣列 6-4. 影子 byte 那一列裡，<code>buf</code> 會是幾個什麼樣的影子 byte？</h4>
+<blockquote>
+<p>題目：同上的 ASan 報告。影子 byte 那一列裡，<code>buf</code> 會是幾個什麼樣的影子 byte？</p>
+</blockquote>
+<details class="answer-fold" open><summary>作答</summary>
+<div class="answer-box" data-file="review/2026-10-30-hello-gcc-GNU-interp-ELF-objdump-C資料-字元-陣列-組語.md" data-line="363"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+</details>
+<hr />
+<h2 id="組語x86-64組合語言入門-暫存器mov與leacmp與條件跳躍">組語：<a href="../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80-%E6%9A%AB%E5%AD%98%E5%99%A8%E3%80%81mov%E8%88%87lea%E3%80%81cmp%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D.html">x86-64組合語言入門-暫存器、mov與lea、cmp與條件跳躍</a></h2>
+<h3 id="組語-2-寫-32-位元暫存器與擴展">組語 2. 寫 32 位元暫存器與擴展</h3>
+<blockquote>
+<p><code>long widen_u(unsigned x) { return x; }</code> 只要一個 <code>movl %edi, %eax</code>，<code>long widen_s(int x) { return x; }</code> 卻要 <code>movslq %edi, %rax</code>。</p>
+<p>盒子 3｜過去的作答：<a href="../small-project/s1-04-asm-basics/quiz.html#2-%E5%AF%AB-32-%E4%BD%8D%E5%85%83%E6%9A%AB%E5%AD%98%E5%99%A8%E8%88%87%E6%93%B4%E5%B1%95">s1-04 quiz.md 第 2 題</a>、<a href="2026-10-12-objdump-hello-ELF-%E9%99%A3%E5%88%97-%E7%B5%84%E8%AA%9E.html">10-12 複習</a>、<a href="2026-10-23-%E5%A4%A7%E8%A4%87%E7%BF%92-hello-gcc-GNU-interp-ELF-objdump-C%E8%B3%87%E6%96%99-%E5%AD%97%E5%85%83-%E9%99%A3%E5%88%97-%E7%B5%84%E8%AA%9E-%E7%B5%84%E8%AA%9E%E4%BA%8C-%E5%A4%9A%E6%AA%94.html">10-23 複習</a></p>
+</blockquote>
+<p>程式（筆記檔案：<a href="../../small-project/s1-04-asm-basics/ops.c"><code>ops.c</code></a> 的其中兩個函式，不需要 <code>main</code>）與編譯指令：</p>
+<pre><code class="language-c"><span class="kt">long</span><span class="w"> </span><span class="nf">widen_s</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">x</span><span class="p">)</span><span class="w">       </span><span class="p">{</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="n">x</span><span class="p">;</span><span class="w"> </span><span class="p">}</span>
+<span class="kt">long</span><span class="w"> </span><span class="nf">widen_u</span><span class="p">(</span><span class="kt">unsigned</span><span class="w"> </span><span class="n">x</span><span class="p">)</span><span class="w">  </span><span class="p">{</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="n">x</span><span class="p">;</span><span class="w"> </span><span class="p">}</span>
+</code></pre>
+<pre><code class="language-sh">gcc<span class="w"> </span>-S<span class="w"> </span>-O2<span class="w"> </span>-fno-asynchronous-unwind-tables<span class="w"> </span>ops.c<span class="w"> </span>-o<span class="w"> </span>ops.s
+</code></pre>
+<pre><code class="language-asm"><span class="nl">widen_s:</span>
+<span class="w">	</span><span class="nf">endbr64</span><span class="w">                 </span><span class="c1"># 控制流程保護標記，跟計算無關</span>
+<span class="w">	</span><span class="nf">movslq</span><span class="w">	</span><span class="nv">%edi</span><span class="p">,</span><span class="w"> </span><span class="nv">%rax</span><span class="w">      </span><span class="c1"># 把 4 byte 的 %edi 有號擴展成 8 byte 放進 %rax</span>
+<span class="w">	</span><span class="nf">ret</span><span class="w">                     </span><span class="c1"># 回傳 %rax</span>
+<span class="nl">widen_u:</span>
+<span class="w">	</span><span class="nf">endbr64</span>
+<span class="w">	</span><span class="nf">movl</span><span class="w">	</span><span class="nv">%edi</span><span class="p">,</span><span class="w"> </span><span class="nv">%eax</span><span class="w">      </span><span class="c1"># 把 %edi 的 4 byte 複製到 %eax</span>
+<span class="w">	</span><span class="nf">ret</span>
+</code></pre>
+<h4 id="組語-2-1-為什麼-movl-就足以完成前者">組語 2-1. 為什麼 <code>movl</code> 就足以完成前者？</h4>
+<details class="answer-fold" open><summary>作答</summary>
+<div class="answer-box" data-file="review/2026-10-30-hello-gcc-GNU-interp-ELF-objdump-C資料-字元-陣列-組語.md" data-line="400"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+</details>
+<h4 id="組語-2-2-如果改寫-16-位元的-ax同樣的理由還成立嗎">組語 2-2. 如果改寫 16 位元的 <code>%ax</code>，同樣的理由還成立嗎？</h4>
+<details class="answer-fold" open><summary>作答</summary>
+<div class="answer-box" data-file="review/2026-10-30-hello-gcc-GNU-interp-ELF-objdump-C資料-字元-陣列-組語.md" data-line="405"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+</details>
+<h3 id="組語-3-有號與無號在哪裡決定">組語 3. 有號與無號在哪裡決定</h3>
+<blockquote>
+<p><code>lt_s</code> 和 <code>lt_u</code> 的 <code>cmpl %esi, %edi</code> 一模一樣，gdb 也看到兩者的旗標完全相同（<code>[ SF IF ]</code>）。</p>
+<p>盒子 3｜過去的作答：<a href="../small-project/s1-04-asm-basics/quiz.html#3-%E6%9C%89%E8%99%9F%E8%88%87%E7%84%A1%E8%99%9F%E5%9C%A8%E5%93%AA%E8%A3%A1%E6%B1%BA%E5%AE%9A">s1-04 quiz.md 第 3 題</a>、<a href="2026-10-12-objdump-hello-ELF-%E9%99%A3%E5%88%97-%E7%B5%84%E8%AA%9E.html">10-12 複習</a>、<a href="2026-10-23-%E5%A4%A7%E8%A4%87%E7%BF%92-hello-gcc-GNU-interp-ELF-objdump-C%E8%B3%87%E6%96%99-%E5%AD%97%E5%85%83-%E9%99%A3%E5%88%97-%E7%B5%84%E8%AA%9E-%E7%B5%84%E8%AA%9E%E4%BA%8C-%E5%A4%9A%E6%AA%94.html">10-23 複習</a></p>
+</blockquote>
+<p>實驗（筆記<a href="../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80-%E6%9A%AB%E5%AD%98%E5%99%A8%E3%80%81mov%E8%88%87lea%E3%80%81cmp%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D.html#%E4%BA%94%E6%97%97%E6%A8%99%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8Dcmp-%E5%8F%AA%E8%B2%A0%E8%B2%AC%E6%AF%94%E8%B7%B3%E4%B8%8D%E8%B7%B3%E7%94%B1%E4%B8%8B%E4%B8%80%E5%80%8B%E6%8C%87%E4%BB%A4%E6%B1%BA%E5%AE%9A">第五節〈實驗：同一個 <code>cmp</code>、同一組旗標，<code>setl</code> 說是、<code>setb</code> 說否〉</a>）：用 <code>-1</code> 和 <code>1</code> 呼叫兩個函式，在 <code>cmp</code> 剛做完時用 gdb 看旗標。</p>
+<p>檔案 <a href="../../small-project/s1-04-asm-basics/lt.c"><code>lt.c</code></a>：</p>
+<pre><code class="language-c"><span class="cm">/* lt.c：用 -O2 編 */</span>
+<span class="kt">int</span><span class="w"> </span><span class="nf">lt_s</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">a</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">b</span><span class="p">)</span><span class="w">           </span><span class="p">{</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">b</span><span class="p">;</span><span class="w"> </span><span class="p">}</span>
+<span class="kt">int</span><span class="w"> </span><span class="nf">lt_u</span><span class="p">(</span><span class="kt">unsigned</span><span class="w"> </span><span class="n">a</span><span class="p">,</span><span class="w"> </span><span class="kt">unsigned</span><span class="w"> </span><span class="n">b</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">b</span><span class="p">;</span><span class="w"> </span><span class="p">}</span>
+</code></pre>
+<p>檔案 <a href="../../small-project/s1-04-asm-basics/ltmain.c"><code>ltmain.c</code></a>：</p>
+<pre><code class="language-c"><span class="cm">/* ltmain.c：另外一個檔，這樣 -O2 的 lt.c 不會被內嵌進 main */</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">lt_s</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">a</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">b</span><span class="p">);</span>
+<span class="kt">int</span><span class="w"> </span><span class="nf">lt_u</span><span class="p">(</span><span class="kt">unsigned</span><span class="w"> </span><span class="n">a</span><span class="p">,</span><span class="w"> </span><span class="kt">unsigned</span><span class="w"> </span><span class="n">b</span><span class="p">);</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;lt_s(-1, 1) = %d</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">lt_s</span><span class="p">(</span><span class="mi">-1</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">));</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;lt_u(-1, 1) = %d</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">lt_u</span><span class="p">(</span><span class="mi">-1</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">));</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<pre><code class="language-sh">gcc<span class="w"> </span>-O2<span class="w"> </span>-g<span class="w"> </span>-c<span class="w"> </span>lt.c
+gcc<span class="w"> </span>-O0<span class="w"> </span>-g<span class="w"> </span>ltmain.c<span class="w"> </span>lt.o<span class="w"> </span>-o<span class="w"> </span>lt
+./lt
+gdb<span class="w"> </span>-q<span class="w"> </span>-batch<span class="w"> </span>-ex<span class="w"> </span><span class="s1">&#39;break *lt_s+8&#39;</span><span class="w"> </span>-ex<span class="w"> </span><span class="s1">&#39;break *lt_u+8&#39;</span><span class="w"> </span>-ex<span class="w"> </span>run<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>-ex<span class="w"> </span><span class="s1">&#39;x/i $pc&#39;</span><span class="w"> </span>-ex<span class="w"> </span><span class="s1">&#39;info registers eflags&#39;</span><span class="w"> </span>-ex<span class="w"> </span><span class="k">continue</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>-ex<span class="w"> </span><span class="s1">&#39;x/i $pc&#39;</span><span class="w"> </span>-ex<span class="w"> </span><span class="s1">&#39;info registers eflags&#39;</span><span class="w"> </span>./lt
+</code></pre>
+<p><code>lt.c</code> 編出的組合語言：</p>
+<pre><code class="language-asm"><span class="nl">lt_s:</span>
+<span class="w">	</span><span class="nf">endbr64</span><span class="w">                 </span><span class="c1"># 控制流程保護標記</span>
+<span class="w">	</span><span class="nf">xorl</span><span class="w">	</span><span class="nv">%eax</span><span class="p">,</span><span class="w"> </span><span class="nv">%eax</span><span class="w">      </span><span class="c1"># %eax = 0</span>
+<span class="w">	</span><span class="nf">cmpl</span><span class="w">	</span><span class="nv">%esi</span><span class="p">,</span><span class="w"> </span><span class="nv">%edi</span><span class="w">      </span><span class="c1"># 算 a − b，只設旗標、不存結果</span>
+<span class="w">	</span><span class="nf">setl</span><span class="w">	</span><span class="nv">%al</span><span class="w">             </span><span class="c1"># 依旗標把 %al 設成 1 或 0（看哪些旗標是本題要答的）</span>
+<span class="w">	</span><span class="nf">ret</span><span class="w">                     </span><span class="c1"># 回傳 %eax</span>
+<span class="nl">lt_u:</span>
+<span class="w">	</span><span class="nf">endbr64</span>
+<span class="w">	</span><span class="nf">xorl</span><span class="w">	</span><span class="nv">%eax</span><span class="p">,</span><span class="w"> </span><span class="nv">%eax</span>
+<span class="w">	</span><span class="nf">cmpl</span><span class="w">	</span><span class="nv">%esi</span><span class="p">,</span><span class="w"> </span><span class="nv">%edi</span><span class="w">      </span><span class="c1"># 完全一樣的比較</span>
+<span class="w">	</span><span class="nf">setb</span><span class="w">	</span><span class="nv">%al</span><span class="w">             </span><span class="c1"># 依旗標把 %al 設成 1 或 0（看哪些旗標是本題要答的）</span>
+<span class="w">	</span><span class="nf">ret</span>
+</code></pre>
+<h4 id="組語-3-1-為什麼一個回傳-1一個回傳-0">組語 3-1. 為什麼一個回傳 1、一個回傳 0？</h4>
+<details class="answer-fold" open><summary>作答</summary>
+<div class="answer-box" data-file="review/2026-10-30-hello-gcc-GNU-interp-ELF-objdump-C資料-字元-陣列-組語.md" data-line="469"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+</details>
+<h4 id="組語-3-2-c-的有號還是無號在組合語言裡到底是在哪裡決定的">組語 3-2. C 的「有號還是無號」在組合語言裡到底是在哪裡決定的？</h4>
+<details class="answer-fold" open><summary>作答</summary>
+<div class="answer-box" data-file="review/2026-10-30-hello-gcc-GNU-interp-ELF-objdump-C資料-字元-陣列-組語.md" data-line="474"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+</details>
+<h3 id="組語-5-情境題從一行反組譯推回-c">組語 5. 情境題：從一行反組譯推回 C</h3>
+<blockquote>
+<p>你在 kernel 的反組譯裡看到 <code>movq 24(%rdi,%rsi,8), %rax</code>，<code>%rdi</code> 是函式的第 1 個參數、<code>%rsi</code> 是第 2 個。推測它對應的 C 可能長怎樣。</p>
+<p>盒子 3｜過去的作答：<a href="../small-project/s1-04-asm-basics/quiz.html#5-%E6%83%85%E5%A2%83%E9%A1%8C%E5%BE%9E%E4%B8%80%E8%A1%8C%E5%8F%8D%E7%B5%84%E8%AD%AF%E6%8E%A8%E5%9B%9E-c">s1-04 quiz.md 第 5 題</a>、<a href="2026-10-12-objdump-hello-ELF-%E9%99%A3%E5%88%97-%E7%B5%84%E8%AA%9E.html">10-12 複習</a>、<a href="2026-10-23-%E5%A4%A7%E8%A4%87%E7%BF%92-hello-gcc-GNU-interp-ELF-objdump-C%E8%B3%87%E6%96%99-%E5%AD%97%E5%85%83-%E9%99%A3%E5%88%97-%E7%B5%84%E8%AA%9E-%E7%B5%84%E8%AA%9E%E4%BA%8C-%E5%A4%9A%E6%AA%94.html">10-23 複習</a></p>
+</blockquote>
+<h4 id="組語-5-1-第-1-個參數最可能是指向什麼大小的元素的指標">組語 5-1. 第 1 個參數最可能是指向什麼大小的元素的指標？</h4>
+<details class="answer-fold" open><summary>作答</summary>
+<div class="answer-box" data-file="review/2026-10-30-hello-gcc-GNU-interp-ELF-objdump-C資料-字元-陣列-組語.md" data-line="485"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+</details>
+<h4 id="組語-5-2-存取的是第幾個元素用-i-表示">組語 5-2. 存取的是第幾個元素（用 <code>i</code> 表示）？</h4>
+<blockquote>
+<p>題目：<code>movq 24(%rdi,%rsi,8), %rax</code> 存取的是第幾個元素（用 <code>i</code> 表示）？</p>
+</blockquote>
+<details class="answer-fold" open><summary>作答</summary>
+<div class="answer-box" data-file="review/2026-10-30-hello-gcc-GNU-interp-ELF-objdump-C資料-字元-陣列-組語.md" data-line="492"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+</details>
+<h4 id="組語-5-3-如果同一個位置看到的是-leaq-而不是-movqc-又會是什麼">組語 5-3. 如果同一個位置看到的是 <code>leaq</code> 而不是 <code>movq</code>，C 又會是什麼？</h4>
+<blockquote>
+<p>題目：如果看到的是 <code>leaq 24(%rdi,%rsi,8), %rax</code> 而不是 <code>movq</code>，C 又會是什麼？</p>
+</blockquote>
+<details class="answer-fold" open><summary>作答</summary>
+<div class="answer-box" data-file="review/2026-10-30-hello-gcc-GNU-interp-ELF-objdump-C資料-字元-陣列-組語.md" data-line="499"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+</details>
+<h3 id="組語-18-0x01--0x7f-的進位與-cfof">組語 18. <code>0x01 + 0x7f</code> 的進位與 CF、OF</h3>
+<blockquote>
+<p>盒子 2｜過去的作答：2026-10-25 在對話裡作答（18-1 對、18-2 大致對、18-3 大致對、18-4 未作答），批改後的參考答案寫在<a href="../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80-%E6%9A%AB%E5%AD%98%E5%99%A8%E3%80%81mov%E8%88%87lea%E3%80%81cmp%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D.html#%E8%87%AA%E6%88%91%E6%B8%AC%E9%A9%97">筆記第 18 題</a>、<a href="2026-10-26-hello-GNU-interp-objdump-C%E8%B3%87%E6%96%99-%E5%AD%97%E5%85%83-%E9%99%A3%E5%88%97-%E7%B5%84%E8%AA%9E-%E7%B5%84%E8%AA%9E%E4%BA%8C-%E5%A4%9A%E6%AA%94.html">10-26 複習</a>、<a href="2026-10-27-gcc-ELF-objdump-C%E8%B3%87%E6%96%99-%E5%AD%97%E5%85%83-%E9%99%A3%E5%88%97-%E7%B5%84%E8%AA%9E-%E7%B5%84%E8%AA%9E%E4%BA%8C-%E5%A4%9A%E6%AA%94.html">10-27 複習</a></p>
+</blockquote>
+<h4 id="組語-18-1-8-位元的-0x01--0x7f計算過程中有沒有進位傳進第-7-位元最高位有沒有從第-7-位元往外進位">組語 18-1. 8 位元的 <code>0x01 + 0x7f</code>：計算過程中有沒有進位傳進第 7 位元（最高位）？有沒有從第 7 位元往外進位？</h4>
+<details class="answer-fold" open><summary>作答</summary>
+<div class="answer-box" data-file="review/2026-10-30-hello-gcc-GNU-interp-ELF-objdump-C資料-字元-陣列-組語.md" data-line="508"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+</details>
+<h4 id="組語-18-2-cfof-各是多少為什麼有進位不等於-cf--1">組語 18-2. CF、OF 各是多少，為什麼「有進位」不等於 CF = 1？</h4>
+<blockquote>
+<p>題目：（承 18-1，8 位元的 <code>0x01 + 0x7f</code>）CF、OF 各是多少，為什麼「有進位」不等於 CF = 1？</p>
+</blockquote>
+<details class="answer-fold" open><summary>作答</summary>
+<div class="answer-box" data-file="review/2026-10-30-hello-gcc-GNU-interp-ELF-objdump-C資料-字元-陣列-組語.md" data-line="515"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+</details>
+<h4 id="組語-18-3-再比較-0x05--0x03它也有進位為什麼兩個旗標都是-0">組語 18-3. 再比較 <code>0x05 + 0x03</code>：它也有進位，為什麼兩個旗標都是 0？</h4>
+<details class="answer-fold" open><summary>作答</summary>
+<div class="answer-box" data-file="review/2026-10-30-hello-gcc-GNU-interp-ELF-objdump-C資料-字元-陣列-組語.md" data-line="520"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+</details>
+<h4 id="組語-18-4-最後用進到第-7-位的進位和第-7-位往外的進位說明-0xff--0x01-的-of-為什麼是-0">組語 18-4. 最後用「進到第 7 位的進位」和「第 7 位往外的進位」說明 <code>0xff + 0x01</code> 的 OF 為什麼是 0。</h4>
+<details class="answer-fold" open><summary>作答</summary>
+<div class="answer-box" data-file="review/2026-10-30-hello-gcc-GNU-interp-ELF-objdump-C資料-字元-陣列-組語.md" data-line="525"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+</details>
+
+</main>
+</div>
+</body>
+</html>
