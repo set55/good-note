@@ -211,9 +211,12 @@ cannot find -ltxt 是ld在搜尋libtxt.a這個庫的時候,在搜尋資料夾找
 **自我練習**（不批改）
 
 ```
-一般來說.so不受順序限制,ld在看到so就會把symbol全都載入,,即使不按照順序也可以成功
-但ubuntu預設gcc加了 Wl,-as-need, 所以會去找執行檔的needed,但是這個時候按順序還沒做到執行檔,所以就不會載入libtxt.so
-導致看起來跟順序有關,其實你只要在Wl,-no-as-need加上這個,就會成功了,就算順序不變也會成功
+gcc 預設是 --as-needed 意思是,ld掃到-ltxt的時候會看自己手上的清單是否與libtxt的符號是否相符,有的話就把libtxt.so記成needed, 但是沒有所以txt就被丟掉了,然後到main.o發現找不到trim這個符號
+
+但是用--no-as-needed的話,ld督導-ltxt就直接把.so全部的符號加載進來,所以就可以正常發現trim,就可以成功
+
+重點在於命令列是下--as-needed還是--no-as-needed 
+順序只與--as-needed有關
 ```
 
 ### 3. `-fPIC`：哪個變數出問題、為什麼要 GOT

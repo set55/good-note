@@ -2,7 +2,7 @@
 """把筆記的 .md 轉成 html/ 底下的 .html（.md 是原稿，html/ 是產物）。
 
 用法：python3 tools/build_html.py
-不轉的：tools/、html/、CLAUDE.md。
+不轉的：tools/、html/，以及 CLAUDE.md 以外的根目錄 .md（CLAUDE.md 2026-10-29 起轉成 html/CLAUDE.html）。
 small-project/ 與 review/ 的作答框會變成輸入框，透過 tools/serve.py 寫回 .md。
 """
 import html
@@ -26,7 +26,8 @@ ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "html"
 SKIP_DIRS = {"tools", "html", ".git"}
 PRACTICE_DIRS = ("small-project", "review")  # 作答區，不是筆記領域
-SKIP_FILES = {"CLAUDE.md"}
+SKIP_FILES = set()
+ROOT_FILES = {"CLAUDE.md"}  # 根目錄裡也要轉的檔（規則文件）
 LANG_ALIAS = {"asm": "gas", "sh": "bash", "zsh": "bash", "jsonc": "json", "console": "console"}
 
 
@@ -34,7 +35,7 @@ def note_files():
     files = []
     for p in sorted(ROOT.rglob("*.md")):
         rel = p.relative_to(ROOT)
-        if rel.parts[0] in SKIP_DIRS or rel.as_posix() in SKIP_FILES or len(rel.parts) == 1:
+        if rel.parts[0] in SKIP_DIRS or rel.as_posix() in SKIP_FILES or (len(rel.parts) == 1 and rel.name not in ROOT_FILES):
             continue
         files.append(rel)
     return files
@@ -108,7 +109,7 @@ def rewrite_href(href, src_rel, converted, out_dir=None):
     if target_rel.as_posix() in converted:
         new = os.path.relpath(OUT / target_rel.with_suffix(".html"), out_dir)
     else:
-        # 沒轉的檔（原始碼、CLAUDE.md）：直接指回 repo 裡的原檔
+        # 沒轉的檔（原始碼等）：直接指回 repo 裡的原檔
         new = os.path.relpath(target, out_dir)
         if path.endswith("/") and not new.endswith("/"):
             new += "/"
@@ -693,6 +694,7 @@ def build_index(domains, converted, md, courses):
     practice = ('<div class="practice"><a href="learning/%E8%AA%B2%E7%A8%8B%E7%9B%AE%E9%8C%84.html">📚 課程目錄</a>'
                 '<a href="small-project/README.html">✍️ 課程練習區（small-project）</a>'
                 '<a href="review/README.html">🔁 間隔複習（review）</a>'
+                '<a href="CLAUDE.html">📜 上課與筆記規則（CLAUDE.md）</a>'
                 + (f'<a href="review/{quote(reviews[-1].stem)}.html">📅 最新複習：{html.escape(reviews[-1].stem)}</a>'
                    if reviews else "") + "</div>")
     body = ('<h1>筆記總索引</h1>' + practice +
@@ -744,7 +746,7 @@ def main():
         out.parent.mkdir(parents=True, exist_ok=True)
         out.write_text(page(title, side_nav(rel, toc, has_answers, 'class="answer-fold"' in body), body, len(rel.parts) - 1), encoding="utf-8")
 
-    missing = sorted({f.parts[0] for f in files} - set(domains) - set(PRACTICE_DIRS))
+    missing = sorted({f.parts[0] for f in files if len(f.parts) > 1} - set(domains) - set(PRACTICE_DIRS))
     if missing:
         print("警告：這些領域沒有 README.md：", missing, file=sys.stderr)
     build_index(sorted(domains), converted, md, courses)

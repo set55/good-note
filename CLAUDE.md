@@ -218,8 +218,8 @@ C／Rust，長期目標是成為 Linux kernel 維護者。路線定義在
 - `.md` 仍是**原稿**，所有新增與修改都改 `.md`；HTML 是用 `python3 tools/build_html.py` 產生到 `html/` 的閱讀版
   （首頁 `html/index.html`），**不要手改 `html/` 裡的檔案**，下次產生會被整個覆蓋。
 - 轉換範圍：各領域資料夾的筆記與 `README.md`，以及 `small-project/`、`review/` 裡的 `.md`（2026-10-18 起）、
-  `learning/學習進度.md`、`learning/複習排程.md`（2026-10-19 起，使用者要在 HTML 上點得到）。
-  不轉：`CLAUDE.md` 與原始碼；連到這些檔案時，HTML 會直接指回 repo 裡的原檔（`serve.py` 以 UTF-8 純文字送出，中文不會變亂碼）。
+  `learning/學習進度.md`、`learning/複習排程.md`（2026-10-19 起，使用者要在 HTML 上點得到），以及本檔 `CLAUDE.md`
+  （2026-10-29 起，產生 `html/CLAUDE.html`，首頁有連結）。不轉：原始碼與其他根目錄的 `.md`；連到這些檔案時，HTML 會直接指回 repo 裡的原檔（`serve.py` 以 UTF-8 純文字送出，中文不會變亂碼）。
 - 每次改完筆記或領域 `README.md`（新增、追問補充、寫參考答案、改索引）都要重跑一次腳本，並把 `html/` 的變動跟 `.md` 一起 commit
   （2026-10-18 使用者指定 `html/` 進 git，因為題目的連結都指向它）。
 - 首頁 `html/index.html` 是從各領域 `README.md` 的開頭說明與「## 筆記列表」一節產生的（含分類與三欄表格，可搜尋），
