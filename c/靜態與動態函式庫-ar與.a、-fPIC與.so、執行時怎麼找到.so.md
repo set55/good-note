@@ -975,6 +975,7 @@ gcc 的選項有上千個，完整見 `man gcc`（Link Options、Code Gen Option
 - [第 13 章](#13-連結時-ld-為什麼要找依賴的依賴-rpath-link-與--rpath作業-4-3)：連結時 `ld` 為什麼要找「依賴的依賴」：`-rpath-link` 與 `-rpath`（作業 4-3）
 - [第 14 章](#14-fflushstdout-是什麼printf-先寫進緩衝區)：`fflush(stdout)` 是什麼：`printf` 先寫進緩衝區
 - [第 15 章](#15-ld-還沒讀到-maino怎麼知道誰需要什麼未定義符號清單與---as-needed)：`ld` 還沒讀到 `main.o`，怎麼知道誰需要什麼：未定義符號清單與 `--as-needed`
+- [第 16 章](#16-got-算一頁嗎區段載入段與頁寫入時複製一次複製一頁)：`.got` 算一頁嗎：區段、載入段與頁，寫入時複製一次複製一頁
 
 ### 1. `0x2ec8` 和 `0x3fd0` 各是什麼：`mov 0x2ec8(%rip),%rax` 的兩個數字
 
@@ -1602,6 +1603,8 @@ b: pid=26625  &bump=0x757e0a65f0f9  bump() 回傳 3
 3. **GOT 那頁是 `Private_Dirty`**：核心映射 `.so` 用的是**私有映射**（`p`），一開始每頁都跟別人共用；某個行程一寫，核心才替它複製一份，叫**寫入時複製（copy-on-write，COW）**。`ld.so` 載入時要把 `&counter` 填進 GOT，一寫就複製，所以每個行程的 GOT 都是自己的。它顯示 `r--p`、跟 `.eh_frame` 的位移一樣是 `0x2000`，是因為這個載入段從 `0x3e60` 開始、跟前一段擠在同一個檔案頁；填完之後 `ld.so` 把這一頁改回唯讀，叫 **RELRO**（Relocation Read-Only，重定位後唯讀），防止之後被竄改。
 4. **`counter` 那頁也是 `Private_Dirty`**：`bump()` 寫了 `counter`，同樣被複製，所以 `a` 的 `counter` 是 1、`b` 的是 3，互不影響。
 
+> 課後討論：[第九節第 16 章〈`.got` 算一頁嗎：區段、載入段與頁，寫入時複製一次複製一頁〉](#16-got-算一頁嗎區段載入段與頁寫入時複製一次複製一頁)
+
 ```mermaid
 flowchart LR
     subgraph A["行程 a 的虛擬位址"]
@@ -1830,6 +1833,8 @@ q: 呼叫後裝 0x7fa4bf078139
 5. 第二次以後，格子裡已經是 `say` 的位址，跳板一跳就到，`ld.so` 不再出現。
 
 `ld.so` 從頭到尾只碰虛擬位址；它不知道、也不需要知道這些位址最後對到哪個實體頁。
+
+> 課後討論：[第九節第 16 章〈`.got` 算一頁嗎：區段、載入段與頁，寫入時複製一次複製一頁〉](#16-got-算一頁嗎區段載入段與頁寫入時複製一次複製一頁)
 
 ### 9. 虛擬位址怎麼變成實體位址：核心準備頁表，CPU 的 MMU 翻譯
 
@@ -2714,6 +2719,304 @@ collect2: error: ld returned 1 exit status
 | `.so`＋`--no-as-needed` | 不看清單 | 沒有，一律留下、記住定義 | 成功，但用不到也會記進 `NEEDED` |
 
 本章用到的 `nm` 選項是 `-u`（`--undefined-only`，只列未定義的）與 `--defined-only`（`-U`，只列有定義的），是 `nm --help` 36 個選項裡的 2 個，完整見 `man nm`；`ld` 的 `--as-needed`／`--no-as-needed` 在第七節的 `ld` 表裡。
+
+### 16. `.got` 算一頁嗎：區段、載入段與頁，寫入時複製一次複製一頁
+
+> 2026-10-30 課後提問（自我測驗 9-1 的自我練習時，連著問了三則）：
+>
+> - 「但是.got算一頁嗎? 我記得.got不是也是在load裏面嗎?load纔是一頁吧?」
+> - 「got存的是虛擬位址還是實體位址?」
+> - 「但是,x,y 兩個在各自got 存的 hits的也應該是虛擬位址,在尚未讀寫hits之前,這兩個hits的虛擬位址在各自的got是否相同」
+>
+> 正文出處：[第 6 章](#6-兩支程式都用-libcountso記憶體裡是同一份嗎)逐列讀的第 3 點（「GOT 那頁是 `Private_Dirty`」「跟前一段擠在同一個檔案頁」）、[第 8 章〈`ld.so` 填進格子的是什麼：這個行程裡的虛擬位址〉](#8-ldso-填進格子的是什麼這個行程裡的虛擬位址)；自我測驗第 9 題的 9-1
+
+**一句話：`.got` 是區段（幾十 byte），`LOAD` 是載入段（可以跨好幾頁），寫入時複製的單位是「頁」（4 kB）——某一頁被寫，就只複製那一整頁。GOT 裡裝的是這個行程自己的虛擬位址，`ld.so` 在 `main` 之前就寫好了，所以 GOT 那頁一開始就各自一份；寫入時複製只改頁表、讓同一個虛擬位址改對到新的實體頁，虛擬位址本身不變，「讀」則不會觸發複製。**
+
+#### 實驗用的檔案
+
+第一、二小節用自我測驗第 9 題的 `libhits.so`、`x`、`y`（檔案：[`hits.c`](../small-project/s1-07-libraries/examples/share/hits.c)、[`x.c`](../small-project/s1-07-libraries/examples/share/x.c)、[`y.c`](../small-project/s1-07-libraries/examples/share/y.c)）：
+
+```c
+/* hits.c */
+int hits = 0;
+
+int hit(void)
+{
+    hits = hits + 1;
+    return hits;
+}
+```
+```c
+/* x.c（y.c 一樣，只是迴圈跑 5 次、印 "y:"） */
+#include <stdio.h>
+#include <unistd.h>
+
+int hit(void);
+
+int main(void)
+{
+    int r = 0;
+    for (int i = 0; i < 2; i++)               /* x 呼叫 2 次 */
+        r = hit();
+    printf("x: &hit=%p  hit() 回傳 %d\n", (void *)hit, r);
+    fflush(stdout);
+    sleep(5);
+    return 0;
+}
+```
+
+```sh
+gcc -Wall -fPIC -c hits.c -o hits.pic.o && gcc -shared hits.pic.o -o libhits.so
+gcc -Wall x.c -L. -lhits -Wl,-rpath,'$ORIGIN' -o x
+gcc -Wall y.c -L. -lhits -Wl,-rpath,'$ORIGIN' -o y
+```
+
+第三小節另外做一個 `libbox.so`，放在 [`examples/cowpage/`](../small-project/s1-07-libraries/examples/cowpage/)。
+
+#### 一、三種單位：區段、載入段、頁
+
+| 單位 | 誰在用 | 大小 | `libhits.so` 的例子 |
+|---|---|---|---|
+| 區段（section） | 連結器 `ld` 分類用（`readelf -S`） | 看內容，幾 byte 到幾 MB | `.got` 只有 `0x28` ＝ 40 byte |
+| 載入段（segment，`LOAD`） | `ld.so` 照它 `mmap`，一個 `LOAD` 一種權限（`readelf -l`） | 看裡面裝了哪些區段，可以跨好幾頁 | 可寫的 `LOAD`：`0x3e60`～`0x4010` |
+| 頁（page） | 核心與 MMU 管記憶體的單位：頁表一格管一頁、權限一次設一頁 | 固定 4 kB（`0x1000`） | `0x3000`～`0x3fff`、`0x4000`～`0x4fff` |
+
+由小到大：好幾個區段打包成一個載入段（[ELF 那課第四節〈名字的關鍵：兩種視角〉](./ELF是什麼-可執行與可連結格式的兩種視角.md#四名字的關鍵兩種視角)），一個載入段再被切成一頁一頁映射進記憶體。`readelf -lW libhits.so` 與 `readelf -SW libhits.so` 的實際輸出（只留相關的列）：
+
+```text
+$ readelf -lW libhits.so
+  Type           Offset   VirtAddr           PhysAddr           FileSiz  MemSiz   Flg Align
+  LOAD           0x002e60 0x0000000000003e60 0x0000000000003e60 0x0001a8 0x0001b0 RW  0x1000
+  GNU_RELRO      0x002e60 0x0000000000003e60 0x0000000000003e60 0x0001a0 0x0001a0 R   0x1
+   03     .init_array .fini_array .dynamic .got .got.plt .data .bss
+   10     .init_array .fini_array .dynamic .got .got.plt
+$ readelf -SW libhits.so
+  [17] .got              PROGBITS        0000000000003fc0 002fc0 000028 08  WA  0   0  8
+  [18] .got.plt          PROGBITS        0000000000003fe8 002fe8 000018 08  WA  0   0  8
+  [19] .data             PROGBITS        0000000000004000 003000 000008 00  WA  0   0  8
+  [20] .bss              NOBITS          0000000000004008 003008 000008 00  WA  0   0  4
+```
+
+可寫的 `LOAD` 從 `0x3e60` 開始、`MemSiz` 是 `0x1b0`，結束在 `0x4010`，**跨過 `0x4000` 這條頁的邊界，所以佔兩頁**：
+
+```text
+圖一：libhits.so 可寫的 LOAD 怎麼落在頁上（位址是檔案裡的位置，執行時再加基底）
+
+               一個 LOAD（RW）：0x3e60 ～ 0x4010
+        ┌──────────────── 頁 0x3000 ────────────────┐┌────────── 頁 0x4000 ──────────┐
+        │ (空) │.init_array│.fini_array│.dynamic│.got│.got.plt││.data│.bss(hits)│  (空)  │
+        └───────────────────────────────────────────┘└───────────────────────────────┘
+          0x3000  0x3e60                       0x3fc0 0x3fe8 0x4000  0x4008      0x4010
+          ▲ 整頁都在 GNU_RELRO 範圍（0x3e60～0x4000）       ▲ 一直是可寫
+          ① ld.so 載入時寫 GOT → 這頁被複製                  ② hit() 寫 hits → 這頁被複製
+          ③ 填完用 mprotect 改成唯讀
+```
+
+執行時這一個 `LOAD` 在 `/proc/<pid>/maps` 也確實變成**兩列**（本機跑 `./x` 時，`libhits.so` 的最後兩列）：
+
+```text
+75db55a70000-75db55a71000 r--p 00002000 ...  libhits.so   ← 頁 0x3000：.got 那頁（RELRO 後唯讀）
+75db55a71000-75db55a72000 rw-p 00003000 ...  libhits.so   ← 頁 0x4000：.data／.bss
+```
+
+這張圖要看三件事：
+
+1. **`.got` 不是一頁，是一頁裡的 40 byte**。`ld.so` 只往 `.got` 寫了幾個 8 byte 的位址，核心就把 `.got` 所在的**整個 `0x3000` 頁**複製一份；同一頁的 `.dynamic`、`.got.plt` 也跟著成了各自一份。所以「`.got` 各自一份」精確的說法是「`.got` 所在的那頁各自一份」。
+2. **`LOAD` 也不是一頁**。同一個 `LOAD` 的兩頁可以一頁被複製、一頁沒有：某個行程要是從來沒呼叫 `hit()`，`0x4000` 那頁就沒人寫，照樣跟別的行程共用。判斷共不共用，看的是**那一頁**有沒有被寫，不是看整個 `LOAD`。
+3. **`ld` 故意讓 RELRO 範圍剛好結束在頁的邊界**：`0x3e60 ＋ 0x1a0 ＝ 0x4000`。這個 `LOAD` 不從 `0x3000` 開始、而是從 `0x3e60` 開始，就是為了把它往後推、讓 `.got.plt` 的結尾對齊 `0x4000`。原因是權限一次只能設一整頁（`mprotect` 以頁為單位），GOT 那頁要改成唯讀，又不能連 `.data`／`.bss` 一起鎖住，兩邊只好分在不同頁。這也是第 6 章 `smaps` 裡 GOT 那頁顯示 `r--p`、而且跟 `.eh_frame` 一樣是位移 `0x2000` 的原因：檔案裡 `0x2e60` 起的內容跟 `.eh_frame` 擠在同一個檔案頁。
+
+#### 二、GOT 裡裝的是虛擬位址，讀寫 `hits` 之前兩邊一樣嗎？
+
+GOT 裡裝的是**這個行程自己的虛擬位址**（第 8 章）。程式拿到的每個位址都是虛擬位址——指標、`%rip`、GOT 那格的值都一樣；CPU 每次用它存取記憶體，都由 MMU 照這個行程的頁表翻成實體位址（第 9 章）。要是 GOT 裝的是實體位址，MMU 會把它再翻一次，讀到錯的地方；何況寫 GOT 的 `ld.so` 本身是普通程式，根本拿不到實體位址（第 9 章的 `pfn.c`）。
+
+那麼兩個行程 GOT 裡 `hits` 那格的數字一樣嗎？讓程式停在 `main`——這時 `hit()` 一次都還沒被呼叫，`hits` 沒被讀寫過——用 gdb 直接讀 `libhits.so` 的 GOT 那格。那格在檔案裡是 `0x3fc8`（`readelf -rW libhits.so` 的 `0000000000003fc8 ... R_X86_64_GLOB_DAT ... hits + 0`），`hits` 在檔案裡是 `0x400c`（`nm -D libhits.so` 的 `000000000000400c B hits`），所以「那格的位址 ＝ `&hits` − `0x400c` ＋ `0x3fc8`」：
+
+```sh
+# 開著 ASLR（gdb 預設會關掉，要用 set disable-randomization off 打開）
+for p in x y; do
+  gdb -q -batch -ex 'set disable-randomization off' -ex 'break main' -ex run \
+      -ex 'info sharedlibrary libhits' \
+      -ex 'p/x *(long*)((char*)&hits - 0x400c + 0x3fc8)' ./$p
+done
+# 關掉 ASLR
+for p in x y; do
+  setarch -R gdb -q -batch -ex 'break main' -ex run \
+      -ex 'p/x *(long*)((char*)&hits - 0x400c + 0x3fc8)' ./$p
+done
+```
+
+`info sharedlibrary` 印的是 `.text` 的起訖（`From`／`To`），`.text` 在檔案裡從 `0x1040` 開始，所以基底 ＝ `From` − `0x1040`。實際輸出（只留需要的列，旁邊的計算是我加的）：
+
+```text
+開著 ASLR：
+x：From 0x000079dcd674c040 → 基底 0x79dcd674b000；GOT 那格 = 0x79dcd674f00c  (= 基底 + 0x400c)
+y：From 0x0000705d93462040 → 基底 0x705d93461000；GOT 那格 = 0x705d9346500c  (= 基底 + 0x400c)
+
+setarch -R（關掉 ASLR）：
+x：GOT 那格 = 0x7ffff7fba00c
+y：GOT 那格 = 0x7ffff7fba00c
+```
+
+逐列讀：
+
+1. **開著 ASLR，兩邊不同**：數字都是「這個行程裡 `libhits.so` 的基底 ＋ `0x400c`」。基底是核心 `mmap` 這個 `.so` 時選的，每個行程都不一樣，所以填進去的數字不一樣。
+2. **跟有沒有讀寫過 `hits` 無關**：這時還在 `main` 開頭，`hits` 從沒被碰過，GOT 那格就已經填好了——`ld.so` 在跳進 `main` 之前處理完所有 `R_X86_64_GLOB_DAT`（變數沒有延遲綁定，第 4 章）。之後讀寫 `hits`、發生寫入時複製，這個數字都不會變（下一小節）。
+3. **關掉 ASLR，兩邊數字一樣，但仍然是兩個位址空間**：同一個虛擬位址 `0x7ffff7fba00c`，在 `x` 照 `x` 的頁表翻、在 `y` 照 `y` 的頁表翻。數字一樣不代表同一個實體頁（自我測驗 10-4 的 gdb 情境就是這件事）；而 GOT 那頁不論數字一不一樣，都被 `ld.so` 寫過，照樣各自一份。
+
+所以要分清兩件事：**「GOT 那頁各自一份」是因為 `ld.so` 寫了它；「GOT 裡的數字不同」是因為各行程的基底不同。**
+
+#### 三、實測：讀不會複製，寫才會；複製之後虛擬位址不變
+
+要看「某一頁有沒有被複製」，可以讀 `/proc/self/pagemap`（第 9 章介紹過，每個虛擬頁一筆 8 byte 的紀錄）。沒有 root 時實體頁框號會被遮成 0，但另外兩個位元照樣看得到：
+
+| 位元 | 意思（`man 5 proc` 的 `/proc/pid/pagemap`） |
+|---|---|
+| 63 | 這頁在不在記憶體（present） |
+| 61 | 這頁對到的是**檔案的頁**（page cache，也就是大家共用的那份）；是 0 就是這個行程自己的匿名頁，被複製出來的頁就是這種 |
+
+為了讓「`v` 那一頁」只裝 `v`、不跟 `.bss` 或其他會在載入時被寫的東西擠在一起，`box.c` 把 `v` 對齊到一整頁，後面用 `pad` 填滿。`box.c`（檔案：[`box.c`](../small-project/s1-07-libraries/examples/cowpage/box.c)）完整原始碼：
+
+```c
+/* box.c：做成 libbox.so。v 對齊到一整頁，那一頁只有它和 pad，沒有 .bss */
+int v __attribute__((aligned(4096))) = 7;
+char pad[4096 - sizeof(int)] = {1};
+
+int  peek(void) { return v; }       /* 只讀 v */
+void poke(void) { v = v + 1; }      /* 寫 v */
+int *where(void) { return &v; }
+```
+
+`cow.c`（檔案：[`cow.c`](../small-project/s1-07-libraries/examples/cowpage/cow.c)）在三個時間點印出 `libbox.so` 三頁的狀態：`.text`（`peek` 所在）、`.got`（用 `dl_iterate_phdr` 找到 `libbox.so` 的基底與 `GNU_RELRO` 的位置相加）、`v` 所在的頁。完整原始碼：
+
+```c
+/* cow.c：用 /proc/self/pagemap 看 libbox.so 的三頁——.text、.got（RELRO）、v——
+   在「讀 v」和「寫 v」之後各是什麼狀態 */
+#define _GNU_SOURCE
+#include <stdio.h>
+#include <stdint.h>
+#include <string.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <link.h>
+
+int  peek(void);
+void poke(void);
+int *where(void);
+
+static uintptr_t got_page;                            /* libbox.so 的 GNU_RELRO 那頁（.got 在裡面） */
+
+static int find_relro(struct dl_phdr_info *info, size_t size, void *data)
+{
+    (void)size; (void)data;
+    if (!strstr(info->dlpi_name, "libbox.so"))
+        return 0;
+    for (int i = 0; i < info->dlpi_phnum; i++)
+        if (info->dlpi_phdr[i].p_type == PT_GNU_RELRO) /* 基底 ＋ RELRO 在檔案裡的位置 */
+            got_page = info->dlpi_addr + info->dlpi_phdr[i].p_vaddr;
+    return 1;
+}
+
+static void page(const char *name, uintptr_t va)
+{
+    uint64_t e = 0;
+    int fd = open("/proc/self/pagemap", O_RDONLY);    /* 每個虛擬頁一筆 8 byte 的紀錄 */
+
+    pread(fd, &e, sizeof e, (va / 4096) * 8);
+    close(fd);
+    printf("  %-6s 虛擬頁 %#lx  在記憶體=%d  對到檔案的頁=%d\n", name,
+           (unsigned long)(va & ~4095UL),
+           (int)(e >> 63 & 1),                       /* 第 63 位元：這頁在不在記憶體 */
+           (int)(e >> 61 & 1));                      /* 第 61 位元：對到檔案的頁（page cache）；0 是自己的匿名頁 */
+}
+
+static void show(const char *when)
+{
+    printf("%s\n", when);
+    page(".text", (uintptr_t)peek);
+    page(".got", got_page);
+    page("v", (uintptr_t)where());
+}
+
+int main(void)
+{
+    dl_iterate_phdr(find_relro, NULL);
+    show("[剛進 main]");
+    printf("peek() = %d\n", peek());
+    show("[讀過 v]");
+    poke();
+    show("[寫過 v]");
+    printf("peek() = %d\n", peek());
+    return 0;
+}
+```
+
+`dl_iterate_phdr` 是 glibc 的函式（`man 3 dl_iterate_phdr`），對每個已載入的檔案呼叫一次回呼，給它檔名（`dlpi_name`）、基底（`dlpi_addr`）和程式標頭表（`dlpi_phdr`），也就是 `readelf -l` 看到的那張表。編譯與執行：
+
+```sh
+gcc -Wall -fPIC -shared box.c -o libbox.so
+gcc -Wall cow.c -L. -lbox -Wl,-rpath,'$ORIGIN' -o cow
+./cow
+```
+
+本機輸出：
+
+```text
+[剛進 main]
+  .text  虛擬頁 0x73f97ef00000  在記憶體=1  對到檔案的頁=1
+  .got   虛擬頁 0x73f97ef02000  在記憶體=1  對到檔案的頁=0
+  v      虛擬頁 0x73f97ef04000  在記憶體=1  對到檔案的頁=1
+peek() = 7
+[讀過 v]
+  .text  虛擬頁 0x73f97ef00000  在記憶體=1  對到檔案的頁=1
+  .got   虛擬頁 0x73f97ef02000  在記憶體=1  對到檔案的頁=0
+  v      虛擬頁 0x73f97ef04000  在記憶體=1  對到檔案的頁=1
+[寫過 v]
+  .text  虛擬頁 0x73f97ef00000  在記憶體=1  對到檔案的頁=1
+  .got   虛擬頁 0x73f97ef02000  在記憶體=1  對到檔案的頁=0
+  v      虛擬頁 0x73f97ef04000  在記憶體=1  對到檔案的頁=0
+peek() = 8
+```
+
+（三頁的位置可以對回 `readelf`：`.text` 那頁 `0x…00000` 是基底 ＋ `0x1000`，所以基底是 `0x73f97eeff000`；`GNU_RELRO` 從 `0x3e60` 開始，落在基底 ＋ `0x3000` 那頁 `0x…02000`；`nm -D libbox.so` 的 `0000000000005000 D v`，在基底 ＋ `0x5000` ＝ `0x…04000`。）
+
+逐列讀：
+
+1. **`.got` 那頁一進 `main` 就是 0（自己的匿名頁）**：還沒讀寫過 `v`，GOT 已經被複製了——`ld.so` 在 `main` 之前把 `&v` 寫進 GOT（`R_X86_64_GLOB_DAT`），一寫就複製。這就是 9-1 要寫的「`.got` 被 `ld.so` 載入時寫」。
+2. **`v` 那頁讀過之後還是 1（還是檔案的頁）**：`peek()` 只讀 `v`，**讀不會觸發複製**，這個行程看的仍是大家共用的那份。`peek()` 讀 `v` 時還要先讀 GOT 那格拿到 `&v`，那也只是讀，GOT 那頁之所以是 0，跟這次讀無關。（「剛進 `main`」時 `v` 那頁就已經在記憶體，是核心處理附近的分頁錯誤時順便把鄰近的檔案頁一起映射進來，跟寫入時複製無關。）
+3. **`v` 那頁寫過之後變成 0，但虛擬頁還是 `0x73f97ef04000`**：`poke()` 一寫，核心替這個行程複製一頁、改頁表，讓**同一個虛擬位址**改對到新的實體頁。虛擬位址沒變，所以 GOT 那格（裝的是 `&v`）也不必改；`peek()` 之後讀到的 8 是新那頁的內容。
+4. **`.text` 從頭到尾都是 1**：沒有人寫程式碼，它一直對到檔案的頁，也就是所有行程共用的那份。
+
+寫入時複製一步一步發生的事（對應第 3 點；`v` 那頁是私有映射、權限 `rw-p`，但核心一開始在頁表裡把它設成唯讀，就是為了攔下第一次寫）：
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant P as poke()
+    participant M as CPU 的 MMU
+    participant K as 核心
+    participant T as 這個行程的頁表
+    P->>M: 寫 v（虛擬位址 0x73f97ef04000）
+    M->>T: 查這一頁：對到檔案的頁、頁表標成唯讀
+    M->>K: 權限不符，觸發分頁錯誤（page fault）
+    K->>K: 映射是私有、可寫 → 寫入時複製<br/>配一個新實體頁，把舊頁的 4 kB 整頁複製過去
+    K->>T: 這個虛擬頁改指向新實體頁，標成可寫
+    K->>P: 回到原本那條指令重新執行
+    P->>M: 再寫一次 v，這次寫進新實體頁
+```
+
+這張圖要看的是：**複製的是一整頁、改的是頁表、虛擬位址從頭到尾沒變**。別的行程的頁表沒動，仍然指著檔案那份，所以看不到這次的寫入。
+
+#### 整理
+
+| 問題 | 答案 | 證據 |
+|---|---|---|
+| `.got` 算一頁嗎？`LOAD` 才是一頁嗎？ | 都不是：`.got` 是區段（40 byte），`LOAD` 可以跨好幾頁；複製的單位是頁（4 kB） | `libhits.so` 可寫的 `LOAD` 是 `0x3e60`～`0x4010`、在 `maps` 是兩列 |
+| GOT 裡是虛擬還是實體位址？ | 這個行程自己的虛擬位址 | gdb 讀到「基底 ＋ `0x400c`」 |
+| 讀寫 `hits` 之前，兩邊 GOT 的數字一樣嗎？ | 開 ASLR 不同（基底不同）；關 ASLR 相同，但還是兩個位址空間；都跟有沒有讀寫過無關 | `0x…f00c` vs `0x…500c`；`setarch -R` 兩邊都是 `0x7ffff7fba00c` |
+| 讀會觸發複製嗎？ | 不會，只有寫會 | `peek()` 之後 `v` 那頁還是檔案的頁 |
+| 複製之後虛擬位址會變嗎？ | 不會，只改頁表 | `poke()` 前後 `v` 都在 `0x73f97ef04000` |
+
+本章用到的新東西：`/proc/self/pagemap` 的第 61、63 位元（其餘位元見 `man 5 proc`）、glibc 的 `dl_iterate_phdr`（`man 3 dl_iterate_phdr`）、`setarch -R`（`--addr-no-randomize`，關掉這次執行的 ASLR，是 `setarch --help` 裡的一個選項，完整見 `man setarch`）、gdb 的 `set disable-randomization off` 與 `info sharedlibrary`（gdb 的分類與查法見 [`gdb完整命令參考.md`](./gdb完整命令參考.md)）。
 
 ---
 

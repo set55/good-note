@@ -62,6 +62,7 @@
 <li class="l3"><a href="#13-%E9%80%A3%E7%B5%90%E6%99%82-ld-%E7%82%BA%E4%BB%80%E9%BA%BC%E8%A6%81%E6%89%BE%E4%BE%9D%E8%B3%B4%E7%9A%84%E4%BE%9D%E8%B3%B4-rpath-link-%E8%88%87--rpath%E4%BD%9C%E6%A5%AD-4-3">13. 連結時 ld 為什麼要找「依賴的依賴」：-rpath-link 與 -rpath（作業 4-3）</a></li>
 <li class="l3"><a href="#14-fflushstdout-%E6%98%AF%E4%BB%80%E9%BA%BCprintf-%E5%85%88%E5%AF%AB%E9%80%B2%E7%B7%A9%E8%A1%9D%E5%8D%80">14. fflush(stdout) 是什麼：printf 先寫進緩衝區</a></li>
 <li class="l3"><a href="#15-ld-%E9%82%84%E6%B2%92%E8%AE%80%E5%88%B0-maino%E6%80%8E%E9%BA%BC%E7%9F%A5%E9%81%93%E8%AA%B0%E9%9C%80%E8%A6%81%E4%BB%80%E9%BA%BC%E6%9C%AA%E5%AE%9A%E7%BE%A9%E7%AC%A6%E8%99%9F%E6%B8%85%E5%96%AE%E8%88%87---as-needed">15. ld 還沒讀到 main.o，怎麼知道誰需要什麼：未定義符號清單與 --as-needed</a></li>
+<li class="l3"><a href="#16-got-%E7%AE%97%E4%B8%80%E9%A0%81%E5%97%8E%E5%8D%80%E6%AE%B5%E8%BC%89%E5%85%A5%E6%AE%B5%E8%88%87%E9%A0%81%E5%AF%AB%E5%85%A5%E6%99%82%E8%A4%87%E8%A3%BD%E4%B8%80%E6%AC%A1%E8%A4%87%E8%A3%BD%E4%B8%80%E9%A0%81">16. .got 算一頁嗎：區段、載入段與頁，寫入時複製一次複製一頁</a></li>
 <li class="l2"><a href="#%E8%87%AA%E6%88%91%E6%B8%AC%E9%A9%97">自我測驗</a></li>
 </ul>
 </nav>
@@ -1263,6 +1264,7 @@ $ rm libcalc.so &amp;&amp; ./app                     # 刪掉連結名稱
 <li><a href="#13-%E9%80%A3%E7%B5%90%E6%99%82-ld-%E7%82%BA%E4%BB%80%E9%BA%BC%E8%A6%81%E6%89%BE%E4%BE%9D%E8%B3%B4%E7%9A%84%E4%BE%9D%E8%B3%B4-rpath-link-%E8%88%87--rpath%E4%BD%9C%E6%A5%AD-4-3">第 13 章</a>：連結時 <code>ld</code> 為什麼要找「依賴的依賴」：<code>-rpath-link</code> 與 <code>-rpath</code>（作業 4-3）</li>
 <li><a href="#14-fflushstdout-%E6%98%AF%E4%BB%80%E9%BA%BCprintf-%E5%85%88%E5%AF%AB%E9%80%B2%E7%B7%A9%E8%A1%9D%E5%8D%80">第 14 章</a>：<code>fflush(stdout)</code> 是什麼：<code>printf</code> 先寫進緩衝區</li>
 <li><a href="#15-ld-%E9%82%84%E6%B2%92%E8%AE%80%E5%88%B0-maino%E6%80%8E%E9%BA%BC%E7%9F%A5%E9%81%93%E8%AA%B0%E9%9C%80%E8%A6%81%E4%BB%80%E9%BA%BC%E6%9C%AA%E5%AE%9A%E7%BE%A9%E7%AC%A6%E8%99%9F%E6%B8%85%E5%96%AE%E8%88%87---as-needed">第 15 章</a>：<code>ld</code> 還沒讀到 <code>main.o</code>，怎麼知道誰需要什麼：未定義符號清單與 <code>--as-needed</code></li>
+<li><a href="#16-got-%E7%AE%97%E4%B8%80%E9%A0%81%E5%97%8E%E5%8D%80%E6%AE%B5%E8%BC%89%E5%85%A5%E6%AE%B5%E8%88%87%E9%A0%81%E5%AF%AB%E5%85%A5%E6%99%82%E8%A4%87%E8%A3%BD%E4%B8%80%E6%AC%A1%E8%A4%87%E8%A3%BD%E4%B8%80%E9%A0%81">第 16 章</a>：<code>.got</code> 算一頁嗎：區段、載入段與頁，寫入時複製一次複製一頁</li>
 </ul>
 <h3 id="1-0x2ec8-和-0x3fd0-各是什麼mov-0x2ec8riprax-的兩個數字">1. <code>0x2ec8</code> 和 <code>0x3fd0</code> 各是什麼：<code>mov 0x2ec8(%rip),%rax</code> 的兩個數字</h3>
 <blockquote>
@@ -1940,6 +1942,9 @@ b: pid=26625  &amp;bump=0x757e0a65f0f9  bump() 回傳 3
 <li><strong>GOT 那頁是 <code>Private_Dirty</code></strong>：核心映射 <code>.so</code> 用的是<strong>私有映射</strong>（<code>p</code>），一開始每頁都跟別人共用；某個行程一寫，核心才替它複製一份，叫<strong>寫入時複製（copy-on-write，COW）</strong>。<code>ld.so</code> 載入時要把 <code>&amp;counter</code> 填進 GOT，一寫就複製，所以每個行程的 GOT 都是自己的。它顯示 <code>r--p</code>、跟 <code>.eh_frame</code> 的位移一樣是 <code>0x2000</code>，是因為這個載入段從 <code>0x3e60</code> 開始、跟前一段擠在同一個檔案頁；填完之後 <code>ld.so</code> 把這一頁改回唯讀，叫 <strong>RELRO</strong>（Relocation Read-Only，重定位後唯讀），防止之後被竄改。</li>
 <li><strong><code>counter</code> 那頁也是 <code>Private_Dirty</code></strong>：<code>bump()</code> 寫了 <code>counter</code>，同樣被複製，所以 <code>a</code> 的 <code>counter</code> 是 1、<code>b</code> 的是 3，互不影響。</li>
 </ol>
+<blockquote>
+<p>課後討論：<a href="#16-got-%E7%AE%97%E4%B8%80%E9%A0%81%E5%97%8E%E5%8D%80%E6%AE%B5%E8%BC%89%E5%85%A5%E6%AE%B5%E8%88%87%E9%A0%81%E5%AF%AB%E5%85%A5%E6%99%82%E8%A4%87%E8%A3%BD%E4%B8%80%E6%AC%A1%E8%A4%87%E8%A3%BD%E4%B8%80%E9%A0%81">第九節第 16 章〈<code>.got</code> 算一頁嗎：區段、載入段與頁，寫入時複製一次複製一頁〉</a></p>
+</blockquote>
 <pre class="mermaid">flowchart LR
     subgraph A[&quot;行程 a 的虛擬位址&quot;]
         direction TB
@@ -2160,6 +2165,9 @@ q: 呼叫後裝 0x7fa4bf078139
 <li>第二次以後，格子裡已經是 <code>say</code> 的位址，跳板一跳就到，<code>ld.so</code> 不再出現。</li>
 </ol>
 <p><code>ld.so</code> 從頭到尾只碰虛擬位址；它不知道、也不需要知道這些位址最後對到哪個實體頁。</p>
+<blockquote>
+<p>課後討論：<a href="#16-got-%E7%AE%97%E4%B8%80%E9%A0%81%E5%97%8E%E5%8D%80%E6%AE%B5%E8%BC%89%E5%85%A5%E6%AE%B5%E8%88%87%E9%A0%81%E5%AF%AB%E5%85%A5%E6%99%82%E8%A4%87%E8%A3%BD%E4%B8%80%E6%AC%A1%E8%A4%87%E8%A3%BD%E4%B8%80%E9%A0%81">第九節第 16 章〈<code>.got</code> 算一頁嗎：區段、載入段與頁，寫入時複製一次複製一頁〉</a></p>
+</blockquote>
 <h3 id="9-虛擬位址怎麼變成實體位址核心準備頁表cpu-的-mmu-翻譯">9. 虛擬位址怎麼變成實體位址：核心準備頁表，CPU 的 MMU 翻譯</h3>
 <blockquote>
 <p>2026-10-26 課後提問：「那這樣說的話我們在gdb看到的是否都是虛擬記憶體位址,並不是真實的?」（另外問：虛擬位址轉成實體位址「這個轉換由kernel或是cpu來做?」）</p>
@@ -3142,6 +3150,320 @@ collect2: error: ld returned 1 exit status
 </tbody>
 </table>
 <p>本章用到的 <code>nm</code> 選項是 <code>-u</code>（<code>--undefined-only</code>，只列未定義的）與 <code>--defined-only</code>（<code>-U</code>，只列有定義的），是 <code>nm --help</code> 36 個選項裡的 2 個，完整見 <code>man nm</code>；<code>ld</code> 的 <code>--as-needed</code>／<code>--no-as-needed</code> 在第七節的 <code>ld</code> 表裡。</p>
+<h3 id="16-got-算一頁嗎區段載入段與頁寫入時複製一次複製一頁">16. <code>.got</code> 算一頁嗎：區段、載入段與頁，寫入時複製一次複製一頁</h3>
+<blockquote>
+<p>2026-10-30 課後提問（自我測驗 9-1 的自我練習時，連著問了三則）：</p>
+<ul>
+<li>「但是.got算一頁嗎? 我記得.got不是也是在load裏面嗎?load纔是一頁吧?」</li>
+<li>「got存的是虛擬位址還是實體位址?」</li>
+<li>「但是,x,y 兩個在各自got 存的 hits的也應該是虛擬位址,在尚未讀寫hits之前,這兩個hits的虛擬位址在各自的got是否相同」</li>
+</ul>
+<p>正文出處：<a href="#6-%E5%85%A9%E6%94%AF%E7%A8%8B%E5%BC%8F%E9%83%BD%E7%94%A8-libcountso%E8%A8%98%E6%86%B6%E9%AB%94%E8%A3%A1%E6%98%AF%E5%90%8C%E4%B8%80%E4%BB%BD%E5%97%8E">第 6 章</a>逐列讀的第 3 點（「GOT 那頁是 <code>Private_Dirty</code>」「跟前一段擠在同一個檔案頁」）、<a href="#8-ldso-%E5%A1%AB%E9%80%B2%E6%A0%BC%E5%AD%90%E7%9A%84%E6%98%AF%E4%BB%80%E9%BA%BC%E9%80%99%E5%80%8B%E8%A1%8C%E7%A8%8B%E8%A3%A1%E7%9A%84%E8%99%9B%E6%93%AC%E4%BD%8D%E5%9D%80">第 8 章〈<code>ld.so</code> 填進格子的是什麼：這個行程裡的虛擬位址〉</a>；自我測驗第 9 題的 9-1</p>
+</blockquote>
+<p><strong>一句話：<code>.got</code> 是區段（幾十 byte），<code>LOAD</code> 是載入段（可以跨好幾頁），寫入時複製的單位是「頁」（4 kB）——某一頁被寫，就只複製那一整頁。GOT 裡裝的是這個行程自己的虛擬位址，<code>ld.so</code> 在 <code>main</code> 之前就寫好了，所以 GOT 那頁一開始就各自一份；寫入時複製只改頁表、讓同一個虛擬位址改對到新的實體頁，虛擬位址本身不變，「讀」則不會觸發複製。</strong></p>
+<h4 id="實驗用的檔案-3">實驗用的檔案</h4>
+<p>第一、二小節用自我測驗第 9 題的 <code>libhits.so</code>、<code>x</code>、<code>y</code>（檔案：<a href="../../small-project/s1-07-libraries/examples/share/hits.c"><code>hits.c</code></a>、<a href="../../small-project/s1-07-libraries/examples/share/x.c"><code>x.c</code></a>、<a href="../../small-project/s1-07-libraries/examples/share/y.c"><code>y.c</code></a>）：</p>
+<pre><code class="language-c"><span class="cm">/* hits.c */</span>
+<span class="kt">int</span><span class="w"> </span><span class="n">hits</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">hit</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">hits</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">hits</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">hits</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<pre><code class="language-c"><span class="cm">/* x.c（y.c 一樣，只是迴圈跑 5 次、印 &quot;y:&quot;） */</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;unistd.h&gt;</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">hit</span><span class="p">(</span><span class="kt">void</span><span class="p">);</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">r</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">2</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="o">++</span><span class="p">)</span><span class="w">               </span><span class="cm">/* x 呼叫 2 次 */</span>
+<span class="w">        </span><span class="n">r</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">hit</span><span class="p">();</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;x: &amp;hit=%p  hit() 回傳 %d</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="kt">void</span><span class="w"> </span><span class="o">*</span><span class="p">)</span><span class="n">hit</span><span class="p">,</span><span class="w"> </span><span class="n">r</span><span class="p">);</span>
+<span class="w">    </span><span class="n">fflush</span><span class="p">(</span><span class="n">stdout</span><span class="p">);</span>
+<span class="w">    </span><span class="n">sleep</span><span class="p">(</span><span class="mi">5</span><span class="p">);</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<pre><code class="language-sh">gcc<span class="w"> </span>-Wall<span class="w"> </span>-fPIC<span class="w"> </span>-c<span class="w"> </span>hits.c<span class="w"> </span>-o<span class="w"> </span>hits.pic.o<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>gcc<span class="w"> </span>-shared<span class="w"> </span>hits.pic.o<span class="w"> </span>-o<span class="w"> </span>libhits.so
+gcc<span class="w"> </span>-Wall<span class="w"> </span>x.c<span class="w"> </span>-L.<span class="w"> </span>-lhits<span class="w"> </span>-Wl,-rpath,<span class="s1">&#39;$ORIGIN&#39;</span><span class="w"> </span>-o<span class="w"> </span>x
+gcc<span class="w"> </span>-Wall<span class="w"> </span>y.c<span class="w"> </span>-L.<span class="w"> </span>-lhits<span class="w"> </span>-Wl,-rpath,<span class="s1">&#39;$ORIGIN&#39;</span><span class="w"> </span>-o<span class="w"> </span>y
+</code></pre>
+<p>第三小節另外做一個 <code>libbox.so</code>，放在 <a href="../../small-project/s1-07-libraries/examples/cowpage/"><code>examples/cowpage/</code></a>。</p>
+<h4 id="一三種單位區段載入段頁">一、三種單位：區段、載入段、頁</h4>
+<table>
+<thead>
+<tr>
+<th>單位</th>
+<th>誰在用</th>
+<th>大小</th>
+<th><code>libhits.so</code> 的例子</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>區段（section）</td>
+<td>連結器 <code>ld</code> 分類用（<code>readelf -S</code>）</td>
+<td>看內容，幾 byte 到幾 MB</td>
+<td><code>.got</code> 只有 <code>0x28</code> ＝ 40 byte</td>
+</tr>
+<tr>
+<td>載入段（segment，<code>LOAD</code>）</td>
+<td><code>ld.so</code> 照它 <code>mmap</code>，一個 <code>LOAD</code> 一種權限（<code>readelf -l</code>）</td>
+<td>看裡面裝了哪些區段，可以跨好幾頁</td>
+<td>可寫的 <code>LOAD</code>：<code>0x3e60</code>～<code>0x4010</code></td>
+</tr>
+<tr>
+<td>頁（page）</td>
+<td>核心與 MMU 管記憶體的單位：頁表一格管一頁、權限一次設一頁</td>
+<td>固定 4 kB（<code>0x1000</code>）</td>
+<td><code>0x3000</code>～<code>0x3fff</code>、<code>0x4000</code>～<code>0x4fff</code></td>
+</tr>
+</tbody>
+</table>
+<p>由小到大：好幾個區段打包成一個載入段（<a href="ELF%E6%98%AF%E4%BB%80%E9%BA%BC-%E5%8F%AF%E5%9F%B7%E8%A1%8C%E8%88%87%E5%8F%AF%E9%80%A3%E7%B5%90%E6%A0%BC%E5%BC%8F%E7%9A%84%E5%85%A9%E7%A8%AE%E8%A6%96%E8%A7%92.html#%E5%9B%9B%E5%90%8D%E5%AD%97%E7%9A%84%E9%97%9C%E9%8D%B5%E5%85%A9%E7%A8%AE%E8%A6%96%E8%A7%92">ELF 那課第四節〈名字的關鍵：兩種視角〉</a>），一個載入段再被切成一頁一頁映射進記憶體。<code>readelf -lW libhits.so</code> 與 <code>readelf -SW libhits.so</code> 的實際輸出（只留相關的列）：</p>
+<pre><code class="language-text">$ readelf -lW libhits.so
+  Type           Offset   VirtAddr           PhysAddr           FileSiz  MemSiz   Flg Align
+  LOAD           0x002e60 0x0000000000003e60 0x0000000000003e60 0x0001a8 0x0001b0 RW  0x1000
+  GNU_RELRO      0x002e60 0x0000000000003e60 0x0000000000003e60 0x0001a0 0x0001a0 R   0x1
+   03     .init_array .fini_array .dynamic .got .got.plt .data .bss
+   10     .init_array .fini_array .dynamic .got .got.plt
+$ readelf -SW libhits.so
+  [17] .got              PROGBITS        0000000000003fc0 002fc0 000028 08  WA  0   0  8
+  [18] .got.plt          PROGBITS        0000000000003fe8 002fe8 000018 08  WA  0   0  8
+  [19] .data             PROGBITS        0000000000004000 003000 000008 00  WA  0   0  8
+  [20] .bss              NOBITS          0000000000004008 003008 000008 00  WA  0   0  4
+</code></pre>
+<p>可寫的 <code>LOAD</code> 從 <code>0x3e60</code> 開始、<code>MemSiz</code> 是 <code>0x1b0</code>，結束在 <code>0x4010</code>，<strong>跨過 <code>0x4000</code> 這條頁的邊界，所以佔兩頁</strong>：</p>
+<pre><code class="language-text">圖一：libhits.so 可寫的 LOAD 怎麼落在頁上（位址是檔案裡的位置，執行時再加基底）
+
+               一個 LOAD（RW）：0x3e60 ～ 0x4010
+        ┌──────────────── 頁 0x3000 ────────────────┐┌────────── 頁 0x4000 ──────────┐
+        │ (空) │.init_array│.fini_array│.dynamic│.got│.got.plt││.data│.bss(hits)│  (空)  │
+        └───────────────────────────────────────────┘└───────────────────────────────┘
+          0x3000  0x3e60                       0x3fc0 0x3fe8 0x4000  0x4008      0x4010
+          ▲ 整頁都在 GNU_RELRO 範圍（0x3e60～0x4000）       ▲ 一直是可寫
+          ① ld.so 載入時寫 GOT → 這頁被複製                  ② hit() 寫 hits → 這頁被複製
+          ③ 填完用 mprotect 改成唯讀
+</code></pre>
+<p>執行時這一個 <code>LOAD</code> 在 <code>/proc/&lt;pid&gt;/maps</code> 也確實變成<strong>兩列</strong>（本機跑 <code>./x</code> 時，<code>libhits.so</code> 的最後兩列）：</p>
+<pre><code class="language-text">75db55a70000-75db55a71000 r--p 00002000 ...  libhits.so   ← 頁 0x3000：.got 那頁（RELRO 後唯讀）
+75db55a71000-75db55a72000 rw-p 00003000 ...  libhits.so   ← 頁 0x4000：.data／.bss
+</code></pre>
+<p>這張圖要看三件事：</p>
+<ol>
+<li><strong><code>.got</code> 不是一頁，是一頁裡的 40 byte</strong>。<code>ld.so</code> 只往 <code>.got</code> 寫了幾個 8 byte 的位址，核心就把 <code>.got</code> 所在的<strong>整個 <code>0x3000</code> 頁</strong>複製一份；同一頁的 <code>.dynamic</code>、<code>.got.plt</code> 也跟著成了各自一份。所以「<code>.got</code> 各自一份」精確的說法是「<code>.got</code> 所在的那頁各自一份」。</li>
+<li><strong><code>LOAD</code> 也不是一頁</strong>。同一個 <code>LOAD</code> 的兩頁可以一頁被複製、一頁沒有：某個行程要是從來沒呼叫 <code>hit()</code>，<code>0x4000</code> 那頁就沒人寫，照樣跟別的行程共用。判斷共不共用，看的是<strong>那一頁</strong>有沒有被寫，不是看整個 <code>LOAD</code>。</li>
+<li><strong><code>ld</code> 故意讓 RELRO 範圍剛好結束在頁的邊界</strong>：<code>0x3e60 ＋ 0x1a0 ＝ 0x4000</code>。這個 <code>LOAD</code> 不從 <code>0x3000</code> 開始、而是從 <code>0x3e60</code> 開始，就是為了把它往後推、讓 <code>.got.plt</code> 的結尾對齊 <code>0x4000</code>。原因是權限一次只能設一整頁（<code>mprotect</code> 以頁為單位），GOT 那頁要改成唯讀，又不能連 <code>.data</code>／<code>.bss</code> 一起鎖住，兩邊只好分在不同頁。這也是第 6 章 <code>smaps</code> 裡 GOT 那頁顯示 <code>r--p</code>、而且跟 <code>.eh_frame</code> 一樣是位移 <code>0x2000</code> 的原因：檔案裡 <code>0x2e60</code> 起的內容跟 <code>.eh_frame</code> 擠在同一個檔案頁。</li>
+</ol>
+<h4 id="二got-裡裝的是虛擬位址讀寫-hits-之前兩邊一樣嗎">二、GOT 裡裝的是虛擬位址，讀寫 <code>hits</code> 之前兩邊一樣嗎？</h4>
+<p>GOT 裡裝的是<strong>這個行程自己的虛擬位址</strong>（第 8 章）。程式拿到的每個位址都是虛擬位址——指標、<code>%rip</code>、GOT 那格的值都一樣；CPU 每次用它存取記憶體，都由 MMU 照這個行程的頁表翻成實體位址（第 9 章）。要是 GOT 裝的是實體位址，MMU 會把它再翻一次，讀到錯的地方；何況寫 GOT 的 <code>ld.so</code> 本身是普通程式，根本拿不到實體位址（第 9 章的 <code>pfn.c</code>）。</p>
+<p>那麼兩個行程 GOT 裡 <code>hits</code> 那格的數字一樣嗎？讓程式停在 <code>main</code>——這時 <code>hit()</code> 一次都還沒被呼叫，<code>hits</code> 沒被讀寫過——用 gdb 直接讀 <code>libhits.so</code> 的 GOT 那格。那格在檔案裡是 <code>0x3fc8</code>（<code>readelf -rW libhits.so</code> 的 <code>0000000000003fc8 ... R_X86_64_GLOB_DAT ... hits + 0</code>），<code>hits</code> 在檔案裡是 <code>0x400c</code>（<code>nm -D libhits.so</code> 的 <code>000000000000400c B hits</code>），所以「那格的位址 ＝ <code>&amp;hits</code> − <code>0x400c</code> ＋ <code>0x3fc8</code>」：</p>
+<pre><code class="language-sh"><span class="c1"># 開著 ASLR（gdb 預設會關掉，要用 set disable-randomization off 打開）</span>
+<span class="k">for</span><span class="w"> </span>p<span class="w"> </span><span class="k">in</span><span class="w"> </span>x<span class="w"> </span>y<span class="p">;</span><span class="w"> </span><span class="k">do</span>
+<span class="w">  </span>gdb<span class="w"> </span>-q<span class="w"> </span>-batch<span class="w"> </span>-ex<span class="w"> </span><span class="s1">&#39;set disable-randomization off&#39;</span><span class="w"> </span>-ex<span class="w"> </span><span class="s1">&#39;break main&#39;</span><span class="w"> </span>-ex<span class="w"> </span>run<span class="w"> </span><span class="se">\</span>
+<span class="w">      </span>-ex<span class="w"> </span><span class="s1">&#39;info sharedlibrary libhits&#39;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">      </span>-ex<span class="w"> </span><span class="s1">&#39;p/x *(long*)((char*)&amp;hits - 0x400c + 0x3fc8)&#39;</span><span class="w"> </span>./<span class="nv">$p</span>
+<span class="k">done</span>
+<span class="c1"># 關掉 ASLR</span>
+<span class="k">for</span><span class="w"> </span>p<span class="w"> </span><span class="k">in</span><span class="w"> </span>x<span class="w"> </span>y<span class="p">;</span><span class="w"> </span><span class="k">do</span>
+<span class="w">  </span>setarch<span class="w"> </span>-R<span class="w"> </span>gdb<span class="w"> </span>-q<span class="w"> </span>-batch<span class="w"> </span>-ex<span class="w"> </span><span class="s1">&#39;break main&#39;</span><span class="w"> </span>-ex<span class="w"> </span>run<span class="w"> </span><span class="se">\</span>
+<span class="w">      </span>-ex<span class="w"> </span><span class="s1">&#39;p/x *(long*)((char*)&amp;hits - 0x400c + 0x3fc8)&#39;</span><span class="w"> </span>./<span class="nv">$p</span>
+<span class="k">done</span>
+</code></pre>
+<p><code>info sharedlibrary</code> 印的是 <code>.text</code> 的起訖（<code>From</code>／<code>To</code>），<code>.text</code> 在檔案裡從 <code>0x1040</code> 開始，所以基底 ＝ <code>From</code> − <code>0x1040</code>。實際輸出（只留需要的列，旁邊的計算是我加的）：</p>
+<pre><code class="language-text">開著 ASLR：
+x：From 0x000079dcd674c040 → 基底 0x79dcd674b000；GOT 那格 = 0x79dcd674f00c  (= 基底 + 0x400c)
+y：From 0x0000705d93462040 → 基底 0x705d93461000；GOT 那格 = 0x705d9346500c  (= 基底 + 0x400c)
+
+setarch -R（關掉 ASLR）：
+x：GOT 那格 = 0x7ffff7fba00c
+y：GOT 那格 = 0x7ffff7fba00c
+</code></pre>
+<p>逐列讀：</p>
+<ol>
+<li><strong>開著 ASLR，兩邊不同</strong>：數字都是「這個行程裡 <code>libhits.so</code> 的基底 ＋ <code>0x400c</code>」。基底是核心 <code>mmap</code> 這個 <code>.so</code> 時選的，每個行程都不一樣，所以填進去的數字不一樣。</li>
+<li><strong>跟有沒有讀寫過 <code>hits</code> 無關</strong>：這時還在 <code>main</code> 開頭，<code>hits</code> 從沒被碰過，GOT 那格就已經填好了——<code>ld.so</code> 在跳進 <code>main</code> 之前處理完所有 <code>R_X86_64_GLOB_DAT</code>（變數沒有延遲綁定，第 4 章）。之後讀寫 <code>hits</code>、發生寫入時複製，這個數字都不會變（下一小節）。</li>
+<li><strong>關掉 ASLR，兩邊數字一樣，但仍然是兩個位址空間</strong>：同一個虛擬位址 <code>0x7ffff7fba00c</code>，在 <code>x</code> 照 <code>x</code> 的頁表翻、在 <code>y</code> 照 <code>y</code> 的頁表翻。數字一樣不代表同一個實體頁（自我測驗 10-4 的 gdb 情境就是這件事）；而 GOT 那頁不論數字一不一樣，都被 <code>ld.so</code> 寫過，照樣各自一份。</li>
+</ol>
+<p>所以要分清兩件事：<strong>「GOT 那頁各自一份」是因為 <code>ld.so</code> 寫了它；「GOT 裡的數字不同」是因為各行程的基底不同。</strong></p>
+<h4 id="三實測讀不會複製寫才會複製之後虛擬位址不變">三、實測：讀不會複製，寫才會；複製之後虛擬位址不變</h4>
+<p>要看「某一頁有沒有被複製」，可以讀 <code>/proc/self/pagemap</code>（第 9 章介紹過，每個虛擬頁一筆 8 byte 的紀錄）。沒有 root 時實體頁框號會被遮成 0，但另外兩個位元照樣看得到：</p>
+<table>
+<thead>
+<tr>
+<th>位元</th>
+<th>意思（<code>man 5 proc</code> 的 <code>/proc/pid/pagemap</code>）</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>63</td>
+<td>這頁在不在記憶體（present）</td>
+</tr>
+<tr>
+<td>61</td>
+<td>這頁對到的是<strong>檔案的頁</strong>（page cache，也就是大家共用的那份）；是 0 就是這個行程自己的匿名頁，被複製出來的頁就是這種</td>
+</tr>
+</tbody>
+</table>
+<p>為了讓「<code>v</code> 那一頁」只裝 <code>v</code>、不跟 <code>.bss</code> 或其他會在載入時被寫的東西擠在一起，<code>box.c</code> 把 <code>v</code> 對齊到一整頁，後面用 <code>pad</code> 填滿。<code>box.c</code>（檔案：<a href="../../small-project/s1-07-libraries/examples/cowpage/box.c"><code>box.c</code></a>）完整原始碼：</p>
+<pre><code class="language-c"><span class="cm">/* box.c：做成 libbox.so。v 對齊到一整頁，那一頁只有它和 pad，沒有 .bss */</span>
+<span class="kt">int</span><span class="w"> </span><span class="n">v</span><span class="w"> </span><span class="nf">__attribute__</span><span class="p">((</span><span class="n">aligned</span><span class="p">(</span><span class="mi">4096</span><span class="p">)))</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">7</span><span class="p">;</span>
+<span class="kt">char</span><span class="w"> </span><span class="n">pad</span><span class="p">[</span><span class="mi">4096</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="k">sizeof</span><span class="p">(</span><span class="kt">int</span><span class="p">)]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="mi">1</span><span class="p">};</span>
+
+<span class="kt">int</span><span class="w">  </span><span class="nf">peek</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="n">v</span><span class="p">;</span><span class="w"> </span><span class="p">}</span><span class="w">       </span><span class="cm">/* 只讀 v */</span>
+<span class="kt">void</span><span class="w"> </span><span class="nf">poke</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">v</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">v</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w"> </span><span class="p">}</span><span class="w">      </span><span class="cm">/* 寫 v */</span>
+<span class="kt">int</span><span class="w"> </span><span class="o">*</span><span class="nf">where</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="o">&amp;</span><span class="n">v</span><span class="p">;</span><span class="w"> </span><span class="p">}</span>
+</code></pre>
+<p><code>cow.c</code>（檔案：<a href="../../small-project/s1-07-libraries/examples/cowpage/cow.c"><code>cow.c</code></a>）在三個時間點印出 <code>libbox.so</code> 三頁的狀態：<code>.text</code>（<code>peek</code> 所在）、<code>.got</code>（用 <code>dl_iterate_phdr</code> 找到 <code>libbox.so</code> 的基底與 <code>GNU_RELRO</code> 的位置相加）、<code>v</code> 所在的頁。完整原始碼：</p>
+<pre><code class="language-c"><span class="cm">/* cow.c：用 /proc/self/pagemap 看 libbox.so 的三頁——.text、.got（RELRO）、v——</span>
+<span class="cm">   在「讀 v」和「寫 v」之後各是什麼狀態 */</span>
+<span class="cp">#define _GNU_SOURCE</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdint.h&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;string.h&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;fcntl.h&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;unistd.h&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;link.h&gt;</span>
+
+<span class="kt">int</span><span class="w">  </span><span class="nf">peek</span><span class="p">(</span><span class="kt">void</span><span class="p">);</span>
+<span class="kt">void</span><span class="w"> </span><span class="nf">poke</span><span class="p">(</span><span class="kt">void</span><span class="p">);</span>
+<span class="kt">int</span><span class="w"> </span><span class="o">*</span><span class="nf">where</span><span class="p">(</span><span class="kt">void</span><span class="p">);</span>
+
+<span class="k">static</span><span class="w"> </span><span class="kt">uintptr_t</span><span class="w"> </span><span class="n">got_page</span><span class="p">;</span><span class="w">                            </span><span class="cm">/* libbox.so 的 GNU_RELRO 那頁（.got 在裡面） */</span>
+
+<span class="k">static</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="nf">find_relro</span><span class="p">(</span><span class="k">struct</span><span class="w"> </span><span class="nc">dl_phdr_info</span><span class="w"> </span><span class="o">*</span><span class="n">info</span><span class="p">,</span><span class="w"> </span><span class="kt">size_t</span><span class="w"> </span><span class="n">size</span><span class="p">,</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="o">*</span><span class="n">data</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="p">(</span><span class="kt">void</span><span class="p">)</span><span class="n">size</span><span class="p">;</span><span class="w"> </span><span class="p">(</span><span class="kt">void</span><span class="p">)</span><span class="n">data</span><span class="p">;</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">strstr</span><span class="p">(</span><span class="n">info</span><span class="o">-&gt;</span><span class="n">dlpi_name</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;libbox.so&quot;</span><span class="p">))</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">info</span><span class="o">-&gt;</span><span class="n">dlpi_phnum</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="o">++</span><span class="p">)</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">info</span><span class="o">-&gt;</span><span class="n">dlpi_phdr</span><span class="p">[</span><span class="n">i</span><span class="p">].</span><span class="n">p_type</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">PT_GNU_RELRO</span><span class="p">)</span><span class="w"> </span><span class="cm">/* 基底 ＋ RELRO 在檔案裡的位置 */</span>
+<span class="w">            </span><span class="n">got_page</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">info</span><span class="o">-&gt;</span><span class="n">dlpi_addr</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">info</span><span class="o">-&gt;</span><span class="n">dlpi_phdr</span><span class="p">[</span><span class="n">i</span><span class="p">].</span><span class="n">p_vaddr</span><span class="p">;</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="k">static</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="nf">page</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="kt">char</span><span class="w"> </span><span class="o">*</span><span class="n">name</span><span class="p">,</span><span class="w"> </span><span class="kt">uintptr_t</span><span class="w"> </span><span class="n">va</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="kt">uint64_t</span><span class="w"> </span><span class="n">e</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">fd</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">open</span><span class="p">(</span><span class="s">&quot;/proc/self/pagemap&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">O_RDONLY</span><span class="p">);</span><span class="w">    </span><span class="cm">/* 每個虛擬頁一筆 8 byte 的紀錄 */</span>
+
+<span class="w">    </span><span class="n">pread</span><span class="p">(</span><span class="n">fd</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">e</span><span class="p">,</span><span class="w"> </span><span class="k">sizeof</span><span class="w"> </span><span class="n">e</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="n">va</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="mi">4096</span><span class="p">)</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mi">8</span><span class="p">);</span>
+<span class="w">    </span><span class="n">close</span><span class="p">(</span><span class="n">fd</span><span class="p">);</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;  %-6s 虛擬頁 %#lx  在記憶體=%d  對到檔案的頁=%d</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">name</span><span class="p">,</span>
+<span class="w">           </span><span class="p">(</span><span class="kt">unsigned</span><span class="w"> </span><span class="kt">long</span><span class="p">)(</span><span class="n">va</span><span class="w"> </span><span class="o">&amp;</span><span class="w"> </span><span class="o">~</span><span class="mi">4095UL</span><span class="p">),</span>
+<span class="w">           </span><span class="p">(</span><span class="kt">int</span><span class="p">)(</span><span class="n">e</span><span class="w"> </span><span class="o">&gt;&gt;</span><span class="w"> </span><span class="mi">63</span><span class="w"> </span><span class="o">&amp;</span><span class="w"> </span><span class="mi">1</span><span class="p">),</span><span class="w">                       </span><span class="cm">/* 第 63 位元：這頁在不在記憶體 */</span>
+<span class="w">           </span><span class="p">(</span><span class="kt">int</span><span class="p">)(</span><span class="n">e</span><span class="w"> </span><span class="o">&gt;&gt;</span><span class="w"> </span><span class="mi">61</span><span class="w"> </span><span class="o">&amp;</span><span class="w"> </span><span class="mi">1</span><span class="p">));</span><span class="w">                      </span><span class="cm">/* 第 61 位元：對到檔案的頁（page cache）；0 是自己的匿名頁 */</span>
+<span class="p">}</span>
+
+<span class="k">static</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="nf">show</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="kt">char</span><span class="w"> </span><span class="o">*</span><span class="n">when</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;%s</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">when</span><span class="p">);</span>
+<span class="w">    </span><span class="n">page</span><span class="p">(</span><span class="s">&quot;.text&quot;</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="kt">uintptr_t</span><span class="p">)</span><span class="n">peek</span><span class="p">);</span>
+<span class="w">    </span><span class="n">page</span><span class="p">(</span><span class="s">&quot;.got&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">got_page</span><span class="p">);</span>
+<span class="w">    </span><span class="n">page</span><span class="p">(</span><span class="s">&quot;v&quot;</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="kt">uintptr_t</span><span class="p">)</span><span class="n">where</span><span class="p">());</span>
+<span class="p">}</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">dl_iterate_phdr</span><span class="p">(</span><span class="n">find_relro</span><span class="p">,</span><span class="w"> </span><span class="nb">NULL</span><span class="p">);</span>
+<span class="w">    </span><span class="n">show</span><span class="p">(</span><span class="s">&quot;[剛進 main]&quot;</span><span class="p">);</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;peek() = %d</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">peek</span><span class="p">());</span>
+<span class="w">    </span><span class="n">show</span><span class="p">(</span><span class="s">&quot;[讀過 v]&quot;</span><span class="p">);</span>
+<span class="w">    </span><span class="n">poke</span><span class="p">();</span>
+<span class="w">    </span><span class="n">show</span><span class="p">(</span><span class="s">&quot;[寫過 v]&quot;</span><span class="p">);</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;peek() = %d</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">peek</span><span class="p">());</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<p><code>dl_iterate_phdr</code> 是 glibc 的函式（<code>man 3 dl_iterate_phdr</code>），對每個已載入的檔案呼叫一次回呼，給它檔名（<code>dlpi_name</code>）、基底（<code>dlpi_addr</code>）和程式標頭表（<code>dlpi_phdr</code>），也就是 <code>readelf -l</code> 看到的那張表。編譯與執行：</p>
+<pre><code class="language-sh">gcc<span class="w"> </span>-Wall<span class="w"> </span>-fPIC<span class="w"> </span>-shared<span class="w"> </span>box.c<span class="w"> </span>-o<span class="w"> </span>libbox.so
+gcc<span class="w"> </span>-Wall<span class="w"> </span>cow.c<span class="w"> </span>-L.<span class="w"> </span>-lbox<span class="w"> </span>-Wl,-rpath,<span class="s1">&#39;$ORIGIN&#39;</span><span class="w"> </span>-o<span class="w"> </span>cow
+./cow
+</code></pre>
+<p>本機輸出：</p>
+<pre><code class="language-text">[剛進 main]
+  .text  虛擬頁 0x73f97ef00000  在記憶體=1  對到檔案的頁=1
+  .got   虛擬頁 0x73f97ef02000  在記憶體=1  對到檔案的頁=0
+  v      虛擬頁 0x73f97ef04000  在記憶體=1  對到檔案的頁=1
+peek() = 7
+[讀過 v]
+  .text  虛擬頁 0x73f97ef00000  在記憶體=1  對到檔案的頁=1
+  .got   虛擬頁 0x73f97ef02000  在記憶體=1  對到檔案的頁=0
+  v      虛擬頁 0x73f97ef04000  在記憶體=1  對到檔案的頁=1
+[寫過 v]
+  .text  虛擬頁 0x73f97ef00000  在記憶體=1  對到檔案的頁=1
+  .got   虛擬頁 0x73f97ef02000  在記憶體=1  對到檔案的頁=0
+  v      虛擬頁 0x73f97ef04000  在記憶體=1  對到檔案的頁=0
+peek() = 8
+</code></pre>
+<p>（三頁的位置可以對回 <code>readelf</code>：<code>.text</code> 那頁 <code>0x…00000</code> 是基底 ＋ <code>0x1000</code>，所以基底是 <code>0x73f97eeff000</code>；<code>GNU_RELRO</code> 從 <code>0x3e60</code> 開始，落在基底 ＋ <code>0x3000</code> 那頁 <code>0x…02000</code>；<code>nm -D libbox.so</code> 的 <code>0000000000005000 D v</code>，在基底 ＋ <code>0x5000</code> ＝ <code>0x…04000</code>。）</p>
+<p>逐列讀：</p>
+<ol>
+<li><strong><code>.got</code> 那頁一進 <code>main</code> 就是 0（自己的匿名頁）</strong>：還沒讀寫過 <code>v</code>，GOT 已經被複製了——<code>ld.so</code> 在 <code>main</code> 之前把 <code>&amp;v</code> 寫進 GOT（<code>R_X86_64_GLOB_DAT</code>），一寫就複製。這就是 9-1 要寫的「<code>.got</code> 被 <code>ld.so</code> 載入時寫」。</li>
+<li><strong><code>v</code> 那頁讀過之後還是 1（還是檔案的頁）</strong>：<code>peek()</code> 只讀 <code>v</code>，<strong>讀不會觸發複製</strong>，這個行程看的仍是大家共用的那份。<code>peek()</code> 讀 <code>v</code> 時還要先讀 GOT 那格拿到 <code>&amp;v</code>，那也只是讀，GOT 那頁之所以是 0，跟這次讀無關。（「剛進 <code>main</code>」時 <code>v</code> 那頁就已經在記憶體，是核心處理附近的分頁錯誤時順便把鄰近的檔案頁一起映射進來，跟寫入時複製無關。）</li>
+<li><strong><code>v</code> 那頁寫過之後變成 0，但虛擬頁還是 <code>0x73f97ef04000</code></strong>：<code>poke()</code> 一寫，核心替這個行程複製一頁、改頁表，讓<strong>同一個虛擬位址</strong>改對到新的實體頁。虛擬位址沒變，所以 GOT 那格（裝的是 <code>&amp;v</code>）也不必改；<code>peek()</code> 之後讀到的 8 是新那頁的內容。</li>
+<li><strong><code>.text</code> 從頭到尾都是 1</strong>：沒有人寫程式碼，它一直對到檔案的頁，也就是所有行程共用的那份。</li>
+</ol>
+<p>寫入時複製一步一步發生的事（對應第 3 點；<code>v</code> 那頁是私有映射、權限 <code>rw-p</code>，但核心一開始在頁表裡把它設成唯讀，就是為了攔下第一次寫）：</p>
+<pre class="mermaid">sequenceDiagram
+    autonumber
+    participant P as poke()
+    participant M as CPU 的 MMU
+    participant K as 核心
+    participant T as 這個行程的頁表
+    P-&gt;&gt;M: 寫 v（虛擬位址 0x73f97ef04000）
+    M-&gt;&gt;T: 查這一頁：對到檔案的頁、頁表標成唯讀
+    M-&gt;&gt;K: 權限不符，觸發分頁錯誤（page fault）
+    K-&gt;&gt;K: 映射是私有、可寫 → 寫入時複製&lt;br/&gt;配一個新實體頁，把舊頁的 4 kB 整頁複製過去
+    K-&gt;&gt;T: 這個虛擬頁改指向新實體頁，標成可寫
+    K-&gt;&gt;P: 回到原本那條指令重新執行
+    P-&gt;&gt;M: 再寫一次 v，這次寫進新實體頁
+</pre>
+<p>這張圖要看的是：<strong>複製的是一整頁、改的是頁表、虛擬位址從頭到尾沒變</strong>。別的行程的頁表沒動，仍然指著檔案那份，所以看不到這次的寫入。</p>
+<h4 id="整理-1">整理</h4>
+<table>
+<thead>
+<tr>
+<th>問題</th>
+<th>答案</th>
+<th>證據</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>.got</code> 算一頁嗎？<code>LOAD</code> 才是一頁嗎？</td>
+<td>都不是：<code>.got</code> 是區段（40 byte），<code>LOAD</code> 可以跨好幾頁；複製的單位是頁（4 kB）</td>
+<td><code>libhits.so</code> 可寫的 <code>LOAD</code> 是 <code>0x3e60</code>～<code>0x4010</code>、在 <code>maps</code> 是兩列</td>
+</tr>
+<tr>
+<td>GOT 裡是虛擬還是實體位址？</td>
+<td>這個行程自己的虛擬位址</td>
+<td>gdb 讀到「基底 ＋ <code>0x400c</code>」</td>
+</tr>
+<tr>
+<td>讀寫 <code>hits</code> 之前，兩邊 GOT 的數字一樣嗎？</td>
+<td>開 ASLR 不同（基底不同）；關 ASLR 相同，但還是兩個位址空間；都跟有沒有讀寫過無關</td>
+<td><code>0x…f00c</code> vs <code>0x…500c</code>；<code>setarch -R</code> 兩邊都是 <code>0x7ffff7fba00c</code></td>
+</tr>
+<tr>
+<td>讀會觸發複製嗎？</td>
+<td>不會，只有寫會</td>
+<td><code>peek()</code> 之後 <code>v</code> 那頁還是檔案的頁</td>
+</tr>
+<tr>
+<td>複製之後虛擬位址會變嗎？</td>
+<td>不會，只改頁表</td>
+<td><code>poke()</code> 前後 <code>v</code> 都在 <code>0x73f97ef04000</code></td>
+</tr>
+</tbody>
+</table>
+<p>本章用到的新東西：<code>/proc/self/pagemap</code> 的第 61、63 位元（其餘位元見 <code>man 5 proc</code>）、glibc 的 <code>dl_iterate_phdr</code>（<code>man 3 dl_iterate_phdr</code>）、<code>setarch -R</code>（<code>--addr-no-randomize</code>，關掉這次執行的 ASLR，是 <code>setarch --help</code> 裡的一個選項，完整見 <code>man setarch</code>）、gdb 的 <code>set disable-randomization off</code> 與 <code>info sharedlibrary</code>（gdb 的分類與查法見 <a href="gdb%E5%AE%8C%E6%95%B4%E5%91%BD%E4%BB%A4%E5%8F%83%E8%80%83.html"><code>gdb完整命令參考</code></a>）。</p>
 <hr />
 <h2 id="自我測驗">自我測驗</h2>
 <blockquote>

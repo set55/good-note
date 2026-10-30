@@ -139,13 +139,13 @@
 <td>4-2</td>
 <td>大致對</td>
 <td>指令對；單引號的理由沒答出：雙引號裡 shell 還是會展開 <code>$ORIGIN</code>（變成空字串）</td>
-<td>未過關</td>
+<td>✅ 過關（10-30）</td>
 </tr>
 <tr>
 <td>4-3</td>
 <td>大致對</td>
 <td>結論對（<code>RUNPATH</code> 換得掉、<code>RPATH</code> 換不掉）；原因沒答出：搜尋順序 <code>RPATH</code> → <code>LD_LIBRARY_PATH</code> → <code>RUNPATH</code></td>
-<td>未過關</td>
+<td>✅ 過關（10-30）</td>
 </tr>
 <tr>
 <td>5-1</td>
@@ -181,13 +181,13 @@
 <td>6-3</td>
 <td>大致對</td>
 <td><code>0x3fd0</code> 是 GOT 那格、裝 <code>total</code> 的位址、<code>total</code> 在 <code>.bss</code> 都對；<code>-0x48</code> 不知道：它只是用附近符號標位置（<code>0x4018 − 0x48</code>）</td>
-<td>未過關</td>
+<td>✅ 過關（10-30）</td>
 </tr>
 <tr>
 <td>6-4</td>
 <td>錯</td>
 <td>把 <code>%rax</code> 說成 <code>0x3fd0</code>（格子的位址），差了一層：<code>mov</code> 是<strong>讀</strong> <code>0x3fd0</code> 那格，<code>%rax</code> ＝ <code>total</code> 的位址；<code>1121</code> 讀到 <code>total</code> 的值</td>
-<td>未過關</td>
+<td>✅ 過關（10-30）</td>
 </tr>
 <tr>
 <td>6-5</td>
@@ -235,49 +235,49 @@
 <td>8-3</td>
 <td>錯</td>
 <td>理由不對：延遲綁定一樣照「先執行檔」找；真正原因是讀變數只是一條 <code>mov</code>，中間沒有跳板可以插入「先去查」</td>
-<td>未過關</td>
+<td>✅ 過關（10-30）</td>
 </tr>
 <tr>
 <td>9-1</td>
 <td>不完整</td>
 <td>「不是兩份、<code>.text</code> 共用、<code>.got</code>／<code>.bss</code> 各一份」對；錯：<code>hits</code> 沒有被複製進 <code>x</code>、<code>y</code> 的 <code>.bss</code>；缺：<code>&amp;hit</code> 不同是因為載入基底不同（ASLR）</td>
-<td>未過關</td>
+<td>✅ 過關（10-30）</td>
 </tr>
 <tr>
 <td>9-2</td>
 <td>大致對</td>
 <td>5、各自一份都對；但 <code>hits</code> 在 <code>libhits.so</code> 的 <code>.bss</code>（各自一份是因為寫入時複製），不是在執行檔的 <code>.bss</code>（跟 9-1 同一處）</td>
-<td>未過關</td>
+<td>✅ 過關（10-30）</td>
 </tr>
 <tr>
 <td>9-3</td>
 <td>不完整</td>
 <td>方向對（各行程要的內容不同，<code>.text</code> 就不能同一份），但沒用寫入時複製說明：<code>ld.so</code> 一寫，核心就替該行程複製那頁</td>
-<td>未過關</td>
+<td>✅ 過關（10-30）</td>
 </tr>
 <tr>
 <td>10-1</td>
 <td>錯</td>
 <td>說成一樣；實際不一樣：那格是「這個行程的載入基底 ＋ <code>0x1119</code>」，兩個行程基底不同。<code>objdump -s</code> 看到的 <code>0x1030</code> 是檔案裡的初值</td>
-<td>未過關</td>
+<td>✅ 過關（10-31）</td>
 </tr>
 <tr>
 <td>10-2</td>
 <td>不完整</td>
 <td>「是」對；證據沒答出：<code>smaps</code> 裡 <code>r-xp</code> 那段兩個行程都是 <code>Shared_Clean:4</code>、<code>Pss:2</code></td>
-<td>未過關</td>
+<td>移到第 ③ 站（10-31）</td>
 </tr>
 <tr>
 <td>10-3</td>
 <td>不完整</td>
 <td>只答「kernel」：頁表是核心準備的對，但每次翻譯的是 CPU 的 MMU</td>
-<td>未過關</td>
+<td>移到第 ③ 站（10-31）</td>
 </tr>
 <tr>
 <td>10-4</td>
 <td>不完整</td>
 <td>「gdb 下基底一樣」對到一半；缺：兩個行程各有位址空間和頁表，同一個虛擬位址不代表同一個東西。「同時啟動」不是解法</td>
-<td>未過關</td>
+<td>✅ 過關（10-31）</td>
 </tr>
 <tr>
 <td>11-1</td>
@@ -610,8 +610,12 @@ hits, share object file全域變數的存取需要透過got取得他的位址,�
 <p><strong>詳細說明</strong>：單引號裡 shell 什麼都不展開；一定要用雙引號時寫成 <code>&quot;\$ORIGIN/lib&quot;</code>。用 <code>readelf -d app | grep RUNPATH</code> 檢查實際寫進去的是什麼。只要 <code>app</code> 和 <code>lib/</code> 的相對位置不變，解壓到哪裡都找得到。</p>
 </details>
 </details>
+</p>
 <details class="answer self-practice"><summary>自我練習（不批改）</summary>
-<div class="answer-box" data-file="small-project/s1-07-libraries/quiz.md" data-line="346" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="small-project/s1-07-libraries/quiz.md" data-line="349"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）">gcc main.c -Llib -lfoo -Wl,-rpath,&#x27;$ORIGIN/lib&#x27; -o app
+
+雙引號$ORIGIN會被當作shell的變數展開而shell沒有這個變數,會被當成空字符串, 單引號整個&#x27;$ORIGIIN/lib&#x27;就是一個固定字串
+</textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h4 id="4-3-同事想臨時用-ld_library_path-換成他自己編的-libfooso-來除錯在你的做法runpath下換得掉嗎如果是-rpath-呢為什麼">4-3. 同事想臨時用 <code>LD_LIBRARY_PATH</code> 換成他自己編的 <code>libfoo.so</code> 來除錯，在你的做法（<code>RUNPATH</code>）下換得掉嗎？如果是 <code>RPATH</code> 呢？為什麼？</h4>
 <p><strong>第 1 次（2026-10-29）</strong></p>
@@ -634,8 +638,14 @@ rpath不行
 <p><strong>詳細說明</strong>：筆記的 <code>v1</code>／<code>v2</code> 實驗：<code>LD_LIBRARY_PATH=v2 ./app_runpath</code> 印 1005（用了 v2），<code>./app_rpath</code> 印 5（還是 v1）。<code>RUNPATH</code> 是故意排在後面的：讓使用者能臨時換版本來除錯；所以 <code>ld</code> 預設寫 <code>RUNPATH</code>，加 <code>--disable-new-dtags</code> 才寫舊式的 <code>RPATH</code>，<code>man ld.so</code> 也標明 <code>DT_RPATH</code> 不建議使用。<code>LD_DEBUG=libs</code> 每段 <code>search path=</code> 後面的括號會寫來源（<code>(LD_LIBRARY_PATH)</code>、<code>(RPATH from file …)</code>）。</p>
 </details>
 </details>
+</p>
 <details class="answer self-practice"><summary>自我練習（不批改）</summary>
-<div class="answer-box" data-file="small-project/s1-07-libraries/quiz.md" data-line="367" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="small-project/s1-07-libraries/quiz.md" data-line="378"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）">runpath 換得掉, rpath不行
+
+因爲runpath下, ld.so的搜尋順序是先搜尋LD_LIBRARY_PATH再來纔是runpath,這個設計方便使用這改動
+
+但rpath優先順序反過來, 先找rpath 纔是LD_LIBRARY_PATH
+</textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h3 id="5-soname-與函式庫更新">5. SONAME 與函式庫更新</h3>
 <p>你維護 <code>libcalc</code>，SONAME 是 <code>libcalc.so.1</code>。系統上有 <code>libcalc.so -&gt; libcalc.so.1</code>、<code>libcalc.so.1 -&gt; libcalc.so.1.0.0</code> 兩個符號連結。(1) 一支程式動態連結了 <code>libcalc</code>，它的 <code>NEEDED</code> 寫的是哪個名字？為什麼刪掉 <code>libcalc.so</code> 它照樣能跑，刪掉 <code>libcalc.so.1</code> 就不行？(2) 你修了一個 bug（介面不變），做成 <code>libcalc.so.1.0.1</code>。已經動態連結的程式要怎樣才能用到修正？另一支用 <code>libcalc.a</code> 靜態連結的程式呢？(3) 下一版要把 <code>calc_add</code> 改成三個參數（不相容），SONAME 該怎麼辦？為什麼這樣舊程式不會壞？</p>
@@ -661,7 +671,7 @@ rpath不行
 </details>
 </details>
 <details class="answer self-practice"><summary>自我練習（不批改）</summary>
-<div class="answer-box" data-file="small-project/s1-07-libraries/quiz.md" data-line="392" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="small-project/s1-07-libraries/quiz.md" data-line="410" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h4 id="5-2-你修了一個-bug介面不變做成-libcalcso101已經動態連結的程式要怎樣才能用到修正另一支用-libcalca-靜態連結的程式呢">5-2. 你修了一個 bug（介面不變），做成 <code>libcalc.so.1.0.1</code>。已經動態連結的程式要怎樣才能用到修正？另一支用 <code>libcalc.a</code> 靜態連結的程式呢？</h4>
 <p><strong>第 1 次（2026-10-29）</strong></p>
@@ -684,7 +694,7 @@ rpath不行
 </details>
 </details>
 <details class="answer self-practice"><summary>自我練習（不批改）</summary>
-<div class="answer-box" data-file="small-project/s1-07-libraries/quiz.md" data-line="412" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="small-project/s1-07-libraries/quiz.md" data-line="430" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h4 id="5-3-下一版要把-calc_add-改成三個參數不相容soname-該怎麼辦為什麼這樣舊程式不會壞">5-3. 下一版要把 <code>calc_add</code> 改成三個參數（不相容），SONAME 該怎麼辦？為什麼這樣舊程式不會壞？</h4>
 <p><strong>第 1 次（2026-10-29）</strong></p>
@@ -713,7 +723,7 @@ ln -sf libcalc.so.2 libcalc.so
 </details>
 </details>
 <details class="answer self-practice"><summary>自我練習（不批改）</summary>
-<div class="answer-box" data-file="small-project/s1-07-libraries/quiz.md" data-line="438" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="small-project/s1-07-libraries/quiz.md" data-line="456" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h3 id="6-gotdrip-的距離got-那一格與變數本身10-25-追問新增">6. GOT：<code>D(%rip)</code> 的距離、GOT 那一格與變數本身（10-25 追問新增）</h3>
 <p>看下面 <code>libtally.so</code> 的反組譯（<code>total = total + x;</code> 那一段）回答：(1) <code>111a</code> 那一行的 <code>0x2eaf</code> 是從哪裡到哪裡的距離？用這段的數字算出右邊註解的 <code>3fd0</code>。<code>112b</code> 那一行的 <code>D</code> 是 <code>0x2e9e</code>，跟 <code>0x2eaf</code> 不一樣，為什麼算出來還是 <code>3fd0</code>？(2) 註解 <code>&lt;total-0x48&gt;</code> 是說 <code>total</code> 放在 <code>0x3fd0</code> 嗎？<code>0x3fd0</code> 是什麼、<code>total</code> 本身在哪？(3) 執行完 <code>111a</code> 那一行，<code>%rax</code> 裡裝的是什麼？<code>1121</code> 讀到的又是什麼？為什麼用 <code>objdump -s -j .got libtally.so</code> 看，<code>0x3fd0</code> 那格在檔案裡是 0？</p>
@@ -760,7 +770,7 @@ ln -sf libcalc.so.2 libcalc.so
 </details>
 </details>
 <details class="answer self-practice"><summary>自我練習（不批改）</summary>
-<div class="answer-box" data-file="small-project/s1-07-libraries/quiz.md" data-line="488" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="small-project/s1-07-libraries/quiz.md" data-line="506" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h4 id="6-2-112b-那一行的-d-是-0x2e9e跟-0x2eaf-不一樣為什麼算出來還是-3fd0">6-2. <code>112b</code> 那一行的 <code>D</code> 是 <code>0x2e9e</code>，跟 <code>0x2eaf</code> 不一樣，為什麼算出來還是 <code>3fd0</code>？</h4>
 <p><strong>第 1 次（2026-10-29）</strong></p>
@@ -781,7 +791,7 @@ ln -sf libcalc.so.2 libcalc.so
 </details>
 </details>
 <details class="answer self-practice"><summary>自我練習（不批改）</summary>
-<div class="answer-box" data-file="small-project/s1-07-libraries/quiz.md" data-line="506" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="small-project/s1-07-libraries/quiz.md" data-line="524" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h4 id="6-3-註解-total-0x48-是說-total-放在-0x3fd0-嗎0x3fd0-是什麼total-本身在哪">6-3. 註解 <code>&lt;total-0x48&gt;</code> 是說 <code>total</code> 放在 <code>0x3fd0</code> 嗎？<code>0x3fd0</code> 是什麼、<code>total</code> 本身在哪？</h4>
 <p><strong>第 1 次（2026-10-29）</strong></p>
@@ -805,8 +815,13 @@ total本身在.bss這個區段裏,當然也有它自己的位址,而這個位址
 <p><strong>詳細說明</strong>：標籤跟「這格裝什麼」沒關係，只是剛好這個 <code>.so</code> 很小、最近的符號就是 <code>total</code>。真正說明那格裝什麼的是 <code>readelf -r</code>：第一欄 <code>3fd0</code> 是要被填的格子，<code>GLOB_DAT</code> 是「填一個符號的位址」，<code>total</code> 是填誰。</p>
 </details>
 </details>
+</p>
 <details class="answer self-practice"><summary>自我練習（不批改）</summary>
-<div class="answer-box" data-file="small-project/s1-07-libraries/quiz.md" data-line="528" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="small-project/s1-07-libraries/quiz.md" data-line="549"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）">不是, &lt;total-0x48&gt; 指的是 0x3fd0
+也就是total - 0x48 = 0x3fd0, 0x3fd0位於.got, 只是因爲objdump不知道該拿什麼來定位0x3fd0所以他拿了一個最近的符號total
+total本身是存在.bss 的0x4018
+而0x3fd0是.got那格 存着total的位址
+</textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h4 id="6-4-執行完-111a-那一行rax-裡裝的是什麼1121-讀到的又是什麼">6-4. 執行完 <code>111a</code> 那一行，<code>%rax</code> 裡裝的是什麼？<code>1121</code> 讀到的又是什麼？</h4>
 <p><strong>第 1 次（2026-10-29）</strong></p>
@@ -828,8 +843,12 @@ total本身在.bss這個區段裏,當然也有它自己的位址,而這個位址
 <p><strong>詳細說明</strong>：兩條指令＝兩次讀記憶體：先讀 GOT 拿到位址，再照位址讀變數。對照第 4 課〈<a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80-%E6%9A%AB%E5%AD%98%E5%99%A8%E3%80%81mov%E8%88%87lea%E3%80%81cmp%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D.html#lea%E5%8F%AA%E7%AE%97%E4%BD%8D%E5%9D%80%E4%B8%8D%E7%A2%B0%E8%A8%98%E6%86%B6%E9%AB%94"><code>lea</code>：只算位址，不碰記憶體</a>〉：如果寫成 <code>lea 0x2eaf(%rip),%rax</code>，<code>%rax</code> 才會是 <code>0x3fd0</code>（加上載入基底）這個格子的位址。筆記第 1 章用 gdb 實測：<code>libcount.so</code> 的 GOT 那格（<code>0x7ffff7fb6000 + 0x3fd0</code>）裡裝的是 <code>0x7ffff7fba00c</code>，正是 <code>&amp;counter</code>。</p>
 </details>
 </details>
+</p>
 <details class="answer self-practice"><summary>自我練習（不批改）</summary>
-<div class="answer-box" data-file="small-project/s1-07-libraries/quiz.md" data-line="548" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="small-project/s1-07-libraries/quiz.md" data-line="578"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）">rax 是 0x3fd0 那格存的值, 也就是total在 .bss的位址
+
+1121 讀到的就是 total在.bss位址的那格存的數值,也就是total 的數值
+</textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h4 id="6-5-為什麼用-objdump--s--j-got-libtallyso-看0x3fd0-那格在檔案裡是-0">6-5. 為什麼用 <code>objdump -s -j .got libtally.so</code> 看，<code>0x3fd0</code> 那格在檔案裡是 0？</h4>
 <p><strong>第 1 次（2026-10-29）</strong></p>
@@ -857,7 +876,7 @@ Contents of section .got:
 </details>
 </details>
 <details class="answer self-practice"><summary>自我練習（不批改）</summary>
-<div class="answer-box" data-file="small-project/s1-07-libraries/quiz.md" data-line="573" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="small-project/s1-07-libraries/quiz.md" data-line="608" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h3 id="7-兩份同名全域變數接-so-為什麼不算重複定義10-25-追問新增">7. 兩份同名全域變數：接 <code>.so</code> 為什麼不算重複定義（10-25 追問新增）</h3>
 <p><code>libconf.so</code> 和主程式 <code>app.c</code> 都定義了 <code>verbose</code>。(1) <code>gcc -Wall app.c -L. -lconf -Wl,-rpath,'$ORIGIN' -o app</code> 會不會出現 <code>multiple definition</code>？為什麼？改成 <code>gcc -Wall app.c conf.pic.o -o app2</code> 呢？差別在 <code>ld</code> 怎麼處理 <code>.so</code> 和 <code>.o</code>。(2) 能連結成功的那一個，<code>./app</code> 會印出 <code>get_verbose() = </code> 多少？用執行時 <code>ld.so</code> 怎麼找符號解釋。(3) 把 <code>conf.c</code> 第一行改成 <code>static int verbose = 0;</code>，重做 <code>libconf.so</code>，不重新連結就執行 <code>./app</code>，印出多少？為什麼跟 (2) 不同？</p>
@@ -903,7 +922,7 @@ ld只是把.so先寫成需求單
 </details>
 </details>
 <details class="answer self-practice"><summary>自我練習（不批改）</summary>
-<div class="answer-box" data-file="small-project/s1-07-libraries/quiz.md" data-line="621" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="small-project/s1-07-libraries/quiz.md" data-line="656" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h4 id="7-2-改成-gcc--wall-appc-confpico--o-app2-呢差別在-ld-怎麼處理-so-和-o">7-2. 改成 <code>gcc -Wall app.c conf.pic.o -o app2</code> 呢？差別在 <code>ld</code> 怎麼處理 <code>.so</code> 和 <code>.o</code>。</h4>
 <p><strong>第 1 次（2026-10-29）</strong></p>
@@ -924,7 +943,7 @@ ld只是把.so先寫成需求單
 </details>
 </details>
 <details class="answer self-practice"><summary>自我練習（不批改）</summary>
-<div class="answer-box" data-file="small-project/s1-07-libraries/quiz.md" data-line="639" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="small-project/s1-07-libraries/quiz.md" data-line="674" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h4 id="7-3-能連結成功的那一個app-會印出-get_verbose---多少用執行時-ldso-怎麼找符號解釋">7-3. 能連結成功的那一個，<code>./app</code> 會印出 <code>get_verbose() = </code> 多少？用執行時 <code>ld.so</code> 怎麼找符號解釋。</h4>
 <p><strong>第 1 次（2026-10-29）</strong></p>
@@ -947,7 +966,7 @@ ld.so 依據需求載入ldconf.so,並依據符號表做符號連結, 然後他�
 </details>
 </details>
 <details class="answer self-practice"><summary>自我練習（不批改）</summary>
-<div class="answer-box" data-file="small-project/s1-07-libraries/quiz.md" data-line="659" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="small-project/s1-07-libraries/quiz.md" data-line="694" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h4 id="7-4-把-confc-第一行改成-static-int-verbose--0重做-libconfso不重新連結就執行-app印出多少為什麼跟-7-3-不同">7-4. 把 <code>conf.c</code> 第一行改成 <code>static int verbose = 0;</code>，重做 <code>libconf.so</code>，不重新連結就執行 <code>./app</code>，印出多少？為什麼跟 7-3 不同？</h4>
 <p><strong>第 1 次（2026-10-29）</strong></p>
@@ -970,7 +989,7 @@ ld.so 依據需求載入ldconf.so,並依據符號表做符號連結, 然後他�
 </details>
 </details>
 <details class="answer self-practice"><summary>自我練習（不批改）</summary>
-<div class="answer-box" data-file="small-project/s1-07-libraries/quiz.md" data-line="679" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="small-project/s1-07-libraries/quiz.md" data-line="714" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h3 id="8-plt-與-got函式的位址存在哪延遲綁定10-26-追問新增">8. PLT 與 GOT：函式的位址存在哪、延遲綁定（10-26 追問新增）</h3>
 <p><code>liblogger.so</code> 的 <code>run()</code> 呼叫了 <code>log_msg()</code> 兩次，主程式 <code>runner.c</code> 只呼叫 <code>run()</code>。(1) 反組譯裡的 <code>log_msg@plt</code> 是一張存位址的表嗎？<code>log_msg</code> 的位址存在哪個區段的哪一格？用 <code>jmp</code> 那行的數字算出來。(2) 第一次和第二次 <code>call 1070 &lt;log_msg@plt&gt;</code>，從 <code>call</code> 到進入 <code>log_msg</code> 各經過哪些地方？<code>ld.so</code> 在哪一次介入、做了什麼？(3) 全域變數為什麼不能用這種「第一次用到才查」的方式，一定要載入時就把 <code>.got</code> 那格填好？</p>
@@ -1035,7 +1054,7 @@ ld.so 依據需求載入ldconf.so,並依據符號表做符號連結, 然後他�
 </details>
 </details>
 <details class="answer self-practice"><summary>自我練習（不批改）</summary>
-<div class="answer-box" data-file="small-project/s1-07-libraries/quiz.md" data-line="748" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="small-project/s1-07-libraries/quiz.md" data-line="783" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h4 id="8-2-第一次和第二次-call-1070-log_msgplt從-call-到進入-log_msg-各經過哪些地方ldso-在哪一次介入做了什麼">8-2. 第一次和第二次 <code>call 1070 &lt;log_msg@plt&gt;</code>，從 <code>call</code> 到進入 <code>log_msg</code> 各經過哪些地方？<code>ld.so</code> 在哪一次介入、做了什麼？</h4>
 <p><strong>第 1 次（2026-10-29）</strong></p>
@@ -1059,7 +1078,7 @@ ld.so 依據需求載入ldconf.so,並依據符號表做符號連結, 然後他�
 </details>
 </details>
 <details class="answer self-practice"><summary>自我練習（不批改）</summary>
-<div class="answer-box" data-file="small-project/s1-07-libraries/quiz.md" data-line="769" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="small-project/s1-07-libraries/quiz.md" data-line="804" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h4 id="8-3-全域變數為什麼不能用這種第一次用到才查的方式一定要載入時就把-got-那格填好">8-3. 全域變數為什麼不能用這種「第一次用到才查」的方式，一定要載入時就把 <code>.got</code> 那格填好？</h4>
 <p><strong>第 1 次（2026-10-29）</strong></p>
@@ -1080,8 +1099,11 @@ ld.so 依據需求載入ldconf.so,並依據符號表做符號連結, 然後他�
 <p><strong>詳細說明</strong>：如果 <code>.got</code> 那格沒填，<code>mov (%rax),…</code> 會直接拿檔案裡的 0 當位址去讀，當場 segfault。</p>
 </details>
 </details>
+</p>
 <details class="answer self-practice"><summary>自我練習（不批改）</summary>
-<div class="answer-box" data-file="small-project/s1-07-libraries/quiz.md" data-line="788" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="small-project/s1-07-libraries/quiz.md" data-line="826"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）">1. 函式是透過延遲綁定的機制跳轉, 他是透過plt 去讓ld.so去找.so函式的位址
+2. 全域變數,就是ld.so一開始就把變數位址寫到了.got,直接用mov就可以拿到變數位址了,他沒有像是plt的東西可以讓他做延遲綁定,所以一定要在載入的時候就把位址寫到.got
+</textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h3 id="9-兩支程式共用一個-so哪些是同一份哪些各一份10-26-追問新增">9. 兩支程式共用一個 <code>.so</code>：哪些是同一份、哪些各一份（10-26 追問新增）</h3>
 <p>兩支程式 <code>x</code>、<code>y</code> 都連 <code>libhits.so</code>，同時在跑（各自停在 <code>sleep(5)</code>）。(1) <code>x</code> 印出的 <code>&amp;hit</code> 和 <code>y</code> 印出的不一樣，這代表記憶體裡有兩份 <code>hit</code> 的程式碼嗎？<code>libhits.so</code> 的哪些部分兩個行程共用同一份實體記憶體、哪些是各自一份？(2) <code>y</code> 印出的 <code>hit()</code> 回傳值是多少？為什麼不是 <code>x</code>、<code>y</code> 加起來的 7？(3) 假設沒有 GOT，改成讓 <code>ld.so</code> 載入時把位址直接寫進 <code>.text</code>，用「寫入時複製」說明 <code>.text</code> 還能不能共用、為什麼。</p>
@@ -1149,8 +1171,15 @@ ld.so 依據需求載入ldconf.so,並依據符號表做符號連結, 然後他�
 <p><strong>詳細說明</strong>：本機實測：<code>x: &amp;hit=0x7ace937850f9  hit() 回傳 2</code>、<code>y: &amp;hit=0x713b714f10f9  hit() 回傳 5</code>。<code>x</code>、<code>y</code> 是兩個獨立的行程，各有自己的位址空間；<code>libhits.so</code> 映射進來時是私有映射（<code>smaps</code> 權限欄的 <code>p</code>），沒人寫的頁大家共用，誰寫了核心就替誰複製一份。</p>
 </details>
 </details>
+</p>
 <details class="answer self-practice"><summary>自我練習（不批改）</summary>
-<div class="answer-box" data-file="small-project/s1-07-libraries/quiz.md" data-line="860" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="small-project/s1-07-libraries/quiz.md" data-line="905"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）">1. 印出來的虛擬記憶體位址雖然不同,畢竟默認ASLR是打開的,但是實際上在實體記憶體位址是相同的,kernel有把他們做映射,
+
+2. 程式碼也就是.text是相同的
+hits不同,當他們開始做寫hits的動作的時候 核心會把原hits實體記憶體的分頁,也就是.bss的那頁 複製一份出來,給兩個執行檔使用
+
+另外還有.got也是各自的,這個在ld.so的階段就已經就已經各自建立了自己的got了
+</textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h4 id="9-2-y-印出的-hit-回傳值是多少為什麼不是-xy-加起來的-7">9-2. <code>y</code> 印出的 <code>hit()</code> 回傳值是多少？為什麼不是 <code>x</code>、<code>y</code> 加起來的 7？</h4>
 <p><strong>第 1 次（2026-10-29）</strong></p>
@@ -1172,8 +1201,13 @@ ld.so 依據需求載入ldconf.so,並依據符號表做符號連結, 然後他�
 <p><strong>詳細說明</strong>：共用的只有沒被寫過的頁。要讓兩個行程真的共用一個計數器，得用共享記憶體（例如 <code>mmap</code> 的 <code>MAP_SHARED</code>）這類明確的機制，函式庫本身做不到。</p>
 </details>
 </details>
+</p>
 <details class="answer self-practice"><summary>自我練習（不批改）</summary>
-<div class="answer-box" data-file="small-project/s1-07-libraries/quiz.md" data-line="880" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="small-project/s1-07-libraries/quiz.md" data-line="936"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）">5
+
+因爲x,y各自寫入,各自複製了一個hits的分頁
+兩邊各自獨立
+</textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h4 id="9-3-假設沒有-got改成讓-ldso-載入時把位址直接寫進-text用寫入時複製說明-text-還能不能共用為什麼">9-3. 假設沒有 GOT，改成讓 <code>ld.so</code> 載入時把位址直接寫進 <code>.text</code>，用「寫入時複製」說明 <code>.text</code> 還能不能共用、為什麼。</h4>
 <p><strong>第 1 次（2026-10-29）</strong></p>
@@ -1193,8 +1227,11 @@ ld.so 依據需求載入ldconf.so,並依據符號表做符號連結, 然後他�
 <p><strong>詳細說明</strong>：PIC 的設計正是為了避免這件事：程式碼完全不改、大家共用；要因行程而異的位址集中在可寫的 GOT，只讓 GOT 那一頁被複製。</p>
 </details>
 </details>
+</p>
 <details class="answer self-practice"><summary>自我練習（不批改）</summary>
-<div class="answer-box" data-file="small-project/s1-07-libraries/quiz.md" data-line="898" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="small-project/s1-07-libraries/quiz.md" data-line="963"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）">不能共用
+假如ld.so在載入的時候把hits的虛擬位址直接寫進.text, 那就一定要寫入複製整個.text那一頁, 除了不同行程寫入時要複製的理由外,最重要的是每個行程他的虛擬位址的基底是不同的,那.text寫的hits的位址肯定不同,text一定也不同
+</textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h3 id="10-共用的-so格子裡的位址與實體頁10-26-追問新增">10. 共用的 <code>.so</code>：格子裡的位址與實體頁（10-26 追問新增）</h3>
 <p>兩支程式 <code>m</code>、<code>n</code> 都連 <code>libshape.so</code>（兩支都沒有自己的 <code>area</code>），同時在跑。<code>libshape.so</code> 的 <code>calc()</code> 透過 <code>area@plt</code> 呼叫 <code>area()</code>。(1) 兩個行程第一次呼叫 <code>calc</code> 之後，各自 <code>.got.plt</code> 裡 <code>area</code> 那格裝的數字一樣嗎？那個數字是誰、用哪兩樣東西算出來的？(2) 兩個行程執行的 <code>area</code> 程式碼是同一份實體記憶體嗎？<code>/proc/&lt;pid&gt;/smaps</code> 裡哪個欄位、出現什麼數值可以證明？(3) 跳到那格裡的位址時，虛擬位址由誰翻成實體位址？翻譯用的表又是誰準備的？(4) 同學分別用 gdb 跑 <code>m</code> 和 <code>n</code>，<code>p area</code> 兩邊都印 <code>0x7ffff7fb7119</code>，他說「看吧，兩個行程的 <code>area</code> 在同一個位址」。這個推論哪裡有問題？</p>
@@ -1277,8 +1314,14 @@ Contents of section .got.plt:
 <p><strong>詳細說明</strong>：<code>0x1119</code> 確實在做 <code>.so</code> 時就定了，但它只是「檔案內的位置」，還要加上基底；基底要到 <code>ld.so</code> 把檔案映射進來時才知道，每個行程不同。那格一共被寫兩次：載入時寫「基底 ＋ <code>0x1030</code>」，第一次呼叫時改成「基底 ＋ <code>0x1119</code>」。筆記第 7 章的 <code>q</code>、<code>r</code> 實測兩個行程的格子分別是 <code>0x7187194b9139</code>、<code>0x7125ada21139</code>。</p>
 </details>
 </details>
+</p>
 <details class="answer self-practice"><summary>自我練習（不批改）</summary>
-<div class="answer-box" data-file="small-project/s1-07-libraries/quiz.md" data-line="987" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="small-project/s1-07-libraries/quiz.md" data-line="1059"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）">不同
+
+題目問第一次呼叫之後,也就是說area也被叫過了
+所以那個存的就是area的位址
+但兩個行程的虛擬位址基底會不同, 所以就是 基底+ 0x1119
+</textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h4 id="10-2-兩個行程執行的-area-程式碼是同一份實體記憶體嗎procpidsmaps-裡哪個欄位出現什麼數值可以證明">10-2. 兩個行程執行的 <code>area</code> 程式碼是同一份實體記憶體嗎？<code>/proc/&lt;pid&gt;/smaps</code> 裡哪個欄位、出現什麼數值可以證明？</h4>
 <p><strong>第 1 次（2026-10-29）</strong></p>
@@ -1301,7 +1344,7 @@ Contents of section .got.plt:
 </details>
 </details>
 <details class="answer self-practice"><summary>自我練習（不批改）</summary>
-<div class="answer-box" data-file="small-project/s1-07-libraries/quiz.md" data-line="1007" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="small-project/s1-07-libraries/quiz.md" data-line="1086" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h4 id="10-3-跳到那格裡的位址時虛擬位址由誰翻成實體位址翻譯用的表又是誰準備的">10-3. 跳到那格裡的位址時，虛擬位址由誰翻成實體位址？翻譯用的表又是誰準備的？</h4>
 <p><strong>第 1 次（2026-10-29）</strong></p>
@@ -1322,7 +1365,7 @@ Contents of section .got.plt:
 </details>
 </details>
 <details class="answer self-practice"><summary>自我練習（不批改）</summary>
-<div class="answer-box" data-file="small-project/s1-07-libraries/quiz.md" data-line="1025" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="small-project/s1-07-libraries/quiz.md" data-line="1104" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h4 id="10-4-同學分別用-gdb-跑-m-和-np-area-兩邊都印-0x7ffff7fb7119他說看吧兩個行程的-area-在同一個位址這個推論哪裡有問題">10-4. 同學分別用 gdb 跑 <code>m</code> 和 <code>n</code>，<code>p area</code> 兩邊都印 <code>0x7ffff7fb7119</code>，他說「看吧，兩個行程的 <code>area</code> 在同一個位址」。這個推論哪裡有問題？</h4>
 <p><strong>第 1 次（2026-10-29）</strong></p>
@@ -1342,8 +1385,14 @@ Contents of section .got.plt:
 <p><strong>詳細說明</strong>：要證明兩個行程用的是同一份實體記憶體，看 <code>smaps</code> 的 <code>Shared_Clean</code>、<code>Pss</code>（10-2）。一般程式拿不到實體位址：<code>/proc/self/pagemap</code> 沒有 <code>CAP_SYS_ADMIN</code> 時 PFN 會被遮成 0（筆記第 9 章 <code>pfn.c</code>）。</p>
 </details>
 </details>
+</p>
 <details class="answer self-practice"><summary>自我練習（不批改）</summary>
-<div class="answer-box" data-file="small-project/s1-07-libraries/quiz.md" data-line="1043" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="small-project/s1-07-libraries/quiz.md" data-line="1125"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）">gdb 默認是關閉ASLR的,所以基底相同,位址有可能一樣
+
+但就算虛擬位址一樣,也不代表實體位址就是相同的,反過來說虛擬位址不同指向的實體位址也可以一樣
+
+所以這個推論不能證明它說的
+</textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h3 id="11-主程式只寫-extern變數放在哪裡10-26-追問新增">11. 主程式只寫 <code>extern</code>：變數放在哪裡（10-26 追問新增）</h3>
 <p><code>libcfg.so</code> 定義了 <code>int level = 3;</code> 與 <code>get_level()</code>，主程式 <code>setlevel.c</code> 只寫了 <code>extern int level;</code>。(1) 執行後兩行各印多少？(2) <code>nm setlevel</code> 會不會看到 <code>level</code>？在哪一種區段？為什麼原始碼只有 <code>extern</code> 卻會有？(3) 第一行印出的值是怎麼放進那裡的？<code>get_level()</code> 讀的是哪一份 <code>level</code>？用重定位的類型和 <code>ld.so</code> 找符號的順序說明。(4) 之後把 <code>cfg.c</code> 改成 <code>long level = 3;</code> 重做 <code>libcfg.so</code>，<code>setlevel</code> 不重新連結就執行，會發生什麼事、為什麼？</p>
@@ -1388,7 +1437,7 @@ Contents of section .got.plt:
 </details>
 </details>
 <details class="answer self-practice"><summary>自我練習（不批改）</summary>
-<div class="answer-box" data-file="small-project/s1-07-libraries/quiz.md" data-line="1090" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="small-project/s1-07-libraries/quiz.md" data-line="1179" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h4 id="11-2-nm-setlevel-會不會看到-level在哪一種區段為什麼原始碼只有-extern-卻會有">11-2. <code>nm setlevel</code> 會不會看到 <code>level</code>？在哪一種區段？為什麼原始碼只有 <code>extern</code> 卻會有？</h4>
 <p><strong>第 1 次（2026-10-29）</strong></p>
@@ -1415,7 +1464,7 @@ Contents of section .got.plt:
 </details>
 </details>
 <details class="answer self-practice"><summary>自我練習（不批改）</summary>
-<div class="answer-box" data-file="small-project/s1-07-libraries/quiz.md" data-line="1114" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="small-project/s1-07-libraries/quiz.md" data-line="1203" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h4 id="11-3-第一行印出的值是怎麼放進那裡的get_level-讀的是哪一份-level用重定位的類型和-ldso-找符號的順序說明">11-3. 第一行印出的值是怎麼放進那裡的？<code>get_level()</code> 讀的是哪一份 <code>level</code>？用重定位的類型和 <code>ld.so</code> 找符號的順序說明。</h4>
 <p><strong>第 1 次（2026-10-29）</strong></p>
@@ -1439,7 +1488,7 @@ Contents of section .got.plt:
 </details>
 </details>
 <details class="answer self-practice"><summary>自我練習（不批改）</summary>
-<div class="answer-box" data-file="small-project/s1-07-libraries/quiz.md" data-line="1135" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="small-project/s1-07-libraries/quiz.md" data-line="1224" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h4 id="11-4-之後把-cfgc-改成-long-level--3-重做-libcfgsosetlevel-不重新連結就執行會發生什麼事為什麼">11-4. 之後把 <code>cfg.c</code> 改成 <code>long level = 3;</code> 重做 <code>libcfg.so</code>，<code>setlevel</code> 不重新連結就執行，會發生什麼事、為什麼？</h4>
 <p><strong>第 1 次（2026-10-29）</strong></p>
@@ -1461,7 +1510,7 @@ Contents of section .got.plt:
 </details>
 </details>
 <details class="answer self-practice"><summary>自我練習（不批改）</summary>
-<div class="answer-box" data-file="small-project/s1-07-libraries/quiz.md" data-line="1154" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="small-project/s1-07-libraries/quiz.md" data-line="1243" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h3 id="12-h-與--l各在哪個階段用到10-26-追問新增">12. <code>.h</code> 與 <code>-l</code>：各在哪個階段用到（10-26 追問新增）</h3>
 <p><code>libtemp.so</code> 的宣告放在 <code>include/temp.h</code>（裡面還定義了巨集 <code>FREEZING_C</code>），做好的 <code>libtemp.so</code> 放在 <code>lib/</code>。(1) <code>gcc -Wall main.c -Llib -ltemp -o app</code> 會失敗在哪個階段（前處理、編譯、連結、執行）？錯誤大概長怎樣、要補什麼？(2) <code>gcc -Wall -Iinclude main.c -Llib -o app</code> 呢？(3) 同事說「<code>FREEZING_C</code> 的值存在 <code>libtemp.so</code> 裡，執行時才讀進來」，對嗎？為什麼？(4) 編好的 <code>app</code>（連結時加了 <code>-Wl,-rpath,'$ORIGIN/lib'</code>）要拿給別人執行，<code>include/temp.h</code> 要一起給嗎？<code>lib/libtemp.so</code> 呢？</p>
@@ -1516,7 +1565,7 @@ Contents of section .got.plt:
 </details>
 </details>
 <details class="answer self-practice"><summary>自我練習（不批改）</summary>
-<div class="answer-box" data-file="small-project/s1-07-libraries/quiz.md" data-line="1212" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="small-project/s1-07-libraries/quiz.md" data-line="1301" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h4 id="12-2-gcc--wall--iinclude-mainc--llib--o-app-呢">12-2. <code>gcc -Wall -Iinclude main.c -Llib -o app</code> 呢？</h4>
 <p><strong>第 1 次（2026-10-29）</strong></p>
@@ -1541,7 +1590,7 @@ Contents of section .got.plt:
 </details>
 </details>
 <details class="answer self-practice"><summary>自我練習（不批改）</summary>
-<div class="answer-box" data-file="small-project/s1-07-libraries/quiz.md" data-line="1234" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="small-project/s1-07-libraries/quiz.md" data-line="1323" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h4 id="12-3-同事說freezing_c-的值存在-libtempso-裡執行時才讀進來對嗎為什麼">12-3. 同事說「<code>FREEZING_C</code> 的值存在 <code>libtemp.so</code> 裡，執行時才讀進來」，對嗎？為什麼？</h4>
 <p><strong>第 1 次（2026-10-29）</strong></p>
@@ -1564,7 +1613,7 @@ Contents of section .got.plt:
 </details>
 </details>
 <details class="answer self-practice"><summary>自我練習（不批改）</summary>
-<div class="answer-box" data-file="small-project/s1-07-libraries/quiz.md" data-line="1254" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="small-project/s1-07-libraries/quiz.md" data-line="1343" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h4 id="12-4-編好的-app連結時加了--wl-rpathoriginlib要拿給別人執行includetemph-要一起給嗎liblibtempso-呢">12-4. 編好的 <code>app</code>（連結時加了 <code>-Wl,-rpath,'$ORIGIN/lib'</code>）要拿給別人執行，<code>include/temp.h</code> 要一起給嗎？<code>lib/libtemp.so</code> 呢？</h4>
 <p><strong>第 1 次（2026-10-29）</strong></p>
@@ -1586,7 +1635,7 @@ lib/libtemp.so要,因爲這個要在執行動態載入,call func的時候也需�
 </details>
 </details>
 <details class="answer self-practice"><summary>自我練習（不批改）</summary>
-<div class="answer-box" data-file="small-project/s1-07-libraries/quiz.md" data-line="1273" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="small-project/s1-07-libraries/quiz.md" data-line="1362" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <hr />
 <h2 id="未答第-7-課追加題第-13-題10-29-課後討論第-15-章">未答：第 7 課追加題：第 13 題（10-29 課後討論第 15 章）</h2>
@@ -1634,22 +1683,22 @@ lib/libtemp.so要,因爲這個要在執行動態載入,call func的時候也需�
 <h4 id="13-1-gcc--v-顯示-gcc-交給-ld-的順序是-scrt1o-crtio-crtbeginso---ltxt-mainc-的-o---lc-讀到--ltxt-那一刻還沒找到定義的符號清單是空的嗎裡面有-trim-嗎為什麼">13-1. <code>gcc -v</code> 顯示 gcc 交給 <code>ld</code> 的順序是 <code>Scrt1.o crti.o crtbeginS.o … -ltxt &lt;main.c 的 .o&gt; … -lc …</code>。讀到 <code>-ltxt</code> 那一刻，「還沒找到定義的符號」清單是空的嗎？裡面有 <code>trim</code> 嗎？為什麼？</h4>
 <p><strong>第 1 次（YYYY-MM-DD）</strong></p>
 <details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="small-project/s1-07-libraries/quiz.md" data-line="1330"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="small-project/s1-07-libraries/quiz.md" data-line="1419"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h4 id="13-2-預設下-gcc--wall--l--ltxt-mainc--o-app_bad-失敗把--wl--no-as-needed-放在--ltxt-前面gcc--wall--l--wl--no-as-needed--ltxt-mainc--o-app_no就成功讀到-libtxtso-時兩種模式各做了什麼maino-要的-trim-最後是怎麼被解決的是-libtxtso-把-trim-加進了清單嗎">13-2. 預設下 <code>gcc -Wall -L. -ltxt main.c -o app_bad</code> 失敗；把 <code>-Wl,--no-as-needed</code> 放在 <code>-ltxt</code> 前面（<code>gcc -Wall -L. -Wl,--no-as-needed -ltxt main.c -o app_no</code>）就成功。讀到 <code>libtxt.so</code> 時兩種模式各做了什麼？<code>main.o</code> 要的 <code>trim</code> 最後是怎麼被解決的——是 <code>libtxt.so</code> 把 <code>trim</code> 加進了清單嗎？</h4>
 <p><strong>第 1 次（YYYY-MM-DD）</strong></p>
 <details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="small-project/s1-07-libraries/quiz.md" data-line="1336"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="small-project/s1-07-libraries/quiz.md" data-line="1425"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h4 id="13-3-nonec-用-gcc--wall-nonec--l--wl--no-as-needed--ltxt--o-none_no-和-gcc--wall-nonec--l--ltxt--o-none_as-各連結一次readelf--d-的-needed-會差在哪ubuntu-為什麼預設開---as-needed">13-3. <code>none.c</code> 用 <code>gcc -Wall none.c -L. -Wl,--no-as-needed -ltxt -o none_no</code> 和 <code>gcc -Wall none.c -L. -ltxt -o none_as</code> 各連結一次，<code>readelf -d</code> 的 <code>NEEDED</code> 會差在哪？Ubuntu 為什麼預設開 <code>--as-needed</code>？</h4>
 <p><strong>第 1 次（YYYY-MM-DD）</strong></p>
 <details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="small-project/s1-07-libraries/quiz.md" data-line="1342"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="small-project/s1-07-libraries/quiz.md" data-line="1431"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h4 id="13-4-把-libtxtso-換成同樣三個-o-做成的-libtxta並刪掉-libtxtsogcc--wall--l--wl--no-as-needed--ltxt-mainc--o-app_a-會成功嗎為什麼">13-4. 把 <code>libtxt.so</code> 換成同樣三個 <code>.o</code> 做成的 <code>libtxt.a</code>（並刪掉 <code>libtxt.so</code>），<code>gcc -Wall -L. -Wl,--no-as-needed -ltxt main.c -o app_a</code> 會成功嗎？為什麼？</h4>
 <p><strong>第 1 次（YYYY-MM-DD）</strong></p>
 <details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="small-project/s1-07-libraries/quiz.md" data-line="1348"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="small-project/s1-07-libraries/quiz.md" data-line="1437"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 
 </main>

@@ -98,6 +98,12 @@
 <td><code>a</code>、<code>b</code> 同時跑、連 <code>../pic/count.c</code> 做的 <code>libcount.so</code>，用 <code>/proc/&lt;pid&gt;/smaps</code> 看 <code>.text</code> 是 <code>Shared_Clean</code>、GOT 與 <code>counter</code> 是 <code>Private_Dirty</code>（寫入時複製，10-26 追問）；<code>hits.c</code>／<code>x.c</code>／<code>y.c</code> 是自我測驗第 9 題；<code>q.c</code>／<code>r.c</code>（引入 <code>slot.h</code>，連 <code>../pic/greet.c</code> 做的 <code>libgreet.so</code>）讀出各自 <code>.got.plt</code> 的 <code>say</code> 那格、<code>Pss</code> 證明跳板共用；<code>pfn.c</code> 讀 <code>/proc/self/pagemap</code> 看到 PFN 被遮成 0；<code>shape.c</code>／<code>m.c</code>／<code>n.c</code> 是第 10 題</td>
 </tr>
 <tr>
+<td><a href="../../../small-project/s1-07-libraries/examples/cowpage/"><code>examples/cowpage/</code></a></td>
+<td><a href="../../../small-project/s1-07-libraries/examples/cowpage/box.c"><code>box.c</code></a>、<a href="../../../small-project/s1-07-libraries/examples/cowpage/cow.c"><code>cow.c</code></a></td>
+<td><a href="../../c/%E9%9D%9C%E6%85%8B%E8%88%87%E5%8B%95%E6%85%8B%E5%87%BD%E5%BC%8F%E5%BA%AB-ar%E8%88%87.a%E3%80%81-fPIC%E8%88%87.so%E3%80%81%E5%9F%B7%E8%A1%8C%E6%99%82%E6%80%8E%E9%BA%BC%E6%89%BE%E5%88%B0.so.html#%E4%B9%9D%E8%AA%B2%E5%BE%8C%E8%A8%8E%E8%AB%96">第九節</a>第 16 章</td>
+<td><code>box.c</code> 做成 <code>libbox.so</code>（<code>v</code> 對齊到獨佔一頁），<code>cow.c</code> 用 <code>/proc/self/pagemap</code> 第 61、63 位元看 <code>.text</code>、<code>.got</code>、<code>v</code> 三頁：GOT 進 <code>main</code> 前就被複製、讀 <code>v</code> 不複製、寫 <code>v</code> 才複製且虛擬位址不變（10-30 追問）</td>
+</tr>
+<tr>
 <td><a href="../../../small-project/s1-07-libraries/examples/fflush/"><code>examples/fflush/</code></a></td>
 <td><a href="../../../small-project/s1-07-libraries/examples/fflush/nf.c"><code>nf.c</code></a>、<a href="../../../small-project/s1-07-libraries/examples/fflush/wf.c"><code>wf.c</code></a></td>
 <td><a href="../../c/%E9%9D%9C%E6%85%8B%E8%88%87%E5%8B%95%E6%85%8B%E5%87%BD%E5%BC%8F%E5%BA%AB-ar%E8%88%87.a%E3%80%81-fPIC%E8%88%87.so%E3%80%81%E5%9F%B7%E8%A1%8C%E6%99%82%E6%80%8E%E9%BA%BC%E6%89%BE%E5%88%B0.so.html#%E4%B9%9D%E8%AA%B2%E5%BE%8C%E8%A8%8E%E8%AB%96">第九節</a>第 14 章</td>
@@ -355,7 +361,7 @@ f_to_c(212) = 100
 </details>
 </details>
 <details class="answer self-practice"><summary>自我練習（不批改）</summary>
-<div class="answer-box" data-file="small-project/s1-07-libraries/README.md" data-line="212" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="small-project/s1-07-libraries/README.md" data-line="213" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h3 id="1-2-先預測nm-hw1--grep--e-c_to_ff_to_ctemp_round-會列出這三個函式裡的哪幾個寫下預測後再執行貼上結果並貼上-gcc--wall-hw1_mainc--l--ltemp--wl--verbose--o-hw1-21--grep-libtemp-的輸出hw1_mainc-沒有直接呼叫-temp_round它為什麼或為什麼沒有在執行檔裡c_to_f-呢筆記第二節連結只拉需要的成員">1-2. 先預測：<code>nm hw1 | grep -E 'c_to_f|f_to_c|temp_round'</code> 會列出這三個函式裡的哪幾個？寫下預測後再執行，貼上結果，並貼上 <code>gcc -Wall hw1_main.c -L. -ltemp -Wl,--verbose -o hw1 2&gt;&amp;1 | grep libtemp</code> 的輸出。<code>hw1_main.c</code> 沒有直接呼叫 <code>temp_round</code>，它為什麼（或為什麼沒有）在執行檔裡？<code>c_to_f</code> 呢？【筆記第二節〈連結：只拉需要的成員〉】</h3>
 <p><strong>第 1 次（2026-10-27）</strong></p>
@@ -399,7 +405,7 @@ main一開始的符號就沒有他了,所以也不會去把ctof.o拉入執行檔
 </details>
 </details>
 <details class="answer self-practice"><summary>自我練習（不批改）</summary>
-<div class="answer-box" data-file="small-project/s1-07-libraries/README.md" data-line="251" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="small-project/s1-07-libraries/README.md" data-line="252" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <hr />
 <h2 id="2-兩個互相需要的靜態函式庫順序怎麼排">2. 兩個互相需要的靜態函式庫：順序怎麼排</h2>
@@ -544,7 +550,7 @@ hw2 在libconv連到f_to_c, f_to_c 在 libround 連到了temp_round, temp_round�
 </details>
 </details>
 <details class="answer self-practice"><summary>自我練習（不批改）</summary>
-<div class="answer-box" data-file="small-project/s1-07-libraries/README.md" data-line="376" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="small-project/s1-07-libraries/README.md" data-line="377" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h3 id="2-2-不重複寫--lconv改用--wl--start-group---wl--end-group-讓-b-的順序也能連結成功貼上指令與執行結果筆記第二節順序最後一段">2-2. 不重複寫 <code>-lconv</code>，改用 <code>-Wl,--start-group … -Wl,--end-group</code> 讓 (b) 的順序也能連結成功。貼上指令與執行結果。【筆記第二節〈順序〉最後一段】</h3>
 <p><strong>第 1 次（2026-10-27）</strong></p>
@@ -568,7 +574,7 @@ f_to_c(100) = 38
 </details>
 </details>
 <details class="answer self-practice"><summary>自我練習（不批改）</summary>
-<div class="answer-box" data-file="small-project/s1-07-libraries/README.md" data-line="398" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="small-project/s1-07-libraries/README.md" data-line="399" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h3 id="2-3-先猜再實驗把兩個函式庫改做成-so指令如下再用-ab-兩種順序連結各會成功還是失敗貼上結果成功的要執行為什麼-so-版的-b-不必像-a-那樣把--lconv-寫兩次a-為什麼還是失敗或為什麼成功新觀念先猜a-的部分可以用筆記第四節so-在-ubuntu-上也有順序問題推">2-3. 先猜再實驗：把兩個函式庫改做成 <code>.so</code>（指令如下），再用 (a)、(b) 兩種順序連結。各會成功還是失敗？貼上結果（成功的要執行）。為什麼 <code>.so</code> 版的 (b) 不必像 <code>.a</code> 那樣把 <code>-lconv</code> 寫兩次？(a) 為什麼還是失敗（或為什麼成功）？【新觀念，先猜；(a) 的部分可以用筆記<a href="../../c/%E9%9D%9C%E6%85%8B%E8%88%87%E5%8B%95%E6%85%8B%E5%87%BD%E5%BC%8F%E5%BA%AB-ar%E8%88%87.a%E3%80%81-fPIC%E8%88%87.so%E3%80%81%E5%9F%B7%E8%A1%8C%E6%99%82%E6%80%8E%E9%BA%BC%E6%89%BE%E5%88%B0.so.html#%E5%9B%9B%E5%8B%95%E6%85%8B%E5%87%BD%E5%BC%8F%E5%BA%AB-shared-%E8%88%87--fpic">第四節</a>〈<code>.so</code> 在 Ubuntu 上也有順序問題〉推】</h3>
 <pre><code class="language-sh">mkdir<span class="w"> </span>-p<span class="w"> </span>so
@@ -634,7 +640,7 @@ b的順序成功了
 </details>
 </details>
 <details class="answer self-practice"><summary>自我練習（不批改）</summary>
-<div class="answer-box" data-file="small-project/s1-07-libraries/README.md" data-line="459" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="small-project/s1-07-libraries/README.md" data-line="460" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <hr />
 <h2 id="3-做一個-so-fpicgot讓執行檔找得到它">3. 做一個 <code>.so</code>：<code>-fPIC</code>、GOT、讓執行檔找得到它</h2>
@@ -757,7 +763,7 @@ $ gcc -shared ctof.o ftoc.o -o libcf.so &amp;&amp; objdump -d --no-show-raw-insn
 </details>
 </details>
 <details class="answer self-practice"><summary>自我練習（不批改）</summary>
-<div class="answer-box" data-file="small-project/s1-07-libraries/README.md" data-line="582" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="small-project/s1-07-libraries/README.md" data-line="583" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h3 id="3-2-改用--fpic-重編三個檔案做出-libtempso貼上-objdump--dr---no-show-raw-insn-roundo-裡-temp_round-的內容標出哪幾行在存取-temp_calls逐行說明那幾行在做什麼中間-imul-0x66666667shrsar-那幾行是-gcc-用乘法代替除以-10的寫法這題不用解釋再貼上-readelf--r-libtempso--grep-temp_calls說明那一列是留給誰要它做什麼筆記第四節為什麼一定要--fpic">3-2. 改用 <code>-fPIC</code> 重編三個檔案、做出 <code>libtemp.so</code>。貼上 <code>objdump -dr --no-show-raw-insn round.o</code> 裡 <code>temp_round</code> 的內容，標出<strong>哪幾行在存取 <code>temp_calls</code></strong>，逐行說明那幾行在做什麼（中間 <code>imul $0x66666667</code>、<code>shr</code>、<code>sar</code> 那幾行是 gcc 用乘法代替「除以 10」的寫法，這題不用解釋）。再貼上 <code>readelf -r libtemp.so | grep temp_calls</code>，說明那一列是留給誰、要它做什麼。【筆記第四節〈為什麼一定要 <code>-fPIC</code>〉】</h3>
 <p><strong>第 1 次（2026-10-28）</strong></p>
@@ -909,7 +915,7 @@ $2 = (...) 0x7ffff7fba014 &lt;temp_calls&gt;       ← libtemp.so 那一份
 </details>
 </details>
 <details class="answer self-practice"><summary>自我練習（不批改）</summary>
-<div class="answer-box" data-file="small-project/s1-07-libraries/README.md" data-line="700" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="small-project/s1-07-libraries/README.md" data-line="701" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h3 id="3-3-用-gcc--wall-hw3_mainc--l--ltemp--o-hw3-連結執行-hw3貼上輸出與-ldd-hw3-的輸出這個錯誤是誰印的為什麼連結成功了執行卻找不到接著用兩種方法讓它跑起來各貼上指令與輸出a-ld_library_pathb-重新連結用--wl-rpathorigin-把路徑寫進執行檔另外貼上-readelf--d-hw3--grep--e-neededrunpath輸出裡-temp_calls-是幾為什麼是這個數字筆記第五節方法一方法二">3-3. 用 <code>gcc -Wall hw3_main.c -L. -ltemp -o hw3</code> 連結，執行 <code>./hw3</code>，貼上輸出與 <code>ldd ./hw3</code> 的輸出。這個錯誤是誰印的？為什麼連結成功了，執行卻找不到？接著用兩種方法讓它跑起來，各貼上指令與輸出：(a) <code>LD_LIBRARY_PATH</code>；(b) 重新連結，用 <code>-Wl,-rpath,'$ORIGIN'</code> 把路徑寫進執行檔（另外貼上 <code>readelf -d hw3 | grep -E 'NEEDED|RUNPATH'</code>）。輸出裡 <code>temp_calls</code> 是幾？為什麼是這個數字？【筆記<a href="../../c/%E9%9D%9C%E6%85%8B%E8%88%87%E5%8B%95%E6%85%8B%E5%87%BD%E5%BC%8F%E5%BA%AB-ar%E8%88%87.a%E3%80%81-fPIC%E8%88%87.so%E3%80%81%E5%9F%B7%E8%A1%8C%E6%99%82%E6%80%8E%E9%BA%BC%E6%89%BE%E5%88%B0.so.html#%E4%BA%94%E5%9F%B7%E8%A1%8C%E6%99%82%E6%80%8E%E9%BA%BC%E6%89%BE%E5%88%B0-so">第五節</a>〈方法一〉、〈方法二〉】</h3>
 <p><strong>第 1 次（2026-10-28）</strong></p>
@@ -978,7 +984,7 @@ temp_calls 是2
 </details>
 </details>
 <details class="answer self-practice"><summary>自我練習（不批改）</summary>
-<div class="answer-box" data-file="small-project/s1-07-libraries/README.md" data-line="758" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="small-project/s1-07-libraries/README.md" data-line="759" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h3 id="3-4-先預測在-hw3_mainc-的-include-temph-下面加一行-int-temp_calls--1000temph-不改照-3-3-b-的方式重新連結執行temp_calls---會印出多少寫下預測後執行貼上輸出與-ld_debugbindings-hw3-21--grep-temp_calls為什麼接著把-roundo-等三個--fpic-的-o-用-ar-rcs-libtempa-ctofo-ftoco-roundo-包成-a用-gcc--wall-hw3_mainc--l--llibtempa--o-hw3s-靜態連結先預測會怎樣再執行貼上結果為什麼同樣兩份-temp_calls動態和靜態的結果不一樣做完把加的那一行刪掉筆記第四節為什麼不能直接用固定距離">3-4. 先預測：在 <code>hw3_main.c</code> 的 <code>#include &quot;temp.h&quot;</code> 下面加一行 <code>int temp_calls = 1000;</code>（<code>temp.h</code> 不改），照 3-3 (b) 的方式重新連結、執行，<code>temp_calls = </code> 會印出多少？寫下預測後執行，貼上輸出與 <code>LD_DEBUG=bindings ./hw3 2&gt;&amp;1 | grep temp_calls</code>。為什麼？接著把 <code>round.o</code> 等三個 <code>-fPIC</code> 的 <code>.o</code> 用 <code>ar rcs libtemp.a ctof.o ftoc.o round.o</code> 包成 <code>.a</code>，用 <code>gcc -Wall hw3_main.c -L. -l:libtemp.a -o hw3s</code> 靜態連結，先預測會怎樣再執行、貼上結果；為什麼同樣兩份 <code>temp_calls</code>，動態和靜態的結果不一樣？做完把加的那一行刪掉。【筆記第四節〈為什麼不能直接用固定距離〉】</h3>
 <p><strong>第 1 次（2026-10-28）</strong></p>
@@ -1055,7 +1061,7 @@ $ readelf -s round.o | grep temp_calls
 </details>
 </details>
 <details class="answer self-practice"><summary>自我練習（不批改）</summary>
-<div class="answer-box" data-file="small-project/s1-07-libraries/README.md" data-line="821" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="small-project/s1-07-libraries/README.md" data-line="822" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <hr />
 <h2 id="4-so-依賴另一個-sorunpath-只管直接依賴">4. <code>.so</code> 依賴另一個 <code>.so</code>：<code>RUNPATH</code> 只管直接依賴</h2>
@@ -1134,7 +1140,7 @@ find library=libround.so [0]; searching
 </details>
 </details>
 <details class="answer self-practice"><summary>自我練習（不批改）</summary>
-<div class="answer-box" data-file="small-project/s1-07-libraries/README.md" data-line="899" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="small-project/s1-07-libraries/README.md" data-line="900" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h3 id="4-2-用兩種方法修好各貼上你改的指令readelf--d-相關的列與-hw4-的輸出a-只重做-liblibtempso讓它自己帶-runpath路徑要用-origin-寫想一想-libtempso-的-origin-是哪個資料夾b-不改-libtempso先把它做回原本的樣子改成重新連結-hw4用-rpath兩種方法你會選哪一種為什麼筆記第五節rpath-和-runpath-差在哪">4-2. 用兩種方法修好，各貼上你改的指令、<code>readelf -d</code> 相關的列與 <code>./hw4</code> 的輸出：(a) 只重做 <code>lib/libtemp.so</code>、讓它自己帶 <code>RUNPATH</code>（路徑要用 <code>$ORIGIN</code> 寫，想一想 <code>libtemp.so</code> 的 <code>$ORIGIN</code> 是哪個資料夾）；(b) 不改 <code>libtemp.so</code>（先把它做回原本的樣子），改成重新連結 <code>hw4</code>、用 <code>RPATH</code>。兩種方法你會選哪一種？為什麼？【筆記第五節〈<code>RPATH</code> 和 <code>RUNPATH</code> 差在哪〉】</h3>
 <p><strong>第 1 次（2026-10-28）</strong></p>
@@ -1212,7 +1218,7 @@ $ readelf -d hw4 | grep -E &#39;NEEDED|RUNPATH|RPATH&#39;
 </details>
 </details>
 <details class="answer self-practice"><summary>自我練習（不批改）</summary>
-<div class="answer-box" data-file="small-project/s1-07-libraries/README.md" data-line="969" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="small-project/s1-07-libraries/README.md" data-line="970" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h3 id="4-3-先猜再實驗把連結-hw4-的指令拿掉--wl-rpath-linklib重新連結貼上輸出hw4_mainc-根本沒呼叫-temp_round為什麼-ld-在連結時就要去找-libroundso-rpath-link-跟--rpath-差在哪-rpath-link-的作用見筆記第七節ld的表ld-為什麼要在連結時檢查是新觀念先猜">4-3. 先猜再實驗：把連結 <code>hw4</code> 的指令拿掉 <code>-Wl,-rpath-link,lib</code>，重新連結，貼上輸出。<code>hw4_main.c</code> 根本沒呼叫 <code>temp_round</code>，為什麼 <code>ld</code> 在<strong>連結時</strong>就要去找 <code>libround.so</code>？<code>-rpath-link</code> 跟 <code>-rpath</code> 差在哪？【<code>-rpath-link</code> 的作用見筆記<a href="../../c/%E9%9D%9C%E6%85%8B%E8%88%87%E5%8B%95%E6%85%8B%E5%87%BD%E5%BC%8F%E5%BA%AB-ar%E8%88%87.a%E3%80%81-fPIC%E8%88%87.so%E3%80%81%E5%9F%B7%E8%A1%8C%E6%99%82%E6%80%8E%E9%BA%BC%E6%89%BE%E5%88%B0.so.html#%E4%B8%83%E6%9C%AC%E8%AA%B2%E7%94%A8%E5%88%B0%E7%9A%84%E5%B7%A5%E5%85%B7%E9%81%B8%E9%A0%85%E8%88%87%E5%AE%8C%E6%95%B4%E6%B8%85%E5%96%AE%E5%9C%A8%E5%93%AA">第七節</a>〈<code>ld</code>〉的表；<code>ld</code> 為什麼要在連結時檢查是新觀念，先猜】</h3>
 <p><strong>第 1 次（2026-10-28）</strong></p>
@@ -1267,7 +1273,7 @@ $ ./app
 </details>
 </details>
 <details class="answer self-practice"><summary>自我練習（不批改）</summary>
-<div class="answer-box" data-file="small-project/s1-07-libraries/README.md" data-line="1013" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="small-project/s1-07-libraries/README.md" data-line="1014" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <hr />
 <h2 id="5-函式庫更新靜態-vs-動態以及-soname">5. 函式庫更新：靜態 vs 動態，以及 SONAME</h2>
@@ -1336,7 +1342,7 @@ lrwxrwxrwx 1 set set    16 Oct 28 17:18 libtemp.so.1 -&gt; libtemp.so.1.0.0
 </details>
 </details>
 <details class="answer self-practice"><summary>自我練習（不批改）</summary>
-<div class="answer-box" data-file="small-project/s1-07-libraries/README.md" data-line="1087" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="small-project/s1-07-libraries/README.md" data-line="1088" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h3 id="5-2-先預測把-roundc-改成正確的四捨五入return-x10--5--10然後只更新函式庫不重新連結兩支程式">5-2. 先預測：把 <code>round.c</code> 改成正確的四捨五入（<code>return (x10 + 5) / 10;</code>），然後<strong>只更新函式庫、不重新連結兩支程式</strong>：</h3>
 <pre><code class="language-sh">gcc<span class="w"> </span>-Wall<span class="w"> </span>-fPIC<span class="w"> </span>-c<span class="w"> </span>round.c
@@ -1412,7 +1418,7 @@ f_to_c(100) = 38
 </details>
 </details>
 <details class="answer self-practice"><summary>自我練習（不批改）</summary>
-<div class="answer-box" data-file="small-project/s1-07-libraries/README.md" data-line="1155" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="small-project/s1-07-libraries/README.md" data-line="1156" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h3 id="5-3-先預測下一版把-f_to_c-改成回傳十分之一度不相容的改變新增-ftoc2c做成-soname-是-libtempso2-的新版並把連結名稱指到新版">5-3. 先預測：下一版把 <code>f_to_c</code> 改成回傳「十分之一度」（不相容的改變），新增 <code>ftoc2.c</code>，做成 SONAME 是 <code>libtemp.so.2</code> 的新版，並把連結名稱指到新版：</h3>
 <pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;temp.h&quot;</span>
@@ -1496,7 +1502,7 @@ exit=0
 </details>
 </details>
 <details class="answer self-practice"><summary>自我練習（不批改）</summary>
-<div class="answer-box" data-file="small-project/s1-07-libraries/README.md" data-line="1232" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="small-project/s1-07-libraries/README.md" data-line="1233" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 
 </main>
