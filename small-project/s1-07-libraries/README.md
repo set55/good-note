@@ -44,6 +44,7 @@
 | [`examples/order/`](./examples/order/) | [`temp.h`](./examples/order/temp.h)、[`ctof.c`](./examples/order/ctof.c)、[`ftoc.c`](./examples/order/ftoc.c)、[`limit.c`](./examples/order/limit.c)、[`round.c`](./examples/order/round.c)、[`main.c`](./examples/order/main.c) | [第九節](../../html/c/靜態與動態函式庫-ar與.a、-fPIC與.so、執行時怎麼找到.so.html#九課後討論)第 12 章 | 作業第 2 題批改的補教：`.so` 整份符號一次進來、`--as-needed` 丟掉 `libround.so`、`--no-as-needed` 與 `--allow-shlib-undefined` 的對照 |
 | [`examples/soname/`](./examples/soname/) | [`calc.h`](./examples/soname/calc.h)、[`add.c`](./examples/soname/add.c)、[`mul.c`](./examples/soname/mul.c)、[`main.c`](./examples/soname/main.c) | 第六節〈SONAME〉 | `-Wl,-soname`、三個名字與符號連結、`NEEDED` 記的是 SONAME |
 | [`examples/rpathlink/`](./examples/rpathlink/) | [`temp.h`](./examples/rpathlink/temp.h)、[`round.c`](./examples/rpathlink/round.c)、[`ctof.c`](./examples/rpathlink/ctof.c)、[`ftoc.c`](./examples/rpathlink/ftoc.c)、[`main.c`](./examples/rpathlink/main.c) | [第九節第 13 章](../../html/c/靜態與動態函式庫-ar與.a、-fPIC與.so、執行時怎麼找到.so.html#13-連結時-ld-為什麼要找依賴的依賴-rpath-link-與--rpath作業-4-3) | 連結時 `ld` 找「依賴的依賴」：`-rpath-link` vs `-rpath`、`--allow-shlib-undefined`、`.so` 自己的 `RUNPATH` |
+| [`examples/pie/`](./examples/pie/) | [`g.c`](./examples/pie/g.c)、[`addr.c`](./examples/pie/addr.c) | [第九節第 17 章](../../html/c/靜態與動態函式庫-ar與.a、-fPIC與.so、執行時怎麼找到.so.html#17--fpie-跟--fpic-fno-pie-差在哪要不要提防符號插入以及-pie-是為了-aslr) | `-fPIC`／`-fPIE`／`-fno-pie` 三種組語對照：GOT／PLT vs `%rip` 直接存取與內嵌、`lea` vs 絕對位址；PIE（`DYN`）每次位址不同、`-no-pie`（`EXEC`）固定；用錯時 `recompile with -fPIE`／`-fPIC`（10-31 追問） |
 
 ---
 

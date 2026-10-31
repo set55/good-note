@@ -524,6 +524,8 @@ $                                            # 沒有錯誤
 - Ubuntu 的 gcc 預設 `-fPIE`（Position-Independent Executable）：也是位置無關，但假設「全域符號就定義在執行檔自己裡面」，所以可以直接讀。這就是為什麼不加 `-fPIC` 的 `.o` 拿來做 `.so` 會失敗。
 - `-fpic`（小寫）與 `-fPIC`：`man gcc` 說小寫版在某些架構上 GOT 有大小上限、比較快；**在 x86-64 上兩者產生的程式碼一樣**（本機用 `count.c` 實測：`-fpic` 與 `-fPIC` 編出的 `objdump -dr` 完全相同）。習慣上寫 `-fPIC`。
 
+> 課後討論：[第九節第 17 章〈`-fPIE` 跟 `-fPIC`、`-fno-pie` 差在哪：要不要提防符號插入，以及 PIE 是為了 ASLR〉](#17--fpie-跟--fpic-fno-pie-差在哪要不要提防符號插入以及-pie-是為了-aslr)
+
 ### `.so` 在 Ubuntu 上也有順序問題
 
 把 `-lcalc`（這時是 `.so`）寫到 `main.c` 前面：
@@ -976,6 +978,7 @@ gcc 的選項有上千個，完整見 `man gcc`（Link Options、Code Gen Option
 - [第 14 章](#14-fflushstdout-是什麼printf-先寫進緩衝區)：`fflush(stdout)` 是什麼：`printf` 先寫進緩衝區
 - [第 15 章](#15-ld-還沒讀到-maino怎麼知道誰需要什麼未定義符號清單與---as-needed)：`ld` 還沒讀到 `main.o`，怎麼知道誰需要什麼：未定義符號清單與 `--as-needed`
 - [第 16 章](#16-got-算一頁嗎區段載入段與頁寫入時複製一次複製一頁)：`.got` 算一頁嗎：區段、載入段與頁，寫入時複製一次複製一頁
+- [第 17 章](#17--fpie-跟--fpic-fno-pie-差在哪要不要提防符號插入以及-pie-是為了-aslr)：`-fPIE` 跟 `-fPIC`、`-fno-pie` 差在哪：要不要提防符號插入，以及 PIE 是為了 ASLR
 
 ### 1. `0x2ec8` 和 `0x3fd0` 各是什麼：`mov 0x2ec8(%rip),%rax` 的兩個數字
 
@@ -3018,6 +3021,217 @@ sequenceDiagram
 
 本章用到的新東西：`/proc/self/pagemap` 的第 61、63 位元（其餘位元見 `man 5 proc`）、glibc 的 `dl_iterate_phdr`（`man 3 dl_iterate_phdr`）、`setarch -R`（`--addr-no-randomize`，關掉這次執行的 ASLR，是 `setarch --help` 裡的一個選項，完整見 `man setarch`）、gdb 的 `set disable-randomization off` 與 `info sharedlibrary`（gdb 的分類與查法見 [`gdb完整命令參考.md`](./gdb完整命令參考.md)）。
 
+### 17. `-fPIE` 跟 `-fPIC`、`-fno-pie` 差在哪：要不要提防符號插入，以及 PIE 是為了 ASLR
+
+> 2026-10-31 課後提問（自我測驗 11-2 的自我練習時）：「請問-fPIE是什麼意思,他與-fPIC差別在哪裏?」
+>
+> 正文出處：[第四節〈為什麼不能直接用固定距離：`counter` 最後不一定是這一份〉](#為什麼不能直接用固定距離counter-最後不一定是這一份)最後的整理表（「沒加 `-fPIC`（Ubuntu 預設是 `-fPIE`）｜`-fPIC`」）與表下第一點；[第 3 章](#3-主程式只寫-extern-int-counter變數放進執行檔複製重定位)的「主程式是用 `-fPIE` 編的」
+
+**一句話：`-fPIC` 和 `-fPIE` 都是「位置無關」（載入到哪個位址都能跑），差別只在要不要提防符號插入——`-fPIC` 給 `.so` 用，連自己定義的全域變數、函式都可能被別人那一份取代，所以變數一律經 GOT、函式一律經 PLT；`-fPIE` 給執行檔用，執行檔是 `ld.so` 第一個找的，自己的符號不會被別人插入，所以用 `%rip` 加固定距離直接存取、還可以內嵌。`-fno-pie` 連位置無關都不要，把絕對位址寫死在指令裡，執行檔就只能放在固定位址，ASLR 對它無效。**
+
+#### 三個選項的全名與用途
+
+| 選項 | 全名 | 給誰用 | 位置無關？ | 提防符號插入？ |
+|---|---|---|---|---|
+| `-fPIC` | Position-Independent Code（位置無關程式碼） | 共享函式庫 `.so` | 是 | 是：全域變數經 GOT、全域函式經 PLT |
+| `-fPIE` | Position-Independent Executable（位置無關執行檔） | 執行檔（本機 gcc 預設） | 是 | 否：直接用 `%rip` 加固定距離 |
+| `-fno-pie` | 不產生 PIE 用的程式碼 | 固定位址的執行檔（要配連結選項 `-no-pie`） | 否：可以把絕對位址寫進指令 | 否 |
+
+小寫的 `-fpic`／`-fpie` 在 x86-64 上跟大寫產生一樣的程式碼（正文第四節整理表下第二點）。本機 gcc 預設是 PIE，可以從 `gcc -v` 的設定看到：
+
+```
+$ gcc -v 2>&1 | grep -o enable-default-pie
+enable-default-pie
+```
+
+`-fPIE` 是**編譯**選項（決定 `.o` 裡的指令怎麼寫）；`-pie`／`-no-pie` 是**連結**選項（決定輸出的執行檔是 `DYN` 還是 `EXEC`）。兩者要搭配：`-fno-pie` 的 `.o` 要配 `-no-pie` 才連得起來（下面〈用錯會怎樣〉）。
+
+#### 實驗一：同一段程式，三種選項編出來差在哪
+
+`g.c`（檔案：[`g.c`](../small-project/s1-07-libraries/examples/pie/g.c)）只編成 `.o` 看指令，不連結，所以沒有 `main`：
+
+```c
+int g = 1;              /* 自己這個檔定義的全域變數 */
+extern int ext;         /* 別的檔定義的全域變數 */
+
+int helper(void) { return 2; }
+
+int use(void)
+{
+    return g + ext + helper();
+}
+```
+
+```sh
+for o in -fPIC -fPIE -fno-pie; do
+    echo "=== $o"
+    gcc -O1 -c $o g.c -o g$o.o
+    objdump -dr --no-show-raw-insn g$o.o | sed -n '/<use>:/,$p'
+done
+```
+
+用 `-O1` 是為了讓結果短一點、看得出內嵌（`-O0` 什麼都不內嵌，三種的差別只剩 GOT）。本機輸出：
+
+```
+=== -fPIC
+000000000000000a <use>:
+   a:	endbr64
+   e:	push   %rbx
+   f:	mov    0x0(%rip),%rax        # 16 <use+0xc>
+			12: R_X86_64_REX_GOTPCRELX	ext-0x4
+  16:	mov    (%rax),%ebx
+  18:	mov    0x0(%rip),%rax        # 1f <use+0x15>
+			1b: R_X86_64_REX_GOTPCRELX	g-0x4
+  1f:	add    (%rax),%ebx
+  21:	call   26 <use+0x1c>
+			22: R_X86_64_PLT32	helper-0x4
+  26:	add    %ebx,%eax
+  28:	pop    %rbx
+  29:	ret
+=== -fPIE
+000000000000000a <use>:
+   a:	endbr64
+   e:	mov    0x0(%rip),%eax        # 14 <use+0xa>
+			10: R_X86_64_PC32	ext-0x4
+  14:	add    0x0(%rip),%eax        # 1a <use+0x10>
+			16: R_X86_64_PC32	g-0x4
+  1a:	add    $0x2,%eax
+  1d:	ret
+=== -fno-pie
+000000000000000a <use>:
+   a:	endbr64
+   e:	mov    0x0(%rip),%eax        # 14 <use+0xa>
+			10: R_X86_64_PC32	ext-0x4
+  14:	add    0x0(%rip),%eax        # 1a <use+0x10>
+			16: R_X86_64_PC32	g-0x4
+  1a:	add    $0x2,%eax
+  1d:	ret
+```
+
+逐段讀（`endbr64` 是 CET（Control-flow Enforcement Technology，控制流程強化技術）的跳躍目標標記，跟這裡無關，見[第 1 課](./hello.c怎麼變成能跑的程式-編譯的四個階段.md)）：
+
+- **`-fPIC`**：
+  - `f`、`16`：先 `mov 0x0(%rip),%rax` 從 GOT 那格讀出 `ext` 的**位址**（重定位 `R_X86_64_REX_GOTPCRELX`，名字裡的 `GOT` 就是「填的是到 GOT 那格的距離」），再 `mov (%rax),%ebx` 照位址讀值，放進 `%ebx`。
+  - `18`、`1f`：**連自己這個檔定義的 `g` 也一樣經 GOT**——這是重點。編譯器不敢假設最後用到的是這個檔的 `g`，因為執行檔或更早載入的 `.so` 可能也定義了 `g`，`ld.so` 會選那一份（符號插入，正文第四節的 `usecount` 印出 `counter = 101`）。
+  - `21`：`helper()` 也不敢內嵌，經 PLT 呼叫（`R_X86_64_PLT32`），理由同上：最後被叫到的 `helper` 不一定是這個檔的。
+  - `e`、`28`：`push %rbx`／`pop %rbx` 是因為要把中間結果暫存在 `%rbx` 跨過 `call`（`%rbx` 是被呼叫者保存的暫存器，[第 5 課](./x86-64組合語言入門二-call與ret、堆疊框、參數與呼叫慣例.md)）。
+- **`-fPIE`**：
+  - `e`、`14`：`ext` 和 `g` 都是 `%rip` 加固定距離**直接讀值**（`R_X86_64_PC32`），不經 GOT，一條指令搞定。
+  - `1a`：`helper()` 直接被內嵌成 `add $0x2,%eax`。編譯器敢這樣做，是因為它認定執行檔的符號不會被別人插入：`ld.so` 找符號時執行檔排第一（正文第四節〈為什麼不能直接用固定距離〉），執行檔自己定義的 `helper`、`g` 一定是最後被用的那份。
+  - 代價：`ext` 如果最後其實定義在 `.so` 裡，距離不可能固定，`ld` 就只好做**複製重定位**——在執行檔的 `.bss` 留一格、寫 `R_X86_64_COPY`，由 `ld.so` 載入時把值複製進來（[第 3 章](#3-主程式只寫-extern-int-counter變數放進執行檔複製重定位)、自我測驗第 11 題）。
+- **`-fno-pie`**：這一段跟 `-fPIE` 一模一樣。x86-64 讀全域變數本來就習慣用 `%rip` 相對定址，兩者的差別不在「讀值」，而在「拿位址」，看實驗二。
+
+#### 實驗二：`-fPIE` 與 `-fno-pie` 差在拿位址，以及執行檔每次的位址
+
+`addr.c`（檔案：[`addr.c`](../small-project/s1-07-libraries/examples/pie/addr.c)）：
+
+```c
+#include <stdio.h>
+
+int g = 1;
+
+int *where(void)
+{
+    return &g;          /* 拿全域變數的位址 */
+}
+
+int main(void)
+{
+    printf("&g   = %p\n", (void *)where());
+    printf("main = %p\n", (void *)main);
+    return 0;
+}
+```
+
+先看 `where()` 的指令：
+
+```sh
+for o in -fPIE -fno-pie; do
+    echo "=== $o"
+    gcc -O1 -c $o addr.c -o a$o.o
+    objdump -dr --no-show-raw-insn a$o.o | sed -n '/<where>:/,/ret/p'
+done
+```
+
+```
+=== -fPIE
+000000000000004c <where>:
+  4c:	endbr64
+  50:	lea    0x0(%rip),%rax        # 57 <where+0xb>
+			53: R_X86_64_PC32	g-0x4
+  57:	ret
+=== -fno-pie
+0000000000000044 <where>:
+  44:	endbr64
+  48:	mov    $0x0,%eax
+			49: R_X86_64_32	g
+  4d:	ret
+```
+
+- `-fPIE`：`lea 0x0(%rip),%rax` 用「下一條指令的位址 ＋ 距離」**算出** `&g`（`lea` 只算位址、不讀記憶體，[第 4 課](./x86-64組合語言入門-暫存器、mov與lea、cmp與條件跳躍.md)）。程式被搬到哪裡，算出來的就跟著變，所以位置無關。
+- `-fno-pie`：`mov $0x0,%eax` 把 `&g` 當成**常數**寫在指令裡，重定位 `R_X86_64_32` 是「把 `g` 的絕對位址（32 位元）填進這 4 byte」。連結時位址就定死了，程式只能放在那個位址。
+
+再連成執行檔，各跑兩次：
+
+```sh
+gcc -O1 addr.c -o pie_exe                       # 預設：-fPIE 編譯 + -pie 連結
+gcc -O1 -fno-pie -no-pie addr.c -o nopie_exe    # 兩個都關
+for e in pie_exe nopie_exe; do
+    echo "=== $e"; readelf -h $e | grep Type; ./$e; ./$e
+done
+```
+
+```
+=== pie_exe
+  Type:                              DYN (Position-Independent Executable file)
+&g   = 0x5ac035607010
+main = 0x5ac035604149
+&g   = 0x57040dd12010
+main = 0x57040dd0f149
+=== nopie_exe
+  Type:                              EXEC (Executable file)
+&g   = 0x404018
+main = 0x401136
+&g   = 0x404018
+main = 0x401136
+```
+
+- `pie_exe` 每次跑位址都不同，但末三碼（`010`、`149`）不變：核心每次替執行檔挑一個不同的**載入基底**（以頁為單位），`&g` ＝ 基底 ＋ 檔案裡的位置。這就是 **ASLR**（Address Space Layout Randomization，位址空間配置隨機化）：攻擊者猜不到 `main`、`g` 在哪。
+- `nopie_exe` 永遠在 `0x401136`、`0x404018`：指令裡寫死了絕對位址，核心只能照連結時的位址放，ASLR 對執行檔本身無效（`.so`、堆疊仍然隨機）。
+- `Type` 一個是 `DYN`、一個是 `EXEC`，就是 [ELF 那課](./ELF是什麼-可執行與可連結格式的兩種視角.md)「一般 `gcc` 編出的執行檔是 DYN、`-static` 是 EXEC」的原因：PIE 執行檔在格式上跟 `.so` 同一類，都可以被放到任何位址。
+
+**所以 PIE 存在的目的就是讓執行檔也能享受 ASLR**；它跟 `.so` 一樣要位置無關，但不必付提防符號插入的代價。
+
+#### 用錯會怎樣
+
+```sh
+gcc a-fno-pie.o -o x          # -fno-pie 的 .o，連成預設的 PIE 執行檔
+gcc -shared a-fPIE.o -o libx.so    # -fPIE 的 .o，拿去做 .so
+gcc -O1 -fno-pie -c g.c -o gn.o && gcc -shared gn.o -o liby.so   # -fno-pie 的 .o 做 .so
+gcc -O1 -fPIC addr.c -o picexe && ./picexe   # -fPIC 拿去編執行檔
+```
+
+| 做法 | 本機結果 |
+|---|---|
+| `-fno-pie` 的 `.o` 連成 PIE 執行檔 | `relocation R_X86_64_32 against symbol 'g' can not be used when making a PIE object; recompile with -fPIE` |
+| `-fPIE` 的 `.o` 拿去做 `.so` | `warning: relocation against 'g' in read-only section '.text'`，接著 `relocation R_X86_64_PC32 against symbol 'g' can not be used when making a shared object; recompile with -fPIC` |
+| `-fno-pie` 的 `.o` 做 `.so` | 同上一列，被點名的是 `undefined symbol 'ext'` |
+| `-fPIC` 編執行檔 | 成功（`DYN`，位址每次不同），只是存取全域變數多繞一次 GOT |
+
+錯誤訊息直接告訴你缺的是哪一級：`recompile with -fPIE` 是「連位置無關都不是」，`recompile with -fPIC` 是「位置無關，但沒提防符號插入」。要求由寬到嚴是 `-fno-pie` → `-fPIE` → `-fPIC`，**嚴的可以拿去當寬的用，反過來不行**。
+
+#### 整理
+
+| | `-fno-pie` | `-fPIE`（本機預設） | `-fPIC` |
+|---|---|---|---|
+| 讀全域變數 | `%rip` ＋ 固定距離 | `%rip` ＋ 固定距離 | 先從 GOT 讀位址再間接讀 |
+| 拿全域變數的位址 | 絕對位址寫死（`R_X86_64_32`） | `lea` 用 `%rip` 算（`R_X86_64_PC32`） | 從 GOT 讀 |
+| 呼叫自己定義的全域函式 | 直接 `call`／可內嵌 | 直接 `call`／可內嵌 | 經 PLT、不內嵌 |
+| 變數其實在 `.so` 時 | 複製重定位 | 複製重定位（第 3 章） | 經 GOT，不需要 |
+| 執行檔類型、ASLR | `EXEC`，位址固定 | `DYN`，每次不同 | 可做 `.so`；也可做執行檔 |
+
+本章用到的選項：`-fPIC`、`-fPIE`、`-fno-pie`（編譯）、`-pie`／`-no-pie`、`-shared`（連結），都在 `man gcc` 的 Code Generation Options 與 Link Options；本課 gcc 選項的整理見正文[第七節〈`gcc`：本課新用到的選項〉](#gcc本課新用到的選項)。
+
 ---
 
 ## 自我測驗
@@ -3615,9 +3829,9 @@ sequenceDiagram
     > **12-2**【[第九節第 11 章](../html/c/靜態與動態函式庫-ar與.a、-fPIC與.so、執行時怎麼找到.so.html#11-做-so-需要-h-嗎include-管編譯-l-管連結)〈做 `.so` 需要 `.h` 嗎？`#include` 管編譯、`-l` 管連結〉】核心關鍵：
     >
     > 1. 失敗在**連結**：`undefined reference to 'c_to_f'`。
-    > 2. `.h` 只讓編譯器知道 `c_to_f` 的型別；要 `-ltemp`（寫在 `main.c` 後面）`ld` 才會去 `-Llib` 找 `libtemp.so`、解決 `c_to_f`。
+    > 2. 要補 `-ltemp`（寫在 `main.c` 後面），`ld` 才會去 `-Llib` 找 `libtemp.so`、解決 `c_to_f`。
     >
-    > 詳細說明：本機實測輸出：`main.c:(.text+0x15): undefined reference to 'c_to_f'`。對照筆記第 11 章的 `sq.c`：有 `#include <math.h>`、沒 `-lm`，一樣是 `undefined reference to 'sqrt'`。
+    > 詳細說明：本機實測輸出：`main.c:(.text+0x15): undefined reference to 'c_to_f'`。為什麼前處理、編譯都會過：有 `-Iinclude` 找得到 `temp.h`，而 `.h` 只給 `c_to_f` 的宣告（型別），編譯器有宣告就能編；本體要到連結時才找（題目沒問為什麼，這段不列入核心關鍵，2026-10-31 使用者指出後調整）。對照筆記第 11 章的 `sq.c`：有 `#include <math.h>`、沒 `-lm`，一樣是 `undefined reference to 'sqrt'`。
     >
     > **12-3**【[第九節第 11 章](../html/c/靜態與動態函式庫-ar與.a、-fPIC與.so、執行時怎麼找到.so.html#11-做-so-需要-h-嗎include-管編譯-l-管連結)〈做 `.so` 需要 `.h` 嗎？`#include` 管編譯、`-l` 管連結〉】核心關鍵：
     >
@@ -3632,7 +3846,7 @@ sequenceDiagram
     > 2. `lib/libtemp.so` 要給：`c_to_f` 的程式碼在裡面，執行時 `ld.so` 照 `NEEDED` 和 `RUNPATH $ORIGIN/lib` 載入它，所以要放在 `app` 旁邊的 `lib/`。
     >
     > 詳細說明：這就是 `zlib1g`（執行用，只有 `.so.1`）和 `zlib1g-dev`（開發用，`.h`、`.a`、`.so`）分成兩個套件的原因。
-13. （2026-10-29 提問延伸）`libtxt.so` 由下面的 `case.c`、`space.c`、`trim.c` 做成；`main.c` 只呼叫 `trim`，`none.c` 什麼都不呼叫。(1) `gcc -v` 顯示 gcc 交給 `ld` 的順序是 `Scrt1.o crti.o crtbeginS.o … -ltxt <main.c 的 .o> … -lc …`。讀到 `-ltxt` 那一刻，「還沒找到定義的符號」清單是空的嗎？裡面有 `trim` 嗎？為什麼？(2) 預設下 `gcc -Wall -L. -ltxt main.c -o app_bad` 失敗；把 `-Wl,--no-as-needed` 放在 `-ltxt` 前面（`gcc -Wall -L. -Wl,--no-as-needed -ltxt main.c -o app_no`）就成功。讀到 `libtxt.so` 時兩種模式各做了什麼？`main.o` 要的 `trim` 最後是怎麼被解決的——是 `libtxt.so` 把 `trim` 加進了清單嗎？(3) `none.c` 用 `gcc -Wall none.c -L. -Wl,--no-as-needed -ltxt -o none_no` 和 `gcc -Wall none.c -L. -ltxt -o none_as` 各連結一次，`readelf -d` 的 `NEEDED` 會差在哪？Ubuntu 為什麼預設開 `--as-needed`？(4) 把 `libtxt.so` 換成同樣三個 `.o` 做成的 `libtxt.a`（並刪掉 `libtxt.so`），`gcc -Wall -L. -Wl,--no-as-needed -ltxt main.c -o app_a` 會成功嗎？為什麼？
+13. （2026-10-29 提問延伸）`libtxt.so` 由下面的 `case.c`、`space.c`、`trim.c` 做成；`main.c` 只呼叫 `trim`，`none.c` 什麼都不呼叫。(1) 用 `gcc -Wall -L. -ltxt main.c -o app_bad`（`-ltxt` 寫在 `main.c` 前面）連結時，`gcc -v` 顯示 gcc 交給 `ld` 的順序是 `Scrt1.o crti.o crtbeginS.o … -ltxt <main.c 的 .o> … -lc …`。讀到 `-ltxt` 那一刻，「還沒找到定義的符號」清單是空的嗎？裡面有 `trim` 嗎？為什麼？(2) 預設下 `gcc -Wall -L. -ltxt main.c -o app_bad` 失敗；把 `-Wl,--no-as-needed` 放在 `-ltxt` 前面（`gcc -Wall -L. -Wl,--no-as-needed -ltxt main.c -o app_no`）就成功。讀到 `libtxt.so` 時兩種模式各做了什麼？`main.o` 要的 `trim` 最後是怎麼被解決的——是 `libtxt.so` 把 `trim` 加進了清單嗎？(3) `none.c` 用 `gcc -Wall none.c -L. -Wl,--no-as-needed -ltxt -o none_no` 和 `gcc -Wall none.c -L. -ltxt -o none_as` 各連結一次，`readelf -d` 的 `NEEDED` 會差在哪？Ubuntu 為什麼預設開 `--as-needed`？(4) 把 `libtxt.so` 換成同樣三個 `.o` 做成的 `libtxt.a`（並刪掉 `libtxt.so`），`gcc -Wall -L. -Wl,--no-as-needed -ltxt main.c -o app_a` 會成功嗎？為什麼？
     ```c
     /* case.c */
     void to_upper_str(char *s) { for (; *s; s++) if (*s >= 'a' && *s <= 'z') *s -= 32; }
@@ -3674,3 +3888,34 @@ sequenceDiagram
     }
     ```
     做 `.so`：`gcc -Wall -fPIC -shared case.c space.c trim.c -o libtxt.so`；做 `.a`：`gcc -Wall -c case.c space.c trim.c && ar rcs libtxt.a case.o space.o trim.o && rm libtxt.so`（檔案都在 [`examples/asneeded/`](../small-project/s1-07-libraries/examples/asneeded/)）。啟動檔 `Scrt1.o` 未定義的符號可以用 `nm -u $(gcc -print-file-name=Scrt1.o)` 看。
+
+    > **參考答案**（核心關鍵＋詳細說明）
+    >
+    > **13-1**【[第九節第 15 章](../html/c/靜態與動態函式庫-ar與.a、-fPIC與.so、執行時怎麼找到.so.html#15-ld-還沒讀到-maino怎麼知道誰需要什麼未定義符號清單與---as-needed)〈`ld` 還沒讀到 `main.o`，怎麼知道誰需要什麼〉】核心關鍵：
+    >
+    > 1. **不是空的**：`-ltxt` 前面的啟動檔已經讀過，`Scrt1.o` 帶進 `main`、`__libc_start_main` 等未定義符號。
+    > 2. **沒有 `trim`**：需要 `trim` 的是 `main.c` 的 `.o`，它排在 `-ltxt` 後面、還沒讀到；`ld` 由左往右、不往後看，只用此刻的清單做決定。
+    >
+    > 詳細說明：`nm -u $(gcc -print-file-name=Scrt1.o)` 列出 `U _GLOBAL_OFFSET_TABLE_`、`U __libc_start_main`、`U main`；`crtbeginS.o` 另外帶進 `U __TMC_END__`（`w` 開頭的是弱符號，找不到也不算錯）。所以正文第二節說「這時清單裡沒有 `calc_add`」，不是嚴格意義的空清單。
+    >
+    > **13-2**【[第九節第 15 章](../html/c/靜態與動態函式庫-ar與.a、-fPIC與.so、執行時怎麼找到.so.html#15-ld-還沒讀到-maino怎麼知道誰需要什麼未定義符號清單與---as-needed)〈`ld` 還沒讀到 `main.o`，怎麼知道誰需要什麼〉】核心關鍵：
+    >
+    > 1. `--as-needed`（預設）：讀到 `libtxt.so` 時看此刻的清單，沒人需要它的符號 → 整個丟掉、不記進 `NEEDED`；後面 `main.o` 要 `trim` 時沒人提供 → `undefined reference`。
+    > 2. `--no-as-needed`：不看清單，一律留下、記進 `NEEDED`，並**記住它提供的定義**。
+    > 3. `trim` 是讀到 `main.o` 時，`ld` 用已經記住的 `libtxt.so` 定義當場解決的；不是 `libtxt.so` 把 `trim` 加進清單——清單只放「還沒找到定義的符號」，`.so` 提供的是定義。
+    >
+    > 詳細說明：`nm -D --defined-only libtxt.so` 看得到它提供的四個定義：`is_space`、`to_lower_str`、`to_upper_str`、`trim`。`.so` 本來就有「先記住、後面再用」的能力，順序問題完全是 `--as-needed` 在那一刻「丟掉」造成的。實測：`gcc -Wall -L. -Wl,--no-as-needed -ltxt main.c -o app_no` 成功，`LD_LIBRARY_PATH=. ./app_no` 印 `[hello]`，`readelf -d app_no` 有 `libtxt.so` 與 `libc.so.6` 兩個 `NEEDED`。
+    >
+    > **13-3**【[第九節第 15 章](../html/c/靜態與動態函式庫-ar與.a、-fPIC與.so、執行時怎麼找到.so.html#15-ld-還沒讀到-maino怎麼知道誰需要什麼未定義符號清單與---as-needed)〈`ld` 還沒讀到 `main.o`，怎麼知道誰需要什麼〉】核心關鍵：
+    >
+    > 1. `none_no` 有 `libtxt.so` 與 `libc.so.6` 兩個 `NEEDED`；`none_as` 只有 `libc.so.6`。
+    > 2. `--no-as-needed` 讓用不到的 `.so` 也記進 `NEEDED`，執行時 `ld.so` 就得多找、多載入一個；`--as-needed` 讓沒用到的自動消失。
+    >
+    > 詳細說明：多出來的 `NEEDED` 不只是浪費：換到沒裝 `libtxt.so` 的機器，`ld.so` 找不到它，程式會整個跑不起來，即使根本沒用到。建置系統常把一長串 `-l` 套到每個程式上，`--as-needed` 讓沒用到的自動消失；代價就是 `-l` 一定要寫在用到它的檔案後面。
+    >
+    > **13-4**【[第九節第 15 章](../html/c/靜態與動態函式庫-ar與.a、-fPIC與.so、執行時怎麼找到.so.html#15-ld-還沒讀到-maino怎麼知道誰需要什麼未定義符號清單與---as-needed)〈`ld` 還沒讀到 `main.o`，怎麼知道誰需要什麼〉】核心關鍵：
+    >
+    > 1. **不會成功**：`undefined reference to 'trim'`。
+    > 2. `--as-needed`／`--no-as-needed` 只管 `.so`；`.a` 讀到時只拉此刻清單需要的成員，此刻清單沒有 `trim` → 一個都不拉、也不記，之後不回頭。
+    >
+    > 詳細說明：`.a` 的順序問題不管加什麼選項都存在，只能把 `-ltxt` 寫在 `main.c` 後面，或用 `--start-group … --end-group` 讓群組反覆掃（正文第二節）。`rm libtxt.so` 是因為 `-ltxt` 會先找 `.so`（正文第三節）。

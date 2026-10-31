@@ -12,7 +12,7 @@
 | 測驗 | 對應筆記 | 狀態 |
 |---|---|---|
 | [第 7 課：靜態與動態函式庫](#已答第-7-課靜態與動態函式庫) | [靜態與動態函式庫-ar與.a、-fPIC與.so、執行時怎麼找到.so](../../html/c/靜態與動態函式庫-ar與.a、-fPIC與.so、執行時怎麼找到.so.html) | 已答、已批改（2026-10-29） |
-| [第 7 課追加題：第 13 題（10-29 課後討論第 15 章）](#未答第-7-課追加題第-13-題10-29-課後討論第-15-章) | [靜態與動態函式庫-ar與.a、-fPIC與.so、執行時怎麼找到.so](../../html/c/靜態與動態函式庫-ar與.a、-fPIC與.so、執行時怎麼找到.so.html#自我測驗) | 未答 |
+| [第 7 課追加題：第 13 題（10-29 課後討論第 15 章）](#已答第-7-課追加題第-13-題10-29-課後討論第-15-章) | [靜態與動態函式庫-ar與.a、-fPIC與.so、執行時怎麼找到.so](../../html/c/靜態與動態函式庫-ar與.a、-fPIC與.so、執行時怎麼找到.so.html#自我測驗) | 已答、已批改（2026-10-31） |
 ---
 
 ## 已答：第 7 課：靜態與動態函式庫
@@ -22,7 +22,7 @@
 
 ### 批改結果（2026-10-29）
 
-> 41 個小題：對 22、大致對 5、不完整 8、錯 6。不重答，每題直接附參考答案（核心關鍵＋詳細說明）。以大題計：第 1、5、7 題對；第 3、4 題大致對，第 2、9 題不完整，第 6、8、10、11、12 題錯。**還沒進複習排程**（2026-10-29 新規則）：不是「對」的 19 個小題要在各自的自我練習框練到 Claude 判定算對，連同追加的第 13 題都過關後，整份才進排程（第 1、5、7 題 → 盒子 2，其餘 → 盒子 1）。
+> 41 個小題：對 23、大致對 5、不完整 8、錯 5（12-1 於 10-31 改判為對）。不重答，每題直接附參考答案（核心關鍵＋詳細說明）。以大題計：第 1、5、7 題對；第 3、4 題大致對，第 2、9 題不完整，第 6、8、10、11、12 題錯。**2026-10-31 已整份進複習排程**（第 13 題的 13-4 過關後清單清空；10-2、10-3 延到第 ③ 站、暫停）。原本的規定（2026-10-29 新規則）：不是「對」的 19 個小題要在各自的自我練習框練到 Claude 判定算對，連同追加的第 13 題都過關後，整份才進排程（第 1、5、7 題 → 盒子 2，其餘 → 盒子 1）。
 
 | 題目 | 結果 | 錯在哪／缺什麼 | 過關 |
 |---|---|---|---|
@@ -60,11 +60,11 @@
 | 10-3 | 不完整 | 只答「kernel」：頁表是核心準備的對，但每次翻譯的是 CPU 的 MMU | 移到第 ③ 站（10-31） |
 | 10-4 | 不完整 | 「gdb 下基底一樣」對到一半；缺：兩個行程各有位址空間和頁表，同一個虛擬位址不代表同一個東西。「同時啟動」不是解法 | ✅ 過關（10-31） |
 | 11-1 | 對 | 抓到重點：3 與 7 | — |
-| 11-2 | 不完整 | 會看到對；區段錯：你貼的 `nm` 是 `B` ＝ `.bss`，不是 `.data`；原因只猜對一半：`ld` 只留位置、寫 `R_X86_64_COPY`，初值是載入時才複製 | 未過關 |
-| 11-3 | 不完整 | 「`get_level` 讀主程式那份」對；誰在何時填 GOT 說錯：是 `ld.so` 載入時、不是 `ld` 連結時；主程式讀 `level` 不經 GOT；`COPY` 沒講 | 未過關 |
-| 11-4 | 錯 | 猜成「改用 GOT」；實際：執行檔已經照舊大小留了 4 byte，`ld.so` 警告 `Symbol 'level' has different size in shared object, consider re-linking` | 未過關 |
-| 12-1 | 錯 | 說成執行階段；其實是前處理：`fatal error: temp.h: No such file or directory`，要補 `-Iinclude` | 未過關 |
-| 12-2 | 錯 | 說成執行階段；其實是連結：`undefined reference to 'c_to_f'`，要補 `-ltemp` | 未過關 |
+| 11-2 | 不完整 | 會看到對；區段錯：你貼的 `nm` 是 `B` ＝ `.bss`，不是 `.data`；原因只猜對一半：`ld` 只留位置、寫 `R_X86_64_COPY`，初值是載入時才複製 | ✅ 過關（10-31） |
+| 11-3 | 不完整 | 「`get_level` 讀主程式那份」對；誰在何時填 GOT 說錯：是 `ld.so` 載入時、不是 `ld` 連結時；主程式讀 `level` 不經 GOT；`COPY` 沒講 | ✅ 過關（10-31） |
+| 11-4 | 錯 | 猜成「改用 GOT」；實際：執行檔已經照舊大小留了 4 byte，`ld.so` 警告 `Symbol 'level' has different size in shared object, consider re-linking` | ✅ 過關（10-31） |
+| 12-1 | 對 | 改判（10-31）：原批改誤把 12-2 的作答（執行階段、`-rpath`）套到這題；你答的前處理、找不到 `.h`、補 `-Iinclude` 正是兩個核心關鍵 | — |
+| 12-2 | 錯 | 說成執行階段；其實是連結：`undefined reference to 'c_to_f'`，要補 `-ltemp` | ✅ 過關（10-31） |
 | 12-3 | 對 | 抓到重點：`temp.h` 的內容在編 `main.c` 時就進了執行檔；精確說巨集是前處理換掉的 | — |
 | 12-4 | 對 | 抓到重點：`.h` 只在編譯時用，`.so` 執行時要載入 | — |
 
@@ -1202,6 +1202,20 @@ int main(void)
 >
 > **詳細說明**：本機實測：`nm setlevel` → `0000000000004010 B level`；`readelf -SW setlevel` 的 `.bss` 從 `0x4010` 開始；`readelf -r setlevel` → `000000004010 … R_X86_64_COPY … level + 0`。
 
+**自我練習**（不批改）
+
+```
+會
+在.bss
+
+主程式是fPIE,假設全域變數都在主程式,只需要計算出%rip距離全域變數多少
+
+但是實際上level是在libcfg.so, 所以爲了能將level複製到主程式
+1. ld會在主程式的.bss留下level的位置
+2. 在組語用到level的地方留下R_X86_64_COPY定位到bss的位址
+這樣就可以讓讓ld.so把level的值複製進去
+```
+
 #### 11-3. 第一行印出的值是怎麼放進那裡的？`get_level()` 讀的是哪一份 `level`？用重定位的類型和 `ld.so` 找符號的順序說明。
 
 **第 1 次（2026-10-29）**
@@ -1223,6 +1237,15 @@ int main(void)
 >
 > **詳細說明**：本機實測 `LD_DEBUG=bindings ./setlevel` 的兩行就是這兩件事：`binding file ./setlevel to …/libcfg.so: normal symbol 'level'`（處理 `COPY`：去 `.so` 拿初值）、`binding file …/libcfg.so to ./setlevel: normal symbol 'level'`（處理 `GLOB_DAT`：`.so` 的 GOT 接到執行檔）。
 
+**自我練習**（不批改）
+
+```
+level正在主程式的定位類型是R_X86_64_COPY, ld.so看到這個以後, 就會在Needed找到第一個符合的符號,把初值複製進去
+
+也是主程式的.bss, libcfg.so的level重定位是R_X86_64_GLOB_DAT, 所以ld.so看到後,就會去找主程式(順序是先看主程式有沒有,在看.so)的.bss裏的level位置
+並把它複製到libcfg.so的got裏
+```
+
 #### 11-4. 之後把 `cfg.c` 改成 `long level = 3;` 重做 `libcfg.so`，`setlevel` 不重新連結就執行，會發生什麼事、為什麼？
 
 **第 1 次（2026-10-29）**
@@ -1241,6 +1264,14 @@ int main(void)
 > 2. 原因：執行檔 `.bss` 留給 `level` 的大小（4 byte）是**連結時**照當時的 `.so` 決定的；現在 `.so` 裡的 `level` 是 8 byte，大小對不上，要重新連結。
 >
 > **詳細說明**：本機實測（`cfg.c` 改成 `long level = 3;` 重做 `libcfg.so`，`setlevel` 不動）：先印那行警告，接著照樣印 `一開始 level = 3`、`get_level() = 7`。印對是運氣：`get_level()` 經過 GOT 到執行檔那格讀 8 byte，多讀的 4 byte 是執行檔 `.bss` 裡 `level` 後面的空間，剛好是 0；值一大、或後面放了別的變數，就會讀寫到別人。這是函式庫通常**不直接給外面用全域變數、而是提供函式**（`get_level()`）的原因之一：函式走 PLT，執行檔不必知道它的大小。
+
+**自我練習**（不批改）
+
+```
+ld.so 在執行時會提出警告,因爲他在看主程式與libcfg.so的symbol table的時候會發現level的大小不同,因爲主程式的4byte是在連接舊的libcfg的定義來的,現在改了但卻沒有重新連結,因此維持原樣,因此就會提出警告
+
+程式不會因此錯誤繼續跑,
+```
 
 ### 12. `.h` 與 `-l`：各在哪個階段用到（10-26 追問新增）
 
@@ -1289,7 +1320,7 @@ int main(void)
 命令行補上 -Iinclude
 ```
 
-> **批改**：**錯**。這個指令根本走不到執行：`main.c` 第 2 行 `#include "temp.h"`，`temp.h` 在 `include/` 底下，沒給 `-Iinclude`，前處理器就找不到。你補的 `-rpath` 是**之後**才會遇到的問題（實測補了 `-Iinclude` 之後能編、能連結，執行時才出 `cannot open shared object file`），想得到這一步很好，但不是這題問的。
+> **批改**：~~**錯**~~ → **對**（2026-10-31 改判）。你答了「前處理階段、找不到 `.h`、補 `-Iinclude`」，兩個核心關鍵都有。10-29 的批改寫錯了：內容（「說成執行階段」「你補的 `-rpath`」）是 12-2 的作答，被誤套到這題。可以再補一句錯誤訊息的長相 `fatal error: temp.h: No such file or directory`，但不扣分。
 >
 > **參考答案**【[第九節第 11 章](../../html/c/靜態與動態函式庫-ar與.a、-fPIC與.so、執行時怎麼找到.so.html#11-做-so-需要-h-嗎include-管編譯-l-管連結)〈做 `.so` 需要 `.h` 嗎？`#include` 管編譯、`-l` 管連結〉】
 >
@@ -1318,9 +1349,17 @@ int main(void)
 > **核心關鍵**（答到這幾點就算對）：
 >
 > 1. 失敗在**連結**：`undefined reference to 'c_to_f'`。
-> 2. `.h` 只讓編譯器知道 `c_to_f` 的型別；要 `-ltemp`（寫在 `main.c` 後面）`ld` 才會去 `-Llib` 找 `libtemp.so`、解決 `c_to_f`。
+> 2. 要補 `-ltemp`（寫在 `main.c` 後面），`ld` 才會去 `-Llib` 找 `libtemp.so`、解決 `c_to_f`。
 >
-> **詳細說明**：本機實測輸出：`main.c:(.text+0x15): undefined reference to 'c_to_f'`。對照筆記第 11 章的 `sq.c`：有 `#include <math.h>`、沒 `-lm`，一樣是 `undefined reference to 'sqrt'`。
+> **詳細說明**：本機實測輸出：`main.c:(.text+0x15): undefined reference to 'c_to_f'`。為什麼前處理、編譯都會過：有 `-Iinclude` 找得到 `temp.h`，而 `.h` 只給 `c_to_f` 的宣告（型別），編譯器有宣告就能編；本體要到連結時才找（題目沒問為什麼，這段不列入核心關鍵，2026-10-31 使用者指出後調整）。對照筆記第 11 章的 `sq.c`：有 `#include <math.h>`、沒 `-lm`，一樣是 `undefined reference to 'sqrt'`。
+
+**自我練習**（不批改）
+
+```
+編譯時噴了:main.c:(.text+0x15): undefined reference to `c_to_f'
+發生在連結階段,命令列沒有提供-ltemp
+要補上-ltemp 才知道要找什麼庫,還需要補上-Wl,-rpath,'$ORIGIN/lib'這樣執行的時候在能找到libtemp.so正確的路徑
+```
 
 #### 12-3. 同事說「`FREEZING_C` 的值存在 `libtemp.so` 裡，執行時才讀進來」，對嗎？為什麼？
 
@@ -1363,14 +1402,25 @@ lib/libtemp.so要,因爲這個要在執行動態載入,call func的時候也需�
 
 ---
 
-## 未答：第 7 課追加題：第 13 題（10-29 課後討論第 15 章）
+## 已答：第 7 課追加題：第 13 題（10-29 課後討論第 15 章）
 
 > 題目來自 [靜態與動態函式庫-ar與.a、-fPIC與.so、執行時怎麼找到.so.html](../../html/c/靜態與動態函式庫-ar與.a、-fPIC與.so、執行時怎麼找到.so.html#自我測驗) 第 13 題，是 10-29 追問「還沒讀到 `main.o` 怎麼看清單」「`--no-as-needed` 是把 `trim` 加進清單嗎」整理成筆記第九節〈課後討論〉[第 15 章](../../html/c/靜態與動態函式庫-ar與.a、-fPIC與.so、執行時怎麼找到.so.html#15-ld-還沒讀到-maino怎麼知道誰需要什麼未定義符號清單與---as-needed) 時新增的。
 > 每個小題各有一個作答框，批改寫在作答框正下方。
 
+### 批改結果（2026-10-31）
+
+> 4 個小題：對 1、大致對 1、不完整 1、錯 1。不重答，每題直接附參考答案（核心關鍵＋詳細說明）。不是「對」的 13-1、13-2、13-4 要在自我練習框練到過關，整份第 7 課測驗才進複習排程。
+
+| 題目 | 結果 | 錯在哪／缺什麼 | 過關 |
+|---|---|---|---|
+| 13-1 | 大致對 | 清單不是空的、沒有 `trim`、因為 `main.c` 的 `.o` 還沒讀到，這三點對；但只解釋了「為什麼沒有 `trim`」，沒講清單**為什麼不是空的**——裡面有什麼、從哪來 | ✅ 過關（10-31） |
+| 13-2 | 不完整 | `--as-needed` 沒人需要就丟掉、`--no-as-needed` 一律記進 dynamic section、「不是 `libtxt.so` 把 `trim` 加進清單」都對；缺 `trim` 怎麼被解決：`--no-as-needed` 會**記住 `libtxt.so` 的定義**，讀到 `main.o` 時用它當場解決，「是 `ld`」沒講出這個機制 | ✅ 過關（10-31） |
+| 13-3 | 對 | 抓到重點：`none_no` 的 `NEEDED` 多了 `libtxt.so`、`none_as` 沒有；沒用到也載入是浪費 | — |
+| 13-4 | 錯 | 答成「會成功、`.a` 的 `.o` 全部加進來」；實際失敗 `undefined reference to 'trim'`：`--as-needed`／`--no-as-needed` 只管 `.so`，`.a` 只拉此刻清單需要的成員，此刻沒有 `trim` → 什麼都不拉、也不記 | ✅ 過關（10-31） |
+
 ### 13. `--as-needed`：讀到 `.so` 那一刻的清單
 
-`libtxt.so` 由下面的 `case.c`、`space.c`、`trim.c` 做成；`main.c` 只呼叫 `trim`，`none.c` 什麼都不呼叫。(1) `gcc -v` 顯示 gcc 交給 `ld` 的順序是 `Scrt1.o crti.o crtbeginS.o … -ltxt <main.c 的 .o> … -lc …`。讀到 `-ltxt` 那一刻，「還沒找到定義的符號」清單是空的嗎？裡面有 `trim` 嗎？為什麼？(2) 預設下 `gcc -Wall -L. -ltxt main.c -o app_bad` 失敗；把 `-Wl,--no-as-needed` 放在 `-ltxt` 前面（`gcc -Wall -L. -Wl,--no-as-needed -ltxt main.c -o app_no`）就成功。讀到 `libtxt.so` 時兩種模式各做了什麼？`main.o` 要的 `trim` 最後是怎麼被解決的——是 `libtxt.so` 把 `trim` 加進了清單嗎？(3) `none.c` 用 `gcc -Wall none.c -L. -Wl,--no-as-needed -ltxt -o none_no` 和 `gcc -Wall none.c -L. -ltxt -o none_as` 各連結一次，`readelf -d` 的 `NEEDED` 會差在哪？Ubuntu 為什麼預設開 `--as-needed`？(4) 把 `libtxt.so` 換成同樣三個 `.o` 做成的 `libtxt.a`（並刪掉 `libtxt.so`），`gcc -Wall -L. -Wl,--no-as-needed -ltxt main.c -o app_a` 會成功嗎？為什麼？
+`libtxt.so` 由下面的 `case.c`、`space.c`、`trim.c` 做成；`main.c` 只呼叫 `trim`，`none.c` 什麼都不呼叫。(1) 用 `gcc -Wall -L. -ltxt main.c -o app_bad`（`-ltxt` 寫在 `main.c` 前面）連結時，`gcc -v` 顯示 gcc 交給 `ld` 的順序是 `Scrt1.o crti.o crtbeginS.o … -ltxt <main.c 的 .o> … -lc …`。讀到 `-ltxt` 那一刻，「還沒找到定義的符號」清單是空的嗎？裡面有 `trim` 嗎？為什麼？(2) 預設下 `gcc -Wall -L. -ltxt main.c -o app_bad` 失敗；把 `-Wl,--no-as-needed` 放在 `-ltxt` 前面（`gcc -Wall -L. -Wl,--no-as-needed -ltxt main.c -o app_no`）就成功。讀到 `libtxt.so` 時兩種模式各做了什麼？`main.o` 要的 `trim` 最後是怎麼被解決的——是 `libtxt.so` 把 `trim` 加進了清單嗎？(3) `none.c` 用 `gcc -Wall none.c -L. -Wl,--no-as-needed -ltxt -o none_no` 和 `gcc -Wall none.c -L. -ltxt -o none_as` 各連結一次，`readelf -d` 的 `NEEDED` 會差在哪？Ubuntu 為什麼預設開 `--as-needed`？(4) 把 `libtxt.so` 換成同樣三個 `.o` 做成的 `libtxt.a`（並刪掉 `libtxt.so`），`gcc -Wall -L. -Wl,--no-as-needed -ltxt main.c -o app_a` 會成功嗎？為什麼？
 
 ```c
 /* case.c */
@@ -1414,26 +1464,108 @@ int main(void)
 ```
 做 `.so`：`gcc -Wall -fPIC -shared case.c space.c trim.c -o libtxt.so`；做 `.a`：`gcc -Wall -c case.c space.c trim.c && ar rcs libtxt.a case.o space.o trim.o && rm libtxt.so`（檔案都在 [`examples/asneeded/`](./examples/asneeded/)）。啟動檔 `Scrt1.o` 未定義的符號可以用 `nm -u $(gcc -print-file-name=Scrt1.o)` 看。
 
-#### 13-1. `gcc -v` 顯示 gcc 交給 `ld` 的順序是 `Scrt1.o crti.o crtbeginS.o … -ltxt <main.c 的 .o> … -lc …`。讀到 `-ltxt` 那一刻，「還沒找到定義的符號」清單是空的嗎？裡面有 `trim` 嗎？為什麼？
+#### 13-1. 用 `gcc -Wall -L. -ltxt main.c -o app_bad`（`-ltxt` 寫在 `main.c` 前面）連結時，`gcc -v` 顯示 gcc 交給 `ld` 的順序是 `Scrt1.o crti.o crtbeginS.o … -ltxt <main.c 的 .o> … -lc …`。讀到 `-ltxt` 那一刻，「還沒找到定義的符號」清單是空的嗎？裡面有 `trim` 嗎？為什麼？
 
-**第 1 次（YYYY-MM-DD）**
+**第 1 次（2026-10-31）**
 ```
+清單不是空的,但是這個時候清單也沒有trim
+
+因爲需要trim的是main.c, 可是main.c這個時候還沒有讀到
+```
+
+> **批改**：**大致對**。「不是空的」「沒有 `trim`」「需要 `trim` 的 `main.c` 還沒讀到」都對。缺的是另一半的「為什麼」：清單不是空的，是因為 gcc 在 `-ltxt` **前面**自己塞了三個啟動檔（`Scrt1.o`、`crti.o`、`crtbeginS.o`），`Scrt1.o` 的 `_start` 要呼叫 `main`、`__libc_start_main`，所以清單裡已經有它們。這正是這題給 `gcc -v` 順序的用意。
+>
+> **參考答案**【[第九節第 15 章](../../html/c/靜態與動態函式庫-ar與.a、-fPIC與.so、執行時怎麼找到.so.html#15-ld-還沒讀到-maino怎麼知道誰需要什麼未定義符號清單與---as-needed)〈`ld` 還沒讀到 `main.o`，怎麼知道誰需要什麼〉】
+>
+> **核心關鍵**（答到這幾點就算對）：
+>
+> 1. **不是空的**：`-ltxt` 前面的啟動檔已經讀過，`Scrt1.o` 帶進 `main`、`__libc_start_main` 等未定義符號。
+> 2. **沒有 `trim`**：需要 `trim` 的是 `main.c` 的 `.o`，它排在 `-ltxt` 後面、還沒讀到；`ld` 由左往右、不往後看，只用此刻的清單做決定。
+>
+> **詳細說明**：`nm -u $(gcc -print-file-name=Scrt1.o)` 列出 `U _GLOBAL_OFFSET_TABLE_`、`U __libc_start_main`、`U main`；`crtbeginS.o` 另外帶進 `U __TMC_END__`（`w` 開頭的是弱符號，找不到也不算錯）。所以正文第二節說「這時清單裡沒有 `calc_add`」，不是嚴格意義的空清單。
+
+**自我練習**（不批改）
+
+```
+清單不是空的,因爲這個時候已經讀了scrt1.o crti.o等等加入了不少到清單了
+
+但裏面沒有trim,因爲這個時候還沒讀到main.o,不知道要用到libtxt.so的什麼,libtxt.so也不會被標記稱needed
 ```
 
 #### 13-2. 預設下 `gcc -Wall -L. -ltxt main.c -o app_bad` 失敗；把 `-Wl,--no-as-needed` 放在 `-ltxt` 前面（`gcc -Wall -L. -Wl,--no-as-needed -ltxt main.c -o app_no`）就成功。讀到 `libtxt.so` 時兩種模式各做了什麼？`main.o` 要的 `trim` 最後是怎麼被解決的——是 `libtxt.so` 把 `trim` 加進了清單嗎？
 
-**第 1 次（YYYY-MM-DD）**
+**第 1 次（2026-10-31）**
 ```
+--as-needed 是 gcc預設, 他只有看到清單上的符號有要他的,就會把libtext.so加入到dynamic section,如果看到tmep的時候清單上沒有
+就會丟掉libtemp.so
+如果是 --no-as-needed不管清單上有沒有,都會把libtext.so加到dynamic section
+沒有,是ld
+```
+
+> **批改**：**不完整**。前兩問大致對：`--as-needed` 看此刻的清單，沒人需要就丟掉；`--no-as-needed` 不管清單，一律記進 dynamic section（`NEEDED`）。第三問答「沒有」是對的，但「是 `ld`」只說了誰，沒說**怎麼**解決——這是這題的重點：`--no-as-needed` 留下 `libtxt.so` 時，`ld` 也**記住它提供了哪些定義**（`trim`、`is_space`…）；之後讀到 `main.o` 要 `trim`，`ld` 發現手上已經有這個定義，當場解決，`trim` 根本不會留在清單上。另外作答裡的 `libtext.so`、`tmep`、`libtemp.so` 應該都是 `libtxt.so`，寫的時候要對準名字。
+>
+> **參考答案**【[第九節第 15 章](../../html/c/靜態與動態函式庫-ar與.a、-fPIC與.so、執行時怎麼找到.so.html#15-ld-還沒讀到-maino怎麼知道誰需要什麼未定義符號清單與---as-needed)〈`ld` 還沒讀到 `main.o`，怎麼知道誰需要什麼〉】
+>
+> **核心關鍵**（答到這幾點就算對）：
+>
+> 1. `--as-needed`（預設）：讀到 `libtxt.so` 時看此刻的清單，沒人需要它的符號 → 整個丟掉、不記進 `NEEDED`；後面 `main.o` 要 `trim` 時沒人提供 → `undefined reference`。
+> 2. `--no-as-needed`：不看清單，一律留下、記進 `NEEDED`，並**記住它提供的定義**。
+> 3. `trim` 是讀到 `main.o` 時，`ld` 用已經記住的 `libtxt.so` 定義當場解決的；不是 `libtxt.so` 把 `trim` 加進清單——清單只放「還沒找到定義的符號」，`.so` 提供的是定義。
+>
+> **詳細說明**：`nm -D --defined-only libtxt.so` 看得到它提供的四個定義：`is_space`、`to_lower_str`、`to_upper_str`、`trim`。`.so` 本來就有「先記住、後面再用」的能力，順序問題完全是 `--as-needed` 在那一刻「丟掉」造成的。實測：`gcc -Wall -L. -Wl,--no-as-needed -ltxt main.c -o app_no` 成功，`LD_LIBRARY_PATH=. ./app_no` 印 `[hello]`，`readelf -d app_no` 有 `libtxt.so` 與 `libc.so.6` 兩個 `NEEDED`。
+
+**自我練習**（不批改）
+
+```
+--as-needed: 如果發現清單裏面不需要用到libtxt.so就會直接把libtxt.so丟棄,有的話纔會把libtxt.so寫入需求單
+--no-as-needed: 不管清單有沒有需要都會把libtxt.so加入needed
+
+不是libtxt.so只提供定義,trim沒有被加入清單,ld在讀到libtxt.so記住了所有定義,然後讀到main.o就開始連接,就是這樣解決的
 ```
 
 #### 13-3. `none.c` 用 `gcc -Wall none.c -L. -Wl,--no-as-needed -ltxt -o none_no` 和 `gcc -Wall none.c -L. -ltxt -o none_as` 各連結一次，`readelf -d` 的 `NEEDED` 會差在哪？Ubuntu 為什麼預設開 `--as-needed`？
 
-**第 1 次（YYYY-MM-DD）**
+**第 1 次（2026-10-31）**
 ```
+--no-as-needed 這個,needed一定會有libtxt.so
+但第二個就不會有了,因爲他根本沒有用到libtxt.so的符號
+
+因爲--no-as-needed是不管有沒有都加,那執行時,ld.so都會嘗試去載入,造成不必要的浪費,假如真的沒有用到
 ```
+
+> **批改**：**對**。`none_no` 多一個 `libtxt.so` 的 `NEEDED`、`none_as` 沒有；`--as-needed` 避免執行時 `ld.so` 去載入用不到的 `.so`。兩點都有。可以再想到一個更嚴重的後果（詳細說明），但不扣分。
+>
+> **參考答案**【[第九節第 15 章](../../html/c/靜態與動態函式庫-ar與.a、-fPIC與.so、執行時怎麼找到.so.html#15-ld-還沒讀到-maino怎麼知道誰需要什麼未定義符號清單與---as-needed)〈`ld` 還沒讀到 `main.o`，怎麼知道誰需要什麼〉】
+>
+> **核心關鍵**（答到這幾點就算對）：
+>
+> 1. `none_no` 有 `libtxt.so` 與 `libc.so.6` 兩個 `NEEDED`；`none_as` 只有 `libc.so.6`。
+> 2. `--no-as-needed` 讓用不到的 `.so` 也記進 `NEEDED`，執行時 `ld.so` 就得多找、多載入一個；`--as-needed` 讓沒用到的自動消失。
+>
+> **詳細說明**：多出來的 `NEEDED` 不只是浪費：換到沒裝 `libtxt.so` 的機器，`ld.so` 找不到它，程式會整個跑不起來，即使根本沒用到。建置系統常把一長串 `-l` 套到每個程式上，`--as-needed` 讓沒用到的自動消失；代價就是 `-l` 一定要寫在用到它的檔案後面。
 
 #### 13-4. 把 `libtxt.so` 換成同樣三個 `.o` 做成的 `libtxt.a`（並刪掉 `libtxt.so`），`gcc -Wall -L. -Wl,--no-as-needed -ltxt main.c -o app_a` 會成功嗎？為什麼？
 
-**第 1 次（YYYY-MM-DD）**
+**第 1 次（2026-10-31）**
 ```
+會成功,他會把.a裏面所有.o都直接加進來
+```
+
+> **批改**：**錯**。會失敗，本機實測：`main.c:(.text+0x35): undefined reference to 'trim'`。錯在兩處：(1) `--no-as-needed` 只管 `.so`，對 `.a` 沒有作用；(2) 「`.a` 裡所有 `.o` 都直接加進來」不對——正文[第二節](../../html/c/靜態與動態函式庫-ar與.a、-fPIC與.so、執行時怎麼找到.so.html#順序ld-由左往右只掃一次)教過，`ld` 讀到 `.a` 只拉**此刻清單上缺的符號**所在的成員，整個 `.o` 都放進去的是「命令列直接寫的 `.o`」（自我測驗 1-2）。讀到 `-ltxt` 時清單沒有 `trim`（13-1），所以一個成員都不拉，`.a` 也不像 `.so` 會「記住定義」，讀到 `main.o` 時已經來不及了。
+>
+> **參考答案**【[第九節第 15 章](../../html/c/靜態與動態函式庫-ar與.a、-fPIC與.so、執行時怎麼找到.so.html#15-ld-還沒讀到-maino怎麼知道誰需要什麼未定義符號清單與---as-needed)〈`ld` 還沒讀到 `main.o`，怎麼知道誰需要什麼〉】〈對照：`.a` 加 `--no-as-needed` 沒有用〉
+>
+> **核心關鍵**（答到這幾點就算對）：
+>
+> 1. **不會成功**：`undefined reference to 'trim'`。
+> 2. `--as-needed`／`--no-as-needed` 只管 `.so`；`.a` 讀到時只拉此刻清單需要的成員，此刻清單沒有 `trim` → 一個都不拉、也不記，之後不回頭。
+>
+> **詳細說明**：`.a` 的順序問題不管加什麼選項都存在，只能把 `-ltxt` 寫在 `main.c` 後面，或用 `--start-group … --end-group` 讓群組反覆掃（正文第二節）。`rm libtxt.so` 是因為 `-ltxt` 會先找 `.so`（正文第三節）。
+
+**自我練習**（不批改）
+
+```
+會失敗
+因爲--no-as-needed只作用在.so上. 當ld讀到.a的時候還沒讀到main.o所以也不知道改用.a裏的哪個.o,只能丟掉
+最後到main.o就失敗了
 ```

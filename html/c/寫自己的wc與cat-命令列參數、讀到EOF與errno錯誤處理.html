@@ -1,0 +1,1586 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>寫自己的 wc 與 cat：命令列參數、讀到 EOF，以及 errno 錯誤處理</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../../tools/vendor/mermaid.min.js"></script>
+<script src="../assets/app.js"></script>
+</head>
+<body>
+<button class="menu-btn" onclick="toggleMenu()">☰ 目錄</button>
+<div class="layout">
+<nav class="side">
+<div class="crumbs"><a href="../index.html">🏠 首頁</a> / <a href="README.html">c</a></div>
+<div class="tools"><button onclick="toggleTheme()">🌓 主題</button></div>
+<ul>
+<li class="l2"><a href="#%E7%9B%AE%E9%8C%84">目錄</a></li>
+<li class="l2"><a href="#%E9%9B%B6%E9%96%8B%E8%AA%B2%E8%A4%87%E7%BF%92%E7%AC%AC-7-%E8%AA%B2%E5%8D%A1%E4%BD%8F%E7%9A%84%E8%A7%80%E5%BF%B5">零、開課複習：第 7 課卡住的觀念</a></li>
+<li class="l2"><a href="#%E4%B8%80%E6%9C%AC%E8%AA%B2%E5%9C%A8%E5%81%9A%E4%BB%80%E9%BA%BC%E4%B8%80%E6%94%AF%E5%91%BD%E4%BB%A4%E5%88%97%E5%B7%A5%E5%85%B7%E7%9A%84%E5%9B%9B%E5%80%8B%E4%BB%8B%E9%9D%A2">一、本課在做什麼：一支命令列工具的四個介面</a></li>
+<li class="l2"><a href="#%E4%BA%8C%E5%91%BD%E4%BB%A4%E5%88%97%E5%8F%83%E6%95%B8argc-%E8%88%87-argv">二、命令列參數：argc 與 argv</a></li>
+<li class="l3"><a href="#main-%E7%9A%84%E5%85%A9%E5%80%8B%E5%8F%83%E6%95%B8">main 的兩個參數</a></li>
+<li class="l3"><a href="#%E5%AF%A6%E9%A9%97%E6%8A%8A-argv-%E4%B8%80%E6%A0%BC%E4%B8%80%E6%A0%BC%E5%8D%B0%E5%87%BA%E4%BE%86">實驗：把 argv 一格一格印出來</a></li>
+<li class="l3"><a href="#%E8%AA%B0%E6%8A%8A-txt-%E6%8F%9B%E6%88%90%E6%AA%94%E5%90%8Dshell%E5%9C%A8-execve-%E4%B9%8B%E5%89%8D">誰把 *.txt 換成檔名：shell，在 execve 之前</a></li>
+<li class="l2"><a href="#%E4%B8%89%E8%AE%80%E5%88%B0-eofgetc-%E7%82%BA%E4%BB%80%E9%BA%BC%E5%9B%9E%E5%82%B3-int">三、讀到 EOF：getc 為什麼回傳 int</a></li>
+<li class="l3"><a href="#%E4%B8%80%E6%AC%A1%E8%AE%80%E4%B8%80%E5%80%8B-bytegetchargetc">一次讀一個 byte：getchar、getc</a></li>
+<li class="l3"><a href="#%E5%AF%A6%E9%A9%97%E6%95%B8-stdin-%E6%9C%89%E5%B9%BE%E5%80%8B-byte">實驗：數 stdin 有幾個 byte</a></li>
+<li class="l3"><a href="#%E9%8C%AF%E8%AA%A4%E7%A4%BA%E7%AF%84%E7%94%A8-char-%E6%8E%A5-getchar">錯誤示範：用 char 接 getchar()</a></li>
+<li class="l2"><a href="#%E5%9B%9B%E9%96%8B%E6%AA%94%E8%88%87%E9%8C%AF%E8%AA%A4fopenerrnoperrorstrerror">四、開檔與錯誤：fopen、errno、perror、strerror</a></li>
+<li class="l3"><a href="#fopen%E6%89%93%E9%96%8B%E6%AA%94%E6%A1%88%E6%8B%BF%E5%88%B0%E4%B8%80%E5%80%8B-file-">fopen：打開檔案，拿到一個 FILE *</a></li>
+<li class="l3"><a href="#%E9%8C%AF%E8%AA%A4%E5%9B%9E%E5%A0%B1%E7%9A%84%E6%85%A3%E4%BE%8B%E5%9B%9E%E5%82%B3%E5%80%BC%E8%AA%AA%E5%A4%B1%E6%95%97%E4%BA%86errno-%E8%AA%AA%E7%82%BA%E4%BB%80%E9%BA%BC">錯誤回報的慣例：回傳值說「失敗了」，errno 說「為什麼」</a></li>
+<li class="l3"><a href="#%E5%AF%A6%E9%A9%97%E5%9B%9B%E7%A8%AE%E9%96%8B%E6%AA%94%E7%B5%90%E6%9E%9C">實驗：四種開檔結果</a></li>
+<li class="l3"><a href="#%E5%AF%A6%E9%A9%97%E6%88%90%E5%8A%9F%E7%9A%84%E5%91%BC%E5%8F%AB%E4%B8%8D%E6%9C%83%E6%8A%8A-errno-%E6%B8%85%E6%88%90-0">實驗：成功的呼叫不會把 errno 清成 0</a></li>
+<li class="l3"><a href="#eof-%E6%9C%89%E5%85%A9%E7%A8%AE%E6%84%8F%E6%80%9D%E8%AE%80%E5%AE%8C%E4%BA%86%E6%88%96%E5%87%BA%E9%8C%AF%E4%BA%86">EOF 有兩種意思：讀完了，或出錯了</a></li>
+<li class="l3"><a href="#%E6%9C%AC%E8%AA%B2%E6%9C%83%E9%81%87%E5%88%B0%E7%9A%84%E9%8C%AF%E8%AA%A4%E7%A2%BC">本課會遇到的錯誤碼</a></li>
+<li class="l2"><a href="#%E4%BA%94stdout-%E8%88%87-stderr%E4%BB%A5%E5%8F%8A%E7%B5%90%E6%9D%9F%E7%8B%80%E6%85%8B">五、stdout 與 stderr，以及結束狀態</a></li>
+<li class="l3"><a href="#%E7%B5%90%E6%9E%9C%E5%AF%AB-stdout%E9%8C%AF%E8%AA%A4%E5%AF%AB-stderr">結果寫 stdout，錯誤寫 stderr</a></li>
+<li class="l3"><a href="#%E8%BC%B8%E5%87%BA%E9%A0%86%E5%BA%8F%E7%82%BA%E4%BB%80%E9%BA%BC%E6%9C%83%E8%AE%8Astdout-%E6%9C%89%E7%B7%A9%E8%A1%9Dstderr-%E6%B2%92%E6%9C%89">輸出順序為什麼會變：stdout 有緩衝、stderr 沒有</a></li>
+<li class="l3"><a href="#%E7%B5%90%E6%9D%9F%E7%8B%80%E6%85%8Breturn-%E7%9A%84%E5%80%BC">結束狀態：return 的值</a></li>
+<li class="l2"><a href="#%E5%85%AD%E6%8E%A5%E8%B5%B7%E4%BE%86countch-%E8%88%87%E7%94%A8-strace-%E7%9C%8B%E5%AE%83%E5%81%9A%E4%BA%86%E5%93%AA%E4%BA%9B%E7%B3%BB%E7%B5%B1%E5%91%BC%E5%8F%AB">六、接起來：countch 與用 strace 看它做了哪些系統呼叫</a></li>
+<li class="l3"><a href="#%E7%94%A8-strace-%E7%9C%8B-fopengetcprintf-%E5%BA%95%E4%B8%8B%E6%98%AF%E5%93%AA%E4%BA%9B%E7%B3%BB%E7%B5%B1%E5%91%BC%E5%8F%AB">用 strace 看 fopen、getc、printf 底下是哪些系統呼叫</a></li>
+<li class="l2"><a href="#%E4%B8%83wc-%E8%88%87-cat-%E7%9A%84%E7%B2%BE%E7%A2%BA%E8%A1%8C%E7%82%BA%E4%BD%9C%E6%A5%AD%E7%9A%84%E8%A6%8F%E6%A0%BC">七、wc 與 cat 的精確行為：作業的規格</a></li>
+<li class="l3"><a href="#wc-%E6%95%B8%E7%9A%84%E4%B8%89%E5%80%8B%E6%95%B8%E5%AD%97">wc 數的三個數字</a></li>
+<li class="l3"><a href="#%E5%A4%9A%E5%80%8B%E6%AA%94%E6%A1%88%E6%A8%99%E6%BA%96%E8%BC%B8%E5%85%A5%E9%8C%AF%E8%AA%A4">多個檔案、標準輸入、錯誤</a></li>
+<li class="l3"><a href="#cat%E4%BE%9D%E5%BA%8F%E6%8A%8A%E6%AF%8F%E5%80%8B%E6%AA%94%E6%A1%88%E7%9A%84-byte-%E5%8E%9F%E6%A8%A3%E5%AF%AB%E5%88%B0-stdout">cat：依序把每個檔案的 byte 原樣寫到 stdout</a></li>
+<li class="l3"><a href="#wc-%E7%9A%84%E5%85%A8%E9%83%A8%E9%81%B8%E9%A0%85">wc 的全部選項</a></li>
+<li class="l3"><a href="#cat-%E7%9A%84%E5%85%A8%E9%83%A8%E9%81%B8%E9%A0%85">cat 的全部選項</a></li>
+<li class="l2"><a href="#%E5%85%AB%E6%9C%AC%E8%AA%B2%E7%94%A8%E5%88%B0%E7%9A%84%E5%87%BD%E5%BC%8F%E5%B7%A5%E5%85%B7%E8%88%87%E5%AE%8C%E6%95%B4%E6%B8%85%E5%96%AE%E5%9C%A8%E5%93%AA">八、本課用到的函式、工具與完整清單在哪</a></li>
+<li class="l3"><a href="#%E6%9C%AC%E8%AA%B2%E7%94%A8%E5%88%B0%E7%9A%84-c-%E5%87%BD%E5%BC%8F">本課用到的 C 函式</a></li>
+<li class="l3"><a href="#stdioh-%E7%9A%84%E5%AE%8C%E6%95%B4%E6%B8%85%E5%96%AE%E5%9C%A8%E5%93%AA">&lt;stdio.h&gt; 的完整清單在哪</a></li>
+<li class="l3"><a href="#fopen-%E7%9A%84%E6%A8%A1%E5%BC%8F">fopen 的模式</a></li>
+<li class="l3"><a href="#strace">strace</a></li>
+<li class="l3"><a href="#wccat">wc、cat</a></li>
+<li class="l2"><a href="#%E4%B9%9D%E5%8B%95%E6%89%8B%E4%BD%9C%E6%A5%AD">九、動手作業</a></li>
+<li class="l2"><a href="#%E8%87%AA%E6%88%91%E6%B8%AC%E9%A9%97">自我測驗</a></li>
+</ul>
+</nav>
+<main>
+<h1 id="寫自己的-wc-與-cat命令列參數讀到-eof以及-errno-錯誤處理">寫自己的 <code>wc</code> 與 <code>cat</code>：命令列參數、讀到 <code>EOF</code>，以及 <code>errno</code> 錯誤處理</h1>
+<blockquote>
+<p>課程：<a href="../learning/%E8%AA%B2%E7%A8%8B%E7%9B%AE%E9%8C%84.html#linux-%E8%88%87%E7%B3%BB%E7%B5%B1%E7%A8%8B%E5%BC%8F%E7%B3%BB%E7%B5%B1%E5%8C%96%E5%AD%B8%E7%BF%92">Linux 與系統程式系統化學習</a>｜第 ① 站第 8 課<br />
+建立日期：2026-10-31<br />
+情境：第 ① 站的畢業專案是「用 C 寫幾個小工具（<code>wc</code>、<code>cat</code> 的簡化版）」。前七課學的是程式<strong>怎麼變成</strong>能跑的東西；這一課要寫一支<strong>真正的命令列工具</strong>，所以要先學它跟外界打交道的四個介面：命令列參數（<code>argc</code>／<code>argv</code>）、讀資料直到 <code>EOF</code>、錯誤回報（<code>errno</code>、<code>perror</code>）、輸出到 <code>stdout</code>／<code>stderr</code> 與結束狀態。<br />
+對應教材：K&amp;R《The C Programming Language》第 1.5 節（字元輸入與輸出）、第 5.10 節（命令列參數）、第 7 章（輸入與輸出）、附錄 B1（<code>&lt;stdio.h&gt;</code>）；
+CS:APP 第 8.5 節之前的「系統呼叫錯誤處理」小節（<code>errno</code> 慣例）。<br />
+對應檔案：範例原始碼在 <a href="../../small-project/s1-08-wc-cat/examples/"><code>small-project/s1-08-wc-cat/examples/</code></a>（會進 git）；作業寫在 <code>small-project/s1-08-wc-cat/hw1/</code>～<code>hw3/</code>（使用者自己寫，會進 git）。<br />
+適用範圍：Ubuntu 24.04、x86-64、gcc 13.3、glibc 2.39、GNU coreutils 9.4（<code>wc</code>、<code>cat</code>）、strace 6.8；本課的輸出都是本機實測。</p>
+</blockquote>
+<p><strong>一句話結論：命令列工具只靠四個介面跟外界溝通——<code>argv</code> 是 shell 先展開好、交給 <code>execve</code> 的字串陣列；資料用 <code>getc</code> 一個 byte 一個 byte 讀到 <code>EOF</code>（所以接收的變數一定要是 <code>int</code>）；失敗時函式用回傳值（<code>NULL</code>、<code>EOF</code>）告訴你「失敗了」，<code>errno</code> 才告訴你「為什麼」；錯誤訊息寫 <code>stderr</code>、結果寫 <code>stdout</code>，最後用結束狀態告訴呼叫者成功與否。</strong></p>
+<hr />
+<h2 id="目錄">目錄</h2>
+<ul>
+<li><a href="#%E9%9B%B6%E9%96%8B%E8%AA%B2%E8%A4%87%E7%BF%92%E7%AC%AC-7-%E8%AA%B2%E5%8D%A1%E4%BD%8F%E7%9A%84%E8%A7%80%E5%BF%B5">零、開課複習：第 7 課卡住的觀念</a></li>
+<li><a href="#%E4%B8%80%E6%9C%AC%E8%AA%B2%E5%9C%A8%E5%81%9A%E4%BB%80%E9%BA%BC%E4%B8%80%E6%94%AF%E5%91%BD%E4%BB%A4%E5%88%97%E5%B7%A5%E5%85%B7%E7%9A%84%E5%9B%9B%E5%80%8B%E4%BB%8B%E9%9D%A2">一、本課在做什麼：一支命令列工具的四個介面</a></li>
+<li><a href="#%E4%BA%8C%E5%91%BD%E4%BB%A4%E5%88%97%E5%8F%83%E6%95%B8argc-%E8%88%87-argv">二、命令列參數：<code>argc</code> 與 <code>argv</code></a></li>
+<li><a href="#%E4%B8%89%E8%AE%80%E5%88%B0-eofgetc-%E7%82%BA%E4%BB%80%E9%BA%BC%E5%9B%9E%E5%82%B3-int">三、讀到 <code>EOF</code>：<code>getc</code> 為什麼回傳 <code>int</code></a></li>
+<li><a href="#%E5%9B%9B%E9%96%8B%E6%AA%94%E8%88%87%E9%8C%AF%E8%AA%A4fopenerrnoperrorstrerror">四、開檔與錯誤：<code>fopen</code>、<code>errno</code>、<code>perror</code>、<code>strerror</code></a></li>
+<li><a href="#%E4%BA%94stdout-%E8%88%87-stderr%E4%BB%A5%E5%8F%8A%E7%B5%90%E6%9D%9F%E7%8B%80%E6%85%8B">五、<code>stdout</code> 與 <code>stderr</code>，以及結束狀態</a></li>
+<li><a href="#%E5%85%AD%E6%8E%A5%E8%B5%B7%E4%BE%86countch-%E8%88%87%E7%94%A8-strace-%E7%9C%8B%E5%AE%83%E5%81%9A%E4%BA%86%E5%93%AA%E4%BA%9B%E7%B3%BB%E7%B5%B1%E5%91%BC%E5%8F%AB">六、接起來：<code>countch</code> 與用 <code>strace</code> 看它做了哪些系統呼叫</a></li>
+<li><a href="#%E4%B8%83wc-%E8%88%87-cat-%E7%9A%84%E7%B2%BE%E7%A2%BA%E8%A1%8C%E7%82%BA%E4%BD%9C%E6%A5%AD%E7%9A%84%E8%A6%8F%E6%A0%BC">七、<code>wc</code> 與 <code>cat</code> 的精確行為：作業的規格</a></li>
+<li><a href="#%E5%85%AB%E6%9C%AC%E8%AA%B2%E7%94%A8%E5%88%B0%E7%9A%84%E5%87%BD%E5%BC%8F%E5%B7%A5%E5%85%B7%E8%88%87%E5%AE%8C%E6%95%B4%E6%B8%85%E5%96%AE%E5%9C%A8%E5%93%AA">八、本課用到的函式、工具與完整清單在哪</a></li>
+<li><a href="#%E4%B9%9D%E5%8B%95%E6%89%8B%E4%BD%9C%E6%A5%AD">九、動手作業</a></li>
+<li><a href="#%E8%87%AA%E6%88%91%E6%B8%AC%E9%A9%97">自我測驗</a></li>
+</ul>
+<hr />
+<h2 id="零開課複習第-7-課卡住的觀念">零、開課複習：第 7 課卡住的觀念</h2>
+<p>第 7 課的作業與自我測驗批改後，記成「第 8 課開頭先複習」的觀念如下。這些題目 11-01 的複習（<a href="../review/2026-11-01-%E5%87%BD%E5%BC%8F%E5%BA%AB-%E7%B5%84%E8%AA%9E.html"><code>review/2026-11-01-函式庫-組語</code></a>）都會考，這裡只講解、不另外出題。</p>
+<ol>
+<li><strong><code>mov D(%rip),%rax</code> 是「讀」那格，不是拿那格的位址</strong>：<code>%rip</code> 加 <code>D</code> 算出 GOT 那格的位址，<code>mov</code> 把那格<strong>裡面裝的值</strong>（變數的位址）讀進 <code>%rax</code>；要拿格子本身的位址才用 <code>lea</code>。出處：<a href="%E9%9D%9C%E6%85%8B%E8%88%87%E5%8B%95%E6%85%8B%E5%87%BD%E5%BC%8F%E5%BA%AB-ar%E8%88%87.a%E3%80%81-fPIC%E8%88%87.so%E3%80%81%E5%9F%B7%E8%A1%8C%E6%99%82%E6%80%8E%E9%BA%BC%E6%89%BE%E5%88%B0.so.html#1-0x2ec8-%E5%92%8C-0x3fd0-%E5%90%84%E6%98%AF%E4%BB%80%E9%BA%BCmov-0x2ec8riprax-%E7%9A%84%E5%85%A9%E5%80%8B%E6%95%B8%E5%AD%97">第 7 課第九節第 1 章</a>。</li>
+<li><strong>變數不能延遲綁定</strong>：函式第一次呼叫會先經過 PLT 跳板，跳板有機會叫 <code>ld.so</code> 去查；讀變數就是一條 <code>mov</code>，中間沒有任何可以插手的地方，所以變數的 GOT 那格一定要在<strong>載入時</strong>就填好。出處：<a href="%E9%9D%9C%E6%85%8B%E8%88%87%E5%8B%95%E6%85%8B%E5%87%BD%E5%BC%8F%E5%BA%AB-ar%E8%88%87.a%E3%80%81-fPIC%E8%88%87.so%E3%80%81%E5%9F%B7%E8%A1%8C%E6%99%82%E6%80%8E%E9%BA%BC%E6%89%BE%E5%88%B0.so.html#4-plt-%E5%AD%98%E5%87%BD%E5%BC%8F%E4%BD%8D%E5%9D%80got-%E5%AD%98%E8%AE%8A%E6%95%B8%E4%BD%8D%E5%9D%80%E5%97%8Eplt-%E6%98%AF%E8%B7%B3%E6%9D%BF%E4%BB%A5%E5%8F%8A%E5%BB%B6%E9%81%B2%E7%B6%81%E5%AE%9A">第九節第 4 章</a>。</li>
+<li><strong>複製重定位（<code>R_X86_64_COPY</code>）</strong>：只在<strong>主程式自己</strong>用到 <code>.so</code> 的變數時才發生；<code>ld</code> 在執行檔的 <code>.bss</code> 留一格（大小照連結時那份 <code>.so</code>），<code>ld.so</code> 載入時把初值複製進來，之後 <code>.so</code> 自己也改讀主程式那份。<code>.so</code> 換版後大小不合，<code>ld.so</code> 會警告 <code>has different size</code>。出處：<a href="%E9%9D%9C%E6%85%8B%E8%88%87%E5%8B%95%E6%85%8B%E5%87%BD%E5%BC%8F%E5%BA%AB-ar%E8%88%87.a%E3%80%81-fPIC%E8%88%87.so%E3%80%81%E5%9F%B7%E8%A1%8C%E6%99%82%E6%80%8E%E9%BA%BC%E6%89%BE%E5%88%B0.so.html#3-%E4%B8%BB%E7%A8%8B%E5%BC%8F%E5%8F%AA%E5%AF%AB-extern-int-counter%E8%AE%8A%E6%95%B8%E6%94%BE%E9%80%B2%E5%9F%B7%E8%A1%8C%E6%AA%94%E8%A4%87%E8%A3%BD%E9%87%8D%E5%AE%9A%E4%BD%8D">第九節第 3 章</a>。</li>
+<li><strong>填 GOT 的是執行時的 <code>ld.so</code>，不是連結時的 <code>ld</code></strong>：<code>ld</code> 只在檔案裡寫下「這格要填誰」的重定位紀錄。</li>
+<li><strong><code>.got.plt</code> 裡的位址 ＝ 這個行程的載入基底 ＋ 檔案內位置</strong>：兩個行程的基底因 ASLR 不同，所以數字不同；檔案裡看到的值只是初值。出處：<a href="%E9%9D%9C%E6%85%8B%E8%88%87%E5%8B%95%E6%85%8B%E5%87%BD%E5%BC%8F%E5%BA%AB-ar%E8%88%87.a%E3%80%81-fPIC%E8%88%87.so%E3%80%81%E5%9F%B7%E8%A1%8C%E6%99%82%E6%80%8E%E9%BA%BC%E6%89%BE%E5%88%B0.so.html#8-ldso-%E5%A1%AB%E9%80%B2%E6%A0%BC%E5%AD%90%E7%9A%84%E6%98%AF%E4%BB%80%E9%BA%BC%E9%80%99%E5%80%8B%E8%A1%8C%E7%A8%8B%E8%A3%A1%E7%9A%84%E8%99%9B%E6%93%AC%E4%BD%8D%E5%9D%80">第九節第 8 章</a>。</li>
+<li><strong>寫入時複製讓 <code>.text</code> 不能被改</strong>：如果 <code>ld.so</code> 把位址直接寫進 <code>.text</code>，被寫到的那一頁就會被複製成這個行程自己的一份，不再共用——所以才要把「會變的東西」集中到 GOT。</li>
+<li><strong><code>--as-needed</code></strong>：讀到 <code>.so</code> 那一刻，此刻的未定義符號清單裡沒人需要它就丟掉；<code>-l</code> 一定要寫在用到它的檔案後面。出處：<a href="%E9%9D%9C%E6%85%8B%E8%88%87%E5%8B%95%E6%85%8B%E5%87%BD%E5%BC%8F%E5%BA%AB-ar%E8%88%87.a%E3%80%81-fPIC%E8%88%87.so%E3%80%81%E5%9F%B7%E8%A1%8C%E6%99%82%E6%80%8E%E9%BA%BC%E6%89%BE%E5%88%B0.so.html#15-ld-%E9%82%84%E6%B2%92%E8%AE%80%E5%88%B0-maino%E6%80%8E%E9%BA%BC%E7%9F%A5%E9%81%93%E8%AA%B0%E9%9C%80%E8%A6%81%E4%BB%80%E9%BA%BC%E6%9C%AA%E5%AE%9A%E7%BE%A9%E7%AC%A6%E8%99%9F%E6%B8%85%E5%96%AE%E8%88%87---as-needed">第九節第 15 章</a>。</li>
+<li><strong>錯誤出在哪個階段，從第一個會失敗的階段看</strong>：找不到 <code>.h</code> 是前處理（<code>fatal error: xxx.h</code>），沒給 <code>-l</code> 是連結（<code>undefined reference</code>），找不到 <code>.so</code> 是執行（<code>error while loading shared libraries</code>）。出處：<a href="%E9%9D%9C%E6%85%8B%E8%88%87%E5%8B%95%E6%85%8B%E5%87%BD%E5%BC%8F%E5%BA%AB-ar%E8%88%87.a%E3%80%81-fPIC%E8%88%87.so%E3%80%81%E5%9F%B7%E8%A1%8C%E6%99%82%E6%80%8E%E9%BA%BC%E6%89%BE%E5%88%B0.so.html#11-%E5%81%9A-so-%E9%9C%80%E8%A6%81-h-%E5%97%8Einclude-%E7%AE%A1%E7%B7%A8%E8%AD%AF-l-%E7%AE%A1%E9%80%A3%E7%B5%90">第九節第 11 章</a>。</li>
+</ol>
+<hr />
+<h2 id="一本課在做什麼一支命令列工具的四個介面">一、本課在做什麼：一支命令列工具的四個介面</h2>
+<p>前七課一直在用 <code>wc</code>、<code>cat</code>、<code>nm</code>、<code>readelf</code> 這些工具，但都把它們當黑盒子。這一課要自己寫兩支：<code>mywc</code>（數行、字、byte）與 <code>mycat</code>（把檔案依序印出來）。寫之前先看一支命令列工具<strong>只透過哪幾個地方</strong>跟外界溝通——寫對這四個介面，你的工具就能像 <code>wc</code> 一樣被 shell、管線、腳本使用：</p>
+<pre class="mermaid">flowchart LR
+    U[&quot;使用者在 shell 打&lt;br/&gt;mywc a.txt b.txt&quot;] --&gt;|&quot;① 命令列參數&lt;br/&gt;shell 展開後交給 execve&quot;| P[&quot;你的程式&lt;br/&gt;main(argc, argv)&quot;]
+    F[&quot;檔案 a.txt、b.txt&lt;br/&gt;或 stdin（fd 0）&quot;] --&gt;|&quot;② 讀資料&lt;br/&gt;fopen + getc 讀到 EOF&quot;| P
+    P --&gt;|&quot;③-1 結果&lt;br/&gt;stdout（fd 1）&quot;| O[&quot;終端機、檔案、管線&quot;]
+    P --&gt;|&quot;③-2 錯誤訊息&lt;br/&gt;stderr（fd 2）&quot;| E[&quot;終端機&quot;]
+    P --&gt;|&quot;④ 結束狀態&lt;br/&gt;return 0／1&quot;| S[&quot;shell 的 $?&quot;]
+</pre>
+<p>圖要看的重點：程式本身不知道「使用者打了什麼字」「輸出接到哪裡」——它只拿到 ① 一個字串陣列、② 一個可以讀的資料流、③ 兩個可以寫的資料流、④ 回傳一個數字。</p>
+<table>
+<thead>
+<tr>
+<th>介面</th>
+<th>本課的哪一節</th>
+<th>已經在哪裡學過一部分</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>① 命令列參數</td>
+<td><a href="#%E4%BA%8C%E5%91%BD%E4%BB%A4%E5%88%97%E5%8F%83%E6%95%B8argc-%E8%88%87-argv">第二節</a></td>
+<td>第 5 課在 gdb 裡看過 <code>main</code> 的 <code>%rdi</code>＝<code>argc</code>、<code>%rsi</code>＝<code>argv</code>（<a href="x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80%E4%BA%8C-call%E8%88%87ret%E3%80%81%E5%A0%86%E7%96%8A%E6%A1%86%E3%80%81%E5%8F%83%E6%95%B8%E8%88%87%E5%91%BC%E5%8F%AB%E6%85%A3%E4%BE%8B.html#%E4%B8%89call-%E8%88%87-ret%E7%94%A8-gdb-%E4%B8%80%E6%A2%9D%E4%B8%80%E6%A2%9D%E8%B5%B0">第 5 課第三節</a>）</td>
+</tr>
+<tr>
+<td>② 讀資料</td>
+<td><a href="#%E4%B8%89%E8%AE%80%E5%88%B0-eofgetc-%E7%82%BA%E4%BB%80%E9%BA%BC%E5%9B%9E%E5%82%B3-int">第三節</a>、<a href="#%E5%9B%9B%E9%96%8B%E6%AA%94%E8%88%87%E9%8C%AF%E8%AA%A4fopenerrnoperrorstrerror">第四節</a></td>
+<td><code>char</code> 是 1 byte 的整數、有號（<a href="%E5%AD%97%E5%85%83%E6%98%AF%E4%BB%80%E9%BA%BC-char%E5%B0%B1%E6%98%AF1byte%E7%9A%84%E6%95%B4%E6%95%B8%E8%88%87ASCII%E5%92%8CUTF-8.html#%E8%B7%9F%E7%AC%AC-2-%E8%AA%B2%E7%9A%84%E9%80%A3%E7%B5%90char-%E6%9C%89%E8%99%9F%E8%AE%80%E5%88%B0%E4%B8%AD%E6%96%87%E6%9C%83%E8%AE%8A%E8%B2%A0%E6%95%B8">字元是什麼</a>）</td>
+</tr>
+<tr>
+<td>③ 輸出與錯誤</td>
+<td><a href="#%E4%BA%94stdout-%E8%88%87-stderr%E4%BB%A5%E5%8F%8A%E7%B5%90%E6%9D%9F%E7%8B%80%E6%85%8B">第五節</a></td>
+<td>fd 0／1／2 與重新導向（<a href="../linux/%E8%BC%B8%E5%87%BA%E9%87%8D%E6%96%B0%E5%B0%8E%E5%90%91%E8%88%87dev-null.html#%E4%B8%80%E4%B8%89%E5%80%8B%E6%A8%99%E6%BA%96%E6%AA%94%E6%A1%88%E6%8F%8F%E8%BF%B0%E7%AC%A6">輸出重新導向與dev-null</a>）、<code>stdout</code> 的緩衝（<a href="%E9%9D%9C%E6%85%8B%E8%88%87%E5%8B%95%E6%85%8B%E5%87%BD%E5%BC%8F%E5%BA%AB-ar%E8%88%87.a%E3%80%81-fPIC%E8%88%87.so%E3%80%81%E5%9F%B7%E8%A1%8C%E6%99%82%E6%80%8E%E9%BA%BC%E6%89%BE%E5%88%B0.so.html#14-fflushstdout-%E6%98%AF%E4%BB%80%E9%BA%BCprintf-%E5%85%88%E5%AF%AB%E9%80%B2%E7%B7%A9%E8%A1%9D%E5%8D%80">第 7 課第九節第 14 章</a>）</td>
+</tr>
+<tr>
+<td>④ 結束狀態</td>
+<td><a href="#%E4%BA%94stdout-%E8%88%87-stderr%E4%BB%A5%E5%8F%8A%E7%B5%90%E6%9D%9F%E7%8B%80%E6%85%8B">第五節</a></td>
+<td><code>return</code> 的值變成 <code>$?</code>（<a href="../linux/%E5%88%86%E8%99%9F%E8%88%87%E7%B5%90%E6%9D%9F%E7%8B%80%E6%85%8B-%E5%91%BD%E4%BB%A4%E4%B8%B2%E6%8E%A5%E8%88%87%E9%8C%A2%E5%AD%97%E8%99%9F%E5%95%8F%E8%99%9F.html#%E4%B8%89%E7%B5%90%E6%9D%9F%E7%8B%80%E6%85%8B0255-%E9%80%99%E5%80%8B%E6%95%B8%E5%AD%97%E5%BE%9E%E5%93%AA%E4%BE%86">分號與結束狀態</a>）</td>
+</tr>
+</tbody>
+</table>
+<p><strong>跟主線的位置</strong>：第 ① 站的最後一塊。下一站 ② 行程會把這張圖的每個箭頭拆開——<code>execve</code> 怎麼把 <code>argv</code> 放上堆疊、fd 是什麼、<code>$?</code> 是怎麼從子行程傳回 shell 的。這一課先從「程式這一邊」把它們用對。</p>
+<hr />
+<h2 id="二命令列參數argc-與-argv">二、命令列參數：<code>argc</code> 與 <code>argv</code></h2>
+<h3 id="main-的兩個參數"><code>main</code> 的兩個參數</h3>
+<pre><code class="language-c"><span class="kt">int</span><span class="w"> </span><span class="n">main</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">argc</span><span class="p">,</span><span class="w"> </span><span class="kt">char</span><span class="w"> </span><span class="o">*</span><span class="n">argv</span><span class="p">[])</span>
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>位置</th>
+<th>型別</th>
+<th>是什麼</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>argc</code></td>
+<td><code>int</code></td>
+<td>argument count，參數的<strong>個數</strong>，<strong>包含程式名稱本身</strong>，所以至少是 1</td>
+</tr>
+<tr>
+<td><code>argv</code></td>
+<td><code>char *argv[]</code>（等於 <code>char **argv</code>）</td>
+<td>argument vector，一個陣列，每一格是一個指向字串的指標；<code>argv[0]</code> 是程式名稱，<code>argv[1]</code>～<code>argv[argc-1]</code> 是使用者給的參數，<strong><code>argv[argc]</code> 固定是 <code>NULL</code></strong></td>
+</tr>
+</tbody>
+</table>
+<p><code>char *argv[]</code> 寫在參數列裡時就是 <code>char **argv</code>（陣列當參數會退化成指標，<a href="%E9%99%A3%E5%88%97%E3%80%81%E5%AD%97%E4%B8%B2%E8%88%87%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97-C%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%88%87%E7%94%A8gdb%E6%89%BEsegfault.html#%E4%B8%89%E9%99%A3%E5%88%97%E5%90%8D%E7%A8%B1%E4%BB%80%E9%BA%BC%E6%99%82%E5%80%99%E8%AE%8A%E6%88%90%E6%8C%87%E6%A8%99%E4%BB%80%E9%BA%BC%E6%99%82%E5%80%99%E4%B8%8D%E6%9C%83">第 3 課第三節</a>〈函式參數寫成 <code>int a[]</code>，其實就是 <code>int *a</code>〉），兩種寫法完全一樣。名字 <code>argc</code>／<code>argv</code> 只是慣例，叫別的也可以，但大家都這樣寫。</p>
+<h3 id="實驗把-argv-一格一格印出來">實驗：把 <code>argv</code> 一格一格印出來</h3>
+<p><code>args.c</code>（檔案：<a href="../../small-project/s1-08-wc-cat/examples/args/args.c"><code>args.c</code></a>）完整原始碼：</p>
+<pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">argc</span><span class="p">,</span><span class="w"> </span><span class="kt">char</span><span class="w"> </span><span class="o">*</span><span class="n">argv</span><span class="p">[])</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;argc = %d</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">argc</span><span class="p">);</span>
+<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">argc</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="o">++</span><span class="p">)</span>
+<span class="w">        </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;argv[%d] = </span><span class="se">\&quot;</span><span class="s">%s</span><span class="se">\&quot;\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">i</span><span class="p">,</span><span class="w"> </span><span class="n">argv</span><span class="p">[</span><span class="n">i</span><span class="p">]);</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;argv[%d] = %p</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">argc</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="kt">void</span><span class="w"> </span><span class="o">*</span><span class="p">)</span><span class="n">argv</span><span class="p">[</span><span class="n">argc</span><span class="p">]);</span><span class="w">   </span><span class="cm">/* 最後一格固定是 NULL */</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<p>編譯與執行（資料夾裡先放兩個空檔 <code>a.txt</code>、<code>b.txt</code>）：</p>
+<pre><code class="language-text">$ gcc -Wall args.c -o args
+$ touch a.txt b.txt
+$ ./args
+argc = 1
+argv[0] = &quot;./args&quot;
+argv[1] = (nil)
+$ ./args hello &quot;two words&quot; &#39;*.txt&#39; *.txt -
+argc = 7
+argv[0] = &quot;./args&quot;
+argv[1] = &quot;hello&quot;
+argv[2] = &quot;two words&quot;
+argv[3] = &quot;*.txt&quot;
+argv[4] = &quot;a.txt&quot;
+argv[5] = &quot;b.txt&quot;
+argv[6] = &quot;-&quot;
+argv[7] = (nil)
+$ ./args &quot;&quot;
+argc = 2
+argv[0] = &quot;./args&quot;
+argv[1] = &quot;&quot;
+argv[2] = (nil)
+</code></pre>
+<p>逐行看：</p>
+<ul>
+<li><strong>不帶參數時 <code>argc</code> 是 1</strong>：<code>argv[0]</code> 是 <code>&quot;./args&quot;</code>，就是你在 shell 打的那個字串（用完整路徑執行，<code>argv[0]</code> 就是完整路徑）。<code>argv[1]</code> 已經是 <code>NULL</code>（印成 <code>(nil)</code>）。</li>
+<li><strong><code>&quot;two words&quot;</code> 是一格</strong>：shell 用空白切參數，引號裡的空白不切。程式拿到的字串裡<strong>沒有引號</strong>——引號是給 shell 看的，shell 用完就拿掉了。</li>
+<li><strong><code>'*.txt'</code> 和 <code>*.txt</code> 不一樣</strong>：單引號裡的 <code>*.txt</code> 原樣傳進來；沒加引號的 <code>*.txt</code> 被 shell <strong>換成</strong>符合的檔名 <code>a.txt</code>、<code>b.txt</code>，程式拿到的是兩格，根本看不到 <code>*</code>。</li>
+<li><strong><code>-</code> 只是一個普通字串</strong>：<code>wc -</code>、<code>cat -</code> 的「<code>-</code> 代表標準輸入」是<strong>程式自己</strong>看到 <code>argv[i]</code> 是 <code>&quot;-&quot;</code> 才決定的慣例，shell 不管。作業要自己處理。</li>
+<li><strong><code>&quot;&quot;</code> 也算一格</strong>：空字串的參數，<code>argc</code> 照樣加 1。</li>
+</ul>
+<h3 id="誰把-txt-換成檔名shell在-execve-之前">誰把 <code>*.txt</code> 換成檔名：shell，在 <code>execve</code> 之前</h3>
+<p>用 <code>strace</code> 只看 <code>execve</code>（第 1 課用過的「啟動一支程式」的系統呼叫）：</p>
+<pre><code class="language-text">$ strace -e trace=execve ./args &#39;*.txt&#39; *.txt
+execve(&quot;./args&quot;, [&quot;./args&quot;, &quot;*.txt&quot;, &quot;a.txt&quot;, &quot;b.txt&quot;], 0x7fff540f5dc8 /* 91 vars */) = 0
+</code></pre>
+<p><code>execve</code> 的第二個參數就是<strong>已經展開好的字串陣列</strong>——shell 先展開萬用字元（glob）、處理引號、切好每一格，再把這個陣列交給 kernel，kernel 放到新程式的堆疊上，C 的啟動程式碼再把它交給 <code>main</code> 當 <code>argv</code>。所以<strong>程式沒有辦法知道使用者原本打的是 <code>*.txt</code> 還是 <code>a.txt b.txt</code></strong>。</p>
+<p>沒有任何檔案符合時，bash 和 zsh 的處理不一樣（在一個空資料夾裡跑）：</p>
+<pre><code class="language-text">$ bash -c &#39;../args *.txt; echo &quot;exit=$?&quot;&#39;
+argc = 2
+argv[0] = &quot;../args&quot;
+argv[1] = &quot;*.txt&quot;
+argv[2] = (nil)
+exit=0
+$ zsh -c &#39;../args *.txt; echo &quot;exit=$?&quot;&#39;
+zsh:1: no matches found: *.txt
+exit=1
+</code></pre>
+<ul>
+<li><strong>bash</strong>：沒有符合的就把 <code>*.txt</code> 原樣傳進去，程式會收到一個叫 <code>*.txt</code> 的參數（<code>wc *.txt</code> 因此會說 <code>wc: '*.txt': No such file or directory</code>）。</li>
+<li><strong>zsh</strong>（本機的登入 shell 是 <code>/usr/bin/zsh</code>）：預設直接報錯 <code>no matches found</code>，<strong>程式根本沒有被執行</strong>，<code>exit=1</code> 是 zsh 自己給的。</li>
+</ul>
+<p>圖：<code>./args hello &quot;two words&quot;</code> 時 <code>argv</code> 在記憶體裡的樣子（位址是通用名字，不是實測值）：</p>
+<pre><code class="language-text">argv ──▶ ┌──────────┐
+         │ argv[0] ─┼──▶ &quot;./args\0&quot;
+         ├──────────┤
+         │ argv[1] ─┼──▶ &quot;hello\0&quot;
+         ├──────────┤
+         │ argv[2] ─┼──▶ &quot;two words\0&quot;
+         ├──────────┤
+         │ argv[3]  │  = NULL   ← argv[argc]，迴圈也可以用「走到 NULL 為止」來停
+         └──────────┘
+  每一格是 8 byte 的指標（char *），字串本身在別的地方，各自以 &#39;\0&#39; 結尾
+</code></pre>
+<p>圖要看的重點：<code>argv</code> 是「指標的陣列」，不是一大串字；每個參數是獨立的 C 字串，所以 <code>argv[2][0]</code> 是 <code>'t'</code>、<code>argv[2][3]</code> 是 <code>' '</code>。</p>
+<hr />
+<h2 id="三讀到-eofgetc-為什麼回傳-int">三、讀到 <code>EOF</code>：<code>getc</code> 為什麼回傳 <code>int</code></h2>
+<h3 id="一次讀一個-bytegetchargetc">一次讀一個 byte：<code>getchar</code>、<code>getc</code></h3>
+<table>
+<thead>
+<tr>
+<th>函式</th>
+<th>宣告（<code>&lt;stdio.h&gt;</code>）</th>
+<th>做什麼</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>getchar</code></td>
+<td><code>int getchar(void);</code></td>
+<td>從標準輸入（<code>stdin</code>）讀一個 byte</td>
+</tr>
+<tr>
+<td><code>getc</code></td>
+<td><code>int getc(FILE *stream);</code></td>
+<td>從指定的 <code>FILE</code>（例如 <code>fopen</code> 打開的檔案）讀一個 byte；<code>getc(stdin)</code> 等於 <code>getchar()</code></td>
+</tr>
+<tr>
+<td><code>fgetc</code></td>
+<td><code>int fgetc(FILE *stream);</code></td>
+<td>跟 <code>getc</code> 一樣；差別是 <code>getc</code> 允許被實作成巨集（macro），<code>fgetc</code> 一定是真的函式</td>
+</tr>
+<tr>
+<td><code>putchar</code></td>
+<td><code>int putchar(int c);</code></td>
+<td>把一個 byte 寫到 <code>stdout</code></td>
+</tr>
+<tr>
+<td><code>putc</code>／<code>fputc</code></td>
+<td><code>int putc(int c, FILE *stream);</code></td>
+<td>把一個 byte 寫到指定的 <code>FILE</code>（例如 <code>stdout</code>、<code>stderr</code>）；兩者的差別同 <code>getc</code>／<code>fgetc</code></td>
+</tr>
+</tbody>
+</table>
+<p><strong>回傳值</strong>：讀到東西時回傳那個 byte 的值，範圍 <strong>0～255</strong>（當成 <code>unsigned char</code> 再轉成 <code>int</code>）；<strong>沒有東西可讀了</strong>（讀完、或出錯）回傳 <code>EOF</code>。
+<code>EOF</code>（End Of File）是 <code>&lt;stdio.h&gt;</code> 定義的巨集，glibc 是 <strong>−1</strong>。</p>
+<p>所以 <code>getchar</code> 有 <strong>257 種</strong>可能的回傳值：256 種 byte ＋ 1 個 <code>EOF</code>。<code>char</code> 只有 256 種值，<strong>裝不下</strong>——這就是它回傳 <code>int</code> 的原因。</p>
+<h3 id="實驗數-stdin-有幾個-byte">實驗：數 <code>stdin</code> 有幾個 byte</h3>
+<p><code>getbytes.c</code>（檔案：<a href="../../small-project/s1-08-wc-cat/examples/eof/getbytes.c"><code>getbytes.c</code></a>）完整原始碼：</p>
+<pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">c</span><span class="p">;</span><span class="w">                 </span><span class="cm">/* 一定要用 int：要裝得下 0～255 再加上 EOF */</span>
+<span class="w">    </span><span class="kt">long</span><span class="w"> </span><span class="n">n</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+
+<span class="w">    </span><span class="k">while</span><span class="w"> </span><span class="p">((</span><span class="n">c</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">getchar</span><span class="p">())</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="n">EOF</span><span class="p">)</span>
+<span class="w">        </span><span class="n">n</span><span class="o">++</span><span class="p">;</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;讀到 %ld 個 byte，EOF = %d</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">n</span><span class="p">,</span><span class="w"> </span><span class="n">EOF</span><span class="p">);</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<p><code>while ((c = getchar()) != EOF)</code> 拆開讀：先呼叫 <code>getchar()</code>，把回傳值存進 <code>c</code>，整個 <code>(c = getchar())</code> 的值就是剛存進去的值，再拿它跟 <code>EOF</code> 比。<strong>外層括號不能省</strong>：<code>c = getchar() != EOF</code> 會因為 <code>!=</code> 優先順序比 <code>=</code> 高，變成把「比較的結果（0 或 1）」存進 <code>c</code>。</p>
+<p>準備一個 5 byte 的檔案，中間有一個 <code>0xff</code>（<code>printf</code> 的 <code>\xff</code> 寫出一個值是 255 的 byte）：</p>
+<pre><code class="language-text">$ gcc -Wall getbytes.c -o getbytes
+$ printf &#39;AB\xffCD&#39; &gt; ff.bin
+$ od -An -tx1 ff.bin
+ 41 42 ff 43 44
+$ ./getbytes &lt; ff.bin
+讀到 5 個 byte，EOF = -1
+$ printf &#39;hello\n&#39; | ./getbytes
+讀到 6 個 byte，EOF = -1
+$ ./getbytes &lt; /dev/null
+讀到 0 個 byte，EOF = -1
+</code></pre>
+<ul>
+<li><code>&lt; ff.bin</code>：shell 把檔案接到程式的 <code>stdin</code>（fd 0），程式完全不知道檔名，只是從 <code>stdin</code> 讀。</li>
+<li><code>printf 'hello\n' |</code>：管線把前一個程式的輸出接到 <code>stdin</code>，<code>\n</code> 也是 1 byte，所以是 6。</li>
+<li><code>/dev/null</code>：讀它立刻就是檔案結尾，第一次 <code>getchar()</code> 就回傳 <code>EOF</code>。</li>
+<li>從鍵盤輸入時，在一行開頭按 <strong>Ctrl-D</strong>，終端機會讓這次 <code>read</code> 回傳 0 個 byte，<code>getchar</code> 因此回傳 <code>EOF</code>（這裡需要互動的終端機，<strong>未實測</strong>；終端機的行為在 <a href="../linux/PTY%E6%98%AF%E4%BB%80%E9%BA%BC-%E7%B5%82%E7%AB%AF%E6%A9%9F%E6%A8%A1%E6%93%AC%E5%99%A8%E8%88%87%E8%99%9B%E6%93%AC%E7%B5%82%E7%AB%AF.html">PTY是什麼</a> 有講）。</li>
+</ul>
+<h3 id="錯誤示範用-char-接-getchar">錯誤示範：用 <code>char</code> 接 <code>getchar()</code></h3>
+<p><code>charbug.c</code>（檔案：<a href="../../small-project/s1-08-wc-cat/examples/eof/charbug.c"><code>charbug.c</code></a>）只差一個型別：</p>
+<pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="kt">char</span><span class="w"> </span><span class="n">c</span><span class="p">;</span><span class="w">                </span><span class="cm">/* 錯誤示範：用 char 裝 getchar() 的回傳值 */</span>
+<span class="w">    </span><span class="kt">long</span><span class="w"> </span><span class="n">n</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+
+<span class="w">    </span><span class="k">while</span><span class="w"> </span><span class="p">((</span><span class="n">c</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">getchar</span><span class="p">())</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="n">EOF</span><span class="p">)</span>
+<span class="w">        </span><span class="n">n</span><span class="o">++</span><span class="p">;</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;讀到 %ld 個 byte</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">n</span><span class="p">);</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<p>分別用預設（x86-64 上 <code>char</code> 是<strong>有號</strong>的）和 <code>-funsigned-char</code>（讓 <code>char</code> 變成無號，ARM 上的 Linux 預設就是這樣）編：</p>
+<pre><code class="language-text">$ gcc -Wall charbug.c -o charbug
+$ gcc -Wall -funsigned-char charbug.c -o charbug_u
+$ ./charbug &lt; ff.bin
+讀到 2 個 byte
+$ timeout 2 ./charbug_u &lt; ff.bin; echo &quot;exit=$?&quot;
+exit=124
+</code></pre>
+<p>（兩個都沒有警告：<code>-Wall</code> 抓不到這個錯。<code>timeout 2</code> 是 2 秒後砍掉程式，被砍時 <code>timeout</code> 回傳 124。）</p>
+<table>
+<thead>
+<tr>
+<th>版本</th>
+<th>讀到 <code>0xff</code> 時</th>
+<th>讀到檔案結尾時</th>
+<th>結果</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>int c</code>（<code>getbytes</code>）</td>
+<td><code>c</code> ＝ 255，≠ −1，繼續</td>
+<td><code>c</code> ＝ −1，＝ <code>EOF</code>，停</td>
+<td>正確：5 個</td>
+</tr>
+<tr>
+<td>有號 <code>char c</code>（<code>charbug</code>）</td>
+<td>255 存進有號 <code>char</code> 變成 <strong>−1</strong>；比較時 <code>c</code> 升成 <code>int</code> 還是 −1，<strong>＝ <code>EOF</code>，提早停</strong></td>
+<td>（到不了）</td>
+<td>錯：只數到 <code>A</code>、<code>B</code> 兩個</td>
+</tr>
+<tr>
+<td>無號 <code>char c</code>（<code>charbug_u</code>）</td>
+<td>255 存進無號 <code>char</code> 還是 255，繼續</td>
+<td><code>EOF</code>（−1）存進無號 <code>char</code> 變成 <strong>255</strong>；比較時是 255 ≠ −1，<strong>永遠不等於 <code>EOF</code></strong></td>
+<td>錯：無窮迴圈，<code>getchar</code> 一直回傳 <code>EOF</code>、一直被當成 255</td>
+</tr>
+</tbody>
+</table>
+<p>為什麼 255 存進有號 <code>char</code> 會變 −1：<code>char</code> 只有 8 位元，255 的位元是 <code>11111111</code>，當有號數讀就是 −1（二補數，<a href="C%E7%9A%84%E8%B3%87%E6%96%99%E5%9C%A8%E8%A8%98%E6%86%B6%E9%AB%94%E8%A3%A1%E9%95%B7%E6%80%8E%E6%A8%A3-%E4%BD%8D%E5%85%83%E7%B5%84%E3%80%81%E6%8C%87%E6%A8%99%E3%80%81%E4%BD%8D%E5%85%83%E7%B5%84%E9%A0%86%E5%BA%8F%E8%88%87%E6%9C%89%E8%99%9F%E7%84%A1%E8%99%9F.html#%E4%BA%94%E6%9C%89%E8%99%9F%E6%95%B4%E6%95%B8%E4%BA%8C%E8%A3%9C%E6%95%B8">第 2 課第五節</a>；存進比較小的型別只留低位元，<a href="C%E7%9A%84%E8%B3%87%E6%96%99%E5%9C%A8%E8%A8%98%E6%86%B6%E9%AB%94%E8%A3%A1%E9%95%B7%E6%80%8E%E6%A8%A3-%E4%BD%8D%E5%85%83%E7%B5%84%E3%80%81%E6%8C%87%E6%A8%99%E3%80%81%E4%BD%8D%E5%85%83%E7%B5%84%E9%A0%86%E5%BA%8F%E8%88%87%E6%9C%89%E8%99%9F%E7%84%A1%E8%99%9F.html#%E5%85%AD%E6%9C%89%E8%99%9F%E8%88%87%E7%84%A1%E8%99%9F%E4%B9%8B%E9%96%93%E7%9A%84%E8%BD%89%E6%8F%9B%E4%BD%8D%E5%85%83%E4%B8%8D%E8%AE%8A%E6%8F%9B%E5%80%8B%E8%AE%80%E6%B3%95">第 2 課第六節</a>）。<code>EOF</code> 的 −1 存進 8 位元也是 <code>11111111</code>——<strong>一旦存進 <code>char</code>，「byte 255」和「<code>EOF</code>」就變成同一個位元樣式，再也分不出來</strong>。用 <code>int</code> 接，兩者是 <code>0x000000ff</code> 和 <code>0xffffffff</code>，不會混。</p>
+<p>這個錯在純文字（ASCII）檔案上不會出現，因為 ASCII 的值都 ≤ 127；但中文的 UTF-8 會出現 0x80～0xff 的 byte（<a href="%E5%AD%97%E5%85%83%E6%98%AF%E4%BB%80%E9%BA%BC-char%E5%B0%B1%E6%98%AF1byte%E7%9A%84%E6%95%B4%E6%95%B8%E8%88%87ASCII%E5%92%8CUTF-8.html#%E8%B7%9F%E7%AC%AC-2-%E8%AA%B2%E7%9A%84%E9%80%A3%E7%B5%90char-%E6%9C%89%E8%99%9F%E8%AE%80%E5%88%B0%E4%B8%AD%E6%96%87%E6%9C%83%E8%AE%8A%E8%B2%A0%E6%95%B8">字元是什麼〈<code>char</code> 有號，讀到中文會變負數〉</a>），二進位檔更是什麼值都有。</p>
+<hr />
+<h2 id="四開檔與錯誤fopenerrnoperrorstrerror">四、開檔與錯誤：<code>fopen</code>、<code>errno</code>、<code>perror</code>、<code>strerror</code></h2>
+<h3 id="fopen打開檔案拿到一個-file-"><code>fopen</code>：打開檔案，拿到一個 <code>FILE *</code></h3>
+<pre><code class="language-c"><span class="kt">FILE</span><span class="w"> </span><span class="o">*</span><span class="nf">fopen</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="kt">char</span><span class="w"> </span><span class="o">*</span><span class="n">pathname</span><span class="p">,</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="kt">char</span><span class="w"> </span><span class="o">*</span><span class="n">mode</span><span class="p">);</span>
+<span class="kt">int</span><span class="w"> </span><span class="nf">fclose</span><span class="p">(</span><span class="kt">FILE</span><span class="w"> </span><span class="o">*</span><span class="n">stream</span><span class="p">);</span>
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>位置</th>
+<th>是什麼</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>pathname</code></td>
+<td>檔案路徑字串，例如 <code>argv[1]</code></td>
+</tr>
+<tr>
+<td><code>mode</code></td>
+<td>開啟模式字串，本課只用 <code>&quot;r&quot;</code>（讀）；全部的模式見<a href="#%E5%85%AB%E6%9C%AC%E8%AA%B2%E7%94%A8%E5%88%B0%E7%9A%84%E5%87%BD%E5%BC%8F%E5%B7%A5%E5%85%B7%E8%88%87%E5%AE%8C%E6%95%B4%E6%B8%85%E5%96%AE%E5%9C%A8%E5%93%AA">第八節</a>〈<code>fopen</code> 的模式〉</td>
+</tr>
+<tr>
+<td>回傳值</td>
+<td>成功：一個 <code>FILE *</code>，之後傳給 <code>getc</code>、<code>fclose</code>；<strong>失敗：<code>NULL</code>，並且設定 <code>errno</code></strong></td>
+</tr>
+</tbody>
+</table>
+<p><code>FILE</code> 是 stdio 用來記住「這個檔案讀到哪、緩衝區在哪」的結構；<code>stdin</code>、<code>stdout</code>、<code>stderr</code> 也是 <code>FILE *</code>，程式開始時就已經打開好了，不用 <code>fopen</code>。用完的檔案要 <code>fclose</code>：它會把還沒寫出去的緩衝區寫出去、釋放 <code>FILE</code>，並關掉底下的檔案描述符（fd）。</p>
+<h3 id="錯誤回報的慣例回傳值說失敗了errno-說為什麼">錯誤回報的慣例：回傳值說「失敗了」，<code>errno</code> 說「為什麼」</h3>
+<p>C 函式庫與系統呼叫幾乎都用同一套慣例（<code>man 3 errno</code>）：</p>
+<ol>
+<li><strong>函式用回傳值表示失敗</strong>：<code>fopen</code> 回傳 <code>NULL</code>、<code>getc</code> 回傳 <code>EOF</code>、系統呼叫回傳 −1。每個函式的失敗回傳值不同，要看它的 man page 的 RETURN VALUE 一節。</li>
+<li><strong>失敗時把原因寫進 <code>errno</code></strong>：<code>errno</code> 是 <code>&lt;errno.h&gt;</code> 宣告的一個整數（glibc 裡每個執行緒各一份），值是 <code>ENOENT</code>（2）、<code>EACCES</code>（13）這種錯誤碼。</li>
+<li><strong>成功時不保證動 <code>errno</code></strong>：所以 <code>errno</code> 只有在「回傳值說失敗了」之後<strong>馬上</strong>讀才有意義。</li>
+</ol>
+<p>把錯誤碼翻成文字的兩個函式：</p>
+<table>
+<thead>
+<tr>
+<th>函式</th>
+<th>宣告</th>
+<th>做什麼</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>strerror</code></td>
+<td><code>char *strerror(int errnum);</code>（<code>&lt;string.h&gt;</code>）</td>
+<td>回傳錯誤碼對應的說明字串，例如 <code>strerror(2)</code> → <code>&quot;No such file or directory&quot;</code>；<strong>不印</strong>，要自己印</td>
+</tr>
+<tr>
+<td><code>perror</code></td>
+<td><code>void perror(const char *s);</code>（<code>&lt;stdio.h&gt;</code>）</td>
+<td>把 <code>s</code>、<code>&quot;: &quot;</code>、<code>strerror(errno)</code>、換行<strong>印到 <code>stderr</code></strong>；<code>s</code> 是 <code>NULL</code> 或空字串時只印說明字串</td>
+</tr>
+</tbody>
+</table>
+<h3 id="實驗四種開檔結果">實驗：四種開檔結果</h3>
+<p><code>openfail.c</code>（檔案：<a href="../../small-project/s1-08-wc-cat/examples/errno/openfail.c"><code>openfail.c</code></a>）完整原始碼：</p>
+<pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;errno.h&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;string.h&gt;</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">argc</span><span class="p">,</span><span class="w"> </span><span class="kt">char</span><span class="w"> </span><span class="o">*</span><span class="n">argv</span><span class="p">[])</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">argc</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="mi">2</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">fprintf</span><span class="p">(</span><span class="n">stderr</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;用法：%s 檔名</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">argv</span><span class="p">[</span><span class="mi">0</span><span class="p">]);</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="mi">2</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="kt">FILE</span><span class="w"> </span><span class="o">*</span><span class="n">fp</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">fopen</span><span class="p">(</span><span class="n">argv</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span><span class="w"> </span><span class="s">&quot;r&quot;</span><span class="p">);</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">fp</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="nb">NULL</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="kt">int</span><span class="w"> </span><span class="n">saved</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">errno</span><span class="p">;</span><span class="w">                       </span><span class="cm">/* 先存起來：之後呼叫的函式可能改掉 errno */</span>
+<span class="w">        </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;fopen 失敗：errno = %d</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">saved</span><span class="p">);</span>
+<span class="w">        </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;strerror(errno) = </span><span class="se">\&quot;</span><span class="s">%s</span><span class="se">\&quot;\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">strerror</span><span class="p">(</span><span class="n">saved</span><span class="p">));</span>
+<span class="w">        </span><span class="n">errno</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">saved</span><span class="p">;</span>
+<span class="w">        </span><span class="n">perror</span><span class="p">(</span><span class="n">argv</span><span class="p">[</span><span class="mi">1</span><span class="p">]);</span><span class="w">                         </span><span class="cm">/* 印到 stderr：「&lt;參數&gt;: &lt;strerror 的字串&gt;」 */</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">c</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">getc</span><span class="p">(</span><span class="n">fp</span><span class="p">);</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">c</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">EOF</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">ferror</span><span class="p">(</span><span class="n">fp</span><span class="p">))</span><span class="w">                  </span><span class="cm">/* EOF 有兩種原因：讀完了，或出錯了 */</span>
+<span class="w">        </span><span class="n">perror</span><span class="p">(</span><span class="s">&quot;getc&quot;</span><span class="p">);</span>
+<span class="w">    </span><span class="k">else</span>
+<span class="w">        </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;第一個 byte 讀到了：%d</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">c</span><span class="p">);</span>
+<span class="w">    </span><span class="n">fclose</span><span class="p">(</span><span class="n">fp</span><span class="p">);</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<p>準備四種情況：不存在的檔案、沒有讀取權限的檔案（<code>chmod 000</code>，<strong>用一般使用者跑</strong>；root 不受權限限制，會讀得到）、一個目錄、一個正常檔案：</p>
+<pre><code class="language-sh">gcc<span class="w"> </span>-Wall<span class="w"> </span>openfail.c<span class="w"> </span>-o<span class="w"> </span>openfail
+<span class="nb">echo</span><span class="w"> </span>hi<span class="w"> </span>&gt;<span class="w"> </span>ok.txt
+<span class="nb">echo</span><span class="w"> </span>secret<span class="w"> </span>&gt;<span class="w"> </span>locked.txt<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>chmod<span class="w"> </span><span class="m">000</span><span class="w"> </span>locked.txt
+mkdir<span class="w"> </span>adir
+</code></pre>
+<p>在終端機上執行（輸出直接顯示在終端機）：</p>
+<pre><code class="language-text">$ ./openfail nofile.txt; echo &quot;exit=$?&quot;
+fopen 失敗：errno = 2
+strerror(errno) = &quot;No such file or directory&quot;
+nofile.txt: No such file or directory
+exit=1
+$ ./openfail locked.txt; echo &quot;exit=$?&quot;
+fopen 失敗：errno = 13
+strerror(errno) = &quot;Permission denied&quot;
+locked.txt: Permission denied
+exit=1
+$ ./openfail adir; echo &quot;exit=$?&quot;
+getc: Is a directory
+exit=0
+$ ./openfail ok.txt; echo &quot;exit=$?&quot;
+第一個 byte 讀到了：104
+exit=0
+$ ./openfail &#39;&#39;; echo &quot;exit=$?&quot;
+fopen 失敗：errno = 2
+strerror(errno) = &quot;No such file or directory&quot;
+No such file or directory
+exit=1
+$ ./openfail; echo &quot;exit=$?&quot;
+用法：./openfail 檔名
+exit=2
+</code></pre>
+<p>逐個看：</p>
+<ul>
+<li><strong><code>nofile.txt</code></strong>：<code>errno</code> ＝ 2，名字是 <code>ENOENT</code>（Error NO ENTry，沒有這個目錄項目）。<code>perror(argv[1])</code> 印出「<code>nofile.txt: No such file or directory</code>」——<strong>把檔名放在前面</strong>，使用者才知道是哪個檔案出錯；<code>wc</code>、<code>cat</code> 的錯誤訊息也是這個格式，只是前面再加程式名稱（<code>wc: nofile.txt: …</code>）。</li>
+<li><strong><code>locked.txt</code></strong>：<code>errno</code> ＝ 13，<code>EACCES</code>（ACCESS denied）。檔案存在，但沒有讀取權限。</li>
+<li><strong><code>adir</code></strong>：<strong><code>fopen</code> 成功了</strong>——打開目錄來讀，kernel 允許；是第一次真的讀（<code>getc</code> 底下的 <code>read</code> 系統呼叫）才失敗，<code>errno</code> ＝ 21，<code>EISDIR</code>（Is a directory）。所以<strong>錯誤不一定發生在開檔，讀的時候也要檢查</strong>。這支程式在這裡印了訊息卻回傳 0，是範例偷懶，作業不能這樣。</li>
+<li><strong><code>ok.txt</code></strong>：第一個 byte 是 <code>'h'</code> ＝ 104。</li>
+<li><strong><code>''</code>（空字串）</strong>：空的路徑一樣是 <code>ENOENT</code>；<code>perror</code> 的參數是空字串，所以只印說明，前面沒有「<code>: </code>」。</li>
+<li><strong>沒給參數</strong>：程式自己檢查 <code>argc</code>，用法錯誤印到 <code>stderr</code>、回傳 2（命令列工具常用 2 表示「用法錯誤」，跟「執行失敗」的 1 分開）。</li>
+</ul>
+<p><code>errno</code> 的值是 kernel 給的。用 <code>strace</code> 看 <code>nofile.txt</code> 那次的系統呼叫（<code>openat</code> 是 <code>fopen</code> 底下真正開檔的系統呼叫，下一節再看）：</p>
+<pre><code class="language-text">$ strace ./countch nofile.txt n 2&gt;&amp;1 | grep -E &#39;nofile|write&#39;
+openat(AT_FDCWD, &quot;nofile.txt&quot;, O_RDONLY) = -1 ENOENT (No such file or directory)
+write(2, &quot;nofile.txt: No such file or dire&quot;..., 38) = 38
+</code></pre>
+<p>kernel 讓 <code>openat</code> 回傳 −1 並帶回 <code>ENOENT</code>；glibc 把 <code>ENOENT</code> 存進 <code>errno</code>、讓 <code>fopen</code> 回傳 <code>NULL</code>；<code>perror</code> 讀 <code>errno</code>，用 <code>write(2, …)</code> 寫到 fd 2，也就是 <code>stderr</code>。（<code>countch</code> 是<a href="#%E5%85%AD%E6%8E%A5%E8%B5%B7%E4%BE%86countch-%E8%88%87%E7%94%A8-strace-%E7%9C%8B%E5%AE%83%E5%81%9A%E4%BA%86%E5%93%AA%E4%BA%9B%E7%B3%BB%E7%B5%B1%E5%91%BC%E5%8F%AB">第六節</a>的範例，開檔失敗的處理跟 <code>openfail</code> 一樣。）</p>
+<h3 id="實驗成功的呼叫不會把-errno-清成-0">實驗：成功的呼叫不會把 <code>errno</code> 清成 0</h3>
+<p><code>stale.c</code>（檔案：<a href="../../small-project/s1-08-wc-cat/examples/errno/stale.c"><code>stale.c</code></a>，跟 <code>openfail</code> 放在同一個資料夾，用到同一個 <code>ok.txt</code>）完整原始碼：</p>
+<pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;errno.h&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;string.h&gt;</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="kt">FILE</span><span class="w"> </span><span class="o">*</span><span class="n">bad</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">fopen</span><span class="p">(</span><span class="s">&quot;nofile.txt&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;r&quot;</span><span class="p">);</span><span class="w">      </span><span class="cm">/* 失敗：設 errno */</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;失敗之後：bad = %p, errno = %d</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="kt">void</span><span class="w"> </span><span class="o">*</span><span class="p">)</span><span class="n">bad</span><span class="p">,</span><span class="w"> </span><span class="n">errno</span><span class="p">);</span>
+
+<span class="w">    </span><span class="kt">FILE</span><span class="w"> </span><span class="o">*</span><span class="n">good</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">fopen</span><span class="p">(</span><span class="s">&quot;ok.txt&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;r&quot;</span><span class="p">);</span><span class="w">         </span><span class="cm">/* 成功：不會把 errno 清成 0 */</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;成功之後：good = %p, errno = %d (%s)</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="kt">void</span><span class="w"> </span><span class="o">*</span><span class="p">)</span><span class="n">good</span><span class="p">,</span><span class="w"> </span><span class="n">errno</span><span class="p">,</span><span class="w"> </span><span class="n">strerror</span><span class="p">(</span><span class="n">errno</span><span class="p">));</span>
+
+<span class="w">    </span><span class="n">errno</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w">                                 </span><span class="cm">/* 要拿 errno 判斷，得自己先清 */</span>
+<span class="w">    </span><span class="kt">FILE</span><span class="w"> </span><span class="o">*</span><span class="n">good2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">fopen</span><span class="p">(</span><span class="s">&quot;ok.txt&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;r&quot;</span><span class="p">);</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;先清 0 再成功：errno = %d</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">errno</span><span class="p">);</span>
+
+<span class="w">    </span><span class="n">fclose</span><span class="p">(</span><span class="n">good</span><span class="p">);</span>
+<span class="w">    </span><span class="n">fclose</span><span class="p">(</span><span class="n">good2</span><span class="p">);</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<pre><code class="language-text">$ gcc -Wall stale.c -o stale &amp;&amp; ./stale
+失敗之後：bad = (nil), errno = 2
+成功之後：good = 0x612d78eab2a0, errno = 2 (No such file or directory)
+先清 0 再成功：errno = 0
+</code></pre>
+<p>第二行是重點：<code>good</code> 明明開成功了，<code>errno</code> 卻還是 2——那是<strong>上一次失敗留下來的</strong>。如果寫成「<code>fopen</code> 之後看 <code>errno</code> 是不是 0 來判斷成功」，這裡就會誤判成失敗。所以：</p>
+<ul>
+<li><strong>先看回傳值</strong>（<code>NULL</code>、<code>EOF</code>、−1）判斷有沒有失敗，失敗了才去讀 <code>errno</code>；</li>
+<li>讀 <code>errno</code> 要<strong>緊接在</strong>失敗的呼叫後面。中間呼叫的任何函式（包括 <code>printf</code>）都可能在內部失敗又成功、改掉 <code>errno</code>。<code>openfail.c</code> 先把 <code>errno</code> 存進 <code>saved</code>、印完再放回去給 <code>perror</code> 用，就是這個原因；只呼叫一次 <code>perror</code> 的話，直接緊接著呼叫就好。</li>
+<li>少數函式只能靠 <code>errno</code> 判斷（回傳值沒有專門表示失敗的值），這時才要先 <code>errno = 0</code> 再呼叫——第三行示範的就是這個寫法。本課的函式都不需要。</li>
+</ul>
+<h3 id="eof-有兩種意思讀完了或出錯了"><code>EOF</code> 有兩種意思：讀完了，或出錯了</h3>
+<p><code>getc</code> 回傳 <code>EOF</code> 時有兩種可能：<strong>真的讀到檔案結尾</strong>，或者<strong>讀的時候出錯</strong>（例如上面的目錄 <code>EISDIR</code>、磁碟讀取錯誤 <code>EIO</code>）。迴圈 <code>while ((c = getc(fp)) != EOF)</code> 兩種情況都會停，停下來之後要問 <code>FILE</code> 自己：</p>
+<table>
+<thead>
+<tr>
+<th>函式</th>
+<th>宣告</th>
+<th>回傳</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ferror</code></td>
+<td><code>int ferror(FILE *stream);</code></td>
+<td>這個 <code>FILE</code> 發生過讀寫錯誤 → 非 0</td>
+</tr>
+<tr>
+<td><code>feof</code></td>
+<td><code>int feof(FILE *stream);</code></td>
+<td>這個 <code>FILE</code> 讀到過檔案結尾 → 非 0</td>
+</tr>
+<tr>
+<td><code>clearerr</code></td>
+<td><code>void clearerr(FILE *stream);</code></td>
+<td>把上面兩個記號都清掉</td>
+</tr>
+</tbody>
+</table>
+<p>所以讀檔迴圈的標準寫法是：迴圈照常用 <code>!= EOF</code> 停，<strong>停下來之後用 <code>ferror</code> 檢查</strong>，是錯誤就回報、算失敗。<code>openfail.c</code> 的 <code>if (c == EOF &amp;&amp; ferror(fp))</code> 就是這樣分辨出「目錄讀不了」和「空檔案」。</p>
+<h3 id="本課會遇到的錯誤碼">本課會遇到的錯誤碼</h3>
+<p>本機 glibc 定義了 <strong>131 個</strong>錯誤碼，下表只列本課（開檔、讀寫檔）會遇到的 9 個。全部 131 個可以用下面的 <code>errlist.c</code> 印出來，或看 <code>man 3 errno</code>。</p>
+<table>
+<thead>
+<tr>
+<th>錯誤碼</th>
+<th>值</th>
+<th><code>strerror</code> 的字串</th>
+<th>什麼時候會遇到</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ENOENT</code></td>
+<td>2</td>
+<td>No such file or directory</td>
+<td>檔案或路徑中的某個目錄不存在、空字串路徑</td>
+</tr>
+<tr>
+<td><code>EIO</code></td>
+<td>5</td>
+<td>Input/output error</td>
+<td>硬體讀寫錯誤</td>
+</tr>
+<tr>
+<td><code>EBADF</code></td>
+<td>9</td>
+<td>Bad file descriptor</td>
+<td>對已經關掉的 fd 讀寫</td>
+</tr>
+<tr>
+<td><code>EACCES</code></td>
+<td>13</td>
+<td>Permission denied</td>
+<td>沒有讀取（或路徑上目錄的進入）權限</td>
+</tr>
+<tr>
+<td><code>ENOTDIR</code></td>
+<td>20</td>
+<td>Not a directory</td>
+<td>路徑中間有一段不是目錄，例如 <code>ok.txt/x</code></td>
+</tr>
+<tr>
+<td><code>EISDIR</code></td>
+<td>21</td>
+<td>Is a directory</td>
+<td>對目錄 <code>read</code></td>
+</tr>
+<tr>
+<td><code>EMFILE</code></td>
+<td>24</td>
+<td>Too many open files</td>
+<td>這個行程打開的檔案太多（忘了 <code>fclose</code> 會累積）</td>
+</tr>
+<tr>
+<td><code>ENOSPC</code></td>
+<td>28</td>
+<td>No space left on device</td>
+<td>寫入時磁碟滿了</td>
+</tr>
+<tr>
+<td><code>EPIPE</code></td>
+<td>32</td>
+<td>Broken pipe</td>
+<td>寫到一個讀的那端已經關掉的管線（第 ② 站會遇到）</td>
+</tr>
+</tbody>
+</table>
+<p><code>errlist.c</code>（檔案：<a href="../../small-project/s1-08-wc-cat/examples/errno/errlist.c"><code>errlist.c</code></a>）完整原始碼：</p>
+<pre><code class="language-c"><span class="cp">#define _GNU_SOURCE            </span><span class="cm">/* strerrorname_np 是 GNU 擴充 */</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;string.h&gt;</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">e</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w"> </span><span class="n">e</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">200</span><span class="p">;</span><span class="w"> </span><span class="n">e</span><span class="o">++</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="k">const</span><span class="w"> </span><span class="kt">char</span><span class="w"> </span><span class="o">*</span><span class="n">name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">strerrorname_np</span><span class="p">(</span><span class="n">e</span><span class="p">);</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">name</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="nb">NULL</span><span class="p">)</span>
+<span class="w">            </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;%3d  %-16s %s</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">e</span><span class="p">,</span><span class="w"> </span><span class="n">name</span><span class="p">,</span><span class="w"> </span><span class="n">strerror</span><span class="p">(</span><span class="n">e</span><span class="p">));</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<pre><code class="language-text">$ gcc -Wall errlist.c -o errlist &amp;&amp; ./errlist | wc -l
+131
+$ ./errlist | head -5
+  1  EPERM            Operation not permitted
+  2  ENOENT           No such file or directory
+  3  ESRCH            No such process
+  4  EINTR            Interrupted system call
+  5  EIO              Input/output error
+</code></pre>
+<p>（<code>strerrorname_np</code> 回傳錯誤碼的<strong>名字</strong>，<code>np</code> 是 non-portable，只有 glibc 有；<code>#define _GNU_SOURCE</code> 要寫在所有 <code>#include</code> 前面才能用 GNU 擴充。）</p>
+<hr />
+<h2 id="五stdout-與-stderr以及結束狀態">五、<code>stdout</code> 與 <code>stderr</code>，以及結束狀態</h2>
+<h3 id="結果寫-stdout錯誤寫-stderr">結果寫 <code>stdout</code>，錯誤寫 <code>stderr</code></h3>
+<p><code>perror</code> 固定寫到 <code>stderr</code>；自己印錯誤訊息時用 <code>fprintf(stderr, ...)</code>（<code>fprintf</code> 跟 <code>printf</code> 一樣，只是第一個參數指定寫到哪個 <code>FILE</code>）。分開的理由是<strong>使用者重新導向時，兩者會被分到不同地方</strong>：</p>
+<pre><code class="language-text">$ ./openfail nofile.txt &gt; out.txt 2&gt; err.txt
+$ cat out.txt
+fopen 失敗：errno = 2
+strerror(errno) = &quot;No such file or directory&quot;
+$ cat err.txt
+nofile.txt: No such file or directory
+$ ./openfail nofile.txt 2&gt;/dev/null; echo &quot;exit=$?&quot;
+fopen 失敗：errno = 2
+strerror(errno) = &quot;No such file or directory&quot;
+exit=1
+</code></pre>
+<ul>
+<li><code>&gt; out.txt</code> 只導 fd 1（<code>stdout</code>），<code>2&gt; err.txt</code> 導 fd 2（<code>stderr</code>）。語法逐字拆解見 <a href="../linux/%E8%BC%B8%E5%87%BA%E9%87%8D%E6%96%B0%E5%B0%8E%E5%90%91%E8%88%87dev-null.html#%E4%B8%89%E9%87%8D%E6%96%B0%E5%B0%8E%E5%90%91%E8%AA%9E%E6%B3%95%E9%80%90%E5%AD%97%E6%8B%86%E8%A7%A3">輸出重新導向與dev-null</a>。</li>
+<li>想像 <code>mywc *.txt &gt; report.txt</code>：如果錯誤訊息也寫 <code>stdout</code>，<code>report.txt</code> 裡就會混進「<code>nofile.txt: No such file or directory</code>」，下一個讀 <code>report.txt</code> 的程式會把它當成資料；使用者自己反而在終端機上看不到出錯。錯誤寫 <code>stderr</code>，報告乾淨、錯誤照樣顯示在終端機上。</li>
+</ul>
+<h3 id="輸出順序為什麼會變stdout-有緩衝stderr-沒有">輸出順序為什麼會變：<code>stdout</code> 有緩衝、<code>stderr</code> 沒有</h3>
+<p>同一個 <code>./openfail nofile.txt</code>，輸出接到管線時順序不一樣：</p>
+<pre><code class="language-text">$ ./openfail nofile.txt 2&gt;&amp;1 | cat
+nofile.txt: No such file or directory
+fopen 失敗：errno = 2
+strerror(errno) = &quot;No such file or directory&quot;
+</code></pre>
+<p><code>stderr</code> 那行跑到最前面了。原因是第 7 課課後討論學過的緩衝（<a href="%E9%9D%9C%E6%85%8B%E8%88%87%E5%8B%95%E6%85%8B%E5%87%BD%E5%BC%8F%E5%BA%AB-ar%E8%88%87.a%E3%80%81-fPIC%E8%88%87.so%E3%80%81%E5%9F%B7%E8%A1%8C%E6%99%82%E6%80%8E%E9%BA%BC%E6%89%BE%E5%88%B0.so.html#14-fflushstdout-%E6%98%AF%E4%BB%80%E9%BA%BCprintf-%E5%85%88%E5%AF%AB%E9%80%B2%E7%B7%A9%E8%A1%9D%E5%8D%80">第 7 課第九節第 14 章</a>）：<code>stdout</code> 接到管線時是<strong>全緩衝</strong>，兩行 <code>printf</code> 先存在緩衝區，<code>return</code> 時才寫出去；<code>stderr</code> <strong>不緩衝</strong>，<code>perror</code> 馬上寫。接到終端機時 <code>stdout</code> 是行緩衝，每遇到 <code>\n</code> 就寫，所以看到的是程式裡的順序。這不影響正確性（各自的內容都對），只是提醒：<strong>不要靠兩個資料流的相對順序</strong>，作業比對輸出時要分開比。</p>
+<h3 id="結束狀態return-的值">結束狀態：<code>return</code> 的值</h3>
+<p><code>main</code> 回傳的數字就是結束狀態，shell 用 <code>$?</code> 看得到（<a href="../linux/%E5%88%86%E8%99%9F%E8%88%87%E7%B5%90%E6%9D%9F%E7%8B%80%E6%85%8B-%E5%91%BD%E4%BB%A4%E4%B8%B2%E6%8E%A5%E8%88%87%E9%8C%A2%E5%AD%97%E8%99%9F%E5%95%8F%E8%99%9F.html#%E7%A8%8B%E5%BC%8F%E8%87%AA%E5%B7%B1%E6%B1%BA%E5%AE%9Areturn-%E6%88%96-exit-%E7%9A%84%E5%80%BC">分號與結束狀態〈程式自己決定〉</a>）。命令列工具的慣例：</p>
+<table>
+<thead>
+<tr>
+<th>結束狀態</th>
+<th>意思</th>
+<th>例子</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0</td>
+<td>全部成功</td>
+<td><code>wc one.txt</code></td>
+</tr>
+<tr>
+<td>1</td>
+<td>執行時有失敗（但可能已經處理了一部分）</td>
+<td><code>wc one.txt nofile.txt</code>：印了 <code>one.txt</code> 的結果，結束狀態仍是 1</td>
+</tr>
+<tr>
+<td>2</td>
+<td>用法錯誤（參數不對），通常什麼都沒做</td>
+<td><code>openfail</code> 沒給檔名；<code>ls --bogus</code>、<code>grep --bogus x</code> 都回傳 2</td>
+</tr>
+</tbody>
+</table>
+<p>「用法錯誤回 2」只是慣例，不是每個工具都遵守：本機 <code>wc --bogus</code>、<code>cat --bogus</code> 印出 <code>unrecognized option</code> 後回傳的是 <strong>1</strong>（GNU coreutils 的 <code>wc</code>、<code>cat</code> 不分「用法錯誤」和「執行失敗」）。所以判斷別人的工具時要看它的 man page 的 EXIT STATUS 一節；自己寫的工具則照自己的規格（作業的規格寫在題目裡）。</p>
+<p><code>&lt;stdlib.h&gt;</code> 另外定義了 <code>EXIT_SUCCESS</code>（0）和 <code>EXIT_FAILURE</code>（1），寫 <code>return EXIT_FAILURE;</code> 跟 <code>return 1;</code> 在 Linux 上一樣。在 <code>main</code> 以外的函式裡要直接結束程式，用 <code>exit(1)</code>——它跟 <code>main</code> 裡的 <code>return 1</code> 一樣會先把緩衝區寫出去。</p>
+<p><strong>為什麼 <code>wc</code>、<code>cat</code> 遇到一個壞檔案不馬上停</strong>：使用者打 <code>wc *.txt</code>，其中一個檔案沒有權限，他要的還是其他檔案的結果。所以這些工具的做法是：<strong>每個檔案各自處理，壞的印錯誤到 <code>stderr</code>、記下「有失敗過」，繼續下一個；全部做完，有失敗過就回傳 1</strong>。腳本用 <code>if wc ... ; then</code> 判斷時，才知道結果不完整。第七節的實測會看到 <code>wc</code> 和 <code>cat</code> 都是這樣。</p>
+<hr />
+<h2 id="六接起來countch-與用-strace-看它做了哪些系統呼叫">六、接起來：<code>countch</code> 與用 <code>strace</code> 看它做了哪些系統呼叫</h2>
+<p>把前三節組合成一支完整的小工具：數一個檔案裡某個字元出現幾次。它<strong>只處理一個檔案、一個字元</strong>，作業的 <code>mywc</code>、<code>mycat</code> 要處理多個檔案、標準輸入、總計，比它多很多。</p>
+<p><code>countch.c</code>（檔案：<a href="../../small-project/s1-08-wc-cat/examples/countch/countch.c"><code>countch.c</code></a>）完整原始碼：</p>
+<pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+
+<span class="cm">/* 用法：./countch 檔名 字元 —— 數這個檔案裡有幾個該字元 */</span>
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">argc</span><span class="p">,</span><span class="w"> </span><span class="kt">char</span><span class="w"> </span><span class="o">*</span><span class="n">argv</span><span class="p">[])</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">argc</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="mi">3</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="n">argv</span><span class="p">[</span><span class="mi">2</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="sc">&#39;\0&#39;</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="n">argv</span><span class="p">[</span><span class="mi">2</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="sc">&#39;\0&#39;</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">fprintf</span><span class="p">(</span><span class="n">stderr</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;用法：%s 檔名 單一字元</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">argv</span><span class="p">[</span><span class="mi">0</span><span class="p">]);</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="mi">2</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="kt">FILE</span><span class="w"> </span><span class="o">*</span><span class="n">fp</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">fopen</span><span class="p">(</span><span class="n">argv</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span><span class="w"> </span><span class="s">&quot;r&quot;</span><span class="p">);</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">fp</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="nb">NULL</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">perror</span><span class="p">(</span><span class="n">argv</span><span class="p">[</span><span class="mi">1</span><span class="p">]);</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">target</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="kt">unsigned</span><span class="w"> </span><span class="kt">char</span><span class="p">)</span><span class="n">argv</span><span class="p">[</span><span class="mi">2</span><span class="p">][</span><span class="mi">0</span><span class="p">];</span>
+<span class="w">    </span><span class="kt">long</span><span class="w"> </span><span class="n">hits</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">c</span><span class="p">;</span>
+<span class="w">    </span><span class="k">while</span><span class="w"> </span><span class="p">((</span><span class="n">c</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">getc</span><span class="p">(</span><span class="n">fp</span><span class="p">))</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="n">EOF</span><span class="p">)</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">c</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">target</span><span class="p">)</span>
+<span class="w">            </span><span class="n">hits</span><span class="o">++</span><span class="p">;</span>
+
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">ferror</span><span class="p">(</span><span class="n">fp</span><span class="p">))</span><span class="w"> </span><span class="p">{</span><span class="w">                 </span><span class="cm">/* 迴圈停下來，是讀完了還是出錯？ */</span>
+<span class="w">        </span><span class="n">perror</span><span class="p">(</span><span class="n">argv</span><span class="p">[</span><span class="mi">1</span><span class="p">]);</span>
+<span class="w">        </span><span class="n">fclose</span><span class="p">(</span><span class="n">fp</span><span class="p">);</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="n">fclose</span><span class="p">(</span><span class="n">fp</span><span class="p">);</span>
+
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;%ld %s</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">hits</span><span class="p">,</span><span class="w"> </span><span class="n">argv</span><span class="p">[</span><span class="mi">1</span><span class="p">]);</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<p>幾個細節：</p>
+<ul>
+<li><code>argv[2][0] == '\0' || argv[2][1] != '\0'</code>：第二個參數要<strong>剛好一個字元</strong>——第 0 個不是結尾（不是空字串）、第 1 個是結尾。</li>
+<li><code>(unsigned char)argv[2][0]</code>：<code>getc</code> 回傳的是 0～255，<code>argv</code> 的 <code>char</code> 卻是有號的；要比較就先把它轉成同一個範圍，不然搜中文的 byte（≥ 0x80）會變成負數，永遠比不到。</li>
+<li>讀完先檢查 <code>ferror</code>，再 <code>fclose</code>；錯誤路徑也要 <code>fclose</code>。</li>
+</ul>
+<pre><code class="language-text">$ gcc -Wall countch.c -o countch
+$ printf &#39;banana\nbandana\n&#39; &gt; fruit.txt
+$ ./countch fruit.txt a; echo &quot;exit=$?&quot;
+6 fruit.txt
+exit=0
+$ ./countch nofile.txt a; echo &quot;exit=$?&quot;
+nofile.txt: No such file or directory
+exit=1
+$ ./countch fruit.txt ab; echo &quot;exit=$?&quot;
+用法：./countch 檔名 單一字元
+exit=2
+$ ./countch adir a; echo &quot;exit=$?&quot;
+adir: Is a directory
+exit=1
+</code></pre>
+<p>（<code>adir</code> 是上一節建的目錄；這次 <code>fopen</code> 成功、<code>getc</code> 失敗，靠 <code>ferror</code> 抓到，回傳 1。）</p>
+<h3 id="用-strace-看-fopengetcprintf-底下是哪些系統呼叫">用 <code>strace</code> 看 <code>fopen</code>、<code>getc</code>、<code>printf</code> 底下是哪些系統呼叫</h3>
+<p><code>strace -o tr.txt</code> 把追蹤結果寫進檔案（不跟程式的輸出混在一起），再挑出跟這個檔案有關的那幾行（前面還有幾十行是 <code>ld.so</code> 載入 <code>libc.so.6</code>，第 1 課看過，這裡略過）：</p>
+<pre><code class="language-text">$ strace -o tr.txt ./countch fruit.txt n
+4 fruit.txt
+$ sed -n &#39;1p;33,41p&#39; tr.txt
+execve(&quot;./countch&quot;, [&quot;./countch&quot;, &quot;fruit.txt&quot;, &quot;n&quot;], 0x7fff17e93a30 /* 91 vars */) = 0
+openat(AT_FDCWD, &quot;fruit.txt&quot;, O_RDONLY) = 3
+fstat(3, {st_mode=S_IFREG|0664, st_size=15, ...}) = 0
+read(3, &quot;banana\nbandana\n&quot;, 4096)      = 15
+read(3, &quot;&quot;, 4096)                       = 0
+close(3)                                = 0
+fstat(1, {st_mode=S_IFREG|0664, st_size=0, ...}) = 0
+write(1, &quot;4 fruit.txt\n&quot;, 12)           = 12
+exit_group(0)                           = ?
++++ exited with 0 +++
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>C 這邊</th>
+<th>系統呼叫</th>
+<th>說明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>shell 執行程式</td>
+<td><code>execve(..., [&quot;./countch&quot;, &quot;fruit.txt&quot;, &quot;n&quot;], ...)</code></td>
+<td>第二節講的 <code>argv</code> 陣列</td>
+</tr>
+<tr>
+<td><code>fopen(argv[1], &quot;r&quot;)</code></td>
+<td><code>openat(..., &quot;fruit.txt&quot;, O_RDONLY) = 3</code></td>
+<td>kernel 回傳 <strong>fd 3</strong>（0、1、2 已經被 <code>stdin</code>、<code>stdout</code>、<code>stderr</code> 用掉）；<code>&quot;r&quot;</code> 變成 <code>O_RDONLY</code></td>
+</tr>
+<tr>
+<td>第一次 <code>getc</code></td>
+<td><code>fstat(3, ...)</code>、<code>read(3, ..., 4096) = 15</code></td>
+<td>stdio 先問檔案資訊來決定緩衝區大小，然後<strong>一次讀 4096 byte</strong> 進緩衝區；這個檔案只有 15 byte，全部讀進來</td>
+</tr>
+<tr>
+<td>之後 14 次 <code>getc</code></td>
+<td>（沒有系統呼叫）</td>
+<td>直接從緩衝區拿，不進 kernel</td>
+</tr>
+<tr>
+<td>第 16 次 <code>getc</code></td>
+<td><code>read(3, ..., 4096) = 0</code></td>
+<td>緩衝區用完再讀，<code>read</code> 回傳 <strong>0 表示檔案結尾</strong> → <code>getc</code> 回傳 <code>EOF</code></td>
+</tr>
+<tr>
+<td><code>fclose(fp)</code></td>
+<td><code>close(3)</code></td>
+<td></td>
+</tr>
+<tr>
+<td><code>printf</code> → <code>return 0</code></td>
+<td><code>fstat(1, ...)</code>、<code>write(1, &quot;4 fruit.txt\n&quot;, 12)</code></td>
+<td>第一次寫 <code>stdout</code> 時 stdio 先 <code>fstat(1)</code> 看它接到什麼；這次實測是在不是終端機的環境跑（<code>S_IFREG</code>：一般檔案），所以是全緩衝、<code>return</code> 時才寫出去。在終端機上跑會看到 <code>S_IFCHR</code>（字元裝置），行緩衝，遇到 <code>\n</code> 就寫</td>
+</tr>
+</tbody>
+</table>
+<p>（<code>n</code> 在 <code>banana</code> 裡 2 個、<code>bandana</code> 裡 2 個，所以是 4。）</p>
+<p>圖：<code>countch</code> 讀檔時誰呼叫誰（位址、大小對應上面的 <code>strace</code> 輸出）：</p>
+<pre class="mermaid">sequenceDiagram
+    autonumber
+    participant M as countch 的 main
+    participant S as glibc stdio（FILE 與緩衝區）
+    participant K as kernel
+    M-&gt;&gt;S: fopen(&quot;fruit.txt&quot;, &quot;r&quot;)
+    S-&gt;&gt;K: openat(&quot;fruit.txt&quot;, O_RDONLY)
+    K--&gt;&gt;S: fd 3
+    M-&gt;&gt;S: getc(fp)，第 1 次
+    S-&gt;&gt;K: read(3, 緩衝區, 4096)
+    K--&gt;&gt;S: 15 byte
+    S--&gt;&gt;M: &#x27;b&#x27;
+    M-&gt;&gt;S: getc(fp)，第 2～15 次
+    S--&gt;&gt;M: 直接從緩衝區拿，不進 kernel
+    M-&gt;&gt;S: getc(fp)，第 16 次
+    S-&gt;&gt;K: read(3, 緩衝區, 4096)
+    K--&gt;&gt;S: 0（檔案結尾）
+    S--&gt;&gt;M: EOF
+</pre>
+<p>圖要看的重點：<code>getc</code> 是「一次一個 byte」的<strong>介面</strong>，但底下的系統呼叫是「一次一大塊」。所以作業用 <code>getc</code> 一個一個讀，速度不會因為呼叫次數多而慢到哪去。讀一個 10000 byte 的檔案，<code>read</code> 只會被呼叫 4 次（4096 ＋ 4096 ＋ 1808 ＋ 0）：</p>
+<pre><code class="language-text">$ head -c 10000 /dev/zero &gt; big.bin
+$ strace -e trace=read ./countch big.bin x 2&gt;&amp;1 | grep -v ELF
+read(3, &quot;\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0&quot;..., 4096) = 4096
+read(3, &quot;\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0&quot;..., 4096) = 4096
+read(3, &quot;\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0&quot;..., 4096) = 1808
+read(3, &quot;&quot;, 4096)                       = 0
+0 big.bin
++++ exited with 0 +++
+</code></pre>
+<p>（<code>grep -v ELF</code> 去掉 <code>ld.so</code> 讀 <code>libc.so.6</code> 檔頭的那一行。）緩衝區該多大、不經過 stdio 直接用 <code>read</code>／<code>write</code> 會怎樣，是第 ⑤ 站（檔案與 I/O）的主題；這一課只要知道 <code>getc</code> 底下有緩衝區、<code>read</code> 回傳 0 就是檔案結尾。</p>
+<hr />
+<h2 id="七wc-與-cat-的精確行為作業的規格">七、<code>wc</code> 與 <code>cat</code> 的精確行為：作業的規格</h2>
+<p>作業要寫出跟 GNU <code>wc</code>、<code>cat</code> 行為一致的簡化版。這一節用實測把「一致」講清楚。測試檔都用 <code>printf</code> 建（<code>od -c</code> 把每個 byte 印出來，<code>\n</code> 是換行、<code>\t</code> 是 tab）：</p>
+<pre><code class="language-text">$ printf &#39;hello world\n&#39; &gt; one.txt
+$ printf &#39;no newline at end&#39; &gt; nonl.txt
+$ printf &#39;  lots   of\t\tspace  \n\n\nend\n&#39; &gt; spaces.txt
+$ : &gt; empty.txt
+$ od -c spaces.txt
+0000000           l   o   t   s               o   f  \t  \t   s   p   a
+0000020   c   e          \n  \n  \n   e   n   d  \n
+0000033
+</code></pre>
+<p>（<code>: &gt; empty.txt</code>：<code>:</code> 是什麼都不做的命令，<code>&gt;</code> 把檔案截成 0 byte。）</p>
+<h3 id="wc-數的三個數字"><code>wc</code> 數的三個數字</h3>
+<pre><code class="language-text">$ wc one.txt
+ 1  2 12 one.txt
+$ wc nonl.txt
+ 0  4 17 nonl.txt
+$ wc spaces.txt
+ 4  4 27 spaces.txt
+$ wc empty.txt
+0 0 0 empty.txt
+</code></pre>
+<p>三欄依序是<strong>行數、字數、byte 數</strong>，最後是檔名：</p>
+<table>
+<thead>
+<tr>
+<th>欄</th>
+<th><code>wc --help</code> 的定義</th>
+<th>精確地說</th>
+<th>例子</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>行數（<code>-l</code>）</td>
+<td>print the <strong>newline</strong> counts</td>
+<td>數 <strong><code>\n</code> 這個 byte 出現幾次</strong>，不是「有幾行字」</td>
+<td><code>nonl.txt</code> 有一行字但沒有 <code>\n</code> → <strong>0</strong>；<code>spaces.txt</code> 有 4 個 <code>\n</code>（中間兩個空行也算）→ 4</td>
+</tr>
+<tr>
+<td>字數（<code>-w</code>）</td>
+<td>a word is a non-zero-length sequence of <strong>printable</strong> characters delimited by white space</td>
+<td>被空白隔開的一段、<strong>裡面至少有一個可印字元</strong>，算一個字；空白連續好幾個也只是分隔。不可印又不是空白的 byte（控制字元、0x7f 以上）<strong>不算字、也不切字</strong>，細節見下面〈第三種 byte〉</td>
+<td><code>spaces.txt</code>：<code>lots</code>、<code>of</code>、<code>space</code>、<code>end</code> → 4；開頭、中間、結尾多餘的空白不影響</td>
+</tr>
+<tr>
+<td>byte 數（<code>-c</code>）</td>
+<td>print the byte counts</td>
+<td>檔案總共幾個 byte，<code>\n</code> 也算</td>
+<td><code>one.txt</code>：<code>hello world</code> 11 個＋<code>\n</code> ＝ 12</td>
+</tr>
+</tbody>
+</table>
+<p>「空白」是哪些 byte：C 的 <code>&lt;ctype.h&gt;</code> 有 <code>isspace(int c)</code>，在預設的 C 語系下，它對下面 6 個值回傳非 0。<code>spaces.c</code>（檔案：<a href="../../small-project/s1-08-wc-cat/examples/ctype/spaces.c"><code>spaces.c</code></a>）完整原始碼：</p>
+<pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;ctype.h&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">c</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">c</span><span class="w"> </span><span class="o">&lt;=</span><span class="w"> </span><span class="mi">255</span><span class="p">;</span><span class="w"> </span><span class="n">c</span><span class="o">++</span><span class="p">)</span><span class="w">          </span><span class="cm">/* isspace 只能吃 0～255 或 EOF */</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">isspace</span><span class="p">(</span><span class="n">c</span><span class="p">))</span>
+<span class="w">            </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;%3d  0x%02x</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">c</span><span class="p">,</span><span class="w"> </span><span class="n">c</span><span class="p">);</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<pre><code class="language-text">$ gcc -Wall spaces.c -o spaces &amp;&amp; ./spaces
+  9  0x09
+ 10  0x0a
+ 11  0x0b
+ 12  0x0c
+ 13  0x0d
+ 32  0x20
+</code></pre>
+<p>依序是 <code>\t</code>（tab）、<code>\n</code>（換行）、<code>\v</code>（垂直 tab）、<code>\f</code>（換頁）、<code>\r</code>（歸位）、空格。<code>isspace</code> 的參數<strong>只能是 0～255 或 <code>EOF</code></strong>，傳負數是未定義行為——所以傳 <code>getc</code> 的回傳值（<code>int</code>，0～255）沒問題，傳有號的 <code>char</code> 就可能出事，理由同第三節。</p>
+<p><code>wc</code> 跟 <code>isspace</code> 的判斷一致，<code>\v</code>、<code>\f</code>、<code>\r</code> 也會切字：</p>
+<pre><code class="language-text">$ printf &#39;a\vb\fc\rd\n&#39; | wc -w
+4
+</code></pre>
+<h4 id="第三種-byte不是空白也不可印">第三種 byte：不是空白、也不可印</h4>
+<p><code>wc --help</code> 說的是「<strong>可印</strong>字元（printable characters）組成的一段」。C 語系下每個 byte 可以分成三類，<code>&lt;ctype.h&gt;</code> 的 <code>isprint(int c)</code> 判斷可不可印（參數規定跟 <code>isspace</code> 一樣：0～255 或 <code>EOF</code>）。<code>classes.c</code>（檔案：<a href="../../small-project/s1-08-wc-cat/examples/ctype/classes.c"><code>classes.c</code></a>）把 0～255 分類、印出每一類的範圍：</p>
+<pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;ctype.h&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+
+<span class="cm">/* 把 0～255 分成三類：空白、可印（不含空白）、其他；印出每一類的範圍 */</span>
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="k">const</span><span class="w"> </span><span class="kt">char</span><span class="w"> </span><span class="o">*</span><span class="n">name</span><span class="p">[]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="s">&quot;空白（isspace）&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;可印、不是空白（isprint 且非 isspace）&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;其他（兩者都不是）&quot;</span><span class="w"> </span><span class="p">};</span>
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">prev</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">-1</span><span class="p">,</span><span class="w"> </span><span class="n">start</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+
+<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">c</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">c</span><span class="w"> </span><span class="o">&lt;=</span><span class="w"> </span><span class="mi">256</span><span class="p">;</span><span class="w"> </span><span class="n">c</span><span class="o">++</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="kt">int</span><span class="w"> </span><span class="n">kind</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">-1</span><span class="p">;</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">c</span><span class="w"> </span><span class="o">&lt;=</span><span class="w"> </span><span class="mi">255</span><span class="p">)</span>
+<span class="w">            </span><span class="n">kind</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">isspace</span><span class="p">(</span><span class="n">c</span><span class="p">)</span><span class="w"> </span><span class="o">?</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">isprint</span><span class="p">(</span><span class="n">c</span><span class="p">)</span><span class="w"> </span><span class="o">?</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="mi">2</span><span class="p">;</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">kind</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="n">prev</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">prev</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="mi">-1</span><span class="p">)</span>
+<span class="w">                </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;0x%02x～0x%02x  %s</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">start</span><span class="p">,</span><span class="w"> </span><span class="n">c</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="n">name</span><span class="p">[</span><span class="n">prev</span><span class="p">]);</span>
+<span class="w">            </span><span class="n">prev</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">kind</span><span class="p">;</span>
+<span class="w">            </span><span class="n">start</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">c</span><span class="p">;</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<pre><code class="language-text">$ gcc -Wall -Wextra classes.c -o classes &amp;&amp; ./classes
+0x00～0x08  其他（兩者都不是）
+0x09～0x0d  空白（isspace）
+0x0e～0x1f  其他（兩者都不是）
+0x20～0x20  空白（isspace）
+0x21～0x7e  可印、不是空白（isprint 且非 isspace）
+0x7f～0xff  其他（兩者都不是）
+</code></pre>
+<p>注意空格 0x20 <strong>同時</strong>是 <code>isspace</code> 和 <code>isprint</code>（空格印得出來，只是看不見），所以分類時要<strong>先判斷 <code>isspace</code></strong>。</p>
+<p>「其他」那一類（控制字元 0x00～0x08、0x0e～0x1f，以及 0x7f～0xff，包含 UTF-8 中文的每一個 byte）在 <code>wc</code> 裡的行為，用 <code>LC_ALL=C</code> 實測（<code>printf</code> 的 <code>\x01</code> 寫出值是 1 的 byte）：</p>
+<table>
+<thead>
+<tr>
+<th>輸入</th>
+<th><code>LC_ALL=C wc -w</code></th>
+<th>讀法</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>\x01\n</code></td>
+<td>0</td>
+<td>只有「其他」byte，沒有可印字元 → 不算字</td>
+</tr>
+<tr>
+<td><code>\xff\n</code></td>
+<td>0</td>
+<td>同上</td>
+</tr>
+<tr>
+<td><code>\x01a\n</code></td>
+<td>1</td>
+<td><code>a</code> 開始一個字</td>
+</tr>
+<tr>
+<td><code>a\x01b\n</code></td>
+<td>1</td>
+<td><code>\x01</code> <strong>不切字</strong>：<code>a</code>、<code>\x01</code>、<code>b</code> 是同一個字</td>
+</tr>
+<tr>
+<td><code>a\x01 b\n</code></td>
+<td>2</td>
+<td>切字的是空格，不是 <code>\x01</code></td>
+</tr>
+<tr>
+<td><code>\xff a\n</code></td>
+<td>1</td>
+<td><code>\xff</code> 不算字，<code>a</code> 算一個</td>
+</tr>
+<tr>
+<td><code>a\xffb\n</code></td>
+<td>1</td>
+<td>同 <code>a\x01b</code></td>
+</tr>
+<tr>
+<td><code>\x01\x02 a\n</code></td>
+<td>1</td>
+<td>前兩個 byte 不算字</td>
+</tr>
+</tbody>
+</table>
+<p>所以 <code>wc</code> 判斷字數，可以想成每個 byte 依類別做一件事：<strong>空白</strong> → 「現在不在字裡」；<strong>可印</strong> → 如果現在不在字裡，字數加 1、變成「在字裡」；<strong>其他</strong> → 什麼都不改。所以內容全是 0x80 以上 byte 的時候，C 語系下一個字都數不到：</p>
+<pre><code class="language-text">$ printf &#39;\xe4\xb8\xad\xe6\x96\x87 \xff\xfe\n&#39; | LC_ALL=C wc -w
+0
+$ printf &#39;\xe4\xb8\xad\xe6\x96\x87 \xff\xfe\n&#39; | wc -w
+1
+</code></pre>
+<p>（前 6 個 byte 是「中文」兩個字的 UTF-8。）在 UTF-8 語系下 <code>wc</code> 會把 3 個 byte 合成一個字元再判斷，中文字算可印，所以數出 1 個字（<code>\xff\xfe</code> 不是合法的 UTF-8，不算）——這就是下一段的語系問題。</p>
+<p><strong>語系（locale）的例外</strong>：<code>wc</code> 會照目前的語系判斷，本機是 <code>LANG=en_US.UTF-8</code>。UTF-8 的「不換行空格」（U+00A0，byte 是 <code>c2 a0</code>）在 UTF-8 語系下算空白，在 C 語系下不算：</p>
+<pre><code class="language-text">$ printf &#39;a\xc2\xa0b\n&#39; | wc -w
+2
+$ printf &#39;a\xc2\xa0b\n&#39; | LC_ALL=C wc -w
+1
+</code></pre>
+<p>C 程式沒呼叫 <code>setlocale</code> 時固定是 C 語系，所以作業的 <code>mywc</code> 會跟 <strong><code>LC_ALL=C wc</code></strong> 一致。同樣的理由，<code>wc -m</code>（字元數）在 UTF-8 下把一個中文字算 1 個、C 語系下等於 byte 數；作業不用做 <code>-m</code>。</p>
+<h3 id="多個檔案標準輸入錯誤">多個檔案、標準輸入、錯誤</h3>
+<pre><code class="language-text">$ wc one.txt nonl.txt spaces.txt; echo &quot;exit=$?&quot;
+ 1  2 12 one.txt
+ 0  4 17 nonl.txt
+ 4  4 27 spaces.txt
+ 5 10 56 total
+exit=0
+$ wc one.txt nofile.txt nonl.txt; echo &quot;exit=$?&quot;
+ 1  2 12 one.txt
+wc: nofile.txt: No such file or directory
+ 0  4 17 nonl.txt
+ 1  6 29 total
+exit=1
+$ printf &#39;a b\nc\n&#39; | wc
+      2       3       6
+$ printf &#39;a b\nc\n&#39; | wc - one.txt
+      2       3       6 -
+      1       2      12 one.txt
+      3       5      18 total
+$ wc /tmp; echo &quot;exit=$?&quot;
+wc: /tmp: Is a directory
+      0       0       0 /tmp
+exit=1
+</code></pre>
+<ul>
+<li><strong>兩個以上的檔案</strong>才印最後一行 <code>total</code>（三欄各自加總）。</li>
+<li><strong>壞檔案</strong>：錯誤印到 <code>stderr</code>（格式「<code>wc: &lt;檔名&gt;: &lt;strerror&gt;</code>」），<strong>繼續處理下一個</strong>，<code>total</code> 不含壞檔案，結束狀態 1。</li>
+<li><strong>沒有參數</strong>：讀 <code>stdin</code>，<strong>不印檔名</strong>；參數是 <code>-</code> 時也讀 <code>stdin</code>，檔名印成 <code>-</code>。</li>
+<li><strong>目錄</strong>：開得起來、讀的時候 <code>EISDIR</code>，<code>wc</code> 印錯誤，還是印了一行 0（這是 GNU <code>wc</code> 的細節，作業不要求印那行 0）。</li>
+<li><strong>欄寬</strong>：GNU <code>wc</code> 讀檔案時先用 <code>fstat</code> 拿檔案大小，用「總 byte 數有幾位數」決定欄寬（所以上面是寬 2）；讀 <code>stdin</code> 時不知道大小，固定寬 7。作業<strong>一律用寬 7</strong>（<code>printf(&quot;%7ld %7ld %7ld %s\n&quot;, ...)</code>），比對時只比數字。</li>
+</ul>
+<h3 id="cat依序把每個檔案的-byte-原樣寫到-stdout"><code>cat</code>：依序把每個檔案的 byte 原樣寫到 <code>stdout</code></h3>
+<pre><code class="language-text">$ cat one.txt nonl.txt one.txt
+hello world
+no newline at endhello world
+$ cat one.txt nofile.txt one.txt; echo &quot;exit=$?&quot;
+hello world
+cat: nofile.txt: No such file or directory
+hello world
+exit=1
+$ printf &#39;from stdin\n&#39; | cat one.txt - one.txt
+hello world
+from stdin
+hello world
+$ cat /tmp; echo &quot;exit=$?&quot;
+cat: /tmp: Is a directory
+exit=1
+</code></pre>
+<ul>
+<li><strong>原樣</strong>：<code>cat</code> 不加、不改任何 byte。<code>nonl.txt</code> 沒有 <code>\n</code>，所以下一個檔案的內容直接接在同一行。</li>
+<li><strong>錯誤處理</strong>跟 <code>wc</code> 同一套：印到 <code>stderr</code>、繼續、結束狀態 1。</li>
+<li><strong>沒有參數或 <code>-</code></strong>：讀 <code>stdin</code>。<code>-</code> 可以出現在中間，<code>cat f - g</code> 就是先 <code>f</code>、再 <code>stdin</code>、再 <code>g</code>（<code>cat --help</code> 的 Examples 就是這個）。</li>
+<li><code>cat</code> 底下一次 <code>read</code> 131072 byte（<code>strace -o tr.txt cat one.txt nonl.txt</code> 可以看到 <code>read(3, &quot;hello world\n&quot;, 131072) = 12</code>），比 stdio 的 4096 大——GNU <code>cat</code> 不用 stdio，自己管緩衝區。作業用 <code>getc</code>／<code>putc</code> 就好，結果一樣。</li>
+</ul>
+<p>另外 GNU <code>cat</code> 會擋一件事：</p>
+<pre><code class="language-text">$ cp one.txt self.txt; cat self.txt &gt;&gt; self.txt; echo &quot;exit=$?&quot;
+cat: self.txt: input file is output file
+exit=1
+</code></pre>
+<p>輸入和輸出是同一個檔案、又是附加（<code>&gt;&gt;</code>）時，<code>cat</code> 讀到的永遠是自己剛寫進去的東西，會一直讀不到結尾；GNU <code>cat</code> 先比對兩邊是不是同一個檔案，是就拒絕。作業<strong>不要求</strong>做這個檢查，也<strong>不要</strong>用自己的 <code>mycat</code> 試 <code>&gt;&gt;</code> 同一個檔案（會一直寫到磁碟滿）。</p>
+<h3 id="wc-的全部選項"><code>wc</code> 的全部選項</h3>
+<p><code>wc --help</code>（coreutils 9.4）一共 <strong>9 個</strong>選項（長短兩種寫法算一個），全部列出：</p>
+<table>
+<thead>
+<tr>
+<th>選項</th>
+<th>做什麼</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-c</code>, <code>--bytes</code></td>
+<td>只印 byte 數</td>
+</tr>
+<tr>
+<td><code>-m</code>, <code>--chars</code></td>
+<td>只印字元數（照語系，UTF-8 下一個中文字算 1）</td>
+</tr>
+<tr>
+<td><code>-l</code>, <code>--lines</code></td>
+<td>只印換行數</td>
+</tr>
+<tr>
+<td><code>-w</code>, <code>--words</code></td>
+<td>只印字數</td>
+</tr>
+<tr>
+<td><code>-L</code>, <code>--max-line-length</code></td>
+<td>印最長那一行的<strong>顯示寬度</strong></td>
+</tr>
+<tr>
+<td><code>--files0-from=F</code></td>
+<td>從檔案 <code>F</code> 讀要處理的檔名清單（檔名之間用 <code>\0</code> 分隔，不是換行，所以檔名裡有空白、換行也不怕）；<code>F</code> 是 <code>-</code> 就從 <code>stdin</code> 讀清單</td>
+</tr>
+<tr>
+<td><code>--total=WHEN</code></td>
+<td>什麼時候印 <code>total</code> 那行：<code>auto</code>（預設，兩個以上的檔案才印）、<code>always</code>、<code>only</code>（只印 total）、<code>never</code></td>
+</tr>
+<tr>
+<td><code>--help</code></td>
+<td>印說明</td>
+</tr>
+<tr>
+<td><code>--version</code></td>
+<td>印版本</td>
+</tr>
+</tbody>
+</table>
+<p><strong>選項的順序不影響輸出的順序</strong>：不管怎麼寫，欄位固定照「行、字、字元、byte、最長行」排。只給部分選項就只印那幾欄：</p>
+<pre><code class="language-text">$ wc -l one.txt
+1 one.txt
+$ wc -w -l one.txt
+ 1  2 one.txt
+$ wc -lc one.txt
+ 1 12 one.txt
+$ wc -c &lt; one.txt
+12
+</code></pre>
+<p><code>-w -l</code> 印出來還是「行、字」；<code>-lc</code> 是 <code>-l -c</code> 合在一起寫（單一字母的選項可以合併）；<code>&lt; one.txt</code> 是從 <code>stdin</code> 讀，所以沒有檔名。</p>
+<h3 id="cat-的全部選項"><code>cat</code> 的全部選項</h3>
+<p><code>cat --help</code>（coreutils 9.4）一共 <strong>12 個</strong>選項（長短兩種寫法算一個），全部列出：</p>
+<table>
+<thead>
+<tr>
+<th>選項</th>
+<th>做什麼</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-A</code>, <code>--show-all</code></td>
+<td>等於 <code>-vET</code></td>
+</tr>
+<tr>
+<td><code>-b</code>, <code>--number-nonblank</code></td>
+<td>只替非空的行編號；跟 <code>-n</code> 一起給時以 <code>-b</code> 為準</td>
+</tr>
+<tr>
+<td><code>-e</code></td>
+<td>等於 <code>-vE</code></td>
+</tr>
+<tr>
+<td><code>-E</code>, <code>--show-ends</code></td>
+<td>在每行結尾（<code>\n</code> 前面）印 <code>$</code></td>
+</tr>
+<tr>
+<td><code>-n</code>, <code>--number</code></td>
+<td>替所有輸出的行編號</td>
+</tr>
+<tr>
+<td><code>-s</code>, <code>--squeeze-blank</code></td>
+<td>連續好幾個空行壓成一個</td>
+</tr>
+<tr>
+<td><code>-t</code></td>
+<td>等於 <code>-vT</code></td>
+</tr>
+<tr>
+<td><code>-T</code>, <code>--show-tabs</code></td>
+<td>tab 印成 <code>^I</code></td>
+</tr>
+<tr>
+<td><code>-u</code></td>
+<td>被忽略（POSIX 要求的「不緩衝」選項，GNU <code>cat</code> 本來就不用 stdio 緩衝）</td>
+</tr>
+<tr>
+<td><code>-v</code>, <code>--show-nonprinting</code></td>
+<td>不可見的字元用 <code>^</code> 和 <code>M-</code> 表示（換行和 tab 除外）</td>
+</tr>
+<tr>
+<td><code>--help</code></td>
+<td>印說明</td>
+</tr>
+<tr>
+<td><code>--version</code></td>
+<td>印版本</td>
+</tr>
+</tbody>
+</table>
+<p>用同一個檔案試每個選項（內容：<code>a</code>、tab、<code>b</code>、換行，三個空行，<code>c</code>、byte <code>0x01</code>、byte <code>0xe4</code>、換行）：</p>
+<pre><code class="language-text">$ printf &#39;a\tb\n\n\n\nc\x01\xe4\n&#39; &gt; opt.txt
+$ cat -n opt.txt
+     1	a	b
+     2	
+     3	
+     4	
+     5	c�
+$ cat -b opt.txt
+     1	a	b
+
+
+
+     2	c�
+$ cat -s opt.txt
+a	b
+
+c�
+$ cat -E opt.txt
+a	b$
+$
+$
+$
+c�$
+$ cat -T opt.txt
+a^Ib
+
+
+
+c�
+$ cat -v opt.txt
+a	b
+
+
+
+c^AM-d
+$ cat -A opt.txt
+a^Ib$
+$
+$
+$
+c^AM-d$
+</code></pre>
+<ul>
+<li><code>-n</code> 每一行都編號，<code>-b</code> 跳過空行，<code>-s</code> 把三個空行壓成一個。</li>
+<li><code>�</code>：<code>0x01</code> 印出來看不見，<code>0xe4</code> 單獨一個不是合法的 UTF-8，終端機畫成 <code>�</code>。</li>
+<li><code>-v</code>：<code>0x01</code> 印成 <code>^A</code>（Ctrl-A，<code>A</code> 是第 1 個字母），<code>0xe4</code> 印成 <code>M-d</code>（<code>M-</code> 表示最高位元是 1：<code>0xe4 − 0x80 = 0x64</code> ＝ <code>'d'</code>）。</li>
+<li><code>-e</code>、<code>-t</code> 分別等於 <code>-vE</code>、<code>-vT</code>，<code>-u</code> 的輸出跟不加一樣，就不重貼。</li>
+</ul>
+<p>作業的 <code>mycat</code> 不做任何選項，只做「依序原樣輸出」。</p>
+<hr />
+<h2 id="八本課用到的函式工具與完整清單在哪">八、本課用到的函式、工具與完整清單在哪</h2>
+<h3 id="本課用到的-c-函式">本課用到的 C 函式</h3>
+<table>
+<thead>
+<tr>
+<th>標頭檔</th>
+<th>函式</th>
+<th>在哪一節</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>&lt;stdio.h&gt;</code></td>
+<td><code>getchar</code>、<code>getc</code>、<code>fgetc</code>、<code>putchar</code>、<code>putc</code>、<code>fputc</code>、<code>fopen</code>、<code>fclose</code>、<code>printf</code>、<code>fprintf</code>、<code>perror</code>、<code>ferror</code>、<code>feof</code>、<code>clearerr</code></td>
+<td>第三、四、五節</td>
+</tr>
+<tr>
+<td><code>&lt;string.h&gt;</code></td>
+<td><code>strerror</code>、<code>strerrorname_np</code>（GNU）</td>
+<td>第四節</td>
+</tr>
+<tr>
+<td><code>&lt;errno.h&gt;</code></td>
+<td><code>errno</code>（變數）、<code>ENOENT</code> 等錯誤碼巨集</td>
+<td>第四節</td>
+</tr>
+<tr>
+<td><code>&lt;ctype.h&gt;</code></td>
+<td><code>isspace</code>、<code>isprint</code></td>
+<td>第七節</td>
+</tr>
+<tr>
+<td><code>&lt;stdlib.h&gt;</code></td>
+<td><code>exit</code>、<code>EXIT_SUCCESS</code>、<code>EXIT_FAILURE</code></td>
+<td>第五節</td>
+</tr>
+</tbody>
+</table>
+<h3 id="stdioh-的完整清單在哪"><code>&lt;stdio.h&gt;</code> 的完整清單在哪</h3>
+<p><code>man 3 stdio</code> 的〈List of functions〉列了 stdio 的 <strong>59 個</strong>函式，本課用到其中 14 個（上表第一列）。這是<strong>參考</strong>，不用背；寫程式時需要某個功能再查：</p>
+<table>
+<thead>
+<tr>
+<th>類別</th>
+<th>函式（<code>man 3 stdio</code> 列的全部 59 個，依用途分組）</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>開關檔</td>
+<td><code>fopen</code>、<code>fdopen</code>、<code>freopen</code>、<code>fclose</code>、<code>fmemopen</code>、<code>fopencookie</code>、<code>open_memstream</code>、<code>open_wmemstream</code>、<code>tmpfile</code></td>
+</tr>
+<tr>
+<td>一次一個字元／字</td>
+<td><code>fgetc</code>、<code>getc</code>、<code>getchar</code>、<code>getw</code>、<code>ungetc</code>、<code>fputc</code>、<code>putc</code>、<code>putchar</code>、<code>putw</code></td>
+</tr>
+<tr>
+<td>一次一行</td>
+<td><code>fgets</code>、<code>gets</code>（已從 C11 移除，絕對不要用：不知道緩衝區多大，會越界）、<code>fputs</code>、<code>puts</code></td>
+</tr>
+<tr>
+<td>一次一塊</td>
+<td><code>fread</code>、<code>fwrite</code></td>
+</tr>
+<tr>
+<td>格式化輸出</td>
+<td><code>printf</code>、<code>fprintf</code>、<code>sprintf</code>、<code>vprintf</code>、<code>vfprintf</code>、<code>vsprintf</code></td>
+</tr>
+<tr>
+<td>格式化輸入</td>
+<td><code>scanf</code>、<code>fscanf</code>、<code>sscanf</code>、<code>vscanf</code>、<code>vfscanf</code>、<code>vsscanf</code></td>
+</tr>
+<tr>
+<td>狀態</td>
+<td><code>feof</code>、<code>ferror</code>、<code>clearerr</code>、<code>fileno</code>（取出底下的 fd）</td>
+</tr>
+<tr>
+<td>錯誤訊息</td>
+<td><code>perror</code>、<code>strerror</code>、<code>sys_errlist</code>、<code>sys_nerr</code>（後兩個是舊介面，glibc 已不提供）</td>
+</tr>
+<tr>
+<td>位置</td>
+<td><code>fseek</code>、<code>ftell</code>、<code>rewind</code>、<code>fgetpos</code>、<code>fsetpos</code></td>
+</tr>
+<tr>
+<td>緩衝</td>
+<td><code>fflush</code>、<code>fpurge</code>、<code>setbuf</code>、<code>setbuffer</code>、<code>setlinebuf</code>、<code>setvbuf</code></td>
+</tr>
+<tr>
+<td>檔名與暫存檔</td>
+<td><code>remove</code>、<code>mktemp</code>、<code>tempnam</code>、<code>tmpnam</code></td>
+</tr>
+</tbody>
+</table>
+<p>每個函式的細節看 <code>man 3 &lt;函式名&gt;</code>（例如 <code>man 3 fopen</code>）；同一個 man page 常常講好幾個函式（<code>man 3 fgetc</code> 同時講 <code>fgetc</code>、<code>getc</code>、<code>getchar</code>、<code>ungetc</code>）。</p>
+<h3 id="fopen-的模式"><code>fopen</code> 的模式</h3>
+<p><code>man 3 fopen</code> 定義的 6 種基本模式，加上 glibc 的擴充字母，全部列出：</p>
+<table>
+<thead>
+<tr>
+<th>模式</th>
+<th>做什麼</th>
+<th>檔案不存在時</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>&quot;r&quot;</code></td>
+<td>讀，從頭開始</td>
+<td>失敗（<code>ENOENT</code>）</td>
+</tr>
+<tr>
+<td><code>&quot;r+&quot;</code></td>
+<td>讀和寫，從頭開始</td>
+<td>失敗</td>
+</tr>
+<tr>
+<td><code>&quot;w&quot;</code></td>
+<td>寫；檔案已存在就<strong>截成 0 byte</strong></td>
+<td>建立</td>
+</tr>
+<tr>
+<td><code>&quot;w+&quot;</code></td>
+<td>讀和寫；已存在就截成 0</td>
+<td>建立</td>
+</tr>
+<tr>
+<td><code>&quot;a&quot;</code></td>
+<td>附加：每次寫都寫到結尾</td>
+<td>建立</td>
+</tr>
+<tr>
+<td><code>&quot;a+&quot;</code></td>
+<td>讀和附加；glibc 的讀取位置從頭開始（BSD、macOS 從結尾）</td>
+<td>建立</td>
+</tr>
+<tr>
+<td>加 <code>b</code>（例如 <code>&quot;rb&quot;</code>）</td>
+<td>只為了跟 ISO C 相容，在 Linux 等 POSIX 系統上<strong>沒有作用</strong></td>
+<td>—</td>
+</tr>
+<tr>
+<td>加 <code>e</code>（glibc）</td>
+<td>用 <code>O_CLOEXEC</code> 開檔：執行別的程式（<code>execve</code>）時自動關掉這個 fd（第 ② 站）</td>
+<td>—</td>
+</tr>
+<tr>
+<td>加 <code>x</code>（glibc）</td>
+<td>獨佔建立：檔案已存在就失敗（<code>EEXIST</code>）</td>
+<td>—</td>
+</tr>
+<tr>
+<td>加 <code>m</code>（glibc）</td>
+<td>讀檔時嘗試用 <code>mmap</code> 取代 <code>read</code>（第 ③ 站）</td>
+<td>—</td>
+</tr>
+<tr>
+<td>加 <code>c</code>（glibc）</td>
+<td>開檔與之後的讀寫不當作執行緒取消點（第 ④ 站）</td>
+<td>—</td>
+</tr>
+<tr>
+<td>加 <code>,ccs=字元集</code></td>
+<td>把資料流設成寬字元，讀寫時轉換字元集</td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<h3 id="strace"><code>strace</code></h3>
+<p>本課用到的 <code>strace</code> 選項是 <code>-e trace=&lt;系統呼叫&gt;</code>（只追蹤指定的系統呼叫）與 <code>-o &lt;檔案&gt;</code>（追蹤結果寫進檔案，不跟程式的 <code>stderr</code> 混在一起）。<code>strace -h</code> 列了 <strong>72 個</strong>選項，這裡只用 2 個；完整見 <code>man strace</code> 或 <code>strace -h</code>。</p>
+<h3 id="wccat"><code>wc</code>、<code>cat</code></h3>
+<p>兩個工具的全部選項在第七節〈<code>wc</code> 的全部選項〉〈<code>cat</code> 的全部選項〉；完整文件 <code>info '(coreutils) wc invocation'</code>、<code>info '(coreutils) cat invocation'</code>。</p>
+<hr />
+<h2 id="九動手作業">九、動手作業</h2>
+<p>作業在 <a href="../small-project/s1-08-wc-cat/README.html"><code>small-project/s1-08-wc-cat/</code></a>：<code>hw1/</code> 寫 <code>mycat</code>、<code>hw2/</code> 寫 <code>mywc</code>、<code>hw3/</code> 替 <code>mywc</code> 加上 <code>-l</code>／<code>-w</code>／<code>-c</code> 選項。程式自己寫，題目附了測試指令與要貼的輸出。</p>
+<hr />
+<h2 id="自我測驗">自我測驗</h2>
+<blockquote>
+<p>參考答案寫在每題下面（第一次作答、批改完才會補上）；作答時先遮住答案。作答寫在 <a href="../small-project/s1-08-wc-cat/quiz.html"><code>small-project/s1-08-wc-cat/quiz</code></a>。</p>
+</blockquote>
+<ol>
+<li>
+<p>下面的 <code>charbug.c</code> 用 <code>char</code> 接 <code>getchar()</code> 的回傳值。用 <code>printf 'AB\xffCD' &gt; ff.bin</code> 做一個 5 byte 的檔案（第 3 個 byte 是 <code>0xff</code>），在 x86-64 Ubuntu 上 <code>gcc -Wall charbug.c -o charbug &amp;&amp; ./charbug &lt; ff.bin</code>，只印出「讀到 2 個 byte」；改用 <code>gcc -Wall -funsigned-char charbug.c -o charbug_u</code> 編，<code>./charbug_u &lt; ff.bin</code> 卻永遠停不下來。(1) 為什麼預設版只數到 2？(2) 為什麼 <code>-funsigned-char</code> 版停不下來？(3) <code>getchar</code> 為什麼要回傳 <code>int</code>，不能直接回傳 <code>char</code>？</p>
+<pre><code class="language-c"><span class="cm">/* charbug.c */</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="kt">char</span><span class="w"> </span><span class="n">c</span><span class="p">;</span><span class="w">                </span><span class="cm">/* 錯誤示範：用 char 裝 getchar() 的回傳值 */</span>
+<span class="w">    </span><span class="kt">long</span><span class="w"> </span><span class="n">n</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+
+<span class="w">    </span><span class="k">while</span><span class="w"> </span><span class="p">((</span><span class="n">c</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">getchar</span><span class="p">())</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="n">EOF</span><span class="p">)</span>
+<span class="w">        </span><span class="n">n</span><span class="o">++</span><span class="p">;</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;讀到 %ld 個 byte</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">n</span><span class="p">);</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+</li>
+<li>
+<p>下面的 <code>stale.c</code> 在同一個資料夾執行（<code>ok.txt</code> 存在、<code>nofile.txt</code> 不存在：<code>echo hi &gt; ok.txt</code>），編譯 <code>gcc -Wall stale.c -o stale &amp;&amp; ./stale</code>，第二行印出「成功之後：good = 0x612d78eab2a0, errno = 2 (No such file or directory)」。(1) <code>good</code> 開成功了，<code>errno</code> 為什麼還是 2？(2) 所以要怎麼判斷一個函式有沒有失敗？什麼時候讀 <code>errno</code> 才有意義？(3) 同學把錯誤處理寫成下面第二段那樣：<code>fopen</code> 失敗後先 <code>printf(&quot;開檔失敗\n&quot;);</code> 再 <code>perror(argv[1]);</code>。這樣寫有什麼風險？</p>
+<pre><code class="language-c"><span class="cm">/* stale.c */</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;errno.h&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;string.h&gt;</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="kt">FILE</span><span class="w"> </span><span class="o">*</span><span class="n">bad</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">fopen</span><span class="p">(</span><span class="s">&quot;nofile.txt&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;r&quot;</span><span class="p">);</span><span class="w">      </span><span class="cm">/* 失敗：設 errno */</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;失敗之後：bad = %p, errno = %d</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="kt">void</span><span class="w"> </span><span class="o">*</span><span class="p">)</span><span class="n">bad</span><span class="p">,</span><span class="w"> </span><span class="n">errno</span><span class="p">);</span>
+
+<span class="w">    </span><span class="kt">FILE</span><span class="w"> </span><span class="o">*</span><span class="n">good</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">fopen</span><span class="p">(</span><span class="s">&quot;ok.txt&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;r&quot;</span><span class="p">);</span><span class="w">         </span><span class="cm">/* 成功：不會把 errno 清成 0 */</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;成功之後：good = %p, errno = %d (%s)</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="kt">void</span><span class="w"> </span><span class="o">*</span><span class="p">)</span><span class="n">good</span><span class="p">,</span><span class="w"> </span><span class="n">errno</span><span class="p">,</span><span class="w"> </span><span class="n">strerror</span><span class="p">(</span><span class="n">errno</span><span class="p">));</span>
+
+<span class="w">    </span><span class="n">errno</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w">                                 </span><span class="cm">/* 要拿 errno 判斷，得自己先清 */</span>
+<span class="w">    </span><span class="kt">FILE</span><span class="w"> </span><span class="o">*</span><span class="n">good2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">fopen</span><span class="p">(</span><span class="s">&quot;ok.txt&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;r&quot;</span><span class="p">);</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;先清 0 再成功：errno = %d</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">errno</span><span class="p">);</span>
+
+<span class="w">    </span><span class="n">fclose</span><span class="p">(</span><span class="n">good</span><span class="p">);</span>
+<span class="w">    </span><span class="n">fclose</span><span class="p">(</span><span class="n">good2</span><span class="p">);</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<pre><code class="language-c"><span class="cm">/* 同學的寫法（片段） */</span>
+<span class="kt">FILE</span><span class="w"> </span><span class="o">*</span><span class="n">fp</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">fopen</span><span class="p">(</span><span class="n">argv</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span><span class="w"> </span><span class="s">&quot;r&quot;</span><span class="p">);</span>
+<span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">fp</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="nb">NULL</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;開檔失敗</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">);</span>
+<span class="w">    </span><span class="n">perror</span><span class="p">(</span><span class="n">argv</span><span class="p">[</span><span class="mi">1</span><span class="p">]);</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+</li>
+<li>
+<p>下面的 <code>countch.c</code> 數一個檔案裡某個字元有幾個。<code>mkdir adir &amp;&amp; ./countch adir a</code> 印出「<code>adir: Is a directory</code>」、結束狀態 1。(1) 錯誤是在 <code>fopen</code> 那一步還是之後才發生的？為什麼？(2) 如果把 <code>while</code> 迴圈後面的 <code>if (ferror(fp)) { ... }</code> 整段刪掉，<code>./countch adir a</code> 會印出什麼、結束狀態是多少？為什麼這樣是錯的？</p>
+<pre><code class="language-c"><span class="cm">/* countch.c */</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+
+<span class="cm">/* 用法：./countch 檔名 字元 —— 數這個檔案裡有幾個該字元 */</span>
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">argc</span><span class="p">,</span><span class="w"> </span><span class="kt">char</span><span class="w"> </span><span class="o">*</span><span class="n">argv</span><span class="p">[])</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">argc</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="mi">3</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="n">argv</span><span class="p">[</span><span class="mi">2</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="sc">&#39;\0&#39;</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="n">argv</span><span class="p">[</span><span class="mi">2</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="sc">&#39;\0&#39;</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">fprintf</span><span class="p">(</span><span class="n">stderr</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;用法：%s 檔名 單一字元</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">argv</span><span class="p">[</span><span class="mi">0</span><span class="p">]);</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="mi">2</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="kt">FILE</span><span class="w"> </span><span class="o">*</span><span class="n">fp</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">fopen</span><span class="p">(</span><span class="n">argv</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span><span class="w"> </span><span class="s">&quot;r&quot;</span><span class="p">);</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">fp</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="nb">NULL</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">perror</span><span class="p">(</span><span class="n">argv</span><span class="p">[</span><span class="mi">1</span><span class="p">]);</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">target</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="kt">unsigned</span><span class="w"> </span><span class="kt">char</span><span class="p">)</span><span class="n">argv</span><span class="p">[</span><span class="mi">2</span><span class="p">][</span><span class="mi">0</span><span class="p">];</span>
+<span class="w">    </span><span class="kt">long</span><span class="w"> </span><span class="n">hits</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">c</span><span class="p">;</span>
+<span class="w">    </span><span class="k">while</span><span class="w"> </span><span class="p">((</span><span class="n">c</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">getc</span><span class="p">(</span><span class="n">fp</span><span class="p">))</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="n">EOF</span><span class="p">)</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">c</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">target</span><span class="p">)</span>
+<span class="w">            </span><span class="n">hits</span><span class="o">++</span><span class="p">;</span>
+
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">ferror</span><span class="p">(</span><span class="n">fp</span><span class="p">))</span><span class="w"> </span><span class="p">{</span><span class="w">                 </span><span class="cm">/* 迴圈停下來，是讀完了還是出錯？ */</span>
+<span class="w">        </span><span class="n">perror</span><span class="p">(</span><span class="n">argv</span><span class="p">[</span><span class="mi">1</span><span class="p">]);</span>
+<span class="w">        </span><span class="n">fclose</span><span class="p">(</span><span class="n">fp</span><span class="p">);</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="n">fclose</span><span class="p">(</span><span class="n">fp</span><span class="p">);</span>
+
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;%ld %s</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">hits</span><span class="p">,</span><span class="w"> </span><span class="n">argv</span><span class="p">[</span><span class="mi">1</span><span class="p">]);</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<p>編譯：<code>gcc -Wall countch.c -o countch</code></p>
+</li>
+<li>
+<p>情境題：用第 3 題的 <code>countch</code>（<code>./countch 檔名 字元</code> 把「次數 檔名」用 <code>printf</code> 印到 <code>stdout</code>、回傳 0；開檔失敗時用 <code>perror(檔名)</code> 印到 <code>stderr</code>、回傳 1；完整原始碼在第 3 題），<code>printf 'banana\n' &gt; fruit.txt</code> 之後執行 <code>./countch fruit.txt a &gt; result.txt; ./countch nofile.txt a &gt;&gt; result.txt; echo &quot;exit=$?&quot;</code>。(1) 終端機上會看到哪幾行？<code>result.txt</code> 裡有什麼？為什麼？(2) 用 <code>printf 'hello world\n' &gt; one.txt; printf 'no newline at end' &gt; nonl.txt</code> 建兩個檔案（<code>nofile.txt</code> 不存在），GNU <code>wc one.txt nofile.txt nonl.txt</code> 印了兩個檔案的結果、一行錯誤和 <code>total</code>，結束狀態卻是 1。為什麼這類工具遇到壞檔案不馬上停，但最後要回傳 1？</p>
+</li>
+<li>
+<p>情境題：資料夾裡有 <code>a.txt</code>、<code>b.txt</code> 兩個檔案，用下面的 <code>args.c</code>。(1) <code>./args '*.txt' *.txt</code> 的 <code>argc</code> 是多少？<code>argv[1]</code>～<code>argv[argc]</code> 各是什麼？(2) 誰把 <code>*.txt</code> 換成檔名、在什麼時候？程式有沒有辦法知道使用者原本打的是 <code>*.txt</code>？(3) 換到一個<strong>沒有任何 <code>.txt</code></strong> 的資料夾執行 <code>../args *.txt</code>，在 bash 和 zsh 下各會怎樣？</p>
+<pre><code class="language-c"><span class="cm">/* args.c */</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">argc</span><span class="p">,</span><span class="w"> </span><span class="kt">char</span><span class="w"> </span><span class="o">*</span><span class="n">argv</span><span class="p">[])</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;argc = %d</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">argc</span><span class="p">);</span>
+<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">argc</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="o">++</span><span class="p">)</span>
+<span class="w">        </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;argv[%d] = </span><span class="se">\&quot;</span><span class="s">%s</span><span class="se">\&quot;\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">i</span><span class="p">,</span><span class="w"> </span><span class="n">argv</span><span class="p">[</span><span class="n">i</span><span class="p">]);</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;argv[%d] = %p</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">argc</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="kt">void</span><span class="w"> </span><span class="o">*</span><span class="p">)</span><span class="n">argv</span><span class="p">[</span><span class="n">argc</span><span class="p">]);</span><span class="w">   </span><span class="cm">/* 最後一格固定是 NULL */</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<p>編譯：<code>gcc -Wall args.c -o args</code></p>
+</li>
+</ol>
+
+</main>
+</div>
+</body>
+</html>

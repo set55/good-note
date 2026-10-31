@@ -63,6 +63,7 @@
 <li class="l3"><a href="#14-fflushstdout-%E6%98%AF%E4%BB%80%E9%BA%BCprintf-%E5%85%88%E5%AF%AB%E9%80%B2%E7%B7%A9%E8%A1%9D%E5%8D%80">14. fflush(stdout) 是什麼：printf 先寫進緩衝區</a></li>
 <li class="l3"><a href="#15-ld-%E9%82%84%E6%B2%92%E8%AE%80%E5%88%B0-maino%E6%80%8E%E9%BA%BC%E7%9F%A5%E9%81%93%E8%AA%B0%E9%9C%80%E8%A6%81%E4%BB%80%E9%BA%BC%E6%9C%AA%E5%AE%9A%E7%BE%A9%E7%AC%A6%E8%99%9F%E6%B8%85%E5%96%AE%E8%88%87---as-needed">15. ld 還沒讀到 main.o，怎麼知道誰需要什麼：未定義符號清單與 --as-needed</a></li>
 <li class="l3"><a href="#16-got-%E7%AE%97%E4%B8%80%E9%A0%81%E5%97%8E%E5%8D%80%E6%AE%B5%E8%BC%89%E5%85%A5%E6%AE%B5%E8%88%87%E9%A0%81%E5%AF%AB%E5%85%A5%E6%99%82%E8%A4%87%E8%A3%BD%E4%B8%80%E6%AC%A1%E8%A4%87%E8%A3%BD%E4%B8%80%E9%A0%81">16. .got 算一頁嗎：區段、載入段與頁，寫入時複製一次複製一頁</a></li>
+<li class="l3"><a href="#17--fpie-%E8%B7%9F--fpic-fno-pie-%E5%B7%AE%E5%9C%A8%E5%93%AA%E8%A6%81%E4%B8%8D%E8%A6%81%E6%8F%90%E9%98%B2%E7%AC%A6%E8%99%9F%E6%8F%92%E5%85%A5%E4%BB%A5%E5%8F%8A-pie-%E6%98%AF%E7%82%BA%E4%BA%86-aslr">17. -fPIE 跟 -fPIC、-fno-pie 差在哪：要不要提防符號插入，以及 PIE 是為了 ASLR</a></li>
 <li class="l2"><a href="#%E8%87%AA%E6%88%91%E6%B8%AC%E9%A9%97">自我測驗</a></li>
 </ul>
 </nav>
@@ -535,6 +536,9 @@ $                                            # 沒有錯誤
 <li>Ubuntu 的 gcc 預設 <code>-fPIE</code>（Position-Independent Executable）：也是位置無關，但假設「全域符號就定義在執行檔自己裡面」，所以可以直接讀。這就是為什麼不加 <code>-fPIC</code> 的 <code>.o</code> 拿來做 <code>.so</code> 會失敗。</li>
 <li><code>-fpic</code>（小寫）與 <code>-fPIC</code>：<code>man gcc</code> 說小寫版在某些架構上 GOT 有大小上限、比較快；<strong>在 x86-64 上兩者產生的程式碼一樣</strong>（本機用 <code>count.c</code> 實測：<code>-fpic</code> 與 <code>-fPIC</code> 編出的 <code>objdump -dr</code> 完全相同）。習慣上寫 <code>-fPIC</code>。</li>
 </ul>
+<blockquote>
+<p>課後討論：<a href="#17--fpie-%E8%B7%9F--fpic-fno-pie-%E5%B7%AE%E5%9C%A8%E5%93%AA%E8%A6%81%E4%B8%8D%E8%A6%81%E6%8F%90%E9%98%B2%E7%AC%A6%E8%99%9F%E6%8F%92%E5%85%A5%E4%BB%A5%E5%8F%8A-pie-%E6%98%AF%E7%82%BA%E4%BA%86-aslr">第九節第 17 章〈<code>-fPIE</code> 跟 <code>-fPIC</code>、<code>-fno-pie</code> 差在哪：要不要提防符號插入，以及 PIE 是為了 ASLR〉</a></p>
+</blockquote>
 <h3 id="so-在-ubuntu-上也有順序問題"><code>.so</code> 在 Ubuntu 上也有順序問題</h3>
 <p>把 <code>-lcalc</code>（這時是 <code>.so</code>）寫到 <code>main.c</code> 前面：</p>
 <pre><code>$ gcc -Wall -L. -lcalc main.c -o x_so_order
@@ -1265,6 +1269,7 @@ $ rm libcalc.so &amp;&amp; ./app                     # 刪掉連結名稱
 <li><a href="#14-fflushstdout-%E6%98%AF%E4%BB%80%E9%BA%BCprintf-%E5%85%88%E5%AF%AB%E9%80%B2%E7%B7%A9%E8%A1%9D%E5%8D%80">第 14 章</a>：<code>fflush(stdout)</code> 是什麼：<code>printf</code> 先寫進緩衝區</li>
 <li><a href="#15-ld-%E9%82%84%E6%B2%92%E8%AE%80%E5%88%B0-maino%E6%80%8E%E9%BA%BC%E7%9F%A5%E9%81%93%E8%AA%B0%E9%9C%80%E8%A6%81%E4%BB%80%E9%BA%BC%E6%9C%AA%E5%AE%9A%E7%BE%A9%E7%AC%A6%E8%99%9F%E6%B8%85%E5%96%AE%E8%88%87---as-needed">第 15 章</a>：<code>ld</code> 還沒讀到 <code>main.o</code>，怎麼知道誰需要什麼：未定義符號清單與 <code>--as-needed</code></li>
 <li><a href="#16-got-%E7%AE%97%E4%B8%80%E9%A0%81%E5%97%8E%E5%8D%80%E6%AE%B5%E8%BC%89%E5%85%A5%E6%AE%B5%E8%88%87%E9%A0%81%E5%AF%AB%E5%85%A5%E6%99%82%E8%A4%87%E8%A3%BD%E4%B8%80%E6%AC%A1%E8%A4%87%E8%A3%BD%E4%B8%80%E9%A0%81">第 16 章</a>：<code>.got</code> 算一頁嗎：區段、載入段與頁，寫入時複製一次複製一頁</li>
+<li><a href="#17--fpie-%E8%B7%9F--fpic-fno-pie-%E5%B7%AE%E5%9C%A8%E5%93%AA%E8%A6%81%E4%B8%8D%E8%A6%81%E6%8F%90%E9%98%B2%E7%AC%A6%E8%99%9F%E6%8F%92%E5%85%A5%E4%BB%A5%E5%8F%8A-pie-%E6%98%AF%E7%82%BA%E4%BA%86-aslr">第 17 章</a>：<code>-fPIE</code> 跟 <code>-fPIC</code>、<code>-fno-pie</code> 差在哪：要不要提防符號插入，以及 PIE 是為了 ASLR</li>
 </ul>
 <h3 id="1-0x2ec8-和-0x3fd0-各是什麼mov-0x2ec8riprax-的兩個數字">1. <code>0x2ec8</code> 和 <code>0x3fd0</code> 各是什麼：<code>mov 0x2ec8(%rip),%rax</code> 的兩個數字</h3>
 <blockquote>
@@ -3464,6 +3469,269 @@ peek() = 8
 </tbody>
 </table>
 <p>本章用到的新東西：<code>/proc/self/pagemap</code> 的第 61、63 位元（其餘位元見 <code>man 5 proc</code>）、glibc 的 <code>dl_iterate_phdr</code>（<code>man 3 dl_iterate_phdr</code>）、<code>setarch -R</code>（<code>--addr-no-randomize</code>，關掉這次執行的 ASLR，是 <code>setarch --help</code> 裡的一個選項，完整見 <code>man setarch</code>）、gdb 的 <code>set disable-randomization off</code> 與 <code>info sharedlibrary</code>（gdb 的分類與查法見 <a href="gdb%E5%AE%8C%E6%95%B4%E5%91%BD%E4%BB%A4%E5%8F%83%E8%80%83.html"><code>gdb完整命令參考</code></a>）。</p>
+<h3 id="17--fpie-跟--fpic-fno-pie-差在哪要不要提防符號插入以及-pie-是為了-aslr">17. <code>-fPIE</code> 跟 <code>-fPIC</code>、<code>-fno-pie</code> 差在哪：要不要提防符號插入，以及 PIE 是為了 ASLR</h3>
+<blockquote>
+<p>2026-10-31 課後提問（自我測驗 11-2 的自我練習時）：「請問-fPIE是什麼意思,他與-fPIC差別在哪裏?」</p>
+<p>正文出處：<a href="#%E7%82%BA%E4%BB%80%E9%BA%BC%E4%B8%8D%E8%83%BD%E7%9B%B4%E6%8E%A5%E7%94%A8%E5%9B%BA%E5%AE%9A%E8%B7%9D%E9%9B%A2counter-%E6%9C%80%E5%BE%8C%E4%B8%8D%E4%B8%80%E5%AE%9A%E6%98%AF%E9%80%99%E4%B8%80%E4%BB%BD">第四節〈為什麼不能直接用固定距離：<code>counter</code> 最後不一定是這一份〉</a>最後的整理表（「沒加 <code>-fPIC</code>（Ubuntu 預設是 <code>-fPIE</code>）｜<code>-fPIC</code>」）與表下第一點；<a href="#3-%E4%B8%BB%E7%A8%8B%E5%BC%8F%E5%8F%AA%E5%AF%AB-extern-int-counter%E8%AE%8A%E6%95%B8%E6%94%BE%E9%80%B2%E5%9F%B7%E8%A1%8C%E6%AA%94%E8%A4%87%E8%A3%BD%E9%87%8D%E5%AE%9A%E4%BD%8D">第 3 章</a>的「主程式是用 <code>-fPIE</code> 編的」</p>
+</blockquote>
+<p><strong>一句話：<code>-fPIC</code> 和 <code>-fPIE</code> 都是「位置無關」（載入到哪個位址都能跑），差別只在要不要提防符號插入——<code>-fPIC</code> 給 <code>.so</code> 用，連自己定義的全域變數、函式都可能被別人那一份取代，所以變數一律經 GOT、函式一律經 PLT；<code>-fPIE</code> 給執行檔用，執行檔是 <code>ld.so</code> 第一個找的，自己的符號不會被別人插入，所以用 <code>%rip</code> 加固定距離直接存取、還可以內嵌。<code>-fno-pie</code> 連位置無關都不要，把絕對位址寫死在指令裡，執行檔就只能放在固定位址，ASLR 對它無效。</strong></p>
+<h4 id="三個選項的全名與用途">三個選項的全名與用途</h4>
+<table>
+<thead>
+<tr>
+<th>選項</th>
+<th>全名</th>
+<th>給誰用</th>
+<th>位置無關？</th>
+<th>提防符號插入？</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-fPIC</code></td>
+<td>Position-Independent Code（位置無關程式碼）</td>
+<td>共享函式庫 <code>.so</code></td>
+<td>是</td>
+<td>是：全域變數經 GOT、全域函式經 PLT</td>
+</tr>
+<tr>
+<td><code>-fPIE</code></td>
+<td>Position-Independent Executable（位置無關執行檔）</td>
+<td>執行檔（本機 gcc 預設）</td>
+<td>是</td>
+<td>否：直接用 <code>%rip</code> 加固定距離</td>
+</tr>
+<tr>
+<td><code>-fno-pie</code></td>
+<td>不產生 PIE 用的程式碼</td>
+<td>固定位址的執行檔（要配連結選項 <code>-no-pie</code>）</td>
+<td>否：可以把絕對位址寫進指令</td>
+<td>否</td>
+</tr>
+</tbody>
+</table>
+<p>小寫的 <code>-fpic</code>／<code>-fpie</code> 在 x86-64 上跟大寫產生一樣的程式碼（正文第四節整理表下第二點）。本機 gcc 預設是 PIE，可以從 <code>gcc -v</code> 的設定看到：</p>
+<pre><code>$ gcc -v 2&gt;&amp;1 | grep -o enable-default-pie
+enable-default-pie
+</code></pre>
+<p><code>-fPIE</code> 是<strong>編譯</strong>選項（決定 <code>.o</code> 裡的指令怎麼寫）；<code>-pie</code>／<code>-no-pie</code> 是<strong>連結</strong>選項（決定輸出的執行檔是 <code>DYN</code> 還是 <code>EXEC</code>）。兩者要搭配：<code>-fno-pie</code> 的 <code>.o</code> 要配 <code>-no-pie</code> 才連得起來（下面〈用錯會怎樣〉）。</p>
+<h4 id="實驗一同一段程式三種選項編出來差在哪">實驗一：同一段程式，三種選項編出來差在哪</h4>
+<p><code>g.c</code>（檔案：<a href="../../small-project/s1-07-libraries/examples/pie/g.c"><code>g.c</code></a>）只編成 <code>.o</code> 看指令，不連結，所以沒有 <code>main</code>：</p>
+<pre><code class="language-c"><span class="kt">int</span><span class="w"> </span><span class="n">g</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w">              </span><span class="cm">/* 自己這個檔定義的全域變數 */</span>
+<span class="k">extern</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">ext</span><span class="p">;</span><span class="w">         </span><span class="cm">/* 別的檔定義的全域變數 */</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">helper</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="mi">2</span><span class="p">;</span><span class="w"> </span><span class="p">}</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">use</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">g</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">ext</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">helper</span><span class="p">();</span>
+<span class="p">}</span>
+</code></pre>
+<pre><code class="language-sh"><span class="k">for</span><span class="w"> </span>o<span class="w"> </span><span class="k">in</span><span class="w"> </span>-fPIC<span class="w"> </span>-fPIE<span class="w"> </span>-fno-pie<span class="p">;</span><span class="w"> </span><span class="k">do</span>
+<span class="w">    </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;=== </span><span class="nv">$o</span><span class="s2">&quot;</span>
+<span class="w">    </span>gcc<span class="w"> </span>-O1<span class="w"> </span>-c<span class="w"> </span><span class="nv">$o</span><span class="w"> </span>g.c<span class="w"> </span>-o<span class="w"> </span>g<span class="nv">$o</span>.o
+<span class="w">    </span>objdump<span class="w"> </span>-dr<span class="w"> </span>--no-show-raw-insn<span class="w"> </span>g<span class="nv">$o</span>.o<span class="w"> </span><span class="p">|</span><span class="w"> </span>sed<span class="w"> </span>-n<span class="w"> </span><span class="s1">&#39;/&lt;use&gt;:/,$p&#39;</span>
+<span class="k">done</span>
+</code></pre>
+<p>用 <code>-O1</code> 是為了讓結果短一點、看得出內嵌（<code>-O0</code> 什麼都不內嵌，三種的差別只剩 GOT）。本機輸出：</p>
+<pre><code>=== -fPIC
+000000000000000a &lt;use&gt;:
+   a:	endbr64
+   e:	push   %rbx
+   f:	mov    0x0(%rip),%rax        # 16 &lt;use+0xc&gt;
+			12: R_X86_64_REX_GOTPCRELX	ext-0x4
+  16:	mov    (%rax),%ebx
+  18:	mov    0x0(%rip),%rax        # 1f &lt;use+0x15&gt;
+			1b: R_X86_64_REX_GOTPCRELX	g-0x4
+  1f:	add    (%rax),%ebx
+  21:	call   26 &lt;use+0x1c&gt;
+			22: R_X86_64_PLT32	helper-0x4
+  26:	add    %ebx,%eax
+  28:	pop    %rbx
+  29:	ret
+=== -fPIE
+000000000000000a &lt;use&gt;:
+   a:	endbr64
+   e:	mov    0x0(%rip),%eax        # 14 &lt;use+0xa&gt;
+			10: R_X86_64_PC32	ext-0x4
+  14:	add    0x0(%rip),%eax        # 1a &lt;use+0x10&gt;
+			16: R_X86_64_PC32	g-0x4
+  1a:	add    $0x2,%eax
+  1d:	ret
+=== -fno-pie
+000000000000000a &lt;use&gt;:
+   a:	endbr64
+   e:	mov    0x0(%rip),%eax        # 14 &lt;use+0xa&gt;
+			10: R_X86_64_PC32	ext-0x4
+  14:	add    0x0(%rip),%eax        # 1a &lt;use+0x10&gt;
+			16: R_X86_64_PC32	g-0x4
+  1a:	add    $0x2,%eax
+  1d:	ret
+</code></pre>
+<p>逐段讀（<code>endbr64</code> 是 CET（Control-flow Enforcement Technology，控制流程強化技術）的跳躍目標標記，跟這裡無關，見<a href="hello.c%E6%80%8E%E9%BA%BC%E8%AE%8A%E6%88%90%E8%83%BD%E8%B7%91%E7%9A%84%E7%A8%8B%E5%BC%8F-%E7%B7%A8%E8%AD%AF%E7%9A%84%E5%9B%9B%E5%80%8B%E9%9A%8E%E6%AE%B5.html">第 1 課</a>）：</p>
+<ul>
+<li><strong><code>-fPIC</code></strong>：
+<ul>
+<li><code>f</code>、<code>16</code>：先 <code>mov 0x0(%rip),%rax</code> 從 GOT 那格讀出 <code>ext</code> 的<strong>位址</strong>（重定位 <code>R_X86_64_REX_GOTPCRELX</code>，名字裡的 <code>GOT</code> 就是「填的是到 GOT 那格的距離」），再 <code>mov (%rax),%ebx</code> 照位址讀值，放進 <code>%ebx</code>。</li>
+<li><code>18</code>、<code>1f</code>：<strong>連自己這個檔定義的 <code>g</code> 也一樣經 GOT</strong>——這是重點。編譯器不敢假設最後用到的是這個檔的 <code>g</code>，因為執行檔或更早載入的 <code>.so</code> 可能也定義了 <code>g</code>，<code>ld.so</code> 會選那一份（符號插入，正文第四節的 <code>usecount</code> 印出 <code>counter = 101</code>）。</li>
+<li><code>21</code>：<code>helper()</code> 也不敢內嵌，經 PLT 呼叫（<code>R_X86_64_PLT32</code>），理由同上：最後被叫到的 <code>helper</code> 不一定是這個檔的。</li>
+<li><code>e</code>、<code>28</code>：<code>push %rbx</code>／<code>pop %rbx</code> 是因為要把中間結果暫存在 <code>%rbx</code> 跨過 <code>call</code>（<code>%rbx</code> 是被呼叫者保存的暫存器，<a href="x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80%E4%BA%8C-call%E8%88%87ret%E3%80%81%E5%A0%86%E7%96%8A%E6%A1%86%E3%80%81%E5%8F%83%E6%95%B8%E8%88%87%E5%91%BC%E5%8F%AB%E6%85%A3%E4%BE%8B.html">第 5 課</a>）。</li>
+</ul>
+</li>
+<li><strong><code>-fPIE</code></strong>：
+<ul>
+<li><code>e</code>、<code>14</code>：<code>ext</code> 和 <code>g</code> 都是 <code>%rip</code> 加固定距離<strong>直接讀值</strong>（<code>R_X86_64_PC32</code>），不經 GOT，一條指令搞定。</li>
+<li><code>1a</code>：<code>helper()</code> 直接被內嵌成 <code>add $0x2,%eax</code>。編譯器敢這樣做，是因為它認定執行檔的符號不會被別人插入：<code>ld.so</code> 找符號時執行檔排第一（正文第四節〈為什麼不能直接用固定距離〉），執行檔自己定義的 <code>helper</code>、<code>g</code> 一定是最後被用的那份。</li>
+<li>代價：<code>ext</code> 如果最後其實定義在 <code>.so</code> 裡，距離不可能固定，<code>ld</code> 就只好做<strong>複製重定位</strong>——在執行檔的 <code>.bss</code> 留一格、寫 <code>R_X86_64_COPY</code>，由 <code>ld.so</code> 載入時把值複製進來（<a href="#3-%E4%B8%BB%E7%A8%8B%E5%BC%8F%E5%8F%AA%E5%AF%AB-extern-int-counter%E8%AE%8A%E6%95%B8%E6%94%BE%E9%80%B2%E5%9F%B7%E8%A1%8C%E6%AA%94%E8%A4%87%E8%A3%BD%E9%87%8D%E5%AE%9A%E4%BD%8D">第 3 章</a>、自我測驗第 11 題）。</li>
+</ul>
+</li>
+<li><strong><code>-fno-pie</code></strong>：這一段跟 <code>-fPIE</code> 一模一樣。x86-64 讀全域變數本來就習慣用 <code>%rip</code> 相對定址，兩者的差別不在「讀值」，而在「拿位址」，看實驗二。</li>
+</ul>
+<h4 id="實驗二-fpie-與--fno-pie-差在拿位址以及執行檔每次的位址">實驗二：<code>-fPIE</code> 與 <code>-fno-pie</code> 差在拿位址，以及執行檔每次的位址</h4>
+<p><code>addr.c</code>（檔案：<a href="../../small-project/s1-07-libraries/examples/pie/addr.c"><code>addr.c</code></a>）：</p>
+<pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="n">g</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="o">*</span><span class="nf">where</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="o">&amp;</span><span class="n">g</span><span class="p">;</span><span class="w">          </span><span class="cm">/* 拿全域變數的位址 */</span>
+<span class="p">}</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;&amp;g   = %p</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="kt">void</span><span class="w"> </span><span class="o">*</span><span class="p">)</span><span class="n">where</span><span class="p">());</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;main = %p</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="kt">void</span><span class="w"> </span><span class="o">*</span><span class="p">)</span><span class="n">main</span><span class="p">);</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<p>先看 <code>where()</code> 的指令：</p>
+<pre><code class="language-sh"><span class="k">for</span><span class="w"> </span>o<span class="w"> </span><span class="k">in</span><span class="w"> </span>-fPIE<span class="w"> </span>-fno-pie<span class="p">;</span><span class="w"> </span><span class="k">do</span>
+<span class="w">    </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;=== </span><span class="nv">$o</span><span class="s2">&quot;</span>
+<span class="w">    </span>gcc<span class="w"> </span>-O1<span class="w"> </span>-c<span class="w"> </span><span class="nv">$o</span><span class="w"> </span>addr.c<span class="w"> </span>-o<span class="w"> </span>a<span class="nv">$o</span>.o
+<span class="w">    </span>objdump<span class="w"> </span>-dr<span class="w"> </span>--no-show-raw-insn<span class="w"> </span>a<span class="nv">$o</span>.o<span class="w"> </span><span class="p">|</span><span class="w"> </span>sed<span class="w"> </span>-n<span class="w"> </span><span class="s1">&#39;/&lt;where&gt;:/,/ret/p&#39;</span>
+<span class="k">done</span>
+</code></pre>
+<pre><code>=== -fPIE
+000000000000004c &lt;where&gt;:
+  4c:	endbr64
+  50:	lea    0x0(%rip),%rax        # 57 &lt;where+0xb&gt;
+			53: R_X86_64_PC32	g-0x4
+  57:	ret
+=== -fno-pie
+0000000000000044 &lt;where&gt;:
+  44:	endbr64
+  48:	mov    $0x0,%eax
+			49: R_X86_64_32	g
+  4d:	ret
+</code></pre>
+<ul>
+<li><code>-fPIE</code>：<code>lea 0x0(%rip),%rax</code> 用「下一條指令的位址 ＋ 距離」<strong>算出</strong> <code>&amp;g</code>（<code>lea</code> 只算位址、不讀記憶體，<a href="x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80-%E6%9A%AB%E5%AD%98%E5%99%A8%E3%80%81mov%E8%88%87lea%E3%80%81cmp%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D.html">第 4 課</a>）。程式被搬到哪裡，算出來的就跟著變，所以位置無關。</li>
+<li><code>-fno-pie</code>：<code>mov $0x0,%eax</code> 把 <code>&amp;g</code> 當成<strong>常數</strong>寫在指令裡，重定位 <code>R_X86_64_32</code> 是「把 <code>g</code> 的絕對位址（32 位元）填進這 4 byte」。連結時位址就定死了，程式只能放在那個位址。</li>
+</ul>
+<p>再連成執行檔，各跑兩次：</p>
+<pre><code class="language-sh">gcc<span class="w"> </span>-O1<span class="w"> </span>addr.c<span class="w"> </span>-o<span class="w"> </span>pie_exe<span class="w">                       </span><span class="c1"># 預設：-fPIE 編譯 + -pie 連結</span>
+gcc<span class="w"> </span>-O1<span class="w"> </span>-fno-pie<span class="w"> </span>-no-pie<span class="w"> </span>addr.c<span class="w"> </span>-o<span class="w"> </span>nopie_exe<span class="w">    </span><span class="c1"># 兩個都關</span>
+<span class="k">for</span><span class="w"> </span>e<span class="w"> </span><span class="k">in</span><span class="w"> </span>pie_exe<span class="w"> </span>nopie_exe<span class="p">;</span><span class="w"> </span><span class="k">do</span>
+<span class="w">    </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;=== </span><span class="nv">$e</span><span class="s2">&quot;</span><span class="p">;</span><span class="w"> </span>readelf<span class="w"> </span>-h<span class="w"> </span><span class="nv">$e</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>Type<span class="p">;</span><span class="w"> </span>./<span class="nv">$e</span><span class="p">;</span><span class="w"> </span>./<span class="nv">$e</span>
+<span class="k">done</span>
+</code></pre>
+<pre><code>=== pie_exe
+  Type:                              DYN (Position-Independent Executable file)
+&amp;g   = 0x5ac035607010
+main = 0x5ac035604149
+&amp;g   = 0x57040dd12010
+main = 0x57040dd0f149
+=== nopie_exe
+  Type:                              EXEC (Executable file)
+&amp;g   = 0x404018
+main = 0x401136
+&amp;g   = 0x404018
+main = 0x401136
+</code></pre>
+<ul>
+<li><code>pie_exe</code> 每次跑位址都不同，但末三碼（<code>010</code>、<code>149</code>）不變：核心每次替執行檔挑一個不同的<strong>載入基底</strong>（以頁為單位），<code>&amp;g</code> ＝ 基底 ＋ 檔案裡的位置。這就是 <strong>ASLR</strong>（Address Space Layout Randomization，位址空間配置隨機化）：攻擊者猜不到 <code>main</code>、<code>g</code> 在哪。</li>
+<li><code>nopie_exe</code> 永遠在 <code>0x401136</code>、<code>0x404018</code>：指令裡寫死了絕對位址，核心只能照連結時的位址放，ASLR 對執行檔本身無效（<code>.so</code>、堆疊仍然隨機）。</li>
+<li><code>Type</code> 一個是 <code>DYN</code>、一個是 <code>EXEC</code>，就是 <a href="ELF%E6%98%AF%E4%BB%80%E9%BA%BC-%E5%8F%AF%E5%9F%B7%E8%A1%8C%E8%88%87%E5%8F%AF%E9%80%A3%E7%B5%90%E6%A0%BC%E5%BC%8F%E7%9A%84%E5%85%A9%E7%A8%AE%E8%A6%96%E8%A7%92.html">ELF 那課</a>「一般 <code>gcc</code> 編出的執行檔是 DYN、<code>-static</code> 是 EXEC」的原因：PIE 執行檔在格式上跟 <code>.so</code> 同一類，都可以被放到任何位址。</li>
+</ul>
+<p><strong>所以 PIE 存在的目的就是讓執行檔也能享受 ASLR</strong>；它跟 <code>.so</code> 一樣要位置無關，但不必付提防符號插入的代價。</p>
+<h4 id="用錯會怎樣">用錯會怎樣</h4>
+<pre><code class="language-sh">gcc<span class="w"> </span>a-fno-pie.o<span class="w"> </span>-o<span class="w"> </span>x<span class="w">          </span><span class="c1"># -fno-pie 的 .o，連成預設的 PIE 執行檔</span>
+gcc<span class="w"> </span>-shared<span class="w"> </span>a-fPIE.o<span class="w"> </span>-o<span class="w"> </span>libx.so<span class="w">    </span><span class="c1"># -fPIE 的 .o，拿去做 .so</span>
+gcc<span class="w"> </span>-O1<span class="w"> </span>-fno-pie<span class="w"> </span>-c<span class="w"> </span>g.c<span class="w"> </span>-o<span class="w"> </span>gn.o<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>gcc<span class="w"> </span>-shared<span class="w"> </span>gn.o<span class="w"> </span>-o<span class="w"> </span>liby.so<span class="w">   </span><span class="c1"># -fno-pie 的 .o 做 .so</span>
+gcc<span class="w"> </span>-O1<span class="w"> </span>-fPIC<span class="w"> </span>addr.c<span class="w"> </span>-o<span class="w"> </span>picexe<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>./picexe<span class="w">   </span><span class="c1"># -fPIC 拿去編執行檔</span>
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>做法</th>
+<th>本機結果</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-fno-pie</code> 的 <code>.o</code> 連成 PIE 執行檔</td>
+<td><code>relocation R_X86_64_32 against symbol 'g' can not be used when making a PIE object; recompile with -fPIE</code></td>
+</tr>
+<tr>
+<td><code>-fPIE</code> 的 <code>.o</code> 拿去做 <code>.so</code></td>
+<td><code>warning: relocation against 'g' in read-only section '.text'</code>，接著 <code>relocation R_X86_64_PC32 against symbol 'g' can not be used when making a shared object; recompile with -fPIC</code></td>
+</tr>
+<tr>
+<td><code>-fno-pie</code> 的 <code>.o</code> 做 <code>.so</code></td>
+<td>同上一列，被點名的是 <code>undefined symbol 'ext'</code></td>
+</tr>
+<tr>
+<td><code>-fPIC</code> 編執行檔</td>
+<td>成功（<code>DYN</code>，位址每次不同），只是存取全域變數多繞一次 GOT</td>
+</tr>
+</tbody>
+</table>
+<p>錯誤訊息直接告訴你缺的是哪一級：<code>recompile with -fPIE</code> 是「連位置無關都不是」，<code>recompile with -fPIC</code> 是「位置無關，但沒提防符號插入」。要求由寬到嚴是 <code>-fno-pie</code> → <code>-fPIE</code> → <code>-fPIC</code>，<strong>嚴的可以拿去當寬的用，反過來不行</strong>。</p>
+<h4 id="整理-2">整理</h4>
+<table>
+<thead>
+<tr>
+<th></th>
+<th><code>-fno-pie</code></th>
+<th><code>-fPIE</code>（本機預設）</th>
+<th><code>-fPIC</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>讀全域變數</td>
+<td><code>%rip</code> ＋ 固定距離</td>
+<td><code>%rip</code> ＋ 固定距離</td>
+<td>先從 GOT 讀位址再間接讀</td>
+</tr>
+<tr>
+<td>拿全域變數的位址</td>
+<td>絕對位址寫死（<code>R_X86_64_32</code>）</td>
+<td><code>lea</code> 用 <code>%rip</code> 算（<code>R_X86_64_PC32</code>）</td>
+<td>從 GOT 讀</td>
+</tr>
+<tr>
+<td>呼叫自己定義的全域函式</td>
+<td>直接 <code>call</code>／可內嵌</td>
+<td>直接 <code>call</code>／可內嵌</td>
+<td>經 PLT、不內嵌</td>
+</tr>
+<tr>
+<td>變數其實在 <code>.so</code> 時</td>
+<td>複製重定位</td>
+<td>複製重定位（第 3 章）</td>
+<td>經 GOT，不需要</td>
+</tr>
+<tr>
+<td>執行檔類型、ASLR</td>
+<td><code>EXEC</code>，位址固定</td>
+<td><code>DYN</code>，每次不同</td>
+<td>可做 <code>.so</code>；也可做執行檔</td>
+</tr>
+</tbody>
+</table>
+<p>本章用到的選項：<code>-fPIC</code>、<code>-fPIE</code>、<code>-fno-pie</code>（編譯）、<code>-pie</code>／<code>-no-pie</code>、<code>-shared</code>（連結），都在 <code>man gcc</code> 的 Code Generation Options 與 Link Options；本課 gcc 選項的整理見正文<a href="#gcc%E6%9C%AC%E8%AA%B2%E6%96%B0%E7%94%A8%E5%88%B0%E7%9A%84%E9%81%B8%E9%A0%85">第七節〈<code>gcc</code>：本課新用到的選項〉</a>。</p>
 <hr />
 <h2 id="自我測驗">自我測驗</h2>
 <blockquote>
@@ -4020,9 +4288,9 @@ peek() = 8
 &gt; <strong>12-2</strong>【<a href="#11-%E5%81%9A-so-%E9%9C%80%E8%A6%81-h-%E5%97%8Einclude-%E7%AE%A1%E7%B7%A8%E8%AD%AF-l-%E7%AE%A1%E9%80%A3%E7%B5%90">第九節第 11 章</a>〈做 <code>.so</code> 需要 <code>.h</code> 嗎？<code>#include</code> 管編譯、<code>-l</code> 管連結〉】核心關鍵：
 &gt;
 &gt; 1. 失敗在<strong>連結</strong>：<code>undefined reference to 'c_to_f'</code>。
-&gt; 2. <code>.h</code> 只讓編譯器知道 <code>c_to_f</code> 的型別；要 <code>-ltemp</code>（寫在 <code>main.c</code> 後面）<code>ld</code> 才會去 <code>-Llib</code> 找 <code>libtemp.so</code>、解決 <code>c_to_f</code>。
+&gt; 2. 要補 <code>-ltemp</code>（寫在 <code>main.c</code> 後面），<code>ld</code> 才會去 <code>-Llib</code> 找 <code>libtemp.so</code>、解決 <code>c_to_f</code>。
 &gt;
-&gt; 詳細說明：本機實測輸出：<code>main.c:(.text+0x15): undefined reference to 'c_to_f'</code>。對照筆記第 11 章的 <code>sq.c</code>：有 <code>#include &lt;math.h&gt;</code>、沒 <code>-lm</code>，一樣是 <code>undefined reference to 'sqrt'</code>。
+&gt; 詳細說明：本機實測輸出：<code>main.c:(.text+0x15): undefined reference to 'c_to_f'</code>。為什麼前處理、編譯都會過：有 <code>-Iinclude</code> 找得到 <code>temp.h</code>，而 <code>.h</code> 只給 <code>c_to_f</code> 的宣告（型別），編譯器有宣告就能編；本體要到連結時才找（題目沒問為什麼，這段不列入核心關鍵，2026-10-31 使用者指出後調整）。對照筆記第 11 章的 <code>sq.c</code>：有 <code>#include &lt;math.h&gt;</code>、沒 <code>-lm</code>，一樣是 <code>undefined reference to 'sqrt'</code>。
 &gt;
 &gt; <strong>12-3</strong>【<a href="#11-%E5%81%9A-so-%E9%9C%80%E8%A6%81-h-%E5%97%8Einclude-%E7%AE%A1%E7%B7%A8%E8%AD%AF-l-%E7%AE%A1%E9%80%A3%E7%B5%90">第九節第 11 章</a>〈做 <code>.so</code> 需要 <code>.h</code> 嗎？<code>#include</code> 管編譯、<code>-l</code> 管連結〉】核心關鍵：
 &gt;
@@ -4037,7 +4305,7 @@ peek() = 8
 &gt; 2. <code>lib/libtemp.so</code> 要給：<code>c_to_f</code> 的程式碼在裡面，執行時 <code>ld.so</code> 照 <code>NEEDED</code> 和 <code>RUNPATH $ORIGIN/lib</code> 載入它，所以要放在 <code>app</code> 旁邊的 <code>lib/</code>。
 &gt;
 &gt; 詳細說明：這就是 <code>zlib1g</code>（執行用，只有 <code>.so.1</code>）和 <code>zlib1g-dev</code>（開發用，<code>.h</code>、<code>.a</code>、<code>.so</code>）分成兩個套件的原因。
-13. （2026-10-29 提問延伸）<code>libtxt.so</code> 由下面的 <code>case.c</code>、<code>space.c</code>、<code>trim.c</code> 做成；<code>main.c</code> 只呼叫 <code>trim</code>，<code>none.c</code> 什麼都不呼叫。(1) <code>gcc -v</code> 顯示 gcc 交給 <code>ld</code> 的順序是 <code>Scrt1.o crti.o crtbeginS.o … -ltxt &lt;main.c 的 .o&gt; … -lc …</code>。讀到 <code>-ltxt</code> 那一刻，「還沒找到定義的符號」清單是空的嗎？裡面有 <code>trim</code> 嗎？為什麼？(2) 預設下 <code>gcc -Wall -L. -ltxt main.c -o app_bad</code> 失敗；把 <code>-Wl,--no-as-needed</code> 放在 <code>-ltxt</code> 前面（<code>gcc -Wall -L. -Wl,--no-as-needed -ltxt main.c -o app_no</code>）就成功。讀到 <code>libtxt.so</code> 時兩種模式各做了什麼？<code>main.o</code> 要的 <code>trim</code> 最後是怎麼被解決的——是 <code>libtxt.so</code> 把 <code>trim</code> 加進了清單嗎？(3) <code>none.c</code> 用 <code>gcc -Wall none.c -L. -Wl,--no-as-needed -ltxt -o none_no</code> 和 <code>gcc -Wall none.c -L. -ltxt -o none_as</code> 各連結一次，<code>readelf -d</code> 的 <code>NEEDED</code> 會差在哪？Ubuntu 為什麼預設開 <code>--as-needed</code>？(4) 把 <code>libtxt.so</code> 換成同樣三個 <code>.o</code> 做成的 <code>libtxt.a</code>（並刪掉 <code>libtxt.so</code>），<code>gcc -Wall -L. -Wl,--no-as-needed -ltxt main.c -o app_a</code> 會成功嗎？為什麼？
+13. （2026-10-29 提問延伸）<code>libtxt.so</code> 由下面的 <code>case.c</code>、<code>space.c</code>、<code>trim.c</code> 做成；<code>main.c</code> 只呼叫 <code>trim</code>，<code>none.c</code> 什麼都不呼叫。(1) 用 <code>gcc -Wall -L. -ltxt main.c -o app_bad</code>（<code>-ltxt</code> 寫在 <code>main.c</code> 前面）連結時，<code>gcc -v</code> 顯示 gcc 交給 <code>ld</code> 的順序是 <code>Scrt1.o crti.o crtbeginS.o … -ltxt &lt;main.c 的 .o&gt; … -lc …</code>。讀到 <code>-ltxt</code> 那一刻，「還沒找到定義的符號」清單是空的嗎？裡面有 <code>trim</code> 嗎？為什麼？(2) 預設下 <code>gcc -Wall -L. -ltxt main.c -o app_bad</code> 失敗；把 <code>-Wl,--no-as-needed</code> 放在 <code>-ltxt</code> 前面（<code>gcc -Wall -L. -Wl,--no-as-needed -ltxt main.c -o app_no</code>）就成功。讀到 <code>libtxt.so</code> 時兩種模式各做了什麼？<code>main.o</code> 要的 <code>trim</code> 最後是怎麼被解決的——是 <code>libtxt.so</code> 把 <code>trim</code> 加進了清單嗎？(3) <code>none.c</code> 用 <code>gcc -Wall none.c -L. -Wl,--no-as-needed -ltxt -o none_no</code> 和 <code>gcc -Wall none.c -L. -ltxt -o none_as</code> 各連結一次，<code>readelf -d</code> 的 <code>NEEDED</code> 會差在哪？Ubuntu 為什麼預設開 <code>--as-needed</code>？(4) 把 <code>libtxt.so</code> 換成同樣三個 <code>.o</code> 做成的 <code>libtxt.a</code>（並刪掉 <code>libtxt.so</code>），<code>gcc -Wall -L. -Wl,--no-as-needed -ltxt main.c -o app_a</code> 會成功嗎？為什麼？
 <code>c     /* case.c */     void to_upper_str(char *s) { for (; *s; s++) if (*s &gt;= 'a' &amp;&amp; *s &lt;= 'z') *s -= 32; }     void to_lower_str(char *s) { for (; *s; s++) if (*s &gt;= 'A' &amp;&amp; *s &lt;= 'Z') *s += 32; }     </code>
 <code>c     /* space.c */     int is_space(char c) { return c == ' ' || c == '\t' || c == '\n'; }     </code>
 ```c
@@ -4071,6 +4339,37 @@ int main(void)
 }
 ```
 做 `.so`：`gcc -Wall -fPIC -shared case.c space.c trim.c -o libtxt.so`；做 `.a`：`gcc -Wall -c case.c space.c trim.c &amp;&amp; ar rcs libtxt.a case.o space.o trim.o &amp;&amp; rm libtxt.so`（檔案都在 [`examples/asneeded/`](../small-project/s1-07-libraries/examples/asneeded/)）。啟動檔 `Scrt1.o` 未定義的符號可以用 `nm -u $(gcc -print-file-name=Scrt1.o)` 看。
+
+&gt; **參考答案**（核心關鍵＋詳細說明）
+&gt;
+&gt; **13-1**【[第九節第 15 章](../html/c/靜態與動態函式庫-ar與.a、-fPIC與.so、執行時怎麼找到.so.html#15-ld-還沒讀到-maino怎麼知道誰需要什麼未定義符號清單與---as-needed)〈`ld` 還沒讀到 `main.o`，怎麼知道誰需要什麼〉】核心關鍵：
+&gt;
+&gt; 1. **不是空的**：`-ltxt` 前面的啟動檔已經讀過，`Scrt1.o` 帶進 `main`、`__libc_start_main` 等未定義符號。
+&gt; 2. **沒有 `trim`**：需要 `trim` 的是 `main.c` 的 `.o`，它排在 `-ltxt` 後面、還沒讀到；`ld` 由左往右、不往後看，只用此刻的清單做決定。
+&gt;
+&gt; 詳細說明：`nm -u $(gcc -print-file-name=Scrt1.o)` 列出 `U _GLOBAL_OFFSET_TABLE_`、`U __libc_start_main`、`U main`；`crtbeginS.o` 另外帶進 `U __TMC_END__`（`w` 開頭的是弱符號，找不到也不算錯）。所以正文第二節說「這時清單裡沒有 `calc_add`」，不是嚴格意義的空清單。
+&gt;
+&gt; **13-2**【[第九節第 15 章](../html/c/靜態與動態函式庫-ar與.a、-fPIC與.so、執行時怎麼找到.so.html#15-ld-還沒讀到-maino怎麼知道誰需要什麼未定義符號清單與---as-needed)〈`ld` 還沒讀到 `main.o`，怎麼知道誰需要什麼〉】核心關鍵：
+&gt;
+&gt; 1. `--as-needed`（預設）：讀到 `libtxt.so` 時看此刻的清單，沒人需要它的符號 → 整個丟掉、不記進 `NEEDED`；後面 `main.o` 要 `trim` 時沒人提供 → `undefined reference`。
+&gt; 2. `--no-as-needed`：不看清單，一律留下、記進 `NEEDED`，並**記住它提供的定義**。
+&gt; 3. `trim` 是讀到 `main.o` 時，`ld` 用已經記住的 `libtxt.so` 定義當場解決的；不是 `libtxt.so` 把 `trim` 加進清單——清單只放「還沒找到定義的符號」，`.so` 提供的是定義。
+&gt;
+&gt; 詳細說明：`nm -D --defined-only libtxt.so` 看得到它提供的四個定義：`is_space`、`to_lower_str`、`to_upper_str`、`trim`。`.so` 本來就有「先記住、後面再用」的能力，順序問題完全是 `--as-needed` 在那一刻「丟掉」造成的。實測：`gcc -Wall -L. -Wl,--no-as-needed -ltxt main.c -o app_no` 成功，`LD_LIBRARY_PATH=. ./app_no` 印 `[hello]`，`readelf -d app_no` 有 `libtxt.so` 與 `libc.so.6` 兩個 `NEEDED`。
+&gt;
+&gt; **13-3**【[第九節第 15 章](../html/c/靜態與動態函式庫-ar與.a、-fPIC與.so、執行時怎麼找到.so.html#15-ld-還沒讀到-maino怎麼知道誰需要什麼未定義符號清單與---as-needed)〈`ld` 還沒讀到 `main.o`，怎麼知道誰需要什麼〉】核心關鍵：
+&gt;
+&gt; 1. `none_no` 有 `libtxt.so` 與 `libc.so.6` 兩個 `NEEDED`；`none_as` 只有 `libc.so.6`。
+&gt; 2. `--no-as-needed` 讓用不到的 `.so` 也記進 `NEEDED`，執行時 `ld.so` 就得多找、多載入一個；`--as-needed` 讓沒用到的自動消失。
+&gt;
+&gt; 詳細說明：多出來的 `NEEDED` 不只是浪費：換到沒裝 `libtxt.so` 的機器，`ld.so` 找不到它，程式會整個跑不起來，即使根本沒用到。建置系統常把一長串 `-l` 套到每個程式上，`--as-needed` 讓沒用到的自動消失；代價就是 `-l` 一定要寫在用到它的檔案後面。
+&gt;
+&gt; **13-4**【[第九節第 15 章](../html/c/靜態與動態函式庫-ar與.a、-fPIC與.so、執行時怎麼找到.so.html#15-ld-還沒讀到-maino怎麼知道誰需要什麼未定義符號清單與---as-needed)〈`ld` 還沒讀到 `main.o`，怎麼知道誰需要什麼〉】核心關鍵：
+&gt;
+&gt; 1. **不會成功**：`undefined reference to 'trim'`。
+&gt; 2. `--as-needed`／`--no-as-needed` 只管 `.so`；`.a` 讀到時只拉此刻清單需要的成員，此刻清單沒有 `trim` → 一個都不拉、也不記，之後不回頭。
+&gt;
+&gt; 詳細說明：`.a` 的順序問題不管加什麼選項都存在，只能把 `-ltxt` 寫在 `main.c` 後面，或用 `--start-group … --end-group` 讓群組反覆掃（正文第二節）。`rm libtxt.so` 是因為 `-ltxt` 會先找 `.so`（正文第三節）。
 </code></pre>
 
 </main>

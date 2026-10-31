@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>s1-08：寫自己的 wc 與 cat——命令列參數、讀到 EOF、errno 錯誤處理</title>
+<link rel="stylesheet" href="../../assets/style.css">
+<script src="../../assets/app.js"></script>
+</head>
+<body>
+<button class="menu-btn" onclick="toggleMenu()">☰ 目錄</button>
+<div class="layout">
+<nav class="side">
+<div class="crumbs"><a href="../../index.html">🏠 首頁</a> / <a href="../README.html">small-project</a> / s1-08-wc-cat</div>
+<div class="tools"><button onclick="toggleTheme()">🌓 主題</button><button onclick="toggleBoxes(true)">展開作答框</button><button onclick="toggleBoxes(false)">收起作答框</button></div>
+<ul>
+<li class="l2"><a href="#%E8%AA%AA%E6%98%8E">說明</a></li>
+<li class="l2"><a href="#%E7%AD%86%E8%A8%98%E7%9A%84%E7%AF%84%E4%BE%8B%E7%A8%8B%E5%BC%8F">筆記的範例程式</a></li>
+<li class="l2"><a href="#1-mycat%E4%BE%9D%E5%BA%8F%E5%8E%9F%E6%A8%A3%E8%BC%B8%E5%87%BA">1. mycat：依序原樣輸出</a></li>
+<li class="l3"><a href="#1-1-%E5%AF%AB%E5%A5%BD-mycatc%E5%9F%B7%E8%A1%8C%E4%B8%8B%E9%9D%A2%E6%AF%8F%E4%B8%80%E8%A1%8C%E8%B2%BC%E4%B8%8A%E5%AE%8C%E6%95%B4%E8%BC%B8%E5%87%BA%E5%90%AB-exit%E5%86%8D%E8%B2%BC%E4%B8%8A%E5%90%8C%E6%A8%A3%E7%9A%84%E6%8C%87%E4%BB%A4%E6%8A%8A-mycat-%E6%8F%9B%E6%88%90-cat-%E7%9A%84%E8%BC%B8%E5%87%BA%E9%80%90%E8%A1%8C%E6%AF%94%E5%B0%8D%E6%9C%89%E6%B2%92%E6%9C%89%E4%B8%8D%E4%B8%80%E6%A8%A3%E7%9A%84%E5%9C%B0%E6%96%B9%E9%8C%AF%E8%AA%A4%E8%A8%8A%E6%81%AF%E9%96%8B%E9%A0%AD%E7%9A%84-mycatcat-%E4%B8%8D%E5%90%8C%E6%98%AF%E6%AD%A3%E5%B8%B8%E7%9A%84%E6%9C%80%E5%BE%8C%E4%B8%80%E8%A1%8C%E7%94%A8-cmp-%E7%A2%BA%E8%AA%8D-byte-%E5%AE%8C%E5%85%A8%E4%B8%80%E6%A8%A3%E8%B2%BC%E4%B8%8A%E7%B5%90%E6%9E%9C%E7%AD%86%E8%A8%98%E7%AC%AC%E4%B8%83%E7%AF%80cat%E4%BE%9D%E5%BA%8F%E6%8A%8A%E6%AF%8F%E5%80%8B%E6%AA%94%E6%A1%88%E7%9A%84-byte-%E5%8E%9F%E6%A8%A3%E5%AF%AB%E5%88%B0-stdout">1-1. 寫好 mycat.c，執行下面每一行，貼上完整輸出（含 exit=）。再貼上同樣的指令把 ./mycat 換成 cat 的輸出，逐行比對有沒有不一樣的地方（錯誤訊息開頭的 mycat／cat 不同是正常的）。最後一行用 cmp 確認 byte 完全一樣，貼上結果。【筆記第七節〈cat：依序把每個檔案的 byte 原樣寫到 stdout〉】</a></li>
+<li class="l3"><a href="#1-2-%E5%9F%B7%E8%A1%8C-mycat-onetxt-nofiletxt--outtxt-echo-exit%E8%B2%BC%E4%B8%8A%E7%B5%82%E7%AB%AF%E6%A9%9F%E4%B8%8A%E7%9C%8B%E5%88%B0%E7%9A%84%E5%85%A7%E5%AE%B9%E5%86%8D%E8%B2%BC%E4%B8%8A-cat-outtxt%E9%8C%AF%E8%AA%A4%E8%A8%8A%E6%81%AF%E5%87%BA%E7%8F%BE%E5%9C%A8%E5%93%AA%E8%A3%A1%E6%B2%92%E5%87%BA%E7%8F%BE%E5%9C%A8%E5%93%AA%E8%A3%A1%E5%A6%82%E6%9E%9C%E8%A6%8F%E6%A0%BC%E7%AC%AC-3-%E9%BB%9E%E6%94%B9%E6%88%90%E9%8C%AF%E8%AA%A4%E8%A8%8A%E6%81%AF%E5%8D%B0%E5%88%B0-stdout%E4%BD%BF%E7%94%A8%E8%80%85%E6%89%93-mycat-txt--alltxt-%E6%9C%83%E9%81%87%E5%88%B0%E4%BB%80%E9%BA%BC%E9%BA%BB%E7%85%A9%E7%AD%86%E8%A8%98%E7%AC%AC%E4%BA%94%E7%AF%80%E7%B5%90%E6%9E%9C%E5%AF%AB-stdout%E9%8C%AF%E8%AA%A4%E5%AF%AB-stderr">1-2. 執行 ./mycat one.txt nofile.txt &gt; out.txt; echo &quot;exit=$?&quot;，貼上終端機上看到的內容，再貼上 cat out.txt。錯誤訊息出現在哪裡、沒出現在哪裡？如果規格第 3 點改成「錯誤訊息印到 stdout」，使用者打 ./mycat *.txt &gt; all.txt 會遇到什麼麻煩？【筆記第五節〈結果寫 stdout，錯誤寫 stderr〉】</a></li>
+<li class="l3"><a href="#1-3-%E5%85%88%E9%A0%90%E6%B8%AC%E6%8A%8A%E4%BD%A0%E7%A8%8B%E5%BC%8F%E8%A3%A1%E6%8E%A5-getc-%E5%9B%9E%E5%82%B3%E5%80%BC%E7%9A%84%E8%AE%8A%E6%95%B8%E6%9A%AB%E6%99%82%E6%94%B9%E6%88%90-char%E9%87%8D%E6%96%B0%E7%B7%A8%E8%AD%AF%E5%9F%B7%E8%A1%8C-mycat-ffbin--od--c-echo-exit%E8%BC%B8%E5%87%BA%E6%9C%83%E6%9C%89%E5%B9%BE%E5%80%8B-byte%E6%98%AF%E5%93%AA%E5%B9%BE%E5%80%8B%E5%AF%AB%E4%B8%8B%E9%A0%90%E6%B8%AC%E5%BE%8C%E5%86%8D%E5%9F%B7%E8%A1%8C%E8%B2%BC%E4%B8%8A%E7%B5%90%E6%9E%9C%E8%88%87%E7%B7%A8%E8%AD%AF%E6%9C%89%E6%B2%92%E6%9C%89%E8%AD%A6%E5%91%8A%E7%82%BA%E4%BB%80%E9%BA%BC%E5%81%9A%E5%AE%8C%E6%94%B9%E5%9B%9E-int%E7%AD%86%E8%A8%98%E7%AC%AC%E4%B8%89%E7%AF%80%E9%8C%AF%E8%AA%A4%E7%A4%BA%E7%AF%84%E7%94%A8-char-%E6%8E%A5-getchar">1-3. 先預測：把你程式裡接 getc 回傳值的變數暫時改成 char，重新編譯，執行 ./mycat ff.bin | od -c; echo &quot;exit=$?&quot;。輸出會有幾個 byte、是哪幾個？寫下預測後再執行，貼上結果與編譯有沒有警告。為什麼？做完改回 int。【筆記第三節〈錯誤示範：用 char 接 getchar()〉】</a></li>
+<li class="l3"><a href="#1-4-%E5%85%88%E9%A0%90%E6%B8%ACmycat-onetxt-nofiletxt-onetxt-21--cat-%E5%8D%B0%E5%87%BA%E7%9A%84%E4%B8%89%E8%A1%8C%E9%A0%86%E5%BA%8F%E6%9C%83%E8%B7%9F%E5%9C%A8%E7%B5%82%E7%AB%AF%E6%A9%9F%E7%9B%B4%E6%8E%A5%E5%9F%B7%E8%A1%8C-mycat-onetxt-nofiletxt-onetxt-%E4%B8%80%E6%A8%A3%E5%97%8E%E5%AF%AB%E4%B8%8B%E9%A0%90%E6%B8%AC%E5%BE%8C%E5%85%A9%E5%80%8B%E9%83%BD%E5%9F%B7%E8%A1%8C%E8%B2%BC%E4%B8%8A%E7%B5%90%E6%9E%9C%E7%82%BA%E4%BB%80%E9%BA%BC%E4%B8%80%E6%A8%A3%E6%88%96%E4%B8%8D%E4%B8%80%E6%A8%A3%E7%AD%86%E8%A8%98%E7%AC%AC%E4%BA%94%E7%AF%80%E8%BC%B8%E5%87%BA%E9%A0%86%E5%BA%8F%E7%82%BA%E4%BB%80%E9%BA%BC%E6%9C%83%E8%AE%8A">1-4. 先預測：./mycat one.txt nofile.txt one.txt 2&gt;&amp;1 | cat 印出的三行，順序會跟在終端機直接執行 ./mycat one.txt nofile.txt one.txt 一樣嗎？寫下預測後兩個都執行，貼上結果。為什麼一樣（或不一樣）？【筆記第五節〈輸出順序為什麼會變〉】</a></li>
+<li class="l2"><a href="#2-mywc%E6%95%B8%E8%A1%8C%E5%AD%97byte">2. mywc：數行、字、byte</a></li>
+<li class="l3"><a href="#2-1-%E5%AF%AB%E5%A5%BD-mywcc%E5%9F%B7%E8%A1%8C%E4%B8%8B%E9%9D%A2%E6%AF%8F%E4%B8%80%E8%A1%8C%E8%B2%BC%E4%B8%8A%E5%AE%8C%E6%95%B4%E8%BC%B8%E5%87%BA%E5%90%AB-exit%E5%86%8D%E8%B2%BC%E4%B8%8A%E6%8A%8A-mywc-%E6%8F%9B%E6%88%90-lc_allc-wc-%E7%9A%84%E8%BC%B8%E5%87%BA%E9%80%90%E8%A1%8C%E6%AF%94%E5%B0%8D%E4%B8%89%E5%80%8B%E6%95%B8%E5%AD%97%E6%AC%84%E5%AF%AC%E4%B8%8D%E5%90%8C%E6%98%AF%E6%AD%A3%E5%B8%B8%E7%9A%84%E6%9C%89%E4%B8%8D%E4%B8%80%E6%A8%A3%E7%9A%84%E6%89%BE%E5%87%BA%E5%8E%9F%E5%9B%A0%E4%BF%AE%E5%A5%BD%E5%86%8D%E8%B2%BC%E6%9C%80%E5%BE%8C%E4%B8%80%E6%AC%A1%E7%9A%84%E7%B5%90%E6%9E%9C%E7%AD%86%E8%A8%98%E7%AC%AC%E4%B8%83%E7%AF%80wc-%E6%95%B8%E7%9A%84%E4%B8%89%E5%80%8B%E6%95%B8%E5%AD%97%E5%A4%9A%E5%80%8B%E6%AA%94%E6%A1%88%E6%A8%99%E6%BA%96%E8%BC%B8%E5%85%A5%E9%8C%AF%E8%AA%A4">2-1. 寫好 mywc.c，執行下面每一行，貼上完整輸出（含 exit=），再貼上把 ./mywc 換成 LC_ALL=C wc 的輸出，逐行比對三個數字（欄寬不同是正常的）。有不一樣的，找出原因、修好再貼最後一次的結果。【筆記第七節〈wc 數的三個數字〉〈多個檔案、標準輸入、錯誤〉】</a></li>
+<li class="l3"><a href="#2-2-nonltxt-%E6%98%8E%E6%98%8E%E6%9C%89%E4%B8%80%E8%A1%8C%E5%AD%97mywc-%E5%92%8C-wc-%E7%9A%84%E8%A1%8C%E6%95%B8%E9%83%BD%E6%98%AF-0spacestxt-%E5%8F%AA%E6%9C%89%E5%85%A9%E8%A1%8C%E6%9C%89%E5%AD%97%E8%A1%8C%E6%95%B8%E5%8D%BB%E6%98%AF-4%E9%80%99%E5%85%A9%E5%80%8B%E6%95%B8%E5%AD%97%E7%82%BA%E4%BB%80%E9%BA%BC%E6%98%AF%E5%B0%8D%E7%9A%84%E5%A6%82%E6%9E%9C%E4%BD%A0%E6%83%B3%E8%AE%93-nonltxt-%E7%AE%97%E6%88%90-1-%E8%A1%8C%E8%A6%81%E5%A4%9A%E5%88%A4%E6%96%B7%E4%BB%80%E9%BA%BC%E6%83%85%E6%B3%81%E7%94%A8%E6%96%87%E5%AD%97%E8%AA%AA%E6%98%8E%E5%B0%B1%E5%A5%BD%E4%B8%8D%E7%94%A8%E6%94%B9%E7%A8%8B%E5%BC%8F%E7%AD%86%E8%A8%98%E7%AC%AC%E4%B8%83%E7%AF%80wc-%E6%95%B8%E7%9A%84%E4%B8%89%E5%80%8B%E6%95%B8%E5%AD%97%E6%9C%80%E5%BE%8C%E4%B8%80%E5%95%8F%E6%98%AF%E6%96%B0%E8%A7%80%E5%BF%B5%E5%85%88%E7%8C%9C">2-2. nonl.txt 明明有一行字，mywc 和 wc 的行數都是 0；spaces.txt 只有兩行有字，行數卻是 4。這兩個數字為什麼是對的？如果你想讓 nonl.txt 算成 1 行，要多判斷什麼情況（用文字說明就好，不用改程式）？【筆記第七節〈wc 數的三個數字〉；最後一問是新觀念，先猜】</a></li>
+<li class="l3"><a href="#2-3-%E8%AA%AA%E6%98%8E%E4%BD%A0%E7%9A%84%E7%A8%8B%E5%BC%8F%E6%80%8E%E9%BA%BC%E6%95%B8%E5%AD%97%E6%95%B8%E7%94%A8-printf--a--bctndn-%E9%80%99-10-%E5%80%8B-byte%E9%80%90%E5%80%8B-byte-%E5%AF%AB%E5%87%BA%E4%BD%A0%E7%9A%84%E7%A8%8B%E5%BC%8F%E8%A3%A1%E8%B7%9F%E6%95%B8%E5%AD%97%E6%9C%89%E9%97%9C%E7%9A%84%E8%AE%8A%E6%95%B8%E6%80%8E%E9%BA%BC%E8%AE%8A%E4%BE%8B%E5%A6%82%E7%8F%BE%E5%9C%A8%E5%9C%A8%E4%B8%8D%E5%9C%A8%E4%B8%80%E5%80%8B%E5%AD%97%E8%A3%A1%E9%9D%A2%E7%9A%84%E8%AE%8A%E6%95%B8%E5%AD%97%E6%95%B8%E6%9C%80%E5%BE%8C%E5%AD%97%E6%95%B8%E7%82%BA%E4%BB%80%E9%BA%BC%E6%98%AF-3%E5%86%8D%E7%94%A8-printf-ax01b-x02n-%E9%80%99-6-%E5%80%8B-byte-%E5%90%8C%E6%A8%A3%E9%80%90%E5%80%8B%E8%B5%B0%E4%B8%80%E9%81%8D%E5%AD%97%E6%95%B8%E7%82%BA%E4%BB%80%E9%BA%BC%E6%98%AF-1highbin-%E8%A3%A1%E6%9C%89-0xff0xfe-%E5%92%8C%E4%B8%AD%E6%96%87%E7%9A%84-byte%E4%BD%A0%E5%82%B3%E7%B5%A6-isspaceisprint-%E7%9A%84%E5%80%BC%E6%98%AF%E4%BB%80%E9%BA%BC%E5%9E%8B%E5%88%A5%E7%AF%84%E5%9C%8D%E6%98%AF%E5%A4%9A%E5%B0%91%E7%82%BA%E4%BB%80%E9%BA%BC%E4%B8%8D%E8%83%BD%E7%9B%B4%E6%8E%A5%E5%82%B3-char%E7%AD%86%E8%A8%98%E7%AC%AC%E4%B8%83%E7%AF%80wc-%E6%95%B8%E7%9A%84%E4%B8%89%E5%80%8B%E6%95%B8%E5%AD%97%E7%AC%AC%E4%B8%89%E7%A8%AE-byte%E7%AC%AC%E4%B8%89%E7%AF%80">2-3. 說明你的程式怎麼數字數：用 printf &#x27; a  bc\t\nd\n&#x27; 這 10 個 byte，逐個 byte 寫出你的程式裡跟數字有關的變數怎麼變（例如「現在在不在一個字裡面」的變數、字數），最後字數為什麼是 3。再用 printf &#x27;a\x01b \x02\n&#x27; 這 6 個 byte 同樣逐個走一遍，字數為什麼是 1？high.bin 裡有 0xff、0xfe 和中文的 byte，你傳給 isspace／isprint 的值是什麼型別、範圍是多少？為什麼不能直接傳 char？【筆記第七節〈wc 數的三個數字〉〈第三種 byte〉、第三節】</a></li>
+<li class="l3"><a href="#2-4-%E5%85%88%E9%A0%90%E6%B8%ACprintf-axc2xa0bn-%E9%80%99-5-%E5%80%8B-byte-%E5%88%86%E5%88%A5%E7%B5%A6-mywcwclc_allc-wc%E5%AD%97%E6%95%B8%E5%90%84%E6%98%AF%E5%A4%9A%E5%B0%91%E5%AF%AB%E4%B8%8B%E9%A0%90%E6%B8%AC%E5%BE%8C%E5%9F%B7%E8%A1%8C%E8%B2%BC%E4%B8%8A%E4%B8%89%E5%80%8B%E7%B5%90%E6%9E%9C%E4%BD%A0%E7%9A%84-mywc-%E8%B7%9F%E5%93%AA%E4%B8%80%E5%80%8B%E4%B8%80%E6%A8%A3%E7%82%BA%E4%BB%80%E9%BA%BC%E7%AD%86%E8%A8%98%E7%AC%AC%E4%B8%83%E7%AF%80%E8%AA%9E%E7%B3%BBlocale%E7%9A%84%E4%BE%8B%E5%A4%96">2-4. 先預測：printf &#x27;a\xc2\xa0b\n&#x27; 這 5 個 byte 分別給 ./mywc、wc、LC_ALL=C wc，字數各是多少？寫下預測後執行，貼上三個結果。你的 mywc 跟哪一個一樣？為什麼？【筆記第七節〈語系（locale）的例外〉】</a></li>
+<li class="l2"><a href="#3-%E6%9B%BF-mywc-%E5%8A%A0%E4%B8%8A--l-w-c">3. 替 mywc 加上 -l、-w、-c</a></li>
+<li class="l3"><a href="#3-1-%E5%AF%AB%E5%A5%BD%E4%B9%8B%E5%BE%8C%E5%9F%B7%E8%A1%8C%E4%B8%8B%E9%9D%A2%E6%AF%8F%E4%B8%80%E8%A1%8C%E8%B2%BC%E4%B8%8A%E5%AE%8C%E6%95%B4%E8%BC%B8%E5%87%BA%E4%B8%A6%E8%B7%9F-lc_allc-wc-%E7%9A%84%E5%90%8C%E4%B8%80%E8%A1%8C%E6%AF%94%E5%B0%8D%E6%95%B8%E5%AD%97%E8%88%87%E6%AC%84%E7%9A%84%E9%A0%86%E5%BA%8F%E7%AD%86%E8%A8%98%E7%AC%AC%E4%B8%83%E7%AF%80wc-%E7%9A%84%E5%85%A8%E9%83%A8%E9%81%B8%E9%A0%85%E9%81%B8%E9%A0%85%E6%80%8E%E9%BA%BC%E5%BE%9E-argv-%E6%8B%86%E5%87%BA%E4%BE%86%E6%98%AF%E4%BD%A0%E8%87%AA%E5%B7%B1%E7%9A%84%E8%A8%AD%E8%A8%88%E7%94%A8%E5%88%B0%E7%AC%AC%E4%BA%8C%E7%AF%80%E7%9A%84-argvij">3-1. 寫好之後執行下面每一行，貼上完整輸出，並跟 LC_ALL=C wc 的同一行比對數字與欄的順序。【筆記第七節〈wc 的全部選項〉；選項怎麼從 argv 拆出來是你自己的設計，用到第二節的 argv[i][j]】</a></li>
+<li class="l3"><a href="#3-2-%E5%85%88%E7%8C%9C%E5%86%8D%E5%AF%A6%E9%A9%97%E6%9C%89%E4%B8%80%E5%80%8B%E6%AA%94%E6%A1%88%E7%9A%84%E5%90%8D%E5%AD%97%E5%B0%B1%E5%8F%AB--l%E5%BB%BA%E6%B3%95printf-xn---lmywc--l-%E6%9C%83%E6%8A%8A%E5%AE%83%E7%95%B6%E6%AA%94%E5%90%8D%E9%82%84%E6%98%AF%E9%81%B8%E9%A0%85%E8%A6%81%E6%80%8E%E9%BA%BC%E8%AE%93-mywc-%E6%95%B8%E9%80%99%E5%80%8B%E6%AA%94%E6%A1%88%E6%83%B3%E5%85%A9%E7%A8%AE%E5%AF%AB%E6%B3%95%E4%B8%8D%E6%94%B9%E7%A8%8B%E5%BC%8Fgnu-wc-%E5%8F%A6%E5%A4%96%E6%94%AF%E6%8F%B4-wc-----l---%E6%98%AF%E4%BB%80%E9%BA%BC%E6%84%8F%E6%80%9D%E7%82%BA%E4%BB%80%E9%BA%BC%E9%9C%80%E8%A6%81%E5%AE%83%E8%B2%BC%E4%B8%8A-mywc--l--devnullmywc--lwc-----l-%E7%9A%84%E8%BC%B8%E5%87%BA%E5%81%9A%E5%AE%8C-rm--l-l-%E7%9A%84%E5%AF%AB%E6%B3%95%E5%8F%AF%E4%BB%A5%E7%94%A8%E7%AD%86%E8%A8%98%E7%AC%AC%E4%BA%8C%E7%AF%80%E8%AA%B0%E6%8A%8A-txt-%E6%8F%9B%E6%88%90%E6%AA%94%E5%90%8D%E6%8E%A8%E7%A8%8B%E5%BC%8F%E5%8F%AA%E7%9C%8B%E5%88%B0%E5%AD%97%E4%B8%B2---%E6%98%AF%E6%96%B0%E8%A7%80%E5%BF%B5%E5%85%88%E7%8C%9C">3-2. 先猜再實驗：有一個檔案的名字就叫 -l（建法：printf &#x27;x\n&#x27; &gt; ./-l）。./mywc -l 會把它當檔名還是選項？要怎麼讓 mywc 數這個檔案（想兩種寫法，不改程式）？GNU wc 另外支援 wc -- -l，-- 是什麼意思、為什麼需要它？貼上 ./mywc -l &lt; /dev/null、./mywc ./-l、wc -- -l 的輸出。做完 rm ./-l。【./-l 的寫法可以用筆記第二節〈誰把 *.txt 換成檔名〉推（程式只看到字串）；-- 是新觀念，先猜】</a></li>
+</ul>
+</nav>
+<main>
+<h1 id="s1-08寫自己的-wc-與-cat命令列參數讀到-eoferrno-錯誤處理">s1-08：寫自己的 <code>wc</code> 與 <code>cat</code>——命令列參數、讀到 <code>EOF</code>、<code>errno</code> 錯誤處理</h1>
+<blockquote>
+<p>對應課程：第 ① 站第 8 課（本站專案）<br />
+課程筆記：<a href="../../c/%E5%AF%AB%E8%87%AA%E5%B7%B1%E7%9A%84wc%E8%88%87cat-%E5%91%BD%E4%BB%A4%E5%88%97%E5%8F%83%E6%95%B8%E3%80%81%E8%AE%80%E5%88%B0EOF%E8%88%87errno%E9%8C%AF%E8%AA%A4%E8%99%95%E7%90%86.html">寫自己的wc與cat-命令列參數、讀到EOF與errno錯誤處理.html</a><br />
+自我測驗：寫在同資料夾的 <a href="quiz.html">quiz</a></p>
+</blockquote>
+<h2 id="說明">說明</h2>
+<p>這一課是第 ① 站的畢業專案：<strong>自己從零寫</strong>兩支命令列工具，<code>mycat</code> 和 <code>mywc</code>，行為要跟 GNU <code>cat</code>、<code>wc</code> 一致（範圍見每題的規格）。</p>
+<ul>
+<li>每一題一個資料夾（<code>hw1/</code>～<code>hw3/</code>），程式檔自己建。題目給的測試指令照下，<strong>輸出要貼進作答框</strong>。</li>
+<li>編譯一律用 <code>gcc -Wall -Wextra</code>，<strong>有警告就要處理</strong>，不能忽略。<code>-Wextra</code> 是在 <code>-Wall</code> 之外再多開一批警告（例如有號和無號混在一起比較、函式參數沒用到），寫命令列工具時很容易踩到。</li>
+<li>測試用的檔案都用題目裡的 <code>printf</code> 指令建（<code>.txt</code>、<code>.bin</code> 不會進 git，白名單只收原始碼與 <code>.md</code>）。</li>
+<li>筆記裡的範例（<code>args.c</code>、<code>getbytes.c</code>、<code>openfail.c</code>、<code>countch.c</code>）可以參考，但它們都只處理<strong>一個</strong>檔案或只讀 <code>stdin</code>；作業要處理多個檔案、<code>-</code>、總計、錯誤後繼續，要自己設計。</li>
+<li><strong>只能用筆記教過的函式</strong>（<code>fopen</code>、<code>fclose</code>、<code>getc</code>、<code>putc</code>、<code>printf</code>、<code>fprintf</code>、<code>perror</code>、<code>strerror</code>、<code>ferror</code>、<code>isspace</code>、<code>isprint</code>、<code>strcmp</code>），不要用 <code>fread</code>／<code>read</code> 之類一次讀一塊的寫法——這一課要練的是一個 byte 一個 byte 處理。<code>strcmp</code>（<code>&lt;string.h&gt;</code>）比較兩個字串，相等回傳 0，例如 <code>strcmp(argv[i], &quot;-&quot;) == 0</code> 判斷參數是不是 <code>-</code>。</li>
+</ul>
+<p>每題「解釋原因」的地方都標了答案的來源：</p>
+<ul>
+<li>【筆記第 X 節】：本課教過，回筆記那一節找。</li>
+<li>【新觀念，先猜】：還沒教過，寫下你的猜測就好，猜錯不算錯。</li>
+</ul>
+<p><strong>「先預測」的題目，一定要先把預測寫進作答框，再執行。</strong> 預測錯了沒關係，把錯在哪裡寫下來，這才是練習的重點。</p>
+<p><strong>實驗要跑到最後一步、貼上證據</strong>：「沒有錯誤訊息」不代表結果對，每一題都要貼上執行的輸出與 <code>exit=</code> 的值。</p>
+<p><strong>怎麼作答</strong>：每個小題下面有作答框，直接寫在裡面（把 <code>YYYY-MM-DD</code> 換成作答日期）。程式碼本身寫在 <code>hw1/</code> 等資料夾的 <code>.c</code> 檔裡，作答框貼<strong>測試的輸出</strong>與<strong>解釋</strong>。批改與參考答案寫在作答框正下方，不重答。</p>
+<hr />
+<h2 id="筆記的範例程式">筆記的範例程式</h2>
+<p>課程筆記裡每個實驗的原始碼都放在 <a href="../../../small-project/s1-08-wc-cat/examples/"><code>examples/</code></a>，一個實驗一個子資料夾，可以直接跟著筆記重做。<strong>它們是範例，不是作業</strong>；作業寫在 <code>hw1/</code>～<code>hw3/</code>，檔名跟範例不重複。</p>
+<table>
+<thead>
+<tr>
+<th>資料夾</th>
+<th>檔案</th>
+<th>筆記裡的位置</th>
+<th>示範什麼</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="../../../small-project/s1-08-wc-cat/examples/args/"><code>examples/args/</code></a></td>
+<td><a href="../../../small-project/s1-08-wc-cat/examples/args/args.c"><code>args.c</code></a></td>
+<td><a href="../../c/%E5%AF%AB%E8%87%AA%E5%B7%B1%E7%9A%84wc%E8%88%87cat-%E5%91%BD%E4%BB%A4%E5%88%97%E5%8F%83%E6%95%B8%E3%80%81%E8%AE%80%E5%88%B0EOF%E8%88%87errno%E9%8C%AF%E8%AA%A4%E8%99%95%E7%90%86.html#%E4%BA%8C%E5%91%BD%E4%BB%A4%E5%88%97%E5%8F%83%E6%95%B8argc-%E8%88%87-argv">第二節</a></td>
+<td>印出 <code>argc</code> 與每一格 <code>argv</code>；引號、萬用字元、<code>-</code>、空字串</td>
+</tr>
+<tr>
+<td><a href="../../../small-project/s1-08-wc-cat/examples/eof/"><code>examples/eof/</code></a></td>
+<td><a href="../../../small-project/s1-08-wc-cat/examples/eof/getbytes.c"><code>getbytes.c</code></a>、<a href="../../../small-project/s1-08-wc-cat/examples/eof/charbug.c"><code>charbug.c</code></a></td>
+<td><a href="../../c/%E5%AF%AB%E8%87%AA%E5%B7%B1%E7%9A%84wc%E8%88%87cat-%E5%91%BD%E4%BB%A4%E5%88%97%E5%8F%83%E6%95%B8%E3%80%81%E8%AE%80%E5%88%B0EOF%E8%88%87errno%E9%8C%AF%E8%AA%A4%E8%99%95%E7%90%86.html#%E4%B8%89%E8%AE%80%E5%88%B0-eofgetc-%E7%82%BA%E4%BB%80%E9%BA%BC%E5%9B%9E%E5%82%B3-int">第三節</a></td>
+<td>用 <code>int</code> 接 <code>getchar()</code> 數 byte；用 <code>char</code> 接時遇到 <code>0xff</code> 提早停、<code>-funsigned-char</code> 時停不下來</td>
+</tr>
+<tr>
+<td><a href="../../../small-project/s1-08-wc-cat/examples/errno/"><code>examples/errno/</code></a></td>
+<td><a href="../../../small-project/s1-08-wc-cat/examples/errno/openfail.c"><code>openfail.c</code></a>、<a href="../../../small-project/s1-08-wc-cat/examples/errno/stale.c"><code>stale.c</code></a>、<a href="../../../small-project/s1-08-wc-cat/examples/errno/errlist.c"><code>errlist.c</code></a></td>
+<td><a href="../../c/%E5%AF%AB%E8%87%AA%E5%B7%B1%E7%9A%84wc%E8%88%87cat-%E5%91%BD%E4%BB%A4%E5%88%97%E5%8F%83%E6%95%B8%E3%80%81%E8%AE%80%E5%88%B0EOF%E8%88%87errno%E9%8C%AF%E8%AA%A4%E8%99%95%E7%90%86.html#%E5%9B%9B%E9%96%8B%E6%AA%94%E8%88%87%E9%8C%AF%E8%AA%A4fopenerrnoperrorstrerror">第四節</a></td>
+<td>四種開檔結果與 <code>perror</code>；成功的呼叫不清 <code>errno</code>；印出全部 131 個錯誤碼</td>
+</tr>
+<tr>
+<td><a href="../../../small-project/s1-08-wc-cat/examples/countch/"><code>examples/countch/</code></a></td>
+<td><a href="../../../small-project/s1-08-wc-cat/examples/countch/countch.c"><code>countch.c</code></a></td>
+<td><a href="../../c/%E5%AF%AB%E8%87%AA%E5%B7%B1%E7%9A%84wc%E8%88%87cat-%E5%91%BD%E4%BB%A4%E5%88%97%E5%8F%83%E6%95%B8%E3%80%81%E8%AE%80%E5%88%B0EOF%E8%88%87errno%E9%8C%AF%E8%AA%A4%E8%99%95%E7%90%86.html#%E5%85%AD%E6%8E%A5%E8%B5%B7%E4%BE%86countch-%E8%88%87%E7%94%A8-strace-%E7%9C%8B%E5%AE%83%E5%81%9A%E4%BA%86%E5%93%AA%E4%BA%9B%E7%B3%BB%E7%B5%B1%E5%91%BC%E5%8F%AB">第六節</a></td>
+<td>一個檔案、一個字元的計數工具；<code>ferror</code>；用 <code>strace</code> 看 <code>openat</code>／<code>read</code>／<code>write</code></td>
+</tr>
+<tr>
+<td><a href="../../../small-project/s1-08-wc-cat/examples/ctype/"><code>examples/ctype/</code></a></td>
+<td><a href="../../../small-project/s1-08-wc-cat/examples/ctype/spaces.c"><code>spaces.c</code></a>、<a href="../../../small-project/s1-08-wc-cat/examples/ctype/classes.c"><code>classes.c</code></a></td>
+<td><a href="../../c/%E5%AF%AB%E8%87%AA%E5%B7%B1%E7%9A%84wc%E8%88%87cat-%E5%91%BD%E4%BB%A4%E5%88%97%E5%8F%83%E6%95%B8%E3%80%81%E8%AE%80%E5%88%B0EOF%E8%88%87errno%E9%8C%AF%E8%AA%A4%E8%99%95%E7%90%86.html#%E4%B8%83wc-%E8%88%87-cat-%E7%9A%84%E7%B2%BE%E7%A2%BA%E8%A1%8C%E7%82%BA%E4%BD%9C%E6%A5%AD%E7%9A%84%E8%A6%8F%E6%A0%BC">第七節</a>〈<code>wc</code> 數的三個數字〉</td>
+<td><code>isspace</code> 認定的 6 個空白 byte；0～255 分成空白、可印、其他三類</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="1-mycat依序原樣輸出">1. <code>mycat</code>：依序原樣輸出</h2>
+<p>在 <code>hw1/</code> 寫 <code>mycat.c</code>，編譯：<code>gcc -Wall -Wextra mycat.c -o mycat</code>。</p>
+<p><strong>規格</strong>（跟筆記<a href="../../c/%E5%AF%AB%E8%87%AA%E5%B7%B1%E7%9A%84wc%E8%88%87cat-%E5%91%BD%E4%BB%A4%E5%88%97%E5%8F%83%E6%95%B8%E3%80%81%E8%AE%80%E5%88%B0EOF%E8%88%87errno%E9%8C%AF%E8%AA%A4%E8%99%95%E7%90%86.html#%E4%B8%83wc-%E8%88%87-cat-%E7%9A%84%E7%B2%BE%E7%A2%BA%E8%A1%8C%E7%82%BA%E4%BD%9C%E6%A5%AD%E7%9A%84%E8%A6%8F%E6%A0%BC">第七節</a>〈<code>cat</code>：依序把每個檔案的 byte 原樣寫到 <code>stdout</code>〉一致）：</p>
+<ol>
+<li>依序處理每個參數；每個檔案的每個 byte <strong>原樣</strong>寫到 <code>stdout</code>，不加、不改。</li>
+<li>沒有參數時讀 <code>stdin</code>；參數是 <code>-</code> 時讀 <code>stdin</code>（<code>-</code> 可以出現在任何位置）。</li>
+<li>打不開或讀的時候出錯的檔案：印 <code>mycat: &lt;檔名&gt;: &lt;錯誤說明&gt;</code> 到 <strong><code>stderr</code></strong>（錯誤說明就是 <code>strerror(errno)</code> 的字串），<strong>繼續處理下一個</strong>。</li>
+<li>全部成功回傳 0；有任何一個失敗回傳 1。</li>
+<li>打開的檔案都要 <code>fclose</code>（<code>stdin</code> 不用關）。</li>
+</ol>
+<p>建測試檔：</p>
+<pre><code class="language-sh"><span class="nb">cd</span><span class="w"> </span>hw1
+<span class="nb">printf</span><span class="w"> </span><span class="s1">&#39;hello world\n&#39;</span><span class="w"> </span>&gt;<span class="w"> </span>one.txt
+<span class="nb">printf</span><span class="w"> </span><span class="s1">&#39;no newline at end&#39;</span><span class="w"> </span>&gt;<span class="w"> </span>nonl.txt
+<span class="nb">printf</span><span class="w"> </span><span class="s1">&#39;AB\xffCD\n&#39;</span><span class="w"> </span>&gt;<span class="w"> </span>ff.bin
+mkdir<span class="w"> </span>-p<span class="w"> </span>adir
+</code></pre>
+<h3 id="1-1-寫好-mycatc執行下面每一行貼上完整輸出含-exit再貼上同樣的指令把-mycat-換成-cat-的輸出逐行比對有沒有不一樣的地方錯誤訊息開頭的-mycatcat-不同是正常的最後一行用-cmp-確認-byte-完全一樣貼上結果筆記第七節cat依序把每個檔案的-byte-原樣寫到-stdout">1-1. 寫好 <code>mycat.c</code>，執行下面每一行，貼上<strong>完整輸出</strong>（含 <code>exit=</code>）。再貼上同樣的指令把 <code>./mycat</code> 換成 <code>cat</code> 的輸出，逐行比對有沒有不一樣的地方（錯誤訊息開頭的 <code>mycat</code>／<code>cat</code> 不同是正常的）。最後一行用 <code>cmp</code> 確認 byte 完全一樣，貼上結果。【筆記第七節〈<code>cat</code>：依序把每個檔案的 byte 原樣寫到 <code>stdout</code>〉】</h3>
+<pre><code class="language-sh">./mycat<span class="w"> </span>one.txt<span class="w"> </span>nonl.txt<span class="w"> </span>one.txt<span class="p">;</span><span class="w"> </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;exit=</span><span class="nv">$?</span><span class="s2">&quot;</span>
+./mycat<span class="w"> </span>one.txt<span class="w"> </span>nofile.txt<span class="w"> </span>one.txt<span class="p">;</span><span class="w"> </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;exit=</span><span class="nv">$?</span><span class="s2">&quot;</span>
+<span class="nb">printf</span><span class="w"> </span><span class="s1">&#39;from stdin\n&#39;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>./mycat<span class="w"> </span>one.txt<span class="w"> </span>-<span class="w"> </span>one.txt<span class="p">;</span><span class="w"> </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;exit=</span><span class="nv">$?</span><span class="s2">&quot;</span>
+<span class="nb">printf</span><span class="w"> </span><span class="s1">&#39;only stdin\n&#39;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>./mycat<span class="p">;</span><span class="w"> </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;exit=</span><span class="nv">$?</span><span class="s2">&quot;</span>
+./mycat<span class="w"> </span>adir<span class="p">;</span><span class="w"> </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;exit=</span><span class="nv">$?</span><span class="s2">&quot;</span>
+./mycat<span class="w"> </span>ff.bin<span class="w"> </span><span class="p">|</span><span class="w"> </span>od<span class="w"> </span>-c
+<span class="k">for</span><span class="w"> </span>f<span class="w"> </span><span class="k">in</span><span class="w"> </span>one.txt<span class="w"> </span>nonl.txt<span class="w"> </span>ff.bin<span class="p">;</span><span class="w"> </span><span class="k">do</span><span class="w"> </span>./mycat<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$f</span><span class="s2">&quot;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>cmp<span class="w"> </span>-<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$f</span><span class="s2">&quot;</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;</span><span class="nv">$f</span><span class="s2"> 一樣&quot;</span><span class="p">;</span><span class="w"> </span><span class="k">done</span>
+</code></pre>
+<p><strong>第 1 次（YYYY-MM-DD）</strong></p>
+<details class="answer-fold" open><summary>作答</summary>
+<div class="answer-box" data-file="small-project/s1-08-wc-cat/README.md" data-line="77"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+</details>
+<h3 id="1-2-執行-mycat-onetxt-nofiletxt--outtxt-echo-exit貼上終端機上看到的內容再貼上-cat-outtxt錯誤訊息出現在哪裡沒出現在哪裡如果規格第-3-點改成錯誤訊息印到-stdout使用者打-mycat-txt--alltxt-會遇到什麼麻煩筆記第五節結果寫-stdout錯誤寫-stderr">1-2. 執行 <code>./mycat one.txt nofile.txt &gt; out.txt; echo &quot;exit=$?&quot;</code>，貼上終端機上看到的內容，再貼上 <code>cat out.txt</code>。錯誤訊息出現在哪裡、沒出現在哪裡？如果規格第 3 點改成「錯誤訊息印到 <code>stdout</code>」，使用者打 <code>./mycat *.txt &gt; all.txt</code> 會遇到什麼麻煩？【筆記第五節〈結果寫 <code>stdout</code>，錯誤寫 <code>stderr</code>〉】</h3>
+<p><strong>第 1 次（YYYY-MM-DD）</strong></p>
+<details class="answer-fold" open><summary>作答</summary>
+<div class="answer-box" data-file="small-project/s1-08-wc-cat/README.md" data-line="83"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+</details>
+<h3 id="1-3-先預測把你程式裡接-getc-回傳值的變數暫時改成-char重新編譯執行-mycat-ffbin--od--c-echo-exit輸出會有幾個-byte是哪幾個寫下預測後再執行貼上結果與編譯有沒有警告為什麼做完改回-int筆記第三節錯誤示範用-char-接-getchar">1-3. 先預測：把你程式裡接 <code>getc</code> 回傳值的變數<strong>暫時改成 <code>char</code></strong>，重新編譯，執行 <code>./mycat ff.bin | od -c; echo &quot;exit=$?&quot;</code>。輸出會有幾個 byte、是哪幾個？寫下預測後再執行，貼上結果與編譯有沒有警告。為什麼？做完改回 <code>int</code>。【筆記第三節〈錯誤示範：用 <code>char</code> 接 <code>getchar()</code>〉】</h3>
+<p><strong>第 1 次（YYYY-MM-DD）</strong></p>
+<details class="answer-fold" open><summary>作答</summary>
+<div class="answer-box" data-file="small-project/s1-08-wc-cat/README.md" data-line="89"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+</details>
+<h3 id="1-4-先預測mycat-onetxt-nofiletxt-onetxt-21--cat-印出的三行順序會跟在終端機直接執行-mycat-onetxt-nofiletxt-onetxt-一樣嗎寫下預測後兩個都執行貼上結果為什麼一樣或不一樣筆記第五節輸出順序為什麼會變">1-4. 先預測：<code>./mycat one.txt nofile.txt one.txt 2&gt;&amp;1 | cat</code> 印出的三行，順序會跟在終端機直接執行 <code>./mycat one.txt nofile.txt one.txt</code> 一樣嗎？寫下預測後兩個都執行，貼上結果。為什麼一樣（或不一樣）？【筆記第五節〈輸出順序為什麼會變〉】</h3>
+<p><strong>第 1 次（YYYY-MM-DD）</strong></p>
+<details class="answer-fold" open><summary>作答</summary>
+<div class="answer-box" data-file="small-project/s1-08-wc-cat/README.md" data-line="95"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+</details>
+<hr />
+<h2 id="2-mywc數行字byte">2. <code>mywc</code>：數行、字、byte</h2>
+<p>在 <code>hw2/</code> 寫 <code>mywc.c</code>，編譯：<code>gcc -Wall -Wextra mywc.c -o mywc</code>。</p>
+<p><strong>規格</strong>（跟筆記<a href="../../c/%E5%AF%AB%E8%87%AA%E5%B7%B1%E7%9A%84wc%E8%88%87cat-%E5%91%BD%E4%BB%A4%E5%88%97%E5%8F%83%E6%95%B8%E3%80%81%E8%AE%80%E5%88%B0EOF%E8%88%87errno%E9%8C%AF%E8%AA%A4%E8%99%95%E7%90%86.html#%E4%B8%83wc-%E8%88%87-cat-%E7%9A%84%E7%B2%BE%E7%A2%BA%E8%A1%8C%E7%82%BA%E4%BD%9C%E6%A5%AD%E7%9A%84%E8%A6%8F%E6%A0%BC">第七節</a>〈<code>wc</code> 數的三個數字〉〈多個檔案、標準輸入、錯誤〉一致；數字要跟 <strong><code>LC_ALL=C wc</code></strong> 完全相同）：</p>
+<ol>
+<li>每個檔案印一行：<code>printf(&quot;%7ld %7ld %7ld %s\n&quot;, 行數, 字數, byte 數, 檔名)</code>。</li>
+<li><strong>行數</strong>＝ <code>\n</code> 的個數；<strong>字數</strong>＝照筆記第七節〈第三種 byte：不是空白、也不可印〉的規則：被空白（<code>isspace</code>）隔開、裡面至少有一個可印字元（<code>isprint</code>）的一段算一個字，其他 byte 不算字也不切字；<strong>byte 數</strong>＝總共幾個 byte。</li>
+<li>沒有參數時讀 <code>stdin</code>，<strong>不印檔名</strong>（<code>printf(&quot;%7ld %7ld %7ld\n&quot;, ...)</code>）；參數是 <code>-</code> 時讀 <code>stdin</code>，檔名印 <code>-</code>。</li>
+<li>兩個以上的參數時，最後多印一行總計，檔名欄印 <code>total</code>；總計不含失敗的檔案。</li>
+<li>打不開或讀的時候出錯的檔案：印 <code>mywc: &lt;檔名&gt;: &lt;錯誤說明&gt;</code> 到 <code>stderr</code>，<strong>不印</strong>那個檔案的數字，繼續處理下一個；有任何失敗就回傳 1，否則 0。</li>
+</ol>
+<p>建測試檔：</p>
+<pre><code class="language-sh"><span class="nb">cd</span><span class="w"> </span>hw2
+<span class="nb">printf</span><span class="w"> </span><span class="s1">&#39;hello world\n&#39;</span><span class="w"> </span>&gt;<span class="w"> </span>one.txt
+<span class="nb">printf</span><span class="w"> </span><span class="s1">&#39;no newline at end&#39;</span><span class="w"> </span>&gt;<span class="w"> </span>nonl.txt
+<span class="nb">printf</span><span class="w"> </span><span class="s1">&#39;  lots   of\t\tspace  \n\n\nend\n&#39;</span><span class="w"> </span>&gt;<span class="w"> </span>spaces.txt
+:<span class="w"> </span>&gt;<span class="w"> </span>empty.txt
+<span class="nb">printf</span><span class="w"> </span><span class="s1">&#39;a\r\nb c\t\n&#39;</span><span class="w"> </span>&gt;<span class="w"> </span>crlf.txt
+<span class="nb">printf</span><span class="w"> </span><span class="s1">&#39;\xe4\xb8\xad\xe6\x96\x87 \xff\xfe\n&#39;</span><span class="w"> </span>&gt;<span class="w"> </span>high.bin
+mkdir<span class="w"> </span>-p<span class="w"> </span>adir
+</code></pre>
+<h3 id="2-1-寫好-mywcc執行下面每一行貼上完整輸出含-exit再貼上把-mywc-換成-lc_allc-wc-的輸出逐行比對三個數字欄寬不同是正常的有不一樣的找出原因修好再貼最後一次的結果筆記第七節wc-數的三個數字多個檔案標準輸入錯誤">2-1. 寫好 <code>mywc.c</code>，執行下面每一行，貼上<strong>完整輸出</strong>（含 <code>exit=</code>），再貼上把 <code>./mywc</code> 換成 <code>LC_ALL=C wc</code> 的輸出，逐行比對三個數字（欄寬不同是正常的）。有不一樣的，找出原因、修好再貼最後一次的結果。【筆記第七節〈<code>wc</code> 數的三個數字〉〈多個檔案、標準輸入、錯誤〉】</h3>
+<pre><code class="language-sh"><span class="k">for</span><span class="w"> </span>f<span class="w"> </span><span class="k">in</span><span class="w"> </span>one.txt<span class="w"> </span>nonl.txt<span class="w"> </span>spaces.txt<span class="w"> </span>empty.txt<span class="w"> </span>crlf.txt<span class="w"> </span>high.bin<span class="p">;</span><span class="w"> </span><span class="k">do</span><span class="w"> </span>./mywc<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$f</span><span class="s2">&quot;</span><span class="p">;</span><span class="w"> </span><span class="k">done</span>
+./mywc<span class="w"> </span>one.txt<span class="w"> </span>nonl.txt<span class="w"> </span>spaces.txt<span class="p">;</span><span class="w"> </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;exit=</span><span class="nv">$?</span><span class="s2">&quot;</span>
+./mywc<span class="w"> </span>one.txt<span class="w"> </span>nofile.txt<span class="w"> </span>nonl.txt<span class="p">;</span><span class="w"> </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;exit=</span><span class="nv">$?</span><span class="s2">&quot;</span>
+<span class="nb">printf</span><span class="w"> </span><span class="s1">&#39;a b\nc\n&#39;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>./mywc<span class="p">;</span><span class="w"> </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;exit=</span><span class="nv">$?</span><span class="s2">&quot;</span>
+<span class="nb">printf</span><span class="w"> </span><span class="s1">&#39;a b\nc\n&#39;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>./mywc<span class="w"> </span>-<span class="w"> </span>one.txt<span class="p">;</span><span class="w"> </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;exit=</span><span class="nv">$?</span><span class="s2">&quot;</span>
+./mywc<span class="w"> </span>adir<span class="w"> </span>one.txt<span class="p">;</span><span class="w"> </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;exit=</span><span class="nv">$?</span><span class="s2">&quot;</span>
+</code></pre>
+<p><strong>第 1 次（YYYY-MM-DD）</strong></p>
+<details class="answer-fold" open><summary>作答</summary>
+<div class="answer-box" data-file="small-project/s1-08-wc-cat/README.md" data-line="137"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+</details>
+<h3 id="2-2-nonltxt-明明有一行字mywc-和-wc-的行數都是-0spacestxt-只有兩行有字行數卻是-4這兩個數字為什麼是對的如果你想讓-nonltxt-算成-1-行要多判斷什麼情況用文字說明就好不用改程式筆記第七節wc-數的三個數字最後一問是新觀念先猜">2-2. <code>nonl.txt</code> 明明有一行字，<code>mywc</code> 和 <code>wc</code> 的行數都是 0；<code>spaces.txt</code> 只有兩行有字，行數卻是 4。這兩個數字為什麼是對的？如果你想讓 <code>nonl.txt</code> 算成 1 行，要多判斷什麼情況（用文字說明就好，不用改程式）？【筆記第七節〈<code>wc</code> 數的三個數字〉；最後一問是新觀念，先猜】</h3>
+<p><strong>第 1 次（YYYY-MM-DD）</strong></p>
+<details class="answer-fold" open><summary>作答</summary>
+<div class="answer-box" data-file="small-project/s1-08-wc-cat/README.md" data-line="143"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+</details>
+<h3 id="2-3-說明你的程式怎麼數字數用-printf--a--bctndn-這-10-個-byte逐個-byte-寫出你的程式裡跟數字有關的變數怎麼變例如現在在不在一個字裡面的變數字數最後字數為什麼是-3再用-printf-ax01b-x02n-這-6-個-byte-同樣逐個走一遍字數為什麼是-1highbin-裡有-0xff0xfe-和中文的-byte你傳給-isspaceisprint-的值是什麼型別範圍是多少為什麼不能直接傳-char筆記第七節wc-數的三個數字第三種-byte第三節">2-3. 說明你的程式怎麼數字數：用 <code>printf ' a  bc\t\nd\n'</code> 這 10 個 byte，逐個 byte 寫出你的程式裡跟數字有關的變數怎麼變（例如「現在在不在一個字裡面」的變數、字數），最後字數為什麼是 3。再用 <code>printf 'a\x01b \x02\n'</code> 這 6 個 byte 同樣逐個走一遍，字數為什麼是 1？<code>high.bin</code> 裡有 <code>0xff</code>、<code>0xfe</code> 和中文的 byte，你傳給 <code>isspace</code>／<code>isprint</code> 的值是什麼型別、範圍是多少？為什麼不能直接傳 <code>char</code>？【筆記第七節〈<code>wc</code> 數的三個數字〉〈第三種 byte〉、第三節】</h3>
+<p><strong>第 1 次（YYYY-MM-DD）</strong></p>
+<details class="answer-fold" open><summary>作答</summary>
+<div class="answer-box" data-file="small-project/s1-08-wc-cat/README.md" data-line="149"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+</details>
+<h3 id="2-4-先預測printf-axc2xa0bn-這-5-個-byte-分別給-mywcwclc_allc-wc字數各是多少寫下預測後執行貼上三個結果你的-mywc-跟哪一個一樣為什麼筆記第七節語系locale的例外">2-4. 先預測：<code>printf 'a\xc2\xa0b\n'</code> 這 5 個 byte 分別給 <code>./mywc</code>、<code>wc</code>、<code>LC_ALL=C wc</code>，字數各是多少？寫下預測後執行，貼上三個結果。你的 <code>mywc</code> 跟哪一個一樣？為什麼？【筆記第七節〈語系（locale）的例外〉】</h3>
+<p><strong>第 1 次（YYYY-MM-DD）</strong></p>
+<details class="answer-fold" open><summary>作答</summary>
+<div class="answer-box" data-file="small-project/s1-08-wc-cat/README.md" data-line="155"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+</details>
+<hr />
+<h2 id="3-替-mywc-加上--l-w-c">3. 替 <code>mywc</code> 加上 <code>-l</code>、<code>-w</code>、<code>-c</code></h2>
+<p>把 <code>hw2/mywc.c</code> 複製到 <code>hw3/mywc.c</code> 再改，編譯：<code>gcc -Wall -Wextra mywc.c -o mywc</code>。</p>
+<p><strong>規格</strong>（加在第 2 題的規格上；跟筆記<a href="../../c/%E5%AF%AB%E8%87%AA%E5%B7%B1%E7%9A%84wc%E8%88%87cat-%E5%91%BD%E4%BB%A4%E5%88%97%E5%8F%83%E6%95%B8%E3%80%81%E8%AE%80%E5%88%B0EOF%E8%88%87errno%E9%8C%AF%E8%AA%A4%E8%99%95%E7%90%86.html#%E4%B8%83wc-%E8%88%87-cat-%E7%9A%84%E7%B2%BE%E7%A2%BA%E8%A1%8C%E7%82%BA%E4%BD%9C%E6%A5%AD%E7%9A%84%E8%A6%8F%E6%A0%BC">第七節</a>〈<code>wc</code> 的全部選項〉一致）：</p>
+<ol>
+<li>選項寫在檔名前面：從 <code>argv[1]</code> 開始，開頭是 <code>-</code>、而且不只一個字元的參數是選項；遇到第一個不是選項的參數（或單獨的 <code>-</code>）就開始是檔名。</li>
+<li>認得 <code>-l</code>、<code>-w</code>、<code>-c</code>，可以分開寫（<code>-l -w</code>）也可以合起來（<code>-lw</code>、<code>-wcl</code>）。</li>
+<li>有給選項時只印選了的欄，<strong>順序固定是行、字、byte</strong>，跟選項寫的順序無關；沒給任何選項時三欄都印。每欄都用 <code>%7ld</code>，欄與欄之間一個空格，最後是檔名（讀 <code>stdin</code> 沒有檔名時不印）。</li>
+<li>不認得的選項（例如 <code>-x</code>）：印 <code>mywc: invalid option -- 'x'</code> 到 <code>stderr</code>，<strong>什麼檔案都不處理</strong>，回傳 1（跟 GNU <code>wc</code> 一樣）。</li>
+</ol>
+<h3 id="3-1-寫好之後執行下面每一行貼上完整輸出並跟-lc_allc-wc-的同一行比對數字與欄的順序筆記第七節wc-的全部選項選項怎麼從-argv-拆出來是你自己的設計用到第二節的-argvij">3-1. 寫好之後執行下面每一行，貼上完整輸出，並跟 <code>LC_ALL=C wc</code> 的同一行比對數字與欄的順序。【筆記第七節〈<code>wc</code> 的全部選項〉；選項怎麼從 <code>argv</code> 拆出來是你自己的設計，用到第二節的 <code>argv[i][j]</code>】</h3>
+<pre><code class="language-sh">cp<span class="w"> </span>../hw2/*.txt<span class="w"> </span>.
+./mywc<span class="w"> </span>-l<span class="w"> </span>one.txt<span class="w"> </span>spaces.txt<span class="p">;</span><span class="w"> </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;exit=</span><span class="nv">$?</span><span class="s2">&quot;</span>
+./mywc<span class="w"> </span>-w<span class="w"> </span>-l<span class="w"> </span>one.txt<span class="p">;</span><span class="w"> </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;exit=</span><span class="nv">$?</span><span class="s2">&quot;</span>
+./mywc<span class="w"> </span>-cl<span class="w"> </span>one.txt<span class="p">;</span><span class="w"> </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;exit=</span><span class="nv">$?</span><span class="s2">&quot;</span>
+./mywc<span class="w"> </span>-wcl<span class="w"> </span>spaces.txt<span class="p">;</span><span class="w"> </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;exit=</span><span class="nv">$?</span><span class="s2">&quot;</span>
+<span class="nb">printf</span><span class="w"> </span><span class="s1">&#39;a b\nc\n&#39;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>./mywc<span class="w"> </span>-c<span class="p">;</span><span class="w"> </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;exit=</span><span class="nv">$?</span><span class="s2">&quot;</span>
+<span class="nb">printf</span><span class="w"> </span><span class="s1">&#39;a b\nc\n&#39;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>./mywc<span class="w"> </span>-w<span class="w"> </span>-<span class="p">;</span><span class="w"> </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;exit=</span><span class="nv">$?</span><span class="s2">&quot;</span>
+./mywc<span class="w"> </span>-x<span class="w"> </span>one.txt<span class="p">;</span><span class="w"> </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;exit=</span><span class="nv">$?</span><span class="s2">&quot;</span>
+./mywc<span class="w"> </span>-l<span class="w"> </span>nofile.txt<span class="w"> </span>one.txt<span class="p">;</span><span class="w"> </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;exit=</span><span class="nv">$?</span><span class="s2">&quot;</span>
+</code></pre>
+<p><strong>第 1 次（YYYY-MM-DD）</strong></p>
+<details class="answer-fold" open><summary>作答</summary>
+<div class="answer-box" data-file="small-project/s1-08-wc-cat/README.md" data-line="186"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+</details>
+<h3 id="3-2-先猜再實驗有一個檔案的名字就叫--l建法printf-xn---lmywc--l-會把它當檔名還是選項要怎麼讓-mywc-數這個檔案想兩種寫法不改程式gnu-wc-另外支援-wc-----l---是什麼意思為什麼需要它貼上-mywc--l--devnullmywc--lwc-----l-的輸出做完-rm--l-l-的寫法可以用筆記第二節誰把-txt-換成檔名推程式只看到字串---是新觀念先猜">3-2. 先猜再實驗：有一個檔案的名字就叫 <code>-l</code>（建法：<code>printf 'x\n' &gt; ./-l</code>）。<code>./mywc -l</code> 會把它當檔名還是選項？要怎麼讓 <code>mywc</code> 數這個檔案（想兩種寫法，不改程式）？GNU <code>wc</code> 另外支援 <code>wc -- -l</code>，<code>--</code> 是什麼意思、為什麼需要它？貼上 <code>./mywc -l &lt; /dev/null</code>、<code>./mywc ./-l</code>、<code>wc -- -l</code> 的輸出。做完 <code>rm ./-l</code>。【<code>./-l</code> 的寫法可以用筆記第二節〈誰把 <code>*.txt</code> 換成檔名〉推（程式只看到字串）；<code>--</code> 是新觀念，先猜】</h3>
+<p><strong>第 1 次（YYYY-MM-DD）</strong></p>
+<details class="answer-fold" open><summary>作答</summary>
+<div class="answer-box" data-file="small-project/s1-08-wc-cat/README.md" data-line="192"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+</details>
+
+</main>
+</div>
+</body>
+</html>
