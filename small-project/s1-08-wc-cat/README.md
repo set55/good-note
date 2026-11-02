@@ -8,11 +8,11 @@
 
 這一課是第 ① 站的畢業專案：**自己從零寫**兩支命令列工具，`mycat` 和 `mywc`，行為要跟 GNU `cat`、`wc` 一致（範圍見每題的規格）。
 
-- 每一題一個資料夾（`hw1/`～`hw3/`），程式檔自己建。題目給的測試指令照下，**輸出要貼進作答框**。
+- 每一題一個資料夾（`hw1/`～`hw4/`），程式檔自己建。題目給的測試指令照下，**輸出要貼進作答框**。
 - 編譯一律用 `gcc -Wall -Wextra`，**有警告就要處理**，不能忽略。`-Wextra` 是在 `-Wall` 之外再多開一批警告（例如有號和無號混在一起比較、函式參數沒用到），寫命令列工具時很容易踩到。
 - 測試用的檔案都用題目裡的 `printf` 指令建（`.txt`、`.bin` 不會進 git，白名單只收原始碼與 `.md`）。
 - 筆記裡的範例（`args.c`、`getbytes.c`、`openfail.c`、`countch.c`）可以參考，但它們都只處理**一個**檔案或只讀 `stdin`；作業要處理多個檔案、`-`、總計、錯誤後繼續，要自己設計。
-- **只能用筆記教過的函式**（`fopen`、`fclose`、`getc`、`putc`、`printf`、`fprintf`、`perror`、`strerror`、`ferror`、`isspace`、`isprint`、`strcmp`），不要用 `fread`／`read` 之類一次讀一塊的寫法——這一課要練的是一個 byte 一個 byte 處理。`strcmp`（`<string.h>`）比較兩個字串，相等回傳 0，例如 `strcmp(argv[i], "-") == 0` 判斷參數是不是 `-`。
+- **只能用筆記教過的函式**（`fopen`、`fclose`、`getc`、`putc`、`printf`、`fprintf`、`perror`、`strerror`、`ferror`、`isspace`、`isprint`、`strcmp`），不要用 `fread`／`read` 之類一次讀一塊的寫法——這一課要練的是一個 byte 一個 byte 處理。`strcmp`（`<string.h>`）比較兩個字串，相等回傳 0，例如 `strcmp(argv[i], "-") == 0` 判斷參數是不是 `-`。第 4 題另外可以用 `strtol`／`strtof`／`strtod`（題目裡有說明），而且它處理的是命令列參數、不讀檔案。
 
 每題「解釋原因」的地方都標了答案的來源：
 - 【筆記第 X 節】：本課教過，回筆記那一節找。
@@ -28,7 +28,7 @@
 
 ## 筆記的範例程式
 
-課程筆記裡每個實驗的原始碼都放在 [`examples/`](./examples/)，一個實驗一個子資料夾，可以直接跟著筆記重做。**它們是範例，不是作業**；作業寫在 `hw1/`～`hw3/`，檔名跟範例不重複。
+課程筆記裡每個實驗的原始碼都放在 [`examples/`](./examples/)，一個實驗一個子資料夾，可以直接跟著筆記重做。**它們是範例，不是作業**；作業寫在 `hw1/`～`hw4/`，檔名跟範例不重複。
 
 | 資料夾 | 檔案 | 筆記裡的位置 | 示範什麼 |
 |---|---|---|---|
@@ -188,6 +188,105 @@ printf 'a b\nc\n' | ./mywc -w -; echo "exit=$?"
 ```
 
 ### 3-2. 先猜再實驗：有一個檔案的名字就叫 `-l`（建法：`printf 'x\n' > ./-l`）。`./mywc -l` 會把它當檔名還是選項？要怎麼讓 `mywc` 數這個檔案（想兩種寫法，不改程式）？GNU `wc` 另外支援 `wc -- -l`，`--` 是什麼意思、為什麼需要它？貼上 `./mywc -l < /dev/null`、`./mywc ./-l`、`wc -- -l` 的輸出。做完 `rm ./-l`。【`./-l` 的寫法可以用筆記第二節〈誰把 `*.txt` 換成檔名〉推（程式只看到字串）；`--` 是新觀念，先猜】
+
+**第 1 次（YYYY-MM-DD）**
+```
+```
+
+---
+
+## 4. `tohex`：把數值在記憶體裡的 byte 印成十六進位（2026-11-02 使用者要求追加）
+
+在 `hw4/` 寫 `tohex.c`，編譯：`gcc -Wall -Wextra tohex.c -o tohex`。
+
+這支工具把命令列給的數值，照指定的 C 型別存進一個變數，再把**那個變數在記憶體裡的每一個 byte** 印出來——就是你在 [第 2 課第二節](../../html/c/C的資料在記憶體裡長怎樣-位元組、指標、位元組順序與有號無號.html#二指標就是位址) 用 `(unsigned char *)&x` 一個 byte 一個 byte 看 `int` 的做法，做成一支能處理六種型別、會檢查輸入的命令列工具。`float`、`double` 的 byte 為什麼長那樣（IEEE 754）還沒教，這題**不需要**懂它，只要把 byte 原樣印出來；對答案用 11-02 學的 `python3 -c "import struct; …"`。
+
+**用法**：`./tohex <型別> <值>...`——第一個參數是型別，後面可以接一個以上的值，全部當成同一種型別。
+
+**規格**：
+
+1. **型別**只認 `char`、`short`、`int`、`long`、`float`、`double` 六個（用 `strcmp` 比）。少於兩個參數（沒給型別或沒給任何值），或型別不認得：印 `usage: tohex char|short|int|long|float|double VALUE...` 到 `stderr`，**什麼都不處理**，回傳 1（跟第 3 題不認得的選項一樣）。
+2. **每個值**依序處理，成功的印三行到 `stdout`：
+   ```text
+   <型別> <使用者打的原字串> (<sizeof 的值> bytes)
+     memory: <從低位址到高位址，每個 byte 兩位小寫十六進位，用一個空格隔開>
+     value:  0x<從高位址到低位址，每個 byte 兩位，連在一起>
+   ```
+   例如 `./tohex short 258` 印（258 ＝ `0x0102`）：
+   ```text
+   short 258 (2 bytes)
+     memory: 02 01
+     value:  0x0102
+   ```
+3. **兩行十六進位都要從 byte 印出來**：把值存進該型別的變數 `x` 之後，用 `unsigned char *` 指向 `&x`，一個 byte 一個 byte 讀。`memory` 從第 0 個往後印，`value` 從最後一個往前印。**不可以**對 `x` 本身用 `%x`／`%lx`（`float`、`double` 也沒辦法這樣印）。把「印 `n` 個 byte」寫成**一個函式**，六種型別共用（參數怎麼設計自己想，提示：第 2 課的 `(unsigned char *)&x` 與 `sizeof`）。
+4. **怎麼把字串轉成數值**：
+   - `char`：參數必須**剛好是一個 byte**（例如 `A`），就存那個 byte；空字串或超過一個 byte 都是錯（判斷方式：用第 8 課第二節的 `argv[i][j]`，不要用 `strlen`）。
+   - `short`、`int`、`long`：用 `strtol`（見下方說明）以十進位轉成 `long`；`short`、`int` 再檢查有沒有超出該型別的範圍（`<limits.h>` 的 `SHRT_MIN`／`SHRT_MAX`、`INT_MIN`／`INT_MAX`），沒超出才存進 `short`／`int` 變數。
+   - `float` 用 `strtof`，`double` 用 `strtod`。
+5. **錯誤**（印到 `stderr`，**繼續處理下一個值**，最後回傳 1；全部成功回傳 0）：
+   - 不是合法的數字（一個數字都沒轉到，或數字後面還有別的字元）：`tohex: '<原字串>': not a valid <型別>`
+   - 超出範圍：`tohex: '<原字串>': out of range for <型別>`
+   - `char` 不是剛好一個 byte：`tohex: '<原字串>': char needs exactly one byte`
+
+**本題可以用的新函式**（`<stdlib.h>`，課程還沒教，這裡先說明；完整說明見 `man 3 strtol`、`man 3 strtod`）：
+
+| 函式 | 做什麼 |
+|---|---|
+| `long strtol(const char *s, char **end, int base)` | 把字串 `s` 開頭的整數轉成 `long`，`base` 是進位（這題固定給 `10`） |
+| `float strtof(const char *s, char **end)` | 轉成 `float` |
+| `double strtod(const char *s, char **end)` | 轉成 `double` |
+
+三個函式的共同規則：
+
+- **開頭的空白會先跳過**，接著盡量讀出一個數字，**讀到不能再讀的地方就停**，把停下來的位置存進 `*end`（所以要傳一個 `char *` 變數的位址進去）。例如 `s` 是 `"12abc"`，回傳 12，`end` 指向 `'a'`。
+- **一個數字都沒讀到**時回傳 0，`end` 等於 `s`。所以「`end == s`」代表沒有數字，「`*end != '\0'`」代表數字後面還有東西。
+- **超出範圍**時把 `errno` 設成 `ERANGE`（`<errno.h>`）並回傳一個極端值；**成功時不會把 `errno` 清成 0**。
+- `strtod`／`strtof` 也認得 `1e3`（科學記號）、`inf`、`nan` 這種寫法。
+
+**也可以用** `<limits.h>`、`<errno.h>`；其他沒列的函式（`atoi`、`sscanf`、`memcpy`、`strlen`…）不要用。
+
+### 4-1. 寫好之後執行下面每一行，貼上**完整輸出**（含 `exit=`）。再用最後兩行的 Python 指令印出 `float`／`double` 的 9 和 0.1，跟你的 `memory` 行逐 byte 比對。【規格；`strtol` 等的用法見上方說明】
+
+```sh
+cd hw4
+./tohex int 300 -1; echo "exit=$?"
+./tohex short -1 32767 32768; echo "exit=$?"
+./tohex long -1 9223372036854775808; echo "exit=$?"
+./tohex int 12abc '' 2147483648 7; echo "exit=$?"
+./tohex char A é ''; echo "exit=$?"
+./tohex float 9 0.1 1e39; echo "exit=$?"
+./tohex double 9 0.1 1e309; echo "exit=$?"
+./tohex byte 1; echo "exit=$?"
+./tohex int; echo "exit=$?"
+python3 -c "import struct; print(struct.pack('<f', 9.0).hex(' '), '|', struct.pack('<f', 0.1).hex(' '))"
+python3 -c "import struct; print(struct.pack('<d', 9.0).hex(' '), '|', struct.pack('<d', 0.1).hex(' '))"
+```
+
+（`struct.pack('<f', 數字)` 照 C 的 `float`、小端序轉成 byte，`'<d'` 是 `double`；`.hex(' ')` 印成用空格隔開的十六進位，跟 `memory` 行同一個順序。）
+
+**第 1 次（YYYY-MM-DD）**
+```
+```
+
+### 4-2. 用 4-1 的輸出回答：`int 300` 的 `memory` 和 `value` 兩行，為什麼 byte 的順序剛好相反？哪一行才是 `300` 寫成十六進位的樣子？`short -1`、`int -1`、`long -1` 的 byte 為什麼全是 `ff`，三者差在哪？【第 2 課[第三節〈位元組順序（endianness）〉](../../html/c/C的資料在記憶體裡長怎樣-位元組、指標、位元組順序與有號無號.html#三位元組順序endianness)、[第五節〈有號整數：二補數〉](../../html/c/C的資料在記憶體裡長怎樣-位元組、指標、位元組順序與有號無號.html#五有號整數二補數)】
+
+**第 1 次（YYYY-MM-DD）**
+```
+```
+
+### 4-3. 先預測：把你程式裡「呼叫 `strtol` 之前把 `errno` 設成 0」那一行**暫時刪掉**（如果你沒寫這行，就是現在的樣子），執行 `./tohex long 99999999999999999999 5; echo "exit=$?"`。`5` 會被當成什麼？寫下預測再執行，貼上結果並解釋，做完改回來。【筆記[第四節〈實驗：成功的呼叫不會把 `errno` 清成 0〉](../../html/c/寫自己的wc與cat-命令列參數、讀到EOF與errno錯誤處理.html#實驗成功的呼叫不會把-errno-清成-0)，加上方 `strtol` 的說明】
+
+**第 1 次（YYYY-MM-DD）**
+```
+```
+
+### 4-4. `./tohex char é` 為什麼是錯誤、不是印出一個 byte？`é` 實際上是幾個 byte、哪幾個（用 `printf 'é' | od -An -tx1` 查）？如果規格改成「`char` 只看參數的第一個 byte」，印出來的 `char` 用 `%d` 印會是正數還是負數？【[字元筆記第四節〈中文字：一個 byte 裝不下，UTF-8 用 3 個 byte〉](../../html/c/字元是什麼-char就是1byte的整數與ASCII和UTF-8.html#四中文字一個-byte-裝不下utf-8-用-3-個-byte)與〈跟第 2 課的連結：`char` 有號，讀到中文會變負數〉】
+
+**第 1 次（YYYY-MM-DD）**
+```
+```
+
+### 4-5. 先猜再實驗：執行 `./tohex int ' 7' '7 ' +7 010; echo "exit=$?"`，哪幾個成功、哪幾個失敗？`010` 變成多少？再執行 `./tohex int 9; ./tohex float 9; ./tohex double 9`，三個都是「9」，byte 卻完全不像——不只是長度不同，`float 9` 的 byte 裡根本沒有 `09`。你猜 `float`／`double` 是怎麼存數字的？【前兩問用上方 `strtol` 的說明推；最後一問是新觀念，先猜（浮點數的表示法 IEEE 754 之後補課）】
 
 **第 1 次（YYYY-MM-DD）**
 ```

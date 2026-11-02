@@ -3288,7 +3288,7 @@ gcc -O1 -fPIC addr.c -o picexe && ./picexe   # -fPIC 拿去編執行檔
    > 2. 命令列上直接寫的 `.o` 一律整個放進輸出檔，不管有沒有人用；只有封存檔裡的成員才是「有人需要才拉」。
    >
    > 詳細說明：本機實測：`nm app2` 四個函式都在；`app` 16136 byte、`app2` 16240 byte。
-2. 承上題的檔案，`gcc -Wall -L. -ltxt main.c -o app` 會失敗，錯誤訊息是 `undefined reference to 'trim'`。用 `ld` 處理輸入檔的方式解釋為什麼。這個錯誤跟 `cannot find -ltxt` 差在哪（各是什麼東西找不到）？在 Ubuntu 上把 `libtxt.a` 換成 `libtxt.so`、命令一樣寫成 `-L. -ltxt main.c`，也會失敗，原因是什麼？
+2. 承上題的檔案，`gcc -Wall -L. -ltxt main.c -o app` 會失敗，錯誤訊息是 `undefined reference to 'trim'`。用 `ld` 處理輸入檔的方式解釋為什麼。這個錯誤跟 `cannot find -ltxt` 差在哪（各是什麼東西找不到）？`cannot find -ltxt` 可以這樣產生：同樣的檔案，指令改成漏掉 `-L.` 的 `gcc -Wall main.c -ltxt -o app`。在 Ubuntu 上把 `libtxt.a` 換成 `libtxt.so`、命令一樣寫成 `-L. -ltxt main.c`，也會失敗，原因是什麼？
    > **參考答案**（核心關鍵＋詳細說明）
    >
    > **2-1**【[第二節](../html/c/靜態與動態函式庫-ar與.a、-fPIC與.so、執行時怎麼找到.so.html#順序ld-由左往右只掃一次)〈順序：`ld` 由左往右只掃一次〉】核心關鍵：
@@ -3357,10 +3357,10 @@ gcc -O1 -fPIC addr.c -o picexe && ./picexe   # -fPIC 拿去編執行檔
    >
    > **4-2**【[第五節](../html/c/靜態與動態函式庫-ar與.a、-fPIC與.so、執行時怎麼找到.so.html#方法二-wl-rpath把路徑寫進執行檔)〈方法二：`-Wl,-rpath`——把路徑寫進執行檔〉】核心關鍵：
    >
-   > 1. `gcc main.c -Llib -lfoo -Wl,-rpath,'$ORIGIN/lib' -o app`：把 `$ORIGIN/lib` 寫進執行檔的 `RUNPATH`，`ld.so` 執行時把 `$ORIGIN` 換成執行檔所在的目錄。
-   > 2. `$ORIGIN` 不是 shell 變數，要**原封不動**寫進執行檔給 `ld.so` 換；不用單引號（包括用雙引號）時 shell 會先把 `$ORIGIN` 換成空字串，寫進去的就變成 `/lib`。
+   > 1. `gcc main.c -Llib -lfoo -Wl,-rpath,'$ORIGIN/lib' -o app`：把 `$ORIGIN/lib` 寫進執行檔的 `RUNPATH`。
+   > 2. 要讓 `$ORIGIN` **原封不動**寫進執行檔；不用單引號（包括用雙引號）時 shell 會先把 `$ORIGIN` 換成空字串，寫進去的就變成 `/lib`。
    >
-   > 詳細說明：單引號裡 shell 什麼都不展開；一定要用雙引號時寫成 `"\$ORIGIN/lib"`。用 `readelf -d app | grep RUNPATH` 檢查實際寫進去的是什麼。只要 `app` 和 `lib/` 的相對位置不變，解壓到哪裡都找得到。
+   > 詳細說明：為什麼要字面保留：`$ORIGIN` 不是給 shell 的變數，而是 `ld.so` 認得的記號，**執行時 `ld.so` 把它換成執行檔所在的目錄**——這是解壓到哪都能跑的原因（2026-11-02 從核心關鍵移到這裡：題目沒有直接問）。單引號裡 shell 什麼都不展開；一定要用雙引號時寫成 `"\$ORIGIN/lib"`。用 `readelf -d app | grep RUNPATH` 檢查實際寫進去的是什麼。只要 `app` 和 `lib/` 的相對位置不變，解壓到哪裡都找得到。
    >
    > **4-3**【[第五節](../html/c/靜態與動態函式庫-ar與.a、-fPIC與.so、執行時怎麼找到.so.html#rpath-和-runpath-差在哪跟-ld_library_path-誰優先)〈`RPATH` 和 `RUNPATH` 差在哪：跟 `LD_LIBRARY_PATH` 誰優先〉、[第五節](../html/c/靜態與動態函式庫-ar與.a、-fPIC與.so、執行時怎麼找到.so.html#ldso-去了哪些地方找)〈`ld.so` 去了哪些地方找〉】核心關鍵：
    >
@@ -3783,7 +3783,7 @@ gcc -O1 -fPIC addr.c -o picexe && ./picexe   # -fPIC 拿去編執行檔
     > 1. 執行時 `ld.so` 印警告 `Symbol 'level' has different size in shared object, consider re-linking`，程式照樣跑。
     > 2. 原因：執行檔 `.bss` 留給 `level` 的大小（4 byte）是**連結時**照當時的 `.so` 決定的；現在 `.so` 裡的 `level` 是 8 byte，大小對不上，要重新連結。
     >
-    > 詳細說明：本機實測（`cfg.c` 改成 `long level = 3;` 重做 `libcfg.so`，`setlevel` 不動）：先印那行警告，接著照樣印 `一開始 level = 3`、`get_level() = 7`。印對是運氣：`get_level()` 經過 GOT 到執行檔那格讀 8 byte，多讀的 4 byte 是執行檔 `.bss` 裡 `level` 後面的空間，剛好是 0；值一大、或後面放了別的變數，就會讀寫到別人。這是函式庫通常**不直接給外面用全域變數、而是提供函式**（`get_level()`）的原因之一：函式走 PLT，執行檔不必知道它的大小。
+    > 詳細說明：本機實測（`cfg.c` 改成 `long level = 3;` 重做 `libcfg.so`，`setlevel` 不動）：先印那行警告，接著照樣印 `一開始 level = 3`、`get_level() = 7`。印對是運氣：`COPY` 只複製兩邊較小的 4 byte（2026-11-02 實測：`.so` 初值 `0x500000003` 時執行檔那格是 `03 00 00 00 00 00 00 00`、`get_level()` 回傳 `0x3`）；`get_level()` 經過 GOT 到執行檔那格讀 8 byte，多讀的 4 byte 是執行檔 `.bss` 裡 `level` 後面的空間，剛好是 0；初值超過 4 byte、或後面放了別的變數，就會讀錯、寫到別人。這是函式庫通常**不直接給外面用全域變數、而是提供函式**（`get_level()`）的原因之一：函式走 PLT，執行檔不必知道它的大小。
 12. （2026-10-26 提問延伸）`libtemp.so` 的宣告放在 `include/temp.h`（裡面還定義了巨集 `FREEZING_C`），做好的 `libtemp.so` 放在 `lib/`。(1) `gcc -Wall main.c -Llib -ltemp -o app` 會失敗在哪個階段（前處理、編譯、連結、執行）？錯誤大概長怎樣、要補什麼？(2) `gcc -Wall -Iinclude main.c -Llib -o app` 呢？(3) 同事說「`FREEZING_C` 的值存在 `libtemp.so` 裡，執行時才讀進來」，對嗎？為什麼？(4) 編好的 `app`（連結時加了 `-Wl,-rpath,'$ORIGIN/lib'`）要拿給別人執行，`include/temp.h` 要一起給嗎？`lib/libtemp.so` 呢？
    ```c
    /* include/temp.h */

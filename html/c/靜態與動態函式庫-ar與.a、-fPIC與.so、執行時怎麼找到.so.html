@@ -3783,7 +3783,7 @@ gcc<span class="w"> </span>-O1<span class="w"> </span>-fPIC<span class="w"> </sp
 <p>詳細說明：本機實測：<code>nm app2</code> 四個函式都在；<code>app</code> 16136 byte、<code>app2</code> 16240 byte。</p>
 </details>
 </li>
-<li>承上題的檔案，<code>gcc -Wall -L. -ltxt main.c -o app</code> 會失敗，錯誤訊息是 <code>undefined reference to 'trim'</code>。用 <code>ld</code> 處理輸入檔的方式解釋為什麼。這個錯誤跟 <code>cannot find -ltxt</code> 差在哪（各是什麼東西找不到）？在 Ubuntu 上把 <code>libtxt.a</code> 換成 <code>libtxt.so</code>、命令一樣寫成 <code>-L. -ltxt main.c</code>，也會失敗，原因是什麼？<details class="answer"><summary>參考答案</summary>
+<li>承上題的檔案，<code>gcc -Wall -L. -ltxt main.c -o app</code> 會失敗，錯誤訊息是 <code>undefined reference to 'trim'</code>。用 <code>ld</code> 處理輸入檔的方式解釋為什麼。這個錯誤跟 <code>cannot find -ltxt</code> 差在哪（各是什麼東西找不到）？<code>cannot find -ltxt</code> 可以這樣產生：同樣的檔案，指令改成漏掉 <code>-L.</code> 的 <code>gcc -Wall main.c -ltxt -o app</code>。在 Ubuntu 上把 <code>libtxt.a</code> 換成 <code>libtxt.so</code>、命令一樣寫成 <code>-L. -ltxt main.c</code>，也會失敗，原因是什麼？<details class="answer"><summary>參考答案</summary>
 <p>（核心關鍵＋詳細說明）</p>
 <p><strong>2-1</strong>【<a href="#%E9%A0%86%E5%BA%8Fld-%E7%94%B1%E5%B7%A6%E5%BE%80%E5%8F%B3%E5%8F%AA%E6%8E%83%E4%B8%80%E6%AC%A1">第二節</a>〈順序：<code>ld</code> 由左往右只掃一次〉】核心關鍵：</p>
 <ol>
@@ -3846,10 +3846,10 @@ gcc<span class="w"> </span>-O1<span class="w"> </span>-fPIC<span class="w"> </sp
 <p>詳細說明：<code>LD_DEBUG=libs ./app</code> 會印出它試過的每個路徑，最後放棄。</p>
 <p><strong>4-2</strong>【<a href="#%E6%96%B9%E6%B3%95%E4%BA%8C-wl-rpath%E6%8A%8A%E8%B7%AF%E5%BE%91%E5%AF%AB%E9%80%B2%E5%9F%B7%E8%A1%8C%E6%AA%94">第五節</a>〈方法二：<code>-Wl,-rpath</code>——把路徑寫進執行檔〉】核心關鍵：</p>
 <ol>
-<li><code>gcc main.c -Llib -lfoo -Wl,-rpath,'$ORIGIN/lib' -o app</code>：把 <code>$ORIGIN/lib</code> 寫進執行檔的 <code>RUNPATH</code>，<code>ld.so</code> 執行時把 <code>$ORIGIN</code> 換成執行檔所在的目錄。</li>
-<li><code>$ORIGIN</code> 不是 shell 變數，要<strong>原封不動</strong>寫進執行檔給 <code>ld.so</code> 換；不用單引號（包括用雙引號）時 shell 會先把 <code>$ORIGIN</code> 換成空字串，寫進去的就變成 <code>/lib</code>。</li>
+<li><code>gcc main.c -Llib -lfoo -Wl,-rpath,'$ORIGIN/lib' -o app</code>：把 <code>$ORIGIN/lib</code> 寫進執行檔的 <code>RUNPATH</code>。</li>
+<li>要讓 <code>$ORIGIN</code> <strong>原封不動</strong>寫進執行檔；不用單引號（包括用雙引號）時 shell 會先把 <code>$ORIGIN</code> 換成空字串，寫進去的就變成 <code>/lib</code>。</li>
 </ol>
-<p>詳細說明：單引號裡 shell 什麼都不展開；一定要用雙引號時寫成 <code>&quot;\$ORIGIN/lib&quot;</code>。用 <code>readelf -d app | grep RUNPATH</code> 檢查實際寫進去的是什麼。只要 <code>app</code> 和 <code>lib/</code> 的相對位置不變，解壓到哪裡都找得到。</p>
+<p>詳細說明：為什麼要字面保留：<code>$ORIGIN</code> 不是給 shell 的變數，而是 <code>ld.so</code> 認得的記號，<strong>執行時 <code>ld.so</code> 把它換成執行檔所在的目錄</strong>——這是解壓到哪都能跑的原因（2026-11-02 從核心關鍵移到這裡：題目沒有直接問）。單引號裡 shell 什麼都不展開；一定要用雙引號時寫成 <code>&quot;\$ORIGIN/lib&quot;</code>。用 <code>readelf -d app | grep RUNPATH</code> 檢查實際寫進去的是什麼。只要 <code>app</code> 和 <code>lib/</code> 的相對位置不變，解壓到哪裡都找得到。</p>
 <p><strong>4-3</strong>【<a href="#rpath-%E5%92%8C-runpath-%E5%B7%AE%E5%9C%A8%E5%93%AA%E8%B7%9F-ld_library_path-%E8%AA%B0%E5%84%AA%E5%85%88">第五節</a>〈<code>RPATH</code> 和 <code>RUNPATH</code> 差在哪：跟 <code>LD_LIBRARY_PATH</code> 誰優先〉、<a href="#ldso-%E5%8E%BB%E4%BA%86%E5%93%AA%E4%BA%9B%E5%9C%B0%E6%96%B9%E6%89%BE">第五節</a>〈<code>ld.so</code> 去了哪些地方找〉】核心關鍵：</p>
 <ol>
 <li><code>RUNPATH</code> 換得掉：<code>ld.so</code> 的搜尋順序裡 <code>LD_LIBRARY_PATH</code>（第 2 步）排在 <code>RUNPATH</code>（第 3 步）前面，先找到同事自己的版本。</li>
@@ -4245,7 +4245,7 @@ gcc<span class="w"> </span>-O1<span class="w"> </span>-fPIC<span class="w"> </sp
 &gt; 1. 執行時 <code>ld.so</code> 印警告 <code>Symbol 'level' has different size in shared object, consider re-linking</code>，程式照樣跑。
 &gt; 2. 原因：執行檔 <code>.bss</code> 留給 <code>level</code> 的大小（4 byte）是<strong>連結時</strong>照當時的 <code>.so</code> 決定的；現在 <code>.so</code> 裡的 <code>level</code> 是 8 byte，大小對不上，要重新連結。
 &gt;
-&gt; 詳細說明：本機實測（<code>cfg.c</code> 改成 <code>long level = 3;</code> 重做 <code>libcfg.so</code>，<code>setlevel</code> 不動）：先印那行警告，接著照樣印 <code>一開始 level = 3</code>、<code>get_level() = 7</code>。印對是運氣：<code>get_level()</code> 經過 GOT 到執行檔那格讀 8 byte，多讀的 4 byte 是執行檔 <code>.bss</code> 裡 <code>level</code> 後面的空間，剛好是 0；值一大、或後面放了別的變數，就會讀寫到別人。這是函式庫通常<strong>不直接給外面用全域變數、而是提供函式</strong>（<code>get_level()</code>）的原因之一：函式走 PLT，執行檔不必知道它的大小。
+&gt; 詳細說明：本機實測（<code>cfg.c</code> 改成 <code>long level = 3;</code> 重做 <code>libcfg.so</code>，<code>setlevel</code> 不動）：先印那行警告，接著照樣印 <code>一開始 level = 3</code>、<code>get_level() = 7</code>。印對是運氣：<code>COPY</code> 只複製兩邊較小的 4 byte（2026-11-02 實測：<code>.so</code> 初值 <code>0x500000003</code> 時執行檔那格是 <code>03 00 00 00 00 00 00 00</code>、<code>get_level()</code> 回傳 <code>0x3</code>）；<code>get_level()</code> 經過 GOT 到執行檔那格讀 8 byte，多讀的 4 byte 是執行檔 <code>.bss</code> 裡 <code>level</code> 後面的空間，剛好是 0；初值超過 4 byte、或後面放了別的變數，就會讀錯、寫到別人。這是函式庫通常<strong>不直接給外面用全域變數、而是提供函式</strong>（<code>get_level()</code>）的原因之一：函式走 PLT，執行檔不必知道它的大小。
 12. （2026-10-26 提問延伸）<code>libtemp.so</code> 的宣告放在 <code>include/temp.h</code>（裡面還定義了巨集 <code>FREEZING_C</code>），做好的 <code>libtemp.so</code> 放在 <code>lib/</code>。(1) <code>gcc -Wall main.c -Llib -ltemp -o app</code> 會失敗在哪個階段（前處理、編譯、連結、執行）？錯誤大概長怎樣、要補什麼？(2) <code>gcc -Wall -Iinclude main.c -Llib -o app</code> 呢？(3) 同事說「<code>FREEZING_C</code> 的值存在 <code>libtemp.so</code> 裡，執行時才讀進來」，對嗎？為什麼？(4) 編好的 <code>app</code>（連結時加了 <code>-Wl,-rpath,'$ORIGIN/lib'</code>）要拿給別人執行，<code>include/temp.h</code> 要一起給嗎？<code>lib/libtemp.so</code> 呢？</p>
 <pre><code class="language-c"><span class="cm">/* include/temp.h */</span>
 <span class="cp">#ifndef TEMP_H</span>
