@@ -3343,7 +3343,7 @@ gcc -O1 -fPIC addr.c -o picexe && ./picexe   # -fPIC 拿去編執行檔
    > 1. 符號插入：`.so` 的全域變數最後被使用的可能不是它自己那份（執行檔或先載入的 `.so` 有同名定義，`ld.so` 先找執行檔），做 `.so` 時不知道它在哪 → 只能等載入時由 `ld.so` 把真正位址填進 GOT。
    > 2. 不能讓 `ld.so` 載入時直接改 `.text` 裡的距離：`.text` 是唯讀的，而且每個行程寫進自己的位址就得各複製一份，同一份 `.text` 實體頁給所有行程共用的好處就沒了；所以把要因行程而異的位址集中在可寫的 GOT。
    >
-   > 詳細說明：正文〈為什麼不能直接用固定距離〉的 `usecount` 實驗：主程式自己定義 `counter = 100`，`libcount.so` 的 `bump()` 加的是主程式那份，印出 `counter = 101`。第二個理由在同一節〈那為什麼不讓 `ld.so` 載入時直接改 `.text` 裡的距離就好？〉那段，第 9 題會再考到。
+   > 詳細說明：正文〈為什麼不能直接用固定距離〉的 `usecount` 實驗：主程式自己定義 `counter = 100`，`libcount.so` 的 `bump()` 加的是主程式那份，印出 `counter = 101`。第二個理由在同一節〈那為什麼不讓 `ld.so` 載入時直接改 `.text` 裡的距離就好？〉那段，第 9 題會再考到。補充：載入基點不同只影響絕對位址，同一個 `.so` 內部的相對距離不變（所以 `static` 變數照樣能用 `%rip` 直接讀）；距離會因行程而不同，是因為變數可能在**別的模組**裡（理由 1）。
 4. 情境題：你在 `/home/me/proj/` 下做了 `lib/libfoo.so` 和用它的 `app`，連結指令是 `gcc main.c -Llib -lfoo -o app`。連結成功，`./app` 卻印出 `error while loading shared libraries: libfoo.so: cannot open shared object file`。(1) 這個訊息是誰印的？為什麼連結時找得到、執行時找不到？(2) 你想讓 `app` 和 `lib/` 一起打包給同事，同事解壓到任何地方都能直接執行，連結指令要怎麼改？為什麼要用單引號？(3) 同事想臨時用 `LD_LIBRARY_PATH` 換成他自己編的 `libfoo.so` 來除錯，在你的做法（`RUNPATH`）下換得掉嗎？如果是 `RPATH` 呢？為什麼？
    > **參考答案**（核心關鍵＋詳細說明）
    >
@@ -3838,7 +3838,7 @@ gcc -O1 -fPIC addr.c -o picexe && ./picexe   # -fPIC 拿去編執行檔
     > 1. 不對。
     > 2. `FREEZING_C` 是巨集，前處理時就被換成 `0.0`，寫進 `main.c` 編出來的程式碼；`libtemp.so` 裡根本沒有這個東西。
     >
-    > 詳細說明：本機實測：`gcc -E -Iinclude main.c` 的最後幾行是 `printf("%.1f\n", c_to_f(0.0));`。所以改了 `temp.h` 的 `FREEZING_C`，只換 `.so` 沒用，要重新編譯 `main.c`。
+    > 詳細說明：本機實測：`gcc -E -Iinclude main.c` 的最後幾行是 `printf("%.1f\n", c_to_f(0.0));`。所以改了 `temp.h` 的 `FREEZING_C`，只換 `.so` 沒用，要重新編譯 `main.c`。對照（11-03 複習補充，本機實測）：改成 `temp.c` 定義 `const double FREEZING_C = 0.0;`、`main.c` 寫 `extern const double FREEZING_C;`，它就是 `.so` 匯出的符號（`nm -D` 看得到 `R FREEZING_C`），`app` 有 `R_X86_64_COPY FREEZING_C`；`.so` 改成 `5.0` 重做、`app` 不重新連結就印出 `5.0`——這時同事的說法才對。所以理由要說「巨集」，不能只說「常量」。
     >
     > **12-4**【[第九節第 11 章](../html/c/靜態與動態函式庫-ar與.a、-fPIC與.so、執行時怎麼找到.so.html#11-做-so-需要-h-嗎include-管編譯-l-管連結)〈做 `.so` 需要 `.h` 嗎？`#include` 管編譯、`-l` 管連結〉】核心關鍵：
     >

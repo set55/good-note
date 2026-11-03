@@ -3832,7 +3832,7 @@ gcc<span class="w"> </span>-O1<span class="w"> </span>-fPIC<span class="w"> </sp
 <li>符號插入：<code>.so</code> 的全域變數最後被使用的可能不是它自己那份（執行檔或先載入的 <code>.so</code> 有同名定義，<code>ld.so</code> 先找執行檔），做 <code>.so</code> 時不知道它在哪 → 只能等載入時由 <code>ld.so</code> 把真正位址填進 GOT。</li>
 <li>不能讓 <code>ld.so</code> 載入時直接改 <code>.text</code> 裡的距離：<code>.text</code> 是唯讀的，而且每個行程寫進自己的位址就得各複製一份，同一份 <code>.text</code> 實體頁給所有行程共用的好處就沒了；所以把要因行程而異的位址集中在可寫的 GOT。</li>
 </ol>
-<p>詳細說明：正文〈為什麼不能直接用固定距離〉的 <code>usecount</code> 實驗：主程式自己定義 <code>counter = 100</code>，<code>libcount.so</code> 的 <code>bump()</code> 加的是主程式那份，印出 <code>counter = 101</code>。第二個理由在同一節〈那為什麼不讓 <code>ld.so</code> 載入時直接改 <code>.text</code> 裡的距離就好？〉那段，第 9 題會再考到。</p>
+<p>詳細說明：正文〈為什麼不能直接用固定距離〉的 <code>usecount</code> 實驗：主程式自己定義 <code>counter = 100</code>，<code>libcount.so</code> 的 <code>bump()</code> 加的是主程式那份，印出 <code>counter = 101</code>。第二個理由在同一節〈那為什麼不讓 <code>ld.so</code> 載入時直接改 <code>.text</code> 裡的距離就好？〉那段，第 9 題會再考到。補充：載入基點不同只影響絕對位址，同一個 <code>.so</code> 內部的相對距離不變（所以 <code>static</code> 變數照樣能用 <code>%rip</code> 直接讀）；距離會因行程而不同，是因為變數可能在<strong>別的模組</strong>裡（理由 1）。</p>
 </details>
 </li>
 <li>情境題：你在 <code>/home/me/proj/</code> 下做了 <code>lib/libfoo.so</code> 和用它的 <code>app</code>，連結指令是 <code>gcc main.c -Llib -lfoo -o app</code>。連結成功，<code>./app</code> 卻印出 <code>error while loading shared libraries: libfoo.so: cannot open shared object file</code>。(1) 這個訊息是誰印的？為什麼連結時找得到、執行時找不到？(2) 你想讓 <code>app</code> 和 <code>lib/</code> 一起打包給同事，同事解壓到任何地方都能直接執行，連結指令要怎麼改？為什麼要用單引號？(3) 同事想臨時用 <code>LD_LIBRARY_PATH</code> 換成他自己編的 <code>libfoo.so</code> 來除錯，在你的做法（<code>RUNPATH</code>）下換得掉嗎？如果是 <code>RPATH</code> 呢？為什麼？<details class="answer"><summary>參考答案</summary>
@@ -4297,7 +4297,7 @@ gcc<span class="w"> </span>-O1<span class="w"> </span>-fPIC<span class="w"> </sp
 &gt; 1. 不對。
 &gt; 2. <code>FREEZING_C</code> 是巨集，前處理時就被換成 <code>0.0</code>，寫進 <code>main.c</code> 編出來的程式碼；<code>libtemp.so</code> 裡根本沒有這個東西。
 &gt;
-&gt; 詳細說明：本機實測：<code>gcc -E -Iinclude main.c</code> 的最後幾行是 <code>printf(&quot;%.1f\n&quot;, c_to_f(0.0));</code>。所以改了 <code>temp.h</code> 的 <code>FREEZING_C</code>，只換 <code>.so</code> 沒用，要重新編譯 <code>main.c</code>。
+&gt; 詳細說明：本機實測：<code>gcc -E -Iinclude main.c</code> 的最後幾行是 <code>printf(&quot;%.1f\n&quot;, c_to_f(0.0));</code>。所以改了 <code>temp.h</code> 的 <code>FREEZING_C</code>，只換 <code>.so</code> 沒用，要重新編譯 <code>main.c</code>。對照（11-03 複習補充，本機實測）：改成 <code>temp.c</code> 定義 <code>const double FREEZING_C = 0.0;</code>、<code>main.c</code> 寫 <code>extern const double FREEZING_C;</code>，它就是 <code>.so</code> 匯出的符號（<code>nm -D</code> 看得到 <code>R FREEZING_C</code>），<code>app</code> 有 <code>R_X86_64_COPY FREEZING_C</code>；<code>.so</code> 改成 <code>5.0</code> 重做、<code>app</code> 不重新連結就印出 <code>5.0</code>——這時同事的說法才對。所以理由要說「巨集」，不能只說「常量」。
 &gt;
 &gt; <strong>12-4</strong>【<a href="#11-%E5%81%9A-so-%E9%9C%80%E8%A6%81-h-%E5%97%8Einclude-%E7%AE%A1%E7%B7%A8%E8%AD%AF-l-%E7%AE%A1%E9%80%A3%E7%B5%90">第九節第 11 章</a>〈做 <code>.so</code> 需要 <code>.h</code> 嗎？<code>#include</code> 管編譯、<code>-l</code> 管連結〉】核心關鍵：
 &gt;

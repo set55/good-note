@@ -404,7 +404,7 @@ objdump <選項> <檔案>...
    >
    > 核心關鍵：
    >
-   > 1. 用 **`readelf -d`** 看 `NEEDED`：只讀檔案、不執行，任何架構的 ELF 都讀得了。
+   > 1. 用 **`readelf -d`**（或 `objdump -p`）看 `NEEDED`：只讀檔案、不執行，任何架構的 ELF 都讀得了。
    > 2. `ldd` 要靠**本機的 x86-64 載入器**實際載入，處理不了 ARM 的檔案，於是印出誤導人的 **`not a dynamic executable`**。
    >
    > 詳細說明：`ldd` 平常列出 vdso、間接依賴的那整套機制，都建立在「本機載入器能載入它」上面；架構不同，第一步就失敗。`objdump -p` 平常也行，但開發板上的檔案常被剝掉區段標頭，`readelf -d` 能透過程式標頭的 `DYNAMIC` 找到同一份資料，比較保險。直接執行則會看到核心的 `exec format error`。

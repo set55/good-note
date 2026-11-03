@@ -524,7 +524,7 @@ $ ./app                                     # 實際執行：跟 ldd 說的一�
 <p>【<a href="#%E4%B8%89ldd-%E6%9C%83%E5%9F%B7%E8%A1%8C%E6%9D%B1%E8%A5%BF%E9%80%99%E6%98%AF%E5%AE%83%E7%9A%84%E4%BB%A3%E5%83%B9">第三節</a>、<a href="#%E4%BA%94%E6%80%8E%E9%BA%BC%E9%81%B8">第五節</a>】（2026-10-12 改寫成核心關鍵格式）</p>
 <p>核心關鍵：</p>
 <ol>
-<li>用 <strong><code>readelf -d</code></strong> 看 <code>NEEDED</code>：只讀檔案、不執行，任何架構的 ELF 都讀得了。</li>
+<li>用 <strong><code>readelf -d</code></strong>（或 <code>objdump -p</code>）看 <code>NEEDED</code>：只讀檔案、不執行，任何架構的 ELF 都讀得了。</li>
 <li><code>ldd</code> 要靠<strong>本機的 x86-64 載入器</strong>實際載入，處理不了 ARM 的檔案，於是印出誤導人的 <strong><code>not a dynamic executable</code></strong>。</li>
 </ol>
 <p>詳細說明：<code>ldd</code> 平常列出 vdso、間接依賴的那整套機制，都建立在「本機載入器能載入它」上面；架構不同，第一步就失敗。<code>objdump -p</code> 平常也行，但開發板上的檔案常被剝掉區段標頭，<code>readelf -d</code> 能透過程式標頭的 <code>DYNAMIC</code> 找到同一份資料，比較保險。直接執行則會看到核心的 <code>exec format error</code>。</p>
