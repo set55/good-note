@@ -61,6 +61,8 @@ $ objdump -p /lib/x86_64-linux-gnu/libcurl.so.4 | grep NEEDED | wc -l
 每個 `.so` 也有自己的需求單。`objdump` 只讀你給它的那一個檔案，**不會自己往下追**；
 要用 `objdump` 得到完整清單，就得自己對每一個依賴再跑一次，還得自己知道每個名字對應到哪個路徑。
 
+> 課後討論：[第七節第 1 章〈`linux-vdso.so.1` 是什麼：核心塞進每個行程的小函式庫〉](#1-linux-vdsoso1-是什麼核心塞進每個行程的小函式庫)
+
 ---
 
 ## 二、為什麼會差這麼多：兩者看的是不同時間點
@@ -364,6 +366,155 @@ objdump <選項> <檔案>...
 | `-H`, `--help` | 印出說明 |
 
 **文法可以問工具**：`objdump --help`、`ldd --help`、`man objdump`、`man ldd`、`man ld.so`（`LD_TRACE_LOADED_OBJECTS` 等環境變數寫在這裡）。
+
+## 七、課後討論
+
+課後提問的延伸內容，一個主題一章；正文被問到的地方放了連結回到這裡。
+
+- [第 1 章](#1-linux-vdsoso1-是什麼核心塞進每個行程的小函式庫)：`linux-vdso.so.1` 是什麼：核心塞進每個行程的小函式庫
+
+### 1. `linux-vdso.so.1` 是什麼：核心塞進每個行程的小函式庫
+
+> 2026-11-03 課後提問：「linux-vdso.so,你知道是什麼嗎?」
+> 正文出處：[第一節〈先看差多少：`curl` 的例子〉](#一先看差多少curl-的例子)比較表的「其他項目」那列——正文只用一句「核心直接塞進行程的虛擬函式庫，磁碟上沒有這個檔」帶過。
+> 範圍：vDSO 屬於「使用者程式怎麼進核心」（系統呼叫的成本），正式內容在第 ⑤ 站；這裡只講到看懂 `ldd` 那一行為止。本章不出測驗題（使用者指定）。
+
+**一句話：vDSO（virtual Dynamic Shared Object，虛擬動態共享物件）是核心在每個行程啟動時直接映射進來的一小段程式碼和資料，讓「讀時間」這類呼叫不必真的進核心。**
+
+#### 它在哪裡：有位址、沒有檔案
+
+`ldd` 列出它時只有位址、沒有 `=> 路徑`，因為它不是從磁碟載入的：
+
+```text
+$ ldd /bin/true
+	linux-vdso.so.1 (0x000070c8ce5a4000)                      ← 只有位址，沒有檔案路徑
+	libc.so.6 => /lib/x86_64-linux-gnu/libc.so.6 (0x000070c8ce200000)
+	/lib64/ld-linux-x86-64.so.2 (0x000070c8ce5a6000)
+```
+
+在行程的記憶體配置表裡看得到它（這裡看的是 `grep` 自己這個行程）。檔名欄是方括號、inode 是 0，表示背後沒有檔案：
+
+```text
+$ grep -E 'vdso|vvar' /proc/self/maps
+7ce041fbb000-7ce041fbf000 r--p 00000000 00:00 0      [vvar]
+7ce041fbf000-7ce041fc1000 r--p 00000000 00:00 0      [vvar_vclock]
+7ce041fc1000-7ce041fc3000 r-xp 00000000 00:00 0      [vdso]
+```
+
+- `[vdso]`（`r-x`，可執行）：程式碼，就是那個「`.so`」。
+- `[vvar]`、`[vvar_vclock]`（唯讀）：核心持續更新的資料，例如目前時間。本機核心是 `7.0.0-42-generic`，較舊的核心只有 `[vvar]` 一塊。
+
+#### 為什麼要有它：省掉系統呼叫
+
+有些系統呼叫只是「向核心讀一個值」，最典型的是讀現在幾點。真的進一次核心要切換特權模式、存回暫存器，成本不小。vDSO 的做法是：
+
+1. 核心把時間相關的資料放在 `[vvar]` 那幾頁，讓每個行程都能**讀**；
+2. 再給一段程式碼（`[vdso]`），在**使用者空間**直接讀那幾頁、算出結果，完全不進核心。
+
+glibc 的 `clock_gettime()`、`gettimeofday()`、`time()` 會優先呼叫 vDSO 裡的版本。
+
+它提供哪些函式，可以看核心套件附帶的同一份檔案 `/lib/modules/$(uname -r)/vdso/vdso64.so`（給除錯用的副本；行程執行時不會從這裡載入）：
+
+```text
+$ readelf -d /lib/modules/$(uname -r)/vdso/vdso64.so | grep SONAME
+ 0x000000000000000e (SONAME)             Library soname: [linux-vdso.so.1]     ← 正是 ldd 看到的名字
+$ readelf -W --dyn-syms /lib/modules/$(uname -r)/vdso/vdso64.so | grep FUNC | awk '{print $8}'
+clock_gettime@@LINUX_2.6
+__vdso_gettimeofday@@LINUX_2.6
+clock_getres@@LINUX_2.6
+__vdso_clock_getres@@LINUX_2.6
+gettimeofday@@LINUX_2.6
+__vdso_time@@LINUX_2.6
+__vdso_sgx_enter_enclave@@LINUX_2.6
+__vdso_getrandom@@LINUX_2.6
+time@@LINUX_2.6
+__vdso_clock_gettime@@LINUX_2.6
+__vdso_getcpu@@LINUX_2.6
+getcpu@@LINUX_2.6
+getrandom@@LINUX_2.6
+```
+
+全都是「讀時間、讀 CPU 編號、拿亂數」這類不必進核心就能完成的事（`readelf` 的選項見 [readelf完整選項參考](./readelf完整選項參考.md)）。
+
+#### 實驗一：`strace` 看不到走 vDSO 的呼叫
+
+`vdso_trace.c`（檔案：[`vdso_trace.c`](../small-project/s1-01-hello-compile/examples/vdso/vdso_trace.c)）：前 3 次走 glibc 的 `clock_gettime`（會經過 vDSO），後 3 次用 `syscall()` 強制發出真正的系統呼叫。
+
+```c
+#include <stdio.h>
+#include <time.h>
+#include <unistd.h>
+#include <sys/syscall.h>
+
+int main(void)
+{
+    struct timespec ts;
+    for (int i = 0; i < 3; i++)
+        clock_gettime(CLOCK_MONOTONIC, &ts);       /* 經 vDSO */
+    for (int i = 0; i < 3; i++)
+        syscall(SYS_clock_gettime, CLOCK_MONOTONIC, &ts); /* 強制真的系統呼叫 */
+    printf("%ld.%09ld\n", (long)ts.tv_sec, ts.tv_nsec);
+    return 0;
+}
+```
+
+```text
+$ gcc -Wall -O0 vdso_trace.c -o vdso_trace && strace -e trace=clock_gettime ./vdso_trace
+clock_gettime(CLOCK_MONOTONIC, {tv_sec=17634, tv_nsec=69419419}) = 0
+clock_gettime(CLOCK_MONOTONIC, {tv_sec=17634, tv_nsec=69560020}) = 0
+clock_gettime(CLOCK_MONOTONIC, {tv_sec=17634, tv_nsec=69639203}) = 0
+17634.069639203
++++ exited with 0 +++
+```
+
+程式呼叫了 6 次，`strace` 只看到 **3 次**——是 `syscall()` 強制的那 3 次。走 vDSO 的 3 次根本沒進核心，`strace` 攔不到（`strace` 攔的是進核心的那一刻）。
+
+#### 實驗二：快多少
+
+`vdso_bench.c`（檔案：[`vdso_bench.c`](../small-project/s1-01-hello-compile/examples/vdso/vdso_bench.c)）：兩種方式各做 100 萬次，算平均每次幾奈秒。
+
+```c
+#include <stdio.h>
+#include <time.h>
+#include <unistd.h>
+#include <sys/syscall.h>
+
+#define N 1000000
+
+static double now(void)
+{
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return ts.tv_sec + ts.tv_nsec / 1e9;
+}
+
+int main(void)
+{
+    struct timespec ts;
+    double t0 = now();
+    for (int i = 0; i < N; i++)
+        clock_gettime(CLOCK_MONOTONIC, &ts);
+    double t1 = now();
+    for (int i = 0; i < N; i++)
+        syscall(SYS_clock_gettime, CLOCK_MONOTONIC, &ts);
+    double t2 = now();
+    printf("vDSO   : %.1f ns/次\n", (t1 - t0) / N * 1e9);
+    printf("syscall: %.1f ns/次\n", (t2 - t1) / N * 1e9);
+    return 0;
+}
+```
+
+```text
+$ gcc -Wall -O0 vdso_bench.c -o vdso_bench && ./vdso_bench
+vDSO   : 61.6 ns/次
+syscall: 140.2 ns/次
+```
+
+本機跑三次：vDSO 53～76 ns，真的系統呼叫 140～210 ns，走 vDSO 大約快 2～4 倍（數字隨機器負載浮動，重點是比例）。
+
+#### 回到正文：為什麼 `objdump -p` 看不到它
+
+`curl` 的 `NEEDED` 裡沒有 `linux-vdso.so.1`：它不是連結時 `ld` 寫進需求單的，而是**核心在執行時**塞進每個行程的。`ldd` 請載入器實際走一次載入流程，所以看得到；`objdump` 只讀檔案，看不到。這也是正文第二節「兩者看的是不同時間點」的又一個例子。
 
 ---
 

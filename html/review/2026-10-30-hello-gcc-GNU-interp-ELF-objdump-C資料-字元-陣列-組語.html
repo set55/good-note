@@ -504,7 +504,7 @@
 </details>
 </details>
 <details class="answer self-practice"><summary>自我練習（不批改）</summary>
-<div class="answer-box" data-file="review/2026-10-30-hello-gcc-GNU-interp-ELF-objdump-C資料-字元-陣列-組語.md" data-line="104" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="review/2026-10-30-hello-gcc-GNU-interp-ELF-objdump-C資料-字元-陣列-組語.md" data-line="104" data-insert="1" data-anchor="&gt; &#42;&#42;詳細說明&#42;&#42;：這一步要成立，&#42;&#42;連結時&#42;&#42; `ld` 得先做好兩件事：把 `call` 後面的洞填成跳到 `puts@plt`，並在執行檔裡寫下需求單（`NEEDED libc.so.6`、interpreter 路徑、需要的符號版本）。CPU 執行 `call` 只是照那 4 個 byte 跳，不是「接」。`LD_DEBUG=bindings ./hello` 看得到載入器接線這一步。本機 `hello` 帶 `BIND_NOW`，所以 `puts` 那格在載入時就填好；沒有 `BIND_NOW` 的才是第一次呼叫時填（延遲綁定）。"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h3 id="hello-3-helloo-裡呼叫-puts的地方要跳去的位址為什麼暫時是-0空著什麼資訊讓連結器知道之後要把它填成什麼">hello 3. <code>hello.o</code> 裡「呼叫 <code>puts</code>」的地方，要跳去的位址為什麼暫時是 0（空著）？什麼資訊讓連結器知道之後要把它填成什麼？</h3>
 <blockquote>
@@ -547,7 +547,7 @@
 </details>
 </details>
 <details class="answer self-practice"><summary>自我練習（不批改）</summary>
-<div class="answer-box" data-file="review/2026-10-30-hello-gcc-GNU-interp-ELF-objdump-C資料-字元-陣列-組語.md" data-line="149" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="review/2026-10-30-hello-gcc-GNU-interp-ELF-objdump-C資料-字元-陣列-組語.md" data-line="149" data-insert="1" data-anchor="&gt; &#42;&#42;詳細說明&#42;&#42;：`objdump -dr` 的 `-r` 會把重定位項目印在對應指令的下面。同一段裡的 `lea 0x0(%rip),%rax` 也是同樣情況：字串 `&quot;hello, world&quot;` 放在 `.rodata`，位址到連結時才決定，所以也有一筆 `R_X86_64_PC32 .rodata-0x4`。"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <hr />
 <h2 id="gccgcc最佳化等級-o0到o3差在哪">gcc：<a href="../c/gcc%E6%9C%80%E4%BD%B3%E5%8C%96%E7%AD%89%E7%B4%9A-O0%E5%88%B0O3%E5%B7%AE%E5%9C%A8%E5%93%AA.html">gcc最佳化等級-O0到O3差在哪</a></h2>
@@ -612,7 +612,7 @@
 </details>
 </details>
 <details class="answer self-practice"><summary>自我練習（不批改）</summary>
-<div class="answer-box" data-file="review/2026-10-30-hello-gcc-GNU-interp-ELF-objdump-C資料-字元-陣列-組語.md" data-line="219" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="review/2026-10-30-hello-gcc-GNU-interp-ELF-objdump-C資料-字元-陣列-組語.md" data-line="219" data-insert="1" data-anchor="&gt; &#42;&#42;詳細說明&#42;&#42;：兩步缺一不可。單看 `sum_to(int n)`，`n` 要到執行時才知道，沒辦法事先算；是內嵌把 100 帶進來，才算得出來。給別人呼叫的那份 `sum_to` 仍然保留迴圈。"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h3 id="gcc-4-最佳化等級越高程式越小對嗎-o2-o3-和--os-oz-的目標各是什麼為什麼追求速度反而可能讓程式變大">gcc 4. 「最佳化等級越高，程式越小」對嗎？<code>-O2</code>／<code>-O3</code> 和 <code>-Os</code>／<code>-Oz</code> 的目標各是什麼？為什麼追求速度反而可能讓程式變大？</h3>
 <p>（2026-10-09 改寫的題目：原題「用本篇的數字說明」要求背數字，闔上筆記作答時無從引用。不用寫出確切的 byte 數。）</p>
@@ -647,7 +647,7 @@ size<span class="w"> </span>-A<span class="w"> </span>sumto_O2.o<span class="w">
 </details>
 </details>
 <details class="answer self-practice"><summary>自我練習（不批改）</summary>
-<div class="answer-box" data-file="review/2026-10-30-hello-gcc-GNU-interp-ELF-objdump-C資料-字元-陣列-組語.md" data-line="254" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="review/2026-10-30-hello-gcc-GNU-interp-ELF-objdump-C資料-字元-陣列-組語.md" data-line="254" data-insert="1" data-anchor="&gt; &#42;&#42;詳細說明&#42;&#42;：本機 `sumto.c` 的 `.text` 大小：`-Oz` 30、`-Os` 35、`-O0` 70、`-O2` 90、`-O3` 234 byte。`-O2` 版的 `sum_to` 一圈加兩個數，進迴圈前還要先處理奇偶，所以比 `-O0` 長。量的是 `.text` 區段（機器碼），不是整個檔案。"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <hr />
 <h2 id="gnugnu是什麼-linux核心與gnu工具的分工">GNU：<a href="../linux/GNU%E6%98%AF%E4%BB%80%E9%BA%BC-Linux%E6%A0%B8%E5%BF%83%E8%88%87GNU%E5%B7%A5%E5%85%B7%E7%9A%84%E5%88%86%E5%B7%A5.html">GNU是什麼-Linux核心與GNU工具的分工</a></h2>
@@ -673,7 +673,7 @@ size<span class="w"> </span>-A<span class="w"> </span>sumto_O2.o<span class="w">
 </details>
 </details>
 <details class="answer self-practice"><summary>自我練習（不批改）</summary>
-<div class="answer-box" data-file="review/2026-10-30-hello-gcc-GNU-interp-ELF-objdump-C資料-字元-陣列-組語.md" data-line="278" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="review/2026-10-30-hello-gcc-GNU-interp-ELF-objdump-C資料-字元-陣列-組語.md" data-line="278" data-insert="1" data-anchor="&gt; &#42;&#42;詳細說明&#42;&#42;：DCO 是 kernel 社群的規定，不是 GPL 條文本身的要求，GPL 沒有規定發布時要署名。"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h3 id="gnu-6-情境題同事說我在這台機器上打-uname--o-看到-gnulinux所以它一定用-glibc這個推論錯在哪uname-的哪些欄位可以信哪一欄不行為什麼你會改看什麼來判斷">GNU 6. 情境題：同事說「我在這台機器上打 <code>uname -o</code> 看到 <code>GNU/Linux</code>，所以它一定用 glibc」。這個推論錯在哪？<code>uname</code> 的哪些欄位可以信、哪一欄不行，為什麼？你會改看什麼來判斷？</h3>
 <blockquote>
@@ -745,7 +745,7 @@ kernel不受到角色權限限制,但sh會,所以sh雖然有腳本路徑,但卻�
 </details>
 </details>
 <details class="answer self-practice"><summary>自我練習（不批改）</summary>
-<div class="answer-box" data-file="review/2026-10-30-hello-gcc-GNU-interp-ELF-objdump-C資料-字元-陣列-組語.md" data-line="348" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="review/2026-10-30-hello-gcc-GNU-interp-ELF-objdump-C資料-字元-陣列-組語.md" data-line="348" data-insert="1" data-anchor="&gt; &#42;&#42;詳細說明&#42;&#42;：所以腳本要 `r`＋`x`，ELF 只要 `x`。實驗三用 `#!/bin/cat` 做同一件事：`chmod 111 catscript.sh` 之後執行，錯誤開頭是 `/usr/bin/cat:`；`cp /usr/bin/true mytrue; chmod 111 mytrue` 則可以正常跑。靜態連結的 ELF 沒有 interpreter，一樣只要 `x`。"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <hr />
 <h2 id="elfelf是什麼-可執行與可連結格式的兩種視角">ELF：<a href="../c/ELF%E6%98%AF%E4%BB%80%E9%BA%BC-%E5%8F%AF%E5%9F%B7%E8%A1%8C%E8%88%87%E5%8F%AF%E9%80%A3%E7%B5%90%E6%A0%BC%E5%BC%8F%E7%9A%84%E5%85%A9%E7%A8%AE%E8%A6%96%E8%A7%92.html">ELF是什麼-可執行與可連結格式的兩種視角</a></h2>
@@ -793,7 +793,7 @@ $<span class="w"> </span>readelf<span class="w"> </span>-l<span class="w"> </spa
 </details>
 </details>
 <details class="answer self-practice"><summary>自我練習（不批改）</summary>
-<div class="answer-box" data-file="review/2026-10-30-hello-gcc-GNU-interp-ELF-objdump-C資料-字元-陣列-組語.md" data-line="399" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="review/2026-10-30-hello-gcc-GNU-interp-ELF-objdump-C資料-字元-陣列-組語.md" data-line="399" data-insert="1" data-anchor="&gt; &#42;&#42;詳細說明&#42;&#42;：合併之後還要補上位址（重定位）。動態連結時，程式標頭表裡另外有 `INTERP`（interpreter 的路徑）、`DYNAMIC`（指向 `.dynamic`，裡面有 `NEEDED`）等項，「可連結的」才變成「可執行的」。"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h3 id="elf-3-本機一般-gcc-編出的執行檔type-為什麼是-dyn跟-libcso6-同一類而靜態版是-exec">ELF 3. 本機一般 <code>gcc</code> 編出的執行檔，<code>Type</code> 為什麼是 DYN，跟 <code>libc.so.6</code> 同一類，而靜態版是 EXEC？</h3>
 <blockquote>
@@ -817,7 +817,7 @@ EXEC: 靜態版就是 static 它包含了 -no-pie, 他們的位址都是固定�
 </details>
 </details>
 <details class="answer self-practice"><summary>自我練習（不批改）</summary>
-<div class="answer-box" data-file="review/2026-10-30-hello-gcc-GNU-interp-ELF-objdump-C資料-字元-陣列-組語.md" data-line="419" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="review/2026-10-30-hello-gcc-GNU-interp-ELF-objdump-C資料-字元-陣列-組語.md" data-line="419" data-insert="1" data-anchor="&gt; &#42;&#42;詳細說明&#42;&#42;：PIE 跟共享函式庫一樣「可以放在任意位址」，所以跟 `libc.so.6` 同屬 DYN。`Type` 只看「是不是 PIE」，跟有沒有動態連結無關：`-no-pie` 動態連結 → EXEC，`-static-pie` 靜態連結 → DYN。"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h3 id="elf-5-情境題你把-ubuntux86-64上編好的程式複製到路由器armfile-顯示它是-elf執行卻失敗這跟-interpreter-那篇-第五節interpreter-不存在是不是同一種問題從檔頭的哪一欄可以看出來">ELF 5. 情境題：你把 Ubuntu（x86-64）上編好的程式複製到路由器（ARM），<code>file</code> 顯示它是 ELF，執行卻失敗。這跟 <a href="../c/ELF%E7%9A%84interpreter%E6%98%AF%E4%BB%80%E9%BA%BC-%E5%8B%95%E6%85%8B%E8%BC%89%E5%85%A5%E5%99%A8%E8%88%87%E4%BA%95%E5%AD%97%E8%99%9F%E9%A9%9A%E5%98%86%E8%99%9F.html">interpreter 那篇</a> 第五節「interpreter 不存在」是不是同一種問題？從檔頭的哪一欄可以看出來？</h3>
 <blockquote>
@@ -850,7 +850,7 @@ $<span class="w"> </span>./hello_badinterp
 </details>
 </details>
 <details class="answer self-practice"><summary>自我練習（不批改）</summary>
-<div class="answer-box" data-file="review/2026-10-30-hello-gcc-GNU-interp-ELF-objdump-C資料-字元-陣列-組語.md" data-line="450" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="review/2026-10-30-hello-gcc-GNU-interp-ELF-objdump-C資料-字元-陣列-組語.md" data-line="450" data-insert="1" data-anchor="&gt; &#42;&#42;詳細說明&#42;&#42;：kernel 在 `execve` 讀檔頭時發現架構不符，就回 `ENOEXEC`（`Exec format error`）；interpreter 不存在則是 `ENOENT`（`not found`），兩種錯誤訊息不同。動態連結的程式在路由器上確實&#42;&#42;也&#42;&#42;缺 interpreter，但架構不符時，kernel 讀到檔頭就停了，還沒走到「找 interpreter」那一步；就算把 x86-64 的載入器放到那個路徑，它本身也是 x86-64 的機器碼，一樣跑不了。`INTERP` 在程式標頭，不在檔頭；就算程式是靜態編譯、根本沒有 `INTERP`，x86-64 的機器碼一樣不能在 ARM 上跑。"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <hr />
 <h2 id="objdumpobjdump能不能代替ldd找依賴庫-需求單與實際載入">objdump：<a href="../c/objdump%E8%83%BD%E4%B8%8D%E8%83%BD%E4%BB%A3%E6%9B%BFldd%E6%89%BE%E4%BE%9D%E8%B3%B4%E5%BA%AB-%E9%9C%80%E6%B1%82%E5%96%AE%E8%88%87%E5%AF%A6%E9%9A%9B%E8%BC%89%E5%85%A5.html">objdump能不能代替ldd找依賴庫-需求單與實際載入</a></h2>
@@ -937,7 +937,7 @@ $<span class="w"> </span>./hello_badinterp
 </details>
 </details>
 <details class="answer self-practice"><summary>自我練習（不批改）</summary>
-<div class="answer-box" data-file="review/2026-10-30-hello-gcc-GNU-interp-ELF-objdump-C資料-字元-陣列-組語.md" data-line="540" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="review/2026-10-30-hello-gcc-GNU-interp-ELF-objdump-C資料-字元-陣列-組語.md" data-line="540" data-insert="1" data-anchor="&gt; &#42;&#42;詳細說明&#42;&#42;：連 `-O0` 也不保證照字面算：第四節的 `overflow.c` 把同一件事寫成一行 `return x + 1 &gt; x;`，`-O0` 也回傳 1，因為 gcc 在最佳化之前的化簡階段就把它改掉了（筆記第八節用 `-fdump-tree-original` 看到）。所以本題的 `bigger` 才故意拆成兩行。"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h3 id="c資料-7-2147483648-和-0x80000000-是同一個數為什麼一個的型別是-long一個是-unsigned-int-1--0x80000000-和--1--2147483648-的結果各是什麼為什麼">C資料 7. <code>2147483648</code> 和 <code>0x80000000</code> 是同一個數，為什麼一個的型別是 <code>long</code>、一個是 <code>unsigned int</code>？<code>-1 &lt; 0x80000000</code> 和 <code>-1 &lt; 2147483648</code> 的結果各是什麼？為什麼？</h3>
 <blockquote>
@@ -970,7 +970,7 @@ $<span class="w"> </span>./hello_badinterp
 </details>
 </details>
 <details class="answer self-practice"><summary>自我練習（不批改）</summary>
-<div class="answer-box" data-file="review/2026-10-30-hello-gcc-GNU-interp-ELF-objdump-C資料-字元-陣列-組語.md" data-line="569" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="review/2026-10-30-hello-gcc-GNU-interp-ELF-objdump-C資料-字元-陣列-組語.md" data-line="569" data-insert="1" data-anchor="&gt; &#42;&#42;詳細說明&#42;&#42;：十六進位清單多放無號型別，是因為寫十六進位的人通常在寫位元樣式（例如遮罩 `0x80000000`），要的是那個 bit 樣式，不是負數。"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h3 id="c資料-9-情境題有人寫了-if-len---used--0-判斷緩衝區還有沒有剩餘空間lenused-都是-size_t用--wall--wextra-編譯沒有任何警告這個判斷在什麼情況下會出錯為什麼-gcc-對-len---used--0-會警告對--0-卻不會另外為什麼-int-sum--x--y-if-sum--x-這種溢位檢查在--o2-下可能完全失效">C資料 9. 情境題：有人寫了 <code>if (len - used &gt; 0)</code> 判斷「緩衝區還有沒有剩餘空間」，<code>len</code>、<code>used</code> 都是 <code>size_t</code>，用 <code>-Wall -Wextra</code> 編譯沒有任何警告。這個判斷在什麼情況下會出錯？為什麼 gcc 對 <code>len - used &lt; 0</code> 會警告、對 <code>&gt; 0</code> 卻不會？另外，為什麼 <code>int sum = x + y; if (sum &lt; x)</code> 這種溢位檢查在 <code>-O2</code> 下可能完全失效？</h3>
 <blockquote>
@@ -1034,7 +1034,7 @@ sum &lt; x的前提是 y必須大於0, 用了最佳化, 且認爲溢位不會發
 </details>
 </details>
 <details class="answer self-practice"><summary>自我練習（不批改）</summary>
-<div class="answer-box" data-file="review/2026-10-30-hello-gcc-GNU-interp-ELF-objdump-C資料-字元-陣列-組語.md" data-line="631" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="review/2026-10-30-hello-gcc-GNU-interp-ELF-objdump-C資料-字元-陣列-組語.md" data-line="631" data-insert="1" data-anchor="&gt; &#42;&#42;詳細說明&#42;&#42;：例如 `0xe5` 用 `char` 讀是 −27。`-Wextra` 的 `-Wtype-limits` 會警告「永遠為假」。不要改成 `unsigned int`：會先符號擴展成 `0xffffffe5`，判斷碰巧對、值卻是錯的；也不要寫 `c &lt; 0`，它依賴 `char` 有號，換到 ARM 就失效。"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <hr />
 <h2 id="陣列陣列字串與指標運算-c不檢查邊界與用gdb找segfault">陣列：<a href="../c/%E9%99%A3%E5%88%97%E3%80%81%E5%AD%97%E4%B8%B2%E8%88%87%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97-C%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%88%87%E7%94%A8gdb%E6%89%BEsegfault.html">陣列、字串與指標運算-C不檢查邊界與用gdb找segfault</a></h2>
@@ -1060,7 +1060,7 @@ char *c 位移以個單位是1byte
 </details>
 </details>
 <details class="answer self-practice"><summary>自我練習（不批改）</summary>
-<div class="answer-box" data-file="review/2026-10-30-hello-gcc-GNU-interp-ELF-objdump-C資料-字元-陣列-組語.md" data-line="655" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="review/2026-10-30-hello-gcc-GNU-interp-ELF-objdump-C資料-字元-陣列-組語.md" data-line="655" data-insert="1" data-anchor="&gt; 1. `T &#42;p` 的 `p + n` 走 `n × sizeof(T)` byte：`int &#42;` 走 4，`unsigned char &#42;` 走 1。"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h4 id="陣列-1-2-p3-在-c-標準裡是怎麼定義的">陣列 1-2. <code>p[3]</code> 在 C 標準裡是怎麼定義的？</h4>
 <details class="answer-fold"><summary>作答（🔒 已批改）</summary>
@@ -1079,7 +1079,7 @@ char *c 位移以個單位是1byte
 </details>
 </details>
 <details class="answer self-practice"><summary>自我練習（不批改）</summary>
-<div class="answer-box" data-file="review/2026-10-30-hello-gcc-GNU-interp-ELF-objdump-C資料-字元-陣列-組語.md" data-line="671" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="review/2026-10-30-hello-gcc-GNU-interp-ELF-objdump-C資料-字元-陣列-組語.md" data-line="671" data-insert="1" data-anchor="&gt; &#42;&#42;詳細說明&#42;&#42;：C 標準把下標定義成 `E1[E2]` ≡ `&#42;((E1) + (E2))`；`p + 3` 只是位址，要加 `&#42;` 才是值。"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h4 id="陣列-1-3-為什麼-3p-也能編譯而且值跟-p3-一樣">陣列 1-3. 為什麼 <code>3[p]</code> 也能編譯，而且值跟 <code>p[3]</code> 一樣？</h4>
 <details class="answer-fold"><summary>作答（🔒 已批改）</summary>
@@ -1098,7 +1098,7 @@ char *c 位移以個單位是1byte
 </details>
 </details>
 <details class="answer self-practice"><summary>自我練習（不批改）</summary>
-<div class="answer-box" data-file="review/2026-10-30-hello-gcc-GNU-interp-ELF-objdump-C資料-字元-陣列-組語.md" data-line="687" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="review/2026-10-30-hello-gcc-GNU-interp-ELF-objdump-C資料-字元-陣列-組語.md" data-line="687" data-insert="1" data-anchor="&gt; &#42;&#42;詳細說明&#42;&#42;：`3[p]` 能編譯，證明 `[]` 只是「指標加法再取值」的縮寫。"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h3 id="陣列-6-情境題讀懂-asan-的區間">陣列 6. 情境題：讀懂 ASan 的區間</h3>
 <blockquote>
@@ -1121,7 +1121,7 @@ char *c 位移以個單位是1byte
 </details>
 </details>
 <details class="answer self-practice"><summary>自我練習（不批改）</summary>
-<div class="answer-box" data-file="review/2026-10-30-hello-gcc-GNU-interp-ELF-objdump-C資料-字元-陣列-組語.md" data-line="707" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="review/2026-10-30-hello-gcc-GNU-interp-ELF-objdump-C資料-字元-陣列-組語.md" data-line="707" data-insert="1" data-anchor="&gt; 1. 區間以 byte 為單位、半開，長度 ＝ 40 − 16 ＝ &#42;&#42;24 byte&#42;&#42;。"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h4 id="陣列-6-2-如果它是-int-陣列有幾個元素">陣列 6-2. 如果它是 <code>int</code> 陣列，有幾個元素？</h4>
 <blockquote>
@@ -1142,7 +1142,7 @@ char *c 位移以個單位是1byte
 </details>
 </details>
 <details class="answer self-practice"><summary>自我練習（不批改）</summary>
-<div class="answer-box" data-file="review/2026-10-30-hello-gcc-GNU-interp-ELF-objdump-C資料-字元-陣列-組語.md" data-line="723" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="review/2026-10-30-hello-gcc-GNU-interp-ELF-objdump-C資料-字元-陣列-組語.md" data-line="723" data-insert="1" data-anchor="&gt; 1. 24 ÷ 4 ＝ &#42;&#42;6 個&#42;&#42; `int`。"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h4 id="陣列-6-3-這次寫到的是-buf-的第幾格索引多少">陣列 6-3. 這次寫到的是 <code>buf</code> 的第幾格（索引多少）？</h4>
 <blockquote>
@@ -1164,7 +1164,7 @@ char *c 位移以個單位是1byte
 </details>
 </details>
 <details class="answer self-practice"><summary>自我練習（不批改）</summary>
-<div class="answer-box" data-file="review/2026-10-30-hello-gcc-GNU-interp-ELF-objdump-C資料-字元-陣列-組語.md" data-line="741" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="review/2026-10-30-hello-gcc-GNU-interp-ELF-objdump-C資料-字元-陣列-組語.md" data-line="741" data-insert="1" data-anchor="&gt; &#42;&#42;詳細說明&#42;&#42;：索引 6 是典型的 `i &lt;= n` 錯誤：迴圈多跑了一圈。"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h4 id="陣列-6-4-影子-byte-那一列裡buf-會是幾個什麼樣的影子-byte">陣列 6-4. 影子 byte 那一列裡，<code>buf</code> 會是幾個什麼樣的影子 byte？</h4>
 <blockquote>
@@ -1186,7 +1186,7 @@ char *c 位移以個單位是1byte
 </details>
 </details>
 <details class="answer self-practice"><summary>自我練習（不批改）</summary>
-<div class="answer-box" data-file="review/2026-10-30-hello-gcc-GNU-interp-ELF-objdump-C資料-字元-陣列-組語.md" data-line="759" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="review/2026-10-30-hello-gcc-GNU-interp-ELF-objdump-C資料-字元-陣列-組語.md" data-line="759" data-insert="1" data-anchor="&gt; &#42;&#42;詳細說明&#42;&#42;：影子 byte 的值 `00` 是「這 8 個 byte 都能碰」，`f1`、`f3` 是陣列左右的禁區。本機實測那一列是 `f1 f1 f1 f1 f1 f1 04 f2 00 00 00[f3]f3 f3 f3 f3`：`buf` 的 3 個 `00` 後面緊接右禁區 `f3`，`[f3]` 就是這次寫到的偏移 40。索引 6 是典型的 `i &lt;= n` 錯誤：迴圈多跑了一圈。"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <hr />
 <h2 id="組語x86-64組合語言入門-暫存器mov與leacmp與條件跳躍">組語：<a href="../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80-%E6%9A%AB%E5%AD%98%E5%99%A8%E3%80%81mov%E8%88%87lea%E3%80%81cmp%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D.html">x86-64組合語言入門-暫存器、mov與lea、cmp與條件跳躍</a></h2>
@@ -1228,7 +1228,7 @@ char *c 位移以個單位是1byte
 </details>
 </details>
 <details class="answer self-practice"><summary>自我練習（不批改）</summary>
-<div class="answer-box" data-file="review/2026-10-30-hello-gcc-GNU-interp-ELF-objdump-C資料-字元-陣列-組語.md" data-line="808" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="review/2026-10-30-hello-gcc-GNU-interp-ELF-objdump-C資料-字元-陣列-組語.md" data-line="808" data-insert="1" data-anchor="&gt; &#42;&#42;詳細說明&#42;&#42;：這也是擴展指令裡&#42;&#42;沒有 `movzlq`&#42;&#42; 的原因：4 → 8 byte 的零擴展，`movl` 就做完了。`widen_s` 要補符號位元，CPU 不會自動補，才需要 `movslq`。"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h4 id="組語-2-2-如果改寫-16-位元的-ax同樣的理由還成立嗎">組語 2-2. 如果改寫 16 位元的 <code>%ax</code>，同樣的理由還成立嗎？</h4>
 <details class="answer-fold"><summary>作答（🔒 已批改）</summary>
@@ -1249,7 +1249,7 @@ char *c 位移以個單位是1byte
 </details>
 </details>
 <details class="answer self-practice"><summary>自我練習（不批改）</summary>
-<div class="answer-box" data-file="review/2026-10-30-hello-gcc-GNU-interp-ELF-objdump-C資料-字元-陣列-組語.md" data-line="826" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="review/2026-10-30-hello-gcc-GNU-interp-ELF-objdump-C資料-字元-陣列-組語.md" data-line="826" data-insert="1" data-anchor="&gt; &#42;&#42;詳細說明&#42;&#42;：這條規則不對稱：寫 32 位元（`%eax`）→ 高 32 位元清成 0；寫 16 位元（`%ax`）、8 位元（`%al`）→ 高位不動，保留舊值。"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h3 id="組語-3-有號與無號在哪裡決定">組語 3. 有號與無號在哪裡決定</h3>
 <blockquote>
@@ -1321,7 +1321,7 @@ setb 看無號
 </details>
 </details>
 <details class="answer self-practice"><summary>自我練習（不批改）</summary>
-<div class="answer-box" data-file="review/2026-10-30-hello-gcc-GNU-interp-ELF-objdump-C資料-字元-陣列-組語.md" data-line="908" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="review/2026-10-30-hello-gcc-GNU-interp-ELF-objdump-C資料-字元-陣列-組語.md" data-line="908" data-insert="1" data-anchor="&gt; &#42;&#42;詳細說明&#42;&#42;：實驗的 `a` 是 −1（位元 `0xffffffff`）、`b` 是 1。有號看是 −1 &lt; 1；無號看是 4294967295 &lt; 1，不成立。`cmpl` 算出的位元與旗標只有一份，兩種讀法是 gcc 挑條件碼時決定的。"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h4 id="組語-3-2-c-的有號還是無號在組合語言裡到底是在哪裡決定的">組語 3-2. C 的「有號還是無號」在組合語言裡到底是在哪裡決定的？</h4>
 <details class="answer-fold"><summary>作答（🔒 已批改）</summary>
@@ -1342,7 +1342,7 @@ setb 看無號
 </details>
 </details>
 <details class="answer self-practice"><summary>自我練習（不批改）</summary>
-<div class="answer-box" data-file="review/2026-10-30-hello-gcc-GNU-interp-ELF-objdump-C資料-字元-陣列-組語.md" data-line="926" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="review/2026-10-30-hello-gcc-GNU-interp-ELF-objdump-C資料-字元-陣列-組語.md" data-line="926" data-insert="1" data-anchor="&gt; &#42;&#42;詳細說明&#42;&#42;：另一個看得出有號無號的地方是變寬時挑 `movs` 還是 `movz`。`cmp` 把兩種解讀需要的旗標（OF 給有號、CF 給無號）一次都設好，`add`、`sub` 的位元也不分有號無號。所以從組合語言反推型別時，只能看這兩種地方。"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h3 id="組語-5-情境題從一行反組譯推回-c">組語 5. 情境題：從一行反組譯推回 C</h3>
 <blockquote>
@@ -1367,7 +1367,7 @@ setb 看無號
 </details>
 </details>
 <details class="answer self-practice"><summary>自我練習（不批改）</summary>
-<div class="answer-box" data-file="review/2026-10-30-hello-gcc-GNU-interp-ELF-objdump-C資料-字元-陣列-組語.md" data-line="949" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="review/2026-10-30-hello-gcc-GNU-interp-ELF-objdump-C資料-字元-陣列-組語.md" data-line="949" data-insert="1" data-anchor="&gt; &#42;&#42;詳細說明&#42;&#42;：kernel 裡很常見的是「指標的陣列」（例如 `struct foo &#42;&#42;tbl`），元素同樣是 8 byte。"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h4 id="組語-5-2-存取的是第幾個元素用-i-表示">組語 5-2. 存取的是第幾個元素（用 <code>i</code> 表示）？</h4>
 <blockquote>
@@ -1389,7 +1389,7 @@ setb 看無號
 </details>
 </details>
 <details class="answer self-practice"><summary>自我練習（不批改）</summary>
-<div class="answer-box" data-file="review/2026-10-30-hello-gcc-GNU-interp-ELF-objdump-C資料-字元-陣列-組語.md" data-line="967" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="review/2026-10-30-hello-gcc-GNU-interp-ELF-objdump-C資料-字元-陣列-組語.md" data-line="967" data-insert="1" data-anchor="&gt; &#42;&#42;詳細說明&#42;&#42;：D 換算成元素數要除以元素大小：24 byte ÷ 8 byte ＝ 3 個元素。筆記的 `0xc(%rdi,%rsi,4)` 是同一件事（12 ÷ 4 ＝ 3，`a[i + 3]` 的 `int` 版）。"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h4 id="組語-5-3-如果同一個位置看到的是-leaq-而不是-movqc-又會是什麼">組語 5-3. 如果同一個位置看到的是 <code>leaq</code> 而不是 <code>movq</code>，C 又會是什麼？</h4>
 <blockquote>
@@ -1412,7 +1412,7 @@ setb 看無號
 </details>
 </details>
 <details class="answer self-practice"><summary>自我練習（不批改）</summary>
-<div class="answer-box" data-file="review/2026-10-30-hello-gcc-GNU-interp-ELF-objdump-C資料-字元-陣列-組語.md" data-line="986" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="review/2026-10-30-hello-gcc-GNU-interp-ELF-objdump-C資料-字元-陣列-組語.md" data-line="986" data-insert="1" data-anchor="&gt; &#42;&#42;詳細說明&#42;&#42;：`movq` 版是 `return a[i + 3];`，`leaq` 版是 `return &amp;a[i + 3];`。本機實測 `long &#42;k(long &#42;a, long i) { return &amp;a[i + 3]; }` 編出 `leaq 24(%rdi,%rsi,8), %rax`。"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h3 id="組語-18-0x01--0x7f-的進位與-cfof">組語 18. <code>0x01 + 0x7f</code> 的進位與 CF、OF</h3>
 <blockquote>
@@ -1437,7 +1437,7 @@ setb 看無號
 </details>
 </details>
 <details class="answer self-practice"><summary>自我練習（不批改）</summary>
-<div class="answer-box" data-file="review/2026-10-30-hello-gcc-GNU-interp-ELF-objdump-C資料-字元-陣列-組語.md" data-line="1007" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="review/2026-10-30-hello-gcc-GNU-interp-ELF-objdump-C資料-字元-陣列-組語.md" data-line="1007" data-insert="1" data-anchor="&gt; 2. 沒有：第 7 位是 0 + 0 + 1 ＝ 1，留下 1、不再往外進。"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h4 id="組語-18-2-cfof-各是多少為什麼有進位不等於-cf--1">組語 18-2. CF、OF 各是多少，為什麼「有進位」不等於 CF = 1？</h4>
 <blockquote>
@@ -1463,7 +1463,7 @@ OF = 1
 </details>
 </details>
 <details class="answer self-practice"><summary>自我練習（不批改）</summary>
-<div class="answer-box" data-file="review/2026-10-30-hello-gcc-GNU-interp-ELF-objdump-C資料-字元-陣列-組語.md" data-line="1029" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="review/2026-10-30-hello-gcc-GNU-interp-ELF-objdump-C資料-字元-陣列-組語.md" data-line="1029" data-insert="1" data-anchor="&gt; &#42;&#42;詳細說明&#42;&#42;：OF ＝ 1 的理由：當&#42;&#42;有號數&#42;&#42;算，127 + 1 ＝ +128 超出 −128～127，留下的 `0x80` 讀成 −128。"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h4 id="組語-18-3-再比較-0x05--0x03它也有進位為什麼兩個旗標都是-0">組語 18-3. 再比較 <code>0x05 + 0x03</code>：它也有進位，為什麼兩個旗標都是 0？</h4>
 <details class="answer-fold"><summary>作答（🔒 已批改）</summary>
@@ -1483,7 +1483,7 @@ OF = 1
 </details>
 </details>
 <details class="answer self-practice"><summary>自我練習（不批改）</summary>
-<div class="answer-box" data-file="review/2026-10-30-hello-gcc-GNU-interp-ELF-objdump-C資料-字元-陣列-組語.md" data-line="1045" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="review/2026-10-30-hello-gcc-GNU-interp-ELF-objdump-C資料-字元-陣列-組語.md" data-line="1045" data-insert="1" data-anchor="&gt; 2. 無號 8、有號 8 都裝得下；「中間有進位」本身不影響任何旗標。"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h4 id="組語-18-4-最後用進到第-7-位的進位和第-7-位往外的進位說明-0xff--0x01-的-of-為什麼是-0">組語 18-4. 最後用「進到第 7 位的進位」和「第 7 位往外的進位」說明 <code>0xff + 0x01</code> 的 OF 為什麼是 0。</h4>
 <details class="answer-fold"><summary>作答（🔒 已批改）</summary>
@@ -1507,7 +1507,7 @@ OF = 1
 </details>
 </details>
 <details class="answer self-practice"><summary>自我練習（不批改）</summary>
-<div class="answer-box" data-file="review/2026-10-30-hello-gcc-GNU-interp-ELF-objdump-C資料-字元-陣列-組語.md" data-line="1066" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="review/2026-10-30-hello-gcc-GNU-interp-ELF-objdump-C資料-字元-陣列-組語.md" data-line="1066" data-insert="1" data-anchor="&gt; &#42;&#42;詳細說明&#42;&#42;：OF 的定義一直是「當有號數裝不下」；「進 XOR 出」是 CPU 算出它的方法。"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 
 </main>

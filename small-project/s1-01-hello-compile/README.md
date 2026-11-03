@@ -159,3 +159,14 @@ hello, world
 > **參考答案**：靜態版把 libc 用到的程式碼複製進執行檔，所以大約 50 倍大（程式碼區 1375 → 668305 bytes）。
 > 動態版的 `openat` 是動態載入器打開 `/etc/ld.so.cache` 與 `libc.so.6`；靜態版沒有 interpreter、libc 已在自己身上，
 > 沒有東西要打開，系統呼叫 34 → 16。兩者都只有 1 次 `write`：連結方式只影響程式碼從哪來，不影響最後請核心做的事（筆記[第五節](../../html/c/hello.c怎麼變成能跑的程式-編譯的四個階段.html#五連結把洞接上但-puts-還是沒接完)、[第六節](../../html/c/hello.c怎麼變成能跑的程式-編譯的四個階段.html#六執行從-execve-到-write)）。
+
+---
+
+## 筆記的範例程式
+
+（2026-11-03 起新增的範例放在 `examples/<實驗名>/`；第 1 課原本的範例直接放在本資料夾，不搬。）
+
+| 檔案 | 筆記裡的位置 |
+|---|---|
+| [`examples/vdso/vdso_trace.c`](./examples/vdso/vdso_trace.c) | [objdump能不能代替ldd找依賴庫](../../c/objdump能不能代替ldd找依賴庫-需求單與實際載入.md#1-linux-vdsoso1-是什麼核心塞進每個行程的小函式庫) 第七節第 1 章〈實驗一：`strace` 看不到走 vDSO 的呼叫〉 |
+| [`examples/vdso/vdso_bench.c`](./examples/vdso/vdso_bench.c) | 同上〈實驗二：快多少〉 |

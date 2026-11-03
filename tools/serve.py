@@ -39,10 +39,21 @@ def fence_content(lines, start, indent, fence):
     raise SaveError(409, "找不到作答框的結尾，請重新整理頁面")
 
 
-def insert_practice(lines, line, content):
-    """在批改區塊後面（第 line 行之前）插入自我練習框；回傳 (行數變化, 作答框開頭的行號)。"""
+STALE = "檔案在別處被改過（例如已經批改），請先把框裡的內容複製起來，再重新整理頁面"
+
+
+def insert_practice(lines, line, content, anchor=None):
+    """在批改區塊後面（第 line 行之前）插入自我練習框；回傳 (行數變化, 作答框開頭的行號)。
+
+    頁面產生後 .md 若被改過（例如 Claude 在上面加了成績表的列），頁面記的行號會錯位。
+    所以插入前要同時確認：第 line 行之前那行就是頁面記下的批改區塊最後一行（anchor），
+    而且第 line 行已經離開引言區塊——否則會插進批改的中間（2026-11-03 發生過）。"""
     if not 0 < line <= len(lines) or not lines[line - 1].lstrip().startswith(">"):
-        raise SaveError(409, "檔案在別處被改過（例如已經批改），請先把框裡的內容複製起來，再重新整理頁面")
+        raise SaveError(409, STALE)
+    if anchor is None or lines[line - 1].rstrip() != anchor.rstrip():
+        raise SaveError(409, STALE)
+    if line < len(lines) and lines[line].lstrip().startswith(">"):
+        raise SaveError(409, STALE)
     k = line
     while k < len(lines) and not lines[k].strip():
         k += 1
@@ -66,7 +77,7 @@ def fence_lines(indent, content):
     return out
 
 
-def save_answer(rel, line, original, content, insert=False):
+def save_answer(rel, line, original, content, insert=False, anchor=None):
     path = (ROOT / rel).resolve()
     try:
         rel_path = path.relative_to(ROOT)
@@ -78,7 +89,7 @@ def save_answer(rel, line, original, content, insert=False):
     text = path.read_text(encoding="utf-8")
     lines = text.split("\n")
     if insert:
-        delta, new_line = insert_practice(lines, line, content)
+        delta, new_line = insert_practice(lines, line, content, anchor)
         write_lines(path, lines)
         return delta, new_line
     m = FENCE_OPEN.match(lines[line]) if 0 <= line < len(lines) else None
@@ -156,7 +167,7 @@ class Handler(SimpleHTTPRequestHandler):
             req = json.loads(self.rfile.read(int(self.headers.get("Content-Length", 0))))
             with LOCK:
                 delta, new_line = save_answer(req["file"], int(req["line"]), req["original"], req["content"],
-                                              bool(req.get("insert")))
+                                              bool(req.get("insert")), req.get("anchor"))
                 build_html.main()
             self.log_message("已寫入 %s 第 %d 行", req["file"], int(req["line"]) + 1)
             reply = {"ok": True, "delta": delta}

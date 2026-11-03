@@ -175,8 +175,12 @@ PRACTICE_LABEL = "**自我練習**（不批改）"
 RETRY_LABEL = re.compile(r"^\*\*第 ?\d+ ?次")
 
 
-def practice_box(src_rel, line, content, insert=False):
+def practice_box(src_rel, line, content, insert=False, anchor=None):
+    # 新插入的框附上批改區塊最後一行（data-anchor）：serve.py 插入前比對，頁面沒重新整理、行號已經錯位時拒絕存檔
     attr = ' data-insert="1"' if insert else ""
+    if insert and anchor is not None:
+        # * 要編碼成 &#42;：不然 fix_cjk_strong 會把屬性值裡的 **…** 改成 <strong>，跟 .md 對不上
+        attr += f' data-anchor="{html.escape(anchor, quote=True).replace("*", "&#42;")}"'
     return (f'<details class="answer self-practice"><summary>自我練習（不批改）</summary>\n'
             f'<div class="answer-box" data-file="{html.escape(src_rel.as_posix())}" data-line="{line}"{attr}>'
             f'<textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）">'
@@ -284,7 +288,7 @@ def mark_answer_boxes(tokens, src_rel, lines):
             ok = [max(slots)[:2]]
         chosen += ok
     for x, line in sorted(chosen, reverse=True):
-        tok = Token("html_block", "", 0, content=practice_box(src_rel, line, "", insert=True))
+        tok = Token("html_block", "", 0, content=practice_box(src_rel, line, "", insert=True, anchor=lines[line - 1]))
         tokens.insert(x, tok)
     return n
 
@@ -499,7 +503,7 @@ window.saveAnswer=function(btn){
   btn.disabled=true;st.className='status';st.textContent='儲存中…';
   fetch('/api/save',{method:'POST',headers:{'Content-Type':'application/json'},
     body:JSON.stringify({file:box.dataset.file,line:+box.dataset.line,original:ta.defaultValue,content:ta.value,
-      insert:box.dataset.insert==='1'})})
+      insert:box.dataset.insert==='1',anchor:box.dataset.anchor})})
   .then(function(r){return r.json().then(function(j){return {ok:r.ok,j:j};});})
   .then(function(x){
     btn.disabled=false;
@@ -507,7 +511,7 @@ window.saveAnswer=function(btn){
     var line=+box.dataset.line;
     document.querySelectorAll('.answer-box').forEach(function(b){
       if(b!==box&&b.dataset.file===box.dataset.file&&+b.dataset.line>line)b.dataset.line=+b.dataset.line+x.j.delta;});
-    if(x.j.line!==undefined){box.dataset.line=x.j.line;delete box.dataset.insert;}
+    if(x.j.line!==undefined){box.dataset.line=x.j.line;delete box.dataset.insert;delete box.dataset.anchor;}
     ta.defaultValue=ta.value;box.classList.remove('dirty');
     st.textContent='✓ 已儲存 '+new Date().toLocaleTimeString();})
   .catch(function(e){btn.disabled=false;st.className='status err';st.textContent='✗ 連不到 serve.py：'+e;});

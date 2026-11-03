@@ -30,7 +30,7 @@ window.saveAnswer=function(btn){
   btn.disabled=true;st.className='status';st.textContent='儲存中…';
   fetch('/api/save',{method:'POST',headers:{'Content-Type':'application/json'},
     body:JSON.stringify({file:box.dataset.file,line:+box.dataset.line,original:ta.defaultValue,content:ta.value,
-      insert:box.dataset.insert==='1'})})
+      insert:box.dataset.insert==='1',anchor:box.dataset.anchor})})
   .then(function(r){return r.json().then(function(j){return {ok:r.ok,j:j};});})
   .then(function(x){
     btn.disabled=false;
@@ -38,7 +38,7 @@ window.saveAnswer=function(btn){
     var line=+box.dataset.line;
     document.querySelectorAll('.answer-box').forEach(function(b){
       if(b!==box&&b.dataset.file===box.dataset.file&&+b.dataset.line>line)b.dataset.line=+b.dataset.line+x.j.delta;});
-    if(x.j.line!==undefined){box.dataset.line=x.j.line;delete box.dataset.insert;}
+    if(x.j.line!==undefined){box.dataset.line=x.j.line;delete box.dataset.insert;delete box.dataset.anchor;}
     ta.defaultValue=ta.value;box.classList.remove('dirty');
     st.textContent='✓ 已儲存 '+new Date().toLocaleTimeString();})
   .catch(function(e){btn.disabled=false;st.className='status err';st.textContent='✗ 連不到 serve.py：'+e;});

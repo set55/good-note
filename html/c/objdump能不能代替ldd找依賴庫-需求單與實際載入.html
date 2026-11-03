@@ -22,6 +22,8 @@
 <li class="l2"><a href="#%E5%85%AD%E6%9C%AC%E7%AF%87%E7%94%A8%E5%88%B0%E7%9A%84%E5%B7%A5%E5%85%B7%E9%81%B8%E9%A0%85">六、本篇用到的工具選項</a></li>
 <li class="l3"><a href="#ldd%E5%85%A8%E9%83%A8%E9%81%B8%E9%A0%85ldd---help-%E5%AF%A6%E6%B8%AC%E5%85%B1-6-%E5%80%8B%E5%85%A8%E5%88%97">ldd：全部選項（ldd --help 實測，共 6 個，全列）</a></li>
 <li class="l3"><a href="#objdump%E9%A1%AF%E7%A4%BA%E4%BB%80%E9%BA%BC%E9%80%99%E4%B8%80%E7%B5%84%E5%85%A8%E9%83%A8%E5%88%97%E5%87%BA">objdump：「顯示什麼」這一組全部列出</a></li>
+<li class="l2"><a href="#%E4%B8%83%E8%AA%B2%E5%BE%8C%E8%A8%8E%E8%AB%96">七、課後討論</a></li>
+<li class="l3"><a href="#1-linux-vdsoso1-%E6%98%AF%E4%BB%80%E9%BA%BC%E6%A0%B8%E5%BF%83%E5%A1%9E%E9%80%B2%E6%AF%8F%E5%80%8B%E8%A1%8C%E7%A8%8B%E7%9A%84%E5%B0%8F%E5%87%BD%E5%BC%8F%E5%BA%AB">1. linux-vdso.so.1 是什麼：核心塞進每個行程的小函式庫</a></li>
 <li class="l2"><a href="#%E8%87%AA%E6%88%91%E6%B8%AC%E9%A9%97">自我測驗</a></li>
 </ul>
 </nav>
@@ -105,6 +107,9 @@ $ ldd /usr/bin/curl
 14
 </code></pre>
 <p>每個 <code>.so</code> 也有自己的需求單。<code>objdump</code> 只讀你給它的那一個檔案，<strong>不會自己往下追</strong>；要用 <code>objdump</code> 得到完整清單，就得自己對每一個依賴再跑一次，還得自己知道每個名字對應到哪個路徑。</p>
+<blockquote>
+<p>課後討論：<a href="#1-linux-vdsoso1-%E6%98%AF%E4%BB%80%E9%BA%BC%E6%A0%B8%E5%BF%83%E5%A1%9E%E9%80%B2%E6%AF%8F%E5%80%8B%E8%A1%8C%E7%A8%8B%E7%9A%84%E5%B0%8F%E5%87%BD%E5%BC%8F%E5%BA%AB">第七節第 1 章〈<code>linux-vdso.so.1</code> 是什麼：核心塞進每個行程的小函式庫〉</a></p>
+</blockquote>
 <hr />
 <h2 id="二為什麼會差這麼多兩者看的是不同時間點">二、為什麼會差這麼多：兩者看的是不同時間點</h2>
 <p>套用〈三個名字很像的檔案〉那個比喻：</p>
@@ -482,6 +487,125 @@ $ ./app                                     # 實際執行：跟 ldd 說的一�
 </tbody>
 </table>
 <p><strong>文法可以問工具</strong>：<code>objdump --help</code>、<code>ldd --help</code>、<code>man objdump</code>、<code>man ldd</code>、<code>man ld.so</code>（<code>LD_TRACE_LOADED_OBJECTS</code> 等環境變數寫在這裡）。</p>
+<h2 id="七課後討論">七、課後討論</h2>
+<p>課後提問的延伸內容，一個主題一章；正文被問到的地方放了連結回到這裡。</p>
+<ul>
+<li><a href="#1-linux-vdsoso1-%E6%98%AF%E4%BB%80%E9%BA%BC%E6%A0%B8%E5%BF%83%E5%A1%9E%E9%80%B2%E6%AF%8F%E5%80%8B%E8%A1%8C%E7%A8%8B%E7%9A%84%E5%B0%8F%E5%87%BD%E5%BC%8F%E5%BA%AB">第 1 章</a>：<code>linux-vdso.so.1</code> 是什麼：核心塞進每個行程的小函式庫</li>
+</ul>
+<h3 id="1-linux-vdsoso1-是什麼核心塞進每個行程的小函式庫">1. <code>linux-vdso.so.1</code> 是什麼：核心塞進每個行程的小函式庫</h3>
+<blockquote>
+<p>2026-11-03 課後提問：「linux-vdso.so,你知道是什麼嗎?」<br />
+正文出處：<a href="#%E4%B8%80%E5%85%88%E7%9C%8B%E5%B7%AE%E5%A4%9A%E5%B0%91curl-%E7%9A%84%E4%BE%8B%E5%AD%90">第一節〈先看差多少：<code>curl</code> 的例子〉</a>比較表的「其他項目」那列——正文只用一句「核心直接塞進行程的虛擬函式庫，磁碟上沒有這個檔」帶過。<br />
+範圍：vDSO 屬於「使用者程式怎麼進核心」（系統呼叫的成本），正式內容在第 ⑤ 站；這裡只講到看懂 <code>ldd</code> 那一行為止。本章不出測驗題（使用者指定）。</p>
+</blockquote>
+<p><strong>一句話：vDSO（virtual Dynamic Shared Object，虛擬動態共享物件）是核心在每個行程啟動時直接映射進來的一小段程式碼和資料，讓「讀時間」這類呼叫不必真的進核心。</strong></p>
+<h4 id="它在哪裡有位址沒有檔案">它在哪裡：有位址、沒有檔案</h4>
+<p><code>ldd</code> 列出它時只有位址、沒有 <code>=&gt; 路徑</code>，因為它不是從磁碟載入的：</p>
+<pre><code class="language-text">$ ldd /bin/true
+	linux-vdso.so.1 (0x000070c8ce5a4000)                      ← 只有位址，沒有檔案路徑
+	libc.so.6 =&gt; /lib/x86_64-linux-gnu/libc.so.6 (0x000070c8ce200000)
+	/lib64/ld-linux-x86-64.so.2 (0x000070c8ce5a6000)
+</code></pre>
+<p>在行程的記憶體配置表裡看得到它（這裡看的是 <code>grep</code> 自己這個行程）。檔名欄是方括號、inode 是 0，表示背後沒有檔案：</p>
+<pre><code class="language-text">$ grep -E &#39;vdso|vvar&#39; /proc/self/maps
+7ce041fbb000-7ce041fbf000 r--p 00000000 00:00 0      [vvar]
+7ce041fbf000-7ce041fc1000 r--p 00000000 00:00 0      [vvar_vclock]
+7ce041fc1000-7ce041fc3000 r-xp 00000000 00:00 0      [vdso]
+</code></pre>
+<ul>
+<li><code>[vdso]</code>（<code>r-x</code>，可執行）：程式碼，就是那個「<code>.so</code>」。</li>
+<li><code>[vvar]</code>、<code>[vvar_vclock]</code>（唯讀）：核心持續更新的資料，例如目前時間。本機核心是 <code>7.0.0-42-generic</code>，較舊的核心只有 <code>[vvar]</code> 一塊。</li>
+</ul>
+<h4 id="為什麼要有它省掉系統呼叫">為什麼要有它：省掉系統呼叫</h4>
+<p>有些系統呼叫只是「向核心讀一個值」，最典型的是讀現在幾點。真的進一次核心要切換特權模式、存回暫存器，成本不小。vDSO 的做法是：</p>
+<ol>
+<li>核心把時間相關的資料放在 <code>[vvar]</code> 那幾頁，讓每個行程都能<strong>讀</strong>；</li>
+<li>再給一段程式碼（<code>[vdso]</code>），在<strong>使用者空間</strong>直接讀那幾頁、算出結果，完全不進核心。</li>
+</ol>
+<p>glibc 的 <code>clock_gettime()</code>、<code>gettimeofday()</code>、<code>time()</code> 會優先呼叫 vDSO 裡的版本。</p>
+<p>它提供哪些函式，可以看核心套件附帶的同一份檔案 <code>/lib/modules/$(uname -r)/vdso/vdso64.so</code>（給除錯用的副本；行程執行時不會從這裡載入）：</p>
+<pre><code class="language-text">$ readelf -d /lib/modules/$(uname -r)/vdso/vdso64.so | grep SONAME
+ 0x000000000000000e (SONAME)             Library soname: [linux-vdso.so.1]     ← 正是 ldd 看到的名字
+$ readelf -W --dyn-syms /lib/modules/$(uname -r)/vdso/vdso64.so | grep FUNC | awk &#39;{print $8}&#39;
+clock_gettime@@LINUX_2.6
+__vdso_gettimeofday@@LINUX_2.6
+clock_getres@@LINUX_2.6
+__vdso_clock_getres@@LINUX_2.6
+gettimeofday@@LINUX_2.6
+__vdso_time@@LINUX_2.6
+__vdso_sgx_enter_enclave@@LINUX_2.6
+__vdso_getrandom@@LINUX_2.6
+time@@LINUX_2.6
+__vdso_clock_gettime@@LINUX_2.6
+__vdso_getcpu@@LINUX_2.6
+getcpu@@LINUX_2.6
+getrandom@@LINUX_2.6
+</code></pre>
+<p>全都是「讀時間、讀 CPU 編號、拿亂數」這類不必進核心就能完成的事（<code>readelf</code> 的選項見 <a href="readelf%E5%AE%8C%E6%95%B4%E9%81%B8%E9%A0%85%E5%8F%83%E8%80%83.html">readelf完整選項參考</a>）。</p>
+<h4 id="實驗一strace-看不到走-vdso-的呼叫">實驗一：<code>strace</code> 看不到走 vDSO 的呼叫</h4>
+<p><code>vdso_trace.c</code>（檔案：<a href="../../small-project/s1-01-hello-compile/examples/vdso/vdso_trace.c"><code>vdso_trace.c</code></a>）：前 3 次走 glibc 的 <code>clock_gettime</code>（會經過 vDSO），後 3 次用 <code>syscall()</code> 強制發出真正的系統呼叫。</p>
+<pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;time.h&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;unistd.h&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;sys/syscall.h&gt;</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="k">struct</span><span class="w"> </span><span class="nc">timespec</span><span class="w"> </span><span class="n">ts</span><span class="p">;</span>
+<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">3</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="o">++</span><span class="p">)</span>
+<span class="w">        </span><span class="n">clock_gettime</span><span class="p">(</span><span class="n">CLOCK_MONOTONIC</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">ts</span><span class="p">);</span><span class="w">       </span><span class="cm">/* 經 vDSO */</span>
+<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">3</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="o">++</span><span class="p">)</span>
+<span class="w">        </span><span class="n">syscall</span><span class="p">(</span><span class="n">SYS_clock_gettime</span><span class="p">,</span><span class="w"> </span><span class="n">CLOCK_MONOTONIC</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">ts</span><span class="p">);</span><span class="w"> </span><span class="cm">/* 強制真的系統呼叫 */</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;%ld.%09ld</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="kt">long</span><span class="p">)</span><span class="n">ts</span><span class="p">.</span><span class="n">tv_sec</span><span class="p">,</span><span class="w"> </span><span class="n">ts</span><span class="p">.</span><span class="n">tv_nsec</span><span class="p">);</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<pre><code class="language-text">$ gcc -Wall -O0 vdso_trace.c -o vdso_trace &amp;&amp; strace -e trace=clock_gettime ./vdso_trace
+clock_gettime(CLOCK_MONOTONIC, {tv_sec=17634, tv_nsec=69419419}) = 0
+clock_gettime(CLOCK_MONOTONIC, {tv_sec=17634, tv_nsec=69560020}) = 0
+clock_gettime(CLOCK_MONOTONIC, {tv_sec=17634, tv_nsec=69639203}) = 0
+17634.069639203
++++ exited with 0 +++
+</code></pre>
+<p>程式呼叫了 6 次，<code>strace</code> 只看到 <strong>3 次</strong>——是 <code>syscall()</code> 強制的那 3 次。走 vDSO 的 3 次根本沒進核心，<code>strace</code> 攔不到（<code>strace</code> 攔的是進核心的那一刻）。</p>
+<h4 id="實驗二快多少">實驗二：快多少</h4>
+<p><code>vdso_bench.c</code>（檔案：<a href="../../small-project/s1-01-hello-compile/examples/vdso/vdso_bench.c"><code>vdso_bench.c</code></a>）：兩種方式各做 100 萬次，算平均每次幾奈秒。</p>
+<pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;time.h&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;unistd.h&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;sys/syscall.h&gt;</span>
+
+<span class="cp">#define N 1000000</span>
+
+<span class="k">static</span><span class="w"> </span><span class="kt">double</span><span class="w"> </span><span class="nf">now</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="k">struct</span><span class="w"> </span><span class="nc">timespec</span><span class="w"> </span><span class="n">ts</span><span class="p">;</span>
+<span class="w">    </span><span class="n">clock_gettime</span><span class="p">(</span><span class="n">CLOCK_MONOTONIC</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">ts</span><span class="p">);</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">ts</span><span class="p">.</span><span class="n">tv_sec</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">ts</span><span class="p">.</span><span class="n">tv_nsec</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="mf">1e9</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="k">struct</span><span class="w"> </span><span class="nc">timespec</span><span class="w"> </span><span class="n">ts</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">double</span><span class="w"> </span><span class="n">t0</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">now</span><span class="p">();</span>
+<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">N</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="o">++</span><span class="p">)</span>
+<span class="w">        </span><span class="n">clock_gettime</span><span class="p">(</span><span class="n">CLOCK_MONOTONIC</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">ts</span><span class="p">);</span>
+<span class="w">    </span><span class="kt">double</span><span class="w"> </span><span class="n">t1</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">now</span><span class="p">();</span>
+<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">N</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="o">++</span><span class="p">)</span>
+<span class="w">        </span><span class="n">syscall</span><span class="p">(</span><span class="n">SYS_clock_gettime</span><span class="p">,</span><span class="w"> </span><span class="n">CLOCK_MONOTONIC</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">ts</span><span class="p">);</span>
+<span class="w">    </span><span class="kt">double</span><span class="w"> </span><span class="n">t2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">now</span><span class="p">();</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;vDSO   : %.1f ns/次</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="n">t1</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">t0</span><span class="p">)</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">N</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mf">1e9</span><span class="p">);</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;syscall: %.1f ns/次</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="n">t2</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">t1</span><span class="p">)</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">N</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mf">1e9</span><span class="p">);</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<pre><code class="language-text">$ gcc -Wall -O0 vdso_bench.c -o vdso_bench &amp;&amp; ./vdso_bench
+vDSO   : 61.6 ns/次
+syscall: 140.2 ns/次
+</code></pre>
+<p>本機跑三次：vDSO 53～76 ns，真的系統呼叫 140～210 ns，走 vDSO 大約快 2～4 倍（數字隨機器負載浮動，重點是比例）。</p>
+<h4 id="回到正文為什麼-objdump--p-看不到它">回到正文：為什麼 <code>objdump -p</code> 看不到它</h4>
+<p><code>curl</code> 的 <code>NEEDED</code> 裡沒有 <code>linux-vdso.so.1</code>：它不是連結時 <code>ld</code> 寫進需求單的，而是<strong>核心在執行時</strong>塞進每個行程的。<code>ldd</code> 請載入器實際走一次載入流程，所以看得到；<code>objdump</code> 只讀檔案，看不到。這也是正文第二節「兩者看的是不同時間點」的又一個例子。</p>
 <hr />
 <h2 id="自我測驗">自我測驗</h2>
 <blockquote>

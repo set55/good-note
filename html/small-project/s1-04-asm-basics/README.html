@@ -322,7 +322,7 @@ mul6, mul7 不行,因爲S只能是1,2,4,8
 </details>
 </details>
 <details class="answer self-practice"><summary>自我練習（不批改）</summary>
-<div class="answer-box" data-file="small-project/s1-04-asm-basics/README.md" data-line="125" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="small-project/s1-04-asm-basics/README.md" data-line="125" data-insert="1" data-anchor="&gt; &#42;&#42;參考答案&#42;&#42;【[筆記第三節](../../html/c/x86-64組合語言入門-暫存器、mov與lea、cmp與條件跳躍.html#三指令的文法助憶符大小後綴運算元) `D(B,I,S)` 表、[第四節](../../html/c/x86-64組合語言入門-暫存器、mov與lea、cmp與條件跳躍.html#四mov-與-lea搬資料-vs-算位址)〈`lea` 被拿來做算術〉】`S` 只能是 1、2、4、8。一個 `lea` 能算 `D + B + I×S`，`B`、`I` 都放 `x` 時，做得出 `x×S`（1、2、4、8 倍）或 `x + x×S`（2、3、5、9 倍）。5 ＝ 1 + 4、9 ＝ 1 + 8，所以 `mul5` 是 `leaq (%rdi,%rdi,4), %rax`、`mul9` 是 `leaq (%rdi,%rdi,8), %rax`；6 和 7 不在這些倍數裡，一個 `lea` 做不到。"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h3 id="1-2-用--o2-編譯貼上四個函式的本體跟預測對照哪裡猜對哪裡猜錯">1-2. 用 <code>-O2</code> 編譯，貼上四個函式的本體，跟預測對照：哪裡猜對、哪裡猜錯？</h3>
 <p><strong>第 1 次（2026-10-08）</strong></p>
@@ -386,7 +386,7 @@ mul7:
 </details>
 </details>
 <details class="answer self-practice"><summary>自我練習（不批改）</summary>
-<div class="answer-box" data-file="small-project/s1-04-asm-basics/README.md" data-line="185" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="small-project/s1-04-asm-basics/README.md" data-line="185" data-insert="1" data-anchor="&gt; &#42;&#42;參考答案&#42;&#42;：猜錯的有三處：① 預測四個都是一個 `lea`，實際上只有 `mul5`、`mul9` 是，`mul6`、`mul7` 各要兩個指令；② 寫成 `0x0(,%rdi,$5)`，`S` 用了不合法的 5、6、7、9，實際的寫法是把 `B` 也放 `%rdi`，用 `x + x×4`、`x + x×8` 湊出 5 倍、9 倍；③ 括號裡加了 `$`，記憶體運算元裡的數字不加 `$`。猜對的：用 `leaq`、結果放 `%rax`。"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h3 id="1-3-不是一個-lea-就做完的那幾個逐行寫出每個指令之後-rax-等於-x-的幾倍說明-gcc-是怎麼湊出來的筆記第三節dis-這種省略形式第四節本課的算術與邏輯指令">1-3. 不是一個 <code>lea</code> 就做完的那幾個，逐行寫出每個指令之後 <code>%rax</code> 等於 <code>x</code> 的幾倍，說明 gcc 是怎麼湊出來的。【筆記<a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80-%E6%9A%AB%E5%AD%98%E5%99%A8%E3%80%81mov%E8%88%87lea%E3%80%81cmp%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D.html#%E4%B8%89%E6%8C%87%E4%BB%A4%E7%9A%84%E6%96%87%E6%B3%95%E5%8A%A9%E6%86%B6%E7%AC%A6%E5%A4%A7%E5%B0%8F%E5%BE%8C%E7%B6%B4%E9%81%8B%E7%AE%97%E5%85%83">第三節</a>（<code>D(,I,S)</code> 這種省略形式）、<a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80-%E6%9A%AB%E5%AD%98%E5%99%A8%E3%80%81mov%E8%88%87lea%E3%80%81cmp%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D.html#%E5%9B%9Bmov-%E8%88%87-lea%E6%90%AC%E8%B3%87%E6%96%99-vs-%E7%AE%97%E4%BD%8D%E5%9D%80">第四節</a>〈本課的算術與邏輯指令〉】</h3>
 <p><strong>第 1 次（2026-10-08）</strong></p>
@@ -415,7 +415,7 @@ mul7:
 </details>
 </details>
 <details class="answer self-practice"><summary>自我練習（不批改）</summary>
-<div class="answer-box" data-file="small-project/s1-04-asm-basics/README.md" data-line="208" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="small-project/s1-04-asm-basics/README.md" data-line="208" data-insert="1" data-anchor="&gt; - gcc 的湊法：一個 `lea` 只做得出 1、2、3、4、5、8、9 倍（見 1-1 參考答案）。6 和 7 不在裡面，就拆成「先用 `lea` 做出 3 倍或 8 倍，再補一個 `add`／`sub`」，兩個便宜的指令仍然比一個乘法指令划算。"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <hr />
 <h2 id="2-不同型別的陣列存取">2. 不同型別的陣列存取</h2>
@@ -448,7 +448,7 @@ leaq  $1(%rdi, %rsi, $1) $rax
 </details>
 </details>
 <details class="answer self-practice"><summary>自我練習（不批改）</summary>
-<div class="answer-box" data-file="small-project/s1-04-asm-basics/README.md" data-line="242" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="small-project/s1-04-asm-basics/README.md" data-line="242" data-insert="1" data-anchor="&gt; &#42;&#42;參考答案&#42;&#42;：見 2-2 第 2 次的參考答案（實際的四行與第 1 次預測錯在哪）。"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h3 id="2-2-用--o2-編譯貼上輸出跟預測對照">2-2. 用 <code>-O2</code> 編譯，貼上輸出，跟預測對照。</h3>
 <p><strong>第 1 次（2026-10-08）</strong></p>
@@ -537,7 +537,7 @@ leaq	8(%rdi,%rsi,8), %rax
 </details>
 </details>
 <details class="answer self-practice"><summary>自我練習（不批改）</summary>
-<div class="answer-box" data-file="small-project/s1-04-asm-basics/README.md" data-line="325" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="small-project/s1-04-asm-basics/README.md" data-line="325" data-insert="1" data-anchor="&gt; &#42;&#42;參考答案&#42;&#42;【[筆記第二節](../../html/c/x86-64組合語言入門-暫存器、mov與lea、cmp與條件跳躍.html#二暫存器cpu-裡的-16-個變數)擴展指令表、[第三節](../../html/c/x86-64組合語言入門-暫存器、mov與lea、cmp與條件跳躍.html#三指令的文法助憶符大小後綴運算元)】實際是 `movswl (%rdi,%rsi,2), %eax`、`movzbl (%rdi,%rsi), %eax`（`S` = 1 可以省略）、`movq 16(%rdi,%rsi,8), %rax`、`leaq 8(%rdi,%rsi,8), %rax`。第 1 次預測錯在：① 指令名字：元素比 `int` 小，要用擴展指令（`movs`／`movz`＋來源大小＋目的大小），不能只用 `movw`／`movb` 搬 1、2 byte；② `B` 放指標 `a`，要用 64 位元的 `%rdi`；③ `I` 是 `%rsi`（`i`），`S` 是元素大小 2、1、8、8；④ `D` 是 byte 數 2×8 ＝ 16、1×8 ＝ 8；⑤ 記憶體運算元裡不加 `$`，運算元之間要用逗號隔開。"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h3 id="2-3-get_short-和-get_uchar-都回傳-int為什麼一個用-movs-開頭的指令一個用-movz-開頭的如果陣列裡那個元素的位元是-0xffget_uchar或-0xffffget_short兩個函式各回傳多少筆記第二節第-2-課筆記第六節變寬擴展extension">2-3. <code>get_short</code> 和 <code>get_uchar</code> 都回傳 <code>int</code>，為什麼一個用 <code>movs</code> 開頭的指令、一個用 <code>movz</code> 開頭的？如果陣列裡那個元素的位元是 <code>0xff</code>（<code>get_uchar</code>）或 <code>0xffff</code>（<code>get_short</code>），兩個函式各回傳多少？【筆記<a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80-%E6%9A%AB%E5%AD%98%E5%99%A8%E3%80%81mov%E8%88%87lea%E3%80%81cmp%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D.html#%E4%BA%8C%E6%9A%AB%E5%AD%98%E5%99%A8cpu-%E8%A3%A1%E7%9A%84-16-%E5%80%8B%E8%AE%8A%E6%95%B8">第二節</a>；<a href="../../c/C%E7%9A%84%E8%B3%87%E6%96%99%E5%9C%A8%E8%A8%98%E6%86%B6%E9%AB%94%E8%A3%A1%E9%95%B7%E6%80%8E%E6%A8%A3-%E4%BD%8D%E5%85%83%E7%B5%84%E3%80%81%E6%8C%87%E6%A8%99%E3%80%81%E4%BD%8D%E5%85%83%E7%B5%84%E9%A0%86%E5%BA%8F%E8%88%87%E6%9C%89%E8%99%9F%E7%84%A1%E8%99%9F.html#%E5%85%AD%E6%9C%89%E8%99%9F%E8%88%87%E7%84%A1%E8%99%9F%E4%B9%8B%E9%96%93%E7%9A%84%E8%BD%89%E6%8F%9B%E4%BD%8D%E5%85%83%E4%B8%8D%E8%AE%8A%E6%8F%9B%E5%80%8B%E8%AE%80%E6%B3%95">第 2 課筆記第六節</a>〈<strong>變寬（擴展，extension）</strong>〉】</h3>
 <p><strong>第 1 次（2026-10-08）</strong></p>
@@ -583,7 +583,7 @@ get_uchar 來源是無號,char, 所以用zb
 </details>
 </details>
 <details class="answer self-practice"><summary>自我練習（不批改）</summary>
-<div class="answer-box" data-file="small-project/s1-04-asm-basics/README.md" data-line="365" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="small-project/s1-04-asm-basics/README.md" data-line="365" data-insert="1" data-anchor="&gt; &#42;&#42;參考答案&#42;&#42;【[筆記第二節](../../html/c/x86-64組合語言入門-暫存器、mov與lea、cmp與條件跳躍.html#二暫存器cpu-裡的-16-個變數)；第 2 課第六節〈變寬〉】`short` 是有號，要保住正負號，用符號擴展 `movswl`（照第 15 位元補高位）；`unsigned char` 是無號，用零擴展 `movzbl`（高位補 0）。`0xff` → `get_uchar` 回傳 &#42;&#42;255&#42;&#42;；`0xffff` → `get_short` 回傳 &#42;&#42;−1&#42;&#42;（`0xffffffff`）。"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h3 id="2-4-get_long2-和-next_long-裡的-d位移各是多少為什麼是這個數而不是-c-原始碼裡的-2-和-1筆記第三節第-3-課筆記第二節">2-4. <code>get_long2</code> 和 <code>next_long</code> 裡的 <code>D</code>（位移）各是多少？為什麼是這個數，而不是 C 原始碼裡的 <code>2</code> 和 <code>1</code>？【筆記<a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80-%E6%9A%AB%E5%AD%98%E5%99%A8%E3%80%81mov%E8%88%87lea%E3%80%81cmp%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D.html#%E4%B8%89%E6%8C%87%E4%BB%A4%E7%9A%84%E6%96%87%E6%B3%95%E5%8A%A9%E6%86%B6%E7%AC%A6%E5%A4%A7%E5%B0%8F%E5%BE%8C%E7%B6%B4%E9%81%8B%E7%AE%97%E5%85%83">第三節</a>；<a href="../../c/%E9%99%A3%E5%88%97%E3%80%81%E5%AD%97%E4%B8%B2%E8%88%87%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97-C%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%88%87%E7%94%A8gdb%E6%89%BEsegfault.html#%E4%BA%8C%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97p--1-%E8%B5%B0%E4%B8%80%E5%80%8B%E5%85%83%E7%B4%A0%E4%B8%8D%E6%98%AF%E4%B8%80%E5%80%8B-byte">第 3 課筆記第二節</a>】</h3>
 <p><strong>第 1 次（2026-10-08）</strong></p>
@@ -601,7 +601,7 @@ next_long: 8byte
 </details>
 </details>
 <details class="answer self-practice"><summary>自我練習（不批改）</summary>
-<div class="answer-box" data-file="small-project/s1-04-asm-basics/README.md" data-line="379" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="small-project/s1-04-asm-basics/README.md" data-line="379" data-insert="1" data-anchor="&gt; &#42;&#42;參考答案&#42;&#42;【[筆記第三節](../../html/c/x86-64組合語言入門-暫存器、mov與lea、cmp與條件跳躍.html#三指令的文法助憶符大小後綴運算元)；[第 3 課筆記第二節](../../html/c/陣列、字串與指標運算-C不檢查邊界與用gdb找segfault.html#二指標運算p--1-走一個元素不是一個-byte)】組合語言的位址以 &#42;&#42;byte&#42;&#42; 為單位、沒有型別。C 的 `a[i + 2]` 是「從 `a` 往後 `i + 2` 個 `long`」，gcc 要換算成 byte：`a + (i + 2)×8` = `a + i×8 + 16`，所以 `S` = 8、`D` = 2 × `sizeof(long)` = &#42;&#42;16&#42;&#42;。`&amp;a[i + 1]` 同理：`D` = 1 × 8 = &#42;&#42;8&#42;&#42;。C 寫的 2 和 1 是「幾個元素」，組合語言的 `D` 是「幾個 byte」。"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <hr />
 <h2 id="3-有號與無號的分支">3. 有號與無號的分支</h2>
@@ -684,7 +684,7 @@ pick_u:
 </details>
 </details>
 <details class="answer self-practice"><summary>自我練習（不批改）</summary>
-<div class="answer-box" data-file="small-project/s1-04-asm-basics/README.md" data-line="462" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="small-project/s1-04-asm-basics/README.md" data-line="462" data-insert="1" data-anchor="&gt; &#42;&#42;參考答案&#42;&#42;【[筆記第五節](../../html/c/x86-64組合語言入門-暫存器、mov與lea、cmp與條件跳躍.html#五旗標與條件跳躍cmp-只負責比跳不跳由下一個指令決定)〈`cmp` 與 `test`〉、條件碼表】`pick_s`：`cmpl -8(%rbp), %eax` 算 `a − b`；`jle .L2` 在 ZF = 1 或 SF ≠ OF 時跳，也就是 `a &lt;= b`（有號）時跳到 `return 2`。`pick_u`：`cmpl %eax, -8(%rbp)` 算 `b − a`；`jnb .L5`（＝`jae`）在 CF = 0 時跳，也就是 `b &gt;= a`（無號）時跳到 `return 2`。"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h3 id="3-2-兩個函式的條件跳躍用了不同的條件碼為什麼如果-a-的位元是-0xffffffffb-是-1兩個函式各回傳什麼筆記第五節實驗同一個-cmp同一組旗標setl-說是setb-說否">3-2. 兩個函式的條件跳躍用了不同的條件碼。為什麼？如果 <code>a</code> 的位元是 <code>0xffffffff</code>、<code>b</code> 是 1，兩個函式各回傳什麼？【筆記<a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80-%E6%9A%AB%E5%AD%98%E5%99%A8%E3%80%81mov%E8%88%87lea%E3%80%81cmp%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D.html#%E4%BA%94%E6%97%97%E6%A8%99%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8Dcmp-%E5%8F%AA%E8%B2%A0%E8%B2%AC%E6%AF%94%E8%B7%B3%E4%B8%8D%E8%B7%B3%E7%94%B1%E4%B8%8B%E4%B8%80%E5%80%8B%E6%8C%87%E4%BB%A4%E6%B1%BA%E5%AE%9A">第五節</a>〈實驗：同一個 <code>cmp</code>、同一組旗標，<code>setl</code> 說是、<code>setb</code> 說否〉】</h3>
 <p><strong>第 1 次（2026-10-08）</strong></p>
@@ -704,7 +704,7 @@ pick_u return 1
 </details>
 </details>
 <details class="answer self-practice"><summary>自我練習（不批改）</summary>
-<div class="answer-box" data-file="small-project/s1-04-asm-basics/README.md" data-line="480" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="small-project/s1-04-asm-basics/README.md" data-line="480" data-insert="1" data-anchor="&gt; 套到 `a` = `0xffffffff`、`b` = 1：`pick_s` 算 `a − b` ＝ −1 − 1 ＝ −2，SF = 1、OF = 0 → SF ≠ OF，`jle` 跳 → 回傳 &#42;&#42;2&#42;&#42;；`pick_u` 算 `b − a` ＝ 1 − 4294967295，要往外借位，CF = 1 → `jnb` 不跳 → 回傳 &#42;&#42;1&#42;&#42;。"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h3 id="3-3-c-寫的是-a--b但-pick_s-的條件跳躍檢查的卻是小於或等於為什麼-gcc-要用相反的條件跳過去的地方是-return-1-還是-return-2新觀念先猜">3-3. C 寫的是 <code>a &gt; b</code>，但 <code>pick_s</code> 的條件跳躍檢查的卻是「小於或等於」。為什麼 gcc 要用<strong>相反</strong>的條件？跳過去的地方是 <code>return 1</code> 還是 <code>return 2</code>？【新觀念，先猜】</h3>
 <p><strong>第 1 次（2026-10-08）</strong></p>
@@ -721,7 +721,7 @@ return 2
 </details>
 </details>
 <details class="answer self-practice"><summary>自我練習（不批改）</summary>
-<div class="answer-box" data-file="small-project/s1-04-asm-basics/README.md" data-line="493" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="small-project/s1-04-asm-basics/README.md" data-line="493" data-insert="1" data-anchor="&gt; &#42;&#42;參考答案&#42;&#42;【補教，[第六節](../../html/c/x86-64組合語言入門-暫存器、mov與lea、cmp與條件跳躍.html#if-怎麼翻條件跳躍檢查的是-c-條件的反面)〈`if` 怎麼翻〉】條件跳躍只有「跳」和「不跳（往下一行）」兩條路。`-O0` 照原始碼順序把 `if` 的本體（`return 1`）放在條件跳躍的正下方：條件成立時要執行本體，所以&#42;&#42;不跳&#42;&#42;、直接往下；條件不成立時才要&#42;&#42;跳過&#42;&#42;本體。所以跳躍檢查的是「什麼時候該跳過」＝ C 條件的反面 `!(a &gt; b)`，也就是 `a &lt;= b` → `jle .L2`，跳過去的 `.L2` 是 `return 2`。對照迴圈：往回跳是「再跑一次」，用原本的條件；往前跳是「跳過」，用反面的條件。"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h3 id="3-4-pick_u-的-cmp-兩個運算元的順序跟-pick_s-不一樣條件碼也不是-be把-pick_u-的cmp--條件跳躍翻成一句-c-的條件用-ab說明它跟-a--b-是同一件事筆記第五節att-的順序條件碼表裡的別名">3-4. <code>pick_u</code> 的 <code>cmp</code> 兩個運算元的順序跟 <code>pick_s</code> 不一樣，條件碼也不是 <code>be</code>。把 <code>pick_u</code> 的「<code>cmp</code> ＋ 條件跳躍」翻成一句 C 的條件（用 <code>a</code>、<code>b</code>），說明它跟 <code>!(a &gt; b)</code> 是同一件事。【筆記<a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80-%E6%9A%AB%E5%AD%98%E5%99%A8%E3%80%81mov%E8%88%87lea%E3%80%81cmp%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D.html#%E4%BA%94%E6%97%97%E6%A8%99%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8Dcmp-%E5%8F%AA%E8%B2%A0%E8%B2%AC%E6%AF%94%E8%B7%B3%E4%B8%8D%E8%B7%B3%E7%94%B1%E4%B8%8B%E4%B8%80%E5%80%8B%E6%8C%87%E4%BB%A4%E6%B1%BA%E5%AE%9A">第五節</a>（AT&amp;T 的順序、條件碼表裡的別名）】</h3>
 <p><strong>第 1 次（2026-10-08）</strong></p>
@@ -756,7 +756,7 @@ return 2
 </details>
 </details>
 <details class="answer self-practice"><summary>自我練習（不批改）</summary>
-<div class="answer-box" data-file="small-project/s1-04-asm-basics/README.md" data-line="523" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="small-project/s1-04-asm-basics/README.md" data-line="523" data-insert="1" data-anchor="&gt; 為什麼不能寫成 `b - a &gt;= 0`：在 C 裡 `b - a` 也是 `unsigned`，永遠 `&gt;= 0`，那句話永遠成立；CPU 判斷「夠不夠減」看的是&#42;&#42;有沒有借位（CF）&#42;&#42;，不是相減結果的正負。"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <hr />
 <h2 id="4-讀一個陣列加總迴圈-o0-與--o2">4. 讀一個陣列加總迴圈：<code>-O0</code> 與 <code>-O2</code></h2>
@@ -858,7 +858,7 @@ sum_arr:
 </details>
 </details>
 <details class="answer self-practice"><summary>自我練習（不批改）</summary>
-<div class="answer-box" data-file="small-project/s1-04-asm-basics/README.md" data-line="624" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="small-project/s1-04-asm-basics/README.md" data-line="624" data-insert="1" data-anchor="&gt; &#42;&#42;參考答案&#42;&#42;【[筆記第六節](../../html/c/x86-64組合語言入門-暫存器、mov與lea、cmp與條件跳躍.html#六逐行讀-sum_to-的--o0-版)】`movq %rdi, -24(%rbp)`／`movq %rsi, -32(%rbp)`：參數 `a`、`n` 存進記憶體；`movq $0, -16(%rbp)`：`t = 0`；`movq $0, -8(%rbp)`：`i = 0`；`jmp .L2`：`for` 一開始先跳到底部檢查條件。`.L3`：讀 `i` → `leaq 0(,%rax,8), %rdx` 算 `i×8`（byte 位移）→ 讀 `a` → `addq` 得到 `&amp;a[i]` → `movq (%rax), %rax` 讀出 `a[i]` → `addq %rax, -16(%rbp)`：`t += a[i]` → `addq $1, -8(%rbp)`：`i++`。`.L2`：讀 `i`，`cmpq -32(%rbp), %rax` 算 `i − n`，`jl .L3`：`i &lt; n`（有號）就回去再跑一圈。最後 `movq -16(%rbp), %rax`：`return t`。位置：`a` 在 `-24(%rbp)`、`n` 在 `-32(%rbp)`、`t` 在 `-16(%rbp)`、`i` 在 `-8(%rbp)`。"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h3 id="4-2--o0-版裡ai-用了好幾個指令才讀到筆記第四節的-get-只用一個-movl-rdirsi4-eax為什麼--o0-不這樣寫提示先看-a-和-i-在--o0-時住在哪裡筆記第三節bi-只能是什麼一個指令最多幾個記憶體運算元第六節">4-2. <code>-O0</code> 版裡，<code>a[i]</code> 用了好幾個指令才讀到。筆記第四節的 <code>get</code> 只用一個 <code>movl (%rdi,%rsi,4), %eax</code>，為什麼 <code>-O0</code> 不這樣寫？（提示：先看 <code>a</code> 和 <code>i</code> 在 <code>-O0</code> 時住在哪裡。）【筆記<a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80-%E6%9A%AB%E5%AD%98%E5%99%A8%E3%80%81mov%E8%88%87lea%E3%80%81cmp%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D.html#%E4%B8%89%E6%8C%87%E4%BB%A4%E7%9A%84%E6%96%87%E6%B3%95%E5%8A%A9%E6%86%B6%E7%AC%A6%E5%A4%A7%E5%B0%8F%E5%BE%8C%E7%B6%B4%E9%81%8B%E7%AE%97%E5%85%83">第三節</a>（<code>B</code>、<code>I</code> 只能是什麼、一個指令最多幾個記憶體運算元）、<a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80-%E6%9A%AB%E5%AD%98%E5%99%A8%E3%80%81mov%E8%88%87lea%E3%80%81cmp%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D.html#%E5%85%AD%E9%80%90%E8%A1%8C%E8%AE%80-sum_to-%E7%9A%84--o0-%E7%89%88">第六節</a>】</h3>
 <p><strong>第 1 次（2026-10-08）</strong></p>
@@ -873,7 +873,7 @@ sum_arr:
 </details>
 </details>
 <details class="answer self-practice"><summary>自我練習（不批改）</summary>
-<div class="answer-box" data-file="small-project/s1-04-asm-basics/README.md" data-line="635" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="small-project/s1-04-asm-basics/README.md" data-line="635" data-insert="1" data-anchor="&gt; &#42;&#42;參考答案&#42;&#42;【[筆記第三節](../../html/c/x86-64組合語言入門-暫存器、mov與lea、cmp與條件跳躍.html#三指令的文法助憶符大小後綴運算元)、[第六節](../../html/c/x86-64組合語言入門-暫存器、mov與lea、cmp與條件跳躍.html#六逐行讀-sum_to-的--o0-版)】`movq (%rdi,%rsi,8), %rax` 這種寫法要求 `a` 和 `i` 已經在暫存器裡（`B`、`I` 只能放暫存器），而且一個指令最多只能有一個記憶體運算元。`-O0` 把每個變數都放在記憶體（`a` 在 `-24(%rbp)`、`i` 在 `-8(%rbp)`），所以必須先用 `movq` 把它們各自讀進暫存器，再算位址、再讀 `a[i]`，就變成好幾個指令。`get` 是 `-O2`，參數一直留在 `%rdi`、`%rsi`，一個指令就夠。"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h3 id="4-3-用--o2-編譯貼上本體像筆記第七節先找出誰是誰那樣列表每個用到的暫存器代表什麼你怎麼看出來的筆記第七節">4-3. 用 <code>-O2</code> 編譯，貼上本體。像筆記第七節〈先找出「誰是誰」〉那樣列表：每個用到的暫存器代表什麼、你怎麼看出來的。【筆記<a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80-%E6%9A%AB%E5%AD%98%E5%99%A8%E3%80%81mov%E8%88%87lea%E3%80%81cmp%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D.html#%E4%B8%83%E9%80%90%E8%A1%8C%E8%AE%80-sum_to-%E7%9A%84--o2-%E7%89%88">第七節</a>】</h3>
 <p><strong>第 1 次（2026-10-08）</strong></p>
@@ -948,7 +948,7 @@ t: %rax t是return的值 而且 addq	(%rdi), %rax =&gt; t += a[i]
 </details>
 </details>
 <details class="answer self-practice"><summary>自我練習（不批改）</summary>
-<div class="answer-box" data-file="small-project/s1-04-asm-basics/README.md" data-line="680" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="small-project/s1-04-asm-basics/README.md" data-line="680" data-insert="1" data-anchor="&gt; | `%rax` | `t` | `xorl %eax, %eax` 清成 0；每圈加上一個元素；最後直接 `ret` 當回傳值 |"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h3 id="4-4--o2-版裡找不到-i-了迴圈是靠什麼知道該結束了gcc-為什麼要這樣改寫前半筆記第三節第七節後半為什麼新觀念先猜">4-4. <code>-O2</code> 版裡找不到 <code>i</code> 了。迴圈是靠什麼知道「該結束了」？gcc 為什麼要這樣改寫？【前半：筆記<a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80-%E6%9A%AB%E5%AD%98%E5%99%A8%E3%80%81mov%E8%88%87lea%E3%80%81cmp%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D.html#%E4%B8%89%E6%8C%87%E4%BB%A4%E7%9A%84%E6%96%87%E6%B3%95%E5%8A%A9%E6%86%B6%E7%AC%A6%E5%A4%A7%E5%B0%8F%E5%BE%8C%E7%B6%B4%E9%81%8B%E7%AE%97%E5%85%83">第三節</a>、<a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80-%E6%9A%AB%E5%AD%98%E5%99%A8%E3%80%81mov%E8%88%87lea%E3%80%81cmp%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D.html#%E4%B8%83%E9%80%90%E8%A1%8C%E8%AE%80-sum_to-%E7%9A%84--o2-%E7%89%88">第七節</a>；後半「為什麼」：新觀念，先猜】</h3>
 <p><strong>第 1 次（2026-10-08）</strong></p>
@@ -971,7 +971,7 @@ jne	.L3
 </details>
 </details>
 <details class="answer self-practice"><summary>自我練習（不批改）</summary>
-<div class="answer-box" data-file="small-project/s1-04-asm-basics/README.md" data-line="700" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="small-project/s1-04-asm-basics/README.md" data-line="700" data-insert="1" data-anchor="&gt; &#42;&#42;參考答案&#42;&#42;【前半：[筆記第七節](../../html/c/x86-64組合語言入門-暫存器、mov與lea、cmp與條件跳躍.html#七逐行讀-sum_to-的--o2-版)；後半：補教，[第七節](../../html/c/x86-64組合語言入門-暫存器、mov與lea、cmp與條件跳躍.html#陣列迴圈的-i-為什麼不見了歸納變數最佳化)〈陣列迴圈的 `i` 為什麼不見了〉】迴圈前先用 `leaq (%rdi,%rsi,8), %rdx` 算出終點 `&amp;a[n]`；每圈 `%rdi += 8` 指向下一個元素，`cmpq %rdx, %rdi`／`jne` 判斷走到終點沒。等於把 C 改寫成 `for (p = a; p != a + n; p++) t += &#42;p;`。為什麼：`i` 只拿來算位址和判斷結束，gcc 的歸納變數最佳化（`-fivopts`）把它跟 `a` 合併成一個每圈 +8 的指標——少維護一個變數、少用一個暫存器，記憶體運算元也從 `(%rdi,%rcx,8)` 變成簡單的 `(%rdi)`。這種把「每圈重算 `a + i×8`」換成「每圈加 8」的改寫叫強度削減（strength reduction）。"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <hr />
 <h2 id="5-從組合語言反推-c">5. 從組合語言反推 C</h2>
@@ -1060,7 +1060,7 @@ mystery1:
 </details>
 </details>
 <details class="answer self-practice"><summary>自我練習（不批改）</summary>
-<div class="answer-box" data-file="small-project/s1-04-asm-basics/README.md" data-line="790" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="small-project/s1-04-asm-basics/README.md" data-line="790" data-insert="1" data-anchor="&gt; &#42;&#42;參考答案&#42;&#42;【[筆記第二～四節](../../html/c/x86-64組合語言入門-暫存器、mov與lea、cmp與條件跳躍.html#二暫存器cpu-裡的-16-個變數)】`int mystery1(int &#42;a, long i) { return 5 &#42; a[i] + 3; }`（`int` 換成 `unsigned`、`long` 換成 `unsigned long` 也一模一樣）。`movl (%rdi,%rsi,4), %eax` 讀 `a[i]`（4 byte 元素）；`leal 3(%rax,%rax,4), %eax` 算 `x + x×4 + 3` ＝ `5x + 3`。"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h3 id="5-2-寫出-mystery2-的-c同樣編譯到一模一樣為止貼上-c-和結果筆記第五節">5-2. 寫出 <code>mystery2</code> 的 C，同樣編譯到一模一樣為止，貼上 C 和結果。【筆記<a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80-%E6%9A%AB%E5%AD%98%E5%99%A8%E3%80%81mov%E8%88%87lea%E3%80%81cmp%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D.html#%E4%BA%94%E6%97%97%E6%A8%99%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8Dcmp-%E5%8F%AA%E8%B2%A0%E8%B2%AC%E6%AF%94%E8%B7%B3%E4%B8%8D%E8%B7%B3%E7%94%B1%E4%B8%8B%E4%B8%80%E5%80%8B%E6%8C%87%E4%BB%A4%E6%B1%BA%E5%AE%9A">第五節</a>】</h3>
 <p><strong>第 1 次（2026-10-08）</strong></p>
@@ -1094,7 +1094,7 @@ mystery2:
 </details>
 </details>
 <details class="answer self-practice"><summary>自我練習（不批改）</summary>
-<div class="answer-box" data-file="small-project/s1-04-asm-basics/README.md" data-line="820" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="small-project/s1-04-asm-basics/README.md" data-line="820" data-insert="1" data-anchor="&gt; &#42;&#42;參考答案&#42;&#42;【[筆記第五節](../../html/c/x86-64組合語言入門-暫存器、mov與lea、cmp與條件跳躍.html#五旗標與條件跳躍cmp-只負責比跳不跳由下一個指令決定)】`int mystery2(unsigned a, unsigned b) { return a &gt;= b; }`。`cmpl %esi, %edi` 算 `a − b`（`D − S`），`setnb` 是「沒有借位」，也就是無號的 `a &gt;= b`，成立時 `%al` = 1。`xorl %eax, %eax` 先把整個回傳暫存器清成 0，因為 `set` 只寫最低的 1 byte。"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h3 id="5-3-說明你是怎麼從組合語言推出-5-15-2-的型別的每個參數回傳值的型別各是看哪個線索暫存器名字s條件碼決定的有沒有哪個型別是組合語言無法確定的筆記第二節第三節第五節">5-3. 說明你是怎麼從組合語言推出 5-1、5-2 的<strong>型別</strong>的：每個參數、回傳值的型別，各是看哪個線索（暫存器名字、<code>S</code>、條件碼……）決定的？有沒有哪個型別是組合語言<strong>無法</strong>確定的？【筆記<a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80-%E6%9A%AB%E5%AD%98%E5%99%A8%E3%80%81mov%E8%88%87lea%E3%80%81cmp%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D.html#%E4%BA%8C%E6%9A%AB%E5%AD%98%E5%99%A8cpu-%E8%A3%A1%E7%9A%84-16-%E5%80%8B%E8%AE%8A%E6%95%B8">第二節</a>、<a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80-%E6%9A%AB%E5%AD%98%E5%99%A8%E3%80%81mov%E8%88%87lea%E3%80%81cmp%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D.html#%E4%B8%89%E6%8C%87%E4%BB%A4%E7%9A%84%E6%96%87%E6%B3%95%E5%8A%A9%E6%86%B6%E7%AC%A6%E5%A4%A7%E5%B0%8F%E5%BE%8C%E7%B6%B4%E9%81%8B%E7%AE%97%E5%85%83">第三節</a>、<a href="../../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80-%E6%9A%AB%E5%AD%98%E5%99%A8%E3%80%81mov%E8%88%87lea%E3%80%81cmp%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D.html#%E4%BA%94%E6%97%97%E6%A8%99%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8Dcmp-%E5%8F%AA%E8%B2%A0%E8%B2%AC%E6%AF%94%E8%B7%B3%E4%B8%8D%E8%B7%B3%E7%94%B1%E4%B8%8B%E4%B8%80%E5%80%8B%E6%8C%87%E4%BB%A4%E6%B1%BA%E5%AE%9A">第五節</a>】</h3>
 <p><strong>第 1 次（2026-10-08）</strong></p>
@@ -1197,7 +1197,7 @@ float或double,我猜測的
 </details>
 </details>
 <details class="answer self-practice"><summary>自我練習（不批改）</summary>
-<div class="answer-box" data-file="small-project/s1-04-asm-basics/README.md" data-line="880" data-insert="1"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="small-project/s1-04-asm-basics/README.md" data-line="880" data-insert="1" data-anchor="&gt; 規則：&#42;&#42;只有遇到擴展（`movs`／`movz`）或比較（條件碼）時，組合語言才看得出有號無號&#42;&#42;；單純的搬移、加減、乘法，對有號和無號產生的位元一樣，型別就分不出來。"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 
 </main>
