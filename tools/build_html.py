@@ -437,7 +437,7 @@ Menlo,Consolas,"Noto Sans Mono CJK TC",monospace}
 .answer-bar .status{font-size:13px;color:var(--muted)}.answer-bar .status.err{color:#cf222e}
 .answer-box.dirty .status{color:var(--accent)}
 .practice{display:flex;gap:10px;flex-wrap:wrap;margin:0 0 6px}
-.practice a{border:1px solid var(--line);border-radius:6px;padding:6px 12px}
+.practice a{border:1px solid var(--line);border-radius:6px;padding:6px 12px}.practice a.reading{border-color:var(--link);font-weight:600}
 .course{display:inline-block;margin-top:3px;font-size:.82em;color:var(--muted)}
 @media (max-width:900px){.layout{display:block}nav.side{position:fixed;z-index:10;left:0;top:0;
 transform:translateX(-100%);transition:transform .2s;box-shadow:2px 0 12px rgba(0,0,0,.25)}
@@ -671,6 +671,27 @@ def add_course_tags(list_html, courses):
     return re.sub(r'<td><a href="([^"]+\.html)"[^>]*>.*?</a>', tag, list_html)
 
 
+PROGRESS = ROOT / "learning" / "學習進度.md"
+MD_LINK = re.compile(r"\[([^\]]+)\]\(([^)\s]+\.md)(#[^)\s]*)?\)")
+
+
+def reading_link():
+    """首頁的「繼續閱讀」按鈕（2026-11-03 使用者指定）：讀學習進度「目前位置」表的「閱讀進度」那一列，
+    取第一個連到筆記 .md 的連結，換成 html/ 底下的 .html（錨點不變）。那一列沒有連結就不放按鈕。"""
+    if not PROGRESS.is_file():
+        return ""
+    row = next((l for l in PROGRESS.read_text(encoding="utf-8").split("\n") if l.startswith("| 閱讀進度 |")), "")
+    m = MD_LINK.search(row)
+    if not m:
+        return ""
+    text, target, frag = m.group(1), m.group(2), m.group(3) or ""
+    rel = (PROGRESS.parent / unquote(target)).resolve().relative_to(ROOT).with_suffix(".html")
+    date = re.search(r"\d{4}-\d{2}-\d{2}", row)
+    label = re.sub(r"[`*]", "", text) + (f"（{date.group(0)[5:]}）" if date else "")
+    return (f'<a class="reading" href="{quote(rel.as_posix())}{html.escape(frag)}">'
+            f'📖 繼續閱讀：{html.escape(label)}</a>')
+
+
 def build_index(domains, converted, md, courses):
     blocks, side_items, total = [], [], 0
     for dom in domains:
@@ -695,7 +716,8 @@ def build_index(domains, converted, md, courses):
     side = ('<div class="crumbs">🏠 首頁</div><div class="tools"><button onclick="toggleTheme()">🌓 主題</button></div>'
             "<ul>" + "".join(side_items) + "</ul>")
     reviews = sorted((ROOT / "review").glob("20*.md"))
-    practice = ('<div class="practice"><a href="learning/%E8%AA%B2%E7%A8%8B%E7%9B%AE%E9%8C%84.html">📚 課程目錄</a>'
+    practice = ('<div class="practice">' + reading_link() +
+                '<a href="learning/%E8%AA%B2%E7%A8%8B%E7%9B%AE%E9%8C%84.html">📚 課程目錄</a>'
                 '<a href="small-project/README.html">✍️ 課程練習區（small-project）</a>'
                 '<a href="review/README.html">🔁 間隔複習（review）</a>'
                 '<a href="CLAUDE.html">📜 上課與筆記規則（CLAUDE.md）</a>'
