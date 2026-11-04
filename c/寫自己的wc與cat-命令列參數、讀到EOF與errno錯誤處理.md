@@ -718,37 +718,75 @@ read(3, "", 4096)                       = 0
 
 ## 七、`wc` 與 `cat` 的精確行為：作業的規格
 
-作業要寫出跟 GNU `wc`、`cat` 行為一致的簡化版。這一節用實測把「一致」講清楚。測試檔都用 `printf` 建（`od -c` 把每個 byte 印出來，`\n` 是換行、`\t` 是 tab）：
+作業要寫出跟 GNU `wc`、`cat` 行為一致的簡化版。這一節用實測把「一致」講清楚。
+
+**這一節的定位：作業的規格書，不用背。** 第二～六節教的是[第一節](#一本課在做什麼一支命令列工具的四個介面)那四個介面的**機制**；這一節把它們套到兩支真的工具上，記下 `wc`、`cat` 在每個介面上**具體**怎麼做——哪些情況算一行、什麼算一個字、錯誤印什麼格式、壞檔案要不要繼續、結束狀態是幾。這些細節靠直覺猜不到（例如最後沒有 `\n` 的那行不算一行），作業 README 每題的「規格」都連到這裡，作業 2-1、3-1 要你逐行比對的標準也是這裡。讀法：先看過一遍，知道有哪些邊界情況；寫 `mywc`、`mycat` 時再回來逐條對照。節末 `wc`、`cat` 的全部選項是查詢用的，作業只用到其中幾個。
+
+這一節的做法本身也是寫「相容工具」的標準流程：用 `printf` 造出邊界情況的測試檔、用 `od` 確認檔案裡的 byte、拿參考實作（GNU `wc`）實際跑、把結果記成規格——規格是量出來的，不是憑印象寫的。第 ① 站第 9 課用 Rust 重寫 `wc` 時，照的也是這一份。
+
+測試檔都用 `printf` 建，每行後面的 `#` 註解說明這個檔案要測什麼：
 
 ```text
-$ printf 'hello world\n' > one.txt
-$ printf 'no newline at end' > nonl.txt
-$ printf '  lots   of\t\tspace  \n\n\nend\n' > spaces.txt
-$ : > empty.txt
+$ printf 'hello world\n' > one.txt                          # 一行字、結尾有換行
+$ printf 'no newline at end' > nonl.txt                     # 一行字、結尾沒有換行
+$ printf '  lots   of\t\tspace  \n\n\nend\n' > spaces.txt     # 多餘的空白、tab、空行
+$ : > empty.txt                                             # 0 byte 的空檔案
+```
+
+（`: > empty.txt`：`:` 是什麼都不做的命令，`>` 把檔案截成 0 byte。）
+
+用 `od -c` 確認 `spaces.txt` 裡實際有哪些 byte（`\n` 是換行、`\t` 是 tab）：
+
+```text
 $ od -c spaces.txt
 0000000           l   o   t   s               o   f  \t  \t   s   p   a
 0000020   c   e          \n  \n  \n   e   n   d  \n
 0000033
 ```
 
-（`: > empty.txt`：`:` 是什麼都不做的命令，`>` 把檔案截成 0 byte。）
+- 共 27 byte（最後一行的位移 `0000033` 是八進位 27）；第二行連續 3 個 `\n`：`space  ` 那行的結尾，加上兩個空行。
 
 > 課後討論：[第十節第 2 章〈`od`：把檔案的每個 byte 印出來〉](#2-od把檔案的每個-byte-印出來)
 
 ### `wc` 數的三個數字
 
+**`one.txt`：一般的一行**
+
 ```text
 $ wc one.txt
  1  2 12 one.txt
+```
+
+- 1 行（1 個 `\n`）、2 個字（`hello`、`world`）、12 byte（11 個字元加 `\n`）。
+
+**`nonl.txt`：最後沒有換行**
+
+```text
 $ wc nonl.txt
  0  4 17 nonl.txt
+```
+
+- **0 行**：行數數的是 `\n`，這個檔案一個都沒有；4 個字；17 byte。
+
+**`spaces.txt`：多餘的空白與空行**
+
+```text
 $ wc spaces.txt
  4  4 27 spaces.txt
+```
+
+- 4 行：4 個 `\n`，兩個空行也算；4 個字（`lots`、`of`、`space`、`end`），多餘的空白不影響；27 byte。
+
+**`empty.txt`：空檔案**
+
+```text
 $ wc empty.txt
 0 0 0 empty.txt
 ```
 
-三欄依序是**行數、字數、byte 數**，最後是檔名：
+- 三欄都是 0。欄寬變成 1，因為 GNU `wc` 照「總 byte 數有幾位數」決定欄寬（見下面〈多個檔案、標準輸入、錯誤〉的 ⑥）。
+
+整理成定義——三欄依序是**行數、字數、byte 數**，最後是檔名：
 
 | 欄 | `wc --help` 的定義 | 精確地說 | 例子 |
 |---|---|---|---|
@@ -786,9 +824,11 @@ $ gcc -Wall spaces.c -o spaces && ./spaces
 `wc` 跟 `isspace` 的判斷一致，`\v`、`\f`、`\r` 也會切字：
 
 ```text
-$ printf 'a\vb\fc\rd\n' | wc -w
+$ printf 'a\vb\fc\rd\n' | wc -w     # 用 \v、\f、\r 把 a、b、c、d 隔開
 4
 ```
+
+- 4 個字：`\v`、`\f`、`\r` 都算空白，都會切字。
 
 #### 第三種 byte：不是空白、也不可印
 
@@ -845,90 +885,169 @@ $ gcc -Wall -Wextra classes.c -o classes && ./classes
 | `\x01\x02 a\n` | 1 | 前兩個 byte 不算字 |
 
 所以 `wc` 判斷字數，可以想成每個 byte 依類別做一件事：**空白** → 「現在不在字裡」；**可印** → 如果現在不在字裡，字數加 1、變成「在字裡」；**其他** → 什麼都不改。
-所以內容全是 0x80 以上 byte 的時候，C 語系下一個字都數不到：
+所以內容全是 0x80 以上 byte 的時候，C 語系下一個字都數不到。下面的輸入前 6 個 byte 是「中文」兩個字的 UTF-8，接一個空格，再接 `\xff\xfe`（不是合法的 UTF-8）：
+
+**C 語系：0 個字**
 
 ```text
 $ printf '\xe4\xb8\xad\xe6\x96\x87 \xff\xfe\n' | LC_ALL=C wc -w
 0
+```
+
+- 8 個非空白的 byte 都 ≥ 0x80，全是「其他」類，沒有一個可印字元 → 不算字。
+
+**UTF-8 語系（本機預設）：1 個字**
+
+```text
 $ printf '\xe4\xb8\xad\xe6\x96\x87 \xff\xfe\n' | wc -w
 1
 ```
 
-（前 6 個 byte 是「中文」兩個字的 UTF-8。）在 UTF-8 語系下 `wc` 會把 3 個 byte 合成一個字元再判斷，中文字算可印，所以數出 1 個字（`\xff\xfe` 不是合法的 UTF-8，不算）——這就是下一段的語系問題。
+- `wc` 先把 3 個 byte 合成一個字元再判斷：「中」「文」是可印字元 → 1 個字；`\xff\xfe` 合不成合法字元，不算。
+
+同一份輸入、只換語系，字數就不同——這就是下一段的語系問題。
 
 **語系（locale）的例外**：`wc` 會照目前的語系判斷，本機是 `LANG=en_US.UTF-8`。UTF-8 的「不換行空格」（U+00A0，byte 是 `c2 a0`）在 UTF-8 語系下算空白，在 C 語系下不算：
+
+**UTF-8 語系：2 個字**
 
 ```text
 $ printf 'a\xc2\xa0b\n' | wc -w
 2
+```
+
+- `c2 a0` 合成 U+00A0（不換行空格），算空白 → 切成 `a`、`b` 兩個字。
+
+**C 語系：1 個字**
+
+```text
 $ printf 'a\xc2\xa0b\n' | LC_ALL=C wc -w
 1
 ```
+
+- `c2`、`a0` 各自是「其他」類的 byte，不切字 → `a`…`b` 是同一個字。
 
 C 程式沒呼叫 `setlocale` 時固定是 C 語系，所以作業的 `mywc` 會跟 **`LC_ALL=C wc`** 一致。同樣的理由，`wc -m`（字元數）在 UTF-8 下把一個中文字算 1 個、C 語系下等於 byte 數；作業不用做 `-m`。
 
 ### 多個檔案、標準輸入、錯誤
 
+**① 兩個以上的檔案：最後多一行 `total`**
+
 ```text
-$ wc one.txt nonl.txt spaces.txt; echo "exit=$?"
+$ wc one.txt nonl.txt spaces.txt; echo "exit=$?"     # 三個檔案都正常
  1  2 12 one.txt
  0  4 17 nonl.txt
  4  4 27 spaces.txt
  5 10 56 total
 exit=0
-$ wc one.txt nofile.txt nonl.txt; echo "exit=$?"
+```
+
+- 每個檔案一行：行數、字數、byte 數、檔名。
+- 最後一行 `total` 是三欄各自加總（1＋0＋4＝5、2＋4＋4＝10、12＋17＋27＝56）。只有一個檔案時不印 `total`。
+
+**② 中間有壞檔案：印錯誤、繼續、最後回傳 1**
+
+```text
+$ wc one.txt nofile.txt nonl.txt; echo "exit=$?"     # nofile.txt 不存在
  1  2 12 one.txt
 wc: nofile.txt: No such file or directory
  0  4 17 nonl.txt
  1  6 29 total
 exit=1
-$ printf 'a b\nc\n' | wc
+```
+
+- 第 2 行是錯誤訊息，印到 `stderr`，格式「`wc: <檔名>: <strerror>`」（第四節 `perror` 的格式）。
+- `wc` 沒有停，**繼續處理** `nonl.txt`。
+- `total` 不含壞檔案（1＋0＝1、2＋4＝6、12＋17＝29）；有檔案失敗，結束狀態是 **1**。
+
+**③ 沒有參數：讀 `stdin`，不印檔名**
+
+```text
+$ printf 'a b\nc\n' | wc     # 資料從管線進來
       2       3       6
-$ printf 'a b\nc\n' | wc - one.txt
+```
+
+- 沒有檔名欄：資料不是從檔案來的。
+- 欄寬是 7，見 ⑥。
+
+**④ 參數是 `-`：也讀 `stdin`，檔名印成 `-`**
+
+```text
+$ printf 'a b\nc\n' | wc - one.txt     # - 和一般檔案混用
       2       3       6 -
       1       2      12 one.txt
       3       5      18 total
-$ wc /tmp; echo "exit=$?"
+```
+
+- `-` 那一行是 `stdin` 的結果，檔名欄印成 `-`。
+- 兩個參數 → 有 `total`。
+
+**⑤ 參數是目錄：讀的時候 `EISDIR`**
+
+```text
+$ wc /tmp; echo "exit=$?"     # /tmp 是目錄
 wc: /tmp: Is a directory
       0       0       0 /tmp
 exit=1
 ```
 
-- **兩個以上的檔案**才印最後一行 `total`（三欄各自加總）。
-- **壞檔案**：錯誤印到 `stderr`（格式「`wc: <檔名>: <strerror>`」），**繼續處理下一個**，`total` 不含壞檔案，結束狀態 1。
-- **沒有參數**：讀 `stdin`，**不印檔名**；參數是 `-` 時也讀 `stdin`，檔名印成 `-`。
-- **目錄**：開得起來、讀的時候 `EISDIR`，`wc` 印錯誤，還是印了一行 0（這是 GNU `wc` 的細節，作業不要求印那行 0）。
-- **欄寬**：GNU `wc` 讀檔案時先用 `fstat` 拿檔案大小，用「總 byte 數有幾位數」決定欄寬（所以上面是寬 2）；讀 `stdin` 時不知道大小，固定寬 7。作業**一律用寬 7**（`printf("%7ld %7ld %7ld %s\n", ...)`），比對時只比數字。
+- `fopen` 開得起來，讀的時候才失敗（`EISDIR`），錯誤印到 `stderr`、結束狀態 1。
+- GNU `wc` 還是印了一行 0——這是它的細節，作業不要求印那行 0。
+
+**⑥ 欄寬為什麼有時是 2、有時是 7**：比較 ① 與 ③。GNU `wc` 讀檔案時先用 `fstat` 拿檔案大小，用「總 byte 數有幾位數」決定欄寬——① 的總數 56 是兩位數，所以寬 2；讀 `stdin`（③、④）或參數不是一般檔案（⑤ 的目錄）時，拿不到可用的大小，固定寬 7。作業**一律用寬 7**（`printf("%7ld %7ld %7ld %s\n", ...)`），比對時只比數字。
 
 ### `cat`：依序把每個檔案的 byte 原樣寫到 `stdout`
 
+**① 依序原樣輸出**
+
 ```text
-$ cat one.txt nonl.txt one.txt
+$ cat one.txt nonl.txt one.txt     # 中間的 nonl.txt 結尾沒有換行
 hello world
 no newline at endhello world
-$ cat one.txt nofile.txt one.txt; echo "exit=$?"
+```
+
+- `cat` 不加、不改任何 byte。
+- `nonl.txt` 沒有 `\n`，所以下一個檔案的 `hello world` 直接接在同一行。
+
+**② 中間有壞檔案：印錯誤、繼續、最後回傳 1**
+
+```text
+$ cat one.txt nofile.txt one.txt; echo "exit=$?"     # nofile.txt 不存在
 hello world
 cat: nofile.txt: No such file or directory
 hello world
 exit=1
-$ printf 'from stdin\n' | cat one.txt - one.txt
+```
+
+- 錯誤處理跟 `wc` 同一套：錯誤印到 `stderr`（格式「`cat: <檔名>: <strerror>`」）、繼續印下一個檔案、結束狀態 1。
+
+**③ `-` 讀 `stdin`，可以放在中間**
+
+```text
+$ printf 'from stdin\n' | cat one.txt - one.txt     # - 夾在兩個檔案中間
 hello world
 from stdin
 hello world
-$ cat /tmp; echo "exit=$?"
+```
+
+- 照參數順序：先 `one.txt`、再 `stdin`、再 `one.txt`（`cat --help` 的 Examples 就是這個）。沒有參數時也讀 `stdin`。
+
+**④ 參數是目錄**
+
+```text
+$ cat /tmp; echo "exit=$?"     # /tmp 是目錄
 cat: /tmp: Is a directory
 exit=1
 ```
 
-- **原樣**：`cat` 不加、不改任何 byte。`nonl.txt` 沒有 `\n`，所以下一個檔案的內容直接接在同一行。
-- **錯誤處理**跟 `wc` 同一套：印到 `stderr`、繼續、結束狀態 1。
-- **沒有參數或 `-`**：讀 `stdin`。`-` 可以出現在中間，`cat f - g` 就是先 `f`、再 `stdin`、再 `g`（`cat --help` 的 Examples 就是這個）。
-- `cat` 底下一次 `read` 131072 byte（`strace -o tr.txt cat one.txt nonl.txt` 可以看到 `read(3, "hello world\n", 131072) = 12`），比 stdio 的 4096 大——GNU `cat` 不用 stdio，自己管緩衝區。作業用 `getc`／`putc` 就好，結果一樣。
+- 印錯誤、結束狀態 1；跟 `wc` 不同，`cat` 沒有多印任何東西。
+
+**緩衝區大小**：`cat` 底下一次 `read` 131072 byte（`strace -o tr.txt cat one.txt nonl.txt` 可以看到 `read(3, "hello world\n", 131072) = 12`），比 stdio 的 4096 大——GNU `cat` 不用 stdio，自己管緩衝區。作業用 `getc`／`putc` 就好，結果一樣。
 
 另外 GNU `cat` 會擋一件事：
 
 ```text
-$ cp one.txt self.txt; cat self.txt >> self.txt; echo "exit=$?"
+$ cp one.txt self.txt; cat self.txt >> self.txt; echo "exit=$?"     # 把檔案附加到自己後面
 cat: self.txt: input file is output file
 exit=1
 ```
@@ -953,18 +1072,41 @@ exit=1
 
 **選項的順序不影響輸出的順序**：不管怎麼寫，欄位固定照「行、字、字元、byte、最長行」排。只給部分選項就只印那幾欄：
 
+**`-l`：只印行數**
+
 ```text
 $ wc -l one.txt
 1 one.txt
+```
+
+- 只有一欄。
+
+**`-w -l`：兩個選項**
+
+```text
 $ wc -w -l one.txt
  1  2 one.txt
+```
+
+- 寫的是「先字、後行」，印出來還是「行、字」：欄位順序固定。
+
+**`-lc`：合併寫**
+
+```text
 $ wc -lc one.txt
  1 12 one.txt
+```
+
+- `-lc` 就是 `-l -c`：單一字母的選項可以合在一起寫。
+
+**`< one.txt`：從 `stdin` 讀**
+
+```text
 $ wc -c < one.txt
 12
 ```
 
-`-w -l` 印出來還是「行、字」；`-lc` 是 `-l -c` 合在一起寫（單一字母的選項可以合併）；`< one.txt` 是從 `stdin` 讀，所以沒有檔名。
+- 資料從 `stdin` 來，沒有檔名欄。
 
 ### `cat` 的全部選項
 
@@ -985,44 +1127,94 @@ $ wc -c < one.txt
 | `--help` | 印說明 |
 | `--version` | 印版本 |
 
-用同一個檔案試每個選項（內容：`a`、tab、`b`、換行，三個空行，`c`、byte `0x01`、byte `0xe4`、換行）：
+用同一個檔案試每個選項（內容：`a`、tab、`b`、換行，三個空行，`c`、byte `0x01`、byte `0xe4`、換行），先建檔：
 
 ```text
-$ printf 'a\tb\n\n\n\nc\x01\xe4\n' > opt.txt
+$ printf 'a\tb\n\n\n\nc\x01\xe4\n' > opt.txt     # a、tab、b；三個空行；c、0x01、0xe4
+```
+
+**`-n`：每一行編號**
+
+```text
 $ cat -n opt.txt
      1	a	b
      2	
      3	
      4	
      5	c�
+```
+
+- 空行也編號；編號後面接一個 tab。
+- `c` 後面的 `�`：`0x01` 印出來看不見，`0xe4` 單獨一個不是合法的 UTF-8，終端機畫成 `�`。
+
+**`-b`：只替非空的行編號**
+
+```text
 $ cat -b opt.txt
      1	a	b
 
 
 
      2	c�
+```
+
+- 三個空行沒有編號，`c` 那行是第 2 行。
+
+**`-s`：連續空行壓成一個**
+
+```text
 $ cat -s opt.txt
 a	b
 
 c�
+```
+
+- 三個空行只剩一個。
+
+**`-E`：行尾印 `$`**
+
+```text
 $ cat -E opt.txt
 a	b$
 $
 $
 $
 c�$
+```
+
+- 每個 `\n` 前面印 `$`，空行變成單獨一個 `$`，行尾有沒有空白也看得出來。
+
+**`-T`：tab 印成 `^I`**
+
+```text
 $ cat -T opt.txt
 a^Ib
 
 
 
 c�
+```
+
+- `a` 和 `b` 中間的 tab 變成 `^I`。
+
+**`-v`：看得見不可見的字元**
+
+```text
 $ cat -v opt.txt
 a	b
 
 
 
 c^AM-d
+```
+
+- `0x01` 印成 `^A`（Ctrl-A，`A` 是第 1 個字母）。
+- `0xe4` 印成 `M-d`：`M-` 表示最高位元是 1，`0xe4 − 0x80 = 0x64` ＝ `'d'`。
+- tab 和換行不受 `-v` 影響。
+
+**`-A`：等於 `-vET`**
+
+```text
 $ cat -A opt.txt
 a^Ib$
 $
@@ -1031,10 +1223,9 @@ $
 c^AM-d$
 ```
 
-- `-n` 每一行都編號，`-b` 跳過空行，`-s` 把三個空行壓成一個。
-- `�`：`0x01` 印出來看不見，`0xe4` 單獨一個不是合法的 UTF-8，終端機畫成 `�`。
-- `-v`：`0x01` 印成 `^A`（Ctrl-A，`A` 是第 1 個字母），`0xe4` 印成 `M-d`（`M-` 表示最高位元是 1：`0xe4 − 0x80 = 0x64` ＝ `'d'`）。
-- `-e`、`-t` 分別等於 `-vE`、`-vT`，`-u` 的輸出跟不加一樣，就不重貼。
+- 三個合起來：`^I`、`^A`、`M-d`、行尾的 `$` 都出現。
+
+`-e`、`-t` 分別等於 `-vE`、`-vT`，`-u` 的輸出跟不加一樣，就不重貼。
 
 作業的 `mycat` 不做任何選項，只做「依序原樣輸出」。
 
@@ -1238,7 +1429,10 @@ $ cat -n tr.txt
 
 ### 2. `od`：把檔案的每個 byte 印出來
 
-> 2026-11-04 課後提問：「這一課有用到od這個命令,可以稍微針對本課提到的例子解釋一下od在做什麼嗎?」
+> 2026-11-04 課後提問：
+> - 「這一課有用到od這個命令,可以稍微針對本課提到的例子解釋一下od在做什麼嗎?」
+> - 「爲什麼od -c 每個byte之間空格這麼大」「377是什麼」「od 什麼時候斷行」（寫在〈`od -c` 的版面〉小節）
+> - 「printf '\x421' | od -Ax -tx1 我看不懂這個的打印」「那要如何打印出0x421?」（寫在〈`printf` 怎麼造出指定的 byte〉小節）
 >
 > 正文出處：[第三節〈實驗：數 `stdin` 有幾個 byte〉](#實驗數-stdin-有幾個-byte)的 `od -An -tx1 ff.bin`、[第七節開頭](#七wc-與-cat-的精確行為作業的規格)的 `od -c spaces.txt`；作業 1-1、1-3 的 `./mycat ff.bin | od -c`、4-4 的 `printf 'é' | od -An -tx1` 也用到。正文只寫了一句「把每個 byte 印出來」。
 
@@ -1333,6 +1527,139 @@ $ od -Ax -tx1z spaces.txt
 （`-Ax` 讓位移改用十六進位：`0x1b` ＝ 27 byte。）
 
 舊式的單字母選項是 `-t` 的簡寫，全部 10 個：`-a` ＝ `-t a`、`-b` ＝ `-t o1`、`-c` ＝ `-t c`、`-d` ＝ `-t u2`、`-f` ＝ `-t fF`、`-i` ＝ `-t dI`、`-l` ＝ `-t dL`、`-o` ＝ `-t o2`、`-s` ＝ `-t d2`、`-x` ＝ `-t x2`。`-j`、`-N`、`-w` 的數字預設十進位，`0x` 開頭是十六進位，可加 `b`（×512）、`K`（×1024）、`KB`（×1000）、`M` 等字尾。完整說明：`info '(coreutils) od invocation'`。
+
+#### `od -c` 的版面：欄寬、八進位、什麼時候換行
+
+**每個 byte 佔一樣寬的欄，寬度以這種格式最長的寫法為準。** `-c` 下一個 byte 可能印成 1 個字元（`A`）、2 個（`\n`）或 3 個（`377`），所以每格給 3 個字元寬、再加 1 個空白隔開＝ 4 格，短的靠右、左邊補空白。對齊之後每行固定 16 格，數第幾格就知道是第幾個 byte：
+
+```text
+$ printf 'A\n\377' > w.bin
+$ od -c w.bin
+0000000   A  \n 377
+0000003
+```
+
+換格式，欄寬跟著換；給兩種格式時取寬的那個，讓上下兩列對齊同一個 byte：
+
+```text
+$ od -An -tx1 w.bin          十六進位最多 2 位 → 每格 3
+ 41 0a ff
+$ od -An -to1 w.bin          八進位最多 3 位 → 每格 4
+ 101 012 377
+$ od -An -td1 w.bin          有號十進位最長是 -128 → 每格 5
+   65   10   -1
+$ od -An -tx1 -c w.bin       兩種一起：撐到 4 格，41 在 A 正上方
+  41  0a  ff
+   A  \n 377
+```
+
+**`377` 是八進位的 255。** 八進位每一位的權重是 8 的次方：`377` ＝ 3×64 ＋ 7×8 ＋ 7 ＝ 255 ＝ `0xff` ＝ 二進位 `11111111`。三位八進位最大就是 `377`，剛好是一個 byte 的最大值，所以 `-c` 用 3 位就寫得出任何 byte。用八進位是 `od`（octal dump）從早期 Unix 留下的習慣，也跟 C 的八進位跳脫 `'\377'` 同一種寫法（[字元筆記第三節〈跳脫序列（escape sequence）：全部列出〉](./字元是什麼-char就是1byte的整數與ASCII和UTF-8.md#跳脫序列escape-sequence全部列出)）。
+
+**`od` 只照 byte 數換行，預設每 16 byte 一行**，跟檔案內容無關——檔案裡的 `\n` 只會印成 `\n` 兩個字，不會讓 `od` 換行。上面的 `spaces.txt`（共 27 byte）就是第一行 16 個、第二行剩下 11 個，`space` 被切成兩半（`s p a` ／ `c e`）。用 `-w` 改每行幾個 byte：
+
+```text
+$ od -w8 -c spaces.txt
+0000000           l   o   t   s        
+0000010       o   f  \t  \t   s   p   a
+0000020   c   e          \n  \n  \n   e
+0000030   n   d  \n
+0000033
+```
+
+（位移每行加 8，八進位寫成 `10`。）
+
+**例外：跟上一行一模一樣的行縮成 `*`。** 位移會直接跳過去，省略了多少要靠位移推算；加 `-v` 才全部印。檢查 `mycat` 的輸出時，一大片相同的內容（例如全是 `0x00`）會被縮掉，不是不見了：
+
+```text
+$ printf 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaxyz' > rep.txt     （48 個 a 加 xyz，共 51 byte）
+$ od -c rep.txt
+0000000   a   a   a   a   a   a   a   a   a   a   a   a   a   a   a   a
+*
+0000060   x   y   z
+0000063
+$ od -v -c rep.txt
+0000000   a   a   a   a   a   a   a   a   a   a   a   a   a   a   a   a
+0000020   a   a   a   a   a   a   a   a   a   a   a   a   a   a   a   a
+0000040   a   a   a   a   a   a   a   a   a   a   a   a   a   a   a   a
+0000060   x   y   z
+0000063
+```
+
+（`*` 之後的位移 `0000060` ＝ 48：第 16～47 個 byte 跟第一行一樣，被省略了。）
+
+#### `printf` 怎麼造出指定的 byte：`\x` 最多 2 位、`0x421` 要幾個 byte
+
+**shell 的 `printf` 裡，`\x` 後面最多只吃 2 個十六進位數字。** 所以 `'\x421'` 是 `\x42`（`'B'`）接一個普通字元 `1`，共 2 個 byte：
+
+```text
+$ printf '\x421' | od -Ax -tx1
+000000 42 31
+000002
+$ printf '\x421' | od -c
+0000000   B   1
+0000002
+```
+
+`-Ax` 讓位移欄用十六進位：第一行 `000000` 是從第 0 個 byte 開始，`42` 是第 0 個（`'B'`）、`31` 是第 1 個（字元 `'1'`）；第二行 `000002` 只有位移，表示共 2 byte。規則可以問工具：`/usr/bin/printf --help` 與 bash 的 `help printf` 都寫 `\xHH  byte with hexadecimal value HH (1 to 2 digits)`。
+
+**C 的字串不一樣：`\x` 會把後面「所有」十六進位數字都吃掉。** `hexesc.c`（檔案：[`hexesc.c`](../small-project/s1-08-wc-cat/examples/od/hexesc.c)）：
+
+```c
+/* hexesc.c：C 字串裡的 \x 會把後面「所有」十六進位數字都當成同一個跳脫 */
+#include <stdio.h>
+
+int main(void)
+{
+    const char s[] = "\x421";          /* 想要 0x42 '1'，C 卻讀成 \x421 一整個 */
+    const char t[] = "\x42" "1";       /* 拆成兩個字串字面值，編譯器再接起來 */
+
+    printf("sizeof s = %zu, s[0] = 0x%02x\n", sizeof s, (unsigned char)s[0]);
+    printf("sizeof t = %zu, t = \"%s\"\n", sizeof t, t);
+    return 0;
+}
+```
+
+```text
+$ gcc -Wall hexesc.c -o hexesc
+hexesc.c: In function ‘main’:
+hexesc.c:6:29: warning: hex escape sequence out of range
+    6 |     const char s[] = "\x421";          /* 想要 0x42 '1'，C 卻讀成 \x421 一整個 */
+      |                             ^
+$ ./hexesc
+sizeof s = 2, s[0] = 0x21
+sizeof t = 3, t = "B1"
+```
+
+C 把 `\x421` 當成一個值 `0x421` 的字元，一個 `char` 裝不下（警告 `out of range`），只留下低 8 位 `0x21`；`s` 只有 1 個字元加結尾的 `\0`，所以 `sizeof s` 是 2。要在 `\x42` 後面接字元 `1`，就把字串拆開寫（`"\x42" "1"`，相鄰的字串字面值編譯時會接成一個）。
+
+**`0x421` 不是一個 byte 裝得下的值**（1057 ＞ 255）。「印出 `0x421`」依你要的東西有三種意思：
+
+| 你要的 | 寫法 | 得到的 byte |
+|---|---|---|
+| 整數 `0x421` 在記憶體／檔案裡的樣子（2 byte，小端序） | `printf '\x21\x04'` | `21 04` |
+| 文字「0x421」 | `printf '%#x' 0x421` | `30 78 34 32 31`（5 個字元） |
+| Unicode 編號 U+0421 的字元（西里爾字母 `С`） | `bash -c "printf '\u0421'"` | `d0 a1`（UTF-8） |
+
+```text
+$ printf '\x21\x04' | od -An -tx1          一個一個 byte：檔案裡的順序
+ 21 04
+$ printf '\x21\x04' | od -An -tx2          2 byte 拼成一個數（照本機小端序）
+ 0421
+$ printf '\x04\x21' | od -An -tx2          反過來寫，本機拼成 2104
+ 2104
+$ printf '\x04\x21' | od -An -tx2 --endian=big    指定照大端序拼
+ 0421
+$ printf '%#x %d\n' 0x421 0x421            印文字：%x 十六進位、# 加 0x、%d 十進位
+0x421 1057
+$ bash -c "printf '\u0421\n'"
+С
+$ bash -c "printf '\u0421'" | od -An -tx1
+ d0 a1
+```
+
+- 第一列就是[第 2 課第三節〈位元組順序（endianness）〉](./C的資料在記憶體裡長怎樣-位元組、指標、位元組順序與有號無號.md#三位元組順序endianness)：x86-64 低位 byte 放前面，C 的 `short x = 0x421;` 在記憶體裡就是 `21 04`（`int` 是 `21 04 00 00`）。`od -tx2` 照本機順序把 2 byte 拼回 `0421`。
+- 第二列是**文字**，跟第一列的兩個 byte 完全不同：`'0'`、`'x'`、`'4'`、`'2'`、`'1'` 各一個 byte。
+- 第三列：**`\x` 給的是一個 byte 的值，`\u` 給的是一個字元的編號**；編號超過 `0x7f` 的字元在 UTF-8 要好幾個 byte（[字元筆記第四節〈中文字：一個 byte 裝不下，UTF-8 用 3 個 byte〉](./字元是什麼-char就是1byte的整數與ASCII和UTF-8.md#四中文字一個-byte-裝不下utf-8-用-3-個-byte)）。`\u` 是 bash 與 GNU `printf` 的寫法，所以明確用 `bash -c` 跑。
 
 **一句話**：本課只要兩個——看字元、空白、換行用 `od -c`；看 byte 的值用 `od -An -tx1`；不加選項的預設格式是 2 byte 一組的八進位，別拿它看 byte。
 

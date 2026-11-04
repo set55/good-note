@@ -893,31 +893,58 @@ read(3, &quot;&quot;, 4096)                       = 0
 <p>（<code>grep -v ELF</code> 去掉 <code>ld.so</code> 讀 <code>libc.so.6</code> 檔頭的那一行。）緩衝區該多大、不經過 stdio 直接用 <code>read</code>／<code>write</code> 會怎樣，是第 ⑤ 站（檔案與 I/O）的主題；這一課只要知道 <code>getc</code> 底下有緩衝區、<code>read</code> 回傳 0 就是檔案結尾。</p>
 <hr />
 <h2 id="七wc-與-cat-的精確行為作業的規格">七、<code>wc</code> 與 <code>cat</code> 的精確行為：作業的規格</h2>
-<p>作業要寫出跟 GNU <code>wc</code>、<code>cat</code> 行為一致的簡化版。這一節用實測把「一致」講清楚。測試檔都用 <code>printf</code> 建（<code>od -c</code> 把每個 byte 印出來，<code>\n</code> 是換行、<code>\t</code> 是 tab）：</p>
-<pre><code class="language-text">$ printf &#39;hello world\n&#39; &gt; one.txt
-$ printf &#39;no newline at end&#39; &gt; nonl.txt
-$ printf &#39;  lots   of\t\tspace  \n\n\nend\n&#39; &gt; spaces.txt
-$ : &gt; empty.txt
-$ od -c spaces.txt
+<p>作業要寫出跟 GNU <code>wc</code>、<code>cat</code> 行為一致的簡化版。這一節用實測把「一致」講清楚。</p>
+<p><strong>這一節的定位：作業的規格書，不用背。</strong> 第二～六節教的是<a href="#%E4%B8%80%E6%9C%AC%E8%AA%B2%E5%9C%A8%E5%81%9A%E4%BB%80%E9%BA%BC%E4%B8%80%E6%94%AF%E5%91%BD%E4%BB%A4%E5%88%97%E5%B7%A5%E5%85%B7%E7%9A%84%E5%9B%9B%E5%80%8B%E4%BB%8B%E9%9D%A2">第一節</a>那四個介面的<strong>機制</strong>；這一節把它們套到兩支真的工具上，記下 <code>wc</code>、<code>cat</code> 在每個介面上<strong>具體</strong>怎麼做——哪些情況算一行、什麼算一個字、錯誤印什麼格式、壞檔案要不要繼續、結束狀態是幾。這些細節靠直覺猜不到（例如最後沒有 <code>\n</code> 的那行不算一行），作業 README 每題的「規格」都連到這裡，作業 2-1、3-1 要你逐行比對的標準也是這裡。讀法：先看過一遍，知道有哪些邊界情況；寫 <code>mywc</code>、<code>mycat</code> 時再回來逐條對照。節末 <code>wc</code>、<code>cat</code> 的全部選項是查詢用的，作業只用到其中幾個。</p>
+<p>這一節的做法本身也是寫「相容工具」的標準流程：用 <code>printf</code> 造出邊界情況的測試檔、用 <code>od</code> 確認檔案裡的 byte、拿參考實作（GNU <code>wc</code>）實際跑、把結果記成規格——規格是量出來的，不是憑印象寫的。第 ① 站第 9 課用 Rust 重寫 <code>wc</code> 時，照的也是這一份。</p>
+<p>測試檔都用 <code>printf</code> 建，每行後面的 <code>#</code> 註解說明這個檔案要測什麼：</p>
+<pre><code class="language-text">$ printf &#39;hello world\n&#39; &gt; one.txt                          # 一行字、結尾有換行
+$ printf &#39;no newline at end&#39; &gt; nonl.txt                     # 一行字、結尾沒有換行
+$ printf &#39;  lots   of\t\tspace  \n\n\nend\n&#39; &gt; spaces.txt     # 多餘的空白、tab、空行
+$ : &gt; empty.txt                                             # 0 byte 的空檔案
+</code></pre>
+<p>（<code>: &gt; empty.txt</code>：<code>:</code> 是什麼都不做的命令，<code>&gt;</code> 把檔案截成 0 byte。）</p>
+<p>用 <code>od -c</code> 確認 <code>spaces.txt</code> 裡實際有哪些 byte（<code>\n</code> 是換行、<code>\t</code> 是 tab）：</p>
+<pre><code class="language-text">$ od -c spaces.txt
 0000000           l   o   t   s               o   f  \t  \t   s   p   a
 0000020   c   e          \n  \n  \n   e   n   d  \n
 0000033
 </code></pre>
-<p>（<code>: &gt; empty.txt</code>：<code>:</code> 是什麼都不做的命令，<code>&gt;</code> 把檔案截成 0 byte。）</p>
+<ul>
+<li>共 27 byte（最後一行的位移 <code>0000033</code> 是八進位 27）；第二行連續 3 個 <code>\n</code>：<code>space  </code> 那行的結尾，加上兩個空行。</li>
+</ul>
 <blockquote>
 <p>課後討論：<a href="#2-od%E6%8A%8A%E6%AA%94%E6%A1%88%E7%9A%84%E6%AF%8F%E5%80%8B-byte-%E5%8D%B0%E5%87%BA%E4%BE%86">第十節第 2 章〈<code>od</code>：把檔案的每個 byte 印出來〉</a></p>
 </blockquote>
 <h3 id="wc-數的三個數字"><code>wc</code> 數的三個數字</h3>
+<p><strong><code>one.txt</code>：一般的一行</strong></p>
 <pre><code class="language-text">$ wc one.txt
  1  2 12 one.txt
-$ wc nonl.txt
+</code></pre>
+<ul>
+<li>1 行（1 個 <code>\n</code>）、2 個字（<code>hello</code>、<code>world</code>）、12 byte（11 個字元加 <code>\n</code>）。</li>
+</ul>
+<p><strong><code>nonl.txt</code>：最後沒有換行</strong></p>
+<pre><code class="language-text">$ wc nonl.txt
  0  4 17 nonl.txt
-$ wc spaces.txt
+</code></pre>
+<ul>
+<li><strong>0 行</strong>：行數數的是 <code>\n</code>，這個檔案一個都沒有；4 個字；17 byte。</li>
+</ul>
+<p><strong><code>spaces.txt</code>：多餘的空白與空行</strong></p>
+<pre><code class="language-text">$ wc spaces.txt
  4  4 27 spaces.txt
-$ wc empty.txt
+</code></pre>
+<ul>
+<li>4 行：4 個 <code>\n</code>，兩個空行也算；4 個字（<code>lots</code>、<code>of</code>、<code>space</code>、<code>end</code>），多餘的空白不影響；27 byte。</li>
+</ul>
+<p><strong><code>empty.txt</code>：空檔案</strong></p>
+<pre><code class="language-text">$ wc empty.txt
 0 0 0 empty.txt
 </code></pre>
-<p>三欄依序是<strong>行數、字數、byte 數</strong>，最後是檔名：</p>
+<ul>
+<li>三欄都是 0。欄寬變成 1，因為 GNU <code>wc</code> 照「總 byte 數有幾位數」決定欄寬（見下面〈多個檔案、標準輸入、錯誤〉的 ⑥）。</li>
+</ul>
+<p>整理成定義——三欄依序是<strong>行數、字數、byte 數</strong>，最後是檔名：</p>
 <table>
 <thead>
 <tr>
@@ -970,9 +997,12 @@ $ wc empty.txt
 </code></pre>
 <p>依序是 <code>\t</code>（tab）、<code>\n</code>（換行）、<code>\v</code>（垂直 tab）、<code>\f</code>（換頁）、<code>\r</code>（歸位）、空格。<code>isspace</code> 的參數<strong>只能是 0～255 或 <code>EOF</code></strong>，傳負數是未定義行為——所以傳 <code>getc</code> 的回傳值（<code>int</code>，0～255）沒問題，傳有號的 <code>char</code> 就可能出事，理由同第三節。</p>
 <p><code>wc</code> 跟 <code>isspace</code> 的判斷一致，<code>\v</code>、<code>\f</code>、<code>\r</code> 也會切字：</p>
-<pre><code class="language-text">$ printf &#39;a\vb\fc\rd\n&#39; | wc -w
+<pre><code class="language-text">$ printf &#39;a\vb\fc\rd\n&#39; | wc -w     # 用 \v、\f、\r 把 a、b、c、d 隔開
 4
 </code></pre>
+<ul>
+<li>4 個字：<code>\v</code>、<code>\f</code>、<code>\r</code> 都算空白，都會切字。</li>
+</ul>
 <h4 id="第三種-byte不是空白也不可印">第三種 byte：不是空白、也不可印</h4>
 <p><code>wc --help</code> 說的是「<strong>可印</strong>字元（printable characters）組成的一段」。C 語系下每個 byte 可以分成三類，<code>&lt;ctype.h&gt;</code> 的 <code>isprint(int c)</code> 判斷可不可印（參數規定跟 <code>isspace</code> 一樣：0～255 或 <code>EOF</code>）。<code>classes.c</code>（檔案：<a href="../../small-project/s1-08-wc-cat/examples/ctype/classes.c"><code>classes.c</code></a>）把 0～255 分類、印出每一類的範圍：</p>
 <pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;ctype.h&gt;</span>
@@ -1059,76 +1089,133 @@ $ wc empty.txt
 </tr>
 </tbody>
 </table>
-<p>所以 <code>wc</code> 判斷字數，可以想成每個 byte 依類別做一件事：<strong>空白</strong> → 「現在不在字裡」；<strong>可印</strong> → 如果現在不在字裡，字數加 1、變成「在字裡」；<strong>其他</strong> → 什麼都不改。所以內容全是 0x80 以上 byte 的時候，C 語系下一個字都數不到：</p>
+<p>所以 <code>wc</code> 判斷字數，可以想成每個 byte 依類別做一件事：<strong>空白</strong> → 「現在不在字裡」；<strong>可印</strong> → 如果現在不在字裡，字數加 1、變成「在字裡」；<strong>其他</strong> → 什麼都不改。所以內容全是 0x80 以上 byte 的時候，C 語系下一個字都數不到。下面的輸入前 6 個 byte 是「中文」兩個字的 UTF-8，接一個空格，再接 <code>\xff\xfe</code>（不是合法的 UTF-8）：</p>
+<p><strong>C 語系：0 個字</strong></p>
 <pre><code class="language-text">$ printf &#39;\xe4\xb8\xad\xe6\x96\x87 \xff\xfe\n&#39; | LC_ALL=C wc -w
 0
-$ printf &#39;\xe4\xb8\xad\xe6\x96\x87 \xff\xfe\n&#39; | wc -w
+</code></pre>
+<ul>
+<li>8 個非空白的 byte 都 ≥ 0x80，全是「其他」類，沒有一個可印字元 → 不算字。</li>
+</ul>
+<p><strong>UTF-8 語系（本機預設）：1 個字</strong></p>
+<pre><code class="language-text">$ printf &#39;\xe4\xb8\xad\xe6\x96\x87 \xff\xfe\n&#39; | wc -w
 1
 </code></pre>
-<p>（前 6 個 byte 是「中文」兩個字的 UTF-8。）在 UTF-8 語系下 <code>wc</code> 會把 3 個 byte 合成一個字元再判斷，中文字算可印，所以數出 1 個字（<code>\xff\xfe</code> 不是合法的 UTF-8，不算）——這就是下一段的語系問題。</p>
+<ul>
+<li><code>wc</code> 先把 3 個 byte 合成一個字元再判斷：「中」「文」是可印字元 → 1 個字；<code>\xff\xfe</code> 合不成合法字元，不算。</li>
+</ul>
+<p>同一份輸入、只換語系，字數就不同——這就是下一段的語系問題。</p>
 <p><strong>語系（locale）的例外</strong>：<code>wc</code> 會照目前的語系判斷，本機是 <code>LANG=en_US.UTF-8</code>。UTF-8 的「不換行空格」（U+00A0，byte 是 <code>c2 a0</code>）在 UTF-8 語系下算空白，在 C 語系下不算：</p>
+<p><strong>UTF-8 語系：2 個字</strong></p>
 <pre><code class="language-text">$ printf &#39;a\xc2\xa0b\n&#39; | wc -w
 2
-$ printf &#39;a\xc2\xa0b\n&#39; | LC_ALL=C wc -w
+</code></pre>
+<ul>
+<li><code>c2 a0</code> 合成 U+00A0（不換行空格），算空白 → 切成 <code>a</code>、<code>b</code> 兩個字。</li>
+</ul>
+<p><strong>C 語系：1 個字</strong></p>
+<pre><code class="language-text">$ printf &#39;a\xc2\xa0b\n&#39; | LC_ALL=C wc -w
 1
 </code></pre>
+<ul>
+<li><code>c2</code>、<code>a0</code> 各自是「其他」類的 byte，不切字 → <code>a</code>…<code>b</code> 是同一個字。</li>
+</ul>
 <p>C 程式沒呼叫 <code>setlocale</code> 時固定是 C 語系，所以作業的 <code>mywc</code> 會跟 <strong><code>LC_ALL=C wc</code></strong> 一致。同樣的理由，<code>wc -m</code>（字元數）在 UTF-8 下把一個中文字算 1 個、C 語系下等於 byte 數；作業不用做 <code>-m</code>。</p>
 <h3 id="多個檔案標準輸入錯誤">多個檔案、標準輸入、錯誤</h3>
-<pre><code class="language-text">$ wc one.txt nonl.txt spaces.txt; echo &quot;exit=$?&quot;
+<p><strong>① 兩個以上的檔案：最後多一行 <code>total</code></strong></p>
+<pre><code class="language-text">$ wc one.txt nonl.txt spaces.txt; echo &quot;exit=$?&quot;     # 三個檔案都正常
  1  2 12 one.txt
  0  4 17 nonl.txt
  4  4 27 spaces.txt
  5 10 56 total
 exit=0
-$ wc one.txt nofile.txt nonl.txt; echo &quot;exit=$?&quot;
+</code></pre>
+<ul>
+<li>每個檔案一行：行數、字數、byte 數、檔名。</li>
+<li>最後一行 <code>total</code> 是三欄各自加總（1＋0＋4＝5、2＋4＋4＝10、12＋17＋27＝56）。只有一個檔案時不印 <code>total</code>。</li>
+</ul>
+<p><strong>② 中間有壞檔案：印錯誤、繼續、最後回傳 1</strong></p>
+<pre><code class="language-text">$ wc one.txt nofile.txt nonl.txt; echo &quot;exit=$?&quot;     # nofile.txt 不存在
  1  2 12 one.txt
 wc: nofile.txt: No such file or directory
  0  4 17 nonl.txt
  1  6 29 total
 exit=1
-$ printf &#39;a b\nc\n&#39; | wc
+</code></pre>
+<ul>
+<li>第 2 行是錯誤訊息，印到 <code>stderr</code>，格式「<code>wc: &lt;檔名&gt;: &lt;strerror&gt;</code>」（第四節 <code>perror</code> 的格式）。</li>
+<li><code>wc</code> 沒有停，<strong>繼續處理</strong> <code>nonl.txt</code>。</li>
+<li><code>total</code> 不含壞檔案（1＋0＝1、2＋4＝6、12＋17＝29）；有檔案失敗，結束狀態是 <strong>1</strong>。</li>
+</ul>
+<p><strong>③ 沒有參數：讀 <code>stdin</code>，不印檔名</strong></p>
+<pre><code class="language-text">$ printf &#39;a b\nc\n&#39; | wc     # 資料從管線進來
       2       3       6
-$ printf &#39;a b\nc\n&#39; | wc - one.txt
+</code></pre>
+<ul>
+<li>沒有檔名欄：資料不是從檔案來的。</li>
+<li>欄寬是 7，見 ⑥。</li>
+</ul>
+<p><strong>④ 參數是 <code>-</code>：也讀 <code>stdin</code>，檔名印成 <code>-</code></strong></p>
+<pre><code class="language-text">$ printf &#39;a b\nc\n&#39; | wc - one.txt     # - 和一般檔案混用
       2       3       6 -
       1       2      12 one.txt
       3       5      18 total
-$ wc /tmp; echo &quot;exit=$?&quot;
+</code></pre>
+<ul>
+<li><code>-</code> 那一行是 <code>stdin</code> 的結果，檔名欄印成 <code>-</code>。</li>
+<li>兩個參數 → 有 <code>total</code>。</li>
+</ul>
+<p><strong>⑤ 參數是目錄：讀的時候 <code>EISDIR</code></strong></p>
+<pre><code class="language-text">$ wc /tmp; echo &quot;exit=$?&quot;     # /tmp 是目錄
 wc: /tmp: Is a directory
       0       0       0 /tmp
 exit=1
 </code></pre>
 <ul>
-<li><strong>兩個以上的檔案</strong>才印最後一行 <code>total</code>（三欄各自加總）。</li>
-<li><strong>壞檔案</strong>：錯誤印到 <code>stderr</code>（格式「<code>wc: &lt;檔名&gt;: &lt;strerror&gt;</code>」），<strong>繼續處理下一個</strong>，<code>total</code> 不含壞檔案，結束狀態 1。</li>
-<li><strong>沒有參數</strong>：讀 <code>stdin</code>，<strong>不印檔名</strong>；參數是 <code>-</code> 時也讀 <code>stdin</code>，檔名印成 <code>-</code>。</li>
-<li><strong>目錄</strong>：開得起來、讀的時候 <code>EISDIR</code>，<code>wc</code> 印錯誤，還是印了一行 0（這是 GNU <code>wc</code> 的細節，作業不要求印那行 0）。</li>
-<li><strong>欄寬</strong>：GNU <code>wc</code> 讀檔案時先用 <code>fstat</code> 拿檔案大小，用「總 byte 數有幾位數」決定欄寬（所以上面是寬 2）；讀 <code>stdin</code> 時不知道大小，固定寬 7。作業<strong>一律用寬 7</strong>（<code>printf(&quot;%7ld %7ld %7ld %s\n&quot;, ...)</code>），比對時只比數字。</li>
+<li><code>fopen</code> 開得起來，讀的時候才失敗（<code>EISDIR</code>），錯誤印到 <code>stderr</code>、結束狀態 1。</li>
+<li>GNU <code>wc</code> 還是印了一行 0——這是它的細節，作業不要求印那行 0。</li>
 </ul>
+<p><strong>⑥ 欄寬為什麼有時是 2、有時是 7</strong>：比較 ① 與 ③。GNU <code>wc</code> 讀檔案時先用 <code>fstat</code> 拿檔案大小，用「總 byte 數有幾位數」決定欄寬——① 的總數 56 是兩位數，所以寬 2；讀 <code>stdin</code>（③、④）或參數不是一般檔案（⑤ 的目錄）時，拿不到可用的大小，固定寬 7。作業<strong>一律用寬 7</strong>（<code>printf(&quot;%7ld %7ld %7ld %s\n&quot;, ...)</code>），比對時只比數字。</p>
 <h3 id="cat依序把每個檔案的-byte-原樣寫到-stdout"><code>cat</code>：依序把每個檔案的 byte 原樣寫到 <code>stdout</code></h3>
-<pre><code class="language-text">$ cat one.txt nonl.txt one.txt
+<p><strong>① 依序原樣輸出</strong></p>
+<pre><code class="language-text">$ cat one.txt nonl.txt one.txt     # 中間的 nonl.txt 結尾沒有換行
 hello world
 no newline at endhello world
-$ cat one.txt nofile.txt one.txt; echo &quot;exit=$?&quot;
+</code></pre>
+<ul>
+<li><code>cat</code> 不加、不改任何 byte。</li>
+<li><code>nonl.txt</code> 沒有 <code>\n</code>，所以下一個檔案的 <code>hello world</code> 直接接在同一行。</li>
+</ul>
+<p><strong>② 中間有壞檔案：印錯誤、繼續、最後回傳 1</strong></p>
+<pre><code class="language-text">$ cat one.txt nofile.txt one.txt; echo &quot;exit=$?&quot;     # nofile.txt 不存在
 hello world
 cat: nofile.txt: No such file or directory
 hello world
 exit=1
-$ printf &#39;from stdin\n&#39; | cat one.txt - one.txt
+</code></pre>
+<ul>
+<li>錯誤處理跟 <code>wc</code> 同一套：錯誤印到 <code>stderr</code>（格式「<code>cat: &lt;檔名&gt;: &lt;strerror&gt;</code>」）、繼續印下一個檔案、結束狀態 1。</li>
+</ul>
+<p><strong>③ <code>-</code> 讀 <code>stdin</code>，可以放在中間</strong></p>
+<pre><code class="language-text">$ printf &#39;from stdin\n&#39; | cat one.txt - one.txt     # - 夾在兩個檔案中間
 hello world
 from stdin
 hello world
-$ cat /tmp; echo &quot;exit=$?&quot;
+</code></pre>
+<ul>
+<li>照參數順序：先 <code>one.txt</code>、再 <code>stdin</code>、再 <code>one.txt</code>（<code>cat --help</code> 的 Examples 就是這個）。沒有參數時也讀 <code>stdin</code>。</li>
+</ul>
+<p><strong>④ 參數是目錄</strong></p>
+<pre><code class="language-text">$ cat /tmp; echo &quot;exit=$?&quot;     # /tmp 是目錄
 cat: /tmp: Is a directory
 exit=1
 </code></pre>
 <ul>
-<li><strong>原樣</strong>：<code>cat</code> 不加、不改任何 byte。<code>nonl.txt</code> 沒有 <code>\n</code>，所以下一個檔案的內容直接接在同一行。</li>
-<li><strong>錯誤處理</strong>跟 <code>wc</code> 同一套：印到 <code>stderr</code>、繼續、結束狀態 1。</li>
-<li><strong>沒有參數或 <code>-</code></strong>：讀 <code>stdin</code>。<code>-</code> 可以出現在中間，<code>cat f - g</code> 就是先 <code>f</code>、再 <code>stdin</code>、再 <code>g</code>（<code>cat --help</code> 的 Examples 就是這個）。</li>
-<li><code>cat</code> 底下一次 <code>read</code> 131072 byte（<code>strace -o tr.txt cat one.txt nonl.txt</code> 可以看到 <code>read(3, &quot;hello world\n&quot;, 131072) = 12</code>），比 stdio 的 4096 大——GNU <code>cat</code> 不用 stdio，自己管緩衝區。作業用 <code>getc</code>／<code>putc</code> 就好，結果一樣。</li>
+<li>印錯誤、結束狀態 1；跟 <code>wc</code> 不同，<code>cat</code> 沒有多印任何東西。</li>
 </ul>
+<p><strong>緩衝區大小</strong>：<code>cat</code> 底下一次 <code>read</code> 131072 byte（<code>strace -o tr.txt cat one.txt nonl.txt</code> 可以看到 <code>read(3, &quot;hello world\n&quot;, 131072) = 12</code>），比 stdio 的 4096 大——GNU <code>cat</code> 不用 stdio，自己管緩衝區。作業用 <code>getc</code>／<code>putc</code> 就好，結果一樣。</p>
 <p>另外 GNU <code>cat</code> 會擋一件事：</p>
-<pre><code class="language-text">$ cp one.txt self.txt; cat self.txt &gt;&gt; self.txt; echo &quot;exit=$?&quot;
+<pre><code class="language-text">$ cp one.txt self.txt; cat self.txt &gt;&gt; self.txt; echo &quot;exit=$?&quot;     # 把檔案附加到自己後面
 cat: self.txt: input file is output file
 exit=1
 </code></pre>
@@ -1182,16 +1269,34 @@ exit=1
 </tbody>
 </table>
 <p><strong>選項的順序不影響輸出的順序</strong>：不管怎麼寫，欄位固定照「行、字、字元、byte、最長行」排。只給部分選項就只印那幾欄：</p>
+<p><strong><code>-l</code>：只印行數</strong></p>
 <pre><code class="language-text">$ wc -l one.txt
 1 one.txt
-$ wc -w -l one.txt
+</code></pre>
+<ul>
+<li>只有一欄。</li>
+</ul>
+<p><strong><code>-w -l</code>：兩個選項</strong></p>
+<pre><code class="language-text">$ wc -w -l one.txt
  1  2 one.txt
-$ wc -lc one.txt
+</code></pre>
+<ul>
+<li>寫的是「先字、後行」，印出來還是「行、字」：欄位順序固定。</li>
+</ul>
+<p><strong><code>-lc</code>：合併寫</strong></p>
+<pre><code class="language-text">$ wc -lc one.txt
  1 12 one.txt
-$ wc -c &lt; one.txt
+</code></pre>
+<ul>
+<li><code>-lc</code> 就是 <code>-l -c</code>：單一字母的選項可以合在一起寫。</li>
+</ul>
+<p><strong><code>&lt; one.txt</code>：從 <code>stdin</code> 讀</strong></p>
+<pre><code class="language-text">$ wc -c &lt; one.txt
 12
 </code></pre>
-<p><code>-w -l</code> 印出來還是「行、字」；<code>-lc</code> 是 <code>-l -c</code> 合在一起寫（單一字母的選項可以合併）；<code>&lt; one.txt</code> 是從 <code>stdin</code> 讀，所以沒有檔名。</p>
+<ul>
+<li>資料從 <code>stdin</code> 來，沒有檔名欄。</li>
+</ul>
 <h3 id="cat-的全部選項"><code>cat</code> 的全部選項</h3>
 <p><code>cat --help</code>（coreutils 9.4）一共 <strong>12 個</strong>選項（長短兩種寫法算一個），全部列出：</p>
 <table>
@@ -1252,43 +1357,78 @@ $ wc -c &lt; one.txt
 </tr>
 </tbody>
 </table>
-<p>用同一個檔案試每個選項（內容：<code>a</code>、tab、<code>b</code>、換行，三個空行，<code>c</code>、byte <code>0x01</code>、byte <code>0xe4</code>、換行）：</p>
-<pre><code class="language-text">$ printf &#39;a\tb\n\n\n\nc\x01\xe4\n&#39; &gt; opt.txt
-$ cat -n opt.txt
+<p>用同一個檔案試每個選項（內容：<code>a</code>、tab、<code>b</code>、換行，三個空行，<code>c</code>、byte <code>0x01</code>、byte <code>0xe4</code>、換行），先建檔：</p>
+<pre><code class="language-text">$ printf &#39;a\tb\n\n\n\nc\x01\xe4\n&#39; &gt; opt.txt     # a、tab、b；三個空行；c、0x01、0xe4
+</code></pre>
+<p><strong><code>-n</code>：每一行編號</strong></p>
+<pre><code class="language-text">$ cat -n opt.txt
      1	a	b
      2	
      3	
      4	
      5	c�
-$ cat -b opt.txt
+</code></pre>
+<ul>
+<li>空行也編號；編號後面接一個 tab。</li>
+<li><code>c</code> 後面的 <code>�</code>：<code>0x01</code> 印出來看不見，<code>0xe4</code> 單獨一個不是合法的 UTF-8，終端機畫成 <code>�</code>。</li>
+</ul>
+<p><strong><code>-b</code>：只替非空的行編號</strong></p>
+<pre><code class="language-text">$ cat -b opt.txt
      1	a	b
 
 
 
      2	c�
-$ cat -s opt.txt
+</code></pre>
+<ul>
+<li>三個空行沒有編號，<code>c</code> 那行是第 2 行。</li>
+</ul>
+<p><strong><code>-s</code>：連續空行壓成一個</strong></p>
+<pre><code class="language-text">$ cat -s opt.txt
 a	b
 
 c�
-$ cat -E opt.txt
+</code></pre>
+<ul>
+<li>三個空行只剩一個。</li>
+</ul>
+<p><strong><code>-E</code>：行尾印 <code>$</code></strong></p>
+<pre><code class="language-text">$ cat -E opt.txt
 a	b$
 $
 $
 $
 c�$
-$ cat -T opt.txt
+</code></pre>
+<ul>
+<li>每個 <code>\n</code> 前面印 <code>$</code>，空行變成單獨一個 <code>$</code>，行尾有沒有空白也看得出來。</li>
+</ul>
+<p><strong><code>-T</code>：tab 印成 <code>^I</code></strong></p>
+<pre><code class="language-text">$ cat -T opt.txt
 a^Ib
 
 
 
 c�
-$ cat -v opt.txt
+</code></pre>
+<ul>
+<li><code>a</code> 和 <code>b</code> 中間的 tab 變成 <code>^I</code>。</li>
+</ul>
+<p><strong><code>-v</code>：看得見不可見的字元</strong></p>
+<pre><code class="language-text">$ cat -v opt.txt
 a	b
 
 
 
 c^AM-d
-$ cat -A opt.txt
+</code></pre>
+<ul>
+<li><code>0x01</code> 印成 <code>^A</code>（Ctrl-A，<code>A</code> 是第 1 個字母）。</li>
+<li><code>0xe4</code> 印成 <code>M-d</code>：<code>M-</code> 表示最高位元是 1，<code>0xe4 − 0x80 = 0x64</code> ＝ <code>'d'</code>。</li>
+<li>tab 和換行不受 <code>-v</code> 影響。</li>
+</ul>
+<p><strong><code>-A</code>：等於 <code>-vET</code></strong></p>
+<pre><code class="language-text">$ cat -A opt.txt
 a^Ib$
 $
 $
@@ -1296,11 +1436,9 @@ $
 c^AM-d$
 </code></pre>
 <ul>
-<li><code>-n</code> 每一行都編號，<code>-b</code> 跳過空行，<code>-s</code> 把三個空行壓成一個。</li>
-<li><code>�</code>：<code>0x01</code> 印出來看不見，<code>0xe4</code> 單獨一個不是合法的 UTF-8，終端機畫成 <code>�</code>。</li>
-<li><code>-v</code>：<code>0x01</code> 印成 <code>^A</code>（Ctrl-A，<code>A</code> 是第 1 個字母），<code>0xe4</code> 印成 <code>M-d</code>（<code>M-</code> 表示最高位元是 1：<code>0xe4 − 0x80 = 0x64</code> ＝ <code>'d'</code>）。</li>
-<li><code>-e</code>、<code>-t</code> 分別等於 <code>-vE</code>、<code>-vT</code>，<code>-u</code> 的輸出跟不加一樣，就不重貼。</li>
+<li>三個合起來：<code>^I</code>、<code>^A</code>、<code>M-d</code>、行尾的 <code>$</code> 都出現。</li>
 </ul>
+<p><code>-e</code>、<code>-t</code> 分別等於 <code>-vE</code>、<code>-vT</code>，<code>-u</code> 的輸出跟不加一樣，就不重貼。</p>
 <p>作業的 <code>mycat</code> 不做任何選項，只做「依序原樣輸出」。</p>
 <hr />
 <h2 id="八本課用到的函式工具與完整清單在哪">八、本課用到的函式、工具與完整清單在哪</h2>
@@ -1745,7 +1883,12 @@ $ cat -n tr.txt
 <p><strong>一句話</strong>：讀 <code>strace</code> 只要先抓「名稱、參數、<code>=</code> 後的回傳值」；<code>countch</code> 自己的部分只有 7 個系統呼叫，前面 30 行是 <code>ld.so</code> 與 libc 替 <code>main</code> 準備環境。</p>
 <h3 id="2-od把檔案的每個-byte-印出來">2. <code>od</code>：把檔案的每個 byte 印出來</h3>
 <blockquote>
-<p>2026-11-04 課後提問：「這一課有用到od這個命令,可以稍微針對本課提到的例子解釋一下od在做什麼嗎?」</p>
+<p>2026-11-04 課後提問：</p>
+<ul>
+<li>「這一課有用到od這個命令,可以稍微針對本課提到的例子解釋一下od在做什麼嗎?」</li>
+<li>「爲什麼od -c 每個byte之間空格這麼大」「377是什麼」「od 什麼時候斷行」（寫在〈<code>od -c</code> 的版面〉小節）</li>
+<li>「printf '\x421' | od -Ax -tx1 我看不懂這個的打印」「那要如何打印出0x421?」（寫在〈<code>printf</code> 怎麼造出指定的 byte〉小節）</li>
+</ul>
 <p>正文出處：<a href="#%E5%AF%A6%E9%A9%97%E6%95%B8-stdin-%E6%9C%89%E5%B9%BE%E5%80%8B-byte">第三節〈實驗：數 <code>stdin</code> 有幾個 byte〉</a>的 <code>od -An -tx1 ff.bin</code>、<a href="#%E4%B8%83wc-%E8%88%87-cat-%E7%9A%84%E7%B2%BE%E7%A2%BA%E8%A1%8C%E7%82%BA%E4%BD%9C%E6%A5%AD%E7%9A%84%E8%A6%8F%E6%A0%BC">第七節開頭</a>的 <code>od -c spaces.txt</code>；作業 1-1、1-3 的 <code>./mycat ff.bin | od -c</code>、4-4 的 <code>printf 'é' | od -An -tx1</code> 也用到。正文只寫了一句「把每個 byte 印出來」。</p>
 </blockquote>
 <p>本章的輸出都是本機 GNU coreutils 9.4 的 <code>od</code> 實測。</p>
@@ -1862,6 +2005,130 @@ $ od -tx1 ff.bin
 </code></pre>
 <p>（<code>-Ax</code> 讓位移改用十六進位：<code>0x1b</code> ＝ 27 byte。）</p>
 <p>舊式的單字母選項是 <code>-t</code> 的簡寫，全部 10 個：<code>-a</code> ＝ <code>-t a</code>、<code>-b</code> ＝ <code>-t o1</code>、<code>-c</code> ＝ <code>-t c</code>、<code>-d</code> ＝ <code>-t u2</code>、<code>-f</code> ＝ <code>-t fF</code>、<code>-i</code> ＝ <code>-t dI</code>、<code>-l</code> ＝ <code>-t dL</code>、<code>-o</code> ＝ <code>-t o2</code>、<code>-s</code> ＝ <code>-t d2</code>、<code>-x</code> ＝ <code>-t x2</code>。<code>-j</code>、<code>-N</code>、<code>-w</code> 的數字預設十進位，<code>0x</code> 開頭是十六進位，可加 <code>b</code>（×512）、<code>K</code>（×1024）、<code>KB</code>（×1000）、<code>M</code> 等字尾。完整說明：<code>info '(coreutils) od invocation'</code>。</p>
+<h4 id="od--c-的版面欄寬八進位什麼時候換行"><code>od -c</code> 的版面：欄寬、八進位、什麼時候換行</h4>
+<p><strong>每個 byte 佔一樣寬的欄，寬度以這種格式最長的寫法為準。</strong> <code>-c</code> 下一個 byte 可能印成 1 個字元（<code>A</code>）、2 個（<code>\n</code>）或 3 個（<code>377</code>），所以每格給 3 個字元寬、再加 1 個空白隔開＝ 4 格，短的靠右、左邊補空白。對齊之後每行固定 16 格，數第幾格就知道是第幾個 byte：</p>
+<pre><code class="language-text">$ printf &#39;A\n\377&#39; &gt; w.bin
+$ od -c w.bin
+0000000   A  \n 377
+0000003
+</code></pre>
+<p>換格式，欄寬跟著換；給兩種格式時取寬的那個，讓上下兩列對齊同一個 byte：</p>
+<pre><code class="language-text">$ od -An -tx1 w.bin          十六進位最多 2 位 → 每格 3
+ 41 0a ff
+$ od -An -to1 w.bin          八進位最多 3 位 → 每格 4
+ 101 012 377
+$ od -An -td1 w.bin          有號十進位最長是 -128 → 每格 5
+   65   10   -1
+$ od -An -tx1 -c w.bin       兩種一起：撐到 4 格，41 在 A 正上方
+  41  0a  ff
+   A  \n 377
+</code></pre>
+<p><strong><code>377</code> 是八進位的 255。</strong> 八進位每一位的權重是 8 的次方：<code>377</code> ＝ 3×64 ＋ 7×8 ＋ 7 ＝ 255 ＝ <code>0xff</code> ＝ 二進位 <code>11111111</code>。三位八進位最大就是 <code>377</code>，剛好是一個 byte 的最大值，所以 <code>-c</code> 用 3 位就寫得出任何 byte。用八進位是 <code>od</code>（octal dump）從早期 Unix 留下的習慣，也跟 C 的八進位跳脫 <code>'\377'</code> 同一種寫法（<a href="%E5%AD%97%E5%85%83%E6%98%AF%E4%BB%80%E9%BA%BC-char%E5%B0%B1%E6%98%AF1byte%E7%9A%84%E6%95%B4%E6%95%B8%E8%88%87ASCII%E5%92%8CUTF-8.html#%E8%B7%B3%E8%84%AB%E5%BA%8F%E5%88%97escape-sequence%E5%85%A8%E9%83%A8%E5%88%97%E5%87%BA">字元筆記第三節〈跳脫序列（escape sequence）：全部列出〉</a>）。</p>
+<p><strong><code>od</code> 只照 byte 數換行，預設每 16 byte 一行</strong>，跟檔案內容無關——檔案裡的 <code>\n</code> 只會印成 <code>\n</code> 兩個字，不會讓 <code>od</code> 換行。上面的 <code>spaces.txt</code>（共 27 byte）就是第一行 16 個、第二行剩下 11 個，<code>space</code> 被切成兩半（<code>s p a</code> ／ <code>c e</code>）。用 <code>-w</code> 改每行幾個 byte：</p>
+<pre><code class="language-text">$ od -w8 -c spaces.txt
+0000000           l   o   t   s        
+0000010       o   f  \t  \t   s   p   a
+0000020   c   e          \n  \n  \n   e
+0000030   n   d  \n
+0000033
+</code></pre>
+<p>（位移每行加 8，八進位寫成 <code>10</code>。）</p>
+<p><strong>例外：跟上一行一模一樣的行縮成 <code>*</code>。</strong> 位移會直接跳過去，省略了多少要靠位移推算；加 <code>-v</code> 才全部印。檢查 <code>mycat</code> 的輸出時，一大片相同的內容（例如全是 <code>0x00</code>）會被縮掉，不是不見了：</p>
+<pre><code class="language-text">$ printf &#39;aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaxyz&#39; &gt; rep.txt     （48 個 a 加 xyz，共 51 byte）
+$ od -c rep.txt
+0000000   a   a   a   a   a   a   a   a   a   a   a   a   a   a   a   a
+*
+0000060   x   y   z
+0000063
+$ od -v -c rep.txt
+0000000   a   a   a   a   a   a   a   a   a   a   a   a   a   a   a   a
+0000020   a   a   a   a   a   a   a   a   a   a   a   a   a   a   a   a
+0000040   a   a   a   a   a   a   a   a   a   a   a   a   a   a   a   a
+0000060   x   y   z
+0000063
+</code></pre>
+<p>（<code>*</code> 之後的位移 <code>0000060</code> ＝ 48：第 16～47 個 byte 跟第一行一樣，被省略了。）</p>
+<h4 id="printf-怎麼造出指定的-bytex-最多-2-位0x421-要幾個-byte"><code>printf</code> 怎麼造出指定的 byte：<code>\x</code> 最多 2 位、<code>0x421</code> 要幾個 byte</h4>
+<p><strong>shell 的 <code>printf</code> 裡，<code>\x</code> 後面最多只吃 2 個十六進位數字。</strong> 所以 <code>'\x421'</code> 是 <code>\x42</code>（<code>'B'</code>）接一個普通字元 <code>1</code>，共 2 個 byte：</p>
+<pre><code class="language-text">$ printf &#39;\x421&#39; | od -Ax -tx1
+000000 42 31
+000002
+$ printf &#39;\x421&#39; | od -c
+0000000   B   1
+0000002
+</code></pre>
+<p><code>-Ax</code> 讓位移欄用十六進位：第一行 <code>000000</code> 是從第 0 個 byte 開始，<code>42</code> 是第 0 個（<code>'B'</code>）、<code>31</code> 是第 1 個（字元 <code>'1'</code>）；第二行 <code>000002</code> 只有位移，表示共 2 byte。規則可以問工具：<code>/usr/bin/printf --help</code> 與 bash 的 <code>help printf</code> 都寫 <code>\xHH  byte with hexadecimal value HH (1 to 2 digits)</code>。</p>
+<p><strong>C 的字串不一樣：<code>\x</code> 會把後面「所有」十六進位數字都吃掉。</strong> <code>hexesc.c</code>（檔案：<a href="../../small-project/s1-08-wc-cat/examples/od/hexesc.c"><code>hexesc.c</code></a>）：</p>
+<pre><code class="language-c"><span class="cm">/* hexesc.c：C 字串裡的 \x 會把後面「所有」十六進位數字都當成同一個跳脫 */</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="k">const</span><span class="w"> </span><span class="kt">char</span><span class="w"> </span><span class="n">s</span><span class="p">[]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;</span><span class="se">\x421</span><span class="s">&quot;</span><span class="p">;</span><span class="w">          </span><span class="cm">/* 想要 0x42 &#39;1&#39;，C 卻讀成 \x421 一整個 */</span>
+<span class="w">    </span><span class="k">const</span><span class="w"> </span><span class="kt">char</span><span class="w"> </span><span class="n">t</span><span class="p">[]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;</span><span class="se">\x42</span><span class="s">&quot;</span><span class="w"> </span><span class="s">&quot;1&quot;</span><span class="p">;</span><span class="w">       </span><span class="cm">/* 拆成兩個字串字面值，編譯器再接起來 */</span>
+
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;sizeof s = %zu, s[0] = 0x%02x</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="k">sizeof</span><span class="w"> </span><span class="n">s</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="kt">unsigned</span><span class="w"> </span><span class="kt">char</span><span class="p">)</span><span class="n">s</span><span class="p">[</span><span class="mi">0</span><span class="p">]);</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;sizeof t = %zu, t = </span><span class="se">\&quot;</span><span class="s">%s</span><span class="se">\&quot;\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="k">sizeof</span><span class="w"> </span><span class="n">t</span><span class="p">,</span><span class="w"> </span><span class="n">t</span><span class="p">);</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<pre><code class="language-text">$ gcc -Wall hexesc.c -o hexesc
+hexesc.c: In function ‘main’:
+hexesc.c:6:29: warning: hex escape sequence out of range
+    6 |     const char s[] = &quot;\x421&quot;;          /* 想要 0x42 &#39;1&#39;，C 卻讀成 \x421 一整個 */
+      |                             ^
+$ ./hexesc
+sizeof s = 2, s[0] = 0x21
+sizeof t = 3, t = &quot;B1&quot;
+</code></pre>
+<p>C 把 <code>\x421</code> 當成一個值 <code>0x421</code> 的字元，一個 <code>char</code> 裝不下（警告 <code>out of range</code>），只留下低 8 位 <code>0x21</code>；<code>s</code> 只有 1 個字元加結尾的 <code>\0</code>，所以 <code>sizeof s</code> 是 2。要在 <code>\x42</code> 後面接字元 <code>1</code>，就把字串拆開寫（<code>&quot;\x42&quot; &quot;1&quot;</code>，相鄰的字串字面值編譯時會接成一個）。</p>
+<p><strong><code>0x421</code> 不是一個 byte 裝得下的值</strong>（1057 ＞ 255）。「印出 <code>0x421</code>」依你要的東西有三種意思：</p>
+<table>
+<thead>
+<tr>
+<th>你要的</th>
+<th>寫法</th>
+<th>得到的 byte</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>整數 <code>0x421</code> 在記憶體／檔案裡的樣子（2 byte，小端序）</td>
+<td><code>printf '\x21\x04'</code></td>
+<td><code>21 04</code></td>
+</tr>
+<tr>
+<td>文字「0x421」</td>
+<td><code>printf '%#x' 0x421</code></td>
+<td><code>30 78 34 32 31</code>（5 個字元）</td>
+</tr>
+<tr>
+<td>Unicode 編號 U+0421 的字元（西里爾字母 <code>С</code>）</td>
+<td><code>bash -c &quot;printf '\u0421'&quot;</code></td>
+<td><code>d0 a1</code>（UTF-8）</td>
+</tr>
+</tbody>
+</table>
+<pre><code class="language-text">$ printf &#39;\x21\x04&#39; | od -An -tx1          一個一個 byte：檔案裡的順序
+ 21 04
+$ printf &#39;\x21\x04&#39; | od -An -tx2          2 byte 拼成一個數（照本機小端序）
+ 0421
+$ printf &#39;\x04\x21&#39; | od -An -tx2          反過來寫，本機拼成 2104
+ 2104
+$ printf &#39;\x04\x21&#39; | od -An -tx2 --endian=big    指定照大端序拼
+ 0421
+$ printf &#39;%#x %d\n&#39; 0x421 0x421            印文字：%x 十六進位、# 加 0x、%d 十進位
+0x421 1057
+$ bash -c &quot;printf &#39;\u0421\n&#39;&quot;
+С
+$ bash -c &quot;printf &#39;\u0421&#39;&quot; | od -An -tx1
+ d0 a1
+</code></pre>
+<ul>
+<li>第一列就是<a href="C%E7%9A%84%E8%B3%87%E6%96%99%E5%9C%A8%E8%A8%98%E6%86%B6%E9%AB%94%E8%A3%A1%E9%95%B7%E6%80%8E%E6%A8%A3-%E4%BD%8D%E5%85%83%E7%B5%84%E3%80%81%E6%8C%87%E6%A8%99%E3%80%81%E4%BD%8D%E5%85%83%E7%B5%84%E9%A0%86%E5%BA%8F%E8%88%87%E6%9C%89%E8%99%9F%E7%84%A1%E8%99%9F.html#%E4%B8%89%E4%BD%8D%E5%85%83%E7%B5%84%E9%A0%86%E5%BA%8Fendianness">第 2 課第三節〈位元組順序（endianness）〉</a>：x86-64 低位 byte 放前面，C 的 <code>short x = 0x421;</code> 在記憶體裡就是 <code>21 04</code>（<code>int</code> 是 <code>21 04 00 00</code>）。<code>od -tx2</code> 照本機順序把 2 byte 拼回 <code>0421</code>。</li>
+<li>第二列是<strong>文字</strong>，跟第一列的兩個 byte 完全不同：<code>'0'</code>、<code>'x'</code>、<code>'4'</code>、<code>'2'</code>、<code>'1'</code> 各一個 byte。</li>
+<li>第三列：<strong><code>\x</code> 給的是一個 byte 的值，<code>\u</code> 給的是一個字元的編號</strong>；編號超過 <code>0x7f</code> 的字元在 UTF-8 要好幾個 byte（<a href="%E5%AD%97%E5%85%83%E6%98%AF%E4%BB%80%E9%BA%BC-char%E5%B0%B1%E6%98%AF1byte%E7%9A%84%E6%95%B4%E6%95%B8%E8%88%87ASCII%E5%92%8CUTF-8.html#%E5%9B%9B%E4%B8%AD%E6%96%87%E5%AD%97%E4%B8%80%E5%80%8B-byte-%E8%A3%9D%E4%B8%8D%E4%B8%8Butf-8-%E7%94%A8-3-%E5%80%8B-byte">字元筆記第四節〈中文字：一個 byte 裝不下，UTF-8 用 3 個 byte〉</a>）。<code>\u</code> 是 bash 與 GNU <code>printf</code> 的寫法，所以明確用 <code>bash -c</code> 跑。</li>
+</ul>
 <p><strong>一句話</strong>：本課只要兩個——看字元、空白、換行用 <code>od -c</code>；看 byte 的值用 <code>od -An -tx1</code>；不加選項的預設格式是 2 byte 一組的八進位，別拿它看 byte。</p>
 <h3 id="3-系統呼叫是-kernel-的介面c-的包裝函式syscall-指令其他語言也一樣">3. 系統呼叫是 kernel 的介面：C 的包裝函式、<code>syscall</code> 指令、其他語言也一樣</h3>
 <blockquote>
