@@ -54,6 +54,8 @@
 <li class="l2"><a href="#%E4%B9%9D%E5%8B%95%E6%89%8B%E4%BD%9C%E6%A5%AD">九、動手作業</a></li>
 <li class="l2"><a href="#%E5%8D%81%E8%AA%B2%E5%BE%8C%E8%A8%8E%E8%AB%96">十、課後討論</a></li>
 <li class="l3"><a href="#1-strace-%E8%BC%B8%E5%87%BA%E9%80%90%E8%A1%8C%E8%AE%80%E6%A0%BC%E5%BC%8F7-%E5%80%8B%E7%B3%BB%E7%B5%B1%E5%91%BC%E5%8F%AB%E7%9A%84%E5%8F%83%E6%95%B8ldso-%E9%82%A3-30-%E8%A1%8C">1. strace 輸出逐行讀：格式、7 個系統呼叫的參數、ld.so 那 30 行</a></li>
+<li class="l3"><a href="#2-od%E6%8A%8A%E6%AA%94%E6%A1%88%E7%9A%84%E6%AF%8F%E5%80%8B-byte-%E5%8D%B0%E5%87%BA%E4%BE%86">2. od：把檔案的每個 byte 印出來</a></li>
+<li class="l3"><a href="#3-%E7%B3%BB%E7%B5%B1%E5%91%BC%E5%8F%AB%E6%98%AF-kernel-%E7%9A%84%E4%BB%8B%E9%9D%A2c-%E7%9A%84%E5%8C%85%E8%A3%9D%E5%87%BD%E5%BC%8Fsyscall-%E6%8C%87%E4%BB%A4%E5%85%B6%E4%BB%96%E8%AA%9E%E8%A8%80%E4%B9%9F%E4%B8%80%E6%A8%A3">3. 系統呼叫是 kernel 的介面：C 的包裝函式、syscall 指令、其他語言也一樣</a></li>
 <li class="l2"><a href="#%E8%87%AA%E6%88%91%E6%B8%AC%E9%A9%97">自我測驗</a></li>
 </ul>
 </nav>
@@ -322,6 +324,9 @@ $ ./getbytes &lt; /dev/null
 <li><code>/dev/null</code>：讀它立刻就是檔案結尾，第一次 <code>getchar()</code> 就回傳 <code>EOF</code>。</li>
 <li>從鍵盤輸入時，在一行開頭按 <strong>Ctrl-D</strong>，終端機會讓這次 <code>read</code> 回傳 0 個 byte，<code>getchar</code> 因此回傳 <code>EOF</code>（這裡需要互動的終端機，<strong>未實測</strong>；終端機的行為在 <a href="../linux/PTY%E6%98%AF%E4%BB%80%E9%BA%BC-%E7%B5%82%E7%AB%AF%E6%A9%9F%E6%A8%A1%E6%93%AC%E5%99%A8%E8%88%87%E8%99%9B%E6%93%AC%E7%B5%82%E7%AB%AF.html">PTY是什麼</a> 有講）。</li>
 </ul>
+<blockquote>
+<p>課後討論：<a href="#2-od%E6%8A%8A%E6%AA%94%E6%A1%88%E7%9A%84%E6%AF%8F%E5%80%8B-byte-%E5%8D%B0%E5%87%BA%E4%BE%86">第十節第 2 章〈<code>od</code>：把檔案的每個 byte 印出來〉</a></p>
+</blockquote>
 <h3 id="錯誤示範用-char-接-getchar">錯誤示範：用 <code>char</code> 接 <code>getchar()</code></h3>
 <p><code>charbug.c</code>（檔案：<a href="../../small-project/s1-08-wc-cat/examples/eof/charbug.c"><code>charbug.c</code></a>）只差一個型別：</p>
 <pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
@@ -853,7 +858,7 @@ exit_group(0)                           = ?
 </table>
 <p>（<code>n</code> 在 <code>banana</code> 裡 2 個、<code>bandana</code> 裡 2 個，所以是 4。）</p>
 <blockquote>
-<p>課後討論：<a href="#1-strace-%E8%BC%B8%E5%87%BA%E9%80%90%E8%A1%8C%E8%AE%80%E6%A0%BC%E5%BC%8F7-%E5%80%8B%E7%B3%BB%E7%B5%B1%E5%91%BC%E5%8F%AB%E7%9A%84%E5%8F%83%E6%95%B8ldso-%E9%82%A3-30-%E8%A1%8C">第十節第 1 章〈<code>strace</code> 輸出逐行讀：格式、7 個系統呼叫的參數、<code>ld.so</code> 那 30 行〉</a></p>
+<p>課後討論：<a href="#1-strace-%E8%BC%B8%E5%87%BA%E9%80%90%E8%A1%8C%E8%AE%80%E6%A0%BC%E5%BC%8F7-%E5%80%8B%E7%B3%BB%E7%B5%B1%E5%91%BC%E5%8F%AB%E7%9A%84%E5%8F%83%E6%95%B8ldso-%E9%82%A3-30-%E8%A1%8C">第十節第 1 章〈<code>strace</code> 輸出逐行讀：格式、7 個系統呼叫的參數、<code>ld.so</code> 那 30 行〉</a>、<a href="#3-%E7%B3%BB%E7%B5%B1%E5%91%BC%E5%8F%AB%E6%98%AF-kernel-%E7%9A%84%E4%BB%8B%E9%9D%A2c-%E7%9A%84%E5%8C%85%E8%A3%9D%E5%87%BD%E5%BC%8Fsyscall-%E6%8C%87%E4%BB%A4%E5%85%B6%E4%BB%96%E8%AA%9E%E8%A8%80%E4%B9%9F%E4%B8%80%E6%A8%A3">第十節第 3 章〈系統呼叫是 kernel 的介面：C 的包裝函式、<code>syscall</code> 指令、其他語言也一樣〉</a></p>
 </blockquote>
 <p>圖：<code>countch</code> 讀檔時誰呼叫誰（位址、大小對應上面的 <code>strace</code> 輸出）：</p>
 <pre class="mermaid">sequenceDiagram
@@ -899,6 +904,9 @@ $ od -c spaces.txt
 0000033
 </code></pre>
 <p>（<code>: &gt; empty.txt</code>：<code>:</code> 是什麼都不做的命令，<code>&gt;</code> 把檔案截成 0 byte。）</p>
+<blockquote>
+<p>課後討論：<a href="#2-od%E6%8A%8A%E6%AA%94%E6%A1%88%E7%9A%84%E6%AF%8F%E5%80%8B-byte-%E5%8D%B0%E5%87%BA%E4%BE%86">第十節第 2 章〈<code>od</code>：把檔案的每個 byte 印出來〉</a></p>
+</blockquote>
 <h3 id="wc-數的三個數字"><code>wc</code> 數的三個數字</h3>
 <pre><code class="language-text">$ wc one.txt
  1  2 12 one.txt
@@ -1474,6 +1482,8 @@ c^AM-d$
 <p>課堂中的追問與延伸討論集中在這一節，正文被問到的地方放一行連結指過來。</p>
 <ul>
 <li><a href="#1-strace-%E8%BC%B8%E5%87%BA%E9%80%90%E8%A1%8C%E8%AE%80%E6%A0%BC%E5%BC%8F7-%E5%80%8B%E7%B3%BB%E7%B5%B1%E5%91%BC%E5%8F%AB%E7%9A%84%E5%8F%83%E6%95%B8ldso-%E9%82%A3-30-%E8%A1%8C">第 1 章</a>：<code>strace</code> 輸出逐行讀：格式、7 個系統呼叫的參數、<code>ld.so</code> 那 30 行</li>
+<li><a href="#2-od%E6%8A%8A%E6%AA%94%E6%A1%88%E7%9A%84%E6%AF%8F%E5%80%8B-byte-%E5%8D%B0%E5%87%BA%E4%BE%86">第 2 章</a>：<code>od</code>：把檔案的每個 byte 印出來</li>
+<li><a href="#3-%E7%B3%BB%E7%B5%B1%E5%91%BC%E5%8F%AB%E6%98%AF-kernel-%E7%9A%84%E4%BB%8B%E9%9D%A2c-%E7%9A%84%E5%8C%85%E8%A3%9D%E5%87%BD%E5%BC%8Fsyscall-%E6%8C%87%E4%BB%A4%E5%85%B6%E4%BB%96%E8%AA%9E%E8%A8%80%E4%B9%9F%E4%B8%80%E6%A8%A3">第 3 章</a>：系統呼叫是 kernel 的介面：C 的包裝函式、<code>syscall</code> 指令、其他語言也一樣</li>
 </ul>
 <h3 id="1-strace-輸出逐行讀格式7-個系統呼叫的參數ldso-那-30-行">1. <code>strace</code> 輸出逐行讀：格式、7 個系統呼叫的參數、<code>ld.so</code> 那 30 行</h3>
 <blockquote>
@@ -1733,6 +1743,298 @@ $ cat -n tr.txt
 <li><code>strace -e trace=&lt;名稱,…&gt;</code>：只看某幾個，例如正文的 <code>strace -e trace=read</code>。</li>
 </ul>
 <p><strong>一句話</strong>：讀 <code>strace</code> 只要先抓「名稱、參數、<code>=</code> 後的回傳值」；<code>countch</code> 自己的部分只有 7 個系統呼叫，前面 30 行是 <code>ld.so</code> 與 libc 替 <code>main</code> 準備環境。</p>
+<h3 id="2-od把檔案的每個-byte-印出來">2. <code>od</code>：把檔案的每個 byte 印出來</h3>
+<blockquote>
+<p>2026-11-04 課後提問：「這一課有用到od這個命令,可以稍微針對本課提到的例子解釋一下od在做什麼嗎?」</p>
+<p>正文出處：<a href="#%E5%AF%A6%E9%A9%97%E6%95%B8-stdin-%E6%9C%89%E5%B9%BE%E5%80%8B-byte">第三節〈實驗：數 <code>stdin</code> 有幾個 byte〉</a>的 <code>od -An -tx1 ff.bin</code>、<a href="#%E4%B8%83wc-%E8%88%87-cat-%E7%9A%84%E7%B2%BE%E7%A2%BA%E8%A1%8C%E7%82%BA%E4%BD%9C%E6%A5%AD%E7%9A%84%E8%A6%8F%E6%A0%BC">第七節開頭</a>的 <code>od -c spaces.txt</code>；作業 1-1、1-3 的 <code>./mycat ff.bin | od -c</code>、4-4 的 <code>printf 'é' | od -An -tx1</code> 也用到。正文只寫了一句「把每個 byte 印出來」。</p>
+</blockquote>
+<p>本章的輸出都是本機 GNU coreutils 9.4 的 <code>od</code> 實測。</p>
+<h4 id="od-在做什麼"><code>od</code> 在做什麼</h4>
+<p><code>od</code>（octal dump，八進位傾印）把檔案裡的<strong>每一個 byte 用看得見的方式印出來</strong>。<code>cat</code> 把 byte 原樣交給終端機，<code>\n</code>、<code>\t</code>、空白、<code>0xff</code> 都被終端機「解釋掉」了，看不出檔案裡到底是什麼；<code>od</code> 一個 byte 一格列出來，所以拿來檢查 <code>printf</code> 建的測試檔、<code>mycat</code> 的輸出有沒有一 byte 不差。</p>
+<p>文法骨架：</p>
+<pre><code class="language-text">od [選項…] [檔案…]        沒給檔案、或檔案寫 - → 讀標準輸入（所以能接在 | 後面）
+</code></pre>
+<h4 id="用法一od--c印成字元看空白和換行">用法一：<code>od -c</code>——印成字元，看空白和換行</h4>
+<p><code>-c</code> 的意思是：能印的字元直接印，不能印的用跳脫寫法（<code>\n</code>、<code>\t</code>）或<strong>八進位</strong>數字表示。</p>
+<pre><code class="language-text">$ printf &#39;  lots   of\t\tspace  \n\n\nend\n&#39; &gt; spaces.txt
+$ od -c spaces.txt
+0000000           l   o   t   s               o   f  \t  \t   s   p   a
+0000020   c   e          \n  \n  \n   e   n   d  \n
+0000033
+</code></pre>
+<ul>
+<li><strong>最左欄是位移（offset）</strong>：這一行第一個 byte 是檔案的第幾個（從 0 數），<strong>預設用八進位</strong>。<code>0000020</code> 是八進位 20 ＝ 十進位 16，所以第二行從第 16 個 byte 開始；每行 16 byte。</li>
+<li><strong>每個 byte 佔 4 格</strong>：空白 byte 就是一片空白（開頭那 8 格是兩個空白），<code>\t</code> 是 tab、<code>\n</code> 是換行。一眼就看得出 <code>spaces.txt</code> 有連續 3 個 <code>\n</code>——<code>wc -l</code> 數成 3 行就是它們。</li>
+<li><strong>最後一行只有位移</strong>：<code>0000033</code>（八進位 33 ＝ 27）表示檔案在這裡結束，共 27 byte，跟 <code>wc -c</code> 一致。</li>
+</ul>
+<p>不能印的 byte 怎麼顯示：</p>
+<pre><code class="language-text">$ printf &#39;AB\xffCD&#39; &gt; ff.bin
+$ od -c ff.bin
+0000000   A   B 377   C   D
+0000005
+</code></pre>
+<p><code>377</code> 是<strong>八進位</strong>的 255，也就是 <code>0xff</code>。作業 1-1、1-3 用 <code>./mycat ff.bin | od -c</code> 檢查輸出，看的就是這 5 格：<code>od</code> 讀管線傳來的 <code>stdout</code>，少了 <code>377</code> 那格（用 <code>char</code> 接 <code>getc</code> 時）就一眼看出來。</p>
+<h4 id="用法二od--an--tx1印成十六進位一個-byte-一組">用法二：<code>od -An -tx1</code>——印成十六進位，一個 byte 一組</h4>
+<pre><code class="language-text">$ od -An -tx1 ff.bin
+ 41 42 ff 43 44
+$ od -tx1 ff.bin
+0000000 41 42 ff 43 44
+0000005
+</code></pre>
+<ul>
+<li><code>-t x1</code>（可以黏成 <code>-tx1</code>）：<code>x</code> ＝ 十六進位，<code>1</code> ＝ 每組 1 byte。<code>'A'</code> 是 <code>41</code>、<code>0xff</code> 就是 <code>ff</code>——對上第 2 課講的「<code>char</code> 就是 1 byte 的整數」。</li>
+<li><code>-An</code>：<code>-A</code> 選位移欄用什麼進位，<code>n</code> ＝ none，不印位移欄。只想看 byte 值的時候用它，輸出比較乾淨（比較上面兩個指令的輸出）。</li>
+</ul>
+<p>作業 4-4 的 <code>printf 'é' | od -An -tx1</code> 印出 <code>c3 a9</code>：<code>é</code> 在 UTF-8 是 2 個 byte（<a href="%E5%AD%97%E5%85%83%E6%98%AF%E4%BB%80%E9%BA%BC-char%E5%B0%B1%E6%98%AF1byte%E7%9A%84%E6%95%B4%E6%95%B8%E8%88%87ASCII%E5%92%8CUTF-8.html#%E5%9B%9B%E4%B8%AD%E6%96%87%E5%AD%97%E4%B8%80%E5%80%8B-byte-%E8%A3%9D%E4%B8%8D%E4%B8%8Butf-8-%E7%94%A8-3-%E5%80%8B-byte">字元筆記第四節〈中文字：一個 byte 裝不下，UTF-8 用 3 個 byte〉</a>）。</p>
+<h4 id="陷阱不加選項的預設格式">陷阱：不加選項的預設格式</h4>
+<pre><code class="language-text">$ od ff.bin
+0000000 041101 041777 000104
+0000005
+</code></pre>
+<p>預設是 <code>-t o2</code>：<strong>每 2 byte 拼成一個數字、用八進位印</strong>，而且照本機的<strong>小端序</strong>拼。<code>041101</code>（八進位）＝ <code>0x4241</code>：<code>'A'</code>（<code>0x41</code>）是低位、<code>'B'</code>（<code>0x42</code>）是高位，跟<a href="C%E7%9A%84%E8%B3%87%E6%96%99%E5%9C%A8%E8%A8%98%E6%86%B6%E9%AB%94%E8%A3%A1%E9%95%B7%E6%80%8E%E6%A8%A3-%E4%BD%8D%E5%85%83%E7%B5%84%E3%80%81%E6%8C%87%E6%A8%99%E3%80%81%E4%BD%8D%E5%85%83%E7%B5%84%E9%A0%86%E5%BA%8F%E8%88%87%E6%9C%89%E8%99%9F%E7%84%A1%E8%99%9F.html#%E4%B8%89%E4%BD%8D%E5%85%83%E7%B5%84%E9%A0%86%E5%BA%8Fendianness">第 2 課第三節〈位元組順序（endianness）〉</a>講的一樣；<code>041777</code> ＝ <code>0x43ff</code>（<code>0xff</code> 在低位）、<code>000104</code> ＝ <code>0x0044</code>（最後落單的 <code>D</code>，高位補 0）。所以要看「一個一個 byte」，<strong>一定要加 <code>-c</code> 或 <code>-tx1</code></strong>，否則順序跟檔案裡的不一樣。</p>
+<h4 id="全部選項od---help-實測gnu-coreutils-94">全部選項（<code>od --help</code> 實測，GNU coreutils 9.4）</h4>
+<table>
+<thead>
+<tr>
+<th>分組</th>
+<th>選項</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>位移欄</td>
+<td><code>-A d</code>／<code>o</code>／<code>x</code>／<code>n</code></td>
+<td>位移用十／八／十六進位，或不印（預設八進位）</td>
+</tr>
+<tr>
+<td>範圍</td>
+<td><code>-j N</code></td>
+<td>先跳過 N byte</td>
+</tr>
+<tr>
+<td></td>
+<td><code>-N N</code></td>
+<td>最多只印 N byte</td>
+</tr>
+<tr>
+<td>格式</td>
+<td><code>-t TYPE</code></td>
+<td>選格式；可以給好幾個，每 16 byte 會印好幾列（見下表）</td>
+</tr>
+<tr>
+<td></td>
+<td><code>-w[N]</code></td>
+<td>每行印 N byte（預設 16；只寫 <code>-w</code> 是 32）</td>
+</tr>
+<tr>
+<td></td>
+<td><code>-v</code></td>
+<td>連續相同的行也全部印（預設把重複的行縮成一個 <code>*</code>）</td>
+</tr>
+<tr>
+<td></td>
+<td><code>-S [N]</code></td>
+<td>只印至少 N 個（預設 3）可印字元、以 <code>\0</code> 結尾的字串</td>
+</tr>
+<tr>
+<td></td>
+<td><code>--endian=big</code>／<code>little</code></td>
+<td>好幾 byte 一組時，照指定的位元組順序拼</td>
+</tr>
+<tr>
+<td>相容</td>
+<td><code>--traditional</code></td>
+<td>接受舊式的位置參數寫法（<code>od 檔案 +位移 +標籤</code>）</td>
+</tr>
+<tr>
+<td>一般</td>
+<td><code>--help</code>、<code>--version</code></td>
+<td>說明、版本</td>
+</tr>
+</tbody>
+</table>
+<p><code>-t TYPE</code> 的 7 種類型：<code>a</code>（具名字元，例如 <code>nl</code>、<code>sp</code>，忽略最高位元）、<code>c</code>（字元或跳脫寫法）、<code>d</code>（有號十進位）、<code>u</code>（無號十進位）、<code>o</code>（八進位）、<code>x</code>（十六進位）、<code>f</code>（浮點數）。後面接每組幾 byte：數字（<code>x1</code>、<code>d4</code>），或 <code>C</code>／<code>S</code>／<code>I</code>／<code>L</code>（<code>char</code>／<code>short</code>／<code>int</code>／<code>long</code> 的大小），浮點數用 <code>F</code>／<code>D</code>／<code>L</code>（<code>float</code>／<code>double</code>／<code>long double</code>）。任何類型後面加 <code>z</code>，每行右邊多印一欄可讀文字：</p>
+<pre><code class="language-text">$ od -Ax -tx1z spaces.txt
+000000 20 20 6c 6f 74 73 20 20 20 6f 66 09 09 73 70 61  &gt;  lots   of..spa&lt;
+000010 63 65 20 20 0a 0a 0a 65 6e 64 0a                 &gt;ce  ...end.&lt;
+00001b
+</code></pre>
+<p>（<code>-Ax</code> 讓位移改用十六進位：<code>0x1b</code> ＝ 27 byte。）</p>
+<p>舊式的單字母選項是 <code>-t</code> 的簡寫，全部 10 個：<code>-a</code> ＝ <code>-t a</code>、<code>-b</code> ＝ <code>-t o1</code>、<code>-c</code> ＝ <code>-t c</code>、<code>-d</code> ＝ <code>-t u2</code>、<code>-f</code> ＝ <code>-t fF</code>、<code>-i</code> ＝ <code>-t dI</code>、<code>-l</code> ＝ <code>-t dL</code>、<code>-o</code> ＝ <code>-t o2</code>、<code>-s</code> ＝ <code>-t d2</code>、<code>-x</code> ＝ <code>-t x2</code>。<code>-j</code>、<code>-N</code>、<code>-w</code> 的數字預設十進位，<code>0x</code> 開頭是十六進位，可加 <code>b</code>（×512）、<code>K</code>（×1024）、<code>KB</code>（×1000）、<code>M</code> 等字尾。完整說明：<code>info '(coreutils) od invocation'</code>。</p>
+<p><strong>一句話</strong>：本課只要兩個——看字元、空白、換行用 <code>od -c</code>；看 byte 的值用 <code>od -An -tx1</code>；不加選項的預設格式是 2 byte 一組的八進位，別拿它看 byte。</p>
+<h3 id="3-系統呼叫是-kernel-的介面c-的包裝函式syscall-指令其他語言也一樣">3. 系統呼叫是 kernel 的介面：C 的包裝函式、<code>syscall</code> 指令、其他語言也一樣</h3>
+<blockquote>
+<p>2026-11-04 課後提問：「另外我在這些例子看到的系統呼叫,實際上是不是代表C有很多系統呼叫的函式?例如OPENat?如果是,其他語言也有系統呼叫的功能嗎?」</p>
+<p>正文出處：<a href="#%E7%94%A8-strace-%E7%9C%8B-fopengetcprintf-%E5%BA%95%E4%B8%8B%E6%98%AF%E5%93%AA%E4%BA%9B%E7%B3%BB%E7%B5%B1%E5%91%BC%E5%8F%AB">第六節〈用 <code>strace</code> 看 <code>fopen</code>、<code>getc</code>、<code>printf</code> 底下是哪些系統呼叫〉</a>；系統呼叫的參數與 <code>strace</code> 的讀法見<a href="#1-strace-%E8%BC%B8%E5%87%BA%E9%80%90%E8%A1%8C%E8%AE%80%E6%A0%BC%E5%BC%8F7-%E5%80%8B%E7%B3%BB%E7%B5%B1%E5%91%BC%E5%8F%AB%E7%9A%84%E5%8F%83%E6%95%B8ldso-%E9%82%A3-30-%E8%A1%8C">第 1 章</a>。</p>
+</blockquote>
+<p><strong>範圍</strong>：系統呼叫「本身的機制」（<code>syscall</code> 指令怎麼切進 kernel、kernel 那一側做什麼）還沒排課，這一章只講回答提問需要的部分。</p>
+<p><strong>結論先講</strong>：系統呼叫不是 C 的函式，是 <strong>kernel 提供的介面</strong>——用<strong>號碼</strong>區分（x86-64 共 373 個，<code>write</code> 是 1、<code>openat</code> 是 257），任何語言最後都靠 CPU 的 <code>syscall</code> 指令進 kernel。C 只是剛好有一組名字幾乎一樣的「包裝函式」（wrapper）。</p>
+<h4 id="glibc-的-write-裡面放號碼syscall檢查錯誤">glibc 的 <code>write()</code> 裡面：放號碼、<code>syscall</code>、檢查錯誤</h4>
+<p>用 <code>objdump -T</code> 在 <code>libc.so.6</code> 的動態符號表找到 <code>write</code> 的位址，再反組譯那一段：</p>
+<pre><code class="language-text">$ objdump -T /lib/x86_64-linux-gnu/libc.so.6 | awk &#39;$NF==&quot;write&quot;&#39;
+000000000011c830  w   DF .text	000000000000009d  GLIBC_2.2.5 write
+$ objdump -d --no-show-raw-insn --start-address=0x11c830 --stop-address=0x11c850 /lib/x86_64-linux-gnu/libc.so.6
+</code></pre>
+<pre><code class="language-asm"><span class="w">  </span><span class="err">11</span><span class="nl">c830:</span><span class="w">	</span><span class="nf">endbr64</span><span class="w">                                  </span><span class="c1"># 控制流程保護標記，不影響功能</span>
+<span class="w">  </span><span class="err">11</span><span class="nl">c834:</span><span class="w">	</span><span class="nf">cmpb</span><span class="w">   </span><span class="no">$0x0</span><span class="p">,</span><span class="mi">0xef805</span><span class="p">(</span><span class="nv">%rip</span><span class="p">)</span><span class="w">  </span><span class="c1"># &lt;__libc_single_threaded&gt;  看這個行程是不是單執行緒</span>
+<span class="w">  </span><span class="err">11</span><span class="nl">c83b:</span><span class="w">	</span><span class="nf">je</span><span class="w">     </span><span class="mi">11</span><span class="no">c850</span><span class="w">                            </span><span class="c1"># 多執行緒走另一條路（不展開）</span>
+<span class="w">  </span><span class="err">11</span><span class="nl">c83d:</span><span class="w">	</span><span class="nf">mov</span><span class="w">    </span><span class="no">$0x1</span><span class="p">,</span><span class="nv">%eax</span><span class="w">                         </span><span class="c1"># 系統呼叫號碼 1 ＝ write，放進 %eax</span>
+<span class="w">  </span><span class="err">11</span><span class="nl">c842:</span><span class="w">	</span><span class="nf">syscall</span><span class="w">                                  </span><span class="c1"># 進 kernel；參數 fd、buf、count 已經在 %rdi、%rsi、%rdx</span>
+<span class="w">  </span><span class="err">11</span><span class="nl">c844:</span><span class="w">	</span><span class="nf">cmp</span><span class="w">    </span><span class="no">$0xfffffffffffff000</span><span class="p">,</span><span class="nv">%rax</span><span class="w">          </span><span class="c1"># kernel 回傳 −1～−4095 代表錯誤</span>
+<span class="w">  </span><span class="err">11</span><span class="nl">c84a:</span><span class="w">	</span><span class="nf">ja</span><span class="w">     </span><span class="mi">11</span><span class="no">c8a0</span><span class="w">                            </span><span class="c1"># 是錯誤 → 跳去把錯誤碼存進 errno、回傳 −1</span>
+<span class="w">  </span><span class="err">11</span><span class="nl">c84c:</span><span class="w">	</span><span class="nf">ret</span><span class="w">                                      </span><span class="c1"># 成功：%rax 是寫了幾 byte，直接回傳</span>
+</code></pre>
+<p>參數為什麼已經在 <code>%rdi</code>、<code>%rsi</code>、<code>%rdx</code>？呼叫 <code>write(fd, buf, count)</code> 時，<a href="x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80%E4%BA%8C-call%E8%88%87ret%E3%80%81%E5%A0%86%E7%96%8A%E6%A1%86%E3%80%81%E5%8F%83%E6%95%B8%E8%88%87%E5%91%BC%E5%8F%AB%E6%85%A3%E4%BE%8B.html#%E4%BA%94%E5%8F%83%E6%95%B8%E8%88%87%E5%9B%9E%E5%82%B3%E5%80%BC%E6%94%BE%E5%93%AA%E8%A3%A1">第 5 課第五節〈參數與回傳值放哪裡〉</a>的呼叫慣例已經把三個參數放好了，包裝函式只要再放號碼、執行 <code>syscall</code>。<code>ja</code> 那一行就是正文<a href="#%E9%8C%AF%E8%AA%A4%E5%9B%9E%E5%A0%B1%E7%9A%84%E6%85%A3%E4%BE%8B%E5%9B%9E%E5%82%B3%E5%80%BC%E8%AA%AA%E5%A4%B1%E6%95%97%E4%BA%86errno-%E8%AA%AA%E7%82%BA%E4%BB%80%E9%BA%BC">第四節〈錯誤回報的慣例〉</a>說的「回傳 −1、原因放 <code>errno</code>」在機器碼裡的樣子。</p>
+<h4 id="c-的三層stdio--包裝函式--syscall-指令">C 的三層：stdio → 包裝函式 → <code>syscall</code> 指令</h4>
+<p><code>rawio.c</code>（檔案：<a href="../../small-project/s1-08-wc-cat/examples/syscall/rawio.c"><code>rawio.c</code></a>）不用 stdio，直接呼叫包裝函式，最後一行用通用的 <code>syscall()</code> 直接給號碼：</p>
+<pre><code class="language-c"><span class="cm">/* rawio.c：不用 stdio，直接呼叫 glibc 的系統呼叫包裝函式 */</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;fcntl.h&gt;</span><span class="c1">       /* open、O_RDONLY */</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;unistd.h&gt;</span><span class="c1">      /* read、write、close、syscall */</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;sys/syscall.h&gt;</span><span class="c1"> /* SYS_write */</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="kt">char</span><span class="w"> </span><span class="n">buf</span><span class="p">[</span><span class="mi">16</span><span class="p">];</span>
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">fd</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">open</span><span class="p">(</span><span class="s">&quot;in.txt&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">O_RDONLY</span><span class="p">);</span><span class="w">          </span><span class="cm">/* 包裝函式叫 open */</span>
+<span class="w">    </span><span class="kt">ssize_t</span><span class="w"> </span><span class="n">n</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">read</span><span class="p">(</span><span class="n">fd</span><span class="p">,</span><span class="w"> </span><span class="n">buf</span><span class="p">,</span><span class="w"> </span><span class="k">sizeof</span><span class="w"> </span><span class="n">buf</span><span class="p">);</span>
+<span class="w">    </span><span class="n">close</span><span class="p">(</span><span class="n">fd</span><span class="p">);</span>
+<span class="w">    </span><span class="n">write</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="n">buf</span><span class="p">,</span><span class="w"> </span><span class="n">n</span><span class="p">);</span><span class="w">                           </span><span class="cm">/* 包裝函式 write */</span>
+<span class="w">    </span><span class="n">syscall</span><span class="p">(</span><span class="n">SYS_write</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;raw</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="mi">4</span><span class="p">);</span><span class="w">          </span><span class="cm">/* 不靠專用包裝，直接給號碼 */</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<pre><code class="language-text">$ printf &#39;hi\n&#39; &gt; in.txt
+$ gcc -Wall rawio.c -o rawio
+$ strace -o t.txt -e trace=openat,read,write,close ./rawio &gt; /dev/null
+$ grep -A10 &#39;&quot;in.txt&quot;&#39; t.txt            （只看 in.txt 以後；前面是 ld.so 開 libc 的那幾行）
+openat(AT_FDCWD, &quot;in.txt&quot;, O_RDONLY)    = 3
+read(3, &quot;hi\n&quot;, 16)                     = 3
+close(3)                                = 0
+write(1, &quot;hi\n&quot;, 3)                     = 3
+write(1, &quot;raw\n&quot;, 4)                    = 4
++++ exited with 0 +++
+</code></pre>
+<ul>
+<li>C 寫的是 <code>open()</code>，kernel 收到的是 <strong><code>openat</code></strong>：glibc 的 <code>open()</code> 用 <code>openat(AT_FDCWD, …)</code> 實作，名字不一定對得上。</li>
+<li><code>syscall(SYS_write, …)</code> 跟 <code>write()</code> 產生<strong>一模一樣</strong>的系統呼叫。</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>層</th>
+<th>例子</th>
+<th>是不是系統呼叫</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>stdio（有緩衝）</td>
+<td><code>fopen</code>、<code>getc</code>、<code>printf</code></td>
+<td>不是，是 C 函式庫；需要時才呼叫下一層（正文第六節：16 次 <code>getc</code> 只有 2 次 <code>read</code>）</td>
+</tr>
+<tr>
+<td>系統呼叫包裝函式</td>
+<td><code>open</code>、<code>read</code>、<code>write</code>、<code>close</code></td>
+<td>大致一個函式對一個系統呼叫，名字可能不同（<code>open</code> → <code>openat</code>）；文件在 <code>man 2</code></td>
+</tr>
+<tr>
+<td><code>syscall</code> 指令</td>
+<td><code>syscall(SYS_write, …)</code>、上面的 <code>syscall</code> 那行</td>
+<td>真正進 kernel 的一步</td>
+</tr>
+</tbody>
+</table>
+<h4 id="其他語言最後都是同一組系統呼叫">其他語言：最後都是同一組系統呼叫</h4>
+<p>同一件事（讀 <code>in.txt</code>、印到 <code>stdout</code>）用 Python、Go、Rust 各寫一次（檔案：<a href="../../small-project/s1-08-wc-cat/examples/syscall/io.py"><code>io.py</code></a>、<a href="../../small-project/s1-08-wc-cat/examples/syscall/io.go"><code>io.go</code></a>、<a href="../../small-project/s1-08-wc-cat/examples/syscall/io.rs"><code>io.rs</code></a>）：</p>
+<pre><code class="language-python"><span class="c1"># io.py：Python 的 os 模組，讀 in.txt 印到 stdout</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="n">fd</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="s2">&quot;in.txt&quot;</span><span class="p">,</span> <span class="n">os</span><span class="o">.</span><span class="n">O_RDONLY</span><span class="p">)</span>
+<span class="n">data</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">fd</span><span class="p">,</span> <span class="mi">16</span><span class="p">)</span>
+<span class="n">os</span><span class="o">.</span><span class="n">close</span><span class="p">(</span><span class="n">fd</span><span class="p">)</span>
+<span class="n">os</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">data</span><span class="p">)</span>
+</code></pre>
+<pre><code class="language-go"><span class="c1">// io.go：Go 讀 in.txt 印到 stdout</span>
+<span class="kn">package</span><span class="w"> </span><span class="nx">main</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="s">&quot;os&quot;</span>
+
+<span class="kd">func</span><span class="w"> </span><span class="nx">main</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">	</span><span class="nx">data</span><span class="p">,</span><span class="w"> </span><span class="nx">_</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">os</span><span class="p">.</span><span class="nx">ReadFile</span><span class="p">(</span><span class="s">&quot;in.txt&quot;</span><span class="p">)</span>
+<span class="w">	</span><span class="nx">os</span><span class="p">.</span><span class="nx">Stdout</span><span class="p">.</span><span class="nx">Write</span><span class="p">(</span><span class="nx">data</span><span class="p">)</span>
+<span class="p">}</span>
+</code></pre>
+<pre><code class="language-rust"><span class="c1">// io.rs：Rust 讀 in.txt 印到 stdout</span>
+<span class="k">use</span><span class="w"> </span><span class="n">std</span>::<span class="n">fs</span><span class="p">;</span>
+<span class="k">use</span><span class="w"> </span><span class="n">std</span>::<span class="n">io</span>::<span class="n">Write</span><span class="p">;</span>
+
+<span class="k">fn</span> <span class="nf">main</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">data</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">fs</span>::<span class="n">read</span><span class="p">(</span><span class="s">&quot;in.txt&quot;</span><span class="p">).</span><span class="n">unwrap</span><span class="p">();</span>
+<span class="w">    </span><span class="n">std</span>::<span class="n">io</span>::<span class="n">stdout</span><span class="p">().</span><span class="n">write_all</span><span class="p">(</span><span class="o">&amp;</span><span class="n">data</span><span class="p">).</span><span class="n">unwrap</span><span class="p">();</span>
+<span class="p">}</span>
+</code></pre>
+<pre><code class="language-text">$ strace -o t.txt -e trace=openat,read,write,close python3 io.py &gt; /dev/null      （Python 3.12.9）
+$ grep -A3 &#39;&quot;in.txt&quot;&#39; t.txt
+openat(AT_FDCWD, &quot;in.txt&quot;, O_RDONLY|O_CLOEXEC) = 3
+read(3, &quot;hi\n&quot;, 16)                     = 3
+close(3)                                = 0
+write(1, &quot;hi\n&quot;, 3)                     = 3
+
+$ go build -o goio io.go                                                           （go1.24.2）
+$ ldd ./goio
+	not a dynamic executable
+$ strace -f -o t.txt -e trace=openat,read,write,close ./goio &gt; /dev/null
+$ grep -E &#39;&quot;in.txt&quot;|read\(3|close\(3|write\(1&#39; t.txt | sed &#39;s/^[0-9]* *//&#39;   （去掉 -f 加的執行緒編號；最前面還有 Go runtime 自己讀設定的幾行，略）
+openat(AT_FDCWD, &quot;in.txt&quot;, O_RDONLY|O_CLOEXEC) = 3
+read(3, &quot;hi\n&quot;, 512)              = 3
+read(3, &quot;&quot;, 509)                  = 0
+close(3)                          = 0
+write(1, &quot;hi\n&quot;, 3)               = 3
+
+$ rustc -O io.rs -o rsio                                                           （rustc 1.93.1）
+$ ldd ./rsio | grep libc
+	libc.so.6 =&gt; /lib/x86_64-linux-gnu/libc.so.6 (0x0000743c62800000)
+$ strace -o t.txt -e trace=openat,read,write,close ./rsio &gt; /dev/null
+$ grep -A3 &#39;&quot;in.txt&quot;&#39; t.txt; grep &#39;write(1&#39; t.txt
+openat(AT_FDCWD, &quot;in.txt&quot;, O_RDONLY|O_CLOEXEC) = 3
+read(3, &quot;hi\n&quot;, 3)                      = 3
+read(3, &quot;&quot;, 32)                         = 0
+close(3)                                = 0
+write(1, &quot;hi\n&quot;, 3)                     = 3
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>語言</th>
+<th>怎麼進 kernel</th>
+<th>看得出來的地方</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>C</td>
+<td>glibc 的包裝函式</td>
+<td><code>rawio.c</code> 的 <code>strace</code></td>
+</tr>
+<tr>
+<td>Python</td>
+<td>直譯器是 C 寫的，<code>os.open</code> 呼叫 glibc 的 <code>open</code></td>
+<td>跟 C 一樣是 <code>openat</code>；Python 自動加上 <code>O_CLOEXEC</code></td>
+</tr>
+<tr>
+<td>Go</td>
+<td><strong>不用 libc</strong>：<code>ldd</code> 說 <code>not a dynamic executable</code>，Go 的 runtime 自己放號碼、執行 <code>syscall</code> 指令</td>
+<td>系統呼叫跟 C 的一樣</td>
+</tr>
+<tr>
+<td>Rust</td>
+<td>標準函式庫呼叫 glibc 的包裝函式（<code>ldd</code> 看得到 <code>libc.so.6</code>）</td>
+<td>系統呼叫跟 C 的一樣</td>
+</tr>
+</tbody>
+</table>
+<p><code>read</code> 一次要幾 byte（16、512、3）是各語言的函式庫自己決定的（Go、Rust 讀到 0 才停，所以多一次 <code>read</code>），但<strong>系統呼叫的種類、參數的意義完全相同</strong>。所以學系統呼叫學的是 kernel 的介面，換到哪個語言都通用，<code>strace</code> 也照樣看得懂；<code>man 2</code> 用 C 寫，只是因為 kernel 的介面是用 C 的型別與呼叫慣例定義的。</p>
+<p><strong>一句話</strong>：<code>openat</code> 是 kernel 的系統呼叫（號碼 257），C 的 <code>open()</code>、Python 的 <code>os.open</code>、Go 的 <code>os.ReadFile</code>、Rust 的 <code>fs::read</code> 都只是通往它的不同入口。</p>
 <hr />
 <h2 id="自我測驗">自我測驗</h2>
 <blockquote>

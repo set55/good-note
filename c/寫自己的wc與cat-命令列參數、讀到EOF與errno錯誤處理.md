@@ -249,6 +249,8 @@ $ ./getbytes < /dev/null
 - `/dev/null`：讀它立刻就是檔案結尾，第一次 `getchar()` 就回傳 `EOF`。
 - 從鍵盤輸入時，在一行開頭按 **Ctrl-D**，終端機會讓這次 `read` 回傳 0 個 byte，`getchar` 因此回傳 `EOF`（這裡需要互動的終端機，**未實測**；終端機的行為在 [PTY是什麼](../linux/PTY是什麼-終端機模擬器與虛擬終端.md) 有講）。
 
+> 課後討論：[第十節第 2 章〈`od`：把檔案的每個 byte 印出來〉](#2-od把檔案的每個-byte-印出來)
+
 ### 錯誤示範：用 `char` 接 `getchar()`
 
 `charbug.c`（檔案：[`charbug.c`](../small-project/s1-08-wc-cat/examples/eof/charbug.c)）只差一個型別：
@@ -672,7 +674,7 @@ exit_group(0)                           = ?
 
 （`n` 在 `banana` 裡 2 個、`bandana` 裡 2 個，所以是 4。）
 
-> 課後討論：[第十節第 1 章〈`strace` 輸出逐行讀：格式、7 個系統呼叫的參數、`ld.so` 那 30 行〉](#1-strace-輸出逐行讀格式7-個系統呼叫的參數ldso-那-30-行)
+> 課後討論：[第十節第 1 章〈`strace` 輸出逐行讀：格式、7 個系統呼叫的參數、`ld.so` 那 30 行〉](#1-strace-輸出逐行讀格式7-個系統呼叫的參數ldso-那-30-行)、[第十節第 3 章〈系統呼叫是 kernel 的介面：C 的包裝函式、`syscall` 指令、其他語言也一樣〉](#3-系統呼叫是-kernel-的介面c-的包裝函式syscall-指令其他語言也一樣)
 
 圖：`countch` 讀檔時誰呼叫誰（位址、大小對應上面的 `strace` 輸出）：
 
@@ -730,6 +732,8 @@ $ od -c spaces.txt
 ```
 
 （`: > empty.txt`：`:` 是什麼都不做的命令，`>` 把檔案截成 0 byte。）
+
+> 課後討論：[第十節第 2 章〈`od`：把檔案的每個 byte 印出來〉](#2-od把檔案的每個-byte-印出來)
 
 ### `wc` 數的三個數字
 
@@ -1106,6 +1110,8 @@ c^AM-d$
 課堂中的追問與延伸討論集中在這一節，正文被問到的地方放一行連結指過來。
 
 - [第 1 章](#1-strace-輸出逐行讀格式7-個系統呼叫的參數ldso-那-30-行)：`strace` 輸出逐行讀：格式、7 個系統呼叫的參數、`ld.so` 那 30 行
+- [第 2 章](#2-od把檔案的每個-byte-印出來)：`od`：把檔案的每個 byte 印出來
+- [第 3 章](#3-系統呼叫是-kernel-的介面c-的包裝函式syscall-指令其他語言也一樣)：系統呼叫是 kernel 的介面：C 的包裝函式、`syscall` 指令、其他語言也一樣
 
 ### 1. `strace` 輸出逐行讀：格式、7 個系統呼叫的參數、`ld.so` 那 30 行
 
@@ -1229,6 +1235,261 @@ $ cat -n tr.txt
 - `strace -e trace=<名稱,…>`：只看某幾個，例如正文的 `strace -e trace=read`。
 
 **一句話**：讀 `strace` 只要先抓「名稱、參數、`=` 後的回傳值」；`countch` 自己的部分只有 7 個系統呼叫，前面 30 行是 `ld.so` 與 libc 替 `main` 準備環境。
+
+### 2. `od`：把檔案的每個 byte 印出來
+
+> 2026-11-04 課後提問：「這一課有用到od這個命令,可以稍微針對本課提到的例子解釋一下od在做什麼嗎?」
+>
+> 正文出處：[第三節〈實驗：數 `stdin` 有幾個 byte〉](#實驗數-stdin-有幾個-byte)的 `od -An -tx1 ff.bin`、[第七節開頭](#七wc-與-cat-的精確行為作業的規格)的 `od -c spaces.txt`；作業 1-1、1-3 的 `./mycat ff.bin | od -c`、4-4 的 `printf 'é' | od -An -tx1` 也用到。正文只寫了一句「把每個 byte 印出來」。
+
+本章的輸出都是本機 GNU coreutils 9.4 的 `od` 實測。
+
+#### `od` 在做什麼
+
+`od`（octal dump，八進位傾印）把檔案裡的**每一個 byte 用看得見的方式印出來**。`cat` 把 byte 原樣交給終端機，`\n`、`\t`、空白、`0xff` 都被終端機「解釋掉」了，看不出檔案裡到底是什麼；`od` 一個 byte 一格列出來，所以拿來檢查 `printf` 建的測試檔、`mycat` 的輸出有沒有一 byte 不差。
+
+文法骨架：
+
+```text
+od [選項…] [檔案…]        沒給檔案、或檔案寫 - → 讀標準輸入（所以能接在 | 後面）
+```
+
+#### 用法一：`od -c`——印成字元，看空白和換行
+
+`-c` 的意思是：能印的字元直接印，不能印的用跳脫寫法（`\n`、`\t`）或**八進位**數字表示。
+
+```text
+$ printf '  lots   of\t\tspace  \n\n\nend\n' > spaces.txt
+$ od -c spaces.txt
+0000000           l   o   t   s               o   f  \t  \t   s   p   a
+0000020   c   e          \n  \n  \n   e   n   d  \n
+0000033
+```
+
+- **最左欄是位移（offset）**：這一行第一個 byte 是檔案的第幾個（從 0 數），**預設用八進位**。`0000020` 是八進位 20 ＝ 十進位 16，所以第二行從第 16 個 byte 開始；每行 16 byte。
+- **每個 byte 佔 4 格**：空白 byte 就是一片空白（開頭那 8 格是兩個空白），`\t` 是 tab、`\n` 是換行。一眼就看得出 `spaces.txt` 有連續 3 個 `\n`——`wc -l` 數成 3 行就是它們。
+- **最後一行只有位移**：`0000033`（八進位 33 ＝ 27）表示檔案在這裡結束，共 27 byte，跟 `wc -c` 一致。
+
+不能印的 byte 怎麼顯示：
+
+```text
+$ printf 'AB\xffCD' > ff.bin
+$ od -c ff.bin
+0000000   A   B 377   C   D
+0000005
+```
+
+`377` 是**八進位**的 255，也就是 `0xff`。作業 1-1、1-3 用 `./mycat ff.bin | od -c` 檢查輸出，看的就是這 5 格：`od` 讀管線傳來的 `stdout`，少了 `377` 那格（用 `char` 接 `getc` 時）就一眼看出來。
+
+#### 用法二：`od -An -tx1`——印成十六進位，一個 byte 一組
+
+```text
+$ od -An -tx1 ff.bin
+ 41 42 ff 43 44
+$ od -tx1 ff.bin
+0000000 41 42 ff 43 44
+0000005
+```
+
+- `-t x1`（可以黏成 `-tx1`）：`x` ＝ 十六進位，`1` ＝ 每組 1 byte。`'A'` 是 `41`、`0xff` 就是 `ff`——對上第 2 課講的「`char` 就是 1 byte 的整數」。
+- `-An`：`-A` 選位移欄用什麼進位，`n` ＝ none，不印位移欄。只想看 byte 值的時候用它，輸出比較乾淨（比較上面兩個指令的輸出）。
+
+作業 4-4 的 `printf 'é' | od -An -tx1` 印出 `c3 a9`：`é` 在 UTF-8 是 2 個 byte（[字元筆記第四節〈中文字：一個 byte 裝不下，UTF-8 用 3 個 byte〉](./字元是什麼-char就是1byte的整數與ASCII和UTF-8.md#四中文字一個-byte-裝不下utf-8-用-3-個-byte)）。
+
+#### 陷阱：不加選項的預設格式
+
+```text
+$ od ff.bin
+0000000 041101 041777 000104
+0000005
+```
+
+預設是 `-t o2`：**每 2 byte 拼成一個數字、用八進位印**，而且照本機的**小端序**拼。`041101`（八進位）＝ `0x4241`：`'A'`（`0x41`）是低位、`'B'`（`0x42`）是高位，跟[第 2 課第三節〈位元組順序（endianness）〉](./C的資料在記憶體裡長怎樣-位元組、指標、位元組順序與有號無號.md#三位元組順序endianness)講的一樣；`041777` ＝ `0x43ff`（`0xff` 在低位）、`000104` ＝ `0x0044`（最後落單的 `D`，高位補 0）。所以要看「一個一個 byte」，**一定要加 `-c` 或 `-tx1`**，否則順序跟檔案裡的不一樣。
+
+#### 全部選項（`od --help` 實測，GNU coreutils 9.4）
+
+| 分組 | 選項 | 作用 |
+|---|---|---|
+| 位移欄 | `-A d`／`o`／`x`／`n` | 位移用十／八／十六進位，或不印（預設八進位） |
+| 範圍 | `-j N` | 先跳過 N byte |
+| | `-N N` | 最多只印 N byte |
+| 格式 | `-t TYPE` | 選格式；可以給好幾個，每 16 byte 會印好幾列（見下表） |
+| | `-w[N]` | 每行印 N byte（預設 16；只寫 `-w` 是 32） |
+| | `-v` | 連續相同的行也全部印（預設把重複的行縮成一個 `*`） |
+| | `-S [N]` | 只印至少 N 個（預設 3）可印字元、以 `\0` 結尾的字串 |
+| | `--endian=big`／`little` | 好幾 byte 一組時，照指定的位元組順序拼 |
+| 相容 | `--traditional` | 接受舊式的位置參數寫法（`od 檔案 +位移 +標籤`） |
+| 一般 | `--help`、`--version` | 說明、版本 |
+
+`-t TYPE` 的 7 種類型：`a`（具名字元，例如 `nl`、`sp`，忽略最高位元）、`c`（字元或跳脫寫法）、`d`（有號十進位）、`u`（無號十進位）、`o`（八進位）、`x`（十六進位）、`f`（浮點數）。後面接每組幾 byte：數字（`x1`、`d4`），或 `C`／`S`／`I`／`L`（`char`／`short`／`int`／`long` 的大小），浮點數用 `F`／`D`／`L`（`float`／`double`／`long double`）。任何類型後面加 `z`，每行右邊多印一欄可讀文字：
+
+```text
+$ od -Ax -tx1z spaces.txt
+000000 20 20 6c 6f 74 73 20 20 20 6f 66 09 09 73 70 61  >  lots   of..spa<
+000010 63 65 20 20 0a 0a 0a 65 6e 64 0a                 >ce  ...end.<
+00001b
+```
+
+（`-Ax` 讓位移改用十六進位：`0x1b` ＝ 27 byte。）
+
+舊式的單字母選項是 `-t` 的簡寫，全部 10 個：`-a` ＝ `-t a`、`-b` ＝ `-t o1`、`-c` ＝ `-t c`、`-d` ＝ `-t u2`、`-f` ＝ `-t fF`、`-i` ＝ `-t dI`、`-l` ＝ `-t dL`、`-o` ＝ `-t o2`、`-s` ＝ `-t d2`、`-x` ＝ `-t x2`。`-j`、`-N`、`-w` 的數字預設十進位，`0x` 開頭是十六進位，可加 `b`（×512）、`K`（×1024）、`KB`（×1000）、`M` 等字尾。完整說明：`info '(coreutils) od invocation'`。
+
+**一句話**：本課只要兩個——看字元、空白、換行用 `od -c`；看 byte 的值用 `od -An -tx1`；不加選項的預設格式是 2 byte 一組的八進位，別拿它看 byte。
+
+### 3. 系統呼叫是 kernel 的介面：C 的包裝函式、`syscall` 指令、其他語言也一樣
+
+> 2026-11-04 課後提問：「另外我在這些例子看到的系統呼叫,實際上是不是代表C有很多系統呼叫的函式?例如OPENat?如果是,其他語言也有系統呼叫的功能嗎?」
+>
+> 正文出處：[第六節〈用 `strace` 看 `fopen`、`getc`、`printf` 底下是哪些系統呼叫〉](#用-strace-看-fopengetcprintf-底下是哪些系統呼叫)；系統呼叫的參數與 `strace` 的讀法見[第 1 章](#1-strace-輸出逐行讀格式7-個系統呼叫的參數ldso-那-30-行)。
+
+**範圍**：系統呼叫「本身的機制」（`syscall` 指令怎麼切進 kernel、kernel 那一側做什麼）還沒排課，這一章只講回答提問需要的部分。
+
+**結論先講**：系統呼叫不是 C 的函式，是 **kernel 提供的介面**——用**號碼**區分（x86-64 共 373 個，`write` 是 1、`openat` 是 257），任何語言最後都靠 CPU 的 `syscall` 指令進 kernel。C 只是剛好有一組名字幾乎一樣的「包裝函式」（wrapper）。
+
+#### glibc 的 `write()` 裡面：放號碼、`syscall`、檢查錯誤
+
+用 `objdump -T` 在 `libc.so.6` 的動態符號表找到 `write` 的位址，再反組譯那一段：
+
+```text
+$ objdump -T /lib/x86_64-linux-gnu/libc.so.6 | awk '$NF=="write"'
+000000000011c830  w   DF .text	000000000000009d  GLIBC_2.2.5 write
+$ objdump -d --no-show-raw-insn --start-address=0x11c830 --stop-address=0x11c850 /lib/x86_64-linux-gnu/libc.so.6
+```
+
+```asm
+  11c830:	endbr64                                  # 控制流程保護標記，不影響功能
+  11c834:	cmpb   $0x0,0xef805(%rip)  # <__libc_single_threaded>  看這個行程是不是單執行緒
+  11c83b:	je     11c850                            # 多執行緒走另一條路（不展開）
+  11c83d:	mov    $0x1,%eax                         # 系統呼叫號碼 1 ＝ write，放進 %eax
+  11c842:	syscall                                  # 進 kernel；參數 fd、buf、count 已經在 %rdi、%rsi、%rdx
+  11c844:	cmp    $0xfffffffffffff000,%rax          # kernel 回傳 −1～−4095 代表錯誤
+  11c84a:	ja     11c8a0                            # 是錯誤 → 跳去把錯誤碼存進 errno、回傳 −1
+  11c84c:	ret                                      # 成功：%rax 是寫了幾 byte，直接回傳
+```
+
+參數為什麼已經在 `%rdi`、`%rsi`、`%rdx`？呼叫 `write(fd, buf, count)` 時，[第 5 課第五節〈參數與回傳值放哪裡〉](./x86-64組合語言入門二-call與ret、堆疊框、參數與呼叫慣例.md#五參數與回傳值放哪裡)的呼叫慣例已經把三個參數放好了，包裝函式只要再放號碼、執行 `syscall`。`ja` 那一行就是正文[第四節〈錯誤回報的慣例〉](#錯誤回報的慣例回傳值說失敗了errno-說為什麼)說的「回傳 −1、原因放 `errno`」在機器碼裡的樣子。
+
+#### C 的三層：stdio → 包裝函式 → `syscall` 指令
+
+`rawio.c`（檔案：[`rawio.c`](../small-project/s1-08-wc-cat/examples/syscall/rawio.c)）不用 stdio，直接呼叫包裝函式，最後一行用通用的 `syscall()` 直接給號碼：
+
+```c
+/* rawio.c：不用 stdio，直接呼叫 glibc 的系統呼叫包裝函式 */
+#include <fcntl.h>       /* open、O_RDONLY */
+#include <unistd.h>      /* read、write、close、syscall */
+#include <sys/syscall.h> /* SYS_write */
+
+int main(void)
+{
+    char buf[16];
+    int fd = open("in.txt", O_RDONLY);          /* 包裝函式叫 open */
+    ssize_t n = read(fd, buf, sizeof buf);
+    close(fd);
+    write(1, buf, n);                           /* 包裝函式 write */
+    syscall(SYS_write, 1, "raw\n", 4);          /* 不靠專用包裝，直接給號碼 */
+    return 0;
+}
+```
+
+```text
+$ printf 'hi\n' > in.txt
+$ gcc -Wall rawio.c -o rawio
+$ strace -o t.txt -e trace=openat,read,write,close ./rawio > /dev/null
+$ grep -A10 '"in.txt"' t.txt            （只看 in.txt 以後；前面是 ld.so 開 libc 的那幾行）
+openat(AT_FDCWD, "in.txt", O_RDONLY)    = 3
+read(3, "hi\n", 16)                     = 3
+close(3)                                = 0
+write(1, "hi\n", 3)                     = 3
+write(1, "raw\n", 4)                    = 4
++++ exited with 0 +++
+```
+
+- C 寫的是 `open()`，kernel 收到的是 **`openat`**：glibc 的 `open()` 用 `openat(AT_FDCWD, …)` 實作，名字不一定對得上。
+- `syscall(SYS_write, …)` 跟 `write()` 產生**一模一樣**的系統呼叫。
+
+| 層 | 例子 | 是不是系統呼叫 |
+|---|---|---|
+| stdio（有緩衝） | `fopen`、`getc`、`printf` | 不是，是 C 函式庫；需要時才呼叫下一層（正文第六節：16 次 `getc` 只有 2 次 `read`） |
+| 系統呼叫包裝函式 | `open`、`read`、`write`、`close` | 大致一個函式對一個系統呼叫，名字可能不同（`open` → `openat`）；文件在 `man 2` |
+| `syscall` 指令 | `syscall(SYS_write, …)`、上面的 `syscall` 那行 | 真正進 kernel 的一步 |
+
+#### 其他語言：最後都是同一組系統呼叫
+
+同一件事（讀 `in.txt`、印到 `stdout`）用 Python、Go、Rust 各寫一次（檔案：[`io.py`](../small-project/s1-08-wc-cat/examples/syscall/io.py)、[`io.go`](../small-project/s1-08-wc-cat/examples/syscall/io.go)、[`io.rs`](../small-project/s1-08-wc-cat/examples/syscall/io.rs)）：
+
+```python
+# io.py：Python 的 os 模組，讀 in.txt 印到 stdout
+import os
+fd = os.open("in.txt", os.O_RDONLY)
+data = os.read(fd, 16)
+os.close(fd)
+os.write(1, data)
+```
+
+```go
+// io.go：Go 讀 in.txt 印到 stdout
+package main
+
+import "os"
+
+func main() {
+	data, _ := os.ReadFile("in.txt")
+	os.Stdout.Write(data)
+}
+```
+
+```rust
+// io.rs：Rust 讀 in.txt 印到 stdout
+use std::fs;
+use std::io::Write;
+
+fn main() {
+    let data = fs::read("in.txt").unwrap();
+    std::io::stdout().write_all(&data).unwrap();
+}
+```
+
+```text
+$ strace -o t.txt -e trace=openat,read,write,close python3 io.py > /dev/null      （Python 3.12.9）
+$ grep -A3 '"in.txt"' t.txt
+openat(AT_FDCWD, "in.txt", O_RDONLY|O_CLOEXEC) = 3
+read(3, "hi\n", 16)                     = 3
+close(3)                                = 0
+write(1, "hi\n", 3)                     = 3
+
+$ go build -o goio io.go                                                           （go1.24.2）
+$ ldd ./goio
+	not a dynamic executable
+$ strace -f -o t.txt -e trace=openat,read,write,close ./goio > /dev/null
+$ grep -E '"in.txt"|read\(3|close\(3|write\(1' t.txt | sed 's/^[0-9]* *//'   （去掉 -f 加的執行緒編號；最前面還有 Go runtime 自己讀設定的幾行，略）
+openat(AT_FDCWD, "in.txt", O_RDONLY|O_CLOEXEC) = 3
+read(3, "hi\n", 512)              = 3
+read(3, "", 509)                  = 0
+close(3)                          = 0
+write(1, "hi\n", 3)               = 3
+
+$ rustc -O io.rs -o rsio                                                           （rustc 1.93.1）
+$ ldd ./rsio | grep libc
+	libc.so.6 => /lib/x86_64-linux-gnu/libc.so.6 (0x0000743c62800000)
+$ strace -o t.txt -e trace=openat,read,write,close ./rsio > /dev/null
+$ grep -A3 '"in.txt"' t.txt; grep 'write(1' t.txt
+openat(AT_FDCWD, "in.txt", O_RDONLY|O_CLOEXEC) = 3
+read(3, "hi\n", 3)                      = 3
+read(3, "", 32)                         = 0
+close(3)                                = 0
+write(1, "hi\n", 3)                     = 3
+```
+
+| 語言 | 怎麼進 kernel | 看得出來的地方 |
+|---|---|---|
+| C | glibc 的包裝函式 | `rawio.c` 的 `strace` |
+| Python | 直譯器是 C 寫的，`os.open` 呼叫 glibc 的 `open` | 跟 C 一樣是 `openat`；Python 自動加上 `O_CLOEXEC` |
+| Go | **不用 libc**：`ldd` 說 `not a dynamic executable`，Go 的 runtime 自己放號碼、執行 `syscall` 指令 | 系統呼叫跟 C 的一樣 |
+| Rust | 標準函式庫呼叫 glibc 的包裝函式（`ldd` 看得到 `libc.so.6`） | 系統呼叫跟 C 的一樣 |
+
+`read` 一次要幾 byte（16、512、3）是各語言的函式庫自己決定的（Go、Rust 讀到 0 才停，所以多一次 `read`），但**系統呼叫的種類、參數的意義完全相同**。所以學系統呼叫學的是 kernel 的介面，換到哪個語言都通用，`strace` 也照樣看得懂；`man 2` 用 C 寫，只是因為 kernel 的介面是用 C 的型別與呼叫慣例定義的。
+
+**一句話**：`openat` 是 kernel 的系統呼叫（號碼 257），C 的 `open()`、Python 的 `os.open`、Go 的 `os.ReadFile`、Rust 的 `fs::read` 都只是通往它的不同入口。
 
 ---
 
