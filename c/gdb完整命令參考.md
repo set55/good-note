@@ -19,10 +19,13 @@
 stack（在哪一層）四類；其他類別是遠端除錯、追蹤點、腳本化、gdb 自身維護用的。
 任何時候都可以用 `help <命令>`、`apropos <關鍵字>` 問 gdb 自己。**
 
+**怎麼查**：知道要做什麼（停在某處、一步步走、看變數、看堆疊、看組合語言）→ 先看[第零節〈依任務查〉](#零依任務查常用命令各一個例子)，每個常用命令都有實際輸出；要找某個命令的全名、縮寫、還有哪些相關命令 → 第四節（依 gdb 的 13 類）與第五節（`info` 的子命令）的表。
+
 ---
 
 ## 目錄
 
+- [零、依任務查：常用命令各一個例子](#零依任務查常用命令各一個例子)
 - [一、gdb 在做什麼，為什麼要 `-g`](#一gdb-在做什麼為什麼要--g)
 - [二、啟動 gdb：命令列文法與全部選項](#二啟動-gdb命令列文法與全部選項)
 - [三、gdb 內部命令的共通文法](#三gdb-內部命令的共通文法)
@@ -33,6 +36,618 @@ stack（在哪一層）四類；其他類別是遠端除錯、追蹤點、腳本
 - [八、實際走一次，與常見錯誤訊息](#八實際走一次與常見錯誤訊息)
 - [九、課後討論](#九課後討論)
 - [自我測驗](#自我測驗)
+
+---
+
+## 零、依任務查：常用命令各一個例子
+
+> 2026-11-04 新增：使用者反映「寫的內容讓人不知道怎麼查與用」。本節照「想做什麼」分組，每個常用命令（第四、五節標 ★ 的）各一個實際跑過的例子：粗體寫結論、一個命令與它的輸出、下面緊接說明（`CLAUDE.md` 筆記規範 6-4）。涵蓋第四節標 ★ 的 21 個頂層命令（全部 173 個裡的 21 個）加上常用的 `set var`，以及第五節標 ★ 的 10 個 `info` 子命令（全部 65 個裡的 10 個）；其他命令看第四、五節的表。
+
+### 範例程式與怎麼開始
+
+本節所有例子都用這支 `tour.c`（檔案：[`tour.c`](../small-project/s1-01-hello-compile/examples/gdbtour/tour.c)）。行號在下面的例子裡會用到，所以把每一行的編號一起列出：
+
+```c
+/* tour.c：gdb 筆記〈依任務查〉用的範例程式 */          /* 第 1 行 */
+#include <stdio.h>
+
+struct point {
+    int x;
+    int y;
+};
+
+int counter = 0;                          /* 全域變數：watch 的例子用 */   /* 第 9 行 */
+
+int square(int n)                                                      /* 第 11 行 */
+{
+    int r = n * n;                                                     /* 第 13 行 */
+    return r;                                                          /* 第 14 行 */
+}
+
+int sum_squares(int *a, int len)                                       /* 第 17 行 */
+{
+    int total = 0;
+    for (int i = 0; i < len; i++) {                                    /* 第 20 行 */
+        total += square(a[i]);                                         /* 第 21 行 */
+        counter++;                                                     /* 第 22 行 */
+    }
+    return total;                                                      /* 第 24 行 */
+}
+
+int main(void)                                                         /* 第 27 行 */
+{
+    int nums[4] = {1, 2, 3, 4};
+    struct point p = {3, 4};
+    int s = sum_squares(nums, 4);                                      /* 第 31 行 */
+    printf("sum=%d p=(%d,%d) counter=%d\n", s, p.x, p.y, counter);
+    return 0;
+}
+```
+
+（檔案裡的 `tour.c` 沒有右邊這些「第 N 行」註解，行號跟這裡一致。）
+
+```text
+$ gcc -g -O0 tour.c -o tour      # -g 才有行號與變數名；-O0 讓每一行都照原樣存在
+$ gdb -q ./tour                  # -q 不印版權說明；進去之後提示符號是 (gdb)
+```
+
+- 下面每個例子都是在 `(gdb)` 提示符號後面打的命令。例子的開頭會寫「先做什麼」把程式停到那個狀態，你照著打就能重現。
+- 輸出裡的位址（`0x5555…`、`0x7fff…`）每台機器、每次編譯可能不同，比對時看結構就好。
+- `run`、`start` 時印的 `[Thread debugging using libthread_db enabled]` 兩行是 gdb 載入執行緒除錯支援的訊息，每次都有，可以忽略。
+
+### 1. 開始與結束
+
+#### `run`（`r`）：從頭執行
+
+```text
+(gdb) run
+[Thread debugging using libthread_db enabled]
+Using host libthread_db library "/lib/x86_64-linux-gnu/libthread_db.so.1".
+sum=30 p=(3,4) counter=4
+[Inferior 1 (process 18269) exited normally]
+```
+
+- 沒有設中斷點，程式就一路跑完：`sum=30 …` 是程式自己印的，最後一行是 gdb 報告「行程正常結束」。
+- 要給程式參數或重新導向，直接接在後面：`run a.txt b.txt`、`run < input.txt`。
+
+#### `start`：執行並停在 `main` 開頭
+
+```text
+(gdb) start
+Temporary breakpoint 1 at 0x11f1: file tour.c, line 28.
+[Thread debugging using libthread_db enabled]
+Using host libthread_db library "/lib/x86_64-linux-gnu/libthread_db.so.1".
+
+Temporary breakpoint 1, main () at tour.c:28
+28	{
+```
+
+- 等於「在 `main` 設一個用一次就消失的暫時中斷點（`Temporary breakpoint`），再 `run`」。不知道要停在哪時，先 `start` 再一步步走。
+- 停在第 28 行（`main` 的 `{`）而不是第 29 行：`{` 這一行對應建立堆疊框的指令。
+
+#### `help`（`h`）：問 gdb 某個命令怎麼用
+
+```text
+(gdb) help next
+next, n
+Step program, proceeding through subroutine calls.
+Usage: next [N]
+Unlike "step", if the current source line calls a subroutine,
+this command does not enter the subroutine, but instead steps over
+the call, in effect treating it as a single source line.
+```
+
+- 第一行列出全名與縮寫（`next, n`），`Usage:` 是文法。想找「跟某件事有關的命令」用 `apropos 關鍵字`。
+
+#### `quit`（`q`）：離開
+
+- 打 `quit` 就離開；程式還在跑時，gdb 會問 `A debugging session is active … Quit anyway? (y or n)`，答 `y` 會連程式一起結束。
+
+### 2. 讓程式停在想看的地方
+
+#### `break`（`b`）：在函式設中斷點
+
+```text
+(gdb) break square
+Breakpoint 1 at 0x1174: file tour.c, line 13.
+```
+
+- 編號 1、位址 `0x1174`、對應 `tour.c` 第 13 行：gdb 會自動跳過函式開頭建立堆疊框的幾條指令，停在第一行真正的程式碼。
+- 還沒 `run`，位址是檔案裡的位址（`0x1174`）；程式跑起來後會加上載入基底（見下面的 `info registers`）。
+
+#### `break 檔案:行號`：在某一行設中斷點
+
+```text
+(gdb) break tour.c:22
+Breakpoint 1 at 0x11c5: file tour.c, line 22.
+```
+
+- 停在第 22 行 `counter++;` **執行之前**。只有一個原始碼檔時可以省略檔名寫 `break 22`。
+
+#### `break … if 條件`：條件中斷點
+
+先 `break square if n == 3`，再：
+
+```text
+(gdb) run
+[Thread debugging using libthread_db enabled]
+Using host libthread_db library "/lib/x86_64-linux-gnu/libthread_db.so.1".
+
+Breakpoint 1, square (n=3) at tour.c:13
+13	    int r = n * n;
+```
+
+- 前兩次呼叫 `square`（`n` 是 1、2）沒停，第三次 `n=3` 才停。迴圈跑幾萬次、只想看某一次時用它。
+
+#### `info breakpoints`（`info b`）：列出所有中斷點
+
+先 `break square`、`break tour.c:22 if i == 2`，再：
+
+```text
+(gdb) info breakpoints
+Num     Type           Disp Enb Address            What
+1       breakpoint     keep y   0x0000000000001174 in square at tour.c:13
+2       breakpoint     keep y   0x00000000000011c5 in sum_squares at tour.c:22
+	stop only if i == 2
+```
+
+- `Num` 是編號（`delete`、`disable` 用它）；`Disp` 的 `keep` 表示停過還留著（`tbreak` 是 `del`）；`Enb` 的 `y` 表示啟用中。
+- 有條件的中斷點，下面多一行 `stop only if i == 2`。
+
+#### `delete`（`d`）：刪掉中斷點
+
+先 `break square`、`break tour.c:22`，再：
+
+```text
+(gdb) delete 1
+```
+
+```text
+(gdb) info breakpoints
+Num     Type           Disp Enb Address            What
+2       breakpoint     keep y   0x00000000000011c5 in sum_squares at tour.c:22
+```
+
+- `delete 1` 刪掉編號 1（`square` 那個），剩下編號 2。不給編號的 `delete` 會**全部**刪掉（gdb 會先問）。
+
+#### `watch`：變數的值改變時停下
+
+先 `start` 停在 `main`，再：
+
+```text
+(gdb) watch counter
+Hardware watchpoint 2: counter
+```
+
+```text
+(gdb) continue
+Hardware watchpoint 2: counter
+
+Old value = 0
+New value = 1
+sum_squares (a=0x7fffffffd490, len=4) at tour.c:20
+20	    for (int i = 0; i < len; i++) {
+```
+
+- `watch counter` 設監看點（watchpoint）；`Hardware` 表示用 CPU 的除錯暫存器做，不會拖慢程式。
+- `continue` 之後，`counter` 從 0 變成 1 的那一刻停下，印出舊值、新值。停的位置是**改完之後**的下一行（第 20 行），不是 `counter++` 那行。
+- 用途：「這個變數到底是誰改壞的」，不必猜要在哪裡下中斷點。
+
+#### `continue`（`c`）：繼續跑到下一個中斷點
+
+先 `break square`、`run`（停在 `n=1`），再：
+
+```text
+(gdb) continue
+Breakpoint 1, square (n=2) at tour.c:13
+13	    int r = n * n;
+```
+
+- 程式繼續跑，下一次進 `square` 又停，這次 `n=2`。
+
+### 3. 一步一步走
+
+#### `next`（`n`）：走一行，遇到函式呼叫不進去
+
+先 `break tour.c:21`、`run`（停在 `total += square(a[i]);`），再：
+
+```text
+(gdb) next
+22	        counter++;
+```
+
+- 第 21 行呼叫了 `square`，`next` 把整個呼叫當一步，直接到第 22 行。
+
+#### `step`（`s`）：走一行，遇到函式呼叫會進去
+
+跟上一個例子同樣停在第 21 行，改打：
+
+```text
+(gdb) step
+square (n=1) at tour.c:13
+13	    int r = n * n;
+```
+
+- 這次進到 `square` 裡面，停在它的第 13 行，還印出參數 `n=1`。
+- 同一行、`next` 與 `step` 只差在要不要進函式。
+
+#### `finish`：跑完目前這個函式，印出回傳值
+
+先 `break square`、`run`（停在 `square` 裡），再：
+
+```text
+(gdb) finish
+0x00005555555551c2 in sum_squares (a=0x7fffffffd490, len=4) at tour.c:21
+21	        total += square(a[i]);
+Value returned is $1 = 1
+```
+
+- `square` 跑完，回到呼叫它的第 21 行（還沒把結果加進 `total`），`Value returned is $1 = 1` 是回傳值。不小心 `step` 進了不想看的函式，用 `finish` 出來。
+
+#### `until`（`u`）：跑完這個迴圈
+
+先 `break tour.c:22`、`run`、`delete`（刪掉中斷點，不然會一直被它攔下），再：
+
+```text
+(gdb) next
+20	    for (int i = 0; i < len; i++) {
+```
+
+```text
+(gdb) until
+24	    return total;
+```
+
+- `next` 從第 22 行走回迴圈開頭的第 20 行。
+- 在第 20 行打 `until`：一直跑到「比目前這行更後面的行」才停，所以剩下的三圈（包括裡面的 `square`）一次跑完，停在迴圈後面的第 24 行。用 `next` 的話要按十幾次。
+
+### 4. 看資料、改資料
+
+#### `print`（`p`）：印出變數或運算式
+
+先 `break tour.c:21`、`run`、`continue`（停在第二圈，`i` 是 1），再：
+
+```text
+(gdb) print i
+$1 = 1
+```
+
+```text
+(gdb) print total
+$2 = 1
+```
+
+```text
+(gdb) print a[i]
+$3 = 2
+```
+
+- `print` 可以印任何 C 運算式：變數、`a[i]` 都行。每個結果編號成 `$1`、`$2`……之後可以用 `$1` 引用。
+
+```text
+(gdb) print *a@len
+$4 = {1, 2, 3, 4}
+```
+
+- `*a@len`：`a` 只是一個指標，gdb 不知道它指向幾個元素；`@len` 告訴它「從 `*a` 開始連續印 `len` 個」，就印出整個陣列。
+
+```text
+(gdb) print/x 255
+$5 = 0xff
+```
+
+- `print/x` 用十六進位印；`/FMT` 的全部格式字母見第三節〈輸出格式 `/FMT`〉。
+
+再換一個停點：先 `break tour.c:31`、`run`（停在 `main` 裡），再：
+
+```text
+(gdb) print p
+$1 = {x = 3, y = 4}
+```
+
+```text
+(gdb) print p.x + p.y
+$2 = 7
+```
+
+```text
+(gdb) print nums
+$3 = {1, 2, 3, 4}
+```
+
+```text
+(gdb) print &nums[1]
+$4 = (int *) 0x7fffffffd494
+```
+
+- 結構（`struct`）印出每個欄位；真正的陣列（`nums`）直接印出全部元素，不用 `@`。
+- `&nums[1]` 印出位址與型別 `(int *)`：`nums` 從 `0x…440` 開始，第 1 格在 `0x…444`，差 4 byte。
+
+#### `set var`：改變數的值
+
+先 `break square`、`run`（停在 `n=1`），再：
+
+```text
+(gdb) set var n = 10
+```
+
+```text
+(gdb) finish
+0x00005555555551c2 in sum_squares (a=0x7fffffffd490, len=4) at tour.c:21
+21	        total += square(a[i]);
+Value returned is $1 = 100
+```
+
+- `set var n = 10` 把參數改成 10，再 `finish`，回傳值變成 100。用來測「如果這個值是別的，程式會怎樣」，不必改程式重編。（`set var` 不在 ★ 裡，但很常用；`print n = 10` 也能改。）
+
+#### `display`：每次停下都自動印
+
+先 `break square`、`run`，再：
+
+```text
+(gdb) display n
+```
+
+```text
+(gdb) continue
+Breakpoint 1, square (n=2) at tour.c:13
+13	    int r = n * n;
+1: n = 2
+```
+
+- `display n` 之後，每次程式停下都會自動多印一行 `1: n = …`（`1:` 是 display 的編號，`undisplay 1` 取消）。一邊 `continue`、一邊盯著某個變數時用。
+
+#### `ptype`：看型別的完整定義
+
+先 `break tour.c:31`、`run`，再：
+
+```text
+(gdb) ptype p
+type = struct point {
+    int x;
+    int y;
+}
+```
+
+```text
+(gdb) ptype sum_squares
+type = int (int *, int)
+```
+
+- 結構印出所有欄位；函式印出原型（傳回 `int`、參數是 `int *` 與 `int`）。看到一個不熟的變數，先 `ptype` 它。
+
+#### `x`：直接看記憶體
+
+先 `break tour.c:31`、`run`，再：
+
+```text
+(gdb) x/4dw nums
+0x7fffffffd490:	1	2	3	4
+```
+
+- `x/4dw nums`：從 `nums` 的位址開始，印 4 個（`4`）十進位（`d`）的 4 byte 單位（`w`，word）。左邊是起始位址。
+
+```text
+(gdb) x/8xb &p
+0x7fffffffd488:	0x03	0x00	0x00	0x00	0x04	0x00	0x00	0x00
+```
+
+- `x/8xb &p`：印 8 個十六進位（`x`）的 byte（`b`）。`p.x = 3` 存成 `03 00 00 00`、`p.y = 4` 存成 `04 00 00 00`：小端序，低位 byte 在前（[第 2 課第三節〈位元組順序（endianness）〉](./C的資料在記憶體裡長怎樣-位元組、指標、位元組順序與有號無號.md#三位元組順序endianness)）。`x` 的大小字母（`b`／`h`／`w`／`g`）見第三節〈輸出格式 `/FMT`〉。
+
+#### `info locals`：目前這層的所有區域變數
+
+先 `break tour.c:21`、`run`，再：
+
+```text
+(gdb) info locals
+i = 0
+total = 0
+```
+
+- 一次印出 `sum_squares` 的所有區域變數，不必一個個 `print`。
+
+#### `info args`：目前這層的所有參數
+
+同樣停在第 21 行：
+
+```text
+(gdb) info args
+a = 0x7fffffffd490
+len = 4
+```
+
+- `a` 是指標，印出的是位址；要看內容用 `print *a@len`。
+
+### 5. 看堆疊：現在在哪一層、誰呼叫誰
+
+#### `backtrace`（`bt`、`where`）：印出呼叫鏈
+
+先 `break square`、`run`，再：
+
+```text
+(gdb) backtrace
+#0  square (n=1) at tour.c:13
+#1  0x00005555555551c2 in sum_squares (a=0x7fffffffd490, len=4) at tour.c:21
+#2  0x000055555555523b in main () at tour.c:31
+```
+
+- 從最內層往外讀：`#0` 現在停在 `square`（`n=1`），`#1` 是 `sum_squares` 在第 21 行呼叫了它，`#2` 是 `main` 在第 31 行呼叫了 `sum_squares`。程式 segfault 時第一件事就是 `bt`（[第 3 課第六節〈用 gdb 找 segfault：實際走一次〉](./陣列、字串與指標運算-C不檢查邊界與用gdb找segfault.md#六用-gdb-找-segfault實際走一次)）。
+
+#### `frame N`（`f`）：切到某一層
+
+同樣停在 `square` 裡：
+
+```text
+(gdb) frame 1
+#1  0x00005555555551c2 in sum_squares (a=0x7fffffffd490, len=4) at tour.c:21
+21	        total += square(a[i]);
+```
+
+```text
+(gdb) info locals
+i = 0
+total = 0
+```
+
+- `frame 1` 切到呼叫者 `sum_squares` 那一層；之後的 `info locals`、`print` 都是看**這一層**的變數，所以看得到 `i`、`total`（在 `square` 那層看不到）。`up`／`down` 是往外／往內切一層。
+
+#### `info frame`：這一層的詳細資訊
+
+同樣停在 `square` 裡：
+
+```text
+(gdb) info frame
+Stack level 0, frame at 0x7fffffffd450:
+ rip = 0x555555555174 in square (tour.c:13); saved rip = 0x5555555551c2
+ called by frame at 0x7fffffffd480
+ source language c.
+ Arglist at 0x7fffffffd440, args: n=1
+ Locals at 0x7fffffffd440, Previous frame's sp is 0x7fffffffd450
+ Saved registers:
+  rbp at 0x7fffffffd440, rip at 0x7fffffffd448
+```
+
+- `saved rip` 是返回位址（`square` 結束後要回到 `sum_squares` 的哪裡，跟 `bt` 的 `#1` 那個位址一樣）；`Saved registers` 列出舊 `%rbp`、返回位址存在堆疊的哪裡（[第 5 課第四節〈堆疊框〉](./x86-64組合語言入門二-call與ret、堆疊框、參數與呼叫慣例.md#四堆疊框pushq-rbp-movq-rsp-rbp-與-leave)）。
+
+### 6. 看原始碼、組合語言、暫存器
+
+#### `list`（`l`）：印出原始碼
+
+（不必先 `run`）
+
+```text
+(gdb) list square
+7	};
+8	
+9	int counter = 0;                          /* 全域變數：watch 的例子用 */
+10	
+11	int square(int n)
+12	{
+13	    int r = n * n;
+14	    return r;
+15	}
+16
+```
+
+- `list 函式名` 印出那個函式附近的 10 行。
+
+```text
+(gdb) list 20,24
+20	    for (int i = 0; i < len; i++) {
+21	        total += square(a[i]);
+22	        counter++;
+23	    }
+24	    return total;
+```
+
+- `list 起,迄` 印指定範圍。設中斷點前先 `list` 查行號。
+
+#### `disassemble`：反組譯目前的函式
+
+先 `break square`、`run`，再：
+
+```text
+(gdb) disassemble
+Dump of assembler code for function square:
+   0x0000555555555169 <+0>:	endbr64
+   0x000055555555516d <+4>:	push   %rbp
+   0x000055555555516e <+5>:	mov    %rsp,%rbp
+   0x0000555555555171 <+8>:	mov    %edi,-0x14(%rbp)
+=> 0x0000555555555174 <+11>:	mov    -0x14(%rbp),%eax
+   0x0000555555555177 <+14>:	imul   %eax,%eax
+   0x000055555555517a <+17>:	mov    %eax,-0x4(%rbp)
+   0x000055555555517d <+20>:	mov    -0x4(%rbp),%eax
+   0x0000555555555180 <+23>:	pop    %rbp
+   0x0000555555555181 <+24>:	ret
+End of assembler dump.
+```
+
+- 印出 `square` 的組合語言，`=>` 指著**下一條要執行的指令**。`<+11>` 是離函式開頭幾個 byte。
+- 對照[第 4 課第六節〈逐行讀 `sum_to` 的 `-O0` 版〉](./x86-64組合語言入門-暫存器、mov與lea、cmp與條件跳躍.md#六逐行讀-sum_to-的--o0-版)：`mov %edi,-0x14(%rbp)` 把參數 `n` 存到堆疊，`imul %eax,%eax` 就是 `n * n`。加 `/s` 會把原始碼穿插在中間。
+
+#### `info line`：某一行原始碼對應哪些機器碼
+
+（不必先 `run`）
+
+```text
+(gdb) info line 21
+Line 21 of "tour.c" starts at address 0x11a5 <sum_squares+35> and ends at 0x11b9 <sum_squares+55>.
+```
+
+- 第 21 行的機器碼從 `sum_squares+35` 到 `+55`。想用 `break *位址` 在某一行中間停、或對照 `disassemble` 時用。
+
+#### `info registers`（`info r`）：看暫存器
+
+先 `break square`、`run`，再：
+
+```text
+(gdb) info registers rip rdi
+rip            0x555555555174      0x555555555174 <square+11>
+rdi            0x1                 1
+```
+
+- `rip` 是下一條要執行的指令位址（`square+11`，跟 `disassemble` 的 `=>` 同一條）；`rdi` 是 1：呼叫慣例的第一個參數 `n`（[第 5 課第五節〈參數與回傳值放哪裡〉](./x86-64組合語言入門二-call與ret、堆疊框、參數與呼叫慣例.md#五參數與回傳值放哪裡)）。
+- 這時位址是 `0x555555555174`：程式載入後，檔案位址 `0x1174` 加上了基底 `0x555555554000`。不給暫存器名稱就印出全部。
+
+### 7. 看程式與行程的資訊
+
+#### `info functions`：找函式
+
+（不必先 `run`）
+
+```text
+(gdb) info functions square
+All functions matching regular expression "square":
+
+File tour.c:
+11:	int square(int);
+17:	int sum_squares(int *, int);
+```
+
+- 參數是正規表示式：含 `square` 的函式有兩個，連行號和原型一起列出。不給參數會列出全部（包括 libc 的，很長）。
+
+#### `info sharedlibrary`：載入了哪些 `.so`
+
+先 `start`，再：
+
+```text
+(gdb) info sharedlibrary
+From                To                  Syms Read   Shared Object Library
+0x00007ffff7fc6000  0x00007ffff7ff0195  Yes         /lib64/ld-linux-x86-64.so.2
+0x00007ffff7c28800  0x00007ffff7db0039  Yes         /lib/x86_64-linux-gnu/libc.so.6
+```
+
+- 動態載入器 `ld-linux-x86-64.so.2` 與 `libc.so.6`，以及它們在這個行程裡的位址範圍（[第 1 課第十節〈三個名字很像的檔案〉](./hello.c怎麼變成能跑的程式-編譯的四個階段.md#十三個名字很像的檔案ldld-linux-x86-64so2libcso6)、[第 7 課第五節〈執行時怎麼找到 `.so`〉](./靜態與動態函式庫-ar與.a、-fPIC與.so、執行時怎麼找到.so.md#五執行時怎麼找到-so)）。
+
+#### `info proc`：行程的基本資訊
+
+先 `start`，再：
+
+```text
+(gdb) info proc
+process 18651
+cmdline = '/home/set/work/Projects/github/good-note/small-project/s1-01-hello-compile/examples/gdbtour/tour'
+cwd = '/home/set/work/Projects/github/good-note/small-project/s1-01-hello-compile/examples/gdbtour'
+exe = '/home/set/work/Projects/github/good-note/small-project/s1-01-hello-compile/examples/gdbtour/tour'
+```
+
+- 行程編號（PID）、命令列、目前工作目錄、執行檔路徑。`info proc mappings` 印出整個記憶體配置（[第 ③ 站](../learning/Linux與系統程式的系統化學習路線.md#二主線六站)會用）。
+
+#### `info threads`：所有執行緒
+
+先 `start`，再：
+
+```text
+(gdb) info threads
+  Id   Target Id                                Frame 
+* 1    Thread 0x7ffff7f9e740 (LWP 18664) "tour" main () at tour.c:28
+```
+
+- 這支程式只有一個執行緒；`*` 標的是目前選中的那個，`LWP` 後面是它在核心裡的編號。多執行緒程式（[第 ④ 站](../learning/Linux與系統程式的系統化學習路線.md#二主線六站)）用 `thread N` 切換。
+
+#### `info`：前綴命令
+
+- `info` 本身只是一個前綴，後面接子命令才有作用；上面的 `info breakpoints`、`info locals`、`info frame` 都是它的子命令。全部 65 個見第五節。
 
 ---
 
@@ -510,7 +1125,7 @@ gdb [選項] --args 執行檔 [傳給程式的參數 ...]
 ## 四、全部 173 個頂層命令（依 gdb 的 13 類）
 
 以下依 `help all` 的分類與順序**全部列出**。「命令」欄是 gdb 定義的名稱與所有別名；說明是 gdb 原文的翻譯。
-每一類的標題註明頂層命令數。類別裡**第一次學就該會的**用 ★ 標出。
+每一類的標題註明頂層命令數。類別裡**第一次學就該會的**用 ★ 標出；★ 是連結，點下去跳到[第零節](#零依任務查常用命令各一個例子)那個命令的例子。
 
 ### 4.1 running：控制程式怎麼跑（32 個）
 
@@ -518,16 +1133,16 @@ gdb [選項] --args 執行檔 [傳給程式的參數 ...]
 |---|---|
 | `advance` | 讓程式繼續跑到指定位置（位置寫法同 `break`） |
 | `attach` | 附加到 gdb 之外的一個行程或檔案 |
-| ★ `continue`、`fg`、`c` | 在訊號或中斷點停下後繼續執行 |
+| [★](#continuec繼續跑到下一個中斷點) `continue`、`fg`、`c` | 在訊號或中斷點停下後繼續執行 |
 | `detach` | 脫離先前 `attach` 的行程（行程繼續自己跑） |
 | `disconnect` | 中斷與目標（target）的連線 |
-| ★ `finish`、`fin` | 執行到目前這個函式回傳為止，並印出回傳值 |
+| [★](#finish跑完目前這個函式印出回傳值) `finish`、`fin` | 執行到目前這個函式回傳為止，並印出回傳值 |
 | `handle` | 指定收到各種訊號（signal）時 gdb 要怎麼處理（停不停、印不印、傳不傳給程式） |
 | `inferior` | 在多個被除錯程式之間切換 |
 | `interrupt` | 中斷正在執行的被除錯程式 |
 | `jump`、`j` | 跳到指定的行或位址繼續執行（跳過中間的程式碼，危險） |
 | `kill` | 結束被除錯的程式 |
-| ★ `next`、`n` | 執行一行原始碼；遇到函式呼叫**不進去**，整個呼叫當一步 |
+| [★](#nextn走一行遇到函式呼叫不進去) `next`、`n` | 執行一行原始碼；遇到函式呼叫**不進去**，整個呼叫當一步 |
 | `nexti`、`ni` | 執行一條機器指令；遇到 `call` 不進去 |
 | `queue-signal` | 排一個訊號，在目前執行緒恢復執行時送給它 |
 | `reverse-continue`、`rc` | **倒著**繼續執行（需先 `record`） |
@@ -536,31 +1151,31 @@ gdb [選項] --args 執行檔 [傳給程式的參數 ...]
 | `reverse-nexti`、`rni` | 倒著走一條指令，不進入函式 |
 | `reverse-step`、`rs` | 倒著走到另一行原始碼的開頭 |
 | `reverse-stepi`、`rsi` | 倒著走剛好一條指令 |
-| ★ `run`、`r` | 開始執行被除錯的程式；後面可以接程式的參數，也能用 `<`、`>` 重新導向 |
+| [★](#runr從頭執行) `run`、`r` | 開始執行被除錯的程式；後面可以接程式的參數，也能用 `<`、`>` 重新導向 |
 | `signal` | 帶著指定的訊號繼續執行程式 |
-| ★ `start` | 開始執行，並在 `main` 的開頭停下來（等於在 `main` 設暫時中斷點再 `run`） |
+| [★](#start執行並停在-main-開頭) `start` | 開始執行，並在 `main` 的開頭停下來（等於在 `main` 設暫時中斷點再 `run`） |
 | `starti` | 開始執行，停在**第一條指令**（比 `main` 更早，在啟動碼裡——第 1 課說的「程式不是從 `main` 開始」） |
-| ★ `step`、`s` | 執行到下一行原始碼；遇到函式呼叫**會進去** |
+| [★](#steps走一行遇到函式呼叫會進去) `step`、`s` | 執行到下一行原始碼；遇到函式呼叫**會進去** |
 | `stepi`、`si` | 剛好執行一條機器指令（會進入 `call`） |
 | `taas` | 對所有執行緒執行一個命令（忽略錯誤與空輸出） |
 | `target` | 連接到目標機器或行程（遠端除錯、core 檔等） |
 | `task` | 在 Ada 語言的 task 之間切換 |
 | `tfaas` | 對所有執行緒的所有堆疊框執行一個命令 |
 | `thread`、`t` | 在執行緒之間切換 |
-| ★ `until`、`u` | 執行到超過目前這一行（常用來跑完一個迴圈），或跑到指定位置 |
+| [★](#untilu跑完這個迴圈) `until`、`u` | 執行到超過目前這一行（常用來跑完一個迴圈），或跑到指定位置 |
 
 ### 4.2 breakpoints：讓程式在哪裡停（24 個）
 
 | 命令 | 作用 |
 |---|---|
 | `awatch` | 設「存取」監看點：運算式被讀或被寫時停下 |
-| ★ `break`、`brea`、`bre`、`br`、`b` | 在指定位置設中斷點；完整文法：`break [PROBE_MODIFIER] [LOCATION] [thread N] [-force-condition] [if 條件]` |
+| [★](#breakb在函式設中斷點) `break`、`brea`、`bre`、`br`、`b` | 在指定位置設中斷點；完整文法：`break [PROBE_MODIFIER] [LOCATION] [thread N] [-force-condition] [if 條件]` |
 | `break-range` | 對一段位址範圍設中斷點 |
 | `catch` | 設 catchpoint：捕捉事件（例如 `catch syscall write`、`catch fork`、`catch throw`） |
 | `clear`、`cl` | 刪除**指定位置**上的中斷點 |
 | `commands` | 設定某個中斷點被觸發時要自動執行的 gdb 命令 |
 | `condition` | 讓第 N 號中斷點只在條件成立時才停 |
-| ★ `delete`、`del`、`d` | 刪除**指定編號**的中斷點（不給編號就全刪） |
+| [★](#deleted刪掉中斷點) `delete`、`del`、`d` | 刪除**指定編號**的中斷點（不給編號就全刪） |
 | `disable`、`disa`、`dis` | 停用中斷點（保留，但不生效） |
 | `dprintf` | 動態 printf：程式經過這裡時印出訊息但**不停下來**，不用改程式碼 |
 | `enable`、`en` | 啟用被停用的中斷點 |
@@ -576,7 +1191,7 @@ gdb [選項] --args 執行檔 [傳給程式的參數 ...]
 | `tcatch` | 設暫時 catchpoint |
 | `thbreak` | 設暫時的硬體輔助中斷點 |
 | `trace`、`trac`、`tra`、`tr`、`tp` | 設追蹤點（tracepoint）：記錄資料但不停下，遠端目標用 |
-| ★ `watch` | 設監看點（watchpoint）：運算式的值**改變**時停下 |
+| [★](#watch變數的值改變時停下) `watch` | 設監看點（watchpoint）：運算式的值**改變**時停下 |
 
 ### 4.3 data：查看與修改資料（22 個）
 
@@ -585,8 +1200,8 @@ gdb [選項] --args 執行檔 [傳給程式的參數 ...]
 | `agent-printf` | 只給目標端代理（agent）用的格式化輸出 |
 | `append` | 把目標程式的程式碼／資料附加到本機檔案 |
 | `call` | 呼叫被除錯程式裡的一個函式並印出回傳值 |
-| ★ `disassemble` | 反組譯一段記憶體（不給參數就是目前的函式）；`/s` 同時顯示原始碼，`/r` 顯示機器碼位元組 |
-| ★ `display` | 每次程式停下來都自動印出某個運算式 |
+| [★](#disassemble反組譯目前的函式) `disassemble` | 反組譯一段記憶體（不給參數就是目前的函式）；`/s` 同時顯示原始碼，`/r` 顯示機器碼位元組 |
+| [★](#display每次停下都自動印) `display` | 每次程式停下來都自動印出某個運算式 |
 | `dump` | 把目標程式的程式碼／資料傾印到本機檔案 |
 | `explore` | 互動式地逐層探索一個值或型別 |
 | `find` | 在記憶體裡搜尋一串位元組 |
@@ -594,25 +1209,25 @@ gdb [選項] --args 執行檔 [傳給程式的參數 ...]
 | `mem` | 定義記憶體區域的屬性 |
 | `memory-tag` | 查看與操作記憶體標籤（memory tagging，特定 CPU 功能） |
 | `output` | 像 `print`，但不存進值歷史、不換行（寫腳本用） |
-| ★ `print`、`inspect`、`p` | 印出運算式的值；`print/FMT` 指定格式 |
+| [★](#printp印出變數或運算式) `print`、`inspect`、`p` | 印出運算式的值；`print/FMT` 指定格式 |
 | `print-object`、`po` | 請 Objective-C 物件印出自己 |
 | `printf` | 像 C 的 `printf` 一樣格式化輸出 |
-| ★ `ptype` | 印出型別的**完整定義**（例如 struct 的所有欄位） |
+| [★](#ptype看型別的完整定義) `ptype` | 印出型別的**完整定義**（例如 struct 的所有欄位） |
 | `restore` | 把檔案內容寫回目標程式的記憶體 |
 | `set` | 計算運算式並指定給變數；**也是**設定 gdb 選項的前綴命令（見第六節） |
 | `undisplay` | 取消 `display` |
 | `whatis` | 印出運算式的**型別名稱** |
 | `with`、`w` | 暫時把某個設定改成某值、執行一個命令、再改回來 |
-| ★ `x` | 直接檢查記憶體：`x/FMT 位址`（格式見第三節） |
+| [★](#x直接看記憶體) `x` | 直接檢查記憶體：`x/FMT 位址`（格式見第三節） |
 
 ### 4.4 stack：呼叫堆疊（7 個）
 
 | 命令 | 作用 |
 |---|---|
-| ★ `backtrace`、`where`、`bt` | 印出所有堆疊框（誰呼叫了誰），或最內層的 COUNT 個 |
+| [★](#backtracebtwhere印出呼叫鏈) `backtrace`、`where`、`bt` | 印出所有堆疊框（誰呼叫了誰），或最內層的 COUNT 個 |
 | `down`、`dow`、`do` | 選取並印出「被目前這層呼叫」的那一層（往內） |
 | `faas` | 對所有堆疊框執行一個命令 |
-| ★ `frame`、`f` | 選取並印出一個堆疊框（`frame 1` 切到呼叫者那層，才能看它的區域變數） |
+| [★](#frame-nf切到某一層) `frame`、`f` | 選取並印出一個堆疊框（`frame 1` 切到呼叫者那層，才能看它的區域變數） |
 | `return` | 讓目前選取的堆疊框**立刻**回傳給呼叫者（跳過函式剩下的程式碼） |
 | `select-frame` | 選取堆疊框但不印出任何東西 |
 | `up` | 選取並印出「呼叫了目前這層」的那一層（往外） |
@@ -633,7 +1248,7 @@ gdb [選項] --args 執行檔 [傳給程式的參數 ...]
 | `file` | 指定要除錯的程式（同時讀符號） |
 | `forward-search`、`fo`、`search` | 從上次 `list` 的位置往後用正規表示式搜尋原始碼 |
 | `generate-core-file`、`gcore` | 把目前行程的狀態存成 core 檔 |
-| ★ `list`、`l` | 列出原始碼：`list 函式`、`list 行號`、`list 起,迄`；`list +`／`list -` 往後／往前，`list .` 目前執行點附近（預設 10 行） |
+| [★](#listl印出原始碼) `list`、`l` | 列出原始碼：`list 函式`、`list 行號`、`list 起,迄`；`list +`／`list -` 往後／往前，`list .` 目前執行點附近（預設 10 行） |
 | `load` | 把檔案動態載入到執行中的程式（遠端目標用） |
 | `nosharedlibrary` | 卸載所有共享函式庫的符號 |
 | `path` | 把目錄加到目的檔搜尋路徑的最前面 |
@@ -649,7 +1264,7 @@ gdb [選項] --args 執行檔 [傳給程式的參數 ...]
 
 | 命令 | 作用 |
 |---|---|
-| ★ `info`、`inf`、`i` | 顯示**被除錯程式**的各種資訊；本身是前綴，65 個子命令見第五節 |
+| [★](#info前綴命令) `info`、`inf`、`i` | 顯示**被除錯程式**的各種資訊；本身是前綴，65 個子命令見第五節 |
 | `macro` | 處理 C 前處理器巨集的前綴命令（需要 `-g3` 編譯才有巨集資訊） |
 | `show`、`info set` | 顯示 **gdb 自己**的設定；本身是前綴，見第六節 |
 
@@ -668,14 +1283,14 @@ gdb [選項] --args 執行檔 [傳給程式的參數 ...]
 | `dont-repeat` | 讓命令在按 Enter 時不重複（用在使用者命令裡） |
 | `down-silently` | 同 `down`，但不印任何東西 |
 | `echo` | 印出一段固定字串 |
-| ★ `help`、`h` | 列出命令與說明 |
+| [★](#helph問-gdb-某個命令怎麼用) `help`、`h` | 列出命令與說明 |
 | `if` | 條件成立時執行內層命令（腳本用） |
 | `interpreter-exec` | 用指定的直譯器執行命令 |
 | `make` | 在 gdb 裡執行 `make`，後面的字都當成 `make` 的參數 |
 | `new-ui` | 建立新的使用者介面（例如在另一個終端機再開一個 gdb 介面） |
 | `overlay`、`ov`、`ovly` | 除錯 overlay（嵌入式系統的程式碼覆蓋技術） |
 | `pipe`、`\|` | 把 gdb 命令的輸出交給 shell 命令處理，例如 `\| info functions \| grep avg` |
-| ★ `quit`、`exit`、`q` | 離開 gdb |
+| [★](#quitq離開) `quit`、`exit`、`q` | 離開 gdb |
 | `shell`、`!` | 執行一行 shell 命令 |
 | `source` | 從檔案讀入並執行 gdb 命令 |
 | `up-silently` | 同 `up`，但不印任何東西 |
@@ -765,11 +1380,11 @@ gdb [選項] --args 執行檔 [傳給程式的參數 ...]
 |---|---|
 | `info address` | 描述某個符號存放在哪裡 |
 | `info all-registers` | 所有暫存器（含浮點、向量）與內容 |
-| ★ `info args` | 目前堆疊框的所有參數 |
+| [★](#info-args目前這層的所有參數) `info args` | 目前堆疊框的所有參數 |
 | `info auto-load` | 自動載入檔案的狀態 |
 | `info auxv` | 被除錯程式的輔助向量（auxiliary vector，核心在 `execve` 時交給程式的資訊） |
 | `info bookmarks` | 書籤狀態（搭配 `record`） |
-| ★ `info breakpoints`、`info b` | 所有中斷點／監看點／catchpoint 的狀態與編號 |
+| [★](#info-breakpointsinfo-b列出所有中斷點) `info breakpoints`、`info b` | 所有中斷點／監看點／catchpoint 的狀態與編號 |
 | `info checkpoints` | 已知的檢查點 |
 | `info classes` | Objective-C 類別 |
 | `info common` | Fortran COMMON 區塊的內容 |
@@ -781,13 +1396,13 @@ gdb [選項] --args 執行檔 [傳給程式的參數 ...]
 | `info extensions` | 副檔名與語言的對應 |
 | `info files` | 目標與正在除錯的檔案、各區段的位址範圍 |
 | `info float` | 浮點運算單元的狀態 |
-| ★ `info frame`、`info f` | 目前堆疊框的詳細資訊（回傳位址、呼叫者、暫存器存放位置） |
+| [★](#info-frame這一層的詳細資訊) `info frame`、`info f` | 目前堆疊框的詳細資訊（回傳位址、呼叫者、暫存器存放位置） |
 | `info frame-filter` | 已註冊的 Python frame filter |
-| ★ `info functions` | 所有函式名稱（可加正規表示式過濾） |
+| [★](#info-functions找函式) `info functions` | 所有函式名稱（可加正規表示式過濾） |
 | `info guile`、`info gu` | Guile 相關資訊的前綴 |
 | `info inferiors` | 目前管理的所有被除錯程式 |
-| ★ `info line` | 某一行原始碼對應的機器碼位址 |
-| ★ `info locals` | 目前堆疊框的所有區域變數 |
+| [★](#info-line某一行原始碼對應哪些機器碼) `info line` | 某一行原始碼對應的機器碼位址 |
+| [★](#info-locals目前這層的所有區域變數) `info locals` | 目前堆疊框的所有區域變數 |
 | `info macro` | 某個巨集的定義與位置（需 `-g3`） |
 | `info macros` | 某處所有巨集的定義（需 `-g3`） |
 | `info main` | 程式的進入點符號 |
@@ -798,13 +1413,13 @@ gdb [選項] --args 執行檔 [傳給程式的參數 ...]
 | `info os` | 作業系統資料（例如 `info os processes`） |
 | `info pretty-printer` | 已註冊的 pretty-printer |
 | `info probes` | 可用的靜態探針 |
-| ★ `info proc` | 行程的額外資訊（`info proc mappings` 看記憶體配置——第 ③ 站會用） |
+| [★](#info-proc行程的基本資訊) `info proc` | 行程的額外資訊（`info proc mappings` 看記憶體配置——第 ③ 站會用） |
 | `info program` | 程式的執行狀態（為什麼停下） |
 | `info record`、`info rec` | 記錄功能的狀態 |
-| ★ `info registers`、`info r` | 整數暫存器與內容（`info registers rip` 只看一個） |
+| [★](#info-registersinfo-r看暫存器) `info registers`、`info r` | 整數暫存器與內容（`info registers rip` 只看一個） |
 | `info scope` | 某個範圍內的區域變數 |
 | `info selectors` | Objective-C selector |
-| ★ `info sharedlibrary`、`info dll` | 已載入的共享函式庫（第 1 課的 `libc.so.6`、`ld-linux-x86-64.so.2` 會出現在這裡） |
+| [★](#info-sharedlibrary載入了哪些-so) `info sharedlibrary`、`info dll` | 已載入的共享函式庫（第 1 課的 `libc.so.6`、`ld-linux-x86-64.so.2` 會出現在這裡） |
 | `info signals`、`info handle` | 每種訊號 gdb 會怎麼處理 |
 | `info skip` | `skip` 設定的狀態 |
 | `info source` | 目前原始碼檔的資訊（包含有沒有除錯資訊、編譯選項） |
@@ -815,7 +1430,7 @@ gdb [選項] --args 執行檔 [傳給程式的參數 ...]
 | `info target` | 目標與檔案（同 `info files`） |
 | `info tasks` | Ada task |
 | `info terminal` | 被除錯程式保存的終端機狀態 |
-| ★ `info threads` | 目前所有執行緒（第 ④ 站會用） |
+| [★](#info-threads所有執行緒) `info threads` | 目前所有執行緒（第 ④ 站會用） |
 | `info tracepoints`、`info tp` | 追蹤點狀態 |
 | `info tvariables` | 追蹤狀態變數 |
 | `info type-printers` | 已註冊的 type printer |
