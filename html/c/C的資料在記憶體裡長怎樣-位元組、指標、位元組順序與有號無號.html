@@ -1885,7 +1885,7 @@ kernel 用哪個選項避免這種情況，代價是什麼？<details class="ans
 <p>詳細說明：順序是「先依來源型別擴展到 32 bit，再換成目標型別的讀法」。目標型別 <code>unsigned int</code> 是無號的，並不會讓擴展改成補 0——同樣是 <code>-1</code>，來源 <code>signed char</code> 就補 1。n 個 bit 全是 1 ＝ 2ⁿ − 1，所以 32 bit 全 1 是 2³² − 1；2³¹ − 1（<code>0x7fffffff</code>）是有號 <code>int</code> 的最大值，最高位是 0，不是這題的答案。</p>
 </details>
 </li>
-<li>情境題：有人寫了 <code>if (len - used &gt; 0)</code> 判斷「緩衝區還有沒有剩餘空間」，<code>len</code>、<code>used</code> 都是 <code>size_t</code>，用 <code>-Wall -Wextra</code> 編譯沒有任何警告。這個判斷在什麼情況下會出錯？為什麼 gcc 對 <code>len - used &lt; 0</code> 會警告、對 <code>&gt; 0</code> 卻不會？另外，有人用 <code>int sum = x + y; if (sum &lt; x)</code> 檢查「<code>x</code> 加上一個<strong>正數</strong> <code>y</code> 會不會溢位」，為什麼這個檢查在 <code>-O2</code> 下可能完全失效？<details class="answer"><summary>參考答案</summary>
+<li>情境題：有人寫了 <code>if (len - used &gt; 0)</code> 判斷「緩衝區還有沒有剩餘空間」，<code>len</code>、<code>used</code> 都是 <code>size_t</code>，用 <code>-Wall -Wextra</code> 編譯沒有任何警告。這個判斷在什麼情況下會出錯、為什麼？為什麼 gcc 對 <code>len - used &lt; 0</code> 會警告、對 <code>&gt; 0</code> 卻不會？另外，有人用 <code>int sum = x + y; if (sum &lt; x)</code> 檢查「<code>x</code> 加上一個<strong>正數</strong> <code>y</code> 會不會溢位」，為什麼這個檢查在 <code>-O2</code> 下可能完全失效？<details class="answer"><summary>參考答案</summary>
 <p>【<a href="#%E4%B8%83%E9%99%B7%E9%98%B1%E6%9C%89%E8%99%9F%E5%92%8C%E7%84%A1%E8%99%9F%E6%B7%B7%E5%9C%A8%E4%B8%80%E8%B5%B7%E6%AF%94%E8%BC%83">第七節</a>〈<code>-Wtype-limits</code> 只抓「永遠成立／永遠不成立」的比較〉、<a href="#%E5%85%AB%E6%BA%A2%E4%BD%8D%E7%84%A1%E8%99%9F%E5%9B%9E%E7%B9%9E%E6%9C%89%E8%99%9F%E6%98%AF%E6%9C%AA%E5%AE%9A%E7%BE%A9%E8%A1%8C%E7%82%BA">第八節</a>〈另一種寫法：<code>x + y &lt; x</code> 被改寫成 <code>y &lt; 0</code>〉】（2026-10-11 改寫成核心關鍵格式）</p>
 <p>核心關鍵：</p>
 <ol>

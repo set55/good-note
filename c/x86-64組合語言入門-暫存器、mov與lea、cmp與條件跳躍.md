@@ -3038,7 +3038,7 @@ gcc 的選項有上千個，下面只列本課用到的 7 個，完整清單見 
    >
    > 詳細說明：`movq` 版是 `return a[i + 3];`，`leaq` 版是 `return &a[i + 3];`。本機實測 `long *k(long *a, long i) { return &a[i + 3]; }` 編出 `leaq 24(%rdi,%rsi,8), %rax`。
 6. （課後提問延伸）`movsbl` 的 `l` 叫 long，為什麼是 4 byte，而本機 C 的 `long` 是 8 byte？本機 C 的 `long` 在組合語言裡對到哪個字尾？
-   情境題：第 5 課你在 `gdb` 裡想看一個 `int` 變數的 4 個 byte，同學說「`int` 在組合語言是 `l`，所以用 `x/1l`」。這樣對嗎？應該用哪個大小字母，為什麼？
+   情境題：第 5 課你在 `gdb` 裡想看一個 `int` 變數的 4 個 byte，同學說「`int` 在組合語言是 `l`，所以用 `x/1l`」。這樣對嗎？為什麼？應該用哪個大小字母，為什麼？
    > **參考答案**（核心關鍵＋詳細說明）
    >
    > **6-1**【[第三節](../html/c/x86-64組合語言入門-暫存器、mov與lea、cmp與條件跳躍.html#三指令的文法助憶符大小後綴運算元)〈為什麼 `l` 叫 long 卻是 4 byte〉】核心關鍵：
@@ -3174,7 +3174,7 @@ gcc 的選項有上千個，下面只列本課用到的 7 個，完整清單見 
     > 2. `break *deref` 不跳過任何東西，停在函式的**第一條指令** `endbr64`（實測 `0x117b`）。
     >
     > 詳細說明：`-O2` 沒有這些準備指令，所以兩者剛好都是 `0x11f0`。用法：看 C 用函式名或行號；看組合語言、要精確停在某一條指令時用 `*位址`。
-12. （課後實作延伸）用 `objdump -d paren` 查到 `deref+4` 在 `0x11f4`，`break *0x11f4` 之後 `run` 卻得到 `Cannot access memory at address 0x11f4`，`break *deref+4` 就沒問題。為什麼？如果程式是用 `-no-pie` 編的，`break *` 加 `objdump` 查到的位址會不會成功？
+12. （課後實作延伸）用 `objdump -d paren` 查到 `deref+4` 在 `0x11f4`，`break *0x11f4` 之後 `run` 卻得到 `Cannot access memory at address 0x11f4`，`break *deref+4` 就沒問題。為什麼？如果程式是用 `-no-pie` 編的，`break *` 加 `objdump` 查到的位址會不會成功？為什麼？
     > **參考答案**（核心關鍵＋詳細說明）
     >
     > **12-1**【[第三節](../html/c/x86-64組合語言入門-暫存器、mov與lea、cmp與條件跳躍.html#三指令的文法助憶符大小後綴運算元)〈上面中斷點 4 的 `break *0x11f4`：為什麼 `run` 之後失敗？〉】核心關鍵：
