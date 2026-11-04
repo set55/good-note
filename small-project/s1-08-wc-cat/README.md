@@ -78,7 +78,7 @@ for f in one.txt nonl.txt ff.bin; do ./mycat "$f" | cmp - "$f" && echo "$f 一�
 ```
 ```
 
-### 1-2. 執行 `./mycat one.txt nofile.txt > out.txt; echo "exit=$?"`，貼上終端機上看到的內容，再貼上 `cat out.txt`。錯誤訊息出現在哪裡、沒出現在哪裡？如果規格第 3 點改成「錯誤訊息印到 `stdout`」，使用者打 `./mycat *.txt > all.txt` 會遇到什麼麻煩？【筆記第五節〈結果寫 `stdout`，錯誤寫 `stderr`〉】
+### 1-2. 執行 `./mycat one.txt nofile.txt > out.txt; echo "exit=$?"`，貼上終端機上看到的內容，再貼上 `cat out.txt`。錯誤訊息出現在哪裡、沒出現在哪裡？為什麼？如果規格第 3 點改成「錯誤訊息印到 `stdout`」，使用者打 `./mycat *.txt > all.txt` 會遇到什麼麻煩？【筆記第五節〈結果寫 `stdout`，錯誤寫 `stderr`〉】
 
 **第 1 次（YYYY-MM-DD）**
 ```
@@ -187,7 +187,7 @@ printf 'a b\nc\n' | ./mywc -w -; echo "exit=$?"
 ```
 ```
 
-### 3-2. 先猜再實驗：有一個檔案的名字就叫 `-l`（建法：`printf 'x\n' > ./-l`）。`./mywc -l` 會把它當檔名還是選項？要怎麼讓 `mywc` 數這個檔案（想兩種寫法，不改程式）？GNU `wc` 另外支援 `wc -- -l`，`--` 是什麼意思、為什麼需要它？貼上 `./mywc -l < /dev/null`、`./mywc ./-l`、`wc -- -l` 的輸出。做完 `rm ./-l`。【`./-l` 的寫法可以用筆記第二節〈誰把 `*.txt` 換成檔名〉推（程式只看到字串）；`--` 是新觀念，先猜】
+### 3-2. 先猜再實驗：有一個檔案的名字就叫 `-l`（建法：`printf 'x\n' > ./-l`）。`./mywc -l` 會把它當檔名還是選項？為什麼？要怎麼讓 `mywc` 數這個檔案（想兩種寫法，不改程式）？GNU `wc` 另外支援 `wc -- -l`，`--` 是什麼意思、為什麼需要它？貼上 `./mywc -l < /dev/null`、`./mywc ./-l`、`wc -- -l` 的輸出。做完 `rm ./-l`。【`./-l` 的寫法可以用筆記第二節〈誰把 `*.txt` 換成檔名〉推（程式只看到字串）；`--` 是新觀念，先猜】
 
 **第 1 次（YYYY-MM-DD）**
 ```
@@ -286,7 +286,7 @@ python3 -c "import struct; print(struct.pack('<d', 9.0).hex(' '), '|', struct.pa
 ```
 ```
 
-### 4-5. 先猜再實驗：執行 `./tohex int ' 7' '7 ' +7 010; echo "exit=$?"`，哪幾個成功、哪幾個失敗？`010` 變成多少？再執行 `./tohex int 9; ./tohex float 9; ./tohex double 9`，三個都是「9」，byte 卻完全不像——不只是長度不同，`float 9` 的 byte 裡根本沒有 `09`。你猜 `float`／`double` 是怎麼存數字的？【前兩問用上方 `strtol` 的說明推；最後一問是新觀念，先猜（浮點數的表示法 IEEE 754 之後補課）】
+### 4-5. 先猜再實驗：執行 `./tohex int ' 7' '7 ' +7 010; echo "exit=$?"`，哪幾個成功、哪幾個失敗？各為什麼？`010` 變成多少？為什麼？再執行 `./tohex int 9; ./tohex float 9; ./tohex double 9`，三個都是「9」，byte 卻完全不像——不只是長度不同，`float 9` 的 byte 裡根本沒有 `09`。你猜 `float`／`double` 是怎麼存數字的？【前兩問用上方 `strtol` 的說明推；最後一問是新觀念，先猜（浮點數的表示法 IEEE 754 之後補課）】
 
 **第 1 次（YYYY-MM-DD）**
 ```

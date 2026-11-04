@@ -31,6 +31,7 @@ stack（在哪一層）四類；其他類別是遠端除錯、追蹤點、腳本
 - [六、`set`／`show`／`maintenance`：數量、為什麼不逐項列、怎麼查](#六setshowmaintenance數量為什麼不逐項列怎麼查)
 - [七、容易混淆的命令：差在哪、什麼時候用哪個](#七容易混淆的命令差在哪什麼時候用哪個)
 - [八、實際走一次，與常見錯誤訊息](#八實際走一次與常見錯誤訊息)
+- [九、課後討論](#九課後討論)
 - [自我測驗](#自我測驗)
 
 ---
@@ -616,6 +617,8 @@ gdb [選項] --args 執行檔 [傳給程式的參數 ...]
 | `select-frame` | 選取堆疊框但不印出任何東西 |
 | `up` | 選取並印出「呼叫了目前這層」的那一層（往外） |
 
+> 課後討論：[第九節第 1 章〈印不出 `buf`、現在在哪層、怎麼跳層：用 `frame`、`up`／`down`、`bt` 切換與查看堆疊框〉](#1-印不出-buf現在在哪層怎麼跳層用-frameupdownbt-切換與查看堆疊框)
+
 ### 4.5 files：指定與查看檔案（21 個）
 
 | 命令 | 作用 |
@@ -828,6 +831,8 @@ gdb [選項] --args 執行檔 [傳給程式的參數 ...]
 
 其中幾個還有更下一層的子命令（`info frame` 4 個、`info proc` 8 個、`info auto-load` 4 個、`info probes` 3 個、
 `info module` 2 個），用 `help info proc` 這樣查。
+
+> 課後討論：[第九節第 2 章〈在 gdb 裡查區段：位址在哪（`info files`）、內容是什麼（`x`、`disassemble`、`dump`）〉](#2-在-gdb-裡查區段位址在哪info-files內容是什麼xdisassembledump)
 
 ---
 
@@ -1157,6 +1162,407 @@ Num     Type           Disp Enb Address            What
 
 **教訓：gdb 問 `Make breakpoint pending ...?` 時，除非你確定那個位置在「之後才載入的共享函式庫」裡，否則回答 `n`——它通常代表你下錯了，而不是要等。**
 已經設錯的中斷點用 `info breakpoints` 看、`delete 1` 刪掉。
+
+---
+
+## 九、課後討論
+
+這一節收**課後提問與討論**，一個主題一章。正文裡被問到的地方有一行「課後討論」連結跳到這裡，每章開頭的「正文出處」再連回正文。
+
+- [第 1 章](#1-印不出-buf現在在哪層怎麼跳層用-frameupdownbt-切換與查看堆疊框)：印不出 `buf`、現在在哪層、怎麼跳層：用 `frame`、`up`／`down`、`bt` 切換與查看堆疊框
+- [第 2 章](#2-在-gdb-裡查區段位址在哪info-files內容是什麼xdisassembledump)：在 gdb 裡查區段：位址在哪（`info files`）、內容是什麼（`x`、`disassemble`、`dump`）
+
+### 1. 印不出 `buf`、現在在哪層、怎麼跳層：用 `frame`、`up`／`down`、`bt` 切換與查看堆疊框
+
+> 2026-11-04 課後提問（第 7 課的 `app_dyn`，同一串連問四則）：
+> - 「我現在在嘗試在app_dyn用gdb想打印變數buf都打印不出來, 我是先break *trim 在run」
+> - 「有指令可以知道當前frame的位置嗎?」
+> - 「可以指定跳第幾層嗎?」
+> - 「有沒有辦法一次看所有的frame有哪些?」
+>
+> 正文出處：[第一節〈gdb 在做什麼，為什麼要 `-g`〉](#一gdb-在做什麼為什麼要--g)、[第四節 4.4 stack](#44-stack呼叫堆疊7-個)的命令表（那裡只寫了 `frame 1` 一個例子）、[第八節](#八實際走一次與常見錯誤訊息)錯誤訊息表的 `No symbol "sum" in current context.` 那一列。
+
+**一句話：區域變數只存在它自己那一層堆疊框裡——停在 `trim` 時看不到 `main` 的 `buf`，要先用 `up`／`frame 1` 切過去（或用 `bt full` 一次印出每層的區域變數）；而且這些都要 `-g` 才有。**
+
+#### 實驗用的程式
+
+第 7 課 `--as-needed` 實驗的同一組檔案（[`examples/asneeded/`](../small-project/s1-07-libraries/examples/asneeded/)，`none.c` 這裡沒用到）：主程式 `main` 呼叫 `libtxt.so` 裡的 `trim`，`trim` 再呼叫 `is_space`，所以停在 `is_space` 時堆疊上有三層。
+
+`main.c`（檔案：[`main.c`](../small-project/s1-07-libraries/examples/asneeded/main.c)；第 9 行是 `printf`）：
+
+```c
+/* main.c */
+#include <stdio.h>
+
+char *trim(char *s);
+
+int main(void)
+{
+    char buf[] = "   hello";
+    printf("[%s]\n", trim(buf));
+    return 0;
+}
+```
+
+`trim.c`（檔案：[`trim.c`](../small-project/s1-07-libraries/examples/asneeded/trim.c)；第 5 行是 `{`、第 6 行是 `while`）：
+
+```c
+/* trim.c */
+int is_space(char c);
+
+char *trim(char *s)
+{
+    while (is_space(*s))
+        s++;
+    return s;
+}
+```
+
+`space.c`（檔案：[`space.c`](../small-project/s1-07-libraries/examples/asneeded/space.c)；第 2 行是整個函式）：
+
+```c
+/* space.c */
+int is_space(char c) { return c == ' ' || c == '\t' || c == '\n'; }
+```
+
+`case.c`（檔案：[`case.c`](../small-project/s1-07-libraries/examples/asneeded/case.c)；只是一起包進 `libtxt.so`，本章用不到）：
+
+```c
+/* case.c */
+void to_upper_str(char *s) { for (; *s; s++) if (*s >= 'a' && *s <= 'z') *s -= 32; }
+void to_lower_str(char *s) { for (; *s; s++) if (*s >= 'A' && *s <= 'Z') *s += 32; }
+```
+
+```sh
+# 版本一：照第 7 課的做法，沒有 -g
+gcc -fPIC -shared -o libtxt.so trim.c space.c case.c
+gcc -o app_dyn main.c -L. -ltxt -Wl,-rpath,'$ORIGIN'
+# 版本二：兩邊都加 -g（.so 和執行檔各有各的除錯資訊，要看 trim 的參數，.so 也要加）
+gcc -g -fPIC -shared -o libtxt.so trim.c space.c case.c
+gcc -g -o app_dyn main.c -L. -ltxt -Wl,-rpath,'$ORIGIN'
+```
+
+#### (1) `break *trim` → `run` → `print buf` 為什麼印不出來：兩個原因疊在一起
+
+**原因一：沒有 `-g`。** 版本一（`readelf -S app_dyn | grep -c debug` 與 `libtxt.so` 都是 `0`）：
+
+```text
+$ gdb -q -batch -ex 'break *trim' -ex run -ex 'print buf' -ex up -ex 'print buf' -ex 'print $rdi' -ex 'x/s $rdi' ./app_dyn
+Breakpoint 1 at 0x1090
+Breakpoint 1, 0x00007ffff7fb7119 in trim () from ./libtxt.so     ← 沒有參數、沒有「at trim.c:5」：沒有除錯資訊
+No symbol "buf" in current context.
+#1  0x00005555555551c2 in main ()
+No symbol "buf" in current context.                              ← 切到 main 那層也一樣：根本不知道有 buf
+$1 = 140737488344127
+0x7fffffffd43f:	"   hello"                                       ← 沒有 -g 時的替代做法：第一個參數還在 %rdi
+```
+
+函式名稱在一般的符號表裡（`nm` 看得到），所以 `break *trim` 下得了；變數名稱、型別、它在哪一格，只有 `-g` 的 `.debug_*` 區段才有（第一節）。
+停在 `trim` 的**第一條指令**時，第一個參數還在 `%rdi`（[第 5 課第五節〈參數與回傳值放哪裡〉](./x86-64組合語言入門二-call與ret、堆疊框、參數與呼叫慣例.md#五參數與回傳值放哪裡)），所以 `x/s $rdi` 能看到 `buf` 的內容。
+
+（順帶一提：`run` 之前 `Breakpoint 1 at 0x1090`，那時 `libtxt.so` 還沒載入，gdb 只找得到執行檔裡的 `trim@plt` 跳板——`info symbol 0x1090` 印 `trim@plt in section .plt.sec`；
+`.so` 載入後 gdb 自動把中斷點改到真正的 `trim`，`info breakpoints` 變成 `0x00007ffff7fb7119 in trim at trim.c:5`。PLT 跳板見[第 7 課課後討論第 4 章](./靜態與動態函式庫-ar與.a、-fPIC與.so、執行時怎麼找到.so.md#4-plt-存函式位址got-存變數位址嗎plt-是跳板以及延遲綁定)。）
+
+**原因二：`buf` 是 `main` 的區域變數，而你停在 `trim` 這一層。** 版本二（有 `-g`）：
+
+```text
+$ gdb -q -batch -ex 'break *trim' -ex run -ex 'print buf' -ex 'print s' -ex up -ex 'print buf' ./app_dyn
+Breakpoint 1, trim (s=0x0) at trim.c:5
+5	{
+No symbol "buf" in current context.            ← 有 -g 也不行：trim 這層只有 s
+$1 = 0x0                                       ← s 印出 0x0，是錯的（見下一段）
+#1  0x00005555555551c2 in main () at main.c:9  ← up：切到呼叫者 main 那層
+9	    printf("[%s]\n", trim(buf));
+$2 = "   hello"                                ← 印出來了
+```
+
+`print` 只認得**目前選取的那一層**看得到的名字（那一層的參數、區域變數，加上全域變數）。`buf` 屬於 `main` 的堆疊框，要先切過去。
+
+**`s=0x0` 是錯的**：`break *trim` 停在第一條指令，序言（prologue）還沒把 `%rdi` 存進堆疊那格，gdb 照除錯資訊去那格讀到舊值——跟[第 5 課第三節](./x86-64組合語言入門二-call與ret、堆疊框、參數與呼叫慣例.md#三call-與-ret用-gdb-一條一條走)的 `add3 (a=0, b=0, c=0)` 同一回事。
+要看參數就用 `break trim`（不加 `*`，gdb 會跳過序言）：
+
+```text
+$ gdb -q -batch -ex 'break trim' -ex run -ex 'print s' ./app_dyn
+Breakpoint 1, trim (s=0x7fffffffd43f "   hello") at trim.c:6
+$1 = 0x7fffffffd43f "   hello"
+```
+
+#### (2) 現在在哪一層：`frame`（不帶參數）
+
+以下都是版本二，先停在 `is_space`，讓堆疊有三層。`is_space` 在 `libtxt.so` 裡，`run` 之前那個 `.so` 還沒載入，所以先 `start`（停在 `main`）再 `break is_space`、`continue`：
+
+```sh
+gdb -q -batch -ex start -ex 'break is_space' -ex continue -ex bt -ex frame -ex up -ex frame -ex bt -ex 'info frame' ./app_dyn
+```
+
+```text
+(gdb) bt
+#0  is_space (c=32 ' ') at space.c:2
+#1  0x00007ffff7fb7141 in trim (s=0x7fffffffd43f "   hello") at trim.c:6
+#2  0x00005555555551c2 in main () at main.c:9
+(gdb) frame
+#0  is_space (c=32 ' ') at space.c:2           ← 不帶參數：只印「目前選的這層」，不切換
+2	int is_space(char c) { return c == ' ' || c == '\t' || c == '\n'; }
+(gdb) up
+#1  0x00007ffff7fb7141 in trim (s=0x7fffffffd43f "   hello") at trim.c:6
+(gdb) frame
+#1  0x00007ffff7fb7141 in trim (...)           ← up 之後變成 #1
+(gdb) bt
+#0  is_space (c=32 ' ') at space.c:2           ← 跟上面一模一樣：bt 不標出目前選的層
+#1  0x00007ffff7fb7141 in trim (s=0x7fffffffd43f "   hello") at trim.c:6
+#2  0x00005555555551c2 in main () at main.c:9
+(gdb) info frame
+Stack level 1, frame at 0x7fffffffd430:        ← 第一行就是層號
+ rip = 0x7ffff7fb7141 in trim (trim.c:6); saved rip = 0x5555555551c2
+ called by frame at 0x7fffffffd460, caller of frame at 0x7fffffffd410
+ source language c.
+ Arglist at 0x7fffffffd420, args: s=0x7fffffffd43f "   hello"
+ Locals at 0x7fffffffd420, Previous frame's sp is 0x7fffffffd430
+ Saved registers:
+  rbp at 0x7fffffffd420, rip at 0x7fffffffd428
+```
+
+| 命令 | 印什麼 | 什麼時候用 |
+|---|---|---|
+| `frame`／`f`（不帶參數） | 目前選的那層：`#N`、函式、參數、停在哪行 | 只想知道「我現在在哪層」 |
+| `info frame`／`info f` | `Stack level N` 加上這一框的細節：`saved rip`（返回位址）、呼叫者與被呼叫者的框位址、`rbp`／`rip` 存在哪一格 | 要看堆疊框本身長怎樣（[第 5 課第四節](./x86-64組合語言入門二-call與ret、堆疊框、參數與呼叫慣例.md#四堆疊框pushq-rbp-movq-rsp-rbp-與-leave)） |
+| `bt` | 整條呼叫鏈 | 看全貌；**不能**用來判斷目前選在哪層 |
+
+`#0` 永遠是最內層，也就是程式真正停住的函式；數字越大越靠外（越接近 `main`）。
+`up`／`down`／`frame` 只換「現在在看哪一層」，程式一步都沒動（[第七節](#七容易混淆的命令差在哪什麼時候用哪個)）——`continue`、`next` 仍然從 `#0` 停住的地方往下跑。
+
+```text
+                    ┌──────────────────────────────┐
+  #2  main          │ buf = "   hello"             │   ← up 2、frame 2、frame function main
+                    ├──────────────────────────────┤
+  #1  trim          │ s = 0x7fffffffd43f           │   ← up、frame 1、frame function trim
+                    ├──────────────────────────────┤
+  #0  is_space      │ c = 32 ' '                   │   ← 程式真正停在這裡（%rip 在這層）
+                    └──────────────────────────────┘
+        往外 = up（數字變大）        往內 = down（數字變小）
+```
+
+圖的重點：選哪一層只決定 `print`、`info locals`、`list` 看的是誰的東西；三層的值同時都在記憶體裡。
+
+#### (3) 跳到指定的層：`frame N`、`up N`／`down N`、`frame function`
+
+```sh
+gdb -q -batch -ex start -ex 'break is_space' -ex continue \
+    -ex 'frame 2' -ex 'frame 5' -ex 'frame 0' -ex 'up 2' -ex 'down 2' -ex 'up 9' \
+    -ex down -ex down -ex down -ex 'frame function trim' ./app_dyn
+```
+
+```text
+(gdb) frame 2
+#2  0x00005555555551c2 in main () at main.c:9          ← 絕對：直接到第 2 層
+(gdb) frame 5
+No frame at level 5.                                   ← 沒有這層：報錯，目前選的層不變
+(gdb) frame 0
+(gdb) up 2
+#2  0x00005555555551c2 in main () at main.c:9          ← 相對：往外 2 層
+(gdb) down 2
+#0  is_space (c=32 ' ') at space.c:2                   ← 往內 2 層
+(gdb) up 9
+#2  0x00005555555551c2 in main () at main.c:9          ← 超過最外層：停在最外層，不報錯
+(gdb) down
+#1 …
+(gdb) down
+#0 …
+(gdb) down
+Bottom (innermost) frame selected; you cannot go down. ← 已經在 #0 再往內：報錯
+(gdb) frame function trim
+#1  0x00007ffff7fb7141 in trim (s=0x7fffffffd43f "   hello") at trim.c:6   ← 用函式名找
+```
+
+| 寫法 | 意思 | 不存在／超出時 |
+|---|---|---|
+| `frame N`（＝`frame level N`） | 選第 N 層（絕對） | `No frame at level N.` |
+| `up [N]` | 往外 N 層，省略 N 就是 1 | 停在最外層，不報錯；已經在最外層時報 `Initial frame selected; you cannot go up.` |
+| `down [N]` | 往內 N 層，省略 N 就是 1 | 已經在 `#0` 時報 `Bottom (innermost) frame selected; you cannot go down.` |
+| `frame function 名字` | 選最內層的那個函式的框（遞迴時同名有好幾層，選最靠近 `#0` 的） | `Function "nosuch" not defined.` |
+
+（`up` 在最外層的那句、`frame function` 找不到的那句也都實測過：先 `frame 2` 再 `up`、以及 `frame function nosuch`。）
+
+`frame` 的子命令依 `help frame` 共 5 個：上面的 `level`、`function`，以及 `address`（用堆疊框的位址選，就是 `info frame` 印的 `frame at 0x…`）、`apply`（對好幾層各執行一個命令，下一段）、`view`（看一個不在目前 backtrace 裡的框，進階用途）。
+
+#### (4) 一次看所有層：`bt`、`bt full`、`frame apply all`
+
+```sh
+gdb -q -batch -ex start -ex 'break is_space' -ex continue \
+    -ex bt -ex 'bt full' -ex 'bt 1' -ex 'bt -1' -ex 'frame apply all info locals' ./app_dyn
+```
+
+```text
+(gdb) bt                              ← 全名 backtrace，也可以打 where
+#0  is_space (c=32 ' ') at space.c:2
+#1  0x00007ffff7fb7141 in trim (s=0x7fffffffd43f "   hello") at trim.c:6
+#2  0x00005555555551c2 in main () at main.c:9
+(gdb) bt full                         ← 每層連區域變數一起印
+#0  is_space (c=32 ' ') at space.c:2
+No locals.
+#1  0x00007ffff7fb7141 in trim (s=0x7fffffffd43f "   hello") at trim.c:6
+No locals.
+#2  0x00005555555551c2 in main () at main.c:9
+        buf = "   hello"              ← 不用 up 就看到 main 的 buf
+(gdb) bt 1                            ← 只印最內層 1 層
+#0  is_space (c=32 ' ') at space.c:2
+(gdb) bt -1                           ← 只印最外層 1 層
+#2  0x00005555555551c2 in main () at main.c:9
+(gdb) frame apply all info locals     ← 對每一層執行 info locals（縮寫 faas info locals）
+#0  is_space (c=32 ' ') at space.c:2
+No locals.
+#1  …
+No locals.
+#2  0x00005555555551c2 in main () at main.c:9
+buf = "   hello"
+```
+
+每一列的格式是 `#層號  返回位址 in 函式 (參數=值) at 檔案:行號`。`#0` 沒有位址欄，因為它就是此刻停住的地方；`#1` 以後的位址是「回到那一層後要接著執行的指令」，也就是被呼叫者框裡存的 `saved rip`（對照上面 `info frame` 的 `saved rip = 0x5555555551c2`，正是 `#2` 那列的位址）。
+`trim` 的參數 `s` 不算區域變數，所以是 `No locals.`；參數另外用 `info args` 看。沒有 `-g` 時 `bt` 還是列得出函式名稱，但參數與區域變數都沒有。
+
+`frame apply all` 比 `bt full` 通用：後面可以接任何命令（例如 `frame apply all info args`、`frame apply all p $rsp`）。
+`bt` 的完整選項用 `help backtrace` 查（還有 `-full`、`-frame-arguments`、`-past-main` 等）；這裡只示範 `full`、`N`、`-N` 三種。
+
+### 2. 在 gdb 裡查區段：位址在哪（`info files`）、內容是什麼（`x`、`disassemble`、`dump`）
+
+> 2026-11-04 課後提問（接在第 1 章後面）：
+> - 「從 gdb有辦法知道.bss, .text在哪裏嗎?可以直接查的指令」
+> - 「那有辦法看區段的內容嗎?比方.text, .bss」
+>
+> 正文出處：[第五節〈`info` 的全部 65 個子命令〉](#五info-的全部-65-個子命令)表裡的 `info files`、`info symbol`、`info proc`（那裡每個只有一行說明），以及 [4.3 data](#43-data查看與修改資料22-個) 的 `x`、`disassemble`。
+
+**一句話：gdb 沒有「印出某個區段」的專用命令——先用 `info files` 查出區段在記憶體裡的範圍（要在程式跑起來之後查，PIE 才換成執行時的位址），再用 `x`、`disassemble`、`dump` 去看那段記憶體。**
+
+程式與編譯指令同[第 1 章〈實驗用的程式〉](#實驗用的程式)的版本二（有 `-g`）。位址是 gdb 預設關掉位址隨機化時的值。
+
+#### (1) 位址在哪：`info files`、`maint info sections`、`info symbol`、`info proc mappings`
+
+```sh
+gdb -q -batch -ex 'info files' -ex start -ex 'info files' \
+    -ex 'maint info sections .text .bss' -ex 'info symbol main' -ex 'info symbol trim' \
+    -ex 'info symbol 0x555555558010' -ex 'info proc mappings' ./app_dyn
+```
+
+```text
+(gdb) info files                                       ← run 之前（節錄，只留 .text、.data、.bss）
+	Entry point: 0x10a0
+	0x00000000000010a0 - 0x00000000000011f4 is .text
+	0x0000000000004000 - 0x0000000000004010 is .data
+	0x0000000000004010 - 0x0000000000004018 is .bss
+(gdb) start
+(gdb) info files                                       ← 跑起來之後（節錄）
+	Entry point: 0x5555555550a0
+	0x00005555555550a0 - 0x00005555555551f4 is .text
+	0x0000555555558000 - 0x0000555555558010 is .data
+	0x0000555555558010 - 0x0000555555558018 is .bss
+	0x00007ffff7fc6000 - 0x00007ffff7ff0195 is .text in /lib64/ld-linux-x86-64.so.2
+	0x00007ffff7fb7060 - 0x00007ffff7fb720c is .text in ./libtxt.so
+	0x00007ffff7fba010 - 0x00007ffff7fba018 is .bss in ./libtxt.so
+	0x00007ffff7c28800 - 0x00007ffff7db0039 is .text in /lib/x86_64-linux-gnu/libc.so.6
+	0x00007ffff7e056e0 - 0x00007ffff7e12d90 is .bss in /lib/x86_64-linux-gnu/libc.so.6
+	…（每個 .so 的每個區段都列，實際輸出有幾十行）
+```
+
+- `info files`（＝`info target`）列出每個區段的範圍 `起點 - 終點`（終點不含）。**要在程式跑起來之後查**：`run` 之前印的是檔案裡的位址（`0x10a0`，跟 `readelf -S` 一樣）；
+  程式是 PIE（Position-Independent Executable，位置無關執行檔），執行時整份被搬到基底 `0x555555554000` 之後，`.text` 就變成 `0x5555555550a0`（＝基底＋`0x10a0`）。跑起來之後它還會把 `ld.so`、`libtxt.so`、`libc.so.6`、vDSO（輸出寫 `system-supplied DSO`）的區段都列出來。
+- 這個程式的 `.bss` 只有 8 byte：`main.c` 沒有全域變數，那 8 byte 是 C 執行環境自己的變數（下面 `info symbol` 印出的 `completed`）。
+
+輸出太長時，用另外三個命令縮小範圍：
+
+```text
+(gdb) maint info sections .text .bss                   ← 只看指定的區段（只看執行檔本身）
+ [15]     0x5555555550a0->0x5555555551f4 at 0x000010a0: .text ALLOC LOAD READONLY CODE HAS_CONTENTS
+ [25]     0x555555558010->0x555555558018 at 0x00003010: .bss ALLOC
+(gdb) info symbol main                                 ← 反過來問：這個符號／位址在哪個區段
+main in section .text of ./app_dyn
+(gdb) info symbol trim
+trim in section .text of ./libtxt.so
+(gdb) info symbol 0x555555558010
+completed in section .bss of ./app_dyn
+(gdb) info proc mappings                               ← 分頁的對映（節錄）
+          Start Addr           End Addr       Size     Offset  Perms  objfile
+      0x555555555000     0x555555556000     0x1000     0x1000  r-xp   ./app_dyn     ← .text 0x5555555550a0 在這頁
+      0x555555558000     0x555555559000     0x1000     0x3000  rw-p   ./app_dyn     ← .data、.bss 在這頁
+      0x7ffff7fb7000     0x7ffff7fb8000     0x1000     0x1000  r-xp   ./libtxt.so   ← libtxt 的 .text
+      0x7ffffffdd000     0x7ffffffff000    0x22000        0x0  rw-p   [stack]
+```
+
+- `maint info sections`（`maintenance` 前綴，第六節）每列是 `[編號] 執行時起點->終點 at 檔案偏移: 名字 旗標`。編號從 0 起算、不含 ELF 的空區段，所以比 `readelf -S` 的編號（`.text` 是 `[16]`）少 1。
+  **`.bss` 只有 `ALLOC`、沒有 `HAS_CONTENTS`**：它在檔案裡不佔空間（`readelf -S` 的型別是 `NOBITS`），載入時才配置記憶體、填 0。`.text` 有 `HAS_CONTENTS`，內容就在檔案偏移 `0x10a0`。
+- `info symbol` 回答「這個位址落在哪個符號、哪個區段、哪個檔案」，給位址或符號都可以。
+- `info proc mappings` 看的是**分頁**（頁的權限 `r-xp`、`rw-p`），不是區段；區段被包在載入段裡、載入段再對映成頁（[第 7 課課後討論第 16 章](./靜態與動態函式庫-ar與.a、-fPIC與.so、執行時怎麼找到.so.md#16-got-算一頁嗎區段載入段與頁寫入時複製一次複製一頁)）。所以 `.text` 落在 `r-xp` 那頁、`.bss` 落在 `rw-p` 那頁。
+
+| 命令 | 回答什麼 | 範圍 |
+|---|---|---|
+| `info files`／`info target` | 每個區段的位址範圍 | 執行檔＋所有已載入的 `.so` |
+| `maint info sections [名字…]` | 區段範圍、檔案偏移、旗標（`HAS_CONTENTS` 等） | 只有執行檔（加 `-all-objects` 才含 `.so`，見 `help maint info sections`） |
+| `info symbol 位址或符號` | 這個位址屬於哪個符號、哪個區段 | 全部 |
+| `info proc mappings` | 分頁的範圍與權限 | 整個行程（含 `[stack]`、`[heap]`、`[vdso]`） |
+
+#### (2) 內容是什麼：`x`、`disassemble`、`dump`
+
+用 `info files` 查到的範圍，就能用一般看記憶體的命令看區段內容。`.text`：`0x5555555550a0 - 0x5555555551f4`；`.bss`：`0x555555558010 - 0x555555558018`。
+
+```sh
+gdb -q -batch -ex start -ex 'x/5i 0x5555555550a0' -ex 'disassemble 0x5555555550a0,0x5555555550b0' \
+    -ex 'x/16xb 0x5555555550a0' -ex 'x/8xb 0x555555558010' -ex 'p &__bss_start' -ex 'p &_end' \
+    -ex 'x/1xg &__bss_start' -ex 'dump binary memory text.bin 0x5555555550a0 0x5555555551f4' ./app_dyn
+```
+
+```text
+(gdb) x/5i 0x5555555550a0                         ← .text：當成指令看（i），5 條
+   0x5555555550a0 <_start>:	endbr64
+   0x5555555550a4 <_start+4>:	xor    %ebp,%ebp
+   0x5555555550a6 <_start+6>:	mov    %rdx,%r9
+   0x5555555550a9 <_start+9>:	pop    %rsi
+   0x5555555550aa <_start+10>:	mov    %rsp,%rdx
+(gdb) disassemble 0x5555555550a0,0x5555555550b0   ← 反組譯「起點,終點」（終點不含）
+Dump of assembler code from 0x5555555550a0 to 0x5555555550b0:
+   0x00005555555550a0 <_start+0>:	endbr64
+   …
+   0x00005555555550ad <_start+13>:	and    $0xfffffffffffffff0,%rsp
+End of assembler dump.
+(gdb) x/16xb 0x5555555550a0                       ← .text：原始位元組（16 個、十六進位、每個 1 byte）
+0x5555555550a0 <_start>:	0xf3	0x0f	0x1e	0xfa	0x31	0xed	0x49	0x89
+0x5555555550a8 <_start+8>:	0xd1	0x5e	0x48	0x89	0xe2	0x48	0x83	0xe4
+(gdb) x/8xb 0x555555558010                        ← .bss：8 byte 全是 0
+0x555555558010 <completed.0>:	0x00	0x00	0x00	0x00	0x00	0x00	0x00	0x00
+(gdb) p &__bss_start                              ← 不想抄位址：連結器產生的符號
+$1 = (<data variable, no debug info> *) 0x555555558010 <completed>
+(gdb) p &_end
+$2 = (char (*)[]) 0x555555558018
+(gdb) x/1xg &__bss_start
+0x555555558010 <completed.0>:	0x0000000000000000
+```
+
+- `.text` 有兩種看法，看的是同一段記憶體：`x/xb` 是原始位元組，`x/i`、`disassemble` 把它翻成指令。`f3 0f 1e fa` 就是 `endbr64`、`31 ed` 是 `xor %ebp,%ebp`。
+  `x` 的 `/FMT` 規則見[第三節〈輸出格式 `/FMT`〉](#輸出格式-fmtprint-與-x-共用)；`disassemble` 的 `/r`（同時印機器碼）、`/s`（同時印原始碼）見 [4.3 data](#43-data查看與修改資料22-個)。
+- `.text` 的開頭是 `_start`（C 執行環境的進入點，`Entry point` 就是它），`main` 在後面。
+- `__bss_start`、`_end` 是連結器（linker）自動定義的符號：`.bss` 從 `__bss_start` 開始，`_end` 是整個程式資料（`.data`＋`.bss`）的結尾。這個程式剛好 `_end − __bss_start = 8`，就是 `.bss` 的大小。
+  它們沒有除錯資訊的型別，所以 `p` 印出 `<data variable, no debug info>`；`x` 只要位址，不受影響。
+
+**把整段存成檔案：`dump`**。`dump binary memory 檔名 起點 終點` 把那段記憶體原封不動寫進檔案。`help dump` 列出 7 個子命令：`binary`、`ihex`、`srec`、`tekhex`、`verilog` 是**檔案格式**，`memory`（一段記憶體）、`value`（一個表達式的值）是**要存什麼**；格式後面再接 `memory` 或 `value`，不寫格式（`dump memory …`）就是 raw binary。拿它跟直接從執行檔取出的 `.text` 比：
+
+```text
+$ ls -l text.bin
+-rw-rw-r-- 1 set set 340 Nov  4 11:04 text.bin        ← 0x1f4 − 0xa0 = 0x154 = 340 byte
+$ objcopy -O binary --only-section=.text app_dyn text_file.bin    ← 從檔案取出 .text 的內容
+$ cmp text.bin text_file.bin && echo SAME
+SAME
+```
+
+記憶體裡的 `.text` 跟檔案裡的一個 byte 都不差：載入只是把檔案那段對映進來（`info proc mappings` 那頁的 `Offset 0x1000`）。
+**`.bss` 就不一樣**：它沒有 `HAS_CONTENTS`，檔案裡沒有它的內容。`objdump -s -j .bss app_dyn`（`objdump -s` 見[第 4 課第三節](./x86-64組合語言入門-暫存器、mov與lea、cmp與條件跳躍.md#為什麼-l-叫-long-卻是-4-byte組合語言的大小名稱和-c-的型別是兩套)〈為什麼 `l` 叫 long 卻是 4 byte〉）實測印出
+`4010 00000000 00000000`，但那 8 個 0 是 `objdump` 依「`.bss` 一律從 0 開始」**補出來的**，不是從檔案讀的——檔案偏移 `0x3010` 那裡放的其實是下一個區段 `.comment`（`xxd -s 0x3010 -l 8 app_dyn` 印出 `GCC: (Ub`，編譯器的版本字串），`.bss` 在檔案裡一個 byte 都沒有。
+程式跑起來之後 `.bss` 裡的變數被改成多少，只能在**跑起來的行程**裡用 gdb 看。
+
+| 想看 | 命令 | 說明 |
+|---|---|---|
+| 程式碼（`.text`）翻成指令 | `x/Ni 位址`、`disassemble 起點,終點` | `x/i` 給條數，`disassemble` 給範圍或函式名 |
+| 任何區段的原始位元組 | `x/Nxb 位址`（或 `xg` 每 8 byte 一格） | 大小字母 `b`/`h`/`w`/`g` 見第三節 |
+| 字串（`.rodata`） | `x/s 位址` | 印到 `\0` 為止 |
+| 整段存成檔案 | `dump binary memory 檔 起點 終點` | 再用 `xxd`、`cmp` 等外部工具看 |
+| 從**檔案**看（不用跑） | `objdump -s -j .text app_dyn`、`objdump -d` | `.bss` 只會印出補的 0；位址是檔案裡的位址 |
 
 ---
 

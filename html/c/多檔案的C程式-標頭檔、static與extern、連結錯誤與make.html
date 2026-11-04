@@ -1780,7 +1780,7 @@ gcc 13 對隱式宣告只給 <code>-Wimplicit-function-declaration</code> 警告
 <p>（2026-10-24 使用者追問「印出來是負數好像不對」，重新實測確認）負數只出現在這一題的寫法（沒有宣告、有 <code>cltq</code>）。同樣是 <code>square(50000)</code>，換成多檔 2-2 的寫法（<code>main.c</code> 引入 <code>long square(long)</code> 的標頭檔、<code>mathx.c</code> 定義成 <code>int square(int)</code>）印的是 <strong>2500000000</strong>：<code>imul %eax,%eax</code> 留下 <code>0x9502f900</code>，寫 <code>%eax</code> 時高 32 位元被清成 0，<code>main</code> 照 <code>long</code> 讀整個 <code>%rax</code>，沒有 <code>cltq</code> 去補 1。兩個寫法的 <code>100000</code> 都印 1410065408，因為 <code>0x540be400</code> 的第 31 位是 0（<code>0x5</code> ＝ <code>0101</code>），補 0 補 1 結果一樣。差別只有第 31 位是 1 時才看得出來。</p>
 </details>
 </li>
-<li>為什麼「定義函式的那個 <code>.c</code> 也要 <code>#include</code> 自己的標頭檔」？如果 <code>mathx.c</code> 沒有 <code>#include &quot;mathx.h&quot;</code>，有人把 <code>mathx.c</code> 的定義改成 <code>int square(int x)</code> 卻忘了改 <code>mathx.h</code>，會發生什麼事、在哪個階段（編譯、連結、執行）才發現？<pre><code class="language-c"><span class="cm">/* mathx.h */</span>
+<li>為什麼「定義函式的那個 <code>.c</code> 也要 <code>#include</code> 自己的標頭檔」？如果 <code>mathx.c</code> 沒有 <code>#include &quot;mathx.h&quot;</code>，有人把 <code>mathx.c</code> 的定義改成 <code>int square(int x)</code> 卻忘了改 <code>mathx.h</code>，會發生什麼事、在哪個階段（編譯、連結、執行）才發現？為什麼前面的階段都沒擋下來？<pre><code class="language-c"><span class="cm">/* mathx.h */</span>
 <span class="cp">#ifndef MATHX_H</span>
 <span class="cp">#define MATHX_H</span>
 

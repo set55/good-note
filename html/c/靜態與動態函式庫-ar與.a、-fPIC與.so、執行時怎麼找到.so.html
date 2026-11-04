@@ -3824,7 +3824,7 @@ gcc<span class="w"> </span>-O1<span class="w"> </span>-fPIC<span class="w"> </sp
 <p><strong>3-2</strong>【<a href="#%E7%82%BA%E4%BB%80%E9%BA%BC%E4%B8%8D%E8%83%BD%E7%9B%B4%E6%8E%A5%E7%94%A8%E5%9B%BA%E5%AE%9A%E8%B7%9D%E9%9B%A2counter-%E6%9C%80%E5%BE%8C%E4%B8%8D%E4%B8%80%E5%AE%9A%E6%98%AF%E9%80%99%E4%B8%80%E4%BB%BD">第四節</a>〈為什麼不能直接用固定距離：<code>counter</code> 最後不一定是這一份〉】核心關鍵：</p>
 <ol>
 <li><code>misses</code> 是 <code>static</code>（<code>LOCAL</code>），別的檔案不可能用到它、也不可能用同名定義插入。</li>
-<li>所以它一定是這個 <code>.so</code> 自己那一份，跟程式碼在同一個 <code>.so</code> 裡、距離固定，<code>%rip</code> 加固定距離就讀得到，不需要 GOT。</li>
+<li>所以 <code>.so</code> 裡對它的存取一定是自己那一份，不需要 GOT（換句話說：它跟程式碼在同一個 <code>.so</code>、距離固定，<code>%rip</code> 加固定距離就讀得到；講出「不會被取代 → 不用 GOT」或「距離固定」任一種說法都算答到）。</li>
 </ol>
 <p>詳細說明：筆記的 <code>count_static.c</code>（<code>static int counter</code>）不加 <code>-fPIC</code> 也做得成 <code>.so</code>，是同一個道理。</p>
 <p><strong>3-3</strong>【<a href="#%E7%82%BA%E4%BB%80%E9%BA%BC%E4%B8%8D%E8%83%BD%E7%9B%B4%E6%8E%A5%E7%94%A8%E5%9B%BA%E5%AE%9A%E8%B7%9D%E9%9B%A2counter-%E6%9C%80%E5%BE%8C%E4%B8%8D%E4%B8%80%E5%AE%9A%E6%98%AF%E9%80%99%E4%B8%80%E4%BB%BD">第四節</a>〈為什麼不能直接用固定距離：<code>counter</code> 最後不一定是這一份〉】核心關鍵：</p>
@@ -4044,7 +4044,7 @@ gcc<span class="w"> </span>-O1<span class="w"> </span>-fPIC<span class="w"> </sp
 <p>詳細說明：如果 <code>.got</code> 那格沒填，<code>mov (%rax),…</code> 會直接拿檔案裡的 0 當位址去讀，當場 segfault。</p>
 </details>
 </li>
-<li>（2026-10-26 提問延伸）兩支程式 <code>x</code>、<code>y</code> 都連 <code>libhits.so</code>，同時在跑（各自停在 <code>sleep(5)</code>）。(1) <code>x</code> 印出的 <code>&amp;hit</code> 和 <code>y</code> 印出的不一樣，這代表記憶體裡有兩份 <code>hit</code> 的程式碼嗎？<code>libhits.so</code> 的哪些部分兩個行程共用同一份實體記憶體、哪些是各自一份？(2) <code>y</code> 印出的 <code>hit()</code> 回傳值是多少？為什麼不是 <code>x</code>、<code>y</code> 加起來的 7？(3) 假設沒有 GOT，改成讓 <code>ld.so</code> 載入時把位址直接寫進 <code>.text</code>，用「寫入時複製」說明 <code>.text</code> 還能不能共用、為什麼。<pre><code class="language-c"><span class="cm">/* hits.c */</span>
+<li>（2026-10-26 提問延伸）兩支程式 <code>x</code>、<code>y</code> 都連 <code>libhits.so</code>，同時在跑（各自停在 <code>sleep(5)</code>）。(1) <code>x</code> 印出的 <code>&amp;hit</code> 和 <code>y</code> 印出的不一樣，這代表記憶體裡有兩份 <code>hit</code> 的程式碼嗎？兩個位址為什麼會不一樣？<code>libhits.so</code> 的哪些部分兩個行程共用同一份實體記憶體、哪些是各自一份？(2) <code>y</code> 印出的 <code>hit()</code> 回傳值是多少？為什麼不是 <code>x</code>、<code>y</code> 加起來的 7？(3) 假設沒有 GOT，改成讓 <code>ld.so</code> 載入時把位址直接寫進 <code>.text</code>，用「寫入時複製」說明 <code>.text</code> 還能不能共用、為什麼。<pre><code class="language-c"><span class="cm">/* hits.c */</span>
 <span class="kt">int</span><span class="w"> </span><span class="n">hits</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
 
 <span class="kt">int</span><span class="w"> </span><span class="nf">hit</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>

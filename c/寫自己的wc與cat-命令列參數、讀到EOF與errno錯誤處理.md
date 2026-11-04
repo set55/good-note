@@ -1201,7 +1201,7 @@ c^AM-d$
 
 4. 情境題：用第 3 題的 `countch`（`./countch 檔名 字元` 把「次數 檔名」用 `printf` 印到 `stdout`、回傳 0；開檔失敗時用 `perror(檔名)` 印到 `stderr`、回傳 1；完整原始碼在第 3 題），`printf 'banana\n' > fruit.txt` 之後執行 `./countch fruit.txt a > result.txt; ./countch nofile.txt a >> result.txt; echo "exit=$?"`。(1) 終端機上會看到哪幾行？`result.txt` 裡有什麼？為什麼？(2) 用 `printf 'hello world\n' > one.txt; printf 'no newline at end' > nonl.txt` 建兩個檔案（`nofile.txt` 不存在），GNU `wc one.txt nofile.txt nonl.txt` 印了兩個檔案的結果、一行錯誤和 `total`，結束狀態卻是 1。為什麼這類工具遇到壞檔案不馬上停，但最後要回傳 1？
 
-5. 情境題：資料夾裡有 `a.txt`、`b.txt` 兩個檔案，用下面的 `args.c`。(1) `./args '*.txt' *.txt` 的 `argc` 是多少？`argv[1]`～`argv[argc]` 各是什麼？(2) 誰把 `*.txt` 換成檔名、在什麼時候？程式有沒有辦法知道使用者原本打的是 `*.txt`？(3) 換到一個**沒有任何 `.txt`** 的資料夾執行 `../args *.txt`，在 bash 和 zsh 下各會怎樣？
+5. 情境題：資料夾裡有 `a.txt`、`b.txt` 兩個檔案，用下面的 `args.c`。(1) `./args '*.txt' *.txt` 的 `argc` 是多少？`argv[1]`～`argv[argc]` 各是什麼？為什麼 `'*.txt'` 和 `*.txt` 的結果不一樣？(2) 誰把 `*.txt` 換成檔名、在什麼時候？程式有沒有辦法知道使用者原本打的是 `*.txt`？為什麼？(3) 換到一個**沒有任何 `.txt`** 的資料夾執行 `../args *.txt`，在 bash 和 zsh 下各會怎樣？
 
    ```c
    /* args.c */

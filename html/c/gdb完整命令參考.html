@@ -44,6 +44,9 @@
 <li class="l2"><a href="#%E4%B8%83%E5%AE%B9%E6%98%93%E6%B7%B7%E6%B7%86%E7%9A%84%E5%91%BD%E4%BB%A4%E5%B7%AE%E5%9C%A8%E5%93%AA%E4%BB%80%E9%BA%BC%E6%99%82%E5%80%99%E7%94%A8%E5%93%AA%E5%80%8B">七、容易混淆的命令：差在哪、什麼時候用哪個</a></li>
 <li class="l2"><a href="#%E5%85%AB%E5%AF%A6%E9%9A%9B%E8%B5%B0%E4%B8%80%E6%AC%A1%E8%88%87%E5%B8%B8%E8%A6%8B%E9%8C%AF%E8%AA%A4%E8%A8%8A%E6%81%AF">八、實際走一次，與常見錯誤訊息</a></li>
 <li class="l3"><a href="#%E6%B2%92%E5%8A%A0--g-%E5%B0%B1%E7%94%A8%E8%A1%8C%E8%99%9F%E4%B8%8B%E4%B8%AD%E6%96%B7%E9%BB%9E%E4%B8%AD%E6%96%B7%E9%BB%9E%E8%B7%91%E5%88%B0-glibc-%E8%A3%A1%E6%B0%B8%E9%81%A0%E4%B8%8D%E6%9C%83%E5%81%9C2026-10-05-%E4%BD%BF%E7%94%A8%E8%80%85%E5%AF%A6%E9%9A%9B%E9%81%87%E5%88%B0">沒加 -g 就用行號下中斷點：中斷點跑到 glibc 裡，永遠不會停（2026-10-05 使用者實際遇到）</a></li>
+<li class="l2"><a href="#%E4%B9%9D%E8%AA%B2%E5%BE%8C%E8%A8%8E%E8%AB%96">九、課後討論</a></li>
+<li class="l3"><a href="#1-%E5%8D%B0%E4%B8%8D%E5%87%BA-buf%E7%8F%BE%E5%9C%A8%E5%9C%A8%E5%93%AA%E5%B1%A4%E6%80%8E%E9%BA%BC%E8%B7%B3%E5%B1%A4%E7%94%A8-frameupdownbt-%E5%88%87%E6%8F%9B%E8%88%87%E6%9F%A5%E7%9C%8B%E5%A0%86%E7%96%8A%E6%A1%86">1. 印不出 buf、現在在哪層、怎麼跳層：用 frame、up／down、bt 切換與查看堆疊框</a></li>
+<li class="l3"><a href="#2-%E5%9C%A8-gdb-%E8%A3%A1%E6%9F%A5%E5%8D%80%E6%AE%B5%E4%BD%8D%E5%9D%80%E5%9C%A8%E5%93%AAinfo-files%E5%85%A7%E5%AE%B9%E6%98%AF%E4%BB%80%E9%BA%BCxdisassembledump">2. 在 gdb 裡查區段：位址在哪（info files）、內容是什麼（x、disassemble、dump）</a></li>
 <li class="l2"><a href="#%E8%87%AA%E6%88%91%E6%B8%AC%E9%A9%97">自我測驗</a></li>
 </ul>
 </nav>
@@ -74,6 +77,7 @@ stack（在哪一層）四類；其他類別是遠端除錯、追蹤點、腳本
 <li><a href="#%E5%85%ADsetshowmaintenance%E6%95%B8%E9%87%8F%E7%82%BA%E4%BB%80%E9%BA%BC%E4%B8%8D%E9%80%90%E9%A0%85%E5%88%97%E6%80%8E%E9%BA%BC%E6%9F%A5">六、<code>set</code>／<code>show</code>／<code>maintenance</code>：數量、為什麼不逐項列、怎麼查</a></li>
 <li><a href="#%E4%B8%83%E5%AE%B9%E6%98%93%E6%B7%B7%E6%B7%86%E7%9A%84%E5%91%BD%E4%BB%A4%E5%B7%AE%E5%9C%A8%E5%93%AA%E4%BB%80%E9%BA%BC%E6%99%82%E5%80%99%E7%94%A8%E5%93%AA%E5%80%8B">七、容易混淆的命令：差在哪、什麼時候用哪個</a></li>
 <li><a href="#%E5%85%AB%E5%AF%A6%E9%9A%9B%E8%B5%B0%E4%B8%80%E6%AC%A1%E8%88%87%E5%B8%B8%E8%A6%8B%E9%8C%AF%E8%AA%A4%E8%A8%8A%E6%81%AF">八、實際走一次，與常見錯誤訊息</a></li>
+<li><a href="#%E4%B9%9D%E8%AA%B2%E5%BE%8C%E8%A8%8E%E8%AB%96">九、課後討論</a></li>
 <li><a href="#%E8%87%AA%E6%88%91%E6%B8%AC%E9%A9%97">自我測驗</a></li>
 </ul>
 <hr />
@@ -1228,6 +1232,9 @@ Line 8 of &quot;avg.c&quot; is at address 0x11b2 &lt;average+50&gt; but contains
 </tr>
 </tbody>
 </table>
+<blockquote>
+<p>課後討論：<a href="#1-%E5%8D%B0%E4%B8%8D%E5%87%BA-buf%E7%8F%BE%E5%9C%A8%E5%9C%A8%E5%93%AA%E5%B1%A4%E6%80%8E%E9%BA%BC%E8%B7%B3%E5%B1%A4%E7%94%A8-frameupdownbt-%E5%88%87%E6%8F%9B%E8%88%87%E6%9F%A5%E7%9C%8B%E5%A0%86%E7%96%8A%E6%A1%86">第九節第 1 章〈印不出 <code>buf</code>、現在在哪層、怎麼跳層：用 <code>frame</code>、<code>up</code>／<code>down</code>、<code>bt</code> 切換與查看堆疊框〉</a></p>
+</blockquote>
 <h3 id="45-files指定與查看檔案21-個">4.5 files：指定與查看檔案（21 個）</h3>
 <table>
 <thead>
@@ -1947,6 +1954,9 @@ Line 8 of &quot;avg.c&quot; is at address 0x11b2 &lt;average+50&gt; but contains
 </table>
 <p>其中幾個還有更下一層的子命令（<code>info frame</code> 4 個、<code>info proc</code> 8 個、<code>info auto-load</code> 4 個、<code>info probes</code> 3 個、
 <code>info module</code> 2 個），用 <code>help info proc</code> 這樣查。</p>
+<blockquote>
+<p>課後討論：<a href="#2-%E5%9C%A8-gdb-%E8%A3%A1%E6%9F%A5%E5%8D%80%E6%AE%B5%E4%BD%8D%E5%9D%80%E5%9C%A8%E5%93%AAinfo-files%E5%85%A7%E5%AE%B9%E6%98%AF%E4%BB%80%E9%BA%BCxdisassembledump">第九節第 2 章〈在 gdb 裡查區段：位址在哪（<code>info files</code>）、內容是什麼（<code>x</code>、<code>disassemble</code>、<code>dump</code>）〉</a></p>
+</blockquote>
 <hr />
 <h2 id="六setshowmaintenance數量為什麼不逐項列怎麼查">六、<code>set</code>／<code>show</code>／<code>maintenance</code>：數量、為什麼不逐項列、怎麼查</h2>
 <table>
@@ -2477,6 +2487,427 @@ Num     Type           Disp Enb Address            What
 </table>
 <p><strong>教訓：gdb 問 <code>Make breakpoint pending ...?</code> 時，除非你確定那個位置在「之後才載入的共享函式庫」裡，否則回答 <code>n</code>——它通常代表你下錯了，而不是要等。</strong>
 已經設錯的中斷點用 <code>info breakpoints</code> 看、<code>delete 1</code> 刪掉。</p>
+<hr />
+<h2 id="九課後討論">九、課後討論</h2>
+<p>這一節收<strong>課後提問與討論</strong>，一個主題一章。正文裡被問到的地方有一行「課後討論」連結跳到這裡，每章開頭的「正文出處」再連回正文。</p>
+<ul>
+<li><a href="#1-%E5%8D%B0%E4%B8%8D%E5%87%BA-buf%E7%8F%BE%E5%9C%A8%E5%9C%A8%E5%93%AA%E5%B1%A4%E6%80%8E%E9%BA%BC%E8%B7%B3%E5%B1%A4%E7%94%A8-frameupdownbt-%E5%88%87%E6%8F%9B%E8%88%87%E6%9F%A5%E7%9C%8B%E5%A0%86%E7%96%8A%E6%A1%86">第 1 章</a>：印不出 <code>buf</code>、現在在哪層、怎麼跳層：用 <code>frame</code>、<code>up</code>／<code>down</code>、<code>bt</code> 切換與查看堆疊框</li>
+<li><a href="#2-%E5%9C%A8-gdb-%E8%A3%A1%E6%9F%A5%E5%8D%80%E6%AE%B5%E4%BD%8D%E5%9D%80%E5%9C%A8%E5%93%AAinfo-files%E5%85%A7%E5%AE%B9%E6%98%AF%E4%BB%80%E9%BA%BCxdisassembledump">第 2 章</a>：在 gdb 裡查區段：位址在哪（<code>info files</code>）、內容是什麼（<code>x</code>、<code>disassemble</code>、<code>dump</code>）</li>
+</ul>
+<h3 id="1-印不出-buf現在在哪層怎麼跳層用-frameupdownbt-切換與查看堆疊框">1. 印不出 <code>buf</code>、現在在哪層、怎麼跳層：用 <code>frame</code>、<code>up</code>／<code>down</code>、<code>bt</code> 切換與查看堆疊框</h3>
+<blockquote>
+<p>2026-11-04 課後提問（第 7 課的 <code>app_dyn</code>，同一串連問四則）：</p>
+<ul>
+<li>「我現在在嘗試在app_dyn用gdb想打印變數buf都打印不出來, 我是先break *trim 在run」</li>
+<li>「有指令可以知道當前frame的位置嗎?」</li>
+<li>「可以指定跳第幾層嗎?」</li>
+<li>「有沒有辦法一次看所有的frame有哪些?」</li>
+</ul>
+<p>正文出處：<a href="#%E4%B8%80gdb-%E5%9C%A8%E5%81%9A%E4%BB%80%E9%BA%BC%E7%82%BA%E4%BB%80%E9%BA%BC%E8%A6%81--g">第一節〈gdb 在做什麼，為什麼要 <code>-g</code>〉</a>、<a href="#44-stack%E5%91%BC%E5%8F%AB%E5%A0%86%E7%96%8A7-%E5%80%8B">第四節 4.4 stack</a>的命令表（那裡只寫了 <code>frame 1</code> 一個例子）、<a href="#%E5%85%AB%E5%AF%A6%E9%9A%9B%E8%B5%B0%E4%B8%80%E6%AC%A1%E8%88%87%E5%B8%B8%E8%A6%8B%E9%8C%AF%E8%AA%A4%E8%A8%8A%E6%81%AF">第八節</a>錯誤訊息表的 <code>No symbol &quot;sum&quot; in current context.</code> 那一列。</p>
+</blockquote>
+<p><strong>一句話：區域變數只存在它自己那一層堆疊框裡——停在 <code>trim</code> 時看不到 <code>main</code> 的 <code>buf</code>，要先用 <code>up</code>／<code>frame 1</code> 切過去（或用 <code>bt full</code> 一次印出每層的區域變數）；而且這些都要 <code>-g</code> 才有。</strong></p>
+<h4 id="實驗用的程式">實驗用的程式</h4>
+<p>第 7 課 <code>--as-needed</code> 實驗的同一組檔案（<a href="../../small-project/s1-07-libraries/examples/asneeded/"><code>examples/asneeded/</code></a>，<code>none.c</code> 這裡沒用到）：主程式 <code>main</code> 呼叫 <code>libtxt.so</code> 裡的 <code>trim</code>，<code>trim</code> 再呼叫 <code>is_space</code>，所以停在 <code>is_space</code> 時堆疊上有三層。</p>
+<p><code>main.c</code>（檔案：<a href="../../small-project/s1-07-libraries/examples/asneeded/main.c"><code>main.c</code></a>；第 9 行是 <code>printf</code>）：</p>
+<pre><code class="language-c"><span class="cm">/* main.c */</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+
+<span class="kt">char</span><span class="w"> </span><span class="o">*</span><span class="nf">trim</span><span class="p">(</span><span class="kt">char</span><span class="w"> </span><span class="o">*</span><span class="n">s</span><span class="p">);</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="kt">char</span><span class="w"> </span><span class="n">buf</span><span class="p">[]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;   hello&quot;</span><span class="p">;</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;[%s]</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">trim</span><span class="p">(</span><span class="n">buf</span><span class="p">));</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<p><code>trim.c</code>（檔案：<a href="../../small-project/s1-07-libraries/examples/asneeded/trim.c"><code>trim.c</code></a>；第 5 行是 <code>{</code>、第 6 行是 <code>while</code>）：</p>
+<pre><code class="language-c"><span class="cm">/* trim.c */</span>
+<span class="kt">int</span><span class="w"> </span><span class="nf">is_space</span><span class="p">(</span><span class="kt">char</span><span class="w"> </span><span class="n">c</span><span class="p">);</span>
+
+<span class="kt">char</span><span class="w"> </span><span class="o">*</span><span class="nf">trim</span><span class="p">(</span><span class="kt">char</span><span class="w"> </span><span class="o">*</span><span class="n">s</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="k">while</span><span class="w"> </span><span class="p">(</span><span class="n">is_space</span><span class="p">(</span><span class="o">*</span><span class="n">s</span><span class="p">))</span>
+<span class="w">        </span><span class="n">s</span><span class="o">++</span><span class="p">;</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">s</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<p><code>space.c</code>（檔案：<a href="../../small-project/s1-07-libraries/examples/asneeded/space.c"><code>space.c</code></a>；第 2 行是整個函式）：</p>
+<pre><code class="language-c"><span class="cm">/* space.c */</span>
+<span class="kt">int</span><span class="w"> </span><span class="nf">is_space</span><span class="p">(</span><span class="kt">char</span><span class="w"> </span><span class="n">c</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="n">c</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="sc">&#39; &#39;</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="n">c</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="sc">&#39;\t&#39;</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="n">c</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="sc">&#39;\n&#39;</span><span class="p">;</span><span class="w"> </span><span class="p">}</span>
+</code></pre>
+<p><code>case.c</code>（檔案：<a href="../../small-project/s1-07-libraries/examples/asneeded/case.c"><code>case.c</code></a>；只是一起包進 <code>libtxt.so</code>，本章用不到）：</p>
+<pre><code class="language-c"><span class="cm">/* case.c */</span>
+<span class="kt">void</span><span class="w"> </span><span class="nf">to_upper_str</span><span class="p">(</span><span class="kt">char</span><span class="w"> </span><span class="o">*</span><span class="n">s</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="p">(;</span><span class="w"> </span><span class="o">*</span><span class="n">s</span><span class="p">;</span><span class="w"> </span><span class="n">s</span><span class="o">++</span><span class="p">)</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">*</span><span class="n">s</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="sc">&#39;a&#39;</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="o">*</span><span class="n">s</span><span class="w"> </span><span class="o">&lt;=</span><span class="w"> </span><span class="sc">&#39;z&#39;</span><span class="p">)</span><span class="w"> </span><span class="o">*</span><span class="n">s</span><span class="w"> </span><span class="o">-=</span><span class="w"> </span><span class="mi">32</span><span class="p">;</span><span class="w"> </span><span class="p">}</span>
+<span class="kt">void</span><span class="w"> </span><span class="nf">to_lower_str</span><span class="p">(</span><span class="kt">char</span><span class="w"> </span><span class="o">*</span><span class="n">s</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="p">(;</span><span class="w"> </span><span class="o">*</span><span class="n">s</span><span class="p">;</span><span class="w"> </span><span class="n">s</span><span class="o">++</span><span class="p">)</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">*</span><span class="n">s</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="sc">&#39;A&#39;</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="o">*</span><span class="n">s</span><span class="w"> </span><span class="o">&lt;=</span><span class="w"> </span><span class="sc">&#39;Z&#39;</span><span class="p">)</span><span class="w"> </span><span class="o">*</span><span class="n">s</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="mi">32</span><span class="p">;</span><span class="w"> </span><span class="p">}</span>
+</code></pre>
+<pre><code class="language-sh"><span class="c1"># 版本一：照第 7 課的做法，沒有 -g</span>
+gcc<span class="w"> </span>-fPIC<span class="w"> </span>-shared<span class="w"> </span>-o<span class="w"> </span>libtxt.so<span class="w"> </span>trim.c<span class="w"> </span>space.c<span class="w"> </span><span class="k">case</span>.c
+gcc<span class="w"> </span>-o<span class="w"> </span>app_dyn<span class="w"> </span>main.c<span class="w"> </span>-L.<span class="w"> </span>-ltxt<span class="w"> </span>-Wl,-rpath,<span class="s1">&#39;$ORIGIN&#39;</span>
+<span class="c1"># 版本二：兩邊都加 -g（.so 和執行檔各有各的除錯資訊，要看 trim 的參數，.so 也要加）</span>
+gcc<span class="w"> </span>-g<span class="w"> </span>-fPIC<span class="w"> </span>-shared<span class="w"> </span>-o<span class="w"> </span>libtxt.so<span class="w"> </span>trim.c<span class="w"> </span>space.c<span class="w"> </span><span class="k">case</span>.c
+gcc<span class="w"> </span>-g<span class="w"> </span>-o<span class="w"> </span>app_dyn<span class="w"> </span>main.c<span class="w"> </span>-L.<span class="w"> </span>-ltxt<span class="w"> </span>-Wl,-rpath,<span class="s1">&#39;$ORIGIN&#39;</span>
+</code></pre>
+<h4 id="1-break-trim--run--print-buf-為什麼印不出來兩個原因疊在一起">(1) <code>break *trim</code> → <code>run</code> → <code>print buf</code> 為什麼印不出來：兩個原因疊在一起</h4>
+<p><strong>原因一：沒有 <code>-g</code>。</strong> 版本一（<code>readelf -S app_dyn | grep -c debug</code> 與 <code>libtxt.so</code> 都是 <code>0</code>）：</p>
+<pre><code class="language-text">$ gdb -q -batch -ex &#39;break *trim&#39; -ex run -ex &#39;print buf&#39; -ex up -ex &#39;print buf&#39; -ex &#39;print $rdi&#39; -ex &#39;x/s $rdi&#39; ./app_dyn
+Breakpoint 1 at 0x1090
+Breakpoint 1, 0x00007ffff7fb7119 in trim () from ./libtxt.so     ← 沒有參數、沒有「at trim.c:5」：沒有除錯資訊
+No symbol &quot;buf&quot; in current context.
+#1  0x00005555555551c2 in main ()
+No symbol &quot;buf&quot; in current context.                              ← 切到 main 那層也一樣：根本不知道有 buf
+$1 = 140737488344127
+0x7fffffffd43f:	&quot;   hello&quot;                                       ← 沒有 -g 時的替代做法：第一個參數還在 %rdi
+</code></pre>
+<p>函式名稱在一般的符號表裡（<code>nm</code> 看得到），所以 <code>break *trim</code> 下得了；變數名稱、型別、它在哪一格，只有 <code>-g</code> 的 <code>.debug_*</code> 區段才有（第一節）。停在 <code>trim</code> 的<strong>第一條指令</strong>時，第一個參數還在 <code>%rdi</code>（<a href="x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80%E4%BA%8C-call%E8%88%87ret%E3%80%81%E5%A0%86%E7%96%8A%E6%A1%86%E3%80%81%E5%8F%83%E6%95%B8%E8%88%87%E5%91%BC%E5%8F%AB%E6%85%A3%E4%BE%8B.html#%E4%BA%94%E5%8F%83%E6%95%B8%E8%88%87%E5%9B%9E%E5%82%B3%E5%80%BC%E6%94%BE%E5%93%AA%E8%A3%A1">第 5 課第五節〈參數與回傳值放哪裡〉</a>），所以 <code>x/s $rdi</code> 能看到 <code>buf</code> 的內容。</p>
+<p>（順帶一提：<code>run</code> 之前 <code>Breakpoint 1 at 0x1090</code>，那時 <code>libtxt.so</code> 還沒載入，gdb 只找得到執行檔裡的 <code>trim@plt</code> 跳板——<code>info symbol 0x1090</code> 印 <code>trim@plt in section .plt.sec</code>；
+<code>.so</code> 載入後 gdb 自動把中斷點改到真正的 <code>trim</code>，<code>info breakpoints</code> 變成 <code>0x00007ffff7fb7119 in trim at trim.c:5</code>。PLT 跳板見<a href="%E9%9D%9C%E6%85%8B%E8%88%87%E5%8B%95%E6%85%8B%E5%87%BD%E5%BC%8F%E5%BA%AB-ar%E8%88%87.a%E3%80%81-fPIC%E8%88%87.so%E3%80%81%E5%9F%B7%E8%A1%8C%E6%99%82%E6%80%8E%E9%BA%BC%E6%89%BE%E5%88%B0.so.html#4-plt-%E5%AD%98%E5%87%BD%E5%BC%8F%E4%BD%8D%E5%9D%80got-%E5%AD%98%E8%AE%8A%E6%95%B8%E4%BD%8D%E5%9D%80%E5%97%8Eplt-%E6%98%AF%E8%B7%B3%E6%9D%BF%E4%BB%A5%E5%8F%8A%E5%BB%B6%E9%81%B2%E7%B6%81%E5%AE%9A">第 7 課課後討論第 4 章</a>。）</p>
+<p><strong>原因二：<code>buf</code> 是 <code>main</code> 的區域變數，而你停在 <code>trim</code> 這一層。</strong> 版本二（有 <code>-g</code>）：</p>
+<pre><code class="language-text">$ gdb -q -batch -ex &#39;break *trim&#39; -ex run -ex &#39;print buf&#39; -ex &#39;print s&#39; -ex up -ex &#39;print buf&#39; ./app_dyn
+Breakpoint 1, trim (s=0x0) at trim.c:5
+5	{
+No symbol &quot;buf&quot; in current context.            ← 有 -g 也不行：trim 這層只有 s
+$1 = 0x0                                       ← s 印出 0x0，是錯的（見下一段）
+#1  0x00005555555551c2 in main () at main.c:9  ← up：切到呼叫者 main 那層
+9	    printf(&quot;[%s]\n&quot;, trim(buf));
+$2 = &quot;   hello&quot;                                ← 印出來了
+</code></pre>
+<p><code>print</code> 只認得<strong>目前選取的那一層</strong>看得到的名字（那一層的參數、區域變數，加上全域變數）。<code>buf</code> 屬於 <code>main</code> 的堆疊框，要先切過去。</p>
+<p><strong><code>s=0x0</code> 是錯的</strong>：<code>break *trim</code> 停在第一條指令，序言（prologue）還沒把 <code>%rdi</code> 存進堆疊那格，gdb 照除錯資訊去那格讀到舊值——跟<a href="x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80%E4%BA%8C-call%E8%88%87ret%E3%80%81%E5%A0%86%E7%96%8A%E6%A1%86%E3%80%81%E5%8F%83%E6%95%B8%E8%88%87%E5%91%BC%E5%8F%AB%E6%85%A3%E4%BE%8B.html#%E4%B8%89call-%E8%88%87-ret%E7%94%A8-gdb-%E4%B8%80%E6%A2%9D%E4%B8%80%E6%A2%9D%E8%B5%B0">第 5 課第三節</a>的 <code>add3 (a=0, b=0, c=0)</code> 同一回事。要看參數就用 <code>break trim</code>（不加 <code>*</code>，gdb 會跳過序言）：</p>
+<pre><code class="language-text">$ gdb -q -batch -ex &#39;break trim&#39; -ex run -ex &#39;print s&#39; ./app_dyn
+Breakpoint 1, trim (s=0x7fffffffd43f &quot;   hello&quot;) at trim.c:6
+$1 = 0x7fffffffd43f &quot;   hello&quot;
+</code></pre>
+<h4 id="2-現在在哪一層frame不帶參數">(2) 現在在哪一層：<code>frame</code>（不帶參數）</h4>
+<p>以下都是版本二，先停在 <code>is_space</code>，讓堆疊有三層。<code>is_space</code> 在 <code>libtxt.so</code> 裡，<code>run</code> 之前那個 <code>.so</code> 還沒載入，所以先 <code>start</code>（停在 <code>main</code>）再 <code>break is_space</code>、<code>continue</code>：</p>
+<pre><code class="language-sh">gdb<span class="w"> </span>-q<span class="w"> </span>-batch<span class="w"> </span>-ex<span class="w"> </span>start<span class="w"> </span>-ex<span class="w"> </span><span class="s1">&#39;break is_space&#39;</span><span class="w"> </span>-ex<span class="w"> </span><span class="k">continue</span><span class="w"> </span>-ex<span class="w"> </span>bt<span class="w"> </span>-ex<span class="w"> </span>frame<span class="w"> </span>-ex<span class="w"> </span>up<span class="w"> </span>-ex<span class="w"> </span>frame<span class="w"> </span>-ex<span class="w"> </span>bt<span class="w"> </span>-ex<span class="w"> </span><span class="s1">&#39;info frame&#39;</span><span class="w"> </span>./app_dyn
+</code></pre>
+<pre><code class="language-text">(gdb) bt
+#0  is_space (c=32 &#39; &#39;) at space.c:2
+#1  0x00007ffff7fb7141 in trim (s=0x7fffffffd43f &quot;   hello&quot;) at trim.c:6
+#2  0x00005555555551c2 in main () at main.c:9
+(gdb) frame
+#0  is_space (c=32 &#39; &#39;) at space.c:2           ← 不帶參數：只印「目前選的這層」，不切換
+2	int is_space(char c) { return c == &#39; &#39; || c == &#39;\t&#39; || c == &#39;\n&#39;; }
+(gdb) up
+#1  0x00007ffff7fb7141 in trim (s=0x7fffffffd43f &quot;   hello&quot;) at trim.c:6
+(gdb) frame
+#1  0x00007ffff7fb7141 in trim (...)           ← up 之後變成 #1
+(gdb) bt
+#0  is_space (c=32 &#39; &#39;) at space.c:2           ← 跟上面一模一樣：bt 不標出目前選的層
+#1  0x00007ffff7fb7141 in trim (s=0x7fffffffd43f &quot;   hello&quot;) at trim.c:6
+#2  0x00005555555551c2 in main () at main.c:9
+(gdb) info frame
+Stack level 1, frame at 0x7fffffffd430:        ← 第一行就是層號
+ rip = 0x7ffff7fb7141 in trim (trim.c:6); saved rip = 0x5555555551c2
+ called by frame at 0x7fffffffd460, caller of frame at 0x7fffffffd410
+ source language c.
+ Arglist at 0x7fffffffd420, args: s=0x7fffffffd43f &quot;   hello&quot;
+ Locals at 0x7fffffffd420, Previous frame&#39;s sp is 0x7fffffffd430
+ Saved registers:
+  rbp at 0x7fffffffd420, rip at 0x7fffffffd428
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>命令</th>
+<th>印什麼</th>
+<th>什麼時候用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>frame</code>／<code>f</code>（不帶參數）</td>
+<td>目前選的那層：<code>#N</code>、函式、參數、停在哪行</td>
+<td>只想知道「我現在在哪層」</td>
+</tr>
+<tr>
+<td><code>info frame</code>／<code>info f</code></td>
+<td><code>Stack level N</code> 加上這一框的細節：<code>saved rip</code>（返回位址）、呼叫者與被呼叫者的框位址、<code>rbp</code>／<code>rip</code> 存在哪一格</td>
+<td>要看堆疊框本身長怎樣（<a href="x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80%E4%BA%8C-call%E8%88%87ret%E3%80%81%E5%A0%86%E7%96%8A%E6%A1%86%E3%80%81%E5%8F%83%E6%95%B8%E8%88%87%E5%91%BC%E5%8F%AB%E6%85%A3%E4%BE%8B.html#%E5%9B%9B%E5%A0%86%E7%96%8A%E6%A1%86pushq-rbp-movq-rsp-rbp-%E8%88%87-leave">第 5 課第四節</a>）</td>
+</tr>
+<tr>
+<td><code>bt</code></td>
+<td>整條呼叫鏈</td>
+<td>看全貌；<strong>不能</strong>用來判斷目前選在哪層</td>
+</tr>
+</tbody>
+</table>
+<p><code>#0</code> 永遠是最內層，也就是程式真正停住的函式；數字越大越靠外（越接近 <code>main</code>）。
+<code>up</code>／<code>down</code>／<code>frame</code> 只換「現在在看哪一層」，程式一步都沒動（<a href="#%E4%B8%83%E5%AE%B9%E6%98%93%E6%B7%B7%E6%B7%86%E7%9A%84%E5%91%BD%E4%BB%A4%E5%B7%AE%E5%9C%A8%E5%93%AA%E4%BB%80%E9%BA%BC%E6%99%82%E5%80%99%E7%94%A8%E5%93%AA%E5%80%8B">第七節</a>）——<code>continue</code>、<code>next</code> 仍然從 <code>#0</code> 停住的地方往下跑。</p>
+<pre><code class="language-text">                    ┌──────────────────────────────┐
+  #2  main          │ buf = &quot;   hello&quot;             │   ← up 2、frame 2、frame function main
+                    ├──────────────────────────────┤
+  #1  trim          │ s = 0x7fffffffd43f           │   ← up、frame 1、frame function trim
+                    ├──────────────────────────────┤
+  #0  is_space      │ c = 32 &#39; &#39;                   │   ← 程式真正停在這裡（%rip 在這層）
+                    └──────────────────────────────┘
+        往外 = up（數字變大）        往內 = down（數字變小）
+</code></pre>
+<p>圖的重點：選哪一層只決定 <code>print</code>、<code>info locals</code>、<code>list</code> 看的是誰的東西；三層的值同時都在記憶體裡。</p>
+<h4 id="3-跳到指定的層frame-nup-ndown-nframe-function">(3) 跳到指定的層：<code>frame N</code>、<code>up N</code>／<code>down N</code>、<code>frame function</code></h4>
+<pre><code class="language-sh">gdb<span class="w"> </span>-q<span class="w"> </span>-batch<span class="w"> </span>-ex<span class="w"> </span>start<span class="w"> </span>-ex<span class="w"> </span><span class="s1">&#39;break is_space&#39;</span><span class="w"> </span>-ex<span class="w"> </span><span class="k">continue</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>-ex<span class="w"> </span><span class="s1">&#39;frame 2&#39;</span><span class="w"> </span>-ex<span class="w"> </span><span class="s1">&#39;frame 5&#39;</span><span class="w"> </span>-ex<span class="w"> </span><span class="s1">&#39;frame 0&#39;</span><span class="w"> </span>-ex<span class="w"> </span><span class="s1">&#39;up 2&#39;</span><span class="w"> </span>-ex<span class="w"> </span><span class="s1">&#39;down 2&#39;</span><span class="w"> </span>-ex<span class="w"> </span><span class="s1">&#39;up 9&#39;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>-ex<span class="w"> </span>down<span class="w"> </span>-ex<span class="w"> </span>down<span class="w"> </span>-ex<span class="w"> </span>down<span class="w"> </span>-ex<span class="w"> </span><span class="s1">&#39;frame function trim&#39;</span><span class="w"> </span>./app_dyn
+</code></pre>
+<pre><code class="language-text">(gdb) frame 2
+#2  0x00005555555551c2 in main () at main.c:9          ← 絕對：直接到第 2 層
+(gdb) frame 5
+No frame at level 5.                                   ← 沒有這層：報錯，目前選的層不變
+(gdb) frame 0
+(gdb) up 2
+#2  0x00005555555551c2 in main () at main.c:9          ← 相對：往外 2 層
+(gdb) down 2
+#0  is_space (c=32 &#39; &#39;) at space.c:2                   ← 往內 2 層
+(gdb) up 9
+#2  0x00005555555551c2 in main () at main.c:9          ← 超過最外層：停在最外層，不報錯
+(gdb) down
+#1 …
+(gdb) down
+#0 …
+(gdb) down
+Bottom (innermost) frame selected; you cannot go down. ← 已經在 #0 再往內：報錯
+(gdb) frame function trim
+#1  0x00007ffff7fb7141 in trim (s=0x7fffffffd43f &quot;   hello&quot;) at trim.c:6   ← 用函式名找
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>寫法</th>
+<th>意思</th>
+<th>不存在／超出時</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>frame N</code>（＝<code>frame level N</code>）</td>
+<td>選第 N 層（絕對）</td>
+<td><code>No frame at level N.</code></td>
+</tr>
+<tr>
+<td><code>up [N]</code></td>
+<td>往外 N 層，省略 N 就是 1</td>
+<td>停在最外層，不報錯；已經在最外層時報 <code>Initial frame selected; you cannot go up.</code></td>
+</tr>
+<tr>
+<td><code>down [N]</code></td>
+<td>往內 N 層，省略 N 就是 1</td>
+<td>已經在 <code>#0</code> 時報 <code>Bottom (innermost) frame selected; you cannot go down.</code></td>
+</tr>
+<tr>
+<td><code>frame function 名字</code></td>
+<td>選最內層的那個函式的框（遞迴時同名有好幾層，選最靠近 <code>#0</code> 的）</td>
+<td><code>Function &quot;nosuch&quot; not defined.</code></td>
+</tr>
+</tbody>
+</table>
+<p>（<code>up</code> 在最外層的那句、<code>frame function</code> 找不到的那句也都實測過：先 <code>frame 2</code> 再 <code>up</code>、以及 <code>frame function nosuch</code>。）</p>
+<p><code>frame</code> 的子命令依 <code>help frame</code> 共 5 個：上面的 <code>level</code>、<code>function</code>，以及 <code>address</code>（用堆疊框的位址選，就是 <code>info frame</code> 印的 <code>frame at 0x…</code>）、<code>apply</code>（對好幾層各執行一個命令，下一段）、<code>view</code>（看一個不在目前 backtrace 裡的框，進階用途）。</p>
+<h4 id="4-一次看所有層btbt-fullframe-apply-all">(4) 一次看所有層：<code>bt</code>、<code>bt full</code>、<code>frame apply all</code></h4>
+<pre><code class="language-sh">gdb<span class="w"> </span>-q<span class="w"> </span>-batch<span class="w"> </span>-ex<span class="w"> </span>start<span class="w"> </span>-ex<span class="w"> </span><span class="s1">&#39;break is_space&#39;</span><span class="w"> </span>-ex<span class="w"> </span><span class="k">continue</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>-ex<span class="w"> </span>bt<span class="w"> </span>-ex<span class="w"> </span><span class="s1">&#39;bt full&#39;</span><span class="w"> </span>-ex<span class="w"> </span><span class="s1">&#39;bt 1&#39;</span><span class="w"> </span>-ex<span class="w"> </span><span class="s1">&#39;bt -1&#39;</span><span class="w"> </span>-ex<span class="w"> </span><span class="s1">&#39;frame apply all info locals&#39;</span><span class="w"> </span>./app_dyn
+</code></pre>
+<pre><code class="language-text">(gdb) bt                              ← 全名 backtrace，也可以打 where
+#0  is_space (c=32 &#39; &#39;) at space.c:2
+#1  0x00007ffff7fb7141 in trim (s=0x7fffffffd43f &quot;   hello&quot;) at trim.c:6
+#2  0x00005555555551c2 in main () at main.c:9
+(gdb) bt full                         ← 每層連區域變數一起印
+#0  is_space (c=32 &#39; &#39;) at space.c:2
+No locals.
+#1  0x00007ffff7fb7141 in trim (s=0x7fffffffd43f &quot;   hello&quot;) at trim.c:6
+No locals.
+#2  0x00005555555551c2 in main () at main.c:9
+        buf = &quot;   hello&quot;              ← 不用 up 就看到 main 的 buf
+(gdb) bt 1                            ← 只印最內層 1 層
+#0  is_space (c=32 &#39; &#39;) at space.c:2
+(gdb) bt -1                           ← 只印最外層 1 層
+#2  0x00005555555551c2 in main () at main.c:9
+(gdb) frame apply all info locals     ← 對每一層執行 info locals（縮寫 faas info locals）
+#0  is_space (c=32 &#39; &#39;) at space.c:2
+No locals.
+#1  …
+No locals.
+#2  0x00005555555551c2 in main () at main.c:9
+buf = &quot;   hello&quot;
+</code></pre>
+<p>每一列的格式是 <code>#層號  返回位址 in 函式 (參數=值) at 檔案:行號</code>。<code>#0</code> 沒有位址欄，因為它就是此刻停住的地方；<code>#1</code> 以後的位址是「回到那一層後要接著執行的指令」，也就是被呼叫者框裡存的 <code>saved rip</code>（對照上面 <code>info frame</code> 的 <code>saved rip = 0x5555555551c2</code>，正是 <code>#2</code> 那列的位址）。
+<code>trim</code> 的參數 <code>s</code> 不算區域變數，所以是 <code>No locals.</code>；參數另外用 <code>info args</code> 看。沒有 <code>-g</code> 時 <code>bt</code> 還是列得出函式名稱，但參數與區域變數都沒有。</p>
+<p><code>frame apply all</code> 比 <code>bt full</code> 通用：後面可以接任何命令（例如 <code>frame apply all info args</code>、<code>frame apply all p $rsp</code>）。
+<code>bt</code> 的完整選項用 <code>help backtrace</code> 查（還有 <code>-full</code>、<code>-frame-arguments</code>、<code>-past-main</code> 等）；這裡只示範 <code>full</code>、<code>N</code>、<code>-N</code> 三種。</p>
+<h3 id="2-在-gdb-裡查區段位址在哪info-files內容是什麼xdisassembledump">2. 在 gdb 裡查區段：位址在哪（<code>info files</code>）、內容是什麼（<code>x</code>、<code>disassemble</code>、<code>dump</code>）</h3>
+<blockquote>
+<p>2026-11-04 課後提問（接在第 1 章後面）：</p>
+<ul>
+<li>「從 gdb有辦法知道.bss, .text在哪裏嗎?可以直接查的指令」</li>
+<li>「那有辦法看區段的內容嗎?比方.text, .bss」</li>
+</ul>
+<p>正文出處：<a href="#%E4%BA%94info-%E7%9A%84%E5%85%A8%E9%83%A8-65-%E5%80%8B%E5%AD%90%E5%91%BD%E4%BB%A4">第五節〈<code>info</code> 的全部 65 個子命令〉</a>表裡的 <code>info files</code>、<code>info symbol</code>、<code>info proc</code>（那裡每個只有一行說明），以及 <a href="#43-data%E6%9F%A5%E7%9C%8B%E8%88%87%E4%BF%AE%E6%94%B9%E8%B3%87%E6%96%9922-%E5%80%8B">4.3 data</a> 的 <code>x</code>、<code>disassemble</code>。</p>
+</blockquote>
+<p><strong>一句話：gdb 沒有「印出某個區段」的專用命令——先用 <code>info files</code> 查出區段在記憶體裡的範圍（要在程式跑起來之後查，PIE 才換成執行時的位址），再用 <code>x</code>、<code>disassemble</code>、<code>dump</code> 去看那段記憶體。</strong></p>
+<p>程式與編譯指令同<a href="#%E5%AF%A6%E9%A9%97%E7%94%A8%E7%9A%84%E7%A8%8B%E5%BC%8F">第 1 章〈實驗用的程式〉</a>的版本二（有 <code>-g</code>）。位址是 gdb 預設關掉位址隨機化時的值。</p>
+<h4 id="1-位址在哪info-filesmaint-info-sectionsinfo-symbolinfo-proc-mappings">(1) 位址在哪：<code>info files</code>、<code>maint info sections</code>、<code>info symbol</code>、<code>info proc mappings</code></h4>
+<pre><code class="language-sh">gdb<span class="w"> </span>-q<span class="w"> </span>-batch<span class="w"> </span>-ex<span class="w"> </span><span class="s1">&#39;info files&#39;</span><span class="w"> </span>-ex<span class="w"> </span>start<span class="w"> </span>-ex<span class="w"> </span><span class="s1">&#39;info files&#39;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>-ex<span class="w"> </span><span class="s1">&#39;maint info sections .text .bss&#39;</span><span class="w"> </span>-ex<span class="w"> </span><span class="s1">&#39;info symbol main&#39;</span><span class="w"> </span>-ex<span class="w"> </span><span class="s1">&#39;info symbol trim&#39;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>-ex<span class="w"> </span><span class="s1">&#39;info symbol 0x555555558010&#39;</span><span class="w"> </span>-ex<span class="w"> </span><span class="s1">&#39;info proc mappings&#39;</span><span class="w"> </span>./app_dyn
+</code></pre>
+<pre><code class="language-text">(gdb) info files                                       ← run 之前（節錄，只留 .text、.data、.bss）
+	Entry point: 0x10a0
+	0x00000000000010a0 - 0x00000000000011f4 is .text
+	0x0000000000004000 - 0x0000000000004010 is .data
+	0x0000000000004010 - 0x0000000000004018 is .bss
+(gdb) start
+(gdb) info files                                       ← 跑起來之後（節錄）
+	Entry point: 0x5555555550a0
+	0x00005555555550a0 - 0x00005555555551f4 is .text
+	0x0000555555558000 - 0x0000555555558010 is .data
+	0x0000555555558010 - 0x0000555555558018 is .bss
+	0x00007ffff7fc6000 - 0x00007ffff7ff0195 is .text in /lib64/ld-linux-x86-64.so.2
+	0x00007ffff7fb7060 - 0x00007ffff7fb720c is .text in ./libtxt.so
+	0x00007ffff7fba010 - 0x00007ffff7fba018 is .bss in ./libtxt.so
+	0x00007ffff7c28800 - 0x00007ffff7db0039 is .text in /lib/x86_64-linux-gnu/libc.so.6
+	0x00007ffff7e056e0 - 0x00007ffff7e12d90 is .bss in /lib/x86_64-linux-gnu/libc.so.6
+	…（每個 .so 的每個區段都列，實際輸出有幾十行）
+</code></pre>
+<ul>
+<li><code>info files</code>（＝<code>info target</code>）列出每個區段的範圍 <code>起點 - 終點</code>（終點不含）。<strong>要在程式跑起來之後查</strong>：<code>run</code> 之前印的是檔案裡的位址（<code>0x10a0</code>，跟 <code>readelf -S</code> 一樣）；程式是 PIE（Position-Independent Executable，位置無關執行檔），執行時整份被搬到基底 <code>0x555555554000</code> 之後，<code>.text</code> 就變成 <code>0x5555555550a0</code>（＝基底＋<code>0x10a0</code>）。跑起來之後它還會把 <code>ld.so</code>、<code>libtxt.so</code>、<code>libc.so.6</code>、vDSO（輸出寫 <code>system-supplied DSO</code>）的區段都列出來。</li>
+<li>這個程式的 <code>.bss</code> 只有 8 byte：<code>main.c</code> 沒有全域變數，那 8 byte 是 C 執行環境自己的變數（下面 <code>info symbol</code> 印出的 <code>completed</code>）。</li>
+</ul>
+<p>輸出太長時，用另外三個命令縮小範圍：</p>
+<pre><code class="language-text">(gdb) maint info sections .text .bss                   ← 只看指定的區段（只看執行檔本身）
+ [15]     0x5555555550a0-&gt;0x5555555551f4 at 0x000010a0: .text ALLOC LOAD READONLY CODE HAS_CONTENTS
+ [25]     0x555555558010-&gt;0x555555558018 at 0x00003010: .bss ALLOC
+(gdb) info symbol main                                 ← 反過來問：這個符號／位址在哪個區段
+main in section .text of ./app_dyn
+(gdb) info symbol trim
+trim in section .text of ./libtxt.so
+(gdb) info symbol 0x555555558010
+completed in section .bss of ./app_dyn
+(gdb) info proc mappings                               ← 分頁的對映（節錄）
+          Start Addr           End Addr       Size     Offset  Perms  objfile
+      0x555555555000     0x555555556000     0x1000     0x1000  r-xp   ./app_dyn     ← .text 0x5555555550a0 在這頁
+      0x555555558000     0x555555559000     0x1000     0x3000  rw-p   ./app_dyn     ← .data、.bss 在這頁
+      0x7ffff7fb7000     0x7ffff7fb8000     0x1000     0x1000  r-xp   ./libtxt.so   ← libtxt 的 .text
+      0x7ffffffdd000     0x7ffffffff000    0x22000        0x0  rw-p   [stack]
+</code></pre>
+<ul>
+<li><code>maint info sections</code>（<code>maintenance</code> 前綴，第六節）每列是 <code>[編號] 執行時起點-&gt;終點 at 檔案偏移: 名字 旗標</code>。編號從 0 起算、不含 ELF 的空區段，所以比 <code>readelf -S</code> 的編號（<code>.text</code> 是 <code>[16]</code>）少 1。
+<strong><code>.bss</code> 只有 <code>ALLOC</code>、沒有 <code>HAS_CONTENTS</code></strong>：它在檔案裡不佔空間（<code>readelf -S</code> 的型別是 <code>NOBITS</code>），載入時才配置記憶體、填 0。<code>.text</code> 有 <code>HAS_CONTENTS</code>，內容就在檔案偏移 <code>0x10a0</code>。</li>
+<li><code>info symbol</code> 回答「這個位址落在哪個符號、哪個區段、哪個檔案」，給位址或符號都可以。</li>
+<li><code>info proc mappings</code> 看的是<strong>分頁</strong>（頁的權限 <code>r-xp</code>、<code>rw-p</code>），不是區段；區段被包在載入段裡、載入段再對映成頁（<a href="%E9%9D%9C%E6%85%8B%E8%88%87%E5%8B%95%E6%85%8B%E5%87%BD%E5%BC%8F%E5%BA%AB-ar%E8%88%87.a%E3%80%81-fPIC%E8%88%87.so%E3%80%81%E5%9F%B7%E8%A1%8C%E6%99%82%E6%80%8E%E9%BA%BC%E6%89%BE%E5%88%B0.so.html#16-got-%E7%AE%97%E4%B8%80%E9%A0%81%E5%97%8E%E5%8D%80%E6%AE%B5%E8%BC%89%E5%85%A5%E6%AE%B5%E8%88%87%E9%A0%81%E5%AF%AB%E5%85%A5%E6%99%82%E8%A4%87%E8%A3%BD%E4%B8%80%E6%AC%A1%E8%A4%87%E8%A3%BD%E4%B8%80%E9%A0%81">第 7 課課後討論第 16 章</a>）。所以 <code>.text</code> 落在 <code>r-xp</code> 那頁、<code>.bss</code> 落在 <code>rw-p</code> 那頁。</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>命令</th>
+<th>回答什麼</th>
+<th>範圍</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>info files</code>／<code>info target</code></td>
+<td>每個區段的位址範圍</td>
+<td>執行檔＋所有已載入的 <code>.so</code></td>
+</tr>
+<tr>
+<td><code>maint info sections [名字…]</code></td>
+<td>區段範圍、檔案偏移、旗標（<code>HAS_CONTENTS</code> 等）</td>
+<td>只有執行檔（加 <code>-all-objects</code> 才含 <code>.so</code>，見 <code>help maint info sections</code>）</td>
+</tr>
+<tr>
+<td><code>info symbol 位址或符號</code></td>
+<td>這個位址屬於哪個符號、哪個區段</td>
+<td>全部</td>
+</tr>
+<tr>
+<td><code>info proc mappings</code></td>
+<td>分頁的範圍與權限</td>
+<td>整個行程（含 <code>[stack]</code>、<code>[heap]</code>、<code>[vdso]</code>）</td>
+</tr>
+</tbody>
+</table>
+<h4 id="2-內容是什麼xdisassembledump">(2) 內容是什麼：<code>x</code>、<code>disassemble</code>、<code>dump</code></h4>
+<p>用 <code>info files</code> 查到的範圍，就能用一般看記憶體的命令看區段內容。<code>.text</code>：<code>0x5555555550a0 - 0x5555555551f4</code>；<code>.bss</code>：<code>0x555555558010 - 0x555555558018</code>。</p>
+<pre><code class="language-sh">gdb<span class="w"> </span>-q<span class="w"> </span>-batch<span class="w"> </span>-ex<span class="w"> </span>start<span class="w"> </span>-ex<span class="w"> </span><span class="s1">&#39;x/5i 0x5555555550a0&#39;</span><span class="w"> </span>-ex<span class="w"> </span><span class="s1">&#39;disassemble 0x5555555550a0,0x5555555550b0&#39;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>-ex<span class="w"> </span><span class="s1">&#39;x/16xb 0x5555555550a0&#39;</span><span class="w"> </span>-ex<span class="w"> </span><span class="s1">&#39;x/8xb 0x555555558010&#39;</span><span class="w"> </span>-ex<span class="w"> </span><span class="s1">&#39;p &amp;__bss_start&#39;</span><span class="w"> </span>-ex<span class="w"> </span><span class="s1">&#39;p &amp;_end&#39;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>-ex<span class="w"> </span><span class="s1">&#39;x/1xg &amp;__bss_start&#39;</span><span class="w"> </span>-ex<span class="w"> </span><span class="s1">&#39;dump binary memory text.bin 0x5555555550a0 0x5555555551f4&#39;</span><span class="w"> </span>./app_dyn
+</code></pre>
+<pre><code class="language-text">(gdb) x/5i 0x5555555550a0                         ← .text：當成指令看（i），5 條
+   0x5555555550a0 &lt;_start&gt;:	endbr64
+   0x5555555550a4 &lt;_start+4&gt;:	xor    %ebp,%ebp
+   0x5555555550a6 &lt;_start+6&gt;:	mov    %rdx,%r9
+   0x5555555550a9 &lt;_start+9&gt;:	pop    %rsi
+   0x5555555550aa &lt;_start+10&gt;:	mov    %rsp,%rdx
+(gdb) disassemble 0x5555555550a0,0x5555555550b0   ← 反組譯「起點,終點」（終點不含）
+Dump of assembler code from 0x5555555550a0 to 0x5555555550b0:
+   0x00005555555550a0 &lt;_start+0&gt;:	endbr64
+   …
+   0x00005555555550ad &lt;_start+13&gt;:	and    $0xfffffffffffffff0,%rsp
+End of assembler dump.
+(gdb) x/16xb 0x5555555550a0                       ← .text：原始位元組（16 個、十六進位、每個 1 byte）
+0x5555555550a0 &lt;_start&gt;:	0xf3	0x0f	0x1e	0xfa	0x31	0xed	0x49	0x89
+0x5555555550a8 &lt;_start+8&gt;:	0xd1	0x5e	0x48	0x89	0xe2	0x48	0x83	0xe4
+(gdb) x/8xb 0x555555558010                        ← .bss：8 byte 全是 0
+0x555555558010 &lt;completed.0&gt;:	0x00	0x00	0x00	0x00	0x00	0x00	0x00	0x00
+(gdb) p &amp;__bss_start                              ← 不想抄位址：連結器產生的符號
+$1 = (&lt;data variable, no debug info&gt; *) 0x555555558010 &lt;completed&gt;
+(gdb) p &amp;_end
+$2 = (char (*)[]) 0x555555558018
+(gdb) x/1xg &amp;__bss_start
+0x555555558010 &lt;completed.0&gt;:	0x0000000000000000
+</code></pre>
+<ul>
+<li><code>.text</code> 有兩種看法，看的是同一段記憶體：<code>x/xb</code> 是原始位元組，<code>x/i</code>、<code>disassemble</code> 把它翻成指令。<code>f3 0f 1e fa</code> 就是 <code>endbr64</code>、<code>31 ed</code> 是 <code>xor %ebp,%ebp</code>。
+<code>x</code> 的 <code>/FMT</code> 規則見<a href="#%E8%BC%B8%E5%87%BA%E6%A0%BC%E5%BC%8F-fmtprint-%E8%88%87-x-%E5%85%B1%E7%94%A8">第三節〈輸出格式 <code>/FMT</code>〉</a>；<code>disassemble</code> 的 <code>/r</code>（同時印機器碼）、<code>/s</code>（同時印原始碼）見 <a href="#43-data%E6%9F%A5%E7%9C%8B%E8%88%87%E4%BF%AE%E6%94%B9%E8%B3%87%E6%96%9922-%E5%80%8B">4.3 data</a>。</li>
+<li><code>.text</code> 的開頭是 <code>_start</code>（C 執行環境的進入點，<code>Entry point</code> 就是它），<code>main</code> 在後面。</li>
+<li><code>__bss_start</code>、<code>_end</code> 是連結器（linker）自動定義的符號：<code>.bss</code> 從 <code>__bss_start</code> 開始，<code>_end</code> 是整個程式資料（<code>.data</code>＋<code>.bss</code>）的結尾。這個程式剛好 <code>_end − __bss_start = 8</code>，就是 <code>.bss</code> 的大小。它們沒有除錯資訊的型別，所以 <code>p</code> 印出 <code>&lt;data variable, no debug info&gt;</code>；<code>x</code> 只要位址，不受影響。</li>
+</ul>
+<p><strong>把整段存成檔案：<code>dump</code></strong>。<code>dump binary memory 檔名 起點 終點</code> 把那段記憶體原封不動寫進檔案。<code>help dump</code> 列出 7 個子命令：<code>binary</code>、<code>ihex</code>、<code>srec</code>、<code>tekhex</code>、<code>verilog</code> 是<strong>檔案格式</strong>，<code>memory</code>（一段記憶體）、<code>value</code>（一個表達式的值）是<strong>要存什麼</strong>；格式後面再接 <code>memory</code> 或 <code>value</code>，不寫格式（<code>dump memory …</code>）就是 raw binary。拿它跟直接從執行檔取出的 <code>.text</code> 比：</p>
+<pre><code class="language-text">$ ls -l text.bin
+-rw-rw-r-- 1 set set 340 Nov  4 11:04 text.bin        ← 0x1f4 − 0xa0 = 0x154 = 340 byte
+$ objcopy -O binary --only-section=.text app_dyn text_file.bin    ← 從檔案取出 .text 的內容
+$ cmp text.bin text_file.bin &amp;&amp; echo SAME
+SAME
+</code></pre>
+<p>記憶體裡的 <code>.text</code> 跟檔案裡的一個 byte 都不差：載入只是把檔案那段對映進來（<code>info proc mappings</code> 那頁的 <code>Offset 0x1000</code>）。
+<strong><code>.bss</code> 就不一樣</strong>：它沒有 <code>HAS_CONTENTS</code>，檔案裡沒有它的內容。<code>objdump -s -j .bss app_dyn</code>（<code>objdump -s</code> 見<a href="x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80-%E6%9A%AB%E5%AD%98%E5%99%A8%E3%80%81mov%E8%88%87lea%E3%80%81cmp%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D.html#%E7%82%BA%E4%BB%80%E9%BA%BC-l-%E5%8F%AB-long-%E5%8D%BB%E6%98%AF-4-byte%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E7%9A%84%E5%A4%A7%E5%B0%8F%E5%90%8D%E7%A8%B1%E5%92%8C-c-%E7%9A%84%E5%9E%8B%E5%88%A5%E6%98%AF%E5%85%A9%E5%A5%97">第 4 課第三節</a>〈為什麼 <code>l</code> 叫 long 卻是 4 byte〉）實測印出
+<code>4010 00000000 00000000</code>，但那 8 個 0 是 <code>objdump</code> 依「<code>.bss</code> 一律從 0 開始」<strong>補出來的</strong>，不是從檔案讀的——檔案偏移 <code>0x3010</code> 那裡放的其實是下一個區段 <code>.comment</code>（<code>xxd -s 0x3010 -l 8 app_dyn</code> 印出 <code>GCC: (Ub</code>，編譯器的版本字串），<code>.bss</code> 在檔案裡一個 byte 都沒有。程式跑起來之後 <code>.bss</code> 裡的變數被改成多少，只能在<strong>跑起來的行程</strong>裡用 gdb 看。</p>
+<table>
+<thead>
+<tr>
+<th>想看</th>
+<th>命令</th>
+<th>說明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>程式碼（<code>.text</code>）翻成指令</td>
+<td><code>x/Ni 位址</code>、<code>disassemble 起點,終點</code></td>
+<td><code>x/i</code> 給條數，<code>disassemble</code> 給範圍或函式名</td>
+</tr>
+<tr>
+<td>任何區段的原始位元組</td>
+<td><code>x/Nxb 位址</code>（或 <code>xg</code> 每 8 byte 一格）</td>
+<td>大小字母 <code>b</code>/<code>h</code>/<code>w</code>/<code>g</code> 見第三節</td>
+</tr>
+<tr>
+<td>字串（<code>.rodata</code>）</td>
+<td><code>x/s 位址</code></td>
+<td>印到 <code>\0</code> 為止</td>
+</tr>
+<tr>
+<td>整段存成檔案</td>
+<td><code>dump binary memory 檔 起點 終點</code></td>
+<td>再用 <code>xxd</code>、<code>cmp</code> 等外部工具看</td>
+</tr>
+<tr>
+<td>從<strong>檔案</strong>看（不用跑）</td>
+<td><code>objdump -s -j .text app_dyn</code>、<code>objdump -d</code></td>
+<td><code>.bss</code> 只會印出補的 0；位址是檔案裡的位址</td>
+</tr>
+</tbody>
+</table>
 <hr />
 <h2 id="自我測驗">自我測驗</h2>
 <blockquote>

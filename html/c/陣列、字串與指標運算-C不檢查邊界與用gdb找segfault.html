@@ -1289,13 +1289,13 @@ SUMMARY: AddressSanitizer: stack-buffer-overflow smash.c:12 in main
 <p>詳細說明：金絲雀是 gcc 放在區域陣列後面的檢查值，返回前才檢查，所以發現得比犯錯晚；只讀不寫不會改到它。檢查失敗時由 <code>__stack_chk_fail</code> 中止程式，不會執行 <code>ret</code>——所以被蓋掉的返回位址不會被用到，這正是金絲雀要擋的事。segfault 是核心送出的 <code>SIGSEGV</code>。「沒當掉」的時候可能讀到垃圾、寫壞別人的資料，程式照常結束（<code>oob.c</code> 結束狀態 0），錯誤很久以後才在別處出現。</p>
 </details>
 </li>
-<li>情境題：同事的程式偶爾 segfault，gdb 的 <code>bt</code> 顯示當在 <code>parse()</code> 裡 <code>x = buf[k];</code> 這一行，<code>k</code> 的值是 523871，而 <code>buf</code> 只有 256 個元素。你接下來要怎麼查出真正的錯誤在哪裡？為什麼不能直接修改這一行就算解決？如果想在「第一次越界的當下」就抓到它，要怎麼做？<details class="answer"><summary>參考答案</summary>
+<li>情境題：同事的程式偶爾 segfault，gdb 的 <code>bt</code> 顯示當在 <code>parse()</code> 裡 <code>x = buf[k];</code> 這一行，<code>k</code> 的值是 523871，而 <code>buf</code> 只有 256 個元素。你接下來要怎麼查出真正的錯誤在哪裡？為什麼不能直接修改這一行就算解決？如果想在「第一次越界的當下」就抓到它，要怎麼做？為什麼這樣做抓得到第一次越界，原本的程式卻要等到碰到不能碰的分頁才當掉？<details class="answer"><summary>參考答案</summary>
 <p>【<a href="#%E5%85%AD%E7%94%A8-gdb-%E6%89%BE-segfault%E5%AF%A6%E9%9A%9B%E8%B5%B0%E4%B8%80%E6%AC%A1">第六節</a>〈當掉的那一行 ≠ 犯錯的那一行〉、<a href="#%E4%B8%83addresssanitizer%E5%9C%A8%E7%AC%AC%E4%B8%80%E6%AC%A1%E8%B6%8A%E7%95%8C%E7%9A%84%E7%95%B6%E4%B8%8B%E6%8A%93%E5%88%B0%E5%AE%83">第七節</a>】（2026-10-09 改寫成核心關鍵格式）</p>
 <p>核心關鍵：</p>
 <ul>
 <li>怎麼查：
 <ol>
-<li>當掉的那一行只是錯的 <code>k</code> <strong>第一次碰到不能碰的分頁</strong>的地方，不是 <code>k</code> 變錯的地方。</li>
+<li>當掉的那一行只是錯的 <code>k</code> <strong>第一次碰到不能碰的分頁</strong>的地方，不是 <code>k</code> 變錯的地方。（已拆小題的 5-1 只問「怎麼查」，這點作答沒寫不扣分；它的理由由 5-2 問。）</li>
 <li>用 <code>bt</code> 看呼叫路徑，<code>frame N</code> 切到每一層、<code>print</code> 看 <code>k</code> 和決定 <code>k</code> 的變數，往回推 523871 是在哪裡算出來的。</li>
 </ol>
 </li>
@@ -1308,6 +1308,7 @@ SUMMARY: AddressSanitizer: stack-buffer-overflow smash.c:12 in main
 <li>第一次越界就抓到：
 <ol>
 <li>用 <code>gcc -g -fsanitize=address</code>（ASan）重新編譯再重現，第一次越界讀寫時就停下報告。</li>
+<li>為什麼抓得到（2026-11-04 補問）：ASan 在每個陣列前後放禁區（redzone），每次讀寫前都檢查有沒有碰到禁區，越界 1 個 byte 也會停；原本的程式不檢查，越界只要還落在有映射的分頁裡就照樣讀寫，要等 <code>k</code> 大到碰到不能碰的分頁才 segfault。</li>
 </ol>
 </li>
 </ul>
