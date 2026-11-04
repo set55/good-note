@@ -21,6 +21,8 @@
 <li class="l3"><a href="#3-eof-%E7%9A%84%E5%85%A9%E7%A8%AE%E5%8E%9F%E5%9B%A0%E9%96%8B%E7%9B%AE%E9%8C%84ferror">3. EOF 的兩種原因：開目錄、ferror</a></li>
 <li class="l3"><a href="#4-%E6%83%85%E5%A2%83stdoutstderr-%E8%88%87%E7%B5%90%E6%9D%9F%E7%8B%80%E6%85%8B">4. 情境：stdout／stderr 與結束狀態</a></li>
 <li class="l3"><a href="#5-%E6%83%85%E5%A2%83argv-%E8%88%87%E8%90%AC%E7%94%A8%E5%AD%97%E5%85%83">5. 情境：argv 與萬用字元</a></li>
+<li class="l3"><a href="#6-strace-%E8%BC%B8%E5%87%BA%E6%80%8E%E9%BA%BC%E8%AE%802026-11-04-%E8%BF%BD%E5%8A%A0%E8%AA%B2%E5%BE%8C%E8%A8%8E%E8%AB%96%E7%AC%AC-1-%E7%AB%A0">6. strace 輸出怎麼讀（2026-11-04 追加，課後討論第 1 章）</a></li>
+<li class="l3"><a href="#7-%E6%83%85%E5%A2%83fopen-%E7%94%A8-w-%E5%AF%AB%E6%AA%94%E7%9A%84%E7%B3%BB%E7%B5%B1%E5%91%BC%E5%8F%AB2026-11-04-%E8%BF%BD%E5%8A%A0%E8%AA%B2%E5%BE%8C%E8%A8%8E%E8%AB%96%E7%AC%AC-1-%E7%AB%A0">7. 情境：fopen 用 &quot;w&quot; 寫檔的系統呼叫（2026-11-04 追加，課後討論第 1 章）</a></li>
 </ul>
 </nav>
 <main>
@@ -51,7 +53,8 @@
 <hr />
 <h2 id="未答第-8-課寫自己的-wc-與-cat">未答：第 8 課：寫自己的 <code>wc</code> 與 <code>cat</code></h2>
 <blockquote>
-<p>題目來自 <a href="../../c/%E5%AF%AB%E8%87%AA%E5%B7%B1%E7%9A%84wc%E8%88%87cat-%E5%91%BD%E4%BB%A4%E5%88%97%E5%8F%83%E6%95%B8%E3%80%81%E8%AE%80%E5%88%B0EOF%E8%88%87errno%E9%8C%AF%E8%AA%A4%E8%99%95%E7%90%86.html">寫自己的wc與cat-命令列參數、讀到EOF與errno錯誤處理.html</a>。每題拆成小題（<code>N-M</code>），每個小題各有一個作答框；題目用到的程式碼附在每個大題的開頭。批改寫在該小題的作答框正下方。</p>
+<p>題目來自 <a href="../../c/%E5%AF%AB%E8%87%AA%E5%B7%B1%E7%9A%84wc%E8%88%87cat-%E5%91%BD%E4%BB%A4%E5%88%97%E5%8F%83%E6%95%B8%E3%80%81%E8%AE%80%E5%88%B0EOF%E8%88%87errno%E9%8C%AF%E8%AA%A4%E8%99%95%E7%90%86.html">寫自己的wc與cat-命令列參數、讀到EOF與errno錯誤處理.html</a>。每題拆成小題（<code>N-M</code>），每個小題各有一個作答框；題目用到的程式碼附在每個大題的開頭。批改寫在該小題的作答框正下方。
+2026-11-04 追加第 6、7 題（筆記第十節〈課後討論〉第 1 章：<code>strace</code> 輸出逐行讀），跟第 1～5 題一起作答。</p>
 </blockquote>
 <h3 id="1-eof-與-int用-char-接-getchar">1. <code>EOF</code> 與 <code>int</code>：用 <code>char</code> 接 <code>getchar()</code></h3>
 <p>下面的 <code>charbug.c</code> 用 <code>char</code> 接 <code>getchar()</code> 的回傳值。用 <code>printf 'AB\xffCD' &gt; ff.bin</code> 做一個 5 byte 的檔案（第 3 個 byte 是 <code>0xff</code>），在 x86-64 Ubuntu 上 <code>gcc -Wall charbug.c -o charbug &amp;&amp; ./charbug &lt; ff.bin</code>，只印出「讀到 2 個 byte」；改用 <code>gcc -Wall -funsigned-char charbug.c -o charbug_u</code> 編，<code>./charbug_u &lt; ff.bin</code> 卻永遠停不下來。(1) 為什麼預設版只數到 2？(2) 為什麼 <code>-funsigned-char</code> 版停不下來？(3) <code>getchar</code> 為什麼要回傳 <code>int</code>，不能直接回傳 <code>char</code>？</p>
@@ -72,17 +75,17 @@
 <h4 id="1-1-為什麼預設版只數到-2">1-1. 為什麼預設版只數到 2？</h4>
 <p><strong>第 1 次（YYYY-MM-DD）</strong></p>
 <details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="small-project/s1-08-wc-cat/quiz.md" data-line="47"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="small-project/s1-08-wc-cat/quiz.md" data-line="48"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h4 id="1-2-為什麼--funsigned-char-版停不下來">1-2. 為什麼 <code>-funsigned-char</code> 版停不下來？</h4>
 <p><strong>第 1 次（YYYY-MM-DD）</strong></p>
 <details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="small-project/s1-08-wc-cat/quiz.md" data-line="53"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="small-project/s1-08-wc-cat/quiz.md" data-line="54"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h4 id="1-3-getchar-為什麼要回傳-int不能直接回傳-char">1-3. <code>getchar</code> 為什麼要回傳 <code>int</code>，不能直接回傳 <code>char</code>？</h4>
 <p><strong>第 1 次（YYYY-MM-DD）</strong></p>
 <details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="small-project/s1-08-wc-cat/quiz.md" data-line="59"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="small-project/s1-08-wc-cat/quiz.md" data-line="60"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h3 id="2-errno成功的呼叫不清-errno">2. <code>errno</code>：成功的呼叫不清 <code>errno</code></h3>
 <p>下面的 <code>stale.c</code> 在同一個資料夾執行（<code>ok.txt</code> 存在、<code>nofile.txt</code> 不存在：<code>echo hi &gt; ok.txt</code>），編譯 <code>gcc -Wall stale.c -o stale &amp;&amp; ./stale</code>，第二行印出「成功之後：good = 0x612d78eab2a0, errno = 2 (No such file or directory)」。(1) <code>good</code> 開成功了，<code>errno</code> 為什麼還是 2？(2) 所以要怎麼判斷一個函式有沒有失敗？什麼時候讀 <code>errno</code> 才有意義？(3) 同學把錯誤處理寫成下面第二段那樣：<code>fopen</code> 失敗後先 <code>printf(&quot;開檔失敗\n&quot;);</code> 再 <code>perror(argv[1]);</code>。這樣寫有什麼風險？</p>
@@ -119,17 +122,17 @@
 <h4 id="2-1-good-開成功了errno-為什麼還是-2">2-1. <code>good</code> 開成功了，<code>errno</code> 為什麼還是 2？</h4>
 <p><strong>第 1 次（YYYY-MM-DD）</strong></p>
 <details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="small-project/s1-08-wc-cat/quiz.md" data-line="103"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="small-project/s1-08-wc-cat/quiz.md" data-line="104"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h4 id="2-2-所以要怎麼判斷一個函式有沒有失敗什麼時候讀-errno-才有意義">2-2. 所以要怎麼判斷一個函式有沒有失敗？什麼時候讀 <code>errno</code> 才有意義？</h4>
 <p><strong>第 1 次（YYYY-MM-DD）</strong></p>
 <details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="small-project/s1-08-wc-cat/quiz.md" data-line="109"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="small-project/s1-08-wc-cat/quiz.md" data-line="110"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h4 id="2-3-同學把錯誤處理寫成下面第二段那樣fopen-失敗後先-printf開檔失敗n-再-perrorargv1這樣寫有什麼風險">2-3. 同學把錯誤處理寫成下面第二段那樣：<code>fopen</code> 失敗後先 <code>printf(&quot;開檔失敗\n&quot;);</code> 再 <code>perror(argv[1]);</code>。這樣寫有什麼風險？</h4>
 <p><strong>第 1 次（YYYY-MM-DD）</strong></p>
 <details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="small-project/s1-08-wc-cat/quiz.md" data-line="115"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="small-project/s1-08-wc-cat/quiz.md" data-line="116"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h3 id="3-eof-的兩種原因開目錄ferror">3. <code>EOF</code> 的兩種原因：開目錄、<code>ferror</code></h3>
 <p>下面的 <code>countch.c</code> 數一個檔案裡某個字元有幾個。<code>mkdir adir &amp;&amp; ./countch adir a</code> 印出「<code>adir: Is a directory</code>」、結束狀態 1。(1) 錯誤是在 <code>fopen</code> 那一步還是之後才發生的？為什麼？(2) 如果把 <code>while</code> 迴圈後面的 <code>if (ferror(fp)) { ... }</code> 整段刪掉，<code>./countch adir a</code> 會印出什麼、結束狀態是多少？為什麼這樣是錯的？</p>
@@ -172,24 +175,24 @@
 <h4 id="3-1-錯誤是在-fopen-那一步還是之後才發生的為什麼">3-1. 錯誤是在 <code>fopen</code> 那一步還是之後才發生的？為什麼？</h4>
 <p><strong>第 1 次（YYYY-MM-DD）</strong></p>
 <details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="small-project/s1-08-wc-cat/quiz.md" data-line="164"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="small-project/s1-08-wc-cat/quiz.md" data-line="165"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h4 id="3-2-如果把-while-迴圈後面的-if-ferrorfp----整段刪掉countch-adir-a-會印出什麼結束狀態是多少為什麼這樣是錯的">3-2. 如果把 <code>while</code> 迴圈後面的 <code>if (ferror(fp)) { ... }</code> 整段刪掉，<code>./countch adir a</code> 會印出什麼、結束狀態是多少？為什麼這樣是錯的？</h4>
 <p><strong>第 1 次（YYYY-MM-DD）</strong></p>
 <details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="small-project/s1-08-wc-cat/quiz.md" data-line="170"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="small-project/s1-08-wc-cat/quiz.md" data-line="171"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h3 id="4-情境stdoutstderr-與結束狀態">4. 情境：<code>stdout</code>／<code>stderr</code> 與結束狀態</h3>
 <p>情境題：用第 3 題的 <code>countch</code>（<code>./countch 檔名 字元</code> 把「次數 檔名」用 <code>printf</code> 印到 <code>stdout</code>、回傳 0；開檔失敗時用 <code>perror(檔名)</code> 印到 <code>stderr</code>、回傳 1；完整原始碼在第 3 題），<code>printf 'banana\n' &gt; fruit.txt</code> 之後執行 <code>./countch fruit.txt a &gt; result.txt; ./countch nofile.txt a &gt;&gt; result.txt; echo &quot;exit=$?&quot;</code>。(1) 終端機上會看到哪幾行？<code>result.txt</code> 裡有什麼？為什麼？(2) 用 <code>printf 'hello world\n' &gt; one.txt; printf 'no newline at end' &gt; nonl.txt</code> 建兩個檔案（<code>nofile.txt</code> 不存在），GNU <code>wc one.txt nofile.txt nonl.txt</code> 印了兩個檔案的結果、一行錯誤和 <code>total</code>，結束狀態卻是 1。為什麼這類工具遇到壞檔案不馬上停，但最後要回傳 1？</p>
 <h4 id="4-1-終端機上會看到哪幾行resulttxt-裡有什麼為什麼">4-1. 終端機上會看到哪幾行？<code>result.txt</code> 裡有什麼？為什麼？</h4>
 <p><strong>第 1 次（YYYY-MM-DD）</strong></p>
 <details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="small-project/s1-08-wc-cat/quiz.md" data-line="180"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="small-project/s1-08-wc-cat/quiz.md" data-line="181"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h4 id="4-2-gnu-wc-onetxt-nofiletxt-nonltxt-印了兩個檔案的結果和一行錯誤結束狀態卻是-1為什麼這類工具遇到壞檔案不馬上停但最後要回傳-1">4-2. GNU <code>wc one.txt nofile.txt nonl.txt</code> 印了兩個檔案的結果和一行錯誤，結束狀態卻是 1。為什麼這類工具遇到壞檔案不馬上停，但最後要回傳 1？</h4>
 <p><strong>第 1 次（YYYY-MM-DD）</strong></p>
 <details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="small-project/s1-08-wc-cat/quiz.md" data-line="186"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="small-project/s1-08-wc-cat/quiz.md" data-line="187"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h3 id="5-情境argv-與萬用字元">5. 情境：<code>argv</code> 與萬用字元</h3>
 <p>情境題：資料夾裡有 <code>a.txt</code>、<code>b.txt</code> 兩個檔案，用下面的 <code>args.c</code>。(1) <code>./args '*.txt' *.txt</code> 的 <code>argc</code> 是多少？<code>argv[1]</code>～<code>argv[argc]</code> 各是什麼？為什麼 <code>'*.txt'</code> 和 <code>*.txt</code> 的結果不一樣？(2) 誰把 <code>*.txt</code> 換成檔名、在什麼時候？程式有沒有辦法知道使用者原本打的是 <code>*.txt</code>？為什麼？(3) 換到一個<strong>沒有任何 <code>.txt</code></strong> 的資料夾執行 <code>../args *.txt</code>，在 bash 和 zsh 下各會怎樣？</p>
@@ -209,17 +212,92 @@
 <h4 id="5-1-args-txt-txt-的-argc-是多少argv1argvargc-各是什麼為什麼-txt-和-txt-的結果不一樣">5-1. <code>./args '*.txt' *.txt</code> 的 <code>argc</code> 是多少？<code>argv[1]</code>～<code>argv[argc]</code> 各是什麼？為什麼 <code>'*.txt'</code> 和 <code>*.txt</code> 的結果不一樣？</h4>
 <p><strong>第 1 次（YYYY-MM-DD）</strong></p>
 <details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="small-project/s1-08-wc-cat/quiz.md" data-line="212"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="small-project/s1-08-wc-cat/quiz.md" data-line="213"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h4 id="5-2-誰把-txt-換成檔名在什麼時候程式有沒有辦法知道使用者原本打的是-txt為什麼">5-2. 誰把 <code>*.txt</code> 換成檔名、在什麼時候？程式有沒有辦法知道使用者原本打的是 <code>*.txt</code>？為什麼？</h4>
 <p><strong>第 1 次（YYYY-MM-DD）</strong></p>
 <details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="small-project/s1-08-wc-cat/quiz.md" data-line="218"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="small-project/s1-08-wc-cat/quiz.md" data-line="219"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h4 id="5-3-換到一個沒有任何-txt-的資料夾執行-args-txt在-bash-和-zsh-下各會怎樣">5-3. 換到一個<strong>沒有任何 <code>.txt</code></strong> 的資料夾執行 <code>../args *.txt</code>，在 bash 和 zsh 下各會怎樣？</h4>
 <p><strong>第 1 次（YYYY-MM-DD）</strong></p>
 <details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="small-project/s1-08-wc-cat/quiz.md" data-line="224"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="small-project/s1-08-wc-cat/quiz.md" data-line="225"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+</details>
+<h3 id="6-strace-輸出怎麼讀2026-11-04-追加課後討論第-1-章">6. <code>strace</code> 輸出怎麼讀（2026-11-04 追加，課後討論第 1 章）</h3>
+<p>用第 3 題的 <code>countch.c</code> 跑 <code>strace -o tr.txt ./countch fruit.txt n</code>（<code>fruit.txt</code> 用 <code>printf 'banana\nbandana\n' &gt; fruit.txt</code> 建、<code>gcc -Wall countch.c -o countch</code> 編），<code>cat -n tr.txt</code> 裡有下面幾行（行號是 <code>cat -n</code> 加的）：</p>
+<pre><code class="language-text">     4	access(&quot;/etc/ld.so.preload&quot;, R_OK)      = -1 ENOENT (No such file or directory)
+    33	openat(AT_FDCWD, &quot;fruit.txt&quot;, O_RDONLY) = 3
+    35	read(3, &quot;banana\nbandana\n&quot;, 4096)      = 15
+    36	read(3, &quot;&quot;, 4096)                       = 0
+    40	exit_group(0)                           = ?
+    41	+++ exited with 0 +++
+</code></pre>
+<p>（<code>countch.c</code> 的完整原始碼見本檔第 3 題。）</p>
+<h4 id="6-1-第-4-行和第-36-行各代表什麼結果為什麼第-36-行不算錯誤">6-1. 第 4 行和第 36 行各代表什麼結果？為什麼第 36 行不算錯誤？</h4>
+<p><strong>第 1 次（YYYY-MM-DD）</strong></p>
+<details class="answer-fold" open><summary>作答</summary>
+<div class="answer-box" data-file="small-project/s1-08-wc-cat/quiz.md" data-line="246"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+</details>
+<h4 id="6-2-第-35-行的-4096-和-15-各是什麼為什麼兩個數字不一樣引號裡的字串是傳進去的還是讀出來的">6-2. 第 35 行的 <code>4096</code> 和 <code>15</code> 各是什麼？為什麼兩個數字不一樣？引號裡的字串是傳進去的，還是讀出來的？</h4>
+<p><strong>第 1 次（YYYY-MM-DD）</strong></p>
+<details class="answer-fold" open><summary>作答</summary>
+<div class="answer-box" data-file="small-project/s1-08-wc-cat/quiz.md" data-line="252"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+</details>
+<h4 id="6-3-第-33-行的-at_fdcwd-是什麼意思回傳的-3-是什麼為什麼剛好是-3">6-3. 第 33 行的 <code>AT_FDCWD</code> 是什麼意思？回傳的 <code>3</code> 是什麼、為什麼剛好是 3？</h4>
+<p><strong>第 1 次（YYYY-MM-DD）</strong></p>
+<details class="answer-fold" open><summary>作答</summary>
+<div class="answer-box" data-file="small-project/s1-08-wc-cat/quiz.md" data-line="258"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+</details>
+<h4 id="6-4-第-40-行的回傳值為什麼是-第-41-行是不是系統呼叫">6-4. 第 40 行的回傳值為什麼是 <code>?</code>？第 41 行是不是系統呼叫？</h4>
+<p><strong>第 1 次（YYYY-MM-DD）</strong></p>
+<details class="answer-fold" open><summary>作答</summary>
+<div class="answer-box" data-file="small-project/s1-08-wc-cat/quiz.md" data-line="264"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+</details>
+<h3 id="7-情境fopen-用-w-寫檔的系統呼叫2026-11-04-追加課後討論第-1-章">7. 情境：<code>fopen</code> 用 <code>&quot;w&quot;</code> 寫檔的系統呼叫（2026-11-04 追加，課後討論第 1 章）</h3>
+<p>情境題：下面的 <code>savemsg.c</code> 用 <code>fopen(…, &quot;w&quot;)</code> 把一行訊息寫進檔案（檔案：<a href="../../../small-project/s1-08-wc-cat/examples/savemsg/savemsg.c"><code>savemsg.c</code></a>，編譯：<code>gcc -Wall savemsg.c -o savemsg</code>）。執行前 <code>note.txt</code> 不存在，<code>strace -o tr.txt ./savemsg note.txt hello</code> 裡跟這個檔案有關的是：</p>
+<pre><code class="language-c"><span class="cm">/* savemsg.c：把第二個參數寫進第一個參數指定的檔案（檔案不存在就建立、存在就清空） */</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">argc</span><span class="p">,</span><span class="w"> </span><span class="kt">char</span><span class="w"> </span><span class="o">*</span><span class="n">argv</span><span class="p">[])</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">argc</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="mi">3</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">fprintf</span><span class="p">(</span><span class="n">stderr</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;用法：%s 檔名 訊息</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">argv</span><span class="p">[</span><span class="mi">0</span><span class="p">]);</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="mi">2</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="kt">FILE</span><span class="w"> </span><span class="o">*</span><span class="n">fp</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">fopen</span><span class="p">(</span><span class="n">argv</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span><span class="w"> </span><span class="s">&quot;w&quot;</span><span class="p">);</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">fp</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="nb">NULL</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">perror</span><span class="p">(</span><span class="n">argv</span><span class="p">[</span><span class="mi">1</span><span class="p">]);</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="n">fprintf</span><span class="p">(</span><span class="n">fp</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;%s</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">argv</span><span class="p">[</span><span class="mi">2</span><span class="p">]);</span>
+<span class="w">    </span><span class="n">fclose</span><span class="p">(</span><span class="n">fp</span><span class="p">);</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<pre><code class="language-text">    33	openat(AT_FDCWD, &quot;note.txt&quot;, O_WRONLY|O_CREAT|O_TRUNC, 0666) = 3
+    34	fstat(3, {st_mode=S_IFREG|0664, st_size=0, ...}) = 0
+    35	write(3, &quot;hello\n&quot;, 6)                  = 6
+    36	close(3)                                = 0
+</code></pre>
+<p>一般使用者換成執行 <code>strace -o tr.txt ./savemsg /etc/passwd hi</code>，則是：</p>
+<pre><code class="language-text">    33	openat(AT_FDCWD, &quot;/etc/passwd&quot;, O_WRONLY|O_CREAT|O_TRUNC, 0666) = -1 EACCES (Permission denied)
+    37	write(2, &quot;/etc/passwd: Permission denied\n&quot;, 31) = 31
+</code></pre>
+<h4 id="7-1-第一次的-openat-多了第-4-個參數-0666countch-開-fruittxt-那次openatat_fdcwd-fruittxt-o_rdonly--3沒有為什麼">7-1. 第一次的 <code>openat</code> 多了第 4 個參數 <code>0666</code>，<code>countch</code> 開 <code>fruit.txt</code> 那次（<code>openat(AT_FDCWD, &quot;fruit.txt&quot;, O_RDONLY) = 3</code>）沒有，為什麼？</h4>
+<p><strong>第 1 次（YYYY-MM-DD）</strong></p>
+<details class="answer-fold" open><summary>作答</summary>
+<div class="answer-box" data-file="small-project/s1-08-wc-cat/quiz.md" data-line="309"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+</details>
+<h4 id="7-2-第一次的-write-第一個參數是-3countch-最後印結果的-write1-4-fruittxtn-12-是-1為什麼不一樣各寫到哪裡">7-2. 第一次的 <code>write</code> 第一個參數是 <code>3</code>，<code>countch</code> 最後印結果的 <code>write(1, &quot;4 fruit.txt\n&quot;, 12)</code> 是 <code>1</code>，為什麼不一樣？各寫到哪裡？</h4>
+<p><strong>第 1 次（YYYY-MM-DD）</strong></p>
+<details class="answer-fold" open><summary>作答</summary>
+<div class="answer-box" data-file="small-project/s1-08-wc-cat/quiz.md" data-line="315"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+</details>
+<h4 id="7-3-第二次從-openat-失敗到第-37-行的-write中間發生了什麼誰把錯誤碼交給誰誰印出訊息為什麼寫到-fd-2為什麼程式不必自己寫-permission-denied-這段字">7-3. 第二次從 <code>openat</code> 失敗到第 37 行的 <code>write</code>，中間發生了什麼（誰把錯誤碼交給誰、誰印出訊息、為什麼寫到 fd 2）？為什麼程式不必自己寫 <code>&quot;Permission denied&quot;</code> 這段字？</h4>
+<p><strong>第 1 次（YYYY-MM-DD）</strong></p>
+<details class="answer-fold" open><summary>作答</summary>
+<div class="answer-box" data-file="small-project/s1-08-wc-cat/quiz.md" data-line="321"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 
 </main>

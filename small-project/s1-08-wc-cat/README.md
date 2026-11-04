@@ -36,6 +36,7 @@
 | [`examples/eof/`](./examples/eof/) | [`getbytes.c`](./examples/eof/getbytes.c)、[`charbug.c`](./examples/eof/charbug.c) | [第三節](../../html/c/寫自己的wc與cat-命令列參數、讀到EOF與errno錯誤處理.html#三讀到-eofgetc-為什麼回傳-int) | 用 `int` 接 `getchar()` 數 byte；用 `char` 接時遇到 `0xff` 提早停、`-funsigned-char` 時停不下來 |
 | [`examples/errno/`](./examples/errno/) | [`openfail.c`](./examples/errno/openfail.c)、[`stale.c`](./examples/errno/stale.c)、[`errlist.c`](./examples/errno/errlist.c) | [第四節](../../html/c/寫自己的wc與cat-命令列參數、讀到EOF與errno錯誤處理.html#四開檔與錯誤fopenerrnoperrorstrerror) | 四種開檔結果與 `perror`；成功的呼叫不清 `errno`；印出全部 131 個錯誤碼 |
 | [`examples/countch/`](./examples/countch/) | [`countch.c`](./examples/countch/countch.c) | [第六節](../../html/c/寫自己的wc與cat-命令列參數、讀到EOF與errno錯誤處理.html#六接起來countch-與用-strace-看它做了哪些系統呼叫) | 一個檔案、一個字元的計數工具；`ferror`；用 `strace` 看 `openat`／`read`／`write` |
+| [`examples/savemsg/`](./examples/savemsg/) | [`savemsg.c`](./examples/savemsg/savemsg.c) | [自我測驗](../../html/c/寫自己的wc與cat-命令列參數、讀到EOF與errno錯誤處理.html#自我測驗)第 7 題（[第十節第 1 章](../../html/c/寫自己的wc與cat-命令列參數、讀到EOF與errno錯誤處理.html#1-strace-輸出逐行讀格式7-個系統呼叫的參數ldso-那-30-行)延伸） | `fopen(…, "w")` 底下是 `openat(…, O_WRONLY\|O_CREAT\|O_TRUNC, 0666)`；寫不進 `/etc/passwd` 時 `EACCES` 經 `errno` 由 `perror` 寫到 fd 2 |
 | [`examples/ctype/`](./examples/ctype/) | [`spaces.c`](./examples/ctype/spaces.c)、[`classes.c`](./examples/ctype/classes.c) | [第七節](../../html/c/寫自己的wc與cat-命令列參數、讀到EOF與errno錯誤處理.html#七wc-與-cat-的精確行為作業的規格)〈`wc` 數的三個數字〉 | `isspace` 認定的 6 個空白 byte；0～255 分成空白、可印、其他三類 |
 
 ---

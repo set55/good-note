@@ -21,6 +21,7 @@
 
 > 題目來自 [寫自己的wc與cat-命令列參數、讀到EOF與errno錯誤處理.html](../../html/c/寫自己的wc與cat-命令列參數、讀到EOF與errno錯誤處理.html)。
 > 每題拆成小題（`N-M`），每個小題各有一個作答框；題目用到的程式碼附在每個大題的開頭。批改寫在該小題的作答框正下方。
+> 2026-11-04 追加第 6、7 題（筆記第十節〈課後討論〉第 1 章：`strace` 輸出逐行讀），跟第 1～5 題一起作答。
 
 ### 1. `EOF` 與 `int`：用 `char` 接 `getchar()`
 
@@ -220,6 +221,102 @@ int main(int argc, char *argv[])
 ```
 
 #### 5-3. 換到一個**沒有任何 `.txt`** 的資料夾執行 `../args *.txt`，在 bash 和 zsh 下各會怎樣？
+
+**第 1 次（YYYY-MM-DD）**
+```
+```
+
+### 6. `strace` 輸出怎麼讀（2026-11-04 追加，課後討論第 1 章）
+
+用第 3 題的 `countch.c` 跑 `strace -o tr.txt ./countch fruit.txt n`（`fruit.txt` 用 `printf 'banana\nbandana\n' > fruit.txt` 建、`gcc -Wall countch.c -o countch` 編），`cat -n tr.txt` 裡有下面幾行（行號是 `cat -n` 加的）：
+
+```text
+     4	access("/etc/ld.so.preload", R_OK)      = -1 ENOENT (No such file or directory)
+    33	openat(AT_FDCWD, "fruit.txt", O_RDONLY) = 3
+    35	read(3, "banana\nbandana\n", 4096)      = 15
+    36	read(3, "", 4096)                       = 0
+    40	exit_group(0)                           = ?
+    41	+++ exited with 0 +++
+```
+
+（`countch.c` 的完整原始碼見本檔第 3 題。）
+
+#### 6-1. 第 4 行和第 36 行各代表什麼結果？為什麼第 36 行不算錯誤？
+
+**第 1 次（YYYY-MM-DD）**
+```
+```
+
+#### 6-2. 第 35 行的 `4096` 和 `15` 各是什麼？為什麼兩個數字不一樣？引號裡的字串是傳進去的，還是讀出來的？
+
+**第 1 次（YYYY-MM-DD）**
+```
+```
+
+#### 6-3. 第 33 行的 `AT_FDCWD` 是什麼意思？回傳的 `3` 是什麼、為什麼剛好是 3？
+
+**第 1 次（YYYY-MM-DD）**
+```
+```
+
+#### 6-4. 第 40 行的回傳值為什麼是 `?`？第 41 行是不是系統呼叫？
+
+**第 1 次（YYYY-MM-DD）**
+```
+```
+
+### 7. 情境：`fopen` 用 `"w"` 寫檔的系統呼叫（2026-11-04 追加，課後討論第 1 章）
+
+情境題：下面的 `savemsg.c` 用 `fopen(…, "w")` 把一行訊息寫進檔案（檔案：[`savemsg.c`](./examples/savemsg/savemsg.c)，編譯：`gcc -Wall savemsg.c -o savemsg`）。執行前 `note.txt` 不存在，`strace -o tr.txt ./savemsg note.txt hello` 裡跟這個檔案有關的是：
+
+```c
+/* savemsg.c：把第二個參數寫進第一個參數指定的檔案（檔案不存在就建立、存在就清空） */
+#include <stdio.h>
+
+int main(int argc, char *argv[])
+{
+    if (argc != 3) {
+        fprintf(stderr, "用法：%s 檔名 訊息\n", argv[0]);
+        return 2;
+    }
+    FILE *fp = fopen(argv[1], "w");
+    if (fp == NULL) {
+        perror(argv[1]);
+        return 1;
+    }
+    fprintf(fp, "%s\n", argv[2]);
+    fclose(fp);
+    return 0;
+}
+```
+
+```text
+    33	openat(AT_FDCWD, "note.txt", O_WRONLY|O_CREAT|O_TRUNC, 0666) = 3
+    34	fstat(3, {st_mode=S_IFREG|0664, st_size=0, ...}) = 0
+    35	write(3, "hello\n", 6)                  = 6
+    36	close(3)                                = 0
+```
+
+一般使用者換成執行 `strace -o tr.txt ./savemsg /etc/passwd hi`，則是：
+
+```text
+    33	openat(AT_FDCWD, "/etc/passwd", O_WRONLY|O_CREAT|O_TRUNC, 0666) = -1 EACCES (Permission denied)
+    37	write(2, "/etc/passwd: Permission denied\n", 31) = 31
+```
+
+#### 7-1. 第一次的 `openat` 多了第 4 個參數 `0666`，`countch` 開 `fruit.txt` 那次（`openat(AT_FDCWD, "fruit.txt", O_RDONLY) = 3`）沒有，為什麼？
+
+**第 1 次（YYYY-MM-DD）**
+```
+```
+
+#### 7-2. 第一次的 `write` 第一個參數是 `3`，`countch` 最後印結果的 `write(1, "4 fruit.txt\n", 12)` 是 `1`，為什麼不一樣？各寫到哪裡？
+
+**第 1 次（YYYY-MM-DD）**
+```
+```
+
+#### 7-3. 第二次從 `openat` 失敗到第 37 行的 `write`，中間發生了什麼（誰把錯誤碼交給誰、誰印出訊息、為什麼寫到 fd 2）？為什麼程式不必自己寫 `"Permission denied"` 這段字？
 
 **第 1 次（YYYY-MM-DD）**
 ```

@@ -1194,7 +1194,7 @@ $ cat -n tr.txt
 | 系統呼叫（號碼） | 原型 | 參數逐個說明 | 回傳值 | 本例（行號） |
 |---|---|---|---|---|
 | `execve`（59） | `execve(pathname, argv, envp)` | 要執行的檔案路徑；新程式的 `argv` 陣列；環境變數陣列 | 成功**不返回**（行程換成新程式）；失敗回傳 −1 | 1：載入 `./countch`，`argv` 就是正文第二節講的陣列；`strace` 印的 `= 0` 是它記下的成功 |
-| `openat`（257） | `openat(dirfd, pathname, flags, ...)` | 相對路徑從哪個目錄算（`AT_FDCWD`：目前工作目錄）；路徑；開檔方式旗標；建立新檔時才有第 4 個參數（權限） | 新的 fd；失敗 −1 | 33：`O_RDONLY`（只讀，就是 `fopen` 的 `"r"`）→ fd 3。glibc 的 `open()`、`fopen()` 底下都是 `openat`。第 5、9 行多了 `O_CLOEXEC`：之後 `execve` 別的程式時自動關掉這個 fd |
+| `openat`（257） | `openat(dirfd, pathname, flags, ...)` | 相對路徑從哪個目錄算（`AT_FDCWD`：目前工作目錄）；路徑；開檔方式旗標；旗標有 `O_CREAT`（可能建立新檔，例如 `fopen` 的 `"w"`）時才有第 4 個參數：新檔的權限 | 新的 fd；失敗 −1 | 33：`O_RDONLY`（只讀，就是 `fopen` 的 `"r"`）→ fd 3。glibc 的 `open()`、`fopen()` 底下都是 `openat`。第 5、9 行多了 `O_CLOEXEC`：之後 `execve` 別的程式時自動關掉這個 fd |
 | `fstat`（5） | `fstat(fd, statbuf)` | 哪個 fd；核心把檔案資訊填進這個 `struct stat` | 0；失敗 −1 | 34：`st_mode=S_IFREG\|0664` ＝ 一般檔案、權限 `664`；`st_size=15` ＝ 15 byte。stdio 用結構裡的區塊大小（`stat -c %o fruit.txt` 實測 4096）決定緩衝區大小。38：`fstat(1)` 看 `stdout` 接到什麼（正文那段講的緩衝方式） |
 | `read`（0） | `read(fd, buf, count)` | 從哪個 fd；讀到哪塊記憶體；**最多**讀幾 byte | 實際讀到的 byte 數；**0 ＝ 檔案結尾**；失敗 −1 | 35：要 4096、只有 15 → 回傳 15。36：再讀 → 0，`getc` 因此回傳 `EOF` |
 | `close`（3） | `close(fd)` | 要釋放的 fd | 0；失敗 −1 | 37：`fclose` 底下。釋放後 3 這個號碼可以再被下一次 `openat` 拿到 |
@@ -1350,3 +1350,51 @@ $ cat -n tr.txt
    ```
 
    編譯：`gcc -Wall args.c -o args`
+
+6. （2026-11-04 課後討論第 1 章延伸）用第 3 題的 `countch.c` 跑 `strace -o tr.txt ./countch fruit.txt n`（`fruit.txt` 用 `printf 'banana\nbandana\n' > fruit.txt` 建、`gcc -Wall countch.c -o countch` 編），`cat -n tr.txt` 裡有下面幾行（行號是 `cat -n` 加的）：(1) 第 4 行和第 36 行各代表什麼結果？為什麼第 36 行不算錯誤？(2) 第 35 行的 `4096` 和 `15` 各是什麼？為什麼兩個數字不一樣？引號裡的字串是傳進去的，還是讀出來的？(3) 第 33 行的 `AT_FDCWD` 是什麼意思？回傳的 `3` 是什麼、為什麼剛好是 3？(4) 第 40 行的回傳值為什麼是 `?`？第 41 行是不是系統呼叫？
+
+   ```text
+        4	access("/etc/ld.so.preload", R_OK)      = -1 ENOENT (No such file or directory)
+       33	openat(AT_FDCWD, "fruit.txt", O_RDONLY) = 3
+       35	read(3, "banana\nbandana\n", 4096)      = 15
+       36	read(3, "", 4096)                       = 0
+       40	exit_group(0)                           = ?
+       41	+++ exited with 0 +++
+   ```
+
+7. （2026-11-04 課後討論第 1 章延伸）情境題：下面的 `savemsg.c` 用 `fopen(…, "w")` 把一行訊息寫進檔案（檔案：[`savemsg.c`](../small-project/s1-08-wc-cat/examples/savemsg/savemsg.c)，編譯：`gcc -Wall savemsg.c -o savemsg`）。執行前 `note.txt` 不存在，`strace -o tr.txt ./savemsg note.txt hello` 裡跟這個檔案有關的是：(1) 第一次的 `openat` 多了第 4 個參數 `0666`，`countch` 開 `fruit.txt` 那次（`openat(AT_FDCWD, "fruit.txt", O_RDONLY) = 3`）沒有，為什麼？(2) 第一次的 `write` 第一個參數是 `3`，`countch` 最後印結果的 `write(1, "4 fruit.txt\n", 12)` 是 `1`，為什麼不一樣？各寫到哪裡？(3) 第二次從 `openat` 失敗到第 37 行的 `write`，中間發生了什麼（誰把錯誤碼交給誰、誰印出訊息、為什麼寫到 fd 2）？為什麼程式不必自己寫 `"Permission denied"` 這段字？
+
+   ```c
+   /* savemsg.c：把第二個參數寫進第一個參數指定的檔案（檔案不存在就建立、存在就清空） */
+   #include <stdio.h>
+
+   int main(int argc, char *argv[])
+   {
+       if (argc != 3) {
+           fprintf(stderr, "用法：%s 檔名 訊息\n", argv[0]);
+           return 2;
+       }
+       FILE *fp = fopen(argv[1], "w");
+       if (fp == NULL) {
+           perror(argv[1]);
+           return 1;
+       }
+       fprintf(fp, "%s\n", argv[2]);
+       fclose(fp);
+       return 0;
+   }
+   ```
+
+   ```text
+       33	openat(AT_FDCWD, "note.txt", O_WRONLY|O_CREAT|O_TRUNC, 0666) = 3
+       34	fstat(3, {st_mode=S_IFREG|0664, st_size=0, ...}) = 0
+       35	write(3, "hello\n", 6)                  = 6
+       36	close(3)                                = 0
+   ```
+
+   一般使用者換成執行 `strace -o tr.txt ./savemsg /etc/passwd hi`，則是：
+
+   ```text
+       33	openat(AT_FDCWD, "/etc/passwd", O_WRONLY|O_CREAT|O_TRUNC, 0666) = -1 EACCES (Permission denied)
+       37	write(2, "/etc/passwd: Permission denied\n", 31) = 31
+   ```
