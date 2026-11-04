@@ -52,6 +52,8 @@
 <li class="l3"><a href="#strace">strace</a></li>
 <li class="l3"><a href="#wccat">wc、cat</a></li>
 <li class="l2"><a href="#%E4%B9%9D%E5%8B%95%E6%89%8B%E4%BD%9C%E6%A5%AD">九、動手作業</a></li>
+<li class="l2"><a href="#%E5%8D%81%E8%AA%B2%E5%BE%8C%E8%A8%8E%E8%AB%96">十、課後討論</a></li>
+<li class="l3"><a href="#1-strace-%E8%BC%B8%E5%87%BA%E9%80%90%E8%A1%8C%E8%AE%80%E6%A0%BC%E5%BC%8F7-%E5%80%8B%E7%B3%BB%E7%B5%B1%E5%91%BC%E5%8F%AB%E7%9A%84%E5%8F%83%E6%95%B8ldso-%E9%82%A3-30-%E8%A1%8C">1. strace 輸出逐行讀：格式、7 個系統呼叫的參數、ld.so 那 30 行</a></li>
 <li class="l2"><a href="#%E8%87%AA%E6%88%91%E6%B8%AC%E9%A9%97">自我測驗</a></li>
 </ul>
 </nav>
@@ -80,6 +82,7 @@ CS:APP 第 8.5 節之前的「系統呼叫錯誤處理」小節（<code>errno</c
 <li><a href="#%E4%B8%83wc-%E8%88%87-cat-%E7%9A%84%E7%B2%BE%E7%A2%BA%E8%A1%8C%E7%82%BA%E4%BD%9C%E6%A5%AD%E7%9A%84%E8%A6%8F%E6%A0%BC">七、<code>wc</code> 與 <code>cat</code> 的精確行為：作業的規格</a></li>
 <li><a href="#%E5%85%AB%E6%9C%AC%E8%AA%B2%E7%94%A8%E5%88%B0%E7%9A%84%E5%87%BD%E5%BC%8F%E5%B7%A5%E5%85%B7%E8%88%87%E5%AE%8C%E6%95%B4%E6%B8%85%E5%96%AE%E5%9C%A8%E5%93%AA">八、本課用到的函式、工具與完整清單在哪</a></li>
 <li><a href="#%E4%B9%9D%E5%8B%95%E6%89%8B%E4%BD%9C%E6%A5%AD">九、動手作業</a></li>
+<li><a href="#%E5%8D%81%E8%AA%B2%E5%BE%8C%E8%A8%8E%E8%AB%96">十、課後討論</a></li>
 <li><a href="#%E8%87%AA%E6%88%91%E6%B8%AC%E9%A9%97">自我測驗</a></li>
 </ul>
 <hr />
@@ -210,7 +213,7 @@ argv[2] = (nil)
 <li><strong><code>&quot;&quot;</code> 也算一格</strong>：空字串的參數，<code>argc</code> 照樣加 1。</li>
 </ul>
 <h3 id="誰把-txt-換成檔名shell在-execve-之前">誰把 <code>*.txt</code> 換成檔名：shell，在 <code>execve</code> 之前</h3>
-<p>用 <code>strace</code> 只看 <code>execve</code>（第 1 課用過的「啟動一支程式」的系統呼叫）：</p>
+<p>用 <code>strace</code> 只看 <code>execve</code>（第 1 課用過的「啟動一支程式」的系統呼叫，見<a href="hello.c%E6%80%8E%E9%BA%BC%E8%AE%8A%E6%88%90%E8%83%BD%E8%B7%91%E7%9A%84%E7%A8%8B%E5%BC%8F-%E7%B7%A8%E8%AD%AF%E7%9A%84%E5%9B%9B%E5%80%8B%E9%9A%8E%E6%AE%B5.html#%E5%85%AD%E5%9F%B7%E8%A1%8C%E5%BE%9E-execve-%E5%88%B0-write">第 1 課第六節〈執行：從 <code>execve</code> 到 <code>write</code>〉</a>與<a href="hello.c%E6%80%8E%E9%BA%BC%E8%AE%8A%E6%88%90%E8%83%BD%E8%B7%91%E7%9A%84%E7%A8%8B%E5%BC%8F-%E7%B7%A8%E8%AD%AF%E7%9A%84%E5%9B%9B%E5%80%8B%E9%9A%8E%E6%AE%B5.html#4-%E5%AF%A6%E9%A9%97%E4%B8%89%E7%B7%A8%E8%AD%AF%E6%99%82%E8%B7%91%E4%BA%86%E5%93%AA%E4%BA%9B%E7%A8%8B%E5%BC%8F%E5%9F%B7%E8%A1%8C%E6%99%82%E5%8F%88%E8%B7%91%E4%BA%86%E5%93%AA%E4%BA%9B">第十節〈實驗三：編譯時跑了哪些程式、執行時又跑了哪些〉</a>）：</p>
 <pre><code class="language-text">$ strace -e trace=execve ./args &#39;*.txt&#39; *.txt
 execve(&quot;./args&quot;, [&quot;./args&quot;, &quot;*.txt&quot;, &quot;a.txt&quot;, &quot;b.txt&quot;], 0x7fff540f5dc8 /* 91 vars */) = 0
 </code></pre>
@@ -787,7 +790,7 @@ exit=1
 </code></pre>
 <p>（<code>adir</code> 是上一節建的目錄；這次 <code>fopen</code> 成功、<code>getc</code> 失敗，靠 <code>ferror</code> 抓到，回傳 1。）</p>
 <h3 id="用-strace-看-fopengetcprintf-底下是哪些系統呼叫">用 <code>strace</code> 看 <code>fopen</code>、<code>getc</code>、<code>printf</code> 底下是哪些系統呼叫</h3>
-<p><code>strace -o tr.txt</code> 把追蹤結果寫進檔案（不跟程式的輸出混在一起），再挑出跟這個檔案有關的那幾行（前面還有幾十行是 <code>ld.so</code> 載入 <code>libc.so.6</code>，第 1 課看過，這裡略過）：</p>
+<p><code>strace -o tr.txt</code> 把追蹤結果寫進檔案（不跟程式的輸出混在一起），再挑出跟這個檔案有關的那幾行（前面還有幾十行是 <code>ld.so</code> 載入 <code>libc.so.6</code>，見<a href="hello.c%E6%80%8E%E9%BA%BC%E8%AE%8A%E6%88%90%E8%83%BD%E8%B7%91%E7%9A%84%E7%A8%8B%E5%BC%8F-%E7%B7%A8%E8%AD%AF%E7%9A%84%E5%9B%9B%E5%80%8B%E9%9A%8E%E6%AE%B5.html#%E5%85%AD%E5%9F%B7%E8%A1%8C%E5%BE%9E-execve-%E5%88%B0-write">第 1 課第六節〈執行：從 <code>execve</code> 到 <code>write</code>〉</a>的 <code>strace ./hello</code> 輸出 ②～⑤，這裡略過）：</p>
 <pre><code class="language-text">$ strace -o tr.txt ./countch fruit.txt n
 4 fruit.txt
 $ sed -n &#39;1p;33,41p&#39; tr.txt
@@ -849,6 +852,9 @@ exit_group(0)                           = ?
 </tbody>
 </table>
 <p>（<code>n</code> 在 <code>banana</code> 裡 2 個、<code>bandana</code> 裡 2 個，所以是 4。）</p>
+<blockquote>
+<p>課後討論：<a href="#1-strace-%E8%BC%B8%E5%87%BA%E9%80%90%E8%A1%8C%E8%AE%80%E6%A0%BC%E5%BC%8F7-%E5%80%8B%E7%B3%BB%E7%B5%B1%E5%91%BC%E5%8F%AB%E7%9A%84%E5%8F%83%E6%95%B8ldso-%E9%82%A3-30-%E8%A1%8C">第十節第 1 章〈<code>strace</code> 輸出逐行讀：格式、7 個系統呼叫的參數、<code>ld.so</code> 那 30 行〉</a></p>
+</blockquote>
 <p>圖：<code>countch</code> 讀檔時誰呼叫誰（位址、大小對應上面的 <code>strace</code> 輸出）：</p>
 <pre class="mermaid">sequenceDiagram
     autonumber
@@ -1464,6 +1470,269 @@ c^AM-d$
 <hr />
 <h2 id="九動手作業">九、動手作業</h2>
 <p>作業在 <a href="../small-project/s1-08-wc-cat/README.html"><code>small-project/s1-08-wc-cat/</code></a>：<code>hw1/</code> 寫 <code>mycat</code>、<code>hw2/</code> 寫 <code>mywc</code>、<code>hw3/</code> 替 <code>mywc</code> 加上 <code>-l</code>／<code>-w</code>／<code>-c</code> 選項。程式自己寫，題目附了測試指令與要貼的輸出。</p>
+<h2 id="十課後討論">十、課後討論</h2>
+<p>課堂中的追問與延伸討論集中在這一節，正文被問到的地方放一行連結指過來。</p>
+<ul>
+<li><a href="#1-strace-%E8%BC%B8%E5%87%BA%E9%80%90%E8%A1%8C%E8%AE%80%E6%A0%BC%E5%BC%8F7-%E5%80%8B%E7%B3%BB%E7%B5%B1%E5%91%BC%E5%8F%AB%E7%9A%84%E5%8F%83%E6%95%B8ldso-%E9%82%A3-30-%E8%A1%8C">第 1 章</a>：<code>strace</code> 輸出逐行讀：格式、7 個系統呼叫的參數、<code>ld.so</code> 那 30 行</li>
+</ul>
+<h3 id="1-strace-輸出逐行讀格式7-個系統呼叫的參數ldso-那-30-行">1. <code>strace</code> 輸出逐行讀：格式、7 個系統呼叫的參數、<code>ld.so</code> 那 30 行</h3>
+<blockquote>
+<p>2026-11-04 課後提問：</p>
+<ul>
+<li>「請問系統呼叫會有課程講解嗎?未來?」</li>
+<li>「我比較在意的是系統呼叫裏面很多指令你都沒有解釋」</li>
+</ul>
+<p>正文出處：<a href="#%E7%94%A8-strace-%E7%9C%8B-fopengetcprintf-%E5%BA%95%E4%B8%8B%E6%98%AF%E5%93%AA%E4%BA%9B%E7%B3%BB%E7%B5%B1%E5%91%BC%E5%8F%AB">第六節〈用 <code>strace</code> 看 <code>fopen</code>、<code>getc</code>、<code>printf</code> 底下是哪些系統呼叫〉</a>。正文的表只寫了「C 的哪個呼叫對到哪個系統呼叫」，沒解釋每個系統呼叫的參數與回傳值，也把 <code>ld.so</code> 那 30 幾行略過了。</p>
+</blockquote>
+<p><strong>系統呼叫的課程安排</strong>：「怎麼用」散在每一站——第 ② 站 <code>fork</code>／<code>execve</code>／<code>waitpid</code>／<code>pipe</code>、第 ③ 站 <code>mmap</code>／<code>brk</code>、第 ⑤ 站 <code>stat</code> 與系統呼叫的成本、第 ⑥ 站 <code>socket</code>（見<a href="../learning/Linux%E8%88%87%E7%B3%BB%E7%B5%B1%E7%A8%8B%E5%BC%8F%E7%9A%84%E7%B3%BB%E7%B5%B1%E5%8C%96%E5%AD%B8%E7%BF%92%E8%B7%AF%E7%B7%9A.html#%E4%BA%8C%E4%B8%BB%E7%B7%9A%E5%85%AD%E7%AB%99">學習路線第二節〈主線：六站〉</a>）；「系統呼叫本身怎麼運作」（<code>syscall</code> 指令、號碼放 <code>%rax</code>、核心回傳負數怎麼變成 <code>errno</code>）目前還沒排課。這一章只講<strong>讀懂 <code>strace</code> 輸出</strong>需要的部分。</p>
+<h4 id="實驗完整的-41-行">實驗：完整的 41 行</h4>
+<p>程式是正文第六節的 <code>countch.c</code>（完整原始碼在<a href="#%E5%85%AD%E6%8E%A5%E8%B5%B7%E4%BE%86countch-%E8%88%87%E7%94%A8-strace-%E7%9C%8B%E5%AE%83%E5%81%9A%E4%BA%86%E5%93%AA%E4%BA%9B%E7%B3%BB%E7%B5%B1%E5%91%BC%E5%8F%AB">第六節開頭</a>，檔案：<a href="../../small-project/s1-08-wc-cat/examples/countch/countch.c"><code>countch.c</code></a>）。2026-11-04 重跑一次、這次不挑行（位址每次執行都不同，跟正文那次對不上是正常的）：</p>
+<pre><code class="language-text">$ gcc -Wall countch.c -o countch
+$ printf &#39;banana\nbandana\n&#39; &gt; fruit.txt
+$ strace -o tr.txt ./countch fruit.txt n
+4 fruit.txt
+$ cat -n tr.txt
+     1	execve(&quot;./countch&quot;, [&quot;./countch&quot;, &quot;fruit.txt&quot;, &quot;n&quot;], 0x7ffe7e807870 /* 91 vars */) = 0
+     2	brk(NULL)                               = 0x602395eeb000
+     3	mmap(NULL, 8192, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0x76ab84eb5000
+     4	access(&quot;/etc/ld.so.preload&quot;, R_OK)      = -1 ENOENT (No such file or directory)
+     5	openat(AT_FDCWD, &quot;/etc/ld.so.cache&quot;, O_RDONLY|O_CLOEXEC) = 3
+     6	fstat(3, {st_mode=S_IFREG|0644, st_size=104899, ...}) = 0
+     7	mmap(NULL, 104899, PROT_READ, MAP_PRIVATE, 3, 0) = 0x76ab84e9b000
+     8	close(3)                                = 0
+     9	openat(AT_FDCWD, &quot;/lib/x86_64-linux-gnu/libc.so.6&quot;, O_RDONLY|O_CLOEXEC) = 3
+    10	read(3, &quot;\177ELF\2\1\1\3\0\0\0\0\0\0\0\0\3\0&gt;\0\1\0\0\0\220\243\2\0\0\0\0\0&quot;..., 832) = 832
+    11	pread64(3, &quot;\6\0\0\0\4\0\0\0@\0\0\0\0\0\0\0@\0\0\0\0\0\0\0@\0\0\0\0\0\0\0&quot;..., 784, 64) = 784
+    12	fstat(3, {st_mode=S_IFREG|0755, st_size=2129424, ...}) = 0
+    13	pread64(3, &quot;\6\0\0\0\4\0\0\0@\0\0\0\0\0\0\0@\0\0\0\0\0\0\0@\0\0\0\0\0\0\0&quot;..., 784, 64) = 784
+    14	mmap(NULL, 2174352, PROT_READ, MAP_PRIVATE|MAP_DENYWRITE, 3, 0) = 0x76ab84c00000
+    15	mmap(0x76ab84c28000, 1609728, PROT_READ|PROT_EXEC, MAP_PRIVATE|MAP_FIXED|MAP_DENYWRITE, 3, 0x28000) = 0x76ab84c28000
+    16	mmap(0x76ab84db1000, 323584, PROT_READ, MAP_PRIVATE|MAP_FIXED|MAP_DENYWRITE, 3, 0x1b1000) = 0x76ab84db1000
+    17	mmap(0x76ab84e00000, 24576, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_FIXED|MAP_DENYWRITE, 3, 0x1ff000) = 0x76ab84e00000
+    18	mmap(0x76ab84e06000, 52624, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_FIXED|MAP_ANONYMOUS, -1, 0) = 0x76ab84e06000
+    19	close(3)                                = 0
+    20	mmap(NULL, 12288, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0x76ab84e98000
+    21	arch_prctl(ARCH_SET_FS, 0x76ab84e98740) = 0
+    22	set_tid_address(0x76ab84e98a10)         = 37705
+    23	set_robust_list(0x76ab84e98a20, 24)     = 0
+    24	rseq(0x76ab84e99060, 0x20, 0, 0x53053053) = 0
+    25	mprotect(0x76ab84e00000, 16384, PROT_READ) = 0
+    26	mprotect(0x6023762fc000, 4096, PROT_READ) = 0
+    27	mprotect(0x76ab84ef5000, 8192, PROT_READ) = 0
+    28	prlimit64(0, RLIMIT_STACK, NULL, {rlim_cur=8192*1024, rlim_max=RLIM64_INFINITY}) = 0
+    29	munmap(0x76ab84e9b000, 104899)          = 0
+    30	getrandom(&quot;\xb4\x53\xa4\x84\x5b\x09\xc0\xcf&quot;, 8, GRND_NONBLOCK) = 8
+    31	brk(NULL)                               = 0x602395eeb000
+    32	brk(0x602395f0c000)                     = 0x602395f0c000
+    33	openat(AT_FDCWD, &quot;fruit.txt&quot;, O_RDONLY) = 3
+    34	fstat(3, {st_mode=S_IFREG|0664, st_size=15, ...}) = 0
+    35	read(3, &quot;banana\nbandana\n&quot;, 4096)      = 15
+    36	read(3, &quot;&quot;, 4096)                       = 0
+    37	close(3)                                = 0
+    38	fstat(1, {st_mode=S_IFREG|0664, st_size=0, ...}) = 0
+    39	write(1, &quot;4 fruit.txt\n&quot;, 12)           = 12
+    40	exit_group(0)                           = ?
+    41	+++ exited with 0 +++
+</code></pre>
+<p>分三段：第 1 行是 shell 啟動程式；第 2～32 行是 <code>main</code> 開始前 <code>ld.so</code> 與 libc 的初始化；第 33～40 行才是 <code>countch</code> 自己（<code>fopen</code>、<code>getc</code>、<code>fclose</code>、<code>printf</code>、<code>return 0</code>）。</p>
+<h4 id="一行的格式名稱參數--回傳值">一行的格式：<code>名稱(參數…) = 回傳值</code></h4>
+<table>
+<thead>
+<tr>
+<th>寫法</th>
+<th>例子（行號）</th>
+<th>意思</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>= 數字</code></td>
+<td><code>openat(…) = 3</code>（33）</td>
+<td>系統呼叫的回傳值；成功時的意義看是哪個呼叫（fd、byte 數、位址……）</td>
+</tr>
+<tr>
+<td><code>= -1 錯誤碼 (說明)</code></td>
+<td><code>access(…) = -1 ENOENT (…)</code>（4）</td>
+<td>失敗：核心回傳錯誤，glibc 讓函式回傳 −1、把 <code>ENOENT</code> 存進 <code>errno</code>（正文<a href="#%E9%8C%AF%E8%AA%A4%E5%9B%9E%E5%A0%B1%E7%9A%84%E6%85%A3%E4%BE%8B%E5%9B%9E%E5%82%B3%E5%80%BC%E8%AA%AA%E5%A4%B1%E6%95%97%E4%BA%86errno-%E8%AA%AA%E7%82%BA%E4%BB%80%E9%BA%BC">第四節〈錯誤回報的慣例〉</a>）</td>
+</tr>
+<tr>
+<td><code>= ?</code></td>
+<td><code>exit_group(0) = ?</code>（40）</td>
+<td>這個呼叫不會返回，沒有回傳值</td>
+</tr>
+<tr>
+<td><code>&quot;…&quot;...</code></td>
+<td><code>read(3, &quot;\177ELF…&quot;..., 832)</code>（10）</td>
+<td>字串只印前 32 byte，後面用 <code>...</code> 表示（<code>strace -s 數字</code> 改長度）</td>
+</tr>
+<tr>
+<td><code>{…}</code></td>
+<td><code>fstat(3, {st_mode=…, st_size=15, ...})</code>（34）</td>
+<td>結構：<code>strace</code> 把核心填好的欄位挑幾個印出來，其餘用 <code>...</code></td>
+</tr>
+<tr>
+<td><code>位址 /* 91 vars */</code></td>
+<td><code>execve(…, 0x7ffe7e807870 /* 91 vars */)</code>（1）</td>
+<td>環境變數陣列，不展開，只說有 91 個</td>
+</tr>
+<tr>
+<td><code>A|B</code></td>
+<td><code>O_RDONLY|O_CLOEXEC</code>（5）</td>
+<td>旗標（flag）的位元 OR，<code>strace</code> 把數字翻回巨集名字</td>
+</tr>
+<tr>
+<td><code>+++ exited with 0 +++</code></td>
+<td>（41）</td>
+<td><strong>不是系統呼叫</strong>，是 <code>strace</code> 自己報告行程結束、結束狀態 0</td>
+</tr>
+</tbody>
+</table>
+<p><code>read</code>、<code>fstat</code> 這種「核心把結果寫進你給的緩衝區」的參數，<code>strace</code> 印的是<strong>呼叫完之後</strong>緩衝區的內容（第 35 行的 <code>&quot;banana\nbandana\n&quot;</code> 是讀進來的資料，不是傳進去的）。</p>
+<h4 id="countch-自己用到的-7-個系統呼叫"><code>countch</code> 自己用到的 7 個系統呼叫</h4>
+<p>原型照 <code>man 2 &lt;名稱&gt;</code>；括號裡的數字是 x86-64 的系統呼叫號碼（<code>/usr/include/x86_64-linux-gnu/asm/unistd_64.h</code> 的 <code>__NR_&lt;名稱&gt;</code>）。</p>
+<table>
+<thead>
+<tr>
+<th>系統呼叫（號碼）</th>
+<th>原型</th>
+<th>參數逐個說明</th>
+<th>回傳值</th>
+<th>本例（行號）</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>execve</code>（59）</td>
+<td><code>execve(pathname, argv, envp)</code></td>
+<td>要執行的檔案路徑；新程式的 <code>argv</code> 陣列；環境變數陣列</td>
+<td>成功<strong>不返回</strong>（行程換成新程式）；失敗回傳 −1</td>
+<td>1：載入 <code>./countch</code>，<code>argv</code> 就是正文第二節講的陣列；<code>strace</code> 印的 <code>= 0</code> 是它記下的成功</td>
+</tr>
+<tr>
+<td><code>openat</code>（257）</td>
+<td><code>openat(dirfd, pathname, flags, ...)</code></td>
+<td>相對路徑從哪個目錄算（<code>AT_FDCWD</code>：目前工作目錄）；路徑；開檔方式旗標；建立新檔時才有第 4 個參數（權限）</td>
+<td>新的 fd；失敗 −1</td>
+<td>33：<code>O_RDONLY</code>（只讀，就是 <code>fopen</code> 的 <code>&quot;r&quot;</code>）→ fd 3。glibc 的 <code>open()</code>、<code>fopen()</code> 底下都是 <code>openat</code>。第 5、9 行多了 <code>O_CLOEXEC</code>：之後 <code>execve</code> 別的程式時自動關掉這個 fd</td>
+</tr>
+<tr>
+<td><code>fstat</code>（5）</td>
+<td><code>fstat(fd, statbuf)</code></td>
+<td>哪個 fd；核心把檔案資訊填進這個 <code>struct stat</code></td>
+<td>0；失敗 −1</td>
+<td>34：<code>st_mode=S_IFREG|0664</code> ＝ 一般檔案、權限 <code>664</code>；<code>st_size=15</code> ＝ 15 byte。stdio 用結構裡的區塊大小（<code>stat -c %o fruit.txt</code> 實測 4096）決定緩衝區大小。38：<code>fstat(1)</code> 看 <code>stdout</code> 接到什麼（正文那段講的緩衝方式）</td>
+</tr>
+<tr>
+<td><code>read</code>（0）</td>
+<td><code>read(fd, buf, count)</code></td>
+<td>從哪個 fd；讀到哪塊記憶體；<strong>最多</strong>讀幾 byte</td>
+<td>實際讀到的 byte 數；<strong>0 ＝ 檔案結尾</strong>；失敗 −1</td>
+<td>35：要 4096、只有 15 → 回傳 15。36：再讀 → 0，<code>getc</code> 因此回傳 <code>EOF</code></td>
+</tr>
+<tr>
+<td><code>close</code>（3）</td>
+<td><code>close(fd)</code></td>
+<td>要釋放的 fd</td>
+<td>0；失敗 −1</td>
+<td>37：<code>fclose</code> 底下。釋放後 3 這個號碼可以再被下一次 <code>openat</code> 拿到</td>
+</tr>
+<tr>
+<td><code>write</code>（1）</td>
+<td><code>write(fd, buf, count)</code></td>
+<td>寫到哪個 fd；資料在哪；寫幾 byte</td>
+<td>實際寫了幾 byte；失敗 −1</td>
+<td>39：<code>printf</code> 的結果先在 stdio 緩衝區，<code>return</code> 時一次寫 12 byte 到 fd 1</td>
+</tr>
+<tr>
+<td><code>exit_group</code>（231）</td>
+<td><code>exit_group(status)</code></td>
+<td>結束狀態</td>
+<td>不返回</td>
+<td>40：<code>return 0</code> → libc 的 <code>exit(0)</code> → 結束整個行程（所有執行緒）；<code>$?</code> 就是這個 0</td>
+</tr>
+</tbody>
+</table>
+<h4 id="ldso-與-libc-初始化的那-30-行"><code>ld.so</code> 與 libc 初始化的那 30 行</h4>
+<p>這段大多是後面幾站的主題，這裡每個只講它在這份輸出裡做什麼：</p>
+<table>
+<thead>
+<tr>
+<th>系統呼叫（行號）</th>
+<th>在這裡做什麼</th>
+<th>正式在哪教</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>access(&quot;/etc/ld.so.preload&quot;, R_OK)</code>（4）</td>
+<td>檢查有沒有「每支程式都強制預先載入」的函式庫設定檔；<code>ENOENT</code> ＝ 沒有</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>openat</code>／<code>fstat</code>／<code>mmap</code>／<code>close</code> <code>/etc/ld.so.cache</code>（5～8）</td>
+<td>把 <code>ldconfig</code> 建好的「函式庫名 → 路徑」快取映射進來查</td>
+<td>已教：<a href="%E9%9D%9C%E6%85%8B%E8%88%87%E5%8B%95%E6%85%8B%E5%87%BD%E5%BC%8F%E5%BA%AB-ar%E8%88%87.a%E3%80%81-fPIC%E8%88%87.so%E3%80%81%E5%9F%B7%E8%A1%8C%E6%99%82%E6%80%8E%E9%BA%BC%E6%89%BE%E5%88%B0.so.html#ldso-%E5%8E%BB%E4%BA%86%E5%93%AA%E4%BA%9B%E5%9C%B0%E6%96%B9%E6%89%BE">第 7 課第五節〈<code>ld.so</code> 去了哪些地方找〉</a>、<a href="%E9%9D%9C%E6%85%8B%E8%88%87%E5%8B%95%E6%85%8B%E5%87%BD%E5%BC%8F%E5%BA%AB-ar%E8%88%87.a%E3%80%81-fPIC%E8%88%87.so%E3%80%81%E5%9F%B7%E8%A1%8C%E6%99%82%E6%80%8E%E9%BA%BC%E6%89%BE%E5%88%B0.so.html#%E6%96%B9%E6%B3%95%E4%B8%89%E8%A3%9D%E5%88%B0%E7%B3%BB%E7%B5%B1%E7%9B%AE%E9%8C%84%E8%B7%91-ldconfig">〈方法三：裝到系統目錄，跑 <code>ldconfig</code>〉</a></td>
+</tr>
+<tr>
+<td><code>openat</code> <code>libc.so.6</code>、<code>read(…, 832)</code>（9、10）</td>
+<td>打開 libc、讀 ELF 標頭（開頭 <code>\177ELF</code>）</td>
+<td>已教：<a href="hello.c%E6%80%8E%E9%BA%BC%E8%AE%8A%E6%88%90%E8%83%BD%E8%B7%91%E7%9A%84%E7%A8%8B%E5%BC%8F-%E7%B7%A8%E8%AD%AF%E7%9A%84%E5%9B%9B%E5%80%8B%E9%9A%8E%E6%AE%B5.html#%E5%85%AD%E5%9F%B7%E8%A1%8C%E5%BE%9E-execve-%E5%88%B0-write">第 1 課第六節〈執行：從 <code>execve</code> 到 <code>write</code>〉</a>的 ②～④</td>
+</tr>
+<tr>
+<td><code>pread64</code>（11、13）</td>
+<td><code>pread64(fd, buf, count, offset)</code>：從<strong>指定位移</strong>（64）讀，不移動檔案目前的位置；讀的是 libc 的程式標頭</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>mmap</code>（3、7、14～18、20）</td>
+<td>把檔案的一段（或一塊不對應檔案的匿名記憶體 <code>MAP_ANONYMOUS</code>）映射進位址空間；14～17 是 libc 的四段，權限各不同（15 那段 <code>PROT_EXEC</code> 是程式碼）</td>
+<td>第 ③ 站（虛擬記憶體）</td>
+</tr>
+<tr>
+<td><code>mprotect</code>（25～27）</td>
+<td>改一段記憶體的權限；這裡是重定位做完後把 GOT 那幾頁改成唯讀（RELRO，見<a href="%E9%9D%9C%E6%85%8B%E8%88%87%E5%8B%95%E6%85%8B%E5%87%BD%E5%BC%8F%E5%BA%AB-ar%E8%88%87.a%E3%80%81-fPIC%E8%88%87.so%E3%80%81%E5%9F%B7%E8%A1%8C%E6%99%82%E6%80%8E%E9%BA%BC%E6%89%BE%E5%88%B0.so.html#6-%E5%85%A9%E6%94%AF%E7%A8%8B%E5%BC%8F%E9%83%BD%E7%94%A8-libcountso%E8%A8%98%E6%86%B6%E9%AB%94%E8%A3%A1%E6%98%AF%E5%90%8C%E4%B8%80%E4%BB%BD%E5%97%8E">第 7 課第九節第 6 章</a>表裡的 <code>.got</code>（RELRO））</td>
+<td>第 ③ 站</td>
+</tr>
+<tr>
+<td><code>munmap</code>（29）</td>
+<td>取消映射：<code>ld.so.cache</code> 查完了，把第 7 行映射的那塊還回去</td>
+<td>第 ③ 站</td>
+</tr>
+<tr>
+<td><code>brk</code>（2、31、32）</td>
+<td>查詢／移動 heap 的頂端：<code>brk(NULL)</code> 問目前在哪，32 行把它往上推 <code>0x21000</code> byte——<code>fopen</code> 第一次 <code>malloc</code>（配 <code>FILE</code> 結構）時</td>
+<td>第 ③ 站（自己寫 <code>malloc</code>）</td>
+</tr>
+<tr>
+<td><code>arch_prctl(ARCH_SET_FS, …)</code>（21）</td>
+<td>設定 <code>%fs</code> 暫存器指向<strong>執行緒區域儲存</strong>（TLS，thread-local storage）；<code>errno</code> 就放在這裡，所以每個執行緒各有一個 <code>errno</code></td>
+<td>第 ④ 站（執行緒）</td>
+</tr>
+<tr>
+<td><code>set_tid_address</code>、<code>set_robust_list</code>、<code>rseq</code>（22～24）</td>
+<td>替主執行緒向核心登記：結束時要清哪個位址並喚醒等待者、持有中的鎖清單、可重新啟動序列（rseq，restartable sequences）的資料區。22 回傳 37705 是這個執行緒的 ID</td>
+<td>第 ④ 站</td>
+</tr>
+<tr>
+<td><code>prlimit64(0, RLIMIT_STACK, NULL, …)</code>（28）</td>
+<td>查詢（第 3 個參數 <code>NULL</code> ＝ 不設定）本行程的堆疊大小上限：8 MiB</td>
+<td>第 ② 站（行程）</td>
+</tr>
+<tr>
+<td><code>getrandom(…, 8, GRND_NONBLOCK)</code>（30）</td>
+<td>向核心要 8 byte 亂數；這裡是 <code>malloc</code> 初始化時拿來當內部保護用的鍵</td>
+<td>第 ③ 站</td>
+</tr>
+</tbody>
+</table>
+<h4 id="全部有多少個系統呼叫">全部有多少個系統呼叫</h4>
+<p>這份輸出出現 <strong>19 個</strong>不同的系統呼叫：上面第一張表 7 個、第二張表 12 個，全部都講了。x86-64 一共定義 <strong>373</strong> 個系統呼叫號碼（<code>grep -c __NR_ /usr/include/x86_64-linux-gnu/asm/unistd_64.h</code>），不在這裡逐一列：大部分要到用得到的那一站才有意義。查法：</p>
+<ul>
+<li><code>man 2 syscalls</code>：全部系統呼叫的清單（含從哪個核心版本開始有）；</li>
+<li><code>man 2 &lt;名稱&gt;</code>：單一個的原型、參數、回傳值、錯誤碼（例如 <code>man 2 openat</code>）；</li>
+<li><code>strace -e trace=&lt;名稱,…&gt;</code>：只看某幾個，例如正文的 <code>strace -e trace=read</code>。</li>
+</ul>
+<p><strong>一句話</strong>：讀 <code>strace</code> 只要先抓「名稱、參數、<code>=</code> 後的回傳值」；<code>countch</code> 自己的部分只有 7 個系統呼叫，前面 30 行是 <code>ld.so</code> 與 libc 替 <code>main</code> 準備環境。</p>
 <hr />
 <h2 id="自我測驗">自我測驗</h2>
 <blockquote>

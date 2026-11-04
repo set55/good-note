@@ -25,6 +25,7 @@
 - [七、`wc` 與 `cat` 的精確行為：作業的規格](#七wc-與-cat-的精確行為作業的規格)
 - [八、本課用到的函式、工具與完整清單在哪](#八本課用到的函式工具與完整清單在哪)
 - [九、動手作業](#九動手作業)
+- [十、課後討論](#十課後討論)
 - [自我測驗](#自我測驗)
 
 ---
@@ -145,7 +146,7 @@ argv[2] = (nil)
 
 ### 誰把 `*.txt` 換成檔名：shell，在 `execve` 之前
 
-用 `strace` 只看 `execve`（第 1 課用過的「啟動一支程式」的系統呼叫）：
+用 `strace` 只看 `execve`（第 1 課用過的「啟動一支程式」的系統呼叫，見[第 1 課第六節〈執行：從 `execve` 到 `write`〉](./hello.c怎麼變成能跑的程式-編譯的四個階段.md#六執行從-execve-到-write)與[第十節〈實驗三：編譯時跑了哪些程式、執行時又跑了哪些〉](./hello.c怎麼變成能跑的程式-編譯的四個階段.md#4-實驗三編譯時跑了哪些程式執行時又跑了哪些)）：
 
 ```text
 $ strace -e trace=execve ./args '*.txt' *.txt
@@ -641,7 +642,7 @@ exit=1
 
 ### 用 `strace` 看 `fopen`、`getc`、`printf` 底下是哪些系統呼叫
 
-`strace -o tr.txt` 把追蹤結果寫進檔案（不跟程式的輸出混在一起），再挑出跟這個檔案有關的那幾行（前面還有幾十行是 `ld.so` 載入 `libc.so.6`，第 1 課看過，這裡略過）：
+`strace -o tr.txt` 把追蹤結果寫進檔案（不跟程式的輸出混在一起），再挑出跟這個檔案有關的那幾行（前面還有幾十行是 `ld.so` 載入 `libc.so.6`，見[第 1 課第六節〈執行：從 `execve` 到 `write`〉](./hello.c怎麼變成能跑的程式-編譯的四個階段.md#六執行從-execve-到-write)的 `strace ./hello` 輸出 ②～⑤，這裡略過）：
 
 ```text
 $ strace -o tr.txt ./countch fruit.txt n
@@ -670,6 +671,8 @@ exit_group(0)                           = ?
 | `printf` → `return 0` | `fstat(1, ...)`、`write(1, "4 fruit.txt\n", 12)` | 第一次寫 `stdout` 時 stdio 先 `fstat(1)` 看它接到什麼；這次實測是在不是終端機的環境跑（`S_IFREG`：一般檔案），所以是全緩衝、`return` 時才寫出去。在終端機上跑會看到 `S_IFCHR`（字元裝置），行緩衝，遇到 `\n` 就寫 |
 
 （`n` 在 `banana` 裡 2 個、`bandana` 裡 2 個，所以是 4。）
+
+> 課後討論：[第十節第 1 章〈`strace` 輸出逐行讀：格式、7 個系統呼叫的參數、`ld.so` 那 30 行〉](#1-strace-輸出逐行讀格式7-個系統呼叫的參數ldso-那-30-行)
 
 圖：`countch` 讀檔時誰呼叫誰（位址、大小對應上面的 `strace` 輸出）：
 
@@ -1097,6 +1100,135 @@ c^AM-d$
 ## 九、動手作業
 
 作業在 [`small-project/s1-08-wc-cat/`](../small-project/s1-08-wc-cat/README.md)：`hw1/` 寫 `mycat`、`hw2/` 寫 `mywc`、`hw3/` 替 `mywc` 加上 `-l`／`-w`／`-c` 選項。程式自己寫，題目附了測試指令與要貼的輸出。
+
+## 十、課後討論
+
+課堂中的追問與延伸討論集中在這一節，正文被問到的地方放一行連結指過來。
+
+- [第 1 章](#1-strace-輸出逐行讀格式7-個系統呼叫的參數ldso-那-30-行)：`strace` 輸出逐行讀：格式、7 個系統呼叫的參數、`ld.so` 那 30 行
+
+### 1. `strace` 輸出逐行讀：格式、7 個系統呼叫的參數、`ld.so` 那 30 行
+
+> 2026-11-04 課後提問：
+> - 「請問系統呼叫會有課程講解嗎?未來?」
+> - 「我比較在意的是系統呼叫裏面很多指令你都沒有解釋」
+>
+> 正文出處：[第六節〈用 `strace` 看 `fopen`、`getc`、`printf` 底下是哪些系統呼叫〉](#用-strace-看-fopengetcprintf-底下是哪些系統呼叫)。正文的表只寫了「C 的哪個呼叫對到哪個系統呼叫」，沒解釋每個系統呼叫的參數與回傳值，也把 `ld.so` 那 30 幾行略過了。
+
+**系統呼叫的課程安排**：「怎麼用」散在每一站——第 ② 站 `fork`／`execve`／`waitpid`／`pipe`、第 ③ 站 `mmap`／`brk`、第 ⑤ 站 `stat` 與系統呼叫的成本、第 ⑥ 站 `socket`（見[學習路線第二節〈主線：六站〉](../learning/Linux與系統程式的系統化學習路線.md#二主線六站)）；「系統呼叫本身怎麼運作」（`syscall` 指令、號碼放 `%rax`、核心回傳負數怎麼變成 `errno`）目前還沒排課。這一章只講**讀懂 `strace` 輸出**需要的部分。
+
+#### 實驗：完整的 41 行
+
+程式是正文第六節的 `countch.c`（完整原始碼在[第六節開頭](#六接起來countch-與用-strace-看它做了哪些系統呼叫)，檔案：[`countch.c`](../small-project/s1-08-wc-cat/examples/countch/countch.c)）。2026-11-04 重跑一次、這次不挑行（位址每次執行都不同，跟正文那次對不上是正常的）：
+
+```text
+$ gcc -Wall countch.c -o countch
+$ printf 'banana\nbandana\n' > fruit.txt
+$ strace -o tr.txt ./countch fruit.txt n
+4 fruit.txt
+$ cat -n tr.txt
+     1	execve("./countch", ["./countch", "fruit.txt", "n"], 0x7ffe7e807870 /* 91 vars */) = 0
+     2	brk(NULL)                               = 0x602395eeb000
+     3	mmap(NULL, 8192, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0x76ab84eb5000
+     4	access("/etc/ld.so.preload", R_OK)      = -1 ENOENT (No such file or directory)
+     5	openat(AT_FDCWD, "/etc/ld.so.cache", O_RDONLY|O_CLOEXEC) = 3
+     6	fstat(3, {st_mode=S_IFREG|0644, st_size=104899, ...}) = 0
+     7	mmap(NULL, 104899, PROT_READ, MAP_PRIVATE, 3, 0) = 0x76ab84e9b000
+     8	close(3)                                = 0
+     9	openat(AT_FDCWD, "/lib/x86_64-linux-gnu/libc.so.6", O_RDONLY|O_CLOEXEC) = 3
+    10	read(3, "\177ELF\2\1\1\3\0\0\0\0\0\0\0\0\3\0>\0\1\0\0\0\220\243\2\0\0\0\0\0"..., 832) = 832
+    11	pread64(3, "\6\0\0\0\4\0\0\0@\0\0\0\0\0\0\0@\0\0\0\0\0\0\0@\0\0\0\0\0\0\0"..., 784, 64) = 784
+    12	fstat(3, {st_mode=S_IFREG|0755, st_size=2129424, ...}) = 0
+    13	pread64(3, "\6\0\0\0\4\0\0\0@\0\0\0\0\0\0\0@\0\0\0\0\0\0\0@\0\0\0\0\0\0\0"..., 784, 64) = 784
+    14	mmap(NULL, 2174352, PROT_READ, MAP_PRIVATE|MAP_DENYWRITE, 3, 0) = 0x76ab84c00000
+    15	mmap(0x76ab84c28000, 1609728, PROT_READ|PROT_EXEC, MAP_PRIVATE|MAP_FIXED|MAP_DENYWRITE, 3, 0x28000) = 0x76ab84c28000
+    16	mmap(0x76ab84db1000, 323584, PROT_READ, MAP_PRIVATE|MAP_FIXED|MAP_DENYWRITE, 3, 0x1b1000) = 0x76ab84db1000
+    17	mmap(0x76ab84e00000, 24576, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_FIXED|MAP_DENYWRITE, 3, 0x1ff000) = 0x76ab84e00000
+    18	mmap(0x76ab84e06000, 52624, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_FIXED|MAP_ANONYMOUS, -1, 0) = 0x76ab84e06000
+    19	close(3)                                = 0
+    20	mmap(NULL, 12288, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0x76ab84e98000
+    21	arch_prctl(ARCH_SET_FS, 0x76ab84e98740) = 0
+    22	set_tid_address(0x76ab84e98a10)         = 37705
+    23	set_robust_list(0x76ab84e98a20, 24)     = 0
+    24	rseq(0x76ab84e99060, 0x20, 0, 0x53053053) = 0
+    25	mprotect(0x76ab84e00000, 16384, PROT_READ) = 0
+    26	mprotect(0x6023762fc000, 4096, PROT_READ) = 0
+    27	mprotect(0x76ab84ef5000, 8192, PROT_READ) = 0
+    28	prlimit64(0, RLIMIT_STACK, NULL, {rlim_cur=8192*1024, rlim_max=RLIM64_INFINITY}) = 0
+    29	munmap(0x76ab84e9b000, 104899)          = 0
+    30	getrandom("\xb4\x53\xa4\x84\x5b\x09\xc0\xcf", 8, GRND_NONBLOCK) = 8
+    31	brk(NULL)                               = 0x602395eeb000
+    32	brk(0x602395f0c000)                     = 0x602395f0c000
+    33	openat(AT_FDCWD, "fruit.txt", O_RDONLY) = 3
+    34	fstat(3, {st_mode=S_IFREG|0664, st_size=15, ...}) = 0
+    35	read(3, "banana\nbandana\n", 4096)      = 15
+    36	read(3, "", 4096)                       = 0
+    37	close(3)                                = 0
+    38	fstat(1, {st_mode=S_IFREG|0664, st_size=0, ...}) = 0
+    39	write(1, "4 fruit.txt\n", 12)           = 12
+    40	exit_group(0)                           = ?
+    41	+++ exited with 0 +++
+```
+
+分三段：第 1 行是 shell 啟動程式；第 2～32 行是 `main` 開始前 `ld.so` 與 libc 的初始化；第 33～40 行才是 `countch` 自己（`fopen`、`getc`、`fclose`、`printf`、`return 0`）。
+
+#### 一行的格式：`名稱(參數…) = 回傳值`
+
+| 寫法 | 例子（行號） | 意思 |
+|---|---|---|
+| `= 數字` | `openat(…) = 3`（33） | 系統呼叫的回傳值；成功時的意義看是哪個呼叫（fd、byte 數、位址……） |
+| `= -1 錯誤碼 (說明)` | `access(…) = -1 ENOENT (…)`（4） | 失敗：核心回傳錯誤，glibc 讓函式回傳 −1、把 `ENOENT` 存進 `errno`（正文[第四節〈錯誤回報的慣例〉](#錯誤回報的慣例回傳值說失敗了errno-說為什麼)） |
+| `= ?` | `exit_group(0) = ?`（40） | 這個呼叫不會返回，沒有回傳值 |
+| `"…"...` | `read(3, "\177ELF…"..., 832)`（10） | 字串只印前 32 byte，後面用 `...` 表示（`strace -s 數字` 改長度） |
+| `{…}` | `fstat(3, {st_mode=…, st_size=15, ...})`（34） | 結構：`strace` 把核心填好的欄位挑幾個印出來，其餘用 `...` |
+| `位址 /* 91 vars */` | `execve(…, 0x7ffe7e807870 /* 91 vars */)`（1） | 環境變數陣列，不展開，只說有 91 個 |
+| `A\|B` | `O_RDONLY\|O_CLOEXEC`（5） | 旗標（flag）的位元 OR，`strace` 把數字翻回巨集名字 |
+| `+++ exited with 0 +++` | （41） | **不是系統呼叫**，是 `strace` 自己報告行程結束、結束狀態 0 |
+
+`read`、`fstat` 這種「核心把結果寫進你給的緩衝區」的參數，`strace` 印的是**呼叫完之後**緩衝區的內容（第 35 行的 `"banana\nbandana\n"` 是讀進來的資料，不是傳進去的）。
+
+#### `countch` 自己用到的 7 個系統呼叫
+
+原型照 `man 2 <名稱>`；括號裡的數字是 x86-64 的系統呼叫號碼（`/usr/include/x86_64-linux-gnu/asm/unistd_64.h` 的 `__NR_<名稱>`）。
+
+| 系統呼叫（號碼） | 原型 | 參數逐個說明 | 回傳值 | 本例（行號） |
+|---|---|---|---|---|
+| `execve`（59） | `execve(pathname, argv, envp)` | 要執行的檔案路徑；新程式的 `argv` 陣列；環境變數陣列 | 成功**不返回**（行程換成新程式）；失敗回傳 −1 | 1：載入 `./countch`，`argv` 就是正文第二節講的陣列；`strace` 印的 `= 0` 是它記下的成功 |
+| `openat`（257） | `openat(dirfd, pathname, flags, ...)` | 相對路徑從哪個目錄算（`AT_FDCWD`：目前工作目錄）；路徑；開檔方式旗標；建立新檔時才有第 4 個參數（權限） | 新的 fd；失敗 −1 | 33：`O_RDONLY`（只讀，就是 `fopen` 的 `"r"`）→ fd 3。glibc 的 `open()`、`fopen()` 底下都是 `openat`。第 5、9 行多了 `O_CLOEXEC`：之後 `execve` 別的程式時自動關掉這個 fd |
+| `fstat`（5） | `fstat(fd, statbuf)` | 哪個 fd；核心把檔案資訊填進這個 `struct stat` | 0；失敗 −1 | 34：`st_mode=S_IFREG\|0664` ＝ 一般檔案、權限 `664`；`st_size=15` ＝ 15 byte。stdio 用結構裡的區塊大小（`stat -c %o fruit.txt` 實測 4096）決定緩衝區大小。38：`fstat(1)` 看 `stdout` 接到什麼（正文那段講的緩衝方式） |
+| `read`（0） | `read(fd, buf, count)` | 從哪個 fd；讀到哪塊記憶體；**最多**讀幾 byte | 實際讀到的 byte 數；**0 ＝ 檔案結尾**；失敗 −1 | 35：要 4096、只有 15 → 回傳 15。36：再讀 → 0，`getc` 因此回傳 `EOF` |
+| `close`（3） | `close(fd)` | 要釋放的 fd | 0；失敗 −1 | 37：`fclose` 底下。釋放後 3 這個號碼可以再被下一次 `openat` 拿到 |
+| `write`（1） | `write(fd, buf, count)` | 寫到哪個 fd；資料在哪；寫幾 byte | 實際寫了幾 byte；失敗 −1 | 39：`printf` 的結果先在 stdio 緩衝區，`return` 時一次寫 12 byte 到 fd 1 |
+| `exit_group`（231） | `exit_group(status)` | 結束狀態 | 不返回 | 40：`return 0` → libc 的 `exit(0)` → 結束整個行程（所有執行緒）；`$?` 就是這個 0 |
+
+#### `ld.so` 與 libc 初始化的那 30 行
+
+這段大多是後面幾站的主題，這裡每個只講它在這份輸出裡做什麼：
+
+| 系統呼叫（行號） | 在這裡做什麼 | 正式在哪教 |
+|---|---|---|
+| `access("/etc/ld.so.preload", R_OK)`（4） | 檢查有沒有「每支程式都強制預先載入」的函式庫設定檔；`ENOENT` ＝ 沒有 | — |
+| `openat`／`fstat`／`mmap`／`close` `/etc/ld.so.cache`（5～8） | 把 `ldconfig` 建好的「函式庫名 → 路徑」快取映射進來查 | 已教：[第 7 課第五節〈`ld.so` 去了哪些地方找〉](./靜態與動態函式庫-ar與.a、-fPIC與.so、執行時怎麼找到.so.md#ldso-去了哪些地方找)、[〈方法三：裝到系統目錄，跑 `ldconfig`〉](./靜態與動態函式庫-ar與.a、-fPIC與.so、執行時怎麼找到.so.md#方法三裝到系統目錄跑-ldconfig) |
+| `openat` `libc.so.6`、`read(…, 832)`（9、10） | 打開 libc、讀 ELF 標頭（開頭 `\177ELF`） | 已教：[第 1 課第六節〈執行：從 `execve` 到 `write`〉](./hello.c怎麼變成能跑的程式-編譯的四個階段.md#六執行從-execve-到-write)的 ②～④ |
+| `pread64`（11、13） | `pread64(fd, buf, count, offset)`：從**指定位移**（64）讀，不移動檔案目前的位置；讀的是 libc 的程式標頭 | — |
+| `mmap`（3、7、14～18、20） | 把檔案的一段（或一塊不對應檔案的匿名記憶體 `MAP_ANONYMOUS`）映射進位址空間；14～17 是 libc 的四段，權限各不同（15 那段 `PROT_EXEC` 是程式碼） | 第 ③ 站（虛擬記憶體） |
+| `mprotect`（25～27） | 改一段記憶體的權限；這裡是重定位做完後把 GOT 那幾頁改成唯讀（RELRO，見[第 7 課第九節第 6 章](./靜態與動態函式庫-ar與.a、-fPIC與.so、執行時怎麼找到.so.md#6-兩支程式都用-libcountso記憶體裡是同一份嗎)表裡的 `.got`（RELRO）） | 第 ③ 站 |
+| `munmap`（29） | 取消映射：`ld.so.cache` 查完了，把第 7 行映射的那塊還回去 | 第 ③ 站 |
+| `brk`（2、31、32） | 查詢／移動 heap 的頂端：`brk(NULL)` 問目前在哪，32 行把它往上推 `0x21000` byte——`fopen` 第一次 `malloc`（配 `FILE` 結構）時 | 第 ③ 站（自己寫 `malloc`） |
+| `arch_prctl(ARCH_SET_FS, …)`（21） | 設定 `%fs` 暫存器指向**執行緒區域儲存**（TLS，thread-local storage）；`errno` 就放在這裡，所以每個執行緒各有一個 `errno` | 第 ④ 站（執行緒） |
+| `set_tid_address`、`set_robust_list`、`rseq`（22～24） | 替主執行緒向核心登記：結束時要清哪個位址並喚醒等待者、持有中的鎖清單、可重新啟動序列（rseq，restartable sequences）的資料區。22 回傳 37705 是這個執行緒的 ID | 第 ④ 站 |
+| `prlimit64(0, RLIMIT_STACK, NULL, …)`（28） | 查詢（第 3 個參數 `NULL` ＝ 不設定）本行程的堆疊大小上限：8 MiB | 第 ② 站（行程） |
+| `getrandom(…, 8, GRND_NONBLOCK)`（30） | 向核心要 8 byte 亂數；這裡是 `malloc` 初始化時拿來當內部保護用的鍵 | 第 ③ 站 |
+
+#### 全部有多少個系統呼叫
+
+這份輸出出現 **19 個**不同的系統呼叫：上面第一張表 7 個、第二張表 12 個，全部都講了。x86-64 一共定義 **373** 個系統呼叫號碼（`grep -c __NR_ /usr/include/x86_64-linux-gnu/asm/unistd_64.h`），不在這裡逐一列：大部分要到用得到的那一站才有意義。查法：
+
+- `man 2 syscalls`：全部系統呼叫的清單（含從哪個核心版本開始有）；
+- `man 2 <名稱>`：單一個的原型、參數、回傳值、錯誤碼（例如 `man 2 openat`）；
+- `strace -e trace=<名稱,…>`：只看某幾個，例如正文的 `strace -e trace=read`。
+
+**一句話**：讀 `strace` 只要先抓「名稱、參數、`=` 後的回傳值」；`countch` 自己的部分只有 7 個系統呼叫，前面 30 行是 `ld.so` 與 libc 替 `main` 準備環境。
 
 ---
 
