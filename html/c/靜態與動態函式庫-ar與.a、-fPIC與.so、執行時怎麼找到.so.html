@@ -4110,7 +4110,7 @@ gcc<span class="w"> </span>-O1<span class="w"> </span>-fPIC<span class="w"> </sp
 <p>詳細說明：PIC 的設計正是為了避免這件事：程式碼完全不改、大家共用；要因行程而異的位址集中在可寫的 GOT，只讓 GOT 那一頁被複製。</p>
 </details>
 </li>
-<li>（2026-10-26 提問延伸）兩支程式 <code>m</code>、<code>n</code> 都連 <code>libshape.so</code>（兩支都沒有自己的 <code>area</code>），同時在跑。<code>libshape.so</code> 的 <code>calc()</code> 透過 <code>area@plt</code> 呼叫 <code>area()</code>。(1) 兩個行程第一次呼叫 <code>calc</code> 之後，各自 <code>.got.plt</code> 裡 <code>area</code> 那格裝的數字一樣嗎？為什麼？那個數字是誰、用哪兩樣東西算出來的？(2) 兩個行程執行的 <code>area</code> 程式碼是同一份實體記憶體嗎？<code>/proc/&lt;pid&gt;/smaps</code> 裡哪個欄位、出現什麼數值可以證明？(3) 跳到那格裡的位址時，虛擬位址由誰翻成實體位址？翻譯用的表又是誰準備的？(4) 同學分別用 gdb 跑 <code>m</code> 和 <code>n</code>，<code>p area</code> 兩邊都印 <code>0x7ffff7fb7119</code>，他說「看吧，兩個行程的 <code>area</code> 在同一個位址」。這個推論哪裡有問題？</li>
+<li>（2026-10-26 提問延伸）兩支程式 <code>m</code>、<code>n</code> 都連 <code>libshape.so</code>（兩支都沒有自己的 <code>area</code>），同時在跑。<code>libshape.so</code> 的 <code>calc()</code> 透過 <code>area@plt</code> 呼叫 <code>area()</code>。(1) 兩個行程第一次呼叫 <code>calc</code> 之後，各自 <code>.got.plt</code> 裡 <code>area</code> 那格裝的數字一樣嗎？為什麼？那個數字是哪個程式、在什麼時候算出來填進去的？用哪兩樣東西算出來的？(2) 兩個行程執行的 <code>area</code> 程式碼是同一份實體記憶體嗎？<code>/proc/&lt;pid&gt;/smaps</code> 裡哪個欄位、出現什麼數值可以證明？(3) 跳到那格裡的位址時，虛擬位址由誰翻成實體位址？翻譯用的表又是誰準備的？(4) 同學分別用 gdb 跑 <code>m</code> 和 <code>n</code>，<code>p area</code> 兩邊都印 <code>0x7ffff7fb7119</code>，他說「看吧，兩個行程的 <code>area</code> 在同一個位址」。這個推論哪裡有問題？</li>
 </ol>
 <pre><code class="language-c"><span class="cm">/* shape.c */</span>
 <span class="kt">long</span><span class="w"> </span><span class="nf">area</span><span class="p">(</span><span class="kt">long</span><span class="w"> </span><span class="n">w</span><span class="p">,</span><span class="w"> </span><span class="kt">long</span><span class="w"> </span><span class="n">h</span><span class="p">)</span>
@@ -4166,6 +4166,7 @@ gcc<span class="w"> </span>-O1<span class="w"> </span>-fPIC<span class="w"> </sp
 &gt; 1. 不一樣。
 &gt; 2. 那格裝的是**這個行程裡的虛擬位址**：`libshape.so` 在這個行程的載入基底 ＋ `area` 在檔案裡的位置 `0x1119`（`.dynsym`，也就是 `R_X86_64_JUMP_SLOT` 那行的 `0x1119`）。
 &gt; 3. 兩個行程的載入基底不同（ASLR），所以數字不同。
+&gt; 4. （2026-11-05 改題後新增）是 **`ld.so`** 在這個行程**第一次呼叫 `area` 時**（延遲綁定）算出來、寫進那格的；連結時的 `ld` 做 `.so` 時還不知道基底，填不出這個數字。
 &gt;
 &gt; 詳細說明：`0x1119` 確實在做 `.so` 時就定了，但它只是「檔案內的位置」，還要加上基底；基底要到 `ld.so` 把檔案映射進來時才知道，每個行程不同。那格一共被寫兩次：載入時寫「基底 ＋ `0x1030`」，第一次呼叫時改成「基底 ＋ `0x1119`」。筆記第 7 章的 `q`、`r` 實測兩個行程的格子分別是 `0x7187194b9139`、`0x7125ada21139`。
 &gt;
@@ -4245,7 +4246,7 @@ gcc<span class="w"> </span>-O1<span class="w"> </span>-fPIC<span class="w"> </sp
 &gt; 1. 執行時 <code>ld.so</code> 印警告 <code>Symbol 'level' has different size in shared object, consider re-linking</code>，程式照樣跑。
 &gt; 2. 原因：執行檔 <code>.bss</code> 留給 <code>level</code> 的大小（4 byte）是<strong>連結時</strong>照當時的 <code>.so</code> 決定的；現在 <code>.so</code> 裡的 <code>level</code> 是 8 byte，大小對不上，要重新連結。
 &gt;
-&gt; 詳細說明：本機實測（<code>cfg.c</code> 改成 <code>long level = 3;</code> 重做 <code>libcfg.so</code>，<code>setlevel</code> 不動）：先印那行警告，接著照樣印 <code>一開始 level = 3</code>、<code>get_level() = 7</code>。印對是運氣：<code>COPY</code> 只複製兩邊較小的 4 byte（2026-11-02 實測：<code>.so</code> 初值 <code>0x500000003</code> 時執行檔那格是 <code>03 00 00 00 00 00 00 00</code>、<code>get_level()</code> 回傳 <code>0x3</code>）；<code>get_level()</code> 經過 GOT 到執行檔那格讀 8 byte，多讀的 4 byte 是執行檔 <code>.bss</code> 裡 <code>level</code> 後面的空間，剛好是 0；初值超過 4 byte、或後面放了別的變數，就會讀錯、寫到別人。這是函式庫通常<strong>不直接給外面用全域變數、而是提供函式</strong>（<code>get_level()</code>）的原因之一：函式走 PLT，執行檔不必知道它的大小。
+&gt; 詳細說明：本機實測（<code>cfg.c</code> 改成 <code>long level = 3;</code> 重做 <code>libcfg.so</code>，<code>setlevel</code> 不動）：先印那行警告，接著照樣印 <code>一開始 level = 3</code>、<code>get_level() = 7</code>。印對是運氣：<code>COPY</code> 只複製兩邊較小的 4 byte（2026-11-02 實測：<code>.so</code> 初值 <code>0x500000003</code> 時執行檔那格是 <code>03 00 00 00 00 00 00 00</code>、<code>get_level()</code> 回傳 <code>0x3</code>）；<code>get_level()</code> 經過 GOT 到執行檔那格讀 8 byte，多讀的 4 byte 是執行檔 <code>.bss</code> 裡 <code>level</code> 後面的空間，剛好是 0；初值超過 4 byte、或後面放了別的變數，就會讀錯、寫到別人。這是函式庫通常<strong>不直接給外面用全域變數、而是提供函式</strong>（<code>get_level()</code>）的原因之一：函式走 PLT，執行檔不必知道它的大小。 （2026-11-05 複習時補的實測）初值改成超過 4 byte 的 <code>long level = 10000000000;</code> 再做一次：警告照印，接著是 <code>一開始 level = 1410065408</code>、<code>get_level() = 7</code>——<code>1410065408</code> 正是 <code>10000000000</code> 的低 32 位元，<code>main</code> 讀到的是 <code>COPY</code> 只複製進來的那 4 byte；<code>get_level()</code> 這時是 <code>mov (%rax),%rax</code> 讀 8 byte，回傳時轉成 <code>int</code>（這是正常的型別轉換，不是錯誤來源）。
 12. （2026-10-26 提問延伸）<code>libtemp.so</code> 的宣告放在 <code>include/temp.h</code>（裡面還定義了巨集 <code>FREEZING_C</code>），做好的 <code>libtemp.so</code> 放在 <code>lib/</code>。(1) <code>gcc -Wall main.c -Llib -ltemp -o app</code> 會失敗在哪個階段（前處理、編譯、連結、執行）？錯誤大概長怎樣、要補什麼？(2) <code>gcc -Wall -Iinclude main.c -Llib -o app</code> 呢？(3) 同事說「<code>FREEZING_C</code> 的值存在 <code>libtemp.so</code> 裡，執行時才讀進來」，對嗎？為什麼？(4) 編好的 <code>app</code>（連結時加了 <code>-Wl,-rpath,'$ORIGIN/lib'</code>）要拿給別人執行，<code>include/temp.h</code> 要一起給嗎？<code>lib/libtemp.so</code> 呢？</p>
 <pre><code class="language-c"><span class="cm">/* include/temp.h */</span>
 <span class="cp">#ifndef TEMP_H</span>
