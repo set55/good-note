@@ -130,19 +130,28 @@
 <p>做函式庫：<code>gcc -Wall -fPIC -c conf.c -o conf.pic.o &amp;&amp; gcc -shared conf.pic.o -o libconf.so</code>（檔案：<a href="../../small-project/s1-07-libraries/examples/pic/conf.c"><code>conf.c</code></a>、<a href="../../small-project/s1-07-libraries/examples/pic/app.c"><code>app.c</code></a>）</p>
 <h4 id="函式庫-7-1-gcc--wall-appc--l--lconf--wl-rpathorigin--o-app-會不會出現-multiple-definition為什麼">函式庫 7-1. <code>gcc -Wall app.c -L. -lconf -Wl,-rpath,'$ORIGIN' -o app</code> 會不會出現 <code>multiple definition</code>？為什麼？</h4>
 <details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="review/2026-11-06-函式庫-GNU-C資料-組語-字元-hello.md" data-line="62"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="review/2026-11-06-函式庫-GNU-C資料-組語-字元-hello.md" data-line="62"><textarea spellcheck="false" placeholder="在這裡作答">不會,因爲動態載入器 會在.so與主程式之間挑一個,主程式優先,以本題爲例,會用app.c的那格verbose, 而ld.so就會在libconf.so的got
+把app.c verbose的位址填入.got裏
+</textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h4 id="函式庫-7-2-改成-gcc--wall-appc-confpico--o-app2-呢差別在-ld-怎麼處理-so-和-o">函式庫 7-2. 改成 <code>gcc -Wall app.c conf.pic.o -o app2</code> 呢？差別在 <code>ld</code> 怎麼處理 <code>.so</code> 和 <code>.o</code>。</h4>
 <details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="review/2026-11-06-函式庫-GNU-C資料-組語-字元-hello.md" data-line="67"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="review/2026-11-06-函式庫-GNU-C資料-組語-字元-hello.md" data-line="69"><textarea spellcheck="false" placeholder="在這裡作答">這個就有雙重定義的錯誤了,因爲 兩個 app.o , conf.pic.o 兩個同時都有verbose的定義,ld不知道改選哪一個,這兩個.o都是要放進去執行檔的
+</textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h4 id="函式庫-7-3-能連結成功的那一個app-會印出-get_verbose---多少用執行時-ldso-怎麼找符號解釋">函式庫 7-3. 能連結成功的那一個，<code>./app</code> 會印出 <code>get_verbose() = </code> 多少？用執行時 <code>ld.so</code> 怎麼找符號解釋。</h4>
 <details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="review/2026-11-06-函式庫-GNU-C資料-組語-字元-hello.md" data-line="72"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="review/2026-11-06-函式庫-GNU-C資料-組語-字元-hello.md" data-line="75"><textarea spellcheck="false" placeholder="在這裡作答">3,
+ld.so 看到verbose這個符號,會去看誰有定義,順序是先主程式,纔是so, 主程式有定義verbose 是 3, 因此挑這個3的位址,寫到了conf.c
+的got
+</textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h4 id="函式庫-7-4-把-confc-第一行改成-static-int-verbose--0重做-libconfso不重新連結就執行-app印出多少為什麼跟-7-3-不同">函式庫 7-4. 把 <code>conf.c</code> 第一行改成 <code>static int verbose = 0;</code>，重做 <code>libconf.so</code>，不重新連結就執行 <code>./app</code>，印出多少？為什麼跟 7-3 不同？</h4>
 <details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="review/2026-11-06-函式庫-GNU-C資料-組語-字元-hello.md" data-line="77"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="review/2026-11-06-函式庫-GNU-C資料-組語-字元-hello.md" data-line="83"><textarea spellcheck="false" placeholder="在這裡作答">0
+因爲.so的verbose已經是靜態變數了,不需要在用got了,組語會直接寫,找%rip到 static verbose的距離,因此是0
+一定是這樣因爲在編.so的時候還沒有app.c的verbose,所以最後一定是找跟static verbose的距離
+</textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <hr />
 <h3 id="函式庫-11-主程式只寫-extern變數放在哪裡10-26-追問新增">函式庫 11. 主程式只寫 <code>extern</code>：變數放在哪裡（10-26 追問新增）</h3>
@@ -175,19 +184,32 @@
 <p>編譯：<code>gcc -Wall -fPIC -c cfg.c -o cfg.pic.o &amp;&amp; gcc -shared cfg.pic.o -o libcfg.so &amp;&amp; gcc -Wall setlevel.c -L. -lcfg -Wl,-rpath,'$ORIGIN' -o setlevel</code>（檔案：<a href="../../small-project/s1-07-libraries/examples/pic/cfg.c"><code>cfg.c</code></a>、<a href="../../small-project/s1-07-libraries/examples/pic/setlevel.c"><code>setlevel.c</code></a>）。主程式是 Ubuntu 預設的 <code>-fPIE</code>。</p>
 <h4 id="函式庫-11-1-執行後兩行各印多少">函式庫 11-1. 執行後兩行各印多少？</h4>
 <details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="review/2026-11-06-函式庫-GNU-C資料-組語-字元-hello.md" data-line="116"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="review/2026-11-06-函式庫-GNU-C資料-組語-字元-hello.md" data-line="125"><textarea spellcheck="false" placeholder="在這裡作答">3, 7
+</textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h4 id="函式庫-11-2-nm-setlevel-會不會看到-level在哪一種區段為什麼原始碼只有-extern-卻會有">函式庫 11-2. <code>nm setlevel</code> 會不會看到 <code>level</code>？在哪一種區段？為什麼原始碼只有 <code>extern</code> 卻會有？</h4>
 <details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="review/2026-11-06-函式庫-GNU-C資料-組語-字元-hello.md" data-line="121"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="review/2026-11-06-函式庫-GNU-C資料-組語-字元-hello.md" data-line="131"><textarea spellcheck="false" placeholder="在這裡作答">會
+在bss
+因爲主程式在編譯的時候使用fPIE, 不像fPIC可以用got動態指定level的位址, 所以原始碼一定是把level定義在自己這邊的位址,這樣
+%rip與level的距離就是固定的,libcfg是fPIC,所以他的got只要存住setlevel的level位址就好
+</textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h4 id="函式庫-11-3-第一行印出的值是怎麼放進那裡的get_level-讀的是哪一份-level用重定位的類型和-ldso-找符號的順序說明">函式庫 11-3. 第一行印出的值是怎麼放進那裡的？<code>get_level()</code> 讀的是哪一份 <code>level</code>？用重定位的類型和 <code>ld.so</code> 找符號的順序說明。</h4>
 <details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="review/2026-11-06-函式庫-GNU-C資料-組語-字元-hello.md" data-line="126"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="review/2026-11-06-函式庫-GNU-C資料-組語-字元-hello.md" data-line="140"><textarea spellcheck="false" placeholder="在這裡作答">level 在 setlevel的重定位類型是R_X86_64_COPY, 所以ld.so看到以後就會把libcfg.so裏面的level初值複製到 這裏
+而在libcfg.so 在執行到get_level的時候會去.got找level的位址,因爲level的重定位是R_X86_64_GLOB_DAT,ld.so也會把level在setlevel的位址寫到libcfg.so的got
+</textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h4 id="函式庫-11-4-之後把-cfgc-改成-long-level--3-重做-libcfgsosetlevel-不重新連結就執行會發生什麼事為什麼">函式庫 11-4. 之後把 <code>cfg.c</code> 改成 <code>long level = 3;</code> 重做 <code>libcfg.so</code>，<code>setlevel</code> 不重新連結就執行，會發生什麼事、為什麼？</h4>
 <details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="review/2026-11-06-函式庫-GNU-C資料-組語-字元-hello.md" data-line="131"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="review/2026-11-06-函式庫-GNU-C資料-組語-字元-hello.md" data-line="147"><textarea spellcheck="false" placeholder="在這裡作答">./setlevel: Symbol `level&#x27; has different size in shared object, consider re-linking
+一開始 level = 3
+get_level() = 7
+
+因爲libcfg.so有重新編,所以他的level大小是8byte, 而setlevel他的level還是維持4byte,所以會有這個警告
+本題因爲level太小看不出來,但當level夠大,就會發現有截斷的情況
+</textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <hr />
 <h2 id="gnugnu是什麼-linux核心與gnu工具的分工">GNU：<a href="../linux/GNU%E6%98%AF%E4%BB%80%E9%BA%BC-Linux%E6%A0%B8%E5%BF%83%E8%88%87GNU%E5%B7%A5%E5%85%B7%E7%9A%84%E5%88%86%E5%B7%A5.html">GNU是什麼-Linux核心與GNU工具的分工</a></h2>
@@ -196,7 +218,7 @@
 <p>盒子 3｜過去的作答：<a href="../small-project/s1-01-hello-compile/quiz.html#6-%E6%83%85%E5%A2%83%E9%A1%8C%E5%90%8C%E4%BA%8B%E8%AA%AA%E6%88%91%E5%9C%A8%E9%80%99%E5%8F%B0%E6%A9%9F%E5%99%A8%E4%B8%8A%E6%89%93-uname--o-%E7%9C%8B%E5%88%B0-gnulinux%E6%89%80%E4%BB%A5%E5%AE%83%E4%B8%80%E5%AE%9A%E7%94%A8-glibc%E9%80%99%E5%80%8B%E6%8E%A8%E8%AB%96%E9%8C%AF%E5%9C%A8%E5%93%AAuname-%E7%9A%84%E5%93%AA%E4%BA%9B%E6%AC%84%E4%BD%8D%E5%8F%AF%E4%BB%A5%E4%BF%A1%E5%93%AA%E4%B8%80%E6%AC%84%E4%B8%8D%E8%A1%8C%E7%82%BA%E4%BB%80%E9%BA%BC%E4%BD%A0%E6%9C%83%E6%94%B9%E7%9C%8B%E4%BB%80%E9%BA%BC%E4%BE%86%E5%88%A4%E6%96%B7">s1-01 quiz.md GNU 第 6 題</a>、<a href="2026-10-09-%E9%99%A3%E5%88%97-gcc-GNU-C%E8%B3%87%E6%96%99-interp-ELF.html">10-09 複習</a>、<a href="2026-10-16-interp-ELF-gcc-GNU-%E9%99%A3%E5%88%97-C%E8%B3%87%E6%96%99.html">10-16 複習</a>、<a href="2026-10-23-%E5%A4%A7%E8%A4%87%E7%BF%92-hello-gcc-GNU-interp-ELF-objdump-C%E8%B3%87%E6%96%99-%E5%AD%97%E5%85%83-%E9%99%A3%E5%88%97-%E7%B5%84%E8%AA%9E-%E7%B5%84%E8%AA%9E%E4%BA%8C-%E5%A4%9A%E6%AA%94.html">10-23 複習</a>、<a href="2026-10-30-hello-gcc-GNU-interp-ELF-objdump-C%E8%B3%87%E6%96%99-%E5%AD%97%E5%85%83-%E9%99%A3%E5%88%97-%E7%B5%84%E8%AA%9E.html#gnu-6-%E6%83%85%E5%A2%83%E9%A1%8C%E5%90%8C%E4%BA%8B%E8%AA%AA%E6%88%91%E5%9C%A8%E9%80%99%E5%8F%B0%E6%A9%9F%E5%99%A8%E4%B8%8A%E6%89%93-uname--o-%E7%9C%8B%E5%88%B0-gnulinux%E6%89%80%E4%BB%A5%E5%AE%83%E4%B8%80%E5%AE%9A%E7%94%A8-glibc%E9%80%99%E5%80%8B%E6%8E%A8%E8%AB%96%E9%8C%AF%E5%9C%A8%E5%93%AAuname-%E7%9A%84%E5%93%AA%E4%BA%9B%E6%AC%84%E4%BD%8D%E5%8F%AF%E4%BB%A5%E4%BF%A1%E5%93%AA%E4%B8%80%E6%AC%84%E4%B8%8D%E8%A1%8C%E7%82%BA%E4%BB%80%E9%BA%BC%E4%BD%A0%E6%9C%83%E6%94%B9%E7%9C%8B%E4%BB%80%E9%BA%BC%E4%BE%86%E5%88%A4%E6%96%B7">10-30 複習</a></p>
 </blockquote>
 <details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="review/2026-11-06-函式庫-GNU-C資料-組語-字元-hello.md" data-line="142"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="review/2026-11-06-函式庫-GNU-C資料-組語-字元-hello.md" data-line="164"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <hr />
 <h2 id="c資料c的資料在記憶體裡長怎樣-位元組指標位元組順序與有號無號">C資料：<a href="../c/C%E7%9A%84%E8%B3%87%E6%96%99%E5%9C%A8%E8%A8%98%E6%86%B6%E9%AB%94%E8%A3%A1%E9%95%B7%E6%80%8E%E6%A8%A3-%E4%BD%8D%E5%85%83%E7%B5%84%E3%80%81%E6%8C%87%E6%A8%99%E3%80%81%E4%BD%8D%E5%85%83%E7%B5%84%E9%A0%86%E5%BA%8F%E8%88%87%E6%9C%89%E8%99%9F%E7%84%A1%E8%99%9F.html">C的資料在記憶體裡長怎樣-位元組、指標、位元組順序與有號無號</a></h2>
@@ -231,7 +253,7 @@ $<span class="w"> </span>./addr
 <p>題目：<code>int x = 0x12345678; unsigned char *b = (unsigned char *)&amp;x;</code> 在本機 <code>*b</code> 是多少？換到大端序的機器上是多少？各是為什麼？另外，為什麼 <code>int *p = &amp;x;</code> 的 <code>*p</code> 在兩種機器上都是 <code>0x12345678</code>？</p>
 </blockquote>
 <details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="review/2026-11-06-函式庫-GNU-C資料-組語-字元-hello.md" data-line="183"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="review/2026-11-06-函式庫-GNU-C資料-組語-字元-hello.md" data-line="205"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <hr />
 <h3 id="c資料-4-int-y--x--1-return-y--x-在-x--int_max-時-o0-回傳-0-o2-回傳-1為什麼會這樣這算不算-gcc-的-bugkernel-用哪個選項避免這種情況代價是什麼">C資料 4. <code>int y = x + 1; return y &gt; x;</code> 在 <code>x = INT_MAX</code> 時，<code>-O0</code> 回傳 0、<code>-O2</code> 回傳 1。為什麼會這樣？這算不算 gcc 的 bug？kernel 用哪個選項避免這種情況，代價是什麼？</h3>
@@ -259,7 +281,7 @@ $<span class="w"> </span>./addr
 <p>題目：<code>int y = x + 1; return y &gt; x;</code> 在 <code>x = INT_MAX</code> 時，<code>-O0</code> 回傳 0、<code>-O2</code> 回傳 1。為什麼會這樣？這算不算 gcc 的 bug？kernel 用哪個選項避免這種情況，代價是什麼？</p>
 </blockquote>
 <details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="review/2026-11-06-函式庫-GNU-C資料-組語-字元-hello.md" data-line="215"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="review/2026-11-06-函式庫-GNU-C資料-組語-字元-hello.md" data-line="237"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <hr />
 <h2 id="組語x86-64組合語言入門-暫存器mov與leacmp與條件跳躍">組語：<a href="../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80-%E6%9A%AB%E5%AD%98%E5%99%A8%E3%80%81mov%E8%88%87lea%E3%80%81cmp%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D.html">x86-64組合語言入門-暫存器、mov與lea、cmp與條件跳躍</a></h2>
@@ -269,22 +291,22 @@ $<span class="w"> </span>./addr
 </blockquote>
 <h4 id="組語-18-1-8-位元的-0x01--0x7f計算過程中有沒有進位傳進第-7-位元最高位有沒有從第-7-位元往外進位">組語 18-1. 8 位元的 <code>0x01 + 0x7f</code>：計算過程中有沒有進位傳進第 7 位元（最高位）？有沒有從第 7 位元往外進位？</h4>
 <details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="review/2026-11-06-函式庫-GNU-C資料-組語-字元-hello.md" data-line="228"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="review/2026-11-06-函式庫-GNU-C資料-組語-字元-hello.md" data-line="250"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h4 id="組語-18-2-cfof-各是多少為什麼有進位不等於-cf--1">組語 18-2. CF、OF 各是多少，為什麼「有進位」不等於 CF = 1？</h4>
 <blockquote>
 <p>題目：（承 18-1，8 位元的 <code>0x01 + 0x7f</code>）CF、OF 各是多少，為什麼「有進位」不等於 CF = 1？</p>
 </blockquote>
 <details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="review/2026-11-06-函式庫-GNU-C資料-組語-字元-hello.md" data-line="235"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="review/2026-11-06-函式庫-GNU-C資料-組語-字元-hello.md" data-line="257"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h4 id="組語-18-3-再比較-0x05--0x03它也有進位為什麼兩個旗標都是-0">組語 18-3. 再比較 <code>0x05 + 0x03</code>：它也有進位，為什麼兩個旗標都是 0？</h4>
 <details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="review/2026-11-06-函式庫-GNU-C資料-組語-字元-hello.md" data-line="240"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="review/2026-11-06-函式庫-GNU-C資料-組語-字元-hello.md" data-line="262"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h4 id="組語-18-4-最後用進到第-7-位的進位和第-7-位往外的進位說明-0xff--0x01-的-of-為什麼是-0">組語 18-4. 最後用「進到第 7 位的進位」和「第 7 位往外的進位」說明 <code>0xff + 0x01</code> 的 OF 為什麼是 0。</h4>
 <details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="review/2026-11-06-函式庫-GNU-C資料-組語-字元-hello.md" data-line="245"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="review/2026-11-06-函式庫-GNU-C資料-組語-字元-hello.md" data-line="267"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <hr />
 <h2 id="字元字元是什麼-char就是1byte的整數與ascii和utf-8">字元：<a href="../c/%E5%AD%97%E5%85%83%E6%98%AF%E4%BB%80%E9%BA%BC-char%E5%B0%B1%E6%98%AF1byte%E7%9A%84%E6%95%B4%E6%95%B8%E8%88%87ASCII%E5%92%8CUTF-8.html">字元是什麼-char就是1byte的整數與ASCII和UTF-8</a></h2>
@@ -293,7 +315,7 @@ $<span class="w"> </span>./addr
 <p>盒子 4｜過去的作答：<a href="../small-project/s1-02-data-repr/quiz.html#2-%E4%BD%BF%E7%94%A8%E8%80%85%E8%BC%B8%E5%85%A5%E7%9A%84%E5%AD%97%E5%85%83%E6%98%AF-7%E4%BD%A0%E6%83%B3%E5%BE%97%E5%88%B0%E6%95%B8%E5%80%BC-7%E7%9B%B4%E6%8E%A5%E6%8A%8A%E5%AE%83%E7%95%B6%E6%95%B8%E5%AD%97%E7%94%A8%E6%9C%83%E5%BE%97%E5%88%B0%E5%A4%9A%E5%B0%91%E8%A9%B2%E6%80%8E%E9%BA%BC%E8%BD%89%E9%80%99%E5%80%8B%E6%96%B9%E6%B3%95%E7%82%BA%E4%BB%80%E9%BA%BC%E6%88%90%E7%AB%8B">s1-02 quiz.md 字元第 2 題</a>、<a href="2026-10-05-gcc-%E9%99%A3%E5%88%97-GNU-C%E8%B3%87%E6%96%99-%E5%AD%97%E5%85%83.html">10-05 複習</a>、<a href="2026-10-11-%E5%AD%97%E5%85%83-C%E8%B3%87%E6%96%99-objdump-GNU-%E9%99%A3%E5%88%97.html">10-11 複習</a>、<a href="2026-10-23-%E5%A4%A7%E8%A4%87%E7%BF%92-hello-gcc-GNU-interp-ELF-objdump-C%E8%B3%87%E6%96%99-%E5%AD%97%E5%85%83-%E9%99%A3%E5%88%97-%E7%B5%84%E8%AA%9E-%E7%B5%84%E8%AA%9E%E4%BA%8C-%E5%A4%9A%E6%AA%94.html#%E5%AD%97%E5%85%83-2-%E4%BD%BF%E7%94%A8%E8%80%85%E8%BC%B8%E5%85%A5%E7%9A%84%E5%AD%97%E5%85%83%E6%98%AF-7%E4%BD%A0%E6%83%B3%E5%BE%97%E5%88%B0%E6%95%B8%E5%80%BC-7%E7%9B%B4%E6%8E%A5%E6%8A%8A%E5%AE%83%E7%95%B6%E6%95%B8%E5%AD%97%E7%94%A8%E6%9C%83%E5%BE%97%E5%88%B0%E5%A4%9A%E5%B0%91%E8%A9%B2%E6%80%8E%E9%BA%BC%E8%BD%89%E9%80%99%E5%80%8B%E6%96%B9%E6%B3%95%E7%82%BA%E4%BB%80%E9%BA%BC%E6%88%90%E7%AB%8B">10-23 複習</a></p>
 </blockquote>
 <details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="review/2026-11-06-函式庫-GNU-C資料-組語-字元-hello.md" data-line="256"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="review/2026-11-06-函式庫-GNU-C資料-組語-字元-hello.md" data-line="278"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <hr />
 <h2 id="hellohelloc怎麼變成能跑的程式-編譯的四個階段">hello：<a href="../c/hello.c%E6%80%8E%E9%BA%BC%E8%AE%8A%E6%88%90%E8%83%BD%E8%B7%91%E7%9A%84%E7%A8%8B%E5%BC%8F-%E7%B7%A8%E8%AD%AF%E7%9A%84%E5%9B%9B%E5%80%8B%E9%9A%8E%E6%AE%B5.html">hello.c怎麼變成能跑的程式-編譯的四個階段</a></h2>
@@ -302,7 +324,7 @@ $<span class="w"> </span>./addr
 <p>盒子 4｜過去的作答：<a href="../small-project/s1-01-hello-compile/quiz.html#1-gcc-helloc-%E8%83%8C%E5%BE%8C%E5%AF%A6%E9%9A%9B%E6%98%AF%E5%93%AA%E5%B9%BE%E5%80%8B%E7%A8%8B%E5%BC%8F%E5%9C%A8%E6%8E%A5%E5%8A%9B%E7%82%BA%E4%BB%80%E9%BA%BC%E8%AA%AA-gcc-%E6%98%AF%E7%B8%BD%E6%8C%87%E6%8F%AE">s1-01 quiz.md 第 1 題</a>、<a href="2026-10-07-GNU-C%E8%B3%87%E6%96%99-hello-objdump-%E5%AD%97%E5%85%83.html">10-07 複習</a>、<a href="2026-10-23-%E5%A4%A7%E8%A4%87%E7%BF%92-hello-gcc-GNU-interp-ELF-objdump-C%E8%B3%87%E6%96%99-%E5%AD%97%E5%85%83-%E9%99%A3%E5%88%97-%E7%B5%84%E8%AA%9E-%E7%B5%84%E8%AA%9E%E4%BA%8C-%E5%A4%9A%E6%AA%94.html#hello-1-gcc-helloc-%E8%83%8C%E5%BE%8C%E5%AF%A6%E9%9A%9B%E6%98%AF%E5%93%AA%E5%B9%BE%E5%80%8B%E7%A8%8B%E5%BC%8F%E5%9C%A8%E6%8E%A5%E5%8A%9B%E7%82%BA%E4%BB%80%E9%BA%BC%E8%AA%AA-gcc-%E6%98%AF%E7%B8%BD%E6%8C%87%E6%8F%AE">10-23 複習</a></p>
 </blockquote>
 <details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="review/2026-11-06-函式庫-GNU-C資料-組語-字元-hello.md" data-line="267"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="review/2026-11-06-函式庫-GNU-C資料-組語-字元-hello.md" data-line="289"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 
 </main>

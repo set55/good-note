@@ -1,0 +1,1661 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vim 為什麼有那麼多鍵？—— 模式切換與「運算子＋動作」的文法</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../../tools/vendor/mermaid.min.js"></script>
+<script src="../assets/app.js"></script>
+</head>
+<body>
+<button class="menu-btn" onclick="toggleMenu()">☰ 目錄</button>
+<div class="layout">
+<nav class="side">
+<div class="crumbs"><a href="../index.html">🏠 首頁</a> / <a href="README.html">vim</a></div>
+<div class="tools"><button onclick="toggleTheme()">🌓 主題</button></div>
+<ul>
+<li class="l2"><a href="#%E7%9B%AE%E9%8C%84">目錄</a></li>
+<li class="l2"><a href="#%E4%B8%80%E7%82%BA%E4%BB%80%E9%BA%BC-vim-%E8%A6%81%E6%9C%89%E6%A8%A1%E5%BC%8F">一、為什麼 Vim 要有「模式」</a></li>
+<li class="l2"><a href="#%E4%BA%8C%E6%A8%A1%E5%BC%8F%E5%9F%BA%E6%9C%AC-7-%E7%A8%AE%E9%99%84%E5%8A%A0-7-%E7%A8%AE%E6%97%A5%E5%B8%B8%E7%94%A8-4-%E7%A8%AE">二、模式：基本 7 種、附加 7 種，日常用 4 種</a></li>
+<li class="l2"><a href="#%E4%B8%89%E5%AD%98%E6%AA%94%E8%88%87%E9%9B%A2%E9%96%8B">三、存檔與離開</a></li>
+<li class="l2"><a href="#%E5%9B%9B%E5%AF%A6%E9%A9%97%E5%B7%A5%E5%85%B7%E6%80%8E%E9%BA%BC%E4%B8%8D%E9%96%8B%E7%95%AB%E9%9D%A2%E4%B9%9F%E8%83%BD%E7%9C%8B%E5%88%B0%E6%8C%89%E9%8D%B5%E7%9A%84%E7%B5%90%E6%9E%9C">四、實驗工具：怎麼不開畫面也能看到按鍵的結果</a></li>
+<li class="l2"><a href="#%E4%BA%94%E7%A7%BB%E5%8B%95motion">五、移動（motion）</a></li>
+<li class="l2"><a href="#%E5%85%AD%E6%A0%B8%E5%BF%83%E6%96%87%E6%B3%95%E9%81%8B%E7%AE%97%E5%AD%90%E5%8B%95%E4%BD%9C">六、核心文法：運算子＋動作</a></li>
+<li class="l3"><a href="#%E6%96%87%E6%B3%95%E9%AA%A8%E6%9E%B6">文法骨架</a></li>
+<li class="l3"><a href="#%E9%81%8B%E7%AE%97%E5%AD%90%E5%85%A8%E9%83%A8-16-%E5%80%8B">運算子：全部 16 個</a></li>
+<li class="l3"><a href="#%E8%A6%8F%E5%89%87%E4%B8%80%E9%81%8B%E7%AE%97%E5%AD%90--%E5%8B%95%E4%BD%9C-%E8%87%AA%E7%94%B1%E7%B5%84%E5%90%88">規則一：運算子 × 動作 自由組合</a></li>
+<li class="l3"><a href="#%E8%A6%8F%E5%89%87%E4%BA%8C%E6%AC%A1%E6%95%B8%E7%9B%B8%E4%B9%98">規則二：次數相乘</a></li>
+<li class="l3"><a href="#%E8%A6%8F%E5%89%87%E4%B8%89%E9%81%8B%E7%AE%97%E5%AD%90%E6%8C%89%E5%85%A9%E6%AC%A1%E4%BD%9C%E7%94%A8%E5%9C%A8%E6%95%B4%E8%A1%8C">規則三：運算子按兩次＝作用在整行</a></li>
+<li class="l3"><a href="#%E8%A6%8F%E5%89%87%E5%9B%9B%E5%A4%A7%E5%AF%AB%E9%80%9A%E5%B8%B8%E6%98%AF%E5%88%B0%E8%A1%8C%E5%B0%BE%E6%88%96%E6%95%B4%E8%A1%8C%E7%9A%84%E7%B8%AE%E5%AF%AB">規則四：大寫通常是「到行尾」或「整行」的縮寫</a></li>
+<li class="l2"><a href="#%E4%B8%83%E6%96%87%E5%AD%97%E7%89%A9%E4%BB%B6i-%E5%92%8C-a">七、文字物件：i 和 a</a></li>
+<li class="l3"><a href="#%E5%AF%A6%E6%B8%AC%E5%90%8C%E4%B8%80%E5%80%8B%E4%BD%8D%E7%BD%AEi-%E5%92%8C-a-%E7%9A%84%E5%B7%AE%E5%88%A5">實測：同一個位置，i 和 a 的差別</a></li>
+<li class="l3"><a href="#%E6%96%87%E5%AD%97%E7%89%A9%E4%BB%B6%E5%85%A8%E9%83%A8-36-%E5%80%8B">文字物件：全部 36 個</a></li>
+<li class="l2"><a href="#%E5%85%AB%E9%87%8D%E8%A4%87%E8%88%87%E5%BE%A9%E5%8E%9F-u-ctrl-r">八、重複與復原：. u Ctrl-r</a></li>
+<li class="l2"><a href="#%E4%B9%9D%E6%90%9C%E5%B0%8B%E8%88%87%E5%8F%96%E4%BB%A3">九、搜尋與取代</a></li>
+<li class="l3"><a href="#%E6%90%9C%E5%B0%8B">搜尋</a></li>
+<li class="l3"><a href="#%E5%8F%96%E4%BB%A3s-%E7%9A%84%E6%96%87%E6%B3%95">取代：:s 的文法</a></li>
+<li class="l3"><a href="#%E5%AF%A6%E6%B8%AC">實測</a></li>
+<li class="l3"><a href="#g%E5%85%88%E6%8C%91%E8%A1%8C%E5%86%8D%E5%B0%8D%E9%80%99%E4%BA%9B%E8%A1%8C%E5%81%9A%E4%BA%8B">:g：先挑行、再對這些行做事</a></li>
+<li class="l2"><a href="#%E5%8D%81%E6%9A%AB%E5%AD%98%E5%99%A8%E8%A4%87%E8%A3%BD%E7%9A%84%E6%9D%B1%E8%A5%BF%E6%94%BE%E5%9C%A8%E5%93%AA">十、暫存器：複製的東西放在哪</a></li>
+<li class="l3"><a href="#%E5%85%A8%E9%83%A8-10-%E9%A1%9Ehelp-registers">全部 10 類（:help registers）</a></li>
+<li class="l3"><a href="#%E5%AF%A6%E6%B8%AC%E8%A4%87%E8%A3%BD%E7%9A%84%E6%9D%B1%E8%A5%BF%E7%82%BA%E4%BB%80%E9%BA%BC%E8%A2%AB%E8%93%8B%E6%8E%89%E4%BA%86">實測：複製的東西為什麼被蓋掉了</a></li>
+<li class="l3"><a href="#%E9%80%99%E5%8F%B0%E6%A9%9F%E5%99%A8%E7%9A%84-vim-%E4%B8%8D%E8%83%BD%E7%9B%B4%E6%8E%A5%E7%94%A8%E7%B3%BB%E7%B5%B1%E5%89%AA%E8%B2%BC%E7%B0%BF">這台機器的 Vim 不能直接用系統剪貼簿</a></li>
+<li class="l2"><a href="#%E5%8D%81%E4%B8%80visual-%E6%A8%A1%E5%BC%8F%E8%88%87%E5%8D%80%E5%A1%8A%E9%81%B8%E5%8F%96">十一、Visual 模式與區塊選取</a></li>
+<li class="l2"><a href="#%E5%8D%81%E4%BA%8C%E5%B7%A8%E9%9B%86%E9%8C%84%E4%B8%8B%E6%8C%89%E9%8D%B5%E9%87%8D%E6%92%AD">十二、巨集：錄下按鍵、重播</a></li>
+<li class="l3"><a href="#%E5%AF%A6%E6%B8%AC%E6%AF%8F%E8%A1%8C%E8%A1%8C%E5%B0%BE%E5%8A%A0%E5%88%86%E8%99%9F">實測：每行行尾加分號</a></li>
+<li class="l2"><a href="#%E5%8D%81%E4%B8%89%E9%8C%AF%E8%AA%A4%E8%A8%8A%E6%81%AF%E5%B0%8D%E7%85%A7%E8%88%87%E6%96%87%E6%B3%95%E5%8F%AF%E4%BB%A5%E5%95%8F-vim">十三、錯誤訊息對照與「文法可以問 Vim」</a></li>
+<li class="l3"><a href="#%E5%B8%B8%E8%A6%8B%E9%8C%AF%E8%AA%A4%E8%A8%8A%E6%81%AF">常見錯誤訊息</a></li>
+<li class="l3"><a href="#%E6%80%8E%E9%BA%BC%E6%9F%A5">怎麼查</a></li>
+<li class="l2"><a href="#%E5%8D%81%E5%9B%9B%E8%87%AA%E6%88%91%E6%B8%AC%E9%A9%97">十四、自我測驗</a></li>
+</ul>
+</nav>
+<main>
+<h1 id="vim-為什麼有那麼多鍵-模式切換與運算子動作的文法">Vim 為什麼有那麼多鍵？—— 模式切換與「運算子＋動作」的文法</h1>
+<blockquote>
+<p>日期：2026-11-06<br />
+情境：平常只會 <code>i</code> 進去打字、<code>:wq</code> 離開、用方向鍵移動，其他靠摸索；想系統化學 Vim 的核心觀念與操作。<br />
+適用範圍：Vim 9.1（Ubuntu 24.04 套件 <code>vim 2:9.1.0016-1ubuntu7.20</code>），本篇所有輸出都是在這台機器上實測。Neovim 的這些基本操作相同。<br />
+對應檔案：<code>~/.vimrc</code>（個人設定，不入 git；第九節有提到裡面的 <code>hlsearch</code>／<code>incsearch</code>）</p>
+</blockquote>
+<p><strong>一句話結論：Vim 的指令不是一堆要硬背的快捷鍵，而是一套文法——<code>[次數]運算子[次數]動作</code>，例如 <code>d</code>（刪）＋<code>iw</code>（這個字）＝ <code>diw</code>。學會 16 個運算子裡常用的 4 個、加上一些動作和文字物件，就能組出上百種編輯；再用 <code>.</code> 重複上一次修改。</strong></p>
+<hr />
+<h2 id="目錄">目錄</h2>
+<ul>
+<li><a href="#%E4%B8%80%E7%82%BA%E4%BB%80%E9%BA%BC-vim-%E8%A6%81%E6%9C%89%E6%A8%A1%E5%BC%8F">一、為什麼 Vim 要有「模式」</a></li>
+<li><a href="#%E4%BA%8C%E6%A8%A1%E5%BC%8F%E5%9F%BA%E6%9C%AC-7-%E7%A8%AE%E9%99%84%E5%8A%A0-7-%E7%A8%AE%E6%97%A5%E5%B8%B8%E7%94%A8-4-%E7%A8%AE">二、模式：基本 7 種、附加 7 種，日常用 4 種</a></li>
+<li><a href="#%E4%B8%89%E5%AD%98%E6%AA%94%E8%88%87%E9%9B%A2%E9%96%8B">三、存檔與離開</a></li>
+<li><a href="#%E5%9B%9B%E5%AF%A6%E9%A9%97%E5%B7%A5%E5%85%B7%E6%80%8E%E9%BA%BC%E4%B8%8D%E9%96%8B%E7%95%AB%E9%9D%A2%E4%B9%9F%E8%83%BD%E7%9C%8B%E5%88%B0%E6%8C%89%E9%8D%B5%E7%9A%84%E7%B5%90%E6%9E%9C">四、實驗工具：怎麼不開畫面也能看到按鍵的結果</a></li>
+<li><a href="#%E4%BA%94%E7%A7%BB%E5%8B%95motion">五、移動（motion）</a></li>
+<li><a href="#%E5%85%AD%E6%A0%B8%E5%BF%83%E6%96%87%E6%B3%95%E9%81%8B%E7%AE%97%E5%AD%90%E5%8B%95%E4%BD%9C">六、核心文法：運算子＋動作</a></li>
+<li><a href="#%E4%B8%83%E6%96%87%E5%AD%97%E7%89%A9%E4%BB%B6i-%E5%92%8C-a">七、文字物件：i 和 a</a></li>
+<li><a href="#%E5%85%AB%E9%87%8D%E8%A4%87%E8%88%87%E5%BE%A9%E5%8E%9F-u-ctrl-r">八、重複與復原：. u Ctrl-r</a></li>
+<li><a href="#%E4%B9%9D%E6%90%9C%E5%B0%8B%E8%88%87%E5%8F%96%E4%BB%A3">九、搜尋與取代</a></li>
+<li><a href="#%E5%8D%81%E6%9A%AB%E5%AD%98%E5%99%A8%E8%A4%87%E8%A3%BD%E7%9A%84%E6%9D%B1%E8%A5%BF%E6%94%BE%E5%9C%A8%E5%93%AA">十、暫存器：複製的東西放在哪</a></li>
+<li><a href="#%E5%8D%81%E4%B8%80visual-%E6%A8%A1%E5%BC%8F%E8%88%87%E5%8D%80%E5%A1%8A%E9%81%B8%E5%8F%96">十一、Visual 模式與區塊選取</a></li>
+<li><a href="#%E5%8D%81%E4%BA%8C%E5%B7%A8%E9%9B%86%E9%8C%84%E4%B8%8B%E6%8C%89%E9%8D%B5%E9%87%8D%E6%92%AD">十二、巨集：錄下按鍵、重播</a></li>
+<li><a href="#%E5%8D%81%E4%B8%89%E9%8C%AF%E8%AA%A4%E8%A8%8A%E6%81%AF%E5%B0%8D%E7%85%A7%E8%88%87%E6%96%87%E6%B3%95%E5%8F%AF%E4%BB%A5%E5%95%8F-vim">十三、錯誤訊息對照與「文法可以問 Vim」</a></li>
+<li><a href="#%E5%8D%81%E5%9B%9B%E8%87%AA%E6%88%91%E6%B8%AC%E9%A9%97">十四、自我測驗</a></li>
+</ul>
+<hr />
+<h2 id="一為什麼-vim-要有模式">一、為什麼 Vim 要有「模式」</h2>
+<p>一般編輯器（VS Code、記事本）按 <code>d</code> 就是打出字母 d，要做「刪除一個字」得配 Ctrl、Shift 或滑鼠。
+Vim 走另一條路：<strong>大部分時間你不是在打字，而是在移動、刪除、複製、修改</strong>，所以它讓鍵盤在不同「模式」下有不同意思：</p>
+<ul>
+<li>在<strong>一般模式（Normal mode）</strong>，每個鍵都是命令：<code>d</code> 是刪除、<code>w</code> 是「到下一個字」、<code>dw</code> 就是「刪到下一個字」。</li>
+<li>在<strong>插入模式（Insert mode）</strong>，鍵才是打字。</li>
+</ul>
+<p>代價是要知道自己在哪個模式；好處是手不用離開主鍵區，而且命令可以<strong>組合</strong>（第六節）。這也是很多人覺得 Vim 難的根因：把它當成「一般編輯器加一堆快捷鍵」，就會覺得要背幾百個鍵；把它當成「一套文法」，要學的東西就少得多。</p>
+<p>Vim 來自 1976 年的 <code>vi</code>（visual，相對於更早的逐行編輯器 <code>ex</code>）。<code>vi</code> 是 POSIX 標準規定的工具，幾乎所有 Unix 系統都有，所以在一台沒裝任何東西的伺服器上，你通常還是有 <code>vi</code> 可用——這是值得學它的實際理由。在 Ubuntu 上 <code>vi</code> 其實是指向 <code>vim</code>（見 <a href="../linux/%E5%BE%9Edpkg%E5%8F%8D%E6%8E%A8%E5%A5%97%E4%BB%B6%E7%9A%84%E5%95%9F%E5%8B%95%E5%91%BD%E4%BB%A4.html">從dpkg反推套件的啟動命令</a> 的反查例子）。</p>
+<hr />
+<h2 id="二模式基本-7-種附加-7-種日常用-4-種">二、模式：基本 7 種、附加 7 種，日常用 4 種</h2>
+<p>Vim 的說明文件（<code>:help vim-modes</code>）把模式分成 <strong>7 種基本模式（BASIC modes）＋ 7 種附加模式（ADDITIONAL modes）</strong>，全部列在下面：</p>
+<p><strong>基本模式（7 種）</strong></p>
+<table>
+<thead>
+<tr>
+<th>模式</th>
+<th>畫面底下顯示</th>
+<th>做什麼</th>
+<th>怎麼進去</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>一般模式（Normal）</td>
+<td>（無）</td>
+<td>下命令：移動、刪除、複製……開 Vim 就在這裡</td>
+<td>從其他模式按 <code>Esc</code></td>
+</tr>
+<tr>
+<td>視覺模式（Visual）</td>
+<td><code>-- VISUAL --</code></td>
+<td>像一般模式，但移動會<strong>擴大反白範圍</strong>，接著下的命令作用在反白的範圍</td>
+<td><code>v</code>、<code>V</code>、<code>Ctrl-v</code>（第十一節）</td>
+</tr>
+<tr>
+<td>選取模式（Select）</td>
+<td><code>-- SELECT --</code></td>
+<td>模仿 Windows：選好後打字會直接取代選取的內容</td>
+<td><code>gh</code>；很少用</td>
+</tr>
+<tr>
+<td>插入模式（Insert）</td>
+<td><code>-- INSERT --</code></td>
+<td>打字</td>
+<td><code>i</code>、<code>a</code>、<code>o</code> 等（下表）</td>
+</tr>
+<tr>
+<td>命令列模式（Command-line）</td>
+<td>底下出現 <code>:</code>、<code>/</code>、<code>?</code></td>
+<td>在最底下打一行：<code>:</code> 開頭是 Ex 命令（<code>:w</code>），<code>/</code>、<code>?</code> 是搜尋，<code>!</code> 是過濾</td>
+<td><code>:</code>、<code>/</code>、<code>?</code></td>
+</tr>
+<tr>
+<td>Ex 模式</td>
+<td><code>Entering Ex mode</code></td>
+<td>像命令列模式，但執行完<strong>留在</strong>這個模式（模擬古早的 <code>ex</code> 行編輯器）</td>
+<td><code>Q</code>（常常是誤按，見下方）</td>
+</tr>
+<tr>
+<td>終端機工作模式（Terminal-Job）</td>
+<td></td>
+<td>在 Vim 視窗裡跑一個 shell，按鍵送給那個程式</td>
+<td><code>:terminal</code></td>
+</tr>
+</tbody>
+</table>
+<p><strong>附加模式（7 種，基本模式的變形）</strong></p>
+<table>
+<thead>
+<tr>
+<th>模式</th>
+<th>做什麼</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>等待運算對象模式（Operator-pending）</td>
+<td>按了運算子（例如 <code>d</code>）之後，Vim 在等你給「範圍」（第六節）。這時打 <code>w</code> 是「到下一個字」的意思</td>
+</tr>
+<tr>
+<td>取代模式（Replace）</td>
+<td><code>R</code> 進入，打的每個字<strong>蓋掉</strong>原本的字（像 Insert 鍵切換的覆寫）</td>
+</tr>
+<tr>
+<td>虛擬取代模式（Virtual Replace）</td>
+<td><code>gR</code> 進入，跟取代模式類似，但以「畫面上的格子」為單位（Tab 佔好幾格時才有差）</td>
+</tr>
+<tr>
+<td>插入中的一般模式（Insert Normal）</td>
+<td>在插入模式按 <code>Ctrl-o</code>，執行<strong>一個</strong>一般模式命令後自動回到插入模式（顯示 <code>-- (insert) --</code>）</td>
+</tr>
+<tr>
+<td>終端機一般模式（Terminal-Normal）</td>
+<td>在終端機視窗裡用一般模式捲動、複製；不能修改</td>
+</tr>
+<tr>
+<td>插入中的視覺模式（Insert Visual）</td>
+<td>從插入模式 <code>Ctrl-o</code> 再按 <code>v</code>；選取結束後回到插入模式</td>
+</tr>
+<tr>
+<td>插入中的選取模式（Insert Select）</td>
+<td>從插入模式用滑鼠或 <code>Shift-方向鍵</code>開始選取</td>
+</tr>
+</tbody>
+</table>
+<p>日常會用到的是 <strong>一般、插入、視覺、命令列</strong> 這 4 種。它們之間的切換：</p>
+<pre class="mermaid">flowchart LR
+    N[&quot;一般模式&lt;br/&gt;（開 Vim 就在這）&quot;]
+    I[&quot;插入模式&lt;br/&gt;-- INSERT --&quot;]
+    V[&quot;視覺模式&lt;br/&gt;-- VISUAL --&quot;]
+    C[&quot;命令列模式&lt;br/&gt;底下出現 : / ?&quot;]
+    N -- &quot;i a o I A O s c…&quot; --&gt; I
+    I -- &quot;Esc&quot; --&gt; N
+    N -- &quot;v V Ctrl-v&quot; --&gt; V
+    V -- &quot;Esc，或下完命令（d y c…）&quot; --&gt; N
+    N -- &quot;: / ?&quot; --&gt; C
+    C -- &quot;Enter 執行，或 Esc 取消&quot; --&gt; N
+</pre>
+<p>圖要看的重點：<strong>一般模式是中心</strong>，其他模式都是從它進去、做完回到它。所以「不知道自己在哪個模式」時，<strong>按兩次 <code>Esc</code></strong> 一定回到一般模式（<code>:help mode-switching</code> 的原話）。唯一例外是 Ex 模式：在一般模式誤按 <code>Q</code> 會進去，畫面顯示 <code>Entering Ex mode.  Type &quot;visual&quot; to go to Normal mode.</code>，<code>Esc</code> 沒用，要打 <code>:visual</code>（或 <code>vi</code>）再按 Enter 才回得來。</p>
+<p><strong>進插入模式的命令</strong>（都是從一般模式按）：</p>
+<table>
+<thead>
+<tr>
+<th>鍵</th>
+<th>從哪裡開始打字</th>
+<th>記法</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>i</code></td>
+<td>游標<strong>前面</strong></td>
+<td>insert</td>
+</tr>
+<tr>
+<td><code>a</code></td>
+<td>游標<strong>後面</strong></td>
+<td>append</td>
+</tr>
+<tr>
+<td><code>I</code></td>
+<td>這一行第一個非空白字元前面</td>
+<td>大寫＝整行的版本</td>
+</tr>
+<tr>
+<td><code>A</code></td>
+<td>這一行<strong>最後面</strong></td>
+<td>在行尾加分號最常用</td>
+</tr>
+<tr>
+<td><code>o</code></td>
+<td>在下面<strong>開新的一行</strong></td>
+<td>open</td>
+</tr>
+<tr>
+<td><code>O</code></td>
+<td>在上面開新的一行</td>
+<td></td>
+</tr>
+<tr>
+<td><code>s</code></td>
+<td>刪掉游標上的字元再打字</td>
+<td>substitute</td>
+</tr>
+<tr>
+<td><code>S</code></td>
+<td>刪掉整行內容再打字（等於 <code>cc</code>）</td>
+<td></td>
+</tr>
+<tr>
+<td><code>c{動作}</code></td>
+<td>刪掉一個範圍再打字</td>
+<td>change，第六節</td>
+</tr>
+</tbody>
+</table>
+<p>這是常用的 9 個；插入模式本身還有 97 個按鍵命令（例如 <code>Ctrl-w</code> 刪掉前一個字、<code>Ctrl-n</code> 自動補完），完整清單見 <code>:help insert-index</code>。</p>
+<hr />
+<h2 id="三存檔與離開">三、存檔與離開</h2>
+<p>存檔、離開都是<strong>命令列模式</strong>的命令：先在一般模式按 <code>:</code>，打命令，按 Enter。</p>
+<table>
+<thead>
+<tr>
+<th>命令</th>
+<th>做什麼</th>
+<th>檔案有改過、沒存時</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>:w</code></td>
+<td>寫入（write）檔案</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>:w 新檔名</code></td>
+<td>另存到新檔名（目前編輯的仍是原檔）</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>:q</code></td>
+<td>離開（quit）</td>
+<td><strong>拒絕</strong>，報 <code>E37</code>（見下）</td>
+</tr>
+<tr>
+<td><code>:q!</code></td>
+<td>不存、強制離開；改的東西全丟掉</td>
+<td>直接丟掉</td>
+</tr>
+<tr>
+<td><code>:wq</code></td>
+<td>寫入再離開；<strong>不管有沒有改都會寫</strong>（檔案修改時間會變）</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>:x</code></td>
+<td>有改才寫，然後離開</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>ZZ</code></td>
+<td>一般模式的鍵，等於 <code>:x</code>（不用按 <code>:</code> 和 Enter）</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>ZQ</code></td>
+<td>一般模式的鍵，等於 <code>:q!</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>:qa</code>／<code>:wqa</code>／<code>:qa!</code></td>
+<td>加 <code>a</code>（all）＝對所有開著的檔案做</td>
+<td></td>
+</tr>
+<tr>
+<td><code>:w !sudo tee %</code></td>
+<td>忘了用 <code>sudo</code> 開、沒權限存檔時的救急法：把內容交給 <code>sudo tee</code> 寫回目前的檔案（<code>%</code> 代表目前檔名）</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p><code>!</code> 在這些命令後面的意思是「我知道，照做」（強制）。沒存就 <code>:q</code> 的實測錯誤訊息：</p>
+<pre><code>E37: No write since last change (add ! to override)
+</code></pre>
+<p>訊息自己就講了解法：要嘛先 <code>:w</code>，要嘛加 <code>!</code> 變成 <code>:q!</code> 放棄修改。（這行是用第四節的方法，在刪掉一行後下 <code>:q</code> 得到的。）</p>
+<hr />
+<h2 id="四實驗工具怎麼不開畫面也能看到按鍵的結果">四、實驗工具：怎麼不開畫面也能看到按鍵的結果</h2>
+<p>為了讓本篇每個例子都是真的跑出來的，我用下面這個腳本讓 Vim 在<strong>不開畫面</strong>的情況下執行一串按鍵、再把整個檔案印出來。你也可以拿它驗證自己對某個命令的猜測。</p>
+<p><code>vk.sh</code> 完整原始碼：</p>
+<pre><code class="language-sh"><span class="ch">#!/bin/sh</span>
+<span class="c1"># 用法：./vk.sh &lt;檔案&gt; &#39;&lt;按鍵&gt;&#39;</span>
+<span class="c1"># 用乾淨設定（-u NONE）開 vim，把游標放到第 1 行第 1 欄，執行按鍵後印出整個緩衝區</span>
+vim<span class="w"> </span>-Nu<span class="w"> </span>NONE<span class="w"> </span>-i<span class="w"> </span>NONE<span class="w"> </span>-n<span class="w"> </span>-es<span class="w"> </span>-c<span class="w"> </span><span class="s1">&#39;call cursor(1, 1)&#39;</span><span class="w"> </span>-c<span class="w"> </span><span class="s2">&quot;normal </span><span class="nv">$2</span><span class="s2">&quot;</span><span class="w"> </span>-c<span class="w"> </span><span class="s1">&#39;%print&#39;</span><span class="w"> </span>-c<span class="w"> </span><span class="s1">&#39;q!&#39;</span><span class="w"> </span><span class="s2">&quot;</span><span class="nv">$1</span><span class="s2">&quot;</span>
+</code></pre>
+<p>建檔與使用：</p>
+<pre><code class="language-sh">chmod<span class="w"> </span>+x<span class="w"> </span>vk.sh
+<span class="nb">printf</span><span class="w"> </span><span class="s1">&#39;int count = 0;\n&#39;</span><span class="w"> </span>&gt;<span class="w"> </span>w.txt
+./vk.sh<span class="w"> </span>w.txt<span class="w"> </span><span class="s1">&#39;wdiw&#39;</span><span class="w">     </span><span class="c1"># 從行首按 w（到下一個字）、再按 diw（刪掉這個字）</span>
+</code></pre>
+<p>每個選項的意思：</p>
+<table>
+<thead>
+<tr>
+<th>選項</th>
+<th>意思</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-N</code></td>
+<td>不相容（nocompatible）模式：用 Vim 自己的行為，不模仿老 <code>vi</code></td>
+</tr>
+<tr>
+<td><code>-u NONE</code></td>
+<td>不讀任何設定檔（包括 <code>~/.vimrc</code>），結果才不受個人設定影響</td>
+</tr>
+<tr>
+<td><code>-i NONE</code></td>
+<td>不讀寫 viminfo（記錄歷史、暫存器的檔案），避免上次的暫存器內容混進來</td>
+</tr>
+<tr>
+<td><code>-n</code></td>
+<td>不建 swap 檔（<code>.w.txt.swp</code>）</td>
+</tr>
+<tr>
+<td><code>-es</code></td>
+<td>Ex 模式＋安靜（silent）：不開畫面，從命令列讀命令</td>
+</tr>
+<tr>
+<td><code>-c '命令'</code></td>
+<td>開檔後依序執行這個 Ex 命令，可以給很多個</td>
+</tr>
+<tr>
+<td><code>call cursor(1, 1)</code></td>
+<td>把游標放到第 1 行第 1 欄（Ex 模式開檔時游標預設在<strong>最後一行</strong>，不放的話結果會不一樣）</td>
+</tr>
+<tr>
+<td><code>normal 按鍵</code></td>
+<td>把後面的字當成<strong>在一般模式按的鍵</strong>來執行</td>
+</tr>
+<tr>
+<td><code>%print</code></td>
+<td>印出所有行（<code>%</code> 是整個檔案，第九節）</td>
+</tr>
+<tr>
+<td><code>q!</code></td>
+<td>不存檔離開，所以原檔不會被改</td>
+</tr>
+</tbody>
+</table>
+<p>特殊鍵要放真的控制字元：<code>Esc</code> 用 <code>$(printf '\033')</code>、<code>Ctrl-v</code> 用 <code>$(printf '\026')</code>。下面例子裡寫成 <code>&lt;Esc&gt;</code>、<code>&lt;C-v&gt;</code> 的地方就是這樣傳進去的。</p>
+<p>要看訊息（例如錯誤訊息、暫存器內容）時，因為 <code>-es</code> 不印訊息，改用 <code>redir</code> 把訊息存到檔案：</p>
+<pre><code class="language-sh"><span class="c1"># 第十節看暫存器用的寫法：執行 yyjdd 後，把 :registers 的輸出存進 out 再印出來</span>
+vim<span class="w"> </span>-Nu<span class="w"> </span>NONE<span class="w"> </span>-i<span class="w"> </span>NONE<span class="w"> </span>-n<span class="w"> </span>-es<span class="w"> </span>-c<span class="w"> </span><span class="s1">&#39;call cursor(1,1)&#39;</span><span class="w"> </span>-c<span class="w"> </span><span class="s1">&#39;redir! &gt; out&#39;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>-c<span class="w"> </span><span class="s1">&#39;normal yyjdd&#39;</span><span class="w"> </span>-c<span class="w"> </span><span class="s1">&#39;registers 0 1 &quot;&#39;</span><span class="w"> </span>-c<span class="w"> </span><span class="s1">&#39;redir END&#39;</span><span class="w"> </span>-c<span class="w"> </span><span class="s1">&#39;q!&#39;</span><span class="w"> </span>r.txt
+sed<span class="w"> </span><span class="s1">&#39;/^$/d&#39;</span><span class="w"> </span>out
+</code></pre>
+<p><strong>限制</strong>：<code>normal</code> 執行的按鍵裡如果有命令失敗（例如游標已經在最後一行還按 <code>j</code>），<strong>後面的按鍵全部不會執行</strong>——這跟你在畫面上按鍵時的「失敗就停下」是同一個規則，第十二節的巨集會再碰到。</p>
+<hr />
+<h2 id="五移動motion">五、移動（motion）</h2>
+<p>移動命令有兩個用途：單獨按是移游標；<strong>接在運算子後面是「範圍」</strong>（第六節）。所以移動學得越多，能組出的編輯就越多。</p>
+<p>用這一行實測（每個字元的欄號標在下面，欄號從 1 起算）：</p>
+<pre><code class="language-text">printf(&quot;hello, world\n&quot;, x);
+         1111111111222222222
+1234567890123456789012345678
+</code></pre>
+<p>從第 1 欄出發，按下各鍵後游標停的欄（用 <code>col(&quot;.&quot;)</code> 量出來的實測值）：</p>
+<table>
+<thead>
+<tr>
+<th>按鍵</th>
+<th>停在第幾欄</th>
+<th>停在哪個字元</th>
+<th>說明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>w</code></td>
+<td>7</td>
+<td><code>(</code></td>
+<td>到下一個 <strong>word</strong> 的開頭。word＝連續的字母數字底線，<strong>或</strong>連續的其他符號；<code>printf</code> 和 <code>(</code> 是不同 word</td>
+</tr>
+<tr>
+<td><code>ww</code></td>
+<td>9</td>
+<td><code>h</code></td>
+<td><code>(&quot;</code> 兩個符號連在一起算<strong>一個</strong> word，所以第二次跳過它們到 <code>hello</code></td>
+</tr>
+<tr>
+<td><code>www</code></td>
+<td>14</td>
+<td><code>,</code></td>
+<td></td>
+</tr>
+<tr>
+<td><code>W</code></td>
+<td>16</td>
+<td><code>w</code></td>
+<td>到下一個 <strong>WORD</strong> 的開頭。WORD＝<strong>用空白分隔</strong>的一串，<code>printf(&quot;hello,</code> 整串是一個 WORD</td>
+</tr>
+<tr>
+<td><code>WW</code></td>
+<td>26</td>
+<td><code>x</code></td>
+<td></td>
+</tr>
+<tr>
+<td><code>e</code></td>
+<td>6</td>
+<td><code>f</code></td>
+<td>到這個 word 的<strong>結尾</strong>（end）</td>
+</tr>
+<tr>
+<td><code>E</code></td>
+<td>14</td>
+<td><code>,</code></td>
+<td>到這個 WORD 的結尾</td>
+</tr>
+<tr>
+<td><code>$</code></td>
+<td>28</td>
+<td><code>;</code></td>
+<td>到行尾</td>
+</tr>
+<tr>
+<td><code>0</code></td>
+<td>1</td>
+<td><code>p</code></td>
+<td>到行首（第 0 欄的意思）</td>
+</tr>
+<tr>
+<td><code>^</code></td>
+<td>1</td>
+<td><code>p</code></td>
+<td>到這行第一個<strong>非空白</strong>字元（這行沒有縮排，所以跟 <code>0</code> 一樣）</td>
+</tr>
+<tr>
+<td><code>f,</code></td>
+<td>14</td>
+<td><code>,</code></td>
+<td>往右找（find）<code>,</code>，停<strong>在</strong>它上面</td>
+</tr>
+<tr>
+<td><code>t,</code></td>
+<td>13</td>
+<td><code>o</code></td>
+<td>往右找 <code>,</code>，停在它<strong>前一格</strong>（till）</td>
+</tr>
+<tr>
+<td><code>f,;</code></td>
+<td>24</td>
+<td><code>,</code></td>
+<td><code>;</code> 重複上一次的 <code>f</code>／<code>t</code>，找下一個 <code>,</code></td>
+</tr>
+<tr>
+<td><code>f,,</code></td>
+<td>14</td>
+<td><code>,</code></td>
+<td><code>,</code> 是<strong>反方向</strong>重複；左邊已經沒有 <code>,</code>，所以沒動</td>
+</tr>
+<tr>
+<td><code>%</code></td>
+<td>27</td>
+<td><code>)</code></td>
+<td>跳到配對的括號；游標不在括號上時，先往右找這行第一個括號（第 7 欄的 <code>(</code>），再跳到它的配對</td>
+</tr>
+</tbody>
+</table>
+<p>小寫 <code>w</code> 跟大寫 <code>W</code> 的差別是最常搞混的：<strong>小寫看標點、大寫只看空白</strong>。寫程式時 <code>W</code> 適合一口氣跳過 <code>foo-&gt;bar(x)</code> 這種一整串。</p>
+<p>常用移動的完整分類（這裡列 30 個左右，Vim 的一般模式命令總共 202 個、加上 <code>g</code>／<code>z</code>／<code>[</code>／<code>]</code> 開頭的另外 165 個，完整清單見 <code>:help motion.txt</code> 與 <code>:help normal-index</code>）：</p>
+<table>
+<thead>
+<tr>
+<th>類別</th>
+<th>鍵</th>
+<th>說明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>字元</td>
+<td><code>h</code> <code>j</code> <code>k</code> <code>l</code></td>
+<td>左、下、上、右。手不用離開主鍵區；方向鍵也能用</td>
+</tr>
+<tr>
+<td>字</td>
+<td><code>w</code> <code>b</code> <code>e</code> <code>ge</code></td>
+<td>下一個字的頭、上一個字的頭（back）、這個字的尾、上一個字的尾</td>
+</tr>
+<tr>
+<td>字（WORD）</td>
+<td><code>W</code> <code>B</code> <code>E</code> <code>gE</code></td>
+<td>同上，只看空白</td>
+</tr>
+<tr>
+<td>行內</td>
+<td><code>0</code> <code>^</code> <code>$</code></td>
+<td>行首、第一個非空白、行尾</td>
+</tr>
+<tr>
+<td>行內找字元</td>
+<td><code>f{c}</code> <code>F{c}</code> <code>t{c}</code> <code>T{c}</code> <code>;</code> <code>,</code></td>
+<td>往右找／往左找、停在上面／停在前一格；<code>;</code> 同方向重複、<code>,</code> 反方向重複</td>
+</tr>
+<tr>
+<td>檔案</td>
+<td><code>gg</code> <code>G</code> <code>{N}G</code> <code>:{N}</code></td>
+<td>第一行、最後一行、第 N 行（<code>42G</code> 或 <code>:42</code>）</td>
+</tr>
+<tr>
+<td>段落</td>
+<td><code>{</code> <code>}</code></td>
+<td>上一個／下一個空行</td>
+</tr>
+<tr>
+<td>配對</td>
+<td><code>%</code></td>
+<td>對應的 <code>()</code>、<code>[]</code>、<code>{}</code></td>
+</tr>
+<tr>
+<td>畫面</td>
+<td><code>Ctrl-d</code> <code>Ctrl-u</code> <code>Ctrl-f</code> <code>Ctrl-b</code></td>
+<td>往下／上捲半頁，往下／上捲一頁</td>
+</tr>
+<tr>
+<td>畫面內</td>
+<td><code>H</code> <code>M</code> <code>L</code></td>
+<td>跳到畫面的頂端、中間、底端</td>
+</tr>
+<tr>
+<td>搜尋</td>
+<td><code>/{字}</code> <code>?{字}</code> <code>n</code> <code>N</code> <code>*</code> <code>#</code></td>
+<td>第九節</td>
+</tr>
+<tr>
+<td>跳回</td>
+<td><code>Ctrl-o</code> <code>Ctrl-i</code></td>
+<td>回到上一個跳之前的位置（例如 <code>G</code> 或搜尋前）、再跳回來</td>
+</tr>
+</tbody>
+</table>
+<p><strong>次數（count）</strong>：大部分移動前面可以加數字，<code>3w</code> 是往右三個字、<code>5j</code> 是往下五行。開 <code>:set relativenumber</code> 會在每行顯示「離游標幾行」，搭配 <code>5j</code> 很方便。</p>
+<hr />
+<h2 id="六核心文法運算子動作">六、核心文法：運算子＋動作</h2>
+<h3 id="文法骨架">文法骨架</h3>
+<pre><code class="language-text">[&quot;暫存器][次數]運算子[次數]{動作 或 文字物件}
+</code></pre>
+<p>逐個位置說明：</p>
+<table>
+<thead>
+<tr>
+<th>位置</th>
+<th>必要？</th>
+<th>是什麼</th>
+<th>省略時</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>&quot;暫存器</code></td>
+<td>可省</td>
+<td>把刪掉／複製的內容放到哪個暫存器，例如 <code>&quot;a</code>（第十節）</td>
+<td>放進無名暫存器 <code>&quot;&quot;</code></td>
+</tr>
+<tr>
+<td>次數（前）</td>
+<td>可省</td>
+<td>重複幾次</td>
+<td>1 次</td>
+</tr>
+<tr>
+<td>運算子（operator）</td>
+<td><strong>必要</strong></td>
+<td>要<strong>做什麼</strong>：刪、複製、改……</td>
+<td>—</td>
+</tr>
+<tr>
+<td>次數（後）</td>
+<td>可省</td>
+<td>動作要走幾次；跟前面的次數<strong>相乘</strong></td>
+<td>1 次</td>
+</tr>
+<tr>
+<td>動作（motion）／文字物件（text object）</td>
+<td><strong>必要</strong></td>
+<td>作用在<strong>哪個範圍</strong>：從游標走到動作停下的地方，或一個文字物件（第七節）</td>
+<td>不能省，Vim 會一直在「等待運算對象模式」等你</td>
+</tr>
+</tbody>
+</table>
+<p>所以 <code>d</code> 本身什麼都不會做，要等你補上範圍。按了 <code>d</code> 之後後悔，按 <code>Esc</code> 取消。</p>
+<h3 id="運算子全部-16-個">運算子：全部 16 個</h3>
+<p><code>:help operator</code> 列出的全部運算子：</p>
+<table>
+<thead>
+<tr>
+<th>運算子</th>
+<th>做什麼</th>
+<th>常用度</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>d</code></td>
+<td>刪除（delete），刪掉的內容放進暫存器（所以「剪下」就是 <code>d</code>）</td>
+<td>★★★</td>
+</tr>
+<tr>
+<td><code>c</code></td>
+<td>修改（change）＝刪除後進入插入模式</td>
+<td>★★★</td>
+</tr>
+<tr>
+<td><code>y</code></td>
+<td>複製（yank）進暫存器，不改文字</td>
+<td>★★★</td>
+</tr>
+<tr>
+<td><code>&gt;</code></td>
+<td>往右縮排一層</td>
+<td>★★</td>
+</tr>
+<tr>
+<td><code>&lt;</code></td>
+<td>往左縮排一層</td>
+<td>★★</td>
+</tr>
+<tr>
+<td><code>=</code></td>
+<td>自動排版縮排（照 <code>equalprg</code> 選項，空的話用內建的 C 縮排規則）</td>
+<td>★★</td>
+</tr>
+<tr>
+<td><code>gU</code></td>
+<td>轉大寫</td>
+<td>★</td>
+</tr>
+<tr>
+<td><code>gu</code></td>
+<td>轉小寫</td>
+<td>★</td>
+</tr>
+<tr>
+<td><code>g~</code></td>
+<td>大小寫互換</td>
+<td>★</td>
+</tr>
+<tr>
+<td><code>~</code></td>
+<td>大小寫互換，<strong>只有開了 <code>tildeop</code> 選項才是運算子</strong>；預設的 <code>~</code> 只換游標上一個字元</td>
+<td></td>
+</tr>
+<tr>
+<td><code>!</code></td>
+<td>把範圍交給外部程式過濾，用輸出取代（例如 <code>!ip sort</code> 把段落排序）</td>
+<td>★</td>
+</tr>
+<tr>
+<td><code>gq</code></td>
+<td>排版文字（把長段落折成固定寬度），游標移到最後</td>
+<td></td>
+</tr>
+<tr>
+<td><code>gw</code></td>
+<td>同 <code>gq</code>，但游標不動</td>
+<td></td>
+</tr>
+<tr>
+<td><code>g?</code></td>
+<td>ROT13 編碼（字母轉 13 位）</td>
+<td></td>
+</tr>
+<tr>
+<td><code>zf</code></td>
+<td>建立摺疊（fold）</td>
+<td></td>
+</tr>
+<tr>
+<td><code>g@</code></td>
+<td>呼叫 <code>operatorfunc</code> 選項設定的函式（給外掛自訂運算子用）</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<h3 id="規則一運算子--動作-自由組合">規則一：運算子 × 動作 自由組合</h3>
+<p><code>d</code> 能配的每個動作，<code>c</code>、<code>y</code>、<code>&gt;</code>、<code>gU</code> 也都能配——這就是「學 4 個運算子＋20 個動作＝ 80 種編輯」的來源。實測（檔案 <code>words.txt</code> 只有一行 <code>one two three four five six seven eight</code>，游標在行首）：</p>
+<pre><code class="language-sh"><span class="nb">printf</span><span class="w"> </span><span class="s1">&#39;one two three four five six seven eight\n&#39;</span><span class="w"> </span>&gt;<span class="w"> </span>words.txt
+./vk.sh<span class="w"> </span>words.txt<span class="w"> </span><span class="s1">&#39;dw&#39;</span><span class="w">      </span><span class="c1"># 刪到下一個字的開頭</span>
+./vk.sh<span class="w"> </span>words.txt<span class="w"> </span><span class="s1">&#39;dte&#39;</span><span class="w">     </span><span class="c1"># 刪到第一個 e 的前一格</span>
+./vk.sh<span class="w"> </span>words.txt<span class="w"> </span><span class="s1">&#39;dfe&#39;</span><span class="w">     </span><span class="c1"># 刪到第一個 e（含）</span>
+./vk.sh<span class="w"> </span>words.txt<span class="w"> </span><span class="s1">&#39;gUiw&#39;</span><span class="w">    </span><span class="c1"># 把這個字轉大寫</span>
+</code></pre>
+<p>輸出（依序）：</p>
+<pre><code>two three four five six seven eight
+e two three four five six seven eight
+ two three four five six seven eight
+ONE two three four five six seven eight
+</code></pre>
+<ul>
+<li><code>dw</code>：「刪掉從游標到下一個字開頭」，所以 <code>one </code> 連同後面的空白一起不見。</li>
+<li><code>dte</code> 與 <code>dfe</code>：同一個 <code>e</code>（<code>one</code> 的最後一個字母），<code>t</code> 停在它前一格所以 <code>e</code> 留下來，<code>f</code> 停在它上面所以連 <code>e</code> 一起刪，剩下開頭的空白。</li>
+<li><code>gUiw</code>：運算子換成 <code>gU</code>、範圍換成文字物件 <code>iw</code>，文法一樣。</li>
+</ul>
+<h3 id="規則二次數相乘">規則二：次數相乘</h3>
+<pre><code class="language-sh">./vk.sh<span class="w"> </span>words.txt<span class="w"> </span><span class="s1">&#39;3dw&#39;</span><span class="w">     </span><span class="c1"># 做 3 次 dw</span>
+./vk.sh<span class="w"> </span>words.txt<span class="w"> </span><span class="s1">&#39;2d3w&#39;</span><span class="w">    </span><span class="c1"># 2 × 3 = 刪 6 個字</span>
+</code></pre>
+<pre><code>four five six seven eight
+seven eight
+</code></pre>
+<p><code>2d3w</code> 刪了 <code>one</code>～<code>six</code> 共 6 個字（<code>:help motion-count-multiplied</code> 的原例就是這個）。</p>
+<h3 id="規則三運算子按兩次作用在整行">規則三：運算子按兩次＝作用在整行</h3>
+<p><code>dd</code> 刪整行、<code>yy</code> 複製整行、<code>cc</code> 改整行、<code>&gt;&gt;</code> 整行縮排、<code>gUU</code>（或 <code>gUgU</code>）整行大寫。加次數就是「從這行起往下幾行」。用 5 行的 <code>lines.txt</code>（<code>line1</code>～<code>line5</code>，游標在第 1 行）實測，輸出用 <code>|</code> 接成一行方便看：</p>
+<pre><code class="language-sh"><span class="nb">printf</span><span class="w"> </span><span class="s1">&#39;line1\nline2\nline3\nline4\nline5\n&#39;</span><span class="w"> </span>&gt;<span class="w"> </span>lines.txt
+./vk.sh<span class="w"> </span>lines.txt<span class="w"> </span><span class="s1">&#39;dd&#39;</span><span class="w">   </span><span class="p">|</span><span class="w"> </span>paste<span class="w"> </span>-sd<span class="s1">&#39;|&#39;</span><span class="w">    </span><span class="c1"># 刪第 1 行</span>
+./vk.sh<span class="w"> </span>lines.txt<span class="w"> </span><span class="s1">&#39;2dd&#39;</span><span class="w">  </span><span class="p">|</span><span class="w"> </span>paste<span class="w"> </span>-sd<span class="s1">&#39;|&#39;</span><span class="w">    </span><span class="c1"># 刪 2 行</span>
+./vk.sh<span class="w"> </span>lines.txt<span class="w"> </span><span class="s1">&#39;jdj&#39;</span><span class="w">  </span><span class="p">|</span><span class="w"> </span>paste<span class="w"> </span>-sd<span class="s1">&#39;|&#39;</span><span class="w">    </span><span class="c1"># 到第 2 行，刪「這行到下一行」</span>
+./vk.sh<span class="w"> </span>lines.txt<span class="w"> </span><span class="s1">&#39;jdG&#39;</span><span class="w">  </span><span class="p">|</span><span class="w"> </span>paste<span class="w"> </span>-sd<span class="s1">&#39;|&#39;</span><span class="w">    </span><span class="c1"># 到第 2 行，刪到檔尾</span>
+./vk.sh<span class="w"> </span>lines.txt<span class="w"> </span><span class="s1">&#39;&gt;&gt;&#39;</span><span class="w">   </span><span class="p">|</span><span class="w"> </span>paste<span class="w"> </span>-sd<span class="s1">&#39;|&#39;</span><span class="w">    </span><span class="c1"># 第 1 行縮排</span>
+./vk.sh<span class="w"> </span>lines.txt<span class="w"> </span><span class="s1">&#39;ddp&#39;</span><span class="w">  </span><span class="p">|</span><span class="w"> </span>paste<span class="w"> </span>-sd<span class="s1">&#39;|&#39;</span><span class="w">    </span><span class="c1"># 刪第 1 行、貼在下面</span>
+./vk.sh<span class="w"> </span>lines.txt<span class="w"> </span><span class="s1">&#39;jyyP&#39;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>paste<span class="w"> </span>-sd<span class="s1">&#39;|&#39;</span><span class="w">    </span><span class="c1"># 到第 2 行，複製這行、貼在上面</span>
+</code></pre>
+<pre><code>line2|line3|line4|line5
+line3|line4|line5
+line1|line4|line5
+line1
+        line1|line2|line3|line4|line5
+line2|line1|line3|line4|line5
+line1|line2|line2|line3|line4|line5
+</code></pre>
+<ul>
+<li><code>jdj</code>：<code>j</code> 是<strong>行動作（linewise）</strong>，所以 <code>dj</code> 刪的是「這行和下一行」兩整行，不是半行。<code>dk</code>、<code>dG</code>、<code>dgg</code> 同理。</li>
+<li><code>&gt;&gt;</code> 縮了 8 格：<code>-u NONE</code> 用的是預設的 <code>shiftwidth=8</code>。寫 C 照 kernel coding style 剛好是一個 Tab（8 格）。</li>
+<li><code>ddp</code>：<strong>兩行互換</strong>的慣用法——<code>dd</code> 把第 1 行剪進暫存器，游標落到原本的第 2 行，<code>p</code>（put，貼上）貼在它下面。</li>
+<li>貼上：<code>p</code> 貼在游標<strong>後面</strong>（整行的內容就是貼在<strong>下一行</strong>）、<code>P</code> 貼在<strong>前面</strong>（上一行）。</li>
+</ul>
+<h3 id="規則四大寫通常是到行尾或整行的縮寫">規則四：大寫通常是「到行尾」或「整行」的縮寫</h3>
+<table>
+<thead>
+<tr>
+<th>鍵</th>
+<th>等於</th>
+<th>意思</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>D</code></td>
+<td><code>d$</code></td>
+<td>刪到行尾</td>
+</tr>
+<tr>
+<td><code>C</code></td>
+<td><code>c$</code></td>
+<td>改到行尾</td>
+</tr>
+<tr>
+<td><code>Y</code></td>
+<td><code>yy</code></td>
+<td>複製整行（Vim 為了跟 vi 相容是 <code>yy</code>；Neovim 改成 <code>y$</code>）</td>
+</tr>
+<tr>
+<td><code>x</code></td>
+<td><code>dl</code></td>
+<td>刪游標上的字元</td>
+</tr>
+<tr>
+<td><code>X</code></td>
+<td><code>dh</code></td>
+<td>刪游標前的字元</td>
+</tr>
+<tr>
+<td><code>S</code></td>
+<td><code>cc</code></td>
+<td>改整行</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="七文字物件i-和-a">七、文字物件：i 和 a</h2>
+<p>動作是「從游標走到某處」，所以範圍跟游標位置有關；<strong>文字物件（text object）是「游標所在的那個東西」</strong>，游標在字的中間也能整個抓到。它<strong>只能</strong>接在運算子後面，或在視覺模式裡用（單獨按 <code>iw</code> 會被當成「進插入模式打一個 w」）。</p>
+<p>文法是兩個字元：</p>
+<pre><code class="language-text">{i 或 a}{物件種類}
+</code></pre>
+<ul>
+<li>第一個字元：<code>i</code>＝inner（<strong>只要裡面</strong>，不含括號、引號、周圍空白）；<code>a</code>＝a／around（<strong>連外殼一起</strong>，含括號、引號或一個空白）。</li>
+<li>第二個字元：物件種類。</li>
+</ul>
+<h3 id="實測同一個位置i-和-a-的差別">實測：同一個位置，i 和 a 的差別</h3>
+<p><code>call.txt</code> 內容是 <code>printf(&quot;hello, world\n&quot;, x);</code>，先用 <code>fh</code> 把游標移到 <code>hello</code> 的 <code>h</code>：</p>
+<pre><code class="language-sh"><span class="nb">printf</span><span class="w"> </span><span class="s1">&#39;printf(&quot;hello, world\\n&quot;, x);\n&#39;</span><span class="w"> </span>&gt;<span class="w"> </span>call.txt
+./vk.sh<span class="w"> </span>call.txt<span class="w"> </span><span class="s1">&#39;fhdiw&#39;</span><span class="w">      </span><span class="c1"># 刪這個字</span>
+./vk.sh<span class="w"> </span>call.txt<span class="w"> </span><span class="s1">&#39;fhdi&quot;&#39;</span><span class="w">      </span><span class="c1"># 刪引號裡面</span>
+./vk.sh<span class="w"> </span>call.txt<span class="w"> </span><span class="s1">&#39;fhda&quot;&#39;</span><span class="w">      </span><span class="c1"># 刪引號連引號</span>
+./vk.sh<span class="w"> </span>call.txt<span class="w"> </span><span class="s1">&#39;fhdi(&#39;</span><span class="w">      </span><span class="c1"># 刪括號裡面</span>
+./vk.sh<span class="w"> </span>call.txt<span class="w"> </span><span class="s1">&#39;fhda(&#39;</span><span class="w">      </span><span class="c1"># 刪括號連括號</span>
+./vk.sh<span class="w"> </span>call.txt<span class="w"> </span><span class="s1">&#39;fhci&quot;bye&lt;Esc&gt;&#39;</span><span class="w">   </span><span class="c1"># 改引號裡面成 bye</span>
+</code></pre>
+<pre><code>printf(&quot;, world\n&quot;, x);
+printf(&quot;&quot;, x);
+printf(, x);
+printf();
+printf;
+printf(&quot;bye&quot;, x);
+</code></pre>
+<ul>
+<li>游標在 <code>h</code>，但 <code>di&quot;</code>、<code>di(</code> 仍然抓到<strong>整個</strong>引號／括號的內容——這就是跟「動作」的差別：不用先移到開頭。</li>
+<li><code>ci&quot;</code> 是寫程式最常用的組合之一：「改掉這個字串的內容」。同理 <code>ci(</code> 改參數、<code>ci{</code> 改函式內容。</li>
+</ul>
+<p><code>iw</code> 跟 <code>aw</code> 的差別在空白，換一個字後面有空白的例子（<code>w.txt</code> 是 <code>int count = 0;</code>，先 <code>w</code> 移到 <code>count</code>）：</p>
+<pre><code class="language-sh">./vk.sh<span class="w"> </span>w.txt<span class="w"> </span><span class="s1">&#39;wdiw&#39;</span>
+./vk.sh<span class="w"> </span>w.txt<span class="w"> </span><span class="s1">&#39;wdaw&#39;</span>
+./vk.sh<span class="w"> </span>w.txt<span class="w"> </span><span class="s1">&#39;wciwtotal&lt;Esc&gt;&#39;</span>
+</code></pre>
+<pre><code>int  = 0;
+int = 0;
+int total = 0;
+</code></pre>
+<ul>
+<li><code>diw</code> 只刪 <code>count</code>，<strong>兩邊的空白都留著</strong>，所以剩兩個空格。</li>
+<li><code>daw</code> 連後面一個空白一起刪，句子仍然通順——<strong>刪一個字用 <code>daw</code>、換一個字用 <code>ciw</code></strong>。</li>
+</ul>
+<h3 id="文字物件全部-36-個">文字物件：全部 36 個</h3>
+<p><code>:help objects</code> 的完整清單，<code>i</code>／<code>a</code> 各 18 個，整理成 18 種物件：</p>
+<table>
+<thead>
+<tr>
+<th>物件</th>
+<th><code>i</code>（inner）</th>
+<th><code>a</code>（around）</th>
+<th>別名</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>w</code> word</td>
+<td>這個字</td>
+<td>這個字＋一邊的空白</td>
+<td></td>
+</tr>
+<tr>
+<td><code>W</code> WORD</td>
+<td>這個 WORD</td>
+<td>這個 WORD＋空白</td>
+<td></td>
+</tr>
+<tr>
+<td><code>s</code> sentence 句子</td>
+<td>這一句</td>
+<td>這一句＋空白</td>
+<td></td>
+</tr>
+<tr>
+<td><code>p</code> paragraph 段落</td>
+<td>這一段（到空行為止）</td>
+<td>這一段＋後面的空行</td>
+<td></td>
+</tr>
+<tr>
+<td><code>&quot;</code></td>
+<td>雙引號裡面</td>
+<td>連雙引號</td>
+<td></td>
+</tr>
+<tr>
+<td><code>'</code></td>
+<td>單引號裡面</td>
+<td>連單引號</td>
+<td></td>
+</tr>
+<tr>
+<td><code>`</code></td>
+<td>反引號裡面</td>
+<td>連反引號</td>
+<td></td>
+</tr>
+<tr>
+<td><code>(</code></td>
+<td>小括號裡面</td>
+<td>連小括號</td>
+<td><code>)</code>、<code>b</code>（block）</td>
+</tr>
+<tr>
+<td><code>[</code></td>
+<td>中括號裡面</td>
+<td>連中括號</td>
+<td><code>]</code></td>
+</tr>
+<tr>
+<td><code>{</code></td>
+<td>大括號裡面</td>
+<td>連大括號</td>
+<td><code>}</code>、<code>B</code>（Block）</td>
+</tr>
+<tr>
+<td><code>&lt;</code></td>
+<td>角括號裡面</td>
+<td>連角括號</td>
+<td><code>&gt;</code></td>
+</tr>
+<tr>
+<td><code>t</code> tag</td>
+<td>HTML/XML 標籤之間的內容</td>
+<td>連開頭、結尾標籤</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p>所以真正要記的只有 12 種物件；<code>i(</code>、<code>i)</code>、<code>ib</code> 三個是同一件事，選順手的就好（<code>:help objects</code> 寫的是 <code>same as ib</code>）。</p>
+<hr />
+<h2 id="八重複與復原-u-ctrl-r">八、重複與復原：. u Ctrl-r</h2>
+<table>
+<thead>
+<tr>
+<th>鍵</th>
+<th>做什麼</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>.</code></td>
+<td><strong>重複上一次的修改</strong>（含運算子、範圍、插入的文字）</td>
+</tr>
+<tr>
+<td><code>u</code></td>
+<td>復原（undo）上一次修改</td>
+</tr>
+<tr>
+<td><code>Ctrl-r</code></td>
+<td>重做（redo），取消 <code>u</code></td>
+</tr>
+<tr>
+<td><code>U</code></td>
+<td>復原這一行最近的所有修改（本身也算一次修改，所以很少用）</td>
+</tr>
+</tbody>
+</table>
+<p><code>.</code> 是 Vim 效率的另一半：把一次修改設計成「一個完整的命令」，就能一直用 <code>.</code> 重做。實測：</p>
+<pre><code class="language-sh">./vk.sh<span class="w"> </span>words.txt<span class="w"> </span><span class="s1">&#39;dw..&#39;</span><span class="w">                  </span><span class="c1"># dw，再重複兩次</span>
+./vk.sh<span class="w"> </span>lines.txt<span class="w"> </span><span class="s1">&#39;dd.&#39;</span><span class="w">  </span><span class="p">|</span><span class="w"> </span>paste<span class="w"> </span>-sd<span class="s1">&#39;|&#39;</span><span class="w">   </span><span class="c1"># dd，再重複一次</span>
+./vk.sh<span class="w"> </span>lines.txt<span class="w"> </span><span class="s1">&#39;ddu&#39;</span><span class="w">  </span><span class="p">|</span><span class="w"> </span>paste<span class="w"> </span>-sd<span class="s1">&#39;|&#39;</span><span class="w">   </span><span class="c1"># dd，再復原</span>
+</code></pre>
+<pre><code>four five six seven eight
+line3|line4|line5
+line1|line2|line3|line4|line5
+</code></pre>
+<ul>
+<li><code>dw..</code> 跟 <code>3dw</code> 結果一樣（都剩 <code>four …</code>）。差別：<code>.</code> 可以<strong>一邊看一邊決定</strong>要不要再做，甚至先移到別的地方再按 <code>.</code>。</li>
+<li>「一次修改」的單位：<strong>從進插入模式到按 <code>Esc</code> 算一次</strong>。所以 <code>ciwtotal&lt;Esc&gt;</code> 之後，移到另一個字按 <code>.</code>，那個字也會被換成 <code>total</code>。這也是為什麼不要在插入模式裡用方向鍵移動：移動會把一次修改切成好幾次，<code>.</code> 和 <code>u</code> 都只會處理最後一段。</li>
+</ul>
+<hr />
+<h2 id="九搜尋與取代">九、搜尋與取代</h2>
+<h3 id="搜尋">搜尋</h3>
+<table>
+<thead>
+<tr>
+<th>鍵</th>
+<th>做什麼</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>/字串</code> Enter</td>
+<td>往下搜尋</td>
+</tr>
+<tr>
+<td><code>?字串</code> Enter</td>
+<td>往上搜尋</td>
+</tr>
+<tr>
+<td><code>n</code></td>
+<td>跳到下一個（同方向）</td>
+</tr>
+<tr>
+<td><code>N</code></td>
+<td>跳到上一個（反方向）</td>
+</tr>
+<tr>
+<td><code>*</code></td>
+<td>搜尋游標上這個字（整個字比對），往下</td>
+</tr>
+<tr>
+<td><code>#</code></td>
+<td>同上，往上</td>
+</tr>
+<tr>
+<td><code>:noh</code></td>
+<td>暫時關掉搜尋結果的反白（<code>nohlsearch</code>），下次搜尋又會亮</td>
+</tr>
+</tbody>
+</table>
+<p>你的 <code>~/.vimrc</code> 開了 <code>hlsearch</code>（把所有符合的地方反白）和 <code>incsearch</code>（邊打邊跳），所以搜尋完整個畫面都是黃底——用 <code>:noh</code> 關掉，而不是去改設定。</p>
+<p>搜尋的字串是<strong>正規表示式（regular expression）</strong>，<code>.</code>、<code>*</code>、<code>[</code> 有特殊意思；要找字面上的 <code>.</code> 寫 <code>\.</code>。在字串後加 <code>\c</code> 不分大小寫（<code>/foo\c</code>）。</p>
+<h3 id="取代s-的文法">取代：<code>:s</code> 的文法</h3>
+<pre><code class="language-text">:[範圍]s/模式/取代成/[旗標]
+</code></pre>
+<p>逐個位置：</p>
+<table>
+<thead>
+<tr>
+<th>位置</th>
+<th>必要？</th>
+<th>是什麼</th>
+<th>省略時</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>範圍</code></td>
+<td>可省</td>
+<td>作用在哪些行</td>
+<td><strong>只有游標所在的那一行</strong></td>
+</tr>
+<tr>
+<td><code>s</code></td>
+<td>必要</td>
+<td>substitute 命令名（全名 <code>:substitute</code>）</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>/</code></td>
+<td>必要</td>
+<td>分隔符號；可以換成別的字元，例如路徑多時用 <code>:s#/usr/bin#/opt#</code> 就不用跳脫 <code>/</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>模式</code></td>
+<td>可省</td>
+<td>要找的正規表示式</td>
+<td>用上一次搜尋的模式</td>
+</tr>
+<tr>
+<td><code>取代成</code></td>
+<td>可省</td>
+<td>換成什麼；<code>&amp;</code> 代表整個符合的字串，<code>\1</code>～<code>\9</code> 是第幾個 <code>\(…\)</code> 抓到的部分</td>
+<td>空的＝刪掉符合的部分</td>
+</tr>
+<tr>
+<td><code>旗標</code></td>
+<td>可省</td>
+<td>見下表</td>
+<td>每行只換<strong>第一個</strong>、分大小寫依選項、找不到會報錯</td>
+</tr>
+</tbody>
+</table>
+<p><strong>範圍</strong>（<code>:help :range</code>）：</p>
+<table>
+<thead>
+<tr>
+<th>寫法</th>
+<th>意思</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>5</code></td>
+<td>第 5 行</td>
+</tr>
+<tr>
+<td><code>.</code></td>
+<td>游標所在行</td>
+</tr>
+<tr>
+<td><code>$</code></td>
+<td>最後一行</td>
+</tr>
+<tr>
+<td><code>%</code></td>
+<td>整個檔案（等於 <code>1,$</code>）</td>
+</tr>
+<tr>
+<td><code>2,3</code></td>
+<td>第 2 到 3 行</td>
+</tr>
+<tr>
+<td><code>.,+3</code></td>
+<td>這行到往下 3 行</td>
+</tr>
+<tr>
+<td><code>'&lt;,'&gt;</code></td>
+<td>視覺模式選的行（選好後按 <code>:</code> 會自動填上）</td>
+</tr>
+<tr>
+<td><code>'a</code></td>
+<td>標記 a 所在的行（<code>ma</code> 設標記）</td>
+</tr>
+<tr>
+<td><code>/模式/</code> <code>?模式?</code></td>
+<td>往下／往上第一個符合模式的行</td>
+</tr>
+</tbody>
+</table>
+<p><strong>旗標：全部 11 個</strong>（<code>:help :s_flags</code>）：</p>
+<table>
+<thead>
+<tr>
+<th>旗標</th>
+<th>意思</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>g</code></td>
+<td>global：一行裡<strong>每一個</strong>符合的都換，不是只換第一個</td>
+</tr>
+<tr>
+<td><code>c</code></td>
+<td>confirm：每一處都問你 <code>y/n/a/q/l</code></td>
+</tr>
+<tr>
+<td><code>i</code></td>
+<td>不分大小寫</td>
+</tr>
+<tr>
+<td><code>I</code></td>
+<td>分大小寫（蓋過 <code>ignorecase</code> 選項）</td>
+</tr>
+<tr>
+<td><code>e</code></td>
+<td>找不到時<strong>不報錯</strong>（腳本、巨集裡用，錯誤會讓巨集中斷）</td>
+</tr>
+<tr>
+<td><code>n</code></td>
+<td>只<strong>計數</strong>，不換</td>
+</tr>
+<tr>
+<td><code>p</code></td>
+<td>印出最後換過的那一行</td>
+</tr>
+<tr>
+<td><code>#</code></td>
+<td>同 <code>p</code>，加行號</td>
+</tr>
+<tr>
+<td><code>l</code></td>
+<td>同 <code>p</code>，用 <code>:list</code> 的格式（看得到 Tab、行尾）</td>
+</tr>
+<tr>
+<td><code>&amp;</code></td>
+<td>必須放第一個：沿用上一次 <code>:s</code> 的旗標</td>
+</tr>
+<tr>
+<td><code>r</code></td>
+<td>只跟 <code>:&amp;</code> 或不帶參數的 <code>:s</code> 一起用：改用上一次<strong>搜尋</strong>的模式</td>
+</tr>
+</tbody>
+</table>
+<h3 id="實測">實測</h3>
+<p><code>s.txt</code>：</p>
+<pre><code class="language-sh"><span class="nb">printf</span><span class="w"> </span><span class="s1">&#39;foo bar foo\nfoo baz\nFOO qux foo\n&#39;</span><span class="w"> </span>&gt;<span class="w"> </span>s.txt
+</code></pre>
+<p>每次都從原檔開始、游標在第 1 行，結果用 <code>|</code> 接成一行。執行方式（把下表的命令代入 <code>$cmd</code>）：</p>
+<pre><code class="language-sh">vim<span class="w"> </span>-Nu<span class="w"> </span>NONE<span class="w"> </span>-i<span class="w"> </span>NONE<span class="w"> </span>-n<span class="w"> </span>-es<span class="w"> </span>-c<span class="w"> </span><span class="s1">&#39;call cursor(1,1)&#39;</span><span class="w"> </span>-c<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$cmd</span><span class="s2">&quot;</span><span class="w"> </span>-c<span class="w"> </span><span class="s1">&#39;%print&#39;</span><span class="w"> </span>-c<span class="w"> </span><span class="s1">&#39;q!&#39;</span><span class="w"> </span>s.txt<span class="w"> </span><span class="p">|</span><span class="w"> </span>paste<span class="w"> </span>-sd<span class="s1">&#39;|&#39;</span>
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>命令</th>
+<th>結果</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>s/foo/X/</code></td>
+<td><code>X bar foo|foo baz|FOO qux foo</code></td>
+</tr>
+<tr>
+<td><code>%s/foo/X/</code></td>
+<td><code>X bar foo|X baz|FOO qux X</code></td>
+</tr>
+<tr>
+<td><code>%s/foo/X/g</code></td>
+<td><code>X bar X|X baz|FOO qux X</code></td>
+</tr>
+<tr>
+<td><code>%s/foo/X/gi</code></td>
+<td><code>X bar X|X baz|X qux X</code></td>
+</tr>
+<tr>
+<td><code>2,3s/foo/X/g</code></td>
+<td><code>foo bar foo|X baz|FOO qux X</code></td>
+</tr>
+<tr>
+<td><code>%s/\(\w\+\) \(\w\+\)/\2 \1/</code></td>
+<td><code>bar foo foo|baz foo|qux FOO foo</code></td>
+</tr>
+</tbody>
+</table>
+<p>逐列解釋：</p>
+<ul>
+<li><code>s/foo/X/</code>：沒寫範圍＝只有游標那一行（第 1 行），而且沒有 <code>g</code>＝那行只換<strong>第一個</strong> <code>foo</code>。</li>
+<li><code>%s/foo/X/</code>：每一行都做，但每行仍只換第一個；第 3 行的第一個 <code>foo</code> 是小寫那個（<code>FOO</code> 大小寫不符，不算）。</li>
+<li>加 <code>g</code>：第 1 行兩個 <code>foo</code> 都換了。這是最常用的形式 <code>:%s/舊/新/g</code>。</li>
+<li>加 <code>i</code>：連 <code>FOO</code> 也算。</li>
+<li><code>2,3</code>：第 1 行不動。</li>
+<li>最後一列：<code>\(…\)</code> 抓兩個字、取代成 <code>\2 \1</code>，<strong>交換每行的前兩個字</strong>。<code>\w</code> 是字母數字底線、<code>\+</code> 是一個以上（Vim 的正規表示式裡 <code>+</code> 要加反斜線）。</li>
+</ul>
+<p>旗標 <code>n</code> 與 <code>e</code> 的實測（用第四節的 <code>redir</code> 拿訊息）：</p>
+<pre><code class="language-text">:%s/foo//gn    →  4 matches on 3 lines
+:%s/foo//gni   →  5 matches on 3 lines
+:%s/nope/X/    →  E486: Pattern not found: nope
+:%s/nope/X/e   →  （沒有訊息）
+</code></pre>
+<ul>
+<li>有 <code>n</code> 就只數不換：分大小寫時 4 個，加 <code>i</code> 多算 <code>FOO</code> 變 5 個。想知道「某個字在檔案裡出現幾次」就用這招。</li>
+<li><code>e</code> 把 <code>E486</code> 壓掉。</li>
+</ul>
+<h3 id="g先挑行再對這些行做事"><code>:g</code>：先挑行、再對這些行做事</h3>
+<p><code>:s</code> 的近親，格式是 <code>:[範圍]g/模式/命令</code>：對<strong>每一行符合模式的行</strong>執行後面的 Ex 命令。<code>:v</code>（或 <code>:g!</code>）是反過來，對<strong>不符合</strong>的行做。</p>
+<pre><code class="language-sh">vim<span class="w"> </span>-Nu<span class="w"> </span>NONE<span class="w"> </span>-i<span class="w"> </span>NONE<span class="w"> </span>-n<span class="w"> </span>-es<span class="w"> </span>-c<span class="w"> </span><span class="s1">&#39;g/baz/d&#39;</span><span class="w"> </span>-c<span class="w"> </span><span class="s1">&#39;%print&#39;</span><span class="w"> </span>-c<span class="w"> </span><span class="s1">&#39;q!&#39;</span><span class="w"> </span>s.txt<span class="w"> </span><span class="p">|</span><span class="w"> </span>paste<span class="w"> </span>-sd<span class="s1">&#39;|&#39;</span><span class="w">   </span><span class="c1"># 刪掉含 baz 的行</span>
+vim<span class="w"> </span>-Nu<span class="w"> </span>NONE<span class="w"> </span>-i<span class="w"> </span>NONE<span class="w"> </span>-n<span class="w"> </span>-es<span class="w"> </span>-c<span class="w"> </span><span class="s1">&#39;v/foo/d&#39;</span><span class="w"> </span>-c<span class="w"> </span><span class="s1">&#39;%print&#39;</span><span class="w"> </span>-c<span class="w"> </span><span class="s1">&#39;q!&#39;</span><span class="w"> </span>s.txt<span class="w"> </span><span class="p">|</span><span class="w"> </span>paste<span class="w"> </span>-sd<span class="s1">&#39;|&#39;</span><span class="w">   </span><span class="c1"># 刪掉不含 foo 的行</span>
+</code></pre>
+<pre><code>foo bar foo|FOO qux foo
+foo bar foo|foo baz|FOO qux foo
+</code></pre>
+<p>第二個沒有刪掉任何一行：三行都含有小寫 <code>foo</code>（第 3 行結尾那個），所以「不含 <code>foo</code> 的行」一行都沒有。
+<code>grep</code> 這個名字就來自 <code>:g/re/p</code>（global／regular expression／print）。</p>
+<hr />
+<h2 id="十暫存器複製的東西放在哪">十、暫存器：複製的東西放在哪</h2>
+<p><code>d</code>、<code>y</code>、<code>c</code>、<code>x</code> 都會把文字放進<strong>暫存器（register）</strong>，<code>p</code> 從暫存器貼出來。Vim 不是只有一個剪貼簿，而是有很多格；用 <code>&quot;{名字}</code> 放在命令前面指定（例如 <code>&quot;ayy</code> 複製到 a、<code>&quot;ap</code> 從 a 貼），<code>:registers</code>（簡寫 <code>:reg</code>）看全部的內容。</p>
+<h3 id="全部-10-類help-registers">全部 10 類（<code>:help registers</code>）</h3>
+<table>
+<thead>
+<tr>
+<th>類別</th>
+<th>名字</th>
+<th>什麼時候被寫入</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1. 無名暫存器</td>
+<td><code>&quot;&quot;</code></td>
+<td><strong>每次</strong> <code>d</code> <code>c</code> <code>s</code> <code>x</code> <code>y</code> 都寫（<code>&quot;_</code> 除外）；<code>p</code> 沒指定暫存器就貼它</td>
+</tr>
+<tr>
+<td>2. 編號暫存器</td>
+<td><code>&quot;0</code>～<code>&quot;9</code></td>
+<td><code>&quot;0</code>：最近一次<strong>複製（yank）</strong>；<code>&quot;1</code>：最近一次刪除<strong>整行或多行</strong>，舊的往 <code>&quot;2</code>…<code>&quot;9</code> 推</td>
+</tr>
+<tr>
+<td>3. 小刪除暫存器</td>
+<td><code>&quot;-</code></td>
+<td>刪除<strong>不到一行</strong>的內容（例如 <code>diw</code>、<code>x</code>）</td>
+</tr>
+<tr>
+<td>4. 具名暫存器</td>
+<td><code>&quot;a</code>～<code>&quot;z</code></td>
+<td>只有你指定時才寫；用<strong>大寫</strong> <code>&quot;A</code> 是<strong>附加</strong>到 a 的後面</td>
+</tr>
+<tr>
+<td>5. 唯讀暫存器</td>
+<td><code>&quot;:</code> <code>&quot;.</code> <code>&quot;%</code></td>
+<td>上一個命令列命令、上一次插入的文字、目前的檔名</td>
+</tr>
+<tr>
+<td>6. 交替緩衝區</td>
+<td><code>&quot;#</code></td>
+<td>上一個編輯的檔名</td>
+</tr>
+<tr>
+<td>7. 運算式暫存器</td>
+<td><code>&quot;=</code></td>
+<td>輸入一個運算式，用它的結果（例如插入模式 <code>Ctrl-r =2*21</code> Enter 插入 <code>42</code>）</td>
+</tr>
+<tr>
+<td>8. 選取與拖放</td>
+<td><code>&quot;*</code> <code>&quot;+</code> <code>&quot;~</code></td>
+<td>系統的選取區與剪貼簿、拖放進來的文字</td>
+</tr>
+<tr>
+<td>9. 黑洞暫存器</td>
+<td><code>&quot;_</code></td>
+<td>寫進去就消失；<code>&quot;_dd</code> 刪行<strong>不影響</strong>任何暫存器</td>
+</tr>
+<tr>
+<td>10. 上次搜尋</td>
+<td><code>&quot;/</code></td>
+<td>上一次的搜尋模式</td>
+</tr>
+</tbody>
+</table>
+<h3 id="實測複製的東西為什麼被蓋掉了">實測：複製的東西為什麼被蓋掉了</h3>
+<p>最常見的困惑：「我 <code>yy</code> 複製了一行，再 <code>dd</code> 刪了別的行，按 <code>p</code> 貼出來的卻是刪掉的那行」。</p>
+<p><code>r.txt</code> 是 <code>alpha</code>、<code>beta</code>、<code>gamma</code> 三行，從第 1 行開始：</p>
+<pre><code class="language-sh"><span class="nb">printf</span><span class="w"> </span><span class="s1">&#39;alpha\nbeta\ngamma\n&#39;</span><span class="w"> </span>&gt;<span class="w"> </span>r.txt
+<span class="c1"># 複製 alpha，往下到 beta 把它刪掉，再刪掉 gamma 這個字</span>
+vim<span class="w"> </span>-Nu<span class="w"> </span>NONE<span class="w"> </span>-i<span class="w"> </span>NONE<span class="w"> </span>-n<span class="w"> </span>-es<span class="w"> </span>-c<span class="w"> </span><span class="s1">&#39;call cursor(1,1)&#39;</span><span class="w"> </span>-c<span class="w"> </span><span class="s1">&#39;redir! &gt; out&#39;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>-c<span class="w"> </span><span class="s1">&#39;normal yyjdd&#39;</span><span class="w"> </span>-c<span class="w"> </span><span class="s1">&#39;normal diw&#39;</span><span class="w"> </span>-c<span class="w"> </span><span class="s1">&#39;registers 0 1 - &quot;&#39;</span><span class="w"> </span>-c<span class="w"> </span><span class="s1">&#39;redir END&#39;</span><span class="w"> </span>-c<span class="w"> </span><span class="s1">&#39;q!&#39;</span><span class="w"> </span>r.txt
+sed<span class="w"> </span><span class="s1">&#39;/^$/d&#39;</span><span class="w"> </span>out
+</code></pre>
+<pre><code>Type Name Content
+  c  &quot;&quot;   gamma
+  l  &quot;0   alpha^J
+  l  &quot;1   beta^J
+  c  &quot;-   gamma
+</code></pre>
+<ul>
+<li><code>Type</code> 欄：<code>l</code> 是整行（linewise），<code>c</code> 是字元（characterwise）；<code>^J</code> 是換行字元。</li>
+<li><code>yy</code> 的 <code>alpha</code> 在 <code>&quot;0</code>；<code>dd</code> 的 <code>beta</code> 是整行刪除，進 <code>&quot;1</code>；<code>diw</code> 的 <code>gamma</code> 不到一行，進 <code>&quot;-</code>。</li>
+<li><strong><code>&quot;&quot;</code> 永遠是最後一次</strong>，所以 <code>p</code> 貼出 <code>gamma</code>。要貼回複製的 <code>alpha</code>，用 <code>&quot;0p</code>——<strong><code>&quot;0</code> 只有 yank 會寫，刪除不會蓋掉它</strong>。</li>
+</ul>
+<p>換成用黑洞暫存器刪：</p>
+<pre><code class="language-sh">vim<span class="w"> </span>-Nu<span class="w"> </span>NONE<span class="w"> </span>-i<span class="w"> </span>NONE<span class="w"> </span>-n<span class="w"> </span>-es<span class="w"> </span>-c<span class="w"> </span><span class="s1">&#39;call cursor(1,1)&#39;</span><span class="w"> </span>-c<span class="w"> </span><span class="s1">&#39;redir! &gt; out&#39;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>-c<span class="w"> </span><span class="s1">&#39;normal yyj&quot;_dd&#39;</span><span class="w"> </span>-c<span class="w"> </span><span class="s1">&#39;registers 0 1 &quot;&#39;</span><span class="w"> </span>-c<span class="w"> </span><span class="s1">&#39;redir END&#39;</span><span class="w"> </span>-c<span class="w"> </span><span class="s1">&#39;q!&#39;</span><span class="w"> </span>r.txt
+sed<span class="w"> </span><span class="s1">&#39;/^$/d&#39;</span><span class="w"> </span>out
+</code></pre>
+<pre><code>Type Name Content
+  l  &quot;&quot;   alpha^J
+  l  &quot;0   alpha^J
+</code></pre>
+<p><code>&quot;_dd</code> 刪的 <code>beta</code> 哪裡都沒存，<code>&quot;&quot;</code> 還是 <code>alpha</code>，直接 <code>p</code> 就貼得出來。</p>
+<p>大寫附加：</p>
+<pre><code class="language-sh">vim<span class="w"> </span>-Nu<span class="w"> </span>NONE<span class="w"> </span>-i<span class="w"> </span>NONE<span class="w"> </span>-n<span class="w"> </span>-es<span class="w"> </span>-c<span class="w"> </span><span class="s1">&#39;call cursor(1,1)&#39;</span><span class="w"> </span>-c<span class="w"> </span><span class="s1">&#39;redir! &gt; out&#39;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>-c<span class="w"> </span><span class="s1">&#39;normal &quot;ayyj&quot;Ayy&#39;</span><span class="w"> </span>-c<span class="w"> </span><span class="s1">&#39;registers a&#39;</span><span class="w"> </span>-c<span class="w"> </span><span class="s1">&#39;redir END&#39;</span><span class="w"> </span>-c<span class="w"> </span><span class="s1">&#39;q!&#39;</span><span class="w"> </span>r.txt
+sed<span class="w"> </span><span class="s1">&#39;/^$/d&#39;</span><span class="w"> </span>out
+</code></pre>
+<pre><code>Type Name Content
+  l  &quot;a   alpha^Jbeta^J
+</code></pre>
+<p><code>&quot;ayy</code> 把 <code>alpha</code> 放進 a，<code>&quot;Ayy</code> 把 <code>beta</code> <strong>接在後面</strong>——收集散在各處的行時很好用。</p>
+<h3 id="這台機器的-vim-不能直接用系統剪貼簿">這台機器的 Vim 不能直接用系統剪貼簿</h3>
+<pre><code class="language-sh">vim<span class="w"> </span>-Nu<span class="w"> </span>NONE<span class="w"> </span>-i<span class="w"> </span>NONE<span class="w"> </span>-n<span class="w"> </span>-es<span class="w"> </span>-c<span class="w"> </span><span class="s1">&#39;redir! &gt; out&#39;</span><span class="w"> </span>-c<span class="w"> </span><span class="s1">&#39;echo has(&quot;clipboard&quot;)&#39;</span><span class="w"> </span>-c<span class="w"> </span><span class="s1">&#39;redir END&#39;</span><span class="w"> </span>-c<span class="w"> </span><span class="s1">&#39;q!&#39;</span>
+sed<span class="w"> </span><span class="s1">&#39;/^$/d&#39;</span><span class="w"> </span>out
+vim<span class="w"> </span>--version<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-o<span class="w"> </span><span class="s1">&#39;[+-]clipboard&#39;</span>
+</code></pre>
+<pre><code>0
+-clipboard
+</code></pre>
+<p>本機裝的是 <code>vim</code> 套件（沒有圖形介面的版本），編譯時<strong>沒開剪貼簿功能</strong>（<code>-clipboard</code>），所以 <code>&quot;+y</code> 不會複製到系統剪貼簿；實測 <code>&quot;+yy</code> 之後 <code>:registers + &quot;</code> 連 <code>&quot;&quot;</code> 都是空的——不會報錯，只是什麼都沒做。要用 <code>&quot;+</code> 有兩個方法：</p>
+<ul>
+<li>改裝有編譯剪貼簿的版本：<code>sudo apt install vim-gtk3</code>（裝了之後 <code>vim --version</code> 會變 <code>+clipboard</code>；本機查到候選版本 <code>2:9.1.0016-1ubuntu7.20</code>，<strong>未實際安裝</strong>）。</li>
+<li>不換 Vim，交給外部程式：<code>:w !xclip -selection clipboard</code>（把整個檔案送進剪貼簿）或在視覺模式選好後 <code>:'&lt;,'&gt;w !xclip -selection clipboard</code>。
+<code>xclip</code> 為什麼要加 <code>-selection clipboard</code>，見 <a href="../linux/%E6%8A%8A%E6%AA%94%E6%A1%88%E5%85%A7%E5%AE%B9%E8%A4%87%E8%A3%BD%E5%88%B0%E5%89%AA%E8%B2%BC%E7%B0%BF.html">把檔案內容複製到剪貼簿</a>。</li>
+</ul>
+<hr />
+<h2 id="十一visual-模式與區塊選取">十一、Visual 模式與區塊選取</h2>
+<table>
+<thead>
+<tr>
+<th>鍵</th>
+<th>選取單位</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>v</code></td>
+<td>字元（從這裡到那裡）</td>
+</tr>
+<tr>
+<td><code>V</code></td>
+<td>整行</td>
+</tr>
+<tr>
+<td><code>Ctrl-v</code></td>
+<td><strong>矩形區塊</strong>（block）</td>
+</tr>
+<tr>
+<td><code>gv</code></td>
+<td>重新選取上一次的範圍</td>
+</tr>
+<tr>
+<td><code>o</code></td>
+<td>（選取中）跳到選取範圍的另一端</td>
+</tr>
+</tbody>
+</table>
+<p>視覺模式的順序跟一般模式<strong>相反</strong>：一般模式是「運算子 → 範圍」（<code>dw</code>），視覺模式是「先選範圍 → 再下運算子」（<code>v</code> 移動 <code>d</code>）。看得到範圍比較安心，但不能用 <code>.</code> 精準重複，所以熟了以後能用文字物件就用文字物件。</p>
+<p>選取中可用的命令有 83 個（<code>:help visual-index</code>）；常用的就是運算子（<code>d</code> <code>y</code> <code>c</code> <code>&gt;</code> <code>&lt;</code> <code>=</code> <code>gU</code> <code>gu</code>）加上下面兩個區塊專用的：</p>
+<p><strong>區塊選取最實用的兩招：在多行前面或後面一起加字</strong></p>
+<pre><code class="language-sh">./vk.sh<span class="w"> </span>lines.txt<span class="w"> </span><span class="s1">&#39;&lt;C-v&gt;jjIX &lt;Esc&gt;&#39;</span><span class="w">  </span><span class="p">|</span><span class="w"> </span>paste<span class="w"> </span>-sd<span class="s1">&#39;|&#39;</span><span class="w">   </span><span class="c1"># 選前 3 行的第 1 欄，I 在前面插入 &quot;X &quot;</span>
+./vk.sh<span class="w"> </span>lines.txt<span class="w"> </span><span class="s1">&#39;&lt;C-v&gt;jj$A;&lt;Esc&gt;&#39;</span><span class="w">  </span><span class="p">|</span><span class="w"> </span>paste<span class="w"> </span>-sd<span class="s1">&#39;|&#39;</span><span class="w">   </span><span class="c1"># 選前 3 行到行尾，A 在後面加 &quot;;&quot;</span>
+</code></pre>
+<pre><code>X line1|X line2|X line3|line4|line5
+line1;|line2;|line3;|line4|line5
+</code></pre>
+<ul>
+<li><code>Ctrl-v</code> 往下選 3 行，<code>I</code> 在區塊<strong>左邊</strong>插入，打完按 <code>Esc</code>，<strong>打的字才會出現在每一行</strong>（打的過程只看到第一行在變）。</li>
+<li><code>$</code> 讓區塊延伸到每行的行尾（各行長度不同也沒關係），再 <code>A</code> 在<strong>右邊</strong>附加。</li>
+<li>註解掉一段程式（每行前面加 <code>// </code>）就是第一招。</li>
+</ul>
+<hr />
+<h2 id="十二巨集錄下按鍵重播">十二、巨集：錄下按鍵、重播</h2>
+<p>當一串修改要在很多地方重複、又不是一個 <code>.</code> 能涵蓋的，就錄成巨集（macro）：</p>
+<table>
+<thead>
+<tr>
+<th>鍵</th>
+<th>做什麼</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>q{a-z}</code></td>
+<td>開始錄製，按鍵存進那個暫存器（畫面顯示 <code>recording @a</code>）</td>
+</tr>
+<tr>
+<td><code>q</code></td>
+<td>停止錄製</td>
+</tr>
+<tr>
+<td><code>@{a-z}</code></td>
+<td>執行那個暫存器的巨集</td>
+</tr>
+<tr>
+<td><code>@@</code></td>
+<td>再執行一次上一個巨集</td>
+</tr>
+<tr>
+<td><code>{次數}@a</code></td>
+<td>執行幾次</td>
+</tr>
+</tbody>
+</table>
+<p>巨集<strong>就是存在具名暫存器裡的按鍵</strong>——跟第十節是同一批暫存器，所以 <code>&quot;ap</code> 能把巨集貼出來看、改完再 <code>&quot;ayy</code>… 存回去。</p>
+<h3 id="實測每行行尾加分號">實測：每行行尾加分號</h3>
+<p>錄製要在真的終端機裡按鍵，第四節的 <code>normal</code> 方法做不到（<code>normal</code> 裡按 <code>q</code> 錄製，命令一結束錄製就跟著結束）。所以這裡用 <code>vim -s</code>（從檔案讀按鍵、當成鍵盤輸入）加 <code>script</code>（給它一個假的終端機）：</p>
+<pre><code class="language-sh">cp<span class="w"> </span>lines.txt<span class="w"> </span>m.txt
+<span class="c1"># 按鍵：qa 開始錄到 a；A;&lt;Esc&gt; 行尾加分號；j 到下一行；q 停止；3@a 再跑 3 次；:wq 存檔離開</span>
+<span class="nb">printf</span><span class="w"> </span><span class="s1">&#39;qaA;\033jq3@a:wq\n&#39;</span><span class="w"> </span>&gt;<span class="w"> </span>keys
+script<span class="w"> </span>-qc<span class="w"> </span><span class="s1">&#39;vim -Nu NONE -i NONE -n -s keys m.txt&#39;</span><span class="w"> </span>/dev/null<span class="w"> </span>&gt;<span class="w"> </span>/dev/null
+cat<span class="w"> </span>m.txt
+</code></pre>
+<pre><code>line1;
+line2;
+line3;
+line4;
+line5
+</code></pre>
+<p>錄的那一次處理第 1 行、<code>3@a</code> 處理第 2～4 行，所以第 5 行沒有分號。</p>
+<p><strong>巨集遇到錯誤會停下來</strong>：把 <code>3@a</code> 改成 <code>10@a</code>（只有 5 行，跑 10 次一定會超過）：</p>
+<pre><code class="language-sh">cp<span class="w"> </span>lines.txt<span class="w"> </span>m2.txt
+<span class="nb">printf</span><span class="w"> </span><span class="s1">&#39;qaA;\033jq10@a:wq\n&#39;</span><span class="w"> </span>&gt;<span class="w"> </span>keys2
+script<span class="w"> </span>-qc<span class="w"> </span><span class="s1">&#39;vim -Nu NONE -i NONE -n -s keys2 m2.txt&#39;</span><span class="w"> </span>/dev/null<span class="w"> </span>&gt;<span class="w"> </span>/dev/null
+cat<span class="w"> </span>m2.txt
+</code></pre>
+<pre><code>line1;
+line2;
+line3;
+line4;
+line5;
+</code></pre>
+<p>5 行剛好都加上了，沒有報錯也沒有亂掉：處理完第 5 行後巨集裡的 <code>j</code> 失敗（已經是最後一行），<strong>整個巨集就停了</strong>。所以實務上可以直接給一個很大的次數（<code>100@a</code>），讓「移不動了」當作結束條件。這也是巨集裡搜尋、取代要小心的原因：找不到會中斷，需要時加 <code>:s</code> 的 <code>e</code> 旗標。</p>
+<hr />
+<h2 id="十三錯誤訊息對照與文法可以問-vim">十三、錯誤訊息對照與「文法可以問 Vim」</h2>
+<h3 id="常見錯誤訊息">常見錯誤訊息</h3>
+<table>
+<thead>
+<tr>
+<th>訊息</th>
+<th>什麼情況</th>
+<th>怎麼辦</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>E37: No write since last change (add ! to override)</code></td>
+<td>改了沒存就 <code>:q</code></td>
+<td><code>:w</code> 再離開，或 <code>:q!</code> 放棄</td>
+</tr>
+<tr>
+<td><code>E486: Pattern not found: nope</code></td>
+<td>搜尋或 <code>:s</code> 找不到</td>
+<td>檢查拼字、大小寫；巨集裡加 <code>e</code> 旗標</td>
+</tr>
+<tr>
+<td><code>E492: Not an editor command: …</code></td>
+<td><code>:</code> 後面打了不存在的命令（常見：在一般模式忘了按 <code>i</code> 就打字，結果字被當命令，再按 <code>:</code> 開頭的東西）</td>
+<td>按 <code>u</code> 復原誤操作</td>
+</tr>
+<tr>
+<td><code>E45: 'readonly' option is set (add ! to override)</code></td>
+<td>檔案是唯讀狀態：用 <code>view</code>／<code>vim -R</code> 開的，<strong>或你對這個檔沒有寫入權限</strong>（Vim 開檔時發現寫不進去，會自動設成唯讀）</td>
+<td>自己的檔：<code>:w!</code>；沒權限的檔：<code>:w!</code> 也會失敗，見下一列</td>
+</tr>
+<tr>
+<td><code>&quot;/etc/hostname&quot; E212: Can't open file for writing</code></td>
+<td>沒有寫入權限還硬寫（實測：一般使用者開 <code>/etc/hostname</code>，<code>:w</code> 先報 <code>E45</code>，<code>:w!</code> 才報這個）</td>
+<td><code>:w !sudo tee %</code>（第三節）</td>
+</tr>
+<tr>
+<td><code>Found a swap file by the name &quot;.x.swp&quot;</code></td>
+<td>這個檔已經在別的地方開著，或上次 Vim 異常結束</td>
+<td>看清楚訊息：別的視窗還開著就 <code>q</code> 不要開；確定是當掉留下的，<code>r</code> 復原後刪掉 <code>.swp</code></td>
+</tr>
+<tr>
+<td>畫面底下 <code>Entering Ex mode</code></td>
+<td>誤按 <code>Q</code></td>
+<td>打 <code>visual</code> Enter</td>
+</tr>
+<tr>
+<td>畫面卡住不動</td>
+<td>誤按 <code>Ctrl-s</code>（終端機的暫停輸出，不是 Vim 的功能）</td>
+<td>按 <code>Ctrl-q</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="怎麼查">怎麼查</h3>
+<table>
+<thead>
+<tr>
+<th>查法</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>vimtutor</code></td>
+<td>在 shell 打，30 分鐘的互動教學（本機有：<code>/usr/bin/vimtutor</code>）。<strong>只會基本操作時最該先做的一件事</strong></td>
+</tr>
+<tr>
+<td><code>:help {主題}</code></td>
+<td>例如 <code>:help dw</code>、<code>:help iw</code>、<code>:help :s_flags</code>；<code>Ctrl-]</code> 跟進連結，<code>Ctrl-o</code> 返回，<code>:q</code> 關掉說明</td>
+</tr>
+<tr>
+<td><code>:help i_Ctrl-w</code></td>
+<td>前綴表示模式：<code>i_</code> 插入、<code>v_</code> 視覺、<code>c_</code> 命令列、<code>:</code> Ex 命令</td>
+</tr>
+<tr>
+<td><code>:help index</code></td>
+<td>所有命令的總表，分 6 大類（下表）</td>
+</tr>
+<tr>
+<td><code>:help {主題}</code> 後按 <code>Ctrl-d</code></td>
+<td>列出所有符合的說明主題</td>
+</tr>
+</tbody>
+</table>
+<p><code>:help index</code> 的分類與每類的項目數（本機 9.1 的 <code>index.txt</code> 實際數出來的）：</p>
+<table>
+<thead>
+<tr>
+<th>分類</th>
+<th>項目數</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1. 插入模式</td>
+<td>97</td>
+</tr>
+<tr>
+<td>2. 一般模式</td>
+<td>202</td>
+</tr>
+<tr>
+<td>2.1 文字物件</td>
+<td>36</td>
+</tr>
+<tr>
+<td>2.2 視窗命令（<code>Ctrl-w</code> 開頭）</td>
+<td>76</td>
+</tr>
+<tr>
+<td>2.3 中括號命令（<code>[</code>、<code>]</code> 開頭）</td>
+<td>46</td>
+</tr>
+<tr>
+<td>2.4 <code>g</code> 開頭的命令</td>
+<td>67</td>
+</tr>
+<tr>
+<td>2.5 <code>z</code> 開頭的命令</td>
+<td>52</td>
+</tr>
+<tr>
+<td>2.6 等待運算對象模式</td>
+<td>3</td>
+</tr>
+<tr>
+<td>3. 視覺模式</td>
+<td>83</td>
+</tr>
+<tr>
+<td>4. 命令列編輯</td>
+<td>55</td>
+</tr>
+<tr>
+<td>5. 終端機工作模式</td>
+<td>9</td>
+</tr>
+<tr>
+<td>6. Ex 命令（<code>:</code> 開頭）</td>
+<td>590</td>
+</tr>
+</tbody>
+</table>
+<p>本篇沒有教的大類：多視窗與分頁（<code>Ctrl-w</code>、<code>:split</code>、<code>:tabnew</code>）、多檔案（緩衝區 <code>:ls</code> <code>:bn</code>）、摺疊（<code>z</code>）、標記（<code>m</code>）、設定檔與外掛（例如你 <code>~/.vimrc</code> 裡的 <code>vim-plug</code>、<code>fugitive</code>、<code>gitgutter</code>）。這篇教的是<strong>一切的基礎</strong>：模式、文法、文字物件、<code>.</code>、搜尋取代、暫存器、巨集；其他主題之後有需要再各自寫成筆記。</p>
+<hr />
+<h2 id="十四自我測驗">十四、自我測驗</h2>
+<blockquote>
+<p>參考答案寫在每題下面（第一次作答、批改完才補上），作答時先遮住答案。</p>
+</blockquote>
+<ol>
+<li>
+<p>同事說：「Vim 太難了，光是刪除就有 <code>dw</code>、<code>de</code>、<code>d$</code>、<code>dd</code>、<code>diw</code>、<code>daw</code>、<code>dap</code>、<code>D</code>……一大堆要背。」用本篇的文法說明為什麼這些<strong>不是</strong>要一個一個背的。照這個邏輯，如果已經會 <code>dap</code>（刪掉一整段），「複製一整段」和「把一整段往右縮排」應該怎麼按？為什麼 <code>d</code> 單獨按下去什麼事都不會發生？</p>
+</li>
+<li>
+<p>你先用 <code>yy</code> 複製了一行設定，接著往下移動、用 <code>dd</code> 刪掉一行不要的，回到要貼的位置按 <code>p</code>，貼出來的卻是剛刪掉的那行。為什麼會這樣？要怎麼把一開始複製的那行貼出來？下次如果想刪掉那行、又不想影響要貼的內容，應該怎麼刪？</p>
+</li>
+<li>
+<p>游標在這行的 <code>hello</code> 的 <code>e</code> 上：</p>
+<pre><code class="language-c"><span class="n">printf</span><span class="p">(</span><span class="s">&quot;hello, world</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">x</span><span class="p">);</span>
+</code></pre>
+<p>(a) <code>dw</code> 和 <code>diw</code> 刪掉的範圍有什麼不同？為什麼游標在字中間時會不同？
+(b) 想把雙引號裡的整個字串改成 <code>bye</code>，最少要按哪些鍵？為什麼不用先把游標移到引號開頭？</p>
+</li>
+<li>
+<p>有一個檔案共 200 行，你想把<strong>整個檔案</strong>裡所有的 <code>fd</code> 改成 <code>file</code>，但結果第 3 行的 <code>fd = open(path); close(fd);</code> 只有第一個被換掉，而且其他行完全沒變。你下的命令最可能是什麼？錯在哪兩個地方，為什麼會造成這個結果？另外，如果想先知道檔案裡總共有幾個 <code>fd</code>、又不想真的改，該怎麼做？</p>
+</li>
+<li>
+<p>你要在 50 行程式的每一行結尾加上 <code>;</code>，同事建議錄巨集：<code>qa</code> <code>A;&lt;Esc&gt;</code> <code>j</code> <code>q</code>，然後 <code>100@a</code>。檔案只有 50 行，跑 100 次不會出問題嗎？為什麼？另外，這個任務還有哪一種不用巨集的做法（提示：視覺模式）？</p>
+</li>
+</ol>
+
+</main>
+</div>
+</body>
+</html>

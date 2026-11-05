@@ -61,21 +61,30 @@ int main(void)
 #### 函式庫 7-1. `gcc -Wall app.c -L. -lconf -Wl,-rpath,'$ORIGIN' -o app` 會不會出現 `multiple definition`？為什麼？
 
 ```
+不會,因爲動態載入器 會在.so與主程式之間挑一個,主程式優先,以本題爲例,會用app.c的那格verbose, 而ld.so就會在libconf.so的got
+把app.c verbose的位址填入.got裏
 ```
 
 #### 函式庫 7-2. 改成 `gcc -Wall app.c conf.pic.o -o app2` 呢？差別在 `ld` 怎麼處理 `.so` 和 `.o`。
 
 ```
+這個就有雙重定義的錯誤了,因爲 兩個 app.o , conf.pic.o 兩個同時都有verbose的定義,ld不知道改選哪一個,這兩個.o都是要放進去執行檔的
 ```
 
 #### 函式庫 7-3. 能連結成功的那一個，`./app` 會印出 `get_verbose() = ` 多少？用執行時 `ld.so` 怎麼找符號解釋。
 
 ```
+3,
+ld.so 看到verbose這個符號,會去看誰有定義,順序是先主程式,纔是so, 主程式有定義verbose 是 3, 因此挑這個3的位址,寫到了conf.c
+的got
 ```
 
 #### 函式庫 7-4. 把 `conf.c` 第一行改成 `static int verbose = 0;`，重做 `libconf.so`，不重新連結就執行 `./app`，印出多少？為什麼跟 7-3 不同？
 
 ```
+0
+因爲.so的verbose已經是靜態變數了,不需要在用got了,組語會直接寫,找%rip到 static verbose的距離,因此是0
+一定是這樣因爲在編.so的時候還沒有app.c的verbose,所以最後一定是找跟static verbose的距離
 ```
 
 ---
@@ -115,21 +124,34 @@ int main(void)
 #### 函式庫 11-1. 執行後兩行各印多少？
 
 ```
+3, 7
 ```
 
 #### 函式庫 11-2. `nm setlevel` 會不會看到 `level`？在哪一種區段？為什麼原始碼只有 `extern` 卻會有？
 
 ```
+會
+在bss
+因爲主程式在編譯的時候使用fPIE, 不像fPIC可以用got動態指定level的位址, 所以原始碼一定是把level定義在自己這邊的位址,這樣
+%rip與level的距離就是固定的,libcfg是fPIC,所以他的got只要存住setlevel的level位址就好
 ```
 
 #### 函式庫 11-3. 第一行印出的值是怎麼放進那裡的？`get_level()` 讀的是哪一份 `level`？用重定位的類型和 `ld.so` 找符號的順序說明。
 
 ```
+level 在 setlevel的重定位類型是R_X86_64_COPY, 所以ld.so看到以後就會把libcfg.so裏面的level初值複製到 這裏
+而在libcfg.so 在執行到get_level的時候會去.got找level的位址,因爲level的重定位是R_X86_64_GLOB_DAT,ld.so也會把level在setlevel的位址寫到libcfg.so的got
 ```
 
 #### 函式庫 11-4. 之後把 `cfg.c` 改成 `long level = 3;` 重做 `libcfg.so`，`setlevel` 不重新連結就執行，會發生什麼事、為什麼？
 
 ```
+./setlevel: Symbol `level' has different size in shared object, consider re-linking
+一開始 level = 3
+get_level() = 7
+
+因爲libcfg.so有重新編,所以他的level大小是8byte, 而setlevel他的level還是維持4byte,所以會有這個警告
+本題因爲level太小看不出來,但當level夠大,就會發現有截斷的情況
 ```
 
 ---

@@ -1,5 +1,5 @@
 /* cfg.c */
-int level = 3;
+long level = 3;
 
 int get_level(void)
 {
