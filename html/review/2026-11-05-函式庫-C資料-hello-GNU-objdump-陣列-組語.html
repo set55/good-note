@@ -47,7 +47,7 @@
 </blockquote>
 <h2 id="批改結果2026-11-05">批改結果（2026-11-05）</h2>
 <blockquote>
-<p>批改中：已批改 1 題（函式庫 2）——對 1 題。其餘 12 題待作答。</p>
+<p>13 題全部批改完（2026-11-05）：對 10 題（函式庫 2、4、8、10、13〔13-4 改判〕，C資料 9，hello 5，GNU 4，組語 6、12）；大致對 2 題（objdump 3、陣列 2〔2-1〕）；不完整 1 題（函式庫 11〔11-4 錯〕）。不對的小題（函式庫 11-4、objdump 3、陣列 2-1）自我練習全部過關（11-05）。函式庫 10-1 的題目「那個數字是誰、用哪兩樣東西算出來的」有歧義，筆記〈自我測驗〉第 10 題已改成明問「哪個程式、在什麼時候填進去」並加一條核心關鍵（<code>ld.so</code> 第一次呼叫時算出來寫進去），下次複習照新題目。</p>
 </blockquote>
 <table>
 <thead>
@@ -83,6 +83,238 @@
 <td>2 → 3（整題）</td>
 <td>2026-11-12</td>
 <td>抓到：Ubuntu 預設 <code>--as-needed</code>，讀到 <code>-ltxt</code> 時沒人需要 <code>trim</code>，<code>.so</code> 被丟掉。小修：是命令列處理完才報錯，不是讀到 <code>main.o</code> 當下</td>
+<td>—</td>
+</tr>
+<tr>
+<td>函式庫 4-1</td>
+<td>對</td>
+<td></td>
+<td></td>
+<td>抓到：<code>ld.so</code> 印的；<code>-Llib</code> 只給連結時的 <code>ld</code>，執行檔只記名字，<code>lib/</code> 不在 <code>ld.so</code> 的搜尋路徑。小修：搜尋的不只預設目錄（跟 10-29、11-01、11-02 同一個小修，第三次）</td>
+<td>—</td>
+</tr>
+<tr>
+<td>函式庫 4-2</td>
+<td>對</td>
+<td></td>
+<td></td>
+<td>抓到：<code>-Wl,-rpath,'$ORIGIN/lib'</code>；雙引號 → <code>$ORIGIN</code> 變空字串 → <code>/lib</code>。還補上 <code>ld.so</code> 執行時把 <code>$ORIGIN</code> 換成執行檔目錄。小修：寫進去的不含引號</td>
+<td>—</td>
+</tr>
+<tr>
+<td>函式庫 4-3</td>
+<td>對</td>
+<td>2 → 3（整題）</td>
+<td>2026-11-12</td>
+<td>抓到：<code>RUNPATH</code> 換得掉、<code>RPATH</code> 換不掉，因為 <code>LD_LIBRARY_PATH</code> 排在兩者之間。小修：是 <code>ld.so</code> 的順序，不是 <code>RUNPATH</code>「優先讀」</td>
+<td>—</td>
+</tr>
+<tr>
+<td>函式庫 8-1</td>
+<td>對</td>
+<td></td>
+<td></td>
+<td>抓到：程式碼（跳板）不是表；<code>.got.plt</code> 的 <code>0x4008</code>；<code>0x107a + 0x2f8e</code>。小修：只跳一次，<code>*</code> 是讀那格的內容再跳，不是先跳到 <code>0x4008</code>（跟 11-02 同一個小修）</td>
+<td>—</td>
+</tr>
+<tr>
+<td>函式庫 8-2</td>
+<td>對</td>
+<td></td>
+<td></td>
+<td>抓到：第一次 跳板 → <code>0x4008</code> 裡的 <code>0x1040</code> → <code>ld.so</code> 查、寫回 <code>0x1139</code>、跳進去；第二次直接跳。11-02 的「基底是誰的」小修改對了</td>
+<td>—</td>
+</tr>
+<tr>
+<td>函式庫 8-3</td>
+<td>對</td>
+<td>2 → 3（整題）</td>
+<td>2026-11-12</td>
+<td>抓到：函式先經跳板可以先轉去查；變數只是一條 <code>mov</code>，沒地方攔。小修：<code>mov</code> 是從 GOT <strong>讀出</strong>位址放進 <code>%rax</code>（11-02 也提過）</td>
+<td>—</td>
+</tr>
+<tr>
+<td>函式庫 10-1</td>
+<td>對</td>
+<td></td>
+<td></td>
+<td>抓到：不一樣；基底 ＋ <code>0x1119</code>；ASLR 讓基底不同。小修：要說是 <code>libshape.so</code> 的載入基底、算出的是虛擬位址（跟 11-02 同一個小修）。題目「是誰算出來的」有歧義，這次不扣，之後改題並加核心關鍵（<code>ld.so</code> 第一次呼叫時填）</td>
+<td>—</td>
+</tr>
+<tr>
+<td>函式庫 10-4</td>
+<td>對</td>
+<td>2 → 3（整題）</td>
+<td>2026-11-12</td>
+<td>抓到：gdb 關 ASLR → 基底相同；虛擬位址相同不代表同一個實體頁，不同也可能是同一個。11-02 的「有可能相同」改對了</td>
+<td>—</td>
+</tr>
+<tr>
+<td>函式庫 11-1</td>
+<td>對</td>
+<td></td>
+<td></td>
+<td>抓到：3、7</td>
+<td>—</td>
+</tr>
+<tr>
+<td>函式庫 11-2</td>
+<td>對</td>
+<td></td>
+<td></td>
+<td>抓到：會、<code>.bss</code>；<code>-fPIE</code> 用 <code>%rip</code> 直接讀，所以執行檔要有一份；<code>ld.so</code> 載入時複製初值。小修：連結時是 <code>ld</code> 留 4 byte 位置＋寫 <code>R_X86_64_COPY</code>，沒講出是誰、何時</td>
+<td>—</td>
+</tr>
+<tr>
+<td>函式庫 11-3</td>
+<td>對</td>
+<td></td>
+<td></td>
+<td>抓到：執行檔的 <code>COPY</code> 把初值複製進 <code>.bss</code>；<code>.so</code> 的 <code>GLOB_DAT</code> 由 <code>ld.so</code> 先找執行檔、填執行檔那份的位址；兩邊同一份。11-02 的「填位址」用詞改對了</td>
+<td>—</td>
+</tr>
+<tr>
+<td>函式庫 11-4</td>
+<td>錯</td>
+<td>2 → 1（整題）</td>
+<td>2026-11-06</td>
+<td>（使用者回報沒看到警告：他的 <code>setlevel</code> 已重新連結過、<code>level</code> 變 8 byte，不符題目「不重新連結」，維持原判）漏了 <code>ld.so</code> 的 <code>different size … consider re-linking</code> 警告（11-02 有寫）與原因（<code>.bss</code> 的 4 byte 是連結時定的）；改用 <code>eax</code>／<code>rax</code> 解釋，但 <code>get_level()</code> 仍回傳 <code>int</code>，而且 <code>1410065408</code> 是 <code>main</code> 直接讀、<code>COPY</code> 只複製 4 byte 的結果</td>
+<td>✅ 過關（11-05）</td>
+</tr>
+<tr>
+<td>函式庫 13-1</td>
+<td>對</td>
+<td></td>
+<td></td>
+<td>抓到：不是空的（啟動檔已讀）；沒有 <code>trim</code>，<code>main.o</code> 還沒讀。可補具體符號 <code>main</code>、<code>__libc_start_main</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td>函式庫 13-2</td>
+<td>對</td>
+<td></td>
+<td></td>
+<td>抓到：<code>--as-needed</code> 丟掉、<code>--no-as-needed</code> 記進 <code>NEEDED</code>、讀到 <code>main.o</code> 時用記住的定義解決、不是加進清單。小修：<code>--as-needed</code> 是 Ubuntu 的 gcc 預設</td>
+<td>—</td>
+</tr>
+<tr>
+<td>函式庫 13-3</td>
+<td>對</td>
+<td></td>
+<td></td>
+<td>抓到：<code>none_no</code> 有 <code>NEEDED libtxt.so</code>、<code>none_as</code> 沒有；沒用到就不必載入。理由較 11-02 單薄（可補：別台機器沒這個 <code>.so</code> 就跑不起來）</td>
+<td>—</td>
+</tr>
+<tr>
+<td>函式庫 13-4</td>
+<td>對</td>
+<td>2 → 3（整題）</td>
+<td>2026-11-12</td>
+<td>改判（11-05）：原判大致對（「為什麼」只寫規則）；使用者指出順序機制同大題 13-1 已答（讀到 <code>-ltxt</code> 時清單沒有 <code>trim</code>），13-4 的重點是選項只管 <code>.so</code>，意見合理。抓到：不會成功、<code>--no-as-needed</code> 對 <code>.a</code> 無效</td>
+<td>—</td>
+</tr>
+<tr>
+<td>C資料 9</td>
+<td>對</td>
+<td>2 → 3</td>
+<td>2026-11-12</td>
+<td>抓到：<code>len &lt; used</code> 時無號相減不會是負的、<code>&gt; 0</code> 成立；<code>&lt; 0</code> 永遠假才警告；UB → 化簡成 <code>y &lt; 0</code>，<code>y</code> 為正時永遠抓不到溢位（11-02 的 <code>y = -2</code> 誤報這次改對了）。小修：講出「回繞成很大的正數」；「不管大於 0 還是小於 0 都是 true」措辭會讀成 <code>&lt; 0</code> 也成立</td>
+<td>—</td>
+</tr>
+<tr>
+<td>hello 5</td>
+<td>對</td>
+<td>3 → 4</td>
+<td>2026-11-19</td>
+<td>抓到：連結階段在 A 機器決定了版本、B 機器執行時 <code>ld.so</code> 找不到那個版本就報錯、<code>-static</code> 不會。小修：講明「版本需求寫進執行檔」；B 是<strong>沒有</strong>那個版本（太舊），不是「不一致」</td>
+<td>—</td>
+</tr>
+<tr>
+<td>GNU 4</td>
+<td>對</td>
+<td>3 → 4</td>
+<td>2026-11-19</td>
+<td>抓到：修改並散布時要用同樣的 GPL、公開原始碼；LGPL 的 glibc 連結後散布不必公開、GPL 就要。小修：明講「不散布就沒義務」</td>
+<td>—</td>
+</tr>
+<tr>
+<td>objdump 3</td>
+<td>大致對</td>
+<td>3 → 3</td>
+<td>2026-11-12</td>
+<td>連結時 <code>ld</code> 找到並寫 <code>NEEDED</code>、執行時 <code>ld.so</code> 只拿到名字找不到，對；缺「這時 <code>ldd</code> 顯示 <code>libfoo.so =&gt; not found</code>」——寫成 <code>ldd</code> 平常的特性（10-26 也漏同處，10-29 有寫）</td>
+<td>✅ 過關（11-05）</td>
+</tr>
+<tr>
+<td>陣列 2-1</td>
+<td>大致對</td>
+<td></td>
+<td></td>
+<td>40、8 與「參數是 <code>int *</code>」對；<strong>寫錯</strong>：說 <code>sizeof a</code> 量的是 <code>int (*)[10]</code>——那是 <code>&amp;a</code> 的型別、大小是 8；<code>sizeof a</code> 量的是 <code>int[10]</code>。「先退化再恢復」跟 10-29 同一個小修</td>
+<td>✅ 過關（11-05）</td>
+</tr>
+<tr>
+<td>陣列 2-2</td>
+<td>對</td>
+<td></td>
+<td></td>
+<td>抓到：只拿到指標，要另外傳長度</td>
+<td>—</td>
+</tr>
+<tr>
+<td>陣列 2-3</td>
+<td>對</td>
+<td>3 → 3（整題）</td>
+<td>2026-11-12</td>
+<td>抓到：<code>a</code> 是 <code>int *</code>、+1 走 4；<code>&amp;a</code> 是 <code>int (*)[10]</code>、+1 走 40。10-29 的 <code>a + 1 = a[1]</code> 這次沒再犯</td>
+<td>—</td>
+</tr>
+<tr>
+<td>組語 6-1</td>
+<td>對</td>
+<td></td>
+<td></td>
+<td>抓到：<code>l</code> 是歷史命名；C 的 <code>long</code> 標準只要求 ≥ 32 位元、本機 64 位元。10-29 的「32 byte」筆誤改對了</td>
+<td>—</td>
+</tr>
+<tr>
+<td>組語 6-2</td>
+<td>對</td>
+<td></td>
+<td></td>
+<td><code>q</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td>組語 6-3</td>
+<td>對</td>
+<td></td>
+<td></td>
+<td>抓到：gdb <code>x</code> 沒有 <code>l</code> 這個大小字母（10-29 誤寫成「組合語言 FMT」，這次對了）。小修：講出同學把 AT&amp;T 字尾與 gdb 大小字母兩套名字混在一起</td>
+<td>—</td>
+</tr>
+<tr>
+<td>組語 6-4</td>
+<td>對</td>
+<td>3 → 4（整題）</td>
+<td>2026-11-19</td>
+<td>抓到：<code>x/1xw</code>，gdb 的 <code>w</code> ＝ 4 byte。小修：列出 <code>b</code>／<code>h</code>／<code>w</code>／<code>g</code> ＝ 1／2／4／8</td>
+<td>—</td>
+</tr>
+<tr>
+<td>組語 12-1</td>
+<td>對</td>
+<td></td>
+<td></td>
+<td>抓到：<code>0x11f4</code> 是檔案位址、執行時是基底 ＋ <code>0x11f4</code>；<code>*deref+4</code> 用符號重算。小修：原因是 <strong>PIE</strong> 不是 ASLR（gdb 關掉 ASLR 照樣失敗；跟 10-29 同一處，第二次）</td>
+<td>—</td>
+</tr>
+<tr>
+<td>組語 12-2</td>
+<td>對</td>
+<td>3 → 4（整題）</td>
+<td>2026-11-19</td>
+<td>抓到：<code>-no-pie</code> 位址固定、不搬，<code>objdump</code> 的位址可直接用。小修：是<strong>連結時</strong>定的，不是編譯時</td>
 <td>—</td>
 </tr>
 </tbody>
@@ -236,7 +468,7 @@ main.o這個時候他就沒找不到trim的定義了,因此報出undefined refer
 </details>
 </details>
 <details class="answer self-practice"><summary>自我練習（不批改）</summary>
-<div class="answer-box" data-file="review/2026-11-05-函式庫-C資料-hello-GNU-objdump-陣列-組語.md" data-line="104" data-insert="1" data-anchor="&gt; &#42;&#42;詳細說明&#42;&#42;：規則：函式庫寫在用到它的檔案後面（`main.c -L. -ltxt`）。函式庫之間互相需要時，寫兩次或用 `-Wl,--start-group … -Wl,--end-group`。"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="review/2026-11-05-函式庫-C資料-hello-GNU-objdump-陣列-組語.md" data-line="134" data-insert="1" data-anchor="&gt; &#42;&#42;詳細說明&#42;&#42;：規則：函式庫寫在用到它的檔案後面（`main.c -L. -ltxt`）。函式庫之間互相需要時，寫兩次或用 `-Wl,--start-group … -Wl,--end-group`。"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h4 id="函式庫-2-2-這個錯誤跟-cannot-find--ltxt-差在哪各是什麼東西找不到cannot-find--ltxt-可以這樣產生同樣的檔案指令改成漏掉--l-的-gcc--wall-mainc--ltxt--o-app">函式庫 2-2. 這個錯誤跟 <code>cannot find -ltxt</code> 差在哪（各是什麼東西找不到）？<code>cannot find -ltxt</code> 可以這樣產生：同樣的檔案，指令改成漏掉 <code>-L.</code> 的 <code>gcc -Wall main.c -ltxt -o app</code>。</h4>
 <details class="answer-fold"><summary>作答（🔒 已批改）</summary>
@@ -257,7 +489,7 @@ main.o這個時候他就沒找不到trim的定義了,因此報出undefined refer
 </details>
 </details>
 <details class="answer self-practice"><summary>自我練習（不批改）</summary>
-<div class="answer-box" data-file="review/2026-11-05-函式庫-C資料-hello-GNU-objdump-陣列-組語.md" data-line="123" data-insert="1" data-anchor="&gt; &#42;&#42;詳細說明&#42;&#42;：本機實測（同樣四個檔案）：`gcc -Wall main.c -ltxt -o app` → `/usr/bin/ld: cannot find -ltxt: No such file or directory`；`-ltx`（拼錯）→ `cannot find -ltx`；`gcc -Wall -L. -ltxt main.c -o app` → `undefined reference to &#x27;trim&#x27;`。前兩個在「找檔案」就停了，第三個是「找符號」失敗。兩者都是連結時 `ld` 的錯；執行時 `ld.so` 找不到 `.so` 是另一句 `cannot open shared object file`（第 4 題）。"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="review/2026-11-05-函式庫-C資料-hello-GNU-objdump-陣列-組語.md" data-line="153" data-insert="1" data-anchor="&gt; &#42;&#42;詳細說明&#42;&#42;：本機實測（同樣四個檔案）：`gcc -Wall main.c -ltxt -o app` → `/usr/bin/ld: cannot find -ltxt: No such file or directory`；`-ltx`（拼錯）→ `cannot find -ltx`；`gcc -Wall -L. -ltxt main.c -o app` → `undefined reference to &#x27;trim&#x27;`。前兩個在「找檔案」就停了，第三個是「找符號」失敗。兩者都是連結時 `ld` 的錯；執行時 `ld.so` 找不到 `.so` 是另一句 `cannot open shared object file`（第 4 題）。"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h4 id="函式庫-2-3-在-ubuntu-上把-libtxta-換成-libtxtso命令一樣寫成--l--ltxt-mainc也會失敗原因是什麼">函式庫 2-3. 在 Ubuntu 上把 <code>libtxt.a</code> 換成 <code>libtxt.so</code>、命令一樣寫成 <code>-L. -ltxt main.c</code>，也會失敗，原因是什麼？</h4>
 <details class="answer-fold"><summary>作答（🔒 已批改）</summary>
@@ -279,7 +511,7 @@ main.o這個時候他就沒找不到trim的定義了,因此報出undefined refer
 </details>
 </details>
 <details class="answer self-practice"><summary>自我練習（不批改）</summary>
-<div class="answer-box" data-file="review/2026-11-05-函式庫-C資料-hello-GNU-objdump-陣列-組語.md" data-line="143" data-insert="1" data-anchor="&gt; &#42;&#42;詳細說明&#42;&#42;：單純「由左往右」不會讓 `.so` 失敗：把 `-Wl,--no-as-needed` 放在 `-ltxt` 前面（`gcc -Wall -L. -Wl,--no-as-needed -ltxt main.c -o app4`）就成功，`readelf -d app4` 有 `NEEDED libtxt.so`。所以 `.a` 和 `.so` 失敗的機制不同（`.a` 是不拉成員、`.so` 是被 `--as-needed` 丟掉），但結論一樣：`-l` 一律寫在後面。"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="review/2026-11-05-函式庫-C資料-hello-GNU-objdump-陣列-組語.md" data-line="173" data-insert="1" data-anchor="&gt; &#42;&#42;詳細說明&#42;&#42;：單純「由左往右」不會讓 `.so` 失敗：把 `-Wl,--no-as-needed` 放在 `-ltxt` 前面（`gcc -Wall -L. -Wl,--no-as-needed -ltxt main.c -o app4`）就成功，`readelf -d app4` 有 `NEEDED libtxt.so`。所以 `.a` 和 `.so` 失敗的機制不同（`.a` 是不拉成員、`.so` 是被 `--as-needed` 丟掉），但結論一樣：`-l` 一律寫在後面。"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <hr />
 <h3 id="函式庫-4-情境連結成功執行找不到-libfooso">函式庫 4. 情境：連結成功、執行找不到 <code>libfoo.so</code></h3>
@@ -288,28 +520,74 @@ main.o這個時候他就沒找不到trim的定義了,因此報出undefined refer
 </blockquote>
 <p>情境題：你在 <code>/home/me/proj/</code> 下做了 <code>lib/libfoo.so</code> 和用它的 <code>app</code>，連結指令是 <code>gcc main.c -Llib -lfoo -o app</code>。連結成功，<code>./app</code> 卻印出 <code>error while loading shared libraries: libfoo.so: cannot open shared object file</code>。(1) 這個訊息是誰印的？為什麼連結時找得到、執行時找不到？(2) 你想讓 <code>app</code> 和 <code>lib/</code> 一起打包給同事，同事解壓到任何地方都能直接執行，連結指令要怎麼改？為什麼要用單引號？(3) 同事想臨時用 <code>LD_LIBRARY_PATH</code> 換成他自己編的 <code>libfoo.so</code> 來除錯，在你的做法（<code>RUNPATH</code>）下換得掉嗎？如果是 <code>RPATH</code> 呢？為什麼？</p>
 <h4 id="函式庫-4-1-這個訊息是誰印的為什麼連結時找得到執行時找不到">函式庫 4-1. 這個訊息是誰印的？為什麼連結時找得到、執行時找不到？</h4>
-<details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="review/2026-11-05-函式庫-C資料-hello-GNU-objdump-陣列-組語.md" data-line="154"><textarea spellcheck="false" placeholder="在這裡作答">這個是ld.so印的
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
+<div class="answer-box locked"><textarea readonly spellcheck="false">這個是ld.so印的
 因爲ld在連結的時候可以從命令行知道這個庫所在的路徑位址,也就是-Llib
 但ld.so他只能從dynamic section 知道NEEDED寫libfoo.so卻不知道它到底在哪,所以他只能從預設的搜尋的路徑開始找,最後就是找不到
-</textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+</textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
+<details class="answer"><summary>批改</summary>
+<p><strong>對</strong>。三個核心關鍵都有：是 <code>ld.so</code> 印的；連結時 <code>ld</code> 從命令列的 <code>-Llib</code> 知道資料夾；執行時 <code>ld.so</code> 從動態區段只拿到 <code>NEEDED libfoo.so</code> 這個名字、不知道在哪，只能照自己的搜尋順序找，<code>lib/</code> 不在裡面。小修（<strong>第三次同一個</strong>，10-29 以來每次都只寫「預設路徑」）：<code>ld.so</code> 找的不只預設目錄，依序是 <code>RPATH</code>、<code>LD_LIBRARY_PATH</code>、<code>RUNPATH</code>、<code>/etc/ld.so.cache</code>、預設目錄——4-2、4-3 考的正是前三項，把順序一起講出來，三個小題就串起來了。</p>
+<details class="answer"><summary>參考答案</summary>
+<p>【<a href="../c/%E9%9D%9C%E6%85%8B%E8%88%87%E5%8B%95%E6%85%8B%E5%87%BD%E5%BC%8F%E5%BA%AB-ar%E8%88%87.a%E3%80%81-fPIC%E8%88%87.so%E3%80%81%E5%9F%B7%E8%A1%8C%E6%99%82%E6%80%8E%E9%BA%BC%E6%89%BE%E5%88%B0.so.html#ldso-%E5%8E%BB%E4%BA%86%E5%93%AA%E4%BA%9B%E5%9C%B0%E6%96%B9%E6%89%BE">第五節</a>〈<code>ld.so</code> 去了哪些地方找〉】</p>
+<p><strong>核心關鍵</strong>（答到這幾點就算對）：</p>
+<ol>
+<li>是動態連結器 <code>ld.so</code>（執行檔的 interpreter）在執行時印的。</li>
+<li><code>-Llib</code> 只告訴<strong>連結時</strong>的 <code>ld</code> 去哪找，不會寫進執行檔；執行檔的 <code>NEEDED</code> 只記名字 <code>libfoo.so</code>。</li>
+<li>執行時 <code>ld.so</code> 只找 <code>RPATH</code>、<code>LD_LIBRARY_PATH</code>、<code>RUNPATH</code>、<code>/etc/ld.so.cache</code>、預設目錄，<code>lib/</code>（和當前目錄）都不在裡面。</li>
+</ol>
+<p><strong>詳細說明</strong>：<code>LD_DEBUG=libs ./app</code> 會印出它試過的每個路徑，最後放棄。</p>
+</details>
+</details>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="review/2026-11-05-函式庫-C資料-hello-GNU-objdump-陣列-組語.md" data-line="201" data-insert="1" data-anchor="&gt; &#42;&#42;詳細說明&#42;&#42;：`LD_DEBUG=libs ./app` 會印出它試過的每個路徑，最後放棄。"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h4 id="函式庫-4-2-你想讓-app-和-lib-一起打包給同事同事解壓到任何地方都能直接執行連結指令要怎麼改為什麼要用單引號">函式庫 4-2. 你想讓 <code>app</code> 和 <code>lib/</code> 一起打包給同事，同事解壓到任何地方都能直接執行，連結指令要怎麼改？為什麼要用單引號？</h4>
-<details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="review/2026-11-05-函式庫-C資料-hello-GNU-objdump-陣列-組語.md" data-line="162"><textarea spellcheck="false" placeholder="在這裡作答">加入runpath
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
+<div class="answer-box locked"><textarea readonly spellcheck="false">加入runpath
 gcc main.c -Llib -lfoo -Wl,-rpath,&#x27;$ORIGIN/lib&#x27; -o app
 
 因爲單引號就是把裏面的內容視爲純字符串,不會展開像是變量$ORIGIN 得到的runpath就真的是 &#x27;$ORIGIN/lib&#x27;, 這樣ld.so可知道,origin是在執行檔所在的位置,也就可以正確的找到庫的位置
 用雙引號就會展開,最後因爲$ORIGIN是空字符串得到了/lib,找不到
-</textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+</textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
+<details class="answer"><summary>批改</summary>
+<p><strong>對</strong>。指令正確；單引號的理由也對：雙引號時 shell 把 <code>$ORIGIN</code> 展開成空字串 → 寫進去變成 <code>/lib</code>；單引號原封不動寫進 <code>$ORIGIN/lib</code>。這次還補上了 11-02 沒寫的「<code>ld.so</code> 執行時把 <code>$ORIGIN</code> 換成執行檔所在的目錄」（題目沒問，不計分，但這是它能用的原因）。小修：寫進 <code>RUNPATH</code> 的是 <code>$ORIGIN/lib</code>，<strong>不含單引號</strong>——引號是給 shell 看的，shell 處理完就拿掉了（跟<a href="../c/%E5%AF%AB%E8%87%AA%E5%B7%B1%E7%9A%84wc%E8%88%87cat-%E5%91%BD%E4%BB%A4%E5%88%97%E5%8F%83%E6%95%B8%E3%80%81%E8%AE%80%E5%88%B0EOF%E8%88%87errno%E9%8C%AF%E8%AA%A4%E8%99%95%E7%90%86.html#%E5%AF%A6%E9%A9%97%E6%8A%8A-argv-%E4%B8%80%E6%A0%BC%E4%B8%80%E6%A0%BC%E5%8D%B0%E5%87%BA%E4%BE%86">第 8 課第二節〈實驗：把 <code>argv</code> 一格一格印出來〉</a>的「<code>&quot;two words&quot;</code> 是一格……程式拿到的字串裡沒有引號」同一件事）。</p>
+<details class="answer"><summary>參考答案</summary>
+<p>【<a href="../c/%E9%9D%9C%E6%85%8B%E8%88%87%E5%8B%95%E6%85%8B%E5%87%BD%E5%BC%8F%E5%BA%AB-ar%E8%88%87.a%E3%80%81-fPIC%E8%88%87.so%E3%80%81%E5%9F%B7%E8%A1%8C%E6%99%82%E6%80%8E%E9%BA%BC%E6%89%BE%E5%88%B0.so.html#%E6%96%B9%E6%B3%95%E4%BA%8C-wl-rpath%E6%8A%8A%E8%B7%AF%E5%BE%91%E5%AF%AB%E9%80%B2%E5%9F%B7%E8%A1%8C%E6%AA%94">第五節</a>〈方法二：<code>-Wl,-rpath</code>——把路徑寫進執行檔〉】</p>
+<p><strong>核心關鍵</strong>（答到這幾點就算對）：</p>
+<ol>
+<li><code>gcc main.c -Llib -lfoo -Wl,-rpath,'$ORIGIN/lib' -o app</code>：把 <code>$ORIGIN/lib</code> 寫進執行檔的 <code>RUNPATH</code>。</li>
+<li>要讓 <code>$ORIGIN</code> <strong>原封不動</strong>寫進執行檔；不用單引號（包括用雙引號）時 shell 會先把 <code>$ORIGIN</code> 換成空字串，寫進去的就變成 <code>/lib</code>。</li>
+</ol>
+<p><strong>詳細說明</strong>：為什麼要字面保留：<code>$ORIGIN</code> 不是給 shell 的變數，而是 <code>ld.so</code> 認得的記號，<strong>執行時 <code>ld.so</code> 把它換成執行檔所在的目錄</strong>（同事解壓到 <code>/tmp/x/</code>，就去找 <code>/tmp/x/lib/</code>），所以只要 <code>app</code> 和 <code>lib/</code> 的相對位置不變，解壓到哪裡都找得到。單引號裡 shell 什麼都不展開；一定要用雙引號時寫成 <code>&quot;\$ORIGIN/lib&quot;</code>。用 <code>readelf -d app | grep RUNPATH</code> 檢查實際寫進去的是什麼。</p>
+</details>
+</details>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="review/2026-11-05-函式庫-C資料-hello-GNU-objdump-陣列-組語.md" data-line="223" data-insert="1" data-anchor="&gt; &#42;&#42;詳細說明&#42;&#42;：為什麼要字面保留：`$ORIGIN` 不是給 shell 的變數，而是 `ld.so` 認得的記號，&#42;&#42;執行時 `ld.so` 把它換成執行檔所在的目錄&#42;&#42;（同事解壓到 `/tmp/x/`，就去找 `/tmp/x/lib/`），所以只要 `app` 和 `lib/` 的相對位置不變，解壓到哪裡都找得到。單引號裡 shell 什麼都不展開；一定要用雙引號時寫成 `&quot;\$ORIGIN/lib&quot;`。用 `readelf -d app | grep RUNPATH` 檢查實際寫進去的是什麼。"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h4 id="函式庫-4-3-同事想臨時用-ld_library_path-換成他自己編的-libfooso-來除錯在你的做法runpath下換得掉嗎如果是-rpath-呢為什麼">函式庫 4-3. 同事想臨時用 <code>LD_LIBRARY_PATH</code> 換成他自己編的 <code>libfoo.so</code> 來除錯，在你的做法（<code>RUNPATH</code>）下換得掉嗎？如果是 <code>RPATH</code> 呢？為什麼？</h4>
-<details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="review/2026-11-05-函式庫-C資料-hello-GNU-objdump-陣列-組語.md" data-line="172"><textarea spellcheck="false" placeholder="在這裡作答">runpath 可以
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
+<div class="answer-box locked"><textarea readonly spellcheck="false">runpath 可以
 rpath不行
 
 因爲runpath,會優先讀LD_LIBRARY_PATH, 但rpath會優先讀rpath
-</textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+</textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
+<details class="answer"><summary>批改</summary>
+<p><strong>對</strong>。抓到：<code>RUNPATH</code> 換得掉、<code>RPATH</code> 換不掉，理由是兩者跟 <code>LD_LIBRARY_PATH</code> 的先後。小修用詞：「<code>runpath</code> 會優先讀 <code>LD_LIBRARY_PATH</code>」——讀的是 <code>ld.so</code>，不是 <code>RUNPATH</code>；精確說是「<code>ld.so</code> 的搜尋順序裡 <code>LD_LIBRARY_PATH</code> 排在 <code>RUNPATH</code> 前面、排在 <code>RPATH</code> 後面」。</p>
+<details class="answer"><summary>參考答案</summary>
+<p>【<a href="../c/%E9%9D%9C%E6%85%8B%E8%88%87%E5%8B%95%E6%85%8B%E5%87%BD%E5%BC%8F%E5%BA%AB-ar%E8%88%87.a%E3%80%81-fPIC%E8%88%87.so%E3%80%81%E5%9F%B7%E8%A1%8C%E6%99%82%E6%80%8E%E9%BA%BC%E6%89%BE%E5%88%B0.so.html#rpath-%E5%92%8C-runpath-%E5%B7%AE%E5%9C%A8%E5%93%AA%E8%B7%9F-ld_library_path-%E8%AA%B0%E5%84%AA%E5%85%88">第五節</a>〈<code>RPATH</code> 和 <code>RUNPATH</code> 差在哪：跟 <code>LD_LIBRARY_PATH</code> 誰優先〉】</p>
+<p><strong>核心關鍵</strong>（答到這幾點就算對）：</p>
+<ol>
+<li><code>RUNPATH</code> 換得掉：<code>ld.so</code> 的搜尋順序裡 <code>LD_LIBRARY_PATH</code>（第 2 步）排在 <code>RUNPATH</code>（第 3 步）前面，先找到同事自己的版本。</li>
+<li><code>RPATH</code> 換不掉：<code>RPATH</code>（第 1 步，只在沒有 <code>RUNPATH</code> 時用）排在 <code>LD_LIBRARY_PATH</code> 前面，先找到原本 <code>lib/</code> 裡的版本。</li>
+</ol>
+<p><strong>詳細說明</strong>：筆記的 <code>v1</code>／<code>v2</code> 實驗：<code>LD_LIBRARY_PATH=v2 ./app_runpath</code> 印 1005（用了 v2），<code>./app_rpath</code> 印 5（還是 v1）。<code>RUNPATH</code> 是故意排在後面的，讓使用者能臨時換版本來除錯；所以 <code>ld</code> 預設寫 <code>RUNPATH</code>，加 <code>--disable-new-dtags</code> 才寫舊式的 <code>RPATH</code>。</p>
+</details>
+</details>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="review/2026-11-05-函式庫-C資料-hello-GNU-objdump-陣列-組語.md" data-line="244" data-insert="1" data-anchor="&gt; &#42;&#42;詳細說明&#42;&#42;：筆記的 `v1`／`v2` 實驗：`LD_LIBRARY_PATH=v2 ./app_runpath` 印 1005（用了 v2），`./app_rpath` 印 5（還是 v1）。`RUNPATH` 是故意排在後面的，讓使用者能臨時換版本來除錯；所以 `ld` 預設寫 `RUNPATH`，加 `--disable-new-dtags` 才寫舊式的 `RPATH`。"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <hr />
 <h3 id="函式庫-8-plt-與-got函式的位址存在哪延遲綁定10-26-追問新增">函式庫 8. PLT 與 GOT：函式的位址存在哪、延遲綁定（10-26 追問新增）</h3>
@@ -357,16 +635,78 @@ rpath不行
 000000004008  000700000007 R_X86_64_JUMP_SLO 0000000000001139 log_msg + 0
 </code></pre>
 <h4 id="函式庫-8-1-反組譯裡的-log_msgplt-是一張存位址的表嗎如果不是它是什麼log_msg-的位址存在哪個區段的哪一格用-jmp-那行的數字算出來">函式庫 8-1. 反組譯裡的 <code>log_msg@plt</code> 是一張存位址的表嗎？如果不是，它是什麼？<code>log_msg</code> 的位址存在哪個區段的哪一格？用 <code>jmp</code> 那行的數字算出來。</h4>
-<details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="review/2026-11-05-函式庫-C資料-hello-GNU-objdump-陣列-組語.md" data-line="232"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
+<div class="answer-box locked"><textarea readonly spellcheck="false">不是
+
+他是一段code,讓程式碼執行跳到.got.plt的位址,然後在跳到log_msg所在的位址
+它存在.got.plt 0x4008 的那格
+
+0x107a + 0x2f8e = 0x4008
+</textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
+<details class="answer"><summary>批改</summary>
+<p><strong>對</strong>。三個核心關鍵都有：不是表，是一段程式碼（跳板）；位址存在 <code>.got.plt</code> 的 <code>0x4008</code> 那格；<code>0x107a ＋ 0x2f8e ＝ 0x4008</code>（下一條指令的位址加位移）。小修（<strong>跟 11-02 同一個</strong>）：「讓程式跳到 <code>.got.plt</code> 的位址，然後再跳到 <code>log_msg</code>」聽起來像跳了兩次、先跳到 <code>0x4008</code> 本身。實際只有<strong>一次</strong> <code>jmp</code>：<code>jmp *0x2f8e(%rip)</code> 的 <code>*</code> 是「<strong>讀出</strong> <code>0x4008</code> 那格存的 8 byte，跳到那個位址」——CPU 從來沒有在 <code>0x4008</code> 執行過任何東西（<code>.got.plt</code> 是資料，權限 <code>WA</code>，不能執行）。</p>
+<details class="answer"><summary>參考答案</summary>
+<p>【<a href="../c/%E9%9D%9C%E6%85%8B%E8%88%87%E5%8B%95%E6%85%8B%E5%87%BD%E5%BC%8F%E5%BA%AB-ar%E8%88%87.a%E3%80%81-fPIC%E8%88%87.so%E3%80%81%E5%9F%B7%E8%A1%8C%E6%99%82%E6%80%8E%E9%BA%BC%E6%89%BE%E5%88%B0.so.html#4-plt-%E5%AD%98%E5%87%BD%E5%BC%8F%E4%BD%8D%E5%9D%80got-%E5%AD%98%E8%AE%8A%E6%95%B8%E4%BD%8D%E5%9D%80%E5%97%8Eplt-%E6%98%AF%E8%B7%B3%E6%9D%BF%E4%BB%A5%E5%8F%8A%E5%BB%B6%E9%81%B2%E7%B6%81%E5%AE%9A">第九節第 4 章</a>〈PLT 存函式位址、GOT 存變數位址嗎？PLT 是跳板，以及延遲綁定〉】</p>
+<p><strong>核心關鍵</strong>（答到這幾點就算對）：</p>
+<ol>
+<li>不是：<code>log_msg@plt</code> 是<strong>程式碼</strong>（<code>.plt.sec</code> 裡的跳板，權限 <code>AX</code>），不存位址。</li>
+<li><code>log_msg</code> 的位址存在 <code>.got.plt</code>（<code>0x3fe8</code> 起）的 <code>0x4008</code> 那格（<code>R_X86_64_JUMP_SLOT</code>）。</li>
+<li><code>jmp *0x2f8e(%rip)</code> 的下一條是 <code>0x107a</code>：<code>0x107a ＋ 0x2f8e ＝ 0x4008</code>。</li>
+</ol>
+<p><strong>詳細說明</strong>：<code>*</code> 表示「跳到記憶體裡存的那個位址」。函式和變數的位址都在 GOT 裡，只是函式那些放在 <code>.got.plt</code>。</p>
+</details>
+</details>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="review/2026-11-05-函式庫-C資料-hello-GNU-objdump-陣列-組語.md" data-line="319" data-insert="1" data-anchor="&gt; &#42;&#42;詳細說明&#42;&#42;：`&#42;` 表示「跳到記憶體裡存的那個位址」。函式和變數的位址都在 GOT 裡，只是函式那些放在 `.got.plt`。"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h4 id="函式庫-8-2-第一次和第二次-call-1070-log_msgplt從-call-到進入-log_msg-各經過哪些地方ldso-在哪一次介入做了什麼">函式庫 8-2. 第一次和第二次 <code>call 1070 &lt;log_msg@plt&gt;</code>，從 <code>call</code> 到進入 <code>log_msg</code> 各經過哪些地方？<code>ld.so</code> 在哪一次介入、做了什麼？</h4>
-<details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="review/2026-11-05-函式庫-C資料-hello-GNU-objdump-陣列-組語.md" data-line="237"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
+<div class="answer-box locked"><textarea readonly spellcheck="false">第一次: 跳到log_msg@plt -&gt; 跳到.got.plt 0x4008那格, 讀那格位址,一開始指向0x1040(.plt)-&gt; 程式碼:叫ld.so去找出liblogger.so裏log_msg的位址(0x1139),在寫入到0x4008那格, 然後就跳入log_msg(0x1139)
+
+第二次: 跳到log_msg@plt -&gt; 跳到.got.plt 0x4008 讀那格得到0x1139 log_msg-&gt; 跳入log_msg
+
+
+ld.so在第一次介入,他的功能就是找出log_msg的位址,並寫到.got.plt(0x4008)那格
+以上位址全都是檔案的位址,不是真正在記憶體的位址
+</textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
+<details class="answer"><summary>批改</summary>
+<p><strong>對</strong>。兩次的路徑都對，<code>0x1040</code>、<code>0x1139</code> 也都寫出來：第一次 跳板 → 讀 <code>0x4008</code> 那格，裡面是 <code>.plt</code> 的 <code>0x1040</code> → 叫 <code>ld.so</code> 查出 <code>log_msg</code>、寫回 <code>0x4008</code>、跳進去；第二次 跳板 → 讀出 <code>0x1139</code> → 直接跳，<code>ld.so</code> 不介入。11-02 的小修（基底是誰的）這次改成「全都是檔案的位址」，說法正確。小修：同 8-1，「跳到 <code>.got.plt</code> <code>0x4008</code> 那格」改成「讀 <code>0x4008</code> 那格、照裡面的位址跳」——你後半句「讀那格位址」已經寫對了，前半句的「跳到」是多餘的。</p>
+<details class="answer"><summary>參考答案</summary>
+<p>【<a href="../c/%E9%9D%9C%E6%85%8B%E8%88%87%E5%8B%95%E6%85%8B%E5%87%BD%E5%BC%8F%E5%BA%AB-ar%E8%88%87.a%E3%80%81-fPIC%E8%88%87.so%E3%80%81%E5%9F%B7%E8%A1%8C%E6%99%82%E6%80%8E%E9%BA%BC%E6%89%BE%E5%88%B0.so.html#4-plt-%E5%AD%98%E5%87%BD%E5%BC%8F%E4%BD%8D%E5%9D%80got-%E5%AD%98%E8%AE%8A%E6%95%B8%E4%BD%8D%E5%9D%80%E5%97%8Eplt-%E6%98%AF%E8%B7%B3%E6%9D%BF%E4%BB%A5%E5%8F%8A%E5%BB%B6%E9%81%B2%E7%B6%81%E5%AE%9A">第九節第 4 章</a>〈PLT 存函式位址、GOT 存變數位址嗎？PLT 是跳板，以及延遲綁定〉、<a href="../c/%E9%9D%9C%E6%85%8B%E8%88%87%E5%8B%95%E6%85%8B%E5%87%BD%E5%BC%8F%E5%BA%AB-ar%E8%88%87.a%E3%80%81-fPIC%E8%88%87.so%E3%80%81%E5%9F%B7%E8%A1%8C%E6%99%82%E6%80%8E%E9%BA%BC%E6%89%BE%E5%88%B0.so.html#8-ldso-%E5%A1%AB%E9%80%B2%E6%A0%BC%E5%AD%90%E7%9A%84%E6%98%AF%E4%BB%80%E9%BA%BC%E9%80%99%E5%80%8B%E8%A1%8C%E7%A8%8B%E8%A3%A1%E7%9A%84%E8%99%9B%E6%93%AC%E4%BD%8D%E5%9D%80">第九節第 8 章</a>〈<code>ld.so</code> 填進格子的是什麼：這個行程裡的虛擬位址〉】</p>
+<p><strong>核心關鍵</strong>（答到這幾點就算對）：</p>
+<ol>
+<li>第一次：<code>call</code> → <code>log_msg@plt</code> 跳板 → <code>jmp *(0x4008 那格)</code>，那格載入時填的是 <code>.plt</code> 裡「叫 <code>ld.so</code> 去查」的程式碼 → <code>ld.so</code> 查出 <code>log_msg</code> 的位址、寫回 <code>0x4008</code>、跳進 <code>log_msg</code>。</li>
+<li>第二次：<code>call</code> → 跳板 → 照 <code>0x4008</code>（已經是 <code>log_msg</code> 的位址）直接跳進去，<code>ld.so</code> 不再介入。</li>
+</ol>
+<p><strong>詳細說明</strong>：這叫延遲綁定（lazy binding）：好處是啟動時不必查完所有函式。跳板只是照格子跳，不判斷格子「空不空」。</p>
+</details>
+</details>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="review/2026-11-05-函式庫-C資料-hello-GNU-objdump-陣列-組語.md" data-line="343" data-insert="1" data-anchor="&gt; &#42;&#42;詳細說明&#42;&#42;：這叫延遲綁定（lazy binding）：好處是啟動時不必查完所有函式。跳板只是照格子跳，不判斷格子「空不空」。"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h4 id="函式庫-8-3-全域變數為什麼不能用這種第一次用到才查的方式一定要載入時就把-got-那格填好">函式庫 8-3. 全域變數為什麼不能用這種「第一次用到才查」的方式，一定要載入時就把 <code>.got</code> 那格填好？</h4>
-<details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="review/2026-11-05-函式庫-C資料-hello-GNU-objdump-陣列-組語.md" data-line="242"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
+<div class="answer-box locked"><textarea readonly spellcheck="false">因爲全域變數是用mov把變數的位址寫入,mov根本沒辦法查
+
+函式 基本都是用jmp,所以可以跳到ld.so查函式程式碼的位址,查到後在把原本存查程式碼的那格改成真正函式的位址
+</textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
+<details class="answer"><summary>批改</summary>
+<p><strong>對</strong>。抓到機制：函式呼叫先經過 PLT 跳板（<code>jmp</code>），所以第一次可以先轉去叫 <code>ld.so</code> 查、查完改格子；變數就是一條 <code>mov</code>，中間沒有程式碼可以攔下來先查。小修（11-02 也提過）：「<code>mov</code> 把變數的位址寫入」——如果你的意思是「寫入 <code>%rax</code>」，那是對的；但要講完整：<code>mov</code> 從 <code>.got</code> 那格<strong>讀出</strong>變數的位址放進 <code>%rax</code>，再用 <code>(%rax)</code> 讀值。所以那格沒填好，讀出來的就是檔案裡的 0，<code>(%rax)</code> 當場 segfault——這就是「一定要載入時填好」的直接後果。</p>
+<details class="answer"><summary>參考答案</summary>
+<p>【<a href="../c/%E9%9D%9C%E6%85%8B%E8%88%87%E5%8B%95%E6%85%8B%E5%87%BD%E5%BC%8F%E5%BA%AB-ar%E8%88%87.a%E3%80%81-fPIC%E8%88%87.so%E3%80%81%E5%9F%B7%E8%A1%8C%E6%99%82%E6%80%8E%E9%BA%BC%E6%89%BE%E5%88%B0.so.html#4-plt-%E5%AD%98%E5%87%BD%E5%BC%8F%E4%BD%8D%E5%9D%80got-%E5%AD%98%E8%AE%8A%E6%95%B8%E4%BD%8D%E5%9D%80%E5%97%8Eplt-%E6%98%AF%E8%B7%B3%E6%9D%BF%E4%BB%A5%E5%8F%8A%E5%BB%B6%E9%81%B2%E7%B6%81%E5%AE%9A">第九節第 4 章</a>〈PLT 存函式位址、GOT 存變數位址嗎？PLT 是跳板，以及延遲綁定〉】</p>
+<p><strong>核心關鍵</strong>（答到這幾點就算對）：</p>
+<ol>
+<li>延遲綁定靠跳板：呼叫函式時一定先經過 PLT 這段程式碼，第一次才有機會轉去叫 <code>ld.so</code> 查。</li>
+<li>讀變數就是一條 <code>mov</code>（從 GOT 拿位址、再照位址讀），中間沒有程式碼可以攔下來「先去查」，所以 <code>.got</code> 裡變數那格一定要在載入時就填好。</li>
+</ol>
+<p><strong>詳細說明</strong>：如果 <code>.got</code> 那格沒填，<code>mov (%rax),…</code> 會直接拿檔案裡的 0 當位址去讀，當場 segfault。</p>
+</details>
+</details>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="review/2026-11-05-函式庫-C資料-hello-GNU-objdump-陣列-組語.md" data-line="363" data-insert="1" data-anchor="&gt; &#42;&#42;詳細說明&#42;&#42;：如果 `.got` 那格沒填，`mov (%rax),…` 會直接拿檔案裡的 0 當位址去讀，當場 segfault。"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <hr />
 <h3 id="函式庫-10-共用的-so格子裡的位址與實體頁10-26-追問新增">函式庫 10. 共用的 <code>.so</code>：格子裡的位址與實體頁（10-26 追問新增）</h3>
@@ -423,12 +763,50 @@ rpath不行
 <pre><code class="language-text">000000004000  000600000007 R_X86_64_JUMP_SLO 0000000000001119 area + 0
 </code></pre>
 <h4 id="函式庫-10-1-兩個行程第一次呼叫-calc-之後各自-gotplt-裡-area-那格裝的數字一樣嗎為什麼那個數字是誰用哪兩樣東西算出來的">函式庫 10-1. 兩個行程第一次呼叫 <code>calc</code> 之後，各自 <code>.got.plt</code> 裡 <code>area</code> 那格裝的數字一樣嗎？為什麼？那個數字是誰、用哪兩樣東西算出來的？</h4>
-<details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="review/2026-11-05-函式庫-C資料-hello-GNU-objdump-陣列-組語.md" data-line="309"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
+<div class="answer-box locked"><textarea readonly spellcheck="false">不一樣
+因爲每個行程根據ASLR,他們的位址基點都不一樣
+那格數字就是area的位址+基點 = 0x1119 + base
+</textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
+<details class="answer"><summary>批改</summary>
+<p><strong>對</strong>。三個核心關鍵都有：不一樣；那格是基底 ＋ <code>0x1119</code>；兩個行程的基底因為 ASLR 不同，所以數字不同。小修（<strong>跟 11-02 同一個</strong>）：要講清楚是 <strong><code>libshape.so</code> 在這個行程裡的載入基底</strong>——<code>0x1119</code> 是 <code>area</code> 在 <code>libshape.so</code> 這個檔案裡的位置，所以加的是它的基底，不是 <code>m</code>、<code>n</code> 執行檔的；算出來的是<strong>這個行程裡的虛擬位址</strong>（11-02 你有寫「虛擬記憶體位址」，這次沒寫）。</p>
+<p><strong>題目的歧義（之後改題）</strong>：「那個數字是誰、用哪兩樣東西算出來的」可以讀成「是誰的位址」，也可以讀成「是<strong>誰（哪個程式）</strong>算出來的」。目前的核心關鍵沒有要求後者，所以這次不扣分；但後者才是重點——<strong>是 <code>ld.so</code> 在第一次呼叫 <code>area</code> 時（延遲綁定）算出來、寫進那格的</strong>，不是連結時的 <code>ld</code>（<code>ld</code> 做 <code>.so</code> 時還不知道基底）。下次複習起題目改成明問「哪個程式、在什麼時候填進去」，並把這點加進核心關鍵（筆記〈自我測驗〉第 10 題已同步改）。</p>
+<details class="answer"><summary>參考答案</summary>
+<p>【<a href="../c/%E9%9D%9C%E6%85%8B%E8%88%87%E5%8B%95%E6%85%8B%E5%87%BD%E5%BC%8F%E5%BA%AB-ar%E8%88%87.a%E3%80%81-fPIC%E8%88%87.so%E3%80%81%E5%9F%B7%E8%A1%8C%E6%99%82%E6%80%8E%E9%BA%BC%E6%89%BE%E5%88%B0.so.html#7-%E5%87%BD%E5%BC%8F%E9%82%A3%E9%82%8Aplt-%E8%B7%B3%E6%9D%BF%E5%85%B1%E7%94%A8gotplt-%E6%AF%8F%E5%80%8B%E8%A1%8C%E7%A8%8B%E5%90%84%E4%B8%80%E4%BB%BD">第九節第 7 章</a>〈函式那邊：PLT 跳板共用、<code>.got.plt</code> 每個行程各一份〉、<a href="../c/%E9%9D%9C%E6%85%8B%E8%88%87%E5%8B%95%E6%85%8B%E5%87%BD%E5%BC%8F%E5%BA%AB-ar%E8%88%87.a%E3%80%81-fPIC%E8%88%87.so%E3%80%81%E5%9F%B7%E8%A1%8C%E6%99%82%E6%80%8E%E9%BA%BC%E6%89%BE%E5%88%B0.so.html#8-ldso-%E5%A1%AB%E9%80%B2%E6%A0%BC%E5%AD%90%E7%9A%84%E6%98%AF%E4%BB%80%E9%BA%BC%E9%80%99%E5%80%8B%E8%A1%8C%E7%A8%8B%E8%A3%A1%E7%9A%84%E8%99%9B%E6%93%AC%E4%BD%8D%E5%9D%80">第九節第 8 章</a>〈<code>ld.so</code> 填進格子的是什麼：這個行程裡的虛擬位址〉】</p>
+<p><strong>核心關鍵</strong>（答到這幾點就算對）：</p>
+<ol>
+<li>不一樣。</li>
+<li>那格裝的是<strong>這個行程裡的虛擬位址</strong>：<code>libshape.so</code> 在這個行程的載入基底 ＋ <code>area</code> 在檔案裡的位置 <code>0x1119</code>（<code>.dynsym</code>，也就是 <code>R_X86_64_JUMP_SLOT</code> 那行的 <code>0x1119</code>）。</li>
+<li>兩個行程的載入基底不同（ASLR），所以數字不同。</li>
+</ol>
+<p><strong>詳細說明</strong>：<code>0x1119</code> 在做 <code>.so</code> 時就定了，但它只是「檔案內的位置」，還要加上基底；基底要到 <code>ld.so</code> 把檔案映射進來時才知道，每個行程不同。那格一共被寫兩次：載入時寫「基底 ＋ <code>.plt</code> 裡叫 <code>ld.so</code> 的那段程式碼的位置」，第一次呼叫時改成「基底 ＋ <code>0x1119</code>」。筆記第 7 章的 <code>q</code>、<code>r</code> 實測兩個行程的格子分別是 <code>0x7187194b9139</code>、<code>0x7125ada21139</code>。</p>
+</details>
+</details>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="review/2026-11-05-函式庫-C資料-hello-GNU-objdump-陣列-組語.md" data-line="448" data-insert="1" data-anchor="&gt; &#42;&#42;詳細說明&#42;&#42;：`0x1119` 在做 `.so` 時就定了，但它只是「檔案內的位置」，還要加上基底；基底要到 `ld.so` 把檔案映射進來時才知道，每個行程不同。那格一共被寫兩次：載入時寫「基底 ＋ `.plt` 裡叫 `ld.so` 的那段程式碼的位置」，第一次呼叫時改成「基底 ＋ `0x1119`」。筆記第 7 章的 `q`、`r` 實測兩個行程的格子分別是 `0x7187194b9139`、`0x7125ada21139`。"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h4 id="函式庫-10-4-同學分別用-gdb-跑-m-和-np-area-兩邊都印-0x7ffff7fb7119他說看吧兩個行程的-area-在同一個位址這個推論哪裡有問題">函式庫 10-4. 同學分別用 gdb 跑 <code>m</code> 和 <code>n</code>，<code>p area</code> 兩邊都印 <code>0x7ffff7fb7119</code>，他說「看吧，兩個行程的 <code>area</code> 在同一個位址」。這個推論哪裡有問題？</h4>
-<details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="review/2026-11-05-函式庫-C資料-hello-GNU-objdump-陣列-組語.md" data-line="314"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
+<div class="answer-box locked"><textarea readonly spellcheck="false">gdb 默認是關閉aslr的,所以他們的基點都相同
+但是就算沒有這個問題,也不能只靠虛擬記憶體來判斷在實體記憶體是不是相同位置
+虛擬記憶體不同也可能指向相同的位址
+</textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
+<details class="answer"><summary>批改</summary>
+<p><strong>對</strong>。兩個核心關鍵都有：gdb 預設關閉 ASLR，所以兩邊的基底相同、印出同一個數字；而且虛擬位址本來就不能用來判斷實體記憶體——相同不代表同一個實體頁，不同也可能是同一個。11-02 的小修（「有可能相同」→ 一定相同）這次改成「基點都相同」，對了。小修：可以補一句<strong>為什麼</strong>虛擬位址不能比：兩個行程各有自己的位址空間和頁表，同一個數字在兩個行程裡由各自的頁表翻譯，對到哪裡互不相干。</p>
+<details class="answer"><summary>參考答案</summary>
+<p>【<a href="../c/%E9%9D%9C%E6%85%8B%E8%88%87%E5%8B%95%E6%85%8B%E5%87%BD%E5%BC%8F%E5%BA%AB-ar%E8%88%87.a%E3%80%81-fPIC%E8%88%87.so%E3%80%81%E5%9F%B7%E8%A1%8C%E6%99%82%E6%80%8E%E9%BA%BC%E6%89%BE%E5%88%B0.so.html#9-%E8%99%9B%E6%93%AC%E4%BD%8D%E5%9D%80%E6%80%8E%E9%BA%BC%E8%AE%8A%E6%88%90%E5%AF%A6%E9%AB%94%E4%BD%8D%E5%9D%80%E6%A0%B8%E5%BF%83%E6%BA%96%E5%82%99%E9%A0%81%E8%A1%A8cpu-%E7%9A%84-mmu-%E7%BF%BB%E8%AD%AF">第九節第 9 章</a>〈虛擬位址怎麼變成實體位址：核心準備頁表，CPU 的 MMU 翻譯〉】</p>
+<p><strong>核心關鍵</strong>（答到這幾點就算對）：</p>
+<ol>
+<li>gdb 預設關掉 ASLR，所以兩次的載入基底一樣，印出同一個數字只是這個原因，不能拿來推論。</li>
+<li>兩個行程各有自己的位址空間和頁表，虛擬位址只在自己的行程裡有意義；數字一樣不代表是同一個東西或同一個實體頁（反過來，數字不同也可能是同一個實體頁，像 9-1）。</li>
+</ol>
+<p><strong>詳細說明</strong>：要證明兩個行程用的是同一份實體記憶體，看 <code>smaps</code> 的 <code>Shared_Clean</code>、<code>Pss</code>（10-2）。一般程式拿不到實體位址：<code>/proc/self/pagemap</code> 沒有 <code>CAP_SYS_ADMIN</code> 時 PFN 會被遮成 0（筆記第 9 章 <code>pfn.c</code>）。</p>
+</details>
+</details>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="review/2026-11-05-函式庫-C資料-hello-GNU-objdump-陣列-組語.md" data-line="468" data-insert="1" data-anchor="&gt; &#42;&#42;詳細說明&#42;&#42;：要證明兩個行程用的是同一份實體記憶體，看 `smaps` 的 `Shared_Clean`、`Pss`（10-2）。一般程式拿不到實體位址：`/proc/self/pagemap` 沒有 `CAP_SYS_ADMIN` 時 PFN 會被遮成 0（筆記第 9 章 `pfn.c`）。"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <hr />
 <h3 id="函式庫-11-主程式只寫-extern變數放在哪裡10-26-追問新增">函式庫 11. 主程式只寫 <code>extern</code>：變數放在哪裡（10-26 追問新增）</h3>
@@ -460,20 +838,126 @@ rpath不行
 </code></pre>
 <p>編譯：<code>gcc -Wall -fPIC -c cfg.c -o cfg.pic.o &amp;&amp; gcc -shared cfg.pic.o -o libcfg.so &amp;&amp; gcc -Wall setlevel.c -L. -lcfg -Wl,-rpath,'$ORIGIN' -o setlevel</code>（檔案：<a href="../../small-project/s1-07-libraries/examples/pic/cfg.c"><code>cfg.c</code></a>、<a href="../../small-project/s1-07-libraries/examples/pic/setlevel.c"><code>setlevel.c</code></a>）。主程式是 Ubuntu 預設的 <code>-fPIE</code>。</p>
 <h4 id="函式庫-11-1-執行後兩行各印多少">函式庫 11-1. 執行後兩行各印多少？</h4>
-<details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="review/2026-11-05-函式庫-C資料-hello-GNU-objdump-陣列-組語.md" data-line="352"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
+<div class="answer-box locked"><textarea readonly spellcheck="false">3,7
+</textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
+<details class="answer"><summary>批改</summary>
+<p><strong>對</strong>。</p>
+<details class="answer"><summary>參考答案</summary>
+<p>【<a href="../c/%E9%9D%9C%E6%85%8B%E8%88%87%E5%8B%95%E6%85%8B%E5%87%BD%E5%BC%8F%E5%BA%AB-ar%E8%88%87.a%E3%80%81-fPIC%E8%88%87.so%E3%80%81%E5%9F%B7%E8%A1%8C%E6%99%82%E6%80%8E%E9%BA%BC%E6%89%BE%E5%88%B0.so.html#3-%E4%B8%BB%E7%A8%8B%E5%BC%8F%E5%8F%AA%E5%AF%AB-extern-int-counter%E8%AE%8A%E6%95%B8%E6%94%BE%E9%80%B2%E5%9F%B7%E8%A1%8C%E6%AA%94%E8%A4%87%E8%A3%BD%E9%87%8D%E5%AE%9A%E4%BD%8D">第九節第 3 章</a>〈主程式只寫 <code>extern int counter;</code>：變數放進執行檔（複製重定位）〉】</p>
+<p><strong>核心關鍵</strong>（答到這幾點就算對）：</p>
+<ol>
+<li>第一行 <code>一開始 level = 3</code>，第二行 <code>get_level() = 7</code>。</li>
+</ol>
+<p><strong>詳細說明</strong>：主程式和 <code>get_level()</code> 用的是同一份 <code>level</code>（11-3），所以主程式改成 7，<code>get_level()</code> 讀到 7。</p>
+</details>
+</details>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="review/2026-11-05-函式庫-C資料-hello-GNU-objdump-陣列-組語.md" data-line="518" data-insert="1" data-anchor="&gt; &#42;&#42;詳細說明&#42;&#42;：主程式和 `get_level()` 用的是同一份 `level`（11-3），所以主程式改成 7，`get_level()` 讀到 7。"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h4 id="函式庫-11-2-nm-setlevel-會不會看到-level在哪一種區段為什麼原始碼只有-extern-卻會有">函式庫 11-2. <code>nm setlevel</code> 會不會看到 <code>level</code>？在哪一種區段？為什麼原始碼只有 <code>extern</code> 卻會有？</h4>
-<details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="review/2026-11-05-函式庫-C資料-hello-GNU-objdump-陣列-組語.md" data-line="357"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
+<div class="answer-box locked"><textarea readonly spellcheck="false">會, 在bss區段, 因爲主程式執行檔默認編譯使用-fPIE, 也就是主程式並不會使用got,他需要把level的定義複製到自己的.bss裏,
+fPIE 在拿全域變數就是靠這樣算出%rip與level的相對距離直接用
+
+然後ld.so會在執行的時候把把libcfg.so level的初值在寫進去主程式的.bss
+</textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
+<details class="answer"><summary>批改</summary>
+<p><strong>對</strong>。三個核心關鍵都有：會看到、在執行檔的 <code>.bss</code>；主程式是 <code>-fPIE</code>，不經 GOT、用 <code>%rip</code> 加固定距離直接讀；所以執行檔自己要有一份 <code>level</code>。11-02 的小修（分兩個時間點）這次寫對了一半：「<code>ld.so</code> 執行時把初值寫進主程式的 <code>.bss</code>」是<strong>載入時</strong>那一步。另一半要補：<strong>連結時</strong>是 <code>ld</code> 在 <code>.bss</code> 留一個同樣大小（4 byte）的位置、並寫一個 <code>R_X86_64_COPY</code>——「把 <code>level</code> 的定義複製到自己的 <code>.bss</code>」這句沒有講出是誰、在什麼時候做的。這個「大小在連結時就定了」正是 11-4 的關鍵。</p>
+<details class="answer"><summary>參考答案</summary>
+<p>【<a href="../c/%E9%9D%9C%E6%85%8B%E8%88%87%E5%8B%95%E6%85%8B%E5%87%BD%E5%BC%8F%E5%BA%AB-ar%E8%88%87.a%E3%80%81-fPIC%E8%88%87.so%E3%80%81%E5%9F%B7%E8%A1%8C%E6%99%82%E6%80%8E%E9%BA%BC%E6%89%BE%E5%88%B0.so.html#3-%E4%B8%BB%E7%A8%8B%E5%BC%8F%E5%8F%AA%E5%AF%AB-extern-int-counter%E8%AE%8A%E6%95%B8%E6%94%BE%E9%80%B2%E5%9F%B7%E8%A1%8C%E6%AA%94%E8%A4%87%E8%A3%BD%E9%87%8D%E5%AE%9A%E4%BD%8D">第九節第 3 章</a>〈主程式只寫 <code>extern int counter;</code>：變數放進執行檔（複製重定位）〉】</p>
+<p><strong>核心關鍵</strong>（答到這幾點就算對）：</p>
+<ol>
+<li>會看到，類型 <code>B</code>，在執行檔的 <code>.bss</code>。</li>
+<li>主程式是 <code>-fPIE</code>：編譯器假設全域變數都在執行檔自己裡面，用 <code>%rip</code> 加固定距離直接讀，不經 GOT。</li>
+<li>但 <code>level</code> 定義在 <code>.so</code>，距離不可能固定；<code>ld</code> 只好在執行檔的 <code>.bss</code> 替它留一個同樣大小的位置，並寫一個 <code>R_X86_64_COPY</code> 重定位（複製重定位）。</li>
+</ol>
+<p><strong>詳細說明</strong>：本機實測：<code>nm setlevel</code> → <code>0000000000004010 B level</code>；<code>readelf -SW setlevel</code> 的 <code>.bss</code> 從 <code>0x4010</code> 開始；<code>readelf -r setlevel</code> → <code>000000004010 … R_X86_64_COPY … level + 0</code>。</p>
+</details>
+</details>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="review/2026-11-05-函式庫-C資料-hello-GNU-objdump-陣列-組語.md" data-line="540" data-insert="1" data-anchor="&gt; &#42;&#42;詳細說明&#42;&#42;：本機實測：`nm setlevel` → `0000000000004010 B level`；`readelf -SW setlevel` 的 `.bss` 從 `0x4010` 開始；`readelf -r setlevel` → `000000004010 … R_X86_64_COPY … level + 0`。"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h4 id="函式庫-11-3-第一行印出的值是怎麼放進那裡的get_level-讀的是哪一份-level用重定位的類型和-ldso-找符號的順序說明">函式庫 11-3. 第一行印出的值是怎麼放進那裡的？<code>get_level()</code> 讀的是哪一份 <code>level</code>？用重定位的類型和 <code>ld.so</code> 找符號的順序說明。</h4>
-<details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="review/2026-11-05-函式庫-C資料-hello-GNU-objdump-陣列-組語.md" data-line="362"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
+<div class="answer-box locked"><textarea readonly spellcheck="false">第一行印出來的是主程式裏.bss level位址儲存的值, 執行時ld.so可以知道第一行的重定位類型是R_X86_64_COPY, 因此他就會把libcfg.so裏 level定義的初值複製到0x4010的地方(也就是主程式.bss區段內)
+
+get_level讀得也是主程式的.bss level的值, 因爲ld.so會優先使用主程式的level定義,而且libcfg.so 標記了level的重定位是 R_X86_64_GLOB_DAT, 所以他會在libcfg.so的got裏代表level的位址寫上主程式裏level的位址
+</textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
+<details class="answer"><summary>批改</summary>
+<p><strong>對</strong>。三個核心關鍵都有：<code>ld.so</code> 照執行檔的 <code>R_X86_64_COPY</code> 把 <code>libcfg.so</code> 的初值複製到執行檔 <code>.bss</code> 的 <code>0x4010</code>；<code>libcfg.so</code> 的 GOT 那格是 <code>R_X86_64_GLOB_DAT</code>，<code>ld.so</code> 先找執行檔、找到執行檔那份，把它的位址填進去；所以 <code>get_level()</code> 讀的也是執行檔那份。11-02 的用詞小修（<code>GLOB_DAT</code> 是「填位址」）這次寫成「寫上主程式裡 <code>level</code> 的位址」，對了。小修：「第一行的重定位類型是 <code>R_X86_64_COPY</code>」——<code>COPY</code> 是<strong>執行檔的重定位表</strong>（<code>readelf -r setlevel</code>）裡的那一筆，跟 <code>printf</code> 的第一行無關，寫成「執行檔對 <code>level</code> 的重定位是 <code>R_X86_64_COPY</code>」比較清楚。</p>
+<details class="answer"><summary>參考答案</summary>
+<p>【<a href="../c/%E9%9D%9C%E6%85%8B%E8%88%87%E5%8B%95%E6%85%8B%E5%87%BD%E5%BC%8F%E5%BA%AB-ar%E8%88%87.a%E3%80%81-fPIC%E8%88%87.so%E3%80%81%E5%9F%B7%E8%A1%8C%E6%99%82%E6%80%8E%E9%BA%BC%E6%89%BE%E5%88%B0.so.html#3-%E4%B8%BB%E7%A8%8B%E5%BC%8F%E5%8F%AA%E5%AF%AB-extern-int-counter%E8%AE%8A%E6%95%B8%E6%94%BE%E9%80%B2%E5%9F%B7%E8%A1%8C%E6%AA%94%E8%A4%87%E8%A3%BD%E9%87%8D%E5%AE%9A%E4%BD%8D">第九節第 3 章</a>〈主程式只寫 <code>extern int counter;</code>：變數放進執行檔（複製重定位）〉】</p>
+<p><strong>核心關鍵</strong>（答到這幾點就算對）：</p>
+<ol>
+<li>第一行的 3：載入時 <code>ld.so</code> 處理執行檔的 <code>R_X86_64_COPY</code>，去 <code>libcfg.so</code> 找到 <code>level</code>，把初值 3 複製進執行檔 <code>.bss</code> 的 <code>level</code>；<code>main</code> 直接讀它。</li>
+<li><code>get_level()</code> 經過 <code>libcfg.so</code> 的 GOT 讀 <code>level</code>，那格是 <code>R_X86_64_GLOB_DAT level</code>；<code>ld.so</code> 照「先找執行檔、再找 <code>.so</code>」找到<strong>執行檔那份</strong>，把執行檔的 <code>&amp;level</code> 填進去。</li>
+<li>所以兩邊用的都是執行檔那份；<code>main</code> 改成 7，<code>get_level()</code> 讀到 7。<code>libcfg.so</code> 自己那份 <code>level</code> 只在載入時被讀一次初值。</li>
+</ol>
+<p><strong>詳細說明</strong>：本機實測 <code>LD_DEBUG=bindings ./setlevel</code> 的兩行就是這兩件事：<code>binding file ./setlevel to …/libcfg.so: normal symbol 'level'</code>（處理 <code>COPY</code>：去 <code>.so</code> 拿初值）、<code>binding file …/libcfg.so to ./setlevel: normal symbol 'level'</code>（處理 <code>GLOB_DAT</code>：<code>.so</code> 的 GOT 接到執行檔）。</p>
+</details>
+</details>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="review/2026-11-05-函式庫-C資料-hello-GNU-objdump-陣列-組語.md" data-line="561" data-insert="1" data-anchor="&gt; &#42;&#42;詳細說明&#42;&#42;：本機實測 `LD_DEBUG=bindings ./setlevel` 的兩行就是這兩件事：`binding file ./setlevel to …/libcfg.so: normal symbol &#x27;level&#x27;`（處理 `COPY`：去 `.so` 拿初值）、`binding file …/libcfg.so to ./setlevel: normal symbol &#x27;level&#x27;`（處理 `GLOB_DAT`：`.so` 的 GOT 接到執行檔）。"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h4 id="函式庫-11-4-之後把-cfgc-改成-long-level--3-重做-libcfgsosetlevel-不重新連結就執行會發生什麼事為什麼">函式庫 11-4. 之後把 <code>cfg.c</code> 改成 <code>long level = 3;</code> 重做 <code>libcfg.so</code>，<code>setlevel</code> 不重新連結就執行，會發生什麼事、為什麼？</h4>
-<details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="review/2026-11-05-函式庫-C資料-hello-GNU-objdump-陣列-組語.md" data-line="367"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
+<div class="answer-box locked"><textarea readonly spellcheck="false">編譯libcfg.so沒有錯誤
+但是原本libcfg.so返回是寫入eax, 變成寫入rax
+但是setlevel還是只用eax的getlevel的回傳值,所以如果level的值大於32位會有問題,例如把初值設定成10000000000
+得到的是
+一開始 level = 1410065408
+get_level() = 7
+這是因爲雖然level已經寫到rax了,但是setlevel取值拿eax, 只看下面32位元
+</textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
+<details class="answer"><summary>批改</summary>
+<p><strong>錯</strong>。兩個核心關鍵都沒有答到，而且原因錯了：</p>
+<ol>
+<li><strong>漏了 <code>ld.so</code> 的警告</strong>：執行時第一行就是 <code>./setlevel: Symbol </code>level' has different size in shared object, consider re-linking<code>（印在 </code>stderr`），程式照樣跑。11-02 你寫出來了，這次沒有。</li>
+<li><strong>漏了真正的原因</strong>：執行檔 <code>.bss</code> 留給 <code>level</code> 的大小（4 byte）是<strong>連結時</strong>照當時的 <code>.so</code> 決定的；<code>.so</code> 換成 8 byte 後兩邊對不上，要重新連結。</li>
+<li><strong>「<code>eax</code>／<code>rax</code>」的解釋不成立</strong>：<code>get_level()</code> 的回傳型別還是 <code>int</code>（題目只改了 <code>level</code>），回傳值本來就放在 <code>%eax</code>，呼叫端照 <code>int</code> 拿 <code>%eax</code> 是正常的，沒有對不上。而且你測到的 <code>一開始 level = 1410065408</code> 是 <code>main</code> <strong>直接讀</strong>執行檔裡的 <code>level</code> 印的，根本沒經過 <code>get_level()</code> 的回傳值。</li>
+</ol>
+<p>你的實驗很好，我照做了一次（初值改成 <code>10000000000</code>），輸出跟你一樣，能直接證明正確的原因：</p>
+<pre><code class="language-text">./setlevel: Symbol `level&#39; has different size in shared object, consider re-linking
+一開始 level = 1410065408
+get_level() = 7
+</code></pre>
+<ul>
+<li><code>1410065408</code> 就是 <code>10000000000</code> 的<strong>低 32 位元</strong>（<code>printf '%d\n' $((10000000000 &amp; 0xffffffff))</code> 印出 <code>1410065408</code>）：<code>ld.so</code> 處理 <code>COPY</code> 時只複製兩邊大小<strong>較小的</strong> 4 byte 進執行檔的 <code>.bss</code>，上面 4 byte 沒有複製過來。<code>main</code> 讀的是這 4 byte，所以印出被截斷的值。</li>
+<li><code>get_level() = 7</code>：<code>main</code> 寫 7 進那 4 byte；<code>get_level()</code> 經過 GOT 到執行檔那格讀 <strong>8 byte</strong>（新的 <code>libcfg.so</code> 反組譯是 <code>mov (%rax),%rax</code>），多讀的 4 byte 是 <code>level</code> 後面的 <code>.bss</code> 空間，剛好是 0，所以讀到 7。這裡 <code>%rax</code> 讀 8 byte、回傳時只留 <code>%eax</code>，是 C 把 <code>long</code> 轉成 <code>int</code> 的正常轉換，不是錯誤的來源。</li>
+<li>所以錯在「大小在連結時寫死」：執行檔只有 4 byte 的位置，<code>.so</code> 卻以為有 8 byte。</li>
+</ul>
+<p><strong>補充（11-05，你回報「執行時沒有看到警告」之後查的）</strong>：你 <code>small-project/s1-07-libraries/quiz/q11/</code> 裡的 <code>setlevel</code> 修改時間是 11:47，<code>libcfg.so</code> 是 12:34；<code>readelf -sW setlevel</code> 顯示執行檔裡的 <code>level</code> 已經是 <strong>8 byte</strong>——也就是 <code>setlevel</code> 在 <code>level</code> 改成 <code>long</code> 之後<strong>重新連結過</strong>，不是題目說的「不重新連結」。重新連結後兩邊都是 8 byte，大小對得上，<code>ld.so</code> 就不會警告。輸出剛好一樣，但原因不同：</p>
+<ul>
+<li>重新連結後，<code>COPY</code> 把 8 byte 全部複製進來（另寫一支 <code>extern long level;</code> 的程式印出來是 <code>0x2540be400</code>，就是 <code>10000000000</code>）。<code>main</code> 印 <code>1410065408</code>，是因為 <code>setlevel.c</code> 仍宣告 <code>extern int level;</code>、只讀前 4 byte（<code>0x540be400</code>）——兩個檔案對同一個變數的宣告型別不一樣，這本身就是錯的程式（C 的未定義行為）。</li>
+<li><code>get_level() = 7</code>：<code>main</code> 只寫了前 4 byte，後 4 byte 還是 <code>0x2</code>，<code>get_level()</code> 讀到 <code>0x200000007</code>，轉成 <code>int</code> 剩下 7。</li>
+</ul>
+<p>所以判定不變（<strong>維持「錯」</strong>）：題目的情境是不重新連結，核心關鍵問的是那個情境下的警告與原因；而 <code>eax</code>／<code>rax</code> 的解釋在兩種情況下都不成立。要看到警告，照題目的順序做：先用 <code>int level = 3;</code> 做 <code>libcfg.so</code> 並連結 <code>setlevel</code>，之後<strong>只</strong>重做 <code>libcfg.so</code>（改成 <code>long</code>），不要再跑連結 <code>setlevel</code> 的那條指令。</p>
+<details class="answer"><summary>參考答案</summary>
+<p>【<a href="../c/%E9%9D%9C%E6%85%8B%E8%88%87%E5%8B%95%E6%85%8B%E5%87%BD%E5%BC%8F%E5%BA%AB-ar%E8%88%87.a%E3%80%81-fPIC%E8%88%87.so%E3%80%81%E5%9F%B7%E8%A1%8C%E6%99%82%E6%80%8E%E9%BA%BC%E6%89%BE%E5%88%B0.so.html#3-%E4%B8%BB%E7%A8%8B%E5%BC%8F%E5%8F%AA%E5%AF%AB-extern-int-counter%E8%AE%8A%E6%95%B8%E6%94%BE%E9%80%B2%E5%9F%B7%E8%A1%8C%E6%AA%94%E8%A4%87%E8%A3%BD%E9%87%8D%E5%AE%9A%E4%BD%8D">第九節第 3 章</a>〈主程式只寫 <code>extern int counter;</code>：變數放進執行檔（複製重定位）〉】</p>
+<p><strong>核心關鍵</strong>（答到這幾點就算對）：</p>
+<ol>
+<li>執行時 <code>ld.so</code> 印警告 <code>Symbol 'level' has different size in shared object, consider re-linking</code>，程式照樣跑。</li>
+<li>原因：執行檔 <code>.bss</code> 留給 <code>level</code> 的大小（4 byte）是<strong>連結時</strong>照當時的 <code>.so</code> 決定的；現在 <code>.so</code> 裡的 <code>level</code> 是 8 byte，大小對不上，要重新連結。</li>
+</ol>
+<p><strong>詳細說明</strong>：本機實測（<code>cfg.c</code> 改成 <code>long level = 3;</code> 重做 <code>libcfg.so</code>，<code>setlevel</code> 不動）：先印那行警告，接著照樣印 <code>一開始 level = 3</code>、<code>get_level() = 7</code>。印對是運氣：<code>COPY</code> 只複製較小的 4 byte；<code>get_level()</code> 經過 GOT 到執行檔那格讀 8 byte，多讀的 4 byte 是執行檔 <code>.bss</code> 裡 <code>level</code> 後面的空間，剛好是 0；初值超過 4 byte、或後面放了別的變數，就會讀錯、寫到別人。這是函式庫通常<strong>不直接給外面用全域變數、而是提供函式</strong>（<code>get_level()</code>）的原因之一：函式走 PLT，執行檔不必知道它的大小。</p>
+</details>
+</details>
+</p>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="review/2026-11-05-函式庫-C資料-hello-GNU-objdump-陣列-組語.md" data-line="611"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）">ld.so直接報./setlevel: Symbol `level&#x27; has different size in shared object, consider re-linking
+
+因爲libcfg.so重新編譯過了,所以level會變成8byte,
+但是setlevel沒有重新編譯,他的符號表還是記住level是4byte
+所以在ld.so載入libcfg.so做符號連結與 複製lib的定義去主程式的時候,就會彙報這個警告,並希望你重新連結setlevel
+
+直接執行可能會發生一些截斷的錯誤,不過以本題的情況來說結果不會錯,但如果level初值到1000000000
+就會發現結果有問題
+</textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <hr />
 <h3 id="函式庫-13---as-needed讀到-so-那一刻的清單">函式庫 13. <code>--as-needed</code>：讀到 <code>.so</code> 那一刻的清單</h3>
@@ -518,20 +1002,93 @@ rpath不行
 </code></pre>
 <p>做 <code>.so</code>：<code>gcc -Wall -fPIC -shared case.c space.c trim.c -o libtxt.so</code>；做 <code>.a</code>：<code>gcc -Wall -c case.c space.c trim.c &amp;&amp; ar rcs libtxt.a case.o space.o trim.o &amp;&amp; rm libtxt.so</code>（檔案都在 <a href="../../small-project/s1-07-libraries/examples/asneeded/"><code>examples/asneeded/</code></a>）。啟動檔 <code>Scrt1.o</code> 未定義的符號可以用 <code>nm -u $(gcc -print-file-name=Scrt1.o)</code> 看。</p>
 <h4 id="函式庫-13-1-用-gcc--wall--l--ltxt-mainc--o-app_bad-ltxt-寫在-mainc-前面連結時gcc--v-顯示-gcc-交給-ld-的順序是-scrt1o-crtio-crtbeginso---ltxt-mainc-的-o---lc-讀到--ltxt-那一刻還沒找到定義的符號清單是空的嗎裡面有-trim-嗎為什麼">函式庫 13-1. 用 <code>gcc -Wall -L. -ltxt main.c -o app_bad</code>（<code>-ltxt</code> 寫在 <code>main.c</code> 前面）連結時，<code>gcc -v</code> 顯示 gcc 交給 <code>ld</code> 的順序是 <code>Scrt1.o crti.o crtbeginS.o … -ltxt &lt;main.c 的 .o&gt; … -lc …</code>。讀到 <code>-ltxt</code> 那一刻，「還沒找到定義的符號」清單是空的嗎？裡面有 <code>trim</code> 嗎？為什麼？</h4>
-<details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="review/2026-11-05-函式庫-C資料-hello-GNU-objdump-陣列-組語.md" data-line="421"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
+<div class="answer-box locked"><textarea readonly spellcheck="false">不是
+沒有trim
+在讀Scrt1.o crti.o crtbeginS.o 這些的時候就會添加未定義的符號清單了,而讀到-ltxt那一刻,還沒讀到main.o所以不會有trim在未定義的符號清單裏面
+</textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
+<details class="answer"><summary>批改</summary>
+<p><strong>對</strong>。兩個核心關鍵都有：不是空的，<code>Scrt1.o</code>、<code>crti.o</code>、<code>crtbeginS.o</code> 讀進來時已經放進未定義符號；沒有 <code>trim</code>，因為 <code>main.o</code> 排在 <code>-ltxt</code> 後面還沒讀。可以補（11-02 也建議過）：具體是哪些——<code>Scrt1.o</code> 帶進 <code>main</code>、<code>__libc_start_main</code>（<code>nm -u $(gcc -print-file-name=Scrt1.o)</code> 看得到）。</p>
+<details class="answer"><summary>參考答案</summary>
+<p>【<a href="../c/%E9%9D%9C%E6%85%8B%E8%88%87%E5%8B%95%E6%85%8B%E5%87%BD%E5%BC%8F%E5%BA%AB-ar%E8%88%87.a%E3%80%81-fPIC%E8%88%87.so%E3%80%81%E5%9F%B7%E8%A1%8C%E6%99%82%E6%80%8E%E9%BA%BC%E6%89%BE%E5%88%B0.so.html#15-ld-%E9%82%84%E6%B2%92%E8%AE%80%E5%88%B0-maino%E6%80%8E%E9%BA%BC%E7%9F%A5%E9%81%93%E8%AA%B0%E9%9C%80%E8%A6%81%E4%BB%80%E9%BA%BC%E6%9C%AA%E5%AE%9A%E7%BE%A9%E7%AC%A6%E8%99%9F%E6%B8%85%E5%96%AE%E8%88%87---as-needed">第九節第 15 章</a>〈<code>ld</code> 還沒讀到 <code>main.o</code>，怎麼知道誰需要什麼〉】</p>
+<p><strong>核心關鍵</strong>（答到這幾點就算對）：</p>
+<ol>
+<li><strong>不是空的</strong>：<code>-ltxt</code> 前面的啟動檔已經讀過，<code>Scrt1.o</code> 帶進 <code>main</code>、<code>__libc_start_main</code> 等未定義符號。</li>
+<li><strong>沒有 <code>trim</code></strong>：需要 <code>trim</code> 的是 <code>main.c</code> 的 <code>.o</code>，它排在 <code>-ltxt</code> 後面、還沒讀到；<code>ld</code> 由左往右、不往後看，只用此刻的清單做決定。</li>
+</ol>
+<p><strong>詳細說明</strong>：<code>nm -u $(gcc -print-file-name=Scrt1.o)</code> 列出 <code>U _GLOBAL_OFFSET_TABLE_</code>、<code>U __libc_start_main</code>、<code>U main</code>；<code>crtbeginS.o</code> 另外帶進 <code>U __TMC_END__</code>（<code>w</code> 開頭的是弱符號，找不到也不算錯）。所以正文第二節說「這時清單裡沒有 <code>calc_add</code>」，不是嚴格意義的空清單。</p>
+</details>
+</details>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="review/2026-11-05-函式庫-C資料-hello-GNU-objdump-陣列-組語.md" data-line="690" data-insert="1" data-anchor="&gt; &#42;&#42;詳細說明&#42;&#42;：`nm -u $(gcc -print-file-name=Scrt1.o)` 列出 `U _GLOBAL_OFFSET_TABLE_`、`U __libc_start_main`、`U main`；`crtbeginS.o` 另外帶進 `U __TMC_END__`（`w` 開頭的是弱符號，找不到也不算錯）。所以正文第二節說「這時清單裡沒有 `calc_add`」，不是嚴格意義的空清單。"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h4 id="函式庫-13-2-預設下-gcc--wall--l--ltxt-mainc--o-app_bad-失敗把--wl--no-as-needed-放在--ltxt-前面gcc--wall--l--wl--no-as-needed--ltxt-mainc--o-app_no就成功讀到-libtxtso-時兩種模式各做了什麼maino-要的-trim-最後是怎麼被解決的是-libtxtso-把-trim-加進了清單嗎">函式庫 13-2. 預設下 <code>gcc -Wall -L. -ltxt main.c -o app_bad</code> 失敗；把 <code>-Wl,--no-as-needed</code> 放在 <code>-ltxt</code> 前面（<code>gcc -Wall -L. -Wl,--no-as-needed -ltxt main.c -o app_no</code>）就成功。讀到 <code>libtxt.so</code> 時兩種模式各做了什麼？<code>main.o</code> 要的 <code>trim</code> 最後是怎麼被解決的——是 <code>libtxt.so</code> 把 <code>trim</code> 加進了清單嗎？</h4>
-<details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="review/2026-11-05-函式庫-C資料-hello-GNU-objdump-陣列-組語.md" data-line="426"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
+<div class="answer-box locked"><textarea readonly spellcheck="false">一般的情況是 --as-needed, 動態庫只有在被需要的時候纔會寫入NEEDED,否則就丟棄,原本的寫法,讀到-ltxt,他都不被需要,因爲還沒讀到main.o,所以就被丟棄,導致報了undefined trim的錯誤
+
+但是--no-as-needed,讀到ltxt不管你有沒有被需要,都加到需求單,然後看到main的trim的時候直接找到定義就解決了
+libtxt.so沒有把trim加入清單
+</textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
+<details class="answer"><summary>批改</summary>
+<p><strong>對</strong>。三個核心關鍵都有：<code>--as-needed</code> 讀到 <code>libtxt.so</code> 時沒人需要它 → 丟掉、不記進 <code>NEEDED</code> → 之後 <code>trim</code> 沒人提供；<code>--no-as-needed</code> 不管需不需要都記進 <code>NEEDED</code>，讀到 <code>main.o</code> 要 <code>trim</code> 時直接用它的定義解決；<code>libtxt.so</code> 沒有把 <code>trim</code> 加進清單。小修：「<code>--as-needed</code> 是一般的情況」要加「在 Ubuntu 上」——它是 Ubuntu 的 gcc 預設傳的，GNU <code>ld</code> 本身預設是 <code>--no-as-needed</code>（2-3 也是這個前提）。</p>
+<details class="answer"><summary>參考答案</summary>
+<p>【<a href="../c/%E9%9D%9C%E6%85%8B%E8%88%87%E5%8B%95%E6%85%8B%E5%87%BD%E5%BC%8F%E5%BA%AB-ar%E8%88%87.a%E3%80%81-fPIC%E8%88%87.so%E3%80%81%E5%9F%B7%E8%A1%8C%E6%99%82%E6%80%8E%E9%BA%BC%E6%89%BE%E5%88%B0.so.html#15-ld-%E9%82%84%E6%B2%92%E8%AE%80%E5%88%B0-maino%E6%80%8E%E9%BA%BC%E7%9F%A5%E9%81%93%E8%AA%B0%E9%9C%80%E8%A6%81%E4%BB%80%E9%BA%BC%E6%9C%AA%E5%AE%9A%E7%BE%A9%E7%AC%A6%E8%99%9F%E6%B8%85%E5%96%AE%E8%88%87---as-needed">第九節第 15 章</a>〈<code>ld</code> 還沒讀到 <code>main.o</code>，怎麼知道誰需要什麼〉】</p>
+<p><strong>核心關鍵</strong>（答到這幾點就算對）：</p>
+<ol>
+<li><code>--as-needed</code>（預設）：讀到 <code>libtxt.so</code> 時看此刻的清單，沒人需要它的符號 → 整個丟掉、不記進 <code>NEEDED</code>；後面 <code>main.o</code> 要 <code>trim</code> 時沒人提供 → <code>undefined reference</code>。</li>
+<li><code>--no-as-needed</code>：不看清單，一律留下、記進 <code>NEEDED</code>，並<strong>記住它提供的定義</strong>。</li>
+<li><code>trim</code> 是讀到 <code>main.o</code> 時，<code>ld</code> 用已經記住的 <code>libtxt.so</code> 定義當場解決的；不是 <code>libtxt.so</code> 把 <code>trim</code> 加進清單——清單只放「還沒找到定義的符號」，<code>.so</code> 提供的是定義。</li>
+</ol>
+<p><strong>詳細說明</strong>：<code>nm -D --defined-only libtxt.so</code> 看得到它提供的四個定義：<code>is_space</code>、<code>to_lower_str</code>、<code>to_upper_str</code>、<code>trim</code>。<code>.so</code> 本來就有「先記住、後面再用」的能力，順序問題完全是 <code>--as-needed</code> 在那一刻「丟掉」造成的。實測：<code>gcc -Wall -L. -Wl,--no-as-needed -ltxt main.c -o app_no</code> 成功，<code>LD_LIBRARY_PATH=. ./app_no</code> 印 <code>[hello]</code>，<code>readelf -d app_no</code> 有 <code>libtxt.so</code> 與 <code>libc.so.6</code> 兩個 <code>NEEDED</code>。</p>
+</details>
+</details>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="review/2026-11-05-函式庫-C資料-hello-GNU-objdump-陣列-組語.md" data-line="712" data-insert="1" data-anchor="&gt; &#42;&#42;詳細說明&#42;&#42;：`nm -D --defined-only libtxt.so` 看得到它提供的四個定義：`is_space`、`to_lower_str`、`to_upper_str`、`trim`。`.so` 本來就有「先記住、後面再用」的能力，順序問題完全是 `--as-needed` 在那一刻「丟掉」造成的。實測：`gcc -Wall -L. -Wl,--no-as-needed -ltxt main.c -o app_no` 成功，`LD_LIBRARY_PATH=. ./app_no` 印 `[hello]`，`readelf -d app_no` 有 `libtxt.so` 與 `libc.so.6` 兩個 `NEEDED`。"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h4 id="函式庫-13-3-nonec-用-gcc--wall-nonec--l--wl--no-as-needed--ltxt--o-none_no-和-gcc--wall-nonec--l--ltxt--o-none_as-各連結一次readelf--d-的-needed-會差在哪ubuntu-為什麼預設開---as-needed">函式庫 13-3. <code>none.c</code> 用 <code>gcc -Wall none.c -L. -Wl,--no-as-needed -ltxt -o none_no</code> 和 <code>gcc -Wall none.c -L. -ltxt -o none_as</code> 各連結一次，<code>readelf -d</code> 的 <code>NEEDED</code> 會差在哪？Ubuntu 為什麼預設開 <code>--as-needed</code>？</h4>
-<details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="review/2026-11-05-函式庫-C資料-hello-GNU-objdump-陣列-組語.md" data-line="431"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
+<div class="answer-box locked"><textarea readonly spellcheck="false">差別是 none_no有libtxt.so在needed, none_as沒有
+
+因爲只有被需要的需要載入,不被需要的就沒必要用到
+</textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
+<details class="answer"><summary>批改</summary>
+<p><strong>對</strong>。兩個核心關鍵都有：<code>none_no</code> 的 <code>NEEDED</code> 有 <code>libtxt.so</code>、<code>none_as</code> 沒有；用不到的 <code>.so</code> 沒必要載入。理由寫得比 11-02 單薄，可以補 11-02 批改提過的兩點：兩個都有 <code>NEEDED libc.so.6</code>（差別只有 <code>libtxt.so</code> 那一列）；多一個用不到的 <code>NEEDED</code>，換到沒裝 <code>libtxt.so</code> 的機器 <code>ld.so</code> 找不到它，程式整個跑不起來——不只是浪費。</p>
+<details class="answer"><summary>參考答案</summary>
+<p>【<a href="../c/%E9%9D%9C%E6%85%8B%E8%88%87%E5%8B%95%E6%85%8B%E5%87%BD%E5%BC%8F%E5%BA%AB-ar%E8%88%87.a%E3%80%81-fPIC%E8%88%87.so%E3%80%81%E5%9F%B7%E8%A1%8C%E6%99%82%E6%80%8E%E9%BA%BC%E6%89%BE%E5%88%B0.so.html#15-ld-%E9%82%84%E6%B2%92%E8%AE%80%E5%88%B0-maino%E6%80%8E%E9%BA%BC%E7%9F%A5%E9%81%93%E8%AA%B0%E9%9C%80%E8%A6%81%E4%BB%80%E9%BA%BC%E6%9C%AA%E5%AE%9A%E7%BE%A9%E7%AC%A6%E8%99%9F%E6%B8%85%E5%96%AE%E8%88%87---as-needed">第九節第 15 章</a>〈<code>ld</code> 還沒讀到 <code>main.o</code>，怎麼知道誰需要什麼〉】</p>
+<p><strong>核心關鍵</strong>（答到這幾點就算對）：</p>
+<ol>
+<li><code>none_no</code> 有 <code>libtxt.so</code> 與 <code>libc.so.6</code> 兩個 <code>NEEDED</code>；<code>none_as</code> 只有 <code>libc.so.6</code>。</li>
+<li><code>--no-as-needed</code> 讓用不到的 <code>.so</code> 也記進 <code>NEEDED</code>，執行時 <code>ld.so</code> 就得多找、多載入一個；<code>--as-needed</code> 讓沒用到的自動消失。</li>
+</ol>
+<p><strong>詳細說明</strong>：多出來的 <code>NEEDED</code> 不只是浪費：換到沒裝 <code>libtxt.so</code> 的機器，<code>ld.so</code> 找不到它，程式會整個跑不起來，即使根本沒用到。建置系統常把一長串 <code>-l</code> 套到每個程式上，<code>--as-needed</code> 讓沒用到的自動消失；代價就是 <code>-l</code> 一定要寫在用到它的檔案後面。</p>
+</details>
+</details>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="review/2026-11-05-函式庫-C資料-hello-GNU-objdump-陣列-組語.md" data-line="732" data-insert="1" data-anchor="&gt; &#42;&#42;詳細說明&#42;&#42;：多出來的 `NEEDED` 不只是浪費：換到沒裝 `libtxt.so` 的機器，`ld.so` 找不到它，程式會整個跑不起來，即使根本沒用到。建置系統常把一長串 `-l` 套到每個程式上，`--as-needed` 讓沒用到的自動消失；代價就是 `-l` 一定要寫在用到它的檔案後面。"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h4 id="函式庫-13-4-把-libtxtso-換成同樣三個-o-做成的-libtxta並刪掉-libtxtsogcc--wall--l--wl--no-as-needed--ltxt-mainc--o-app_a-會成功嗎為什麼">函式庫 13-4. 把 <code>libtxt.so</code> 換成同樣三個 <code>.o</code> 做成的 <code>libtxt.a</code>（並刪掉 <code>libtxt.so</code>），<code>gcc -Wall -L. -Wl,--no-as-needed -ltxt main.c -o app_a</code> 會成功嗎？為什麼？</h4>
-<details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="review/2026-11-05-函式庫-C資料-hello-GNU-objdump-陣列-組語.md" data-line="436"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
+<div class="answer-box locked"><textarea readonly spellcheck="false">不會
+--no-as-needed是給動態庫用的,靜態庫-ltxt一定要放到main.c後面
+</textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
+<details class="answer"><summary>批改</summary>
+<p><s><strong>大致對</strong></s> → <strong>對</strong>（2026-11-05 改判）。「不會成功」對，「<code>--no-as-needed</code> 只管動態庫」也對——這是這一小題真正要區分的點（<code>.a</code> 跟 <code>.so</code> 不同，選項救不了 <code>.a</code>）。原本扣分的理由是「為什麼失敗」只寫了規則「靜態庫 <code>-ltxt</code> 一定要放到 <code>main.c</code> 後面」、沒寫機制；使用者反對：題目要的「為什麼」是選項對 <code>.a</code> 無效，失敗是順序造成的，而順序的機制同一大題的 13-1 已經答過（讀到 <code>-ltxt</code> 時清單還沒有 <code>trim</code>）。<strong>這個意見合理</strong>：13-1～13-4 是同一大題的小題，13-1 的作答已經寫出「讀到 <code>-ltxt</code> 那一刻清單沒有 <code>trim</code>」，13-4 寫「因為順序的原因」接得上它；11-02 判對的作答也只多寫了「清單上還沒有 <code>trim</code>」這一句。所以改判為對。仍要注意：單獨一句「一定要放到後面」只是規則、不是原因；引用其他小題時寫明「同 13-1：讀到 <code>-ltxt</code> 時清單沒有 <code>trim</code>」，讀的人才不必猜。完整機制：<code>.a</code> 只拉此刻清單需要的成員 → 一個都不拉 → 讀到 <code>main.o</code> 也不回頭 → <code>undefined reference to 'trim'</code>。</p>
+<details class="answer"><summary>參考答案</summary>
+<p>【<a href="../c/%E9%9D%9C%E6%85%8B%E8%88%87%E5%8B%95%E6%85%8B%E5%87%BD%E5%BC%8F%E5%BA%AB-ar%E8%88%87.a%E3%80%81-fPIC%E8%88%87.so%E3%80%81%E5%9F%B7%E8%A1%8C%E6%99%82%E6%80%8E%E9%BA%BC%E6%89%BE%E5%88%B0.so.html#15-ld-%E9%82%84%E6%B2%92%E8%AE%80%E5%88%B0-maino%E6%80%8E%E9%BA%BC%E7%9F%A5%E9%81%93%E8%AA%B0%E9%9C%80%E8%A6%81%E4%BB%80%E9%BA%BC%E6%9C%AA%E5%AE%9A%E7%BE%A9%E7%AC%A6%E8%99%9F%E6%B8%85%E5%96%AE%E8%88%87---as-needed">第九節第 15 章</a>〈<code>ld</code> 還沒讀到 <code>main.o</code>，怎麼知道誰需要什麼〉】</p>
+<p><strong>核心關鍵</strong>（答到這幾點就算對）：</p>
+<ol>
+<li><strong>不會成功</strong>：<code>undefined reference to 'trim'</code>。</li>
+<li><code>--as-needed</code>／<code>--no-as-needed</code> 只管 <code>.so</code>；<code>.a</code> 讀到時只拉此刻清單需要的成員，此刻清單沒有 <code>trim</code> → 一個都不拉、也不記，之後不回頭。</li>
+</ol>
+<p><strong>詳細說明</strong>：<code>.a</code> 的順序問題不管加什麼選項都存在，只能把 <code>-ltxt</code> 寫在 <code>main.c</code> 後面，或用 <code>--start-group … --end-group</code> 讓群組反覆掃（正文第二節）。<code>rm libtxt.so</code> 是因為 <code>-ltxt</code> 會先找 <code>.so</code>（正文第三節）。</p>
+</details>
+</details>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="review/2026-11-05-函式庫-C資料-hello-GNU-objdump-陣列-組語.md" data-line="751" data-insert="1" data-anchor="&gt; &#42;&#42;詳細說明&#42;&#42;：`.a` 的順序問題不管加什麼選項都存在，只能把 `-ltxt` 寫在 `main.c` 後面，或用 `--start-group … --end-group` 讓群組反覆掃（正文第二節）。`rm libtxt.so` 是因為 `-ltxt` 會先找 `.so`（正文第三節）。"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <hr />
 <h2 id="c資料c的資料在記憶體裡長怎樣-位元組指標位元組順序與有號無號">C資料：<a href="../c/C%E7%9A%84%E8%B3%87%E6%96%99%E5%9C%A8%E8%A8%98%E6%86%B6%E9%AB%94%E8%A3%A1%E9%95%B7%E6%80%8E%E6%A8%A3-%E4%BD%8D%E5%85%83%E7%B5%84%E3%80%81%E6%8C%87%E6%A8%99%E3%80%81%E4%BD%8D%E5%85%83%E7%B5%84%E9%A0%86%E5%BA%8F%E8%88%87%E6%9C%89%E8%99%9F%E7%84%A1%E8%99%9F.html">C的資料在記憶體裡長怎樣-位元組、指標、位元組順序與有號無號</a></h2>
@@ -539,8 +1096,44 @@ rpath不行
 <blockquote>
 <p>盒子 2｜過去的作答：<a href="../small-project/s1-02-data-repr/quiz.html#9-%E6%83%85%E5%A2%83%E9%A1%8C%E6%9C%89%E4%BA%BA%E5%AF%AB%E4%BA%86-if-len---used--0-%E5%88%A4%E6%96%B7%E7%B7%A9%E8%A1%9D%E5%8D%80%E9%82%84%E6%9C%89%E6%B2%92%E6%9C%89%E5%89%A9%E9%A4%98%E7%A9%BA%E9%96%93lenused-%E9%83%BD%E6%98%AF-size_t%E7%94%A8--wall--wextra-%E7%B7%A8%E8%AD%AF%E6%B2%92%E6%9C%89%E4%BB%BB%E4%BD%95%E8%AD%A6%E5%91%8A%E9%80%99%E5%80%8B%E5%88%A4%E6%96%B7%E5%9C%A8%E4%BB%80%E9%BA%BC%E6%83%85%E6%B3%81%E4%B8%8B%E6%9C%83%E5%87%BA%E9%8C%AF%E7%82%BA%E4%BB%80%E9%BA%BC-gcc-%E5%B0%8D-len---used--0-%E6%9C%83%E8%AD%A6%E5%91%8A%E5%B0%8D--0-%E5%8D%BB%E4%B8%8D%E6%9C%83%E5%8F%A6%E5%A4%96%E7%82%BA%E4%BB%80%E9%BA%BC-int-sum--x--y-if-sum--x-%E9%80%99%E7%A8%AE%E6%BA%A2%E4%BD%8D%E6%AA%A2%E6%9F%A5%E5%9C%A8--o2-%E4%B8%8B%E5%8F%AF%E8%83%BD%E5%AE%8C%E5%85%A8%E5%A4%B1%E6%95%88">s1-02 quiz.md 第 9 題</a>、<a href="2026-10-04-%E5%AD%97%E5%85%83-C%E8%B3%87%E6%96%99-objdump-hello-ELF.html">10-04 複習</a>、<a href="2026-10-08-%E5%AD%97%E5%85%83-C%E8%B3%87%E6%96%99-objdump-hello-ELF-%E9%99%A3%E5%88%97.html">10-08 複習</a>、<a href="2026-10-11-%E5%AD%97%E5%85%83-C%E8%B3%87%E6%96%99-objdump-GNU-%E9%99%A3%E5%88%97.html">10-11 複習</a>、<a href="2026-10-20-C%E8%B3%87%E6%96%99-objdump-%E5%AD%97%E5%85%83-%E9%99%A3%E5%88%97-gcc.html">10-20 複習</a>、<a href="2026-10-23-%E5%A4%A7%E8%A4%87%E7%BF%92-hello-gcc-GNU-interp-ELF-objdump-C%E8%B3%87%E6%96%99-%E5%AD%97%E5%85%83-%E9%99%A3%E5%88%97-%E7%B5%84%E8%AA%9E-%E7%B5%84%E8%AA%9E%E4%BA%8C-%E5%A4%9A%E6%AA%94.html">10-23 複習</a>、<a href="2026-10-24-gcc-GNU-ELF-objdump-C%E8%B3%87%E6%96%99-%E5%AD%97%E5%85%83-%E9%99%A3%E5%88%97-%E7%B5%84%E8%AA%9E-%E7%B5%84%E8%AA%9E%E4%BA%8C-%E5%A4%9A%E6%AA%94.html">10-24 複習</a>、<a href="2026-10-27-gcc-ELF-objdump-C%E8%B3%87%E6%96%99-%E5%AD%97%E5%85%83-%E9%99%A3%E5%88%97-%E7%B5%84%E8%AA%9E-%E7%B5%84%E8%AA%9E%E4%BA%8C-%E5%A4%9A%E6%AA%94.html">10-27 複習</a>、<a href="2026-10-30-hello-gcc-GNU-interp-ELF-objdump-C%E8%B3%87%E6%96%99-%E5%AD%97%E5%85%83-%E9%99%A3%E5%88%97-%E7%B5%84%E8%AA%9E.html#c%E8%B3%87%E6%96%99-9-%E6%83%85%E5%A2%83%E9%A1%8C%E6%9C%89%E4%BA%BA%E5%AF%AB%E4%BA%86-if-len---used--0-%E5%88%A4%E6%96%B7%E7%B7%A9%E8%A1%9D%E5%8D%80%E9%82%84%E6%9C%89%E6%B2%92%E6%9C%89%E5%89%A9%E9%A4%98%E7%A9%BA%E9%96%93lenused-%E9%83%BD%E6%98%AF-size_t%E7%94%A8--wall--wextra-%E7%B7%A8%E8%AD%AF%E6%B2%92%E6%9C%89%E4%BB%BB%E4%BD%95%E8%AD%A6%E5%91%8A%E9%80%99%E5%80%8B%E5%88%A4%E6%96%B7%E5%9C%A8%E4%BB%80%E9%BA%BC%E6%83%85%E6%B3%81%E4%B8%8B%E6%9C%83%E5%87%BA%E9%8C%AF%E7%82%BA%E4%BB%80%E9%BA%BC-gcc-%E5%B0%8D-len---used--0-%E6%9C%83%E8%AD%A6%E5%91%8A%E5%B0%8D--0-%E5%8D%BB%E4%B8%8D%E6%9C%83%E5%8F%A6%E5%A4%96%E7%82%BA%E4%BB%80%E9%BA%BC-int-sum--x--y-if-sum--x-%E9%80%99%E7%A8%AE%E6%BA%A2%E4%BD%8D%E6%AA%A2%E6%9F%A5%E5%9C%A8--o2-%E4%B8%8B%E5%8F%AF%E8%83%BD%E5%AE%8C%E5%85%A8%E5%A4%B1%E6%95%88">10-30 複習</a>、<a href="2026-11-02-%E5%87%BD%E5%BC%8F%E5%BA%AB-interp-C%E8%B3%87%E6%96%99-%E5%AD%97%E5%85%83-%E9%99%A3%E5%88%97-%E7%B5%84%E8%AA%9E-%E7%B5%84%E8%AA%9E%E4%BA%8C-%E5%A4%9A%E6%AA%94.html#c%E8%B3%87%E6%96%99-9-%E6%83%85%E5%A2%83%E9%A1%8C%E6%9C%89%E4%BA%BA%E5%AF%AB%E4%BA%86-if-len---used--0-%E5%88%A4%E6%96%B7%E7%B7%A9%E8%A1%9D%E5%8D%80%E9%82%84%E6%9C%89%E6%B2%92%E6%9C%89%E5%89%A9%E9%A4%98%E7%A9%BA%E9%96%93lenused-%E9%83%BD%E6%98%AF-size_t%E7%94%A8--wall--wextra-%E7%B7%A8%E8%AD%AF%E6%B2%92%E6%9C%89%E4%BB%BB%E4%BD%95%E8%AD%A6%E5%91%8A%E9%80%99%E5%80%8B%E5%88%A4%E6%96%B7%E5%9C%A8%E4%BB%80%E9%BA%BC%E6%83%85%E6%B3%81%E4%B8%8B%E6%9C%83%E5%87%BA%E9%8C%AF%E7%82%BA%E4%BB%80%E9%BA%BC-gcc-%E5%B0%8D-len---used--0-%E6%9C%83%E8%AD%A6%E5%91%8A%E5%B0%8D--0-%E5%8D%BB%E4%B8%8D%E6%9C%83%E5%8F%A6%E5%A4%96%E6%9C%89%E4%BA%BA%E7%94%A8-int-sum--x--y-if-sum--x-%E6%AA%A2%E6%9F%A5x-%E5%8A%A0%E4%B8%8A%E4%B8%80%E5%80%8B%E6%AD%A3%E6%95%B8-y-%E6%9C%83%E4%B8%8D%E6%9C%83%E6%BA%A2%E4%BD%8D%E7%82%BA%E4%BB%80%E9%BA%BC%E9%80%99%E5%80%8B%E6%AA%A2%E6%9F%A5%E5%9C%A8--o2-%E4%B8%8B%E5%8F%AF%E8%83%BD%E5%AE%8C%E5%85%A8%E5%A4%B1%E6%95%88">11-02 複習</a></p>
 </blockquote>
-<details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="review/2026-11-05-函式庫-C資料-hello-GNU-objdump-陣列-組語.md" data-line="447"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
+<div class="answer-box locked"><textarea readonly spellcheck="false">在len &lt; used會出現問題, 因爲不管是 大於0還是小於0 都是true 因爲類型是size_t unsigned long無號相減一定是 大於 0 或 等於0
+
+因爲gcc 認爲無號運算結果也必須是無號, 所以 小於0永遠爲假,if沒意義. 但無號的結果有大於0與等於0,所以if是有意義的,因此不警告
+
+-O2的最佳化,不會去檢查有沒有溢位,因爲溢位是UB的行爲,因此-O2會把sum &lt;x 簡化成 x+y &lt; x -&gt; y &lt; 0
+
+if (y &lt; 0) 
+
+這個檢查時要檢查+正數y是否會溢位,但y爲正數,這個if是false,因此溢位檢查就失效了,永遠檢查不到溢位
+</textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
+<details class="answer"><summary>批改</summary>
+<p><strong>對</strong>。三個核心關鍵都有：</p>
+<ol>
+<li><code>len &lt; used</code> 時出錯：<code>size_t</code> 是無號，相減的結果不會是負數，所以 <code>&gt; 0</code> 成立；</li>
+<li>無號數 <code>&lt; 0</code> 永遠為假，<code>if</code> 沒意義，所以 gcc 警告；<code>&gt; 0</code> 會有「大於 0」與「等於 0」兩種結果，是有意義的判斷，所以不警告；</li>
+<li>有號溢位是 UB，<code>-O2</code> 把 <code>x + y &lt; x</code> 化簡成 <code>y &lt; 0</code>；<code>y</code> 是正數，<code>y &lt; 0</code> 永遠為假，<strong>真的溢位時也永遠抓不到</strong>——11-02 錯在舉 <code>y = -2</code> 的誤報，這次改成「<code>y</code> 為正，檢查永遠是 false」，改對了。</li>
+</ol>
+<p>小修三處：</p>
+<ul>
+<li>「不管是大於 0 還是小於 0 都是 true」容易讀成「<code>&lt; 0</code> 也是 true」——那正好跟第二問相反（<code>&lt; 0</code> 永遠是 false）。要說的是：「不管數學上 <code>len - used</code> 是正是負，<code>&gt; 0</code> 都成立」，因為負的結果會<strong>回繞成一個很大的正數</strong>（例如 <code>len = 2</code>、<code>used = 5</code> 時是 <code>18446744073709551613</code>），判斷就誤以為「還有空間」。</li>
+<li>「<code>-O2</code> 不會去檢查有沒有溢位」：精確說是「gcc 假設<strong>有號</strong>溢位不會發生（C 標準規定它是 UB）」，所以可以做 <code>x + y &lt; x</code> → <code>y &lt; 0</code> 這種只在不溢位時才成立的代數化簡；無號數的溢位有定義（回繞），不能這樣化簡。</li>
+<li>「這個檢查時要檢查」→「這個檢查是要檢查」（錯字）。</li>
+</ul>
+<details class="answer"><summary>參考答案</summary>
+<p>【<a href="../c/C%E7%9A%84%E8%B3%87%E6%96%99%E5%9C%A8%E8%A8%98%E6%86%B6%E9%AB%94%E8%A3%A1%E9%95%B7%E6%80%8E%E6%A8%A3-%E4%BD%8D%E5%85%83%E7%B5%84%E3%80%81%E6%8C%87%E6%A8%99%E3%80%81%E4%BD%8D%E5%85%83%E7%B5%84%E9%A0%86%E5%BA%8F%E8%88%87%E6%9C%89%E8%99%9F%E7%84%A1%E8%99%9F.html#%E4%B8%83%E9%99%B7%E9%98%B1%E6%9C%89%E8%99%9F%E5%92%8C%E7%84%A1%E8%99%9F%E6%B7%B7%E5%9C%A8%E4%B8%80%E8%B5%B7%E6%AF%94%E8%BC%83">第七節</a>〈<code>-Wtype-limits</code> 只抓「永遠成立／永遠不成立」的比較〉、<a href="../c/C%E7%9A%84%E8%B3%87%E6%96%99%E5%9C%A8%E8%A8%98%E6%86%B6%E9%AB%94%E8%A3%A1%E9%95%B7%E6%80%8E%E6%A8%A3-%E4%BD%8D%E5%85%83%E7%B5%84%E3%80%81%E6%8C%87%E6%A8%99%E3%80%81%E4%BD%8D%E5%85%83%E7%B5%84%E9%A0%86%E5%BA%8F%E8%88%87%E6%9C%89%E8%99%9F%E7%84%A1%E8%99%9F.html#%E5%85%AB%E6%BA%A2%E4%BD%8D%E7%84%A1%E8%99%9F%E5%9B%9E%E7%B9%9E%E6%9C%89%E8%99%9F%E6%98%AF%E6%9C%AA%E5%AE%9A%E7%BE%A9%E8%A1%8C%E7%82%BA">第八節</a>〈另一種寫法：<code>x + y &lt; x</code> 被改寫成 <code>y &lt; 0</code>〉】</p>
+<p><strong>核心關鍵</strong>（答到這幾點就算對）：</p>
+<ol>
+<li><code>len &lt; used</code> 時，<code>len - used</code> 回繞成很大的正數，判斷誤以為「還有空間」。</li>
+<li>無號數 <code>&lt; 0</code> 永遠為假，所以 gcc 警告；<code>&gt; 0</code> 等於 <code>!= 0</code>，結果不固定，是合法寫法，所以不警告。</li>
+<li>有號溢位是 UB，gcc 假設它不會發生，把 <code>x + y &lt; x</code> 改寫成 <strong><code>y &lt; 0</code></strong>；真的溢位時（<code>y</code> 是正的），這個檢查抓不到。</li>
+</ol>
+<p><strong>詳細說明</strong>：<code>len == used</code> 時結果是 0，<code>&gt; 0</code> 為假，所以不是「永遠為真」，只有 <code>len &lt; used</code> 會出錯。警告來自 <code>-Wtype-limits</code>（<code>-Wextra</code> 會開啟）。溢位那一問的記法：「<code>x + y &lt; x</code>」在數學上（沒有溢位）跟「<code>y &lt; 0</code>」完全等價，gcc 只是做了這個代數化簡，而這個化簡只在「不會溢位」時才成立。<code>sum &lt; x</code> 這個寫法只在 <code>y ≥ 0</code> 時才是溢位檢查（<code>y</code> 是負數時，沒溢位也會成立），見<a href="../c/C%E7%9A%84%E8%B3%87%E6%96%99%E5%9C%A8%E8%A8%98%E6%86%B6%E9%AB%94%E8%A3%A1%E9%95%B7%E6%80%8E%E6%A8%A3-%E4%BD%8D%E5%85%83%E7%B5%84%E3%80%81%E6%8C%87%E6%A8%99%E3%80%81%E4%BD%8D%E5%85%83%E7%B5%84%E9%A0%86%E5%BA%8F%E8%88%87%E6%9C%89%E8%99%9F%E7%84%A1%E8%99%9F.html#1-sum--x-%E9%80%99%E5%80%8B%E6%BA%A2%E4%BD%8D%E6%AA%A2%E6%9F%A5%E5%89%8D%E6%8F%90%E5%8C%96%E7%B0%A1%E7%9A%84%E6%A0%B9%E6%93%9A%E6%80%8E%E9%BA%BC%E7%A2%BA%E5%AE%9A-gcc-%E5%8C%96%E7%B0%A1%E4%BA%86">第十一節第 1 章</a>。正確的溢位檢查要在運算<strong>之前</strong>，用不會溢位的式子判斷，例如 <code>y &gt; 0 &amp;&amp; x &gt; INT_MAX - y</code>。</p>
+</details>
+</details>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="review/2026-11-05-函式庫-C資料-hello-GNU-objdump-陣列-組語.md" data-line="793" data-insert="1" data-anchor="&gt; &#42;&#42;詳細說明&#42;&#42;：`len == used` 時結果是 0，`&gt; 0` 為假，所以不是「永遠為真」，只有 `len &lt; used` 會出錯。警告來自 `-Wtype-limits`（`-Wextra` 會開啟）。溢位那一問的記法：「`x + y &lt; x`」在數學上（沒有溢位）跟「`y &lt; 0`」完全等價，gcc 只是做了這個代數化簡，而這個化簡只在「不會溢位」時才成立。`sum &lt; x` 這個寫法只在 `y ≥ 0` 時才是溢位檢查（`y` 是負數時，沒溢位也會成立），見[第十一節第 1 章](../html/c/C的資料在記憶體裡長怎樣-位元組、指標、位元組順序與有號無號.html#1-sum--x-這個溢位檢查前提化簡的根據怎麼確定-gcc-化簡了)。正確的溢位檢查要在運算&#42;&#42;之前&#42;&#42;，用不會溢位的式子判斷，例如 `y &gt; 0 &amp;&amp; x &gt; INT_MAX - y`。"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <hr />
 <h2 id="hellohelloc怎麼變成能跑的程式-編譯的四個階段">hello：<a href="../c/hello.c%E6%80%8E%E9%BA%BC%E8%AE%8A%E6%88%90%E8%83%BD%E8%B7%91%E7%9A%84%E7%A8%8B%E5%BC%8F-%E7%B7%A8%E8%AD%AF%E7%9A%84%E5%9B%9B%E5%80%8B%E9%9A%8E%E6%AE%B5.html">hello.c怎麼變成能跑的程式-編譯的四個階段</a></h2>
@@ -548,8 +1141,33 @@ rpath不行
 <blockquote>
 <p>盒子 3｜過去的作答：<a href="../small-project/s1-01-hello-compile/quiz.html#5-%E6%83%85%E5%A2%83%E9%A1%8C%E4%BD%A0%E6%8A%8A%E4%B8%80%E6%94%AF%E5%8B%95%E6%85%8B%E9%80%A3%E7%B5%90%E7%9A%84%E7%A8%8B%E5%BC%8F%E8%A4%87%E8%A3%BD%E5%88%B0%E5%8F%A6%E4%B8%80%E5%8F%B0%E6%A9%9F%E5%99%A8%E5%9F%B7%E8%A1%8C%E6%99%82%E5%87%BA%E7%8F%BE%E6%89%BE%E4%B8%8D%E5%88%B0-libcso6-%E6%9F%90%E5%80%8B%E7%89%88%E6%9C%AC%E7%AC%A6%E8%99%9F%E7%9A%84%E9%8C%AF%E8%AA%A4%E5%BE%9E%E6%9C%AC%E8%AA%B2%E7%9A%84%E5%93%AA%E5%80%8B%E9%9A%8E%E6%AE%B5%E5%8F%AF%E4%BB%A5%E8%A7%A3%E9%87%8B%E9%80%99%E4%BB%B6%E4%BA%8B%E5%A6%82%E6%9E%9C%E6%94%B9%E7%94%A8--static-%E7%B7%A8%E8%AD%AF%E9%80%99%E5%80%8B%E5%95%8F%E9%A1%8C%E9%82%84%E6%9C%83%E7%99%BC%E7%94%9F%E5%97%8E">s1-01 quiz.md 第 5 題</a>、<a href="2026-10-04-%E5%AD%97%E5%85%83-C%E8%B3%87%E6%96%99-objdump-hello-ELF.html">10-04 複習</a>、<a href="2026-10-08-%E5%AD%97%E5%85%83-C%E8%B3%87%E6%96%99-objdump-hello-ELF-%E9%99%A3%E5%88%97.html#hello-5-%E6%83%85%E5%A2%83%E9%A1%8C%E4%BD%A0%E6%8A%8A%E4%B8%80%E6%94%AF%E5%8B%95%E6%85%8B%E9%80%A3%E7%B5%90%E7%9A%84%E7%A8%8B%E5%BC%8F%E8%A4%87%E8%A3%BD%E5%88%B0%E5%8F%A6%E4%B8%80%E5%8F%B0%E6%A9%9F%E5%99%A8%E5%9F%B7%E8%A1%8C%E6%99%82%E5%87%BA%E7%8F%BE%E6%89%BE%E4%B8%8D%E5%88%B0-libcso6-%E6%9F%90%E5%80%8B%E7%89%88%E6%9C%AC%E7%AC%A6%E8%99%9F%E7%9A%84%E9%8C%AF%E8%AA%A4%E5%BE%9E%E6%9C%AC%E8%AA%B2%E7%9A%84%E5%93%AA%E5%80%8B%E9%9A%8E%E6%AE%B5%E5%8F%AF%E4%BB%A5%E8%A7%A3%E9%87%8B%E9%80%99%E4%BB%B6%E4%BA%8B%E5%A6%82%E6%9E%9C%E6%94%B9%E7%94%A8--static-%E7%B7%A8%E8%AD%AF%E9%80%99%E5%80%8B%E5%95%8F%E9%A1%8C%E9%82%84%E6%9C%83%E7%99%BC%E7%94%9F%E5%97%8E">10-08 複習</a>、<a href="2026-10-12-objdump-hello-ELF-%E9%99%A3%E5%88%97-%E7%B5%84%E8%AA%9E.html">10-12 複習</a>、<a href="2026-10-23-%E5%A4%A7%E8%A4%87%E7%BF%92-hello-gcc-GNU-interp-ELF-objdump-C%E8%B3%87%E6%96%99-%E5%AD%97%E5%85%83-%E9%99%A3%E5%88%97-%E7%B5%84%E8%AA%9E-%E7%B5%84%E8%AA%9E%E4%BA%8C-%E5%A4%9A%E6%AA%94.html">10-23 複習</a>、<a href="2026-10-26-hello-GNU-interp-objdump-C%E8%B3%87%E6%96%99-%E5%AD%97%E5%85%83-%E9%99%A3%E5%88%97-%E7%B5%84%E8%AA%9E-%E7%B5%84%E8%AA%9E%E4%BA%8C-%E5%A4%9A%E6%AA%94.html">10-26 複習</a>、<a href="2026-10-29-hello-GNU-objdump-%E9%99%A3%E5%88%97-%E7%B5%84%E8%AA%9E.html#hello-5-%E6%83%85%E5%A2%83%E9%A1%8C%E4%BD%A0%E6%8A%8A%E4%B8%80%E6%94%AF%E5%8B%95%E6%85%8B%E9%80%A3%E7%B5%90%E7%9A%84%E7%A8%8B%E5%BC%8F%E8%A4%87%E8%A3%BD%E5%88%B0%E5%8F%A6%E4%B8%80%E5%8F%B0%E6%A9%9F%E5%99%A8%E5%9F%B7%E8%A1%8C%E6%99%82%E5%87%BA%E7%8F%BE%E6%89%BE%E4%B8%8D%E5%88%B0-libcso6-%E6%9F%90%E5%80%8B%E7%89%88%E6%9C%AC%E7%AC%A6%E8%99%9F%E7%9A%84%E9%8C%AF%E8%AA%A4%E5%BE%9E%E6%9C%AC%E8%AA%B2%E7%9A%84%E5%93%AA%E5%80%8B%E9%9A%8E%E6%AE%B5%E5%8F%AF%E4%BB%A5%E8%A7%A3%E9%87%8B%E9%80%99%E4%BB%B6%E4%BA%8B%E5%A6%82%E6%9E%9C%E6%94%B9%E7%94%A8--static-%E7%B7%A8%E8%AD%AF%E9%80%99%E5%80%8B%E5%95%8F%E9%A1%8C%E9%82%84%E6%9C%83%E7%99%BC%E7%94%9F%E5%97%8E">10-29 複習</a></p>
 </blockquote>
-<details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="review/2026-11-05-函式庫-C資料-hello-GNU-objdump-陣列-組語.md" data-line="458"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
+<div class="answer-box locked"><textarea readonly spellcheck="false">連結階段在a機械,符號連結時,找到了a機械libc.so.6的某個版本,因此建立了連結.但是執行檔移動到b機械執行的時候,ld.so去找這個庫用到的符號版本發現不一致的時候,就會報出這個錯誤
+
+改-static不會,因爲他在連結的階段就把那個庫的靜態版本一起加入執行檔了,程式碼已經在裏面了
+</textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
+<details class="answer"><summary>批改</summary>
+<p><strong>對</strong>（盒子 3 → 4）。三個核心關鍵都有：從<strong>連結階段</strong>解釋——在 A 機器連結時，<code>ld</code> 依 A 的 <code>libc.so.6</code> 決定了要哪個版本的符號；到 B 機器執行時，<code>ld.so</code> 檢查 B 的 <code>libc.so.6</code> 有沒有提供那個版本，沒有就報錯；<code>-static</code> 不會發生，因為程式碼在連結時就放進執行檔、不再找外部的 <code>libc.so.6</code>。10-23、10-26 都缺「是連結時決定的」，10-29 開始寫出來，這次也有。</p>
+<p>小修（不扣分）：</p>
+<ul>
+<li>「建立了連結」講得太含糊，要說出<strong>留下了什麼</strong>：<code>ld</code> 把「要 <code>libc.so.6</code> 的 <code>GLIBC_2.34</code> 版」這個<strong>版本需求寫進執行檔</strong>（<code>readelf -V</code> 的 <code>.gnu.version_r</code> 看得到），執行檔帶著這張需求單到 B 機器。</li>
+<li>「發現不一致」→ 精確說是「B 的 <code>libc.so.6</code> <strong>沒有提供</strong>那個版本」：B 的 glibc 比 A 新是沒問題的（新版會保留舊的版本符號），只有 B 比較舊、缺那個版本時才報 <code>version `GLIBC_2.34' not found</code>。</li>
+<li><code>-static</code> 放進去的是 <code>libc.a</code> 裡<strong>用到的那些成員（<code>.o</code>）</strong>，不是整個庫（10-29 提過）。</li>
+</ul>
+<details class="answer"><summary>參考答案</summary>
+<p>【<a href="../c/hello.c%E6%80%8E%E9%BA%BC%E8%AE%8A%E6%88%90%E8%83%BD%E8%B7%91%E7%9A%84%E7%A8%8B%E5%BC%8F-%E7%B7%A8%E8%AD%AF%E7%9A%84%E5%9B%9B%E5%80%8B%E9%9A%8E%E6%AE%B5.html#%E4%B9%9D%E4%BD%9C%E6%A5%AD%E8%A7%A3%E8%AA%AA%E5%9B%9B%E9%A1%8C%E8%83%8C%E5%BE%8C%E7%9A%84%E5%8E%9F%E5%9B%A0">第九節</a>〈自我測驗第 5 題延伸：「找不到版本符號」是怎麼回事〉】</p>
+<p><strong>核心關鍵</strong>：</p>
+<ol>
+<li><strong>連結時</strong>：<code>ld</code> 把需要的符號版本（例如 <code>GLIBC_2.34</code>）寫進執行檔。</li>
+<li><strong>執行時</strong>：動態載入器檢查目標機器的 <code>libc.so.6</code> 有沒有提供這個版本，沒有就報 <code>version `GLIBC_2.34' not found</code>。</li>
+<li><code>-static</code> 不會發生：libc 的程式碼已經整份複製進執行檔，不再找外部的 <code>libc.so.6</code>。</li>
+</ol>
+<p><strong>詳細說明</strong>：<code>readelf -V hello</code> 看得到版本需求；真正的門檻是 2.34（<code>__libc_start_main</code>），不是 <code>puts</code> 的 2.2.5。<code>-static</code> 的代價是檔案大，而且 libc 的安全修補要重新編譯才會帶進去。</p>
+</details>
+</details>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="review/2026-11-05-函式庫-C資料-hello-GNU-objdump-陣列-組語.md" data-line="824" data-insert="1" data-anchor="&gt; &#42;&#42;詳細說明&#42;&#42;：`readelf -V hello` 看得到版本需求；真正的門檻是 2.34（`__libc_start_main`），不是 `puts` 的 2.2.5。`-static` 的代價是檔案大，而且 libc 的安全修補要重新編譯才會帶進去。"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <hr />
 <h2 id="gnugnu是什麼-linux核心與gnu工具的分工">GNU：<a href="../linux/GNU%E6%98%AF%E4%BB%80%E9%BA%BC-Linux%E6%A0%B8%E5%BF%83%E8%88%87GNU%E5%B7%A5%E5%85%B7%E7%9A%84%E5%88%86%E5%B7%A5.html">GNU是什麼-Linux核心與GNU工具的分工</a></h2>
@@ -557,8 +1175,29 @@ rpath不行
 <blockquote>
 <p>盒子 3｜過去的作答：<a href="../small-project/s1-01-hello-compile/quiz.html#4-gpl-%E7%9A%84-copyleft-%E8%A6%81%E6%B1%82%E4%BB%80%E9%BA%BCglibc-%E7%94%A8-lgpl-%E8%80%8C%E4%B8%8D%E6%98%AF-gpl%E5%B0%8D%E5%95%86%E6%A5%AD%E8%BB%9F%E9%AB%94%E8%83%BD%E4%B8%8D%E8%83%BD%E9%80%A3%E7%B5%90-libc%E6%9C%89%E4%BB%80%E9%BA%BC%E5%B7%AE%E5%88%A5">s1-01 quiz.md 第 4 題</a>、<a href="2026-10-06-%E5%AD%97%E5%85%83-interp-ELF-gcc-GNU.html#gnu-4-gpl-%E7%9A%84-copyleft-%E8%A6%81%E6%B1%82%E4%BB%80%E9%BA%BCglibc-%E7%94%A8-lgpl-%E8%80%8C%E4%B8%8D%E6%98%AF-gpl%E5%B0%8D%E5%95%86%E6%A5%AD%E8%BB%9F%E9%AB%94%E8%83%BD%E4%B8%8D%E8%83%BD%E9%80%A3%E7%B5%90-libc%E6%9C%89%E4%BB%80%E9%BA%BC%E5%B7%AE%E5%88%A5">10-06 複習</a>、<a href="2026-10-10-C%E8%B3%87%E6%96%99-GNU-interp-hello-gcc.html#gnu-4-gpl-%E7%9A%84-copyleft-%E8%A6%81%E6%B1%82%E4%BB%80%E9%BA%BCglibc-%E7%94%A8-lgpl-%E8%80%8C%E4%B8%8D%E6%98%AF-gpl%E5%B0%8D%E5%95%86%E6%A5%AD%E8%BB%9F%E9%AB%94%E8%83%BD%E4%B8%8D%E8%83%BD%E9%80%A3%E7%B5%90-libc%E6%9C%89%E4%BB%80%E9%BA%BC%E5%B7%AE%E5%88%A5">10-10 複習</a>、<a href="2026-10-19-interp-GNU-C%E8%B3%87%E6%96%99-ELF-objdump-%E7%B5%84%E8%AA%9E.html">10-19 複習</a>、<a href="2026-10-23-%E5%A4%A7%E8%A4%87%E7%BF%92-hello-gcc-GNU-interp-ELF-objdump-C%E8%B3%87%E6%96%99-%E5%AD%97%E5%85%83-%E9%99%A3%E5%88%97-%E7%B5%84%E8%AA%9E-%E7%B5%84%E8%AA%9E%E4%BA%8C-%E5%A4%9A%E6%AA%94.html">10-23 複習</a>、<a href="2026-10-26-hello-GNU-interp-objdump-C%E8%B3%87%E6%96%99-%E5%AD%97%E5%85%83-%E9%99%A3%E5%88%97-%E7%B5%84%E8%AA%9E-%E7%B5%84%E8%AA%9E%E4%BA%8C-%E5%A4%9A%E6%AA%94.html">10-26 複習</a>、<a href="2026-10-29-hello-GNU-objdump-%E9%99%A3%E5%88%97-%E7%B5%84%E8%AA%9E.html#gnu-4-gpl-%E7%9A%84-copyleft-%E8%A6%81%E6%B1%82%E4%BB%80%E9%BA%BCglibc-%E7%94%A8-lgpl-%E8%80%8C%E4%B8%8D%E6%98%AF-gpl%E5%B0%8D%E5%95%86%E6%A5%AD%E8%BB%9F%E9%AB%94%E8%83%BD%E4%B8%8D%E8%83%BD%E9%80%A3%E7%B5%90-libc%E6%9C%89%E4%BB%80%E9%BA%BC%E5%B7%AE%E5%88%A5">10-29 複習</a></p>
 </blockquote>
-<details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="review/2026-11-05-函式庫-C資料-hello-GNU-objdump-陣列-組語.md" data-line="469"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
+<div class="answer-box locked"><textarea readonly spellcheck="false">1. 要求當你修改並且發佈的時候需要以同樣GPL的授權發佈,並且公開原始碼
+
+2. LGPL:你的軟體連結了libc並且發佈,不需要公開原始碼
+   GPL: 你的軟體連結了libc並且發佈,需要公開原始碼
+</textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
+<details class="answer"><summary>批改</summary>
+<p><strong>對</strong>（盒子 3 → 4）。三個核心關鍵都有：copyleft 要求<strong>修改並散布</strong>時用同樣的 GPL、公開原始碼（「當你修改並且發佈的時候」也表示只自己用沒有義務）；glibc 是 LGPL，連結它的軟體散布時不必公開原始碼；如果是 GPL，連結它的軟體散布時就要公開。跟 10-29 一樣完整。</p>
+<p>小修（不扣分）：第 1 點可以把「只自己用、不散布就沒有義務」明講出來，而不是只靠「發佈的時候」隱含——這是 copyleft 最常被誤會的地方（很多人以為「用了 GPL 軟體就要開源」）。第 2 點把對比的主角講清楚：差別在<strong>被連結的那個庫</strong>用哪種授權（glibc 是 LGPL；假設它是 GPL），不是你的軟體用哪種。</p>
+<details class="answer"><summary>參考答案</summary>
+<p>【<a href="../linux/GNU%E6%98%AF%E4%BB%80%E9%BA%BC-Linux%E6%A0%B8%E5%BF%83%E8%88%87GNU%E5%B7%A5%E5%85%B7%E7%9A%84%E5%88%86%E5%B7%A5.html#%E4%BA%94gplgnu-%E6%9C%80%E6%B7%B1%E9%81%A0%E7%9A%84%E5%BD%B1%E9%9F%BF">第五節</a>】</p>
+<p><strong>核心關鍵</strong>：</p>
+<ol>
+<li>copyleft：可以自由使用、修改、散布，但<strong>散布</strong>修改後（或以它為基礎）的版本時，必須用<strong>同樣的授權（GPL）</strong>並提供原始碼。</li>
+<li>只是使用、或改了自己用、不給別人，沒有義務。</li>
+<li>glibc 用 LGPL：允許非自由的程式<strong>連結</strong>它而不必開放自己的原始碼，所以商業軟體都能連結 <code>libc.so.6</code>；如果 glibc 是 GPL，連結它的程式在散布時就得整個用 GPL 開放。</li>
+</ol>
+<p><strong>詳細說明</strong>：copyleft 的目的是讓「自由不能在傳遞途中被拿走」。例子：公司內部改了 GPL 的工具自己用，不必公開；把改過的版本賣給客戶，就要給客戶原始碼，並讓客戶同樣能以 GPL 再散布。</p>
+</details>
+</details>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="review/2026-11-05-函式庫-C資料-hello-GNU-objdump-陣列-組語.md" data-line="853" data-insert="1" data-anchor="&gt; &#42;&#42;詳細說明&#42;&#42;：copyleft 的目的是讓「自由不能在傳遞途中被拿走」。例子：公司內部改了 GPL 的工具自己用，不必公開；把改過的版本賣給客戶，就要給客戶原始碼，並讓客戶同樣能以 GPL 再散布。"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <hr />
 <h2 id="objdumpobjdump能不能代替ldd找依賴庫-需求單與實際載入">objdump：<a href="../c/objdump%E8%83%BD%E4%B8%8D%E8%83%BD%E4%BB%A3%E6%9B%BFldd%E6%89%BE%E4%BE%9D%E8%B3%B4%E5%BA%AB-%E9%9C%80%E6%B1%82%E5%96%AE%E8%88%87%E5%AF%A6%E9%9A%9B%E8%BC%89%E5%85%A5.html">objdump能不能代替ldd找依賴庫-需求單與實際載入</a></h2>
@@ -566,8 +1205,37 @@ rpath不行
 <blockquote>
 <p>盒子 3｜過去的作答：<a href="../small-project/s1-01-hello-compile/quiz.html#3-%E4%B8%80%E6%94%AF%E7%A8%8B%E5%BC%8F%E9%80%A3%E7%B5%90%E6%99%82%E7%94%A8%E4%BA%86--llib--lfoo%E7%B7%A8%E8%AD%AF%E6%88%90%E5%8A%9F%E5%9F%B7%E8%A1%8C%E6%99%82%E5%8D%BB%E5%87%BA%E7%8F%BE-error-while-loading-shared-libraries-libfooso%E7%94%A8%E9%80%A3%E7%B5%90%E6%99%82%E8%88%87%E5%9F%B7%E8%A1%8C%E6%99%82%E5%88%86%E5%88%A5%E6%98%AF%E8%AA%B0%E5%9C%A8%E6%89%BE%E6%AA%94%E6%A1%88%E8%A7%A3%E9%87%8B%E7%82%BA%E4%BB%80%E9%BA%BC%E9%80%A3%E7%B5%90%E6%89%BE%E5%BE%97%E5%88%B0%E5%9F%B7%E8%A1%8C%E5%8D%BB%E6%89%BE%E4%B8%8D%E5%88%B0%E9%80%99%E6%99%82-objdump--p-%E8%88%87-ldd-%E5%90%84%E6%9C%83%E9%A1%AF%E7%A4%BA%E4%BB%80%E9%BA%BC">s1-01 quiz.md 第 3 題</a>、<a href="2026-10-04-%E5%AD%97%E5%85%83-C%E8%B3%87%E6%96%99-objdump-hello-ELF.html">10-04 複習</a>、<a href="2026-10-08-%E5%AD%97%E5%85%83-C%E8%B3%87%E6%96%99-objdump-hello-ELF-%E9%99%A3%E5%88%97.html">10-08 複習</a>、<a href="2026-10-11-%E5%AD%97%E5%85%83-C%E8%B3%87%E6%96%99-objdump-GNU-%E9%99%A3%E5%88%97.html">10-11 複習</a>、<a href="2026-10-20-C%E8%B3%87%E6%96%99-objdump-%E5%AD%97%E5%85%83-%E9%99%A3%E5%88%97-gcc.html">10-20 複習</a>、<a href="2026-10-23-%E5%A4%A7%E8%A4%87%E7%BF%92-hello-gcc-GNU-interp-ELF-objdump-C%E8%B3%87%E6%96%99-%E5%AD%97%E5%85%83-%E9%99%A3%E5%88%97-%E7%B5%84%E8%AA%9E-%E7%B5%84%E8%AA%9E%E4%BA%8C-%E5%A4%9A%E6%AA%94.html">10-23 複習</a>、<a href="2026-10-26-hello-GNU-interp-objdump-C%E8%B3%87%E6%96%99-%E5%AD%97%E5%85%83-%E9%99%A3%E5%88%97-%E7%B5%84%E8%AA%9E-%E7%B5%84%E8%AA%9E%E4%BA%8C-%E5%A4%9A%E6%AA%94.html">10-26 複習</a>、<a href="2026-10-29-hello-GNU-objdump-%E9%99%A3%E5%88%97-%E7%B5%84%E8%AA%9E.html#objdump-3-%E4%B8%80%E6%94%AF%E7%A8%8B%E5%BC%8F%E9%80%A3%E7%B5%90%E6%99%82%E7%94%A8%E4%BA%86--llib--lfoo%E7%B7%A8%E8%AD%AF%E6%88%90%E5%8A%9F%E5%9F%B7%E8%A1%8C%E6%99%82%E5%8D%BB%E5%87%BA%E7%8F%BE-error-while-loading-shared-libraries-libfooso%E7%94%A8%E9%80%A3%E7%B5%90%E6%99%82%E8%88%87%E5%9F%B7%E8%A1%8C%E6%99%82%E5%88%86%E5%88%A5%E6%98%AF%E8%AA%B0%E5%9C%A8%E6%89%BE%E6%AA%94%E6%A1%88%E8%A7%A3%E9%87%8B%E7%82%BA%E4%BB%80%E9%BA%BC%E9%80%A3%E7%B5%90%E6%89%BE%E5%BE%97%E5%88%B0%E5%9F%B7%E8%A1%8C%E5%8D%BB%E6%89%BE%E4%B8%8D%E5%88%B0%E9%80%99%E6%99%82-objdump--p-%E8%88%87-ldd-%E5%90%84%E6%9C%83%E9%A1%AF%E7%A4%BA%E4%BB%80%E9%BA%BC">10-29 複習</a></p>
 </blockquote>
-<details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="review/2026-11-05-函式庫-C資料-hello-GNU-objdump-陣列-組語.md" data-line="480"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
+<div class="answer-box locked"><textarea readonly spellcheck="false">連接時: ld 會根據命令行寫的 從./lib找到libfoo.so所以連結的時候不會有問題,ld還會把libfoo.so寫到NEEDED裏
+執行時: ld.so看到NEEDED libfoo.so,然後從自己預設的庫資料夾查詢有沒有庫, 結果找不到
+
+objdump -p 直接從執行檔的dynamic section 只會看到這個執行檔的NEEDED
+ldd 使用預設的ld.so,實際查詢NEEDED,並且不止執行檔的,連相依的所有庫的NEEDED他都找
+除此之外他還會顯示動態載入器的路徑, LINUX虛擬的函式庫
+</textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
+<details class="answer"><summary>批改</summary>
+<p><strong>大致對</strong>（盒子 3 → 3）。前兩個核心關鍵都有：連結時 <code>ld</code> 照 <code>-L./lib</code> 找到 <code>libfoo.so</code>、在執行檔寫下 <code>NEEDED libfoo.so</code>；執行時 <code>ld.so</code> 只從 <code>NEEDED</code> 拿到名字、在自己的搜尋路徑裡找不到。<strong>缺第 3 點的後半</strong>：題目問的是「<strong>這時</strong>（找不到的情況下）<code>ldd</code> 會顯示什麼」——答案是 <code>libfoo.so =&gt; not found</code>。你寫的是 <code>ldd</code> 平常的特性（會遞迴查相依的庫、顯示動態載入器與 vDSO），都對，但沒回答這個情境下它會印出什麼；10-29 你寫了「<code>ldd</code> 在這個庫會顯示 not found」，這次漏了（10-26 也漏在同一處）。<code>objdump -p</code> 那半有了：照樣列出 <code>NEEDED libfoo.so</code>——可以補一句「所以從 <code>objdump -p</code> 看不出問題」，這正是兩個工具的差別。</p>
+<p>小修：「從自己預設的庫資料夾查詢」完整說是 <code>RPATH</code>／<code>LD_LIBRARY_PATH</code>／<code>RUNPATH</code>／<code>/etc/ld.so.cache</code>／預設目錄（跟今天函式庫 4-1 同一個小修）。</p>
+<details class="answer"><summary>參考答案</summary>
+<p>【<a href="../c/objdump%E8%83%BD%E4%B8%8D%E8%83%BD%E4%BB%A3%E6%9B%BFldd%E6%89%BE%E4%BE%9D%E8%B3%B4%E5%BA%AB-%E9%9C%80%E6%B1%82%E5%96%AE%E8%88%87%E5%AF%A6%E9%9A%9B%E8%BC%89%E5%85%A5.html#%E5%9B%9B%E6%89%BE%E4%B8%8D%E5%88%B0%E5%87%BD%E5%BC%8F%E5%BA%AB%E6%99%82%E5%85%A9%E8%80%85%E5%90%84%E7%9C%8B%E5%88%B0%E4%BB%80%E9%BA%BC">第四節</a>、<a href="../c/objdump%E8%83%BD%E4%B8%8D%E8%83%BD%E4%BB%A3%E6%9B%BFldd%E6%89%BE%E4%BE%9D%E8%B3%B4%E5%BA%AB-%E9%9C%80%E6%B1%82%E5%96%AE%E8%88%87%E5%AF%A6%E9%9A%9B%E8%BC%89%E5%85%A5.html#%E4%BA%8C%E7%82%BA%E4%BB%80%E9%BA%BC%E6%9C%83%E5%B7%AE%E9%80%99%E9%BA%BC%E5%A4%9A%E5%85%A9%E8%80%85%E7%9C%8B%E7%9A%84%E6%98%AF%E4%B8%8D%E5%90%8C%E6%99%82%E9%96%93%E9%BB%9E">第二節</a>】</p>
+<p><strong>核心關鍵</strong>：</p>
+<ol>
+<li>連結時是 <strong><code>ld</code></strong> 在找：照 <code>-L./lib</code> 找到 <code>libfoo.so</code>，在執行檔寫下 <code>NEEDED libfoo.so</code>，<strong>只有名字、沒有路徑</strong>。</li>
+<li>執行時是<strong>動態載入器</strong>在找：它不知道當初的 <code>-L</code>，只找自己的預設路徑（加上 <code>LD_LIBRARY_PATH</code> 等），所以找不到。</li>
+<li><code>objdump -p</code> 照樣列出 <code>NEEDED libfoo.so</code>（看不出問題）；<code>ldd</code> 顯示 <code>libfoo.so =&gt; not found</code>。</li>
+</ol>
+<p><strong>詳細說明</strong>：執行時的搜尋順序是：執行檔裡的 <code>RUNPATH</code>、<code>LD_LIBRARY_PATH</code>、<code>/etc/ld.so.cache</code>、預設目錄（<code>/lib</code>、<code>/usr/lib</code>）。修法是連結時加 <code>-Wl,-rpath,…</code> 把路徑寫進執行檔，或執行時設 <code>LD_LIBRARY_PATH</code>。</p>
+</details>
+</details>
+</p>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="review/2026-11-05-函式庫-C資料-hello-GNU-objdump-陣列-組語.md" data-line="887"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）">連接時: ld 會根據命令行寫的 從./lib找到libfoo.so所以連結的時候不會有問題,ld還會把libfoo.so寫到NEEDED裏
+執行時: ld.so看到NEEDED libfoo.so,然後從自己預設的庫資料夾查詢有沒有庫, 結果找不到
+
+objdump -p 會直接看到libfoo.so
+ldd 會看到 libfoo not found
+</textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <hr />
 <h2 id="陣列陣列字串與指標運算-c不檢查邊界與用gdb找segfault">陣列：<a href="../c/%E9%99%A3%E5%88%97%E3%80%81%E5%AD%97%E4%B8%B2%E8%88%87%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97-C%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%88%87%E7%94%A8gdb%E6%89%BEsegfault.html">陣列、字串與指標運算-C不檢查邊界與用gdb找segfault</a></h2>
@@ -599,22 +1267,93 @@ rpath不行
 $<span class="w"> </span>./decay
 </code></pre>
 <h4 id="陣列-2-1-int-a10-在-main-裡-sizeof-a-是-40傳進-void-fint-a-之後-sizeof-a-變成-8為什麼">陣列 2-1. <code>int a[10];</code> 在 <code>main</code> 裡 <code>sizeof a</code> 是 40，傳進 <code>void f(int a[])</code> 之後 <code>sizeof a</code> 變成 8。為什麼？</h4>
-<details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="review/2026-11-05-函式庫-C資料-hello-GNU-objdump-陣列-組語.md" data-line="521"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
+<div class="answer-box locked"><textarea readonly spellcheck="false">main宣告的a[10], a會退化成int 指標, 但是在用sizeof a 的時候他沒有退化,恢復成原來陣列的指標,int (*) [10] 因此是40byte
+
+f的參數就是 int指標,因此在函式內用 sizeof a自然還是int指標
+</textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
+<details class="answer"><summary>批改</summary>
+<p><strong>大致對</strong>。對的部分：<code>sizeof a</code> 是不退化的例外，量出 40；參數 <code>int a[]</code> 其實是 <code>int *</code>，所以函式裡是 8（核心關鍵 2）。<strong>寫錯的地方</strong>：「恢復成原來陣列的指標，<code>int (*)[10]</code>，因此是 40 byte」——<code>sizeof a</code> 量的是<strong>陣列本身</strong>（型別 <code>int[10]</code>），不是「指向陣列的指標」。<code>int (*)[10]</code> 是 <code>&amp;a</code> 的型別（2-3），它是指標，大小是 8：</p>
+<pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">a</span><span class="p">[</span><span class="mi">10</span><span class="p">];</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;sizeof a  = %zu   (型別 int[10])</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="k">sizeof</span><span class="w"> </span><span class="n">a</span><span class="p">);</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;sizeof &amp;a = %zu   (型別 int (*)[10])</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="k">sizeof</span><span class="w"> </span><span class="o">&amp;</span><span class="n">a</span><span class="p">);</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;sizeof (int (*)[10]) = %zu</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="k">sizeof</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="p">(</span><span class="o">*</span><span class="p">)[</span><span class="mi">10</span><span class="p">]));</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<pre><code class="language-text">sizeof a  = 40   (型別 int[10])
+sizeof &amp;a = 8   (型別 int (*)[10])
+sizeof (int (*)[10]) = 8
+</code></pre>
+<p>所以「型別是 <code>int (*)[10]</code>」跟「40 byte」是互相矛盾的；把 2-3 的 <code>&amp;a</code> 跟 2-1 的 <code>a</code> 混在一起了。另外「退化成 <code>int</code> 指標，但用 <code>sizeof</code> 時沒退化、恢復成……」跟 10-29 的小修同一處：<code>sizeof a</code> 時 <code>a</code> <strong>從頭到尾沒有退化</strong>，沒有「先退化再恢復」這回事。</p>
+<details class="answer"><summary>參考答案</summary>
+<p>【<a href="../c/%E9%99%A3%E5%88%97%E3%80%81%E5%AD%97%E4%B8%B2%E8%88%87%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97-C%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%88%87%E7%94%A8gdb%E6%89%BEsegfault.html#%E4%B8%89%E9%99%A3%E5%88%97%E5%90%8D%E7%A8%B1%E4%BB%80%E9%BA%BC%E6%99%82%E5%80%99%E8%AE%8A%E6%88%90%E6%8C%87%E6%A8%99%E4%BB%80%E9%BA%BC%E6%99%82%E5%80%99%E4%B8%8D%E6%9C%83">第三節</a>〈函式參數寫成 <code>int a[]</code>，其實就是 <code>int *a</code>〉】</p>
+<p><strong>核心關鍵</strong>：</p>
+<ol>
+<li>在 <code>main</code> 裡，<code>sizeof a</code> 是「陣列名稱不退化」的例外，量的是整個陣列：10 × 4 = 40 byte。</li>
+<li>參數寫成 <code>int a[]</code> 其實就是 <code>int *a</code>，<code>f(a)</code> 傳過去的只是 <code>a[0]</code> 的位址，所以 <code>f</code> 裡的 <code>sizeof a</code> 是指標的 8 byte。</li>
+</ol>
+<p><strong>詳細說明</strong>：gcc 對這種寫法有 <code>-Wsizeof-array-argument</code> 警告。</p>
+</details>
+</details>
+</p>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="review/2026-11-05-函式庫-C資料-hello-GNU-objdump-陣列-組語.md" data-line="974"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）">main宣告的a[10], a會退化成int 指標, 但是在用sizeof a 的時候他沒有退化,指的就是原來的陣列 因此是40byte
+
+f的參數就是 int指標,因此在函式內用 sizeof a自然還是int指標
+</textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h4 id="陣列-2-2-這件事對怎麼設計接收陣列的函式有什麼影響">陣列 2-2. 這件事對「怎麼設計接收陣列的函式」有什麼影響？</h4>
 <blockquote>
 <p>題目：這件事（陣列傳進函式之後 <code>sizeof a</code> 從 40 變成 8）對「怎麼設計接收陣列的函式」有什麼影響？</p>
 </blockquote>
-<details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="review/2026-11-05-函式庫-C資料-hello-GNU-objdump-陣列-組語.md" data-line="528"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
+<div class="answer-box locked"><textarea readonly spellcheck="false">因爲a 退化成了int指標,僅從這個參數無法知道陣列的大小,因此需要額外輸入這個陣列的長度,show纔有辦法知道陣列的範圍
+</textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
+<details class="answer"><summary>批改</summary>
+<p><strong>對</strong>。抓到：參數只是 <code>int *</code>，函式不知道陣列多長，要另外傳長度。</p>
+<details class="answer"><summary>參考答案</summary>
+<p>【<a href="../c/%E9%99%A3%E5%88%97%E3%80%81%E5%AD%97%E4%B8%B2%E8%88%87%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97-C%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%88%87%E7%94%A8gdb%E6%89%BEsegfault.html#%E4%B8%89%E9%99%A3%E5%88%97%E5%90%8D%E7%A8%B1%E4%BB%80%E9%BA%BC%E6%99%82%E5%80%99%E8%AE%8A%E6%88%90%E6%8C%87%E6%A8%99%E4%BB%80%E9%BA%BC%E6%99%82%E5%80%99%E4%B8%8D%E6%9C%83">第三節</a>〈函式參數寫成 <code>int a[]</code>，其實就是 <code>int *a</code>〉】</p>
+<p><strong>核心關鍵</strong>：</p>
+<ol>
+<li>函式不知道陣列多長，<strong>長度一定要另外當參數傳</strong>（例如 <code>long sum(int *p, int n)</code>）。</li>
+</ol>
+<p><strong>詳細說明</strong>：呼叫端用 <code>sizeof a / sizeof a[0]</code> 算長度，標準函式庫的 <code>memcpy</code>、<code>read</code> 也是這樣設計的；字串是例外，靠結尾的 <code>\0</code>。</p>
+</details>
+</details>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="review/2026-11-05-函式庫-C資料-hello-GNU-objdump-陣列-組語.md" data-line="998" data-insert="1" data-anchor="&gt; &#42;&#42;詳細說明&#42;&#42;：呼叫端用 `sizeof a / sizeof a[0]` 算長度，標準函式庫的 `memcpy`、`read` 也是這樣設計的；字串是例外，靠結尾的 `\0`。"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h4 id="陣列-2-3-a-和-a-印出來的位址一樣它們差在哪裡">陣列 2-3. <code>a</code> 和 <code>&amp;a</code> 印出來的位址一樣，它們差在哪裡？</h4>
 <blockquote>
 <p>題目：<code>a</code> 和 <code>&amp;a</code> 印出來的位址一樣，它們差在哪裡？（<code>int a[10];</code>）</p>
 </blockquote>
-<details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="review/2026-11-05-函式庫-C資料-hello-GNU-objdump-陣列-組語.md" data-line="535"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
+<div class="answer-box locked"><textarea readonly spellcheck="false">a 如上所說,是退化成int指標,a+1,只位移了4byte
+
+&amp;a a跟sizeof a的情況相同,又沒退化了, 是int (*) [10] 指標,所以 &amp;a + 1 相當位移了40byte
+</textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
+<details class="answer"><summary>批改</summary>
+<p><strong>對</strong>（陣列 2 整題：2-1 大致對 → 盒子 3 → 3）。兩個核心關鍵都有：<code>a</code> 退化成 <code>int *</code>、<code>a + 1</code> 走 4 byte；<code>&amp;a</code> 不退化、型別 <code>int (*)[10]</code>、<code>&amp;a + 1</code> 走 40 byte。「<code>&amp;a</code> 跟 <code>sizeof a</code> 情況相同」——兩者都是不退化的例外，這句對；但不退化之後兩者得到的東西不同：<code>sizeof a</code> 量的是陣列 <code>int[10]</code>，<code>&amp;a</code> 得到的是指向陣列的指標 <code>int (*)[10]</code>（2-1 就是把這兩者混了）。10-29 的小修（<code>a + 1</code> 是 <code>&amp;a[1]</code> 不是 <code>a[1]</code>）這次沒再犯。</p>
+<details class="answer"><summary>參考答案</summary>
+<p>【<a href="../c/%E9%99%A3%E5%88%97%E3%80%81%E5%AD%97%E4%B8%B2%E8%88%87%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97-C%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%88%87%E7%94%A8gdb%E6%89%BEsegfault.html#%E4%B8%89%E9%99%A3%E5%88%97%E5%90%8D%E7%A8%B1%E4%BB%80%E9%BA%BC%E6%99%82%E5%80%99%E8%AE%8A%E6%88%90%E6%8C%87%E6%A8%99%E4%BB%80%E9%BA%BC%E6%99%82%E5%80%99%E4%B8%8D%E6%9C%83">第三節</a>〈<code>a</code> 和 <code>&amp;a</code>：位址一樣，型別不一樣〉】</p>
+<p><strong>核心關鍵</strong>：</p>
+<ol>
+<li>位址相同，但指的東西不同：<code>a</code> 退化成指向第一個元素（<code>int</code>）的指標，<code>&amp;a</code> 是指向<strong>整個陣列</strong>的指標。</li>
+<li>所以 <code>a + 1</code> 走 4 byte（一個 <code>int</code>），<code>&amp;a + 1</code> 走 40 byte（一整個陣列）。</li>
+</ol>
+<p><strong>詳細說明</strong>：用型別的話說，<code>a</code> 是 <code>int *</code>，<code>&amp;a</code> 是 <code>int (*)[10]</code>。記法：<strong>退化 ＝ 變成指向第一個元素的指標；<code>sizeof</code>、<code>&amp;</code> 是兩個不退化的例外</strong>。</p>
+</details>
+</details>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="review/2026-11-05-函式庫-C資料-hello-GNU-objdump-陣列-組語.md" data-line="1020" data-insert="1" data-anchor="&gt; &#42;&#42;詳細說明&#42;&#42;：用型別的話說，`a` 是 `int &#42;`，`&amp;a` 是 `int (&#42;)[10]`。記法：&#42;&#42;退化 ＝ 變成指向第一個元素的指標；`sizeof`、`&amp;` 是兩個不退化的例外&#42;&#42;。"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <hr />
 <h2 id="組語x86-64組合語言入門-暫存器mov與leacmp與條件跳躍">組語：<a href="../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80-%E6%9A%AB%E5%AD%98%E5%99%A8%E3%80%81mov%E8%88%87lea%E3%80%81cmp%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D.html">x86-64組合語言入門-暫存器、mov與lea、cmp與條件跳躍</a></h2>
@@ -623,26 +1362,87 @@ $<span class="w"> </span>./decay
 <p>盒子 3｜過去的作答：<a href="../small-project/s1-04-asm-basics/quiz.html#6-%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E7%9A%84%E5%A4%A7%E5%B0%8F%E5%90%8D%E7%A8%B1-vs-c-%E7%9A%84%E5%9E%8B%E5%88%A52026-10-06-%E8%AA%B2%E5%BE%8C%E6%8F%90%E5%95%8F%E6%96%B0%E5%A2%9E">s1-04 quiz.md 第 6 題</a>、<a href="2026-10-12-objdump-hello-ELF-%E9%99%A3%E5%88%97-%E7%B5%84%E8%AA%9E.html">10-12 複習</a>、<a href="2026-10-21-%E5%AD%97%E5%85%83-objdump-%E9%99%A3%E5%88%97-%E7%B5%84%E8%AA%9E-interp-ELF-GNU.html">10-21 複習</a>、<a href="2026-10-23-%E5%A4%A7%E8%A4%87%E7%BF%92-hello-gcc-GNU-interp-ELF-objdump-C%E8%B3%87%E6%96%99-%E5%AD%97%E5%85%83-%E9%99%A3%E5%88%97-%E7%B5%84%E8%AA%9E-%E7%B5%84%E8%AA%9E%E4%BA%8C-%E5%A4%9A%E6%AA%94.html">10-23 複習</a>、<a href="2026-10-26-hello-GNU-interp-objdump-C%E8%B3%87%E6%96%99-%E5%AD%97%E5%85%83-%E9%99%A3%E5%88%97-%E7%B5%84%E8%AA%9E-%E7%B5%84%E8%AA%9E%E4%BA%8C-%E5%A4%9A%E6%AA%94.html">10-26 複習</a>、<a href="2026-10-29-hello-GNU-objdump-%E9%99%A3%E5%88%97-%E7%B5%84%E8%AA%9E.html#%E7%B5%84%E8%AA%9E-6-%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E7%9A%84%E5%A4%A7%E5%B0%8F%E5%90%8D%E7%A8%B1-vs-c-%E7%9A%84%E5%9E%8B%E5%88%A5">10-29 複習</a></p>
 </blockquote>
 <h4 id="組語-6-1-movsbl-的-l-叫-long為什麼是-4-byte而本機-c-的-long-是-8-byte">組語 6-1. <code>movsbl</code> 的 <code>l</code> 叫 long，為什麼是 4 byte，而本機 C 的 <code>long</code> 是 8 byte？</h4>
-<details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="review/2026-11-05-函式庫-C資料-hello-GNU-objdump-陣列-組語.md" data-line="548"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
+<div class="answer-box locked"><textarea readonly spellcheck="false">組語l 叫long是4byte是歷史原因,爲了向下相容沿用至今
+
+C標準定義long只要32位元以上就好,只是本機x86_64long是64位元,要看平臺具體是什麼
+</textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
+<details class="answer"><summary>批改</summary>
+<p><strong>對</strong>。抓到：組合語言的 <code>l</code> 是歷史命名、為了相容沿用；C 的 <code>long</code> 標準只要求至少 32 位元，實際大小看平台，本機 x86-64 是 64 位元。10-29 的筆誤（「32 byte」）這次寫成「32 位元」，改對了。可以補上歷史的具體內容：8086 是 16 位元，word ＝ 2 byte，所以 32 位元叫 long（兩個 word）＝ 4 byte。</p>
+<details class="answer"><summary>參考答案</summary>
+<p>【<a href="../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80-%E6%9A%AB%E5%AD%98%E5%99%A8%E3%80%81mov%E8%88%87lea%E3%80%81cmp%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D.html#%E4%B8%89%E6%8C%87%E4%BB%A4%E7%9A%84%E6%96%87%E6%B3%95%E5%8A%A9%E6%86%B6%E7%AC%A6%E5%A4%A7%E5%B0%8F%E5%BE%8C%E7%B6%B4%E9%81%8B%E7%AE%97%E5%85%83">第三節</a>〈為什麼 <code>l</code> 叫 long 卻是 4 byte〉】</p>
+<p><strong>核心關鍵</strong>：</p>
+<ol>
+<li>組合語言的 <code>b</code>／<code>w</code>／<code>l</code>／<code>q</code> 是 <strong>x86 的歷史命名</strong>：8086 是 16 位元，word ＝ 2 byte；32 位元叫 long（兩個 word）＝ 4 byte；為了相容，名字一直沒改。</li>
+<li>C 的 <code>long</code> 大小<strong>由平台決定</strong>（標準只要求至少 32 位元），本機 x86-64 Linux 是 LP64，<code>long</code> ＝ 8 byte。兩者只是剛好同名。</li>
+</ol>
+</details>
+</details>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="review/2026-11-05-函式庫-C資料-hello-GNU-objdump-陣列-組語.md" data-line="1046" data-insert="1" data-anchor="&gt; 2. C 的 `long` 大小&#42;&#42;由平台決定&#42;&#42;（標準只要求至少 32 位元），本機 x86-64 Linux 是 LP64，`long` ＝ 8 byte。兩者只是剛好同名。"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h4 id="組語-6-2-本機-c-的-long-在組合語言裡對到哪個字尾">組語 6-2. 本機 C 的 <code>long</code> 在組合語言裡對到哪個字尾？</h4>
-<details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="review/2026-11-05-函式庫-C資料-hello-GNU-objdump-陣列-組語.md" data-line="553"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
+<div class="answer-box locked"><textarea readonly spellcheck="false">q
+</textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
+<details class="answer"><summary>批改</summary>
+<p><strong>對</strong>。<code>q</code>。</p>
+<details class="answer"><summary>參考答案</summary>
+<p>【<a href="../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80-%E6%9A%AB%E5%AD%98%E5%99%A8%E3%80%81mov%E8%88%87lea%E3%80%81cmp%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D.html#%E4%B8%89%E6%8C%87%E4%BB%A4%E7%9A%84%E6%96%87%E6%B3%95%E5%8A%A9%E6%86%B6%E7%AC%A6%E5%A4%A7%E5%B0%8F%E5%BE%8C%E7%B6%B4%E9%81%8B%E7%AE%97%E5%85%83">第三節</a>〈為什麼 <code>l</code> 叫 long 卻是 4 byte〉】</p>
+<p><strong>核心關鍵</strong>：</p>
+<ol>
+<li><code>q</code>（quad word，8 byte）。</li>
+</ol>
+</details>
+</details>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="review/2026-11-05-函式庫-C資料-hello-GNU-objdump-陣列-組語.md" data-line="1061" data-insert="1" data-anchor="&gt; 1. `q`（quad word，8 byte）。"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h4 id="組語-6-3-這樣對嗎為什麼">組語 6-3. 這樣對嗎？為什麼？</h4>
 <blockquote>
 <p>題目：情境題：第 5 課你在 <code>gdb</code> 裡想看一個 <code>int</code> 變數的 4 個 byte，同學說「<code>int</code> 在組合語言是 <code>l</code>，所以用 <code>x/1l</code>」。這樣對嗎？為什麼？</p>
 </blockquote>
-<details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="review/2026-11-05-函式庫-C資料-hello-GNU-objdump-陣列-組語.md" data-line="560"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
+<div class="answer-box locked"><textarea readonly spellcheck="false">gdb x 的功能 表達式沒有l 所以不對
+</textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
+<details class="answer"><summary>批改</summary>
+<p><strong>對</strong>。抓到：不對，gdb <code>x</code> 的大小字母裡沒有 <code>l</code>（實際打 <code>x/1l</code> 會得到 <code>Undefined output format &quot;l&quot;.</code>）。10-29 把「gdb 的 FMT」誤寫成「組合語言 FMT」，這次寫對了是 gdb。小修：題目補問了「為什麼」，可以把同學錯在哪講出來——他把<strong>兩套不同的名字</strong>混在一起：組合語言（AT&amp;T）的字尾 <code>b</code>／<code>w</code>／<code>l</code>／<code>q</code> 跟 gdb <code>x</code> 的大小字母 <code>b</code>／<code>h</code>／<code>w</code>／<code>g</code> 是各自的命名，<code>l</code> 只屬於前者。</p>
+<details class="answer"><summary>參考答案</summary>
+<p>【<a href="../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80-%E6%9A%AB%E5%AD%98%E5%99%A8%E3%80%81mov%E8%88%87lea%E3%80%81cmp%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D.html#%E4%B8%89%E6%8C%87%E4%BB%A4%E7%9A%84%E6%96%87%E6%B3%95%E5%8A%A9%E6%86%B6%E7%AC%A6%E5%A4%A7%E5%B0%8F%E5%BE%8C%E7%B6%B4%E9%81%8B%E7%AE%97%E5%85%83">第三節</a>〈為什麼 <code>l</code> 叫 long 卻是 4 byte〉的「第三套名字：<code>gdb</code> 的 <code>x</code> 命令」】</p>
+<p><strong>核心關鍵</strong>：</p>
+<ol>
+<li>不對：gdb <code>x</code> 的大小字母是另一套，<code>l</code> 不是它的大小字母（實測 <code>Undefined output format &quot;l&quot;.</code>）。</li>
+</ol>
+</details>
+</details>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="review/2026-11-05-函式庫-C資料-hello-GNU-objdump-陣列-組語.md" data-line="1078" data-insert="1" data-anchor="&gt; 1. 不對：gdb `x` 的大小字母是另一套，`l` 不是它的大小字母（實測 `Undefined output format &quot;l&quot;.`）。"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h4 id="組語-6-4-應該用哪個大小字母為什麼">組語 6-4. 應該用哪個大小字母，為什麼？</h4>
 <blockquote>
 <p>題目：（承上）在 gdb 裡用 <code>x</code> 看 <code>int</code> 變數的 4 個 byte，應該用哪個大小字母，為什麼？</p>
 </blockquote>
-<details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="review/2026-11-05-函式庫-C資料-hello-GNU-objdump-陣列-組語.md" data-line="567"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
+<div class="answer-box locked"><textarea readonly spellcheck="false">x/1xw, 可以用w 代表4byte
+</textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
+<details class="answer"><summary>批改</summary>
+<p><strong>對</strong>（組語 6 整題 盒子 3 → 4）。抓到：<code>x/1xw</code>，<code>w</code> 在 gdb 裡是 4 byte。小修（跟 10-29 同一個）：把 gdb 的四個大小字母一起寫出來，<code>b</code>／<code>h</code>／<code>w</code>／<code>g</code> ＝ 1／2／4／8 byte，才看得出為什麼是 <code>w</code>——同一個字 word，在 AT&amp;T 字尾是 2 byte、在 gdb 是 4 byte。</p>
+<details class="answer"><summary>參考答案</summary>
+<p>【<a href="../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80-%E6%9A%AB%E5%AD%98%E5%99%A8%E3%80%81mov%E8%88%87lea%E3%80%81cmp%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D.html#%E4%B8%89%E6%8C%87%E4%BB%A4%E7%9A%84%E6%96%87%E6%B3%95%E5%8A%A9%E6%86%B6%E7%AC%A6%E5%A4%A7%E5%B0%8F%E5%BE%8C%E7%B6%B4%E9%81%8B%E7%AE%97%E5%85%83">第三節</a>〈為什麼 <code>l</code> 叫 long 卻是 4 byte〉的「第三套名字：<code>gdb</code> 的 <code>x</code> 命令」】</p>
+<p><strong>核心關鍵</strong>：</p>
+<ol>
+<li>gdb <code>x</code> 的大小字母是 <code>b</code>／<code>h</code>／<code>w</code>／<code>g</code> ＝ 1／2／4／8 byte。</li>
+<li>一次看整個 <code>int</code> 用 <strong><code>w</code></strong>（4 byte，<code>x/1xw &amp;v</code>）；用 <code>b</code> 要寫個數 4（<code>x/4xb &amp;v</code>），逐 byte 印。</li>
+</ol>
+<p><strong>詳細說明</strong>：同一個字 word：AT&amp;T 是 2 byte，gdb 是 4 byte。記法是一律換算成 byte 數再想。</p>
+</details>
+</details>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="review/2026-11-05-函式庫-C資料-hello-GNU-objdump-陣列-組語.md" data-line="1098" data-insert="1" data-anchor="&gt; &#42;&#42;詳細說明&#42;&#42;：同一個字 word：AT&amp;T 是 2 byte，gdb 是 4 byte。記法是一律換算成 byte 數再想。"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <hr />
 <h3 id="組語-12-檔案裡的位址-vs-執行時的位址">組語 12. 檔案裡的位址 vs 執行時的位址</h3>
@@ -678,12 +1478,44 @@ gdb<span class="w"> </span>-batch<span class="w"> </span>-ex<span class="w"> </s
 <blockquote>
 <p>題目：<code>break *0x11f4</code> 之後 <code>run</code> 得到 <code>Cannot access memory at address 0x11f4</code>，<code>break *deref+4</code> 卻沒問題，為什麼？</p>
 </blockquote>
-<details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="review/2026-11-05-函式庫-C資料-hello-GNU-objdump-陣列-組語.md" data-line="614"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
+<div class="answer-box locked"><textarea readonly spellcheck="false">因爲實際上在0x11f4找不到對應的記憶體位址,這個是檔案的位址,實際執行的時候真是的記憶體位址根據ASLR
+要 0x11f4 + base
+
+*deref+4 沒問題是因爲 這是根據符號deref找到的位址 是真實的位址
+</textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
+<details class="answer"><summary>批改</summary>
+<p><strong>對</strong>。兩個核心關鍵都有：<code>0x11f4</code> 是<strong>檔案裡的位址</strong>，執行時的位址是「基底 ＋ <code>0x11f4</code>」，所以 <code>0x11f4</code> 找不到記憶體；<code>*deref+4</code> 用符號，gdb 會用 <code>deref</code> 執行時的位址去算。小修（<strong>跟 10-29 同一處，第二次</strong>）：搬家的原因是 <strong>PIE</strong>，不是 ASLR。gdb 預設<strong>關掉</strong> ASLR，基底固定是 <code>0x555555554000</code>，<code>break *0x11f4</code> 照樣失敗——如果原因是 ASLR，關掉 ASLR 就該成功了，但沒有。ASLR 只是讓「每次執行的基底不一樣」；「需要加基底」是因為 PIE 的位址從 0 開始算、載入時才決定放在哪。12-2 的 <code>-no-pie</code> 正好是對照組：沒有 PIE 就不用加基底。下次請直接寫「因為 PIE」。另外錯字：「真是的記憶體位址」→「真實的」。</p>
+<details class="answer"><summary>參考答案</summary>
+<p>【<a href="../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80-%E6%9A%AB%E5%AD%98%E5%99%A8%E3%80%81mov%E8%88%87lea%E3%80%81cmp%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D.html#%E4%B8%89%E6%8C%87%E4%BB%A4%E7%9A%84%E6%96%87%E6%B3%95%E5%8A%A9%E6%86%B6%E7%AC%A6%E5%A4%A7%E5%B0%8F%E5%BE%8C%E7%B6%B4%E9%81%8B%E7%AE%97%E5%85%83">第三節</a>〈上面中斷點 4 的 <code>break *0x11f4</code>：為什麼 <code>run</code> 之後失敗？〉】</p>
+<p><strong>核心關鍵</strong>：</p>
+<ol>
+<li><code>objdump -d</code> 印的是<strong>檔案裡的位址</strong>；PIE 執行時整支被搬到基底（gdb 裡是 <code>0x555555554000</code>），執行時位址 ＝ 基底 ＋ 檔案位址，<code>0x11f4</code> 在執行時沒有對映。</li>
+<li><code>*deref+4</code> 裡有符號名稱，程式載入後 gdb 用新的位址重算成 <code>0x5555555551f4</code>；寫死的 <code>0x11f4</code> 只是數字，不會重算。</li>
+</ol>
+</details>
+</details>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="review/2026-11-05-函式庫-C資料-hello-GNU-objdump-陣列-組語.md" data-line="1159" data-insert="1" data-anchor="&gt; 2. `&#42;deref+4` 裡有符號名稱，程式載入後 gdb 用新的位址重算成 `0x5555555551f4`；寫死的 `0x11f4` 只是數字，不會重算。"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h4 id="組語-12-2-如果程式是用--no-pie-編的break--加-objdump-查到的位址會不會成功為什麼">組語 12-2. 如果程式是用 <code>-no-pie</code> 編的，<code>break *</code> 加 <code>objdump</code> 查到的位址會不會成功？為什麼？</h4>
-<details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="review/2026-11-05-函式庫-C資料-hello-GNU-objdump-陣列-組語.md" data-line="619"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
+<div class="answer-box locked"><textarea readonly spellcheck="false">會, 因爲-no-pie就是編譯的時候就定了記憶體位址了,這個時候用break *(objdump 查到的位址) 是可以的
+</textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
+<details class="answer"><summary>批改</summary>
+<p><strong>對</strong>（組語 12 整題 盒子 3 → 4）。抓到：會成功，因為非 PIE 的位址在建置時就定了，載入時不搬，<code>objdump</code> 的位址就是執行時的位址。小修：精確說是<strong>連結時</strong>（<code>ld</code> 把程式放在固定位址，例如 <code>0x401000</code> 附近）就定了，不是「編譯的時候」——編譯只產生 <code>.o</code>，位址還沒決定；<code>readelf -h</code> 的 <code>Type</code> 是 <code>EXEC</code>（PIE 是 <code>DYN</code>）。</p>
+<details class="answer"><summary>參考答案</summary>
+<p>【<a href="../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80-%E6%9A%AB%E5%AD%98%E5%99%A8%E3%80%81mov%E8%88%87lea%E3%80%81cmp%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D.html#%E4%B8%89%E6%8C%87%E4%BB%A4%E7%9A%84%E6%96%87%E6%B3%95%E5%8A%A9%E6%86%B6%E7%AC%A6%E5%A4%A7%E5%B0%8F%E5%BE%8C%E7%B6%B4%E9%81%8B%E7%AE%97%E5%85%83">第三節</a>〈上面中斷點 4 的 <code>break *0x11f4</code>：為什麼 <code>run</code> 之後失敗？〉】</p>
+<p><strong>核心關鍵</strong>：</p>
+<ol>
+<li>會成功：非 PIE（<code>Type</code> 是 EXEC）固定放在檔案寫的位址，不會搬，檔案裡的位址就是執行時的位址。</li>
+</ol>
+</details>
+</details>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="review/2026-11-05-函式庫-C資料-hello-GNU-objdump-陣列-組語.md" data-line="1174" data-insert="1" data-anchor="&gt; 1. 會成功：非 PIE（`Type` 是 EXEC）固定放在檔案寫的位址，不會搬，檔案裡的位址就是執行時的位址。"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <hr />
 
