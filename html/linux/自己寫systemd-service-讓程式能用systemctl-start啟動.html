@@ -1,0 +1,1703 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>怎麼讓自己的程式也能用 systemctl start 啟動？—— 寫一個 systemd service unit</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script src="../../tools/vendor/mermaid.min.js"></script>
+<script src="../assets/app.js"></script>
+</head>
+<body>
+<button class="menu-btn" onclick="toggleMenu()">☰ 目錄</button>
+<div class="layout">
+<nav class="side">
+<div class="crumbs"><a href="../index.html">🏠 首頁</a> / <a href="README.html">linux</a></div>
+<div class="tools"><button onclick="toggleTheme()">🌓 主題</button></div>
+<ul>
+<li class="l2"><a href="#%E7%9B%AE%E9%8C%84">目錄</a></li>
+<li class="l2"><a href="#%E4%B8%80systemctl-start-nginx-%E8%83%8C%E5%BE%8C%E7%99%BC%E7%94%9F%E4%BB%80%E9%BA%BC%E4%BA%8B">一、systemctl start nginx 背後發生什麼事</a></li>
+<li class="l2"><a href="#%E4%BA%8Cunit-%E6%AA%94%E6%94%BE%E5%9C%A8%E5%93%AA%E9%95%B7%E4%BB%80%E9%BA%BC%E6%A8%A3">二、unit 檔：放在哪、長什麼樣</a></li>
+<li class="l3"><a href="#unit-%E6%98%AF%E4%BB%80%E9%BA%BC">unit 是什麼</a></li>
+<li class="l3"><a href="#systemd-%E5%8E%BB%E5%93%AA%E4%BA%9B%E7%9B%AE%E9%8C%84%E6%89%BE-unit-%E6%AA%94">systemd 去哪些目錄找 unit 檔</a></li>
+<li class="l3"><a href="#unit-%E6%AA%94%E7%9A%84%E6%A0%BC%E5%BC%8F%E4%B8%89%E5%80%8B%E7%AF%80">unit 檔的格式：三個節</a></li>
+<li class="l2"><a href="#%E4%B8%89%E7%B7%B4%E7%BF%92%E7%94%A8%E7%9A%84%E7%A8%8B%E5%BC%8Ftickdc">三、練習用的程式：tickd.c</a></li>
+<li class="l2"><a href="#%E5%9B%9B%E5%AF%A6%E9%A9%97%E4%B8%80%E5%AF%AB%E5%A5%BD%E5%85%88%E7%94%A8-systemd-analyze-verify-%E6%AA%A2%E6%9F%A5">四、實驗一：寫好先用 systemd-analyze verify 檢查</a></li>
+<li class="l2"><a href="#%E4%BA%94%E5%AF%A6%E9%A9%97%E4%BA%8C%E8%B7%91%E8%B5%B7%E4%BE%86%E7%9C%8B%E6%87%82-systemctl-status">五、實驗二：跑起來，看懂 systemctl status</a></li>
+<li class="l3"><a href="#%E9%80%99%E8%A3%A1%E7%94%A8-systemd-run%E8%B7%9F%E5%AF%AB-unit-%E6%AA%94%E5%B7%AE%E5%9C%A8%E5%93%AA">這裡用 systemd-run，跟寫 unit 檔差在哪</a></li>
+<li class="l3"><a href="#%E5%95%9F%E5%8B%95%E7%84%B6%E5%BE%8C%E7%9C%8B%E7%8B%80%E6%85%8B">啟動，然後看狀態</a></li>
+<li class="l2"><a href="#%E5%85%AD%E5%AF%A6%E9%A9%97%E4%B8%89journal-%E8%A3%A1%E4%B8%80%E7%9B%B4%E7%9C%8B%E4%B8%8D%E5%88%B0%E8%BC%B8%E5%87%BAstdout-%E7%9A%84%E7%B7%A9%E8%A1%9D">六、實驗三：journal 裡一直看不到輸出——stdout 的緩衝</a></li>
+<li class="l2"><a href="#%E4%B8%83typesystemd-%E6%80%8E%E9%BA%BC%E7%9F%A5%E9%81%93%E5%95%9F%E5%8B%95%E5%AE%8C%E6%88%90%E8%AA%B0%E6%98%AF%E4%B8%BB%E8%A1%8C%E7%A8%8B">七、Type=：systemd 怎麼知道「啟動完成」、誰是主行程</a></li>
+<li class="l3"><a href="#%E5%AF%A6%E9%A9%97%E6%9C%83%E8%87%AA%E5%B7%B1-fork-%E5%88%B0%E8%83%8C%E6%99%AF%E7%9A%84%E7%A8%8B%E5%BC%8F%E7%94%A8-typesimple-%E6%9C%83%E6%80%8E%E6%A8%A3">實驗：會自己 fork 到背景的程式，用 Type=simple 會怎樣</a></li>
+<li class="l3"><a href="#%E6%94%B9%E6%88%90-typeforking-%E5%8A%A0-pidfile">改成 Type=forking 加 PIDFile=</a></li>
+<li class="l3"><a href="#type-%E5%85%A8%E9%83%A8-8-%E7%A8%AE">Type= 全部 8 種</a></li>
+<li class="l2"><a href="#%E5%85%AB%E5%81%9C%E6%AD%A2%E8%88%87%E8%87%AA%E5%8B%95%E9%87%8D%E5%95%9Fsigterm-%E8%88%87-restart">八、停止與自動重啟：SIGTERM 與 Restart=</a></li>
+<li class="l3"><a href="#systemctl-stop-%E5%81%9A%E4%BA%86%E4%BB%80%E9%BA%BC">systemctl stop 做了什麼</a></li>
+<li class="l3"><a href="#restarton-failure%E8%A2%AB-kill--9-%E6%AE%BA%E6%8E%89">Restart=on-failure：被 kill -9 殺掉</a></li>
+<li class="l3"><a href="#%E4%B8%80%E7%9B%B4%E5%A4%B1%E6%95%97%E9%87%8D%E5%95%9F%E6%AC%A1%E6%95%B8%E6%9C%89%E4%B8%8A%E9%99%90">一直失敗：重啟次數有上限</a></li>
+<li class="l3"><a href="#systemctl-stop-%E4%B8%8D%E6%9C%83%E8%A7%B8%E7%99%BC%E9%87%8D%E5%95%9F">systemctl stop 不會觸發重啟</a></li>
+<li class="l3"><a href="#restart-%E5%85%A8%E9%83%A8-7-%E5%80%8B%E5%80%BC">Restart= 全部 7 個值</a></li>
+<li class="l2"><a href="#%E4%B9%9Denable%E9%96%8B%E6%A9%9F%E8%87%AA%E5%8B%95%E5%95%9F%E5%8B%95%E5%85%B6%E5%AF%A6%E6%98%AF%E5%BB%BA%E4%B8%80%E5%80%8B%E7%AC%A6%E8%99%9F%E9%80%A3%E7%B5%90">九、enable：開機自動啟動其實是建一個符號連結</a></li>
+<li class="l3"><a href="#%E6%94%B9%E4%BA%86-unit-%E6%AA%94%E8%A6%81-daemon-reload">改了 unit 檔要 daemon-reload</a></li>
+<li class="l2"><a href="#%E5%8D%81%E5%AE%8C%E6%95%B4%E6%AD%A5%E9%A9%9F%E6%8A%8A-tickd-%E8%A3%9D%E6%88%90%E7%B3%BB%E7%B5%B1%E6%9C%8D%E5%8B%99">十、完整步驟：把 tickd 裝成系統服務</a></li>
+<li class="l2"><a href="#%E5%8D%81%E4%B8%80%E6%9C%AC%E7%AF%87%E7%94%A8%E5%88%B0%E7%9A%84%E5%91%BD%E4%BB%A4%E8%88%87%E8%A8%AD%E5%AE%9A%E5%AE%8C%E6%95%B4%E6%B8%85%E5%96%AE%E5%9C%A8%E5%93%AA">十一、本篇用到的命令與設定，完整清單在哪</a></li>
+<li class="l3"><a href="#systemctl-%E7%9A%84%E5%85%A8%E9%83%A8-74-%E5%80%8B%E5%91%BD%E4%BB%A4">systemctl 的全部 74 個命令</a></li>
+<li class="l3"><a href="#systemctl-%E7%9A%84%E9%81%B8%E9%A0%85">systemctl 的選項</a></li>
+<li class="l3"><a href="#unit-%E6%AA%94%E7%9A%84%E8%A8%AD%E5%AE%9A">unit 檔的設定</a></li>
+<li class="l3"><a href="#%E5%85%B6%E4%BB%96%E5%B7%A5%E5%85%B7">其他工具</a></li>
+<li class="l2"><a href="#%E8%87%AA%E6%88%91%E6%B8%AC%E9%A9%97">自我測驗</a></li>
+</ul>
+</nav>
+<main>
+<h1 id="怎麼讓自己的程式也能用-systemctl-start-啟動-寫一個-systemd-service-unit">怎麼讓自己的程式也能用 <code>systemctl start</code> 啟動？—— 寫一個 systemd service unit</h1>
+<blockquote>
+<p>日期：2026-11-05<br />
+情境：想知道 <code>systemctl start nginx</code> 背後是怎麼運作的，以及怎麼讓自己寫的程式也能用同樣的方式啟動、停止、開機自動啟動<br />
+對應檔案：實驗用的 <code>tickd.c</code> 與 <code>tickd.service</code> 只放在 Claude 的暫存目錄（scratchpad），不進 git，完整內容都寫在本篇裡；
+nginx 的 unit 是系統套件提供的 <code>/usr/lib/systemd/system/nginx.service</code>（本機實際檔案，只讀不改）<br />
+適用範圍：實測 Ubuntu 24.04、systemd 255（255.4-1ubuntu8.18）、gcc 13.3<br />
+未實測：把 unit 檔裝進 <code>/etc/systemd/system/</code> 或 <code>~/.config/systemd/user/</code>、<code>enable</code>、<code>daemon-reload</code>。裝 system unit 需要 root（本機 <code>sudo</code> 要密碼），寫進 user unit 目錄則被 Claude Code 的權限檢查擋下（會留下常駐設定）。所以執行的部分改用 <code>systemd-run --user</code> 建立<strong>暫時性 unit</strong>（transient unit，停掉就消失，不寫檔），
+unit 檔的格式則用 <code>systemd-analyze verify</code> 檢查。兩者走的是同一套 systemd 機制，差別見<a href="#%E4%BA%94%E5%AF%A6%E9%A9%97%E4%BA%8C%E8%B7%91%E8%B5%B7%E4%BE%86%E7%9C%8B%E6%87%82-systemctl-status">第五節</a>。<br />
+相關：<a href="journalctl%E7%9C%8B%E6%9C%8D%E5%8B%99%E6%97%A5%E8%AA%8C.html">journalctl看服務日誌</a>（服務的輸出去哪裡）、
+<a href="%E5%BE%9Edpkg%E5%8F%8D%E6%8E%A8%E5%A5%97%E4%BB%B6%E7%9A%84%E5%95%9F%E5%8B%95%E5%91%BD%E4%BB%A4.html">從dpkg反推套件的啟動命令</a>（從套件找 <code>ExecStart=</code>）、
+<a href="../claude-code/Claude-Code%E8%83%BD%E5%83%8Fsystemd-service%E4%B8%80%E6%A8%A3%E5%B8%B8%E9%A7%90%E5%97%8E.html">Claude-Code能像systemd-service一樣常駐嗎</a>（user unit 加 timer 的實例）</p>
+</blockquote>
+<p><strong>一句話結論：<code>systemctl</code> 自己不會啟動任何程式，它只是把「啟動 nginx」這個請求送給 PID 1 的 systemd。真正去 <code>fork</code>＋<code>exec</code> 程式的是 systemd，照的是一份 unit 檔（<code>nginx.service</code>）。所以要讓自己的程式也能 <code>systemctl start</code>，你要做的是寫一份 <code>&lt;名字&gt;.service</code> 放進 systemd 會找的目錄，寫清楚三件事：要跑什麼（<code>ExecStart=</code>）、怎麼判斷啟動完成（<code>Type=</code>）、開機時掛在哪個 target 底下（<code>[Install]</code> 的 <code>WantedBy=</code>）。程式最好就待在前景、不要自己 fork 到背景；它印到 <code>stdout</code> 的東西會進 journal，但要記得 <code>stdout</code> 這時是全緩衝的。</strong></p>
+<hr />
+<h2 id="目錄">目錄</h2>
+<ul>
+<li><a href="#%E4%B8%80systemctl-start-nginx-%E8%83%8C%E5%BE%8C%E7%99%BC%E7%94%9F%E4%BB%80%E9%BA%BC%E4%BA%8B">一、<code>systemctl start nginx</code> 背後發生什麼事</a></li>
+<li><a href="#%E4%BA%8Cunit-%E6%AA%94%E6%94%BE%E5%9C%A8%E5%93%AA%E9%95%B7%E4%BB%80%E9%BA%BC%E6%A8%A3">二、unit 檔：放在哪、長什麼樣</a></li>
+<li><a href="#%E4%B8%89%E7%B7%B4%E7%BF%92%E7%94%A8%E7%9A%84%E7%A8%8B%E5%BC%8Ftickdc">三、練習用的程式：<code>tickd.c</code></a></li>
+<li><a href="#%E5%9B%9B%E5%AF%A6%E9%A9%97%E4%B8%80%E5%AF%AB%E5%A5%BD%E5%85%88%E7%94%A8-systemd-analyze-verify-%E6%AA%A2%E6%9F%A5">四、實驗一：寫好先用 <code>systemd-analyze verify</code> 檢查</a></li>
+<li><a href="#%E4%BA%94%E5%AF%A6%E9%A9%97%E4%BA%8C%E8%B7%91%E8%B5%B7%E4%BE%86%E7%9C%8B%E6%87%82-systemctl-status">五、實驗二：跑起來，看懂 <code>systemctl status</code></a></li>
+<li><a href="#%E5%85%AD%E5%AF%A6%E9%A9%97%E4%B8%89journal-%E8%A3%A1%E4%B8%80%E7%9B%B4%E7%9C%8B%E4%B8%8D%E5%88%B0%E8%BC%B8%E5%87%BAstdout-%E7%9A%84%E7%B7%A9%E8%A1%9D">六、實驗三：journal 裡一直看不到輸出——<code>stdout</code> 的緩衝</a></li>
+<li><a href="#%E4%B8%83typesystemd-%E6%80%8E%E9%BA%BC%E7%9F%A5%E9%81%93%E5%95%9F%E5%8B%95%E5%AE%8C%E6%88%90%E8%AA%B0%E6%98%AF%E4%B8%BB%E8%A1%8C%E7%A8%8B">七、<code>Type=</code>：systemd 怎麼知道「啟動完成」、誰是主行程</a></li>
+<li><a href="#%E5%85%AB%E5%81%9C%E6%AD%A2%E8%88%87%E8%87%AA%E5%8B%95%E9%87%8D%E5%95%9Fsigterm-%E8%88%87-restart">八、停止與自動重啟：<code>SIGTERM</code> 與 <code>Restart=</code></a></li>
+<li><a href="#%E4%B9%9Denable%E9%96%8B%E6%A9%9F%E8%87%AA%E5%8B%95%E5%95%9F%E5%8B%95%E5%85%B6%E5%AF%A6%E6%98%AF%E5%BB%BA%E4%B8%80%E5%80%8B%E7%AC%A6%E8%99%9F%E9%80%A3%E7%B5%90">九、<code>enable</code>：開機自動啟動其實是建一個符號連結</a></li>
+<li><a href="#%E5%8D%81%E5%AE%8C%E6%95%B4%E6%AD%A5%E9%A9%9F%E6%8A%8A-tickd-%E8%A3%9D%E6%88%90%E7%B3%BB%E7%B5%B1%E6%9C%8D%E5%8B%99">十、完整步驟：把 <code>tickd</code> 裝成系統服務</a></li>
+<li><a href="#%E5%8D%81%E4%B8%80%E6%9C%AC%E7%AF%87%E7%94%A8%E5%88%B0%E7%9A%84%E5%91%BD%E4%BB%A4%E8%88%87%E8%A8%AD%E5%AE%9A%E5%AE%8C%E6%95%B4%E6%B8%85%E5%96%AE%E5%9C%A8%E5%93%AA">十一、本篇用到的命令與設定，完整清單在哪</a></li>
+</ul>
+<hr />
+<h2 id="一systemctl-start-nginx-背後發生什麼事">一、<code>systemctl start nginx</code> 背後發生什麼事</h2>
+<p>先看 nginx 在本機實際的樣子：</p>
+<pre><code class="language-bash">ps<span class="w"> </span>-o<span class="w"> </span>pid,ppid,user,cmd<span class="w"> </span>-C<span class="w"> </span>nginx<span class="w"> </span><span class="p">|</span><span class="w"> </span>head<span class="w"> </span>-4<span class="w">   </span><span class="c1"># nginx 的行程，PPID 是誰</span>
+ps<span class="w"> </span>-o<span class="w"> </span>pid,cmd<span class="w"> </span>-p<span class="w"> </span><span class="m">1</span><span class="w">                           </span><span class="c1"># PID 1 是什麼</span>
+</code></pre>
+<pre><code class="language-text">    PID    PPID USER     CMD
+   2951       1 root     nginx: master process /usr/sbin/nginx -g daemon on; master_process on;
+   2952    2951 www-data nginx: worker process
+   2953    2951 www-data nginx: worker process
+    PID CMD
+      1 /sbin/init splash
+</code></pre>
+<ul>
+<li>nginx 的主行程（master）<code>2951</code> 的父行程（PPID）是 <strong>1</strong>。<code>/sbin/init</code> 在 Ubuntu 上就是 systemd（<code>readlink -f /sbin/init</code> 印出 <code>/usr/lib/systemd/systemd</code>），開機後 kernel 第一個執行的使用者空間程式，PID 固定是 1。</li>
+<li>也就是說，nginx 不是你的 shell 生出來的，是 <strong>systemd 生出來的</strong>。你打的 <code>systemctl start nginx</code> 早就結束了，nginx 還在跑。</li>
+</ul>
+<p>那 <code>systemctl</code> 做了什麼？用 <code>strace</code> 看它開了哪些連線（<code>strace</code> 在<a href="../c/%E5%AF%AB%E8%87%AA%E5%B7%B1%E7%9A%84wc%E8%88%87cat-%E5%91%BD%E4%BB%A4%E5%88%97%E5%8F%83%E6%95%B8%E3%80%81%E8%AE%80%E5%88%B0EOF%E8%88%87errno%E9%8C%AF%E8%AA%A4%E8%99%95%E7%90%86.html#%E7%94%A8-strace-%E7%9C%8B-fopengetcprintf-%E5%BA%95%E4%B8%8B%E6%98%AF%E5%93%AA%E4%BA%9B%E7%B3%BB%E7%B5%B1%E5%91%BC%E5%8F%AB">第 8 課第六節</a>用過）：</p>
+<pre><code class="language-bash">strace<span class="w"> </span>-e<span class="w"> </span><span class="nv">trace</span><span class="o">=</span>connect,sendmsg<span class="w"> </span>-s<span class="w"> </span><span class="m">0</span><span class="w"> </span>systemctl<span class="w"> </span>is-active<span class="w"> </span>nginx<span class="w">   </span><span class="c1"># 只看 connect 與 sendmsg 兩種系統呼叫</span>
+</code></pre>
+<pre><code class="language-text">connect(3, {sa_family=AF_UNIX, sun_path=&quot;/run/dbus/system_bus_socket&quot;}, 30) = 0
+sendmsg(3, {msg_name=NULL, msg_namelen=0, msg_iov=[...], msg_iovlen=3, msg_controllen=0, msg_flags=0}, MSG_DONTWAIT|MSG_NOSIGNAL) = 48
+sendmsg(3, {msg_name=NULL, msg_namelen=0, msg_iov=[...], msg_iovlen=1, msg_controllen=0, msg_flags=0}, MSG_DONTWAIT|MSG_NOSIGNAL) = 128
+sendmsg(3, {msg_name=NULL, msg_namelen=0, msg_iov=[...], msg_iovlen=2, msg_controllen=0, msg_flags=0}, MSG_DONTWAIT|MSG_NOSIGNAL) = 228
+sendmsg(3, {msg_name=NULL, msg_namelen=0, msg_iov=[...], msg_iovlen=2, msg_controllen=0, msg_flags=0}, MSG_DONTWAIT|MSG_NOSIGNAL) = 226
+active
++++ exited with 0 +++
+</code></pre>
+<ul>
+<li>第 1 行：<code>systemctl</code> 連上一個 Unix domain socket <code>/run/dbus/system_bus_socket</code>——這是 <strong>D-Bus</strong>（Desktop Bus，Linux 上行程之間傳訊息的匯流排）的系統匯流排。（socket 是什麼見 <a href="socket%E6%98%AF%E4%BB%80%E9%BA%BC-%E5%BE%9E%E6%A0%B8%E5%BF%83%E7%9C%8B%E9%80%A3%E7%B7%9A%E7%9A%84%E7%AB%AF%E9%BB%9E.html">socket是什麼</a>；這裡只要知道「它是一條通到別的行程的管道」。）</li>
+<li>接下來幾個 <code>sendmsg</code> 就是在送訊息：「請問 <code>nginx.service</code> 的狀態？」。systemd 回答之後，<code>systemctl</code> 印出 <code>active</code>。</li>
+<li>整個過程裡 <code>systemctl</code> <strong>沒有</strong> <code>fork</code>、<code>execve</code> 任何 nginx 的東西。<code>start</code> 也一樣，只是送的訊息換成「請啟動 <code>nginx.service</code>」。</li>
+<li>本機是用一般使用者跑的；用 root 跑時 <code>systemctl</code> 會優先直接連 systemd 自己的 socket <code>/run/systemd/private</code>（未實測）。
+<code>--user</code> 版本的實測見<a href="#%E4%BA%94%E5%AF%A6%E9%A9%97%E4%BA%8C%E8%B7%91%E8%B5%B7%E4%BE%86%E7%9C%8B%E6%87%82-systemctl-status">第五節</a>。</li>
+</ul>
+<p>整個流程畫成圖：</p>
+<pre class="mermaid">sequenceDiagram
+    autonumber
+    participant U as 你的 shell
+    participant C as systemctl
+    participant D as systemd（PID 1）
+    participant F as nginx.service（unit 檔）
+    participant N as nginx
+    U-&gt;&gt;C: fork + exec systemctl start nginx
+    C-&gt;&gt;D: 經 D-Bus 送「啟動 nginx.service」
+    D-&gt;&gt;F: 讀 unit 檔（已載入就用記憶體裡的）
+    D-&gt;&gt;D: 先跑 ExecStartPre（nginx -t 檢查設定）
+    D-&gt;&gt;N: fork 出子行程，exec ExecStart 的命令
+    N--&gt;&gt;D: 依 Type= 回報「啟動完成」
+    D--&gt;&gt;C: 回覆：job 完成
+    C--&gt;&gt;U: systemctl 結束，回傳 0
+    Note over D,N: nginx 繼續跑，父行程是 systemd
+</pre>
+<p><strong>圖一要看的重點</strong>：真正啟動程式的是第 5 步的 systemd，不是 <code>systemctl</code>。systemd 怎麼啟動這支程式，全部寫在第 3 步讀的那份 unit 檔裡。所以「讓自己的程式能 <code>systemctl start</code>」＝「寫一份 unit 檔」。</p>
+<hr />
+<h2 id="二unit-檔放在哪長什麼樣">二、unit 檔：放在哪、長什麼樣</h2>
+<h3 id="unit-是什麼">unit 是什麼</h3>
+<p>systemd 管理的每一樣東西都叫一個 <strong>unit</strong>，用副檔名區分種類：<code>.service</code>（一支常駐或一次性的程式）、<code>.socket</code>、<code>.timer</code>、<code>.target</code>（一組 unit 的集合，像「開機到多使用者模式」）、<code>.mount</code> 等等。
+<code>systemctl start nginx</code> 省略副檔名時，預設當成 <code>nginx.service</code>。</p>
+<h3 id="systemd-去哪些目錄找-unit-檔">systemd 去哪些目錄找 unit 檔</h3>
+<pre><code class="language-bash">systemd-analyze<span class="w"> </span>unit-paths<span class="w">          </span><span class="c1"># system 層（PID 1）找 unit 檔的目錄，依優先順序</span>
+</code></pre>
+<pre><code class="language-text">/etc/systemd/system.control
+/run/systemd/system.control
+/run/systemd/transient
+/run/systemd/generator.early
+/etc/systemd/system
+/etc/systemd/system.attached
+/run/systemd/system
+/run/systemd/system.attached
+/run/systemd/generator
+/usr/local/lib/systemd/system
+/usr/lib/systemd/system
+/run/systemd/generator.late
+</code></pre>
+<ul>
+<li>越上面優先權越高：同名的檔案，上面的會蓋掉下面的。</li>
+<li>要記的只有三個：</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>目錄</th>
+<th>誰放的</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>/usr/lib/systemd/system/</code></td>
+<td>套件（<code>apt install nginx</code> 裝進來的 <code>nginx.service</code> 就在這）</td>
+<td><strong>不要改</strong>，套件升級會覆蓋</td>
+</tr>
+<tr>
+<td><code>/etc/systemd/system/</code></td>
+<td>系統管理者（你）</td>
+<td><strong>自己寫的 system service 放這裡</strong>；也可以放同名檔蓋掉套件的版本</td>
+</tr>
+<tr>
+<td><code>/run/systemd/transient/</code></td>
+<td><code>systemd-run</code></td>
+<td>暫時性 unit，重開機就沒了（<a href="#%E4%BA%94%E5%AF%A6%E9%A9%97%E4%BA%8C%E8%B7%91%E8%B5%B7%E4%BE%86%E7%9C%8B%E6%87%82-systemctl-status">第五節</a>的實驗就是放在 user 層對應的目錄）</td>
+</tr>
+</tbody>
+</table>
+<p>使用者層（<code>systemctl --user</code>，由每個登入使用者自己的 <code>systemd --user</code> 管理，不需要 root）的目錄：</p>
+<pre><code class="language-bash">systemd-analyze<span class="w"> </span>--user<span class="w"> </span>unit-paths<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-E<span class="w"> </span><span class="s2">&quot;home|/etc|/usr/lib&quot;</span><span class="w">   </span><span class="c1"># 只挑出主要的幾個</span>
+</code></pre>
+<pre><code class="language-text">/home/set/.config/systemd/user.control
+/home/set/.config/systemd/user
+/etc/xdg/systemd/user
+/etc/systemd/user
+/home/set/.local/share/systemd/user
+/usr/lib/systemd/user
+</code></pre>
+<ul>
+<li>自己的 user service 放 <code>~/.config/systemd/user/</code>。</li>
+</ul>
+<h3 id="unit-檔的格式三個節">unit 檔的格式：三個節</h3>
+<p>先看 nginx 的（本機實際檔案，開頭的註解省略）：</p>
+<pre><code class="language-ini"><span class="k">[Unit]</span>
+<span class="na">Description</span><span class="o">=</span><span class="s">A high performance web server and a reverse proxy server</span>
+<span class="na">Documentation</span><span class="o">=</span><span class="s">man:nginx(8)</span>
+<span class="na">After</span><span class="o">=</span><span class="s">network-online.target remote-fs.target nss-lookup.target</span>
+<span class="na">Wants</span><span class="o">=</span><span class="s">network-online.target</span>
+<span class="na">ConditionFileIsExecutable</span><span class="o">=</span><span class="s">/usr/sbin/nginx</span>
+
+<span class="k">[Service]</span>
+<span class="na">Type</span><span class="o">=</span><span class="s">forking</span>
+<span class="na">PIDFile</span><span class="o">=</span><span class="s">/run/nginx.pid</span>
+<span class="na">ExecStartPre</span><span class="o">=</span><span class="s">/usr/sbin/nginx -t -q -g &#39;daemon on</span><span class="c1">; master_process on;&#39;</span>
+<span class="na">ExecStart</span><span class="o">=</span><span class="s">/usr/sbin/nginx -g &#39;daemon on</span><span class="c1">; master_process on;&#39;</span>
+<span class="na">ExecReload</span><span class="o">=</span><span class="s">/usr/sbin/nginx -g &#39;daemon on</span><span class="c1">; master_process on;&#39; -s reload</span>
+<span class="na">ExecStop</span><span class="o">=</span><span class="s">-/sbin/start-stop-daemon --quiet --stop --retry QUIT/5 --pidfile /run/nginx.pid</span>
+<span class="na">TimeoutStopSec</span><span class="o">=</span><span class="s">5</span>
+<span class="na">KillMode</span><span class="o">=</span><span class="s">mixed</span>
+
+<span class="k">[Install]</span>
+<span class="na">WantedBy</span><span class="o">=</span><span class="s">multi-user.target</span>
+</code></pre>
+<p>格式是 INI 風格：<code>[節名]</code> 底下一行一個 <code>鍵=值</code>。三個節各管一件事：</p>
+<table>
+<thead>
+<tr>
+<th>節</th>
+<th>管什麼</th>
+<th>什麼時候被讀</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>[Unit]</code></td>
+<td>跟種類無關的通用資訊：說明、文件、<strong>跟別的 unit 的先後與依賴</strong></td>
+<td>每次載入</td>
+</tr>
+<tr>
+<td><code>[Service]</code></td>
+<td>只有 <code>.service</code> 才有：<strong>怎麼啟動、怎麼停、怎麼判斷啟動完成、掛了要不要重啟</strong></td>
+<td>每次 start／stop／reload</td>
+</tr>
+<tr>
+<td><code>[Install]</code></td>
+<td><strong><code>enable</code> 的時候要把自己掛到哪裡</strong></td>
+<td>只有 <code>enable</code>／<code>disable</code> 時才讀</td>
+</tr>
+</tbody>
+</table>
+<p>nginx 這份逐行講：</p>
+<table>
+<thead>
+<tr>
+<th>設定</th>
+<th>意思</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Description=</code></td>
+<td><code>systemctl status</code> 第一行顯示的說明</td>
+</tr>
+<tr>
+<td><code>Documentation=</code></td>
+<td><code>systemctl help nginx</code> 會打開的文件</td>
+</tr>
+<tr>
+<td><code>After=network-online.target ...</code></td>
+<td><strong>順序</strong>：如果這些 unit 也要啟動，等它們啟動完才啟動我。<code>After=</code> 只管順序，不會把它們拉起來</td>
+</tr>
+<tr>
+<td><code>Wants=network-online.target</code></td>
+<td><strong>依賴</strong>：啟動我的時候順便把 <code>network-online.target</code> 也拉起來；它失敗了我照樣啟動（換成 <code>Requires=</code> 就是它失敗我也不啟動）</td>
+</tr>
+<tr>
+<td><code>ConditionFileIsExecutable=</code></td>
+<td>條件不成立（<code>/usr/sbin/nginx</code> 不存在或不能執行）就<strong>安靜地跳過</strong>，不算失敗</td>
+</tr>
+<tr>
+<td><code>Type=forking</code></td>
+<td>nginx 會自己 fork 到背景，詳見<a href="#%E4%B8%83typesystemd-%E6%80%8E%E9%BA%BC%E7%9F%A5%E9%81%93%E5%95%9F%E5%8B%95%E5%AE%8C%E6%88%90%E8%AA%B0%E6%98%AF%E4%B8%BB%E8%A1%8C%E7%A8%8B">第七節</a></td>
+</tr>
+<tr>
+<td><code>PIDFile=/run/nginx.pid</code></td>
+<td>fork 之後真正的主行程 PID 寫在這個檔案裡</td>
+</tr>
+<tr>
+<td><code>ExecStartPre=</code></td>
+<td>啟動前先跑：<code>nginx -t</code> 檢查設定檔，失敗就不啟動</td>
+</tr>
+<tr>
+<td><code>ExecStart=</code></td>
+<td><strong>真正要跑的命令</strong>，這是唯一必要的一行</td>
+</tr>
+<tr>
+<td><code>ExecReload=</code></td>
+<td><code>systemctl reload nginx</code> 時跑的命令（不停服務、重讀設定）</td>
+</tr>
+<tr>
+<td><code>ExecStop=-/sbin/...</code></td>
+<td><code>systemctl stop</code> 時跑的命令；路徑前面的 <code>-</code> 表示「這個命令失敗也不算錯」</td>
+</tr>
+<tr>
+<td><code>TimeoutStopSec=5</code></td>
+<td>stop 之後最多等 5 秒，還沒結束就送 <code>SIGKILL</code></td>
+</tr>
+<tr>
+<td><code>KillMode=mixed</code></td>
+<td>先只送 <code>SIGTERM</code> 給主行程，最後的 <code>SIGKILL</code> 送給整組行程</td>
+</tr>
+<tr>
+<td><code>WantedBy=multi-user.target</code></td>
+<td><code>enable</code> 時把自己掛到 <code>multi-user.target</code> 底下＝開機進入多使用者模式時啟動，詳見<a href="#%E4%B9%9Denable%E9%96%8B%E6%A9%9F%E8%87%AA%E5%8B%95%E5%95%9F%E5%8B%95%E5%85%B6%E5%AF%A6%E6%98%AF%E5%BB%BA%E4%B8%80%E5%80%8B%E7%AC%A6%E8%99%9F%E9%80%A3%E7%B5%90">第九節</a></td>
+</tr>
+</tbody>
+</table>
+<p>自己的程式只需要其中一小部分。最小、能 <code>enable</code> 的 service 長這樣（本篇的 <code>tickd.service</code>）：</p>
+<pre><code class="language-ini"><span class="k">[Unit]</span>
+<span class="na">Description</span><span class="o">=</span><span class="s">tickd：每 2 秒印一行的練習服務</span>
+
+<span class="k">[Service]</span>
+<span class="na">Type</span><span class="o">=</span><span class="s">simple</span>
+<span class="na">ExecStart</span><span class="o">=</span><span class="s">/usr/local/bin/tickd</span>
+
+<span class="k">[Install]</span>
+<span class="na">WantedBy</span><span class="o">=</span><span class="s">multi-user.target</span>
+</code></pre>
+<p>（<a href="#%E5%9B%9B%E5%AF%A6%E9%A9%97%E4%B8%80%E5%AF%AB%E5%A5%BD%E5%85%88%E7%94%A8-systemd-analyze-verify-%E6%AA%A2%E6%9F%A5">第四節</a>檢查時，<code>ExecStart=</code> 寫的是暫存目錄裡實際編好的執行檔路徑、<code>WantedBy=</code> 寫 user 層的 <code>default.target</code>，其餘一樣。）</p>
+<hr />
+<h2 id="三練習用的程式tickdc">三、練習用的程式：<code>tickd.c</code></h2>
+<p>一支什麼都不做、每 2 秒印一行的常駐程式。加了兩個選項，用來在後面的實驗製造「會自己 fork 到背景」和「會失敗退出」兩種情況。</p>
+<pre><code class="language-c"><span class="cm">/* tickd.c：每 2 秒印一行的小常駐程式，用來練習寫 systemd service</span>
+<span class="cm"> *   ./tickd        前景執行（給 Type=simple 用）</span>
+<span class="cm"> *   ./tickd -d     fork 後父行程結束，自己變成背景（模仿 nginx 的 daemon on，給 Type=forking 用）</span>
+<span class="cm"> *   ./tickd -x N   跑 N 圈後用結束狀態 1 離開（測 Restart=on-failure）</span>
+<span class="cm"> */</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;signal.h&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdlib.h&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;string.h&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;unistd.h&gt;</span>
+
+<span class="k">static</span><span class="w"> </span><span class="k">volatile</span><span class="w"> </span><span class="kt">sig_atomic_t</span><span class="w"> </span><span class="n">stop</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+
+<span class="k">static</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="nf">on_term</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">sig</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="p">(</span><span class="kt">void</span><span class="p">)</span><span class="n">sig</span><span class="p">;</span>
+<span class="w">    </span><span class="n">stop</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w">                           </span><span class="cm">/* 只設旗標，真正的收尾在迴圈外做 */</span>
+<span class="p">}</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">argc</span><span class="p">,</span><span class="w"> </span><span class="kt">char</span><span class="w"> </span><span class="o">*</span><span class="n">argv</span><span class="p">[])</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">daemonize</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="n">fail_after</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">-1</span><span class="p">;</span>
+
+<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">argc</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="o">++</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">strcmp</span><span class="p">(</span><span class="n">argv</span><span class="p">[</span><span class="n">i</span><span class="p">],</span><span class="w"> </span><span class="s">&quot;-d&quot;</span><span class="p">)</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span>
+<span class="w">            </span><span class="n">daemonize</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+<span class="w">        </span><span class="k">else</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">strcmp</span><span class="p">(</span><span class="n">argv</span><span class="p">[</span><span class="n">i</span><span class="p">],</span><span class="w"> </span><span class="s">&quot;-x&quot;</span><span class="p">)</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">argc</span><span class="p">)</span>
+<span class="w">            </span><span class="n">fail_after</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">atoi</span><span class="p">(</span><span class="n">argv</span><span class="p">[</span><span class="o">++</span><span class="n">i</span><span class="p">]);</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">daemonize</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="kt">pid_t</span><span class="w"> </span><span class="n">pid</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">fork</span><span class="p">();</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">pid</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="n">perror</span><span class="p">(</span><span class="s">&quot;fork&quot;</span><span class="p">);</span>
+<span class="w">            </span><span class="k">return</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">pid</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">                  </span><span class="cm">/* 父行程：寫下子行程的 PID 就離開 */</span>
+<span class="w">            </span><span class="kt">FILE</span><span class="w"> </span><span class="o">*</span><span class="n">f</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">fopen</span><span class="p">(</span><span class="n">getenv</span><span class="p">(</span><span class="s">&quot;TICKD_PIDFILE&quot;</span><span class="p">)</span><span class="w"> </span><span class="o">?</span><span class="w"> </span><span class="n">getenv</span><span class="p">(</span><span class="s">&quot;TICKD_PIDFILE&quot;</span><span class="p">)</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="s">&quot;/dev/null&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;w&quot;</span><span class="p">);</span>
+<span class="w">            </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">f</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                </span><span class="n">fprintf</span><span class="p">(</span><span class="n">f</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;%d</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">pid</span><span class="p">);</span>
+<span class="w">                </span><span class="n">fclose</span><span class="p">(</span><span class="n">f</span><span class="p">);</span>
+<span class="w">            </span><span class="p">}</span>
+<span class="w">            </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">getenv</span><span class="p">(</span><span class="s">&quot;TICKD_LINEBUF&quot;</span><span class="p">))</span><span class="w">        </span><span class="cm">/* 有設這個環境變數才改成行緩衝 */</span>
+<span class="w">        </span><span class="n">setvbuf</span><span class="p">(</span><span class="n">stdout</span><span class="p">,</span><span class="w"> </span><span class="nb">NULL</span><span class="p">,</span><span class="w"> </span><span class="n">_IOLBF</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">);</span>
+
+<span class="w">    </span><span class="n">signal</span><span class="p">(</span><span class="n">SIGTERM</span><span class="p">,</span><span class="w"> </span><span class="n">on_term</span><span class="p">);</span>
+
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;tickd 啟動，PID %d，父行程 %d</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">getpid</span><span class="p">(),</span><span class="w"> </span><span class="n">getppid</span><span class="p">());</span>
+<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">n</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w"> </span><span class="o">!</span><span class="n">stop</span><span class="p">;</span><span class="w"> </span><span class="n">n</span><span class="o">++</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;tick %d</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">n</span><span class="p">);</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">n</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">fail_after</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="n">fprintf</span><span class="p">(</span><span class="n">stderr</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;tickd：跑了 %d 圈，故意用結束狀態 1 離開</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">n</span><span class="p">);</span>
+<span class="w">            </span><span class="k">return</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">        </span><span class="n">sleep</span><span class="p">(</span><span class="mi">2</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;tickd 收到 SIGTERM，正常結束</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">);</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<pre><code class="language-bash">gcc<span class="w"> </span>-Wall<span class="w"> </span>-Wextra<span class="w"> </span>-O2<span class="w"> </span>tickd.c<span class="w"> </span>-o<span class="w"> </span>tickd
+</code></pre>
+<p>這支程式用到三個還沒在課程裡正式教的東西（第 ② 站「行程」才會教），這裡先講到夠用：</p>
+<ul>
+<li><strong><code>fork()</code></strong>：把目前的行程<strong>複製一份</strong>。之後有兩個行程從同一行繼續跑；在父行程裡 <code>fork()</code> 回傳子行程的 PID（大於 0），在子行程裡回傳 0。
+<code>-d</code> 的寫法是「父行程寫下子行程的 PID 就 <code>return 0</code> 結束，子行程留下來繼續跑」——傳統 daemon（背景常駐程式）把自己丟到背景的做法，nginx 的 <code>daemon on</code> 就是這樣。</li>
+<li><strong>訊號（signal）與 <code>SIGTERM</code></strong>：kernel 送給行程的通知。<code>SIGTERM</code> 的意思是「請你結束」，程式可以用 <code>signal(SIGTERM, on_term)</code> 註冊一個函式來接住它、做完收尾再走；沒註冊的話預設動作就是直接結束。<code>SIGKILL</code>（<code>kill -9</code>）則接不住，行程立刻被 kernel 殺掉。<code>systemctl stop</code> 預設送的是 <code>SIGTERM</code>。</li>
+<li><strong><code>setvbuf(stdout, NULL, _IOLBF, 0)</code></strong>：把 <code>stdout</code> 改成行緩衝，<a href="#%E5%85%AD%E5%AF%A6%E9%A9%97%E4%B8%89journal-%E8%A3%A1%E4%B8%80%E7%9B%B4%E7%9C%8B%E4%B8%8D%E5%88%B0%E8%BC%B8%E5%87%BAstdout-%E7%9A%84%E7%B7%A9%E8%A1%9D">第六節</a>會看到為什麼需要它。</li>
+</ul>
+<p>先在終端機直接跑 5 秒（<code>timeout 5</code> 會在 5 秒後送 <code>SIGTERM</code>）：</p>
+<pre><code class="language-bash">timeout<span class="w"> </span><span class="m">5</span><span class="w"> </span>./tickd<span class="p">;</span><span class="w"> </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;exit=</span><span class="nv">$?</span><span class="s2">&quot;</span>
+</code></pre>
+<pre><code class="language-text">tickd 啟動，PID 8802，父行程 8801
+tick 1
+tick 2
+tick 3
+tickd 收到 SIGTERM，正常結束
+exit=124
+</code></pre>
+<ul>
+<li>每 2 秒一行，即時出現；5 秒時收到 <code>SIGTERM</code>，<code>on_term</code> 把 <code>stop</code> 設成 1，迴圈結束、印最後一行。</li>
+<li><code>exit=124</code> 是 <code>timeout</code> 自己的結束狀態（代表「時間到，我把它停掉了」），不是 <code>tickd</code> 的。</li>
+<li>問題是：它佔住了這個終端機，終端機一關它就跟著結束，開機也不會自己跑。交給 systemd 就是要解決這三件事。</li>
+</ul>
+<hr />
+<h2 id="四實驗一寫好先用-systemd-analyze-verify-檢查">四、實驗一：寫好先用 <code>systemd-analyze verify</code> 檢查</h2>
+<p>還沒寫 unit 檔之前，systemd 根本不認得這個名字：</p>
+<pre><code class="language-bash">systemctl<span class="w"> </span>--user<span class="w"> </span>start<span class="w"> </span>tickd<span class="p">;</span><span class="w"> </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;exit=</span><span class="nv">$?</span><span class="s2">&quot;</span>
+</code></pre>
+<pre><code class="language-text">Failed to start tickd.service: Unit tickd.service not found.
+exit=5
+</code></pre>
+<ul>
+<li>自動補上了 <code>.service</code>；在 user 層的所有目錄都找不到 <code>tickd.service</code>，結束狀態 5（<code>systemctl</code> 的「unit 不存在」）。</li>
+</ul>
+<p>寫好 unit 檔之後，先用 <code>systemd-analyze verify</code> 檢查格式，它只讀檔、不會安裝也不會啟動。<code>$S</code> 代表暫存目錄的路徑（很長，下面都用 <code>$S</code> 代替）：</p>
+<pre><code class="language-bash">cat<span class="w"> </span>&gt;<span class="w"> </span>tickd.service<span class="w"> </span><span class="s">&lt;&lt;EOF</span>
+<span class="s">[Unit]</span>
+<span class="s">Description=tickd：每 2 秒印一行的練習服務</span>
+
+<span class="s">[Service]</span>
+<span class="s">Type=simple</span>
+<span class="s">ExecStart=$S/tickd</span>
+
+<span class="s">[Install]</span>
+<span class="s">WantedBy=default.target</span>
+<span class="s">EOF</span>
+systemd-analyze<span class="w"> </span>--user<span class="w"> </span>verify<span class="w"> </span>./tickd.service<span class="p">;</span><span class="w"> </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;verify exit=</span><span class="nv">$?</span><span class="s2">&quot;</span>
+</code></pre>
+<pre><code class="language-text">verify exit=0
+</code></pre>
+<ul>
+<li>沒有任何訊息、結束狀態 0＝格式沒問題，<code>ExecStart=</code> 指到的檔案存在而且能執行。</li>
+</ul>
+<p>接著故意寫錯三種，看錯誤訊息怎麼對應：</p>
+<p><strong>① 鍵名拼錯：<code>ExecStrat=</code></strong></p>
+<pre><code class="language-bash">sed<span class="w"> </span><span class="s1">&#39;s/ExecStart=/ExecStrat=/&#39;</span><span class="w"> </span>tickd.service<span class="w"> </span>&gt;<span class="w"> </span>bad1.service<span class="w">   </span><span class="c1"># 把 ExecStart 拼錯</span>
+systemd-analyze<span class="w"> </span>--user<span class="w"> </span>verify<span class="w"> </span>./bad1.service<span class="p">;</span><span class="w"> </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;exit=</span><span class="nv">$?</span><span class="s2">&quot;</span>
+</code></pre>
+<pre><code class="language-text">$S/bad1.service:6: Unknown key name &#39;ExecStrat&#39; in section &#39;Service&#39;, ignoring.
+bad1.service: Service has no ExecStart=, ExecStop=, or SuccessAction=. Refusing.
+Unit bad1.service has a bad unit file setting.
+exit=1
+</code></pre>
+<ul>
+<li>第 1 行：第 6 行的鍵不認得，<strong>只是忽略</strong>、不算錯。所以拼錯一個不重要的鍵（例如 <code>Descripton=</code>），unit 照樣能跑，只是那行沒作用——要靠 <code>verify</code> 才看得出來。</li>
+<li>第 2 行：忽略之後就等於沒有 <code>ExecStart=</code>，這才是致命的：service 一定要有東西可以跑。</li>
+</ul>
+<p><strong>② <code>ExecStart=</code> 沒寫絕對路徑：<code>ExecStart=tickd</code></strong></p>
+<pre><code class="language-bash">sed<span class="w"> </span><span class="s1">&#39;s/ExecStart=.*/ExecStart=tickd/&#39;</span><span class="w"> </span>tickd.service<span class="w"> </span>&gt;<span class="w"> </span>bad2.service
+systemd-analyze<span class="w"> </span>--user<span class="w"> </span>verify<span class="w"> </span>./bad2.service<span class="p">;</span><span class="w"> </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;exit=</span><span class="nv">$?</span><span class="s2">&quot;</span>
+</code></pre>
+<pre><code class="language-text">bad2.service: Command tickd is not executable: No such file or directory
+exit=1
+</code></pre>
+<ul>
+<li>systemd <strong>不看你 shell 的 <code>PATH</code></strong>。不是絕對路徑時，它只在編譯時就決定好的幾個固定目錄找（<code>/usr/local/sbin</code>、<code>/usr/local/bin</code>、<code>/usr/sbin</code>、<code>/usr/bin</code> 這類，見 <code>man systemd.service</code> 的 <code>COMMAND LINES</code> 一節），
+<code>tickd</code> 不在那裡面，所以找不到。<strong>一律寫絕對路徑</strong>最保險（同樣的坑見 <a href="../claude-code/Claude-Code%E8%83%BD%E5%83%8Fsystemd-service%E4%B8%80%E6%A8%A3%E5%B8%B8%E9%A7%90%E5%97%8E.html#%E5%9D%91-3path-%E8%88%87%E7%92%B0%E5%A2%83systemd-%E7%9A%84%E7%92%B0%E5%A2%83%E6%98%AF%E4%B9%BE%E6%B7%A8%E7%9A%84">Claude Code 那篇〈坑 3：PATH 與環境〉</a>）。</li>
+<li>另外，<code>ExecStart=</code> <strong>不是交給 shell 執行的</strong>：<code>|</code>、<code>&gt;</code>、<code>&amp;&amp;</code>、<code>*</code> 都沒有 shell 的意思。真的需要 shell 語法就寫 <code>ExecStart=/bin/sh -c '...'</code>。</li>
+</ul>
+<p><strong>③ 整行沒寫</strong></p>
+<pre><code class="language-bash">sed<span class="w"> </span><span class="s1">&#39;/ExecStart/d&#39;</span><span class="w"> </span>tickd.service<span class="w"> </span>&gt;<span class="w"> </span>bad3.service
+systemd-analyze<span class="w"> </span>--user<span class="w"> </span>verify<span class="w"> </span>./bad3.service<span class="p">;</span><span class="w"> </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;exit=</span><span class="nv">$?</span><span class="s2">&quot;</span>
+</code></pre>
+<pre><code class="language-text">bad3.service: Service has no ExecStart=, ExecStop=, or SuccessAction=. Refusing.
+Unit bad3.service has a bad unit file setting.
+exit=1
+</code></pre>
+<ul>
+<li>跟 ① 的第 2、3 行一樣——① 拼錯其實就等於這種情況。</li>
+</ul>
+<hr />
+<h2 id="五實驗二跑起來看懂-systemctl-status">五、實驗二：跑起來，看懂 <code>systemctl status</code></h2>
+<h3 id="這裡用-systemd-run跟寫-unit-檔差在哪">這裡用 <code>systemd-run</code>，跟寫 unit 檔差在哪</h3>
+<p>照理說下一步是把 <code>tickd.service</code> 放進 <code>~/.config/systemd/user/</code> 再 <code>systemctl --user start tickd</code>。本篇的環境寫不進那個目錄（見開頭的「未實測」），所以改用 <code>systemd-run</code>：它<strong>把 unit 檔的設定改成命令列參數傳給 systemd</strong>，由 systemd 在 <code>/run/user/1000/systemd/transient/</code> 建一個暫時性 unit 並啟動它。啟動、停止、狀態、journal、重啟全部跟一般 unit 一模一樣，只是停掉之後 unit 就消失、不能 <code>enable</code>。兩種寫法的對照：</p>
+<table>
+<thead>
+<tr>
+<th>unit 檔裡的一行</th>
+<th><code>systemd-run</code> 的參數</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>檔名 <code>tickd.service</code></td>
+<td><code>--unit=tickd</code></td>
+</tr>
+<tr>
+<td><code>Description=...</code></td>
+<td><code>-p Description=...</code></td>
+</tr>
+<tr>
+<td><code>ExecStart=/路徑/tickd -d</code></td>
+<td>最後面直接寫命令：<code>/路徑/tickd -d</code></td>
+</tr>
+<tr>
+<td><code>Environment=TICKD_LINEBUF=1</code></td>
+<td><code>-E TICKD_LINEBUF=1</code></td>
+</tr>
+<tr>
+<td><code>Type=forking</code>、<code>Restart=on-failure</code> 等其他 <code>[Service]</code> 設定</td>
+<td><code>-p Type=forking</code>、<code>-p Restart=on-failure</code>（<code>-p</code> 就是「設一個屬性」）</td>
+</tr>
+<tr>
+<td><code>[Install]</code> 節</td>
+<td>沒有對應（暫時性 unit 不能 <code>enable</code>）</td>
+</tr>
+</tbody>
+</table>
+<p><code>systemd-run</code> 全部 40 個選項見 <code>systemd-run --help</code>／<code>man systemd-run</code>，本篇只用了 <code>--user</code>、<code>--unit</code>、<code>-p</code>、<code>-E</code> 這 4 個。</p>
+<h3 id="啟動然後看狀態">啟動，然後看狀態</h3>
+<pre><code class="language-bash">systemd-run<span class="w"> </span>--user<span class="w"> </span>--unit<span class="o">=</span>tickd<span class="w"> </span>-p<span class="w"> </span><span class="nv">Description</span><span class="o">=</span><span class="s2">&quot;tickd 練習&quot;</span><span class="w"> </span><span class="nv">$S</span>/tickd<span class="w">   </span><span class="c1"># 相當於 systemctl --user start tickd</span>
+sleep<span class="w"> </span><span class="m">7</span>
+systemctl<span class="w"> </span>--user<span class="w"> </span>status<span class="w"> </span>tickd<span class="w"> </span>--no-pager
+</code></pre>
+<pre><code class="language-text">Running as unit: tickd.service; invocation ID: 7c4bd6c5a8ff4fc5834a16ea357a9663
+● tickd.service - tickd 練習
+     Loaded: loaded (/run/user/1000/systemd/transient/tickd.service; transient)
+  Transient: yes
+     Active: active (running) since Thu 2026-11-05 09:49:05 CST; 7s ago
+   Main PID: 8927 (tickd)
+      Tasks: 1 (limit: 16187)
+     Memory: 380.0K (peak: 768.0K)
+        CPU: 3ms
+     CGroup: /user.slice/user-1000.slice/user@1000.service/app.slice/tickd.service
+             └─8927 $S/tickd
+
+Nov 05 09:49:05 set-Vector-17-HX-A14VFG systemd[2029]: Started tickd.service - tickd 練習.
+</code></pre>
+<p>逐行讀：</p>
+<table>
+<thead>
+<tr>
+<th>行</th>
+<th>意思</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>● tickd.service - tickd 練習</code></td>
+<td>unit 名稱與 <code>Description=</code>；前面的圓點是狀態燈（綠＝執行中、紅 <code>×</code>＝失敗、白＝沒在跑）</td>
+</tr>
+<tr>
+<td><code>Loaded: loaded (&lt;路徑&gt;; transient)</code></td>
+<td>unit 檔從哪裡讀的。一般 unit 這裡會寫 <code>(/etc/systemd/system/tickd.service; enabled; preset: enabled)</code>：分號後面是有沒有 <code>enable</code></td>
+</tr>
+<tr>
+<td><code>Active: active (running) since ...</code></td>
+<td>目前狀態。<code>active (running)</code>＝主行程活著；其他常見的是 <code>inactive (dead)</code>、<code>failed</code>、<code>activating (start)</code></td>
+</tr>
+<tr>
+<td><code>Main PID: 8927 (tickd)</code></td>
+<td>systemd 認定的<strong>主行程</strong>。主行程結束＝服務結束，所以「誰是主行程」很重要（<a href="#%E4%B8%83typesystemd-%E6%80%8E%E9%BA%BC%E7%9F%A5%E9%81%93%E5%95%9F%E5%8B%95%E5%AE%8C%E6%88%90%E8%AA%B0%E6%98%AF%E4%B8%BB%E8%A1%8C%E7%A8%8B">第七節</a>）</td>
+</tr>
+<tr>
+<td><code>Tasks</code>／<code>Memory</code>／<code>CPU</code></td>
+<td>這個服務<strong>所有行程加起來</strong>用了多少</td>
+</tr>
+<tr>
+<td><code>CGroup: .../tickd.service</code></td>
+<td>這個服務專屬的 <strong>cgroup</strong>（control group，kernel 用來把一群行程分組、統計與限制資源的機制）。服務生出來的所有子孫行程都在這組裡，所以 systemd 停服務時一個都不會漏</td>
+</tr>
+<tr>
+<td>最後幾行</td>
+<td>這個服務在 journal 裡最新的幾筆紀錄（等於 <code>journalctl -u tickd -n 10</code>）</td>
+</tr>
+</tbody>
+</table>
+<p><code>systemd[2029]</code> 是誰？</p>
+<pre><code class="language-bash">ps<span class="w"> </span>-o<span class="w"> </span>pid,ppid,cmd<span class="w"> </span>-p<span class="w"> </span><span class="m">2029</span>
+</code></pre>
+<pre><code class="language-text">    PID    PPID CMD
+   2029       1 /usr/lib/systemd/systemd --user
+</code></pre>
+<ul>
+<li>是我這個使用者的 <code>systemd --user</code>，它本身是 PID 1 生出來的。user 層的服務都是它的子行程（<a href="#%E5%85%AD%E5%AF%A6%E9%A9%97%E4%B8%89journal-%E8%A3%A1%E4%B8%80%E7%9B%B4%E7%9C%8B%E4%B8%8D%E5%88%B0%E8%BC%B8%E5%87%BAstdout-%E7%9A%84%E7%B7%A9%E8%A1%9D">第六節</a>的輸出會看到 <code>tickd</code> 的父行程是 2029）。</li>
+<li><code>systemctl --user</code> 怎麼連到它：</li>
+</ul>
+<pre><code class="language-bash">strace<span class="w"> </span>-e<span class="w"> </span><span class="nv">trace</span><span class="o">=</span>connect<span class="w"> </span>systemctl<span class="w"> </span>--user<span class="w"> </span>is-active<span class="w"> </span>nonexist<span class="w">   </span><span class="c1"># 看 --user 版本連去哪裡</span>
+</code></pre>
+<pre><code class="language-text">connect(3, {sa_family=AF_UNIX, sun_path=&quot;/run/user/1000/systemd/private&quot;}, 33) = -1 ECONNREFUSED (Connection refused)
+connect(3, {sa_family=AF_UNIX, sun_path=&quot;/run/user/1000/bus&quot;}, 21) = 0
+inactive
++++ exited with 4 +++
+</code></pre>
+<ul>
+<li>先試 <code>systemd --user</code> 自己的 socket（這次被拒絕），再改走這個使用者的 D-Bus（<code>/run/user/1000/bus</code>）成功。跟<a href="#%E4%B8%80systemctl-start-nginx-%E8%83%8C%E5%BE%8C%E7%99%BC%E7%94%9F%E4%BB%80%E9%BA%BC%E4%BA%8B">第一節</a>一樣，<code>systemctl</code> 只是個傳話的。</li>
+<li>結束狀態 4：<code>is-active</code> 問的 unit 不存在。</li>
+</ul>
+<hr />
+<h2 id="六實驗三journal-裡一直看不到輸出stdout-的緩衝">六、實驗三：journal 裡一直看不到輸出——<code>stdout</code> 的緩衝</h2>
+<p>上面 <code>status</code> 跑了 7 秒，照理應該已經印了「啟動」加上好幾行 <code>tick</code>，可是 journal 裡只有 systemd 自己那行 <code>Started</code>。接著看 journal、再停掉服務、再看一次：</p>
+<pre><code class="language-bash">journalctl<span class="w"> </span>--user<span class="w"> </span>-u<span class="w"> </span>tickd<span class="w"> </span>--no-pager<span class="w"> </span>-o<span class="w"> </span>cat<span class="w">   </span><span class="c1"># -o cat：只印訊息本身</span>
+systemctl<span class="w"> </span>--user<span class="w"> </span>stop<span class="w"> </span>tickd
+journalctl<span class="w"> </span>--user<span class="w"> </span>-u<span class="w"> </span>tickd<span class="w"> </span>--no-pager<span class="w"> </span>-o<span class="w"> </span>short
+</code></pre>
+<pre><code class="language-text">Started tickd.service - tickd 練習.
+Nov 05 09:49:05 set-Vector-17-HX-A14VFG systemd[2029]: Started tickd.service - tickd 練習.
+Nov 05 09:49:12 set-Vector-17-HX-A14VFG tickd[8927]: tickd 啟動，PID 8927，父行程 2029
+Nov 05 09:49:12 set-Vector-17-HX-A14VFG tickd[8927]: tick 1
+Nov 05 09:49:12 set-Vector-17-HX-A14VFG tickd[8927]: tick 2
+Nov 05 09:49:12 set-Vector-17-HX-A14VFG tickd[8927]: tick 3
+Nov 05 09:49:12 set-Vector-17-HX-A14VFG tickd[8927]: tick 4
+Nov 05 09:49:12 set-Vector-17-HX-A14VFG tickd[8927]: tickd 收到 SIGTERM，正常結束
+Nov 05 09:49:12 set-Vector-17-HX-A14VFG systemd[2029]: Stopping tickd.service - tickd 練習...
+Nov 05 09:49:12 set-Vector-17-HX-A14VFG systemd[2029]: Stopped tickd.service - tickd 練習.
+</code></pre>
+<ul>
+<li>第 1 行（第一個 <code>journalctl</code>）：跑了 7 秒，<code>tickd</code> 一行都還沒進 journal。</li>
+<li>停掉之後：<code>tick 1</code>～<code>tick 4</code> 一次全部出現，<strong>時間戳全是 09:49:12</strong>——停止的那一刻，而不是每 2 秒一行的實際時間。</li>
+</ul>
+<p>原因是<a href="../c/%E5%AF%AB%E8%87%AA%E5%B7%B1%E7%9A%84wc%E8%88%87cat-%E5%91%BD%E4%BB%A4%E5%88%97%E5%8F%83%E6%95%B8%E3%80%81%E8%AE%80%E5%88%B0EOF%E8%88%87errno%E9%8C%AF%E8%AA%A4%E8%99%95%E7%90%86.html#%E8%BC%B8%E5%87%BA%E9%A0%86%E5%BA%8F%E7%82%BA%E4%BB%80%E9%BA%BC%E6%9C%83%E8%AE%8Astdout-%E6%9C%89%E7%B7%A9%E8%A1%9Dstderr-%E6%B2%92%E6%9C%89">第 8 課第五節〈輸出順序為什麼會變〉</a>講過的緩衝：
+stdio 看 <code>stdout</code> 接到什麼來決定緩衝方式，接到終端機是行緩衝，<strong>接到別的東西就是全緩衝</strong>，存滿緩衝區（通常 4096 byte）或程式結束時才真的 <code>write</code>。服務的 <code>stdout</code> 接到哪裡？看它的 fd 表（fd 是什麼見 <a href="fd%E6%98%AF%E4%BB%80%E9%BA%BC-%E8%A1%8C%E7%A8%8B%E7%9A%84%E6%AA%94%E6%A1%88%E6%8F%8F%E8%BF%B0%E7%AC%A6%E8%A1%A8.html">fd是什麼</a>）：</p>
+<pre><code class="language-bash">systemd-run<span class="w"> </span>--user<span class="w"> </span>--unit<span class="o">=</span>tickd<span class="w"> </span>-p<span class="w"> </span><span class="nv">Description</span><span class="o">=</span><span class="s2">&quot;tickd 練習&quot;</span><span class="w"> </span>-E<span class="w"> </span><span class="nv">TICKD_LINEBUF</span><span class="o">=</span><span class="m">1</span><span class="w"> </span><span class="nv">$S</span>/tickd<span class="w">   </span><span class="c1"># 這次打開行緩衝</span>
+sleep<span class="w"> </span><span class="m">5</span>
+<span class="nv">P</span><span class="o">=</span><span class="k">$(</span>systemctl<span class="w"> </span>--user<span class="w"> </span>show<span class="w"> </span>tickd<span class="w"> </span>-p<span class="w"> </span>MainPID<span class="w"> </span>--value<span class="k">)</span><span class="p">;</span><span class="w"> </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;MainPID=</span><span class="nv">$P</span><span class="s2">&quot;</span>
+ls<span class="w"> </span>-l<span class="w"> </span>/proc/<span class="nv">$P</span>/fd/
+journalctl<span class="w"> </span>--user<span class="w"> </span>-u<span class="w"> </span>tickd<span class="w"> </span>--no-pager<span class="w"> </span>-o<span class="w"> </span>short<span class="w"> </span>--since<span class="w"> </span><span class="s2">&quot;-10s&quot;</span>
+systemctl<span class="w"> </span>--user<span class="w"> </span>stop<span class="w"> </span>tickd
+</code></pre>
+<pre><code class="language-text">Running as unit: tickd.service; invocation ID: fcb49e8b2062473389806cd65150c94d
+MainPID=8949
+total 0
+lr-x------ 1 set set 64 Nov  5 09:49 0 -&gt; /dev/null
+lrwx------ 1 set set 64 Nov  5 09:49 1 -&gt; socket:[55408]
+lrwx------ 1 set set 64 Nov  5 09:49 2 -&gt; socket:[55408]
+Nov 05 09:49:20 set-Vector-17-HX-A14VFG systemd[2029]: Started tickd.service - tickd 練習.
+Nov 05 09:49:20 set-Vector-17-HX-A14VFG tickd[8949]: tickd 啟動，PID 8949，父行程 2029
+Nov 05 09:49:20 set-Vector-17-HX-A14VFG tickd[8949]: tick 1
+Nov 05 09:49:22 set-Vector-17-HX-A14VFG tickd[8949]: tick 2
+Nov 05 09:49:24 set-Vector-17-HX-A14VFG tickd[8949]: tick 3
+</code></pre>
+<ul>
+<li>fd 0 是 <code>/dev/null</code>：服務沒有鍵盤可以讀。fd 1、2 是<strong>同一個 socket</strong>，另一頭是 journald——這就是「服務的輸出被 journald 收走」的實際樣子（<a href="journalctl%E7%9C%8B%E6%9C%8D%E5%8B%99%E6%97%A5%E8%AA%8C.html#%E4%B8%80%E7%82%BA%E4%BB%80%E9%BA%BC%E6%9C%8D%E5%8B%99%E6%B2%92%E6%9C%89%E8%87%AA%E5%B7%B1%E7%9A%84-log-%E6%AA%94">journalctl看服務日誌第一節</a>）。</li>
+<li>socket 不是終端機，所以 <code>stdout</code> 預設全緩衝。這次設了 <code>TICKD_LINEBUF=1</code>，程式呼叫 <code>setvbuf(..., _IOLBF, ...)</code> 改成行緩衝，每行 <code>\n</code> 就寫出去：時間戳變成 20、22、24，每 2 秒一行，即時進 journal。</li>
+<li><code>stderr</code> 不緩衝，所以用 <code>fprintf(stderr, ...)</code> 印的錯誤本來就會即時出現（<a href="#%E5%85%AB%E5%81%9C%E6%AD%A2%E8%88%87%E8%87%AA%E5%8B%95%E9%87%8D%E5%95%9Fsigterm-%E8%88%87-restart">第八節</a>的 <code>-x</code> 實驗就是）。</li>
+</ul>
+<p><strong>更糟的情況：程式沒有接 <code>SIGTERM</code>，緩衝區裡的輸出會整個不見。</strong> <code>tickd</code> 停止時還印得出那 4 行，是因為它接住 <code>SIGTERM</code>、從 <code>main</code> 正常 <code>return</code>，
+<code>return</code> 時 stdio 會把緩衝區寫出去（<a href="../c/%E5%AF%AB%E8%87%AA%E5%B7%B1%E7%9A%84wc%E8%88%87cat-%E5%91%BD%E4%BB%A4%E5%88%97%E5%8F%83%E6%95%B8%E3%80%81%E8%AE%80%E5%88%B0EOF%E8%88%87errno%E9%8C%AF%E8%AA%A4%E8%99%95%E7%90%86.html#%E7%B5%90%E6%9D%9F%E7%8B%80%E6%85%8Breturn-%E7%9A%84%E5%80%BC">第 8 課第五節〈結束狀態〉</a>講過 <code>exit</code> 會先寫出緩衝區）。下面的 <code>beat.c</code> 沒有接 <code>SIGTERM</code>，而 <code>SIGTERM</code> 的預設動作是由 kernel 直接結束行程——<code>main</code> 沒有 <code>return</code>，stdio 沒有機會寫出緩衝區：</p>
+<pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;unistd.h&gt;</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">n</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w"> </span><span class="p">;</span><span class="w"> </span><span class="n">n</span><span class="o">++</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;beat %d</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">n</span><span class="p">);</span>
+<span class="w">        </span><span class="n">sleep</span><span class="p">(</span><span class="mi">2</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+</code></pre>
+<pre><code class="language-bash">gcc<span class="w"> </span>-Wall<span class="w"> </span>beat.c<span class="w"> </span>-o<span class="w"> </span>beat
+systemd-run<span class="w"> </span>--user<span class="w"> </span>--unit<span class="o">=</span>beat<span class="w"> </span><span class="nv">$S</span>/beat<span class="p">;</span><span class="w"> </span>sleep<span class="w"> </span><span class="m">7</span><span class="p">;</span><span class="w"> </span>systemctl<span class="w"> </span>--user<span class="w"> </span>stop<span class="w"> </span>beat<span class="p">;</span><span class="w"> </span>sleep<span class="w"> </span><span class="m">1</span><span class="w">   </span><span class="c1"># 跑 7 秒後停掉</span>
+journalctl<span class="w"> </span>--user<span class="w"> </span>-u<span class="w"> </span>beat<span class="w"> </span>--no-pager<span class="w"> </span>-o<span class="w"> </span>short<span class="w"> </span>--since<span class="w"> </span><span class="s2">&quot;-12s&quot;</span>
+</code></pre>
+<pre><code class="language-text">Nov 05 09:58:11 set-Vector-17-HX-A14VFG systemd[2029]: Started beat.service - $S/beat.
+Nov 05 09:58:18 set-Vector-17-HX-A14VFG systemd[2029]: Stopping beat.service - $S/beat...
+Nov 05 09:58:18 set-Vector-17-HX-A14VFG systemd[2029]: Stopped beat.service - $S/beat.
+</code></pre>
+<ul>
+<li>跑了 7 秒，照理印了 <code>beat 1</code>～<code>beat 4</code>，但 journal 裡<strong>一行都沒有</strong>：它們一直待在行程的緩衝區裡，行程被 <code>SIGTERM</code> 結束時跟著記憶體一起消失了，從來沒有 <code>write</code> 到 socket。</li>
+</ul>
+<p><strong>修法</strong>（擇一）：</p>
+<ol>
+<li>程式開頭 <code>setvbuf(stdout, NULL, _IOLBF, 0);</code>（本篇的做法），或每次印完 <code>fflush(stdout);</code>。</li>
+<li>不改程式：用語言或工具的開關，例如 Python 加 <code>-u</code> 或設 <code>PYTHONUNBUFFERED=1</code>、C 程式外面包 <code>stdbuf -oL</code>（只對使用 stdio 預設緩衝的程式有效）。</li>
+<li>改用 <code>syslog(3)</code> 或 <code>sd_journal_print(3)</code> 直接寫 journal，不經過 <code>stdout</code>。</li>
+</ol>
+<hr />
+<h2 id="七typesystemd-怎麼知道啟動完成誰是主行程">七、<code>Type=</code>：systemd 怎麼知道「啟動完成」、誰是主行程</h2>
+<p>systemd 啟動一支程式後要回答兩個問題：<strong>什麼時候算「啟動完成」</strong>（<code>systemctl start</code> 才能返回、<code>After=</code> 這個服務的其他服務才能接著啟動），以及<strong>哪個行程是主行程</strong>（它結束就代表服務結束）。
+<code>Type=</code> 就是在告訴 systemd 怎麼判斷。</p>
+<h3 id="實驗會自己-fork-到背景的程式用-typesimple-會怎樣">實驗：會自己 fork 到背景的程式，用 <code>Type=simple</code> 會怎樣</h3>
+<p><code>tickd -d</code> 模仿 nginx 的 <code>daemon on</code>：父行程 <code>fork</code> 出子行程後立刻 <code>return 0</code>。先用預設的 <code>Type=simple</code> 跑：</p>
+<pre><code class="language-bash">systemd-run<span class="w"> </span>--user<span class="w"> </span>--unit<span class="o">=</span>tickd<span class="w"> </span>-E<span class="w"> </span><span class="nv">TICKD_LINEBUF</span><span class="o">=</span><span class="m">1</span><span class="w"> </span><span class="nv">$S</span>/tickd<span class="w"> </span>-d<span class="w">   </span><span class="c1"># 沒寫 -p Type=，預設 simple</span>
+sleep<span class="w"> </span><span class="m">3</span>
+systemctl<span class="w"> </span>--user<span class="w"> </span>status<span class="w"> </span>tickd<span class="w"> </span>--no-pager
+pgrep<span class="w"> </span>-a<span class="w"> </span>tickd<span class="w">                                                     </span><span class="c1"># 還有沒有任何 tickd 活著</span>
+journalctl<span class="w"> </span>--user<span class="w"> </span>-u<span class="w"> </span>tickd<span class="w"> </span>--no-pager<span class="w"> </span>-o<span class="w"> </span>short<span class="w"> </span>--since<span class="w"> </span><span class="s2">&quot;-5s&quot;</span>
+</code></pre>
+<pre><code class="language-text">Running as unit: tickd.service; invocation ID: 0c14b40d17dd4278934c574e6dad4335
+Unit tickd.service could not be found.
+Nov 05 09:49:32 set-Vector-17-HX-A14VFG systemd[2029]: Started tickd.service - $S/tickd -d.
+Nov 05 09:49:32 set-Vector-17-HX-A14VFG tickd[9030]: tickd 啟動，PID 9030，父行程 9029
+Nov 05 09:49:32 set-Vector-17-HX-A14VFG tickd[9030]: tick 1
+Nov 05 09:49:32 set-Vector-17-HX-A14VFG tickd[9030]: tickd 收到 SIGTERM，正常結束
+</code></pre>
+<ul>
+<li>第 2 行：才 3 秒，服務已經<strong>不見了</strong>（暫時性 unit 停掉就被清除；一般 unit 會顯示 <code>inactive (dead)</code>）。<code>pgrep</code> 什麼都沒印：子行程也死了。</li>
+<li>journal 的第 3 行：子行程 9030 的父行程是 9029（就是 <code>ExecStart=</code> 跑的那個父行程），它印了 <code>tick 1</code>，接著<strong>同一秒就收到 <code>SIGTERM</code></strong>。</li>
+</ul>
+<p>發生了什麼：</p>
+<pre class="mermaid">sequenceDiagram
+    autonumber
+    participant S as systemd --user
+    participant P as tickd 父行程 9029
+    participant C as tickd 子行程 9030
+    S-&gt;&gt;P: fork + exec ExecStart（Type=simple 立刻算啟動完成）
+    Note over S: 主行程＝9029
+    P-&gt;&gt;C: fork()
+    P--&gt;&gt;S: return 0，主行程結束
+    Note over S: 主行程結束＝服務結束（結果 success）
+    S-&gt;&gt;C: 服務停了，清掉 cgroup 裡剩下的行程：送 SIGTERM
+    C--&gt;&gt;S: 印「收到 SIGTERM」後結束
+</pre>
+<p><strong>圖二要看的重點</strong>：<code>Type=simple</code> 下，systemd 把<strong>它親手 exec 的那個行程</strong>當主行程。父行程一結束，systemd 就認定服務結束了，接著把同一個 cgroup 裡剩下的行程（也就是好不容易 fork 出來的子行程）全部停掉。在終端機裡 <code>-d</code> 是「丟到背景」，在 systemd 底下反而是「自殺」。</p>
+<h3 id="改成-typeforking-加-pidfile">改成 <code>Type=forking</code> 加 <code>PIDFile=</code></h3>
+<p><code>Type=forking</code> 告訴 systemd：「<code>ExecStart=</code> 的程式會 fork，等它的<strong>父行程結束</strong>才算啟動完成，主行程是它留下的子行程」。子行程是哪一個，最可靠的方式是讓程式把 PID 寫進檔案、用 <code>PIDFile=</code> 告訴 systemd（這就是 nginx 的寫法）：</p>
+<pre><code class="language-bash">systemd-run<span class="w"> </span>--user<span class="w"> </span>--unit<span class="o">=</span>tickd<span class="w"> </span>-p<span class="w"> </span><span class="nv">Type</span><span class="o">=</span>forking<span class="w"> </span>-p<span class="w"> </span><span class="nv">PIDFile</span><span class="o">=</span>/run/user/1000/tickd.pid<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>-E<span class="w"> </span><span class="nv">TICKD_PIDFILE</span><span class="o">=</span>/run/user/1000/tickd.pid<span class="w"> </span>-E<span class="w"> </span><span class="nv">TICKD_LINEBUF</span><span class="o">=</span><span class="m">1</span><span class="w"> </span><span class="nv">$S</span>/tickd<span class="w"> </span>-d
+sleep<span class="w"> </span><span class="m">4</span>
+systemctl<span class="w"> </span>--user<span class="w"> </span>status<span class="w"> </span>tickd<span class="w"> </span>--no-pager
+<span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;pidfile: </span><span class="k">$(</span>cat<span class="w"> </span>/run/user/1000/tickd.pid<span class="k">)</span><span class="s2">&quot;</span>
+</code></pre>
+<pre><code class="language-text">Running as unit: tickd.service; invocation ID: f0ad92b8e42f478cb3056366d7e8598e
+● tickd.service - $S/tickd -d
+     Loaded: loaded (/run/user/1000/systemd/transient/tickd.service; transient)
+  Transient: yes
+     Active: active (running) since Thu 2026-11-05 09:51:22 CST; 4s ago
+    Process: 9160 ExecStart=$S/tickd -d (code=exited, status=0/SUCCESS)
+   Main PID: 9161 (tickd)
+      Tasks: 1 (limit: 16187)
+     Memory: 736.0K (peak: 768.0K)
+        CPU: 4ms
+     CGroup: /user.slice/user-1000.slice/user@1000.service/app.slice/tickd.service
+             └─9161 $S/tickd -d
+
+Nov 05 09:51:22 set-Vector-17-HX-A14VFG systemd[2029]: Starting tickd.service - $S/tickd -d...
+Nov 05 09:51:22 set-Vector-17-HX-A14VFG tickd[9161]: tickd 啟動，PID 9161，父行程 9160
+Nov 05 09:51:22 set-Vector-17-HX-A14VFG tickd[9161]: tick 1
+Nov 05 09:51:22 set-Vector-17-HX-A14VFG systemd[2029]: Started tickd.service - $S/tickd -d.
+Nov 05 09:51:24 set-Vector-17-HX-A14VFG tickd[9161]: tick 2
+Nov 05 09:51:26 set-Vector-17-HX-A14VFG tickd[9161]: tick 3
+pidfile: 9161
+</code></pre>
+<ul>
+<li><code>Process: 9160 ExecStart=... (code=exited, status=0/SUCCESS)</code>：父行程 9160 結束、回傳 0，這在 <code>forking</code> 底下是<strong>正常的</strong>。</li>
+<li><code>Main PID: 9161</code>：跟 PID 檔的內容一樣，systemd 從 <code>PIDFile=</code> 讀到真正的主行程。</li>
+<li>journal 先出現 <code>Starting ...</code>（啟動中）、父行程結束後才出現 <code>Started ...</code>（啟動完成）——<code>simple</code> 一 exec 就印 <code>Started</code>，沒有 <code>Starting</code> 這一步。</li>
+</ul>
+<p><code>PIDFile=</code> 指到程式不會寫的地方（下面故意寫成 <code>nope.pid</code>，並把等待時間縮成 6 秒）：</p>
+<pre><code class="language-bash">systemd-run<span class="w"> </span>--user<span class="w"> </span>--unit<span class="o">=</span>tickd<span class="w"> </span>-p<span class="w"> </span><span class="nv">Type</span><span class="o">=</span>forking<span class="w"> </span>-p<span class="w"> </span><span class="nv">PIDFile</span><span class="o">=</span>/run/user/1000/nope.pid<span class="w"> </span>-p<span class="w"> </span><span class="nv">TimeoutStartSec</span><span class="o">=</span><span class="m">6</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>-E<span class="w"> </span><span class="nv">TICKD_PIDFILE</span><span class="o">=</span>/run/user/1000/tickd.pid<span class="w"> </span>-E<span class="w"> </span><span class="nv">TICKD_LINEBUF</span><span class="o">=</span><span class="m">1</span><span class="w"> </span><span class="nv">$S</span>/tickd<span class="w"> </span>-d<span class="p">;</span><span class="w"> </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;exit=</span><span class="nv">$?</span><span class="s2">&quot;</span>
+journalctl<span class="w"> </span>--user<span class="w"> </span>-u<span class="w"> </span>tickd<span class="w"> </span>--no-pager<span class="w"> </span>-o<span class="w"> </span>short<span class="w"> </span>--since<span class="w"> </span><span class="s2">&quot;-8s&quot;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>systemd
+</code></pre>
+<pre><code class="language-text">Job for tickd.service failed because a timeout was exceeded.
+See &quot;systemctl --user status tickd.service&quot; and &quot;journalctl --user -xeu tickd.service&quot; for details.
+exit=1
+Nov 05 09:51:36 set-Vector-17-HX-A14VFG systemd[2029]: Starting tickd.service - $S/tickd -d...
+Nov 05 09:51:36 set-Vector-17-HX-A14VFG systemd[2029]: tickd.service: Can&#39;t open PID file /run/user/1000/nope.pid (yet?) after start: No such file or directory
+Nov 05 09:51:43 set-Vector-17-HX-A14VFG systemd[2029]: tickd.service: start operation timed out. Terminating.
+Nov 05 09:51:43 set-Vector-17-HX-A14VFG systemd[2029]: tickd.service: Failed with result &#39;timeout&#39;.
+Nov 05 09:51:43 set-Vector-17-HX-A14VFG systemd[2029]: Failed to start tickd.service - $S/tickd -d.
+</code></pre>
+<ul>
+<li>父行程結束後 systemd 去讀 PID 檔，讀不到（<code>(yet?)</code>：它會繼續等），一直等到 <code>TimeoutStartSec=</code> 到期就判定啟動失敗、把行程殺掉。</li>
+<li>預設的 <code>TimeoutStartSec=</code> 是 <strong>90 秒</strong>——<code>PIDFile=</code> 寫錯時，你會看到 <code>systemctl start</code> 卡住一分半才失敗。</li>
+</ul>
+<h3 id="type-全部-8-種"><code>Type=</code> 全部 8 種</h3>
+<p>依 <code>man systemd.service</code>：</p>
+<table>
+<thead>
+<tr>
+<th><code>Type=</code></th>
+<th>什麼時候算「啟動完成」</th>
+<th>主行程</th>
+<th>適合</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>simple</code>（有 <code>ExecStart=</code>、沒寫 <code>Type=</code> 也沒寫 <code>BusName=</code> 時的預設）</td>
+<td>systemd 一 <code>fork</code> 完就算，<strong>連 <code>exec</code> 成不成功都不等</strong></td>
+<td>exec 的那個行程</td>
+<td>待在前景的程式</td>
+</tr>
+<tr>
+<td><code>exec</code></td>
+<td><code>exec</code> 成功之後才算（執行檔不存在時 <code>systemctl start</code> 會直接報錯，<code>simple</code> 不會）</td>
+<td>同上</td>
+<td>待在前景的程式；<strong>比 <code>simple</code> 更建議</strong></td>
+</tr>
+<tr>
+<td><code>forking</code></td>
+<td><code>ExecStart=</code> 的行程<strong>結束</strong>之後才算</td>
+<td>它留下的子行程（看 <code>PIDFile=</code>，沒寫就猜）</td>
+<td>傳統會自己 fork 到背景的 daemon（nginx）</td>
+</tr>
+<tr>
+<td><code>oneshot</code></td>
+<td><code>ExecStart=</code> 的行程<strong>結束</strong>之後才算</td>
+<td>沒有常駐主行程</td>
+<td>跑一次就結束的工作（開機時做初始化）；常配 <code>RemainAfterExit=yes</code></td>
+</tr>
+<tr>
+<td><code>dbus</code></td>
+<td>程式在 D-Bus 上取得 <code>BusName=</code> 指定的名字之後才算</td>
+<td>exec 的那個行程</td>
+<td>D-Bus 服務</td>
+</tr>
+<tr>
+<td><code>notify</code></td>
+<td>程式自己用 <code>sd_notify(3)</code> 送出 <code>READY=1</code> 之後才算</td>
+<td>exec 的那個行程</td>
+<td>待在前景、而且想精確回報「我初始化完了」的程式</td>
+</tr>
+<tr>
+<td><code>notify-reload</code></td>
+<td>同 <code>notify</code>，另外 <code>reload</code> 時由 systemd 送訊號、等程式回報重載完成</td>
+<td>同上</td>
+<td>同上，加上支援 reload</td>
+</tr>
+<tr>
+<td><code>idle</code></td>
+<td>跟 <code>simple</code> 一樣，但等其他啟動中的工作都做完才執行（最多延遲 5 秒）</td>
+<td>同上</td>
+<td>避免輸出跟開機訊息混在一起的主控台程式</td>
+</tr>
+</tbody>
+</table>
+<p><strong>自己寫程式時的建議</strong>：<strong>不要</strong>在程式裡 fork 到背景、也不用寫 PID 檔，待在前景、用 <code>Type=exec</code>（或 <code>simple</code>）就好；「丟到背景」「重開」「收輸出」「開機啟動」全部交給 systemd。需要讓依賴你的服務精確地等你初始化完（例如等 socket 開好），才用 <code>notify</code>。
+nginx 用 <code>forking</code> 是因為它的歷史比 systemd 早，本來就設計成自己變成 daemon。</p>
+<hr />
+<h2 id="八停止與自動重啟sigterm-與-restart">八、停止與自動重啟：<code>SIGTERM</code> 與 <code>Restart=</code></h2>
+<h3 id="systemctl-stop-做了什麼"><code>systemctl stop</code> 做了什麼</h3>
+<p><a href="#%E5%85%AD%E5%AF%A6%E9%A9%97%E4%B8%89journal-%E8%A3%A1%E4%B8%80%E7%9B%B4%E7%9C%8B%E4%B8%8D%E5%88%B0%E8%BC%B8%E5%87%BAstdout-%E7%9A%84%E7%B7%A9%E8%A1%9D">第六節</a>的 journal 已經看過：<code>Stopping ...</code> → 程式印「收到 SIGTERM，正常結束」→ <code>Stopped ...</code>。預設流程是：</p>
+<ol>
+<li>有 <code>ExecStop=</code> 就先跑它；沒有的話直接下一步。</li>
+<li>送 <code>SIGTERM</code>（可用 <code>KillSignal=</code> 換）給服務的行程（送給誰由 <code>KillMode=</code> 決定，預設 <code>control-group</code>＝cgroup 裡全部）。</li>
+<li>等最多 <code>TimeoutStopSec=</code>（預設 90 秒）。</li>
+<li>還沒結束就送 <code>SIGKILL</code>，強制結束。</li>
+</ol>
+<p>所以程式應該<strong>接住 <code>SIGTERM</code>、做完收尾（關檔、寫完緩衝、關連線）再結束</strong>，<code>tickd</code> 的 <code>on_term</code> 就是在做這件事。</p>
+<h3 id="restarton-failure被-kill--9-殺掉"><code>Restart=on-failure</code>：被 <code>kill -9</code> 殺掉</h3>
+<pre><code class="language-bash">systemd-run<span class="w"> </span>--user<span class="w"> </span>--unit<span class="o">=</span>tickd<span class="w"> </span>-p<span class="w"> </span><span class="nv">Restart</span><span class="o">=</span>on-failure<span class="w"> </span>-p<span class="w"> </span><span class="nv">RestartSec</span><span class="o">=</span><span class="m">1</span><span class="w"> </span>-E<span class="w"> </span><span class="nv">TICKD_LINEBUF</span><span class="o">=</span><span class="m">1</span><span class="w"> </span><span class="nv">$S</span>/tickd
+sleep<span class="w"> </span><span class="m">2</span>
+<span class="nv">P</span><span class="o">=</span><span class="k">$(</span>systemctl<span class="w"> </span>--user<span class="w"> </span>show<span class="w"> </span>tickd<span class="w"> </span>-p<span class="w"> </span>MainPID<span class="w"> </span>--value<span class="k">)</span><span class="p">;</span><span class="w"> </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;before: MainPID=</span><span class="nv">$P</span><span class="s2">&quot;</span>
+<span class="nb">kill</span><span class="w"> </span>-9<span class="w"> </span><span class="nv">$P</span><span class="w">                                              </span><span class="c1"># 模擬程式當掉</span>
+sleep<span class="w"> </span><span class="m">2</span>
+<span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;after: </span><span class="k">$(</span>systemctl<span class="w"> </span>--user<span class="w"> </span>show<span class="w"> </span>tickd<span class="w"> </span>-p<span class="w"> </span>MainPID<span class="w"> </span>-p<span class="w"> </span>NRestarts<span class="w"> </span>-p<span class="w"> </span>ActiveState<span class="k">)</span><span class="s2">&quot;</span>
+journalctl<span class="w"> </span>--user<span class="w"> </span>-u<span class="w"> </span>tickd<span class="w"> </span>--no-pager<span class="w"> </span>-o<span class="w"> </span>short<span class="w"> </span>--since<span class="w"> </span><span class="s2">&quot;-5s&quot;</span>
+</code></pre>
+<pre><code class="language-text">Running as unit: tickd.service; invocation ID: 5d6d46ba38764397a8625410dcebf138
+before: MainPID=9191
+after: MainPID=9207
+NRestarts=1
+ActiveState=active
+Nov 05 09:51:43 set-Vector-17-HX-A14VFG systemd[2029]: Started tickd.service - $S/tickd.
+Nov 05 09:51:43 set-Vector-17-HX-A14VFG tickd[9191]: tickd 啟動，PID 9191，父行程 2029
+Nov 05 09:51:43 set-Vector-17-HX-A14VFG tickd[9191]: tick 1
+Nov 05 09:51:45 set-Vector-17-HX-A14VFG tickd[9191]: tick 2
+Nov 05 09:51:45 set-Vector-17-HX-A14VFG systemd[2029]: tickd.service: Main process exited, code=killed, status=9/KILL
+Nov 05 09:51:45 set-Vector-17-HX-A14VFG systemd[2029]: tickd.service: Failed with result &#39;signal&#39;.
+Nov 05 09:51:46 set-Vector-17-HX-A14VFG systemd[2029]: tickd.service: Scheduled restart job, restart counter is at 1.
+Nov 05 09:51:46 set-Vector-17-HX-A14VFG systemd[2029]: Started tickd.service - $S/tickd.
+Nov 05 09:51:46 set-Vector-17-HX-A14VFG tickd[9207]: tickd 啟動，PID 9207，父行程 2029
+Nov 05 09:51:46 set-Vector-17-HX-A14VFG tickd[9207]: tick 1
+</code></pre>
+<p>（journal 開頭還有幾行是上一個實驗留下的，這裡省略。）</p>
+<ul>
+<li><code>code=killed, status=9/KILL</code>：主行程被訊號 9（<code>SIGKILL</code>）殺掉，systemd 判定為失敗（<code>result 'signal'</code>）。</li>
+<li>等了 <code>RestartSec=1</code> 秒（45 → 46），<code>Scheduled restart job</code>，重新啟動，新的 PID 是 9207，<code>NRestarts=1</code>。</li>
+</ul>
+<h3 id="一直失敗重啟次數有上限">一直失敗：重啟次數有上限</h3>
+<p><code>tickd -x 1</code> 印完第一圈就用結束狀態 1 離開，等於每次一啟動就失敗：</p>
+<pre><code class="language-bash">systemd-run<span class="w"> </span>--user<span class="w"> </span>--unit<span class="o">=</span>tickd<span class="w"> </span>-p<span class="w"> </span><span class="nv">Restart</span><span class="o">=</span>on-failure<span class="w"> </span>-p<span class="w"> </span><span class="nv">RestartSec</span><span class="o">=</span><span class="m">1</span><span class="w"> </span>-E<span class="w"> </span><span class="nv">TICKD_LINEBUF</span><span class="o">=</span><span class="m">1</span><span class="w"> </span><span class="nv">$S</span>/tickd<span class="w"> </span>-x<span class="w"> </span><span class="m">1</span>
+sleep<span class="w"> </span><span class="m">9</span>
+systemctl<span class="w"> </span>--user<span class="w"> </span>show<span class="w"> </span>tickd<span class="w"> </span>-p<span class="w"> </span>NRestarts<span class="w"> </span>-p<span class="w"> </span>ActiveState<span class="w"> </span>-p<span class="w"> </span>Result
+journalctl<span class="w"> </span>--user<span class="w"> </span>-u<span class="w"> </span>tickd<span class="w"> </span>--no-pager<span class="w"> </span>-o<span class="w"> </span>short<span class="w"> </span>--since<span class="w"> </span><span class="s2">&quot;-10s&quot;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-v<span class="w"> </span><span class="s2">&quot;tick 1</span>$<span class="s2">&quot;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>tail<span class="w"> </span>-8
+</code></pre>
+<pre><code class="language-text">Running as unit: tickd.service; invocation ID: c8ba9b0a38724e57b28a664bf53ae177
+Result=exit-code
+NRestarts=5
+ActiveState=failed
+Nov 05 09:52:00 set-Vector-17-HX-A14VFG tickd[9236]: tickd 啟動，PID 9236，父行程 2029
+Nov 05 09:52:00 set-Vector-17-HX-A14VFG tickd[9236]: tickd：跑了 1 圈，故意用結束狀態 1 離開
+Nov 05 09:52:00 set-Vector-17-HX-A14VFG systemd[2029]: tickd.service: Main process exited, code=exited, status=1/FAILURE
+Nov 05 09:52:00 set-Vector-17-HX-A14VFG systemd[2029]: tickd.service: Failed with result &#39;exit-code&#39;.
+Nov 05 09:52:01 set-Vector-17-HX-A14VFG systemd[2029]: tickd.service: Scheduled restart job, restart counter is at 5.
+Nov 05 09:52:01 set-Vector-17-HX-A14VFG systemd[2029]: tickd.service: Start request repeated too quickly.
+Nov 05 09:52:01 set-Vector-17-HX-A14VFG systemd[2029]: tickd.service: Failed with result &#39;exit-code&#39;.
+Nov 05 09:52:01 set-Vector-17-HX-A14VFG systemd[2029]: Failed to start tickd.service - $S/tickd -x 1.
+</code></pre>
+<ul>
+<li><code>status=1/FAILURE</code>：結束狀態不是 0，算失敗，所以重啟。</li>
+<li>重啟到第 5 次後出現 <code>Start request repeated too quickly</code>，systemd <strong>放棄</strong>，狀態變成 <code>failed</code>。這是 <code>[Unit]</code> 的 <code>StartLimitIntervalSec=</code>（預設 10 秒）與 <code>StartLimitBurst=</code>（預設 5 次）：10 秒內啟動超過 5 次就不再試，避免一支壞掉的程式無限循環吃掉 CPU。修好之後要 <code>systemctl reset-failed tickd</code> 清掉失敗狀態（或直接再 <code>start</code>）。</li>
+</ul>
+<h3 id="systemctl-stop-不會觸發重啟"><code>systemctl stop</code> 不會觸發重啟</h3>
+<pre><code class="language-bash">systemd-run<span class="w"> </span>--user<span class="w"> </span>--unit<span class="o">=</span>tickd<span class="w"> </span>-p<span class="w"> </span><span class="nv">Restart</span><span class="o">=</span>on-failure<span class="w"> </span>-p<span class="w"> </span><span class="nv">RestartSec</span><span class="o">=</span><span class="m">1</span><span class="w"> </span>-E<span class="w"> </span><span class="nv">TICKD_LINEBUF</span><span class="o">=</span><span class="m">1</span><span class="w"> </span><span class="nv">$S</span>/tickd
+sleep<span class="w"> </span><span class="m">1</span><span class="p">;</span><span class="w"> </span>systemctl<span class="w"> </span>--user<span class="w"> </span>stop<span class="w"> </span>tickd<span class="p">;</span><span class="w"> </span>sleep<span class="w"> </span><span class="m">2</span>
+systemctl<span class="w"> </span>--user<span class="w"> </span>show<span class="w"> </span>tickd<span class="w"> </span>-p<span class="w"> </span>NRestarts<span class="w"> </span>-p<span class="w"> </span>ActiveState<span class="w"> </span>-p<span class="w"> </span>Result
+</code></pre>
+<pre><code class="language-text">Running as unit: tickd.service; invocation ID: f9f3f335d3e74a9492c1827dbd0b858a
+Result=success
+NRestarts=0
+ActiveState=inactive
+</code></pre>
+<ul>
+<li>你親手 stop 的，systemd 不會把它當成「掛掉」，就算設成 <code>Restart=always</code> 也不會重啟。</li>
+<li>另外，<code>tickd</code> 接住 <code>SIGTERM</code> 後 <code>return 0</code>，結果是 <code>success</code>。就算程式沒接 <code>SIGTERM</code>、被它殺掉，systemd 也把 <code>SIGHUP</code>、<code>SIGINT</code>、<code>SIGTERM</code>、<code>SIGPIPE</code> 這四種訊號造成的結束視為「乾淨的結束」。</li>
+</ul>
+<h3 id="restart-全部-7-個值"><code>Restart=</code> 全部 7 個值</h3>
+<p>依 <code>man systemd.service</code> 的對照表：哪一種結束原因會觸發重啟（✓＝會）：</p>
+<table>
+<thead>
+<tr>
+<th>結束原因 ＼ <code>Restart=</code></th>
+<th><code>no</code></th>
+<th><code>always</code></th>
+<th><code>on-success</code></th>
+<th><code>on-failure</code></th>
+<th><code>on-abnormal</code></th>
+<th><code>on-abort</code></th>
+<th><code>on-watchdog</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>乾淨結束：結束狀態 0，或被上面四種訊號結束</td>
+<td></td>
+<td>✓</td>
+<td>✓</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>結束狀態不是 0（實驗的 <code>-x 1</code>）</td>
+<td></td>
+<td>✓</td>
+<td></td>
+<td>✓</td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>被其他訊號殺掉（實驗的 <code>kill -9</code>）</td>
+<td></td>
+<td>✓</td>
+<td></td>
+<td>✓</td>
+<td>✓</td>
+<td>✓</td>
+<td></td>
+</tr>
+<tr>
+<td>啟動或停止逾時（timeout）</td>
+<td></td>
+<td>✓</td>
+<td></td>
+<td>✓</td>
+<td>✓</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>watchdog 逾時（<code>WatchdogSec=</code>，程式沒按時回報還活著）</td>
+<td></td>
+<td>✓</td>
+<td></td>
+<td>✓</td>
+<td>✓</td>
+<td></td>
+<td>✓</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>預設是 <code>no</code>。常駐服務最常用 <code>on-failure</code>（cron、很多套件的服務都是）：當掉、回傳錯誤就重啟，正常結束就不管。</li>
+<li><code>always</code> 連正常結束也重啟，適合「理論上永遠不該結束」的程式。</li>
+</ul>
+<hr />
+<h2 id="九enable開機自動啟動其實是建一個符號連結">九、<code>enable</code>：開機自動啟動其實是建一個符號連結</h2>
+<p><code>start</code> 跟 <code>enable</code> 是兩件獨立的事：</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>改變了什麼</th>
+<th>重開機後</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>systemctl start X</code></td>
+<td><strong>現在</strong>啟動它（執行期狀態）</td>
+<td>不記得，除非有 enable</td>
+</tr>
+<tr>
+<td><code>systemctl enable X</code></td>
+<td>依 <code>[Install]</code> 節建符號連結（磁碟上的設定），<strong>不會</strong>現在啟動</td>
+<td>開機時跟著 target 啟動</td>
+</tr>
+<tr>
+<td><code>systemctl enable --now X</code></td>
+<td>兩件一起做</td>
+<td>會啟動</td>
+</tr>
+</tbody>
+</table>
+<p>nginx 是 enable 過的，看看實際建了什麼：</p>
+<pre><code class="language-bash">ls<span class="w"> </span>-l<span class="w"> </span>/etc/systemd/system/multi-user.target.wants/nginx.service
+systemctl<span class="w"> </span>show<span class="w"> </span>nginx<span class="w"> </span>-p<span class="w"> </span>FragmentPath<span class="w"> </span>-p<span class="w"> </span>UnitFileState<span class="w"> </span>-p<span class="w"> </span>WantedBy
+systemctl<span class="w"> </span>get-default
+</code></pre>
+<pre><code class="language-text">lrwxrwxrwx 1 root root 37 Apr 26  2025 /etc/systemd/system/multi-user.target.wants/nginx.service -&gt; /usr/lib/systemd/system/nginx.service
+WantedBy=multi-user.target
+FragmentPath=/usr/lib/systemd/system/nginx.service
+UnitFileState=enabled
+graphical.target
+</code></pre>
+<ul>
+<li>第 1 行：<code>/etc/systemd/system/multi-user.target.wants/</code> 底下有一個指回套件 unit 檔的符號連結。這就是 <code>enable</code> 做的<strong>全部事情</strong>。</li>
+<li><code>WantedBy=multi-user.target</code>（<code>[Install]</code> 節的那行）決定連結建在 <code>multi-user.target.wants/</code> 這個資料夾。
+<code>X.target.wants/</code> 資料夾裡的每個連結，等於替 <code>X.target</code> 加了一行 <code>Wants=</code>：啟動 <code>X.target</code> 時把它們一起拉起來。</li>
+<li>最後一行：開機的預設目標是 <code>graphical.target</code>，它又 <code>Wants</code>／<code>Requires</code> 了 <code>multi-user.target</code>，所以開機一路拉到 nginx。</li>
+<li>所以 <code>disable</code> 就是刪掉這個連結；沒有 <code>[Install]</code> 節的 unit 無法 <code>enable</code>（<code>systemctl</code> 會提示它沒有安裝設定）。</li>
+<li>user 層的 <code>WantedBy=default.target</code> 意思是「這個使用者的 <code>systemd --user</code> 啟動時就啟動」——也就是<strong>登入時</strong>。想在沒登入時也跑（開機就跑），要 <code>loginctl enable-linger &lt;使用者&gt;</code>（見 <a href="../claude-code/Claude-Code%E8%83%BD%E5%83%8Fsystemd-service%E4%B8%80%E6%A8%A3%E5%B8%B8%E9%A7%90%E5%97%8E.html#%E5%9B%9B%E5%81%9A%E6%B3%95-bsystemd-user-timer%E6%9C%80%E6%8E%A5%E8%BF%91-systemctl-enable">Claude Code 那篇</a>）。</li>
+</ul>
+<h3 id="改了-unit-檔要-daemon-reload">改了 unit 檔要 <code>daemon-reload</code></h3>
+<p>systemd 載入 unit 檔後是用<strong>記憶體裡的版本</strong>。改了檔案之後直接 <code>restart</code>，用的還是舊設定（<code>systemctl status</code> 會提醒 <code>Warning: The unit file, source configuration file or drop-ins of tickd.service changed on disk. Run 'systemctl daemon-reload' to reload units.</code>——這行訊息未實測，照 systemd 的訊息格式寫的）。
+<code>systemctl daemon-reload</code> 叫 systemd 重新讀所有 unit 檔，之後再 <code>restart</code> 才會生效。全新的 unit 檔第一次 <code>start</code> 時 systemd 會去磁碟找，不 reload 也能啟動，但養成「改完就 reload」的習慣最保險。</p>
+<hr />
+<h2 id="十完整步驟把-tickd-裝成系統服務">十、完整步驟：把 <code>tickd</code> 裝成系統服務</h2>
+<blockquote>
+<p>本節需要 root，<strong>未實測</strong>（原因見開頭）；每一步對應的機制都已在上面各節用 user 層或暫時性 unit 實測過。</p>
+</blockquote>
+<pre><code class="language-bash"><span class="c1"># 1. 編譯並把執行檔放到固定位置（不要讓服務指向你的家目錄或編譯目錄）</span>
+gcc<span class="w"> </span>-Wall<span class="w"> </span>-Wextra<span class="w"> </span>-O2<span class="w"> </span>tickd.c<span class="w"> </span>-o<span class="w"> </span>tickd
+sudo<span class="w"> </span>install<span class="w"> </span>-m<span class="w"> </span><span class="m">755</span><span class="w"> </span>tickd<span class="w"> </span>/usr/local/bin/tickd
+
+<span class="c1"># 2. 寫 unit 檔到 /etc/systemd/system/</span>
+sudo<span class="w"> </span>tee<span class="w"> </span>/etc/systemd/system/tickd.service<span class="w"> </span>&gt;<span class="w"> </span>/dev/null<span class="w"> </span><span class="s">&lt;&lt;&#39;EOF&#39;</span>
+<span class="s">[Unit]</span>
+<span class="s">Description=tickd：每 2 秒印一行的練習服務</span>
+
+<span class="s">[Service]</span>
+<span class="s">Type=exec</span>
+<span class="s">ExecStart=/usr/local/bin/tickd</span>
+<span class="s">Environment=TICKD_LINEBUF=1</span>
+<span class="s">Restart=on-failure</span>
+<span class="s">RestartSec=2</span>
+<span class="s">User=nobody</span>
+
+<span class="s">[Install]</span>
+<span class="s">WantedBy=multi-user.target</span>
+<span class="s">EOF</span>
+
+<span class="c1"># 3. 檢查格式，讓 systemd 重新讀取</span>
+sudo<span class="w"> </span>systemd-analyze<span class="w"> </span>verify<span class="w"> </span>/etc/systemd/system/tickd.service
+sudo<span class="w"> </span>systemctl<span class="w"> </span>daemon-reload
+
+<span class="c1"># 4. 設成開機啟動並且現在就啟動</span>
+sudo<span class="w"> </span>systemctl<span class="w"> </span><span class="nb">enable</span><span class="w"> </span>--now<span class="w"> </span>tickd
+
+<span class="c1"># 5. 確認狀態與輸出</span>
+systemctl<span class="w"> </span>status<span class="w"> </span>tickd
+journalctl<span class="w"> </span>-u<span class="w"> </span>tickd<span class="w"> </span>-f<span class="w">        </span><span class="c1"># -f：持續跟著看新的紀錄，Ctrl+C 離開</span>
+
+<span class="c1"># 收掉：停止、取消開機啟動、刪檔、重新讀取</span>
+sudo<span class="w"> </span>systemctl<span class="w"> </span>disable<span class="w"> </span>--now<span class="w"> </span>tickd
+sudo<span class="w"> </span>rm<span class="w"> </span>/etc/systemd/system/tickd.service<span class="w"> </span>/usr/local/bin/tickd
+sudo<span class="w"> </span>systemctl<span class="w"> </span>daemon-reload
+</code></pre>
+<ul>
+<li>跟<a href="#%E4%BA%8Cunit-%E6%AA%94%E6%94%BE%E5%9C%A8%E5%93%AA%E9%95%B7%E4%BB%80%E9%BA%BC%E6%A8%A3">第二節</a>的最小版相比多了三行：<code>Environment=</code> 解決<a href="#%E5%85%AD%E5%AF%A6%E9%A9%97%E4%B8%89journal-%E8%A3%A1%E4%B8%80%E7%9B%B4%E7%9C%8B%E4%B8%8D%E5%88%B0%E8%BC%B8%E5%87%BAstdout-%E7%9A%84%E7%B7%A9%E8%A1%9D">第六節</a>的緩衝、<code>Restart=</code> 是<a href="#%E5%85%AB%E5%81%9C%E6%AD%A2%E8%88%87%E8%87%AA%E5%8B%95%E9%87%8D%E5%95%9Fsigterm-%E8%88%87-restart">第八節</a>、
+<code>User=nobody</code> 讓它用一個沒有權限的使用者跑——system service 預設以 <strong>root</strong> 執行，程式不需要 root 就不要給。</li>
+<li>不需要 root 的版本：unit 檔放 <code>~/.config/systemd/user/tickd.service</code>（<code>WantedBy=default.target</code>、去掉 <code>User=</code>），所有命令改成不加 <code>sudo</code> 的 <code>systemctl --user ...</code>、<code>journalctl --user -u tickd</code>。</li>
+</ul>
+<hr />
+<h2 id="十一本篇用到的命令與設定完整清單在哪">十一、本篇用到的命令與設定，完整清單在哪</h2>
+<h3 id="systemctl-的全部-74-個命令"><code>systemctl</code> 的全部 74 個命令</h3>
+<p>依本機 <code>systemctl --help</code>（systemd 255）的分組，全部列出。本篇用到的標 ★。</p>
+<p><strong>Unit Commands（操作執行中的 unit，31 個）</strong></p>
+<table>
+<thead>
+<tr>
+<th>命令</th>
+<th>做什麼</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>list-units [樣式]</code></td>
+<td>列出目前載入在記憶體裡的 unit</td>
+</tr>
+<tr>
+<td><code>list-automounts</code></td>
+<td>列出 automount unit（依路徑排序）</td>
+</tr>
+<tr>
+<td><code>list-paths</code></td>
+<td>列出 path unit（監看檔案變化觸發的 unit）</td>
+</tr>
+<tr>
+<td><code>list-sockets</code></td>
+<td>列出 socket unit（依位址排序）</td>
+</tr>
+<tr>
+<td><code>list-timers</code></td>
+<td>列出 timer unit（依下次觸發時間排序）</td>
+</tr>
+<tr>
+<td>★<code>is-active</code></td>
+<td>是否在執行；<strong>用結束狀態回答</strong>（0＝active），給腳本用</td>
+</tr>
+<tr>
+<td><code>is-failed</code></td>
+<td>是否失敗（不給 unit 時：系統是否 degraded）</td>
+</tr>
+<tr>
+<td>★<code>status</code></td>
+<td>執行狀態加最近的 journal（<a href="#%E4%BA%94%E5%AF%A6%E9%A9%97%E4%BA%8C%E8%B7%91%E8%B5%B7%E4%BE%86%E7%9C%8B%E6%87%82-systemctl-status">第五節</a>）</td>
+</tr>
+<tr>
+<td>★<code>show</code></td>
+<td>印出屬性的原始值（<code>-p 屬性</code> 只印某幾個、<code>--value</code> 只印值）</td>
+</tr>
+<tr>
+<td><code>cat</code></td>
+<td>印出 unit 檔與所有 drop-in（追加設定檔）的內容</td>
+</tr>
+<tr>
+<td><code>help</code></td>
+<td>打開 unit 的 <code>Documentation=</code></td>
+</tr>
+<tr>
+<td><code>list-dependencies</code></td>
+<td>以樹狀列出依賴關係（誰 <code>Wants</code>／<code>Requires</code> 誰）</td>
+</tr>
+<tr>
+<td>★<code>start</code></td>
+<td>啟動</td>
+</tr>
+<tr>
+<td>★<code>stop</code></td>
+<td>停止</td>
+</tr>
+<tr>
+<td><code>reload</code></td>
+<td>叫服務重讀設定、不停止（跑 <code>ExecReload=</code>）</td>
+</tr>
+<tr>
+<td><code>restart</code></td>
+<td>停止再啟動（沒在跑就直接啟動）</td>
+</tr>
+<tr>
+<td><code>try-restart</code></td>
+<td>只有在執行中才重啟</td>
+</tr>
+<tr>
+<td><code>reload-or-restart</code></td>
+<td>支援 reload 就 reload，否則 restart</td>
+</tr>
+<tr>
+<td><code>try-reload-or-restart</code></td>
+<td>只有在執行中才做上一個</td>
+</tr>
+<tr>
+<td><code>isolate</code></td>
+<td>啟動某個 target、停掉其他不屬於它的 unit（切換執行模式）</td>
+</tr>
+<tr>
+<td><code>kill</code></td>
+<td>送訊號給 unit 的行程（<code>-s</code> 選訊號、<code>--kill-whom=</code> 選送給誰）</td>
+</tr>
+<tr>
+<td><code>clean</code></td>
+<td>清掉 unit 的執行期、快取、狀態、log 等目錄（<code>--what=</code>）</td>
+</tr>
+<tr>
+<td><code>freeze</code></td>
+<td>凍結 unit 的所有行程（暫停執行）</td>
+</tr>
+<tr>
+<td><code>thaw</code></td>
+<td>解除凍結</td>
+</tr>
+<tr>
+<td><code>set-property</code></td>
+<td>執行中修改屬性（例如資源限制），預設永久保存</td>
+</tr>
+<tr>
+<td><code>bind</code></td>
+<td>把主機的路徑 bind-mount 進 unit 的命名空間</td>
+</tr>
+<tr>
+<td><code>mount-image</code></td>
+<td>把映像檔掛進 unit 的命名空間</td>
+</tr>
+<tr>
+<td><code>service-log-level</code></td>
+<td>查／設服務自己的 log 等級（服務要支援）</td>
+</tr>
+<tr>
+<td><code>service-log-target</code></td>
+<td>查／設服務自己的 log 目的地</td>
+</tr>
+<tr>
+<td>★<code>reset-failed</code></td>
+<td>清掉 failed 狀態與重啟計數（<a href="#%E5%85%AB%E5%81%9C%E6%AD%A2%E8%88%87%E8%87%AA%E5%8B%95%E9%87%8D%E5%95%9Fsigterm-%E8%88%87-restart">第八節</a>）</td>
+</tr>
+<tr>
+<td><code>whoami</code></td>
+<td>呼叫者（或指定 PID）屬於哪個 unit</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Unit File Commands（操作磁碟上的 unit 檔，16 個）</strong></p>
+<table>
+<thead>
+<tr>
+<th>命令</th>
+<th>做什麼</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>list-unit-files</code></td>
+<td>列出已安裝的 unit 檔與 enable 狀態</td>
+</tr>
+<tr>
+<td>★<code>enable</code></td>
+<td>依 <code>[Install]</code> 建符號連結（<code>--now</code> 順便啟動）（<a href="#%E4%B9%9Denable%E9%96%8B%E6%A9%9F%E8%87%AA%E5%8B%95%E5%95%9F%E5%8B%95%E5%85%B6%E5%AF%A6%E6%98%AF%E5%BB%BA%E4%B8%80%E5%80%8B%E7%AC%A6%E8%99%9F%E9%80%A3%E7%B5%90">第九節</a>）</td>
+</tr>
+<tr>
+<td>★<code>disable</code></td>
+<td>刪掉那些符號連結（<code>--now</code> 順便停止）</td>
+</tr>
+<tr>
+<td><code>reenable</code></td>
+<td>先 disable 再 enable（<code>[Install]</code> 改過時用）</td>
+</tr>
+<tr>
+<td><code>preset</code></td>
+<td>依發行版的 preset 設定決定 enable 或 disable</td>
+</tr>
+<tr>
+<td><code>preset-all</code></td>
+<td>對所有 unit 做上一個</td>
+</tr>
+<tr>
+<td><code>is-enabled</code></td>
+<td>是否 enable；用結束狀態回答</td>
+</tr>
+<tr>
+<td><code>mask</code></td>
+<td>把 unit 連到 <code>/dev/null</code>，<strong>完全禁止啟動</strong>（連手動、依賴都不行）</td>
+</tr>
+<tr>
+<td><code>unmask</code></td>
+<td>解除 mask</td>
+</tr>
+<tr>
+<td><code>link</code></td>
+<td>把不在搜尋路徑裡的 unit 檔連進來</td>
+</tr>
+<tr>
+<td><code>revert</code></td>
+<td>刪掉管理者的覆蓋與 drop-in，回到套件原版</td>
+</tr>
+<tr>
+<td><code>add-wants</code></td>
+<td>替 target 加 <code>Wants</code> 依賴</td>
+</tr>
+<tr>
+<td><code>add-requires</code></td>
+<td>替 target 加 <code>Requires</code> 依賴</td>
+</tr>
+<tr>
+<td><code>edit</code></td>
+<td>用編輯器建立 drop-in（<code>--full</code> 編整份），存檔後自動 reload</td>
+</tr>
+<tr>
+<td>★<code>get-default</code></td>
+<td>開機預設 target</td>
+</tr>
+<tr>
+<td><code>set-default</code></td>
+<td>設定開機預設 target</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Machine Commands（1 個）</strong>：<code>list-machines</code>——列出本機與本地容器。</p>
+<p><strong>Job Commands（2 個）</strong>：<code>list-jobs</code>——列出排隊中的工作（例如卡住的啟動）；<code>cancel</code>——取消工作。</p>
+<p><strong>Environment Commands（4 個，管理員給所有服務的環境變數）</strong>：<code>show-environment</code>（印出）、<code>set-environment</code>（設定）、<code>unset-environment</code>（移除）、<code>import-environment</code>（從 <code>systemctl</code> 自己的環境匯入）。</p>
+<p><strong>Manager State Commands（5 個）</strong></p>
+<table>
+<thead>
+<tr>
+<th>命令</th>
+<th>做什麼</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>★<code>daemon-reload</code></td>
+<td>重讀所有 unit 檔（改完必做）（<a href="#%E6%94%B9%E4%BA%86-unit-%E6%AA%94%E8%A6%81-daemon-reload">第九節</a>）</td>
+</tr>
+<tr>
+<td><code>daemon-reexec</code></td>
+<td>讓 systemd 重新 exec 自己（升級 systemd 本身後用）</td>
+</tr>
+<tr>
+<td><code>log-level</code></td>
+<td>查／設 systemd 自己的 log 等級</td>
+</tr>
+<tr>
+<td><code>log-target</code></td>
+<td>查／設 systemd 自己的 log 目的地</td>
+</tr>
+<tr>
+<td><code>service-watchdogs</code></td>
+<td>查／設是否啟用所有服務的 watchdog</td>
+</tr>
+</tbody>
+</table>
+<p><strong>System Commands（15 個，整台機器的狀態）</strong></p>
+<table>
+<thead>
+<tr>
+<th>命令</th>
+<th>做什麼</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>is-system-running</code></td>
+<td>系統是否完全啟動（<code>running</code>／<code>degraded</code>／<code>starting</code>…）</td>
+</tr>
+<tr>
+<td><code>default</code></td>
+<td>進入預設模式（等於 isolate <code>default.target</code>）</td>
+</tr>
+<tr>
+<td><code>rescue</code></td>
+<td>進入救援模式（單使用者）</td>
+</tr>
+<tr>
+<td><code>emergency</code></td>
+<td>進入緊急模式（比 rescue 更精簡）</td>
+</tr>
+<tr>
+<td><code>halt</code></td>
+<td>關機但不斷電</td>
+</tr>
+<tr>
+<td><code>poweroff</code></td>
+<td>關機並斷電</td>
+</tr>
+<tr>
+<td><code>reboot</code></td>
+<td>重開機</td>
+</tr>
+<tr>
+<td><code>kexec</code></td>
+<td>用 kexec 直接載入新 kernel 重開（跳過韌體）</td>
+</tr>
+<tr>
+<td><code>soft-reboot</code></td>
+<td>只重啟使用者空間，kernel 不重開</td>
+</tr>
+<tr>
+<td><code>exit</code></td>
+<td>叫 user 層 systemd 或容器結束</td>
+</tr>
+<tr>
+<td><code>switch-root</code></td>
+<td>切換到另一個根檔案系統（initrd 用）</td>
+</tr>
+<tr>
+<td><code>suspend</code></td>
+<td>睡眠（存到記憶體）</td>
+</tr>
+<tr>
+<td><code>hibernate</code></td>
+<td>休眠（存到磁碟）</td>
+</tr>
+<tr>
+<td><code>hybrid-sleep</code></td>
+<td>同時存到記憶體和磁碟</td>
+</tr>
+<tr>
+<td><code>suspend-then-hibernate</code></td>
+<td>先睡眠，過一段時間轉休眠</td>
+</tr>
+</tbody>
+</table>
+<h3 id="systemctl-的選項"><code>systemctl</code> 的選項</h3>
+<p>本機 <code>systemctl --help</code> 的 <code>Options:</code> 共 56 個，<strong>這裡只列本篇用到的 4 個</strong>，完整清單與說明見 <code>systemctl --help</code>、<code>man systemctl</code>：</p>
+<table>
+<thead>
+<tr>
+<th>選項</th>
+<th>做什麼</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--user</code></td>
+<td>連到這個使用者的 <code>systemd --user</code>（預設是 <code>--system</code>，連 PID 1）</td>
+</tr>
+<tr>
+<td><code>--no-pager</code></td>
+<td>不要把輸出接到 <code>less</code></td>
+</tr>
+<tr>
+<td><code>-p</code>／<code>--property=</code></td>
+<td><code>show</code> 只印指定的屬性</td>
+</tr>
+<tr>
+<td><code>--value</code></td>
+<td><code>show</code> 只印值，不印 <code>名稱=</code></td>
+</tr>
+</tbody>
+</table>
+<p>（<code>--now</code> 在<a href="#%E4%B9%9Denable%E9%96%8B%E6%A9%9F%E8%87%AA%E5%8B%95%E5%95%9F%E5%8B%95%E5%85%B6%E5%AF%A6%E6%98%AF%E5%BB%BA%E4%B8%80%E5%80%8B%E7%AC%A6%E8%99%9F%E9%80%A3%E7%B5%90">第九節</a>與<a href="#%E5%8D%81%E5%AE%8C%E6%95%B4%E6%AD%A5%E9%A9%9F%E6%8A%8A-tickd-%E8%A3%9D%E6%88%90%E7%B3%BB%E7%B5%B1%E6%9C%8D%E5%8B%99">第十節</a>提到，但沒有實測。）</p>
+<h3 id="unit-檔的設定">unit 檔的設定</h3>
+<p>設定（directive）非常多：本機 <code>man systemd.directives</code>（列出 systemd 所有設定檔的所有設定，包含 networkd、journald 等）用 <code>man systemd.directives | col -b | grep -cE '^       [A-Za-z][A-Za-z0-9]*='</code> 數到 1351 個。一份 <code>.service</code> 能用的設定分散在五份 man page，本機逐份數到的數量：</p>
+<table>
+<thead>
+<tr>
+<th>man page</th>
+<th>管什麼</th>
+<th>設定數</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>systemd.unit</code></td>
+<td><code>[Unit]</code> 與 <code>[Install]</code> 節（所有種類共用）</td>
+<td>80</td>
+</tr>
+<tr>
+<td><code>systemd.service</code></td>
+<td><code>[Service]</code> 節專屬的設定</td>
+<td>41</td>
+</tr>
+<tr>
+<td><code>systemd.exec</code></td>
+<td>執行環境：<code>User=</code>、<code>WorkingDirectory=</code>、<code>Environment=</code>、<code>StandardOutput=</code>、各種沙箱限制…</td>
+<td>115</td>
+</tr>
+<tr>
+<td><code>systemd.kill</code></td>
+<td>怎麼停：<code>KillMode=</code>、<code>KillSignal=</code>…</td>
+<td>7</td>
+</tr>
+<tr>
+<td><code>systemd.resource-control</code></td>
+<td>資源限制（cgroup）：<code>MemoryMax=</code>、<code>CPUQuota=</code>…</td>
+<td>42</td>
+</tr>
+</tbody>
+</table>
+<p><code>[Service]</code> 專屬的 41 個全部列出（依 <code>man systemd.service</code> 的順序；本篇用到的標 ★）：</p>
+<table>
+<thead>
+<tr>
+<th>設定</th>
+<th>做什麼</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>★<code>Type=</code></td>
+<td>怎麼判斷啟動完成（<a href="#type-%E5%85%A8%E9%83%A8-8-%E7%A8%AE">第七節</a>）</td>
+</tr>
+<tr>
+<td><code>ExitType=</code></td>
+<td>什麼時候算服務結束：<code>main</code>（主行程結束）或 <code>cgroup</code>（cgroup 裡全部結束）</td>
+</tr>
+<tr>
+<td><code>RemainAfterExit=</code></td>
+<td>行程都結束後仍視為 active（常配 <code>oneshot</code>）</td>
+</tr>
+<tr>
+<td><code>GuessMainPID=</code></td>
+<td><code>forking</code> 沒有 <code>PIDFile=</code> 時要不要猜主行程</td>
+</tr>
+<tr>
+<td>★<code>PIDFile=</code></td>
+<td><code>forking</code> 的主行程 PID 檔</td>
+</tr>
+<tr>
+<td><code>BusName=</code></td>
+<td><code>Type=dbus</code> 等待的 D-Bus 名字</td>
+</tr>
+<tr>
+<td>★<code>ExecStart=</code></td>
+<td>要執行的命令</td>
+</tr>
+<tr>
+<td><code>ExecStartPre=</code>、<code>ExecStartPost=</code></td>
+<td><code>ExecStart=</code> 之前／之後執行的命令（兩個設定）</td>
+</tr>
+<tr>
+<td><code>ExecCondition=</code></td>
+<td>先執行它，結束狀態 1～254 就安靜地跳過這次啟動</td>
+</tr>
+<tr>
+<td><code>ExecReload=</code></td>
+<td><code>reload</code> 時執行的命令</td>
+</tr>
+<tr>
+<td><code>ExecStop=</code></td>
+<td><code>stop</code> 時執行的命令</td>
+</tr>
+<tr>
+<td><code>ExecStopPost=</code></td>
+<td>停止之後（不論成功失敗）執行的命令</td>
+</tr>
+<tr>
+<td>★<code>RestartSec=</code></td>
+<td>重啟前等幾秒</td>
+</tr>
+<tr>
+<td><code>RestartSteps=</code></td>
+<td>重啟間隔從 <code>RestartSec=</code> 遞增到上限要分幾步</td>
+</tr>
+<tr>
+<td><code>RestartMaxDelaySec=</code></td>
+<td>重啟間隔的上限</td>
+</tr>
+<tr>
+<td>★<code>TimeoutStartSec=</code></td>
+<td>啟動最多等多久（預設 90 秒）</td>
+</tr>
+<tr>
+<td><code>TimeoutStopSec=</code></td>
+<td>停止最多等多久，之後送 <code>SIGKILL</code></td>
+</tr>
+<tr>
+<td><code>TimeoutAbortSec=</code></td>
+<td>watchdog 觸發中止時最多等多久</td>
+</tr>
+<tr>
+<td><code>TimeoutSec=</code></td>
+<td>同時設 <code>TimeoutStartSec=</code> 與 <code>TimeoutStopSec=</code></td>
+</tr>
+<tr>
+<td><code>TimeoutStartFailureMode=</code>、<code>TimeoutStopFailureMode=</code></td>
+<td>逾時後送什麼：<code>terminate</code>、<code>abort</code>、<code>kill</code>（兩個設定）</td>
+</tr>
+<tr>
+<td><code>RuntimeMaxSec=</code></td>
+<td>最多跑多久，到了就停</td>
+</tr>
+<tr>
+<td><code>RuntimeRandomizedExtraSec=</code></td>
+<td>在上一項上加隨機時間</td>
+</tr>
+<tr>
+<td><code>WatchdogSec=</code></td>
+<td>程式要每隔多久用 <code>sd_notify</code> 回報還活著，沒回報就當掛了</td>
+</tr>
+<tr>
+<td>★<code>Restart=</code></td>
+<td>什麼情況要重啟（<a href="#restart-%E5%85%A8%E9%83%A8-7-%E5%80%8B%E5%80%BC">第八節</a>）</td>
+</tr>
+<tr>
+<td><code>RestartMode=</code></td>
+<td>重啟時是否走完整的停止流程（<code>normal</code>／<code>direct</code>）</td>
+</tr>
+<tr>
+<td><code>SuccessExitStatus=</code></td>
+<td>額外把哪些結束狀態或訊號當成成功</td>
+</tr>
+<tr>
+<td><code>RestartPreventExitStatus=</code></td>
+<td>遇到哪些結束狀態<strong>不要</strong>重啟</td>
+</tr>
+<tr>
+<td><code>RestartForceExitStatus=</code></td>
+<td>遇到哪些結束狀態<strong>一定</strong>重啟</td>
+</tr>
+<tr>
+<td><code>RootDirectoryStartOnly=</code></td>
+<td><code>RootDirectory=</code> 是否只套用在 <code>ExecStart=</code></td>
+</tr>
+<tr>
+<td><code>NonBlocking=</code></td>
+<td>傳給程式的 socket 設成非阻塞</td>
+</tr>
+<tr>
+<td><code>NotifyAccess=</code></td>
+<td>誰可以送 <code>sd_notify</code> 狀態（<code>main</code>、<code>all</code>…）</td>
+</tr>
+<tr>
+<td><code>Sockets=</code></td>
+<td>從哪些 socket unit 接收已開好的 socket</td>
+</tr>
+<tr>
+<td><code>FileDescriptorStoreMax=</code></td>
+<td>服務可以寄放在 systemd 那裡的 fd 數量（重啟不斷線用）</td>
+</tr>
+<tr>
+<td><code>FileDescriptorStorePreserve=</code></td>
+<td>服務停止後要不要保留寄放的 fd</td>
+</tr>
+<tr>
+<td><code>USBFunctionDescriptors=</code></td>
+<td>USB FunctionFS 的描述子檔</td>
+</tr>
+<tr>
+<td><code>USBFunctionStrings=</code></td>
+<td>USB FunctionFS 的字串檔</td>
+</tr>
+<tr>
+<td><code>OOMPolicy=</code></td>
+<td>kernel 因記憶體不足殺掉其中一個行程時怎麼辦（<code>continue</code>／<code>stop</code>／<code>kill</code>）</td>
+</tr>
+<tr>
+<td><code>OpenFile=</code></td>
+<td>由 systemd 打開檔案再把 fd 交給服務</td>
+</tr>
+<tr>
+<td><code>ReloadSignal=</code></td>
+<td><code>notify-reload</code> 時 reload 送的訊號</td>
+</tr>
+</tbody>
+</table>
+<p><code>[Install]</code> 節的 6 個全部列出：<code>Alias=</code>（替 unit 取別名）、★<code>WantedBy=</code>（enable 時連到哪個 target 的 <code>.wants/</code>）、<code>RequiredBy=</code>（連到 <code>.requires/</code>，強依賴）、
+<code>UpheldBy=</code>（連到 <code>.upholds/</code>，對方在跑時持續把我拉起來）、<code>Also=</code>（enable 我時順便 enable 這些 unit）、<code>DefaultInstance=</code>（模板 unit <code>name@.service</code> 預設的實例名）。</p>
+<p><code>[Unit]</code> 的 80 個與 <code>systemd.exec</code>／<code>kill</code>／<code>resource-control</code> 的 164 個<strong>不逐項列</strong>：大多是依賴關係、條件判斷、沙箱與資源限制的細項，查法是 <code>man systemd.unit</code>、<code>man systemd.exec</code>，或 <code>man systemd.directives</code> 搜尋設定名，它會告訴你那個設定寫在哪份 man page。本篇用到的是 <code>[Unit]</code> 的 <code>Description=</code>、<code>After=</code>、<code>Wants=</code>、<code>StartLimitIntervalSec=</code>、<code>StartLimitBurst=</code>，以及 <code>systemd.exec</code> 的 <code>Environment=</code>、<code>User=</code>、<code>systemd.kill</code> 的 <code>KillMode=</code>、<code>KillSignal=</code>。</p>
+<h3 id="其他工具">其他工具</h3>
+<ul>
+<li><code>systemd-analyze</code>：本篇用了 <code>verify</code>（檢查 unit 檔）與 <code>unit-paths</code>（印出搜尋目錄），其他子命令見 <code>systemd-analyze --help</code>。</li>
+<li><code>systemd-run</code>：全部 40 個選項見 <code>systemd-run --help</code>，本篇用了 4 個（<a href="#%E9%80%99%E8%A3%A1%E7%94%A8-systemd-run%E8%B7%9F%E5%AF%AB-unit-%E6%AA%94%E5%B7%AE%E5%9C%A8%E5%93%AA">第五節</a>）。</li>
+<li><code>journalctl</code>：完整選項見 <a href="journalctl%E7%9C%8B%E6%9C%8D%E5%8B%99%E6%97%A5%E8%AA%8C.html#%E4%B8%89%E5%AE%8C%E6%95%B4%E9%81%B8%E9%A0%85%E4%BE%9D%E6%9C%AC%E6%A9%9F-journalctl---helpsystemd-255">journalctl看服務日誌第三節</a>。</li>
+</ul>
+<hr />
+<h2 id="自我測驗">自我測驗</h2>
+<blockquote>
+<p>參考答案寫在每題下面（第一次作答批改完才會補上），作答時先遮住答案。</p>
+</blockquote>
+<ol>
+<li>
+<p>下面這支程式用一份只有 <code>ExecStart=/usr/local/bin/beat</code> 的 unit 跑成服務。</p>
+<pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;unistd.h&gt;</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">n</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w"> </span><span class="p">;</span><span class="w"> </span><span class="n">n</span><span class="o">++</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;beat %d</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">n</span><span class="p">);</span>
+<span class="w">        </span><span class="n">sleep</span><span class="p">(</span><span class="mi">2</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+</code></pre>
+<pre><code class="language-bash">gcc<span class="w"> </span>-Wall<span class="w"> </span>beat.c<span class="w"> </span>-o<span class="w"> </span>beat
+</code></pre>
+<p>在終端機直接跑 <code>./beat</code>，每 2 秒就看到一行；跑成服務後，<code>journalctl -u beat</code> 好幾分鐘都看不到任何 <code>beat</code> 的輸出。
+(1) 為什麼兩種情況不一樣？請說明服務的 <code>stdout</code> 接到了什麼、這對 stdio 的緩衝方式有什麼影響。
+(2) 之後 <code>systemctl stop beat</code>，journal 裡會不會出現先前那些行？如果會，它們的時間戳是什麼時候、為什麼？（提示：這支程式沒有接 <code>SIGTERM</code>，<code>SIGTERM</code> 的預設動作是直接結束行程，不會執行 <code>return</code>。）
+(3) 提出兩種修法，一種要改程式、一種不改程式。</p>
+</li>
+<li>
+<p>同事的程式啟動時會 <code>fork()</code>，父行程立刻 <code>return 0</code>、子行程留下來在背景工作（像 nginx 的 <code>daemon on</code>）。他的 unit 只寫了：</p>
+<pre><code class="language-ini"><span class="k">[Service]</span>
+<span class="na">ExecStart</span><span class="o">=</span><span class="s">/usr/local/bin/mydaemon</span>
+</code></pre>
+<p>(1) <code>systemctl start mydaemon</code> 之後幾秒，<code>systemctl status</code> 會看到什麼狀態？子行程還活著嗎？為什麼？
+(2) 有哪兩種改法能讓它正常運作？各自要改 unit 還是改程式？你比較推薦哪一種、為什麼？</p>
+</li>
+<li>
+<p>一個服務設了 <code>Restart=on-failure</code>、<code>RestartSec=1</code>，其他用預設值。下面三種情況各會不會被 systemd 重新啟動？為什麼？
+(1) 管理者執行 <code>kill -9 &lt;主行程 PID&gt;</code>。
+(2) 管理者執行 <code>systemctl stop</code> 這個服務。
+(3) 程式因為設定檔寫錯，每次一啟動就 <code>return 1</code>——它會被一直重啟下去嗎？為什麼？</p>
+</li>
+<li>
+<p>小明寫好 <code>/etc/systemd/system/web.service</code> 後執行 <code>sudo systemctl start web</code>，服務跑得很正常；但重開機之後 <code>web</code> 沒有自己啟動。
+(1) 為什麼？<code>start</code> 和 <code>enable</code> 各改變了什麼？
+(2) 他要 <code>enable</code> 時，unit 檔必須有哪一節、哪一行？<code>enable</code> 實際在磁碟上做了什麼？
+(3) 後來他把 <code>ExecStart=</code> 改成新的參數，直接 <code>systemctl restart web</code>，新參數沒有生效。為什麼？該怎麼做？</p>
+</li>
+<li>
+<p>情境題：同事把自己的工具裝在 <code>~/bin/myapp</code>，在終端機打 <code>myapp --port 8080</code> 可以正常執行。他寫了 <code>ExecStart=myapp --port 8080 &gt; /var/log/myapp.log</code>，<code>systemd-analyze verify</code> 回報 <code>Command myapp is not executable: No such file or directory</code>。
+(1) 為什麼在終端機找得到 <code>myapp</code>，systemd 卻找不到？
+(2) 就算找到了，這行還有什麼問題？（<code>&gt;</code> 在這裡會被怎麼處理？）
+(3) 該怎麼改？</p>
+</li>
+</ol>
+
+</main>
+</div>
+</body>
+</html>

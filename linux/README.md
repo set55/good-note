@@ -1,6 +1,6 @@
 # Linux 筆記索引
 
-這個目錄收錄 Linux 系統管理、排查與實戰紀錄。筆記檔案都平放在本目錄，下面的索引依主題分成十類；一篇筆記只會出現在一類裡。
+這個目錄收錄 Linux 系統管理、排查與實戰紀錄。筆記檔案都平放在本目錄，下面的索引依主題分成十一類；一篇筆記只會出現在一類裡。
 
 ## 筆記列表
 
@@ -14,6 +14,7 @@
 - [桌面環境（GNOME）](#桌面環境gnome)（1 篇）
 - [系統組成（核心與使用者空間）](#系統組成核心與使用者空間)（2 篇）
 - [開機（GRUB）](#開機grub)（1 篇）
+- [服務管理（systemd）](#服務管理systemd)（1 篇）
 
 ### 通用方法論
 
@@ -137,6 +138,14 @@ shell 的語法真相與 fd 0／1／2 這三條線怎麼接。
 | 筆記 | 主題 | 關鍵字 |
 |------|------|--------|
 | [GRUB開機選單字太小-設定檔在哪與換大字體.md](./GRUB開機選單字太小-設定檔在哪與換大字體.md) | 要改的是 `/etc/default/grub`，`/boot/grub/grub.cfg` 是 `update-grub`（＝`grub-mkconfig -o`）依 `/etc/grub.d/*` 腳本產生的、手改會被核心升級蓋掉；字小是因為預設 `unicode.pf2` 是 16px Unifont 點陣字、面板 2560x1600——用 `grub-mkfont -s 32` 轉出大號 PF2 放 `/boot/grub/fonts/`、設 `GRUB_FONT`；`GRUB_TERMINAL=console` 會讓字型失效；含降 `GRUB_GFXMODE` 的替代做法、`00_header` 字型邏輯、`grub-mkfont` 全部 15 個選項 | `/etc/default/grub` `update-grub` `grub-mkconfig` `/etc/grub.d/00_header` `grub.cfg` `GRUB_FONT` `grub-mkfont` `pf2` `unicode.pf2` `GRUB_GFXMODE` `GRUB_TERMINAL` `gfxterm` `loadfont` `videoinfo` `ESP` |
+
+### 服務管理（systemd）
+
+讓程式交給 systemd 管理：寫 unit 檔、啟動與停止、自動重啟、開機啟動。
+
+| 筆記 | 主題 | 關鍵字 |
+|------|------|--------|
+| [自己寫systemd-service-讓程式能用systemctl-start啟動.md](./自己寫systemd-service-讓程式能用systemctl-start啟動.md) | `systemctl` 只是經 D-Bus 傳話，真正 `fork`＋`exec` 的是 PID 1 照 unit 檔做；寫 `.service` 要講清楚 `ExecStart=`（絕對路徑、不經 shell）、`Type=`（自己 fork 到背景的程式配 `simple` 會被整組殺掉，要 `forking`＋`PIDFile=` 或乾脆待在前景）、`Restart=`；`stdout` 接到 journald 的 socket 是全緩衝，沒接 `SIGTERM` 時輸出整個不見；`enable` 只是在 `<target>.wants/` 建符號連結 | `systemctl` `systemd-run` `systemd-analyze verify` `ExecStart` `Type=forking` `PIDFile` `Restart=on-failure` `StartLimitBurst` `WantedBy` `daemon-reload` `setvbuf` `SIGTERM` |
 
 ## 常用診斷命令速查（跨筆記通用）
 
