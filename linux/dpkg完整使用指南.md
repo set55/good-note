@@ -22,6 +22,7 @@
 - [九、壞掉時的修復流程](#九壞掉時的修復流程)
 - [十、進階功能](#十進階功能)
 - [十一、速查表](#十一速查表)
+- [十二、課後討論](#十二課後討論)
 - [自我測驗](#自我測驗)
 
 ---
@@ -203,8 +204,12 @@ dpkg --audit                     # 官方做法：直接列出半裝／未設定
 一次安裝的完整順序（升級既有套件時）：
 
 ```
-新包 preinst upgrade → 解開檔案 → 舊包 postrm upgrade → 新包 postinst configure → 觸發器
+舊包 prerm upgrade → 新包 preinst upgrade → 解開檔案 → 舊包 postrm upgrade → 新包 postinst configure → 觸發器
 ```
+
+（2026-11-05 依實測補上最前面的「舊包 `prerm upgrade`」，原本漏了。）
+
+> 課後討論：[第十二節第 1 章〈維護腳本收到的第一個參數：`purge` 時 `postrm` 會跑兩次〉](#1-維護腳本收到的第一個參數purge-時-postrm-會跑兩次)
 
 想知道某次安裝到底做了什麼，直接讀腳本（它們就躺在資料庫目錄裡）：
 
@@ -550,6 +555,203 @@ dpkg --force-help                    # 看所有 --force-* 的意思
 
 ---
 
+## 十二、課後討論
+
+正文讀完之後的提問與延伸，一個主題一章：
+
+- [第 1 章](#1-維護腳本收到的第一個參數purge-時-postrm-會跑兩次)：維護腳本收到的第一個參數：`purge` 時 `postrm` 會跑兩次
+
+### 1. 維護腳本收到的第一個參數：`purge` 時 `postrm` 會跑兩次
+
+> 2026-11-05 提問：「postrm又是什麼?」（起因是移除 Warp 時讀到它的 `postrm` 開頭寫著 `action="$1"`，只有 `purge` 才刪套件庫來源與金鑰，見 [apt的來源設定與簽章驗證-NO_PUBKEY是本機金鑰沒跟上.md 第九節第 1 章](./apt的來源設定與簽章驗證-NO_PUBKEY是本機金鑰沒跟上.md#1-停用或移除第三方套件庫的正確做法)）
+> 正文出處：[第六節〈維護腳本與觸發器：安裝過程中真正在跑什麼〉](#六維護腳本與觸發器安裝過程中真正在跑什麼)的四個腳本表格與「一次安裝的完整順序」。
+
+正文只寫了四個腳本「什麼時候跑」。實際上 dpkg 每次執行腳本時，還會用**第一個參數**告訴它「現在在做什麼」（`install`、`upgrade`、`remove`、`purge`…），同一個腳本會因為參數不同而做不同的事。Warp 的 `postrm`（`/var/lib/dpkg/info/warp-terminal.postrm`）就是這樣寫的：
+
+```bash
+action="$1"
+
+rm -f /usr/bin/warp-terminal
+...
+if [ "$action" != "purge" ]; then
+  exit 0
+fi
+# 以下只有 purge 才會跑：刪掉 apt 來源檔與金鑰
+```
+
+#### 實驗：讓四個腳本把自己收到的參數記下來
+
+做一個**只有維護腳本、沒有任何檔案**的 `.deb`，每個腳本被呼叫時把「腳本名＋參數」寫進 log；再用一個私人的 dpkg 資料庫安裝、升級、移除它。因為套件裡沒有檔案、資料庫也是私人的，**不需要 root，也不會動到系統的 `/var/lib/dpkg`**。
+
+`mscript-demo.sh` 完整原始碼：
+
+```bash
+#!/bin/bash
+# 做一個「只有維護腳本、沒有檔案」的 .deb，用私人的 dpkg 資料庫（--admindir）安裝，
+# 不需要 root、不會動到系統的 /var/lib/dpkg。每個腳本被呼叫時把「腳本名 參數」記進 log。
+set -e
+W=${1:-$HOME/tmp/mscript}
+rm -rf "$W"; mkdir -p "$W" && cd "$W"
+
+mkdir -p pkg/DEBIAN admin/info admin/updates admin/triggers
+touch admin/status admin/available
+cat > pkg/DEBIAN/control <<'EOF'
+Package: mscript-demo
+Version: 1.0
+Architecture: all
+Maintainer: demo <demo@example.com>
+Description: log every maintainer script call
+EOF
+for s in preinst postinst prerm postrm; do
+	printf '#!/bin/sh\necho "%s $*" >> "$MSCRIPT_LOG"\n' "$s" > pkg/DEBIAN/$s
+	chmod 755 pkg/DEBIAN/$s
+done
+cp -r pkg pkg2
+sed -i 's/^Version: 1.0/Version: 2.0/' pkg2/DEBIAN/control
+dpkg-deb --root-owner-group -b pkg  demo_1.0.deb > /dev/null
+dpkg-deb --root-owner-group -b pkg2 demo_2.0.deb > /dev/null
+
+export MSCRIPT_LOG=$W/log
+run() {
+	: > log
+	dpkg --admindir="$W/admin" --force-not-root --force-script-chrootless \
+	     --log=/dev/null "$@" > /dev/null
+	echo "== dpkg $*"
+	cat log
+}
+run -i demo_1.0.deb      # 第一次安裝
+run -i demo_2.0.deb      # 升級 1.0 → 2.0
+run -r mscript-demo      # remove
+run -P mscript-demo      # 對 rc 殘留再 purge
+run -i demo_2.0.deb      # 重新安裝
+run -P mscript-demo      # 對已安裝的套件直接 purge（apt purge 就是這種）
+```
+
+逐段說明：
+
+- `pkg/DEBIAN/` 是 `.deb` 的控制區（見[第二節](#二deb-檔案的解剖)）：`control` 是套件描述，四個腳本各只有兩行，`$*` 是腳本收到的全部參數。`pkg2` 是同一個套件的 2.0 版，用來測升級。
+- `dpkg-deb -b` 把目錄打包成 `.deb`；`--root-owner-group` 讓包裡的檔案擁有者記成 root，非 root 打包時要加（[〈`dpkg-deb` 完整動作與選項〉](#dpkg-deb-完整動作與選項)）。
+- `admin/` 是私人的 dpkg 資料庫，結構照 `/var/lib/dpkg`（[第八節](#八dpkg-的資料庫varlibdpkg)）：空的 `status`、`available` 和三個子目錄。
+- `dpkg` 的四個選項（都在[〈`dpkg` 的選項（Options）〉](#dpkg-的選項options)與[〈`--force-<thing>` 完整清單〉](#--force-thing-完整清單)）：`--admindir` 換成私人資料庫；`--force-not-root` 非 root 也照做；`--force-script-chrootless` 執行腳本時不 chroot（chroot 需要 root）；`--log=/dev/null` 不寫系統的 `/var/log/dpkg.log`。
+- `run` 每次先清空 log，執行一個 dpkg 動作，再印出這次被呼叫的腳本。
+
+執行（`$HOME/tmp/mscript` 是實驗目錄，跑完可以整個刪掉）：
+
+```bash
+bash mscript-demo.sh ~/tmp/mscript
+```
+
+輸出照六個動作分段說明：
+
+**① 第一次安裝：`preinst install` → `postinst configure`**
+
+```text
+== dpkg -i demo_1.0.deb
+preinst install
+postinst configure 
+```
+
+- `postinst configure` 後面本來要接「上一個設定好的版本」，第一次安裝沒有舊版，所以是空的（行尾那個空白就是空參數）。
+
+**② 升級 1.0 → 2.0：四個腳本都跑，而且是新舊兩版的腳本交錯**
+
+```text
+== dpkg -i demo_2.0.deb
+prerm upgrade 2.0
+preinst upgrade 1.0 2.0
+postrm upgrade 2.0
+postinst configure 1.0
+```
+
+- 第 1 行是**舊版（1.0）**的 `prerm`，參數是要升到的新版 `2.0`；第 2 行是**新版**的 `preinst`，參數是舊版、新版；第 3 行是**舊版**的 `postrm`；第 4 行是新版的 `postinst`，參數是升級前的版本 `1.0`。
+- 正文第六節原本的順序漏了第 1 行的「舊包 `prerm upgrade`」，已依這個實測改正。
+
+**③ `remove`：`prerm remove` → `postrm remove`**
+
+```text
+== dpkg -r mscript-demo
+prerm remove
+postrm remove
+```
+
+- 套件變成 `rc`（[第三節](#三安裝與移除狀態機而不是單一動作)），`postrm` 只收到 `remove`。Warp 的 `postrm` 收到 `remove` 就 `exit 0`，所以來源檔和金鑰都還在。
+
+**④ 對 `rc` 殘留再 `purge`：只剩 `postrm purge`**
+
+```text
+== dpkg -P mscript-demo
+postrm purge
+```
+
+- 檔案在 ③ 已經刪了，這次只剩「清設定」這一步，所以 `prerm` 不會再跑。
+
+**⑤ 重新安裝：跟 ① 一樣**
+
+```text
+== dpkg -i demo_2.0.deb
+preinst install
+postinst configure 
+```
+
+- `rc` 已經在 ④ 清乾淨，對 dpkg 來說這是全新安裝。
+
+**⑥ 對已安裝的套件直接 `purge`：`postrm` 跑兩次**
+
+```text
+== dpkg -P mscript-demo
+prerm remove
+postrm remove
+postrm purge
+```
+
+- `purge` ＝ 先做完整個 `remove`（③），再做 `purge`（④），所以 `postrm` 先收到 `remove`、再收到 `purge`。`apt purge <套件>` 走的就是這條路。
+- 這就是 Warp 的 `postrm` 要先判斷 `$1` 的原因：第一次（`remove`）只刪執行檔，第二次（`purge`）才刪套件庫設定。如果不判斷，`apt remove` 也會把來源檔和金鑰刪掉——但 `remove` 的語意是「設定留著，之後重裝還能用」。
+
+```mermaid
+flowchart LR
+    I["已安裝 ii"] -->|"dpkg -r<br/>prerm remove<br/>postrm remove"| RC["rc 殘留"]
+    RC -->|"dpkg -P<br/>postrm purge"| N["完全移除"]
+    I -->|"dpkg -P = 上面兩步連著做<br/>postrm 跑兩次"| N
+```
+
+圖一：`remove` 與 `purge` 時 `postrm` 收到的參數。直接 `purge` 就是走完上面那條路。
+
+#### 全部的呼叫方式
+
+實驗只碰到正常路徑。`man 5 deb-preinst`／`deb-postinst`／`deb-prerm`／`deb-postrm`（dpkg 1.22.6）列出的**全部 23 種**如下；`new-`／`old-` 表示執行的是新版還是舊版套件裡的那份腳本，沒寫就是「目前這個套件的」。標 ✅ 的是上面實驗跑出來的。
+
+| 腳本 | 呼叫方式 | 什麼時候 |
+|------|---------|---------|
+| `preinst` | `new-preinst install` ✅ | 安裝前 |
+| | `new-preinst install <舊版> <新版>` | 對 `rc` 狀態的套件裝新版之前 |
+| | `new-preinst upgrade <舊版> <新版>` ✅ | 升級前 |
+| | `old-preinst abort-upgrade <新版>` | 升級時 `postrm` 失敗，回頭復原 |
+| `postinst` | `postinst configure <上次設定好的版本>` ✅ | 安裝或升級後（第一次安裝時版本是空的） |
+| | `postinst triggered "<觸發器名稱…>"` | 被觸發器喚醒時（[第六節](#六維護腳本與觸發器安裝過程中真正在跑什麼)最後一段） |
+| | `old-postinst abort-upgrade <新版>` | 升級時 `prerm` 失敗，回頭復原 |
+| | `old-postinst abort-remove` | 移除時 `prerm` 失敗 |
+| | `postinst abort-deconfigure in-favour <新套件> <新版> [removing <舊套件> <舊版>]` | 因衝突要先解除設定、但 `prerm` 失敗 |
+| | `postinst abort-remove in-favour <新套件> <新版>` | 因衝突要被取代、但 `prerm` 失敗 |
+| `prerm` | `prerm remove` ✅ | 移除前 |
+| | `old-prerm upgrade <新版>` ✅ | 升級前 |
+| | `new-prerm failed-upgrade <舊版> <新版>` | 上一行失敗時，改用新版的 `prerm` 再試 |
+| | `prerm deconfigure in-favour <新套件> <新版> [removing <舊套件> <舊版>]` | 相依的套件因衝突被換掉，自己要先解除設定 |
+| | `prerm remove in-favour <新套件> <新版>` | 自己因衝突要被別的套件取代 |
+| `postrm` | `postrm remove` ✅ | 移除後 |
+| | `postrm purge` ✅ | 清除設定後 |
+| | `old-postrm upgrade <新版>` ✅ | 升級後 |
+| | `new-postrm failed-upgrade <舊版> <新版>` | 上一行失敗時，改用新版的 `postrm` 再試 |
+| | `postrm disappear <覆蓋者套件> <覆蓋者版本>` | 自己所有的檔案都被別的套件覆蓋掉了 |
+| | `new-postrm abort-install` | 安裝時 `preinst` 失敗 |
+| | `new-postrm abort-install <舊版> <新版>` | 對 `rc` 狀態的套件裝新版時 `preinst` 失敗 |
+| | `new-postrm abort-upgrade <舊版> <新版>` | 升級時 `preinst` 失敗 |
+
+讀這張表的方法：`abort-*`、`failed-upgrade` 都是**某一步失敗後的復原呼叫**，套件作者要在這些情況把系統還原；所以好的維護腳本一定是 `case "$1" in … esac`，每個參數各自處理，不認得的參數報錯。
+
+**心法：維護腳本不是「裝完跑一次」的腳本，而是 dpkg 狀態機的回呼（callback）——同一個 `postrm` 會在升級、移除、清除、復原時被叫到，靠 `$1` 分辨現在是哪一種。讀別人的維護腳本時，先找它對 `$1` 的判斷。**
+
+---
+
 ## 自我測驗
 
 1. `dpkg -i foo.deb` 失敗並說相依沒滿足，為什麼 dpkg 不自己去把缺的套件裝上？這個分工邊界告訴你之後該下哪個指令收尾？
@@ -557,3 +759,10 @@ dpkg --force-help                    # 看所有 --force-* 的意思
 3. `dpkg -l` 顯示某套件是 `ii`，但你執行它卻說 command not found。這代表什麼？要用什麼指令證實你的判斷？
 4. 你手動改過 `/etc/ssh/sshd_config`，升級 `openssh-server` 時跳出「要用新版還是保留舊版」的選單；但另一個套件同樣被你改過設定，升級後卻直接被覆蓋、什麼都沒問。兩者差在哪？
 5. 情境題：某次 `apt upgrade` 中途斷電，重開機後任何 apt 指令都報錯，`dpkg -l` 裡有幾個套件是 `iU`、一個是 `iF`。請描述你的處理順序，並說明為什麼不該一開始就用 `--force-*`。
+6. 某第三方套件的 `postrm` 是這樣寫的（`postinst` 安裝時會建立 `/etc/apt/sources.list.d/foo.list` 與 `/etc/apt/trusted.gpg.d/foo.gpg`）：
+   ```bash
+   #!/bin/sh
+   rm -f /usr/bin/foo
+   rm -f /etc/apt/sources.list.d/foo.list /etc/apt/trusted.gpg.d/foo.gpg
+   ```
+   (a) 為什麼這兩個檔案要靠 `postrm` 刪，dpkg 自己移除套件時不會刪？(b) 使用者下 `apt remove foo` 時，這個腳本的行為有什麼問題？為什麼？(c) 下 `apt purge foo` 時，`postrm` 會被呼叫幾次、各收到什麼參數？應該怎麼改寫這個腳本？

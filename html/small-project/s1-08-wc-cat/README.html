@@ -144,7 +144,7 @@
 <td>1-1</td>
 <td>大致對</td>
 <td>輸出內容、結束狀態、<code>cmp</code> 都對；但錯誤訊息把規格的佔位符 <code>&lt;…&gt;</code> 照字面印出（<code>mycat: &lt;nofile.txt&gt;: &lt;No such…&gt;</code>），逐行比對時沒抓到跟 <code>cat</code> 不同；<code>-</code> 那行漏貼 <code>mycat</code> 的輸出；程式對 <code>stdin</code> 也 <code>fclose</code>，違反規格第 5 點（<code>./mycat - -</code> 第二個 <code>-</code> 會 <code>Bad file descriptor</code>）</td>
-<td>未過關</td>
+<td>✅ 過關（11-05）</td>
 </tr>
 <tr>
 <td>1-2</td>
@@ -156,13 +156,13 @@
 <td>1-3</td>
 <td>不完整</td>
 <td>預測與結果（只有 <code>A</code>、<code>B</code>）對；沒解釋<strong>為什麼</strong>停在 <code>0xff</code>（存進有號 <code>char</code> 變 −1 ＝ <code>EOF</code>）；還誤以為「應該要有警告」（<code>-Wall -Wextra</code> 都抓不到）；沒貼 <code>od -c</code> 與 <code>exit=</code></td>
-<td>未過關</td>
+<td>✅ 過關（11-06）</td>
 </tr>
 <tr>
 <td>1-4</td>
 <td>錯</td>
 <td>只貼了終端機那次；接管線時實際是錯誤訊息跑到最前面（你的預測其實對了）。原因寫反：<code>2&gt;&amp;1</code> 不會讓 <code>stderr</code> 變成有緩衝，是 <code>stdout</code> 接管線變<strong>全緩衝</strong>、留到程式結束才寫，<code>stderr</code> 不緩衝馬上寫</td>
-<td>未過關</td>
+<td>✅ 過關（11-06）</td>
 </tr>
 </tbody>
 </table>
@@ -342,8 +342,77 @@ exit=0
 </ul>
 </details>
 </details>
+</p>
 <details class="answer self-practice"><summary>自我練習（不批改）</summary>
-<div class="answer-box" data-file="small-project/s1-08-wc-cat/README.md" data-line="242" data-insert="1" data-anchor="&gt; - 留給你想（不算這題的分）：`./mycat one.txt &gt; /dev/full` 寫不進去（`/dev/full` 是永遠「磁碟已滿」的裝置），你的程式和上面的改寫都回傳 0；`cat` 會印 `cat: write error: No space left on device`、回傳 1。規格沒要求檢查寫入，但真正的工具要檢查：結束前 `fflush(stdout)`，失敗或 `ferror(stdout)` 就報錯。"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="small-project/s1-08-wc-cat/README.md" data-line="245"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）">./mycat one.txt nonl.txt one.txt; echo &quot;exit=$?&quot;
+hello world
+no newline at endhello world
+exit=0
+
+cat one.txt nonl.txt one.txt; echo &quot;exit=$?&quot;
+hello world
+no newline at endhello world
+exit=0
+
+./mycat one.txt nofile.txt one.txt; echo &quot;exit=$?&quot;
+hello world
+mycat: &lt;nofile.txt&gt;: &lt;No such file or directory&gt;
+hello world
+exit=1
+
+cat one.txt nofile.txt one.txt; echo &quot;exit=$?&quot;
+hello world
+cat: nofile.txt: No such file or directory
+hello world
+exit=1
+
+printf &#x27;from stdin\n&#x27; | ./mycat one.txt - one.txt
+hello world
+from stdin
+hello world
+exit: 0
+
+printf &#x27;from stdin\n&#x27; | cat one.txt - one.txt; echo &quot;exit=$?&quot;
+hello world
+from stdin
+hello world
+exit=0
+
+printf &#x27;only stdin\n&#x27; | ./mycat; echo &quot;exit=$?&quot;
+only stdin
+exit=0
+
+printf &#x27;only stdin\n&#x27; | cat; echo &quot;exit=$?&quot;
+only stdin
+exit=0
+
+./mycat adir; echo &quot;exit=$?&quot;
+mycat: &lt;adir&gt;: &lt;Is a directory&gt;
+exit=1
+
+cat adir; echo &quot;exit=$?&quot;
+cat: adir: Is a directory
+exit=1
+
+./mycat ff.bin | od -c
+0000000   A   B 377   C   D  \n
+0000006
+
+cat ff.bin | od -c
+0000000   A   B 377   C   D  \n
+0000006
+
+for f in one.txt nonl.txt ff.bin; do ./mycat &quot;$f&quot; | cmp - &quot;$f&quot; &amp;&amp; echo &quot;$f 一樣&quot;; done
+one.txt 一樣
+nonl.txt 一樣
+ff.bin 一樣
+
+
+for f in one.txt nonl.txt ff.bin; do cat &quot;$f&quot; | cmp - &quot;$f&quot; &amp;&amp; echo &quot;$f 一樣&quot;; done
+one.txt 一樣
+nonl.txt 一樣
+ff.bin 一樣
+</textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h3 id="1-2-執行-mycat-onetxt-nofiletxt--outtxt-echo-exit貼上終端機上看到的內容再貼上-cat-outtxt錯誤訊息出現在哪裡沒出現在哪裡為什麼如果規格第-3-點改成錯誤訊息印到-stdout使用者打-mycat-txt--alltxt-會遇到什麼麻煩筆記第五節結果寫-stdout錯誤寫-stderr">1-2. 執行 <code>./mycat one.txt nofile.txt &gt; out.txt; echo &quot;exit=$?&quot;</code>，貼上終端機上看到的內容，再貼上 <code>cat out.txt</code>。錯誤訊息出現在哪裡、沒出現在哪裡？為什麼？如果規格第 3 點改成「錯誤訊息印到 <code>stdout</code>」，使用者打 <code>./mycat *.txt &gt; all.txt</code> 會遇到什麼麻煩？【筆記第五節〈結果寫 <code>stdout</code>，錯誤寫 <code>stderr</code>〉】</h3>
 <p><strong>第 1 次（2026-11-05）</strong></p>
@@ -375,7 +444,7 @@ fprintf(stderr, &quot;mycat: &lt;%s&gt;: &lt;%s&gt;\n&quot;, argv[i], strerror(s
 </details>
 </details>
 <details class="answer self-practice"><summary>自我練習（不批改）</summary>
-<div class="answer-box" data-file="small-project/s1-08-wc-cat/README.md" data-line="270" data-insert="1" data-anchor="&gt; 詳細說明：混進去之後，下一個讀 `all.txt` 的程式（或人）會把「`mycat: nofile.txt: No such file or directory`」當成某個檔案的內容；另一個麻煩是使用者在終端機上&#42;&#42;看不到&#42;&#42;出錯，以為全部成功。分開寫，報告乾淨，錯誤也照樣看得到。想把錯誤另存，用 `2&gt; err.txt`。"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="small-project/s1-08-wc-cat/README.md" data-line="343" data-insert="1" data-anchor="&gt; 詳細說明：混進去之後，下一個讀 `all.txt` 的程式（或人）會把「`mycat: nofile.txt: No such file or directory`」當成某個檔案的內容；另一個麻煩是使用者在終端機上&#42;&#42;看不到&#42;&#42;出錯，以為全部成功。分開寫，報告乾淨，錯誤也照樣看得到。想把錯誤另存，用 `2&gt; err.txt`。"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h3 id="1-3-先預測把你程式裡接-getc-回傳值的變數暫時改成-char重新編譯執行-mycat-ffbin--od--c-echo-exit輸出會有幾個-byte是哪幾個寫下預測後再執行貼上結果與編譯有沒有警告為什麼做完改回-int筆記第三節錯誤示範用-char-接-getchar">1-3. 先預測：把你程式裡接 <code>getc</code> 回傳值的變數<strong>暫時改成 <code>char</code></strong>，重新編譯，執行 <code>./mycat ff.bin | od -c; echo &quot;exit=$?&quot;</code>。輸出會有幾個 byte、是哪幾個？寫下預測後再執行，貼上結果與編譯有沒有警告。為什麼？做完改回 <code>int</code>。【筆記第三節〈錯誤示範：用 <code>char</code> 接 <code>getchar()</code>〉】</h3>
 <p><strong>第 1 次（2026-11-05）</strong></p>
@@ -417,8 +486,22 @@ exit=0
 <p>詳細說明：<code>int</code> 接時，255 是 <code>0x000000ff</code>、<code>EOF</code> 是 <code>0xffffffff</code>，兩者分得開；存進 <code>char</code> 後兩者都是 <code>11111111</code>，再也分不出來。在 <code>char</code> 是無號的平台（例如 ARM 上的 Linux，或 <code>-funsigned-char</code>），反過來 <code>EOF</code> 存進去變 255，永遠不等於 <code>EOF</code>，變成無窮迴圈。</p>
 </details>
 </details>
+</p>
 <details class="answer self-practice"><summary>自我練習（不批改）</summary>
-<div class="answer-box" data-file="small-project/s1-08-wc-cat/README.md" data-line="312" data-insert="1" data-anchor="&gt; 詳細說明：`int` 接時，255 是 `0x000000ff`、`EOF` 是 `0xffffffff`，兩者分得開；存進 `char` 後兩者都是 `11111111`，再也分不出來。在 `char` 是無號的平台（例如 ARM 上的 Linux，或 `-funsigned-char`），反過來 `EOF` 存進去變 255，永遠不等於 `EOF`，變成無窮迴圈。"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="small-project/s1-08-wc-cat/README.md" data-line="388"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）">預測: 2個byte, A,B
+
+gcc -Wall -Wextra -Wconversion  mycat.c -o mycat                                                            ok | took 2m 32s | base py | at 01:01:02
+mycat.c: In function ‘call_one’:
+mycat.c:17:21: warning: conversion from ‘int’ to ‘char’ may change value [-Wconversion]
+   17 |         while ((c = fgetc(fp)) != EOF)
+      |                     ^~~
+./mycat ff.bin                                                                                                ok | base py | at 01:02:12
+AB
+
+編譯要加上-Wconversion纔會有警告, 
+
+之所以只有兩個byte打印出來,是因爲第三個是0xff, 是-1,之所以是-1是因爲他的C類型被改成了char 0xff在char就是-1,也就是EOF 自然會終止
+</textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h3 id="1-4-先預測mycat-onetxt-nofiletxt-onetxt-21--cat-印出的三行順序會跟在終端機直接執行-mycat-onetxt-nofiletxt-onetxt-一樣嗎寫下預測後兩個都執行貼上結果為什麼一樣或不一樣筆記第五節輸出順序為什麼會變">1-4. 先預測：<code>./mycat one.txt nofile.txt one.txt 2&gt;&amp;1 | cat</code> 印出的三行，順序會跟在終端機直接執行 <code>./mycat one.txt nofile.txt one.txt</code> 一樣嗎？寫下預測後兩個都執行，貼上結果。為什麼一樣（或不一樣）？【筆記第五節〈輸出順序為什麼會變〉】</h3>
 <p><strong>第 1 次（2026-11-05）</strong></p>
@@ -464,8 +547,26 @@ hello world
 <p>詳細說明：兩種情況下，各自資料流的內容都一樣，變的只有交錯的順序。所以比對輸出時 <code>stdout</code>、<code>stderr</code> 要分開比（例如 <code>2&gt;err.txt</code>），不要靠它們的相對順序。想讓順序固定，可以每次寫錯誤前 <code>fflush(stdout)</code>；GNU <code>cat</code> 根本不用 stdio 的緩衝，直接 <code>write</code>，所以順序永遠照程式執行的順序。</p>
 </details>
 </details>
+</p>
 <details class="answer self-practice"><summary>自我練習（不批改）</summary>
-<div class="answer-box" data-file="small-project/s1-08-wc-cat/README.md" data-line="352" data-insert="1" data-anchor="&gt; 詳細說明：兩種情況下，各自資料流的內容都一樣，變的只有交錯的順序。所以比對輸出時 `stdout`、`stderr` 要分開比（例如 `2&gt;err.txt`），不要靠它們的相對順序。想讓順序固定，可以每次寫錯誤前 `fflush(stdout)`；GNU `cat` 根本不用 stdio 的緩衝，直接 `write`，所以順序永遠照程式執行的順序。"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="small-project/s1-08-wc-cat/README.md" data-line="446"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）">預測: 不會一樣
+
+./mycat one.txt nofile.txt one.txt 2&gt;&amp;1 | cat                                                                 ok | base py | at 01:02:46
+mycat: nofile.txt: No such file or directory
+hello world
+hello world
+
+
+ ~/w/Proj/g/good-note/s/s1-08-wc-cat/hw1 | on main &gt;25 !14 ?4  ./mycat one.txt nofile.txt one.txt                                                                                    1|0 ok | base py | at 01:06:53
+hello world
+mycat: nofile.txt: No such file or directory
+hello world
+
+第一個指令是把stderr 輸入 stdout 再用管線 輸入給 cat
+stderr是立刻打印 而stdout 如果輸出是管線的話,是全緩存,所以stderr先, 等到mycat執行完畢纔會刷掉所有stdout的緩存,最後纔給到cat打印
+
+第二個是直接皆終端機,皆終端機是stdout行緩存, 那只要有\n就會從緩存刷出去,所以正常檔案的順序印了
+</textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <hr />
 <h2 id="2-mywc數行字byte">2. <code>mywc</code>：數行、字、byte</h2>
@@ -498,22 +599,22 @@ mkdir<span class="w"> </span>-p<span class="w"> </span>adir
 </code></pre>
 <p><strong>第 1 次（YYYY-MM-DD）</strong></p>
 <details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="small-project/s1-08-wc-cat/README.md" data-line="392"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="small-project/s1-08-wc-cat/README.md" data-line="505"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h3 id="2-2-nonltxt-明明有一行字mywc-和-wc-的行數都是-0spacestxt-只有兩行有字行數卻是-4這兩個數字為什麼是對的如果你想讓-nonltxt-算成-1-行要多判斷什麼情況用文字說明就好不用改程式筆記第七節wc-數的三個數字最後一問是新觀念先猜">2-2. <code>nonl.txt</code> 明明有一行字，<code>mywc</code> 和 <code>wc</code> 的行數都是 0；<code>spaces.txt</code> 只有兩行有字，行數卻是 4。這兩個數字為什麼是對的？如果你想讓 <code>nonl.txt</code> 算成 1 行，要多判斷什麼情況（用文字說明就好，不用改程式）？【筆記第七節〈<code>wc</code> 數的三個數字〉；最後一問是新觀念，先猜】</h3>
 <p><strong>第 1 次（YYYY-MM-DD）</strong></p>
 <details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="small-project/s1-08-wc-cat/README.md" data-line="398"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="small-project/s1-08-wc-cat/README.md" data-line="511"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h3 id="2-3-說明你的程式怎麼數字數用-printf--a--bctndn-這-10-個-byte逐個-byte-寫出你的程式裡跟數字有關的變數怎麼變例如現在在不在一個字裡面的變數字數最後字數為什麼是-3再用-printf-ax01b-x02n-這-6-個-byte-同樣逐個走一遍字數為什麼是-1highbin-裡有-0xff0xfe-和中文的-byte你傳給-isspaceisprint-的值是什麼型別範圍是多少為什麼不能直接傳-char筆記第七節wc-數的三個數字第三種-byte第三節">2-3. 說明你的程式怎麼數字數：用 <code>printf ' a  bc\t\nd\n'</code> 這 10 個 byte，逐個 byte 寫出你的程式裡跟數字有關的變數怎麼變（例如「現在在不在一個字裡面」的變數、字數），最後字數為什麼是 3。再用 <code>printf 'a\x01b \x02\n'</code> 這 6 個 byte 同樣逐個走一遍，字數為什麼是 1？<code>high.bin</code> 裡有 <code>0xff</code>、<code>0xfe</code> 和中文的 byte，你傳給 <code>isspace</code>／<code>isprint</code> 的值是什麼型別、範圍是多少？為什麼不能直接傳 <code>char</code>？【筆記第七節〈<code>wc</code> 數的三個數字〉〈第三種 byte〉、第三節】</h3>
 <p><strong>第 1 次（YYYY-MM-DD）</strong></p>
 <details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="small-project/s1-08-wc-cat/README.md" data-line="404"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="small-project/s1-08-wc-cat/README.md" data-line="517"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h3 id="2-4-先預測printf-axc2xa0bn-這-5-個-byte-分別給-mywcwclc_allc-wc字數各是多少寫下預測後執行貼上三個結果你的-mywc-跟哪一個一樣為什麼筆記第七節語系locale的例外">2-4. 先預測：<code>printf 'a\xc2\xa0b\n'</code> 這 5 個 byte 分別給 <code>./mywc</code>、<code>wc</code>、<code>LC_ALL=C wc</code>，字數各是多少？寫下預測後執行，貼上三個結果。你的 <code>mywc</code> 跟哪一個一樣？為什麼？【筆記第七節〈語系（locale）的例外〉】</h3>
 <p><strong>第 1 次（YYYY-MM-DD）</strong></p>
 <details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="small-project/s1-08-wc-cat/README.md" data-line="410"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="small-project/s1-08-wc-cat/README.md" data-line="523"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <hr />
 <h2 id="3-替-mywc-加上--l-w-c">3. 替 <code>mywc</code> 加上 <code>-l</code>、<code>-w</code>、<code>-c</code></h2>
@@ -538,12 +639,12 @@ mkdir<span class="w"> </span>-p<span class="w"> </span>adir
 </code></pre>
 <p><strong>第 1 次（YYYY-MM-DD）</strong></p>
 <details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="small-project/s1-08-wc-cat/README.md" data-line="441"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="small-project/s1-08-wc-cat/README.md" data-line="554"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h3 id="3-2-先猜再實驗有一個檔案的名字就叫--l建法printf-xn---lmywc--l-會把它當檔名還是選項為什麼要怎麼讓-mywc-數這個檔案想兩種寫法不改程式gnu-wc-另外支援-wc-----l---是什麼意思為什麼需要它貼上-mywc--l--devnullmywc--lwc-----l-的輸出做完-rm--l-l-的寫法可以用筆記第二節誰把-txt-換成檔名推程式只看到字串---是新觀念先猜">3-2. 先猜再實驗：有一個檔案的名字就叫 <code>-l</code>（建法：<code>printf 'x\n' &gt; ./-l</code>）。<code>./mywc -l</code> 會把它當檔名還是選項？為什麼？要怎麼讓 <code>mywc</code> 數這個檔案（想兩種寫法，不改程式）？GNU <code>wc</code> 另外支援 <code>wc -- -l</code>，<code>--</code> 是什麼意思、為什麼需要它？貼上 <code>./mywc -l &lt; /dev/null</code>、<code>./mywc ./-l</code>、<code>wc -- -l</code> 的輸出。做完 <code>rm ./-l</code>。【<code>./-l</code> 的寫法可以用筆記第二節〈誰把 <code>*.txt</code> 換成檔名〉推（程式只看到字串）；<code>--</code> 是新觀念，先猜】</h3>
 <p><strong>第 1 次（YYYY-MM-DD）</strong></p>
 <details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="small-project/s1-08-wc-cat/README.md" data-line="447"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="small-project/s1-08-wc-cat/README.md" data-line="560"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <hr />
 <h2 id="4-tohex把數值在記憶體裡的-byte-印成十六進位2026-11-02-使用者要求追加">4. <code>tohex</code>：把數值在記憶體裡的 byte 印成十六進位（2026-11-02 使用者要求追加）</h2>
@@ -626,27 +727,27 @@ python3<span class="w"> </span>-c<span class="w"> </span><span class="s2">&quot;
 <p>（<code>struct.pack('&lt;f', 數字)</code> 照 C 的 <code>float</code>、小端序轉成 byte，<code>'&lt;d'</code> 是 <code>double</code>；<code>.hex(' ')</code> 印成用空格隔開的十六進位，跟 <code>memory</code> 行同一個順序。）</p>
 <p><strong>第 1 次（YYYY-MM-DD）</strong></p>
 <details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="small-project/s1-08-wc-cat/README.md" data-line="522"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="small-project/s1-08-wc-cat/README.md" data-line="635"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h3 id="4-2-用-4-1-的輸出回答int-300-的-memory-和-value-兩行為什麼-byte-的順序剛好相反哪一行才是-300-寫成十六進位的樣子short--1int--1long--1-的-byte-為什麼全是-ff三者差在哪第-2-課第三節位元組順序endianness第五節有號整數二補數">4-2. 用 4-1 的輸出回答：<code>int 300</code> 的 <code>memory</code> 和 <code>value</code> 兩行，為什麼 byte 的順序剛好相反？哪一行才是 <code>300</code> 寫成十六進位的樣子？<code>short -1</code>、<code>int -1</code>、<code>long -1</code> 的 byte 為什麼全是 <code>ff</code>，三者差在哪？【第 2 課<a href="../../c/C%E7%9A%84%E8%B3%87%E6%96%99%E5%9C%A8%E8%A8%98%E6%86%B6%E9%AB%94%E8%A3%A1%E9%95%B7%E6%80%8E%E6%A8%A3-%E4%BD%8D%E5%85%83%E7%B5%84%E3%80%81%E6%8C%87%E6%A8%99%E3%80%81%E4%BD%8D%E5%85%83%E7%B5%84%E9%A0%86%E5%BA%8F%E8%88%87%E6%9C%89%E8%99%9F%E7%84%A1%E8%99%9F.html#%E4%B8%89%E4%BD%8D%E5%85%83%E7%B5%84%E9%A0%86%E5%BA%8Fendianness">第三節〈位元組順序（endianness）〉</a>、<a href="../../c/C%E7%9A%84%E8%B3%87%E6%96%99%E5%9C%A8%E8%A8%98%E6%86%B6%E9%AB%94%E8%A3%A1%E9%95%B7%E6%80%8E%E6%A8%A3-%E4%BD%8D%E5%85%83%E7%B5%84%E3%80%81%E6%8C%87%E6%A8%99%E3%80%81%E4%BD%8D%E5%85%83%E7%B5%84%E9%A0%86%E5%BA%8F%E8%88%87%E6%9C%89%E8%99%9F%E7%84%A1%E8%99%9F.html#%E4%BA%94%E6%9C%89%E8%99%9F%E6%95%B4%E6%95%B8%E4%BA%8C%E8%A3%9C%E6%95%B8">第五節〈有號整數：二補數〉</a>】</h3>
 <p><strong>第 1 次（YYYY-MM-DD）</strong></p>
 <details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="small-project/s1-08-wc-cat/README.md" data-line="528"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="small-project/s1-08-wc-cat/README.md" data-line="641"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h3 id="4-3-先預測把你程式裡呼叫-strtol-之前把-errno-設成-0那一行暫時刪掉如果你沒寫這行就是現在的樣子執行-tohex-long-99999999999999999999-5-echo-exit5-會被當成什麼寫下預測再執行貼上結果並解釋做完改回來筆記第四節實驗成功的呼叫不會把-errno-清成-0加上方-strtol-的說明">4-3. 先預測：把你程式裡「呼叫 <code>strtol</code> 之前把 <code>errno</code> 設成 0」那一行<strong>暫時刪掉</strong>（如果你沒寫這行，就是現在的樣子），執行 <code>./tohex long 99999999999999999999 5; echo &quot;exit=$?&quot;</code>。<code>5</code> 會被當成什麼？寫下預測再執行，貼上結果並解釋，做完改回來。【筆記<a href="../../c/%E5%AF%AB%E8%87%AA%E5%B7%B1%E7%9A%84wc%E8%88%87cat-%E5%91%BD%E4%BB%A4%E5%88%97%E5%8F%83%E6%95%B8%E3%80%81%E8%AE%80%E5%88%B0EOF%E8%88%87errno%E9%8C%AF%E8%AA%A4%E8%99%95%E7%90%86.html#%E5%AF%A6%E9%A9%97%E6%88%90%E5%8A%9F%E7%9A%84%E5%91%BC%E5%8F%AB%E4%B8%8D%E6%9C%83%E6%8A%8A-errno-%E6%B8%85%E6%88%90-0">第四節〈實驗：成功的呼叫不會把 <code>errno</code> 清成 0〉</a>，加上方 <code>strtol</code> 的說明】</h3>
 <p><strong>第 1 次（YYYY-MM-DD）</strong></p>
 <details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="small-project/s1-08-wc-cat/README.md" data-line="534"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="small-project/s1-08-wc-cat/README.md" data-line="647"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h3 id="4-4-tohex-char-é-為什麼是錯誤不是印出一個-byteé-實際上是幾個-byte哪幾個用-printf-é--od--an--tx1-查如果規格改成char-只看參數的第一個-byte印出來的-char-用-d-印會是正數還是負數字元筆記第四節中文字一個-byte-裝不下utf-8-用-3-個-byte與跟第-2-課的連結char-有號讀到中文會變負數">4-4. <code>./tohex char é</code> 為什麼是錯誤、不是印出一個 byte？<code>é</code> 實際上是幾個 byte、哪幾個（用 <code>printf 'é' | od -An -tx1</code> 查）？如果規格改成「<code>char</code> 只看參數的第一個 byte」，印出來的 <code>char</code> 用 <code>%d</code> 印會是正數還是負數？【<a href="../../c/%E5%AD%97%E5%85%83%E6%98%AF%E4%BB%80%E9%BA%BC-char%E5%B0%B1%E6%98%AF1byte%E7%9A%84%E6%95%B4%E6%95%B8%E8%88%87ASCII%E5%92%8CUTF-8.html#%E5%9B%9B%E4%B8%AD%E6%96%87%E5%AD%97%E4%B8%80%E5%80%8B-byte-%E8%A3%9D%E4%B8%8D%E4%B8%8Butf-8-%E7%94%A8-3-%E5%80%8B-byte">字元筆記第四節〈中文字：一個 byte 裝不下，UTF-8 用 3 個 byte〉</a>與〈跟第 2 課的連結：<code>char</code> 有號，讀到中文會變負數〉】</h3>
 <p><strong>第 1 次（YYYY-MM-DD）</strong></p>
 <details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="small-project/s1-08-wc-cat/README.md" data-line="540"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="small-project/s1-08-wc-cat/README.md" data-line="653"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h3 id="4-5-先猜再實驗執行-tohex-int--7-7--7-010-echo-exit哪幾個成功哪幾個失敗各為什麼010-變成多少為什麼再執行-tohex-int-9-tohex-float-9-tohex-double-9三個都是9byte-卻完全不像不只是長度不同float-9-的-byte-裡根本沒有-09你猜-floatdouble-是怎麼存數字的前兩問用上方-strtol-的說明推最後一問是新觀念先猜浮點數的表示法-ieee-754-之後補課">4-5. 先猜再實驗：執行 <code>./tohex int ' 7' '7 ' +7 010; echo &quot;exit=$?&quot;</code>，哪幾個成功、哪幾個失敗？各為什麼？<code>010</code> 變成多少？為什麼？再執行 <code>./tohex int 9; ./tohex float 9; ./tohex double 9</code>，三個都是「9」，byte 卻完全不像——不只是長度不同，<code>float 9</code> 的 byte 裡根本沒有 <code>09</code>。你猜 <code>float</code>／<code>double</code> 是怎麼存數字的？【前兩問用上方 <code>strtol</code> 的說明推；最後一問是新觀念，先猜（浮點數的表示法 IEEE 754 之後補課）】</h3>
 <p><strong>第 1 次（YYYY-MM-DD）</strong></p>
 <details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="small-project/s1-08-wc-cat/README.md" data-line="546"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="small-project/s1-08-wc-cat/README.md" data-line="659"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 
 </main>

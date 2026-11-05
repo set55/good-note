@@ -49,10 +49,10 @@
 
 | 題目 | 結果 | 錯在哪／缺什麼 | 過關 |
 |---|---|---|---|
-| 1-1 | 大致對 | 輸出內容、結束狀態、`cmp` 都對；但錯誤訊息把規格的佔位符 `<…>` 照字面印出（`mycat: <nofile.txt>: <No such…>`），逐行比對時沒抓到跟 `cat` 不同；`-` 那行漏貼 `mycat` 的輸出；程式對 `stdin` 也 `fclose`，違反規格第 5 點（`./mycat - -` 第二個 `-` 會 `Bad file descriptor`） | 未過關 |
+| 1-1 | 大致對 | 輸出內容、結束狀態、`cmp` 都對；但錯誤訊息把規格的佔位符 `<…>` 照字面印出（`mycat: <nofile.txt>: <No such…>`），逐行比對時沒抓到跟 `cat` 不同；`-` 那行漏貼 `mycat` 的輸出；程式對 `stdin` 也 `fclose`，違反規格第 5 點（`./mycat - -` 第二個 `-` 會 `Bad file descriptor`） | ✅ 過關（11-05） |
 | 1-2 | 對 | 抓到 `>` 只導 `stdout`、錯誤走 `stderr` 所以留在終端機；改成印到 `stdout` 會混進 `all.txt` | — |
-| 1-3 | 不完整 | 預測與結果（只有 `A`、`B`）對；沒解釋**為什麼**停在 `0xff`（存進有號 `char` 變 −1 ＝ `EOF`）；還誤以為「應該要有警告」（`-Wall -Wextra` 都抓不到）；沒貼 `od -c` 與 `exit=` | 未過關 |
-| 1-4 | 錯 | 只貼了終端機那次；接管線時實際是錯誤訊息跑到最前面（你的預測其實對了）。原因寫反：`2>&1` 不會讓 `stderr` 變成有緩衝，是 `stdout` 接管線變**全緩衝**、留到程式結束才寫，`stderr` 不緩衝馬上寫 | 未過關 |
+| 1-3 | 不完整 | 預測與結果（只有 `A`、`B`）對；沒解釋**為什麼**停在 `0xff`（存進有號 `char` 變 −1 ＝ `EOF`）；還誤以為「應該要有警告」（`-Wall -Wextra` 都抓不到）；沒貼 `od -c` 與 `exit=` | ✅ 過關（11-06） |
+| 1-4 | 錯 | 只貼了終端機那次；接管線時實際是錯誤訊息跑到最前面（你的預測其實對了）。原因寫反：`2>&1` 不會讓 `stderr` 變成有緩衝，是 `stdout` 接管線變**全緩衝**、留到程式結束才寫，`stderr` 不緩衝馬上寫 | ✅ 過關（11-06） |
 
 ---
 
@@ -241,6 +241,79 @@ ff.bin 一樣
 > - `ret |= cat_one(...)`：只要有一次回傳 1，`ret` 就一直是 1，不必寫 `if`。
 > - 留給你想（不算這題的分）：`./mycat one.txt > /dev/full` 寫不進去（`/dev/full` 是永遠「磁碟已滿」的裝置），你的程式和上面的改寫都回傳 0；`cat` 會印 `cat: write error: No space left on device`、回傳 1。規格沒要求檢查寫入，但真正的工具要檢查：結束前 `fflush(stdout)`，失敗或 `ferror(stdout)` 就報錯。
 
+**自我練習**（不批改）
+
+```
+./mycat one.txt nonl.txt one.txt; echo "exit=$?"
+hello world
+no newline at endhello world
+exit=0
+
+cat one.txt nonl.txt one.txt; echo "exit=$?"
+hello world
+no newline at endhello world
+exit=0
+
+./mycat one.txt nofile.txt one.txt; echo "exit=$?"
+hello world
+mycat: <nofile.txt>: <No such file or directory>
+hello world
+exit=1
+
+cat one.txt nofile.txt one.txt; echo "exit=$?"
+hello world
+cat: nofile.txt: No such file or directory
+hello world
+exit=1
+
+printf 'from stdin\n' | ./mycat one.txt - one.txt
+hello world
+from stdin
+hello world
+exit: 0
+
+printf 'from stdin\n' | cat one.txt - one.txt; echo "exit=$?"
+hello world
+from stdin
+hello world
+exit=0
+
+printf 'only stdin\n' | ./mycat; echo "exit=$?"
+only stdin
+exit=0
+
+printf 'only stdin\n' | cat; echo "exit=$?"
+only stdin
+exit=0
+
+./mycat adir; echo "exit=$?"
+mycat: <adir>: <Is a directory>
+exit=1
+
+cat adir; echo "exit=$?"
+cat: adir: Is a directory
+exit=1
+
+./mycat ff.bin | od -c
+0000000   A   B 377   C   D  \n
+0000006
+
+cat ff.bin | od -c
+0000000   A   B 377   C   D  \n
+0000006
+
+for f in one.txt nonl.txt ff.bin; do ./mycat "$f" | cmp - "$f" && echo "$f 一樣"; done
+one.txt 一樣
+nonl.txt 一樣
+ff.bin 一樣
+
+
+for f in one.txt nonl.txt ff.bin; do cat "$f" | cmp - "$f" && echo "$f 一樣"; done
+one.txt 一樣
+nonl.txt 一樣
+ff.bin 一樣
+```
+
 ### 1-2. 執行 `./mycat one.txt nofile.txt > out.txt; echo "exit=$?"`，貼上終端機上看到的內容，再貼上 `cat out.txt`。錯誤訊息出現在哪裡、沒出現在哪裡？為什麼？如果規格第 3 點改成「錯誤訊息印到 `stdout`」，使用者打 `./mycat *.txt > all.txt` 會遇到什麼麻煩？【筆記第五節〈結果寫 `stdout`，錯誤寫 `stderr`〉】
 
 **第 1 次（2026-11-05）**
@@ -311,6 +384,24 @@ AB%
 >
 > 詳細說明：`int` 接時，255 是 `0x000000ff`、`EOF` 是 `0xffffffff`，兩者分得開；存進 `char` 後兩者都是 `11111111`，再也分不出來。在 `char` 是無號的平台（例如 ARM 上的 Linux，或 `-funsigned-char`），反過來 `EOF` 存進去變 255，永遠不等於 `EOF`，變成無窮迴圈。
 
+**自我練習**（不批改）
+
+```
+預測: 2個byte, A,B
+
+gcc -Wall -Wextra -Wconversion  mycat.c -o mycat                                                            ok | took 2m 32s | base py | at 01:01:02
+mycat.c: In function ‘call_one’:
+mycat.c:17:21: warning: conversion from ‘int’ to ‘char’ may change value [-Wconversion]
+   17 |         while ((c = fgetc(fp)) != EOF)
+      |                     ^~~
+./mycat ff.bin                                                                                                ok | base py | at 01:02:12
+AB
+
+編譯要加上-Wconversion纔會有警告, 
+
+之所以只有兩個byte打印出來,是因爲第三個是0xff, 是-1,之所以是-1是因爲他的C類型被改成了char 0xff在char就是-1,也就是EOF 自然會終止
+```
+
 ### 1-4. 先預測：`./mycat one.txt nofile.txt one.txt 2>&1 | cat` 印出的三行，順序會跟在終端機直接執行 `./mycat one.txt nofile.txt one.txt` 一樣嗎？寫下預測後兩個都執行，貼上結果。為什麼一樣（或不一樣）？【筆記第五節〈輸出順序為什麼會變〉】
 
 **第 1 次（2026-11-05）**
@@ -350,6 +441,28 @@ hello world
 > 4. 直接執行時 `stdout` 接終端機，是**行緩衝**，每個 `\n` 就寫，所以順序跟程式執行的順序一樣。
 >
 > 詳細說明：兩種情況下，各自資料流的內容都一樣，變的只有交錯的順序。所以比對輸出時 `stdout`、`stderr` 要分開比（例如 `2>err.txt`），不要靠它們的相對順序。想讓順序固定，可以每次寫錯誤前 `fflush(stdout)`；GNU `cat` 根本不用 stdio 的緩衝，直接 `write`，所以順序永遠照程式執行的順序。
+
+**自我練習**（不批改）
+
+```
+預測: 不會一樣
+
+./mycat one.txt nofile.txt one.txt 2>&1 | cat                                                                 ok | base py | at 01:02:46
+mycat: nofile.txt: No such file or directory
+hello world
+hello world
+
+
+ ~/w/Proj/g/good-note/s/s1-08-wc-cat/hw1 | on main >25 !14 ?4  ./mycat one.txt nofile.txt one.txt                                                                                    1|0 ok | base py | at 01:06:53
+hello world
+mycat: nofile.txt: No such file or directory
+hello world
+
+第一個指令是把stderr 輸入 stdout 再用管線 輸入給 cat
+stderr是立刻打印 而stdout 如果輸出是管線的話,是全緩存,所以stderr先, 等到mycat執行完畢纔會刷掉所有stdout的緩存,最後纔給到cat打印
+
+第二個是直接皆終端機,皆終端機是stdout行緩存, 那只要有\n就會從緩存刷出去,所以正常檔案的順序印了
+```
 
 ---
 

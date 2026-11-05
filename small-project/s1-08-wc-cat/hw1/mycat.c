@@ -2,54 +2,51 @@
 #include <errno.h>
 #include <string.h>
 
-int main(int argc, char *argv[])
+int call_one(char *filename)
 {
-    // printf("總共有 %d 個參數：\n", argc);
+    FILE *fp;
+    int err = 0;
+    char c = 0;
 
-    // for (int i = 0; i < argc; i++) {
-    //     printf("argv[%d] = %s\n", i, argv[i]);
-    // }
-    int c;
+    fp = (strcmp(filename, "-") == 0) ? stdin : fopen(filename, "r");
 
-    int return_value = 0;
-
-    for (int i = 1; i < argc; i++)
+    if (fp == NULL)
+        err = errno;
+    else
     {
-        FILE *fp = fopen(argv[i], "r");
-        if (strcmp(argv[i], "-") == 0)
+        while ((c = fgetc(fp)) != EOF)
         {
-            fp = stdin;
+            putchar(c);
         }
-        if (fp == NULL)
+        if (ferror(fp))
         {
-            int saved = errno; /* 先存起來：之後呼叫的函式可能改掉 errno */
-            errno = saved;
-            fprintf(stderr, "mycat: <%s>: <%s>\n", argv[i], strerror(saved));
-            return_value = 1;
+            err = errno;
         }
-        else
+        if (fp != stdin)
         {
-            while ((c = fgetc(fp)) != EOF)
-            {
-                putchar(c);
-            }
-            if (ferror(fp))
-            {
-                int saved = errno; /* 先存起來：之後呼叫的函式可能改掉 errno */
-                errno = saved;
-                fprintf(stderr, "mycat: <%s>: <%s>\n", argv[i], strerror(saved));
-                return_value = 1;
-            }
             fclose(fp);
         }
     }
 
-    if (argc == 1)
+    if (err != 0)
     {
-        while ((c = fgetc(stdin)) != EOF)
-        {
-            putchar(c);
-        }
+        fprintf(stderr, "mycat: %s: %s\n", filename, strerror(err));
+        return 1;
     }
+    return 0;
+}
+
+int main(int argc, char *argv[])
+{
+    int return_value = 0;
+
+    if (argc == 1)
+        return call_one("-");
+
+    for (int i = 1; i < argc; i++)
+        return_value |= call_one(argv[i]);
+
+    
+
     return return_value;
 }

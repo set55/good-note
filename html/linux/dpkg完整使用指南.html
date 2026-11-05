@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>dpkg 完整使用指南 —— 從安裝、查詢到壞掉時的修復</title>
 <link rel="stylesheet" href="../assets/style.css">
+<script src="../../tools/vendor/mermaid.min.js"></script>
 <script src="../assets/app.js"></script>
 </head>
 <body>
@@ -32,6 +33,8 @@
 <li class="l3"><a href="#dpkg-deb-%E5%AE%8C%E6%95%B4%E5%8B%95%E4%BD%9C%E8%88%87%E9%81%B8%E9%A0%85">dpkg-deb 完整動作與選項</a></li>
 <li class="l3"><a href="#dpkg-query-%E5%AE%8C%E6%95%B4%E5%8B%95%E4%BD%9C%E8%88%87%E9%81%B8%E9%A0%85">dpkg-query 完整動作與選項</a></li>
 <li class="l2"><a href="#%E5%8D%81%E4%B8%80%E9%80%9F%E6%9F%A5%E8%A1%A8">十一、速查表</a></li>
+<li class="l2"><a href="#%E5%8D%81%E4%BA%8C%E8%AA%B2%E5%BE%8C%E8%A8%8E%E8%AB%96">十二、課後討論</a></li>
+<li class="l3"><a href="#1-%E7%B6%AD%E8%AD%B7%E8%85%B3%E6%9C%AC%E6%94%B6%E5%88%B0%E7%9A%84%E7%AC%AC%E4%B8%80%E5%80%8B%E5%8F%83%E6%95%B8purge-%E6%99%82-postrm-%E6%9C%83%E8%B7%91%E5%85%A9%E6%AC%A1">1. 維護腳本收到的第一個參數：purge 時 postrm 會跑兩次</a></li>
 <li class="l2"><a href="#%E8%87%AA%E6%88%91%E6%B8%AC%E9%A9%97">自我測驗</a></li>
 </ul>
 </nav>
@@ -58,6 +61,7 @@
 <li><a href="#%E4%B9%9D%E5%A3%9E%E6%8E%89%E6%99%82%E7%9A%84%E4%BF%AE%E5%BE%A9%E6%B5%81%E7%A8%8B">九、壞掉時的修復流程</a></li>
 <li><a href="#%E5%8D%81%E9%80%B2%E9%9A%8E%E5%8A%9F%E8%83%BD">十、進階功能</a></li>
 <li><a href="#%E5%8D%81%E4%B8%80%E9%80%9F%E6%9F%A5%E8%A1%A8">十一、速查表</a></li>
+<li><a href="#%E5%8D%81%E4%BA%8C%E8%AA%B2%E5%BE%8C%E8%A8%8E%E8%AB%96">十二、課後討論</a></li>
 <li><a href="#%E8%87%AA%E6%88%91%E6%B8%AC%E9%A9%97">自我測驗</a></li>
 </ul>
 <hr />
@@ -347,8 +351,12 @@ dpkg<span class="w"> </span>--audit<span class="w">                     </span><
 </tbody>
 </table>
 <p>一次安裝的完整順序（升級既有套件時）：</p>
-<pre><code>新包 preinst upgrade → 解開檔案 → 舊包 postrm upgrade → 新包 postinst configure → 觸發器
+<pre><code>舊包 prerm upgrade → 新包 preinst upgrade → 解開檔案 → 舊包 postrm upgrade → 新包 postinst configure → 觸發器
 </code></pre>
+<p>（2026-11-05 依實測補上最前面的「舊包 <code>prerm upgrade</code>」，原本漏了。）</p>
+<blockquote>
+<p>課後討論：<a href="#1-%E7%B6%AD%E8%AD%B7%E8%85%B3%E6%9C%AC%E6%94%B6%E5%88%B0%E7%9A%84%E7%AC%AC%E4%B8%80%E5%80%8B%E5%8F%83%E6%95%B8purge-%E6%99%82-postrm-%E6%9C%83%E8%B7%91%E5%85%A9%E6%AC%A1">第十二節第 1 章〈維護腳本收到的第一個參數：<code>purge</code> 時 <code>postrm</code> 會跑兩次〉</a></p>
+</blockquote>
 <p>想知道某次安裝到底做了什麼，直接讀腳本（它們就躺在資料庫目錄裡）：</p>
 <pre><code class="language-bash">cat<span class="w"> </span>/var/lib/dpkg/info/&lt;套件名&gt;.postinst
 </code></pre>
@@ -1043,6 +1051,270 @@ dpkg<span class="w"> </span>--print-architecture<span class="w">            </sp
 dpkg<span class="w"> </span>--force-help<span class="w">                    </span><span class="c1"># 看所有 --force-* 的意思</span>
 </code></pre>
 <hr />
+<h2 id="十二課後討論">十二、課後討論</h2>
+<p>正文讀完之後的提問與延伸，一個主題一章：</p>
+<ul>
+<li><a href="#1-%E7%B6%AD%E8%AD%B7%E8%85%B3%E6%9C%AC%E6%94%B6%E5%88%B0%E7%9A%84%E7%AC%AC%E4%B8%80%E5%80%8B%E5%8F%83%E6%95%B8purge-%E6%99%82-postrm-%E6%9C%83%E8%B7%91%E5%85%A9%E6%AC%A1">第 1 章</a>：維護腳本收到的第一個參數：<code>purge</code> 時 <code>postrm</code> 會跑兩次</li>
+</ul>
+<h3 id="1-維護腳本收到的第一個參數purge-時-postrm-會跑兩次">1. 維護腳本收到的第一個參數：<code>purge</code> 時 <code>postrm</code> 會跑兩次</h3>
+<blockquote>
+<p>2026-11-05 提問：「postrm又是什麼?」（起因是移除 Warp 時讀到它的 <code>postrm</code> 開頭寫著 <code>action=&quot;$1&quot;</code>，只有 <code>purge</code> 才刪套件庫來源與金鑰，見 <a href="apt%E7%9A%84%E4%BE%86%E6%BA%90%E8%A8%AD%E5%AE%9A%E8%88%87%E7%B0%BD%E7%AB%A0%E9%A9%97%E8%AD%89-NO_PUBKEY%E6%98%AF%E6%9C%AC%E6%A9%9F%E9%87%91%E9%91%B0%E6%B2%92%E8%B7%9F%E4%B8%8A.html#1-%E5%81%9C%E7%94%A8%E6%88%96%E7%A7%BB%E9%99%A4%E7%AC%AC%E4%B8%89%E6%96%B9%E5%A5%97%E4%BB%B6%E5%BA%AB%E7%9A%84%E6%AD%A3%E7%A2%BA%E5%81%9A%E6%B3%95">apt的來源設定與簽章驗證-NO_PUBKEY是本機金鑰沒跟上.md 第九節第 1 章</a>）<br />
+正文出處：<a href="#%E5%85%AD%E7%B6%AD%E8%AD%B7%E8%85%B3%E6%9C%AC%E8%88%87%E8%A7%B8%E7%99%BC%E5%99%A8%E5%AE%89%E8%A3%9D%E9%81%8E%E7%A8%8B%E4%B8%AD%E7%9C%9F%E6%AD%A3%E5%9C%A8%E8%B7%91%E4%BB%80%E9%BA%BC">第六節〈維護腳本與觸發器：安裝過程中真正在跑什麼〉</a>的四個腳本表格與「一次安裝的完整順序」。</p>
+</blockquote>
+<p>正文只寫了四個腳本「什麼時候跑」。實際上 dpkg 每次執行腳本時，還會用<strong>第一個參數</strong>告訴它「現在在做什麼」（<code>install</code>、<code>upgrade</code>、<code>remove</code>、<code>purge</code>…），同一個腳本會因為參數不同而做不同的事。Warp 的 <code>postrm</code>（<code>/var/lib/dpkg/info/warp-terminal.postrm</code>）就是這樣寫的：</p>
+<pre><code class="language-bash"><span class="nv">action</span><span class="o">=</span><span class="s2">&quot;</span><span class="nv">$1</span><span class="s2">&quot;</span>
+
+rm<span class="w"> </span>-f<span class="w"> </span>/usr/bin/warp-terminal
+...
+<span class="k">if</span><span class="w"> </span><span class="o">[</span><span class="w"> </span><span class="s2">&quot;</span><span class="nv">$action</span><span class="s2">&quot;</span><span class="w"> </span>!<span class="o">=</span><span class="w"> </span><span class="s2">&quot;purge&quot;</span><span class="w"> </span><span class="o">]</span><span class="p">;</span><span class="w"> </span><span class="k">then</span>
+<span class="w">  </span><span class="nb">exit</span><span class="w"> </span><span class="m">0</span>
+<span class="k">fi</span>
+<span class="c1"># 以下只有 purge 才會跑：刪掉 apt 來源檔與金鑰</span>
+</code></pre>
+<h4 id="實驗讓四個腳本把自己收到的參數記下來">實驗：讓四個腳本把自己收到的參數記下來</h4>
+<p>做一個<strong>只有維護腳本、沒有任何檔案</strong>的 <code>.deb</code>，每個腳本被呼叫時把「腳本名＋參數」寫進 log；再用一個私人的 dpkg 資料庫安裝、升級、移除它。因為套件裡沒有檔案、資料庫也是私人的，<strong>不需要 root，也不會動到系統的 <code>/var/lib/dpkg</code></strong>。</p>
+<p><code>mscript-demo.sh</code> 完整原始碼：</p>
+<pre><code class="language-bash"><span class="ch">#!/bin/bash</span>
+<span class="c1"># 做一個「只有維護腳本、沒有檔案」的 .deb，用私人的 dpkg 資料庫（--admindir）安裝，</span>
+<span class="c1"># 不需要 root、不會動到系統的 /var/lib/dpkg。每個腳本被呼叫時把「腳本名 參數」記進 log。</span>
+<span class="nb">set</span><span class="w"> </span>-e
+<span class="nv">W</span><span class="o">=</span><span class="si">${</span><span class="nv">1</span><span class="k">:-</span><span class="nv">$HOME</span><span class="p">/tmp/mscript</span><span class="si">}</span>
+rm<span class="w"> </span>-rf<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$W</span><span class="s2">&quot;</span><span class="p">;</span><span class="w"> </span>mkdir<span class="w"> </span>-p<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$W</span><span class="s2">&quot;</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nb">cd</span><span class="w"> </span><span class="s2">&quot;</span><span class="nv">$W</span><span class="s2">&quot;</span>
+
+mkdir<span class="w"> </span>-p<span class="w"> </span>pkg/DEBIAN<span class="w"> </span>admin/info<span class="w"> </span>admin/updates<span class="w"> </span>admin/triggers
+touch<span class="w"> </span>admin/status<span class="w"> </span>admin/available
+cat<span class="w"> </span>&gt;<span class="w"> </span>pkg/DEBIAN/control<span class="w"> </span><span class="s">&lt;&lt;&#39;EOF&#39;</span>
+<span class="s">Package: mscript-demo</span>
+<span class="s">Version: 1.0</span>
+<span class="s">Architecture: all</span>
+<span class="s">Maintainer: demo &lt;demo@example.com&gt;</span>
+<span class="s">Description: log every maintainer script call</span>
+<span class="s">EOF</span>
+<span class="k">for</span><span class="w"> </span>s<span class="w"> </span><span class="k">in</span><span class="w"> </span>preinst<span class="w"> </span>postinst<span class="w"> </span>prerm<span class="w"> </span>postrm<span class="p">;</span><span class="w"> </span><span class="k">do</span>
+<span class="w">	</span><span class="nb">printf</span><span class="w"> </span><span class="s1">&#39;#!/bin/sh\necho &quot;%s $*&quot; &gt;&gt; &quot;$MSCRIPT_LOG&quot;\n&#39;</span><span class="w"> </span><span class="s2">&quot;</span><span class="nv">$s</span><span class="s2">&quot;</span><span class="w"> </span>&gt;<span class="w"> </span>pkg/DEBIAN/<span class="nv">$s</span>
+<span class="w">	</span>chmod<span class="w"> </span><span class="m">755</span><span class="w"> </span>pkg/DEBIAN/<span class="nv">$s</span>
+<span class="k">done</span>
+cp<span class="w"> </span>-r<span class="w"> </span>pkg<span class="w"> </span>pkg2
+sed<span class="w"> </span>-i<span class="w"> </span><span class="s1">&#39;s/^Version: 1.0/Version: 2.0/&#39;</span><span class="w"> </span>pkg2/DEBIAN/control
+dpkg-deb<span class="w"> </span>--root-owner-group<span class="w"> </span>-b<span class="w"> </span>pkg<span class="w">  </span>demo_1.0.deb<span class="w"> </span>&gt;<span class="w"> </span>/dev/null
+dpkg-deb<span class="w"> </span>--root-owner-group<span class="w"> </span>-b<span class="w"> </span>pkg2<span class="w"> </span>demo_2.0.deb<span class="w"> </span>&gt;<span class="w"> </span>/dev/null
+
+<span class="nb">export</span><span class="w"> </span><span class="nv">MSCRIPT_LOG</span><span class="o">=</span><span class="nv">$W</span>/log
+run<span class="o">()</span><span class="w"> </span><span class="o">{</span>
+<span class="w">	</span>:<span class="w"> </span>&gt;<span class="w"> </span>log
+<span class="w">	</span>dpkg<span class="w"> </span>--admindir<span class="o">=</span><span class="s2">&quot;</span><span class="nv">$W</span><span class="s2">/admin&quot;</span><span class="w"> </span>--force-not-root<span class="w"> </span>--force-script-chrootless<span class="w"> </span><span class="se">\</span>
+<span class="w">	     </span>--log<span class="o">=</span>/dev/null<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$@</span><span class="s2">&quot;</span><span class="w"> </span>&gt;<span class="w"> </span>/dev/null
+<span class="w">	</span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;== dpkg </span><span class="nv">$*</span><span class="s2">&quot;</span>
+<span class="w">	</span>cat<span class="w"> </span>log
+<span class="o">}</span>
+run<span class="w"> </span>-i<span class="w"> </span>demo_1.0.deb<span class="w">      </span><span class="c1"># 第一次安裝</span>
+run<span class="w"> </span>-i<span class="w"> </span>demo_2.0.deb<span class="w">      </span><span class="c1"># 升級 1.0 → 2.0</span>
+run<span class="w"> </span>-r<span class="w"> </span>mscript-demo<span class="w">      </span><span class="c1"># remove</span>
+run<span class="w"> </span>-P<span class="w"> </span>mscript-demo<span class="w">      </span><span class="c1"># 對 rc 殘留再 purge</span>
+run<span class="w"> </span>-i<span class="w"> </span>demo_2.0.deb<span class="w">      </span><span class="c1"># 重新安裝</span>
+run<span class="w"> </span>-P<span class="w"> </span>mscript-demo<span class="w">      </span><span class="c1"># 對已安裝的套件直接 purge（apt purge 就是這種）</span>
+</code></pre>
+<p>逐段說明：</p>
+<ul>
+<li><code>pkg/DEBIAN/</code> 是 <code>.deb</code> 的控制區（見<a href="#%E4%BA%8Cdeb-%E6%AA%94%E6%A1%88%E7%9A%84%E8%A7%A3%E5%89%96">第二節</a>）：<code>control</code> 是套件描述，四個腳本各只有兩行，<code>$*</code> 是腳本收到的全部參數。<code>pkg2</code> 是同一個套件的 2.0 版，用來測升級。</li>
+<li><code>dpkg-deb -b</code> 把目錄打包成 <code>.deb</code>；<code>--root-owner-group</code> 讓包裡的檔案擁有者記成 root，非 root 打包時要加（<a href="#dpkg-deb-%E5%AE%8C%E6%95%B4%E5%8B%95%E4%BD%9C%E8%88%87%E9%81%B8%E9%A0%85">〈<code>dpkg-deb</code> 完整動作與選項〉</a>）。</li>
+<li><code>admin/</code> 是私人的 dpkg 資料庫，結構照 <code>/var/lib/dpkg</code>（<a href="#%E5%85%ABdpkg-%E7%9A%84%E8%B3%87%E6%96%99%E5%BA%ABvarlibdpkg">第八節</a>）：空的 <code>status</code>、<code>available</code> 和三個子目錄。</li>
+<li><code>dpkg</code> 的四個選項（都在<a href="#dpkg-%E7%9A%84%E9%81%B8%E9%A0%85options">〈<code>dpkg</code> 的選項（Options）〉</a>與<a href="#--force-thing-%E5%AE%8C%E6%95%B4%E6%B8%85%E5%96%AE">〈<code>--force-&lt;thing&gt;</code> 完整清單〉</a>）：<code>--admindir</code> 換成私人資料庫；<code>--force-not-root</code> 非 root 也照做；<code>--force-script-chrootless</code> 執行腳本時不 chroot（chroot 需要 root）；<code>--log=/dev/null</code> 不寫系統的 <code>/var/log/dpkg.log</code>。</li>
+<li><code>run</code> 每次先清空 log，執行一個 dpkg 動作，再印出這次被呼叫的腳本。</li>
+</ul>
+<p>執行（<code>$HOME/tmp/mscript</code> 是實驗目錄，跑完可以整個刪掉）：</p>
+<pre><code class="language-bash">bash<span class="w"> </span>mscript-demo.sh<span class="w"> </span>~/tmp/mscript
+</code></pre>
+<p>輸出照六個動作分段說明：</p>
+<p><strong>① 第一次安裝：<code>preinst install</code> → <code>postinst configure</code></strong></p>
+<pre><code class="language-text">== dpkg -i demo_1.0.deb
+preinst install
+postinst configure 
+</code></pre>
+<ul>
+<li><code>postinst configure</code> 後面本來要接「上一個設定好的版本」，第一次安裝沒有舊版，所以是空的（行尾那個空白就是空參數）。</li>
+</ul>
+<p><strong>② 升級 1.0 → 2.0：四個腳本都跑，而且是新舊兩版的腳本交錯</strong></p>
+<pre><code class="language-text">== dpkg -i demo_2.0.deb
+prerm upgrade 2.0
+preinst upgrade 1.0 2.0
+postrm upgrade 2.0
+postinst configure 1.0
+</code></pre>
+<ul>
+<li>第 1 行是<strong>舊版（1.0）<strong>的 <code>prerm</code>，參數是要升到的新版 <code>2.0</code>；第 2 行是</strong>新版</strong>的 <code>preinst</code>，參數是舊版、新版；第 3 行是<strong>舊版</strong>的 <code>postrm</code>；第 4 行是新版的 <code>postinst</code>，參數是升級前的版本 <code>1.0</code>。</li>
+<li>正文第六節原本的順序漏了第 1 行的「舊包 <code>prerm upgrade</code>」，已依這個實測改正。</li>
+</ul>
+<p><strong>③ <code>remove</code>：<code>prerm remove</code> → <code>postrm remove</code></strong></p>
+<pre><code class="language-text">== dpkg -r mscript-demo
+prerm remove
+postrm remove
+</code></pre>
+<ul>
+<li>套件變成 <code>rc</code>（<a href="#%E4%B8%89%E5%AE%89%E8%A3%9D%E8%88%87%E7%A7%BB%E9%99%A4%E7%8B%80%E6%85%8B%E6%A9%9F%E8%80%8C%E4%B8%8D%E6%98%AF%E5%96%AE%E4%B8%80%E5%8B%95%E4%BD%9C">第三節</a>），<code>postrm</code> 只收到 <code>remove</code>。Warp 的 <code>postrm</code> 收到 <code>remove</code> 就 <code>exit 0</code>，所以來源檔和金鑰都還在。</li>
+</ul>
+<p><strong>④ 對 <code>rc</code> 殘留再 <code>purge</code>：只剩 <code>postrm purge</code></strong></p>
+<pre><code class="language-text">== dpkg -P mscript-demo
+postrm purge
+</code></pre>
+<ul>
+<li>檔案在 ③ 已經刪了，這次只剩「清設定」這一步，所以 <code>prerm</code> 不會再跑。</li>
+</ul>
+<p><strong>⑤ 重新安裝：跟 ① 一樣</strong></p>
+<pre><code class="language-text">== dpkg -i demo_2.0.deb
+preinst install
+postinst configure 
+</code></pre>
+<ul>
+<li><code>rc</code> 已經在 ④ 清乾淨，對 dpkg 來說這是全新安裝。</li>
+</ul>
+<p><strong>⑥ 對已安裝的套件直接 <code>purge</code>：<code>postrm</code> 跑兩次</strong></p>
+<pre><code class="language-text">== dpkg -P mscript-demo
+prerm remove
+postrm remove
+postrm purge
+</code></pre>
+<ul>
+<li><code>purge</code> ＝ 先做完整個 <code>remove</code>（③），再做 <code>purge</code>（④），所以 <code>postrm</code> 先收到 <code>remove</code>、再收到 <code>purge</code>。<code>apt purge &lt;套件&gt;</code> 走的就是這條路。</li>
+<li>這就是 Warp 的 <code>postrm</code> 要先判斷 <code>$1</code> 的原因：第一次（<code>remove</code>）只刪執行檔，第二次（<code>purge</code>）才刪套件庫設定。如果不判斷，<code>apt remove</code> 也會把來源檔和金鑰刪掉——但 <code>remove</code> 的語意是「設定留著，之後重裝還能用」。</li>
+</ul>
+<pre class="mermaid">flowchart LR
+    I[&quot;已安裝 ii&quot;] --&gt;|&quot;dpkg -r&lt;br/&gt;prerm remove&lt;br/&gt;postrm remove&quot;| RC[&quot;rc 殘留&quot;]
+    RC --&gt;|&quot;dpkg -P&lt;br/&gt;postrm purge&quot;| N[&quot;完全移除&quot;]
+    I --&gt;|&quot;dpkg -P = 上面兩步連著做&lt;br/&gt;postrm 跑兩次&quot;| N
+</pre>
+<p>圖一：<code>remove</code> 與 <code>purge</code> 時 <code>postrm</code> 收到的參數。直接 <code>purge</code> 就是走完上面那條路。</p>
+<h4 id="全部的呼叫方式">全部的呼叫方式</h4>
+<p>實驗只碰到正常路徑。<code>man 5 deb-preinst</code>／<code>deb-postinst</code>／<code>deb-prerm</code>／<code>deb-postrm</code>（dpkg 1.22.6）列出的<strong>全部 23 種</strong>如下；<code>new-</code>／<code>old-</code> 表示執行的是新版還是舊版套件裡的那份腳本，沒寫就是「目前這個套件的」。標 ✅ 的是上面實驗跑出來的。</p>
+<table>
+<thead>
+<tr>
+<th>腳本</th>
+<th>呼叫方式</th>
+<th>什麼時候</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>preinst</code></td>
+<td><code>new-preinst install</code> ✅</td>
+<td>安裝前</td>
+</tr>
+<tr>
+<td></td>
+<td><code>new-preinst install &lt;舊版&gt; &lt;新版&gt;</code></td>
+<td>對 <code>rc</code> 狀態的套件裝新版之前</td>
+</tr>
+<tr>
+<td></td>
+<td><code>new-preinst upgrade &lt;舊版&gt; &lt;新版&gt;</code> ✅</td>
+<td>升級前</td>
+</tr>
+<tr>
+<td></td>
+<td><code>old-preinst abort-upgrade &lt;新版&gt;</code></td>
+<td>升級時 <code>postrm</code> 失敗，回頭復原</td>
+</tr>
+<tr>
+<td><code>postinst</code></td>
+<td><code>postinst configure &lt;上次設定好的版本&gt;</code> ✅</td>
+<td>安裝或升級後（第一次安裝時版本是空的）</td>
+</tr>
+<tr>
+<td></td>
+<td><code>postinst triggered &quot;&lt;觸發器名稱…&gt;&quot;</code></td>
+<td>被觸發器喚醒時（<a href="#%E5%85%AD%E7%B6%AD%E8%AD%B7%E8%85%B3%E6%9C%AC%E8%88%87%E8%A7%B8%E7%99%BC%E5%99%A8%E5%AE%89%E8%A3%9D%E9%81%8E%E7%A8%8B%E4%B8%AD%E7%9C%9F%E6%AD%A3%E5%9C%A8%E8%B7%91%E4%BB%80%E9%BA%BC">第六節</a>最後一段）</td>
+</tr>
+<tr>
+<td></td>
+<td><code>old-postinst abort-upgrade &lt;新版&gt;</code></td>
+<td>升級時 <code>prerm</code> 失敗，回頭復原</td>
+</tr>
+<tr>
+<td></td>
+<td><code>old-postinst abort-remove</code></td>
+<td>移除時 <code>prerm</code> 失敗</td>
+</tr>
+<tr>
+<td></td>
+<td><code>postinst abort-deconfigure in-favour &lt;新套件&gt; &lt;新版&gt; [removing &lt;舊套件&gt; &lt;舊版&gt;]</code></td>
+<td>因衝突要先解除設定、但 <code>prerm</code> 失敗</td>
+</tr>
+<tr>
+<td></td>
+<td><code>postinst abort-remove in-favour &lt;新套件&gt; &lt;新版&gt;</code></td>
+<td>因衝突要被取代、但 <code>prerm</code> 失敗</td>
+</tr>
+<tr>
+<td><code>prerm</code></td>
+<td><code>prerm remove</code> ✅</td>
+<td>移除前</td>
+</tr>
+<tr>
+<td></td>
+<td><code>old-prerm upgrade &lt;新版&gt;</code> ✅</td>
+<td>升級前</td>
+</tr>
+<tr>
+<td></td>
+<td><code>new-prerm failed-upgrade &lt;舊版&gt; &lt;新版&gt;</code></td>
+<td>上一行失敗時，改用新版的 <code>prerm</code> 再試</td>
+</tr>
+<tr>
+<td></td>
+<td><code>prerm deconfigure in-favour &lt;新套件&gt; &lt;新版&gt; [removing &lt;舊套件&gt; &lt;舊版&gt;]</code></td>
+<td>相依的套件因衝突被換掉，自己要先解除設定</td>
+</tr>
+<tr>
+<td></td>
+<td><code>prerm remove in-favour &lt;新套件&gt; &lt;新版&gt;</code></td>
+<td>自己因衝突要被別的套件取代</td>
+</tr>
+<tr>
+<td><code>postrm</code></td>
+<td><code>postrm remove</code> ✅</td>
+<td>移除後</td>
+</tr>
+<tr>
+<td></td>
+<td><code>postrm purge</code> ✅</td>
+<td>清除設定後</td>
+</tr>
+<tr>
+<td></td>
+<td><code>old-postrm upgrade &lt;新版&gt;</code> ✅</td>
+<td>升級後</td>
+</tr>
+<tr>
+<td></td>
+<td><code>new-postrm failed-upgrade &lt;舊版&gt; &lt;新版&gt;</code></td>
+<td>上一行失敗時，改用新版的 <code>postrm</code> 再試</td>
+</tr>
+<tr>
+<td></td>
+<td><code>postrm disappear &lt;覆蓋者套件&gt; &lt;覆蓋者版本&gt;</code></td>
+<td>自己所有的檔案都被別的套件覆蓋掉了</td>
+</tr>
+<tr>
+<td></td>
+<td><code>new-postrm abort-install</code></td>
+<td>安裝時 <code>preinst</code> 失敗</td>
+</tr>
+<tr>
+<td></td>
+<td><code>new-postrm abort-install &lt;舊版&gt; &lt;新版&gt;</code></td>
+<td>對 <code>rc</code> 狀態的套件裝新版時 <code>preinst</code> 失敗</td>
+</tr>
+<tr>
+<td></td>
+<td><code>new-postrm abort-upgrade &lt;舊版&gt; &lt;新版&gt;</code></td>
+<td>升級時 <code>preinst</code> 失敗</td>
+</tr>
+</tbody>
+</table>
+<p>讀這張表的方法：<code>abort-*</code>、<code>failed-upgrade</code> 都是<strong>某一步失敗後的復原呼叫</strong>，套件作者要在這些情況把系統還原；所以好的維護腳本一定是 <code>case &quot;$1&quot; in … esac</code>，每個參數各自處理，不認得的參數報錯。</p>
+<p><strong>心法：維護腳本不是「裝完跑一次」的腳本，而是 dpkg 狀態機的回呼（callback）——同一個 <code>postrm</code> 會在升級、移除、清除、復原時被叫到，靠 <code>$1</code> 分辨現在是哪一種。讀別人的維護腳本時，先找它對 <code>$1</code> 的判斷。</strong></p>
+<hr />
 <h2 id="自我測驗">自我測驗</h2>
 <ol>
 <li><code>dpkg -i foo.deb</code> 失敗並說相依沒滿足，為什麼 dpkg 不自己去把缺的套件裝上？這個分工邊界告訴你之後該下哪個指令收尾？</li>
@@ -1050,6 +1322,11 @@ dpkg<span class="w"> </span>--force-help<span class="w">                    </sp
 <li><code>dpkg -l</code> 顯示某套件是 <code>ii</code>，但你執行它卻說 command not found。這代表什麼？要用什麼指令證實你的判斷？</li>
 <li>你手動改過 <code>/etc/ssh/sshd_config</code>，升級 <code>openssh-server</code> 時跳出「要用新版還是保留舊版」的選單；但另一個套件同樣被你改過設定，升級後卻直接被覆蓋、什麼都沒問。兩者差在哪？</li>
 <li>情境題：某次 <code>apt upgrade</code> 中途斷電，重開機後任何 apt 指令都報錯，<code>dpkg -l</code> 裡有幾個套件是 <code>iU</code>、一個是 <code>iF</code>。請描述你的處理順序，並說明為什麼不該一開始就用 <code>--force-*</code>。</li>
+<li>某第三方套件的 <code>postrm</code> 是這樣寫的（<code>postinst</code> 安裝時會建立 <code>/etc/apt/sources.list.d/foo.list</code> 與 <code>/etc/apt/trusted.gpg.d/foo.gpg</code>）：<pre><code class="language-bash"><span class="ch">#!/bin/sh</span>
+rm<span class="w"> </span>-f<span class="w"> </span>/usr/bin/foo
+rm<span class="w"> </span>-f<span class="w"> </span>/etc/apt/sources.list.d/foo.list<span class="w"> </span>/etc/apt/trusted.gpg.d/foo.gpg
+</code></pre>
+(a) 為什麼這兩個檔案要靠 <code>postrm</code> 刪，dpkg 自己移除套件時不會刪？(b) 使用者下 <code>apt remove foo</code> 時，這個腳本的行為有什麼問題？為什麼？(c) 下 <code>apt purge foo</code> 時，<code>postrm</code> 會被呼叫幾次、各收到什麼參數？應該怎麼改寫這個腳本？</li>
 </ol>
 
 </main>

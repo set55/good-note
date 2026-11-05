@@ -5,7 +5,7 @@
 ## 筆記列表
 
 - [通用方法論](#通用方法論)（1 篇）
-- [套件管理（dpkg / dkms）](#套件管理dpkg--dkms)（3 篇）
+- [套件管理（dpkg / dkms）](#套件管理dpkg--dkms)（4 篇）
 - [核心與驅動](#核心與驅動)（6 篇）
 - [網路基礎與設定](#網路基礎與設定)（18 篇）
 - [網路查詢與追蹤](#網路查詢與追蹤)（4 篇）
@@ -33,6 +33,7 @@
 | [dpkg完整使用指南.md](./dpkg完整使用指南.md) | dpkg 只負責「解開 .deb、寫資料庫」，不下載也不解相依；`.deb` 的三段結構、unpack／configure 兩階段狀態機、`ii`／`rc`／`iU`／`iF` 各代表什麼、conffile 三方比對為何有時問有時不問，以及 `--configure -a` → `--fix-broken` → `--force-overwrite` 的修復順序 | `dpkg -i` `dpkg -L` `dpkg -S` `dpkg -V` `dpkg --audit` `dpkg --configure -a` `dpkg-deb` `dpkg-query -W -f` `conffiles` `--force-overwrite` `maintainer script` `trigger` `/var/lib/dpkg` `dpkg-divert` `apt-mark hold` |
 | [從dpkg反推套件的啟動命令.md](./從dpkg反推套件的啟動命令.md) | `.deb` 沒有 entry point 欄位，dpkg 查不到「啟動命令」；入口只會在三處——PATH 執行檔、`.desktop` 的 `Exec=`、systemd unit 的 `ExecStart=`，一律用 `dpkg -L` 列檔案再反推；實測 apifox 整包在 `/opt` 且 `/usr/bin` 無檔案，唯一線索就是 `.desktop` | `dpkg -L` `dpkg-deb -c` `.desktop` `Exec=` `TryExec` `field code %U` `gtk-launch` `ExecStart` `systemd unit` `update-alternatives` `dpkg -S` `readlink -f` `/opt` |
 | [dpkg與dkms的關係.md](./dpkg與dkms的關係.md) | dpkg 與 dkms 的分工：前者管一般軟體，後者管會隨核心變動的第三方驅動 | `dpkg` `dkms` `apt` `kernel module` |
+| [apt的來源設定與簽章驗證-NO_PUBKEY是本機金鑰沒跟上.md](./apt的來源設定與簽章驗證-NO_PUBKEY是本機金鑰沒跟上.md) | apt 信任的是「金鑰簽過的 `Release`」，`Release`→`Packages`→`.deb` 一層層靠雜湊；`NO_PUBKEY` 是簽章的子金鑰不在 `signed-by` 指的金鑰檔裡，結果是默默沿用舊索引、軟體停在舊版；實測 Warp 換簽章子金鑰，修法是重抓公鑰、確認主金鑰指紋不變再覆蓋；含 `.list`／`.sources` 文法與 17 個選項、`trusted.gpg.d` 與 `keyrings` 的差別 | `apt update` `NO_PUBKEY` `sources.list` `deb822` `.sources` `signed-by` `trusted.gpg.d` `/etc/apt/keyrings` `apt-key` `Release` `InRelease` `Release.gpg` `gpgv` `gpg --show-keys` `gpg --dearmor` `subkey` `trusted=yes` |
 
 ### 核心與驅動
 
