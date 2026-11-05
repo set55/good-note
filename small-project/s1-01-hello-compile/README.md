@@ -171,3 +171,6 @@ hello, world
 | [`examples/vdso/vdso_trace.c`](./examples/vdso/vdso_trace.c) | [objdump能不能代替ldd找依賴庫](../../c/objdump能不能代替ldd找依賴庫-需求單與實際載入.md#1-linux-vdsoso1-是什麼核心塞進每個行程的小函式庫) 第七節第 1 章〈實驗一：`strace` 看不到走 vDSO 的呼叫〉 |
 | [`examples/vdso/vdso_bench.c`](./examples/vdso/vdso_bench.c) | 同上〈實驗二：快多少〉 |
 | [`examples/gdbtour/tour.c`](./examples/gdbtour/tour.c) | [gdb完整命令參考](../../c/gdb完整命令參考.md#零依任務查常用命令各一個例子) 第零節〈依任務查〉：每個常用 gdb 命令的例子都用這支程式（`gcc -g -O0 tour.c -o tour`） |
+| [`examples/symver/app.c`](./examples/symver/app.c)、[`v1/demo.c`](./examples/symver/v1/demo.c)、[`v1/demo.map`](./examples/symver/v1/demo.map) | [hello 筆記](../../c/hello.c怎麼變成能跑的程式-編譯的四個階段.md#1-函式也有版本libcso6-裡的-glibc_234-是什麼) 第十一節第 1 章〈實驗一〉①：第一版 `libdemo.so` 與 `app_old` |
+| [`examples/symver/v2/demo.c`](./examples/symver/v2/demo.c)、[`v2/demo-drop.map`](./examples/symver/v2/demo-drop.map)、[`v2/demo.map`](./examples/symver/v2/demo.map) | 同上〈實驗一〉②③：第二版拿掉／保留舊版本 |
+| [`examples/libcver/cp.c`](./examples/libcver/cp.c) | 同上〈一支程式的門檻怎麼決定〉 |

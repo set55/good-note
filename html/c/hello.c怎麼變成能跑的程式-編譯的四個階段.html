@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>hello.c 怎麼變成能跑的程式？—— 前處理、編譯、組譯、連結四個階段</title>
 <link rel="stylesheet" href="../assets/style.css">
+<script src="../../tools/vendor/mermaid.min.js"></script>
 <script src="../assets/app.js"></script>
 </head>
 <body>
@@ -39,6 +40,8 @@
 <li class="l3"><a href="#5-%E5%AF%A6%E9%A9%97%E5%9B%9B%E7%9C%8B%E5%B7%A5%E9%A0%AD%E5%AF%A6%E9%9A%9B%E6%8E%A5%E7%B7%9A">5. 實驗四：看工頭實際接線</a></li>
 <li class="l3"><a href="#%E9%99%84musl-%E4%B8%8D%E4%B8%80%E6%A8%A3%E8%BC%89%E5%85%A5%E5%99%A8%E5%92%8C%E5%87%BD%E5%BC%8F%E5%BA%AB%E6%98%AF%E5%90%8C%E4%B8%80%E5%80%8B%E6%AA%94%E6%A1%88">附：musl 不一樣——載入器和函式庫是同一個檔案</a></li>
 <li class="l3"><a href="#6-%E7%94%A8%E9%80%99%E4%B8%89%E5%80%8B%E8%A7%92%E8%89%B2%E9%87%8D%E7%AD%94%E4%B8%89%E9%A1%8C">6. 用這三個角色重答三題</a></li>
+<li class="l2"><a href="#%E5%8D%81%E4%B8%80%E8%AA%B2%E5%BE%8C%E8%A8%8E%E8%AB%96">十一、課後討論</a></li>
+<li class="l3"><a href="#1-%E5%87%BD%E5%BC%8F%E4%B9%9F%E6%9C%89%E7%89%88%E6%9C%AClibcso6-%E8%A3%A1%E7%9A%84-glibc_234-%E6%98%AF%E4%BB%80%E9%BA%BC">1. 函式也有版本：libc.so.6 裡的 GLIBC_2.34 是什麼</a></li>
 <li class="l2"><a href="#%E8%87%AA%E6%88%91%E6%B8%AC%E9%A9%97">自我測驗</a></li>
 </ul>
 </nav>
@@ -69,6 +72,7 @@ C 語言與作業系統的交界就在這裡。</strong></p>
 <li><a href="#%E5%85%AB%E5%8B%95%E6%89%8B%E4%BD%9C%E6%A5%AD">八、動手作業</a></li>
 <li><a href="#%E4%B9%9D%E4%BD%9C%E6%A5%AD%E8%A7%A3%E8%AA%AA%E5%9B%9B%E9%A1%8C%E8%83%8C%E5%BE%8C%E7%9A%84%E5%8E%9F%E5%9B%A0">九、作業解說：四題背後的原因</a></li>
 <li><a href="#%E5%8D%81%E4%B8%89%E5%80%8B%E5%90%8D%E5%AD%97%E5%BE%88%E5%83%8F%E7%9A%84%E6%AA%94%E6%A1%88ldld-linux-x86-64so2libcso6">十、三個名字很像的檔案：<code>ld</code>、<code>ld-linux-x86-64.so.2</code>、<code>libc.so.6</code></a></li>
+<li><a href="#%E5%8D%81%E4%B8%80%E8%AA%B2%E5%BE%8C%E8%A8%8E%E8%AB%96">十一、課後討論</a></li>
 <li><a href="#%E8%87%AA%E6%88%91%E6%B8%AC%E9%A9%97">自我測驗</a></li>
 </ul>
 <hr />
@@ -512,6 +516,9 @@ ldd (Ubuntu GLIBC 2.39-0ubuntu8.9) 2.39
 <li><code>-static</code> 版沒有這張需求表（<code>ldd</code> 回 <code>not a dynamic executable</code>），libc 的程式碼已經在執行檔裡，就不會有這種錯誤；代價是檔案大、libc 的安全修補要重新編譯才會帶進去。</li>
 <li>實務上的做法：在<strong>最舊</strong>的目標系統上編譯（或用它的容器），需求版本就不會超過目標機器。</li>
 </ul>
+<blockquote>
+<p>課後討論：<a href="#1-%E5%87%BD%E5%BC%8F%E4%B9%9F%E6%9C%89%E7%89%88%E6%9C%AClibcso6-%E8%A3%A1%E7%9A%84-glibc_234-%E6%98%AF%E4%BB%80%E9%BA%BC">第十一節第 1 章〈函式也有版本：<code>libc.so.6</code> 裡的 <code>GLIBC_2.34</code> 是什麼〉</a></p>
+</blockquote>
 <h2 id="十三個名字很像的檔案ldld-linux-x86-64so2libcso6">十、三個名字很像的檔案：<code>ld</code>、<code>ld-linux-x86-64.so.2</code>、<code>libc.so.6</code></h2>
 <blockquote>
 <p>補充日期：2026-09-23。自我測驗第 2 題複習了四次，錯誤從「只答 <code>ld</code>」變成「<code>puts</code> 的程式碼在 <code>ld-linux-x86-64.so.2</code>」——
@@ -694,6 +701,226 @@ $ nm -D libc.so | grep -w puts          （把路由器的 libc.so 複製回本�
 <li><strong>第 5 題</strong>：版本需求在<strong>連結時</strong>由 <code>ld</code> 寫進需求單，在<strong>執行時</strong>由 <code>ld-linux-x86-64.so.2</code> 檢查（<code>LD_DEBUG=versions</code> 就是這一步）。</li>
 </ul>
 <hr />
+<h2 id="十一課後討論">十一、課後討論</h2>
+<p>讀完正文之後的追問與延伸，一個主題一章；正文被問到的地方有連結指過來。</p>
+<ul>
+<li><a href="#1-%E5%87%BD%E5%BC%8F%E4%B9%9F%E6%9C%89%E7%89%88%E6%9C%AClibcso6-%E8%A3%A1%E7%9A%84-glibc_234-%E6%98%AF%E4%BB%80%E9%BA%BC">第 1 章</a>：函式也有版本：<code>libc.so.6</code> 裡的 <code>GLIBC_2.34</code> 是什麼</li>
+</ul>
+<h3 id="1-函式也有版本libcso6-裡的-glibc_234-是什麼">1. 函式也有版本：<code>libc.so.6</code> 裡的 <code>GLIBC_2.34</code> 是什麼</h3>
+<blockquote>
+<p>2026-11-05 課後提問（複習 hello 5 之後）：</p>
+<ul>
+<li>「libc.so.6有很多類似GLIBC_2.34的東西嗎?」</li>
+<li>「我不太懂,我以爲只有庫有版本,函式也有版本嗎?」</li>
+</ul>
+<p>正文出處：<a href="#%E8%87%AA%E6%88%91%E6%B8%AC%E9%A9%97%E7%AC%AC-5-%E9%A1%8C%E5%BB%B6%E4%BC%B8%E6%89%BE%E4%B8%8D%E5%88%B0%E7%89%88%E6%9C%AC%E7%AC%A6%E8%99%9F%E6%98%AF%E6%80%8E%E9%BA%BC%E5%9B%9E%E4%BA%8B">第九節〈自我測驗第 5 題延伸：「找不到版本符號」是怎麼回事〉</a>——那段講的是執行檔<strong>需要</strong>哪些版本；這一章講 <code>libc.so.6</code> 這一邊<strong>提供</strong>哪些版本，以及版本為什麼標在函式上。</p>
+</blockquote>
+<h4 id="兩層版本庫的版本與函式符號的版本">兩層版本：庫的版本與函式（符號）的版本</h4>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>第一層：庫的版本</th>
+<th>第二層：函式（符號）的版本</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>長什麼樣</td>
+<td><code>libc.so.6</code> 的 <code>6</code>（這個名字叫 soname）</td>
+<td><code>puts@GLIBC_2.2.5</code>、<code>memcpy@GLIBC_2.14</code></td>
+</tr>
+<tr>
+<td>標在誰身上</td>
+<td>整個檔案</td>
+<td><strong>每一個</strong>對外提供的函式</td>
+</tr>
+<tr>
+<td>執行檔記在哪</td>
+<td>動態區段的 <code>NEEDED libc.so.6</code>（<a href="#3-%E5%AF%A6%E9%A9%97%E4%BA%8Cld-%E5%9C%A8%E5%9F%B7%E8%A1%8C%E6%AA%94%E8%A3%A1%E5%AF%AB%E4%BA%86%E4%BB%80%E9%BA%BC">第十節〈實驗二〉</a>）</td>
+<td>符號名稱後面的 <code>@版本</code>（<code>nm</code>、<code>objdump -T</code> 看得到），版本清單在 <code>.gnu.version_r</code>（<code>readelf -V</code>）</td>
+</tr>
+<tr>
+<td>什麼時候變</td>
+<td>整個庫不相容才換號；glibc 從 2.0（1997 年）起一直是 <code>.6</code></td>
+<td>某個函式改了行為，就替<strong>那一個函式</strong>加一個新版本</td>
+</tr>
+</tbody>
+</table>
+<p>所以 <code>GLIBC_2.34</code> 不是「這個庫是 2.34 版」，而是一個<strong>版本標籤</strong>：「這個函式的這個樣子，是 glibc 2.34 起才有的」。
+<code>ld.so</code> 找函式時比對的是<strong>名字＋版本</strong>，不只是名字。</p>
+<p><strong>為什麼要有第二層</strong>：glibc 想改某個函式、又有舊程式依賴舊行為時，如果只有第一層，只能把整個庫改名成 <code>libc.so.7</code>——所有要求 <code>libc.so.6</code> 的舊程式都得留著舊的庫或重新連結。有了第二層，同一個 <code>libc.so.6</code> 裡放兩份實作：舊程式記的是舊版本，就拿到舊的；新程式連結時拿到新版本。</p>
+<h4 id="實驗一自己做一個函式有兩個版本的-so">實驗一：自己做一個函式有兩個版本的 <code>.so</code></h4>
+<p><code>libdemo.so</code> 的 <code>greet()</code> 第一版回傳 1、第二版回傳 2。檔案都在 <a href="../../small-project/s1-01-hello-compile/examples/symver/"><code>examples/symver/</code></a>。</p>
+<p>主程式 <code>app.c</code>（檔案：<a href="../../small-project/s1-01-hello-compile/examples/symver/app.c"><code>app.c</code></a>），兩次都用同一份：</p>
+<pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">greet</span><span class="p">(</span><span class="kt">void</span><span class="p">);</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">printf</span><span class="p">(</span><span class="s">&quot;greet() 回傳 %d</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">greet</span><span class="p">());</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<p>第一版 <code>v1/demo.c</code>（檔案：<a href="../../small-project/s1-01-hello-compile/examples/symver/v1/demo.c"><code>v1/demo.c</code></a>）與版本腳本 <code>v1/demo.map</code>（檔案：<a href="../../small-project/s1-01-hello-compile/examples/symver/v1/demo.map"><code>v1/demo.map</code></a>）。版本腳本（version script）是交給 <code>ld</code> 的設定檔：<code>DEMO_1 { global: greet; local: *; };</code> 的意思是「定義一個版本叫 <code>DEMO_1</code>，<code>greet</code> 屬於它、對外可見，其他符號一律不對外」：</p>
+<pre><code class="language-c"><span class="kt">int</span><span class="w"> </span><span class="nf">greet</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w"> </span><span class="p">}</span><span class="w">      </span><span class="cm">/* 第一版：回傳 1 */</span>
+</code></pre>
+<pre><code class="language-text">DEMO_1 { global: greet; local: *; };
+</code></pre>
+<p><strong>① 用第一版做 <code>libdemo.so</code>、連結 <code>app_old</code>：執行檔記下的是 <code>greet@DEMO_1</code></strong></p>
+<pre><code class="language-bash">gcc<span class="w"> </span>-Wall<span class="w"> </span>-fPIC<span class="w"> </span>-shared<span class="w"> </span>v1/demo.c<span class="w"> </span>-Wl,--version-script<span class="o">=</span>v1/demo.map<span class="w"> </span>-o<span class="w"> </span>libdemo.so<span class="w">   </span><span class="c1"># -Wl,--version-script：把版本腳本交給 ld</span>
+gcc<span class="w"> </span>-Wall<span class="w"> </span>app.c<span class="w"> </span>-L.<span class="w"> </span>-ldemo<span class="w"> </span>-Wl,-rpath,<span class="s1">&#39;$ORIGIN&#39;</span><span class="w"> </span>-o<span class="w"> </span>app_old<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>./app_old
+nm<span class="w"> </span>app_old<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>greet
+</code></pre>
+<pre><code class="language-text">greet() 回傳 1
+                 U greet@DEMO_1
+</code></pre>
+<ul>
+<li><code>app_old</code> 要的不只是 <code>greet</code>，而是 <code>greet@DEMO_1</code>：連結時 <code>ld</code> 把版本一起寫進了執行檔（跟正文第九節 <code>hello</code> 的 <code>puts@GLIBC_2.2.5</code> 一樣）。</li>
+</ul>
+<p>第二版 <code>v2/demo.c</code>（檔案：<a href="../../small-project/s1-01-hello-compile/examples/symver/v2/demo.c"><code>v2/demo.c</code></a>）：兩份實作，用 gcc 的 <code>symver</code> 屬性（attribute）把它們標成<strong>同一個名字 <code>greet</code> 的兩個版本</strong>。<code>@</code> 是舊版本（只給已經連結到它的舊程式），<code>@@</code> 是預設版本（新程式連結時拿到它）：</p>
+<pre><code class="language-c"><span class="cm">/* 第二版：greet 改成回傳 2，但舊版保留給舊程式 */</span>
+<span class="n">__attribute__</span><span class="p">((</span><span class="n">symver</span><span class="p">(</span><span class="s">&quot;greet@DEMO_1&quot;</span><span class="p">)))</span><span class="w">  </span><span class="kt">int</span><span class="w"> </span><span class="n">greet_old</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w"> </span><span class="p">}</span>
+<span class="n">__attribute__</span><span class="p">((</span><span class="n">symver</span><span class="p">(</span><span class="s">&quot;greet@@DEMO_2&quot;</span><span class="p">)))</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">greet_new</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="mi">2</span><span class="p">;</span><span class="w"> </span><span class="p">}</span>
+</code></pre>
+<p><strong>② 第二版把舊版本拿掉：舊程式跑不起來</strong></p>
+<p>版本腳本 <code>v2/demo-drop.map</code>（檔案：<a href="../../small-project/s1-01-hello-compile/examples/symver/v2/demo-drop.map"><code>v2/demo-drop.map</code></a>）只讓 <code>DEMO_2</code> 對外，<code>DEMO_1</code> 裡什麼都不放：</p>
+<pre><code class="language-text">DEMO_1 { local: *; };
+DEMO_2 { } DEMO_1;
+</code></pre>
+<pre><code class="language-bash">gcc<span class="w"> </span>-Wall<span class="w"> </span>-fPIC<span class="w"> </span>-shared<span class="w"> </span>v2/demo.c<span class="w"> </span>-Wl,--version-script<span class="o">=</span>v2/demo-drop.map<span class="w"> </span>-o<span class="w"> </span>libdemo.so<span class="w">   </span><span class="c1"># 換掉 libdemo.so</span>
+nm<span class="w"> </span>-D<span class="w"> </span>libdemo.so<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>greet
+./app_old<span class="w">                                                                               </span><span class="c1"># app_old 不重新連結</span>
+</code></pre>
+<pre><code class="language-text">0000000000001108 T greet@@DEMO_2
+./app_old: symbol lookup error: ./app_old: undefined symbol: greet, version DEMO_1
+</code></pre>
+<ul>
+<li><code>libdemo.so</code> 裡<strong>有</strong> <code>greet</code>，但只有 <code>DEMO_2</code> 版；<code>app_old</code> 要的是 <code>DEMO_1</code>，對不上就失敗。名字對、版本不對，一樣算找不到。</li>
+<li>這跟正文第九節的 <code>version `GLIBC_2.34' not found</code> 是同一個機制，方向相反：那裡是程式要的版本<strong>太新</strong>（舊機器的 libc 還沒有），這裡是程式要的版本<strong>太舊</strong>（新的庫把它拿掉了）。</li>
+</ul>
+<p><strong>③ 第二版保留舊版本：舊程式拿舊的、新程式拿新的</strong></p>
+<p>版本腳本 <code>v2/demo.map</code>（檔案：<a href="../../small-project/s1-01-hello-compile/examples/symver/v2/demo.map"><code>v2/demo.map</code></a>）讓兩個版本都對外；<code>DEMO_2 { … } DEMO_1;</code> 最後的 <code>DEMO_1</code> 表示「<code>DEMO_2</code> 接在 <code>DEMO_1</code> 後面」：</p>
+<pre><code class="language-text">DEMO_1 { global: greet; local: *; };
+DEMO_2 { global: greet; } DEMO_1;
+</code></pre>
+<pre><code class="language-bash">gcc<span class="w"> </span>-Wall<span class="w"> </span>-fPIC<span class="w"> </span>-shared<span class="w"> </span>v2/demo.c<span class="w"> </span>-Wl,--version-script<span class="o">=</span>v2/demo.map<span class="w"> </span>-o<span class="w"> </span>libdemo.so
+nm<span class="w"> </span>-D<span class="w"> </span>libdemo.so<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>greet
+./app_old<span class="w">                                                                    </span><span class="c1"># 舊程式，不重新連結</span>
+gcc<span class="w"> </span>-Wall<span class="w"> </span>app.c<span class="w"> </span>-L.<span class="w"> </span>-ldemo<span class="w"> </span>-Wl,-rpath,<span class="s1">&#39;$ORIGIN&#39;</span><span class="w"> </span>-o<span class="w"> </span>app_new<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>./app_new<span class="w">      </span><span class="c1"># 用第二版連結的新程式</span>
+nm<span class="w"> </span>app_new<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>greet
+</code></pre>
+<pre><code class="language-text">0000000000001108 T greet@@DEMO_2
+00000000000010f9 T greet@DEMO_1
+greet() 回傳 1
+greet() 回傳 2
+                 U greet@DEMO_2
+</code></pre>
+<ul>
+<li>第 1～2 行：同一個 <code>libdemo.so</code> 裡有兩個 <code>greet</code>，<strong>位址不同</strong>，是兩份程式碼。</li>
+<li>第 3 行：<code>app_old</code> 照它記的 <code>greet@DEMO_1</code> 拿到舊版，還是回傳 1——換了庫，舊程式的行為不變。</li>
+<li>第 4～5 行：<code>app_new</code> 連結時拿到預設的 <code>@@DEMO_2</code>，回傳 2。</li>
+<li><code>readelf -d</code> 看兩支程式的 <code>NEEDED</code> 都只有 <code>libdemo.so</code>、<code>libc.so.6</code>：第一層完全沒變，差別全在第二層。</li>
+</ul>
+<pre class="mermaid">flowchart LR
+    O[&quot;app_old&lt;br/&gt;U greet@DEMO_1&quot;] --&gt; A[&quot;greet@DEMO_1&lt;br/&gt;greet_old，回傳 1&quot;]
+    N[&quot;app_new&lt;br/&gt;U greet@DEMO_2&quot;] --&gt; B[&quot;greet@@DEMO_2&lt;br/&gt;greet_new，回傳 2&quot;]
+    subgraph L[&quot;同一個 libdemo.so（第二版）&quot;]
+        A
+        B
+    end
+</pre>
+<p><strong>圖一要看的重點</strong>：<code>ld.so</code> 用「名字＋版本」配對，所以同一個檔案裡同名的兩個函式不會打架；舊程式在連結時就決定了要哪一個。</p>
+<h4 id="實驗二libcso6-定義了哪些版本">實驗二：<code>libc.so.6</code> 定義了哪些版本</h4>
+<p>本機 glibc 是 2.39（<code>ldd --version</code> 印出 <code>ldd (Ubuntu GLIBC 2.39-0ubuntu8.9) 2.39</code>）。<code>readelf -V</code> 的 <code>Version definition</code> 一段列出這個庫<strong>定義</strong>的版本：</p>
+<pre><code class="language-bash">readelf<span class="w"> </span>-V<span class="w"> </span>/lib/x86_64-linux-gnu/libc.so.6<span class="w"> </span><span class="p">|</span><span class="w"> </span>sed<span class="w"> </span>-n<span class="w"> </span><span class="s1">&#39;/Version definition/,/Version needs/p&#39;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-c<span class="w"> </span><span class="s2">&quot;Name: GLIBC&quot;</span>
+readelf<span class="w"> </span>-V<span class="w"> </span>/lib/x86_64-linux-gnu/libc.so.6<span class="w"> </span><span class="p">|</span><span class="w"> </span>sed<span class="w"> </span>-n<span class="w"> </span><span class="s1">&#39;/Version definition/,/Version needs/p&#39;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-o<span class="w"> </span><span class="s2">&quot;Name: [A-Z_0-9.]*&quot;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>sed<span class="w"> </span><span class="s1">&#39;s/Name: //&#39;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>tr<span class="w"> </span><span class="s1">&#39;\n&#39;</span><span class="w"> </span><span class="s1">&#39; &#39;</span>
+</code></pre>
+<pre><code class="language-text">40
+GLIBC_2.2.5 GLIBC_2.2.6 GLIBC_2.3 GLIBC_2.3.2 GLIBC_2.3.3 GLIBC_2.3.4 GLIBC_2.4 GLIBC_2.5 GLIBC_2.6 GLIBC_2.7 GLIBC_2.8 GLIBC_2.9 GLIBC_2.10 GLIBC_2.11 GLIBC_2.12 GLIBC_2.13 GLIBC_2.14 GLIBC_2.15 GLIBC_2.16 GLIBC_2.17 GLIBC_2.18 GLIBC_2.22 GLIBC_2.23 GLIBC_2.24 GLIBC_2.25 GLIBC_2.26 GLIBC_2.27 GLIBC_2.28 GLIBC_2.29 GLIBC_2.30 GLIBC_2.31 GLIBC_2.32 GLIBC_2.33 GLIBC_2.34 GLIBC_2.35 GLIBC_2.36 GLIBC_2.38 GLIBC_2.39 GLIBC_ABI_DT_RELR GLIBC_PRIVATE
+</code></pre>
+<ul>
+<li>38 個 <code>GLIBC_2.x</code> 對應 glibc 的發行版本：最舊的 <code>GLIBC_2.2.5</code> 是 x86-64 版 glibc 的起點，最新的就是本機的 2.39。</li>
+<li>另外兩個不是版本號：<code>GLIBC_PRIVATE</code> 是 glibc 內部各個檔案之間用的，一般程式不該依賴；<code>GLIBC_ABI_DT_RELR</code> 是「支援一種新的壓縮重定位格式（<code>DT_RELR</code>）」的能力標記。</li>
+<li>中間沒有 2.19～2.21、2.37：推斷是這幾版在 x86-64 上沒有新增或改版任何對外的符號，所以沒有留下版本名稱（未另外查證）。</li>
+</ul>
+<p>每個版本各掛了多少個符號（<code>objdump -T</code> 的版本欄；有括號的是舊版本、沒括號的是預設版本，這裡兩種一起算）：</p>
+<pre><code class="language-bash">objdump<span class="w"> </span>-T<span class="w"> </span>/lib/x86_64-linux-gnu/libc.so.6<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-oE<span class="w"> </span><span class="s1">&#39; GLIBC_[0-9.]+ &#39;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>sort<span class="w"> </span><span class="p">|</span><span class="w"> </span>uniq<span class="w"> </span>-c<span class="w"> </span><span class="p">|</span><span class="w"> </span>sort<span class="w"> </span>-k2<span class="w"> </span>-V
+</code></pre>
+<pre><code class="language-text">   1502  GLIBC_2.2.5
+      2  GLIBC_2.2.6
+     88  GLIBC_2.3
+     13  GLIBC_2.3.2
+     16  GLIBC_2.3.3
+（中間省略）
+    213  GLIBC_2.34
+      5  GLIBC_2.35
+     18  GLIBC_2.36
+     41  GLIBC_2.38
+     76  GLIBC_2.39
+</code></pre>
+<ul>
+<li>1502 個從 x86-64 一開始就有。之後每一版只掛「那一版新增或改版」的函式，所以大多只有幾個到幾十個。</li>
+<li>2.34 特別多：glibc 2.34 把原本獨立的 <code>libpthread.so</code>、<code>libdl.so</code> 併進了 <code>libc.so.6</code>，這些函式都多了一個 <code>GLIBC_2.34</code> 的名字（下一段）。</li>
+</ul>
+<h4 id="同一個函式有好幾個版本同一份程式碼或兩份不同的程式碼">同一個函式有好幾個版本：同一份程式碼，或兩份不同的程式碼</h4>
+<pre><code class="language-bash">objdump<span class="w"> </span>-T<span class="w"> </span>/lib/x86_64-linux-gnu/libc.so.6<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-E<span class="w"> </span><span class="s1">&#39; (__libc_start_main|pthread_create|dlopen)$&#39;</span>
+</code></pre>
+<pre><code class="language-text">000000000009cca0 g    DF .text	00000000000010a7 (GLIBC_2.2.5) pthread_create
+000000000009cca0 g    DF .text	00000000000010a7  GLIBC_2.34  pthread_create
+000000000002a200 g    DF .text	000000000000014e  GLIBC_2.34  __libc_start_main
+000000000002a200 g    DF .text	000000000000014e (GLIBC_2.2.5) __libc_start_main
+00000000000982d0 g    DF .text	0000000000000094 (GLIBC_2.2.5) dlopen
+00000000000982d0 g    DF .text	0000000000000094  GLIBC_2.34  dlopen
+</code></pre>
+<ul>
+<li>每個函式兩個版本、<strong>位址一樣</strong>：程式碼是同一份，只是掛了兩個版本名稱。舊程式要 <code>@GLIBC_2.2.5</code>、新程式要 <code>@GLIBC_2.34</code>，都找得到。</li>
+<li>第一欄是位址；<code>(GLIBC_2.2.5)</code> 有括號＝隱藏的舊版本（新程式連結不到），沒括號＝預設版本。</li>
+<li>正文第九節說新編的程式「門檻是 <code>GLIBC_2.34</code>」，就是因為啟動碼要的是 <code>__libc_start_main@GLIBC_2.34</code>。</li>
+</ul>
+<pre><code class="language-bash">nm<span class="w"> </span>-D<span class="w"> </span>/lib/x86_64-linux-gnu/libc.so.6<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-E<span class="w"> </span><span class="s1">&#39; (memcpy|realpath)@&#39;</span>
+</code></pre>
+<pre><code class="language-text">00000000000ba970 T memcpy@GLIBC_2.2.5
+00000000000b1820 i memcpy@@GLIBC_2.14
+0000000000046730 T realpath@@GLIBC_2.3
+0000000000185970 T realpath@GLIBC_2.2.5
+</code></pre>
+<ul>
+<li>這次<strong>位址不同</strong>：兩份程式碼，行為不一樣。跟實驗一的 <code>greet</code> 是同一種做法：改行為時加新版本，舊版本留給舊程式。
+<code>memcpy</code> 在 2.14 換了實作；據說原因是有舊程式拿 <code>memcpy</code> 複製重疊的記憶體、剛好依賴舊行為，所以舊程式拿到的 <code>@GLIBC_2.2.5</code> 照舊（這段歷史未在本機查證）。</li>
+<li><code>nm</code> 的寫法：<code>@@</code> 是預設版本、單一 <code>@</code> 是舊版本，跟 <code>objdump -T</code> 的「沒括號／有括號」是同一件事。<code>memcpy@@GLIBC_2.14</code> 的類型 <code>i</code> 表示 IFUNC（執行時依 CPU 挑一個最快的實作），不影響版本的讀法。</li>
+</ul>
+<h4 id="一支程式的門檻怎麼決定">一支程式的門檻怎麼決定</h4>
+<p><code>cp.c</code>（檔案：<a href="../../small-project/s1-01-hello-compile/examples/libcver/cp.c"><code>cp.c</code></a>）呼叫 <code>memcpy</code> 與 <code>puts</code>：</p>
+<pre><code class="language-c"><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;string.h&gt;</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="kt">char</span><span class="w"> </span><span class="n">dst</span><span class="p">[</span><span class="mi">16</span><span class="p">];</span>
+<span class="w">    </span><span class="k">volatile</span><span class="w"> </span><span class="kt">size_t</span><span class="w"> </span><span class="n">n</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">6</span><span class="p">;</span><span class="w">          </span><span class="cm">/* volatile：不讓 gcc 把 memcpy 直接展開成 mov */</span>
+<span class="w">    </span><span class="n">memcpy</span><span class="p">(</span><span class="n">dst</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;hello&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">n</span><span class="p">);</span>
+<span class="w">    </span><span class="n">puts</span><span class="p">(</span><span class="n">dst</span><span class="p">);</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre>
+<pre><code class="language-bash">gcc<span class="w"> </span>-Wall<span class="w"> </span>-O0<span class="w"> </span>cp.c<span class="w"> </span>-o<span class="w"> </span>cp<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>./cp
+nm<span class="w"> </span>cp<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>GLIBC
+</code></pre>
+<pre><code class="language-text">hello
+                 w __cxa_finalize@GLIBC_2.2.5
+                 U __libc_start_main@GLIBC_2.34
+                 U memcpy@GLIBC_2.14
+                 U puts@GLIBC_2.2.5
+                 U __stack_chk_fail@GLIBC_2.4
+</code></pre>
+<ul>
+<li>連結時 <code>ld</code> 替每個用到的函式記下它<strong>當下的預設版本</strong>（<code>@@</code> 那個）：<code>memcpy</code> 記 2.14、<code>puts</code> 記 2.2.5、啟動碼的 <code>__libc_start_main</code> 記 2.34、堆疊保護的 <code>__stack_chk_fail</code> 記 2.4。</li>
+<li>能在哪台機器跑，看<strong>最大的那個</strong>：這裡是 2.34。目標機器的 glibc ≥ 2.34 就能跑，比 2.34 舊就報 <code>version `GLIBC_2.34' not found</code>。</li>
+<li>所以規則是單向的：<strong>新的 glibc 能跑舊程式</strong>（glibc 從不刪舊版本，對照實驗一 ③），<strong>舊的 glibc 不一定能跑新程式</strong>（對照實驗一 ② 的反方向）。</li>
+</ul>
+<p><strong>一句話</strong>：<code>libc.so.6</code> 的 <code>6</code> 是整個庫的版本，幾十年沒變；真正在變的是每個函式身上的版本標籤，執行檔連結時把「名字＋版本」記下來，<code>ld.so</code> 執行時照「名字＋版本」配對。</p>
 <h2 id="自我測驗">自我測驗</h2>
 <blockquote>
 <p>參考答案寫在每題下面（2026-10-06 使用者指定）。作答時先遮住答案、自己想過再對照。</p>

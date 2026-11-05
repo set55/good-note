@@ -29,6 +29,7 @@ C 語言與作業系統的交界就在這裡。**
 - [八、動手作業](#八動手作業)
 - [九、作業解說：四題背後的原因](#九作業解說四題背後的原因)
 - [十、三個名字很像的檔案：`ld`、`ld-linux-x86-64.so.2`、`libc.so.6`](#十三個名字很像的檔案ldld-linux-x86-64so2libcso6)
+- [十一、課後討論](#十一課後討論)
 - [自我測驗](#自我測驗)
 
 ---
@@ -476,6 +477,8 @@ ldd (Ubuntu GLIBC 2.39-0ubuntu8.9) 2.39
   就不會有這種錯誤；代價是檔案大、libc 的安全修補要重新編譯才會帶進去。
 - 實務上的做法：在**最舊**的目標系統上編譯（或用它的容器），需求版本就不會超過目標機器。
 
+> 課後討論：[第十一節第 1 章〈函式也有版本：`libc.so.6` 裡的 `GLIBC_2.34` 是什麼〉](#1-函式也有版本libcso6-裡的-glibc_234-是什麼)
+
 ## 十、三個名字很像的檔案：`ld`、`ld-linux-x86-64.so.2`、`libc.so.6`
 
 > 補充日期：2026-09-23。自我測驗第 2 題複習了四次，錯誤從「只答 `ld`」變成「`puts` 的程式碼在 `ld-linux-x86-64.so.2`」——
@@ -627,6 +630,265 @@ musl 的載入器和 C 函式庫是**同一個檔案**，所以在 musl 上，�
 - **第 5 題**：版本需求在**連結時**由 `ld` 寫進需求單，在**執行時**由 `ld-linux-x86-64.so.2` 檢查（`LD_DEBUG=versions` 就是這一步）。
 
 ---
+
+## 十一、課後討論
+
+讀完正文之後的追問與延伸，一個主題一章；正文被問到的地方有連結指過來。
+
+- [第 1 章](#1-函式也有版本libcso6-裡的-glibc_234-是什麼)：函式也有版本：`libc.so.6` 裡的 `GLIBC_2.34` 是什麼
+
+### 1. 函式也有版本：`libc.so.6` 裡的 `GLIBC_2.34` 是什麼
+
+> 2026-11-05 課後提問（複習 hello 5 之後）：
+> - 「libc.so.6有很多類似GLIBC_2.34的東西嗎?」
+> - 「我不太懂,我以爲只有庫有版本,函式也有版本嗎?」
+>
+> 正文出處：[第九節〈自我測驗第 5 題延伸：「找不到版本符號」是怎麼回事〉](#自我測驗第-5-題延伸找不到版本符號是怎麼回事)——那段講的是執行檔**需要**哪些版本；這一章講 `libc.so.6` 這一邊**提供**哪些版本，以及版本為什麼標在函式上。
+
+#### 兩層版本：庫的版本與函式（符號）的版本
+
+| | 第一層：庫的版本 | 第二層：函式（符號）的版本 |
+|---|---|---|
+| 長什麼樣 | `libc.so.6` 的 `6`（這個名字叫 soname） | `puts@GLIBC_2.2.5`、`memcpy@GLIBC_2.14` |
+| 標在誰身上 | 整個檔案 | **每一個**對外提供的函式 |
+| 執行檔記在哪 | 動態區段的 `NEEDED libc.so.6`（[第十節〈實驗二〉](#3-實驗二ld-在執行檔裡寫了什麼)） | 符號名稱後面的 `@版本`（`nm`、`objdump -T` 看得到），版本清單在 `.gnu.version_r`（`readelf -V`） |
+| 什麼時候變 | 整個庫不相容才換號；glibc 從 2.0（1997 年）起一直是 `.6` | 某個函式改了行為，就替**那一個函式**加一個新版本 |
+
+所以 `GLIBC_2.34` 不是「這個庫是 2.34 版」，而是一個**版本標籤**：「這個函式的這個樣子，是 glibc 2.34 起才有的」。
+`ld.so` 找函式時比對的是**名字＋版本**，不只是名字。
+
+**為什麼要有第二層**：glibc 想改某個函式、又有舊程式依賴舊行為時，如果只有第一層，只能把整個庫改名成 `libc.so.7`——所有要求 `libc.so.6` 的舊程式都得留著舊的庫或重新連結。
+有了第二層，同一個 `libc.so.6` 裡放兩份實作：舊程式記的是舊版本，就拿到舊的；新程式連結時拿到新版本。
+
+#### 實驗一：自己做一個函式有兩個版本的 `.so`
+
+`libdemo.so` 的 `greet()` 第一版回傳 1、第二版回傳 2。檔案都在 [`examples/symver/`](../small-project/s1-01-hello-compile/examples/symver/)。
+
+主程式 `app.c`（檔案：[`app.c`](../small-project/s1-01-hello-compile/examples/symver/app.c)），兩次都用同一份：
+
+```c
+#include <stdio.h>
+
+int greet(void);
+
+int main(void)
+{
+    printf("greet() 回傳 %d\n", greet());
+    return 0;
+}
+```
+
+第一版 `v1/demo.c`（檔案：[`v1/demo.c`](../small-project/s1-01-hello-compile/examples/symver/v1/demo.c)）與版本腳本 `v1/demo.map`（檔案：[`v1/demo.map`](../small-project/s1-01-hello-compile/examples/symver/v1/demo.map)）。
+版本腳本（version script）是交給 `ld` 的設定檔：`DEMO_1 { global: greet; local: *; };` 的意思是「定義一個版本叫 `DEMO_1`，`greet` 屬於它、對外可見，其他符號一律不對外」：
+
+```c
+int greet(void) { return 1; }      /* 第一版：回傳 1 */
+```
+
+```text
+DEMO_1 { global: greet; local: *; };
+```
+
+**① 用第一版做 `libdemo.so`、連結 `app_old`：執行檔記下的是 `greet@DEMO_1`**
+
+```bash
+gcc -Wall -fPIC -shared v1/demo.c -Wl,--version-script=v1/demo.map -o libdemo.so   # -Wl,--version-script：把版本腳本交給 ld
+gcc -Wall app.c -L. -ldemo -Wl,-rpath,'$ORIGIN' -o app_old && ./app_old
+nm app_old | grep greet
+```
+
+```text
+greet() 回傳 1
+                 U greet@DEMO_1
+```
+
+- `app_old` 要的不只是 `greet`，而是 `greet@DEMO_1`：連結時 `ld` 把版本一起寫進了執行檔（跟正文第九節 `hello` 的 `puts@GLIBC_2.2.5` 一樣）。
+
+第二版 `v2/demo.c`（檔案：[`v2/demo.c`](../small-project/s1-01-hello-compile/examples/symver/v2/demo.c)）：兩份實作，用 gcc 的 `symver` 屬性（attribute）把它們標成**同一個名字 `greet` 的兩個版本**。`@` 是舊版本（只給已經連結到它的舊程式），`@@` 是預設版本（新程式連結時拿到它）：
+
+```c
+/* 第二版：greet 改成回傳 2，但舊版保留給舊程式 */
+__attribute__((symver("greet@DEMO_1")))  int greet_old(void) { return 1; }
+__attribute__((symver("greet@@DEMO_2"))) int greet_new(void) { return 2; }
+```
+
+**② 第二版把舊版本拿掉：舊程式跑不起來**
+
+版本腳本 `v2/demo-drop.map`（檔案：[`v2/demo-drop.map`](../small-project/s1-01-hello-compile/examples/symver/v2/demo-drop.map)）只讓 `DEMO_2` 對外，`DEMO_1` 裡什麼都不放：
+
+```text
+DEMO_1 { local: *; };
+DEMO_2 { } DEMO_1;
+```
+
+```bash
+gcc -Wall -fPIC -shared v2/demo.c -Wl,--version-script=v2/demo-drop.map -o libdemo.so   # 換掉 libdemo.so
+nm -D libdemo.so | grep greet
+./app_old                                                                               # app_old 不重新連結
+```
+
+```text
+0000000000001108 T greet@@DEMO_2
+./app_old: symbol lookup error: ./app_old: undefined symbol: greet, version DEMO_1
+```
+
+- `libdemo.so` 裡**有** `greet`，但只有 `DEMO_2` 版；`app_old` 要的是 `DEMO_1`，對不上就失敗。名字對、版本不對，一樣算找不到。
+- 這跟正文第九節的 `` version `GLIBC_2.34' not found `` 是同一個機制，方向相反：那裡是程式要的版本**太新**（舊機器的 libc 還沒有），這裡是程式要的版本**太舊**（新的庫把它拿掉了）。
+
+**③ 第二版保留舊版本：舊程式拿舊的、新程式拿新的**
+
+版本腳本 `v2/demo.map`（檔案：[`v2/demo.map`](../small-project/s1-01-hello-compile/examples/symver/v2/demo.map)）讓兩個版本都對外；`DEMO_2 { … } DEMO_1;` 最後的 `DEMO_1` 表示「`DEMO_2` 接在 `DEMO_1` 後面」：
+
+```text
+DEMO_1 { global: greet; local: *; };
+DEMO_2 { global: greet; } DEMO_1;
+```
+
+```bash
+gcc -Wall -fPIC -shared v2/demo.c -Wl,--version-script=v2/demo.map -o libdemo.so
+nm -D libdemo.so | grep greet
+./app_old                                                                    # 舊程式，不重新連結
+gcc -Wall app.c -L. -ldemo -Wl,-rpath,'$ORIGIN' -o app_new && ./app_new      # 用第二版連結的新程式
+nm app_new | grep greet
+```
+
+```text
+0000000000001108 T greet@@DEMO_2
+00000000000010f9 T greet@DEMO_1
+greet() 回傳 1
+greet() 回傳 2
+                 U greet@DEMO_2
+```
+
+- 第 1～2 行：同一個 `libdemo.so` 裡有兩個 `greet`，**位址不同**，是兩份程式碼。
+- 第 3 行：`app_old` 照它記的 `greet@DEMO_1` 拿到舊版，還是回傳 1——換了庫，舊程式的行為不變。
+- 第 4～5 行：`app_new` 連結時拿到預設的 `@@DEMO_2`，回傳 2。
+- `readelf -d` 看兩支程式的 `NEEDED` 都只有 `libdemo.so`、`libc.so.6`：第一層完全沒變，差別全在第二層。
+
+```mermaid
+flowchart LR
+    O["app_old<br/>U greet@DEMO_1"] --> A["greet@DEMO_1<br/>greet_old，回傳 1"]
+    N["app_new<br/>U greet@DEMO_2"] --> B["greet@@DEMO_2<br/>greet_new，回傳 2"]
+    subgraph L["同一個 libdemo.so（第二版）"]
+        A
+        B
+    end
+```
+
+**圖一要看的重點**：`ld.so` 用「名字＋版本」配對，所以同一個檔案裡同名的兩個函式不會打架；舊程式在連結時就決定了要哪一個。
+
+#### 實驗二：`libc.so.6` 定義了哪些版本
+
+本機 glibc 是 2.39（`ldd --version` 印出 `ldd (Ubuntu GLIBC 2.39-0ubuntu8.9) 2.39`）。`readelf -V` 的 `Version definition` 一段列出這個庫**定義**的版本：
+
+```bash
+readelf -V /lib/x86_64-linux-gnu/libc.so.6 | sed -n '/Version definition/,/Version needs/p' | grep -c "Name: GLIBC"
+readelf -V /lib/x86_64-linux-gnu/libc.so.6 | sed -n '/Version definition/,/Version needs/p' | grep -o "Name: [A-Z_0-9.]*" | sed 's/Name: //' | tr '\n' ' '
+```
+
+```text
+40
+GLIBC_2.2.5 GLIBC_2.2.6 GLIBC_2.3 GLIBC_2.3.2 GLIBC_2.3.3 GLIBC_2.3.4 GLIBC_2.4 GLIBC_2.5 GLIBC_2.6 GLIBC_2.7 GLIBC_2.8 GLIBC_2.9 GLIBC_2.10 GLIBC_2.11 GLIBC_2.12 GLIBC_2.13 GLIBC_2.14 GLIBC_2.15 GLIBC_2.16 GLIBC_2.17 GLIBC_2.18 GLIBC_2.22 GLIBC_2.23 GLIBC_2.24 GLIBC_2.25 GLIBC_2.26 GLIBC_2.27 GLIBC_2.28 GLIBC_2.29 GLIBC_2.30 GLIBC_2.31 GLIBC_2.32 GLIBC_2.33 GLIBC_2.34 GLIBC_2.35 GLIBC_2.36 GLIBC_2.38 GLIBC_2.39 GLIBC_ABI_DT_RELR GLIBC_PRIVATE
+```
+
+- 38 個 `GLIBC_2.x` 對應 glibc 的發行版本：最舊的 `GLIBC_2.2.5` 是 x86-64 版 glibc 的起點，最新的就是本機的 2.39。
+- 另外兩個不是版本號：`GLIBC_PRIVATE` 是 glibc 內部各個檔案之間用的，一般程式不該依賴；`GLIBC_ABI_DT_RELR` 是「支援一種新的壓縮重定位格式（`DT_RELR`）」的能力標記。
+- 中間沒有 2.19～2.21、2.37：推斷是這幾版在 x86-64 上沒有新增或改版任何對外的符號，所以沒有留下版本名稱（未另外查證）。
+
+每個版本各掛了多少個符號（`objdump -T` 的版本欄；有括號的是舊版本、沒括號的是預設版本，這裡兩種一起算）：
+
+```bash
+objdump -T /lib/x86_64-linux-gnu/libc.so.6 | grep -oE ' GLIBC_[0-9.]+ ' | sort | uniq -c | sort -k2 -V
+```
+
+```text
+   1502  GLIBC_2.2.5
+      2  GLIBC_2.2.6
+     88  GLIBC_2.3
+     13  GLIBC_2.3.2
+     16  GLIBC_2.3.3
+（中間省略）
+    213  GLIBC_2.34
+      5  GLIBC_2.35
+     18  GLIBC_2.36
+     41  GLIBC_2.38
+     76  GLIBC_2.39
+```
+
+- 1502 個從 x86-64 一開始就有。之後每一版只掛「那一版新增或改版」的函式，所以大多只有幾個到幾十個。
+- 2.34 特別多：glibc 2.34 把原本獨立的 `libpthread.so`、`libdl.so` 併進了 `libc.so.6`，這些函式都多了一個 `GLIBC_2.34` 的名字（下一段）。
+
+#### 同一個函式有好幾個版本：同一份程式碼，或兩份不同的程式碼
+
+```bash
+objdump -T /lib/x86_64-linux-gnu/libc.so.6 | grep -E ' (__libc_start_main|pthread_create|dlopen)$'
+```
+
+```text
+000000000009cca0 g    DF .text	00000000000010a7 (GLIBC_2.2.5) pthread_create
+000000000009cca0 g    DF .text	00000000000010a7  GLIBC_2.34  pthread_create
+000000000002a200 g    DF .text	000000000000014e  GLIBC_2.34  __libc_start_main
+000000000002a200 g    DF .text	000000000000014e (GLIBC_2.2.5) __libc_start_main
+00000000000982d0 g    DF .text	0000000000000094 (GLIBC_2.2.5) dlopen
+00000000000982d0 g    DF .text	0000000000000094  GLIBC_2.34  dlopen
+```
+
+- 每個函式兩個版本、**位址一樣**：程式碼是同一份，只是掛了兩個版本名稱。舊程式要 `@GLIBC_2.2.5`、新程式要 `@GLIBC_2.34`，都找得到。
+- 第一欄是位址；`(GLIBC_2.2.5)` 有括號＝隱藏的舊版本（新程式連結不到），沒括號＝預設版本。
+- 正文第九節說新編的程式「門檻是 `GLIBC_2.34`」，就是因為啟動碼要的是 `__libc_start_main@GLIBC_2.34`。
+
+```bash
+nm -D /lib/x86_64-linux-gnu/libc.so.6 | grep -E ' (memcpy|realpath)@'
+```
+
+```text
+00000000000ba970 T memcpy@GLIBC_2.2.5
+00000000000b1820 i memcpy@@GLIBC_2.14
+0000000000046730 T realpath@@GLIBC_2.3
+0000000000185970 T realpath@GLIBC_2.2.5
+```
+
+- 這次**位址不同**：兩份程式碼，行為不一樣。跟實驗一的 `greet` 是同一種做法：改行為時加新版本，舊版本留給舊程式。
+  `memcpy` 在 2.14 換了實作；據說原因是有舊程式拿 `memcpy` 複製重疊的記憶體、剛好依賴舊行為，所以舊程式拿到的 `@GLIBC_2.2.5` 照舊（這段歷史未在本機查證）。
+- `nm` 的寫法：`@@` 是預設版本、單一 `@` 是舊版本，跟 `objdump -T` 的「沒括號／有括號」是同一件事。`memcpy@@GLIBC_2.14` 的類型 `i` 表示 IFUNC（執行時依 CPU 挑一個最快的實作），不影響版本的讀法。
+
+#### 一支程式的門檻怎麼決定
+
+`cp.c`（檔案：[`cp.c`](../small-project/s1-01-hello-compile/examples/libcver/cp.c)）呼叫 `memcpy` 與 `puts`：
+
+```c
+#include <stdio.h>
+#include <string.h>
+
+int main(void)
+{
+    char dst[16];
+    volatile size_t n = 6;          /* volatile：不讓 gcc 把 memcpy 直接展開成 mov */
+    memcpy(dst, "hello", n);
+    puts(dst);
+    return 0;
+}
+```
+
+```bash
+gcc -Wall -O0 cp.c -o cp && ./cp
+nm cp | grep GLIBC
+```
+
+```text
+hello
+                 w __cxa_finalize@GLIBC_2.2.5
+                 U __libc_start_main@GLIBC_2.34
+                 U memcpy@GLIBC_2.14
+                 U puts@GLIBC_2.2.5
+                 U __stack_chk_fail@GLIBC_2.4
+```
+
+- 連結時 `ld` 替每個用到的函式記下它**當下的預設版本**（`@@` 那個）：`memcpy` 記 2.14、`puts` 記 2.2.5、啟動碼的 `__libc_start_main` 記 2.34、堆疊保護的 `__stack_chk_fail` 記 2.4。
+- 能在哪台機器跑，看**最大的那個**：這裡是 2.34。目標機器的 glibc ≥ 2.34 就能跑，比 2.34 舊就報 `` version `GLIBC_2.34' not found ``。
+- 所以規則是單向的：**新的 glibc 能跑舊程式**（glibc 從不刪舊版本，對照實驗一 ③），**舊的 glibc 不一定能跑新程式**（對照實驗一 ② 的反方向）。
+
+**一句話**：`libc.so.6` 的 `6` 是整個庫的版本，幾十年沒變；真正在變的是每個函式身上的版本標籤，執行檔連結時把「名字＋版本」記下來，`ld.so` 執行時照「名字＋版本」配對。
 
 ## 自我測驗
 
