@@ -1835,7 +1835,7 @@ kernel 用哪個選項避免這種情況，代價是什麼？<details class="ans
 <li>有號溢位是未定義行為（UB），C 標準允許編譯器<strong>假設它不會發生</strong>。</li>
 <li><code>-O0</code> 照字面算，<code>INT_MAX + 1</code> 回繞成 <code>INT_MIN</code>，<code>y &gt; x</code> 為假 → 0；<code>-O2</code> 依這個假設推論 <code>x + 1</code> 一定大於 <code>x</code>，直接回傳 1。</li>
 <li>不是 gcc 的 bug：標準對發生 UB 的程式沒有任何要求，兩種結果都合法。</li>
-<li>kernel 用 <code>-fno-strict-overflow</code>（等於 <code>-fwrapv -fwrapv-pointer</code>），讓溢位照二補數回繞、變成有定義的行為；代價是少了依賴「不會溢位」的最佳化，程式可能稍慢。</li>
+<li>kernel 加了一個編譯選項，讓有號溢位照二補數回繞、變成<strong>有定義的行為</strong>；代價是少了依賴「不會溢位」的最佳化，程式可能稍慢。（選項名 <code>-fno-strict-overflow</code>，等於 <code>-fwrapv -fwrapv-pointer</code>，可以查，不列入判定；查的時候注意 <code>no-</code>：<code>-fstrict-overflow</code> 是反面。2026-11-06 改判後改寫）</li>
 </ol>
 <p>詳細說明：連 <code>-O0</code> 也不保證照字面算：第四節的 <code>overflow.c</code> 把同一件事寫成一行 <code>return x + 1 &gt; x;</code>，<code>-O0</code> 也回傳 1，因為 gcc 在最佳化之前的化簡階段就把它改掉了（筆記第八節用 <code>-fdump-tree-original</code> 看到）。所以本題的 <code>bigger</code> 才故意拆成兩行。</p>
 </details>
