@@ -30,6 +30,7 @@
 - [九、`enable`：開機自動啟動其實是建一個符號連結](#九enable開機自動啟動其實是建一個符號連結)
 - [十、完整步驟：把 `tickd` 裝成系統服務](#十完整步驟把-tickd-裝成系統服務)
 - [十一、本篇用到的命令與設定，完整清單在哪](#十一本篇用到的命令與設定完整清單在哪)
+- [十二、課後討論](#十二課後討論)
 
 ---
 
@@ -210,6 +211,8 @@ nginx 這份逐行講：
 | `TimeoutStopSec=5` | stop 之後最多等 5 秒，還沒結束就送 `SIGKILL` |
 | `KillMode=mixed` | 先只送 `SIGTERM` 給主行程，最後的 `SIGKILL` 送給整組行程 |
 | `WantedBy=multi-user.target` | `enable` 時把自己掛到 `multi-user.target` 底下＝開機進入多使用者模式時啟動，詳見[第九節](#九enable開機自動啟動其實是建一個符號連結) |
+
+> 課後討論：[第十二節第 1 章〈`Wants=` 與 `WantedBy=`：同一種關係、方向相反〉](#1-wants-與-wantedby同一種關係方向相反)
 
 自己的程式只需要其中一小部分。最小、能 `enable` 的 service 長這樣（本篇的 `tickd.service`）：
 
@@ -404,6 +407,8 @@ exit=1
 - systemd **不看你 shell 的 `PATH`**。不是絕對路徑時，它只在編譯時就決定好的幾個固定目錄找（`/usr/local/sbin`、`/usr/local/bin`、`/usr/sbin`、`/usr/bin` 這類，見 `man systemd.service` 的 `COMMAND LINES` 一節），
   `tickd` 不在那裡面，所以找不到。**一律寫絕對路徑**最保險（同樣的坑見 [Claude Code 那篇〈坑 3：PATH 與環境〉](../claude-code/Claude-Code能像systemd-service一樣常駐嗎.md#坑-3path-與環境systemd-的環境是乾淨的)）。
 - 另外，`ExecStart=` **不是交給 shell 執行的**：`|`、`>`、`&&`、`*` 都沒有 shell 的意思。真的需要 shell 語法就寫 `ExecStart=/bin/sh -c '...'`。
+
+> 課後討論：[第十二節第 2 章〈user service 啟動失敗：`203/EXEC` 與 user 層沒有 `multi-user.target`〉](#2-user-service-啟動失敗203exec-與-user-層沒有-multi-usertarget)
 
 **③ 整行沒寫**
 
@@ -882,6 +887,8 @@ graphical.target
 - 所以 `disable` 就是刪掉這個連結；沒有 `[Install]` 節的 unit 無法 `enable`（`systemctl` 會提示它沒有安裝設定）。
 - user 層的 `WantedBy=default.target` 意思是「這個使用者的 `systemd --user` 啟動時就啟動」——也就是**登入時**。想在沒登入時也跑（開機就跑），要 `loginctl enable-linger <使用者>`（見 [Claude Code 那篇](../claude-code/Claude-Code能像systemd-service一樣常駐嗎.md#四做法-bsystemd-user-timer最接近-systemctl-enable)）。
 
+> 課後討論：[第十二節第 1 章〈`Wants=` 與 `WantedBy=`：同一種關係、方向相反〉](#1-wants-與-wantedby同一種關係方向相反)、[第十二節第 2 章〈user service 啟動失敗：`203/EXEC` 與 user 層沒有 `multi-user.target`〉](#2-user-service-啟動失敗203exec-與-user-層沒有-multi-usertarget)
+
 ### 改了 unit 檔要 `daemon-reload`
 
 systemd 載入 unit 檔後是用**記憶體裡的版本**。改了檔案之後直接 `restart`，用的還是舊設定（`systemctl status` 會提醒 `Warning: The unit file, source configuration file or drop-ins of tickd.service changed on disk. Run 'systemctl daemon-reload' to reload units.`——這行訊息未實測，照 systemd 的訊息格式寫的）。
@@ -1122,6 +1129,342 @@ sudo systemctl daemon-reload
 
 ---
 
+## 十二、課後討論
+
+讀完正文之後的追問與延伸，一個主題一章；正文被問到的地方有連結指過來。
+
+- [第 1 章](#1-wants-與-wantedby同一種關係方向相反)：`Wants=` 與 `WantedBy=`：同一種關係、方向相反
+- [第 2 章](#2-user-service-啟動失敗203exec-與-user-層沒有-multi-usertarget)：user service 啟動失敗：`203/EXEC` 與 user 層沒有 `multi-user.target`
+
+### 1. `Wants=` 與 `WantedBy=`：同一種關係、方向相反
+
+> 2026-11-05 提問：「我看不到是很懂wanted的用途」
+> 正文出處：[第二節〈unit 檔的格式：三個節〉](#unit-檔的格式三個節)的 nginx 逐行表（`Wants=network-online.target` 與 `WantedBy=multi-user.target` 兩列）、[第九節〈`enable`〉](#九enable開機自動啟動其實是建一個符號連結)
+
+名字很像的兩個設定，講的是同一種關係——「A 需要 B，啟動 A 時順便把 B 拉起來」——只是**寫在哪一邊、什麼時候生效**不同：
+
+| 設定 | 寫在哪 | 意思 | 什麼時候生效 |
+|---|---|---|---|
+| `Wants=B` | A 的 `[Unit]` 節 | 「我需要 B」：啟動我時順便啟動 B | 每次載入 A 就生效 |
+| `WantedBy=X` | B 的 `[Install]` 節 | 「請讓 X 需要我」：等於替 X 加一行 `Wants=B` | **只在 `enable` 時讀**，生效的方式是建一個符號連結 |
+
+#### `Wants=` 是弱依賴：對方失敗、不存在，我照樣啟動
+
+用[第三節](#三練習用的程式tickdc)的 `tickd` 跑兩個暫時性 unit，一個 `Wants=` 一個不存在的 `nope.service`，另一個改成強依賴 `Requires=`（`$S` 是暫存目錄，見[第四節](#四實驗一寫好先用-systemd-analyze-verify-檢查)）：
+
+```bash
+systemd-run --user --unit=demo-a -p Wants=nope.service -p After=nope.service $S/tickd; echo "exit=$?"   # 弱依賴
+sleep 1; systemctl --user is-active demo-a; systemctl --user stop demo-a
+```
+
+```text
+Running as unit: demo-a.service; invocation ID: 2c123f132ad44f9086a26429a4f21bbc
+exit=0
+active
+```
+
+- `nope.service` 根本不存在，`demo-a` 照樣啟動成功（`active`）。`Wants=` 只是「盡量把它拉起來」，拉不起來不影響自己。
+
+```bash
+systemd-run --user --unit=demo-b -p Requires=nope.service -p After=nope.service $S/tickd; echo "exit=$?"   # 強依賴
+sleep 1; systemctl --user is-active demo-b
+```
+
+```text
+Failed to start transient service unit: Unit nope.service not found.
+exit=1
+inactive
+```
+
+- 換成 `Requires=`，依賴的 unit 不存在，`demo-b` 就直接啟動失敗。`Requires=` 的對象啟動失敗時也一樣會拖累自己。
+- 兩個都加了 `After=nope.service`：`Wants=`／`Requires=` 只管「要不要一起拉起來」，**不管先後**，先後要另外用 `After=` 講（正文[第二節](#unit-檔的格式三個節)的表）。
+
+#### `WantedBy=`：為什麼要反過來寫
+
+要讓 nginx 開機時啟動，最直接的寫法是在 `multi-user.target` 裡加 `Wants=nginx.service`。可是 `multi-user.target` 是 systemd 套件提供的檔案，不可能每裝一個服務就去改它（改了也會被套件升級蓋掉）。
+所以反過來：**由服務自己宣告「我要被誰 Wants」**，`enable` 時 systemd 照 `WantedBy=` 在 `multi-user.target.wants/` 資料夾建一個符號連結（正文[第九節](#九enable開機自動啟動其實是建一個符號連結)實測過 nginx 那個連結）；
+`X.target.wants/` 裡的每一個連結，systemd 都當成 `X.target` 多了一行 `Wants=`。不必改 target 的檔案，就替它加了依賴。
+
+本機實際查 `multi-user.target` 被加了多少個：
+
+```bash
+systemctl show multi-user.target -p Wants --value | wc -w   # multi-user.target 現在 Wants 幾個 unit
+ls /etc/systemd/system/multi-user.target.wants/ | head -5    # 那些 Wants 從哪來
+systemctl list-dependencies graphical.target --no-pager | grep -n "multi-user"   # 開機預設 target 底下有沒有它
+```
+
+```text
+80
+anacron.service
+apport.service
+avahi-daemon.service
+clash-verge-service.service
+console-setup.service
+9:● └─multi-user.target
+```
+
+- 第 1 行：`multi-user.target` 現在 Wants 80 個 unit（nginx 是其中之一），但它的 unit 檔裡並沒有寫這些名字——它們幾乎都來自 `.wants/` 資料夾裡、各服務 `enable` 時建的符號連結（第 2～6 行是其中前 5 個）。
+- 最後一行：開機的預設目標 `graphical.target`（正文第九節 `get-default` 的結果）底下就掛著 `multi-user.target`，所以開機一路拉到 nginx。
+
+```text
+開機 → graphical.target ──Wants──▶ multi-user.target ──Wants──▶ nginx.service
+                                          ▲
+                                          │ 這條 Wants 來自符號連結
+                                          │ /etc/systemd/system/multi-user.target.wants/nginx.service
+                                          │
+                      nginx.service 的 [Install] WantedBy=multi-user.target，enable 時建出這個連結
+```
+
+**這張圖要看的重點**：`WantedBy=` 不會自己做任何事，它是給 `enable` 看的「要把連結建在哪」；真正讓開機時啟動 nginx 的是那個連結代表的 `Wants=`。所以沒 `enable` 時寫了 `WantedBy=` 也沒用，`disable` 刪掉連結就斷了這條鏈。
+
+#### 為什麼開機用弱的 `Wants=`，不用 `Requires=`
+
+`multi-user.target` 掛著 80 個服務。如果是 `Requires=`，其中任何一個啟動失敗（例如 nginx 設定檔寫錯），`multi-user.target` 也跟著失敗，整台機器開不進正常模式。
+用 `Wants=`，壞掉的那個自己顯示 `failed`，其他 79 個照常啟動。`[Install]` 裡對應的強依賴版本是 `RequiredBy=`（連結建在 `.requires/` 資料夾），一般服務幾乎都用 `WantedBy=`。
+
+### 2. user service 啟動失敗：`203/EXEC` 與 user 層沒有 `multi-user.target`
+
+> 2026-11-05 提問：「我在 ~/.config/systemd/user 建立了good-note.service,但是沒辦法成功啓動」
+> 正文出處：[第四節〈② `ExecStart=` 沒寫絕對路徑〉](#四實驗一寫好先用-systemd-analyze-verify-檢查)、[第九節〈`enable`〉](#九enable開機自動啟動其實是建一個符號連結)的 user 層 `default.target` 那一條、[第六節](#六實驗三journal-裡一直看不到輸出stdout-的緩衝)的緩衝、[第七節〈`Type=` 全部 8 種〉](#type-全部-8-種)
+
+用來啟動本 repo HTML 作答伺服器（`tools/serve.py`）的 user service。原本的檔案（`~/.config/systemd/user/good-note.service`，使用者個人用，不在 repo 裡、不入 git）：
+
+```ini
+[Unit]
+Description=Good Note For Everything
+
+[Service]
+Type=simple
+ExecStart=python /home/set/work/Projects/github/good-note/tools/serve.py
+
+[Install]
+WantedBy=multi-user.target
+```
+
+裡面有兩個錯：一個讓它**現在**啟動不了，一個讓它**之後**不會自己啟動。另外還有兩處可以改得更好。
+
+#### 症狀：`status=203/EXEC`
+
+```bash
+systemctl --user status good-note --no-pager
+```
+
+```text
+× good-note.service - Good Note For Everything
+     Loaded: loaded (/home/set/.config/systemd/user/good-note.service; disabled; preset: enabled)
+     Active: failed (Result: exit-code) since Thu 2026-11-05 10:23:07 CST; 2min 16s ago
+   Duration: 8ms
+    Process: 11974 ExecStart=python /home/set/work/Projects/github/good-note/tools/serve.py (code=exited, status=203/EXEC)
+   Main PID: 11974 (code=exited, status=203/EXEC)
+        CPU: 7ms
+
+Nov 05 10:23:07 set-Vector-17-HX-A14VFG systemd[2029]: Started good-note.service - Good Note For Everything.
+Nov 05 10:23:07 set-Vector-17-HX-A14VFG systemd[2029]: good-note.service: Main process exited, code=exited, status=203/EXEC
+Nov 05 10:23:07 set-Vector-17-HX-A14VFG systemd[2029]: good-note.service: Failed with result 'exit-code'.
+```
+
+- `Duration: 8ms`：活不到 1 秒就結束了，不是程式跑一跑才出錯。
+- `status=203/EXEC`：**200 以上的結束狀態是 systemd 自己用的**，代表「在 `fork` 之後、你的程式真正開始跑之前，systemd 在子行程裡做準備時失敗了」，程式一行都還沒執行。
+  `203` 的名字是 `EXIT_EXEC`：最後那個 `execve` 系統呼叫失敗（`man systemd.exec` 的說明：最可能是執行檔不存在或不能執行）。
+- `Started ...` 先出現、失敗才接著出現：`Type=simple` 一 `fork` 就算啟動完成，不等 `exec`（[第七節](#type-全部-8-種)），所以 `systemctl start` 本身回報成功，要看 `status` 才知道失敗。
+
+systemd 自己的結束狀態本機 `man systemd.exec`〈PROCESS EXIT CODES〉一節共 45 個（200～245），這裡只列 45 個裡最常遇到的 5 個：
+
+| 結束狀態 | 名字 | 意思 |
+|---|---|---|
+| 200 | `EXIT_CHDIR` | 切到 `WorkingDirectory=` 失敗（目錄不存在） |
+| 203 | `EXIT_EXEC` | `execve` 失敗：執行檔找不到、不能執行、`#!` 那行的直譯器不存在 |
+| 209 | `EXIT_STDOUT` | 設定 `StandardOutput=` 失敗（例如要寫的檔案打不開） |
+| 217 | `EXIT_USER` | 切換到 `User=` 指定的使用者失敗（使用者不存在） |
+| 226 | `EXIT_NAMESPACE` | 沙箱設定（例如 `ProtectSystem=`、`ReadWritePaths=`）需要的掛載失敗 |
+
+journal 裡通常會有更直接的一行，加 `-o cat` 看完整訊息；或者先跑 `verify`：
+
+#### 錯 1：`python` 在 shell 找得到，systemd 找不到
+
+```bash
+systemd-analyze --user verify ~/.config/systemd/user/good-note.service; echo "verify=$?"
+```
+
+```text
+good-note.service: Command python is not executable: No such file or directory
+verify=1
+```
+
+```bash
+which python python3          # 在使用者的終端機裡
+ls -l /usr/bin/python*        # systemd 會找的目錄裡有什麼
+```
+
+```text
+/home/set/miniconda3/bin/python
+/home/set/miniconda3/bin/python3
+lrwxrwxrwx 1 root root      10 Nov 12  2025 /usr/bin/python3 -> python3.12
+-rwxr-xr-x 1 root root 8020928 Aug 31 18:18 /usr/bin/python3.12
+lrwxrwxrwx 1 root root      34 Aug 31 18:18 /usr/bin/python3.12-config -> x86_64-linux-gnu-python3.12-config
+lrwxrwxrwx 1 root root      17 Nov 12  2025 /usr/bin/python3-config -> python3.12-config
+```
+
+- 終端機裡的 `python` 是 `~/miniconda3/bin/python`：conda 初始化時把 `~/miniconda3/bin` 加進了 **shell 的 `PATH`**（寫在 `~/.zshrc` 這類 shell 設定檔裡）。
+- systemd 不跑你的 shell 設定檔，也不看你的 `PATH`。`ExecStart=` 不是絕對路徑時只在固定目錄找（[第四節〈②〉](#四實驗一寫好先用-systemd-analyze-verify-檢查)）。那些目錄裡只有 `python3`、沒有 `python`（Ubuntu 24.04 預設不提供 `python` 這個名字）→ `execve` 失敗 → 203。
+- **修法：寫絕對路徑**。要寫哪一個 Python，見下面〈選哪一個 Python〉。
+
+#### 錯 2：user 層沒有 `multi-user.target`
+
+```bash
+systemctl --user list-unit-files multi-user.target default.target --no-pager
+```
+
+```text
+UNIT FILE      STATE  PRESET
+default.target static -
+
+1 unit files listed.
+```
+
+- 兩個名字一起查，只列出 `default.target`：**`systemd --user` 裡根本沒有 `multi-user.target`**，它是 system 層（PID 1）開機流程的 target。
+- 照原本的寫法 `enable`，連結會建在 `~/.config/systemd/user/multi-user.target.wants/`（未實測），但 user 層沒有任何東西會去啟動 `multi-user.target`，所以**登入後不會自己啟動，而且不會有任何錯誤訊息**。
+  這正是[第 1 章](#1-wants-與-wantedby同一種關係方向相反)講的：`WantedBy=` 只決定連結建在哪個 target 的 `.wants/`，那個 target 不會被啟動，連結就沒有作用。
+- **修法：user unit 寫 `WantedBy=default.target`**（`systemd --user` 啟動、也就是使用者登入時就會啟動的 target，正文[第九節](#九enable開機自動啟動其實是建一個符號連結)）。
+
+#### 改進 1：`Type=exec` 讓 `start` 直接報錯
+
+用一個「檔案存在、但 `#!` 指到不存在的直譯器」的腳本製造 203（`systemd-run` 會先在自己這邊檢查命令找不找得到，所以不能直接拿不存在的路徑來測）。`hi.py` 的完整內容與建檔指令：
+
+```bash
+printf '#!/usr/bin/python\nprint("hi")\n' > $S/hi.py   # 第一行指到不存在的 /usr/bin/python
+chmod +x $S/hi.py
+```
+
+**① `Type=simple`：`start` 回報成功，其實已經失敗**
+
+```bash
+systemd-run --user --unit=gn-simple $S/hi.py; echo "systemd-run exit=$?"
+sleep 1; systemctl --user show gn-simple -p ActiveState -p Result -p ExecMainStatus
+journalctl --user -u gn-simple --no-pager -o cat | tail -3
+```
+
+```text
+Running as unit: gn-simple.service; invocation ID: df3febdbaf6f4ec2ac518cead642f328
+systemd-run exit=0
+Result=exit-code
+ExecMainStatus=203
+ActiveState=failed
+gn-simple.service: Failed to execute $S/hi.py: No such file or directory
+gn-simple.service: Main process exited, code=exited, status=203/EXEC
+gn-simple.service: Failed with result 'exit-code'.
+```
+
+- 第 2 行：啟動命令回傳 0（成功）。要另外查狀態才看得到 `ExecMainStatus=203`、`failed`。
+- journal 第 1 行就是真正的原因：`Failed to execute ...: No such file or directory`——`execve` 回報的 `ENOENT`。檔案明明存在，是 `#!` 指的 `/usr/bin/python` 不存在（kernel 執行腳本時要去載入 `#!` 那行的直譯器）。
+
+**② `Type=exec`：`start` 當場失敗**
+
+```bash
+systemd-run --user --unit=gn-exec -p Type=exec $S/hi.py; echo "systemd-run exit=$?"
+```
+
+```text
+Job for gn-exec.service failed because the control process exited with error code.
+See "systemctl --user status gn-exec.service" and "journalctl --user -xeu gn-exec.service" for details.
+systemd-run exit=1
+```
+
+- `Type=exec` 等 `execve` 成功才算啟動完成，所以啟動命令自己就回傳 1、印出失敗。寫在腳本或 `enable --now` 裡時，錯誤不會被藏起來。
+
+#### 改進 2：選哪一個 Python——跟終端機用同一個
+
+`serve.py` 會呼叫 `build_html.py` 重建 `html/`。兩個 Python 都 import 得到它要的套件，但**版本不同**：
+
+```bash
+for p in /usr/bin/python3 /home/set/miniconda3/bin/python3; do
+    $p -c "import sys,pygments,markdown_it;print(sys.executable, sys.version.split()[0], 'pygments', pygments.__version__, 'markdown-it', markdown_it.__version__)"
+done
+```
+
+```text
+/usr/bin/python3 3.12.3 pygments 2.17.2 markdown-it 3.0.0
+/home/set/miniconda3/bin/python3 3.12.9 pygments 2.15.1 markdown-it 2.2.0
+```
+
+- 實驗中用 `/usr/bin/python3` 跑過一次 `serve.py` 之後，`git status` 出現 `html/assets/style.css` 被改動：pygments 2.17 多產生了 `.ges`（Generic.EmphStrong）這個樣式。用終端機平常的 `python3`（conda）重跑 `build_html.py` 後就恢復原狀。
+- 也就是說，服務用的 Python 跟手動跑的不一樣，**產出的 `html/` 就會跟著服務／手動交替變來變去**，`git diff` 會出現跟筆記無關的變動。
+- **修法：`ExecStart=` 寫終端機用的那一個 `/home/set/miniconda3/bin/python3`**。原則是：服務要跑的程式依賴某個環境（conda、venv）時，直接寫那個環境裡直譯器的絕對路徑，不要依賴 shell 的 `PATH` 或 `conda activate`。
+
+#### 改進 3：`PYTHONUNBUFFERED=1`
+
+`serve.py` 啟動時用 `print` 印「已產生…」「開啟 http://…」；收到請求時 `http.server` 把存取紀錄寫到 `stderr`。用暫時性 unit 在另一個 port（8765）各跑一次，等 6 秒、用 `curl` 送一個請求，再看 journal：
+
+**① 沒設：`print` 的兩行不見了**
+
+```bash
+systemd-run --user --unit=gn-buf -p Type=exec /usr/bin/python3 /home/set/work/Projects/github/good-note/tools/serve.py 8765
+sleep 6; curl -s -o /dev/null -w "http=%{http_code}\n" http://127.0.0.1:8765/
+journalctl --user -u gn-buf --no-pager -o cat --since "-10s"; systemctl --user stop gn-buf
+```
+
+```text
+Running as unit: gn-buf.service; invocation ID: c47979a69d284e6184993cd3183f2919
+http=302
+Starting gn-buf.service - /usr/bin/python3 /home/set/work/Projects/github/good-note/tools/serve.py 8765...
+Started gn-buf.service - /usr/bin/python3 /home/set/work/Projects/github/good-note/tools/serve.py 8765.
+127.0.0.1 - - [05/Nov/2026 10:29:50] "GET / HTTP/1.1" 302 -
+```
+
+- 伺服器有在運作（`http=302`：首頁轉址），存取紀錄那行也有（`stderr` 不緩衝），但 `print` 到 `stdout` 的兩行還卡在緩衝區——跟正文[第六節](#六實驗三journal-裡一直看不到輸出stdout-的緩衝)的 C 程式一樣，Python 的 `stdout` 接到非終端機時也是全緩衝。
+
+**② 設了 `-E PYTHONUNBUFFERED=1`：全部即時出現**
+
+```bash
+systemd-run --user --unit=gn-ok -p Type=exec -E PYTHONUNBUFFERED=1 /usr/bin/python3 /home/set/work/Projects/github/good-note/tools/serve.py 8765
+sleep 6; curl -s -o /dev/null -w "http=%{http_code}\n" http://127.0.0.1:8765/
+journalctl --user -u gn-ok --no-pager -o cat --since "-10s"; systemctl --user stop gn-ok
+```
+
+```text
+Running as unit: gn-ok.service; invocation ID: 1a601fc2cabd487a8082c6b134a21ac0
+http=302
+Starting gn-ok.service - /usr/bin/python3 /home/set/work/Projects/github/good-note/tools/serve.py 8765...
+Started gn-ok.service - /usr/bin/python3 /home/set/work/Projects/github/good-note/tools/serve.py 8765.
+已產生 155 篇 → html/（首頁：html/index.html）
+開啟 http://localhost:8765/ （Ctrl+C 結束）
+127.0.0.1 - - [05/Nov/2026 10:29:57] "GET / HTTP/1.1" 302 -
+```
+
+- `print` 的兩行出現了。這兩次實驗用的是 `/usr/bin/python3`（當時還沒發現〈改進 2〉的版本差異），緩衝的行為兩個 Python 一樣。
+
+#### 改好的版本
+
+```ini
+[Unit]
+Description=Good Note For Everything
+
+[Service]
+Type=exec
+ExecStart=/home/set/miniconda3/bin/python3 /home/set/work/Projects/github/good-note/tools/serve.py
+Environment=PYTHONUNBUFFERED=1
+Restart=on-failure
+
+[Install]
+WantedBy=default.target
+```
+
+```bash
+systemctl --user daemon-reload               # 改了 unit 檔一定要 reload
+systemctl --user reset-failed good-note      # 清掉之前的 failed 狀態（可省略）
+systemctl --user enable --now good-note      # 登入時自動啟動，並且現在就啟動
+systemctl --user status good-note --no-pager
+journalctl --user -u good-note -f            # 持續看輸出，Ctrl+C 離開
+```
+
+- 這份檔案與這串指令**未實測**（寫進 `~/.config/systemd/user/` 由使用者自己做）；其中每一項（絕對路徑、`Type=exec`、`PYTHONUNBUFFERED`）都已在上面用暫時性 unit 實測過。
+- 8000 port 只能有一個程式在聽：手動開著 `python3 tools/serve.py` 時，服務會因為 port 被佔用而啟動失敗（`Restart=on-failure` 會重試，10 秒內 5 次後放棄，見正文[第八節](#一直失敗重啟次數有上限)）。
+- 想在**沒登入時**也跑，要再 `loginctl enable-linger set`；只在自己登入時用就不需要。
+
+**排查順序的心法**：`status` 看結束狀態（200 以上＝systemd 在 exec 前後就失敗了，程式根本沒跑）→ `journalctl -u ... -o cat` 看那一行 `Failed to ...` → `systemd-analyze verify` 檢查檔案 → 想想「服務的環境跟我的終端機差在哪」（`PATH`、目前目錄、環境變數、`stdout` 是不是終端機）。
+
+---
+
 ## 自我測驗
 
 > 參考答案寫在每題下面（第一次作答批改完才會補上），作答時先遮住答案。
@@ -1174,3 +1517,13 @@ sudo systemctl daemon-reload
    (1) 為什麼在終端機找得到 `myapp`，systemd 卻找不到？
    (2) 就算找到了，這行還有什麼問題？（`>` 在這裡會被怎麼處理？）
    (3) 該怎麼改？
+
+6. 小華的 `report.service` 在 `[Unit]` 寫了 `Wants=db.service`，在 `[Install]` 寫了 `WantedBy=multi-user.target`，但從來沒有執行過 `enable`。
+   (1) `systemctl start report` 時，`db.service` 會不會被啟動？如果 `db.service` 啟動失敗，`report` 還會啟動嗎？為什麼？
+   (2) 重開機之後 `report` 會不會自己啟動？為什麼 `WantedBy=` 這行沒有讓它開機啟動？
+   (3) 為什麼開機要讓 `multi-user.target` 用 `Wants=` 而不是 `Requires=` 去拉起各個服務？
+
+7. 一個 user service 的 `ExecStart=/usr/bin/node /home/me/app/server.js`，`systemctl --user start app` 沒有任何錯誤訊息，但 `status` 顯示 `Main PID: ... (code=exited, status=203/EXEC)`，`Duration: 5ms`。
+   (1) 203 這個結束狀態是誰產生的？這時 `server.js` 執行了沒有？為什麼？
+   (2) 為什麼 `start` 沒有報錯？把哪一行設定改成什麼，`start` 就會當場失敗？
+   (3) 他的 `[Install]` 寫 `WantedBy=multi-user.target`，`enable` 也成功了，登入後服務會自己啟動嗎？為什麼？
