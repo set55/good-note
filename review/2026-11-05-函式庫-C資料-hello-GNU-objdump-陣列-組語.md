@@ -9,6 +9,16 @@
 > **怎麼寫**：闔上筆記，每題寫 1～2 句關鍵句就好。可以分幾次寫，寫完一部分就可以先說「幫我批改」。複習不重答，批改會直接附參考答案。
 > 已拆小題的題目，每個小題一個作答框；以大題為單位排程，小題全對才算對。
 
+## 批改結果（2026-11-05）
+
+> 批改中：已批改 1 題（函式庫 2）——對 1 題。其餘 12 題待作答。
+
+| 題目 | 結果 | 盒子 | 下次 | 錯在哪／缺什麼 | 過關 |
+|---|---|---|---|---|---|
+| 函式庫 2-1 | 對 | | | 抓到：讀到 `libtxt.a` 時清單上還沒有 `trim`，一個成員都不拉；讀到 `main.o` 才需要，`ld` 不回頭。小修：「丟棄」是 `.so` 的說法，`.a` 是「一個成員都不拉」 | — |
+| 函式庫 2-2 | 對 | | | 抓到：`cannot find` 是找不到函式庫**檔案**，`undefined reference` 是檔案有找到、`trim` 這個**符號**沒被解決 | — |
+| 函式庫 2-3 | 對 | 2 → 3（整題） | 2026-11-12 | 抓到：Ubuntu 預設 `--as-needed`，讀到 `-ltxt` 時沒人需要 `trim`，`.so` 被丟掉。小修：是命令列處理完才報錯，不是讀到 `main.o` 當下 | — |
+
 ## 今天的題目
 
 排序：盒子小的在前；同一盒子照筆記與題號。
@@ -77,17 +87,61 @@ int main(void)
 #### 函式庫 2-1. `gcc -Wall -L. -ltxt main.c -o app` 會失敗，錯誤訊息是 `undefined reference to 'trim'`。用 `ld` 處理輸入檔的方式解釋為什麼。
 
 ```
+因爲ld在讀到libtxt.a這個庫的時候,未定義的符號清單並沒有trim,因爲還沒有看到main.o,然後它會把libtxt.a丟棄,接下來纔讀到
+main.o這個時候他就沒找不到trim的定義了,因此報出undefined reference to 'trim'
 ```
+
+> **批改**：**對**。三個核心關鍵都有：讀到 `libtxt.a` 時「未定義的符號清單」裡還沒有 `trim`（`main.o` 還沒讀）→ 一個成員都不拉；之後讀到 `main.o` 才需要 `trim`，`ld` 不會回頭 → `undefined reference`。小修：「把 `libtxt.a` 丟棄」精確說是「一個成員都不拉」——`.a` 本身沒有被丟掉這回事，只是沒有成員被拉進來；「丟棄」是 2-3 的 `.so` 在 `--as-needed` 下的說法。
+>
+> **參考答案**【[第二節](../html/c/靜態與動態函式庫-ar與.a、-fPIC與.so、執行時怎麼找到.so.html#順序ld-由左往右只掃一次)〈順序：`ld` 由左往右只掃一次〉】
+>
+> **核心關鍵**（答到這幾點就算對）：
+>
+> 1. `ld` 照命令列順序處理輸入檔，手上維持一張「還沒找到定義的符號」清單。
+> 2. 遇到 `libtxt.a` 時 `main` 的 `.o` 還沒讀，清單裡沒有 `trim`（只有啟動檔帶進來的 `main` 等），一個成員都不拉就略過。
+> 3. 讀到 `main` 才多了 `trim`，命令列結束時還在清單上，`ld` 不會回頭重掃 `libtxt.a` → `undefined reference`。
+>
+> **詳細說明**：規則：函式庫寫在用到它的檔案後面（`main.c -L. -ltxt`）。函式庫之間互相需要時，寫兩次或用 `-Wl,--start-group … -Wl,--end-group`。
+
 
 #### 函式庫 2-2. 這個錯誤跟 `cannot find -ltxt` 差在哪（各是什麼東西找不到）？`cannot find -ltxt` 可以這樣產生：同樣的檔案，指令改成漏掉 `-L.` 的 `gcc -Wall main.c -ltxt -o app`。
 
 ```
+connot find -ltxt:是ld在預設的搜尋庫資料夾,找不到名字叫libtxt.so, libtxt.a的庫
+上題的錯是有找到,但因爲命令的順序導致ld找不到trim的定義,情況不同
 ```
+
+> **批改**：**對**。抓到：`cannot find -ltxt` 是 `ld` 在搜尋目錄裡找不到 `libtxt.so`／`libtxt.a` 這個**檔案**；2-1 是檔案找到了，`trim` 這個**符號**沒被解決。小修：錯字 `connot` → `cannot`；「預設的搜尋庫資料夾」這次是因為沒給 `-L.`，名字拼錯（`-ltx`）也是同一句錯誤。
+>
+> **參考答案**【[第三節](../html/c/靜態與動態函式庫-ar與.a、-fPIC與.so、執行時怎麼找到.so.html#三-l-與--l連結時去哪裡找找什麼名字)、[第二節](../html/c/靜態與動態函式庫-ar與.a、-fPIC與.so、執行時怎麼找到.so.html#順序ld-由左往右只掃一次)〈順序：`ld` 由左往右只掃一次〉】
+>
+> **核心關鍵**（答到這幾點就算對）：
+>
+> 1. `cannot find -ltxt`：**連結時** `ld` 在搜尋目錄裡找不到 `libtxt.so`／`libtxt.a` **這個檔案**（例如沒給 `-L.`、名字拼錯）。
+> 2. `undefined reference to 'trim'`：檔案找到了，但 `trim` 這個**符號**到最後都沒有被解決（這題是因為順序，一個成員都沒拉）。
+>
+> **詳細說明**：本機實測（同樣四個檔案）：`gcc -Wall main.c -ltxt -o app` → `/usr/bin/ld: cannot find -ltxt: No such file or directory`；`-ltx`（拼錯）→ `cannot find -ltx`；`gcc -Wall -L. -ltxt main.c -o app` → `undefined reference to 'trim'`。前兩個在「找檔案」就停了，第三個是「找符號」失敗。兩者都是連結時 `ld` 的錯；執行時 `ld.so` 找不到 `.so` 是另一句 `cannot open shared object file`（第 4 題）。
+
 
 #### 函式庫 2-3. 在 Ubuntu 上把 `libtxt.a` 換成 `libtxt.so`、命令一樣寫成 `-L. -ltxt main.c`，也會失敗，原因是什麼？
 
 ```
+因爲ubuntu的gcc預設 --as-needed
+.so只有被需要的時候纔會被寫入needed,而按照這個命令列的順序讀到libtxt.so的時候,ld不知道需要trim這個符號定義,
+因爲main.o還沒讀到,所以ld會判斷不需要libtxt.so,最後到main又發現找不到定義了
 ```
+
+> **批改**：**對**。兩個核心關鍵都有：Ubuntu 的 gcc 預設 `--as-needed`，`.so` 只有被需要時才寫進 `NEEDED`；讀到 `libtxt.so` 時 `main.o` 還沒讀、沒人需要 `trim` → 被丟掉 → 之後 `trim` 沒人提供。連續兩次（11-02、今天）都寫出 `--as-needed`，這點穩了。小修：「最後到 main 又發現找不到定義」——不是讀到 `main.o` 當下就報錯，是**命令列全部處理完**時 `trim` 還在清單上才報（2-1 也一樣）。
+>
+> **參考答案**【[第四節](../html/c/靜態與動態函式庫-ar與.a、-fPIC與.so、執行時怎麼找到.so.html#so-在-ubuntu-上也有順序問題)〈`.so` 在 Ubuntu 上也有順序問題〉】
+>
+> **核心關鍵**（答到這幾點就算對）：
+>
+> 1. Ubuntu 的 gcc 預設傳 `--as-needed` 給 `ld`：`.so` 只有在**目前有人需要它的符號**時才寫進 `NEEDED`、才拿來解決符號。
+> 2. 遇到 `-ltxt` 時 `main` 還沒讀、沒人需要 `trim`，`libtxt.so` 就被丟掉 → 之後 `main` 的 `trim` 沒人提供 → `undefined reference`。
+>
+> **詳細說明**：單純「由左往右」不會讓 `.so` 失敗：把 `-Wl,--no-as-needed` 放在 `-ltxt` 前面（`gcc -Wall -L. -Wl,--no-as-needed -ltxt main.c -o app4`）就成功，`readelf -d app4` 有 `NEEDED libtxt.so`。所以 `.a` 和 `.so` 失敗的機制不同（`.a` 是不拉成員、`.so` 是被 `--as-needed` 丟掉），但結論一樣：`-l` 一律寫在後面。
+
 
 ---
 ### 函式庫 4. 情境：連結成功、執行找不到 `libfoo.so`
@@ -99,16 +153,28 @@ int main(void)
 #### 函式庫 4-1. 這個訊息是誰印的？為什麼連結時找得到、執行時找不到？
 
 ```
+這個是ld.so印的
+因爲ld在連結的時候可以從命令行知道這個庫所在的路徑位址,也就是-Llib
+但ld.so他只能從dynamic section 知道NEEDED寫libfoo.so卻不知道它到底在哪,所以他只能從預設的搜尋的路徑開始找,最後就是找不到
 ```
 
 #### 函式庫 4-2. 你想讓 `app` 和 `lib/` 一起打包給同事，同事解壓到任何地方都能直接執行，連結指令要怎麼改？為什麼要用單引號？
 
 ```
+加入runpath
+gcc main.c -Llib -lfoo -Wl,-rpath,'$ORIGIN/lib' -o app
+
+因爲單引號就是把裏面的內容視爲純字符串,不會展開像是變量$ORIGIN 得到的runpath就真的是 '$ORIGIN/lib', 這樣ld.so可知道,origin是在執行檔所在的位置,也就可以正確的找到庫的位置
+用雙引號就會展開,最後因爲$ORIGIN是空字符串得到了/lib,找不到
 ```
 
 #### 函式庫 4-3. 同事想臨時用 `LD_LIBRARY_PATH` 換成他自己編的 `libfoo.so` 來除錯，在你的做法（`RUNPATH`）下換得掉嗎？如果是 `RPATH` 呢？為什麼？
 
 ```
+runpath 可以
+rpath不行
+
+因爲runpath,會優先讀LD_LIBRARY_PATH, 但rpath會優先讀rpath
 ```
 
 ---

@@ -12,8 +12,9 @@
 <div class="layout">
 <nav class="side">
 <div class="crumbs"><a href="../index.html">🏠 首頁</a> / <a href="README.html">review</a></div>
-<div class="tools"><button onclick="toggleTheme()">🌓 主題</button><button onclick="toggleBoxes(true)">展開作答框</button><button onclick="toggleBoxes(false)">收起作答框</button></div>
+<div class="tools"><button onclick="toggleTheme()">🌓 主題</button><button onclick="toggleAnswers(true)">展開答案</button><button onclick="toggleAnswers(false)">收起答案</button><button onclick="toggleBoxes(true)">展開作答框</button><button onclick="toggleBoxes(false)">收起作答框</button></div>
 <ul>
+<li class="l2"><a href="#%E6%89%B9%E6%94%B9%E7%B5%90%E6%9E%9C2026-11-05">批改結果（2026-11-05）</a></li>
 <li class="l2"><a href="#%E4%BB%8A%E5%A4%A9%E7%9A%84%E9%A1%8C%E7%9B%AE">今天的題目</a></li>
 <li class="l2"><a href="#%E5%87%BD%E5%BC%8F%E5%BA%AB%E9%9D%9C%E6%85%8B%E8%88%87%E5%8B%95%E6%85%8B%E5%87%BD%E5%BC%8F%E5%BA%AB-ar%E8%88%87a-fpic%E8%88%87so%E5%9F%B7%E8%A1%8C%E6%99%82%E6%80%8E%E9%BA%BC%E6%89%BE%E5%88%B0so">函式庫：靜態與動態函式庫-ar與.a、-fPIC與.so、執行時怎麼找到.so</a></li>
 <li class="l3"><a href="#%E5%87%BD%E5%BC%8F%E5%BA%AB-2-%E9%A0%86%E5%BA%8F-ltxt-%E5%AF%AB%E5%9C%A8-mainc-%E5%89%8D%E9%9D%A2">函式庫 2. 順序：-ltxt 寫在 main.c 前面</a></li>
@@ -44,6 +45,48 @@
 <strong>補問「為什麼」</strong>（2026-11-04 起的出題規則，筆記〈自我測驗〉的原題同步改了）：函式庫 8-1（不是表的話它是什麼）、函式庫 10-1、C資料 9（什麼情況下會出錯、為什麼）、hello 5（<code>-static</code> 還會發生嗎、為什麼）、組語 6-3、組語 12-2。目前在第 8 課的作業階段，到期題裡沒有跟第 8 課直接相關的，所以照盒子排。</p>
 <p><strong>怎麼寫</strong>：闔上筆記，每題寫 1～2 句關鍵句就好。可以分幾次寫，寫完一部分就可以先說「幫我批改」。複習不重答，批改會直接附參考答案。已拆小題的題目，每個小題一個作答框；以大題為單位排程，小題全對才算對。</p>
 </blockquote>
+<h2 id="批改結果2026-11-05">批改結果（2026-11-05）</h2>
+<blockquote>
+<p>批改中：已批改 1 題（函式庫 2）——對 1 題。其餘 12 題待作答。</p>
+</blockquote>
+<table>
+<thead>
+<tr>
+<th>題目</th>
+<th>結果</th>
+<th>盒子</th>
+<th>下次</th>
+<th>錯在哪／缺什麼</th>
+<th>過關</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>函式庫 2-1</td>
+<td>對</td>
+<td></td>
+<td></td>
+<td>抓到：讀到 <code>libtxt.a</code> 時清單上還沒有 <code>trim</code>，一個成員都不拉；讀到 <code>main.o</code> 才需要，<code>ld</code> 不回頭。小修：「丟棄」是 <code>.so</code> 的說法，<code>.a</code> 是「一個成員都不拉」</td>
+<td>—</td>
+</tr>
+<tr>
+<td>函式庫 2-2</td>
+<td>對</td>
+<td></td>
+<td></td>
+<td>抓到：<code>cannot find</code> 是找不到函式庫<strong>檔案</strong>，<code>undefined reference</code> 是檔案有找到、<code>trim</code> 這個<strong>符號</strong>沒被解決</td>
+<td>—</td>
+</tr>
+<tr>
+<td>函式庫 2-3</td>
+<td>對</td>
+<td>2 → 3（整題）</td>
+<td>2026-11-12</td>
+<td>抓到：Ubuntu 預設 <code>--as-needed</code>，讀到 <code>-ltxt</code> 時沒人需要 <code>trim</code>，<code>.so</code> 被丟掉。小修：是命令列處理完才報錯，不是讀到 <code>main.o</code> 當下</td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
 <h2 id="今天的題目">今天的題目</h2>
 <p>排序：盒子小的在前；同一盒子照筆記與題號。</p>
 <table>
@@ -174,16 +217,69 @@
 </code></pre>
 <p>建立與連結：<code>gcc -Wall -c case.c space.c trim.c &amp;&amp; ar rcs libtxt.a case.o space.o trim.o &amp;&amp; gcc -Wall main.c -L. -ltxt -o app</code></p>
 <h4 id="函式庫-2-1-gcc--wall--l--ltxt-mainc--o-app-會失敗錯誤訊息是-undefined-reference-to-trim用-ld-處理輸入檔的方式解釋為什麼">函式庫 2-1. <code>gcc -Wall -L. -ltxt main.c -o app</code> 會失敗，錯誤訊息是 <code>undefined reference to 'trim'</code>。用 <code>ld</code> 處理輸入檔的方式解釋為什麼。</h4>
-<details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="review/2026-11-05-函式庫-C資料-hello-GNU-objdump-陣列-組語.md" data-line="78"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
+<div class="answer-box locked"><textarea readonly spellcheck="false">因爲ld在讀到libtxt.a這個庫的時候,未定義的符號清單並沒有trim,因爲還沒有看到main.o,然後它會把libtxt.a丟棄,接下來纔讀到
+main.o這個時候他就沒找不到trim的定義了,因此報出undefined reference to &#x27;trim&#x27;
+</textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
+<details class="answer"><summary>批改</summary>
+<p><strong>對</strong>。三個核心關鍵都有：讀到 <code>libtxt.a</code> 時「未定義的符號清單」裡還沒有 <code>trim</code>（<code>main.o</code> 還沒讀）→ 一個成員都不拉；之後讀到 <code>main.o</code> 才需要 <code>trim</code>，<code>ld</code> 不會回頭 → <code>undefined reference</code>。小修：「把 <code>libtxt.a</code> 丟棄」精確說是「一個成員都不拉」——<code>.a</code> 本身沒有被丟掉這回事，只是沒有成員被拉進來；「丟棄」是 2-3 的 <code>.so</code> 在 <code>--as-needed</code> 下的說法。</p>
+<details class="answer"><summary>參考答案</summary>
+<p>【<a href="../c/%E9%9D%9C%E6%85%8B%E8%88%87%E5%8B%95%E6%85%8B%E5%87%BD%E5%BC%8F%E5%BA%AB-ar%E8%88%87.a%E3%80%81-fPIC%E8%88%87.so%E3%80%81%E5%9F%B7%E8%A1%8C%E6%99%82%E6%80%8E%E9%BA%BC%E6%89%BE%E5%88%B0.so.html#%E9%A0%86%E5%BA%8Fld-%E7%94%B1%E5%B7%A6%E5%BE%80%E5%8F%B3%E5%8F%AA%E6%8E%83%E4%B8%80%E6%AC%A1">第二節</a>〈順序：<code>ld</code> 由左往右只掃一次〉】</p>
+<p><strong>核心關鍵</strong>（答到這幾點就算對）：</p>
+<ol>
+<li><code>ld</code> 照命令列順序處理輸入檔，手上維持一張「還沒找到定義的符號」清單。</li>
+<li>遇到 <code>libtxt.a</code> 時 <code>main</code> 的 <code>.o</code> 還沒讀，清單裡沒有 <code>trim</code>（只有啟動檔帶進來的 <code>main</code> 等），一個成員都不拉就略過。</li>
+<li>讀到 <code>main</code> 才多了 <code>trim</code>，命令列結束時還在清單上，<code>ld</code> 不會回頭重掃 <code>libtxt.a</code> → <code>undefined reference</code>。</li>
+</ol>
+<p><strong>詳細說明</strong>：規則：函式庫寫在用到它的檔案後面（<code>main.c -L. -ltxt</code>）。函式庫之間互相需要時，寫兩次或用 <code>-Wl,--start-group … -Wl,--end-group</code>。</p>
+</details>
+</details>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="review/2026-11-05-函式庫-C資料-hello-GNU-objdump-陣列-組語.md" data-line="104" data-insert="1" data-anchor="&gt; &#42;&#42;詳細說明&#42;&#42;：規則：函式庫寫在用到它的檔案後面（`main.c -L. -ltxt`）。函式庫之間互相需要時，寫兩次或用 `-Wl,--start-group … -Wl,--end-group`。"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h4 id="函式庫-2-2-這個錯誤跟-cannot-find--ltxt-差在哪各是什麼東西找不到cannot-find--ltxt-可以這樣產生同樣的檔案指令改成漏掉--l-的-gcc--wall-mainc--ltxt--o-app">函式庫 2-2. 這個錯誤跟 <code>cannot find -ltxt</code> 差在哪（各是什麼東西找不到）？<code>cannot find -ltxt</code> 可以這樣產生：同樣的檔案，指令改成漏掉 <code>-L.</code> 的 <code>gcc -Wall main.c -ltxt -o app</code>。</h4>
-<details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="review/2026-11-05-函式庫-C資料-hello-GNU-objdump-陣列-組語.md" data-line="83"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
+<div class="answer-box locked"><textarea readonly spellcheck="false">connot find -ltxt:是ld在預設的搜尋庫資料夾,找不到名字叫libtxt.so, libtxt.a的庫
+上題的錯是有找到,但因爲命令的順序導致ld找不到trim的定義,情況不同
+</textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
+<details class="answer"><summary>批改</summary>
+<p><strong>對</strong>。抓到：<code>cannot find -ltxt</code> 是 <code>ld</code> 在搜尋目錄裡找不到 <code>libtxt.so</code>／<code>libtxt.a</code> 這個<strong>檔案</strong>；2-1 是檔案找到了，<code>trim</code> 這個<strong>符號</strong>沒被解決。小修：錯字 <code>connot</code> → <code>cannot</code>；「預設的搜尋庫資料夾」這次是因為沒給 <code>-L.</code>，名字拼錯（<code>-ltx</code>）也是同一句錯誤。</p>
+<details class="answer"><summary>參考答案</summary>
+<p>【<a href="../c/%E9%9D%9C%E6%85%8B%E8%88%87%E5%8B%95%E6%85%8B%E5%87%BD%E5%BC%8F%E5%BA%AB-ar%E8%88%87.a%E3%80%81-fPIC%E8%88%87.so%E3%80%81%E5%9F%B7%E8%A1%8C%E6%99%82%E6%80%8E%E9%BA%BC%E6%89%BE%E5%88%B0.so.html#%E4%B8%89-l-%E8%88%87--l%E9%80%A3%E7%B5%90%E6%99%82%E5%8E%BB%E5%93%AA%E8%A3%A1%E6%89%BE%E6%89%BE%E4%BB%80%E9%BA%BC%E5%90%8D%E5%AD%97">第三節</a>、<a href="../c/%E9%9D%9C%E6%85%8B%E8%88%87%E5%8B%95%E6%85%8B%E5%87%BD%E5%BC%8F%E5%BA%AB-ar%E8%88%87.a%E3%80%81-fPIC%E8%88%87.so%E3%80%81%E5%9F%B7%E8%A1%8C%E6%99%82%E6%80%8E%E9%BA%BC%E6%89%BE%E5%88%B0.so.html#%E9%A0%86%E5%BA%8Fld-%E7%94%B1%E5%B7%A6%E5%BE%80%E5%8F%B3%E5%8F%AA%E6%8E%83%E4%B8%80%E6%AC%A1">第二節</a>〈順序：<code>ld</code> 由左往右只掃一次〉】</p>
+<p><strong>核心關鍵</strong>（答到這幾點就算對）：</p>
+<ol>
+<li><code>cannot find -ltxt</code>：<strong>連結時</strong> <code>ld</code> 在搜尋目錄裡找不到 <code>libtxt.so</code>／<code>libtxt.a</code> <strong>這個檔案</strong>（例如沒給 <code>-L.</code>、名字拼錯）。</li>
+<li><code>undefined reference to 'trim'</code>：檔案找到了，但 <code>trim</code> 這個<strong>符號</strong>到最後都沒有被解決（這題是因為順序，一個成員都沒拉）。</li>
+</ol>
+<p><strong>詳細說明</strong>：本機實測（同樣四個檔案）：<code>gcc -Wall main.c -ltxt -o app</code> → <code>/usr/bin/ld: cannot find -ltxt: No such file or directory</code>；<code>-ltx</code>（拼錯）→ <code>cannot find -ltx</code>；<code>gcc -Wall -L. -ltxt main.c -o app</code> → <code>undefined reference to 'trim'</code>。前兩個在「找檔案」就停了，第三個是「找符號」失敗。兩者都是連結時 <code>ld</code> 的錯；執行時 <code>ld.so</code> 找不到 <code>.so</code> 是另一句 <code>cannot open shared object file</code>（第 4 題）。</p>
+</details>
+</details>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="review/2026-11-05-函式庫-C資料-hello-GNU-objdump-陣列-組語.md" data-line="123" data-insert="1" data-anchor="&gt; &#42;&#42;詳細說明&#42;&#42;：本機實測（同樣四個檔案）：`gcc -Wall main.c -ltxt -o app` → `/usr/bin/ld: cannot find -ltxt: No such file or directory`；`-ltx`（拼錯）→ `cannot find -ltx`；`gcc -Wall -L. -ltxt main.c -o app` → `undefined reference to &#x27;trim&#x27;`。前兩個在「找檔案」就停了，第三個是「找符號」失敗。兩者都是連結時 `ld` 的錯；執行時 `ld.so` 找不到 `.so` 是另一句 `cannot open shared object file`（第 4 題）。"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h4 id="函式庫-2-3-在-ubuntu-上把-libtxta-換成-libtxtso命令一樣寫成--l--ltxt-mainc也會失敗原因是什麼">函式庫 2-3. 在 Ubuntu 上把 <code>libtxt.a</code> 換成 <code>libtxt.so</code>、命令一樣寫成 <code>-L. -ltxt main.c</code>，也會失敗，原因是什麼？</h4>
-<details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="review/2026-11-05-函式庫-C資料-hello-GNU-objdump-陣列-組語.md" data-line="88"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<details class="answer-fold"><summary>作答（🔒 已批改）</summary>
+<div class="answer-box locked"><textarea readonly spellcheck="false">因爲ubuntu的gcc預設 --as-needed
+.so只有被需要的時候纔會被寫入needed,而按照這個命令列的順序讀到libtxt.so的時候,ld不知道需要trim這個符號定義,
+因爲main.o還沒讀到,所以ld會判斷不需要libtxt.so,最後到main又發現找不到定義了
+</textarea><div class="answer-bar"><span class="status">🔒 已批改，不能再修改</span></div></div>
+</details>
+<details class="answer"><summary>批改</summary>
+<p><strong>對</strong>。兩個核心關鍵都有：Ubuntu 的 gcc 預設 <code>--as-needed</code>，<code>.so</code> 只有被需要時才寫進 <code>NEEDED</code>；讀到 <code>libtxt.so</code> 時 <code>main.o</code> 還沒讀、沒人需要 <code>trim</code> → 被丟掉 → 之後 <code>trim</code> 沒人提供。連續兩次（11-02、今天）都寫出 <code>--as-needed</code>，這點穩了。小修：「最後到 main 又發現找不到定義」——不是讀到 <code>main.o</code> 當下就報錯，是<strong>命令列全部處理完</strong>時 <code>trim</code> 還在清單上才報（2-1 也一樣）。</p>
+<details class="answer"><summary>參考答案</summary>
+<p>【<a href="../c/%E9%9D%9C%E6%85%8B%E8%88%87%E5%8B%95%E6%85%8B%E5%87%BD%E5%BC%8F%E5%BA%AB-ar%E8%88%87.a%E3%80%81-fPIC%E8%88%87.so%E3%80%81%E5%9F%B7%E8%A1%8C%E6%99%82%E6%80%8E%E9%BA%BC%E6%89%BE%E5%88%B0.so.html#so-%E5%9C%A8-ubuntu-%E4%B8%8A%E4%B9%9F%E6%9C%89%E9%A0%86%E5%BA%8F%E5%95%8F%E9%A1%8C">第四節</a>〈<code>.so</code> 在 Ubuntu 上也有順序問題〉】</p>
+<p><strong>核心關鍵</strong>（答到這幾點就算對）：</p>
+<ol>
+<li>Ubuntu 的 gcc 預設傳 <code>--as-needed</code> 給 <code>ld</code>：<code>.so</code> 只有在<strong>目前有人需要它的符號</strong>時才寫進 <code>NEEDED</code>、才拿來解決符號。</li>
+<li>遇到 <code>-ltxt</code> 時 <code>main</code> 還沒讀、沒人需要 <code>trim</code>，<code>libtxt.so</code> 就被丟掉 → 之後 <code>main</code> 的 <code>trim</code> 沒人提供 → <code>undefined reference</code>。</li>
+</ol>
+<p><strong>詳細說明</strong>：單純「由左往右」不會讓 <code>.so</code> 失敗：把 <code>-Wl,--no-as-needed</code> 放在 <code>-ltxt</code> 前面（<code>gcc -Wall -L. -Wl,--no-as-needed -ltxt main.c -o app4</code>）就成功，<code>readelf -d app4</code> 有 <code>NEEDED libtxt.so</code>。所以 <code>.a</code> 和 <code>.so</code> 失敗的機制不同（<code>.a</code> 是不拉成員、<code>.so</code> 是被 <code>--as-needed</code> 丟掉），但結論一樣：<code>-l</code> 一律寫在後面。</p>
+</details>
+</details>
+<details class="answer self-practice"><summary>自我練習（不批改）</summary>
+<div class="answer-box" data-file="review/2026-11-05-函式庫-C資料-hello-GNU-objdump-陣列-組語.md" data-line="143" data-insert="1" data-anchor="&gt; &#42;&#42;詳細說明&#42;&#42;：單純「由左往右」不會讓 `.so` 失敗：把 `-Wl,--no-as-needed` 放在 `-ltxt` 前面（`gcc -Wall -L. -Wl,--no-as-needed -ltxt main.c -o app4`）就成功，`readelf -d app4` 有 `NEEDED libtxt.so`。所以 `.a` 和 `.so` 失敗的機制不同（`.a` 是不拉成員、`.so` 是被 `--as-needed` 丟掉），但結論一樣：`-l` 一律寫在後面。"><textarea spellcheck="false" placeholder="不看答案，寫寫看還記得多少（不批改，只存檔）"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <hr />
 <h3 id="函式庫-4-情境連結成功執行找不到-libfooso">函式庫 4. 情境：連結成功、執行找不到 <code>libfoo.so</code></h3>
@@ -193,15 +289,27 @@
 <p>情境題：你在 <code>/home/me/proj/</code> 下做了 <code>lib/libfoo.so</code> 和用它的 <code>app</code>，連結指令是 <code>gcc main.c -Llib -lfoo -o app</code>。連結成功，<code>./app</code> 卻印出 <code>error while loading shared libraries: libfoo.so: cannot open shared object file</code>。(1) 這個訊息是誰印的？為什麼連結時找得到、執行時找不到？(2) 你想讓 <code>app</code> 和 <code>lib/</code> 一起打包給同事，同事解壓到任何地方都能直接執行，連結指令要怎麼改？為什麼要用單引號？(3) 同事想臨時用 <code>LD_LIBRARY_PATH</code> 換成他自己編的 <code>libfoo.so</code> 來除錯，在你的做法（<code>RUNPATH</code>）下換得掉嗎？如果是 <code>RPATH</code> 呢？為什麼？</p>
 <h4 id="函式庫-4-1-這個訊息是誰印的為什麼連結時找得到執行時找不到">函式庫 4-1. 這個訊息是誰印的？為什麼連結時找得到、執行時找不到？</h4>
 <details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="review/2026-11-05-函式庫-C資料-hello-GNU-objdump-陣列-組語.md" data-line="100"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="review/2026-11-05-函式庫-C資料-hello-GNU-objdump-陣列-組語.md" data-line="154"><textarea spellcheck="false" placeholder="在這裡作答">這個是ld.so印的
+因爲ld在連結的時候可以從命令行知道這個庫所在的路徑位址,也就是-Llib
+但ld.so他只能從dynamic section 知道NEEDED寫libfoo.so卻不知道它到底在哪,所以他只能從預設的搜尋的路徑開始找,最後就是找不到
+</textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h4 id="函式庫-4-2-你想讓-app-和-lib-一起打包給同事同事解壓到任何地方都能直接執行連結指令要怎麼改為什麼要用單引號">函式庫 4-2. 你想讓 <code>app</code> 和 <code>lib/</code> 一起打包給同事，同事解壓到任何地方都能直接執行，連結指令要怎麼改？為什麼要用單引號？</h4>
 <details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="review/2026-11-05-函式庫-C資料-hello-GNU-objdump-陣列-組語.md" data-line="105"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="review/2026-11-05-函式庫-C資料-hello-GNU-objdump-陣列-組語.md" data-line="162"><textarea spellcheck="false" placeholder="在這裡作答">加入runpath
+gcc main.c -Llib -lfoo -Wl,-rpath,&#x27;$ORIGIN/lib&#x27; -o app
+
+因爲單引號就是把裏面的內容視爲純字符串,不會展開像是變量$ORIGIN 得到的runpath就真的是 &#x27;$ORIGIN/lib&#x27;, 這樣ld.so可知道,origin是在執行檔所在的位置,也就可以正確的找到庫的位置
+用雙引號就會展開,最後因爲$ORIGIN是空字符串得到了/lib,找不到
+</textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h4 id="函式庫-4-3-同事想臨時用-ld_library_path-換成他自己編的-libfooso-來除錯在你的做法runpath下換得掉嗎如果是-rpath-呢為什麼">函式庫 4-3. 同事想臨時用 <code>LD_LIBRARY_PATH</code> 換成他自己編的 <code>libfoo.so</code> 來除錯，在你的做法（<code>RUNPATH</code>）下換得掉嗎？如果是 <code>RPATH</code> 呢？為什麼？</h4>
 <details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="review/2026-11-05-函式庫-C資料-hello-GNU-objdump-陣列-組語.md" data-line="110"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="review/2026-11-05-函式庫-C資料-hello-GNU-objdump-陣列-組語.md" data-line="172"><textarea spellcheck="false" placeholder="在這裡作答">runpath 可以
+rpath不行
+
+因爲runpath,會優先讀LD_LIBRARY_PATH, 但rpath會優先讀rpath
+</textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <hr />
 <h3 id="函式庫-8-plt-與-got函式的位址存在哪延遲綁定10-26-追問新增">函式庫 8. PLT 與 GOT：函式的位址存在哪、延遲綁定（10-26 追問新增）</h3>
@@ -250,15 +358,15 @@
 </code></pre>
 <h4 id="函式庫-8-1-反組譯裡的-log_msgplt-是一張存位址的表嗎如果不是它是什麼log_msg-的位址存在哪個區段的哪一格用-jmp-那行的數字算出來">函式庫 8-1. 反組譯裡的 <code>log_msg@plt</code> 是一張存位址的表嗎？如果不是，它是什麼？<code>log_msg</code> 的位址存在哪個區段的哪一格？用 <code>jmp</code> 那行的數字算出來。</h4>
 <details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="review/2026-11-05-函式庫-C資料-hello-GNU-objdump-陣列-組語.md" data-line="166"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="review/2026-11-05-函式庫-C資料-hello-GNU-objdump-陣列-組語.md" data-line="232"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h4 id="函式庫-8-2-第一次和第二次-call-1070-log_msgplt從-call-到進入-log_msg-各經過哪些地方ldso-在哪一次介入做了什麼">函式庫 8-2. 第一次和第二次 <code>call 1070 &lt;log_msg@plt&gt;</code>，從 <code>call</code> 到進入 <code>log_msg</code> 各經過哪些地方？<code>ld.so</code> 在哪一次介入、做了什麼？</h4>
 <details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="review/2026-11-05-函式庫-C資料-hello-GNU-objdump-陣列-組語.md" data-line="171"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="review/2026-11-05-函式庫-C資料-hello-GNU-objdump-陣列-組語.md" data-line="237"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h4 id="函式庫-8-3-全域變數為什麼不能用這種第一次用到才查的方式一定要載入時就把-got-那格填好">函式庫 8-3. 全域變數為什麼不能用這種「第一次用到才查」的方式，一定要載入時就把 <code>.got</code> 那格填好？</h4>
 <details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="review/2026-11-05-函式庫-C資料-hello-GNU-objdump-陣列-組語.md" data-line="176"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="review/2026-11-05-函式庫-C資料-hello-GNU-objdump-陣列-組語.md" data-line="242"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <hr />
 <h3 id="函式庫-10-共用的-so格子裡的位址與實體頁10-26-追問新增">函式庫 10. 共用的 <code>.so</code>：格子裡的位址與實體頁（10-26 追問新增）</h3>
@@ -316,11 +424,11 @@
 </code></pre>
 <h4 id="函式庫-10-1-兩個行程第一次呼叫-calc-之後各自-gotplt-裡-area-那格裝的數字一樣嗎為什麼那個數字是誰用哪兩樣東西算出來的">函式庫 10-1. 兩個行程第一次呼叫 <code>calc</code> 之後，各自 <code>.got.plt</code> 裡 <code>area</code> 那格裝的數字一樣嗎？為什麼？那個數字是誰、用哪兩樣東西算出來的？</h4>
 <details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="review/2026-11-05-函式庫-C資料-hello-GNU-objdump-陣列-組語.md" data-line="243"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="review/2026-11-05-函式庫-C資料-hello-GNU-objdump-陣列-組語.md" data-line="309"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h4 id="函式庫-10-4-同學分別用-gdb-跑-m-和-np-area-兩邊都印-0x7ffff7fb7119他說看吧兩個行程的-area-在同一個位址這個推論哪裡有問題">函式庫 10-4. 同學分別用 gdb 跑 <code>m</code> 和 <code>n</code>，<code>p area</code> 兩邊都印 <code>0x7ffff7fb7119</code>，他說「看吧，兩個行程的 <code>area</code> 在同一個位址」。這個推論哪裡有問題？</h4>
 <details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="review/2026-11-05-函式庫-C資料-hello-GNU-objdump-陣列-組語.md" data-line="248"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="review/2026-11-05-函式庫-C資料-hello-GNU-objdump-陣列-組語.md" data-line="314"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <hr />
 <h3 id="函式庫-11-主程式只寫-extern變數放在哪裡10-26-追問新增">函式庫 11. 主程式只寫 <code>extern</code>：變數放在哪裡（10-26 追問新增）</h3>
@@ -353,19 +461,19 @@
 <p>編譯：<code>gcc -Wall -fPIC -c cfg.c -o cfg.pic.o &amp;&amp; gcc -shared cfg.pic.o -o libcfg.so &amp;&amp; gcc -Wall setlevel.c -L. -lcfg -Wl,-rpath,'$ORIGIN' -o setlevel</code>（檔案：<a href="../../small-project/s1-07-libraries/examples/pic/cfg.c"><code>cfg.c</code></a>、<a href="../../small-project/s1-07-libraries/examples/pic/setlevel.c"><code>setlevel.c</code></a>）。主程式是 Ubuntu 預設的 <code>-fPIE</code>。</p>
 <h4 id="函式庫-11-1-執行後兩行各印多少">函式庫 11-1. 執行後兩行各印多少？</h4>
 <details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="review/2026-11-05-函式庫-C資料-hello-GNU-objdump-陣列-組語.md" data-line="286"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="review/2026-11-05-函式庫-C資料-hello-GNU-objdump-陣列-組語.md" data-line="352"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h4 id="函式庫-11-2-nm-setlevel-會不會看到-level在哪一種區段為什麼原始碼只有-extern-卻會有">函式庫 11-2. <code>nm setlevel</code> 會不會看到 <code>level</code>？在哪一種區段？為什麼原始碼只有 <code>extern</code> 卻會有？</h4>
 <details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="review/2026-11-05-函式庫-C資料-hello-GNU-objdump-陣列-組語.md" data-line="291"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="review/2026-11-05-函式庫-C資料-hello-GNU-objdump-陣列-組語.md" data-line="357"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h4 id="函式庫-11-3-第一行印出的值是怎麼放進那裡的get_level-讀的是哪一份-level用重定位的類型和-ldso-找符號的順序說明">函式庫 11-3. 第一行印出的值是怎麼放進那裡的？<code>get_level()</code> 讀的是哪一份 <code>level</code>？用重定位的類型和 <code>ld.so</code> 找符號的順序說明。</h4>
 <details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="review/2026-11-05-函式庫-C資料-hello-GNU-objdump-陣列-組語.md" data-line="296"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="review/2026-11-05-函式庫-C資料-hello-GNU-objdump-陣列-組語.md" data-line="362"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h4 id="函式庫-11-4-之後把-cfgc-改成-long-level--3-重做-libcfgsosetlevel-不重新連結就執行會發生什麼事為什麼">函式庫 11-4. 之後把 <code>cfg.c</code> 改成 <code>long level = 3;</code> 重做 <code>libcfg.so</code>，<code>setlevel</code> 不重新連結就執行，會發生什麼事、為什麼？</h4>
 <details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="review/2026-11-05-函式庫-C資料-hello-GNU-objdump-陣列-組語.md" data-line="301"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="review/2026-11-05-函式庫-C資料-hello-GNU-objdump-陣列-組語.md" data-line="367"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <hr />
 <h3 id="函式庫-13---as-needed讀到-so-那一刻的清單">函式庫 13. <code>--as-needed</code>：讀到 <code>.so</code> 那一刻的清單</h3>
@@ -411,19 +519,19 @@
 <p>做 <code>.so</code>：<code>gcc -Wall -fPIC -shared case.c space.c trim.c -o libtxt.so</code>；做 <code>.a</code>：<code>gcc -Wall -c case.c space.c trim.c &amp;&amp; ar rcs libtxt.a case.o space.o trim.o &amp;&amp; rm libtxt.so</code>（檔案都在 <a href="../../small-project/s1-07-libraries/examples/asneeded/"><code>examples/asneeded/</code></a>）。啟動檔 <code>Scrt1.o</code> 未定義的符號可以用 <code>nm -u $(gcc -print-file-name=Scrt1.o)</code> 看。</p>
 <h4 id="函式庫-13-1-用-gcc--wall--l--ltxt-mainc--o-app_bad-ltxt-寫在-mainc-前面連結時gcc--v-顯示-gcc-交給-ld-的順序是-scrt1o-crtio-crtbeginso---ltxt-mainc-的-o---lc-讀到--ltxt-那一刻還沒找到定義的符號清單是空的嗎裡面有-trim-嗎為什麼">函式庫 13-1. 用 <code>gcc -Wall -L. -ltxt main.c -o app_bad</code>（<code>-ltxt</code> 寫在 <code>main.c</code> 前面）連結時，<code>gcc -v</code> 顯示 gcc 交給 <code>ld</code> 的順序是 <code>Scrt1.o crti.o crtbeginS.o … -ltxt &lt;main.c 的 .o&gt; … -lc …</code>。讀到 <code>-ltxt</code> 那一刻，「還沒找到定義的符號」清單是空的嗎？裡面有 <code>trim</code> 嗎？為什麼？</h4>
 <details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="review/2026-11-05-函式庫-C資料-hello-GNU-objdump-陣列-組語.md" data-line="355"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="review/2026-11-05-函式庫-C資料-hello-GNU-objdump-陣列-組語.md" data-line="421"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h4 id="函式庫-13-2-預設下-gcc--wall--l--ltxt-mainc--o-app_bad-失敗把--wl--no-as-needed-放在--ltxt-前面gcc--wall--l--wl--no-as-needed--ltxt-mainc--o-app_no就成功讀到-libtxtso-時兩種模式各做了什麼maino-要的-trim-最後是怎麼被解決的是-libtxtso-把-trim-加進了清單嗎">函式庫 13-2. 預設下 <code>gcc -Wall -L. -ltxt main.c -o app_bad</code> 失敗；把 <code>-Wl,--no-as-needed</code> 放在 <code>-ltxt</code> 前面（<code>gcc -Wall -L. -Wl,--no-as-needed -ltxt main.c -o app_no</code>）就成功。讀到 <code>libtxt.so</code> 時兩種模式各做了什麼？<code>main.o</code> 要的 <code>trim</code> 最後是怎麼被解決的——是 <code>libtxt.so</code> 把 <code>trim</code> 加進了清單嗎？</h4>
 <details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="review/2026-11-05-函式庫-C資料-hello-GNU-objdump-陣列-組語.md" data-line="360"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="review/2026-11-05-函式庫-C資料-hello-GNU-objdump-陣列-組語.md" data-line="426"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h4 id="函式庫-13-3-nonec-用-gcc--wall-nonec--l--wl--no-as-needed--ltxt--o-none_no-和-gcc--wall-nonec--l--ltxt--o-none_as-各連結一次readelf--d-的-needed-會差在哪ubuntu-為什麼預設開---as-needed">函式庫 13-3. <code>none.c</code> 用 <code>gcc -Wall none.c -L. -Wl,--no-as-needed -ltxt -o none_no</code> 和 <code>gcc -Wall none.c -L. -ltxt -o none_as</code> 各連結一次，<code>readelf -d</code> 的 <code>NEEDED</code> 會差在哪？Ubuntu 為什麼預設開 <code>--as-needed</code>？</h4>
 <details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="review/2026-11-05-函式庫-C資料-hello-GNU-objdump-陣列-組語.md" data-line="365"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="review/2026-11-05-函式庫-C資料-hello-GNU-objdump-陣列-組語.md" data-line="431"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h4 id="函式庫-13-4-把-libtxtso-換成同樣三個-o-做成的-libtxta並刪掉-libtxtsogcc--wall--l--wl--no-as-needed--ltxt-mainc--o-app_a-會成功嗎為什麼">函式庫 13-4. 把 <code>libtxt.so</code> 換成同樣三個 <code>.o</code> 做成的 <code>libtxt.a</code>（並刪掉 <code>libtxt.so</code>），<code>gcc -Wall -L. -Wl,--no-as-needed -ltxt main.c -o app_a</code> 會成功嗎？為什麼？</h4>
 <details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="review/2026-11-05-函式庫-C資料-hello-GNU-objdump-陣列-組語.md" data-line="370"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="review/2026-11-05-函式庫-C資料-hello-GNU-objdump-陣列-組語.md" data-line="436"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <hr />
 <h2 id="c資料c的資料在記憶體裡長怎樣-位元組指標位元組順序與有號無號">C資料：<a href="../c/C%E7%9A%84%E8%B3%87%E6%96%99%E5%9C%A8%E8%A8%98%E6%86%B6%E9%AB%94%E8%A3%A1%E9%95%B7%E6%80%8E%E6%A8%A3-%E4%BD%8D%E5%85%83%E7%B5%84%E3%80%81%E6%8C%87%E6%A8%99%E3%80%81%E4%BD%8D%E5%85%83%E7%B5%84%E9%A0%86%E5%BA%8F%E8%88%87%E6%9C%89%E8%99%9F%E7%84%A1%E8%99%9F.html">C的資料在記憶體裡長怎樣-位元組、指標、位元組順序與有號無號</a></h2>
@@ -432,7 +540,7 @@
 <p>盒子 2｜過去的作答：<a href="../small-project/s1-02-data-repr/quiz.html#9-%E6%83%85%E5%A2%83%E9%A1%8C%E6%9C%89%E4%BA%BA%E5%AF%AB%E4%BA%86-if-len---used--0-%E5%88%A4%E6%96%B7%E7%B7%A9%E8%A1%9D%E5%8D%80%E9%82%84%E6%9C%89%E6%B2%92%E6%9C%89%E5%89%A9%E9%A4%98%E7%A9%BA%E9%96%93lenused-%E9%83%BD%E6%98%AF-size_t%E7%94%A8--wall--wextra-%E7%B7%A8%E8%AD%AF%E6%B2%92%E6%9C%89%E4%BB%BB%E4%BD%95%E8%AD%A6%E5%91%8A%E9%80%99%E5%80%8B%E5%88%A4%E6%96%B7%E5%9C%A8%E4%BB%80%E9%BA%BC%E6%83%85%E6%B3%81%E4%B8%8B%E6%9C%83%E5%87%BA%E9%8C%AF%E7%82%BA%E4%BB%80%E9%BA%BC-gcc-%E5%B0%8D-len---used--0-%E6%9C%83%E8%AD%A6%E5%91%8A%E5%B0%8D--0-%E5%8D%BB%E4%B8%8D%E6%9C%83%E5%8F%A6%E5%A4%96%E7%82%BA%E4%BB%80%E9%BA%BC-int-sum--x--y-if-sum--x-%E9%80%99%E7%A8%AE%E6%BA%A2%E4%BD%8D%E6%AA%A2%E6%9F%A5%E5%9C%A8--o2-%E4%B8%8B%E5%8F%AF%E8%83%BD%E5%AE%8C%E5%85%A8%E5%A4%B1%E6%95%88">s1-02 quiz.md 第 9 題</a>、<a href="2026-10-04-%E5%AD%97%E5%85%83-C%E8%B3%87%E6%96%99-objdump-hello-ELF.html">10-04 複習</a>、<a href="2026-10-08-%E5%AD%97%E5%85%83-C%E8%B3%87%E6%96%99-objdump-hello-ELF-%E9%99%A3%E5%88%97.html">10-08 複習</a>、<a href="2026-10-11-%E5%AD%97%E5%85%83-C%E8%B3%87%E6%96%99-objdump-GNU-%E9%99%A3%E5%88%97.html">10-11 複習</a>、<a href="2026-10-20-C%E8%B3%87%E6%96%99-objdump-%E5%AD%97%E5%85%83-%E9%99%A3%E5%88%97-gcc.html">10-20 複習</a>、<a href="2026-10-23-%E5%A4%A7%E8%A4%87%E7%BF%92-hello-gcc-GNU-interp-ELF-objdump-C%E8%B3%87%E6%96%99-%E5%AD%97%E5%85%83-%E9%99%A3%E5%88%97-%E7%B5%84%E8%AA%9E-%E7%B5%84%E8%AA%9E%E4%BA%8C-%E5%A4%9A%E6%AA%94.html">10-23 複習</a>、<a href="2026-10-24-gcc-GNU-ELF-objdump-C%E8%B3%87%E6%96%99-%E5%AD%97%E5%85%83-%E9%99%A3%E5%88%97-%E7%B5%84%E8%AA%9E-%E7%B5%84%E8%AA%9E%E4%BA%8C-%E5%A4%9A%E6%AA%94.html">10-24 複習</a>、<a href="2026-10-27-gcc-ELF-objdump-C%E8%B3%87%E6%96%99-%E5%AD%97%E5%85%83-%E9%99%A3%E5%88%97-%E7%B5%84%E8%AA%9E-%E7%B5%84%E8%AA%9E%E4%BA%8C-%E5%A4%9A%E6%AA%94.html">10-27 複習</a>、<a href="2026-10-30-hello-gcc-GNU-interp-ELF-objdump-C%E8%B3%87%E6%96%99-%E5%AD%97%E5%85%83-%E9%99%A3%E5%88%97-%E7%B5%84%E8%AA%9E.html#c%E8%B3%87%E6%96%99-9-%E6%83%85%E5%A2%83%E9%A1%8C%E6%9C%89%E4%BA%BA%E5%AF%AB%E4%BA%86-if-len---used--0-%E5%88%A4%E6%96%B7%E7%B7%A9%E8%A1%9D%E5%8D%80%E9%82%84%E6%9C%89%E6%B2%92%E6%9C%89%E5%89%A9%E9%A4%98%E7%A9%BA%E9%96%93lenused-%E9%83%BD%E6%98%AF-size_t%E7%94%A8--wall--wextra-%E7%B7%A8%E8%AD%AF%E6%B2%92%E6%9C%89%E4%BB%BB%E4%BD%95%E8%AD%A6%E5%91%8A%E9%80%99%E5%80%8B%E5%88%A4%E6%96%B7%E5%9C%A8%E4%BB%80%E9%BA%BC%E6%83%85%E6%B3%81%E4%B8%8B%E6%9C%83%E5%87%BA%E9%8C%AF%E7%82%BA%E4%BB%80%E9%BA%BC-gcc-%E5%B0%8D-len---used--0-%E6%9C%83%E8%AD%A6%E5%91%8A%E5%B0%8D--0-%E5%8D%BB%E4%B8%8D%E6%9C%83%E5%8F%A6%E5%A4%96%E7%82%BA%E4%BB%80%E9%BA%BC-int-sum--x--y-if-sum--x-%E9%80%99%E7%A8%AE%E6%BA%A2%E4%BD%8D%E6%AA%A2%E6%9F%A5%E5%9C%A8--o2-%E4%B8%8B%E5%8F%AF%E8%83%BD%E5%AE%8C%E5%85%A8%E5%A4%B1%E6%95%88">10-30 複習</a>、<a href="2026-11-02-%E5%87%BD%E5%BC%8F%E5%BA%AB-interp-C%E8%B3%87%E6%96%99-%E5%AD%97%E5%85%83-%E9%99%A3%E5%88%97-%E7%B5%84%E8%AA%9E-%E7%B5%84%E8%AA%9E%E4%BA%8C-%E5%A4%9A%E6%AA%94.html#c%E8%B3%87%E6%96%99-9-%E6%83%85%E5%A2%83%E9%A1%8C%E6%9C%89%E4%BA%BA%E5%AF%AB%E4%BA%86-if-len---used--0-%E5%88%A4%E6%96%B7%E7%B7%A9%E8%A1%9D%E5%8D%80%E9%82%84%E6%9C%89%E6%B2%92%E6%9C%89%E5%89%A9%E9%A4%98%E7%A9%BA%E9%96%93lenused-%E9%83%BD%E6%98%AF-size_t%E7%94%A8--wall--wextra-%E7%B7%A8%E8%AD%AF%E6%B2%92%E6%9C%89%E4%BB%BB%E4%BD%95%E8%AD%A6%E5%91%8A%E9%80%99%E5%80%8B%E5%88%A4%E6%96%B7%E5%9C%A8%E4%BB%80%E9%BA%BC%E6%83%85%E6%B3%81%E4%B8%8B%E6%9C%83%E5%87%BA%E9%8C%AF%E7%82%BA%E4%BB%80%E9%BA%BC-gcc-%E5%B0%8D-len---used--0-%E6%9C%83%E8%AD%A6%E5%91%8A%E5%B0%8D--0-%E5%8D%BB%E4%B8%8D%E6%9C%83%E5%8F%A6%E5%A4%96%E6%9C%89%E4%BA%BA%E7%94%A8-int-sum--x--y-if-sum--x-%E6%AA%A2%E6%9F%A5x-%E5%8A%A0%E4%B8%8A%E4%B8%80%E5%80%8B%E6%AD%A3%E6%95%B8-y-%E6%9C%83%E4%B8%8D%E6%9C%83%E6%BA%A2%E4%BD%8D%E7%82%BA%E4%BB%80%E9%BA%BC%E9%80%99%E5%80%8B%E6%AA%A2%E6%9F%A5%E5%9C%A8--o2-%E4%B8%8B%E5%8F%AF%E8%83%BD%E5%AE%8C%E5%85%A8%E5%A4%B1%E6%95%88">11-02 複習</a></p>
 </blockquote>
 <details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="review/2026-11-05-函式庫-C資料-hello-GNU-objdump-陣列-組語.md" data-line="381"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="review/2026-11-05-函式庫-C資料-hello-GNU-objdump-陣列-組語.md" data-line="447"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <hr />
 <h2 id="hellohelloc怎麼變成能跑的程式-編譯的四個階段">hello：<a href="../c/hello.c%E6%80%8E%E9%BA%BC%E8%AE%8A%E6%88%90%E8%83%BD%E8%B7%91%E7%9A%84%E7%A8%8B%E5%BC%8F-%E7%B7%A8%E8%AD%AF%E7%9A%84%E5%9B%9B%E5%80%8B%E9%9A%8E%E6%AE%B5.html">hello.c怎麼變成能跑的程式-編譯的四個階段</a></h2>
@@ -441,7 +549,7 @@
 <p>盒子 3｜過去的作答：<a href="../small-project/s1-01-hello-compile/quiz.html#5-%E6%83%85%E5%A2%83%E9%A1%8C%E4%BD%A0%E6%8A%8A%E4%B8%80%E6%94%AF%E5%8B%95%E6%85%8B%E9%80%A3%E7%B5%90%E7%9A%84%E7%A8%8B%E5%BC%8F%E8%A4%87%E8%A3%BD%E5%88%B0%E5%8F%A6%E4%B8%80%E5%8F%B0%E6%A9%9F%E5%99%A8%E5%9F%B7%E8%A1%8C%E6%99%82%E5%87%BA%E7%8F%BE%E6%89%BE%E4%B8%8D%E5%88%B0-libcso6-%E6%9F%90%E5%80%8B%E7%89%88%E6%9C%AC%E7%AC%A6%E8%99%9F%E7%9A%84%E9%8C%AF%E8%AA%A4%E5%BE%9E%E6%9C%AC%E8%AA%B2%E7%9A%84%E5%93%AA%E5%80%8B%E9%9A%8E%E6%AE%B5%E5%8F%AF%E4%BB%A5%E8%A7%A3%E9%87%8B%E9%80%99%E4%BB%B6%E4%BA%8B%E5%A6%82%E6%9E%9C%E6%94%B9%E7%94%A8--static-%E7%B7%A8%E8%AD%AF%E9%80%99%E5%80%8B%E5%95%8F%E9%A1%8C%E9%82%84%E6%9C%83%E7%99%BC%E7%94%9F%E5%97%8E">s1-01 quiz.md 第 5 題</a>、<a href="2026-10-04-%E5%AD%97%E5%85%83-C%E8%B3%87%E6%96%99-objdump-hello-ELF.html">10-04 複習</a>、<a href="2026-10-08-%E5%AD%97%E5%85%83-C%E8%B3%87%E6%96%99-objdump-hello-ELF-%E9%99%A3%E5%88%97.html#hello-5-%E6%83%85%E5%A2%83%E9%A1%8C%E4%BD%A0%E6%8A%8A%E4%B8%80%E6%94%AF%E5%8B%95%E6%85%8B%E9%80%A3%E7%B5%90%E7%9A%84%E7%A8%8B%E5%BC%8F%E8%A4%87%E8%A3%BD%E5%88%B0%E5%8F%A6%E4%B8%80%E5%8F%B0%E6%A9%9F%E5%99%A8%E5%9F%B7%E8%A1%8C%E6%99%82%E5%87%BA%E7%8F%BE%E6%89%BE%E4%B8%8D%E5%88%B0-libcso6-%E6%9F%90%E5%80%8B%E7%89%88%E6%9C%AC%E7%AC%A6%E8%99%9F%E7%9A%84%E9%8C%AF%E8%AA%A4%E5%BE%9E%E6%9C%AC%E8%AA%B2%E7%9A%84%E5%93%AA%E5%80%8B%E9%9A%8E%E6%AE%B5%E5%8F%AF%E4%BB%A5%E8%A7%A3%E9%87%8B%E9%80%99%E4%BB%B6%E4%BA%8B%E5%A6%82%E6%9E%9C%E6%94%B9%E7%94%A8--static-%E7%B7%A8%E8%AD%AF%E9%80%99%E5%80%8B%E5%95%8F%E9%A1%8C%E9%82%84%E6%9C%83%E7%99%BC%E7%94%9F%E5%97%8E">10-08 複習</a>、<a href="2026-10-12-objdump-hello-ELF-%E9%99%A3%E5%88%97-%E7%B5%84%E8%AA%9E.html">10-12 複習</a>、<a href="2026-10-23-%E5%A4%A7%E8%A4%87%E7%BF%92-hello-gcc-GNU-interp-ELF-objdump-C%E8%B3%87%E6%96%99-%E5%AD%97%E5%85%83-%E9%99%A3%E5%88%97-%E7%B5%84%E8%AA%9E-%E7%B5%84%E8%AA%9E%E4%BA%8C-%E5%A4%9A%E6%AA%94.html">10-23 複習</a>、<a href="2026-10-26-hello-GNU-interp-objdump-C%E8%B3%87%E6%96%99-%E5%AD%97%E5%85%83-%E9%99%A3%E5%88%97-%E7%B5%84%E8%AA%9E-%E7%B5%84%E8%AA%9E%E4%BA%8C-%E5%A4%9A%E6%AA%94.html">10-26 複習</a>、<a href="2026-10-29-hello-GNU-objdump-%E9%99%A3%E5%88%97-%E7%B5%84%E8%AA%9E.html#hello-5-%E6%83%85%E5%A2%83%E9%A1%8C%E4%BD%A0%E6%8A%8A%E4%B8%80%E6%94%AF%E5%8B%95%E6%85%8B%E9%80%A3%E7%B5%90%E7%9A%84%E7%A8%8B%E5%BC%8F%E8%A4%87%E8%A3%BD%E5%88%B0%E5%8F%A6%E4%B8%80%E5%8F%B0%E6%A9%9F%E5%99%A8%E5%9F%B7%E8%A1%8C%E6%99%82%E5%87%BA%E7%8F%BE%E6%89%BE%E4%B8%8D%E5%88%B0-libcso6-%E6%9F%90%E5%80%8B%E7%89%88%E6%9C%AC%E7%AC%A6%E8%99%9F%E7%9A%84%E9%8C%AF%E8%AA%A4%E5%BE%9E%E6%9C%AC%E8%AA%B2%E7%9A%84%E5%93%AA%E5%80%8B%E9%9A%8E%E6%AE%B5%E5%8F%AF%E4%BB%A5%E8%A7%A3%E9%87%8B%E9%80%99%E4%BB%B6%E4%BA%8B%E5%A6%82%E6%9E%9C%E6%94%B9%E7%94%A8--static-%E7%B7%A8%E8%AD%AF%E9%80%99%E5%80%8B%E5%95%8F%E9%A1%8C%E9%82%84%E6%9C%83%E7%99%BC%E7%94%9F%E5%97%8E">10-29 複習</a></p>
 </blockquote>
 <details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="review/2026-11-05-函式庫-C資料-hello-GNU-objdump-陣列-組語.md" data-line="392"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="review/2026-11-05-函式庫-C資料-hello-GNU-objdump-陣列-組語.md" data-line="458"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <hr />
 <h2 id="gnugnu是什麼-linux核心與gnu工具的分工">GNU：<a href="../linux/GNU%E6%98%AF%E4%BB%80%E9%BA%BC-Linux%E6%A0%B8%E5%BF%83%E8%88%87GNU%E5%B7%A5%E5%85%B7%E7%9A%84%E5%88%86%E5%B7%A5.html">GNU是什麼-Linux核心與GNU工具的分工</a></h2>
@@ -450,7 +558,7 @@
 <p>盒子 3｜過去的作答：<a href="../small-project/s1-01-hello-compile/quiz.html#4-gpl-%E7%9A%84-copyleft-%E8%A6%81%E6%B1%82%E4%BB%80%E9%BA%BCglibc-%E7%94%A8-lgpl-%E8%80%8C%E4%B8%8D%E6%98%AF-gpl%E5%B0%8D%E5%95%86%E6%A5%AD%E8%BB%9F%E9%AB%94%E8%83%BD%E4%B8%8D%E8%83%BD%E9%80%A3%E7%B5%90-libc%E6%9C%89%E4%BB%80%E9%BA%BC%E5%B7%AE%E5%88%A5">s1-01 quiz.md 第 4 題</a>、<a href="2026-10-06-%E5%AD%97%E5%85%83-interp-ELF-gcc-GNU.html#gnu-4-gpl-%E7%9A%84-copyleft-%E8%A6%81%E6%B1%82%E4%BB%80%E9%BA%BCglibc-%E7%94%A8-lgpl-%E8%80%8C%E4%B8%8D%E6%98%AF-gpl%E5%B0%8D%E5%95%86%E6%A5%AD%E8%BB%9F%E9%AB%94%E8%83%BD%E4%B8%8D%E8%83%BD%E9%80%A3%E7%B5%90-libc%E6%9C%89%E4%BB%80%E9%BA%BC%E5%B7%AE%E5%88%A5">10-06 複習</a>、<a href="2026-10-10-C%E8%B3%87%E6%96%99-GNU-interp-hello-gcc.html#gnu-4-gpl-%E7%9A%84-copyleft-%E8%A6%81%E6%B1%82%E4%BB%80%E9%BA%BCglibc-%E7%94%A8-lgpl-%E8%80%8C%E4%B8%8D%E6%98%AF-gpl%E5%B0%8D%E5%95%86%E6%A5%AD%E8%BB%9F%E9%AB%94%E8%83%BD%E4%B8%8D%E8%83%BD%E9%80%A3%E7%B5%90-libc%E6%9C%89%E4%BB%80%E9%BA%BC%E5%B7%AE%E5%88%A5">10-10 複習</a>、<a href="2026-10-19-interp-GNU-C%E8%B3%87%E6%96%99-ELF-objdump-%E7%B5%84%E8%AA%9E.html">10-19 複習</a>、<a href="2026-10-23-%E5%A4%A7%E8%A4%87%E7%BF%92-hello-gcc-GNU-interp-ELF-objdump-C%E8%B3%87%E6%96%99-%E5%AD%97%E5%85%83-%E9%99%A3%E5%88%97-%E7%B5%84%E8%AA%9E-%E7%B5%84%E8%AA%9E%E4%BA%8C-%E5%A4%9A%E6%AA%94.html">10-23 複習</a>、<a href="2026-10-26-hello-GNU-interp-objdump-C%E8%B3%87%E6%96%99-%E5%AD%97%E5%85%83-%E9%99%A3%E5%88%97-%E7%B5%84%E8%AA%9E-%E7%B5%84%E8%AA%9E%E4%BA%8C-%E5%A4%9A%E6%AA%94.html">10-26 複習</a>、<a href="2026-10-29-hello-GNU-objdump-%E9%99%A3%E5%88%97-%E7%B5%84%E8%AA%9E.html#gnu-4-gpl-%E7%9A%84-copyleft-%E8%A6%81%E6%B1%82%E4%BB%80%E9%BA%BCglibc-%E7%94%A8-lgpl-%E8%80%8C%E4%B8%8D%E6%98%AF-gpl%E5%B0%8D%E5%95%86%E6%A5%AD%E8%BB%9F%E9%AB%94%E8%83%BD%E4%B8%8D%E8%83%BD%E9%80%A3%E7%B5%90-libc%E6%9C%89%E4%BB%80%E9%BA%BC%E5%B7%AE%E5%88%A5">10-29 複習</a></p>
 </blockquote>
 <details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="review/2026-11-05-函式庫-C資料-hello-GNU-objdump-陣列-組語.md" data-line="403"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="review/2026-11-05-函式庫-C資料-hello-GNU-objdump-陣列-組語.md" data-line="469"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <hr />
 <h2 id="objdumpobjdump能不能代替ldd找依賴庫-需求單與實際載入">objdump：<a href="../c/objdump%E8%83%BD%E4%B8%8D%E8%83%BD%E4%BB%A3%E6%9B%BFldd%E6%89%BE%E4%BE%9D%E8%B3%B4%E5%BA%AB-%E9%9C%80%E6%B1%82%E5%96%AE%E8%88%87%E5%AF%A6%E9%9A%9B%E8%BC%89%E5%85%A5.html">objdump能不能代替ldd找依賴庫-需求單與實際載入</a></h2>
@@ -459,7 +567,7 @@
 <p>盒子 3｜過去的作答：<a href="../small-project/s1-01-hello-compile/quiz.html#3-%E4%B8%80%E6%94%AF%E7%A8%8B%E5%BC%8F%E9%80%A3%E7%B5%90%E6%99%82%E7%94%A8%E4%BA%86--llib--lfoo%E7%B7%A8%E8%AD%AF%E6%88%90%E5%8A%9F%E5%9F%B7%E8%A1%8C%E6%99%82%E5%8D%BB%E5%87%BA%E7%8F%BE-error-while-loading-shared-libraries-libfooso%E7%94%A8%E9%80%A3%E7%B5%90%E6%99%82%E8%88%87%E5%9F%B7%E8%A1%8C%E6%99%82%E5%88%86%E5%88%A5%E6%98%AF%E8%AA%B0%E5%9C%A8%E6%89%BE%E6%AA%94%E6%A1%88%E8%A7%A3%E9%87%8B%E7%82%BA%E4%BB%80%E9%BA%BC%E9%80%A3%E7%B5%90%E6%89%BE%E5%BE%97%E5%88%B0%E5%9F%B7%E8%A1%8C%E5%8D%BB%E6%89%BE%E4%B8%8D%E5%88%B0%E9%80%99%E6%99%82-objdump--p-%E8%88%87-ldd-%E5%90%84%E6%9C%83%E9%A1%AF%E7%A4%BA%E4%BB%80%E9%BA%BC">s1-01 quiz.md 第 3 題</a>、<a href="2026-10-04-%E5%AD%97%E5%85%83-C%E8%B3%87%E6%96%99-objdump-hello-ELF.html">10-04 複習</a>、<a href="2026-10-08-%E5%AD%97%E5%85%83-C%E8%B3%87%E6%96%99-objdump-hello-ELF-%E9%99%A3%E5%88%97.html">10-08 複習</a>、<a href="2026-10-11-%E5%AD%97%E5%85%83-C%E8%B3%87%E6%96%99-objdump-GNU-%E9%99%A3%E5%88%97.html">10-11 複習</a>、<a href="2026-10-20-C%E8%B3%87%E6%96%99-objdump-%E5%AD%97%E5%85%83-%E9%99%A3%E5%88%97-gcc.html">10-20 複習</a>、<a href="2026-10-23-%E5%A4%A7%E8%A4%87%E7%BF%92-hello-gcc-GNU-interp-ELF-objdump-C%E8%B3%87%E6%96%99-%E5%AD%97%E5%85%83-%E9%99%A3%E5%88%97-%E7%B5%84%E8%AA%9E-%E7%B5%84%E8%AA%9E%E4%BA%8C-%E5%A4%9A%E6%AA%94.html">10-23 複習</a>、<a href="2026-10-26-hello-GNU-interp-objdump-C%E8%B3%87%E6%96%99-%E5%AD%97%E5%85%83-%E9%99%A3%E5%88%97-%E7%B5%84%E8%AA%9E-%E7%B5%84%E8%AA%9E%E4%BA%8C-%E5%A4%9A%E6%AA%94.html">10-26 複習</a>、<a href="2026-10-29-hello-GNU-objdump-%E9%99%A3%E5%88%97-%E7%B5%84%E8%AA%9E.html#objdump-3-%E4%B8%80%E6%94%AF%E7%A8%8B%E5%BC%8F%E9%80%A3%E7%B5%90%E6%99%82%E7%94%A8%E4%BA%86--llib--lfoo%E7%B7%A8%E8%AD%AF%E6%88%90%E5%8A%9F%E5%9F%B7%E8%A1%8C%E6%99%82%E5%8D%BB%E5%87%BA%E7%8F%BE-error-while-loading-shared-libraries-libfooso%E7%94%A8%E9%80%A3%E7%B5%90%E6%99%82%E8%88%87%E5%9F%B7%E8%A1%8C%E6%99%82%E5%88%86%E5%88%A5%E6%98%AF%E8%AA%B0%E5%9C%A8%E6%89%BE%E6%AA%94%E6%A1%88%E8%A7%A3%E9%87%8B%E7%82%BA%E4%BB%80%E9%BA%BC%E9%80%A3%E7%B5%90%E6%89%BE%E5%BE%97%E5%88%B0%E5%9F%B7%E8%A1%8C%E5%8D%BB%E6%89%BE%E4%B8%8D%E5%88%B0%E9%80%99%E6%99%82-objdump--p-%E8%88%87-ldd-%E5%90%84%E6%9C%83%E9%A1%AF%E7%A4%BA%E4%BB%80%E9%BA%BC">10-29 複習</a></p>
 </blockquote>
 <details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="review/2026-11-05-函式庫-C資料-hello-GNU-objdump-陣列-組語.md" data-line="414"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="review/2026-11-05-函式庫-C資料-hello-GNU-objdump-陣列-組語.md" data-line="480"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <hr />
 <h2 id="陣列陣列字串與指標運算-c不檢查邊界與用gdb找segfault">陣列：<a href="../c/%E9%99%A3%E5%88%97%E3%80%81%E5%AD%97%E4%B8%B2%E8%88%87%E6%8C%87%E6%A8%99%E9%81%8B%E7%AE%97-C%E4%B8%8D%E6%AA%A2%E6%9F%A5%E9%82%8A%E7%95%8C%E8%88%87%E7%94%A8gdb%E6%89%BEsegfault.html">陣列、字串與指標運算-C不檢查邊界與用gdb找segfault</a></h2>
@@ -492,21 +600,21 @@ $<span class="w"> </span>./decay
 </code></pre>
 <h4 id="陣列-2-1-int-a10-在-main-裡-sizeof-a-是-40傳進-void-fint-a-之後-sizeof-a-變成-8為什麼">陣列 2-1. <code>int a[10];</code> 在 <code>main</code> 裡 <code>sizeof a</code> 是 40，傳進 <code>void f(int a[])</code> 之後 <code>sizeof a</code> 變成 8。為什麼？</h4>
 <details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="review/2026-11-05-函式庫-C資料-hello-GNU-objdump-陣列-組語.md" data-line="455"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="review/2026-11-05-函式庫-C資料-hello-GNU-objdump-陣列-組語.md" data-line="521"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h4 id="陣列-2-2-這件事對怎麼設計接收陣列的函式有什麼影響">陣列 2-2. 這件事對「怎麼設計接收陣列的函式」有什麼影響？</h4>
 <blockquote>
 <p>題目：這件事（陣列傳進函式之後 <code>sizeof a</code> 從 40 變成 8）對「怎麼設計接收陣列的函式」有什麼影響？</p>
 </blockquote>
 <details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="review/2026-11-05-函式庫-C資料-hello-GNU-objdump-陣列-組語.md" data-line="462"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="review/2026-11-05-函式庫-C資料-hello-GNU-objdump-陣列-組語.md" data-line="528"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h4 id="陣列-2-3-a-和-a-印出來的位址一樣它們差在哪裡">陣列 2-3. <code>a</code> 和 <code>&amp;a</code> 印出來的位址一樣，它們差在哪裡？</h4>
 <blockquote>
 <p>題目：<code>a</code> 和 <code>&amp;a</code> 印出來的位址一樣，它們差在哪裡？（<code>int a[10];</code>）</p>
 </blockquote>
 <details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="review/2026-11-05-函式庫-C資料-hello-GNU-objdump-陣列-組語.md" data-line="469"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="review/2026-11-05-函式庫-C資料-hello-GNU-objdump-陣列-組語.md" data-line="535"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <hr />
 <h2 id="組語x86-64組合語言入門-暫存器mov與leacmp與條件跳躍">組語：<a href="../c/x86-64%E7%B5%84%E5%90%88%E8%AA%9E%E8%A8%80%E5%85%A5%E9%96%80-%E6%9A%AB%E5%AD%98%E5%99%A8%E3%80%81mov%E8%88%87lea%E3%80%81cmp%E8%88%87%E6%A2%9D%E4%BB%B6%E8%B7%B3%E8%BA%8D.html">x86-64組合語言入門-暫存器、mov與lea、cmp與條件跳躍</a></h2>
@@ -516,25 +624,25 @@ $<span class="w"> </span>./decay
 </blockquote>
 <h4 id="組語-6-1-movsbl-的-l-叫-long為什麼是-4-byte而本機-c-的-long-是-8-byte">組語 6-1. <code>movsbl</code> 的 <code>l</code> 叫 long，為什麼是 4 byte，而本機 C 的 <code>long</code> 是 8 byte？</h4>
 <details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="review/2026-11-05-函式庫-C資料-hello-GNU-objdump-陣列-組語.md" data-line="482"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="review/2026-11-05-函式庫-C資料-hello-GNU-objdump-陣列-組語.md" data-line="548"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h4 id="組語-6-2-本機-c-的-long-在組合語言裡對到哪個字尾">組語 6-2. 本機 C 的 <code>long</code> 在組合語言裡對到哪個字尾？</h4>
 <details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="review/2026-11-05-函式庫-C資料-hello-GNU-objdump-陣列-組語.md" data-line="487"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="review/2026-11-05-函式庫-C資料-hello-GNU-objdump-陣列-組語.md" data-line="553"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h4 id="組語-6-3-這樣對嗎為什麼">組語 6-3. 這樣對嗎？為什麼？</h4>
 <blockquote>
 <p>題目：情境題：第 5 課你在 <code>gdb</code> 裡想看一個 <code>int</code> 變數的 4 個 byte，同學說「<code>int</code> 在組合語言是 <code>l</code>，所以用 <code>x/1l</code>」。這樣對嗎？為什麼？</p>
 </blockquote>
 <details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="review/2026-11-05-函式庫-C資料-hello-GNU-objdump-陣列-組語.md" data-line="494"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="review/2026-11-05-函式庫-C資料-hello-GNU-objdump-陣列-組語.md" data-line="560"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h4 id="組語-6-4-應該用哪個大小字母為什麼">組語 6-4. 應該用哪個大小字母，為什麼？</h4>
 <blockquote>
 <p>題目：（承上）在 gdb 裡用 <code>x</code> 看 <code>int</code> 變數的 4 個 byte，應該用哪個大小字母，為什麼？</p>
 </blockquote>
 <details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="review/2026-11-05-函式庫-C資料-hello-GNU-objdump-陣列-組語.md" data-line="501"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="review/2026-11-05-函式庫-C資料-hello-GNU-objdump-陣列-組語.md" data-line="567"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <hr />
 <h3 id="組語-12-檔案裡的位址-vs-執行時的位址">組語 12. 檔案裡的位址 vs 執行時的位址</h3>
@@ -571,11 +679,11 @@ gdb<span class="w"> </span>-batch<span class="w"> </span>-ex<span class="w"> </s
 <p>題目：<code>break *0x11f4</code> 之後 <code>run</code> 得到 <code>Cannot access memory at address 0x11f4</code>，<code>break *deref+4</code> 卻沒問題，為什麼？</p>
 </blockquote>
 <details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="review/2026-11-05-函式庫-C資料-hello-GNU-objdump-陣列-組語.md" data-line="548"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="review/2026-11-05-函式庫-C資料-hello-GNU-objdump-陣列-組語.md" data-line="614"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <h4 id="組語-12-2-如果程式是用--no-pie-編的break--加-objdump-查到的位址會不會成功為什麼">組語 12-2. 如果程式是用 <code>-no-pie</code> 編的，<code>break *</code> 加 <code>objdump</code> 查到的位址會不會成功？為什麼？</h4>
 <details class="answer-fold" open><summary>作答</summary>
-<div class="answer-box" data-file="review/2026-11-05-函式庫-C資料-hello-GNU-objdump-陣列-組語.md" data-line="553"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
+<div class="answer-box" data-file="review/2026-11-05-函式庫-C資料-hello-GNU-objdump-陣列-組語.md" data-line="619"><textarea spellcheck="false" placeholder="在這裡作答"></textarea><div class="answer-bar"><button class="save" onclick="saveAnswer(this)">儲存</button><span class="status"></span></div></div>
 </details>
 <hr />
 
