@@ -1806,11 +1806,11 @@ _1 = x_2(D) &gt; sum_4;                   _1 = x_2(D) &gt; sum_4;
 <p>詳細說明：是 <code>printf</code> 的 <code>%d</code>／<code>%u</code> 決定用哪一種讀法解讀那 32 個 bit；變數的型別決定 C 在運算、比較時用哪一種讀法。</p>
 </details>
 </li>
-<li><code>int x = 0x12345678; unsigned char *b = (unsigned char *)&amp;x;</code> 在本機 <code>*b</code> 是多少？換到大端序的機器上是多少？為什麼 <code>int *p = &amp;x;</code> 的 <code>*p</code> 在兩種機器上都是 <code>0x12345678</code>？<details class="answer"><summary>參考答案</summary>
+<li><code>int x = 0x12345678; unsigned char *b = (unsigned char *)&amp;x;</code> 在本機 <code>*b</code> 是多少？換到大端序的機器上是多少？各是為什麼？另外，為什麼 <code>int *p = &amp;x;</code> 的 <code>*p</code> 在兩種機器上都是 <code>0x12345678</code>？<details class="answer"><summary>參考答案</summary>
 <p>【<a href="#%E4%B8%89%E4%BD%8D%E5%85%83%E7%B5%84%E9%A0%86%E5%BA%8Fendianness">第三節</a>〈什麼時候要在意位元組順序？〉】（2026-10-16 改寫成核心關鍵格式）</p>
 <p>核心關鍵：</p>
 <ol>
-<li>本機（小端序）<code>*b</code> 是 <code>0x78</code>，大端序機器是 <code>0x12</code>。</li>
+<li>本機（小端序）<code>*b</code> 是 <code>0x78</code>，大端序機器是 <code>0x12</code>。原因（2026-11-05 補問「為什麼」後加入）：<code>b</code> 指向 <code>x</code> 的<strong>最低位址</strong>、只讀那 1 個 byte；小端序把<strong>最低位</strong>的 byte（<code>0x78</code>）放在最低位址，大端序把<strong>最高位</strong>的 byte（<code>0x12</code>）放在最低位址。</li>
 <li><code>*p</code> 兩邊都一樣，是因為每台機器都用<strong>自己那一套順序寫、再用同一套順序讀</strong>（小端把第一個 byte 當最低位，也就是從後往前拼；大端把第一個 byte 當最高位，從前往後拼），一來一回抵消。</li>
 </ol>
 <p>詳細說明：小端機器寫成 <code>78 56 34 12</code>，大端機器寫成 <code>12 34 56 78</code>。<code>*p</code> 讀 4 byte 是因為 <code>p</code> 指向 <code>int</code>；<code>p</code> 本身在 x86-64 上是 8 byte。看得出順序的只有兩種情況：用 <code>unsigned char *</code> 一個 byte 一個 byte 看，或者一台機器寫、另一種順序的機器讀（網路封包、檔案，第 5 題）。</p>
