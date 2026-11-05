@@ -43,6 +43,19 @@
 
 ---
 
+## 批改結果
+
+> 第 1 題 2026-11-05 批改；第 2～4 題待作答。程式碼另依 Linus 的「good taste」給品味意見（寫在 1-1 批改裡），品味不影響對錯判定。
+
+| 題目 | 結果 | 錯在哪／缺什麼 | 過關 |
+|---|---|---|---|
+| 1-1 | 大致對 | 輸出內容、結束狀態、`cmp` 都對；但錯誤訊息把規格的佔位符 `<…>` 照字面印出（`mycat: <nofile.txt>: <No such…>`），逐行比對時沒抓到跟 `cat` 不同；`-` 那行漏貼 `mycat` 的輸出；程式對 `stdin` 也 `fclose`，違反規格第 5 點（`./mycat - -` 第二個 `-` 會 `Bad file descriptor`） | 未過關 |
+| 1-2 | 對 | 抓到 `>` 只導 `stdout`、錯誤走 `stderr` 所以留在終端機；改成印到 `stdout` 會混進 `all.txt` | — |
+| 1-3 | 不完整 | 預測與結果（只有 `A`、`B`）對；沒解釋**為什麼**停在 `0xff`（存進有號 `char` 變 −1 ＝ `EOF`）；還誤以為「應該要有警告」（`-Wall -Wextra` 都抓不到）；沒貼 `od -c` 與 `exit=` | 未過關 |
+| 1-4 | 錯 | 只貼了終端機那次；接管線時實際是錯誤訊息跑到最前面（你的預測其實對了）。原因寫反：`2>&1` 不會讓 `stderr` 變成有緩衝，是 `stdout` 接管線變**全緩衝**、留到程式結束才寫，`stderr` 不緩衝馬上寫 | 未過關 |
+
+---
+
 ## 1. `mycat`：依序原樣輸出
 
 在 `hw1/` 寫 `mycat.c`，編譯：`gcc -Wall -Wextra mycat.c -o mycat`。
@@ -77,27 +90,266 @@ printf 'only stdin\n' | ./mycat; echo "exit=$?"
 for f in one.txt nonl.txt ff.bin; do ./mycat "$f" | cmp - "$f" && echo "$f 一樣"; done
 ```
 
-**第 1 次（YYYY-MM-DD）**
+**第 1 次（2026-11-05）**
 ```
+./mycat one.txt nonl.txt one.txt; echo "exit=$?"
+hello world
+no newline at endhello world
+exit=0
+
+cat one.txt nonl.txt one.txt; echo "exit=$?"
+hello world
+no newline at endhello world
+exit=0
+
+./mycat one.txt nofile.txt one.txt; echo "exit=$?"
+hello world
+mycat: <nofile.txt>: <No such file or directory>
+hello world
+exit=1
+
+cat one.txt nofile.txt one.txt; echo "exit=$?"
+hello world
+cat: nofile.txt: No such file or directory
+hello world
+exit=1
+
+printf 'from stdin\n' | cat one.txt - one.txt; echo "exit=$?"
+hello world
+from stdin
+hello world
+exit=0
+
+printf 'only stdin\n' | ./mycat; echo "exit=$?"
+only stdin
+exit=0
+
+printf 'only stdin\n' | cat; echo "exit=$?"
+only stdin
+exit=0
+
+./mycat adir; echo "exit=$?"
+mycat: <adir>: <Is a directory>
+exit=1
+
+cat adir; echo "exit=$?"
+cat: adir: Is a directory
+exit=1
+
+./mycat ff.bin | od -c
+0000000   A   B 377   C   D  \n
+0000006
+
+cat ff.bin | od -c
+0000000   A   B 377   C   D  \n
+0000006
+
+for f in one.txt nonl.txt ff.bin; do ./mycat "$f" | cmp - "$f" && echo "$f 一樣"; done
+one.txt 一樣
+nonl.txt 一樣
+ff.bin 一樣
+
+
+for f in one.txt nonl.txt ff.bin; do cat "$f" | cmp - "$f" && echo "$f 一樣"; done
+one.txt 一樣
+nonl.txt 一樣
+ff.bin 一樣
 ```
+
+> **批改（2026-11-05）：大致對。** 你的 `mycat.c` 我在 scratchpad 照抄編譯（`gcc -Wall -Wextra`，沒有警告）重跑過，貼上的輸出都對得上。
+>
+> - 對的地方：檔案內容原樣輸出（`nonl.txt` 接著 `hello world`）、壞檔案印錯誤後繼續、目錄印 `Is a directory`、結束狀態 0／1、`ff.bin` 的 `377` 有印出來、三個 `cmp` 都一樣。
+> - **錯誤訊息的格式跟 `cat` 不一樣**：規格的 `mycat: <檔名>: <錯誤說明>` 裡，`<…>` 是「這裡填檔名」的佔位符，不是要印的字元。你印出 `mycat: <nofile.txt>: <No such file or directory>`，`cat` 是 `cat: nofile.txt: No such file or directory`，題目要你逐行比對，這個差別就擺在兩行之間，卻沒抓到。（佔位符的寫法題目沒說清楚，這點我有責任；但比對是這題的要求。）
+> - **漏貼一行**：`printf 'from stdin\n' | ./mycat one.txt - one.txt` 只貼了 `cat` 的結果，沒貼 `mycat` 的。我替你跑了，輸出是對的：`hello world`／`from stdin`／`hello world`／`exit=0`。
+> - **違反規格第 5 點（「`stdin` 不用關」）**：參數是 `-` 時 `fp = stdin`，迴圈最後照樣 `fclose(fp)`，把 `stdin` 關掉了。題目的測試只用一次 `-`，所以沒露出來；`-` 出現兩次就壞了：
+>
+> ```text
+> $ printf 'abc\n' | ./mycat - -; echo "exit=$?"
+> mycat: <->: <Bad file descriptor>
+> abc
+> exit=1
+> $ printf 'abc\n' | cat - -; echo "exit=$?"
+> abc
+> exit=0
+> ```
+>
+>   第一個 `-` 讀完 `abc` 後把 `stdin` 關了，第二個 `-` 對已關的 `stdin` 讀，`read` 失敗、`errno` 是 `EBADF`（Bad file descriptor）。錯誤訊息排在 `abc` 前面，是 1-4 講的緩衝。（GNU `cat` 遇到第二個 `-` 時 `stdin` 已經讀到結尾，所以什麼都不印。）
+>
+> **參考答案**【[筆記第七節〈`cat`：依序把每個檔案的 byte 原樣寫到 `stdout`〉](../../html/c/寫自己的wc與cat-命令列參數、讀到EOF與errno錯誤處理.html#cat依序把每個檔案的-byte-原樣寫到-stdout)】
+>
+> 核心關鍵：
+> 1. 每一行指令的 `mycat` 輸出（含 `exit=`）都貼出來，而且跟 `cat` 除了開頭的程式名之外**逐字相同**，包括錯誤訊息的格式 `mycat: nofile.txt: No such file or directory`。
+> 2. 三個檔案的 `cmp` 都沒有差異（印出「一樣」），證明 byte 完全相同，包括 `0xff`。
+> 3. 程式符合規格全部 5 點，包括 `-` 讀 `stdin` 時不 `fclose`。
+>
+> 詳細說明：比對要拿兩邊的同一行一個字一個字看，看「大概一樣」就會漏掉 `<`、`>` 這種差別。`cmp` 沒輸出、只印「一樣」，代表兩邊 byte 完全相同；有差時它會印 `differ: byte N, line M`。
+>
+> **品味（good taste）**：照 Linus 的標準，這份程式最大的問題是**同一件事寫了兩次，而且兩份不一樣**。
+>
+> 1. **「沒有參數」被寫成特殊情況**（第 47～53 行）：它其實就是「只有一個參數 `-`」。你另外抄了一份讀 `stdin` 的迴圈，抄過去的那份**沒有 `ferror` 檢查**。這就是特殊情況的代價：兩份程式碼會慢慢長得不一樣，bug 只修到其中一份。改成 `if (argc == 1) return cat_one("-");`，走同一條路。
+> 2. **錯誤處理也寫了兩次**（第 25～28 行與第 38～41 行，一字不差）。開檔失敗和讀檔失敗的差別只在「`errno` 從哪來」，印訊息、設回傳值是同一件事。先把 `errno` 記進一個 `err`，最後只印一次。
+> 3. **先 `fopen` 再判斷是不是 `-`**（第 18～22 行）：順序反了。參數是 `-` 時你還是去開一個叫 `-` 的檔案；萬一真的有這個檔案，開出來的 `FILE *` 被 `fp = stdin` 蓋掉，永遠不會關（資源洩漏），而且 `fp` 已經變成 `stdin`，後面的 `fclose` 關到的是 `stdin`，也就是上面那個 bug。先決定 `fp` 是什麼，再開：`fp = strcmp(name, "-") == 0 ? stdin : fopen(name, "r");`，一行就不會出錯。
+> 4. **`errno = saved;` 是沒作用的一行**（第 26、39 行）：筆記的 `openfail.c` 需要它，是因為存起來之後中間呼叫了 `printf`（可能改掉 `errno`），呼叫 `perror` 之前要放回去，`perror` 是讀 `errno` 的。你的程式直接把 `saved` 傳給 `strerror`，中間什麼都沒呼叫，把 `errno` 設回它本來的值等於什麼都沒做。不知道為什麼要寫的一行就不要抄。
+> 5. **整個程式塞在 `main` 裡**：處理一個檔案是一個完整的動作，抽成函式 `cat_one()`，`main` 只剩迴圈，一眼看得出「每個參數做一次、有失敗就回 1」。
+> 6. **小地方**：註解掉的除錯碼（第 7～11 行）交作業前刪掉，版本控制會記得它們；`c` 宣告在 `main` 的最外層，其實只有讀檔時用到，可以縮到用它的地方；kernel coding style 是 tab 縮排，`if`／`while` 的 `{` 放在同一行（只有函式的 `{` 另起一行），單行的 `while` 本體不加大括號。
+>
+> 改寫後（`gcc -Wall -Wextra` 沒有警告，上面 7 行測試的結果跟 `cat` 一樣，`- -` 也對了）：
+>
+> ```c
+> #include <errno.h>
+> #include <stdio.h>
+> #include <string.h>
+>
+> /* 把一個檔案（"-" 是 stdin）原樣寫到 stdout；成功回傳 0，失敗印錯誤、回傳 1 */
+> static int cat_one(const char *name)
+> {
+> 	FILE *fp = strcmp(name, "-") == 0 ? stdin : fopen(name, "r");
+> 	int c, err = 0;
+>
+> 	if (!fp) {
+> 		err = errno;
+> 	} else {
+> 		while ((c = getc(fp)) != EOF)
+> 			putc(c, stdout);
+> 		if (ferror(fp))
+> 			err = errno;
+> 		if (fp != stdin)
+> 			fclose(fp);
+> 	}
+>
+> 	if (err) {
+> 		fprintf(stderr, "mycat: %s: %s\n", name, strerror(err));
+> 		return 1;
+> 	}
+> 	return 0;
+> }
+>
+> int main(int argc, char *argv[])
+> {
+> 	int ret = 0;
+>
+> 	if (argc == 1)
+> 		return cat_one("-");
+>
+> 	for (int i = 1; i < argc; i++)
+> 		ret |= cat_one(argv[i]);
+> 	return ret;
+> }
+> ```
+>
+> - `err` 在 `fclose` **之前**就記下來：`fclose` 也可能改 `errno`。
+> - `ret |= cat_one(...)`：只要有一次回傳 1，`ret` 就一直是 1，不必寫 `if`。
+> - 留給你想（不算這題的分）：`./mycat one.txt > /dev/full` 寫不進去（`/dev/full` 是永遠「磁碟已滿」的裝置），你的程式和上面的改寫都回傳 0；`cat` 會印 `cat: write error: No space left on device`、回傳 1。規格沒要求檢查寫入，但真正的工具要檢查：結束前 `fflush(stdout)`，失敗或 `ferror(stdout)` 就報錯。
 
 ### 1-2. 執行 `./mycat one.txt nofile.txt > out.txt; echo "exit=$?"`，貼上終端機上看到的內容，再貼上 `cat out.txt`。錯誤訊息出現在哪裡、沒出現在哪裡？為什麼？如果規格第 3 點改成「錯誤訊息印到 `stdout`」，使用者打 `./mycat *.txt > all.txt` 會遇到什麼麻煩？【筆記第五節〈結果寫 `stdout`，錯誤寫 `stderr`〉】
 
-**第 1 次（YYYY-MM-DD）**
+**第 1 次（2026-11-05）**
 ```
+mycat: <nofile.txt>: <No such file or directory>
+exit=1
+
+hello world
+
+因爲我的代碼明確的寫出
+fprintf(stderr, "mycat: <%s>: <%s>\n", argv[i], strerror(saved));
+錯誤信息出現在stderr, > 是stdout 所以沒有出現在stdout,所以沒有進入out.txt
+
+
+那這樣錯誤信息也會跟着進all.txt, 無法區分哪裏有錯誤
 ```
+
+> **批改（2026-11-05）：對。** 現象、原因、後果都講到了。只差一點不扣分：輸出的格式照 1-1，應該是 `mycat: nofile.txt: No such file or directory`，沒有 `<>`。
+>
+> **參考答案**【[筆記第五節〈結果寫 `stdout`，錯誤寫 `stderr`〉](../../html/c/寫自己的wc與cat-命令列參數、讀到EOF與errno錯誤處理.html#結果寫-stdout錯誤寫-stderr)】
+>
+> 核心關鍵：
+> 1. 錯誤訊息出現在終端機，沒有進 `out.txt`；`out.txt` 只有 `hello world`。
+> 2. 原因：`> out.txt` 只把 fd 1（`stdout`）導到檔案；錯誤是 `fprintf(stderr, …)` 寫到 fd 2，fd 2 沒被導，還是終端機。
+> 3. 改成印到 `stdout` 時，錯誤訊息會混進 `all.txt`，變成資料的一部分。
+>
+> 詳細說明：混進去之後，下一個讀 `all.txt` 的程式（或人）會把「`mycat: nofile.txt: No such file or directory`」當成某個檔案的內容；另一個麻煩是使用者在終端機上**看不到**出錯，以為全部成功。分開寫，報告乾淨，錯誤也照樣看得到。想把錯誤另存，用 `2> err.txt`。
 
 ### 1-3. 先預測：把你程式裡接 `getc` 回傳值的變數**暫時改成 `char`**，重新編譯，執行 `./mycat ff.bin | od -c; echo "exit=$?"`。輸出會有幾個 byte、是哪幾個？寫下預測後再執行，貼上結果與編譯有沒有警告。為什麼？做完改回 `int`。【筆記第三節〈錯誤示範：用 `char` 接 `getchar()`〉】
 
-**第 1 次（YYYY-MM-DD）**
+**第 1 次（2026-11-05）**
 ```
+預測: 2個byte, A,B
+
+改成char後沒有警告
+AB%
+應該要有警告,畢竟是int轉char有號
 ```
+
+> **批改（2026-11-05）：不完整。** 預測（2 個 byte：`A`、`B`）對，結果也對；但題目問的「為什麼」沒有回答，關於警告的判斷也錯了。
+>
+> - **沒有解釋為什麼停在 `0xff`**：這是這題的重點，見下方核心關鍵 3。
+> - **「應該要有警告」是錯的**：`-Wall -Wextra` 都不管 `int` 存進 `char` 這種縮小轉換，筆記第三節實測過「兩個都沒有警告：`-Wall` 抓不到這個錯」。要多加 `-Wconversion` 才抓得到。我用改成 `char` 的版本實測：
+>
+> ```text
+> $ gcc -Wall -Wextra -Wconversion charbug.c -o cb2
+> charbug.c:14:29: warning: conversion from ‘int’ to ‘char’ may change value [-Wconversion]
+>    14 |                 while ((c = getc(fp)) != EOF)
+> ```
+>
+>   `-Wconversion` 不在 `-Wall`／`-Wextra` 裡，是因為它在一般程式碼裡會噴出大量「其實沒問題」的警告。所以這個 bug 主要還是要靠「`getc` 的回傳值一律用 `int` 接」這個習慣防。
+> - **沒有照題目的指令跑**：題目是 `./mycat ff.bin | od -c; echo "exit=$?"`，你貼的 `AB%` 是直接印到終端機的結果（`%` 是 zsh 提示「最後沒有換行」的記號，不是程式印的）。照題目跑是：
+>
+> ```text
+> 0000000   A   B
+> 0000002
+> exit=0
+> ```
+>
+>   `exit=0`：程式以為檔案讀完了，`ferror` 是假，不會報錯。這個 bug 很難發現，就是因為它**安靜地少輸出**。
+>
+> **參考答案**【[筆記第三節〈錯誤示範：用 `char` 接 `getchar()`〉](../../html/c/寫自己的wc與cat-命令列參數、讀到EOF與errno錯誤處理.html#錯誤示範用-char-接-getchar)】
+>
+> 核心關鍵：
+> 1. 輸出只有 2 個 byte：`A`、`B`（`od` 顯示 `0000002`），`exit=0`。
+> 2. 沒有警告：`-Wall -Wextra` 抓不到這個錯。
+> 3. 為什麼：`getc` 讀到 `0xff` 回傳 255，存進 x86-64 上**有號**的 `char` 只留 8 位元 `11111111`，讀成 −1；跟 `EOF`（−1）比較時相等，迴圈以為讀完了，提早結束。
+>
+> 詳細說明：`int` 接時，255 是 `0x000000ff`、`EOF` 是 `0xffffffff`，兩者分得開；存進 `char` 後兩者都是 `11111111`，再也分不出來。在 `char` 是無號的平台（例如 ARM 上的 Linux，或 `-funsigned-char`），反過來 `EOF` 存進去變 255，永遠不等於 `EOF`，變成無窮迴圈。
 
 ### 1-4. 先預測：`./mycat one.txt nofile.txt one.txt 2>&1 | cat` 印出的三行，順序會跟在終端機直接執行 `./mycat one.txt nofile.txt one.txt` 一樣嗎？寫下預測後兩個都執行，貼上結果。為什麼一樣（或不一樣）？【筆記第五節〈輸出順序為什麼會變〉】
 
-**第 1 次（YYYY-MM-DD）**
+**第 1 次（2026-11-05）**
 ```
+第一個是nofile的錯誤
+第二個是 one.txt
+第三個是 one.txt
+
+hello world
+mycat: <nofile.txt>: <No such file or directory>
+hello world
+
+我的預測錯了,因爲現在stderr轉到stdout, 都是到緩存裏了,而且hello world\n 標準輸出是行緩存,hello world就先輩打出去了
 ```
+
+> **批改（2026-11-05）：錯。** 你的**預測其實是對的**，接管線時錯誤訊息確實排在最前面；錯的是後面的實驗和解釋。
+>
+> - **只貼了一次的結果**：貼的 `hello world`／錯誤／`hello world` 是在終端機直接執行的那次。題目要兩個都貼，你可能把直接執行的結果當成管線的結果了，才會以為預測錯了。我用你的程式跑管線那一行：
+>
+> ```text
+> $ ./mycat one.txt nofile.txt one.txt 2>&1 | cat
+> mycat: <nofile.txt>: <No such file or directory>
+> hello world
+> hello world
+> ```
+>
+> - **解釋錯了兩處**：
+>   - 「`stderr` 轉到 `stdout`，都到緩存裡了」：`2>&1` 是 **shell 在 fd 層**做的事，讓 fd 2 指向 fd 1 指的那個管線；程式裡 `stderr` 這個 `FILE` 的緩衝方式沒有改變，還是**不緩衝**，`fprintf(stderr, …)` 一呼叫就寫出去。
+>   - 「標準輸出是行緩存」：只有接**終端機**時才是行緩衝。這裡 `stdout` 接的是管線（`| cat`），是**全緩衝**：兩個 `hello world` 都留在緩衝區，等到 `return`（或緩衝區滿）才一次寫出去，所以排在錯誤訊息後面。
+>
+> **參考答案**【[筆記第五節〈輸出順序為什麼會變：`stdout` 有緩衝、`stderr` 沒有〉](../../html/c/寫自己的wc與cat-命令列參數、讀到EOF與errno錯誤處理.html#輸出順序為什麼會變stdout-有緩衝stderr-沒有)】
+>
+> 核心關鍵：
+> 1. 不一樣：直接執行是 `hello world`／錯誤／`hello world`；接管線時錯誤訊息跑到最前面，接著兩行 `hello world`。
+> 2. 接管線時 `stdout` 是**全緩衝**，兩行 `hello world` 留在緩衝區，程式結束時才寫出去。
+> 3. `stderr` **不緩衝**，錯誤訊息當場就寫出去；`2>&1` 只是讓兩者寫到同一個管線，不會改變誰有緩衝。
+> 4. 直接執行時 `stdout` 接終端機，是**行緩衝**，每個 `\n` 就寫，所以順序跟程式執行的順序一樣。
+>
+> 詳細說明：兩種情況下，各自資料流的內容都一樣，變的只有交錯的順序。所以比對輸出時 `stdout`、`stderr` 要分開比（例如 `2>err.txt`），不要靠它們的相對順序。想讓順序固定，可以每次寫錯誤前 `fflush(stdout)`；GNU `cat` 根本不用 stdio 的緩衝，直接 `write`，所以順序永遠照程式執行的順序。
 
 ---
 

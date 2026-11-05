@@ -677,7 +677,8 @@ MD_LINK = re.compile(r"\[([^\]]+)\]\(([^)\s]+\.md)(#[^)\s]*)?\)")
 
 def reading_link():
     """首頁的「繼續閱讀」按鈕（2026-11-03 使用者指定）：讀學習進度「目前位置」表的「閱讀進度」那一列，
-    取第一個連到筆記 .md 的連結，換成 html/ 底下的 .html（錨點不變）。那一列沒有連結就不放按鈕。"""
+    取第一個連到 .md 的連結（筆記，或作業 README.md／quiz.md：2026-11-05 起指向最後的課程行為），
+    換成 html/ 底下的 .html（錨點不變）。那一列沒有連結就不放按鈕。"""
     if not PROGRESS.is_file():
         return ""
     row = next((l for l in PROGRESS.read_text(encoding="utf-8").split("\n") if l.startswith("| 閱讀進度 |")), "")

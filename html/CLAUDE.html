@@ -72,6 +72,7 @@ C／Rust，長期目標是成為 Linux kernel 維護者。路線定義在
 <li>記在 <code>learning/學習進度.md</code>：「目前位置」表的「閱讀進度」列只放最新位置，第五節「閱讀進度紀錄」每次追加一列（日期、念到哪、來源是使用者回報還是 Claude 從提問推斷）。推斷的位置要標明「推斷」，等使用者確認。</li>
 <li>「閱讀進度」列的位置要寫成<strong>可點的連結</strong>（連到該筆記該節的錨點，連 <code>.md</code>），而且放在這一列的<strong>第一個</strong>連結：
 HTML 首頁的「📖 繼續閱讀」按鈕就是讀這個連結產生的（2026-11-03 使用者指定）。位置一變就連同連結一起換，改完重跑 <code>build_html.py</code>。</li>
+<li><strong>連結指向使用者「最後的課程行為」所在的位置</strong>（2026-11-05 使用者指定）：不只是讀筆記，做作業、寫自我測驗也算。例如讀完筆記、做完作業第 1 題，就連到作業 <code>README.md</code> 第 1 題的錨點（<code>small-project/&lt;課程資料夾&gt;/README.md#…</code>）；在寫自我測驗就連到 <code>quiz.md</code> 那一題。每次批改作業或測驗、判定自我練習過關時，都要順便檢查這個連結要不要往前移。</li>
 </ul>
 </li>
 </ol>
@@ -103,6 +104,17 @@ Claude 負責建立資料夾與題目說明，<strong>不要替使用者寫作�
 <h3 id="批改">批改</h3>
 <ul>
 <li>作業：讀使用者在 <code>small-project/</code> 裡的程式碼與各題作答框，能跑的就實際編譯執行驗證。</li>
+<li><strong>批改程式碼以 Linus Torvalds 的「good taste」為準則</strong>（2026-11-05 使用者指定；作業、自我測驗、複習、追問裡貼的程式碼都適用）：除了「能不能跑、結果對不對」，還要就程式碼的品味直接批評，並<strong>提出具體的修改意見</strong>（附改寫後的程式碼片段，能編譯的就實際編譯驗證）。檢查重點：
+<ul>
+<li><strong>消除特殊情況</strong>：用更好的資料結構或寫法，讓邊界情況變成一般情況，而不是多加 <code>if</code> 去補（Linus 的經典例子：用指標的指標 <code>**pp</code> 刪除鏈結串列節點，第一個節點不必特判）；</li>
+<li><strong>簡單、直接、短</strong>：函式只做一件事、巢狀不超過三層、早點 <code>return</code>/<code>goto out</code> 處理錯誤，不要層層包；</li>
+<li><strong>資料結構優先於程式碼</strong>：先問資料怎麼放，好的資料結構會讓程式碼自然變簡單；</li>
+<li><strong>不過度設計</strong>：不寫用不到的抽象、參數、彈性；解決真實的問題，不解決想像中的問題；</li>
+<li><strong>錯誤處理與正確性</strong>：系統呼叫與函式庫的回傳值要檢查，<code>errno</code>、短讀短寫、資源釋放都要顧到；</li>
+<li><strong>風格</strong>：命名清楚、不用匈牙利命名法，可參考 Linux kernel coding style（<code>Documentation/process/coding-style.rst</code>）。</li>
+<li>語氣照「就事論事」：哪裡品味不好就明講、講清楚為什麼不好；但<strong>品味問題不改變對錯判定</strong>——成績表的「結果」仍以題目要求與核心關鍵判定，品味意見另外寫在批改裡（例如加一段「<strong>品味（good taste）</strong>」），不因此扣成「不完整」。</li>
+</ul>
+</li>
 <li>批改前先分清楚：答不出來的部分是<strong>教過的</strong>（批改指出錯在哪，參考答案標明筆記哪一節）還是<strong>沒教過的</strong>
 （直接補教，並把補教內容寫進該課筆記）。沒教過的東西不能當成「答錯」或「不完整」來批。</li>
 <li>自我測驗：照「Claude 的角色」第 3 點——逐題對／錯／不完整，直接附參考答案。</li>
